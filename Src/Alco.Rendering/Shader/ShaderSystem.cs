@@ -122,15 +122,27 @@ public sealed class ShaderSystem : IDisposable
             _pinnedPrograms.Add(program);
         }
 
+        return BuildModulesInfo(_renderingSystem, _modules.Target, moduleName, specializationArgs, defines, program);
+    }
+
+    /// <summary>
+    /// Builds the engine shader-modules view of one linked slang program: bind-group
+    /// validation against the device limit, per-stage <see cref="ShaderModule"/>s and
+    /// the VS+FS / CS-only variant split. Shared with the material composer, whose
+    /// programs come from template×surface composition instead of a single module.
+    /// </summary>
+    internal static ShaderModulesInfo BuildModulesInfo(
+        RenderingSystem renderingSystem, SlangCodeTarget target,
+        string name, string[] specializationArgs, string[] defines, SlangProgram program)
+    {
         // Device-limit check (set contiguity is already enforced by the reflection reader).
         ShaderReflectionUtility.ValidateBindGroupLayouts(
-            program.Reflection, _renderingSystem.GraphicsDevice.MaxBindGroups, moduleName);
+            program.Reflection, renderingSystem.GraphicsDevice.MaxBindGroups, name);
 
-        SlangCodeTarget target = _modules.Target;
         ShaderModule? vertex = null, fragment = null, compute = null;
         for (int i = 0; i < program.EntryPoints.Count; i++)
         {
-            (string name, int stage) = program.EntryPoints[i];
+            (string entryName, int stage) = program.EntryPoints[i];
             ShaderStage engineStage = SlangCompileSession.SlangStageToEngine(stage);
             ShaderModule module = new(
                 engineStage,
@@ -139,7 +151,7 @@ public sealed class ShaderSystem : IDisposable
                 // slang names every SPIR-V entry point "main" regardless of the
                 // source function; DXIL containers and MSL libraries keep the
                 // declared names (same rule the beachhead relies on).
-                target.EntryPointName(name))
+                target.EntryPointName(entryName))
             {
                 // DXIL/MSL passthrough cannot reflect [numthreads]; carry it for compute.
                 WorkgroupSize = engineStage == ShaderStage.Compute
@@ -158,20 +170,20 @@ public sealed class ShaderSystem : IDisposable
                     compute = module;
                     break;
                 default:
-                    throw new NotSupportedException($"Stage {stage} of entry point '{name}' is not supported.");
+                    throw new NotSupportedException($"Stage {stage} of entry point '{entryName}' is not supported.");
             }
         }
 
         if (vertex is { } vs && fragment is { } fs)
         {
-            return ShaderModulesInfo.CreateGraphics(moduleName, specializationArgs, vs, fs, program.Reflection);
+            return ShaderModulesInfo.CreateGraphics(name, specializationArgs, vs, fs, program.Reflection);
         }
         if (compute is { } cs)
         {
-            return ShaderModulesInfo.CreateCompute(moduleName, specializationArgs, cs, program.Reflection);
+            return ShaderModulesInfo.CreateCompute(name, specializationArgs, cs, program.Reflection);
         }
         throw new InvalidOperationException(
-            $"slang module '{moduleName}' defines no usable vertex/fragment/compute entry point combination.");
+            $"slang module '{name}' defines no usable vertex/fragment/compute entry point combination.");
     }
 
     private void OnModulesInvalidated(IReadOnlyList<string> affectedModules)

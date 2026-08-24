@@ -1,15 +1,22 @@
 // file "voxelize.slang" - module "voxelize"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
-// Lib declarations are public so importing modules see them.
+// Compute triangle voxelization for the voxel GI clipmap, generic over the
+// material's surface: the pass template owns the [shader] compute entry point
+// and the material compiler composes it with each mesh's surface module
+// (composite + link-time specialization), so custom materials contribute their
+// own albedo/emissive to GI. The surface's IVoxelFeedSurface methods receive
+// an explicit LOD - compute has no implicit derivatives.
+//
+// Converted from Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl (Phase 2
+// migration). Bindings within a set are assigned in declaration order and are
+// compiler-owned. Lib declarations are public so importing modules see them.
 
 #language slang 2025
 module voxelize;
 
 import alco_rendering_core;
 import alco_world3d_voxel_common;
+import alco_world3d_surface;
 
 // Compute triangle voxelization for the voxel GI clipmap: one dispatch per mesh
 // per clipmap level, one thread per triangle and z-slab (y dimension = 8 slabs
@@ -33,6 +40,7 @@ struct VoxelizeConstants
 };
 
 // alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
+// The surface's textures/params live in the surface module's own set-2 blocks.
 cbuffer _pass : register(b0, space1)
 {
     RWStructuredBuffer<uint> _vertices;
@@ -41,12 +49,11 @@ cbuffer _pass : register(b0, space1)
 // passes; the byte layout is identical, while Vulkan atomics require the target
 // expression to be a direct runtime-array element rather than a vector member.
     RWStructuredBuffer<uint> _attrOut;
-    Texture2D _albedoTexture;
-    SamplerState _albedoTextureSampler;
-    Texture2D _emissiveTexture;
-    SamplerState _emissiveTextureSampler;
     RWStructuredBuffer<uint> _pageTable;
 };
+
+// The mip the voxel feed samples: averages sub-triangle detail into the voxel.
+static const float VoxelTextureLod = 3.0;
 
 [[vk::push_constant]] VoxelizeConstants constants;
 
@@ -127,7 +134,7 @@ bool TriBoxOverlap(float3 boxCenter, float3 boxHalf, float3 v0, float3 v1, float
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void MainCS(uint3 dispatchId : SV_DispatchThreadID)
+public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint triangleIndex = dispatchId.x;
     if (triangleIndex >= (uint)constants.params2.x)
@@ -178,10 +185,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         return;
     }
 
-    // Albedo and emissive textures are sampled per-voxel at the point where the
-    // voxel center projects onto the triangle (barycentric UV), not at the
-    // triangle centroid. This preserves texture detail across large triangles
-    // that span many voxels. Alpha-test also uses the per-voxel UV.
+    // The surface feed is sampled per-voxel at the point where the voxel center
+    // projects onto the triangle (barycentric UV), not at the triangle
+    // centroid. This preserves texture detail across large triangles that span
+    // many voxels. The alpha-test also uses the per-voxel UV.
     float2 uv0 = float2(asfloat(_vertices[i0 * strideUints + 6]), asfloat(_vertices[i0 * strideUints + 7]));
     float2 uv1 = float2(asfloat(_vertices[i1 * strideUints + 6]), asfloat(_vertices[i1 * strideUints + 7]));
     float2 uv2 = float2(asfloat(_vertices[i2 * strideUints + 6]), asfloat(_vertices[i2 * strideUints + 7]));
@@ -225,15 +232,30 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     float u = 1.0 - v - w;
                     float2 voxelUV = uv0 * u + uv1 * v + uv2 * w;
 
-                    float4 albedoSample = _albedoTexture.SampleLevel(_albedoTextureSampler, voxelUV, 3.0);
-                    if (alphaCutoff > 0.0 && albedoSample.a * constants.baseColor.a < alphaCutoff)
+                    // The voxel feed sees the projected point on the triangle,
+                    // the face normal and the barycentric UV; tangents are not
+                    // fetched, so the feed gets a placeholder (it must not read
+                    // tangentWS - it consumes base color and emissive only).
+                    SurfaceInput surfaceInput;
+                    surfaceInput.worldPos = w0 * u + w1 * v + w2 * w;
+                    surfaceInput.normalWS = N;
+                    surfaceInput.tangentWS = float4(1, 0, 0, 1);
+                    surfaceInput.uv = voxelUV;
+                    surfaceInput.baseColorFactor = constants.baseColor;
+                    surfaceInput.metallicRoughnessAO = float4(0, 0, 0, 0);
+                    surfaceInput.emissiveFactor = constants.emissive;
+                    surfaceInput.alphaCutoff = alphaCutoff;
+
+                    T surface = T();
+                    float4 baseColor = surface.GetVoxelBaseColor(surfaceInput, VoxelTextureLod);
+                    if (alphaCutoff > 0.0 && baseColor.a < alphaCutoff)
                     {
                         continue;
                     }
 
-                    float3 albedo = albedoSample.rgb * constants.baseColor.rgb;
-                    float3 emissiveSample = _emissiveTexture.SampleLevel(_emissiveTextureSampler, voxelUV, 3.0).rgb;
-                    float emissiveQ = saturate(dot(constants.emissive.rgb * emissiveSample, float3(0.2126, 0.7152, 0.0722)) / 8.0);
+                    float3 albedo = baseColor.rgb;
+                    float3 emissive = surface.GetVoxelEmissive(surfaceInput, VoxelTextureLod);
+                    float emissiveQ = saturate(dot(emissive, float3(0.2126, 0.7152, 0.0722)) / 8.0);
 
                     uint3 logicalCoord = uint3(x, y, z);
                     uint pageEntry = _pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];

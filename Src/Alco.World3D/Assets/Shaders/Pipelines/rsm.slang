@@ -1,8 +1,11 @@
 // Reflective shadow map (RSM) pass template for the voxel GI's sun-bounce
 // injection (CRYENGINE SVOTI style). Slang counterpart of
-// Shaders/Pipelines/Rendering/PBR/Rsm.hlsl: the material compiler #includes
-// this file into a generated wrapper translation unit (pass defines apply)
-// and instantiates the generic pass functions with the material's surface type.
+// Shaders/Pipelines/Rendering/PBR/Rsm.hlsl.
+//
+// A pass template is a self-describing module: it owns the [shader] entry
+// points, generic over the surface type; the material compiler composes this
+// module with a material's surface module (composite + link-time
+// specialization), no generated wrapper code.
 //
 // Renders the scene from the sun's point of view - the selected CSM cascade -
 // into albedo + world-normal color targets, so the GI cone trace can sample
@@ -19,7 +22,7 @@
 #language slang 2025
 module rsm;
 
-import surface;
+import alco_world3d_surface;
 import pbr_instance;
 
 public struct RsmVertex
@@ -78,7 +81,8 @@ float3 EncodeSRGB(float3 color)
     return lerp(hi, lo, step(color, float3(0.0031308, 0.0031308, 0.0031308)));
 }
 
-public RsmV2F RsmMainVS<T : ISurface>(RsmVertex input)
+[shader("vertex")]
+public RsmV2F MainVS<T : ISurface>(RsmVertex input)
 {
     RsmV2F output;
     PbrInstance inst = _instances[input.instanceID];
@@ -106,10 +110,11 @@ public RsmV2F RsmMainVS<T : ISurface>(RsmVertex input)
     return output;
 }
 
-public void RsmMainPS<T : ISurface>(
+[shader("fragment")]
+public void MainPS<T : ISurface>(
     RsmV2F input,
-    out float4 albedoRT,
-    out float4 normalRT)
+    out float4 albedoRT : SV_TARGET0,
+    out float4 normalRT : SV_TARGET1)
 {
     PbrInstance inst = _instances[input.instanceID];
 

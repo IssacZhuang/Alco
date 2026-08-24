@@ -8,12 +8,11 @@ namespace Alco.World3D;
 /// never blocks on bulk texture IO (textures are resolved separately at warm-up or first
 /// use, then bound into the compiled materials via <see cref="MaterialCompiler.BindTextures"/>).
 /// Per-pass GPU materials are derived from this description by <see cref="MaterialCompiler"/>
-/// from the policies of the registered <see cref="IMaterialPass"/>es.
+/// from the policies of the registered <see cref="MaterialPassDesc"/>s.
 /// <br/>A material naming no <see cref="SurfaceShader"/> uses the built-in PbrStandard
 /// surface (glTF metallic-roughness) and reads the flat factor fields plus the four
 /// standard texture slots; a material naming a surface shader evaluates that surface
-/// instead, with its own texture slots (keys of <see cref="Textures"/>, e.g.
-/// <c>noiseMap</c> for a shader resource <c>_noiseMap</c>) and specialization
+/// instead, with its own texture slots (keys of <see cref="Textures"/>) and specialization
 /// <see cref="Defines"/>.
 /// </summary>
 public sealed class MaterialAsset
@@ -39,10 +38,12 @@ public sealed class MaterialAsset
 
     /// <summary>
     /// The texture slots of the material: material slot name → texture path relative to
-    /// the asset root. Slot names are shader resource names without the leading
-    /// underscore (<c>albedo</c> binds <c>_albedoTexture</c>); the built-in surface reads
-    /// the four standard slots (see <see cref="StandardSurfaceSlotsUtility"/>), custom surfaces
-    /// the slots they declare. Never loaded by the parser.
+    /// the asset root. A slot name is the shader resource name without the leading
+    /// underscore (<c>albedoTexture</c> binds <c>_albedoTexture</c>, <c>noiseMap</c>
+    /// binds <c>_noiseMap</c>); the built-in surface declares the four standard slots
+    /// (<c>albedoTexture</c>, <c>normalTexture</c>, <c>metallicRoughnessTexture</c>,
+    /// <c>emissiveTexture</c>), custom surfaces the slots they declare. Unknown slot
+    /// names are rejected at compile time. Never loaded by the parser.
     /// </summary>
     public IReadOnlyDictionary<string, string> Textures { get; init; } = new Dictionary<string, string>();
 

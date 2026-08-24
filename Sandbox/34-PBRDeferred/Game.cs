@@ -20,8 +20,9 @@ using SandboxUtils;
 /// tracing and hybrid reflections).
 /// <br/>Static geometry (the whole glTF scene, or the non-animated primitives)
 /// is recorded once into render bundles (one per shadow cascade plus one for the
-/// G-buffer pass) and replayed every frame; the game owns the scene materials
-/// created via the pipeline's material factory. Only animated objects are drawn
+/// G-buffer pass) and replayed every frame; scene materials are data-only
+/// <see cref="MaterialAsset"/>s compiled per pass by the pipeline's
+/// <see cref="MaterialCompiler"/>. Only animated objects are drawn
 /// immediately each frame.
 /// <br/>Loads the Amazon Lumberyard Bistro exterior scene (glTF) when present
 /// in Assets/Bistro; --interior loads the Bistro interior, --rungholt the
@@ -80,21 +81,21 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its material as an
+    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its material asset as an
     /// <see cref="IGBufferRenderable"/> for the GBufferRenderer registry.
     /// </summary>
     private sealed class ModelRenderable : IGBufferRenderable
     {
         private readonly ModelDrawItem _item;
-        private readonly ModelMaterial _material;
+        private readonly MaterialAsset _asset;
         private readonly GraphicsMaterial _gbufferMaterial;
         private readonly Func<Vector3> _getEmissiveFactor;
 
-        public ModelRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial gbufferMaterial,
+        public ModelRenderable(ModelDrawItem item, MaterialAsset asset, GraphicsMaterial gbufferMaterial,
             Func<Vector3> getEmissiveFactor)
         {
             _item = item;
-            _material = material;
+            _asset = asset;
             _gbufferMaterial = gbufferMaterial;
             _getEmissiveFactor = getEmissiveFactor;
         }
@@ -103,10 +104,10 @@ public class Game : GameEngine
         Mesh IGBufferRenderable.Mesh => _item.Mesh;
         GraphicsMaterial IGBufferRenderable.Material => _gbufferMaterial;
         Matrix4x4 IGBufferRenderable.WorldMatrix => _item.World;
-        Vector4 IGBufferRenderable.BaseColor => _material.BaseColorFactor;
-        Vector4 IGBufferRenderable.MetallicRoughnessAO => new(_material.MetallicFactor, _material.RoughnessFactor, 1.0f, 0.0f);
+        Vector4 IGBufferRenderable.BaseColor => _asset.BaseColorFactor;
+        Vector4 IGBufferRenderable.MetallicRoughnessAO => new(_asset.MetallicFactor, _asset.RoughnessFactor, 1.0f, 0.0f);
         Vector3 IGBufferRenderable.EmissiveFactor => _getEmissiveFactor();
-        float IGBufferRenderable.AlphaCutoff => GetAlphaCutoff(_material);
+        float IGBufferRenderable.AlphaCutoff => ModelMaterialAdapter.ResolveAlphaCutoff(_asset);
     }
 
     /// <summary>
@@ -116,15 +117,15 @@ public class Game : GameEngine
     private sealed class ModelShadowRenderable : IShadowRenderable
     {
         private readonly ModelDrawItem _item;
-        private readonly ModelMaterial _material;
+        private readonly MaterialAsset _asset;
         private readonly GraphicsMaterial _shadowMaterial;
         private readonly GraphicsMaterial? _rsmMaterial;
 
-        public ModelShadowRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial shadowMaterial,
+        public ModelShadowRenderable(ModelDrawItem item, MaterialAsset asset, GraphicsMaterial shadowMaterial,
             GraphicsMaterial? rsmMaterial = null)
         {
             _item = item;
-            _material = material;
+            _asset = asset;
             _shadowMaterial = shadowMaterial;
             _rsmMaterial = rsmMaterial;
         }
@@ -134,10 +135,10 @@ public class Game : GameEngine
         Mesh IShadowRenderable.Mesh => _item.Mesh;
         GraphicsMaterial IShadowRenderable.Material => _shadowMaterial;
         Matrix4x4 IShadowRenderable.WorldMatrix => _item.World;
-        float IShadowRenderable.AlphaCutoff => GetAlphaCutoff(_material);
-        float IShadowRenderable.BaseColorAlpha => _material.BaseColorFactor.W;
+        float IShadowRenderable.AlphaCutoff => ModelMaterialAdapter.ResolveAlphaCutoff(_asset);
+        float IShadowRenderable.BaseColorAlpha => _asset.BaseColorFactor.W;
         GraphicsMaterial? IShadowRenderable.RsmMaterial => _rsmMaterial;
-        Vector4 IShadowRenderable.RsmBaseColor => _material.BaseColorFactor;
+        Vector4 IShadowRenderable.RsmBaseColor => _asset.BaseColorFactor;
     }
 
     /// <summary>
@@ -147,15 +148,15 @@ public class Game : GameEngine
     private sealed class ModelGlassRenderable : IForwardRenderable
     {
         private readonly ModelDrawItem _item;
-        private readonly ModelMaterial _material;
+        private readonly MaterialAsset _asset;
         private readonly GraphicsMaterial _glassMaterial;
         private readonly Func<float> _getTransmission;
 
-        public ModelGlassRenderable(ModelDrawItem item, ModelMaterial material, GraphicsMaterial glassMaterial,
+        public ModelGlassRenderable(ModelDrawItem item, MaterialAsset asset, GraphicsMaterial glassMaterial,
             Func<float> getTransmission)
         {
             _item = item;
-            _material = material;
+            _asset = asset;
             _glassMaterial = glassMaterial;
             _getTransmission = getTransmission;
         }
@@ -164,8 +165,8 @@ public class Game : GameEngine
         Mesh IForwardRenderable.Mesh => _item.Mesh;
         GraphicsMaterial IForwardRenderable.Material => _glassMaterial;
         Matrix4x4 IForwardRenderable.WorldMatrix => _item.World;
-        Vector4 IForwardRenderable.BaseColor => _material.BaseColorFactor;
-        Vector4 IForwardRenderable.MetallicRoughnessAO => new(_material.MetallicFactor, _material.RoughnessFactor, 1.0f, 0.0f);
+        Vector4 IForwardRenderable.BaseColor => _asset.BaseColorFactor;
+        Vector4 IForwardRenderable.MetallicRoughnessAO => new(_asset.MetallicFactor, _asset.RoughnessFactor, 1.0f, 0.0f);
         Vector3 IForwardRenderable.EmissiveFactor => Vector3.Zero;
         float IForwardRenderable.TransmissionFactor => _getTransmission();
     }
@@ -182,18 +183,15 @@ public class Game : GameEngine
 
     private readonly List<SceneObject> _objects = new();
 
-    // Scene materials owned by the game (created via the renderer's material factory).
-    private GraphicsMaterial? _proceduralMaterial;
-    private GraphicsMaterial? _proceduralShadowMaterial;
-    private GraphicsMaterial? _proceduralRsmMaterial;
+    // The procedural scene's single material asset (built-in surface + checker albedo).
+    private MaterialAsset? _proceduralAsset;
     // Every World3D pipeline shader of this sandbox is compiled through the
     // Slang front end instead of the engine's DXC toolchain (engine built-ins
     // such as BuiltInAssets.Shader_Blit stay on the engine path).
     private MaterialCompiler? _materialCompiler;
-    private GraphicsMaterial[]? _modelMaterials;
-    private GraphicsMaterial[]? _modelShadowMaterials;
-    private GraphicsMaterial[]? _modelRsmMaterials;
-    private GraphicsMaterial[]? _modelGlassMaterials;
+    // One material asset per glTF material: the data-only descriptors the
+    // MaterialCompiler compiles into per-pass GPU materials (compiler-owned).
+    private MaterialAsset[]? _modelAssets;
 
     // Forward transparency renderer for glass materials.
     private RGNode_Forward? _forwardRenderer;
@@ -430,9 +428,9 @@ public class Game : GameEngine
 
         // Every World3D shader below is a slang module compiled through the
         // shared ShaderSystem; plain modules load through the asset system and
-        // the four material-pass templates compose with the built-in PbrStandard
-        // surface through the MaterialCompiler.
-        _materialCompiler = new MaterialCompiler(RenderingSystem, AssetSystem);
+        // the material-pass templates compose with each material asset's surface
+        // through the MaterialCompiler — the renderers register their passes on it.
+        _materialCompiler = new MaterialCompiler(RenderingSystem);
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
@@ -446,13 +444,11 @@ public class Game : GameEngine
         _environment = _preset.Environment;
         _environment.VolumetricLightEnabled = true;
 
-        _gbufferRenderer = new GBufferRenderer(
-            RenderingSystem,
-            _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer));
+        _gbufferRenderer = new GBufferRenderer(RenderingSystem, _materialCompiler);
 
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
-            _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_ShadowDepth),
+            _materialCompiler,
             _preset.ShadowLayout,
             _environment.ShadowDataBuffer);
 
@@ -463,16 +459,8 @@ public class Game : GameEngine
         // below and disabled in lockstep with the injection intensity.
         if (_giEnabled)
         {
-            _rsmLayout = RenderingSystem.GraphicsDevice.CreateAttachmentLayout(
-                new AttachmentLayoutDescriptor(
-                    [
-                        new ColorAttachment(PixelFormat.RGBA8Unorm),
-                        new ColorAttachment(PixelFormat.RGBA8Unorm),
-                    ],
-                    new DepthAttachment(PixelFormat.Depth32Float),
-                    "pbr_rsm_pass"));
-            _shadowRenderer.EnableRsm(
-                _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_Rsm), _rsmLayout);
+            _rsmLayout = RGNode_RsmPass.CreateLayout(RenderingSystem.GraphicsDevice, "pbr_rsm_pass");
+            _shadowRenderer.EnableRsm(_rsmLayout);
         }
 
         // Materials created by the renderer bind this camera; the sandbox
@@ -509,7 +497,7 @@ public class Game : GameEngine
             RenderingSystem,
             _preset.Graph,
             _preset.PostChain,
-            _materialCompiler.GetTemplateShader(World3DAssetPaths.Shader_ForwardGlass),
+            _materialCompiler,
             _environment.LightingDataBuffer,
             _environment.PointLightBuffer,
             _preset.ShadowMap);
@@ -572,63 +560,46 @@ public class Game : GameEngine
 
         if (_modelScene != null)
         {
-            // One game-owned G-buffer material per glTF material. Textures still
+            // One material asset per glTF material — data-only descriptors the
+            // MaterialCompiler compiles per pass on first request. Textures still
             // streaming in start as the fallbacks and are synced in PrepareModelFrame.
-            _modelMaterials = new GraphicsMaterial[_modelScene.Materials.Count];
-            // One cutout shadow material per glTF material so alpha-tested meshes
-            // (foliage, fences, etc.) cast correctly shaped shadows.
-            _modelShadowMaterials = new GraphicsMaterial[_modelScene.Materials.Count];
-            // RSM materials mirror the cutout shadow materials (same albedo
-            // slot) for the GI sun-bounce pass; null per material when the RSM
-            // is disabled (GI off), which skips the item in the RSM pass.
-            _modelRsmMaterials = _rsmLayout != null
-                ? new GraphicsMaterial[_modelScene.Materials.Count]
-                : null;
-            // Glass materials for transparent BLEND glass (rendered in forward pass).
-            _modelGlassMaterials = new GraphicsMaterial[_modelScene.Materials.Count];
-            for (int i = 0; i < _modelMaterials.Length; i++)
+            _modelAssets = new MaterialAsset[_modelScene.Materials.Count];
+            for (int i = 0; i < _modelAssets.Length; i++)
             {
-                ModelMaterial material = _modelScene.Materials[i];
-                _modelMaterials[i] = _gbufferRenderer.CreateMaterial(
-                    material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
-                    material.EmissiveTexture, material.DoubleSided, $"model_{material.Name}");
-                _modelShadowMaterials[i] = _shadowRenderer.CreateShadowCutoutMaterial(
-                    material.AlbedoTexture, material.DoubleSided, $"model_shadow_{material.Name}");
-                if (_modelRsmMaterials != null)
-                {
-                    _modelRsmMaterials[i] = _shadowRenderer.CreateRsmMaterial(
-                        material.AlbedoTexture, material.DoubleSided, $"model_rsm_{material.Name}");
-                }
-                _modelGlassMaterials[i] = _forwardRenderer.CreateGlassMaterial(
-                    material.AlbedoTexture, material.NormalTexture, material.MetallicRoughnessTexture,
-                    material.EmissiveTexture, material.DoubleSided, $"model_glass_{material.Name}");
+                _modelAssets[i] = ModelMaterialAdapter.ToAsset(_modelScene.Materials[i]);
             }
-            _modelStreaming = !_modelScene.LoadingCompletion.IsCompleted;
+            // Streaming may have completed during startup already (fast disk-cache
+            // hits), so LoadingCompletion.IsCompleted is not a reliable initial
+            // state here: always enter the sync loop and let PrepareModelFrame
+            // clear the flag once it has rebound the final textures.
+            _modelStreaming = true;
 
-            // Register model draw items: glass → forward renderer, everything else → GBuffer + shadow.
+            // Register model draw items: the pass registry routes blend materials
+            // to the forward glass pass, everything else to G-buffer + shadow (+RSM).
             {
                 IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
-                IReadOnlyList<ModelMaterial> materials = _modelScene.Materials;
 
                 for (int i = 0; i < drawItems.Count; i++)
                 {
                     ModelDrawItem item = drawItems[i];
-                    ModelMaterial material = materials[item.MaterialIndex];
-                    if (IsGlassMaterial(material))
+                    MaterialAsset asset = _modelAssets[item.MaterialIndex];
+                    GraphicsMaterial? glass = _materialCompiler.TryGet(asset, RGNode_Forward.PassId);
+                    if (glass != null)
                     {
                         _forwardRenderer.Add(new ModelGlassRenderable(
-                            item, material, _modelGlassMaterials![item.MaterialIndex],
-                            () => _glassTransmission));
+                            item, asset, glass, () => _glassTransmission));
                     }
                     else
                     {
                         // The emissive boost is resolved at bundle record time so
                         // the Point Lights toggle / Emissive Boost slider take
                         // effect on the next re-record (MarkStaticBundleDirty).
-                        _gbufferRenderer.Add(new ModelRenderable(item, material, _modelMaterials![item.MaterialIndex],
-                            () => material.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
-                        _shadowRenderer.Add(new ModelShadowRenderable(item, material, _modelShadowMaterials![item.MaterialIndex],
-                            _modelRsmMaterials?[item.MaterialIndex]));
+                        _gbufferRenderer.Add(new ModelRenderable(item, asset,
+                            _materialCompiler.Get(asset, GBufferRenderer.PassId),
+                            () => asset.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
+                        _shadowRenderer.Add(new ModelShadowRenderable(item, asset,
+                            _materialCompiler.Get(asset, ShadowRenderer.PassId),
+                            _materialCompiler.TryGet(asset, ShadowRenderer.RsmPassId)));
                     }
                 }
             }
@@ -641,17 +612,23 @@ public class Game : GameEngine
             _groundMesh = CreateGroundMesh(40, 10);
             BuildScene();
             _objectNames = _objects.Select(o => o.Mesh.Name).ToArray();
-            _proceduralMaterial = _gbufferRenderer.CreateMaterial(_checkerTexture, null, null, null, name: "checker");
-            _proceduralShadowMaterial = _shadowRenderer.CreateShadowMaterial(name: "checker_shadow");
-            _proceduralRsmMaterial = _rsmLayout != null
-                ? _shadowRenderer.CreateRsmMaterial(_checkerTexture, name: "checker_rsm")
-                : null;
+            // One material asset for all procedural objects: the built-in
+            // PbrStandard surface with the checker texture on the albedo slot.
+            // The compiler owns the compiled per-pass materials.
+            _proceduralAsset = new MaterialAsset { Name = "checker" };
+            GraphicsMaterial proceduralMaterial = _materialCompiler.Get(_proceduralAsset, GBufferRenderer.PassId);
+            GraphicsMaterial proceduralShadowMaterial = _materialCompiler.Get(_proceduralAsset, ShadowRenderer.PassId);
+            GraphicsMaterial? proceduralRsmMaterial = _materialCompiler.TryGet(_proceduralAsset, ShadowRenderer.RsmPassId);
+            _materialCompiler.BindTextures(_proceduralAsset, new Dictionary<string, Texture2D?>
+            {
+                ["albedoTexture"] = _checkerTexture,
+            });
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
             {
-                obj.GBufferMaterial = _proceduralMaterial;
-                obj.ShadowMaterial = _proceduralShadowMaterial;
-                obj.RsmMaterial = _proceduralRsmMaterial;
+                obj.GBufferMaterial = proceduralMaterial;
+                obj.ShadowMaterial = proceduralShadowMaterial;
+                obj.RsmMaterial = proceduralRsmMaterial;
                 _gbufferRenderer.Add(obj);
                 _shadowRenderer.Add(obj);
             }
@@ -663,10 +640,10 @@ public class Game : GameEngine
         {
             _voxelGI = new RGNode_VoxelGI(
                 RenderingSystem,
+                _materialCompiler,
                 new VoxelGiShaders
                 {
                     Clear = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelClear),
-                    Voxelize = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_Voxelize),
                     Inject = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelInject),
                     Mip = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelMip),
                     MipChain = AssetSystem.Load<Shader>(World3DAssetPaths.Shader_VoxelMipChain),
@@ -781,6 +758,7 @@ public class Game : GameEngine
         MainPresenter.OnResize += OnMainWindowResize;
 
         AssetSystem.OnHotReload += OnShaderHotReload;
+        _materialCompiler.Composer.ShaderInvalidated += OnComposedShaderInvalidated;
     }
 
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
@@ -873,6 +851,10 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         AssetSystem.OnHotReload -= OnShaderHotReload;
+        if (_materialCompiler != null)
+        {
+            _materialCompiler.Composer.ShaderInvalidated -= OnComposedShaderInvalidated;
+        }
         // Pass content providers are not owned by the graph (see the Content
         // ownership note on RGNode_GeometryPass/RGNode_ShadowPass): dispose them here.
         _gbufferRenderer.Dispose();
@@ -895,14 +877,32 @@ public class Game : GameEngine
             return;
         }
 
-        _gbufferRenderer.MarkStaticBundleDirty();
-        _shadowRenderer.MarkStaticBundleDirty();
-        _forwardRenderer?.MarkStaticBundleDirty();
+        MarkMaterialBundlesDirty();
 
         string shaderName = Path.GetFileName(filename);
         _shaderReloadNotice = $"Shader reloaded: {shaderName}";
         _shaderReloadNoticeTimer = 3.0f;
         Console.WriteLine($"[Hot Reload] {shaderName}");
+    }
+
+    /// <summary>
+    /// Called when a module-backed composed shader (pass template × material surface)
+    /// was reloaded in place by the material composer: the static bundles replaying
+    /// the old pipeline must be re-recorded.
+    /// </summary>
+    private void OnComposedShaderInvalidated(Shader shader)
+    {
+        MarkMaterialBundlesDirty();
+        _shaderReloadNotice = $"Shader reloaded: {shader.Name}";
+        _shaderReloadNoticeTimer = 3.0f;
+        Console.WriteLine($"[Hot Reload] {shader.Name}");
+    }
+
+    private void MarkMaterialBundlesDirty()
+    {
+        _gbufferRenderer.MarkStaticBundleDirty();
+        _shadowRenderer.MarkStaticBundleDirty();
+        _forwardRenderer?.MarkStaticBundleDirty();
     }
 
     protected void OnMainWindowResize(uint2 size)
@@ -1347,27 +1347,6 @@ public class Game : GameEngine
         return sceneObject.SpinSpeed == 0 && sceneObject.FloatSpeed == 0;
     }
 
-    private static float GetAlphaCutoff(ModelMaterial material)
-    {
-        return material.AlphaMode switch
-        {
-            GltfAlphaMode.Mask => material.AlphaCutoff,
-            GltfAlphaMode.Blend => 0.5f,
-            _ => 0.0f,
-        };
-    }
-
-    /// <summary>
-    /// Identify whether a glTF material should be rendered as transparent glass
-    /// (forward pass) rather than opaque/cutout (G-buffer pass). Only BLEND-mode
-    /// materials whose name contains "Glass" are treated as glass.
-    /// </summary>
-    private static bool IsGlassMaterial(ModelMaterial material)
-    {
-        return material.AlphaMode == GltfAlphaMode.Blend &&
-               material.Name.Contains("Glass", StringComparison.OrdinalIgnoreCase);
-    }
-
     /// <summary>Register the scene geometry into the voxel GI clipmap.</summary>
     private void RegisterVoxelMeshes()
     {
@@ -1384,20 +1363,22 @@ public class Game : GameEngine
             {
                 ModelDrawItem item = drawItems[i];
                 ModelMaterial material = materials[item.MaterialIndex];
-                // The emissive factor is registered unboosted; the boost is a
-                // runtime cbuffer scale at injection time.
+                MaterialAsset asset = _modelAssets![item.MaterialIndex];
+                // The surface feeds the voxelization; the emissive factor is
+                // registered unboosted (the boost is a runtime cbuffer scale at
+                // injection time).
                 int meshHandle = _voxelGI.RegisterMesh(
                     item.Mesh,
                     (uint)VertexPBR.SizeInBytes,
                     new VoxelGiBounds(item.LocalBoundsMin, item.LocalBoundsMax),
-                    material.AlbedoTexture,
-                    material.EmissiveTexture);
+                    asset,
+                    ModelMaterialAdapter.TextureSlotsOf(material));
                 _voxelGI.AddStaticInstance(
                     meshHandle,
                     item.World,
-                    material.BaseColorFactor,
-                    material.EmissiveFactor,
-                    GetAlphaCutoff(material));
+                    asset.BaseColorFactor,
+                    asset.EmissiveFactor,
+                    ModelMaterialAdapter.ResolveAlphaCutoff(asset));
             }
             return;
         }
@@ -1445,8 +1426,8 @@ public class Game : GameEngine
                     mesh,
                     (uint)VertexPBR.SizeInBytes,
                     GetProceduralBounds(mesh),
-                    _checkerTexture,
-                    null);
+                    _proceduralAsset,
+                    new Dictionary<string, Texture2D?> { ["albedoTexture"] = _checkerTexture });
         }
     }
 
@@ -1481,29 +1462,16 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Copy the current (possibly still streaming) model textures into the materials.</summary>
+    /// <summary>Rebind the current (possibly still streaming) model textures on every pass material of each asset.</summary>
     private void SyncModelMaterials()
     {
         IReadOnlyList<ModelMaterial> materials = _modelScene!.Materials;
         for (int i = 0; i < materials.Count; i++)
         {
-            ModelMaterial material = materials[i];
-            _gbufferRenderer.SetMaterialTextures(_modelMaterials![i],
-                material.AlbedoTexture, material.NormalTexture,
-                material.MetallicRoughnessTexture, material.EmissiveTexture);
-            _shadowRenderer.SetShadowCutoutMaterialTextures(_modelShadowMaterials![i], material.AlbedoTexture);
-            // rsm.slang binds the same _albedoTexture slot as the cutout shadow
-            // shader, so streaming albedo rebinds cover the RSM materials too.
-            if (_modelRsmMaterials != null)
-            {
-                _shadowRenderer.SetShadowCutoutMaterialTextures(_modelRsmMaterials[i], material.AlbedoTexture);
-            }
-            if (_modelGlassMaterials != null)
-            {
-                _forwardRenderer?.SetGlassMaterialTextures(_modelGlassMaterials[i],
-                    material.AlbedoTexture, material.NormalTexture,
-                    material.MetallicRoughnessTexture, material.EmissiveTexture);
-            }
+            // One bind covers every pass material compiled from the asset
+            // (G-buffer, shadow, RSM, glass): streamed values replace the
+            // fallback textures.
+            _materialCompiler!.BindTextures(_modelAssets![i], ModelMaterialAdapter.TextureSlotsOf(materials[i]));
         }
         _forwardRenderer?.MarkStaticBundleDirty();
     }

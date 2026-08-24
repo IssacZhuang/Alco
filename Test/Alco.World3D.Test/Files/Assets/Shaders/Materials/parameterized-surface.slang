@@ -10,7 +10,7 @@
 #language slang 2025
 module parameterized_surface;
 
-import surface;
+import alco_world3d_surface;
 
 // The engine binds the per-frame global render data buffer to every material;
 // x = time, y = deltaTime, z = sinTime, w = cosTime. Pure UBO blocks come
@@ -41,18 +41,18 @@ cbuffer _materialParams : register(b1, space2)
 
 public struct Surface : ISurface
 {
-    public float4 GetBaseColor(SurfaceInput input)
+    public override float4 GetBaseColor(SurfaceInput input)
     {
         return _albedoTexture.Sample(_albedoTextureSampler, input.uv) * input.baseColorFactor;
     }
 
-    public float3 GetNormalTS(SurfaceInput input)
+    public override float3 GetNormalTS(SurfaceInput input)
     {
         float2 normalXY = _normalTexture.Sample(_normalTextureSampler, input.uv).rg * 2.0 - 1.0;
         return float3(normalXY, sqrt(saturate(1.0 - dot(normalXY, normalXY))));
     }
 
-    public float3 GetMetallicRoughnessAO(SurfaceInput input)
+    public override float3 GetMetallicRoughnessAO(SurfaceInput input)
     {
         float4 mrTex = _metallicRoughnessTexture.Sample(_metallicRoughnessTextureSampler, input.uv);
         return float3(
@@ -61,7 +61,7 @@ public struct Surface : ISurface
             input.metallicRoughnessAO.z);
     }
 
-    public float3 GetEmissive(SurfaceInput input)
+    public override float3 GetEmissive(SurfaceInput input)
     {
         // Sinusoidal pulse, optionally modulated by world-space bands so the
         // pulse travels across the object (bandFrequency > 0).
@@ -71,9 +71,5 @@ public struct Surface : ISurface
             : 1.0;
         float pulse = saturate(sin(phase * 6.2831853) * 0.5 + 0.5) * band;
         return pulseColor * pulseIntensity * pulse;
-    }
-
-    public void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv)
-    {
     }
 }

@@ -354,6 +354,14 @@ Responsibilities:
 
 ### 4.5 Material system
 
+> **Status: done (slang branch).** The text splice and regex packing are gone.
+> `MaterialComposer` (Alco.Rendering) composes pass templates with surface
+> modules via generic entry-point specialization; `MaterialCompiler`
+> (World3D) is an open pass registry (`RegisterPass`/`MaterialPassDesc`).
+> One deviation from the sketch below: surface resources use set-scoped
+> cbuffer blocks in space2 (the engine-wide block convention), not
+> `ParameterBlock<T>`. See `docs/MaterialSystem.md`.
+
 `ShaderParameterSet`, `Material`, `GraphicsMaterial`, `ComputeMaterial`,
 `MaterialInstance` are **unchanged** — they consume `ShaderReflectionInfo`, whose
 shape is preserved (D4). Changes are confined to composition:

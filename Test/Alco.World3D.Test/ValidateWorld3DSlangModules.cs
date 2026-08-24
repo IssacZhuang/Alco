@@ -109,13 +109,15 @@ public class ValidateWorld3DSlangModules
             string fileName = Path.GetFileName(relative);
 
             // Import-only trees: the beachhead surface/material modules and
-            // pass templates (generic — no [shader] entries of their own, the
-            // material compiler instantiates them) and the Phase-2 lib
-            // modules converted from .slang.
+            // pass templates (surface-generic — the material compiler
+            // instantiates them with a concrete surface type) and the Phase-2
+            // lib modules converted from .slang. voxelize is a compute pass
+            // template over IVoxelFeedSurface, same treatment.
             if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase) ||
                 relative.StartsWith("Materials/", StringComparison.OrdinalIgnoreCase) ||
                 fileName.StartsWith("alco-world3d-", StringComparison.OrdinalIgnoreCase) ||
-                fileName is "gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang")
+                fileName is "gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang"
+                    or "voxelize.slang")
             {
                 continue;
             }
@@ -160,6 +162,45 @@ public class ValidateWorld3DSlangModules
             }
         }
         _ = file;
+    }
+
+    // Pass templates compose with the built-in surface module: template module,
+    // companion surface module, companion type, per-entry value-specialization
+    // argument sets (shadow-depth's fragment entry takes <let AlphaTest : bool>).
+    private static readonly (string Template, string[][] ValueArgSets)[] PassTemplates =
+    [
+        ("gbuffer", [[]]),
+        ("rsm", [[]]),
+        ("glass", [[]]),
+        ("shadow_depth", [["false"], ["true"]]),
+        ("voxelize", [[]]),
+    ];
+
+    [Test]
+    public void PassTemplates_ComposeWithBuiltinSurface()
+    {
+        using SlangModuleSystem system = new(new SlangCompilerOptions
+        {
+            Resolver = CreateResolver(),
+        }, null);
+
+        foreach ((string template, string[][] valueArgSets) in PassTemplates)
+        {
+            foreach (string[] valueArgs in valueArgSets)
+            {
+                using SlangProgram program = system.GetComposedProgram(
+                    template, "pbr_standard", "Surface", valueArgs);
+                string caseName = valueArgs.Length == 0
+                    ? template
+                    : $"{template}<{string.Join(",", valueArgs)}>";
+                Assert.That(program.EntryPoints, Has.Count.GreaterThan(0),
+                    $"{caseName}: the composition defines no entry points");
+                foreach (ReadOnlyMemory<byte> code in program.EntryCode)
+                {
+                    Assert.That(code.Length, Is.GreaterThan(4), $"{caseName}: empty SPIR-V blob");
+                }
+            }
+        }
     }
 
     public static IEnumerable<TestCaseData> LibModuleCases()

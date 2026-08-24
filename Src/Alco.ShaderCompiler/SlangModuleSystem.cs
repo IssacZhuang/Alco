@@ -256,6 +256,69 @@ public sealed partial class SlangModuleSystem : IDisposable
         }
     }
 
+    /// <summary>
+    /// Links (or restores) a composed program: the template module owns the (generic)
+    /// [shader(...)] entry points, the companion (surface) module contributes the
+    /// specialization type — the material-composition path, which needs no generated
+    /// wrapper module. Both modules load through <see cref="GetOrLoadModule(string, IReadOnlyList{string}?)"/>
+    /// (define permutations apply to both). Every generic entry point takes
+    /// <paramref name="companionTypeName"/> as its first specialization argument;
+    /// <paramref name="valueSpecializationArgs"/> feed the entries' value parameters
+    /// in entry order (e.g. the shadow template's AlphaTest flag).
+    /// </summary>
+    public SlangProgram GetComposedProgram(
+        string templateModuleName, string companionModuleName,
+        string companionTypeName, IReadOnlyList<string> valueSpecializationArgs,
+        IReadOnlyList<string>? defines = null)
+    {
+        SlangModuleHandle template = GetOrLoadModule(templateModuleName, defines);
+        SlangModuleHandle companion = GetOrLoadModule(companionModuleName, defines);
+        lock (_lock)
+        {
+            ModuleEntry templateEntry = _modules[ModuleKey(templateModuleName, defines)];
+            ModuleEntry companionEntry = _modules[ModuleKey(companionModuleName, defines)];
+
+            string logicalName = $"{templateEntry.LogicalName}+{companionEntry.LogicalName}";
+            string key = ComposedProgramCacheKey(
+                ModuleKey(templateModuleName, defines), templateEntry.IrHash,
+                ModuleKey(companionModuleName, defines), companionEntry.IrHash,
+                companionTypeName, valueSpecializationArgs);
+            if (_programs.TryGetValue(key, out SlangProgram? cached))
+                return cached;
+
+            if (_cacheDirectory != null && TryReadProgram(key, out SlangCachedProgram? payload))
+            {
+                SlangProgram restored = SlangProgram.FromCache(logicalName, payload);
+                TrackProgramLocked(restored);
+                _programs[key] = restored;
+                return restored;
+            }
+
+            SlangProgram program = _session.CompileComposed(
+                template, companion, companionTypeName, valueSpecializationArgs);
+            HarvestUniformMembers(program);
+            program.Owner = this;
+            TrackProgramLocked(program);
+            _programs[key] = program;
+
+            if (_cacheDirectory != null)
+                WriteProgram(key, program);
+            return program;
+        }
+    }
+
+    /// <summary>
+    /// The members of a module's named uniform block, read from the module's own layout —
+    /// no entry points, no link: the material-parameter probe. Empty when the module
+    /// declares no such block.
+    /// </summary>
+    public List<SlangUniformMember> GetModuleUniformMembers(
+        string moduleName, string cbufferName, IReadOnlyList<string>? defines = null)
+    {
+        SlangModuleHandle module = GetOrLoadModule(moduleName, defines);
+        return _session.GetModuleUniformMembers(module, cbufferName);
+    }
+
     private SlangProgram GetProgramLocked(
         string moduleName, ModuleEntry entry, string entriesKey,
         Func<IReadOnlyList<string>, SlangProgram> compile, IReadOnlyList<string> specializationArgs)
@@ -485,6 +548,34 @@ public sealed partial class SlangModuleSystem : IDisposable
         writer.Write(entriesKey);
         writer.Write(specArgs.Count);
         foreach (string arg in specArgs)
+            writer.Write(arg);
+        writer.Flush();
+        return Convert.ToHexString(XxHash3.Hash(stream.ToArray()));
+    }
+
+    // The composed (template × companion) key carries BOTH modules' identities and IR
+    // hashes plus the specialization arguments: either side changing must produce a
+    // distinct program.
+    private string ComposedProgramCacheKey(
+        string templateKey, string templateIrHash, string companionKey, string companionIrHash,
+        string companionTypeName, IReadOnlyList<string> valueSpecArgs)
+    {
+        using MemoryStream stream = new();
+        using var writer = new System.IO.BinaryWriter(stream);
+        writer.Write(ProgramCacheKeyVersion);
+        writer.Write(BuildTag);
+        writer.Write(_options.OptimizationLevel);
+        writer.Write((int)_options.Target);
+        writer.Write(_options.EffectiveTargetProfile);
+        writer.Write("composed");
+        writer.Write(templateKey);
+        writer.Write(templateIrHash);
+        writer.Write(companionKey);
+        writer.Write(companionIrHash);
+        writer.Write("all");
+        writer.Write(companionTypeName);
+        writer.Write(valueSpecArgs.Count);
+        foreach (string arg in valueSpecArgs)
             writer.Write(arg);
         writer.Flush();
         return Convert.ToHexString(XxHash3.Hash(stream.ToArray()));

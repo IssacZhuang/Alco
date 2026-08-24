@@ -61,7 +61,7 @@
 - When writing code, if there are any ambiguities or unclear requirements, always ask for the user's intent and wait for confirmation before proceeding. Do not guess or make assumptions.
 
 ## Shader Guidelines
-- Read `Src/Alco.Rendering/Assets/Shaders/Libs/Core.hlsli` before editing shaders (PBR-specific shader libs live under `Src/Alco.World3D/Assets/Shaders/`).
+- Shaders are Slang modules (see `docs/SlangCodingStandard.md`); read the material/surface contract `Src/Alco.World3D/Assets/Shaders/Libs/alco-world3d-surface.slang` and `docs/MaterialSystem.md` before editing shaders (PBR-specific shader libs live under `Src/Alco.World3D/Assets/Shaders/`).
 - All comments in shaders must be English.
 - Run `dotnet test --filter "ValidateShader"` to test shaders after editing.
 

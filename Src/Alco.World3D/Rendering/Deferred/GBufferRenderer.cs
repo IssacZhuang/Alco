@@ -40,10 +40,12 @@ public interface IGBufferRenderable
 }
 
 /// <summary>
-/// A G-buffer content provider of the deferred PBR pipeline. Holds the G-buffer
-/// shaders, material factory methods and a registry of <see cref="IGBufferRenderable"/>
-/// objects. Static objects are baked into an internal render bundle; dynamic objects
-/// are drawn immediately each frame. The owning <see cref="RGNode_GeometryPass"/> calls
+/// A G-buffer content provider of the deferred PBR pipeline. Registers the
+/// "gbuffer" material pass on the <see cref="MaterialCompiler"/> (the
+/// <c>gbuffer.slang</c> template composed per material asset) and holds a
+/// registry of <see cref="IGBufferRenderable"/> objects. Static objects are
+/// baked into an internal render bundle; dynamic objects are drawn immediately
+/// each frame. The owning <see cref="RGNode_GeometryPass"/> calls
 /// <see cref="OnRender"/> automatically inside its open G-buffer pass (register via
 /// <see cref="RGNode_GeometryPass.Content"/>).
 /// <br/>The renderer does <b>not</b> own the G-buffer render texture, attachment layout
@@ -51,12 +53,13 @@ public interface IGBufferRenderable
 /// </summary>
 public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
 {
+    /// <summary>The material-pass identifier this renderer registers ("gbuffer").</summary>
+    public const string PassId = "gbuffer";
+
     /// <inheritdoc />
     public bool IsEnabled { get; set; } = true;
 
     private readonly RenderingSystem _rendering;
-    private readonly Shader _shader;
-    private Texture2D? _flatNormalTexture;
     private CameraPerspectiveBuffer? _camera;
 
     // Registered renderables split by static / dynamic.
@@ -77,18 +80,24 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     private readonly PbrInstanceBatch _dynamicBatch = new();
 
     /// <summary>
-    /// Create the G-buffer renderer with the given shader.
+    /// Create the G-buffer renderer and register its material pass on the compiler:
+    /// opaque and alpha-tested materials participate, blend materials are left to
+    /// the forward pass.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="gbufferShader">The G-buffer shader (GBuffer.slang).</param>
-    public GBufferRenderer(
-        RenderingSystem rendering,
-        Shader gbufferShader)
+    /// <param name="compiler">The material compiler the "gbuffer" pass registers on.</param>
+    public GBufferRenderer(RenderingSystem rendering, MaterialCompiler compiler)
     {
         _rendering = rendering;
-        _shader = gbufferShader;
         _staticBundle = rendering.CreateSubRenderContext("pbr_gbuffer_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_gbuffer_dynamic");
+        compiler.RegisterPass(new MaterialPassDesc
+        {
+            Id = PassId,
+            TemplateModule = "gbuffer",
+            CreateMaterial = (asset, shader) => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer"),
+            Accepts = asset => asset.AlphaMode != MeshAlphaMode.Blend,
+        });
     }
 
     /// <summary>
@@ -234,26 +243,11 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     // ── Material factory ──
 
     /// <summary>
-    /// Create a G-buffer material with per-material albedo, normal, metallic-roughness
-    /// and emissive textures. The renderer applies the pass-mandated state (depth write,
-    /// rasterizer, texture slots, camera binding); the caller owns the material and must
-    /// dispose it.
-    /// </summary>
-    public GraphicsMaterial CreateMaterial(
-        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
-        Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_gbuffer_material")
-    {
-        GraphicsMaterial material = CreateMaterial(_shader, doubleSided, name);
-        SetMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
-        return material;
-    }
-
-    /// <summary>
     /// Create a G-buffer material from a pass-template shader already composed with its
     /// surface (see <see cref="MaterialCompiler"/>): applies the pass-mandated state —
     /// reversed-infinite-depth write, cull mode from double-sidedness and the camera
-    /// binding — and leaves every texture slot to the caller. The caller owns the
-    /// material and must dispose it.
+    /// binding — and leaves every texture slot to the caller. Called back by the
+    /// registered pass descriptor; the compiler owns the returned material.
     /// </summary>
     /// <param name="shader">The composed G-buffer template shader.</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
@@ -273,43 +267,6 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
         return material;
     }
 
-    /// <summary>
-    /// (Re)bind the texture slots of a G-buffer material created by
-    /// <see cref="CreateMaterial(Texture2D?, Texture2D?, Texture2D?, Texture2D?, bool, string)"/>,
-    /// applying the same fallback textures.
-    /// Use when textures stream in asynchronously after the material was created.
-    /// </summary>
-    public void SetMaterialTextures(
-        GraphicsMaterial material, Texture2D? albedoTexture, Texture2D? normalTexture,
-        Texture2D? metallicRoughnessTexture, Texture2D? emissiveTexture)
-    {
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        material.SetTexture("_normalTexture", normalTexture ?? GetOrCreateFlatNormalTexture());
-        material.SetTexture("_metallicRoughnessTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
-        material.SetTexture("_emissiveTexture", emissiveTexture ?? _rendering.TextureBlack);
-    }
-
-    /// <summary>
-    /// The 1x1 flat-normal fallback texture of the standard surface's normal slot
-    /// (see <see cref="StandardSurfaceSlotsUtility.Normal"/>).
-    /// </summary>
-    public Texture2D FlatNormalTexture => GetOrCreateFlatNormalTexture();
-
-    /// <summary>
-    /// Lazily create the 1x1 flat-normal fallback texture: (128,128,255) decodes to the
-    /// identity tangent-space normal.
-    /// </summary>
-    private Texture2D GetOrCreateFlatNormalTexture()
-    {
-        if (_flatNormalTexture == null)
-        {
-            byte[] data = [128, 128, 255, 255];
-            _flatNormalTexture = _rendering.CreateTexture2D(data, 1, 1,
-                new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "pbr_flat_normal"));
-        }
-        return _flatNormalTexture;
-    }
-
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
@@ -319,7 +276,6 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
             _dynamicBundle.Dispose();
             _staticBatch.Dispose();
             _dynamicBatch.Dispose();
-            _flatNormalTexture?.Dispose();
         }
     }
 }

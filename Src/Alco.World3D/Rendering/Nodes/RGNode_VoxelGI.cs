@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using Alco.Graphics;
 
 using Alco.Rendering;
+using Alco.ShaderCompiler;
 
 namespace Alco.World3D;
 
@@ -126,14 +127,15 @@ public enum VoxelGiDebugMode
 
 /// <summary>
 /// The complete set of shaders required by <see cref="RGNode_VoxelGI"/>.
-/// Load each from its Slang module and pass it to the constructor.
+/// Load each from its Slang module and pass it to the constructor. The triangle
+/// voxelization shader is not part of this set: it composes per material surface
+/// through the <see cref="MaterialCompiler"/> (the <c>voxelize.slang</c> template ×
+/// each registered asset's surface).
 /// </summary>
 public readonly struct VoxelGiShaders
 {
     /// <summary>The voxel clear shader (voxel-clear.slang).</summary>
     public required Shader Clear { get; init; }
-    /// <summary>The triangle voxelization shader (voxelize.slang).</summary>
-    public required Shader Voxelize { get; init; }
     /// <summary>The direct light injection shader (voxel-inject.slang).</summary>
     public required Shader Inject { get; init; }
     /// <summary>The radiance mip downsample shader (voxel-mip.slang).</summary>
@@ -281,12 +283,26 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         public bool Index16Bit;
     }
 
+    /// <summary>
+    /// The composed voxelize feed of one material asset: the compute material of the
+    /// <c>voxelize</c> template × the asset's surface, the surface's reflected texture
+    /// slots (resource names) and the packed <c>_materialParams</c> buffer when the
+    /// surface declares one.
+    /// </summary>
+    private sealed class VoxelizeFeed
+    {
+        public required ComputeMaterial Material;
+        public required IReadOnlyList<string> TextureSlots;
+        public GraphicsBuffer? ParamsBuffer;
+    }
+
     /// <summary>A registered GI material view of shared mesh geometry.</summary>
     private sealed class MeshRegistration
     {
         public required MeshGeometry Geometry;
-        public Texture2D? Albedo;
-        public Texture2D? Emissive;
+        public required VoxelizeFeed Feed;
+        /// <summary>Streamed textures by material texture slot (slot name = resource name without the leading underscore).</summary>
+        public required IReadOnlyDictionary<string, Texture2D?> Textures;
     }
 
     /// <summary>A persistent structural instance stored in the static clipmap.</summary>
@@ -313,12 +329,15 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     private readonly RenderingSystem _rendering;
+    private readonly MaterialCompiler _materialCompiler;
     private readonly GPUDevice _device;
     // One-off geometry upload buffer used by CreateGeometry; per-frame compute
     // dispatches record into the graph's shared command buffer instead.
     private readonly GPUCommandBuffer _commandBuffer;
     private readonly ComputeMaterial _clearMaterial;
-    private readonly ComputeMaterial _voxelizeMaterial;
+    // The voxelize feed composes per material asset surface (see RegisterMesh);
+    // the built-in surface's feed is keyed by the compiler's shared DefaultAsset.
+    private readonly Dictionary<MaterialAsset, VoxelizeFeed> _voxelizeFeeds = new();
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
     private readonly ComputeMaterial _mipChainMaterial;
@@ -720,6 +739,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// Create the voxel GI renderer.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
+    /// <param name="compiler">The material compiler composing the voxelize feed per registered material surface.</param>
     /// <param name="shaders">The complete set of voxel GI compute shaders.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
     /// <param name="height">The initial G-buffer height in pixels.</param>
@@ -731,6 +751,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// <exception cref="ArgumentException">The voxel resolution or trace-resolution scale is invalid.</exception>
     public RGNode_VoxelGI(
         RenderingSystem rendering,
+        MaterialCompiler compiler,
         VoxelGiShaders shaders,
         uint width,
         uint height,
@@ -745,6 +766,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         ValidateTraceResolutionScale(traceResolutionScale);
 
         _rendering = rendering;
+        _materialCompiler = compiler;
         _device = rendering.GraphicsDevice;
         _resolution = resolution;
         _mipCount = (int)MathF.Log2(resolution) + 1;
@@ -756,7 +778,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
         _commandBuffer = _device.CreateCommandBuffer("voxel_gi");
         _clearMaterial = rendering.CreateComputeMaterial(shaders.Clear);
-        _voxelizeMaterial = rendering.CreateComputeMaterial(shaders.Voxelize);
         _injectMaterial = rendering.CreateComputeMaterial(shaders.Inject);
         _mipMaterial = rendering.CreateComputeMaterial(shaders.Mip);
         _mipChainMaterial = rendering.CreateComputeMaterial(shaders.MipChain);
@@ -783,7 +804,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         _clearMaterial.SetBuffer("_data", _dataBuffer);
-        _voxelizeMaterial.SetBuffer("_data", _dataBuffer);
         _injectMaterial.SetBuffer("_data", _dataBuffer);
         _mipMaterial.SetBuffer("_data", _dataBuffer);
         _mipChainMaterial.SetBuffer("_data", _dataBuffer);
@@ -1063,15 +1083,18 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// <param name="mesh">The single-submesh source mesh.</param>
     /// <param name="vertexStrideBytes">The vertex stride; position, normal and UV must be the first attributes.</param>
     /// <param name="localBounds">The mesh bounds before the instance transform.</param>
-    /// <param name="albedo">The albedo texture, or null for white.</param>
-    /// <param name="emissive">The emissive texture, or null for black.</param>
+    /// <param name="material">The material asset whose surface feeds the voxelization;
+    /// null selects the built-in PbrStandard surface.</param>
+    /// <param name="textures">The streamed textures by material texture slot (slot name =
+    /// shader resource name without the leading underscore); slots missing or still
+    /// streaming bind the pattern fallbacks at dispatch time.</param>
     /// <returns>A mesh-material handle accepted by static and dynamic instance methods.</returns>
     public int RegisterMesh(
         Mesh mesh,
         uint vertexStrideBytes,
         in VoxelGiBounds localBounds,
-        Texture2D? albedo,
-        Texture2D? emissive)
+        MaterialAsset? material = null,
+        IReadOnlyDictionary<string, Texture2D?>? textures = null)
     {
         if (!_geometryByMesh.TryGetValue((mesh, vertexStrideBytes), out MeshGeometry? geometry))
         {
@@ -1083,10 +1106,61 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _meshes.Add(new MeshRegistration
         {
             Geometry = geometry,
-            Albedo = albedo,
-            Emissive = emissive,
+            Feed = GetVoxelizeFeed(material),
+            Textures = textures ?? EmptyTextures,
         });
         return _meshes.Count - 1;
+    }
+
+    private static readonly IReadOnlyDictionary<string, Texture2D?> EmptyTextures =
+        new Dictionary<string, Texture2D?>();
+
+    /// <summary>
+    /// The composed voxelize feed of one material asset, cached per asset: the
+    /// <c>voxelize</c> template composed with the asset's surface, with the shared
+    /// per-frame <c>_data</c> buffer and the surface's parameter block (when declared)
+    /// bound once. The surface's texture slots are enumerated here and bound per
+    /// dispatch from each registration's streamed textures.
+    /// </summary>
+    private VoxelizeFeed GetVoxelizeFeed(MaterialAsset? asset)
+    {
+        MaterialAsset key = asset ?? _materialCompiler.DefaultAsset;
+        if (_voxelizeFeeds.TryGetValue(key, out VoxelizeFeed? cached))
+        {
+            return cached;
+        }
+
+        Shader shader = _materialCompiler.ComposeSurfaceComputeShader(asset, "voxelize");
+        ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
+        var material = _rendering.CreateComputeMaterial(shader);
+        material.SetBuffer("_data", _dataBuffer);
+
+        var feed = new VoxelizeFeed
+        {
+            Material = material,
+            TextureSlots = MaterialComposer.EnumerateTextureSlots(reflection, MaterialCompiler.SurfaceResourceSet),
+        };
+
+        // The surface's parameter block, packed from the asset's values (same
+        // policy as the graphics passes: an asset with parameters but no block
+        // is an asset error).
+        string moduleName = MaterialCompiler.SurfaceModuleName(asset);
+        IReadOnlyList<SlangUniformMember> layout = asset != null
+            ? _materialCompiler.Composer.GetParamsLayout(moduleName, defines: asset.Defines)
+            : [];
+        if (layout.Count > 0 && reflection.TryGetResourceId(MaterialComposer.DefaultParamsBlockName, out _))
+        {
+            feed.ParamsBuffer = _materialCompiler.Composer.PackParamsBuffer(layout, asset!.Parameters, key.Name);
+            material.SetBuffer(MaterialComposer.DefaultParamsBlockName, feed.ParamsBuffer);
+        }
+        else if (asset != null && asset.Parameters.Count > 0)
+        {
+            throw new InvalidDataException(
+                $"Material '{asset.Name}' has parameters, but its surface '{asset.SurfaceShader}' declares no {MaterialComposer.DefaultParamsBlockName} block.");
+        }
+
+        _voxelizeFeeds.Add(key, feed);
+        return feed;
     }
 
     /// <summary>Adds persistent structural geometry to the incrementally updated clipmap.</summary>
@@ -2228,13 +2302,23 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             return;
         }
 
-        _voxelizeMaterial.SetBuffer("_vertices", geometry.Vertices);
-        _voxelizeMaterial.SetBuffer("_indices", geometry.Indices);
-        _voxelizeMaterial.SetBuffer("_attrOut", attrOut);
-        _voxelizeMaterial.SetBuffer("_pageTable", pageTable);
-        _voxelizeMaterial.SetTexture("_albedoTexture", registration.Albedo ?? _rendering.TextureWhite);
-        _voxelizeMaterial.SetTexture("_emissiveTexture", registration.Emissive ?? _rendering.TextureBlack);
-        _voxelizeMaterial.DispatchBySizeWithConstant(computePass, geometry.TriangleCount, 8, 1, new VoxelizeConstants
+        ComputeMaterial material = registration.Feed.Material;
+        material.SetBuffer("_vertices", geometry.Vertices);
+        material.SetBuffer("_indices", geometry.Indices);
+        material.SetBuffer("_attrOut", attrOut);
+        material.SetBuffer("_pageTable", pageTable);
+        // The surface's texture slots rebind per dispatch: specialization folds
+        // keep the full surface resource set in the layout, and streamed textures
+        // that have not arrived bind the pattern fallbacks.
+        foreach (string resource in registration.Feed.TextureSlots)
+        {
+            if (!registration.Textures.TryGetValue(resource[1..], out Texture2D? texture) || texture == null)
+            {
+                texture = _materialCompiler.GetFallbackTexture(resource);
+            }
+            material.SetTexture(resource, texture);
+        }
+        material.DispatchBySizeWithConstant(computePass, geometry.TriangleCount, 8, 1, new VoxelizeConstants
         {
             Model = world,
             BaseColor = baseColor,
@@ -2353,6 +2437,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             // their own and are not disposable.
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
+            foreach (VoxelizeFeed feed in _voxelizeFeeds.Values)
+            {
+                feed.ParamsBuffer?.Dispose();
+            }
             // Unlike the compute materials, the graphics bake material owns
             // pass state and must be disposed with its texture and layout.
             _blueNoiseMaterial.Dispose();

@@ -9,9 +9,9 @@ namespace Alco.World3D;
 /// automatically when it is referenced). The asset loader derives each module's
 /// identity from the file name and compiles it through the shared ShaderSystem.
 /// <br/>The four material-pass templates (GBuffer, ShadowDepth, Rsm, ForwardGlass)
-/// are generic over the surface type and define no entry points of their own — they
-/// compose through the <see cref="MaterialCompiler"/> (see
-/// <see cref="MaterialCompiler.GetTemplateShader"/>), never by direct asset load.
+/// are generic over the surface type and define no directly loadable entry points —
+/// they compose through the <see cref="MaterialCompiler"/>
+/// (see <see cref="MaterialCompiler.ComposeSurfaceShader"/>), never by direct asset load.
 /// </summary>
 public static class World3DAssetPaths
 {
@@ -74,9 +74,6 @@ public static class World3DAssetPaths
 
     /// <summary>Voxel GI: clears the clipmap page pool.</summary>
     public const string Shader_VoxelClear = Folder + "voxel-clear.slang";
-
-    /// <summary>Voxel GI: surface voxelization pass.</summary>
-    public const string Shader_Voxelize = Folder + "voxelize.slang";
 
     /// <summary>Voxel GI: direct + RSM light injection pass.</summary>
     public const string Shader_VoxelInject = Folder + "voxel-inject.slang";

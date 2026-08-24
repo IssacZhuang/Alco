@@ -1,28 +1,33 @@
 // Shadow map depth-only pass template for surface materials of the deferred
 // PBR pipeline. Slang counterpart of Shaders/Pipelines/Rendering/PBR/
-// ShadowDepth.hlsl: the material compiler #includes this file into a generated
-// wrapper translation unit (pass defines apply - see SHADOW_CUTOUT below) and
-// instantiates the generic pass functions with the material's surface type.
+// ShadowDepth.hlsl.
+//
+// A pass template is a self-describing module: it owns the [shader] entry
+// points, generic over the surface type; the material compiler composes this
+// module with a material's surface module (composite + link-time
+// specialization), no generated wrapper code.
 //
 // Renders into a depth-only render texture from the light's point of view.
 // The vertex layout must match Alco.Rendering.VertexPBR exactly. All material
-// evaluation lives in the surface module (contract: surface.slang); this
-// template owns the entry points, the depth write and the cascade bindings.
-// Per-instance data (model matrix, cutout scalars) lives in the _instances
-// storage buffer and is fetched by SV_VulkanInstanceID; the push constant carries
-// only the cascade index so per-cascade render bundles never re-record.
+// evaluation lives in the surface module (contract:
+// Shaders/Libs/alco-world3d-surface.slang); this template owns the entry
+// points, the depth write and the cascade bindings. Per-instance data (model
+// matrix, cutout scalars) lives in the _instances storage buffer and is fetched
+// by SV_VulkanInstanceID; the push constant carries only the cascade index so
+// per-cascade render bundles never re-record.
 //
-// Compile with SHADOW_CUTOUT defined to enable alpha testing: the pixel
-// shader evaluates the surface's base color alpha (GetBaseColor - the only
-// surface function this pass consumes) and discards fragments below the
-// cutoff, so cutout meshes (foliage, fences, etc.) cast correctly shaped
-// shadows. Without the define the pixel shader is empty (zero-overhead
-// opaque depth write).
+// The AlphaTest value specialization replaces the retired SHADOW_CUTOUT define:
+// when on, the pixel shader evaluates the surface's base color alpha
+// (GetBaseColor - the only surface function this pass consumes) and discards
+// fragments below the cutoff, so cutout meshes (foliage, fences, etc.) cast
+// correctly shaped shadows. When off, specialization folds the pixel shader
+// away to an empty body (zero-overhead opaque depth write); the interpolants
+// stay in ShadowV2F but are never read.
 
 #language slang 2025
 module shadow_depth;
 
-import surface;
+import alco_world3d_surface;
 import pbr_instance;
 
 public struct ShadowVertex
@@ -37,15 +42,11 @@ public struct ShadowVertex
 public struct ShadowV2F
 {
     float4 position : SV_POSITION;
-#if defined(SHADOW_CUTOUT)
     float3 normal : TEXCOORD0;
     float4 tangent : TEXCOORD1; // xyz = world tangent, w = bitangent sign
     float3 worldPos : TEXCOORD2;
     float2 uv : TEXCOORD3;
     uint instanceID : TEXCOORD4;
-#else
-    uint instanceID : TEXCOORD0;
-#endif
 }
 
 // Push constant payload: only the cascade index remains per-draw (static per
@@ -76,7 +77,8 @@ cbuffer constants
     ShadowConstants shadowConstants;
 }
 
-public ShadowV2F ShadowMainVS<T : ISurface>(ShadowVertex input)
+[shader("vertex")]
+public ShadowV2F MainVS<T : ISurface>(ShadowVertex input)
 {
     ShadowV2F output;
     PbrInstance inst = _instances[input.instanceID];
@@ -88,40 +90,40 @@ public ShadowV2F ShadowMainVS<T : ISurface>(ShadowVertex input)
     T surface = T();
     surface.ModifyVertex(worldPos, worldNormal, input.uv);
     output.position = mul(lightViewProjections[(uint)shadowConstants.params_.x], float4(worldPos, 1.0f));
-#if defined(SHADOW_CUTOUT)
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
     output.worldPos = worldPos;
     output.uv = input.uv;
-#endif
     output.instanceID = input.instanceID;
     return output;
 }
 
-public void ShadowMainPS<T : ISurface>(ShadowV2F input)
+[shader("fragment")]
+public void MainPS<T : ISurface, let AlphaTest : bool>(ShadowV2F input)
 {
-#if defined(SHADOW_CUTOUT)
-    PbrInstance inst = _instances[input.instanceID];
-    float alphaCutoff = inst.params_.x;
-    if (alphaCutoff > 0.0)
+    if (AlphaTest)
     {
-        // TBN frame: re-orthogonalize the interpolated tangent against the normal.
-        float3 n = normalize(input.normal);
-        float3 t = input.tangent.xyz - n * dot(n, input.tangent.xyz);
-        t = normalize(t);
+        PbrInstance inst = _instances[input.instanceID];
+        float alphaCutoff = inst.params_.x;
+        if (alphaCutoff > 0.0)
+        {
+            // TBN frame: re-orthogonalize the interpolated tangent against the normal.
+            float3 n = normalize(input.normal);
+            float3 t = input.tangent.xyz - n * dot(n, input.tangent.xyz);
+            t = normalize(t);
 
-        SurfaceInput surfaceInput;
-        surfaceInput.worldPos = input.worldPos;
-        surfaceInput.normalWS = n;
-        surfaceInput.tangentWS = float4(t, input.tangent.w);
-        surfaceInput.uv = input.uv;
-        surfaceInput.baseColorFactor = inst.baseColor;
-        surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
-        surfaceInput.emissiveFactor = inst.emissive;
-        surfaceInput.alphaCutoff = alphaCutoff;
+            SurfaceInput surfaceInput;
+            surfaceInput.worldPos = input.worldPos;
+            surfaceInput.normalWS = n;
+            surfaceInput.tangentWS = float4(t, input.tangent.w);
+            surfaceInput.uv = input.uv;
+            surfaceInput.baseColorFactor = inst.baseColor;
+            surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
+            surfaceInput.emissiveFactor = inst.emissive;
+            surfaceInput.alphaCutoff = alphaCutoff;
 
-        T surface = T();
-        clip(surface.GetBaseColor(surfaceInput).a - alphaCutoff);
+            T surface = T();
+            clip(surface.GetBaseColor(surfaceInput).a - alphaCutoff);
+        }
     }
-#endif
 }

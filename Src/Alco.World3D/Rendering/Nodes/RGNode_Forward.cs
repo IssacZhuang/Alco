@@ -20,7 +20,8 @@ public interface IForwardRenderable
     /// <summary>The mesh to draw.</summary>
     Mesh Mesh { get; }
 
-    /// <summary>The forward glass material (created via <see cref="RGNode_Forward.CreateGlassMaterial"/>).</summary>
+    /// <summary>The forward glass material (compiled via the <see cref="RGNode_Forward"/>
+    /// "glass" material pass).</summary>
     GraphicsMaterial Material { get; }
 
     /// <summary>The world transform of the object.</summary>
@@ -44,14 +45,17 @@ public interface IForwardRenderable
 
 /// <summary>
 /// A scene content node drawing the transparency pass of the deferred PBR
-/// pipeline. Holds the glass shader, material factory methods and a registry of
-/// <see cref="IForwardRenderable"/> objects. Static objects are baked into an
-/// internal render bundle; dynamic objects are drawn immediately each frame.
-/// The pass scope comes from the graph's frame-shared render context — the node
-/// no longer owns a render context of its own.
+/// pipeline. Registers the "glass" material pass on the <see cref="MaterialCompiler"/>
+/// (the <c>glass.slang</c> template composed per material asset, participating
+/// only for blend materials) and holds a registry of <see cref="IForwardRenderable"/>
+/// objects. Static objects are baked into an internal render bundle; dynamic objects
+/// are drawn immediately each frame. The pass scope comes from the graph's
+/// frame-shared render context — the node no longer owns a render context of its own.
 /// </summary>
 public sealed unsafe class RGNode_Forward : RGNode_SceneContent
 {
+    /// <summary>The material-pass identifier this node registers ("glass").</summary>
+    public const string PassId = "glass";
     /// <summary>
     /// Push constant payload for a forward glass draw. Layout must match the
     /// <c>Constants</c> struct in ForwardGlass.slang exactly.
@@ -82,8 +86,6 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     }
 
     private readonly RenderingSystem _rendering;
-    private readonly Shader _glassShader;
-    private Texture2D? _flatNormalTexture;
     private CameraPerspectiveBuffer? _camera;
 
     // Pipeline resources bound to every glass material (shared with the deferred pipeline).
@@ -111,12 +113,13 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     private double _gpuMilliseconds;
 
     /// <summary>
-    /// Create the forward renderer with the glass shader and shared pipeline resources.
+    /// Create the forward renderer, registering the "glass" material pass on the
+    /// compiler (blend materials only), with the shared pipeline resources.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
     /// <param name="graph">The render graph the node is registered in.</param>
     /// <param name="chain">The pipeline's content chain (the node draws into its current target).</param>
-    /// <param name="glassShader">The ForwardGlass.slang shader.</param>
+    /// <param name="compiler">The material compiler the "glass" pass registers on.</param>
     /// <param name="lightingDataBuffer">The deferred lighting data buffer (shared with the pipeline).</param>
     /// <param name="pointLightBuffer">The point light buffer (shared with the pipeline).</param>
     /// <param name="shadowRT">The shadow map render texture (for shadow comparison sampling).</param>
@@ -124,14 +127,13 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         RenderingSystem rendering,
         RenderGraph graph,
         RenderChain chain,
-        Shader glassShader,
+        MaterialCompiler compiler,
         GraphicsBuffer lightingDataBuffer,
         GraphicsBuffer pointLightBuffer,
         RenderTexture shadowRT)
         : base(graph, chain)
     {
         _rendering = rendering;
-        _glassShader = glassShader;
         _lightingDataBuffer = lightingDataBuffer;
         _pointLightBuffer = pointLightBuffer;
         _shadowRT = shadowRT;
@@ -142,6 +144,14 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         {
             _gpuTimestamps = new GpuTimestampSampler(rendering.GraphicsDevice, 2, "forward_pass");
         }
+
+        compiler.RegisterPass(new MaterialPassDesc
+        {
+            Id = PassId,
+            TemplateModule = "glass",
+            CreateMaterial = (asset, shader) => CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass"),
+            Accepts = asset => asset.AlphaMode == MeshAlphaMode.Blend,
+        });
     }
 
     /// <summary>
@@ -305,30 +315,16 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     // ── Material factory ──
 
     /// <summary>
-    /// Create a glass material for the ForwardGlass shader with per-material
-    /// albedo, normal, metallic-roughness and emissive textures. The material
-    /// uses alpha blending (no accumulation, no sorting needed) and hardware
-    /// depth testing against opaque geometry (the forward target shares the
-    /// G-buffer's depth attachment through the graph's depth sharing — no depth
-    /// copy). The caller owns the material.
-    /// </summary>
-    public GraphicsMaterial CreateGlassMaterial(
-        Texture2D? albedoTexture, Texture2D? normalTexture, Texture2D? metallicRoughnessTexture,
-        Texture2D? emissiveTexture, bool doubleSided = false, string name = "pbr_glass_material")
-    {
-        GraphicsMaterial material = CreateGlassMaterial(_glassShader, doubleSided, name);
-        SetGlassMaterialTextures(material, albedoTexture, normalTexture, metallicRoughnessTexture, emissiveTexture);
-        return material;
-    }
-
-    /// <summary>
     /// Create a glass material from a pass-template shader already composed with its
     /// surface (see <see cref="MaterialCompiler"/>): applies the pass-mandated state —
-    /// alpha blending (no accumulation), reversed-depth hardware testing, cull mode, the
-    /// camera/lighting buffer bindings and the shadow-map depth binding — leaving every
-    /// material texture slot to the caller. The caller owns the material.
+    /// alpha blending (no accumulation, no sorting needed), reversed-depth hardware
+    /// testing against opaque geometry (the forward target shares the G-buffer's
+    /// depth attachment through the graph's depth sharing — no depth copy), cull
+    /// mode, the camera/lighting buffer bindings and the shadow-map depth binding.
+    /// Called back by the registered pass descriptor; the compiler owns the
+    /// returned material.
     /// </summary>
-    /// <param name="shader">The composed ForwardGlass template shader.</param>
+    /// <param name="shader">The composed glass template shader.</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
     /// <param name="name">The material name for debugging.</param>
     public GraphicsMaterial CreateGlassMaterial(Shader shader, bool doubleSided = false, string name = "pbr_glass_material")
@@ -351,42 +347,6 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         return material;
     }
 
-    /// <summary>
-    /// (Re)bind the texture slots of a glass material created by
-    /// <see cref="CreateGlassMaterial(Texture2D?, Texture2D?, Texture2D?, Texture2D?, bool, string)"/>,
-    /// applying the same fallback textures.
-    /// Use when textures stream in asynchronously after the material was created.
-    /// </summary>
-    public void SetGlassMaterialTextures(
-        GraphicsMaterial material, Texture2D? albedoTexture, Texture2D? normalTexture,
-        Texture2D? metallicRoughnessTexture, Texture2D? emissiveTexture)
-    {
-        material.SetTexture("_albedoTexture", albedoTexture ?? _rendering.TextureWhite);
-        material.SetTexture("_normalTexture", normalTexture ?? GetOrCreateFlatNormalTexture());
-        material.SetTexture("_metallicRoughnessTexture", metallicRoughnessTexture ?? _rendering.TextureWhite);
-        material.SetTexture("_emissiveTexture", emissiveTexture ?? _rendering.TextureBlack);
-    }
-
-    /// <summary>
-    /// The 1x1 flat-normal fallback texture of the standard surface's normal slot
-    /// (see <see cref="StandardSurfaceSlotsUtility.Normal"/>).
-    /// </summary>
-    public Texture2D FlatNormalTexture => GetOrCreateFlatNormalTexture();
-
-    /// <summary>
-    /// Lazily create the 1x1 flat-normal fallback texture: (128,128,255).
-    /// </summary>
-    private Texture2D GetOrCreateFlatNormalTexture()
-    {
-        if (_flatNormalTexture == null)
-        {
-            byte[] data = [128, 128, 255, 255];
-            _flatNormalTexture = _rendering.CreateTexture2D(data, 1, 1,
-                new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "pbr_flat_normal_forward"));
-        }
-        return _flatNormalTexture;
-    }
-
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
@@ -394,7 +354,6 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         {
             _staticBundle.Dispose();
             _dynamicBundle.Dispose();
-            _flatNormalTexture?.Dispose();
             _gpuTimestamps?.Dispose();
         }
     }

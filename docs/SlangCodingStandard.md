@@ -60,11 +60,50 @@ the entry point declares `<let Quality : int>` and the C# owner requests a
 specialized shader through `ShaderSystem.GetShader(module, args)` — the
 arguments are slang expressions (`"0"`, `"1"`, type names). Never convert
 these back to `#if` permutations. Preprocessor defines are reserved for the
-material-keyword domain only: user-authored `MaterialAsset.Defines`,
-`SHADOW_CUTOUT` (gates varying-struct shape a value parameter cannot
-express) and `REPEATED` (a per-material texture-wrap toggle). Do not
-introduce a new `#if` permutation outside that domain. ShaderSystem
-specialization arguments are part of the program cache identity.
+material-keyword domain only: user-authored `MaterialAsset.Defines` and
+`REPEATED` (a per-material texture-wrap toggle). Do not introduce a new
+`#if` permutation outside that domain. ShaderSystem specialization
+arguments are part of the program cache identity.
+
+## Material composition (World3D surfaces and pass templates)
+
+Materials are slang types, not string permutations. A material is a struct
+implementing `ISurface` (`Libs/alco-world3d-surface.slang`); a pass is a
+template module whose entry points are generic over the surface:
+
+```slang
+[shader("vertex")] public MainVOut MainVS<T : ISurface>(MainVIn v) { ... }
+```
+
+Composition is `specialize(entryPoint, surfaceType)` + link — there is no
+generated wrapper shader anywhere in the pipeline. The rules:
+
+- Surface interfaces are fine-grained (`IVertexSurface`, `IAlbedoSurface`,
+  `INormalSurface`, `IMaterialPropsSurface`, `IEmissiveSurface`,
+  `IVoxelFeedSurface`) with full default implementations; `ISurface`
+  aggregates them. A surface overrides only what it needs, and every
+  override must carry the `override` modifier (Slang error 36107
+  otherwise) — intent is explicit.
+- Behavior branches inside a pass template use **value specialization**
+  (`where let AlphaTest : bool`), requested from C# via
+  `MaterialPassDesc.ValueSpecArgs`. This is the same mechanism as
+  engine-owned generic value parameters; retired textual permutations
+  (e.g. `SHADOW_CUTOUT`) must not come back.
+- Surface-declared resources follow the same set-scoped cbuffer-block
+  convention as everything else, in the material set (space2,
+  `MaterialCompiler.SurfaceResourceSet`): `cbuffer _material :
+  register(b0, space2) { Texture2D _albedoTexture; ... }`. The engine
+  binds members by bare name. The `[[vk::binding]]` ban applies to
+  surfaces too — block + set is the whole contract.
+- Pass templates keep their engine resources in the low sets (frame 0,
+  pass 1, draw 3) per the rules above; the surface module owns space2
+  alone.
+- Template entry points must be `public` and carry the `[shader]` stage
+  attribute so the composer can find them without a wrapper.
+
+See `docs/MaterialSystem.md` for the C# side (`MaterialComposer`,
+`MaterialCompiler`, pass registration, texture-slot and params-block
+rules).
 
 ## Resources and bindings
 

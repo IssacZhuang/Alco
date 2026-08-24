@@ -1,7 +1,5 @@
 using System.IO;
-using System.Text;
 using Alco.Graphics;
-using Alco.IO;
 using Alco.Rendering;
 using Alco.ShaderCompiler;
 
@@ -9,50 +7,39 @@ namespace Alco.World3D;
 
 /// <summary>
 /// Compiles data-only <see cref="MaterialAsset"/>s into per-pass GPU materials: a
-/// passive registry and cache between assets and <see cref="IMaterialPass"/>es. Passes
-/// register their policy (<see cref="RegisterPass"/>) — the standard G-buffer/shadow/
-/// glass passes where their renderers are created, feature passes (e.g. the voxel GI's
-/// RSM) where the feature is enabled — and each (asset, pass) pair compiles lazily on
-/// first request and is reused afterwards, so meshes sharing a material share its GPU
-/// materials too.
-/// <br/>Every surface — the built-in PbrStandard included — is a Slang module exporting
-/// <c>public struct Surface : ISurface</c> (contract: Shaders/Libs/surface.slang).
-/// The compiler generates a wrapper module that imports the pass template and the
-/// surface module and instantiates the template's generic pass functions with the
-/// surface's <c>Surface</c> type — dynamic shader stitching as interface-checked
-/// generic instantiation. Wrapper and define-mangled permutations are registered with
-/// the engine's shared slang module system (<see cref="ShaderSystem"/>), so composed
-/// shaders get its disk caches, dependency tracking and hot reload like any module.
-/// The parameter mapping reads Slang's own reflection instead of regex-parsing source
-/// (a surface's <c>_materialParams</c> block may mix scalar and vector float members).
-/// Composed shaders are cached per (template, surface) and owned by the compiler.
-/// <br/>Dispose the compiler to release every compiled material and composed shader; use
-/// <see cref="Invalidate"/> when an asset file was hot-reloaded into a new instance.
-/// Per-instance data (base color, metallic/roughness, emissive, alpha cutoff) rides the
-/// renderers' instance buffers, not the material — renderables read it from the asset.
+/// passive registry and cache between assets and material passes. Passes register
+/// as data (<see cref="MaterialPassDesc"/> — the standard G-buffer/shadow/glass
+/// passes where their renderers are created, feature passes like the voxel GI's
+/// RSM where the feature is enabled, game-defined passes anywhere), and each
+/// (asset, pass) pair compiles lazily on first request, so meshes sharing a
+/// material share its GPU materials too.
+/// <br/>Every surface — the built-in PbrStandard included — is a Slang module
+/// exporting <c>public struct Surface : ISurface</c> (contract:
+/// Shaders/Libs/alco-world3d-surface.slang). Compilation is slang's own component
+/// system: the pass template owns the surface-generic <c>[shader]</c> entry
+/// points and composes with the surface module directly (composite + link-time
+/// specialization, no generated wrapper modules, no preprocessor stitching) —
+/// see <see cref="MaterialComposer"/>, the pipeline-agnostic composition core
+/// this class builds its asset policy on. Value specialization replaces
+/// pass-private defines (the shadow pass's alpha test is the template's
+/// <c>let AlphaTest : bool</c> parameter, fed from <see cref="MaterialAsset.AlphaMode"/>).
+/// <br/>The parameter mapping reads slang's module-level reflection (a surface's
+/// <c>_materialParams</c> block may mix scalar and vector float members); texture
+/// slots are validated against the composed reflection at compile time and bound
+/// by name with pattern fallbacks (<c>_normal*</c> → flat normal,
+/// <c>_emissive*</c> → black, everything else → white).
+/// <br/>Dispose the compiler to release every compiled material and composed
+/// shader; use <see cref="Invalidate"/> when an asset file was hot-reloaded into
+/// a new instance. Per-instance data (base color, metallic/roughness, emissive,
+/// alpha cutoff) rides the renderers' instance buffers, not the material.
 /// </summary>
 public sealed class MaterialCompiler : AutoDisposable
 {
-    /// <summary>The resource name of a surface's parameter block (see surface.slang).</summary>
-    private const string MaterialParamsResource = "_materialParams";
+    /// <summary>The asset path of the built-in surface every pass composes with when the asset names none.</summary>
+    public const string DefaultSurfacePath = "Shaders/Materials/pbr-standard.slang";
 
-    /// <summary>The asset folder of the Slang pass templates, surface modules and interface library.</summary>
-    private const string SlangFolder = "Shaders/";
-
-    /// <summary>The built-in surface every pass composes with when the asset names none.</summary>
-    private const string DefaultSurfacePath = SlangFolder + "Materials/pbr-standard.slang";
-
-    /// <summary>
-    /// The Slang pass templates by template asset path: a pass composes the named
-    /// template (Shaders/Pipelines) with the material's surface module.
-    /// </summary>
-    private static readonly Dictionary<string, string> SlangTemplates = new(StringComparer.Ordinal)
-    {
-        [World3DAssetPaths.Shader_GBuffer] = "gbuffer",
-        [World3DAssetPaths.Shader_ShadowDepth] = "shadow-depth",
-        [World3DAssetPaths.Shader_Rsm] = "rsm",
-        [World3DAssetPaths.Shader_ForwardGlass] = "glass",
-    };
+    /// <summary>The descriptor set index the surface contract reserves for surface resources.</summary>
+    public const int SurfaceResourceSet = 2;
 
     /// <summary>Compiled materials, streamed-texture slots and the parameter buffer of one material asset.</summary>
     private sealed class Entry
@@ -64,118 +51,174 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     private readonly RenderingSystem _rendering;
-    private readonly AssetSystem _assets;
-    private readonly Dictionary<string, IMaterialPass> _passes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, MaterialPassDesc> _passes = new(StringComparer.Ordinal);
     private readonly Dictionary<MaterialAsset, Entry> _entries = new();
-    private readonly Dictionary<(string Template, string Surface), Shader> _slangShaders = new();
-    private readonly Dictionary<string, List<SlangUniformMember>> _slangParamLayouts = new(StringComparer.Ordinal);
-    private readonly List<SlangProgram> _pinnedPrograms = [];
-    private readonly Lock _pinLock = new();
+    private Texture2D? _flatNormalTexture;
+    private MaterialAsset? _defaultAsset;
 
     /// <summary>
     /// Create the compiler. It starts out knowing no passes; register them as their
     /// renderers/features come up (<see cref="RegisterPass"/>).
     /// </summary>
     /// <param name="rendering">The rendering system (material factory, fallback textures, shared ShaderSystem).</param>
-    /// <param name="assets">The asset system (template shaders, surface shader sources).</param>
-    public MaterialCompiler(RenderingSystem rendering, AssetSystem assets)
+    public MaterialCompiler(RenderingSystem rendering)
     {
         _rendering = rendering;
-        _assets = assets;
+        Composer = new MaterialComposer(rendering);
     }
+
+    /// <summary>
+    /// The pipeline-agnostic composition core (template×surface shaders, parameter
+    /// layouts, parameter packing). Facilities composing outside the graphics pass
+    /// registry — e.g. the voxel GI's compute feed — use it directly.
+    /// </summary>
+    public MaterialComposer Composer { get; }
+
+    /// <summary>The shared asset selecting the built-in PbrStandard surface, for pipeline-level defaults.</summary>
+    public MaterialAsset DefaultAsset => _defaultAsset ??= new MaterialAsset { Name = "pbr_standard" };
+
+    /// <summary>The 1x1 flat-normal fallback texture of the <c>_normal*</c> slots (decodes to the identity tangent-space normal).</summary>
+    public Texture2D FlatNormalTexture => _flatNormalTexture ??= CreateFlatNormalTexture();
 
     /// <summary>
     /// Register a material pass. Pass identifiers must be unique; registering a second
     /// pass under a live id throws.
     /// </summary>
-    /// <param name="pass">The pass to register.</param>
-    public void RegisterPass(IMaterialPass pass)
+    /// <param name="desc">The pass descriptor to register.</param>
+    public void RegisterPass(MaterialPassDesc desc)
     {
-        ArgumentNullException.ThrowIfNull(pass);
-        if (!_passes.TryAdd(pass.Id, pass))
+        ArgumentNullException.ThrowIfNull(desc);
+        if (!_passes.TryAdd(desc.Id, desc))
         {
-            throw new ArgumentException($"A material pass '{pass.Id}' is already registered.");
+            throw new ArgumentException($"A material pass '{desc.Id}' is already registered.");
         }
     }
 
     /// <summary>
-    /// The compiled material of an asset for one pass; created on first request, then
-    /// cached. The compiler owns the returned material.
+    /// Whether a pass is registered and accepts the asset — the pass-participation
+    /// routing that replaces game-side alpha-mode special cases.
+    /// </summary>
+    public bool Accepts(MaterialAsset asset, string passId)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        return _passes.TryGetValue(passId, out MaterialPassDesc? desc)
+            && (desc.Accepts?.Invoke(asset) ?? true);
+    }
+
+    /// <summary>
+    /// The compiled material of an asset for the pass registered under an id; created
+    /// on first request, then cached. The compiler owns the returned material.
     /// </summary>
     /// <param name="asset">The material asset.</param>
-    /// <param name="pass">The registered pass to compile for.</param>
+    /// <param name="passId">The registered pass identifier.</param>
     /// <returns>The compiler-owned material of the (asset, pass) pair.</returns>
-    public GraphicsMaterial Get(MaterialAsset asset, IMaterialPass pass)
+    /// <exception cref="ArgumentException">No pass is registered under <paramref name="passId"/>.</exception>
+    /// <exception cref="InvalidDataException">The pass does not accept the asset.</exception>
+    public GraphicsMaterial Get(MaterialAsset asset, string passId)
     {
-        ArgumentNullException.ThrowIfNull(pass);
-        Entry entry = GetEntry(asset);
-        if (!entry.Materials.TryGetValue(pass.Id, out GraphicsMaterial? material))
+        ArgumentNullException.ThrowIfNull(asset);
+        if (!_passes.TryGetValue(passId, out MaterialPassDesc? desc))
         {
-            // Fill the parameter buffer first so a bad parameter name fails before
-            // any material exists, then compile, then bind the buffer by name
-            // (TrySet: passes whose template strips the block skip the binding).
-            GraphicsBuffer? paramsBuffer = GetParamsBuffer(asset, entry);
-            material = pass.Compile(CreateContext(asset));
-            if (paramsBuffer != null)
-            {
-                // TrySet: permutations that dead-strip the block (e.g. the shadow
-                // pass consuming only base color alpha) have no such resource.
-                material.TrySetBuffer(MaterialParamsResource, paramsBuffer);
-            }
-            entry.Materials.Add(pass.Id, material);
+            throw new ArgumentException($"No material pass '{passId}' is registered.", nameof(passId));
+        }
+        if (desc.Accepts != null && !desc.Accepts(asset))
+        {
+            throw new InvalidDataException(
+                $"Material pass '{passId}' does not accept material '{asset.Name}'.");
+        }
+
+        Entry entry = GetEntry(asset);
+        if (!entry.Materials.TryGetValue(passId, out GraphicsMaterial? material))
+        {
+            material = Compile(asset, desc, entry);
+            entry.Materials.Add(passId, material);
         }
         return material;
     }
 
     /// <summary>
     /// The compiled material of an asset for the pass registered under an id, or null
-    /// when no such pass exists — e.g. the optional pass of a feature that is disabled
-    /// this run.
+    /// when no such pass exists or the pass does not accept the asset — e.g. the
+    /// optional pass of a feature that is disabled this run, or the glass pass for an
+    /// opaque material.
     /// </summary>
-    /// <param name="asset">The material asset.</param>
-    /// <param name="passId">The material-pass identifier.</param>
-    /// <returns>The compiler-owned material, or null when the pass is not registered.</returns>
     public GraphicsMaterial? TryGet(MaterialAsset asset, string passId)
+        => Accepts(asset, passId) ? Get(asset, passId) : null;
+
+    /// <summary>
+    /// The shader of one pass template composed with an asset's surface (the built-in
+    /// PbrStandard surface when <paramref name="asset"/> is null or names none): what
+    /// renderer constructors receive as their pipeline-level default shader. Custom
+    /// passes go through <see cref="Composer"/> for non-graphics stage mixes.
+    /// </summary>
+    /// <param name="asset">The material asset whose surface composes; null selects the built-in surface.</param>
+    /// <param name="templateModule">The pass-template module name.</param>
+    /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
+    public Shader ComposeSurfaceShader(
+        MaterialAsset? asset, string templateModule, IReadOnlyList<string>? valueSpecArgs = null)
+        => Composer.ComposeGraphics(
+            templateModule, SurfaceModuleName(asset), valueSpecArgs, defines: asset?.Defines);
+
+    /// <summary>
+    /// The compute counterpart of <see cref="ComposeSurfaceShader"/>, for facilities
+    /// whose surface feed is a compute pass (e.g. the voxel GI's voxelization).
+    /// </summary>
+    /// <param name="asset">The material asset whose surface composes; null selects the built-in surface.</param>
+    /// <param name="templateModule">The pass-template module name.</param>
+    /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
+    public Shader ComposeSurfaceComputeShader(
+        MaterialAsset? asset, string templateModule, IReadOnlyList<string>? valueSpecArgs = null)
+        => Composer.ComposeCompute(
+            templateModule, SurfaceModuleName(asset), valueSpecArgs, defines: asset?.Defines);
+
+    /// <summary>
+    /// The fallback texture of one surface texture resource (<c>_normal*</c> → flat
+    /// normal, <c>_emissive*</c> → black, everything else → white) — the same policy
+    /// the compiler applies when binding asset textures. Facilities composing surface
+    /// feeds outside the graphics pass registry (e.g. the voxel GI) bind through this.
+    /// </summary>
+    public Texture2D GetFallbackTexture(string resourceName) => FallbackFor(resourceName);
+
+    /// <summary>
+    /// The slang module name of an asset's surface (the built-in PbrStandard module
+    /// when the asset names none): the file stem with module-name characters
+    /// ('pbr-standard' → 'pbr_standard', matching the source's module declaration).
+    /// </summary>
+    public static string SurfaceModuleName(MaterialAsset? asset)
     {
-        ArgumentNullException.ThrowIfNull(passId);
-        return _passes.TryGetValue(passId, out IMaterialPass? pass) ? Get(asset, pass) : null;
+        string stem = Path.GetFileNameWithoutExtension(asset?.SurfaceShader ?? DefaultSurfacePath);
+        return string.Concat(stem.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
     }
 
     /// <summary>
-    /// The pass-template shader composed with the built-in PbrStandard surface: what
-    /// renderer constructors receive in place of the retired load-template-as-asset.
-    /// Custom surfaces compose their own per-pass shaders through the passes'
-    /// <c>ComposeShader</c>; this is only the pipeline-level default.
-    /// </summary>
-    /// <param name="templatePath">The template asset path (e.g. <see cref="World3DAssetPaths.Shader_GBuffer"/>).</param>
-    /// <returns>The compiler-owned composed template shader.</returns>
-    public Shader GetTemplateShader(string templatePath)
-        => GetSlangShader(templatePath, DefaultSurfacePath);
-
-    /// <summary>
-    /// (Re)bind the streamed textures of one asset, by material texture slot (see
-    /// <see cref="StandardSurfaceSlotsUtility"/>): stores them as the binding-time values for
-    /// not-yet-compiled passes and rebinds every already-compiled pass material (with
-    /// the passes' fallback textures for slots still streaming). Render bundles recorded
-    /// with the materials must be re-recorded afterwards — call the renderers'
-    /// <c>MarkStaticBundleDirty</c>.
+    /// (Re)bind the streamed textures of one asset, by material texture slot (slot
+    /// name = shader resource name without the leading underscore): stores them as
+    /// the binding-time values for not-yet-compiled passes and rebinds every
+    /// already-compiled pass material (with the pattern fallbacks for slots still
+    /// streaming). Render bundles recorded with the materials must be re-recorded
+    /// afterwards — call the renderers' <c>MarkStaticBundleDirty</c>.
     /// </summary>
     /// <param name="asset">The material asset.</param>
-    /// <param name="slots">The streamed textures by material texture slot; null values
-    /// mean "still streaming" and keep the fallback.</param>
-    public void BindTextures(MaterialAsset asset, IReadOnlyDictionary<string, Texture2D?> slots)
+    /// <param name="textures">The streamed textures by material texture slot; null
+    /// values mean "still streaming" and keep the fallback.</param>
+    public void BindTextures(MaterialAsset asset, IReadOnlyDictionary<string, Texture2D?> textures)
     {
+        ArgumentNullException.ThrowIfNull(asset);
         Entry entry = GetEntry(asset);
-        foreach (KeyValuePair<string, Texture2D?> pair in slots)
+        foreach (KeyValuePair<string, Texture2D?> pair in textures)
         {
             entry.Textures[pair.Key] = pair.Value;
         }
 
+        // The slots were validated against the surface's reflection at compile
+        // time; every pass material of the asset carries the surface's full
+        // resource set (specialization folds code, not explicit bindings).
         foreach (KeyValuePair<string, GraphicsMaterial> pair in entry.Materials)
         {
-            if (_passes.TryGetValue(pair.Key, out IMaterialPass? pass))
+            foreach (KeyValuePair<string, Texture2D?> slot in textures)
             {
-                pass.RebindTextures(CreateContext(asset), pair.Value, entry.Textures);
+                string resource = ResourceName(slot.Key);
+                pair.Value.SetTexture(resource, slot.Value ?? FallbackFor(resource));
             }
         }
     }
@@ -202,309 +245,55 @@ public sealed class MaterialCompiler : AutoDisposable
         entry.ParamsBuffer?.Dispose();
     }
 
-    private Entry GetEntry(MaterialAsset asset)
+    private GraphicsMaterial Compile(MaterialAsset asset, MaterialPassDesc desc, Entry entry)
     {
-        ObjectDisposedException.ThrowIf(IsDisposed, this);
-        ArgumentNullException.ThrowIfNull(asset);
+        Shader shader = ComposeSurfaceShader(asset, desc.TemplateModule, desc.ValueSpecArgs?.Invoke(asset));
+        ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
 
-        if (!_entries.TryGetValue(asset, out Entry? entry))
+        // Compile-time slot validation: a texture slot the surface does not
+        // declare is a typo in the asset — fail here, not at BindTextures.
+        IReadOnlyList<string> textureSlots = MaterialComposer.EnumerateTextureSlots(reflection, SurfaceResourceSet);
+        foreach (string slot in asset.Textures.Keys)
         {
-            entry = new Entry { Asset = asset };
-            _entries.Add(asset, entry);
-        }
-        return entry;
-    }
-
-    private MaterialCompileContext CreateContext(MaterialAsset asset)
-    {
-        return new MaterialCompileContext
-        {
-            Asset = asset,
-            Rendering = _rendering,
-            ComposeShader = templatePath => GetShader(asset, templatePath),
-        };
-    }
-
-    /// <summary>
-    /// The pass-template shader for one asset: the template composed with the asset's
-    /// surface module, or with the built-in PbrStandard surface when the asset names
-    /// none. HLSL surfaces are retired — the composer rejects them with a pointer to
-    /// the surface contract.
-    /// </summary>
-    private Shader GetShader(MaterialAsset asset, string templatePath)
-    {
-        string surfacePath = asset.SurfaceShader ?? DefaultSurfacePath;
-        if (!surfacePath.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidDataException(
-                $"Material '{asset.Name}' names surface '{surfacePath}'; HLSL surfaces were retired by the "
-                + "slang migration — port the surface to a .slang module exporting "
-                + "'public struct Surface : ISurface' (see Shaders/Libs/surface.slang).");
-        }
-        return GetSlangShader(templatePath, surfacePath);
-    }
-
-    /// <summary>
-    /// The composed module shader of one (template, surface) pair, whose
-    /// every defines permutation generates a wrapper module through the shared slang
-    /// module system (see <see cref="CompileSlangPermutation"/>). Cached per pair.
-    /// </summary>
-    private Shader GetSlangShader(string templatePath, string surfacePath)
-    {
-        if (!SlangTemplates.TryGetValue(templatePath, out string? templateStem))
-        {
-            throw new InvalidDataException(
-                $"Pass template '{templatePath}' has no Slang counterpart.");
-        }
-
-        string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
-        (string Template, string Surface) key = (templatePath, surfacePath);
-        if (_slangShaders.TryGetValue(key, out Shader? cached))
-        {
-            return cached;
-        }
-
-        Shader shader = _rendering.CreateShader(
-            $"{templateStem}+{surfaceModule}",
-            defines => CompileSlangPermutation(templateStem, surfacePath, defines));
-        _slangShaders.Add(key, shader);
-        return shader;
-    }
-
-    /// <summary>
-    /// Compile one defines permutation of a (template, surface) pair through the shared
-    /// slang module system: the surface and template sources are registered with the
-    /// permutation's defines prefixed, under define-mangled module names (defines do not
-    /// cross module boundaries, so every permutation is a distinct module identity —
-    /// plan §8's interim permutation mechanism), and the generated wrapper imports both
-    /// and instantiates the template's generic pass functions with the surface's
-    /// <c>Surface</c> type. Slang checks the surface against ISurface at instantiation.
-    /// </summary>
-    private ShaderModulesInfo CompileSlangPermutation(string templateStem, string surfacePath, string[] defines)
-    {
-        SlangModuleSystem modules = _rendering.ShaderSystem.Modules;
-        string templatePath = TemplateAssetPath(templateStem);
-        string surfaceModule = Path.GetFileNameWithoutExtension(surfacePath);
-
-        // Import names must be valid snake_case identifiers matching the
-        // modules' declarations, so kebab file stems ('pbr-standard') are
-        // sanitized ('pbr_standard') before the define mangle suffix forms.
-        string surfaceImport = MangleModule(SanitizeModuleName(surfaceModule), defines);
-        string templateImport = MangleModule(SanitizeModuleName(templateStem), defines);
-        RegisterDefinedModule(modules, surfaceImport, surfacePath, ReadAssetText(surfacePath), defines);
-        RegisterDefinedModule(modules, templateImport, templatePath, ReadAssetText(templatePath), defines);
-
-        string wrapperName = PermutationName(templateStem, surfaceModule, defines);
-        string wrapper = BuildSlangWrapper(templateStem, templateImport, surfaceImport);
-        modules.GetOrLoadModule(wrapperName, $"mat/{wrapperName}", wrapper);
-
-        SlangProgram program = modules.GetProgramAllEntries(wrapperName, []);
-
-        SlangCodeTarget target = modules.Target;
-        ShaderModule? vertex = null, fragment = null;
-        for (int i = 0; i < program.EntryPoints.Count; i++)
-        {
-            (string name, int stage) = program.EntryPoints[i];
-            ShaderModule module = new(
-                SlangCompileSession.SlangStageToEngine(stage),
-                target.Language(),
-                program.EntryCode[i],
-                // slang names every SPIR-V entry point "main" regardless of the
-                // source function names (MainVS/MainPS); DXIL containers and MSL
-                // libraries keep the declared names.
-                target.EntryPointName(name));
-            switch (module.Stage)
+            if (!textureSlots.Contains(ResourceName(slot)))
             {
-                case ShaderStage.Vertex:
-                    vertex = module;
-                    break;
-                case ShaderStage.Fragment:
-                    fragment = module;
-                    break;
-                default:
-                    throw new NotSupportedException(
-                        $"Stage {stage} of entry point '{name}' in composed material shader '{wrapperName}' is not supported.");
+                throw new InvalidDataException(
+                    $"Material '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceModuleName(asset)}'; " +
+                    $"expected one of: {string.Join(", ", textureSlots.Select(name => name[1..]))}.");
             }
         }
 
-        if (vertex is not { } vs || fragment is not { } fs)
+        GraphicsMaterial material = desc.CreateMaterial(asset, shader);
+
+        // The parameter block, packed once per asset and shared by its pass
+        // materials; bound where the pass's reflection keeps it (a pass that
+        // never samples the block's consumers strips it from its layout).
+        GraphicsBuffer? paramsBuffer = GetParamsBuffer(asset, entry);
+        if (paramsBuffer != null
+            && reflection.TryGetResourceId(MaterialComposer.DefaultParamsBlockName, out _))
         {
-            throw new InvalidOperationException(
-                $"Composed material shader '{wrapperName}' defines no vertex/fragment entry point pair.");
+            material.SetBuffer(MaterialComposer.DefaultParamsBlockName, paramsBuffer);
         }
 
-        // Programs stay pinned: ShaderModule structs reference the SPIR-V arrays.
-        lock (_pinLock)
+        // Fallback-bind every surface texture slot (streamed values that arrived
+        // earlier win); specialization folds keep the full surface resource set
+        // in the layout, so the binding side always sees every slot.
+        foreach (string resource in textureSlots)
         {
-            _pinnedPrograms.Add(program);
+            if (!entry.Textures.TryGetValue(resource[1..], out Texture2D? texture) || texture == null)
+            {
+                texture = FallbackFor(resource);
+            }
+            material.SetTexture(resource, texture);
         }
-        return ShaderModulesInfo.CreateGraphics(wrapperName, defines, vs, fs, program.Reflection);
+        return material;
     }
 
     /// <summary>
-    /// Registers one define-permutation module with the module system: the source gets
-    /// the defines prefixed and loads under the (possibly mangled) name with the real
-    /// asset path as its dependency identity — file changes on that path invalidate the
-    /// permutation like any module. A mangled name is also registered as a virtual
-    /// source so the wrapper's import-by-name reaches the permutation.
-    /// </summary>
-    private static void RegisterDefinedModule(
-        SlangModuleSystem modules, string name, string path, string source, string[] defines)
-    {
-        if (defines.Length > 0)
-        {
-            source = string.Concat(defines.Select(define => "#define " + define + " 1\n")) + source;
-            modules.AddVirtualModule(name, source);
-        }
-        modules.GetOrLoadModule(name, path, source);
-    }
-
-    /// <summary>
-    /// The generated wrapper module of one (template, surface permutation): entry points
-    /// that instantiate the template's generic pass functions with the surface type.
-    /// Slang checks the surface against ISurface at this instantiation.
-    /// </summary>
-    internal static string BuildSlangWrapper(string templateStem, string templateImport, string surfaceImport)
-    {
-        string module = $"mat_{SanitizeModuleName(templateImport)}_{SanitizeModuleName(surfaceImport)}";
-        return templateStem switch
-        {
-            "gbuffer" => $$"""
-                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
-                #language slang 2025
-                module {{module}};
-
-                import {{templateImport}};
-                import {{surfaceImport}};
-
-                [shader("vertex")]
-                GBufferV2F MainVS(GBufferVertex input)
-                {
-                    return GBufferMainVS<Surface>(input);
-                }
-
-                [shader("fragment")]
-                void MainPS(GBufferV2F input,
-                    out float4 albedoRT : SV_TARGET0,
-                    out float4 normalRT : SV_TARGET1,
-                    out float4 mrAORT : SV_TARGET2,
-                    out float4 emissiveRT : SV_TARGET3)
-                {
-                    GBufferMainPS<Surface>(input, albedoRT, normalRT, mrAORT, emissiveRT);
-                }
-                """,
-            "shadow-depth" => $$"""
-                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
-                #language slang 2025
-                module {{module}};
-
-                import {{templateImport}};
-                import {{surfaceImport}};
-
-                [shader("vertex")]
-                ShadowV2F MainVS(ShadowVertex input)
-                {
-                    return ShadowMainVS<Surface>(input);
-                }
-
-                [shader("fragment")]
-                void MainPS(ShadowV2F input)
-                {
-                    ShadowMainPS<Surface>(input);
-                }
-                """,
-            "rsm" => $$"""
-                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
-                #language slang 2025
-                module {{module}};
-
-                import {{templateImport}};
-                import {{surfaceImport}};
-
-                [shader("vertex")]
-                RsmV2F MainVS(RsmVertex input)
-                {
-                    return RsmMainVS<Surface>(input);
-                }
-
-                [shader("fragment")]
-                void MainPS(RsmV2F input,
-                    out float4 albedoRT : SV_TARGET0,
-                    out float4 normalRT : SV_TARGET1)
-                {
-                    RsmMainPS<Surface>(input, albedoRT, normalRT);
-                }
-                """,
-            "glass" => $$"""
-                // Generated by MaterialCompiler: {{templateStem}} + {{surfaceImport}}.
-                #language slang 2025
-                module {{module}};
-
-                import {{templateImport}};
-                import {{surfaceImport}};
-
-                [shader("vertex")]
-                GlassV2F MainVS(GlassVertex input)
-                {
-                    return GlassMainVS<Surface>(input);
-                }
-
-                [shader("fragment")]
-                float4 MainPS(GlassV2F input) : SV_TARGET
-                {
-                    return GlassMainPS<Surface>(input);
-                }
-                """,
-            _ => throw new InvalidDataException($"Unknown Slang pass template '{templateStem}'."),
-        };
-    }
-
-    private static string TemplateAssetPath(string templateStem)
-        => SlangFolder + "Pipelines/" + templateStem + ".slang";
-
-    /// <summary>A module-name-safe form (module names allow word characters only).</summary>
-    private static string SanitizeModuleName(string name)
-        => string.Concat(name.Select(c => char.IsLetterOrDigit(c) ? c : '_'));
-
-    /// <summary>A module name mangled by a defines permutation (FNV-1a of the defines).</summary>
-    private static string MangleModule(string moduleName, string[] defines)
-    {
-        if (defines.Length == 0)
-        {
-            return moduleName;
-        }
-        ulong hash = 14695981039346656037;
-        foreach (char c in string.Join(';', defines))
-        {
-            hash ^= c;
-            hash *= 1099511628211;
-        }
-        return $"{moduleName}_d{hash & 0xFFFFFFFF:X8}";
-    }
-
-    private static string PermutationName(string templateStem, string surfaceModule, string[] defines)
-    {
-        return defines.Length == 0
-            ? $"{templateStem}+{surfaceModule}"
-            : $"{templateStem}+{surfaceModule}+{string.Join("+", defines)}";
-    }
-
-    private string ReadAssetText(string path)
-    {
-        if (!_assets.TryGetStream(path, out Stream? stream))
-        {
-            throw new InvalidDataException($"Shader source '{path}' was not found in the asset system.");
-        }
-        using StreamReader reader = new(stream, Encoding.UTF8);
-        return reader.ReadToEnd();
-    }
-
-    /// <summary>
-    /// The parameter buffer of an asset: the surface's <c>_materialParams</c> block
-    /// members, filled from <see cref="MaterialAsset.Parameters"/> by member name —
-    /// members the asset leaves out read zero. The compiler packs at the offsets Slang
-    /// reflected (scalars and vectors may mix). Created on first compile, reused by
-    /// every pass material of the asset.
+    /// The parameter buffer of an asset: the surface's <c>_materialParams</c> block,
+    /// packed from <see cref="MaterialAsset.Parameters"/> by member name at the
+    /// offsets slang reflected. Created on first compile, reused by every pass
+    /// material of the asset.
     /// </summary>
     private GraphicsBuffer? GetParamsBuffer(MaterialAsset asset, Entry entry)
     {
@@ -519,8 +308,9 @@ public sealed class MaterialCompiler : AutoDisposable
             return null;
         }
 
-        List<SlangUniformMember> members = GetSlangParamLayout(asset.SurfaceShader);
-        if (members.Count == 0)
+        IReadOnlyList<SlangUniformMember> layout =
+            Composer.GetParamsLayout(SurfaceModuleName(asset), defines: asset.Defines);
+        if (layout.Count == 0)
         {
             if (asset.Parameters.Count > 0)
             {
@@ -530,84 +320,47 @@ public sealed class MaterialCompiler : AutoDisposable
             return null;
         }
 
-        entry.ParamsBuffer ??= CreateSlangParamsBuffer(asset, members);
+        entry.ParamsBuffer ??= Composer.PackParamsBuffer(layout, asset.Parameters, asset.Name);
         return entry.ParamsBuffer;
     }
 
+    /// <summary>The shader resource name a material texture slot binds to: the slot name with a leading underscore.</summary>
+    private static string ResourceName(string slot) => "_" + slot;
+
     /// <summary>
-    /// The members of a Slang surface's <c>_materialParams</c> block, from Slang's own
-    /// reflection: a probe compile of the G-buffer wrapper (no defines) whose layout is
-    /// the block's declaration. Cached per surface path; empty means no block.
+    /// The fallback texture of one surface texture slot: flat normal for normal maps
+    /// (decodes to the identity tangent-space normal), black for emissive (keeps
+    /// unstreamed emissive maps dark), white otherwise.
     /// </summary>
-    internal List<SlangUniformMember> GetSlangParamLayout(string surfacePath)
+    private Texture2D FallbackFor(string resource)
     {
-        if (_slangParamLayouts.TryGetValue(surfacePath, out List<SlangUniformMember>? cached))
+        if (resource.StartsWith("_normal", StringComparison.OrdinalIgnoreCase))
         {
-            return cached;
+            return FlatNormalTexture;
         }
-
-        SlangModuleSystem modules = _rendering.ShaderSystem.Modules;
-        // Sanitized to the declared snake_case module name ('pbr-standard' file
-        // imports as 'pbr_standard') so the probe wrapper's import parses.
-        string surfaceModule = SanitizeModuleName(Path.GetFileNameWithoutExtension(surfacePath));
-        RegisterDefinedModule(modules, surfaceModule, surfacePath, ReadAssetText(surfacePath), Array.Empty<string>());
-
-        string wrapperName = $"{surfaceModule}+params";
-        modules.GetOrLoadModule(
-            wrapperName, $"mat/{wrapperName}", BuildSlangWrapper("gbuffer", "gbuffer", surfaceModule));
-        SlangProgram program = modules.GetProgramAllEntries(wrapperName, []);
-        lock (_pinLock)
+        if (resource.StartsWith("_emissive", StringComparison.OrdinalIgnoreCase))
         {
-            _pinnedPrograms.Add(program);
+            return _rendering.TextureBlack;
         }
-
-        List<SlangUniformMember> members =
-            program.GetUniformMembers(MaterialParamsResource);
-        _slangParamLayouts.Add(surfacePath, members);
-        return members;
+        return _rendering.TextureWhite;
     }
 
-    private GraphicsBuffer CreateSlangParamsBuffer(MaterialAsset asset, List<SlangUniformMember> members)
+    private Texture2D CreateFlatNormalTexture()
     {
-        // An unknown parameter name is a typo in the asset: fail listing the valid ones.
-        foreach (string name in asset.Parameters.Keys)
-        {
-            if (members.All(member => member.Name != name))
-            {
-                throw new InvalidDataException(
-                    $"Material '{asset.Name}' parameter '{name}' matches no _materialParams member of '{asset.SurfaceShader}'; expected one of: {string.Join(", ", members.Select(member => member.Name))}.");
-            }
-        }
+        byte[] data = [128, 128, 255, 255];
+        return _rendering.CreateTexture2D(data, 1, 1,
+            new ImageLoadOption(format: PixelFormat.RGBA8Unorm, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "material_flat_normal"));
+    }
 
-        uint sizeBytes = 0;
-        foreach (SlangUniformMember member in members)
+    private Entry GetEntry(MaterialAsset asset)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        if (!_entries.TryGetValue(asset, out Entry? entry))
         {
-            sizeBytes = Math.Max(sizeBytes, member.OffsetBytes + member.SizeBytes);
+            entry = new Entry { Asset = asset };
+            _entries.Add(asset, entry);
         }
-        sizeBytes = (sizeBytes + 15u) & ~15u;
-
-        float[] data = new float[sizeBytes / sizeof(float)];
-        foreach (SlangUniformMember member in members)
-        {
-            if (!asset.Parameters.TryGetValue(member.Name, out float[]? components))
-            {
-                continue;
-            }
-            if (components.Length > member.FloatComponentCount)
-            {
-                throw new InvalidDataException(
-                    $"Material '{asset.Name}' parameter '{member.Name}' has {components.Length} components, but the surface member takes {member.FloatComponentCount}.");
-            }
-            for (int i = 0; i < components.Length; i++)
-            {
-                data[member.OffsetBytes / sizeof(float) + i] = components[i];
-            }
-        }
-
-        GraphicsArrayBuffer<float> buffer =
-            _rendering.CreateGraphicsArrayBuffer<float>(data.Length, $"{asset.Name}_params");
-        buffer.UpdateBuffer(data.AsSpan());
-        return buffer;
+        return entry;
     }
 
     /// <inheritdoc />
@@ -624,17 +377,7 @@ public sealed class MaterialCompiler : AutoDisposable
                 entry.ParamsBuffer?.Dispose();
             }
             _entries.Clear();
-
-            foreach (Shader shader in _slangShaders.Values)
-            {
-                shader.Dispose();
-            }
-            _slangShaders.Clear();
-
-            lock (_pinLock)
-            {
-                _pinnedPrograms.Clear();
-            }
+            Composer.Dispose();
         }
     }
 }

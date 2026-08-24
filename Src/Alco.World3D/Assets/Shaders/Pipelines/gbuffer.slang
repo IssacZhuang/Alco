@@ -1,11 +1,12 @@
 // G-buffer pass template for surface materials of the deferred pipeline.
-// Slang counterpart of Shaders/Pipelines/Rendering/PBR/GBuffer.hlsl: the
-// material compiler #includes this file into a generated wrapper translation
-// unit (so pass defines like material keywords apply to it) and instantiates
-// the generic pass functions with the material's surface type:
-//     GBufferMainVS<Surface>(...), GBufferMainPS<Surface>(...)
-// The surface itself arrives through a module import, giving compile-time
-// conformance checking against ISurface (Shaders/Libs/surface.slang).
+// Slang counterpart of Shaders/Pipelines/Rendering/PBR/GBuffer.hlsl.
+//
+// A pass template is a self-describing module: it owns the [shader] entry
+// points, generic over the surface type. The material compiler composes this
+// module with a material's surface module through slang's component system
+// (composite + link-time specialization with the surface's `Surface` type) -
+// no generated wrapper code. Slang type-checks the surface against ISurface
+// (Shaders/Libs/alco-world3d-surface.slang) at instantiation.
 //
 // Writes albedo, world-space normal (from the surface's tangent-space normal
 // via TBN), material and emissive data. The interpolated mesh normal is
@@ -18,7 +19,7 @@
 #language slang 2025
 module gbuffer;
 
-import surface;
+import alco_world3d_surface;
 import pbr_instance;
 
 public struct GBufferVertex
@@ -73,7 +74,8 @@ float3 EncodeSRGB(float3 color)
     return lerp(hi, lo, step(color, float3(0.0031308, 0.0031308, 0.0031308)));
 }
 
-public GBufferV2F GBufferMainVS<T : ISurface>(GBufferVertex input)
+[shader("vertex")]
+public GBufferV2F MainVS<T : ISurface>(GBufferVertex input)
 {
     GBufferV2F output;
     PbrInstance inst = _instances[input.instanceID];
@@ -94,12 +96,13 @@ public GBufferV2F GBufferMainVS<T : ISurface>(GBufferVertex input)
     return output;
 }
 
-public void GBufferMainPS<T : ISurface>(
+[shader("fragment")]
+public void MainPS<T : ISurface>(
     GBufferV2F input,
-    out float4 albedoRT,
-    out float4 normalRT,
-    out float4 mrAORT,
-    out float4 emissiveRT)
+    out float4 albedoRT : SV_TARGET0,
+    out float4 normalRT : SV_TARGET1,
+    out float4 mrAORT : SV_TARGET2,
+    out float4 emissiveRT : SV_TARGET3)
 {
     PbrInstance inst = _instances[input.instanceID];
 

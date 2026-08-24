@@ -1,9 +1,12 @@
 // Forward-lit glass pass template for surface materials of the PBR deferred
 // pipeline's transparency pass. Slang counterpart of Shaders/Pipelines/
-// Rendering/PBR/ForwardGlass.hlsl: the material compiler generates a wrapper
-// module that imports this template and the material's surface module, then
-// instantiates the generic pass functions with the surface's Surface type -
-// dynamic shader stitching as interface-checked generic instantiation.
+// Rendering/PBR/ForwardGlass.hlsl.
+//
+// A pass template is a self-describing module: it owns the [shader] entry
+// points, generic over the surface type; the material compiler composes this
+// module with a material's surface module (composite + link-time
+// specialization with the surface's `Surface` type) - no generated wrapper
+// code. Slang type-checks the surface against ISurface at instantiation.
 //
 // Renders semi-transparent glass objects after deferred lighting, blending
 // onto the lit HDR scene: hardware depth testing against the opaque scene
@@ -17,7 +20,7 @@
 #language slang 2025
 module glass;
 
-import surface;
+import alco_world3d_surface;
 import alco_world3d_pbr_common;
 
 public struct GlassVertex
@@ -62,7 +65,8 @@ cbuffer constants
     GlassConstants glassConstants;
 }
 
-public GlassV2F GlassMainVS<T : ISurface>(GlassVertex input)
+[shader("vertex")]
+public GlassV2F MainVS<T : ISurface>(GlassVertex input)
 {
     GlassV2F output;
     float3 worldPosition = mul(glassConstants.model, float4(input.position, 1.0f)).xyz;
@@ -79,7 +83,8 @@ public GlassV2F GlassMainVS<T : ISurface>(GlassVertex input)
     return output;
 }
 
-public float4 GlassMainPS<T : ISurface>(GlassV2F input) : SV_TARGET
+[shader("fragment")]
+public float4 MainPS<T : ISurface>(GlassV2F input) : SV_TARGET
 {
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);

@@ -334,6 +334,83 @@ public sealed class SlangCompileSession : IDisposable
     }
 
     /// <summary>
+    /// Compiles every [shader(...)] entry point of <paramref name="entryModule"/> into a
+    /// program composed with <paramref name="companionModule"/> — the material-composition
+    /// path: the template module owns the (generic) entry points, the companion (surface)
+    /// module contributes the specialization type. Convention: every generic entry point
+    /// declares the surface type as its FIRST generic parameter; any value parameters
+    /// follow it and consume <paramref name="valueSpecializationArgs"/> in entry order.
+    /// </summary>
+    public SlangProgram CompileComposed(
+        SlangModuleHandle entryModule, SlangModuleHandle companionModule,
+        string companionTypeName, IReadOnlyList<string> valueSpecializationArgs)
+    {
+        lock (_lock)
+        {
+            int count = entryModule.Native.DefinedEntryPointCount;
+            if (count == 0)
+                throw new ShaderCompilationException(
+                    $"slang module '{entryModule.Name}' defines no [shader(...)] entry points.");
+            SlangComponentType[] components = new SlangComponentType[count + 2];
+            components[0] = entryModule.Native.AsComponentType();
+            components[1] = companionModule.Native.AsComponentType();
+            List<string> args = [];
+            int valueIndex = 0;
+            try
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    SlangEntryPoint? ep = entryModule.Native.GetDefinedEntryPoint(i);
+                    if (ep == null)
+                        throw new ShaderCompilationException(
+                            $"slang module '{entryModule.Name}' failed to provide entry point {i}.");
+                    components[i + 2] = ep.AsComponentType();
+
+                    int paramCount = (int)ep.AsComponentType().SpecializationParamCount;
+                    if (paramCount > 0)
+                    {
+                        args.Add(companionTypeName);
+                        for (int j = 1; j < paramCount; j++)
+                        {
+                            if (valueIndex >= valueSpecializationArgs.Count)
+                                throw new ShaderCompilationException(
+                                    $"slang module '{entryModule.Name}': entry point {i} expects more value specialization arguments than provided.");
+                            args.Add(valueSpecializationArgs[valueIndex++]);
+                        }
+                    }
+                }
+                if (valueIndex != valueSpecializationArgs.Count)
+                    throw new ShaderCompilationException(
+                        $"slang module '{entryModule.Name}': {valueSpecializationArgs.Count} value specialization arguments provided, but the entry points consume {valueIndex}.");
+                return CompileComponentsLocked(
+                    $"{entryModule.Name}+{companionModule.Name}", components, count, args);
+            }
+            finally
+            {
+                for (int i = 2; i < components.Length; i++)
+                    components[i]?.Release();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The members of a module's named uniform block, read from the module's own layout —
+    /// no entry points, no link (the material-parameter probe). Empty when the module
+    /// declares no such block.
+    /// </summary>
+    public List<SlangUniformMember> GetModuleUniformMembers(SlangModuleHandle module, string cbufferName)
+    {
+        lock (_lock)
+        {
+            IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
+            if (layout == IntPtr.Zero)
+                throw new ShaderCompilationException(
+                    $"slang getLayout failed for module '{module.Name}': {diagnostics}");
+            return SlangReflectionReader.GetUniformMembers(layout, cbufferName);
+        }
+    }
+
+    /// <summary>
     /// Compiles every [shader(...)] entry point the module defines, in definition order —
     /// callers that don't know entry names up front (module-name keyed lookups).
     /// </summary>

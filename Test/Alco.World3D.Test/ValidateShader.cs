@@ -97,8 +97,8 @@ public class ValidateShader
         // per set with its register space — camera set 0, instances set 1,
         // material resources set 2 — and compiler-assigned bindings inside
         // each block, resolved by name.
-        using MaterialCompiler compiler = new(engine.RenderingSystem, assets);
-        ShaderReflectionInfo gbuffer = compiler.GetTemplateShader(World3DAssetPaths.Shader_GBuffer)
+        using MaterialCompiler compiler = new(engine.RenderingSystem);
+        ShaderReflectionInfo gbuffer = compiler.ComposeSurfaceShader(null, "gbuffer")
             .GetShaderModules().ReflectionInfo;
         ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader("HBAO")
             .GetShaderModules().ReflectionInfo;
@@ -148,8 +148,12 @@ public class ValidateShader
         {
             return false;
         }
+        // Surface-generic pass templates and value-generic modules have no
+        // directly loadable entry points: the material compiler composes the
+        // templates with a surface (TestSlangMaterialCompiler covers them) and
+        // the runtime specializes the value-generic ones.
         return fileName is not ("gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang"
-            or "volumetric-cloud-noise.slang");
+            or "voxelize.slang" or "volumetric-cloud-noise.slang");
     }
 
     private static void AssertResource(

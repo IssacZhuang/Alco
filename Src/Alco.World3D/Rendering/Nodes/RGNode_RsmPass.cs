@@ -29,6 +29,22 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
     /// surroundings.</summary>
     public const int DefaultCascadeIndex = 2;
 
+    /// <summary>
+    /// Create the attachment layout of an RSM target: two RGBA8 color attachments
+    /// (sRGB albedo with alpha marking rendered texels, world normal) plus a
+    /// <see cref="PixelFormat.Depth32Float"/> depth attachment.
+    /// </summary>
+    /// <param name="device">The GPU device.</param>
+    /// <param name="name">The layout name for diagnostics.</param>
+    public static GPUAttachmentLayout CreateLayout(GPUDevice device, string name = "rsm_pass")
+        => device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [
+                new ColorAttachment(PixelFormat.RGBA8Unorm),
+                new ColorAttachment(PixelFormat.RGBA8Unorm),
+            ],
+            new DepthAttachment(PixelFormat.Depth32Float),
+            name));
+
     private readonly RenderGraphTexture _rsmMap;
 
     /// <summary>
