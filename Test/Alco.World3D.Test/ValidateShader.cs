@@ -77,7 +77,9 @@ public class ValidateShader
         ShaderReflectionInfo gbuffer = compiler.ComposeSurfaceShader(null,
                 engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"))
             .GetShaderModules().ReflectionInfo;
-        ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.HBAO)
+        // The HBAO module name is factory-asset data now (Assets/RenderNodes/
+        // HBAO.rnfact); the test pins it by its literal module name.
+        ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader("hbao")
             .GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>

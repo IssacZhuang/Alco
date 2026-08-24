@@ -1,0 +1,11 @@
+// The deferred PBR pipeline composition's own shaders: the final blit, the
+// deferred lighting pass and the optional volumetric light overlay. The preset
+// factory consumes these through the PipelineShaders service; god rays can be
+// dropped by clearing volumetricLightShader (runtime control stays on
+// PBRSceneEnvironment.VolumetricLightEnabled).
+{
+    "$type": "Alco.World3D.RGNodeFactory_PipelineShaders",
+    "blitShader": "blit",
+    "lightingShader": "deferred-lighting",
+    "volumetricLightShader": "volumetric-light"
+}

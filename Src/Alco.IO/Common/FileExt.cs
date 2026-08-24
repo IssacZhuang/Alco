@@ -60,6 +60,9 @@ public static class FileExt
     //material
     public const string Material = ".amat";
 
+    //render node factory
+    public const string RenderNodeFactory = ".rnfact";
+
     //meta
     public const string Meta = ".meta";
 }

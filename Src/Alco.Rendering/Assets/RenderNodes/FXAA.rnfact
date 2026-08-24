@@ -1,0 +1,8 @@
+// FXAA anti-aliasing chain-transform node. Quality is a generic value
+// specialization of the fxaa module, one specialized shader per preset.
+{
+    "$type": "Alco.Rendering.RGNodeFactory_FXAA",
+    "sceneCopyShader": "blit",
+    "quality": "Medium",
+    "threshold": 0.125
+}

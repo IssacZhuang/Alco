@@ -426,23 +426,36 @@ public class Game : GameEngine
             _cameraNear, 4096f);
         _camera.ReverseInfiniteDepth = true;
 
-        // Every World3D shader below is a slang module compiled through the
-        // shared ShaderSystem; plain modules load by name and the
-        // material-pass templates compose with each material asset's surface
-        // through the MaterialCompiler — the renderers register their passes on it.
+        // Shader bindings come from .rnfact factory assets (loaded as shared,
+        // immutable data — never mutated; every shader reference resolves
+        // through the shared ShaderSystem at load time); the material-pass
+        // templates compose with each material asset's surface through the
+        // MaterialCompiler — the renderers register their passes on it.
         _materialCompiler = World3DAssetPipeline.CreateMaterialCompiler(RenderingSystem);
+        var pipelineShaders = LoadRenderNodeFactory<RGNodeFactory_PipelineShaders>("RenderNodes/PipelineShaders.rnfact");
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.DeferredLighting),
-            BuiltInAssets.Shader_Blit,
+            pipelineShaders.LightingShader,
+            pipelineShaders.BlitShader,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            volumetricLightShader: RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricLight));
+            volumetricLightShader: pipelineShaders.VolumetricLightShader);
         _environment = _preset.Environment;
-        _environment.VolumetricLightEnabled = true;
+        _environment.VolumetricLightEnabled = pipelineShaders.VolumetricLightShader != null;
+
+        // The render node factory context carries the composition's shared
+        // services (post chain + content format, material compiler, camera,
+        // scene environment); the factory assets below supply shader bindings.
+        var nodeServices = new RenderNodeFactoryServices()
+            .Add(_preset.PostChain)
+            .Add(_preset.PostProcessLayout)
+            .Add(_materialCompiler)
+            .Add(_camera)
+            .Add(_environment);
+        var nodeFactoryContext = new RenderNodeFactoryContext(RenderingSystem, _preset.Graph, nodeServices);
 
         _gbufferRenderer = new GBufferRenderer(RenderingSystem, _materialCompiler);
 
@@ -481,14 +494,14 @@ public class Game : GameEngine
             _environment.GiSpecularStrength = giSpecular;
         }
 
-        // HBAO+ as a render plugin (decoupled from the pipeline): Attach wires its
-        // graph node and the lighting AO input itself.
+        // HBAO+ as a render plugin (decoupled from the pipeline): the factory
+        // supplies the shader bindings; Attach wires the graph node and the
+        // lighting AO input itself. Runtime knobs go to the node, never the
+        // shared factory asset.
         if (_hbaoEnabled)
         {
-            _hbaoRenderer = new RGNode_HBAO(
-                RenderingSystem,
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.HBAO),
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.HBAOBlur));
+            var hbaoFactory = LoadRenderNodeFactory<RGNodeFactory_HBAO>("RenderNodes/HBAO.rnfact");
+            _hbaoRenderer = hbaoFactory.CreateNode<RGNode_HBAO>(nodeFactoryContext);
             _hbaoRenderer.Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
         }
 
@@ -515,14 +528,11 @@ public class Game : GameEngine
             float cloudResolutionScale = float.TryParse(GetArgValue(args, "--cloud-res="), out float parsedCloudRes)
                 ? Math.Clamp(parsedCloudRes, 0.25f, 1.0f)
                 : 0.5f;
-            _clouds = new RGNode_VolumetricClouds(
-                RenderingSystem,
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricClouds),
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudsComposite),
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudShadow))
-            {
-                MarchResolutionScale = cloudResolutionScale,
-            };
+            var cloudsFactory = LoadRenderNodeFactory<RGNodeFactory_VolumetricClouds>("RenderNodes/VolumetricClouds.rnfact");
+            _clouds = cloudsFactory.CreateNode<RGNode_VolumetricClouds>(nodeFactoryContext);
+            // CLI overrides land on the node (runtime property), not the
+            // shared factory asset.
+            _clouds.MarchResolutionScale = cloudResolutionScale;
             if (float.TryParse(GetArgValue(args, "--cloud-coverage="), out float cloudCoverage))
             {
                 _clouds.Coverage = Math.Clamp(cloudCoverage, 0.0f, 1.0f);
@@ -638,25 +648,10 @@ public class Game : GameEngine
         // the node's default 0.25m base voxels give level coverage of 32/64/128/256m).
         if (_giEnabled)
         {
-            _voxelGI = new RGNode_VoxelGI(
-                RenderingSystem,
-                _materialCompiler,
-                new VoxelGiShaders
-                {
-                    Clear = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelClear),
-                    Inject = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelInject),
-                    Mip = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelMip),
-                    MipChain = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelMipChain),
-                    Propagate = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelPropagate),
-                    Trace = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelTrace),
-                    Demosaic = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelDemosaic),
-                    BlueNoise = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrBlueNoise),
-                    Upsample = RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.VoxelGiUpsample),
-                },
-                width: (uint)MainView.Size.X,
-                height: (uint)MainView.Size.Y,
-                resolution: 128,
-                traceResolutionScale: GiTraceResolutionScales[_giResolutionPreset]);
+            var giFactory = LoadRenderNodeFactory<RGNodeFactory_VoxelGI>("RenderNodes/VoxelGI.rnfact");
+            _voxelGI = giFactory.CreateNode<RGNode_VoxelGI>(nodeFactoryContext);
+            // CLI resolution override lands on the node.
+            _voxelGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
             _voxelGI.DebugView = giDebugView;
             _voxelGI.SsrOnly = args.Contains("--ssr-only");
             RegisterVoxelMeshes();
@@ -684,23 +679,14 @@ public class Game : GameEngine
             // The trace pass draws its stochastic samples from a blue-noise
             // tile baked once at runtime by screen-space-reflection-blue-noise.slang
             // (Heitz Owen-scrambled Sobol over an optimized scrambling table).
-            _ssrRenderer = new RGNode_SSR(
-                RenderingSystem,
-                _preset.Graph,
-                _preset.PostChain,
-                _preset.GBufferResource,
-                _preset.SceneColorResource,
-                _voxelGI,
-                _camera,
-                _environment,
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrTrace),
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrResolve),
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrComposite),
-                BuiltInAssets.Shader_Blit,
-                RenderingSystem.ShaderSystem.GetShader(World3DShaderModules.SsrBlueNoise),
-                (uint)MainView.Size.X,
-                (uint)MainView.Size.Y,
-                traceResolutionScale: GiTraceResolutionScales[_ssrResolutionPreset]);
+            nodeServices
+                .Add(new GBufferInput(_preset.GBufferResource))
+                .Add(new SceneColorInput(_preset.SceneColorResource))
+                .Add(_voxelGI);
+            var ssrFactory = LoadRenderNodeFactory<RGNodeFactory_SSR>("RenderNodes/SSR.rnfact");
+            _ssrRenderer = ssrFactory.CreateNode<RGNode_SSR>(nodeFactoryContext);
+            // CLI resolution override lands on the node.
+            _ssrRenderer.TraceResolutionScale = GiTraceResolutionScales[_ssrResolutionPreset];
             _ssrRenderer.Attach(_preset.FinalBlit);
         }
 
@@ -713,46 +699,21 @@ public class Game : GameEngine
         float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
             ? parsedBloomIntensity
             : 0.35f;
-        _bloom = new RGNode_Bloom(
-            RenderingSystem,
-            _preset.Graph,
-            _preset.PostChain,
-            _preset.PostProcessLayout,
-            RenderingSystem.CreateBloom(
-                BuiltInAssets.Shader_BloomBlit,
-                BuiltInAssets.Shader_BloomClamp,
-                BuiltInAssets.Shader_BloomDownsample,
-                BuiltInAssets.Shader_BloomUpsample,
-                11),
-            BuiltInAssets.Shader_Blit)
-        {
-            IsEnabled = !args.Contains("--no-bloom"),
-            Threshold = bloomThreshold,
-            Intensity = bloomIntensity,
-        };
+        var bloomFactory = LoadRenderNodeFactory<RGNodeFactory_Bloom>("RenderNodes/Bloom.rnfact");
+        _bloom = bloomFactory.CreateNode<RGNode_Bloom>(nodeFactoryContext);
+        // CLI overrides land on the node, never the shared factory asset.
+        _bloom.IsEnabled = !args.Contains("--no-bloom");
+        _bloom.Threshold = bloomThreshold;
+        _bloom.Intensity = bloomIntensity;
         _preset.Pipeline.Use(_bloom);
 
         // FXAA anti-aliasing node (registered between bloom and tonemap).
-        _preset.Pipeline.Use(new RGNode_FXAA(
-            _preset.Graph,
-            _preset.PostChain,
-            _preset.PostProcessLayout,
-            RenderingSystem.CreateFXAA(
-                BuiltInAssets.Shader_Blit)));
+        var fxaaFactory = LoadRenderNodeFactory<RGNodeFactory_FXAA>("RenderNodes/FXAA.rnfact");
+        _preset.Pipeline.Use(fxaaFactory.CreateNode<RGNode_FXAA>(nodeFactoryContext));
 
         // HDR tone mapping node (registered last, after bloom and FXAA).
-        _tonemapStage = new RGNode_Tonemap(
-            RenderingSystem,
-            _preset.Graph,
-            _preset.PostChain,
-            _preset.PostProcessLayout,
-            BuiltInAssets.Shader_Blit,
-            BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-            BuiltInAssets.Shader_Uncharted2Tonemap,
-            BuiltInAssets.Shader_FilmicTonemap,
-            BuiltInAssets.Shader_AcesTonemap,
-            BuiltInAssets.Shader_NeutralTonemap,
-            BuiltInAssets.Shader_AgxTonemap);
+        var tonemapFactory = LoadRenderNodeFactory<RGNodeFactory_Tonemap>("RenderNodes/Tonemap.rnfact");
+        _tonemapStage = tonemapFactory.CreateNode<RGNode_Tonemap>(nodeFactoryContext);
         _preset.Pipeline.Use(_tonemapStage);
 
         MainPresenter.OnResize += OnMainWindowResize;
@@ -768,6 +729,14 @@ public class Game : GameEngine
             yield return loader;
         }
         yield return new AssetLoaderModelGltf(RenderingSystem);
+    }
+
+    /// <summary>Loads a render node factory asset and checks its concrete type.</summary>
+    private T LoadRenderNodeFactory<T>(string assetName) where T : RenderNodeFactory
+    {
+        return AssetSystem.Load<RenderNodeFactory>(assetName) as T
+            ?? throw new InvalidDataException(
+                $"The render node factory '{assetName}' is not a {typeof(T).Name}.");
     }
 
     public override IEnumerable<IFileSource> CreateDefaultFileSources()
