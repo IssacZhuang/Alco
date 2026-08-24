@@ -86,6 +86,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<P
     }
 
     private readonly RenderingSystem _rendering;
+    private readonly ShaderLibrary _template;
     private CameraPerspectiveBuffer? _camera;
 
     // Pipeline resources bound to every glass material (shared with the deferred pipeline).
@@ -120,6 +121,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<P
     /// <param name="graph">The render graph the node is registered in.</param>
     /// <param name="chain">The pipeline's content chain (the node draws into its current target).</param>
     /// <param name="compiler">The material compiler the "glass" pass registers on.</param>
+    /// <param name="template">The forward glass pass template library (glass.slang), composed per material asset.</param>
     /// <param name="lightingDataBuffer">The deferred lighting data buffer (shared with the pipeline).</param>
     /// <param name="pointLightBuffer">The point light buffer (shared with the pipeline).</param>
     /// <param name="shadowRT">The shadow map render texture (for shadow comparison sampling).</param>
@@ -128,12 +130,14 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<P
         RenderGraph graph,
         RenderChain chain,
         MaterialCompiler compiler,
+        ShaderLibrary template,
         GraphicsBuffer lightingDataBuffer,
         GraphicsBuffer pointLightBuffer,
         RenderTexture shadowRT)
         : base(graph, chain)
     {
         _rendering = rendering;
+        _template = template;
         _lightingDataBuffer = lightingDataBuffer;
         _pointLightBuffer = pointLightBuffer;
         _shadowRT = shadowRT;
@@ -345,7 +349,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<P
 
     string IMaterialPass.Id => PassId;
 
-    ShaderLibrary IMaterialPass.Template => _rendering.ShaderSystem.GetLibrary("glass");
+    ShaderLibrary IMaterialPass.Template => _template;
 
     GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
         => CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass");

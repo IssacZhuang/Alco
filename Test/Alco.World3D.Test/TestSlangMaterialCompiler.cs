@@ -201,7 +201,8 @@ public class TestSlangMaterialCompiler
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The renderer's constructor registers itself as the "gbuffer" pass (template
         // × asset surface, the renderer's factory as the pass state).
-        using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
+        using GBufferRenderer gbuffer = new(
+            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
 
         // The test surface with all four mixed-type parameters set (a Vector4 reads
         // as many leading components as the reflected member takes).

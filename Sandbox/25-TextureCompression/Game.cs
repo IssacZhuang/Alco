@@ -34,7 +34,9 @@ public class Game : GameEngine
         
         
        
-        _compressor = RenderingSystem.CreateTextureCompressorBC3();
+        _compressor = RenderingSystem.CreateTextureCompressorBC3(
+            RenderingSystem.ShaderSystem.GetShader("texture-compress-bc3", "0"),
+            RenderingSystem.ShaderSystem.GetShader("texture-compress-bc3", "1"));
         _compressor.IsSRGB = false;
         _compressedTexture = _compressor.Compress(_texture);
 

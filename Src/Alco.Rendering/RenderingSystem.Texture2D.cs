@@ -409,14 +409,16 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a BC3 texture compressor. The compressor requests its linear/sRGB
-    /// compression materials itself as generic specializations of the
-    /// texture-compress-bc3 module.
+    /// Creates a BC3 texture compressor from the two injected specializations
+    /// of the texture-compress-bc3 module (MainCS&lt;let IsSRGB&gt;): pass the
+    /// linear (IsSRGB = 0) and sRGB (IsSRGB = 1) shaders.
     /// </summary>
+    /// <param name="linearShader">The linear-output compression shader.</param>
+    /// <param name="srgbShader">The sRGB-output compression shader.</param>
     /// <returns>A new TextureCompressorBC3 instance.</returns>
-    public TextureCompressorBC3 CreateTextureCompressorBC3()
+    public TextureCompressorBC3 CreateTextureCompressorBC3(Shader linearShader, Shader srgbShader)
     {
-        return new TextureCompressorBC3(this);
+        return new TextureCompressorBC3(this, linearShader, srgbShader);
     }
 
     /// <summary>

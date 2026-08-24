@@ -63,6 +63,16 @@ public partial class BuiltInAssets
                     continue;
                 }
 
+                // Entry points with generic value parameters (e.g. the fxaa
+                // module's MainPS<let Quality : int>) must load through a
+                // specialized reference — the default-spec accessors the
+                // generator emits could never compile, so skip those modules.
+                if (Path.GetExtension(filePath) == ".slang"
+                    && File.ReadAllText(filePath).Contains("<let ", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 string fileName = Path.GetFileNameWithoutExtension(filePath);
                 // Asset stems are kebab-case (slang convention); the generated
                 // identifier PascalCases each dashed word (fxaa → Fxaa).

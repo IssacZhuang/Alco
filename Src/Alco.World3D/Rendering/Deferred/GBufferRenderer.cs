@@ -60,6 +60,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
     public bool IsEnabled { get; set; } = true;
 
     private readonly RenderingSystem _rendering;
+    private readonly ShaderLibrary _template;
     private CameraPerspectiveBuffer? _camera;
 
     // Registered renderables split by static / dynamic.
@@ -86,9 +87,11 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="compiler">The material compiler the "gbuffer" pass registers on.</param>
-    public GBufferRenderer(RenderingSystem rendering, MaterialCompiler compiler)
+    /// <param name="template">The G-buffer pass template library (gbuffer.slang), composed per material asset.</param>
+    public GBufferRenderer(RenderingSystem rendering, MaterialCompiler compiler, ShaderLibrary template)
     {
         _rendering = rendering;
+        _template = template;
         _staticBundle = rendering.CreateSubRenderContext("pbr_gbuffer_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_gbuffer_dynamic");
         compiler.RegisterPass(this);
@@ -265,7 +268,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
 
     string IMaterialPass.Id => PassId;
 
-    ShaderLibrary IMaterialPass.Template => _rendering.ShaderSystem.GetLibrary("gbuffer");
+    ShaderLibrary IMaterialPass.Template => _template;
 
     GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
         => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer");

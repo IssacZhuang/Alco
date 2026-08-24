@@ -197,9 +197,10 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 
     /// <summary>
     /// The node's construction data: the march, composite and cloud-shadow
-    /// coverage shaders, plus the march resolution scale. The noise-bake
-    /// module's base/detail variants resolve inside the node as generic value
-    /// specializations (MainCS&lt;let IsDetail&gt;), not configuration.
+    /// coverage shaders, the two noise-bake specializations, plus the march
+    /// resolution scale. The noise-bake module's base/detail variants are the
+    /// generic value specializations (MainCS&lt;let IsDetail&gt;) of one module:
+    /// 0 = base shape bake, 1 = detail bake.
     /// Service-type dependencies (the rendering system) are explicit constructor
     /// parameters instead — a descriptor is pure data.
     /// </summary>
@@ -211,6 +212,10 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         public required Shader CompositeShader { get; init; }
         /// <summary>The shadow coverage bake compute shader (volumetric-cloud-shadow.slang).</summary>
         public required Shader ShadowShader { get; init; }
+        /// <summary>The base-shape noise bake shader (volumetric-cloud-noise.slang, IsDetail = 0).</summary>
+        public required Shader NoiseBaseShader { get; init; }
+        /// <summary>The detail noise bake shader (volumetric-cloud-noise.slang, IsDetail = 1).</summary>
+        public required Shader NoiseDetailShader { get; init; }
 
         /// <summary>The ray-march resolution relative to the graph viewport
         /// (0.5 = half resolution).</summary>
@@ -257,13 +262,11 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VolumetricCloudsData>("volumetric_clouds_data");
 
-        // The bake kind is a generic value specialization of the noise module:
-        // 0 = base shape bake, 1 = detail bake.
-        _noiseBaseMaterial = rendering.CreateComputeMaterial(
-            rendering.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudNoise, "0"));
+        // The bake kind is a generic value specialization of the noise module
+        // (0 = base shape bake, 1 = detail bake); both arrive injected.
+        _noiseBaseMaterial = rendering.CreateComputeMaterial(descriptor.NoiseBaseShader);
         _noiseBaseMaterial.SetTexture3DStorage("_noiseOut", _baseNoise, 0);
-        _noiseDetailMaterial = rendering.CreateComputeMaterial(
-            rendering.ShaderSystem.GetShader(World3DShaderModules.VolumetricCloudNoise, "1"));
+        _noiseDetailMaterial = rendering.CreateComputeMaterial(descriptor.NoiseDetailShader);
         _noiseDetailMaterial.SetTexture3DStorage("_noiseOut", _detailNoise, 0);
         _shadowBakeMaterial = rendering.CreateComputeMaterial(descriptor.ShadowShader);
         _shadowBakeMaterial.SetBuffer("_cloudData", _dataBuffer);

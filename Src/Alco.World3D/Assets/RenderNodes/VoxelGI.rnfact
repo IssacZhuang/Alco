@@ -1,6 +1,7 @@
 // Voxel global illumination render plugin node. The voxelize feed composes per
-// material surface through the material compiler (a factory context service);
-// graph wiring happens in code through RGNode_VoxelGI.Attach.
+// material surface through the material compiler (a factory context service)
+// from the descriptor's template; graph wiring happens in code through
+// RGNode_VoxelGI.Attach.
 {
     "$type": "Alco.World3D.RGNodeFactory_VoxelGI",
     "descriptor": {
@@ -12,6 +13,7 @@
         "trace": "voxel-trace",
         "demosaic": "voxel-demosaic",
         "blueNoise": "screen-space-reflection-blue-noise",
+        "voxelizeTemplate": "voxelize",
         "upsample": "voxel-gi-upsample",
         "resolution": 128,
         "baseVoxelSize": 0.25,

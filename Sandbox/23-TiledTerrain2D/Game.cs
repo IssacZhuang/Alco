@@ -79,7 +79,17 @@ public class Game : GameEngine
             MainPipeline.Graph,
             MainPipeline.Chain,
             MainPipeline.PostProcessLayout,
-            new RGNode_FXAA.Descriptor { SceneCopyShader = BuiltInAssets.Shader_Blit });
+            new RGNode_FXAA.Descriptor
+            {
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+                QualityShaders = new Dictionary<FXAAQuality, Shader>
+                {
+                    [FXAAQuality.Low] = RenderingSystem.ShaderSystem.GetShader("fxaa", "0"),
+                    [FXAAQuality.Medium] = RenderingSystem.ShaderSystem.GetShader("fxaa", "1"),
+                    [FXAAQuality.High] = RenderingSystem.ShaderSystem.GetShader("fxaa", "2"),
+                    [FXAAQuality.Ultra] = RenderingSystem.ShaderSystem.GetShader("fxaa", "3"),
+                },
+            });
         MainPipeline.Use(fxaaNode);
 
         var tonemapNode = new RGNode_Tonemap(

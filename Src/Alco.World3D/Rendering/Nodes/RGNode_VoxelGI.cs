@@ -127,12 +127,13 @@ public enum VoxelGiDebugMode
 
 /// <summary>
 /// The node's construction data: the complete set of compute/graphics shaders
-/// plus the clipmap and trace parameters — everything a voxel GI needs except
-/// service-type dependencies (the rendering system, material compiler, graph
-/// wiring), which are explicit constructor parameters instead, so a descriptor
-/// is pure data. The triangle voxelization shader is not part of the set: it
-/// composes per material surface through the <see cref="MaterialCompiler"/> (the
-/// <c>voxelize.slang</c> template × each registered asset's surface).
+/// plus the voxelize feed template and the clipmap and trace parameters —
+/// everything a voxel GI needs except service-type dependencies (the rendering
+/// system, material compiler, graph wiring), which are explicit constructor
+/// parameters instead, so a descriptor is pure data. The triangle voxelization
+/// shader is the <c>voxelize</c> template: it composes per material surface
+/// through the <see cref="MaterialCompiler"/> (the template × each registered
+/// asset's surface).
 /// </summary>
 public readonly struct VoxelGiDescriptor
 {
@@ -157,6 +158,11 @@ public readonly struct VoxelGiDescriptor
     public required Shader BlueNoise { get; init; }
     /// <summary>The full-resolution upsample shader (voxel-gi-upsample.slang), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
+    /// <summary>
+    /// The voxelize feed template (voxelize.slang), composed per material
+    /// surface through the <see cref="MaterialCompiler"/>.
+    /// </summary>
+    public required ShaderLibrary VoxelizeTemplate { get; init; }
 
     /// <summary>The voxel resolution of each clipmap level (power of two).</summary>
     public int Resolution { get; init; } = 128;
@@ -348,6 +354,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     private readonly RenderingSystem _rendering;
     private readonly MaterialCompiler _materialCompiler;
+    // The voxelize feed template (from the descriptor), composed per material
+    // asset surface through the compiler in GetVoxelizeFeed.
+    private readonly ShaderLibrary _voxelizeTemplate;
     private readonly GPUDevice _device;
     // One-off geometry upload buffer used by CreateGeometry; per-frame compute
     // dispatches record into the graph's shared command buffer instead.
@@ -777,6 +786,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
         _rendering = rendering;
         _materialCompiler = compiler;
+        _voxelizeTemplate = descriptor.VoxelizeTemplate;
         _device = rendering.GraphicsDevice;
         _resolution = descriptor.Resolution;
         _mipCount = (int)MathF.Log2(descriptor.Resolution) + 1;
@@ -1140,8 +1150,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             return cached;
         }
 
-        Shader shader = _materialCompiler.ComposeSurfaceComputeShader(
-            asset, _rendering.ShaderSystem.GetLibrary("voxelize"));
+        Shader shader = _materialCompiler.ComposeSurfaceComputeShader(asset, _voxelizeTemplate);
         ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
         var material = _rendering.CreateComputeMaterial(shader);
         material.SetBuffer("_data", _dataBuffer);

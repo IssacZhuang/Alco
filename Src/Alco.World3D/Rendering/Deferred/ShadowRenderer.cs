@@ -91,6 +91,8 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 
     private readonly RenderingSystem _rendering;
     private readonly MaterialCompiler _materialCompiler;
+    private readonly ShaderLibrary _template;
+    private readonly ShaderLibrary _rsmTemplate;
     private readonly GPUAttachmentLayout _shadowLayout;
     private readonly GraphicsBuffer _shadowDataBuffer;
 
@@ -131,16 +133,22 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="compiler">The material compiler the "shadow" pass registers on.</param>
+    /// <param name="template">The shadow depth pass template library (shadow_depth.slang), composed per material asset.</param>
+    /// <param name="rsmTemplate">The RSM pass template library (rsm.slang), registered by <see cref="EnableRsm"/>.</param>
     /// <param name="shadowLayout">The shadow pass attachment layout (owned by the composition, e.g. <see cref="PBRDeferredPreset.ShadowLayout"/>).</param>
     /// <param name="shadowDataBuffer">The cascade VP data buffer (owned by the scene environment, see <see cref="PBRSceneEnvironment.ShadowDataBuffer"/>).</param>
     public ShadowRenderer(
         RenderingSystem rendering,
         MaterialCompiler compiler,
+        ShaderLibrary template,
+        ShaderLibrary rsmTemplate,
         GPUAttachmentLayout shadowLayout,
         GraphicsBuffer shadowDataBuffer)
     {
         _rendering = rendering;
         _materialCompiler = compiler;
+        _template = template;
+        _rsmTemplate = rsmTemplate;
         _shadowLayout = shadowLayout;
         _shadowDataBuffer = shadowDataBuffer;
 
@@ -277,7 +285,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
 
     string IMaterialPass.Id => PassId;
 
-    ShaderLibrary IMaterialPass.Template => _rendering.ShaderSystem.GetLibrary("shadow_depth");
+    ShaderLibrary IMaterialPass.Template => _template;
 
     GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
         => CreateShadowMaterial(shader, asset.DoubleSided, $"{asset.Name}_shadow");
@@ -293,7 +301,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     {
         public string Id => RsmPassId;
 
-        public ShaderLibrary Template => renderer._rendering.ShaderSystem.GetLibrary("rsm");
+        public ShaderLibrary Template => renderer._rsmTemplate;
 
         public GraphicsMaterial CreateMaterial(PbrMaterialAsset asset, Shader shader)
             => renderer.CreateRsmMaterial(shader, asset.DoubleSided, $"{asset.Name}_rsm");

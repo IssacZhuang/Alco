@@ -26,7 +26,21 @@ public class JsonConverterShaderLibrary : JsonConverter<ShaderLibrary>
             throw new JsonException("Expected a shader library module name string.");
         }
         string? name = reader.GetString();
-        return string.IsNullOrWhiteSpace(name) ? null : _shaderSystem.GetLibrary(name.Trim());
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+        try
+        {
+            return _shaderSystem.GetLibrary(name.Trim());
+        }
+        catch (Exception exception)
+        {
+            // Same load-time failure contract as shader references: a typoed
+            // module fails at load with the file's context.
+            throw new JsonException(
+                $"Shader library '{name.Trim()}' failed to resolve: {exception.Message}", exception);
+        }
     }
 
     public override void Write(Utf8JsonWriter writer, ShaderLibrary value, JsonSerializerOptions options)

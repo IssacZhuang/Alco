@@ -52,9 +52,10 @@ public class FXAA : TextureProcessor
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
 
-    // FXAA shader and pipeline: one specialized shader per quality preset (the
-    // fxaa module's MainPS<let Quality : int> generic), keyed by preset.
-    private readonly Dictionary<FXAAQuality, Shader> _fxaaShaders = new();
+    // FXAA shader and pipeline: the quality-preset shaders arrive injected (one
+    // specialized shader per preset of the fxaa module's MainPS<let Quality : int>
+    // generic), keyed by preset.
+    private readonly IReadOnlyDictionary<FXAAQuality, Shader> _fxaaShaders;
     private Shader _fxaaShader = null!;
     private GraphicsPipelineContext _fxaaPipelineInfo;
     private uint _fxaaShaderId_texture;
@@ -111,11 +112,25 @@ public class FXAA : TextureProcessor
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance</param>
     /// <param name="blitShader">The blit shader for final copy</param>
-    internal FXAA(RenderingSystem renderingSystem, Shader blitShader) : base(renderingSystem)
+    /// <param name="qualityShaders">One specialized shader per quality preset
+    /// (the fxaa module's MainPS&lt;let Quality : int&gt; generic); every
+    /// <see cref="FXAAQuality"/> value must be present.</param>
+    /// <exception cref="ArgumentException">Thrown when a quality preset has no shader.</exception>
+    internal FXAA(RenderingSystem renderingSystem, Shader blitShader,
+        IReadOnlyDictionary<FXAAQuality, Shader> qualityShaders) : base(renderingSystem)
     {
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
         _blitShader = blitShader;
+        _fxaaShaders = qualityShaders;
+
+        foreach (FXAAQuality quality in Enum.GetValues<FXAAQuality>())
+        {
+            if (!qualityShaders.ContainsKey(quality))
+            {
+                throw new ArgumentException($"Missing the {quality} quality-preset shader.", nameof(qualityShaders));
+            }
+        }
 
         // Initialize the FXAA pipeline context with the default quality preset
         ApplyQuality();
@@ -255,18 +270,14 @@ public class FXAA : TextureProcessor
     /// <summary>
     /// Switches to the current quality preset's specialized shader and rebuilds
     /// the FXAA pipeline against a placeholder layout (the real intermediate
-    /// layout replaces it on the next Blit). The fxaa module's quality axis is a
-    /// generic value specialization (MainPS&lt;let Quality : int&gt;), so each preset
-    /// is its own specialized Shader, not a defines permutation.
+    /// layout replaces it on the next Blit). The quality axis is a generic value
+    /// specialization (MainPS&lt;let Quality : int&gt;), so each preset is its own
+    /// specialized Shader, not a defines permutation; the preset shaders arrive
+    /// injected at construction.
     /// </summary>
     private void ApplyQuality()
     {
-        if (!_fxaaShaders.TryGetValue(_quality, out Shader? shader))
-        {
-            shader = _renderingSystem.ShaderSystem.GetShader("fxaa", ((int)_quality).ToString());
-            _fxaaShaders[_quality] = shader;
-        }
-        _fxaaShader = shader;
+        _fxaaShader = _fxaaShaders[_quality];
 
         // Fresh context: the new shader's pipeline differs from the previous one's.
         _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PreferredLightMapPass);

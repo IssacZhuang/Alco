@@ -81,7 +81,8 @@ public class TestMaterialCompiler
         // template composes with each asset's surface, the renderer factory applies
         // the pass-mandated state.
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-        using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
+        using GBufferRenderer gbuffer = new(
+            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
 
         PbrMaterialAsset opaque = new() { Name = "opaque" };
         PbrMaterialAsset doubled = new() { Name = "doubled", DoubleSided = true };
@@ -172,7 +173,8 @@ public class TestMaterialCompiler
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
 
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-        using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
+        using GBufferRenderer gbuffer = new(
+            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
 
         // A declared slot of the built-in surface passes validation.
         PbrMaterialAsset textured = new()
@@ -202,7 +204,8 @@ public class TestMaterialCompiler
         try
         {
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-            using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
+            using GBufferRenderer gbuffer = new(
+                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
 
             // A procedural surface: composed into the G-buffer template, declaring no
             // texture slots at all (nothing to stream).
@@ -238,7 +241,8 @@ public class TestMaterialCompiler
         try
         {
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-            using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
+            using GBufferRenderer gbuffer = new(
+                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
             ShaderLibrary surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule);
 
             // The test surface declares one [MaterialParams] block member; the
@@ -307,7 +311,8 @@ public class TestMaterialCompiler
         try
         {
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-            using GBufferRenderer gbuffer = new(engine.RenderingSystem, compiler);
+            using GBufferRenderer gbuffer = new(
+                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
 
             // The zero-override surface composes into the G-buffer template like any
             // other: the pass bindings come from the template, and the surface

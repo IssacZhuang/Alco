@@ -16,8 +16,6 @@ public partial class BuiltInAssets
 
     public Shader Shader_ClearTexture => GetShader("clear-texture");
 
-    public Shader Shader_TextureCompressBc3 => GetShader("texture-compress-bc3");
-
     public Shader Shader_FloodFillLighting => GetShader("flood-fill-lighting");
 
     public Shader Shader_GaussianBlurRgba16f => GetShader("gaussian-blur-rgba16f");
@@ -37,8 +35,6 @@ public partial class BuiltInAssets
     public Shader Shader_BloomUpsample => GetShader("bloom-upsample");
 
     public Shader Shader_ColorGrading => GetShader("color-grading");
-
-    public Shader Shader_Fxaa => GetShader("fxaa");
 
     public Shader Shader_AcesTonemap => GetShader("aces-tonemap");
 

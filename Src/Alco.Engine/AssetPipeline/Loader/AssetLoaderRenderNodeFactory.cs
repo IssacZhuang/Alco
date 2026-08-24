@@ -49,6 +49,7 @@ public class AssetLoaderRenderNodeFactory : BaseAssetLoader<RenderNodeFactory>
             TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(RenderNodeFactory)]),
         };
         options.Converters.Add(new JsonConverterShader(shaderSystem));
+        options.Converters.Add(new JsonConverterShaderLibrary(shaderSystem));
         options.Converters.Add(new JsonStringEnumConverter());
         options.MakeReadOnly();
         return options;

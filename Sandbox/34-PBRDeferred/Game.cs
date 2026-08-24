@@ -434,12 +434,12 @@ public class Game : GameEngine
         _materialCompiler = World3DAssetPipeline.CreateMaterialCompiler(RenderingSystem);
 
         // Create the PBR deferred pipeline preset that drives the whole frame.
-        // The composition's own shaders are hardcoded here — game code may name
+        // The composition's own shaders are named here — game code may name
         // modules directly (only the engine forbids hardcoded module names).
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
             RenderingSystem.ShaderSystem.GetShader("deferred-lighting"),
-            RenderingSystem.ShaderSystem.GetShader("blit"),
+            BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
@@ -458,11 +458,14 @@ public class Game : GameEngine
             .Add(_environment);
         var nodeFactoryContext = new RenderNodeFactoryContext(RenderingSystem, _preset.Graph, nodeServices);
 
-        _gbufferRenderer = new GBufferRenderer(RenderingSystem, _materialCompiler);
+        _gbufferRenderer = new GBufferRenderer(
+            RenderingSystem, _materialCompiler, RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
 
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
             _materialCompiler,
+            RenderingSystem.ShaderSystem.GetLibrary("shadow_depth"),
+            RenderingSystem.ShaderSystem.GetLibrary("rsm"),
             _preset.ShadowLayout,
             _environment.ShadowDataBuffer);
 
@@ -512,6 +515,7 @@ public class Game : GameEngine
             _preset.Graph,
             _preset.PostChain,
             _materialCompiler,
+            RenderingSystem.ShaderSystem.GetLibrary("glass"),
             _environment.LightingDataBuffer,
             _environment.PointLightBuffer,
             _preset.ShadowMap);

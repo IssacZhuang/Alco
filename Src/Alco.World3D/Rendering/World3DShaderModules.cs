@@ -10,17 +10,9 @@ namespace Alco.World3D;
 /// first (the module's content is copied into the application's output
 /// <c>Assets</c> folder automatically when it is referenced); the module system
 /// resolves each name to its source file.
-/// <br/>The material-pass templates (gbuffer, shadow_depth, rsm, glass) are generic
-/// over the surface type and define no directly loadable entry points — they compose
-/// through the <see cref="MaterialCompiler"/> from their <see cref="ShaderLibrary"/>
-/// references (see <see cref="MaterialCompiler.ComposeSurfaceShader"/>), never by
-/// direct module load.
 /// </summary>
 public static class World3DShaderModules
 {
     /// <summary>The asset folder the module's shader files live under (used by tests to enumerate them).</summary>
     public const string Folder = "Shaders/Pipelines/Rendering/PBR/";
-
-    /// <summary>Volumetric clouds 3D noise baking pass (specialized per IsDetail at runtime).</summary>
-    public const string VolumetricCloudNoise = "volumetric-cloud-noise";
 }
