@@ -7,8 +7,8 @@ public static class RenderingSystemGUIExtension
     public static Canvas CreateCanvas(
         this RenderingSystem system,
         IUIInputTracker inputTracker,
-        Material defaultSpriteMaterial,
-        Material defaultTextMaterial,
+        GraphicsMaterial defaultSpriteMaterial,
+        GraphicsMaterial defaultTextMaterial,
         Font defaultFont
         )
     {
@@ -23,8 +23,8 @@ public static class RenderingSystemGUIExtension
     public static Canvas CreateCanvas(
         this RenderingSystem system,
         IUIInputTracker inputTracker,
-        Material defaultSpriteMaterial,
-        Material defaultTextMaterial,
+        GraphicsMaterial defaultSpriteMaterial,
+        GraphicsMaterial defaultTextMaterial,
         Font defaultFont,
         RenderContext renderContext
         )

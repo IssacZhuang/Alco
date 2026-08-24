@@ -13,7 +13,7 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
 {
     private readonly RenderingSystem _rendering;
     private readonly Mesh _fullScreenMesh;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
     private readonly Shader _reinhardShader;
     private readonly Shader _uncharted2Shader;
     private readonly Shader _filmicShader;
@@ -22,7 +22,7 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
     private readonly Shader _agxShader;
 
     private TonemapType _operator = TonemapType.Reinhard;
-    private Material? _material;
+    private GraphicsMaterial? _material;
     private GraphicsBuffer? _dataBuffer;
 
     private ReinhardTonemapData _reinhardData = ReinhardTonemapData.Default;
@@ -173,7 +173,7 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
     {
         _rendering = rendering;
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blitMaterial = rendering.CreateMaterial(blitShader);
+        _blitMaterial = rendering.CreateGraphicsMaterial(blitShader);
 
         _reinhardShader = reinhardShader;
         _uncharted2Shader = uncharted2Shader;
@@ -188,7 +188,7 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
     /// <inheritdoc />
     protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
     {
-        Material material = _operator == TonemapType.Linear || _material == null ? _blitMaterial : _material;
+        GraphicsMaterial material = _operator == TonemapType.Linear || _material == null ? _blitMaterial : _material;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
         using RenderPassScope pass = BeginProcessPass(output, context);
         pass.Draw(_fullScreenMesh, material);
@@ -235,7 +235,7 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
 
     private void CreateOperatorResources(Shader shader, uint dataSize)
     {
-        _material = _rendering.CreateMaterial(shader);
+        _material = _rendering.CreateGraphicsMaterial(shader);
         _dataBuffer = _rendering.CreateGraphicsBuffer(dataSize, "tonemap_data");
         _material.SetBuffer(ShaderResourceId.Data, _dataBuffer);
     }

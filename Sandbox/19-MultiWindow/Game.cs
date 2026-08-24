@@ -55,11 +55,11 @@ public class Game : GameEngine
         _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);
         _windowCamera2 = RenderingSystem.CreateCamera2D(720, 405, 100);
 
-        Material material1 = RenderingSystem.CreateMaterial(_shader);
+        GraphicsMaterial material1 = RenderingSystem.CreateGraphicsMaterial(_shader);
         material1.SetBuffer(ShaderResourceId.Camera, _windowCamera1);
         _renderer1 = RenderingSystem.CreateSpriteRenderer(_mainPipeline.Graph.RenderContext, material1);
 
-        Material material2 = RenderingSystem.CreateMaterial(_shader);
+        GraphicsMaterial material2 = RenderingSystem.CreateGraphicsMaterial(_shader);
         material2.SetBuffer(ShaderResourceId.Camera, _windowCamera2);
         _renderer2 = RenderingSystem.CreateSpriteRenderer(_pipeline2.Graph.RenderContext, material2);
 

@@ -71,7 +71,7 @@ public class Game : GameEngine
         _camera.UpdateMatrixToGPU();
 
         _renderer = RenderingSystem.CreateRenderContext();
-        _material = RenderingSystem.CreateMaterial(_shader, "Unlit");
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
 
         _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
         _material.SetBuffer("_camera", _cameraBuffer);

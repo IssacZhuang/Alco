@@ -306,7 +306,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<P
             });
     }
 
-    // ── Material factory ──
+    // ── GraphicsMaterial factory ──
 
     /// <summary>
     /// Create a glass material from a pass-template shader already composed with its
@@ -323,7 +323,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent, IMaterialPass<P
     /// <param name="name">The material name for debugging.</param>
     public GraphicsMaterial CreateGlassMaterial(Shader shader, bool doubleSided = false, string name = "pbr_glass_material")
     {
-        var material = _rendering.CreateMaterial(shader, name);
+        var material = _rendering.CreateGraphicsMaterial(shader, name);
         material.BlendState = BlendState.AlphaBlendNoAccumulation;
         material.DepthStencilState = DepthStencilState.ReadReverseZ; // hardware depth test (GreaterEqual on reversed depth, no write)
         material.RasterizerState = new RasterizerState(FillMode.Solid,

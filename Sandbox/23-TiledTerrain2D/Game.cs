@@ -21,16 +21,16 @@ public class Game : GameEngine
     private readonly RenderPipeline _mainPipeline;
 
     private readonly Camera2D _camera;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
 
     public RenderPipeline MainPipeline => _mainPipeline;
 
-    private readonly Material _surfaceMaterial;
-    private readonly Material _cliffMaterial;
-    private readonly Material _waterMaterial;
+    private readonly GraphicsMaterial _surfaceMaterial;
+    private readonly GraphicsMaterial _cliffMaterial;
+    private readonly GraphicsMaterial _waterMaterial;
     private TileSet _surfaceTileSet;
 
-    private Material _wallMaterial;
+    private GraphicsMaterial _wallMaterial;
     private readonly TileRenderer _surfaceBlock;
 
     private readonly LightingManager _lightingManager;
@@ -47,12 +47,12 @@ public class Game : GameEngine
 
     private float _hight = 0.2f;
     private float _brushSize = 0.3f;
-    private Material _brushMaterial;
+    private GraphicsMaterial _brushMaterial;
     private Transform3D _brushTransform;
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
-    private readonly Material _materialLightOverlay;
+    private readonly GraphicsMaterial _materialLightOverlay;
     private SpriteConstant _lightOverlayConstant;
 
     private Color32 _waterColor = new Color32(128, 161, 168, 100);
@@ -107,7 +107,7 @@ public class Game : GameEngine
        
         RenderingSystem.MainCamera = _camera;
 
-        _blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        _blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
 
         _lightingManager = new LightingManager(this, width, height);
         _wallManager = new WallManager(this, _lightingManager, width, height);
@@ -117,16 +117,16 @@ public class Game : GameEngine
         _lightingManager.SetLightMapDirty();
         _lightingManager.SetOpacityMapDirty();
 
-        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _surfaceMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileInstanced);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
 
-        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _cliffMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileInstanced);
         _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _cliffMaterial.DepthStencilState = DepthStencilState.Write;
         _cliffMaterial.SetDefines("IS_FACADE");
 
-        _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWaterInstanced);
+        _waterMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWaterInstanced);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
@@ -136,13 +136,13 @@ public class Game : GameEngine
 
 
 
-        _brushMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        _brushMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _brushMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
 
-        _wallMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("Shaders/tile-connectable.slang"));
+        _wallMaterial = RenderingSystem.CreateGraphicsMaterial(AssetSystem.Load<Shader>("Shaders/tile-connectable.slang"));
         _wallMaterial.BlendState = BlendState.Opaque;
         _wallMaterial.DepthStencilState = DepthStencilState.Write;
         _wallMaterial.SetTexture(ShaderResourceId.Texture, textureWall);
@@ -159,7 +159,7 @@ public class Game : GameEngine
 
         GridUtility.FillCellsInRadius(_brushCells, _brushSize);
 
-        _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        _materialLightOverlay = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightingManager.LightMap);
         _materialLightOverlay.BlendState = BlendState.Multiply;
 
@@ -359,21 +359,21 @@ public class Game : GameEngine
 
         List<TileItem> items = new();
 
-        Material gridMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial gridMaterial = _surfaceMaterial.CreateInstance();
         gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
         var item1 = new TileItem("grid", gridMaterial, 0, null);
 
-        Material grassMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial grassMaterial = _surfaceMaterial.CreateInstance();
         grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
         grassMaterial.SetDefines("TEXTURE_BOMBING");
         var item2 = new TileItem("grass", grassMaterial, 1, null);
 
-        Material sandMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial sandMaterial = _surfaceMaterial.CreateInstance();
         sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
         sandMaterial.SetDefines("TEXTURE_BOMBING");
         var item3 = new TileItem("sand", sandMaterial, 2, null);
 
-        Material waterMaterial = _waterMaterial.CreateInstance();
+        GraphicsMaterial waterMaterial = _waterMaterial.CreateInstance();
         waterMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         var item4 = new TileItem("water", waterMaterial, 1, null);
         item4.Color = new ColorFloat(0.15f, 0.54f, 0.67f, 0.8f);

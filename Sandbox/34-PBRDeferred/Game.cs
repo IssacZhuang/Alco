@@ -286,7 +286,7 @@ public class Game : GameEngine
     private static readonly string[] GiTraceResolutionModes =
         ["Performance (50%)", "Balanced (75%)", "Quality (100%)"];
 
-    // Material tweak panel.
+    // GraphicsMaterial tweak panel.
     private int _selectedObject;
     private bool _animateObjects = true;
 
@@ -1977,7 +1977,7 @@ public class Game : GameEngine
         }
         else
         {
-            if (ImGui.CollapsingHeader("Material"))
+            if (ImGui.CollapsingHeader("GraphicsMaterial"))
             {
                 ImGui.Combo("Object", ref _selectedObject, _objectNames!, _objectNames!.Length);
                 _selectedObject = Math.Clamp(_selectedObject, 0, _objects.Count - 1);
@@ -2094,7 +2094,7 @@ public class Game : GameEngine
             Roughness = 0.85f,
             AmbientOcclusion = 1.0f,
         });
-        // Material variety: gold / mirror / rough red / plastic / copper / dark metal / ceramic / green.
+        // GraphicsMaterial variety: gold / mirror / rough red / plastic / copper / dark metal / ceramic / green.
         _objects.Add(new SceneObject
         {
             Mesh = _sphereMesh!,

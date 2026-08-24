@@ -250,7 +250,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
         }
     }
 
-    // ── Material factory ──
+    // ── GraphicsMaterial factory ──
 
     /// <summary>
     /// Create a shadow depth material from a pass-template shader already composed
@@ -265,7 +265,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// <param name="name">The material name for debugging.</param>
     public GraphicsMaterial CreateShadowMaterial(Shader shader, bool doubleSided = false, string name = "pbr_shadow_material")
     {
-        var material = _rendering.CreateMaterial(shader, name);
+        var material = _rendering.CreateGraphicsMaterial(shader, name);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);
@@ -469,7 +469,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
         {
             throw new InvalidOperationException("Call EnableRsm before creating RSM materials.");
         }
-        var material = _rendering.CreateMaterial(shader, name);
+        var material = _rendering.CreateGraphicsMaterial(shader, name);
         material.DepthStencilState = DepthStencilState.Write;
         material.RasterizerState = new RasterizerState(FillMode.Solid,
             doubleSided ? CullMode.None : CullMode.Back, FrontFace.Clockwise);

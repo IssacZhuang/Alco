@@ -19,7 +19,7 @@ public class Cube
         public ColorFloat color;
     }
 
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly Mesh _mesh;
     private RenderDataPerObject _renderData;
     
@@ -50,7 +50,7 @@ public class Cube
     /// </summary>
     /// <param name="mesh">The mesh to use.</param>
     /// <param name="material">The material to use.</param>
-    public Cube(Mesh mesh, Material material)
+    public Cube(Mesh mesh, GraphicsMaterial material)
     {
         _mesh = mesh;
         _material = material;

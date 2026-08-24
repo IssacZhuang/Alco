@@ -18,7 +18,7 @@ public partial class RenderingSystem
     /// _camera : camera matrix of <see cref="RenderingSystem.MainCamera"/> 
     /// _globalRenderData : global render data of <see cref="RenderingSystem.GlobalRenderDataBuffer"/>
     /// </remarks>
-    public GraphicsMaterial CreateMaterial(Shader shader, string name = "unamed_material")
+    public GraphicsMaterial CreateGraphicsMaterial(Shader shader, string name = "unamed_material")
     {
         Debug.Assert(shader != null);
         GraphicsMaterial material = new GraphicsMaterial(this, shader, name);

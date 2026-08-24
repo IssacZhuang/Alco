@@ -7,7 +7,7 @@ namespace Alco.Rendering;
 /// The integration of the GPU compute pipeline state and shader resources.
 /// Provides functionality to dispatch compute shaders and manage their resources.
 /// </summary>
-public class ComputeMaterial
+public class ComputeMaterial : AutoDisposable
 {
     protected readonly RenderingSystem _system;
     protected readonly Shader _shader;
@@ -491,6 +491,16 @@ public class ComputeMaterial
 
     {
         return _pipelineContext.TryGetResourceId(name, out id);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            // The parameter set owns the assembled bind groups; the slot values
+            // (textures, buffers) are caller-owned references.
+            _parameterSet.Dispose();
+        }
     }
 
 

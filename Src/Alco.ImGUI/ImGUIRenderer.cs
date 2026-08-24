@@ -19,7 +19,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private readonly GPUCommandBuffer _commandBuffer;
     private readonly PrimitiveMesh _mesh;
     private readonly GraphicsBuffer _viewProjectionBuffer;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private IntPtr _imGuiContext;
     private readonly uint _shaderId_Texture;
     private readonly IntPtr _fontTextureId = (IntPtr)(-1);
@@ -30,7 +30,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
     private readonly List<Texture2D> _textures = new List<Texture2D>();
 
-    public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
+    public ImGUIRenderer(RenderingSystem renderingSystem, GraphicsMaterial material, string name)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;

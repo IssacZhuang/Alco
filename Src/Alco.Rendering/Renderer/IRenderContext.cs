@@ -2,12 +2,12 @@ namespace Alco.Rendering;
 
 public interface IRenderContext
 {
-    public void Draw(in Mesh mesh, in Material material, in int subMeshIndex = 0);
-    public void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant, in int subMeshIndex = 0) where T : unmanaged;
-    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0);
-    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0);
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in T constant, in int subMeshIndex = 0) where T : unmanaged;
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged;
+    public void Draw(in Mesh mesh, in GraphicsMaterial material, in int subMeshIndex = 0);
+    public void DrawWithConstant<T>(in Mesh mesh, in GraphicsMaterial material, in T constant, in int subMeshIndex = 0) where T : unmanaged;
+    public void DrawInstanced(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in int subMeshIndex = 0);
+    public void DrawInstanced(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0);
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in T constant, in int subMeshIndex = 0) where T : unmanaged;
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged;
 
     /// <summary>
     /// Draws a mesh with the draw arguments (index count, instance count, first
@@ -25,7 +25,7 @@ public interface IRenderContext
     /// <param name="indirectOffset">The byte offset of the record in the indirect buffer.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawIndexedIndirect<T>(in Mesh mesh, in Material material, GraphicsBuffer indirectBuffer, uint indirectOffset, in T constant, in int subMeshIndex = 0) where T : unmanaged;
+    public void DrawIndexedIndirect<T>(in Mesh mesh, in GraphicsMaterial material, GraphicsBuffer indirectBuffer, uint indirectOffset, in T constant, in int subMeshIndex = 0) where T : unmanaged;
 
     /// <summary>
     /// Adds a command listener to the render context.

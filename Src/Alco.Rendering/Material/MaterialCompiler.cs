@@ -118,7 +118,7 @@ public sealed class MaterialCompiler : AutoDisposable
         if (!pass.Accepts(asset))
         {
             throw new InvalidDataException(
-                $"Material pass '{passId}' does not accept material '{asset.Name}'.");
+                $"GraphicsMaterial pass '{passId}' does not accept material '{asset.Name}'.");
         }
 
         Entry entry = GetEntry(asset);
@@ -261,7 +261,7 @@ public sealed class MaterialCompiler : AutoDisposable
             if (!textureSlots.Contains(ResourceName(slot)))
             {
                 throw new InvalidDataException(
-                    $"Material '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceOf(asset).Name}'; " +
+                    $"GraphicsMaterial '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceOf(asset).Name}'; " +
                     $"expected one of: {string.Join(", ", textureSlots.Select(name => name[1..]))}.");
             }
         }
@@ -318,7 +318,7 @@ public sealed class MaterialCompiler : AutoDisposable
             if (asset.Parameters.Count > 0)
             {
                 throw new InvalidDataException(
-                    $"Material '{asset.Name}' has parameters, but its surface '{surface.Name}' " +
+                    $"GraphicsMaterial '{asset.Name}' has parameters, but its surface '{surface.Name}' " +
                     $"declares no [{MaterialComposer.ParamsMarkerAttribute}] parameter block.");
             }
             entry.ParamsBuffers = new Dictionary<string, GraphicsBuffer>();
@@ -338,7 +338,7 @@ public sealed class MaterialCompiler : AutoDisposable
         {
             throw new InvalidDataException(asset == null
                 ? "No surface library named and the compiler has no default surface."
-                : $"Material '{asset.Name}' names no surface and the compiler has no default surface.");
+                : $"GraphicsMaterial '{asset.Name}' names no surface and the compiler has no default surface.");
         }
         return surface;
     }

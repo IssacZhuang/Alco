@@ -11,7 +11,7 @@ public sealed class TextureEncoderPNG : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
     private readonly RenderContext _renderContext;
     private readonly Mesh _fullScreenMesh;
 
@@ -25,7 +25,7 @@ public sealed class TextureEncoderPNG : AutoDisposable
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance.</param>
     /// <param name="blitMaterial">The material used for blitting textures to the render texture.</param>
-    internal TextureEncoderPNG(RenderingSystem renderingSystem, Material blitMaterial)
+    internal TextureEncoderPNG(RenderingSystem renderingSystem, GraphicsMaterial blitMaterial)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;

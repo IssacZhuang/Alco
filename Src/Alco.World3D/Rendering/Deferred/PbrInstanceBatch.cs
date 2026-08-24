@@ -12,7 +12,7 @@ namespace Alco.World3D;
 internal readonly struct PbrInstanceSegment
 {
     /// <summary>The material shared by all instances of the segment.</summary>
-    public readonly Material Material;
+    public readonly GraphicsMaterial Material;
     /// <summary>The mesh shared by all instances of the segment.</summary>
     public readonly Mesh Mesh;
     /// <summary>The first instance index of the segment in the instance buffer.</summary>
@@ -25,7 +25,7 @@ internal readonly struct PbrInstanceSegment
     /// <param name="mesh">The mesh shared by all instances of the segment.</param>
     /// <param name="start">The first instance index of the segment in the instance buffer.</param>
     /// <param name="count">The number of instances of the segment.</param>
-    public PbrInstanceSegment(Material material, Mesh mesh, uint start, uint count)
+    public PbrInstanceSegment(GraphicsMaterial material, Mesh mesh, uint start, uint count)
     {
         Material = material;
         Mesh = mesh;
@@ -80,7 +80,7 @@ internal sealed class PbrInstanceBatch : AutoDisposable
     /// <param name="material">The material the instance is drawn with.</param>
     /// <param name="mesh">The mesh the instance is drawn with.</param>
     /// <returns>The instance index assigned to the added instance.</returns>
-    public uint AddInstance(in PbrInstanceData instance, Material material, Mesh mesh)
+    public uint AddInstance(in PbrInstanceData instance, GraphicsMaterial material, Mesh mesh)
     {
         int index = _data.Length;
         _data.SetSize(index + 1);

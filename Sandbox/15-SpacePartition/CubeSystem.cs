@@ -20,7 +20,7 @@ public class CubeSystem : IDisposable
 
     private FastRandom _random = new FastRandom(123);
 
-    public CubeSystem(RenderingSystem rendering, Material material, Texture2D texCube)
+    public CubeSystem(RenderingSystem rendering, GraphicsMaterial material, Texture2D texCube)
     {
         _texture = texCube;
         _renderContext = rendering.CreateRenderContext();

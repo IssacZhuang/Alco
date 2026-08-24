@@ -14,13 +14,13 @@ public sealed class TextureAtlasPacker: AutoDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly RectPacker<TextureItem> _packer;
     private readonly PixelFormat _format;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
     private readonly Camera2DBuffer _camera;
     private readonly GPUCommandBuffer _commandBuffer;
 
     internal TextureAtlasPacker(RenderingSystem rendering,
     PixelFormat format,
-    Material blitMaterial,
+    GraphicsMaterial blitMaterial,
     //it just initial size
     int minWidth = 256,
     int minHeight = 256

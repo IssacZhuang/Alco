@@ -828,7 +828,7 @@ public static class SlangReflectionReader
         if (scalar != SlangNative.SLANG_SCALAR_TYPE_FLOAT32)
         {
             throw new NotSupportedException(
-                "Material parameter blocks support float members only (float, float2, float3, float4).");
+                "GraphicsMaterial parameter blocks support float members only (float, float2, float3, float4).");
         }
         return kind switch
         {
@@ -837,7 +837,7 @@ public static class SlangReflectionReader
             SlangNative.SLANG_TYPE_KIND_MATRIX => (int)(SlangNative.spReflectionType_GetRowCount(type)
                                                        * SlangNative.spReflectionType_GetColumnCount(type)),
             _ => throw new NotSupportedException(
-                $"Material parameter blocks support scalar/vector members only (member kind {kind})."),
+                $"GraphicsMaterial parameter blocks support scalar/vector members only (member kind {kind})."),
         };
     }
 

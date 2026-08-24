@@ -11,7 +11,7 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
 {
     private readonly Bloom _bloom;
     private readonly Mesh _fullScreenMesh;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
 
     /// <summary>
     /// Only pixels above this brightness contribute to the bloom effect.
@@ -66,7 +66,7 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
     {
         _bloom = bloom;
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blitMaterial = rendering.CreateMaterial(blitShader);
+        _blitMaterial = rendering.CreateGraphicsMaterial(blitShader);
     }
 
     /// <inheritdoc />

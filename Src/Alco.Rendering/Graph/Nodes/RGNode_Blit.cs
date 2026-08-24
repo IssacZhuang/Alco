@@ -14,7 +14,7 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
     private readonly RenderGraph _graph;
     private readonly RenderChain _chain;
     private readonly Mesh _fullScreenMesh;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
 
     // The resource to blit, captured during Setup (it is the chain tail by the time
     // this node — registered last — runs its Setup).
@@ -36,7 +36,7 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
         _graph = graph;
         _chain = chain;
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blitMaterial = rendering.CreateMaterial(blitShader);
+        _blitMaterial = rendering.CreateGraphicsMaterial(blitShader);
     }
 
     /// <inheritdoc />

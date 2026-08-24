@@ -11,8 +11,8 @@ namespace Alco.Rendering;
 public sealed class RGNode_ColorGrading : RGNode_ChainTransform
 {
     private readonly Mesh _fullScreenMesh;
-    private readonly Material _gradingMaterial;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _gradingMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
     private readonly GraphicsBuffer _dataBuffer;
 
     private ColorGradingData _data;
@@ -52,8 +52,8 @@ public sealed class RGNode_ColorGrading : RGNode_ChainTransform
     {
         _fullScreenMesh = rendering.MeshFullScreen;
 
-        _gradingMaterial = rendering.CreateMaterial(gradingShader);
-        _blitMaterial = rendering.CreateMaterial(blitShader);
+        _gradingMaterial = rendering.CreateGraphicsMaterial(gradingShader);
+        _blitMaterial = rendering.CreateGraphicsMaterial(blitShader);
 
         _data = ColorGradingData.Default;
         _dataBuffer = rendering.CreateGraphicsBuffer((uint)Unsafe.SizeOf<ColorGradingData>(), "color_grading_data");
@@ -64,7 +64,7 @@ public sealed class RGNode_ColorGrading : RGNode_ChainTransform
     /// <inheritdoc />
     protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
     {
-        Material material = _data.IsIdentity ? _blitMaterial : _gradingMaterial;
+        GraphicsMaterial material = _data.IsIdentity ? _blitMaterial : _gradingMaterial;
         material.SetRenderTexture(ShaderResourceId.Texture, input);
         using RenderPassScope pass = BeginProcessPass(output, context);
         pass.Draw(_fullScreenMesh, material);

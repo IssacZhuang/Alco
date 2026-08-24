@@ -46,10 +46,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
     private readonly TextRenderer _textRenderer;
     private readonly DynamicMeshRenderer _dynamicMeshRenderer;
 
-    private readonly Material _textMaterial;
-    private readonly Material _spriteMaterial;
-    private readonly Material _stencilIncreaseMaterial;
-    private readonly Material _stencilDecreaseMaterial;
+    private readonly GraphicsMaterial _textMaterial;
+    private readonly GraphicsMaterial _spriteMaterial;
+    private readonly GraphicsMaterial _stencilIncreaseMaterial;
+    private readonly GraphicsMaterial _stencilDecreaseMaterial;
     private readonly uint _shaderId_texture;
 
     private uint _mask = 0;
@@ -264,8 +264,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
     public Canvas(
         RenderingSystem system,
         IUIInputTracker inputTracker,
-        Material defaultSpriteMaterial,
-        Material defaultTextMaterial,
+        GraphicsMaterial defaultSpriteMaterial,
+        GraphicsMaterial defaultTextMaterial,
         Font defaultFont,
         RenderContext? renderContext = null
         )

@@ -434,9 +434,9 @@ public sealed class Shader : AutoDisposable
     /// Create a new material that uses this shader
     /// </summary>
     /// <returns>The new material</returns>
-    public GraphicsMaterial CreateMaterial(string name = "unamed_material")
+    public GraphicsMaterial CreateGraphicsMaterial(string name = "unamed_material")
     {
-        return _renderingSystem.CreateMaterial(this, name);
+        return _renderingSystem.CreateGraphicsMaterial(this, name);
     }
 
     /// <summary>

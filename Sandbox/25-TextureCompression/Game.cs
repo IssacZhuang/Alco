@@ -14,8 +14,8 @@ public class Game : GameEngine
 
     private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
-    private readonly Material _material;
-    private readonly Material _materialCompressed;
+    private readonly GraphicsMaterial _material;
+    private readonly GraphicsMaterial _materialCompressed;
     private readonly Texture2D _texture;
     private readonly Texture2D _compressedTexture;
     private readonly TextureCompressorBC3 _compressor;
@@ -28,7 +28,7 @@ public class Game : GameEngine
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _materialRenderer = RenderingSystem.CreateRenderContext();
-        _material = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        _material = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         _material.DepthStencilState = DepthStencilState.Default;
         _material.BlendState = BlendState.AlphaBlend;
         

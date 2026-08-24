@@ -10,7 +10,7 @@ public interface IConnectableTile
     /// <summary>
     /// Gets the material of the tile.
     /// </summary>
-    Material Material { get; }
+    GraphicsMaterial Material { get; }
     /// <summary>
     /// Gets the size of the tile.
     /// </summary>

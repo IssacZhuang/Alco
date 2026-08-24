@@ -11,7 +11,7 @@ public class Game : GameEngine
     private Camera2DBuffer _camera;
     private Shader _shader;
 
-    private Material _material;
+    private GraphicsMaterial _material;
     private RenderContext _renderContext;
     private TextRenderer _textRenderer;
 
@@ -26,7 +26,7 @@ public class Game : GameEngine
 
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
-        _material = RenderingSystem.CreateMaterial(_shader);
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader);
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
         _material.BlendState = BlendState.AlphaBlend;
         _material.DepthStencilState = DepthStencilState.Read;

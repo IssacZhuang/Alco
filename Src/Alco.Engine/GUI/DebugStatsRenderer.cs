@@ -61,14 +61,14 @@ public class DebugStatsRenderer : IDisposable
         _camera.Position = new Vector2(width / 2, -height / 2);
         Vector2 halfSize = _camera.ViewSize * 0.5f;
 
-        Material textMaterial = _renderingSystem.CreateMaterial(shaderText);
+        GraphicsMaterial textMaterial = _renderingSystem.CreateGraphicsMaterial(shaderText);
         textMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         textMaterial.BlendState = BlendState.PremultipliedAlpha;
 
         _rendererContent = _renderingSystem.CreateRenderContext("debug_stats_content");
         _textRenderer = _renderingSystem.CreateTextRenderer(_rendererContent, textMaterial);
 
-        Material spriteMaterial = _renderingSystem.CreateMaterial(shaderSprite);
+        GraphicsMaterial spriteMaterial = _renderingSystem.CreateGraphicsMaterial(shaderSprite);
         spriteMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         spriteMaterial.BlendState = BlendState.AlphaBlend;
         _spriteRenderer = _renderingSystem.CreateSpriteRenderer(_rendererContent, spriteMaterial);

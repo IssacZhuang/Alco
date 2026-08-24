@@ -14,7 +14,7 @@ public class ImGUISystem : BaseEngineSystem
 {
     private readonly GameEngine _engine;
     private readonly Shader _shader;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly ImGUIRenderer _imGUIRenderer;
     private readonly ImGUIInputHandler _imGUIInputHandler;
 
@@ -32,7 +32,7 @@ public class ImGUISystem : BaseEngineSystem
         // Use embedded shader resource instead of built-in asset
         _shader = ImGUIResourceHelper.GetImGUIShader(renderingSystem);
 
-        _material = renderingSystem.CreateMaterial(_shader, "ImGuiMaterial");
+        _material = renderingSystem.CreateGraphicsMaterial(_shader, "ImGuiMaterial");
         _material.BlendState = BlendState.AlphaBlend;
         _imGUIRenderer = new ImGUIRenderer(renderingSystem, _material, "ImGUIRenderer");
 

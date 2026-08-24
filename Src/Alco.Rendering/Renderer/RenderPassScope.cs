@@ -136,7 +136,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// <param name="mesh">The mesh to draw.</param>
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void Draw(in Mesh mesh, in Material material, in int subMeshIndex = 0)
+    public void Draw(in Mesh mesh, in GraphicsMaterial material, in int subMeshIndex = 0)
     {
         ThrowIfInactive();
         GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
@@ -154,7 +154,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawWithConstant<T>(in Mesh mesh, in Material material, in T constant, in int subMeshIndex = 0) where T : unmanaged
+    public void DrawWithConstant<T>(in Mesh mesh, in GraphicsMaterial material, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         ThrowIfInactive();
         GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
@@ -172,7 +172,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="instanceCount">The number of instances to draw.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in int subMeshIndex = 0)
+    public void DrawInstanced(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in int subMeshIndex = 0)
     {
         DrawInstanced(mesh, material, instanceCount, 0, subMeshIndex);
     }
@@ -185,7 +185,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// <param name="instanceCount">The number of instances to draw.</param>
     /// <param name="instanceStartIndex">The index of the first instance to draw.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawInstanced(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
+    public void DrawInstanced(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in uint instanceStartIndex, in int subMeshIndex = 0)
     {
         ThrowIfInactive();
         GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
@@ -205,7 +205,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// <param name="constant">The constant data to push to the shader.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in T constant, in int subMeshIndex = 0) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         DrawInstancedWithConstant(mesh, material, instanceCount, 0, constant, subMeshIndex);
     }
@@ -220,7 +220,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// <param name="instanceStart">The index of the first instance to draw.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawInstancedWithConstant<T>(in Mesh mesh, in Material material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged
+    public void DrawInstancedWithConstant<T>(in Mesh mesh, in GraphicsMaterial material, in uint instanceCount, in uint instanceStart, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         ThrowIfInactive();
         GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
@@ -247,7 +247,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// <param name="indirectOffset">The byte offset of the record in the indirect buffer.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
     /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
-    public void DrawIndexedIndirect<T>(in Mesh mesh, in Material material, GraphicsBuffer indirectBuffer, uint indirectOffset, in T constant, in int subMeshIndex = 0) where T : unmanaged
+    public void DrawIndexedIndirect<T>(in Mesh mesh, in GraphicsMaterial material, GraphicsBuffer indirectBuffer, uint indirectOffset, in T constant, in int subMeshIndex = 0) where T : unmanaged
     {
         ThrowIfInactive();
         GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
@@ -383,7 +383,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void PushResources(Material material)
+    private void PushResources(GraphicsMaterial material)
     {
         if (_bundle != null)
         {

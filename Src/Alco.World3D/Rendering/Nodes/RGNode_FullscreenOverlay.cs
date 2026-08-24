@@ -16,7 +16,7 @@ public sealed class RGNode_FullscreenOverlay : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
     private readonly RenderChain _chain;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly Mesh _fullScreenMesh;
 
     // The resource drawn into this frame, captured during Setup (the chain continues
@@ -32,7 +32,7 @@ public sealed class RGNode_FullscreenOverlay : AutoDisposable, IRenderGraphNode
     /// <param name="material">The full-screen material (e.g. additive blend). Not
     /// owned by the node.</param>
     public RGNode_FullscreenOverlay(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
-        Material material)
+        GraphicsMaterial material)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(graph);

@@ -22,7 +22,7 @@ internal class StubMaterialPass(string id, string templateModule, RenderingSyste
     public virtual IReadOnlyList<string>? GetValueSpecArgs(PbrMaterialAsset asset) => null;
 
     public GraphicsMaterial CreateMaterial(PbrMaterialAsset asset, Shader shader)
-        => rendering.CreateMaterial(shader, $"{asset.Name}_{id}");
+        => rendering.CreateGraphicsMaterial(shader, $"{asset.Name}_{id}");
 }
 
 /// <summary>The forward glass pass double: participates only for blend materials.</summary>

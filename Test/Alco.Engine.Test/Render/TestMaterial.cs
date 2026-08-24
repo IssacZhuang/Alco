@@ -12,12 +12,12 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
         GraphicsBuffer camera = renderingSystem.CreateCamera2D(1280, 720, 1000);
 
         material.SetBuffer(0, camera);
 
-        MaterialInstance instance1 = material.CreateInstance();
+        GraphicsMaterialInstance instance1 = material.CreateInstance();
 
         // Bind groups are assembled per material from the slot values; the instance
         // resolves unbound values from the parent chain, so its group is complete
@@ -26,8 +26,8 @@ public class TestMaterial
 
         instance1.SetTexture(1, renderingSystem.TextureWhite);
 
-        MaterialInstance instance2 = instance1.CreateInstance();
-        MaterialInstance instance3 = instance1.CreateInstance();
+        GraphicsMaterialInstance instance2 = instance1.CreateInstance();
+        GraphicsMaterialInstance instance3 = instance1.CreateInstance();
 
         instance2.SetTexture(1, renderingSystem.TextureBlack);
 
@@ -53,7 +53,7 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
         Camera2DBuffer camera = renderingSystem.CreateCamera2D(1280, 720, 1000);
         camera.Position = new System.Numerics.Vector2(100, 100);
 
@@ -68,7 +68,7 @@ public class TestMaterial
 
         // The instance resolves the camera from the parent chain when assembling,
         // so the pending matrix change is picked up without rebinding.
-        MaterialInstance instance = material.CreateInstance();
+        GraphicsMaterialInstance instance = material.CreateInstance();
         camera.Position = new System.Numerics.Vector2(200, 200);
         Assert.IsTrue(IsDirty(camera));
         Assert.IsTrue(instance[0] != null);
@@ -81,10 +81,10 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
         material.SetBuffer(0, renderingSystem.CreateCamera2D(640, 360, 100));
 
-        MaterialInstance instance = material.CreateInstance();
+        GraphicsMaterialInstance instance = material.CreateInstance();
         GPUResourceGroup? before = instance[0];
         Assert.IsTrue(before != null);
 
@@ -105,9 +105,9 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
         material.SetBuffer(0, renderingSystem.CreateCamera2D(1280, 720, 100));
-        MaterialInstance instance = material.CreateInstance();
+        GraphicsMaterialInstance instance = material.CreateInstance();
         instance.SetTexture(1, renderingSystem.TextureWhite);
 
         // Warm up: assemble the groups and let the JIT settle.

@@ -13,7 +13,7 @@ public class Game : GameEngine
 
     private readonly uint2 _size = new uint2(65, 65);
     private readonly Camera2DBuffer _camera;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly FloodFillLightMap _tileLightMap;
     private readonly GPUCommandBuffer _command;
     private readonly RenderPipeline _mainPipeline;
@@ -50,7 +50,7 @@ public class Game : GameEngine
 
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
-        Material blitMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("inverser-gamma.slang"));
+        GraphicsMaterial blitMaterial = RenderingSystem.CreateGraphicsMaterial(AssetSystem.Load<Shader>("inverser-gamma.slang"));
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _material = blitMaterial.CreateInstance();

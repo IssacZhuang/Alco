@@ -27,7 +27,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     private readonly List<GraphicsBuffer> _tmpGPUBuffers = new List<GraphicsBuffer>();
     private readonly List<DrawData> _draws = new List<DrawData>();
     private readonly IRenderContext _renderContext;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly int _sizePerBuffer;
     private readonly int _maxInstanceCountPerBuffer;
     private readonly uint _shaderId_instanceBuffer;
@@ -54,7 +54,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     internal InstanceRenderer(
         RenderingSystem renderingSystem,
         IRenderContext context,
-        Material material,
+        GraphicsMaterial material,
         string instanceBufferShaderId = ShaderResourceId.Instances,
         int sizePerBuffer = 256 * 1024,
         string name = "unnamed_instance_renderer")

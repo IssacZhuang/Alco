@@ -45,7 +45,7 @@ public class TestMaterialCompiler
         public ShaderLibrary Template => rendering.ShaderSystem.GetLibrary(templateModule);
         public virtual bool Accepts(TestMaterialAsset asset) => true;
         public GraphicsMaterial CreateMaterial(TestMaterialAsset asset, Shader shader)
-            => rendering.CreateMaterial(shader, $"{asset.Name}_{id}");
+            => rendering.CreateGraphicsMaterial(shader, $"{asset.Name}_{id}");
     }
 
     /// <summary>A pass accepting nothing (a disabled feature's optional pass).</summary>

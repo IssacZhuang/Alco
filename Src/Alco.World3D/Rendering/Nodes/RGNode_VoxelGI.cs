@@ -351,7 +351,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     // SSR_BLUE_NOISE_SIZE in the bake shader.
     private const uint BlueNoiseTextureSize = 128;
     private readonly Mesh _fullScreenMesh;
-    private readonly Material _blueNoiseMaterial;
+    private readonly GraphicsMaterial _blueNoiseMaterial;
     private readonly GPUAttachmentLayout _blueNoiseLayout;
     private readonly RenderTexture _blueNoiseTexture;
     private bool _blueNoiseBaked;
@@ -792,7 +792,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // tile the SSR trace samples): baked once on the first rendered frame
         // by a graphics pass, reused by the compute trace afterwards.
         _fullScreenMesh = rendering.MeshFullScreen;
-        _blueNoiseMaterial = rendering.CreateMaterial(shaders.BlueNoise, "voxel_gi_blue_noise_bake");
+        _blueNoiseMaterial = rendering.CreateGraphicsMaterial(shaders.BlueNoise, "voxel_gi_blue_noise_bake");
         _blueNoiseLayout = _device.CreateAttachmentLayout(
             new AttachmentLayoutDescriptor(
                 [new ColorAttachment(PixelFormat.RGBA8Unorm)],

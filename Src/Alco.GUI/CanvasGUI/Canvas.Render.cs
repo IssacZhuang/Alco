@@ -120,7 +120,7 @@ public partial class Canvas : AutoDisposable
     /// Binds the canvas camera buffer to the material.
     /// </summary>
     /// <param name="material">The material to bind the camera to.</param>
-    public void BindCameraToMaterial(Material material)
+    public void BindCameraToMaterial(GraphicsMaterial material)
     {
         material.TrySetBuffer(ShaderResourceId.Camera, _camera);
     }
@@ -130,7 +130,7 @@ public partial class Canvas : AutoDisposable
     /// </summary>
     /// <param name="material">The material to use for rendering.</param>
     /// <param name="constant">The sprite constant data containing model matrix, color, and UV rect.</param>
-    public void DrawMaterial(Material material, in SpriteConstant constant)
+    public void DrawMaterial(GraphicsMaterial material, in SpriteConstant constant)
     {
         _renderContext.Pass.SetStencilReference(_mask);
         _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, material, constant);

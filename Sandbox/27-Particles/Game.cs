@@ -9,7 +9,7 @@ using Alco.ImGUI;
 public class Game : GameEngine
 {
     private readonly Camera2DBuffer _camera;
-    private readonly Material _materialParticle;
+    private readonly GraphicsMaterial _materialParticle;
     private readonly ParticleEmitterBox2D _emitter;
     private readonly ParticleSimulatorColorLerp2D _simulator;
     private readonly ParticleSystem2DCPU _particleSystem;
@@ -35,7 +35,7 @@ public class Game : GameEngine
         _camera = RenderingSystem.CreateCamera2D(64, 36, 100);
 
         // Create material for particles
-        _materialParticle = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Particle2d);
+        _materialParticle = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2d);
         _materialParticle.BlendState = BlendState.Additive;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 

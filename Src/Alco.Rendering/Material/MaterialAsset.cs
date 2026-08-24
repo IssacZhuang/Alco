@@ -99,7 +99,7 @@ public class MaterialAsset : IJsonOnDeserialized
             }
             if (trimmed.Contains(' '))
             {
-                throw new InvalidDataException($"Material asset has a define with whitespace: '{trimmed}'.");
+                throw new InvalidDataException($"GraphicsMaterial asset has a define with whitespace: '{trimmed}'.");
             }
             if (!result.Contains(trimmed))
             {
@@ -135,7 +135,7 @@ public class MaterialAsset : IJsonOnDeserialized
             string name = pair.Key.Trim();
             if (name.Length == 0)
             {
-                throw new InvalidDataException("Material asset has an empty parameter name.");
+                throw new InvalidDataException("GraphicsMaterial asset has an empty parameter name.");
             }
             result[name] = pair.Value;
         }

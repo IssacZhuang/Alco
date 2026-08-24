@@ -12,7 +12,7 @@ public class Game : GameEngine
     private readonly TextureAtlas _atlas;
     private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
@@ -33,7 +33,7 @@ public class Game : GameEngine
             textures.Add(texture);
         }
 
-        Material blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        GraphicsMaterial blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
         TextureAtlasPacker packer = RenderingSystem.CreateTextureAtlasPacker(blitMaterial);
         for (int i = 0; i < spriteCount; i++)
         {

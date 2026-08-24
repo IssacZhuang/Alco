@@ -16,7 +16,7 @@ namespace Alco.Rendering;
 /// </summary>
 public class RGNode_FullscreenPass : RGNode_ChainTransform
 {
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly string _inputBinding;
     private readonly bool _inputIsDepth;
     private readonly Mesh _fullScreenMesh;
@@ -37,7 +37,7 @@ public class RGNode_FullscreenPass : RGNode_ChainTransform
     /// to the graph viewport.</param>
     /// <param name="name">A diagnostic name.</param>
     public RGNode_FullscreenPass(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
-        Material material, GPUAttachmentLayout outputLayout,
+        GraphicsMaterial material, GPUAttachmentLayout outputLayout,
         string inputBinding = ShaderResourceId.Texture, bool inputIsDepth = false,
         float resolutionScale = 1.0f, string name = "fullscreen_pass")
         : base(graph, chain, outputLayout, resolutionScale, name)
@@ -51,7 +51,7 @@ public class RGNode_FullscreenPass : RGNode_ChainTransform
     }
 
     /// <summary>The full-screen material.</summary>
-    public Material Material => _material;
+    public GraphicsMaterial Material => _material;
 
     /// <summary>Binds a resource's facade to a material parameter (color attachment
     /// <paramref name="attachmentIndex"/>). Stable across frames.</summary>

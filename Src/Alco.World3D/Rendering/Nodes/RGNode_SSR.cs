@@ -49,11 +49,11 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private readonly RGNode_VoxelGI _voxelGi;
     private readonly CameraPerspectiveBuffer _camera;
     private readonly Mesh _fullScreenMesh;
-    private readonly Material _copyMaterial;
-    private readonly Material _traceMaterial;
-    private readonly Material _resolveMaterial;
-    private readonly Material _compositeMaterial;
-    private readonly Material _blueNoiseMaterial;
+    private readonly GraphicsMaterial _copyMaterial;
+    private readonly GraphicsMaterial _traceMaterial;
+    private readonly GraphicsMaterial _resolveMaterial;
+    private readonly GraphicsMaterial _compositeMaterial;
+    private readonly GraphicsMaterial _blueNoiseMaterial;
     private readonly GPUAttachmentLayout _blueNoiseLayout;
     private readonly RenderTexture _blueNoiseTexture;
     private bool _blueNoiseBaked;
@@ -216,11 +216,11 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _camera = camera;
         _environment = environment;
         _fullScreenMesh = rendering.MeshFullScreen;
-        _copyMaterial = rendering.CreateMaterial(blitShader, "ssr_scene_copy");
-        _traceMaterial = rendering.CreateMaterial(traceShader, "ssr_trace");
-        _resolveMaterial = rendering.CreateMaterial(resolveShader, "ssr_resolve");
-        _compositeMaterial = rendering.CreateMaterial(compositeShader, "ssr_composite");
-        _blueNoiseMaterial = rendering.CreateMaterial(blueNoiseShader, "ssr_blue_noise_bake");
+        _copyMaterial = rendering.CreateGraphicsMaterial(blitShader, "ssr_scene_copy");
+        _traceMaterial = rendering.CreateGraphicsMaterial(traceShader, "ssr_trace");
+        _resolveMaterial = rendering.CreateGraphicsMaterial(resolveShader, "ssr_resolve");
+        _compositeMaterial = rendering.CreateGraphicsMaterial(compositeShader, "ssr_composite");
+        _blueNoiseMaterial = rendering.CreateGraphicsMaterial(blueNoiseShader, "ssr_blue_noise_bake");
         _dataBuffer = rendering.CreateGraphicsValueBuffer<SsrData>("ssr_post_data");
         _traceResolutionScale = traceResolutionScale;
         _historyLayout = rendering.GraphicsDevice.CreateAttachmentLayout(

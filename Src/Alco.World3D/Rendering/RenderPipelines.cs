@@ -112,7 +112,7 @@ public static class RenderPipelines
         // IMPORTANT: DepthStencilState.None means depthCompare=Never — with a depth
         // attachment present (the engine's HDR main target), every fragment would be
         // rejected. Default (Always) disables the depth test without rejecting pixels.
-        var lightingMaterial = rendering.CreateMaterial(lightingShader);
+        var lightingMaterial = rendering.CreateGraphicsMaterial(lightingShader);
         lightingMaterial.DepthStencilState = DepthStencilState.Default;
         lightingMaterial.RasterizerState = RasterizerState.CullNone;
         lightingMaterial.SetBuffer(ShaderResourceId.Data, environment.LightingDataBuffer);
@@ -190,7 +190,7 @@ public static class RenderPipelines
         RGNode_FullscreenOverlay? volumetricLightNode = null;
         if (volumetricLightShader != null)
         {
-            volumetricLightMaterial = rendering.CreateMaterial(volumetricLightShader);
+            volumetricLightMaterial = rendering.CreateGraphicsMaterial(volumetricLightShader);
             volumetricLightMaterial.DepthStencilState = DepthStencilState.Default;
             volumetricLightMaterial.RasterizerState = RasterizerState.CullNone;
             volumetricLightMaterial.BlendState = BlendState.Additive;

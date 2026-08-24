@@ -253,14 +253,14 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         _shadowBakeMaterial.SetTexture("_cloudBaseNoise", _baseNoise);
         _shadowBakeMaterial.SetTexture2DStorage("_shadowOut", _shadowCoverage, 0);
 
-        _marchMaterial = rendering.CreateMaterial(marchShader);
+        _marchMaterial = rendering.CreateGraphicsMaterial(marchShader);
         _marchMaterial.DepthStencilState = DepthStencilState.Default;
         _marchMaterial.RasterizerState = RasterizerState.CullNone;
         _marchMaterial.SetBuffer("_cloudData", _dataBuffer);
         _marchMaterial.SetTexture3D("_cloudBaseNoise", _baseNoise);
         _marchMaterial.SetTexture3D("_cloudDetailNoise", _detailNoise);
 
-        _compositeMaterial = rendering.CreateMaterial(compositeShader);
+        _compositeMaterial = rendering.CreateGraphicsMaterial(compositeShader);
         _compositeMaterial.DepthStencilState = DepthStencilState.Default;
         _compositeMaterial.RasterizerState = RasterizerState.CullNone;
         _compositeMaterial.BlendState = BlendState.PremultipliedAlpha;

@@ -59,7 +59,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="vertices">The vertices to draw.</param>
     /// <param name="indices">The 32-bit indices.</param>
     /// <param name="material">The material to use for drawing.</param>
-    public void Draw<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material) where TVertex : unmanaged
+    public void Draw<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in GraphicsMaterial material) where TVertex : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.Draw(mesh, material, subMeshIndex);
@@ -72,7 +72,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="vertices">The vertices to draw.</param>
     /// <param name="indices">The 16-bit indices.</param>
     /// <param name="material">The material to use for drawing.</param>
-    public void Draw<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material) where TVertex : unmanaged
+    public void Draw<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in GraphicsMaterial material) where TVertex : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.Draw(mesh, material, subMeshIndex);
@@ -87,7 +87,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="indices">The 32-bit indices.</param>
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
-    public void DrawWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in T constant)
+    public void DrawWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in GraphicsMaterial material, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
@@ -103,7 +103,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="indices">The 16-bit indices.</param>
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
-    public void DrawWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in T constant)
+    public void DrawWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in GraphicsMaterial material, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
@@ -118,7 +118,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="indices">The 32-bit indices.</param>
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="instanceCount">The number of instances to draw.</param>
-    public void DrawInstanced<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in uint instanceCount) where TVertex : unmanaged
+    public void DrawInstanced<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in GraphicsMaterial material, in uint instanceCount) where TVertex : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstanced(mesh, material, instanceCount, subMeshIndex);
@@ -132,7 +132,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="indices">The 16-bit indices.</param>
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="instanceCount">The number of instances to draw.</param>
-    public void DrawInstanced<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in uint instanceCount) where TVertex : unmanaged
+    public void DrawInstanced<TVertex>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in GraphicsMaterial material, in uint instanceCount) where TVertex : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
         _renderContext.DrawInstanced(mesh, material, instanceCount, subMeshIndex);
@@ -148,7 +148,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="instanceCount">The number of instances to draw.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
-    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in uint instanceCount, in T constant)
+    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in GraphicsMaterial material, in uint instanceCount, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
@@ -165,7 +165,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="material">The material to use for drawing.</param>
     /// <param name="instanceCount">The number of instances to draw.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
-    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in uint instanceCount, in T constant)
+    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in GraphicsMaterial material, in uint instanceCount, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
@@ -183,7 +183,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="instanceCount">The number of instances to draw.</param>
     /// <param name="instanceStart">The index of the first instance to draw.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
-    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in Material material, in uint instanceCount, in uint instanceStart, in T constant)
+    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<uint> indices, in GraphicsMaterial material, in uint instanceCount, in uint instanceStart, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);
@@ -201,7 +201,7 @@ public unsafe sealed class DynamicMeshRenderer : AutoDisposable, ICommandListene
     /// <param name="instanceCount">The number of instances to draw.</param>
     /// <param name="instanceStart">The index of the first instance to draw.</param>
     /// <param name="constant">The constant data to push to the shader.</param>
-    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in Material material, in uint instanceCount, in uint instanceStart, in T constant)
+    public void DrawInstancedWithConstant<TVertex, T>(ReadOnlySpan<TVertex> vertices, ReadOnlySpan<ushort> indices, in GraphicsMaterial material, in uint instanceCount, in uint instanceStart, in T constant)
         where TVertex : unmanaged where T : unmanaged
     {
         var (mesh, subMeshIndex) = AddSubMeshInternal(vertices, indices);

@@ -27,7 +27,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private static readonly uint GPUBufferSize = (uint)(MaxTextInstancingCount * sizeof(TextData));
 
     private readonly Mesh _mesh;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
 
     private NativeBuffer<TextData> _textBufferPartial;
     private NativeBuffer<Vector4> _charColorBuffer;
@@ -44,7 +44,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     private int _bufferIndex;
     private bool _isDrawing;
 
-    internal TextRenderer(RenderingSystem renderingSystem, IRenderContext renderContext, Mesh mesh, Material material, string name)
+    internal TextRenderer(RenderingSystem renderingSystem, IRenderContext renderContext, Mesh mesh, GraphicsMaterial material, string name)
     {
         _renderingSystem = renderingSystem;
         _renderContext = renderContext;

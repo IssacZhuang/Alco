@@ -234,7 +234,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
         }
     }
 
-    // ── Material factory ──
+    // ── GraphicsMaterial factory ──
 
     /// <summary>
     /// Create a G-buffer material from a pass-template shader already composed with its
@@ -248,7 +248,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
     /// <param name="name">The material name for debugging.</param>
     public GraphicsMaterial CreateMaterial(Shader shader, bool doubleSided = false, string name = "pbr_gbuffer_material")
     {
-        var material = _rendering.CreateMaterial(shader, name);
+        var material = _rendering.CreateGraphicsMaterial(shader, name);
         // Reversed infinite camera depth (near = 1, far = 0): GreaterEqual keeps
         // the nearest surface, matching the 0.0 depth clear of the G-buffer pass.
         material.DepthStencilState = DepthStencilState.WriteReverseZ;
