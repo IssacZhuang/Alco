@@ -193,7 +193,7 @@ shader 内行为分支用 slang 值特化而不是字符串 define:
 public MainPOut MainPS<T : ISurface>(MainVOut v) where let AlphaTest : bool { ... }
 ```
 
-C# 侧 pass 的 `IMaterialPass.GetValueSpecArgs` 返回 `["true"]` / `["false"]`,composer 以 `let AlphaTest : bool = true` 实例化特化类型，特化参数进程序缓存标识。define 只留给真正需要整个 module 级文本开关的场景（如 `MaterialAsset.Defines`、sprite 的 `REPEATED`)。
+C# 侧 pass 的 `IMaterialPass.GetValueSpecArgs` 返回 `["true"]` / `["false"]`,composer 以 `let AlphaTest : bool = true` 实例化特化类型，特化参数进程序缓存标识。define 只留给真正需要整个 module 级文本开关的组合期场景（如 `MaterialAsset.Defines`、`SHADOW_CUTOUT` 切 varying 结构形状）——它们在组合前烘进材质键，运行时不存在 define 变体轴。
 
 ## GI 体素化（compute feed)
 

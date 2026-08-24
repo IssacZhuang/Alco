@@ -63,15 +63,10 @@ public partial class BuiltInAssets
                     continue;
                 }
 
-                // Entry points with generic value parameters (e.g. the fxaa
-                // module's MainPS<let Quality : int>) must load through a
-                // specialized reference — the default-spec accessors the
-                // generator emits could never compile, so skip those modules.
-                if (Path.GetExtension(filePath) == ".slang"
-                    && File.ReadAllText(filePath).Contains("<let ", StringComparison.Ordinal))
-                {
-                    continue;
-                }
+                // Generic modules (entry points with <let> value parameters)
+                // keep their accessors: a Shader is the module's lazy handle —
+                // nothing compiles until one of its specializations is requested
+                // through the accessor methods or a material factory.
 
                 string fileName = Path.GetFileNameWithoutExtension(filePath);
                 // Asset stems are kebab-case (slang convention); the generated

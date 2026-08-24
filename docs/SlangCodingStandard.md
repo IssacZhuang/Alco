@@ -55,15 +55,23 @@ Use `vertex`, `fragment` and `compute`; do not add the HLSL alias `pixel`.
 Compute entry points also declare `[numthreads(x, y, z)]`.
 
 Variant axes split by owner. Engine-owned variant axes (fxaa quality,
-sRGB compression, cloud-noise bake kind) are generic value parameters:
-the entry point declares `<let Quality : int>` and the C# owner requests a
-specialized shader through `ShaderSystem.GetShader(module, args)` — the
-arguments are slang expressions (`"0"`, `"1"`, type names). Never convert
-these back to `#if` permutations. Preprocessor defines are reserved for the
-material-keyword domain only: user-authored `MaterialAsset.Defines` and
-`REPEATED` (a per-material texture-wrap toggle). Do not introduce a new
-`#if` permutation outside that domain. ShaderSystem specialization
-arguments are part of the program cache identity.
+sRGB compression, cloud-noise bake kind, tile-instanced facade/bombing) are
+generic value parameters: the entry point declares `<let Quality : int>` and
+the C# owner passes the specialization arguments where the retired defines
+used to be — through the accessor methods of the module's Shader handle
+(`GetGraphicsPipeline(layout, …, "2")`, `GetComputePipelineInfo("0")`) or the
+material factories (`CreateGraphicsMaterial(shader, name, "0", "1")`) — the
+arguments are slang expressions (`"0"`, `"1"`, type names) mapped to the entry
+points' generic parameters in definition order. One Shader is one module's
+handle: specializations compile lazily, once per argument set, and cache
+inside the shader; materials are construction-bound to (shader,
+specialization) and never mutate their binding. Never convert these back to
+`#if` permutations (the sprite wrap mode is the module's own `<let Repeated :
+bool>` axis now). Preprocessor defines are
+reserved for composition-time material keywords only: user-authored
+`MaterialAsset.Defines` and `SHADOW_CUTOUT` (gates varying-struct shape),
+baked into the material key before compilation. Do not introduce a new `#if`
+permutation outside that domain.
 
 ## Material composition (World3D surfaces and pass templates)
 

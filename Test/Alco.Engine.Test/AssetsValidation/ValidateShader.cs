@@ -14,63 +14,48 @@ public class ValidateShader
     {
         public ShaderValidator(GameEngineSetting setting) : base(setting)
         {
-
         }
     }
 
-    [Test(Description = "Validate all shaders")]
+    [Test(Description = "Validate all shipped slang files compile")]
     public void ValidateAllShaders()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
-        // Query every entry-point module shipped by Alco.Rendering through the
-        // asset list (the module sources live under the engine's asset root).
-        // Import-only libraries live under Shaders/Libs and are compiled by their
-        // importers. Generic modules (fxaa, texture-compress-bc3) cannot be loaded
-        // unspecialized — ValidateSlangModules (Alco.Rendering.Test) covers them
-        // through their specialization argument table.
-        string[] genericModules = ["fxaa.slang", "texture-compress-bc3.slang"];
+        // Every .slang file compiles — slang has no hlsl/hlsli split: libraries,
+        // generic entry-point modules and plain modules all load as modules, and
+        // loading runs the full front-end (parsing, type checking, IR generation
+        // and validation) over every branch of every generic body, independent
+        // of any specialization arguments (link-time specialization).
+        //
+        // The load name is the dashed file stem (docs/SlangCodingStandard.md).
+        // Modules with non-generic entry points additionally link unspecialized
+        // through the GetShaderModules route (link + layout + codegen); generic
+        // modules cannot link unspecialized — one representative specialization
+        // each is validated by ValidateSlangModules (Alco.Rendering.Test).
         var files = engine.AssetSystem.AllAssetNames
             .Where(x => x.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
-            .Where(x => !x.Contains("Shaders/Libs/", StringComparison.OrdinalIgnoreCase))
-            .Where(x => !genericModules.Contains(Path.GetFileName(x), StringComparer.OrdinalIgnoreCase))
             .ToArray();
 
         Assert.That(files, Is.Not.Empty,
             "No Slang shader modules were found; built-in shader assets failed to reach the test output.");
 
-        // The load name is the dashed file stem (docs/SlangCodingStandard.md) —
-        // the same GetShader route every runtime caller uses.
-        List<Shader> shaders = new(files.Length);
         try
         {
             foreach (string file in files)
             {
                 string moduleName = Path.GetFileNameWithoutExtension(file).Replace('_', '-');
-                shaders.Add(engine.RenderingSystem.ShaderSystem.GetShader(moduleName));
+                var (entryCount, anyGeneric) = engine.RenderingSystem.ShaderSystem.Modules
+                    .GetOrLoadModule(moduleName).GetEntryPointInfo();
+
+                if (entryCount > 0 && !anyGeneric)
+                {
+                    _ = engine.RenderingSystem.ShaderSystem.GetShader(moduleName).GetShaderModules();
+                }
             }
         }
         catch (Exception e)
         {
             Assert.Fail($"Failed to load shader: {e}");
         }
-
-        Parallel.ForEach(shaders, shader =>
-        {
-            shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
-        });
-
     }
-
-    public static void OnTestPipelineError(string name, string[] defines, Exception e)
-    {
-        Assert.Fail($"Failed to compile shader: ({name}) with defines: [{string.Join(", ", defines)}]: {e}");
-    }
-
-
-    public static void OnTestPipelineSuccess(string name, string[] defines)
-    {
-        // Intentionally not logged: the success path fires once per define
-        // combination and would dump hundreds of lines into the test output.
-    }
-
 }

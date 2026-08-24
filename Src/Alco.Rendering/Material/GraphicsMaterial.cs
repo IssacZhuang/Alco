@@ -16,7 +16,13 @@ public class GraphicsMaterial : AutoDisposable
     protected bool _isPipelineDirty = true;
     protected GraphicsPipelineContext _pipelineContext;
 
+    // Construction-bound (immutable for the material's lifetime): the shader
+    // handle and the specialization that pins its variant. Runtime variant
+    // switching means constructing another material (or, for non-material
+    // owners like FXAA, requesting another specialized pipeline from the same
+    // shader handle) — a material never mutates its binding.
     protected readonly Shader _shader;
+    private readonly string[] _specializations;
 
     private uint _version;
 
@@ -96,12 +102,6 @@ public class GraphicsMaterial : AutoDisposable
         }
     }
 
-    public string[] Defines
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipelineContext.Defines;
-    }
-
     /// <summary>
     /// The shader of the material.
     /// </summary>
@@ -110,6 +110,9 @@ public class GraphicsMaterial : AutoDisposable
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _shader;
     }
+
+    /// <summary>The specialization arguments the material was constructed for (its pinned variant).</summary>
+    public IReadOnlyList<string> Specializations => _specializations;
 
     /// <summary>
     /// Gets the resource group at the specified index.
@@ -133,46 +136,32 @@ public class GraphicsMaterial : AutoDisposable
 
 
 
-    internal GraphicsMaterial(RenderingSystem system, Shader shader, string name)
+    internal GraphicsMaterial(RenderingSystem system, Shader shader, string name, string[]? specializations = null)
     {
         Name = name;
         _system = system;
         _shader = shader;
+        _specializations = specializations ?? [];
 
-        if (shader.IsComputeShader)
+        ShaderModulesInfo modulesInfo = shader.GetShaderModules(_specializations);
+        if (modulesInfo.IsComputeShader)
         {
             throw new InvalidOperationException("The shader required for material must be a graphics shader");
         }
 
-        ShaderReflectionInfo reflectionInfo = shader.GetShaderModules().ReflectionInfo;
+        ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
         _parameters = new ShaderParameterSet(system.GraphicsDevice, reflectionInfo);
         UpdateSlotResources(reflectionInfo);
 
         _pipelineContext = GraphicsPipelineContext.Default;
         _pipelineContext.ReflectionInfo = reflectionInfo;
+        _pipelineContext.Specializations = _specializations;
     }
 
     /// <summary>
     /// The shader parameter set of the material.
     /// </summary>
     internal ShaderParameterSet Parameters => _parameters;
-
-    /// <summary>
-    /// Set the defines of the shader to control the variant of the shader.
-    /// </summary>
-    /// <param name="defines">The defines to set.</param>
-    public void SetDefines(params string[] defines)
-    {
-        ArgumentNullException.ThrowIfNull(defines);
-        _pipelineContext.Defines = defines;
-        _isPipelineDirty = true;
-    }
-
-    public void ClearDefines()
-    {
-        _pipelineContext.Defines = [];
-        _isPipelineDirty = true;
-    }
 
     /// <summary>
     /// Get the pipeline context, updating the cached pipeline for the given attachment layout when dirty.

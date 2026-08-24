@@ -3,6 +3,9 @@
 // Slang module converted from Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl (Phase 2 migration).
 // DEFINE_* macros became explicit set/binding declarations; bindings within a
 // set are assigned in the original declaration order and are compiler-owned.
+// The REPEATED texture-wrap toggle is the module's one generic value axis
+// (MainPS<let Repeated : bool>) — requested as a specialization argument where
+// the retired define used to be.
 
 #language slang 2025
 module sprite;
@@ -46,12 +49,10 @@ V2F MainVS(Vertex input) {
 }
 
 [shader("fragment")]
-float4 MainPS(V2F input) : SV_TARGET {
-#if defined(REPEATED)
-  float2 uv = frac(input.uv);
-#else
+float4 MainPS<let Repeated : bool>(V2F input) : SV_TARGET {
   float2 uv = input.uv;
-#endif
+  // Repeated-wrap sampling folds away for the default (false) specialization.
+  if (Repeated) { uv = frac(uv); }
   float4 color = _texture.Sample(_textureSampler, uv) * constants.color;
   return color;
 }

@@ -27,14 +27,14 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a new FXAA (Fast Approximate Anti-Aliasing) post-processing effect
-    /// from the injected quality-preset shaders (one specialized shader per
-    /// preset of the fxaa module's MainPS&lt;let Quality : int&gt; generic).
+    /// from the fxaa module: each quality preset resolves as its own generic
+    /// value specialization (MainPS&lt;let Quality : int&gt;).
     /// </summary>
     /// <param name="blitShader">The blit shader to use for copying the result to the final target</param>
-    /// <param name="qualityShaders">One specialized shader per quality preset; every <see cref="FXAAQuality"/> value must be present.</param>
+    /// <param name="fxaaModule">The fxaa module library.</param>
     /// <returns>A new FXAA post-processing effect instance</returns>
-    public FXAA CreateFXAA(Shader blitShader, IReadOnlyDictionary<FXAAQuality, Shader> qualityShaders)
+    public FXAA CreateFXAA(Shader blitShader, Shader fxaaShader)
     {
-        return new FXAA(this, blitShader, qualityShaders);
+        return new FXAA(this, blitShader, fxaaShader);
     }
 }

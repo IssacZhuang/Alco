@@ -1,8 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
-using System.Runtime.CompilerServices;
 using Alco.Graphics;
-using System.Text.RegularExpressions;
 
 namespace Alco.Rendering;
 
@@ -12,7 +9,16 @@ namespace Alco.Rendering;
 public sealed class Shader : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
-    private readonly ConcurrentDictionary<int, ShaderModulesInfo> _modulesCache = new ConcurrentDictionary<int, ShaderModulesInfo>();
+
+    // A Shader is one module's handle (plan §4.4/D3): its entry points are the
+    // module's own [shader(...)] definitions and every variant axis is a generic
+    // value specialization, requested where the retired defines used to be —
+    // through the specialization arguments of the accessor methods below. The
+    // module compiles lazily, once per specialization, and the compiled modules
+    // are cached inside this object.
+    private readonly Func<string[], ShaderModulesInfo> _compileModules;
+    private readonly Dictionary<string, ShaderModulesInfo> _modulesInfos = new(StringComparer.Ordinal);
+
     private readonly ConcurrentDictionary<long, GPUPipeline> _graphicsPipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
     private readonly ConcurrentDictionary<ShaderModulesInfo, GPUPipeline> _computePipelineCache = new ConcurrentDictionary<ShaderModulesInfo, GPUPipeline>();
 
@@ -21,15 +27,6 @@ public sealed class Shader : AutoDisposable
     private readonly Lock _lockCreateModules = new Lock();
 
     private readonly IReadOnlyList<VertexInputLayout>? _customVertexLayouts;
-
-    // The shader's modules are produced by the slang module system (directly or
-    // through a composition owner like MaterialCompiler): the compiler is called
-    // once per defines permutation, on demand.
-    private readonly Func<string[], ShaderModulesInfo> _compileModules;
-
-    // Optional module source used to enumerate preprocessor permutations
-    // (TestAllDefines); null when the composition owner enumerates itself.
-    private readonly string? _permutationSource;
 
     //for hot reload
     private uint _version = 0;
@@ -40,43 +37,64 @@ public sealed class Shader : AutoDisposable
     public string Name { get; }
 
     /// <summary>
-    /// Whether the shader is a compute shader
-    /// </summary>
-    public bool IsComputeShader { get; }
-
-    /// <summary>
-    /// Create a new shader whose modules are compiled through the slang module
-    /// system: the compiler is called once per compatibility permutation (on demand)
-    /// and returns fully built modules with reflection.
+    /// Create a new shader handle whose modules are compiled through the slang
+    /// module system: the compiler is called once per specialization, on demand.
+    /// Nothing compiles at construction — a module with generic entry points
+    /// (e.g. <c>MainPS&lt;let Quality : int&gt;</c>) links only when one of its
+    /// specializations is first requested.
     /// </summary>
     /// <param name="renderingSystem">The rendering system</param>
     /// <param name="name">The name of the shader</param>
-    /// <param name="compileModules">Produces the compiled modules for one set of defines.</param>
+    /// <param name="compileModules">Produces the compiled modules of one specialization.</param>
     /// <param name="customVertexLayouts">Optional vertex layout override (e.g. ImGui's packed Unorm8x4 color).</param>
-    /// <param name="permutationSource">Optional module source whose #if blocks drive TestAllDefines.</param>
     internal Shader(RenderingSystem renderingSystem, string name, Func<string[], ShaderModulesInfo> compileModules,
-        IReadOnlyList<VertexInputLayout>? customVertexLayouts = null, string? permutationSource = null)
+        IReadOnlyList<VertexInputLayout>? customVertexLayouts = null)
     {
         _renderingSystem = renderingSystem;
         Name = name;
         _compileModules = compileModules;
         _customVertexLayouts = customVertexLayouts;
-        _permutationSource = permutationSource;
-
-        //default permutation
-        ShaderModulesInfo modulesInfo = GetShaderModules(ReadOnlySpan<string>.Empty);
-        IsComputeShader = modulesInfo.IsComputeShader;
     }
 
     /// <summary>
-    /// Gets a graphics pipeline with the specified parameters and shader defines
+    /// Gets the compiled shader modules of one specialization (cached per
+    /// specialization; the default, empty arguments link the module unspecialized).
+    /// </summary>
+    /// <param name="specializations">The specialization arguments — slang expressions
+    /// (<c>"0"</c>, <c>"true"</c>, type names) mapped to the entry points' generic
+    /// parameters in definition order.</param>
+    public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> specializations)
+    {
+        string key = SpecializationKey(specializations);
+        if (_modulesInfos.TryGetValue(key, out ShaderModulesInfo? cached))
+        {
+            return cached;
+        }
+
+        using (_lockCreateModules.EnterScope())
+        {
+            if (_modulesInfos.TryGetValue(key, out ShaderModulesInfo? cached2))
+            {
+                return cached2;
+            }
+
+            // The module system owns its own disk caches (module IR + linked
+            // programs); the shader keeps only the in-memory modules reference.
+            ShaderModulesInfo modulesInfo = _compileModules(specializations.ToArray());
+            _modulesInfos[key] = modulesInfo;
+            return modulesInfo;
+        }
+    }
+
+    /// <summary>
+    /// Gets a graphics pipeline with the specified parameters
     /// </summary>
     /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="depthStencil">The depth stencil state</param>
     /// <param name="blend">The blend state</param>
     /// <param name="rasterizer">The rasterizer state</param>
     /// <param name="primitiveTopology">The primitive topology</param>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <param name="specializations">The specialization arguments of the variant to build.</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
@@ -84,10 +102,11 @@ public sealed class Shader : AutoDisposable
         BlendState blend,
         RasterizerState rasterizer,
         PrimitiveTopology primitiveTopology,
-        params ReadOnlySpan<string> defines
+        params ReadOnlySpan<string> specializations
         )
     {
-        ShaderModulesInfo modulesInfo = GetShaderModules(defines);
+        string[] spec = specializations.ToArray();
+        ShaderModulesInfo modulesInfo = GetShaderModules(spec);
         GPUPipeline pipeline = GetGraphicsPipeline(attachmentLayout, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
         return new GraphicsPipelineContext
         {
@@ -98,23 +117,18 @@ public sealed class Shader : AutoDisposable
             BlendState = blend,
             Rasterizer = rasterizer,
             PrimitiveTopology = primitiveTopology,
-            Defines = defines.ToArray()
+            Specializations = spec,
         };
     }
 
     /// <summary>
     /// Gets a graphics pipeline with default rasterizer state and triangle list topology
     /// </summary>
-    /// <param name="attachmentLayout">The attachment layout configuration</param>
-    /// <param name="depthStencil">The depth stencil state</param>
-    /// <param name="blend">The blend state</param>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
         DepthStencilState depthStencil,
         BlendState blend,
-        params ReadOnlySpan<string> defines
+        params ReadOnlySpan<string> specializations
         )
     {
         return GetGraphicsPipeline(
@@ -123,19 +137,16 @@ public sealed class Shader : AutoDisposable
             blend,
             RasterizerState.CullNone,
             PrimitiveTopology.TriangleList,
-            defines
+            specializations
             );
     }
 
     /// <summary>
     /// Gets a graphics pipeline with default states for depth, blend, rasterizer and topology
     /// </summary>
-    /// <param name="attachmentLayout">The attachment layout configuration</param>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
-        params ReadOnlySpan<string> defines
+        params ReadOnlySpan<string> specializations
         )
     {
         return GetGraphicsPipeline(
@@ -144,12 +155,16 @@ public sealed class Shader : AutoDisposable
             BlendState.Opaque,
             RasterizerState.CullNone,
             PrimitiveTopology.TriangleList,
-            defines
+            specializations
             );
     }
 
     /// <summary>
-    /// Attempts to update an existing pipeline context with a new attachment layout
+    /// Attempts to update an existing pipeline context with a new attachment layout.
+    /// The context keeps the specialization it was built for (set by the
+    /// <see cref="GetGraphicsPipeline(GPUAttachmentLayout, DepthStencilState, BlendState, RasterizerState, PrimitiveTopology, ReadOnlySpan{string})"/>
+    /// call that created it) — switching variants means building a fresh context
+    /// with different specialization arguments.
     /// </summary>
     /// <param name="pipelineInfo">The pipeline context to update</param>
     /// <param name="attachmentLayout">The new attachment layout configuration</param>
@@ -162,7 +177,7 @@ public sealed class Shader : AutoDisposable
             return false;
         }
 
-        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Defines);
+        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Specializations ?? []);
 
         GPUPipeline pipeline = GetGraphicsPipeline(
             attachmentLayout,
@@ -189,7 +204,7 @@ public sealed class Shader : AutoDisposable
             return false;
         }
 
-        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Defines);
+        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Specializations ?? []);
         GPUPipeline pipeline = GetComputePipeline(modulesInfo);
         pipelineInfo.Pipeline = pipeline;
         pipelineInfo.ReflectionInfo = modulesInfo.ReflectionInfo;
@@ -198,89 +213,25 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Gets a compute pipeline with the specified shader defines
+    /// Gets a compute pipeline context for one specialization.
     /// </summary>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <param name="specializations">The specialization arguments of the variant to build.</param>
     /// <returns>A compute pipeline context containing the configured pipeline and reflection info</returns>
-    public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<string> defines)
+    public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<string> specializations)
     {
-        ShaderModulesInfo modulesInfo = GetShaderModules(defines);
+        string[] spec = specializations.ToArray();
+        ShaderModulesInfo modulesInfo = GetShaderModules(spec);
         GPUPipeline pipeline = GetComputePipeline(modulesInfo);
         return new ComputePipelineContext
         {
             Pipeline = pipeline,
-            ReflectionInfo = modulesInfo.ReflectionInfo
+            ReflectionInfo = modulesInfo.ReflectionInfo,
+            Specializations = spec,
         };
     }
 
-    /// <summary>
-    /// Gets the compiled shader modules for the specified defines
-    /// </summary>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    /// <returns>The compiled shader modules information</returns>
-    public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
-    {
-        int hash = GetDefinesHash(defines);
-
-        if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo))
-        {
-            return modulesInfo;
-        }
-
-        //throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
-
-        
-        using (_lockCreateModules.EnterScope())
-        {
-            if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
-            {
-                return modulesInfo2;
-            }
-
-            // The module system owns its own disk caches (module IR + linked
-            // programs); the shader keeps only the in-memory permutation cache.
-            modulesInfo = _compileModules(defines.ToArray());
-            _modulesCache[hash] = modulesInfo;
-            return modulesInfo;
-        }
-    }
-
-    /// <summary>
-    /// Precompiles the shader with the specified defines
-    /// </summary>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    public void Precompile(params ReadOnlySpan<string> defines)
-    {
-        _ = GetShaderModules(defines);
-    }
-
-    private int GetDefinesHash(ReadOnlySpan<string> defines)
-    {
-        int length = defines.Length + 4;//reserve space for |
-        for (int i = 0; i < defines.Length; i++)
-        {
-            string? define = defines[i];
-            if (define != null)
-            {
-                length += define.Length;
-            }
-        }
-
-        Span<char> buffer = stackalloc char[length];
-        int index = 0;
-        for (int i = 0; i < defines.Length; i++)
-        {
-            buffer[index++] = '|';
-            string? define = defines[i];
-            if (define != null)
-            {
-                define.CopyTo(buffer.Slice(index));
-                index += define.Length;
-            }
-        }
-
-        return string.GetHashCode(buffer.Slice(0, index));
-    }
+    private static string SpecializationKey(ReadOnlySpan<string> specializations)
+        => string.Join("|", specializations.ToArray());
 
     private unsafe GPUPipeline GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
@@ -291,6 +242,7 @@ public sealed class Shader : AutoDisposable
         PrimitiveTopology primitiveTopology
         )
     {
+
         long hash = default;
         //fist 32 bits are the attachment layout hash
         int hash1= attachmentLayout.GetHashCode();
@@ -441,15 +393,16 @@ public sealed class Shader : AutoDisposable
 
     /// <summary>
     /// Module-based hot reload (plan Phase 1): the ShaderSystem invalidated this shader's
-    /// module; drop every cached permutation and pipeline so the next use recompiles from
-    /// the module system's current sources. The version bump drives lazy pipeline rebuilds
-    /// through the existing TryUpdatePipelineContext mechanism.
+    /// module; drop the compiled modules of every specialization and every cached
+    /// pipeline so the next use recompiles from the module system's current sources.
+    /// The version bump drives lazy pipeline rebuilds through the existing
+    /// TryUpdatePipelineContext mechanism.
     /// </summary>
     internal void UnsafeModuleReload()
     {
         _graphicsPipelineCache.Clear();
         _computePipelineCache.Clear();
-        _modulesCache.Clear();
+        _modulesInfos.Clear();
         Interlocked.Increment(ref _version);
     }
 
@@ -466,97 +419,7 @@ public sealed class Shader : AutoDisposable
                 pipeline.Dispose();
             }
             _graphicsPipelineCache.Clear();
-            _modulesCache.Clear();
+            _modulesInfos.Clear();
         }
     }
-
-    /// <summary>
-    /// Tests all combinations of preprocessor defines found in the shader source
-    /// by compiling each combination and creating GPU pipelines.
-    /// </summary>
-    /// <param name="onError">Callback invoked when a combination fails to compile.</param>
-    /// <param name="onSuccess">Callback invoked when a combination compiles successfully.</param>
-    public void TestAllDefines(Action<string, string[], Exception> onError, Action<string, string[]> onSuccess)
-    {
-        // Enumerate preprocessor permutations from the module source
-        // (like #if defined(TEST)); composition-owned shaders without source
-        // enumerate nothing here — their owner tests permutations itself.
-        if (_permutationSource == null)
-        {
-            return;
-        }
-        var defineRegex = new Regex(@"#if\s+defined\s*\(\s*(\w+)\s*\)", RegexOptions.Compiled);
-        var matches = defineRegex.Matches(_permutationSource);
-
-        // Extract unique define names
-        HashSet<string> defines = new HashSet<string>();
-        foreach (Match match in matches)
-        {
-            defines.Add(match.Groups[1].Value);
-        }
-
-        if (defines.Count == 0)
-        {
-            return; // No defines to test
-        }
-
-        // Convert defines to array for permutations
-        string[] definesArray = defines.ToArray();
-
-        // Test empty combination first
-        try
-        {
-            GetShaderModules(Array.Empty<string>());
-        }
-        catch (Exception ex)
-        {
-            onError(Name, Array.Empty<string>(), ex);
-        }
-
-        //default attachment layout
-        GPUAttachmentLayout attachmentLayout = _renderingSystem.PreferredHDRPass;
-
-        // Generate and test all non-empty combinations
-        for (int length = 1; length <= definesArray.Length; length++)
-        {
-            // Create array of first 'length' defines to generate permutations
-            string[] subset = new string[length];
-            Array.Copy(definesArray, subset, length);
-
-            // Get all permutations of the current subset
-            string[][] combinations = CollectionUtility.GetCombinations(subset);
-
-            // Test each permutation
-            foreach (string[] combination in combinations)
-            {
-                try
-                {
-                    var modulesInfo = GetShaderModules(combination);
-                    if (modulesInfo.IsGraphicsShader)
-                    {
-                        var pipeline = GetGraphicsPipeline(
-                        attachmentLayout,
-                            DepthStencilState.Default,
-                            BlendState.Opaque,
-                            RasterizerState.CullNone,
-                            PrimitiveTopology.TriangleList,
-                            combination);
-                    }
-                    else
-                    {
-                        var pipeline = GetComputePipeline(modulesInfo);
-                    }
-
-
-
-                }
-                catch (Exception ex)
-                {
-                    onError(Name, combination, ex);
-                }
-                onSuccess(Name, combination);
-            }
-        }
-    }
-
 }

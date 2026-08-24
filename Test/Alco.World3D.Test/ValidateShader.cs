@@ -32,24 +32,37 @@ public class ValidateShader
     public void ValidateAllWorld3DShaders()
     {
         using ShaderValidator engine = new ShaderValidator(Setting);
-        // Query every entry-point-owning .slang module of the module's shader tree.
+        // Every .slang file of the module's shader tree compiles — slang has no
+        // hlsl/hlsli split: import-only libraries, surface-generic pass templates
+        // and value-generic entry modules all load as modules, and loading runs
+        // the full front-end (parsing, type checking, IR generation and
+        // validation) over every generic branch, independent of specialization
+        // arguments. The load name is the dashed file stem
+        // (docs/SlangCodingStandard.md).
         var files = engine.AssetSystem.AllAssetNames
             .Where(x => x.EndsWith(".slang") && x.StartsWith(World3DShaderModules.Folder))
-            .Where(IsEntryPointModule)
             .ToArray();
 
         Assert.That(files, Is.Not.Empty, "No World3D shader modules were found; the module assets failed to flow into the test output.");
 
-        // The module-name keyed lookup path: the same route hot reload and the
-        // material composition use (name → resolver → module system). The load
-        // name is the dashed file stem (docs/SlangCodingStandard.md).
-        List<Shader> shaders = new(files.Length);
+        // Modules with non-generic entry points additionally link unspecialized
+        // through the GetShaderModules route (the same route every runtime
+        // caller uses); generic modules cannot link unspecialized — the
+        // surface-generic pass templates compose with a surface
+        // (TestSlangMaterialCompiler) and the value-generic ones take one
+        // representative specialization each (ValidateWorld3DSlangModules).
+        List<Shader> shaders = [];
         try
         {
             foreach (string file in files)
             {
                 string moduleName = Path.GetFileNameWithoutExtension(file);
-                shaders.Add(engine.RenderingSystem.ShaderSystem.GetShader(moduleName));
+                var (entryCount, anyGeneric) = engine.RenderingSystem.ShaderSystem.Modules
+                    .GetOrLoadModule(moduleName).GetEntryPointInfo();
+                if (entryCount > 0 && !anyGeneric)
+                {
+                    shaders.Add(engine.RenderingSystem.ShaderSystem.GetShader(moduleName));
+                }
             }
         }
         catch (Exception e)
@@ -57,10 +70,7 @@ public class ValidateShader
             Assert.Fail($"Failed to load shader: {e}");
         }
 
-        Parallel.ForEach(shaders, shader =>
-        {
-            shader.TestAllDefines(OnTestPipelineError, OnTestPipelineSuccess);
-        });
+        Parallel.ForEach(shaders, static shader => _ = shader.GetShaderModules());
     }
 
     [Test]
@@ -108,33 +118,6 @@ public class ValidateShader
         });
     }
 
-    /// <summary>
-    /// Whether a World3D shader asset can own entry points: the import-only trees
-    /// (Libs, Materials, the alco-world3d-* libs converted from .slang) and the
-    /// four surface-generic pass templates define none — their files are excluded
-    /// from entry-point validation (see <see cref="TestSlangMaterialCompiler"/> and
-    /// <see cref="ValidateWorld3DSlangModules.LibModule_Loads"/> for their coverage).
-    /// The volumetric-cloud-noise module owns generic entry points
-    /// (&lt;let IsDetail&gt;) that cannot link unspecialized — its specializations are
-    /// validated by <see cref="ValidateWorld3DSlangModules"/>'s argument table.
-    /// </summary>
-    private static bool IsEntryPointModule(string assetPath)
-    {
-        string fileName = Path.GetFileName(assetPath);
-        if (assetPath.Contains("Shaders/Libs/", StringComparison.OrdinalIgnoreCase) ||
-            assetPath.Contains("Shaders/Materials/", StringComparison.OrdinalIgnoreCase) ||
-            fileName.StartsWith("alco-world3d-", StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-        // Surface-generic pass templates and value-generic modules have no
-        // directly loadable entry points: the material compiler composes the
-        // templates with a surface (TestSlangMaterialCompiler covers them) and
-        // the runtime specializes the value-generic ones.
-        return fileName is not ("gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang"
-            or "voxelize.slang" or "volumetric-cloud-noise.slang");
-    }
-
     private static void AssertResource(
         ShaderReflectionInfo info,
         string name,
@@ -154,17 +137,4 @@ public class ValidateShader
             Is.True, $"Missing reflected resource {name}");
         return location;
     }
-
-    public static void OnTestPipelineError(string name, string[] defines, Exception e)
-    {
-        Assert.Fail($"Failed to compile shader: ({name}) with defines: [{string.Join(", ", defines)}]: {e}");
-    }
-
-
-    public static void OnTestPipelineSuccess(string name, string[] defines)
-    {
-        // Intentionally not logged: the success path fires once per define
-        // combination and would dump hundreds of lines into the test output.
-    }
-
 }

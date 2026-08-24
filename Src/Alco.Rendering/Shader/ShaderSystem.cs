@@ -23,7 +23,7 @@ public sealed class ShaderSystem : IDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly SlangModuleSystem _modules;
     private readonly Lock _lock = new();
-    private readonly Dictionary<(string Module, string Specialization), Shader> _shaders = new();
+    private readonly Dictionary<string, Shader> _shaders = new(StringComparer.Ordinal);
     private readonly List<SlangProgram> _pinnedPrograms = [];
 
     /// <summary>Raised for each shader whose module was invalidated (after its caches were cleared).</summary>
@@ -73,32 +73,28 @@ public sealed class ShaderSystem : IDisposable
         }
     }
 
-    /// <summary>Gets (or creates) the shader of one module with its default specialization.</summary>
-    public Shader GetShader(string moduleName)
-        => GetShader(moduleName, ReadOnlySpan<string>.Empty);
-
     /// <summary>
-    /// Gets (or creates) the shader of one module with the given specialization arguments
-    /// (generic type/value instantiations, plan D3).
+    /// Gets (or creates) the shader handle of one module: the module's entry
+    /// points are its own [shader(...)] definitions, and generic value variant
+    /// axes are requested through the specialization arguments of the Shader's
+    /// accessor methods (where the retired defines used to be). Handles are
+    /// interned per module name.
     /// </summary>
-    public Shader GetShader(string moduleName, params ReadOnlySpan<string> specializationArgs)
+    public Shader GetShader(string moduleName)
     {
-        string specKey = string.Join("|", specializationArgs.ToArray());
-        string[] specialization = specializationArgs.ToArray();
         lock (_lock)
         {
-            if (_shaders.TryGetValue((moduleName, specKey), out Shader? cached))
+            if (_shaders.TryGetValue(moduleName, out Shader? cached))
                 return cached;
 
-            // Loads through the resolver's name→source conventions; entry points
-            // are the module's own [shader(...)] definitions.
+            // Loads through the resolver's name→source conventions (validates
+            // the module resolves; generic entry points link lazily per
+            // specialization, not here).
             _modules.GetOrLoadModule(moduleName);
 
             Shader shader = _renderingSystem.CreateShader(
-                specializationArgs.Length == 0 ? moduleName : $"{moduleName}[{specKey}]",
-                defines => CompileModules(moduleName, specialization, defines),
-                permutationSource: _modules.GetModuleSource(moduleName));
-            _shaders[(moduleName, specKey)] = shader;
+                moduleName, specialization => CompileModules(moduleName, specialization));
+            _shaders[moduleName] = shader;
             return shader;
         }
     }
@@ -108,9 +104,7 @@ public sealed class ShaderSystem : IDisposable
     /// the file resolver — embedded resources (ImGui) and generated wrappers (the material
     /// compiler's template+surface compositions) enter the module system this way. The
     /// module keeps its source identity: dependency tracking and invalidation treat
-    /// <paramref name="path"/> like any other module file. Defines permutations are not
-    /// supported for source-registered modules (their permutations are distinct module
-    /// identities owned by the source generator).
+    /// <paramref name="path"/> like any other module file.
     /// </summary>
     /// <param name="moduleName">The module identity (its import name).</param>
     /// <param name="path">The virtual path carrying the module's identity in dependency graphs and caches.</param>
@@ -121,15 +115,14 @@ public sealed class ShaderSystem : IDisposable
     {
         lock (_lock)
         {
-            if (_shaders.TryGetValue((moduleName, ""), out Shader? cached))
+            if (_shaders.TryGetValue(moduleName, out Shader? cached))
                 return cached;
 
             _modules.GetOrLoadModule(moduleName, path, source);
 
             Shader shader = _renderingSystem.CreateShader(
-                moduleName, defines => CompileModules(moduleName, [], defines), customVertexLayouts,
-                permutationSource: source);
-            _shaders[(moduleName, "")] = shader;
+                moduleName, specialization => CompileModules(moduleName, specialization), customVertexLayouts);
+            _shaders[moduleName] = shader;
             return shader;
         }
     }
@@ -142,21 +135,20 @@ public sealed class ShaderSystem : IDisposable
     public IReadOnlyList<string> InvalidateModulesContaining(string filePath)
         => _modules.InvalidateModulesContaining(filePath);
 
-    private ShaderModulesInfo CompileModules(string moduleName, string[] specializationArgs, string[] defines)
+    private ShaderModulesInfo CompileModules(string moduleName, string[] specializationArgs)
     {
         // Re-resolve the module: after an invalidation the module cache is empty
-        // and the shader's provider runs again on first use. Defines select a
-        // preprocessor permutation (a distinct module identity in the cache).
-        _modules.GetOrLoadModule(moduleName, defines);
+        // and the shader's provider runs again on first use.
+        _modules.GetOrLoadModule(moduleName);
 
         // Programs stay pinned: ShaderModule structs reference the SPIR-V arrays.
-        SlangProgram program = _modules.GetProgramAllEntries(moduleName, specializationArgs, defines);
+        SlangProgram program = _modules.GetProgramAllEntries(moduleName, specializationArgs);
         lock (_lock)
         {
             _pinnedPrograms.Add(program);
         }
 
-        return BuildModulesInfo(_renderingSystem, _modules.Target, moduleName, specializationArgs, defines, program);
+        return BuildModulesInfo(_renderingSystem, _modules.Target, moduleName, program);
     }
 
     /// <summary>
@@ -167,7 +159,7 @@ public sealed class ShaderSystem : IDisposable
     /// </summary>
     internal static ShaderModulesInfo BuildModulesInfo(
         RenderingSystem renderingSystem, SlangCodeTarget target,
-        string name, string[] specializationArgs, string[] defines, SlangProgram program)
+        string name, SlangProgram program)
     {
         // Device-limit check (set contiguity is already enforced by the reflection reader).
         ShaderReflectionUtility.ValidateBindGroupLayouts(
@@ -210,11 +202,11 @@ public sealed class ShaderSystem : IDisposable
 
         if (vertex is { } vs && fragment is { } fs)
         {
-            return ShaderModulesInfo.CreateGraphics(name, specializationArgs, vs, fs, program.Reflection);
+            return ShaderModulesInfo.CreateGraphics(name, vs, fs, program.Reflection);
         }
         if (compute is { } cs)
         {
-            return ShaderModulesInfo.CreateCompute(name, specializationArgs, cs, program.Reflection);
+            return ShaderModulesInfo.CreateCompute(name, cs, program.Reflection);
         }
         throw new InvalidOperationException(
             $"slang module '{name}' defines no usable vertex/fragment/compute entry point combination.");
@@ -227,11 +219,8 @@ public sealed class ShaderSystem : IDisposable
         {
             // Stale programs die with the session rebuild; pins are refreshed lazily.
             _pinnedPrograms.Clear();
-            affectedShaders =
-            [
-                .. _shaders.Where(pair => affectedModules.Contains(pair.Key.Module))
-                           .Select(pair => pair.Value),
-            ];
+            affectedShaders = [.. _shaders.Where(pair => affectedModules.Contains(pair.Key))
+                                          .Select(pair => pair.Value)];
         }
         foreach (Shader shader in affectedShaders)
         {

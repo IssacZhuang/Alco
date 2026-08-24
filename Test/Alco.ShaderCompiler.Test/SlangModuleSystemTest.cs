@@ -50,8 +50,7 @@ public class SlangModuleSystemTest
         }
         """;
 
-    // A file module with its own `module` declaration and a define-selected body —
-    // the shape of RGNode_VolumetricClouds' noise bake permutations.
+    // A file module with its own `module` declaration and a define-selected body.
     private const string DefinePermutedModule = """
         module define_permuted;
 

@@ -82,13 +82,7 @@ public class Game : GameEngine
             new RGNode_FXAA.Descriptor
             {
                 SceneCopyShader = BuiltInAssets.Shader_Blit,
-                QualityShaders = new Dictionary<FXAAQuality, Shader>
-                {
-                    [FXAAQuality.Low] = RenderingSystem.ShaderSystem.GetShader("fxaa", "0"),
-                    [FXAAQuality.Medium] = RenderingSystem.ShaderSystem.GetShader("fxaa", "1"),
-                    [FXAAQuality.High] = RenderingSystem.ShaderSystem.GetShader("fxaa", "2"),
-                    [FXAAQuality.Ultra] = RenderingSystem.ShaderSystem.GetShader("fxaa", "3"),
-                },
+                FxaaShader = RenderingSystem.ShaderSystem.GetShader("fxaa"),
             });
         MainPipeline.Use(fxaaNode);
 
@@ -124,7 +118,7 @@ public class Game : GameEngine
        
         RenderingSystem.MainCamera = _camera;
 
-        _blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
 
         _lightingManager = new LightingManager(this, width, height);
         _wallManager = new WallManager(this, _lightingManager, width, height);
@@ -134,14 +128,18 @@ public class Game : GameEngine
         _lightingManager.SetLightMapDirty();
         _lightingManager.SetOpacityMapDirty();
 
-        _surfaceMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileInstanced);
+        // The facade/bombing axes are generic value specializations now (plan D3):
+        // tile-instanced declares VertexMain<let IsFacade> / PixelMain<let Bombing>;
+        // each material is construction-bound to one specialization combination.
+        _surfaceMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "false", "false");
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
 
-        _cliffMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileInstanced);
+        _cliffMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "true", "false");
         _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _cliffMaterial.DepthStencilState = DepthStencilState.Write;
-        _cliffMaterial.SetDefines("IS_FACADE");
 
         _waterMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWaterInstanced);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
@@ -153,7 +151,7 @@ public class Game : GameEngine
 
 
 
-        _brushMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _brushMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
         _brushMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
@@ -177,7 +175,7 @@ public class Game : GameEngine
 
         GridUtility.FillCellsInRadius(_brushCells, _brushSize);
 
-        _materialLightOverlay = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _materialLightOverlay = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
         _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightingManager.LightMap);
         _materialLightOverlay.BlendState = BlendState.Multiply;
 
@@ -381,14 +379,14 @@ public class Game : GameEngine
         gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
         var item1 = new TileItem("grid", gridMaterial, 0, null);
 
-        GraphicsMaterial grassMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial grassMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "false", "true");
         grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
-        grassMaterial.SetDefines("TEXTURE_BOMBING");
         var item2 = new TileItem("grass", grassMaterial, 1, null);
 
-        GraphicsMaterial sandMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial sandMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "false", "true");
         sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
-        sandMaterial.SetDefines("TEXTURE_BOMBING");
         var item3 = new TileItem("sand", sandMaterial, 2, null);
 
         GraphicsMaterial waterMaterial = _waterMaterial.CreateInstance();

@@ -12,7 +12,7 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root", "false");
         GraphicsBuffer camera = renderingSystem.CreateCamera2D(1280, 720, 1000);
 
         material.SetBuffer(0, camera);
@@ -53,7 +53,7 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root", "false");
         Camera2DBuffer camera = renderingSystem.CreateCamera2D(1280, 720, 1000);
         camera.Position = new System.Numerics.Vector2(100, 100);
 
@@ -81,7 +81,7 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root", "false");
         material.SetBuffer(0, renderingSystem.CreateCamera2D(640, 360, 100));
 
         GraphicsMaterialInstance instance = material.CreateInstance();
@@ -105,7 +105,7 @@ public class TestMaterial
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
         RenderingSystem renderingSystem = engine.RenderingSystem;
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
-        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root");
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader, "root", "false");
         material.SetBuffer(0, renderingSystem.CreateCamera2D(1280, 720, 100));
         GraphicsMaterialInstance instance = material.CreateInstance();
         instance.SetTexture(1, renderingSystem.TextureWhite);

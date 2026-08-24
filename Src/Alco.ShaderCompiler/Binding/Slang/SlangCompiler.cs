@@ -618,6 +618,28 @@ public sealed class SlangModuleHandle
         return paths;
     }
 
+    /// <summary>
+    /// The module's [shader(...)] entry point count and whether any entry point
+    /// declares generic parameters — (0, false) for import-only libraries. The
+    /// front-end has already checked every entry (and every branch of its
+    /// generic bodies) at module load; a module with no generic entry links
+    /// unspecialized, a generic one needs its arguments at link time.
+    /// </summary>
+    public (int Count, bool AnyGeneric) GetEntryPointInfo()
+    {
+        int count = Native.DefinedEntryPointCount;
+        bool anyGeneric = false;
+        for (int i = 0; i < count && !anyGeneric; i++)
+        {
+            SlangEntryPoint? entry = Native.GetDefinedEntryPoint(i);
+            if (entry != null && entry.AsComponentType().SpecializationParamCount > 0)
+            {
+                anyGeneric = true;
+            }
+        }
+        return (count, anyGeneric);
+    }
+
     /// <summary>The module's serialized IR blob, or null when serialization fails.</summary>
     public byte[]? Serialize() => Native.Serialize();
 

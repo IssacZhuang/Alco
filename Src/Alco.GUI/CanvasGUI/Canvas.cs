@@ -292,9 +292,12 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _renderContext = renderContext ?? system.CreateRenderContext();
         _ownsRenderContext = renderContext == null;
 
-        _spriteMaterial = defaultSpriteMaterial.CreateInstance();
+        // The canvas sprite material pins the repeated-wrap specialization of
+        // the sprite module (MainPS<let Repeated : bool>) — the REPEATED
+        // preprocessor permutation's successor, requested at construction.
+        _spriteMaterial = system.CreateGraphicsMaterial(
+            system.ShaderSystem.GetShader("sprite"), "true");
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
-        _spriteMaterial.SetDefines([.. _spriteMaterial.Defines, "REPEATED"]);
         _spriteMaterial.DepthStencilState = DepthStencilState.Default with
         {
             FrontFace = StencilFaceState.CompareEqual,

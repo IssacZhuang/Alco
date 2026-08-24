@@ -84,8 +84,13 @@ int GetTileId(int2 tilePos, int defaultValue)
     return _tileMap[tilePos.y * constants.size.x + tilePos.x];
 }
 
+// The facade/bombing axes are generic value specializations (plan D3): the
+// entry points declare <let IsFacade>/<let Bombing> and the C# owner passes
+// "true"/"false" where the retired defines used to be (CreateGraphicsMaterial
+// specialization arguments map to the entry points in definition order)
+// instead of preprocessor permutations.
 [shader("vertex")]
-V2F VertexMain(Vertex input)
+V2F VertexMain<let IsFacade : bool>(Vertex input)
 {
     V2F output;
 
@@ -117,18 +122,21 @@ V2F VertexMain(Vertex input)
         uv.x += checkX.x * blendFactor;
     }
 
-#if defined(IS_FACADE)
-    // make it render as a facade
-    pos.z = 0.5f - pos.y;
-    pos.y -= 1;
-#else
-    tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
-    if (tileId != constants.currentTileId)
+    if (IsFacade)
     {
-        tilePos.y += check.y * blendFactor;
-        uv.y -= checkY.y * blendFactor;
+        // make it render as a facade
+        pos.z = 0.5f - pos.y;
+        pos.y -= 1;
     }
-#endif
+    else
+    {
+        tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
+        if (tileId != constants.currentTileId)
+        {
+            tilePos.y += check.y * blendFactor;
+            uv.y -= checkY.y * blendFactor;
+        }
+    }
 
     float3 worldPosition = pos + float3(tilePos, 0.0);
 
@@ -142,17 +150,21 @@ V2F VertexMain(Vertex input)
 }
 
 [shader("fragment")]
-float4 PixelMain(V2F input)
+float4 PixelMain<let Bombing : bool>(V2F input)
     : SV_TARGET
 {
     float2 uv = input.uv;
 
-#if defined(TEXTURE_BOMBING)
-    float4 color = TextureBombing(_texture, _textureSampler, input.worldPos, constants.tiling);
-#else
-    float2 uvFrac = frac(uv * constants.tiling);
-    float4 color = SAMPLE_TEX2D(_texture, uvFrac);
-#endif
+    float4 color;
+    if (Bombing)
+    {
+        color = TextureBombing(_texture, _textureSampler, input.worldPos, constants.tiling);
+    }
+    else
+    {
+        float2 uvFrac = frac(uv * constants.tiling);
+        color = SAMPLE_TEX2D(_texture, uvFrac);
+    }
 
     float blendFactor = constants.blendFactor;
 

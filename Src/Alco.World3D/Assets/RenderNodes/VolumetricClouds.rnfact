@@ -1,14 +1,14 @@
-// Volumetric clouds render plugin node. The noise-bake specializations are the
-// generic value variants of one module (MainCS<let IsDetail>: 0 = base shape,
-// 1 = detail); wiring happens in code through RGNode_VolumetricClouds.Attach.
+// Volumetric clouds render plugin node. The descriptor carries the module
+// handles as plain names; the noise-bake base/detail variants are generic
+// value specializations (MainCS<let IsDetail>: false = base, true = detail)
+// picked in code when the bake materials are created (RGNode_VolumetricClouds).
 {
     "$type": "Alco.World3D.RGNodeFactory_VolumetricClouds",
     "descriptor": {
         "marchShader": "volumetric-clouds",
         "compositeShader": "volumetric-clouds-composite",
         "shadowShader": "volumetric-cloud-shadow",
-        "noiseBaseShader": { "module": "volumetric-cloud-noise", "specialization": 0 },
-        "noiseDetailShader": { "module": "volumetric-cloud-noise", "specialization": 1 },
+        "noiseShader": "volumetric-cloud-noise",
         "marchResolutionScale": 0.5
     }
 }

@@ -286,7 +286,7 @@ public class MaterialComposerTest
             Assert.Multiple(() =>
             {
                 Assert.That(shader.Name, Is.EqualTo("test_lit_template+test_surface"));
-                Assert.That(shader.IsComputeShader, Is.False);
+                Assert.That(modules.IsComputeShader, Is.False);
                 Assert.That(modules.IsGraphicsShader, Is.True);
                 Assert.That(modules.VertexShader!.Value.Source.Length, Is.GreaterThan(4));
                 Assert.That(modules.FragmentShader!.Value.Source.Length, Is.GreaterThan(4));
@@ -333,7 +333,6 @@ public class MaterialComposerTest
 
             Assert.Multiple(() =>
             {
-                Assert.That(shader.IsComputeShader, Is.True);
                 Assert.That(modules.IsComputeShader, Is.True);
                 Assert.That(modules.ComputeShader!.Value.WorkgroupSize, Is.EqualTo((8u, 8u, 1u)));
                 Assert.That(modules.ReflectionInfo.TryGetResourceId("_output", out _), Is.True);
@@ -353,9 +352,9 @@ public class MaterialComposerTest
             Assert.Multiple(() =>
             {
                 Assert.Throws<InvalidOperationException>(() =>
-                    composer.ComposeGraphics(shaderSystem.GetLibrary("test_feed_template"), surface));
+                    _ = composer.ComposeGraphics(shaderSystem.GetLibrary("test_feed_template"), surface).GetShaderModules());
                 Assert.Throws<InvalidOperationException>(() =>
-                    composer.ComposeCompute(shaderSystem.GetLibrary("test_lit_template"), surface));
+                    _ = composer.ComposeCompute(shaderSystem.GetLibrary("test_lit_template"), surface).GetShaderModules());
             });
         }
     }
@@ -509,6 +508,9 @@ public class MaterialComposerTest
         {
             ShaderLibrary surface = shaderSystem.GetLibrary("test_surface");
             Shader shader = composer.ComposeGraphics(shaderSystem.GetLibrary("test_lit_template"), surface);
+            // Shaders compile lazily — pull the modules once so the dependency
+            // graph exists for the invalidation below.
+            _ = shader.GetShaderModules();
             Assert.That(composer.GetParamsLayouts(surface), Is.Not.Empty);
             uint versionBefore = shader.Version;
             List<Shader> invalidated = [];

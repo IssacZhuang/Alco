@@ -7,24 +7,25 @@ public struct ComputePipelineContext
 {
     public GPUPipeline? Pipeline;
     public ShaderReflectionInfo? ReflectionInfo;
-    public string[] Defines;
     public uint Version;
+
+    /// <summary>
+    /// The specialization arguments the context was built for (set by the
+    /// Shader.GetComputePipelineInfo call; TryUpdateComputePipelineContext keeps
+    /// them) — the variant identity of the cached pipeline.
+    /// </summary>
+    public string[]? Specializations;
 
     public static readonly ComputePipelineContext Default = new ComputePipelineContext();
 
     public ComputePipelineContext()
     {
-        Defines = Array.Empty<string>();
         Version = 0;
     }
 
-    public ComputePipelineContext(
-        ShaderReflectionInfo reflectionInfo,
-        string[] defines
-        )
+    public ComputePipelineContext(ShaderReflectionInfo reflectionInfo)
     {
         ReflectionInfo = reflectionInfo;
-        Defines = defines;
         Version = 0;
     }
 

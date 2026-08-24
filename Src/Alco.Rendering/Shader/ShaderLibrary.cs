@@ -9,6 +9,8 @@ namespace Alco.Rendering;
 /// <br/>The reference carries no compiler state of its own — the underlying module is
 /// resolved by name wherever it is used, so it stays valid across shader hot reloads
 /// (a module-system session rebuild transparently re-resolves on the next use).
+/// <br/>This is the composition-domain currency (templates, surfaces); for direct
+/// module use take a <see cref="Shader"/> through <see cref="ShaderSystem.GetShader"/>.
 /// </summary>
 public sealed class ShaderLibrary
 {

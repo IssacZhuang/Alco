@@ -16,11 +16,13 @@ public sealed class TextureCompressorBC3 : AutoDisposable
 
     private GraphicsArrayBuffer<uint4> _blocks;//resizeable
 
-    // One compute material per sRGB state, created from the two injected
-    // specializations of the texture-compress-bc3 module (MainCS<let IsSRGB>).
-    private readonly ComputeMaterial _linearMaterial;
-    private readonly ComputeMaterial _srgbMaterial;
-    private ComputeMaterial _material;
+    // The compression shader handle: the linear/sRGB dispatchers are the two
+    // construction-bound specializations of its MainCS<let IsSRGB> entry —
+    // each compiles once and caches inside the shader.
+    private readonly Shader _shader;
+    private ComputeMaterial _linearMaterial = null!;
+    private ComputeMaterial _srgbMaterial = null!;
+    private ComputeMaterial _material = null!;
     private bool _isSRGB;
 
     public bool IsSRGB
@@ -31,7 +33,9 @@ public sealed class TextureCompressorBC3 : AutoDisposable
             if (_isSRGB != value)
             {
                 _isSRGB = value;
-                ApplyMaterial();
+                // Both dispatchers are construction-bound variants; switching
+                // selects between them (each stays cached in the shader).
+                _material = _isSRGB ? _srgbMaterial : _linearMaterial;
             }
         }
     }
@@ -41,26 +45,30 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// Initializes a new instance of the <see cref="TextureCompressorBC3"/> class.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance.</param>
-    /// <param name="linearShader">The linear-output specialization of the compression module (MainCS&lt;let IsSRGB&gt; with IsSRGB = 0).</param>
-    /// <param name="srgbShader">The sRGB-output specialization of the compression module (MainCS&lt;let IsSRGB&gt; with IsSRGB = 1).</param>
+    /// <param name="shader">The texture-compress-bc3 shader (MainCS&lt;let IsSRGB&gt;;
+    /// the linear/sRGB dispatchers are its specializations).</param>
     /// <param name="defaultBufferSize">Initial capacity of the block staging buffer.</param>
-    internal TextureCompressorBC3(RenderingSystem renderingSystem, Shader linearShader, Shader srgbShader,
+    internal TextureCompressorBC3(RenderingSystem renderingSystem, Shader shader,
         int defaultBufferSize = 256 * 256)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
+        _shader = shader;
         _commandCompress = _device.CreateCommandBuffer("texture_compressor_command_buffer");
         _commandCopy = _device.CreateCommandBuffer("texture_compressor_copy_command_buffer");
 
         _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
         _blocks.UpdateBuffer();
 
-        _linearMaterial = renderingSystem.CreateComputeMaterial(linearShader);
+        // The sRGB choice is a generic value specialization of the compression
+        // shader (MainCS<let IsSRGB> : bool): true selects the sRGB output path,
+        // false the linear one — two construction-bound dispatchers.
+        _linearMaterial = renderingSystem.CreateComputeMaterial(shader, "false");
         _linearMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
-        _srgbMaterial = renderingSystem.CreateComputeMaterial(srgbShader);
+        _srgbMaterial = renderingSystem.CreateComputeMaterial(shader, "true");
         _srgbMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
 
-        ApplyMaterial();
+        _material = _linearMaterial;
     }
 
     /// <summary>
@@ -172,21 +180,10 @@ public sealed class TextureCompressorBC3 : AutoDisposable
             }
 
             _blocks = _renderingSystem.CreateGraphicsArrayBuffer<uint4>((int)newSize);
-            // The staging buffer was replaced: rebind it on both materials.
+            // The staging buffer was replaced: rebind it on both dispatchers.
             _linearMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
             _srgbMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
         }
-    }
-
-    /// <summary>
-    /// Switches to the compute material of the current sRGB state. Both the
-    /// linear and sRGB materials arrive injected from the caller (they are the
-    /// two generic value specializations of the compression module,
-    /// MainCS&lt;let IsSRGB&gt;): 1 selects the sRGB output path, 0 the linear one.
-    /// </summary>
-    private void ApplyMaterial()
-    {
-        _material = _isSRGB ? _srgbMaterial : _linearMaterial;
     }
 
     /// <summary>

@@ -61,6 +61,22 @@ varying-struct shape) and `REPEATED`. Generic modules cannot link
 unspecialized, so headless validation covers them through per-module
 specialization tables instead of the no-argument asset-load sweep.
 
+Defines retirement (2026-08-24, D3 completion): the last engine-owned define
+axes moved to specializations — sprite's `REPEATED` became the sprite module's
+own `<let Repeated : bool>` axis, and tile-instanced's facade/bombing toggles
+became
+`VertexMain<let IsFacade>` / `PixelMain<let Bombing>` (specialization args map
+to entry points in definition order). A Shader is now one module's handle: its
+accessor methods take specialization arguments where defines used to be
+(`GetGraphicsPipeline(layout, states, "2")`), specializations compile lazily
+once per argument set and cache inside the shader, and materials are
+construction-bound to (shader, specialization) — no runtime rebinding surface
+and no per-material defines state. The runtime defines API
+(`Material.SetDefines`, `Shader.GetShaderModules(defines)`, `TestAllDefines`,
+permutation precompilation) is deleted. Defines remain only as
+composition-time constants baked into the material key (`MaterialAsset.Defines`,
+`SHADOW_CUTOUT`), where they select whole-module text shape before compilation.
+
 ## 1. Background
 
 ### 1.1 Current dxc-based pipeline (as-built)

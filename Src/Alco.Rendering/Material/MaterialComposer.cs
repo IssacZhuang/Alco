@@ -85,8 +85,8 @@ public sealed class MaterialComposer : IDisposable
     /// <param name="surfaceType">The companion type name; <see cref="DefaultSurfaceTypeName"/> by convention.</param>
     /// <param name="defines">
     /// Composition-static preprocessor defines (a material asset's surface feature
-    /// toggles): baked into the composition identity and applied to every permutation,
-    /// unlike the runtime defines a material may still select per pipeline.
+    /// toggles): baked into the composition identity. Runtime variant switching is
+    /// specialization-only — a variant is a distinct composed shader.
     /// </param>
     public Shader ComposeGraphics(
         ShaderLibrary template, ShaderLibrary surface,
@@ -295,25 +295,26 @@ public sealed class MaterialComposer : IDisposable
             string shaderName = specArgs.Length == 0
                 ? $"{template.Name}+{surface.Name}"
                 : $"{template.Name}+{surface.Name}[{specKey}]";
+            // The asset's defines are composition-static (baked into the identity);
+            // runtime variant switching happens through the composition owner's
+            // spec-keyed compositions, never through a material's defines. A
+            // composed shader has no open specialization axis of its own — the
+            // variant was fixed by the composition — so the handle ignores the
+            // accessor-level specialization arguments.
             Shader shader = _rendering.CreateShader(
                 shaderName,
-                runtimeDefines => CompilePermutation(key, specArgs, staticDefines, runtimeDefines, shaderName));
+                _ => CompilePermutation(key, specArgs, staticDefines, shaderName));
             _shaders.Add(key, shader);
             return shader;
         }
     }
 
     private ShaderModulesInfo CompilePermutation(
-        CompositionKey key, string[] specArgs, string[] staticDefines, string[] runtimeDefines, string shaderName)
+        CompositionKey key, string[] specArgs, string[] staticDefines, string shaderName)
     {
         SlangModuleSystem modules = _shaderSystem.Modules;
-        // Composition-static defines (the material asset's toggles) always apply;
-        // runtime defines a material selects per pipeline append to them.
-        string[] defines = staticDefines.Length == 0 && runtimeDefines.Length == 0
-            ? []
-            : [.. staticDefines, .. runtimeDefines];
         SlangProgram program = modules.GetComposedProgram(
-            key.Template.Name, key.Surface.Name, key.SurfaceType, specArgs, defines);
+            key.Template.Name, key.Surface.Name, key.SurfaceType, specArgs, staticDefines);
 
         // Programs stay pinned: ShaderModule structs reference the code arrays.
         lock (_lock)
@@ -322,7 +323,7 @@ public sealed class MaterialComposer : IDisposable
         }
 
         ShaderModulesInfo info = ShaderSystem.BuildModulesInfo(
-            _rendering, modules.Target, shaderName, specArgs, defines, program);
+            _rendering, modules.Target, shaderName, program);
         if (key.Compute ? !info.IsComputeShader : !info.IsGraphicsShader)
         {
             throw new InvalidOperationException(

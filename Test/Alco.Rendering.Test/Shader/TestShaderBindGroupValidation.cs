@@ -104,7 +104,9 @@ public class TestShaderBindGroupValidation
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         using ShaderSystem shaderSystem = new(
             host.RenderingSystem, new SlangCompilerOptions { Resolver = _ => null }, cacheDirectory: null);
-        shaderSystem.GetShaderFromModule(moduleName, $"{moduleName}.slang", source);
+        // Shaders compile lazily now — pull the modules to run the validation.
+        shaderSystem.GetShaderFromModule(moduleName, $"{moduleName}.slang", source)
+            .GetShaderModules();
     }
 
     [Test(Description = "A valid contiguous module compiles without throwing")]

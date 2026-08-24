@@ -28,15 +28,14 @@ public class Game : GameEngine
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _materialRenderer = RenderingSystem.CreateRenderContext();
-        _material = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite);
+        _material = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
         _material.DepthStencilState = DepthStencilState.Default;
         _material.BlendState = BlendState.AlphaBlend;
         
         
        
         _compressor = RenderingSystem.CreateTextureCompressorBC3(
-            RenderingSystem.ShaderSystem.GetShader("texture-compress-bc3", "0"),
-            RenderingSystem.ShaderSystem.GetShader("texture-compress-bc3", "1"));
+            RenderingSystem.ShaderSystem.GetShader("texture-compress-bc3"));
         _compressor.IsSRGB = false;
         _compressedTexture = _compressor.Compress(_texture);
 

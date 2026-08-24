@@ -16,8 +16,14 @@ public struct GraphicsPipelineContext
     public BlendState BlendState;
     public RasterizerState Rasterizer;
     public PrimitiveTopology PrimitiveTopology;
-    public string[] Defines;
     public uint Version;
+
+    /// <summary>
+    /// The specialization arguments the context was built for (set by the
+    /// Shader.GetGraphicsPipeline call; TryUpdatePipelineContext keeps them) —
+    /// the variant identity of the cached pipeline, where defines used to live.
+    /// </summary>
+    public string[]? Specializations;
 
     /// <summary>
     /// The size in bytes of the push constants block, or 0 when the pipeline is not set.
@@ -35,7 +41,6 @@ public struct GraphicsPipelineContext
         BlendState = BlendState.Opaque;
         Rasterizer = RasterizerState.CullNone;
         PrimitiveTopology = PrimitiveTopology.TriangleList;
-        Defines = Array.Empty<string>();
         Version = 0;
     }
 
@@ -44,8 +49,7 @@ public struct GraphicsPipelineContext
         DepthStencilState depthStencil,
         BlendState blendState,
         RasterizerState rasterizer,
-        PrimitiveTopology primitiveTopology,
-        string[] defines)
+        PrimitiveTopology primitiveTopology)
 
     {
         ReflectionInfo = reflectionInfo;
@@ -53,7 +57,6 @@ public struct GraphicsPipelineContext
         BlendState = blendState;
         Rasterizer = rasterizer;
         PrimitiveTopology = primitiveTopology;
-        Defines = defines;
         Version = 0;
     }
 
@@ -67,7 +70,6 @@ public struct GraphicsPipelineContext
         BlendState = blendState;
         Rasterizer = rasterizer;
         PrimitiveTopology = primitiveTopology;
-        Defines = Array.Empty<string>();
         Version = 0;
     }
 

@@ -9,17 +9,17 @@ namespace Alco.Rendering;
 public partial class RenderingSystem
 {
     /// <summary>
-    /// Create a shader whose modules are compiled through the slang module
-    /// system: the compiler is called once per compatibility permutation on demand
-    /// and returns modules with reflection.
+    /// Create a shader handle whose modules are compiled through the slang module
+    /// system: the compiler is called once per specialization, on demand. Variant
+    /// axes are requested through the specialization arguments of the Shader's
+    /// accessor methods (where the retired defines used to be).
     /// </summary>
     /// <param name="name">The name of the shader (for debugging and profiling).</param>
-    /// <param name="compileModules">Produces the compiled modules for one set of defines.</param>
+    /// <param name="compileModules">Produces the compiled modules of one specialization.</param>
     /// <param name="customVertexLayouts">Optional vertex layout override (e.g. ImGui's packed vertex color).</param>
-    /// <param name="permutationSource">Optional module source whose #if blocks drive TestAllDefines.</param>
     public Shader CreateShader(string name, Func<string[], ShaderModulesInfo> compileModules,
-        IReadOnlyList<VertexInputLayout>? customVertexLayouts = null, string? permutationSource = null)
+        IReadOnlyList<VertexInputLayout>? customVertexLayouts = null)
     {
-        return new Shader(this, name, compileModules, customVertexLayouts, permutationSource);
+        return new Shader(this, name, compileModules, customVertexLayouts);
     }
 }

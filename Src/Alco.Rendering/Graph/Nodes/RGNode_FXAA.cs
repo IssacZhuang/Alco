@@ -30,19 +30,20 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     }
 
     /// <summary>
-    /// The node's construction data: the scene-copy shader, the per-preset
-    /// quality shaders (each a generic value specialization of the fxaa module,
-    /// MainPS&lt;let Quality : int&gt;) and the effect's tunables. Service-type
-    /// dependencies (the rendering system, graph, chain, output layout) are
-    /// explicit constructor parameters instead — a descriptor is pure data.
+    /// The node's construction data: the scene-copy shader, the fxaa shader and
+    /// the effect's tunables. The quality axis is a generic value specialization
+    /// of the module's MainPS&lt;let Quality : int&gt; entry — the node requests each
+    /// preset's specialized pipeline on demand. Service-type dependencies
+    /// (the rendering system, graph, chain, output layout) are explicit
+    /// constructor parameters instead — a descriptor is pure data.
     /// </summary>
     public readonly struct Descriptor
     {
         /// <summary>The scene-copy shader used for the final blit.</summary>
         public required Shader SceneCopyShader { get; init; }
 
-        /// <summary>One specialized shader per quality preset; every <see cref="FXAAQuality"/> value must be present.</summary>
-        public required IReadOnlyDictionary<FXAAQuality, Shader> QualityShaders { get; init; }
+        /// <summary>The fxaa shader (each quality preset is its own specialization).</summary>
+        public required Shader FxaaShader { get; init; }
 
         /// <summary>The quality preset; changing it selects a different specialized shader.</summary>
         public FXAAQuality Quality { get; init; } = FXAAQuality.Medium;
@@ -55,7 +56,7 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
 
     /// <summary>
     /// Creates the node wrapping a FXAA effect built from the descriptor's
-    /// scene-copy and quality-preset shaders; the node takes ownership of the effect.
+    /// scene-copy shader and fxaa module; the node takes ownership of the effect.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
     /// <param name="graph">The graph the node is (or will be) registered in.</param>
@@ -67,7 +68,7 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
         GPUAttachmentLayout outputLayout, in Descriptor descriptor)
         : base(graph, chain, outputLayout, name: "FXAA")
     {
-        _fxaa = new FXAA(rendering, descriptor.SceneCopyShader, descriptor.QualityShaders)
+        _fxaa = new FXAA(rendering, descriptor.SceneCopyShader, descriptor.FxaaShader)
         {
             Quality = descriptor.Quality,
             Threshold = descriptor.Threshold,

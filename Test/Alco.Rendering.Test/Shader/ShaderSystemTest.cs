@@ -98,8 +98,8 @@ public class ShaderSystemTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(shader.IsComputeShader, Is.False);
             Assert.That(modules.IsGraphicsShader, Is.True);
+            Assert.That(modules.IsComputeShader, Is.False);
             Assert.That(modules.VertexShader, Is.Not.Null);
             Assert.That(modules.FragmentShader, Is.Not.Null);
             Assert.That(modules.VertexShader!.Value.Source.Length, Is.GreaterThan(4));

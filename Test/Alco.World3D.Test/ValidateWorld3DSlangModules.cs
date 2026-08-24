@@ -131,11 +131,11 @@ public class ValidateWorld3DSlangModules
     // specialization must link — a generic entry point cannot link unspecialized,
     // so these modules are only tested through their argument sets. Modules not
     // listed here have no generic parameters and link with empty arguments.
-    //   volumetric-cloud-noise: <let IsDetail : int> — 0=base shape, 1=detail.
+    //   volumetric-cloud-noise: <let IsDetail : bool> — false=base shape, true=detail.
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
         new Dictionary<string, string[][]>
         {
-            ["volumetric-cloud-noise"] = [["0"], ["1"]],
+            ["volumetric-cloud-noise"] = [["false"], ["true"]],
         };
 
     [Test]

@@ -11,7 +11,8 @@ public sealed class GraphicsMaterialInstance : GraphicsMaterial
 {
     private readonly GraphicsMaterial _parent;
 
-    internal GraphicsMaterialInstance(RenderingSystem system, GraphicsMaterial parent) : base(system, parent.Shader, $"{parent.Name}_instance")
+    internal GraphicsMaterialInstance(RenderingSystem system, GraphicsMaterial parent)
+        : base(system, parent.Shader, $"{parent.Name}_instance", parent.Specializations.ToArray())
     {
         _parent = parent;
         _parameters.Fallback = parent.Parameters;
@@ -20,9 +21,11 @@ public sealed class GraphicsMaterialInstance : GraphicsMaterial
             parent.DepthStencilState,
             parent.BlendState,
             parent.RasterizerState,
-            parent.PrimitiveTopology,
-            parent.Defines
-            );
+            parent.PrimitiveTopology
+            )
+        {
+            Specializations = parent.Specializations.ToArray(),
+        };
     }
 
     // Slot values are inherited through the parameter set fallback chain. Binding

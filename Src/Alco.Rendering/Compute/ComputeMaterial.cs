@@ -14,8 +14,17 @@ public class ComputeMaterial : AutoDisposable
     protected readonly ShaderParameterSet _parameterSet;
     protected ComputePipelineContext _pipelineContext;
 
+    // Construction-bound (immutable for the dispatcher's lifetime): the shader
+    // handle and the specialization that pins its variant — the compute-side
+    // twin of GraphicsMaterial's construction binding.
+    private readonly string[] _specializations;
 
     protected bool _isPipelineDirty = true;
+
+    /// <summary>
+    /// The specialization arguments the dispatcher was constructed for (its pinned variant).
+    /// </summary>
+    public IReadOnlyList<string> Specializations => _specializations;
 
     /// <summary>
     /// Gets the number of resource groups in the compute pipeline.
@@ -52,30 +61,21 @@ public class ComputeMaterial : AutoDisposable
         get => _parameterSet.ReflectionInfo;
     }
 
-    public string[] Defines
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _pipelineContext.Defines;
-    }
 
-
-    internal ComputeMaterial(RenderingSystem system, Shader shader)
-    : this(system, shader, [])
-    {
-
-    }
-
-    internal ComputeMaterial(RenderingSystem system, Shader shader, ReadOnlySpan<string> defines)
+    internal ComputeMaterial(RenderingSystem system, Shader shader, string[]? specializations = null)
     {
         ArgumentNullException.ThrowIfNull(shader);
-        if (!shader.IsComputeShader)
+        _system = system;
+        _shader = shader;
+        _specializations = specializations ?? [];
+
+        ShaderModulesInfo modulesInfo = shader.GetShaderModules(_specializations);
+        if (!modulesInfo.IsComputeShader)
         {
             throw new InvalidOperationException("The shader required for compute material must be a compute shader");
         }
 
-        _system = system;
-        _shader = shader;
-        _pipelineContext = shader.GetComputePipelineInfo(defines);
+        _pipelineContext = shader.GetComputePipelineInfo(_specializations);
         _parameterSet = new ShaderParameterSet(system.GraphicsDevice, _pipelineContext.ReflectionInfo!);
     }
 
@@ -198,18 +198,6 @@ public class ComputeMaterial : AutoDisposable
         computePass.DispatchCompute(groupX, groupY, groupZ);
     }
 
-
-    /// <summary>
-    /// Sets the shader defines to control the variant of the compute shader.
-    /// </summary>
-    /// <param name="defines">The defines to set.</param>
-    /// <exception cref="ArgumentNullException">Thrown when defines is null.</exception>
-    public void SetDefines(params string[] defines)
-    {
-        ArgumentNullException.ThrowIfNull(defines);
-        _pipelineContext.Defines = defines;
-        _isPipelineDirty = true;
-    }
 
     #region Set Buffer
 

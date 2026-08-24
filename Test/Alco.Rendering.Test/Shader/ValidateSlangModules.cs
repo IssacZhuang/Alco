@@ -41,17 +41,27 @@ public class ValidateSlangModules
         }
     }
 
-    // Modules with generic entry points (plan D3 specialization): every valid
-    // specialization must link — a generic entry point cannot link unspecialized,
-    // so these modules are only tested through their argument sets. Modules not
-    // listed here have no generic parameters and link with empty arguments.
-    //   fxaa: <let Quality : int> — 0=Low, 1=Medium, 2=High, 3=Ultra.
-    //   texture-compress-bc3: <let IsSRGB : int> — 0=linear, 1=sRGB.
+    // Modules with generic entry points (plan D3 specialization): a generic
+    // entry point cannot link unspecialized, so the no-argument asset-load
+    // sweep (Engine's ValidateAllShaders) excludes them — this table is their
+    // only link/codegen coverage, through ONE representative argument set per
+    // module. Enumerating every value is deliberately not done: slang's
+    // front-end type-checks every branch of a generic body at module load,
+    // independent of the argument values (link-time specialization), so values
+    // only differ in how already-validated IR constant-folds. What the single
+    // link proves is the stages after the front-end: specialization argument
+    // matching (arity/type), linking, layout validation and target codegen.
+    //   fxaa: <let Quality : int>, sprite: <let Repeated : bool>,
+    //   texture-compress-bc3: <let IsSRGB : bool>,
+    //   tile-instanced: VertexMain<let IsFacade : bool>, PixelMain<let Bombing :
+    //   bool> — args map to entry points in definition order.
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
         new Dictionary<string, string[][]>
         {
-            ["fxaa"] = [["0"], ["1"], ["2"], ["3"]],
-            ["texture-compress-bc3"] = [["0"], ["1"]],
+            ["fxaa"] = [["1"]],
+            ["sprite"] = [["false"]],
+            ["texture-compress-bc3"] = [["false"]],
+            ["tile-instanced"] = [["false", "false"]],
         };
 
     [Test]

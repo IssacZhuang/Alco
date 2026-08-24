@@ -123,15 +123,15 @@ float CloudRemapBake(float v, float l0, float l1, float r0, float r1)
 
 [[vk::image_format("rgba8")]] RWTexture3D<float4> _noiseOut;
 
-// The bake kind is a generic value specialization (plan D3): 1 = detail bake
-// (32^3 Worley FBM), 0 = base shape bake (128^3 Perlin-Worley). The C# owner
-// requests the specialized entry (MainCS<1> / MainCS<0>) instead of passing a
-// preprocessor permutation.
+// The bake kind is a generic value specialization (plan D3): true = detail
+// bake (32^3 Worley FBM), false = base shape bake (128^3 Perlin-Worley). The
+// C# owner requests the specialized entry (MainCS<true> / MainCS<false>)
+// instead of passing a preprocessor permutation.
 [shader("compute")]
 [numthreads(4, 4, 4)]
-void MainCS<let IsDetail : int>(uint3 dispatchId : SV_DispatchThreadID)
+void MainCS<let IsDetail : bool>(uint3 dispatchId : SV_DispatchThreadID)
 {
-    if (IsDetail != 0)
+    if (IsDetail)
     {
         const float size = 32.0;
         float3 uvw = (dispatchId + 0.5) / size;

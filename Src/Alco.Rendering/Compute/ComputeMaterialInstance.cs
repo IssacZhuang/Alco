@@ -10,13 +10,14 @@ public sealed class ComputeMaterialInstance : ComputeMaterial
 {
     private readonly ComputeMaterial _parent;
 
-    internal ComputeMaterialInstance(RenderingSystem system, ComputeMaterial parent) : base(system, parent.Shader)
+    internal ComputeMaterialInstance(RenderingSystem system, ComputeMaterial parent)
+        : base(system, parent.Shader, parent.Specializations.ToArray())
     {
         _parent = parent;
         _parameterSet.Fallback = parent.ParameterSet;
-        _pipelineContext = new ComputePipelineContext(
-            parent.ReflectionInfo,
-            parent.Defines
-            );
+        _pipelineContext = new ComputePipelineContext(parent.ReflectionInfo)
+        {
+            Specializations = parent.Specializations.ToArray(),
+        };
     }
 }

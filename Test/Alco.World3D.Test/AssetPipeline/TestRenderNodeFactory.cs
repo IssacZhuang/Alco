@@ -59,17 +59,10 @@ public class TestRenderNodeFactory
         return engine;
     }
 
-    /// <summary>An FXAA descriptor's quality-shader map as JSON text: one
-    /// object-form specialized reference per preset (the real fxaa module —
-    /// its generic entry cannot default-specialize, so the object form is the
-    /// only way to reference it from data).</summary>
-    private const string FxaaQualityShadersJson = """
-        "qualityShaders": {
-            "low": { "module": "fxaa", "specialization": 0 },
-            "medium": { "module": "fxaa", "specialization": 1 },
-            "high": { "module": "fxaa", "specialization": 2 },
-            "ultra": { "module": "fxaa", "specialization": 3 }
-        }
+    /// <summary>An FXAA descriptor's quality-shader reference as JSON text: the
+    /// single module — each preset resolves as its own specialization.</summary>
+    private const string FxaaModuleJson = """
+        "fxaaShader": "fxaa"
         """;
 
     [Test]
@@ -82,7 +75,7 @@ public class TestRenderNodeFactory
             // jsonc: comments and trailing commas are author-friendly,
             "descriptor": {
                 "sceneCopyShader": "test_fxaa",
-                {{FxaaQualityShadersJson}},
+                {{FxaaModuleJson}},
                 "quality": "High",
             }
         }
@@ -94,48 +87,37 @@ public class TestRenderNodeFactory
             Assert.That(fxaa.Descriptor.SceneCopyShader, Is.Not.Null);
             Assert.That(fxaa.Descriptor.SceneCopyShader.Name, Is.EqualTo("test_fxaa"),
                 "The reference resolves through the shader system at load time.");
-            Assert.That(fxaa.Descriptor.QualityShaders, Is.Not.Null.And.Count.EqualTo(4),
-                "Object-form references populate the quality-shader map.");
-            Assert.That(fxaa.Descriptor.QualityShaders[FXAAQuality.Ultra].Name,
-                Is.EqualTo("fxaa[3]"),
-                "A specialized reference resolves to its (module, specialization) shader.");
+            Assert.That(fxaa.Descriptor.FxaaShader.Name, Is.EqualTo("fxaa"),
+                "The shader reference resolves typed at load time.");
             Assert.That(fxaa.Descriptor.Quality, Is.EqualTo(FXAAQuality.High));
         });
     }
 
     [Test]
-    public void ParseResolvesSpecializedShaderObjectReferences()
+    public void ParseResolvesShaderReferencesTypedAtLoadTime()
     {
         using GameEngine engine = CreateEngine();
+        // A shader reference is the module name — variants are specialization
+        // arguments requested where the shader is used, never part of the
+        // reference (the retired defines position, now specialization-shaped).
+        Shader handle = engine.RenderingSystem.ShaderSystem.GetShader("fxaa");
+
         RenderNodeFactory factory = Parse(engine, """
         {
-            "$type": "Alco.Rendering.RGNodeFactory_FXAA",
+            "$type": "Alco.World3D.RGNodeFactory_HBAO",
             "descriptor": {
-                "sceneCopyShader": "test_fxaa",
-                "qualityShaders": {
-                    "low": { "module": "fxaa", "specialization": [0] },
-                    "medium": { "module": "fxaa", "specialization": [1] },
-                    "high": { "module": "fxaa", "specialization": [2] },
-                    "ultra": { "module": "fxaa", "specialization": [3] }
-                }
+                "hbaoShader": "fxaa",
+                "blurShader": "test_fxaa"
             }
         }
         """);
 
-        var fxaa = (RGNodeFactory_FXAA)factory;
+        var hbao = (RGNodeFactory_HBAO)factory;
         Assert.Multiple(() =>
         {
-            // Shaders intern per (module, specialization): array and scalar
-            // forms of the same argument resolve to one instance.
-            Assert.That(fxaa.Descriptor.QualityShaders[FXAAQuality.High].Name,
-                Is.EqualTo("fxaa[2]"));
-            Assert.That(() => Parse(engine, """
-                { "$type": "Alco.Rendering.RGNodeFactory_FXAA", "descriptor": {
-                    "sceneCopyShader": "test_fxaa",
-                    "qualityShaders": { "low": { "module": "fxaa", "noSuchField": 1 } } } }
-                """),
-                Throws.TypeOf<JsonException>(),
-                "Unknown fields in a shader reference object fail at load.");
+            Assert.That(hbao.Descriptor.HbaoShader, Is.SameAs(handle),
+                "A module-name reference resolves to the interned shader handle at load.");
+            Assert.That(hbao.Descriptor.BlurShader.Name, Is.EqualTo("test_fxaa"));
         });
     }
 
@@ -143,12 +125,12 @@ public class TestRenderNodeFactory
     public void ParseFailsForUnknownShaderModuleAtLoadTime()
     {
         using GameEngine engine = CreateEngine();
-        Assert.That(() => Parse(engine, $$"""
+        Assert.That(() => Parse(engine, """
             {
                 "$type": "Alco.Rendering.RGNodeFactory_FXAA",
                 "descriptor": {
                     "sceneCopyShader": "no_such_module",
-                    {{FxaaQualityShadersJson}}
+                    "fxaaShader": "fxaa"
                 }
             }
             """),
@@ -242,7 +224,7 @@ public class TestRenderNodeFactory
                     "$type": "Alco.Rendering.RGNodeFactory_FXAA",
                     "descriptor": {
                         "sceneCopyShader": "test_fxaa",
-                        {{FxaaQualityShadersJson}},
+                        {{FxaaModuleJson}},
                         "threshold": 0.2
                     }
                 }
@@ -323,7 +305,7 @@ public class TestRenderNodeFactory
         var fxaa = (RGNodeFactory_FXAA)Parse(engine, $$"""
             { "$type": "Alco.Rendering.RGNodeFactory_FXAA", "descriptor": {
                 "sceneCopyShader": "test_fxaa",
-                {{FxaaQualityShadersJson}}
+                {{FxaaModuleJson}}
             } }
             """);
         RGNode_FXAA node = fxaa.CreateNode<RGNode_FXAA>(context);
