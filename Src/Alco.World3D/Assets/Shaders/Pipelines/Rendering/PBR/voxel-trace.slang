@@ -1,8 +1,8 @@
 // file "voxel-trace.slang" - module "voxel_trace"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelTrace.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -12,16 +12,6 @@ import alco_rendering_core;
 import alco_world3d_voxel_common;
 import alco_world3d_geometry_normal;
 import alco_world3d_reversed_depth;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Voxel cone tracing for the voxel GI clipmap: one dispatch at the configured
 // screen-space trace resolution. Reconstructs world position and normal from the
@@ -36,50 +26,52 @@ import alco_world3d_reversed_depth;
 // irradiance plus diagnostic visibility, voxel specular fallback, and average
 // light direction data.
 
-// alco_world3d_voxel_common owns set 0 (the shared uniform); this pass's
-// resources take set 1 as one block.
-struct PointLightData
+public struct PointLightData
 {
     float4 positionRange;
     float4 colorIntensity;
 };
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it
+// in declaration order.
+public struct PassParams
 {
-    Texture3D _radiance;
-    SamplerState _radianceSampler;
-    DepthTexture2D _gbufferDepth;
-    Texture2D _normal;
-    Texture2D _emissive;
-    Texture3D _opacity;
-    SamplerState _opacitySampler;
-    Texture2D _albedo;
-    DepthTexture2D _shadowMap;
-    SamplerComparisonState _shadowMapSampler;
+    public Texture3D _radiance;
+    public SamplerState _radianceSampler;
+    public DepthTexture2D _gbufferDepth;
+    public Texture2D _normal;
+    public Texture2D _emissive;
+    public Texture3D _opacity;
+    public SamplerState _opacitySampler;
+    public Texture2D _albedo;
+    public DepthTexture2D _shadowMap;
+    public SamplerComparisonState _shadowMapSampler;
 // Previous frame's raw trace atlas. Diffuse and ALD are accumulated here
 // before spatial demosaic so every trace pixel integrates its own directions.
-    Texture2D _traceHistory;
+    public Texture2D _traceHistory;
 // Previous demosaic metadata, segment 5: x = linear depth, yzw = world normal.
-    Texture2D _giHistoryMetadata;
+    public Texture2D _giHistoryMetadata;
 // 128x128 blue-noise tile baked once from
 // ScreenSpaceReflectionBlueNoise.hlsl (the same tile the SSR trace samples).
 // Its B channel jitters the cone march below.
-    Texture2D _blueNoise;
+    public Texture2D _blueNoise;
 // Point lights are included in the compact screen-space near-field diffuse
 // gather below.
-    RWStructuredBuffer<PointLightData> _pointLights;
+    public RWStructuredBuffer<PointLightData> _pointLights;
 // Reflective shadow map (sun view of the selected CSM cascade): depth + sRGB
 // albedo (alpha=1 marks rendered texels) + world normal. Bound by the voxel GI
 // node; the fallback (valid 1x1 depth view, black albedo with alpha=0) disables
 // sun-bounce injection before depth is read. The albedo slot is sampled (bilinear) so
 // the bounce colour a receiver gathers is filtered instead of snapping to
 // single RSM texels.
-    DepthTexture2D _rsmDepth;
-    Texture2D _rsmAlbedo;
-    SamplerState _rsmAlbedoSampler;
-    Texture2D _rsmNormal;
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
+    public DepthTexture2D _rsmDepth;
+    public Texture2D _rsmAlbedo;
+    public SamplerState _rsmAlbedoSampler;
+    public Texture2D _rsmNormal;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 // A large cosine-hemisphere kernel starts with a different direction at each
 // 8x8 screen phase, then every pixel traverses all 64 members through raw
@@ -141,7 +133,7 @@ float3 DecodeSRGB(float3 color)
 float3 ReconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
+    float4 world = mul(_data.invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
 
@@ -150,7 +142,7 @@ float3 ReconstructWorldPosition(float2 uv, float depth)
 float ReconstructLinearDepth(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float reciprocalClipW = dot(invViewProjection[3], float4(ndc, depth, 1.0));
+    float reciprocalClipW = dot(_data.invViewProjection[3], float4(ndc, depth, 1.0));
     return abs(rcp(reciprocalClipW));
 }
 
@@ -159,23 +151,23 @@ float ReconstructLinearDepth(float2 uv, float depth)
 // surfaces respect the same shadow cascades as the lit scene.
 float SampleSunShadowScreen(float3 worldPosition, float3 N)
 {
-    if (lightingParams.x < 0.5)
+    if (_data.lightingParams.x < 0.5)
     {
         return 1.0;
     }
-    float viewDistance = length(worldPosition - cameraPosition.xyz);
+    float viewDistance = length(worldPosition - _data.cameraPosition.xyz);
     int cascade = -1;
-    if (viewDistance < cascadeSplits.x) cascade = 0;
-    else if (viewDistance < cascadeSplits.y) cascade = 1;
-    else if (viewDistance < cascadeSplits.z) cascade = 2;
-    else if (viewDistance < cascadeSplits.w) cascade = 3;
+    if (viewDistance < _data.cascadeSplits.x) cascade = 0;
+    else if (viewDistance < _data.cascadeSplits.y) cascade = 1;
+    else if (viewDistance < _data.cascadeSplits.z) cascade = 2;
+    else if (viewDistance < _data.cascadeSplits.w) cascade = 3;
     if (cascade < 0)
     {
         return 1.0;
     }
 
-    float3 biasedWorld = worldPosition + N * cascadeTexelSizes[cascade];
-    float4 clip = mul(sunViewProjection[cascade], float4(biasedWorld, 1.0));
+    float3 biasedWorld = worldPosition + N * _data.cascadeTexelSizes[cascade];
+    float4 clip = mul(_data.sunViewProjection[cascade], float4(biasedWorld, 1.0));
     float3 ndc = clip.xyz / clip.w;
     if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
     {
@@ -184,27 +176,27 @@ float SampleSunShadowScreen(float3 worldPosition, float3 N)
 
     float2 quadrantOffset = float2((cascade % 2) * 0.5, (cascade / 2) * 0.5);
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
-    float NdotL = saturate(dot(N, normalize(-sunDirection.xyz)));
+    float NdotL = saturate(dot(N, normalize(-_data.sunDirection.xyz)));
     float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
-    return SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, shadowUV, ndc.z - bias);
+    return _pass._shadowMap.SampleCmpLevelZero(_pass._shadowMapSampler, shadowUV, ndc.z - bias);
 }
 
 float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3 worldPosition)
 {
-    float3 albedo = DecodeSRGB(GET_PIXEL_TEX2D(_albedo, pixel).rgb);
-    float3 emissive = GET_PIXEL_TEX2D(_emissive, pixel).rgb;
+    float3 albedo = DecodeSRGB(_pass._albedo.Load(int3(pixel, 0)).rgb);
+    float3 emissive = _pass._emissive.Load(int3(pixel, 0)).rgb;
     float3 sky = VoxelSkyColor(normal);
-    float3 L = normalize(-sunDirection.xyz);
+    float3 L = normalize(-_data.sunDirection.xyz);
     float sunAmount = max(dot(normal, L), 0.0) / PI;
     float shadow = SampleSunShadowScreen(worldPosition, normal);
-    float3 direct = sunColorAndIntensity.rgb * sunColorAndIntensity.w * sunAmount * shadow;
+    float3 direct = _data.sunColorAndIntensity.rgb * _data.sunColorAndIntensity.w * sunAmount * shadow;
 
-    uint lightCount = (uint)lightingParams.y;
+    uint lightCount = (uint)_data.lightingParams.y;
     [loop]
     for (uint i = 0; i < lightCount; i++)
     {
-        float4 posRange = _pointLights[i].positionRange;
-        float4 colInt = _pointLights[i].colorIntensity;
+        float4 posRange = _pass._pointLights[i].positionRange;
+        float4 colInt = _pass._pointLights[i].colorIntensity;
         if (colInt.w <= 0.0)
         {
             continue;
@@ -240,7 +232,7 @@ float4 GatherScreenSpaceNearField(
     float3 worldPosition,
     float3 normal)
 {
-    uint2 resolution = uint2(giParams2.y, giParams2.z);
+    uint2 resolution = uint2(_data.giParams2.y, _data.giParams2.z);
     float rotation = frac(sin(dot(float2(centerPixel), float2(12.9898, 78.233))) * 43758.5453) * TAU;
     float3 gathered = 0.0;
     float totalWeight = 0.0;
@@ -260,7 +252,7 @@ float4 GatherScreenSpaceNearField(
             }
 
             int2 samplePixel = clamp((int2)(sampleUV * float2(resolution)), 0, (int2)resolution - 1);
-            float sampleDepth = GetPixelDepth2D(_gbufferDepth, samplePixel);
+            float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, samplePixel);
             if (IS_SKY_DEPTH(sampleDepth))
             {
                 continue;
@@ -268,14 +260,14 @@ float4 GatherScreenSpaceNearField(
             float3 samplePosition = ReconstructWorldPosition(sampleUV, sampleDepth);
             float3 toSample = samplePosition - worldPosition;
             float distance_ = length(toSample);
-            if (distance_ < levelOrigins[0].w * 2.0 || distance_ > levelOrigins[0].w * 16.0)
+            if (distance_ < _data.levelOrigins[0].w * 2.0 || distance_ > _data.levelOrigins[0].w * 16.0)
             {
                 continue;
             }
 
             float3 directionToSample = toSample / distance_;
             float receiverFacing = max(dot(normal, directionToSample), 0.0);
-            float3 sampleNormal = normalize(GET_PIXEL_TEX2D(_normal, samplePixel).xyz * 2.0 - 1.0);
+            float3 sampleNormal = normalize(_pass._normal.Load(int3(samplePixel, 0)).xyz * 2.0 - 1.0);
             float sourceFacing = max(dot(sampleNormal, -directionToSample), 0.0);
             float weight = receiverFacing * sourceFacing / (1.0 + distance_ * distance_);
             if (weight < 0.01)
@@ -301,14 +293,14 @@ float4 GatherScreenSpaceNearField(
 // along the w axis.
 float4 SampleRadiance(float3 position, int level, float mip)
 {
-    return SAMPLE_TEX3D_LEVEL(_radiance, VoxelWorldToUVW(position, level, mip), mip);
+    return _pass._radiance.SampleLevel(_pass._radianceSampler, VoxelWorldToUVW(position, level, mip), mip);
 }
 
 // Sample the directional opacity volume. xyz = directional opacity components
 // (project onto |rayDir| for anisotropic occlusion), a = coverage fraction.
 float4 SampleOpacity(float3 position, int level, float mip)
 {
-    return SAMPLE_TEX3D_LEVEL(_opacity, VoxelWorldToUVW(position, level, mip), mip);
+    return _pass._opacity.SampleLevel(_pass._opacitySampler, VoxelWorldToUVW(position, level, mip), mip);
 }
 
 // Sample radiance + opacity at a position, blending between the current level
@@ -323,20 +315,22 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
     float4 radSample = SampleRadiance(position, level, mip);
     float4 opaSample = SampleOpacity(position, level, mip);
 
-    int levelCount = (int)clipmapParams.y;
+    int levelCount = (int)_data.clipmapParams.y;
     if (level + 1 < levelCount)
     {
         float boundaryWeight = VoxelLevelTransitionWeight(position, level);
         if (boundaryWeight > 0.001)
         {
-            float nextVoxelSize = levelOrigins[level + 1].w;
-            float curVoxelSize = levelOrigins[level].w;
+            float nextVoxelSize = _data.levelOrigins[level + 1].w;
+            float curVoxelSize = _data.levelOrigins[level].w;
             // Convert the mip to the coarser level's mip space.
-            float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, clipmapParams.z - 1.0);
+            float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, _data.clipmapParams.z - 1.0);
 
-            float4 nextRad = SAMPLE_TEX3D_LEVEL(_radiance,
+            float4 nextRad = _pass._radiance.SampleLevel(
+                _pass._radianceSampler,
                 VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
-            float4 nextOpa = SAMPLE_TEX3D_LEVEL(_opacity,
+            float4 nextOpa = _pass._opacity.SampleLevel(
+                _pass._opacitySampler,
                 VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
 
             radSample = lerp(radSample, nextRad, boundaryWeight);
@@ -368,8 +362,8 @@ float4 TraceCone(
     float marchJitter,
     bool injectRsmSun)
 {
-    float mipCount = clipmapParams.z;
-    float fineVoxelSize = levelOrigins[0].w;
+    float mipCount = _data.clipmapParams.z;
+    float fineVoxelSize = _data.levelOrigins[0].w;
     float3 color = 0.0;
     float alpha = 0.0;
     int startLevel = VoxelFindLevel(startPosition);
@@ -402,7 +396,7 @@ float4 TraceCone(
             prevLevel = level;
         }
 
-        float voxelSize = levelOrigins[level].w;
+        float voxelSize = _data.levelOrigins[level].w;
         float diameter = max(2.0 * t * apertureTan, voxelSize);
         // A clipmap origin scrolls by one 8^3 brick. Mips above 3 are not
         // world-aligned under that translation (8 texels become half a texel
@@ -435,27 +429,27 @@ float4 TraceCone(
         // first surface along its sun ray, so shadowed receivers project onto
         // a different depth and get nothing). On-surface steps are excluded by
         // the epsilon: their direct sun already lives in the voxel radiance.
-        if (injectRsmSun && rsmParams.x > 0.0 && t < rsmParams.y)
+        if (injectRsmSun && _data.rsmParams.x > 0.0 && t < _data.rsmParams.y)
         {
-            uint rsmCascade = (uint)(lightingParams.w + 0.5);
-            float4 rsmClip = mul(sunViewProjection[rsmCascade], float4(position, 1.0));
+            uint rsmCascade = (uint)(_data.lightingParams.w + 0.5);
+            float4 rsmClip = mul(_data.sunViewProjection[rsmCascade], float4(position, 1.0));
             float3 rsmNdc = rsmClip.xyz / rsmClip.w;
             if (all(abs(rsmNdc.xy) <= 1.0) && rsmNdc.z >= 0.0 && rsmNdc.z <= 1.0)
             {
                 // The RSM renders the whole cascade view (no atlas quadrant),
                 // so unlike SampleSunShadowScreen the UV is not folded.
                 float2 rsmUv = float2(rsmNdc.x * 0.5 + 0.5, 0.5 - rsmNdc.y * 0.5);
-                int2 rsmTexel = int2(rsmUv * rsmParams2.xy);
+                int2 rsmTexel = int2(rsmUv * _data.rsmParams2.xy);
                 // Bilinear albedo: neighbouring march points and neighbouring
                 // receivers must see a continuous bounce colour, not per-texel
                 // snaps. Cleared texels are (0,0,0,0), so filtering drives
                 // alpha toward 0 at the sun-patch border; alpha becomes a
                 // coverage weight and the RGB is un-premultiplied below.
-                float4 rsmAlbedoSample = SAMPLE_TEX2D_LEVEL(_rsmAlbedo, rsmUv, 0.0);
+                float4 rsmAlbedoSample = _pass._rsmAlbedo.SampleLevel(_pass._rsmAlbedoSampler, rsmUv, 0.0);
                 float rsmCoverage = saturate(rsmAlbedoSample.a);
                 if (rsmCoverage > 0.05)
                 {
-                    float rsmDepth = GetPixelDepth2D(_rsmDepth, rsmTexel);
+                    float rsmDepth = GetPixelDepth2D(_pass._rsmDepth, rsmTexel);
                     // The glowing shell must be at least one and a half march
                     // steps thick (and never thinner than the fine voxel / RSM
                     // texel). A fixed fine-scale shell is thinner than the
@@ -464,34 +458,34 @@ float4 TraceCone(
                     // instead of a uniform bounce — the shell scaling with the
                     // current step is what keeps every crossing sampled. CE5
                     // scales the tolerance with the current node size
-                    // ((8/nodeSize)*450) for the same reason. rsmParams.z is
+                    // ((8/nodeSize)*450) for the same reason. _data.rsmParams.z is
                     // the cascade depth range (world->NDC-z scale),
-                    // rsmParams2.z the RSM texel world size.
+                    // _data.rsmParams2.z the RSM texel world size.
                     float rsmShellWorld = max(
                         marchDistance * 1.5,
-                        max(fineVoxelSize, rsmParams2.z) * 1.5);
+                        max(fineVoxelSize, _data.rsmParams2.z) * 1.5);
                     float fRsm = saturate(
-                        1.0 - abs(rsmDepth - rsmNdc.z) * rsmParams.z / rsmShellWorld);
+                        1.0 - abs(rsmDepth - rsmNdc.z) * _data.rsmParams.z / rsmShellWorld);
                     // Strictly in front of the sunlit surface only.
                     if (fRsm > 0.0 && rsmDepth > rsmNdc.z + 0.0007)
                     {
-                        float3 rsmNormal = normalize(GET_PIXEL_TEX2D(_rsmNormal, rsmTexel).xyz * 2.0 - 1.0);
+                        float3 rsmNormal = normalize(_pass._rsmNormal.Load(int3(rsmTexel, 0)).xyz * 2.0 - 1.0);
                         float3 bounceAlbedo = DecodeSRGB(
                             min(rsmAlbedoSample.rgb / max(rsmCoverage, 0.5), 1.0));
                         // Minimum reflectance so deeply dark texels still
                         // bounce a visible amount of sun.
-                        bounceAlbedo += saturate(rsmParams.w - dot(bounceAlbedo, 0.333));
+                        bounceAlbedo += saturate(_data.rsmParams.w - dot(bounceAlbedo, 0.333));
                         // CE5 rejects only surfaces significantly facing away
                         // from the receiver (dot(N, dir) < 0.7) and applies no
                         // NdotL: the texel's sun visibility is already implied
                         // by the RSM. A cosine-falloff here zeroes the grazing
                         // wall contacts that carry most street-level bounce.
                         float facingReceiver = saturate((0.7 - dot(rsmNormal, direction)) * 2.0);
-                        float3 rsmLight = sunColorAndIntensity.rgb * sunColorAndIntensity.w *
+                        float3 rsmLight = _data.sunColorAndIntensity.rgb * _data.sunColorAndIntensity.w *
                             facingReceiver * fRsm * rsmCoverage;
                         // CE5 applies no 1/pi: the term is radiance modulated by
                         // the user intensity, not a Lambertian irradiance.
-                        color += (1.0 - alpha) * rsmLight * bounceAlbedo * rsmParams.x * nearFade;
+                        color += (1.0 - alpha) * rsmLight * bounceAlbedo * _data.rsmParams.x * nearFade;
                     }
                 }
             }
@@ -536,7 +530,7 @@ float4 TraceDiffuseCones(
 {
     float3x3 tbn = GetTangentBasis(normal);
     uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
-    uint frameIndex = uint(giFrameParams.x);
+    uint frameIndex = uint(_data.giFrameParams.x);
     uint sequenceIndex = DIFFUSE_DIRECTION_TILE[tileIndex];
     // Visit the complete 64-direction kernel at every pixel. Multiplication by
     // an odd number permutes all six-bit frame phases, and XOR applies that
@@ -572,7 +566,7 @@ float4 TraceDiffuseCones(
     // resolves to the opacity direction. With DiffuseSpreading=0 the direction
     // is unchanged (identity).
     float3 opacityDirection = kernelDirection;
-    opacityDirection.z -= giFrameParams.w;
+    opacityDirection.z -= _data.giFrameParams.w;
     kernelDirection = normalize(opacityDirection);
 
     float3 worldDir = normalize(mul(kernelDirection, tbn));
@@ -587,22 +581,22 @@ float4 TraceDiffuseCones(
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint2 tracePixel = dispatchId.xy;
-    uint2 traceResolution = uint2(giParams.z, giParams.w);
+    uint2 traceResolution = uint2(_data.giParams.z, _data.giParams.w);
     if (any(tracePixel >= traceResolution))
     {
         return;
     }
 
     float2 uv = (float2(tracePixel) + 0.5) / float2(traceResolution);
-    uint2 gbufferResolution = uint2(giParams2.y, giParams2.z);
+    uint2 gbufferResolution = uint2(_data.giParams2.y, _data.giParams2.z);
     int2 gbufferPixel = int2(uv * float2(gbufferResolution));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2(gbufferResolution) - 1);
-    float depth = GetPixelDepth2D(_gbufferDepth, gbufferPixel);
+    float depth = GetPixelDepth2D(_pass._gbufferDepth, gbufferPixel);
     if (IS_SKY_DEPTH(depth))
     {
-        _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-        _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
-        _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
+        _pass._indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+        _pass._indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
+        _pass._indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -613,14 +607,14 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // on the trace grid so a stationary reprojection lands on the exact same
     // history texel (the SSR trace follows the same rule).
     float3 worldPosition = ReconstructWorldPosition(uv, depth);
-    float4 packedNormal = GET_PIXEL_TEX2D(_normal, gbufferPixel);
-    float4 packedAlbedo = GET_PIXEL_TEX2D(_albedo, gbufferPixel);
-    float packedGeometryY = GET_PIXEL_TEX2D(_emissive, gbufferPixel).a;
+    float4 packedNormal = _pass._normal.Load(int3(gbufferPixel, 0));
+    float4 packedAlbedo = _pass._albedo.Load(int3(gbufferPixel, 0));
+    float packedGeometryY = _pass._emissive.Load(int3(gbufferPixel, 0)).a;
     float3 detailNormal = normalize(packedNormal.xyz * 2.0 - 1.0);
     float3 geometryNormal = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
     float roughness = packedAlbedo.a;
-    float3 V = normalize(cameraPosition.xyz - worldPosition);
-    float maxDistance = giParams.y;
+    float3 V = normalize(_data.cameraPosition.xyz - worldPosition);
+    float maxDistance = _data.giParams.y;
 
     // Trace with a 2x2 depth-weighted averaged geometry normal instead of the
     // raw per-pixel normal. The relative depth test keeps normals from the
@@ -642,7 +636,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                     gbufferPixel + int2(normalX, normalY),
                     int2(0, 0),
                     int2(gbufferResolution) - 1);
-                float sampleDepth = GetPixelDepth2D(_gbufferDepth, normalPixel);
+                float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, normalPixel);
                 if (IS_SKY_DEPTH(sampleDepth))
                 {
                     continue;
@@ -654,8 +648,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float sampleWeight = saturate(
                     0.12 - abs(1.0 - sampleLinearDepth / max(centerLinearDepth, 0.0001)))
                     + 0.001;
-                float4 samplePackedNormal = GET_PIXEL_TEX2D(_normal, normalPixel);
-                float samplePackedGeometryY = GET_PIXEL_TEX2D(_emissive, normalPixel).a;
+                float4 samplePackedNormal = _pass._normal.Load(int3(normalPixel, 0));
+                float samplePackedGeometryY = _pass._emissive.Load(int3(normalPixel, 0)).a;
                 averagedNormal += DecodeGeometryNormal(float2(
                     samplePackedNormal.a, samplePackedGeometryY)) * sampleWeight;
                 averagedWeight += sampleWeight;
@@ -670,7 +664,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Bias by the voxel size of the finest clipmap level that contains this
     // surface. Using the global finest size self-intersects surfaces represented
     // only by coarse levels and makes their GI incorrectly black.
-    float fineVoxelSize = levelOrigins[0].w;
+    float fineVoxelSize = _data.levelOrigins[0].w;
     int surfaceLevel = VoxelFindLevel(worldPosition);
     float surfaceVoxelSize = surfaceLevel >= 0
         ? VoxelEffectiveVoxelSize(worldPosition, surfaceLevel)
@@ -682,12 +676,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // jitter. Rotation changes only after a complete 64-direction cycle, while
     // the B channel advances every frame so voxel-grid phases converge.
     uint2 noisePixel = tracePixel % BLUE_NOISE_TILE;
-    float4 blueNoise = GET_PIXEL_TEX2D(_blueNoise, int2(noisePixel));
-    uint diffuseCycle = uint(giFrameParams.x) >> 6u;
+    float4 blueNoise = _pass._blueNoise.Load(int3(int2(noisePixel), 0));
+    uint diffuseCycle = uint(_data.giFrameParams.x) >> 6u;
     float kernelRotation = frac(
         blueNoise.r + float(diffuseCycle) * 0.6180339887) * TAU;
     float blueNoiseMarch = blueNoise.b;
-    float marchJitter = frac(blueNoiseMarch + float(uint(giFrameParams.x)) * 0.6180339887);
+    float marchJitter = frac(blueNoiseMarch + float(uint(_data.giFrameParams.x)) * 0.6180339887);
 
     // Diffuse RGB contains visible directional sky and bounced surface
     // radiance. Alpha is retained only as a diagnostic visibility output.
@@ -702,7 +696,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // where it can sample the actual completed HDR scene color.
     float3 reflectDirection = reflect(-V, detailNormal);
     float3 specular = 0.0;
-    bool voxelSpecularEnabled = clipmapParams.w > 0.5;
+    bool voxelSpecularEnabled = _data.clipmapParams.w > 0.5;
 
     if (voxelSpecularEnabled)
     {
@@ -735,10 +729,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 previousDiffuse = 0.0;
     float4 previousAld = 0.0;
 
-    if (giFrameParams.z > 0.5)
+    if (_data.giFrameParams.z > 0.5)
     {
         float4 previousClip = mul(
-            viewProjectionPrev, float4(worldPosition, 1.0));
+            _data.viewProjectionPrev, float4(worldPosition, 1.0));
         if (previousClip.w > 0.0)
         {
             float2 previousNdc = previousClip.xy / previousClip.w;
@@ -758,7 +752,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 float2 previousFraction = frac(previousTexel);
                 float expectedPreviousDepth = abs(previousClip.w);
                 float3 previousViewDirection = normalize(
-                    cameraPosition.xyz - worldPosition);
+                    _data.cameraPosition.xyz - worldPosition);
                 float previousViewFacing = abs(dot(
                     previousViewDirection, geometryNormal));
                 // Face-on receivers use a tight threshold; grazing surfaces
@@ -791,7 +785,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                             * (historyY != 0
                                 ? previousFraction.y
                                 : 1.0 - previousFraction.y);
-                        float4 previousMetadata = _giHistoryMetadata.Load(int3(
+                        float4 previousMetadata = _pass._giHistoryMetadata.Load(int3(
                             historyPixel
                                 + int2((int)traceResolution.x * 5, 0),
                             0));
@@ -814,7 +808,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                             0.75, 0.95,
                             dot(geometryNormal, previousNormal));
 
-                        float4 previousRawSpecular = _traceHistory.Load(int3(
+                        float4 previousRawSpecular = _pass._traceHistory.Load(int3(
                             historyPixel
                                 + int2((int)traceResolution.x, 0),
                             0));
@@ -829,9 +823,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                             continue;
                         }
 
-                        previousDiffuse += _traceHistory.Load(int3(
+                        previousDiffuse += _pass._traceHistory.Load(int3(
                             historyPixel, 0)) * tapWeight;
-                        previousAld += _traceHistory.Load(int3(
+                        previousAld += _pass._traceHistory.Load(int3(
                             historyPixel
                                 + int2((int)traceResolution.x * 2, 0),
                             0)) * tapWeight;
@@ -907,9 +901,9 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         : currentSampleCount;
     float rawHistoryAge = nextSampleCount / 64.0;
 
-    _indirectGI[tracePixel] = temporalDiffuse;
-    _indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] =
+    _pass._indirectGI[tracePixel] = temporalDiffuse;
+    _pass._indirectGI[uint2(tracePixel.x + traceResolution.x, tracePixel.y)] =
         float4(specular, rawHistoryAge);
-    _indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] =
+    _pass._indirectGI[uint2(tracePixel.x + traceResolution.x * 2, tracePixel.y)] =
         temporalAld;
 }

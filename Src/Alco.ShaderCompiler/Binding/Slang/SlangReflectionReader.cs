@@ -125,6 +125,38 @@ public static class SlangReflectionReader
                 continue;
             }
 
+            if (kind == SlangNative.SLANG_TYPE_KIND_PARAMETER_BLOCK)
+            {
+                // One ParameterBlock owns one whole set under automatic layout:
+                // the block parameter's binding index IS its absolute set (its
+                // space stays 0 — there is no register annotation to report),
+                // so the set comes from GetBindingIndex, not GetBindingSpace.
+                // Ordinary data becomes an automatically-introduced uniform
+                // buffer at binding 0; resource members continue after it in
+                // declaration order and their binding indices already account
+                // for the shift. Members are flattened under their bare field
+                // names — the same contract as set-scoped cbuffer members.
+                uint blockSet = (uint)SlangNative.spReflectionParameter_GetBindingIndex(parameter);
+                IntPtr elementLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
+                uint uniformSize = (uint)SlangNative.spReflectionTypeLayout_GetSize(
+                    elementLayout, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
+                if (uniformSize > 0)
+                {
+                    entries.Add((blockSet, new BindGroupEntryInfo
+                    {
+                        Entry = new BindGroupEntry(
+                            0u,
+                            visibility,
+                            BindingType.UniformBuffer,
+                            name: name),
+                        Size = uniformSize,
+                    }));
+                }
+
+                AddResourceFields(elementLayout, blockSet, bindingBase: 0, prefix: null, entries, imageFormats, visibility);
+                continue;
+            }
+
             if (kind == SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE)
             {
                 // SamplerComparisonState is a distinct slang type (SPIR-V carries no
@@ -200,7 +232,9 @@ public static class SlangReflectionReader
             }
 
             IntPtr typeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(parameter);
-            if (SlangNative.spReflectionTypeLayout_getKind(typeLayout) != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER)
+            int kind = SlangNative.spReflectionTypeLayout_getKind(typeLayout);
+            if (kind != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER
+                && kind != SlangNative.SLANG_TYPE_KIND_PARAMETER_BLOCK)
             {
                 continue;
             }
@@ -233,7 +267,9 @@ public static class SlangReflectionReader
             }
 
             IntPtr typeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(parameter);
-            if (SlangNative.spReflectionTypeLayout_getKind(typeLayout) != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER)
+            int kind = SlangNative.spReflectionTypeLayout_getKind(typeLayout);
+            if (kind != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER
+                && kind != SlangNative.SLANG_TYPE_KIND_PARAMETER_BLOCK)
             {
                 continue;
             }
@@ -255,6 +291,80 @@ public static class SlangReflectionReader
             blocks.Add((name!, members));
         }
         return blocks;
+    }
+
+    /// <summary>
+    /// The texture slots of a surface module — every Texture2D member of every
+    /// uniform/parameter block it declares, in declaration order, by bare field
+    /// name. Depth textures and storage images are not material slots. Read from
+    /// the module's own layout, so no entry point or link is required.
+    /// </summary>
+    public static unsafe List<string> GetModuleTextureSlots(IntPtr reflection)
+    {
+        List<string> slots = [];
+        uint parameterCount = SlangNative.spReflection_GetParameterCount(reflection);
+        for (uint i = 0; i < parameterCount; i++)
+        {
+            IntPtr parameter = SlangNative.spReflection_GetParameterByIndex(reflection, i);
+            if (parameter == IntPtr.Zero)
+            {
+                continue;
+            }
+
+            IntPtr typeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(parameter);
+            int kind = SlangNative.spReflectionTypeLayout_getKind(typeLayout);
+            if (kind != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER
+                && kind != SlangNative.SLANG_TYPE_KIND_PARAMETER_BLOCK)
+            {
+                continue;
+            }
+
+            CollectTextureFieldNames(
+                SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout), slots);
+        }
+        return slots;
+    }
+
+    /// <summary>
+    /// The sampled-texture field names of a block's element struct, in
+    /// declaration order. Storage images and depth textures are excluded —
+    /// they are pass bindings, not material texture slots.
+    /// </summary>
+    private static unsafe void CollectTextureFieldNames(IntPtr structLayout, List<string> names)
+    {
+        uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(structLayout);
+        for (uint field = 0; field < fieldCount; field++)
+        {
+            IntPtr fieldLayout = SlangNative.spReflectionTypeLayout_GetFieldByIndex(structLayout, field);
+            IntPtr fieldTypeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
+            int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldTypeLayout);
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_STRUCT)
+            {
+                CollectTextureFieldNames(fieldTypeLayout, names);
+                continue;
+            }
+            if (fieldKind != SlangNative.SLANG_TYPE_KIND_RESOURCE)
+            {
+                continue;
+            }
+
+            // Storage images are pass outputs, not sampled material slots;
+            // depth textures are framebuffer attachments, not material slots.
+            IntPtr resourceType = SlangNative.spReflectionTypeLayout_GetType(fieldTypeLayout);
+            if (SlangNative.spReflectionType_GetResourceAccess(resourceType)
+                    != SlangNative.SLANG_RESOURCE_ACCESS_READ
+                || (SlangNative.spReflectionType_GetResourceShape(resourceType)
+                        & SlangNative.SLANG_TEXTURE_SHADOW_FLAG) != 0)
+            {
+                continue;
+            }
+
+            string? fieldName = VariableLayoutName(fieldLayout);
+            if (fieldName != null)
+            {
+                names.Add(fieldName);
+            }
+        }
     }
 
     /// <summary>Whether a slang variable carries the named user-defined attribute.</summary>
@@ -381,7 +491,9 @@ public static class SlangReflectionReader
                 continue;
             }
             IntPtr typeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(parameter);
-            if (SlangNative.spReflectionTypeLayout_getKind(typeLayout) != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER)
+            int typeKind = SlangNative.spReflectionTypeLayout_getKind(typeLayout);
+            if (typeKind != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER
+                && typeKind != SlangNative.SLANG_TYPE_KIND_PARAMETER_BLOCK)
             {
                 continue;
             }

@@ -1,8 +1,8 @@
 // file "text-sdf.slang" - module "text_s_d_f"
 //
 // Slang module converted from Shaders/Pipelines/Compute/TextSDF.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module text_sdf;
@@ -14,15 +14,19 @@ struct Constants {
 };
 
 // Font atlas textures (single channel but read as float4 to avoid compiler errors)
-cbuffer _frontBuffer : register(b0, space0)
+public struct FrontBufferParams
 {
-    [[vk::image_format("r8")]] RWTexture2D<float4> _frontBuffer;
+    public [[vk::image_format("r8")]] RWTexture2D<float4> _frontBuffer;
 };
 
-cbuffer _backBuffer : register(b0, space1)
+public ParameterBlock<FrontBufferParams> _frontBuffer;
+
+public struct BackBufferParams
 {
-    [[vk::image_format("r8")]] RWTexture2D<float4> _backBuffer;
+    public [[vk::image_format("r8")]] RWTexture2D<float4> _backBuffer;
 };
+
+public ParameterBlock<BackBufferParams> _backBuffer;
 
 [[vk::push_constant]] Constants constants;
 
@@ -51,18 +55,18 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     uint2 pos = id.xy;
     
     // Read current distance field value
-    float4 currentValue = _frontBuffer[pos];
+    float4 currentValue = _frontBuffer._frontBuffer[pos];
     
     // Sample neighboring distance field values
     float4 neighbors[8] = {
-        _frontBuffer[pos + int2(1, 0)],   // right
-        _frontBuffer[pos + int2(-1, 0)],  // left  
-        _frontBuffer[pos + int2(0, 1)],   // up
-        _frontBuffer[pos + int2(0, -1)],  // down
-        _frontBuffer[pos + int2(1, 1)],   // top-right
-        _frontBuffer[pos + int2(-1, 1)],  // top-left
-        _frontBuffer[pos + int2(1, -1)],  // bottom-right
-        _frontBuffer[pos + int2(-1, -1)]  // bottom-left
+        _frontBuffer._frontBuffer[pos + int2(1, 0)],   // right
+        _frontBuffer._frontBuffer[pos + int2(-1, 0)],  // left  
+        _frontBuffer._frontBuffer[pos + int2(0, 1)],   // up
+        _frontBuffer._frontBuffer[pos + int2(0, -1)],  // down
+        _frontBuffer._frontBuffer[pos + int2(1, 1)],   // top-right
+        _frontBuffer._frontBuffer[pos + int2(-1, 1)],  // top-left
+        _frontBuffer._frontBuffer[pos + int2(1, -1)],  // bottom-right
+        _frontBuffer._frontBuffer[pos + int2(-1, -1)]  // bottom-left
     };
     
     float attenuation = constants.attenuation;
@@ -83,5 +87,5 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[6], cornerAttenuation));
     maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[7], cornerAttenuation));
     
-    _backBuffer[pos] = maxValue;
+    _backBuffer._backBuffer[pos] = maxValue;
 }

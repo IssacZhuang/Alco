@@ -1,9 +1,9 @@
 // file "alco-world3d-ssr-common.slang" - module "alco_world3d_ssr_common"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/SsrCommon.hlsli (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
-// Lib declarations are public so importing modules see them.
+// Shared SSR trace helpers. Resources are grouped as ParameterBlocks — the
+// compiler assigns each block its own descriptor set; members resolve by
+// bare field name and the engine binds everything by name. Lib declarations
+// are public so importing modules see them.
 
 #language slang 2025
 module alco_world3d_ssr_common;
@@ -12,33 +12,23 @@ import alco_world3d_reversed_depth;
 import alco_rendering_core;
 import alco_world3d_voxel_common;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
-
-// Module-owned declarations of the include-era contract documented above:
-// the bindings and callback functions the including .hlsl had to provide.
-// Nothing imports this module today; these keep it loadable and give a future
-// importer the documented surface (the Hi-Z pyramid, the G-buffer normal and
-// depth, world reconstruction and screen-radiance approximation).
-public cbuffer _ssrInputs : register(b0, space1)
+// Module-owned declarations of the include-era contract: the Hi-Z pyramid,
+// the G-buffer normal and depth, world reconstruction and screen-radiance
+// approximation. Nothing imports this module today; these keep it loadable
+// and give a future importer the documented surface.
+public struct SsrInputs
 {
     public Texture2D<float4> _depthPyramid;
     public Texture2D _normal;
     public DepthTexture2D _gbufferDepth;
 };
 
+public ParameterBlock<SsrInputs> _ssrInputs;
+
 public float3 ReconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
+    float4 world = mul(_data.invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
 
@@ -173,7 +163,7 @@ public float3 SsrHierarchicalRaymarch(
     {
         float2 currentMipPosition = currentMipResolution * position.xy;
         int2 mipPixel = int2(floor(currentMipPosition));
-        float surfaceZ = _depthPyramid.Load(int3(mipPixel.x, mipPixel.y, currentMip)).x;
+        float surfaceZ = _ssrInputs._depthPyramid.Load(int3(mipPixel.x, mipPixel.y, currentMip)).x;
         bool skippedTile = SsrAdvanceRay(origin, direction, invDirection,
             currentMipPosition, currentMipResolutionInv, floorOffset, uvOffset,
             surfaceZ, position, currentT);
@@ -206,11 +196,11 @@ public float SsrValidateHit(float3 hit, float2 uv, float3 worldRayDirection, flo
         return 0.0;
 
     int2 texelCoords = int2(floor(screenSize * hit.xy));
-    float surfaceZ = _depthPyramid.Load(int3(texelCoords.x, texelCoords.y, 0)).x;
+    float surfaceZ = _ssrInputs._depthPyramid.Load(int3(texelCoords.x, texelCoords.y, 0)).x;
     if (IS_SKY_DEPTH(surfaceZ))
         return 0.0;
 
-    float3 hitNormal = normalize(GET_PIXEL_TEX2D(_normal, texelCoords).xyz * 2.0 - 1.0);
+    float3 hitNormal = normalize(_ssrInputs._normal.Load(int3(texelCoords, 0)).xyz * 2.0 - 1.0);
     if (dot(hitNormal, worldRayDirection) > 0.0)
         return 0.0;
 
@@ -278,10 +268,10 @@ public float4 TraceScreenSpaceReflection(
     float roughness,
     float2 uv)
 {
-    float2 screenSize = float2(giParams2.y, giParams2.z);
+    float2 screenSize = float2(_data.giParams2.y, _data.giParams2.z);
 
-    float3 screenOrigin = SsrProjectPosition(worldPosition, viewProjection);
-    float3 screenDir = SsrProjectDirection(worldPosition, reflectDirection, screenOrigin, viewProjection);
+    float3 screenOrigin = SsrProjectPosition(worldPosition, _data.viewProjection);
+    float3 screenDir = SsrProjectDirection(worldPosition, reflectDirection, screenOrigin, _data.viewProjection);
 
     bool isMirror = roughness < 0.001;
     int mostDetailedMip = isMirror ? 0 : 2;  // start coarser to avoid self-hit
@@ -297,9 +287,9 @@ public float4 TraceScreenSpaceReflection(
     if (confidence > 0.0)
     {
         int2 hitPixel = clamp(int2(floor(screenSize * hit.xy)), int2(0, 0), int2(screenSize) - 1);
-        float hitDepth = GetPixelDepth2D(_gbufferDepth, hitPixel);
+        float hitDepth = GetPixelDepth2D(_ssrInputs._gbufferDepth, hitPixel);
         float3 hitWorldPos = ReconstructWorldPosition(hit.xy, hitDepth);
-        float3 hitNormal = normalize(GET_PIXEL_TEX2D(_normal, hitPixel).xyz * 2.0 - 1.0);
+        float3 hitNormal = normalize(_ssrInputs._normal.Load(int3(hitPixel, 0)).xyz * 2.0 - 1.0);
         return float4(
             ApproximateScreenSurfaceRadiance(hitPixel, hitNormal, hitWorldPos),
             confidence * (1.0 - roughness));

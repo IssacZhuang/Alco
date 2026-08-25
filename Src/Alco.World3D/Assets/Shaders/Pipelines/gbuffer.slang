@@ -41,15 +41,19 @@ public struct GBufferV2F
     float3 worldPos : TEXCOORD4;
 }
 
-cbuffer _camera : register(b0, space0)
+public struct CameraParams
 {
-    float4x4 viewProjection;
-}
+    public float4x4 viewProjection;
+};
 
-cbuffer _draw : register(b0, space1)
+public ParameterBlock<CameraParams> _camera;
+
+public struct DrawParams
 {
-    RWStructuredBuffer<PbrInstance> _instances;
-}
+    public RWStructuredBuffer<PbrInstance> _instances;
+};
+
+public ParameterBlock<DrawParams> _draw;
 
 // Octahedral encoding keeps the interpolated mesh normal in the two half-float
 // alpha channels of the normal and emissive G-buffer targets.
@@ -78,7 +82,7 @@ float3 EncodeSRGB(float3 color)
 public GBufferV2F MainVS<T : ISurface>(GBufferVertex input)
 {
     GBufferV2F output;
-    PbrInstance inst = _instances[input.instanceID];
+    PbrInstance inst = _draw._instances[input.instanceID];
     // Rigid transform only (uniform scale); fine for the demo scene.
     float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
     float3 worldNormal = mul((float3x3)inst.model, input.normal);
@@ -87,7 +91,7 @@ public GBufferV2F MainVS<T : ISurface>(GBufferVertex input)
     // so G-buffer, shadows and GI stay consistent.
     T surface = T();
     surface.ModifyVertex(worldPos, worldNormal, input.uv);
-    output.position = mul(viewProjection, float4(worldPos, 1.0f));
+    output.position = mul(_camera.viewProjection, float4(worldPos, 1.0f));
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
     output.uv = input.uv;
@@ -104,7 +108,7 @@ public void MainPS<T : ISurface>(
     out float4 mrAORT : SV_TARGET2,
     out float4 emissiveRT : SV_TARGET3)
 {
-    PbrInstance inst = _instances[input.instanceID];
+    PbrInstance inst = _draw._instances[input.instanceID];
 
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);

@@ -1,8 +1,8 @@
 // file "flood-fill-lighting.slang" - module "flood_fill_lighting"
 //
 // Slang module converted from Shaders/Pipelines/Compute/FloodFillLighting.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module flood_fill_lighting;
@@ -15,20 +15,26 @@ struct Constants {
 };
 
 // light map texture
-cbuffer _pass : register(b0, space0)
+public struct PassParams
 {
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _frontBuffer;
-};
-cbuffer _backBuffer : register(b0, space1)
-{
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _backBuffer;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _frontBuffer;
 };
 
-// opacity map texture
-cbuffer _opacityMap : register(b0, space2)
+public ParameterBlock<PassParams> _pass;
+public struct BackBufferParams
 {
-    [[vk::image_format("rgba8")]] RWTexture2D<float4> _opacityMap;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _backBuffer;
 };
+
+public ParameterBlock<BackBufferParams> _backBuffer;
+
+// opacity map texture
+public struct OpacityMapParams
+{
+    public [[vk::image_format("rgba8")]] RWTexture2D<float4> _opacityMap;
+};
+
+public ParameterBlock<OpacityMapParams> _opacityMap;
 
 [[vk::push_constant]] Constants constants;
 
@@ -71,20 +77,20 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     uint2 pos = id.xy;
 
     float4 colors[8] = {
-        _frontBuffer[id.xy + int2(1, 0)],
-        _frontBuffer[id.xy + int2(-1, 0)],
-        _frontBuffer[id.xy + int2(0, 1)],
-        _frontBuffer[id.xy + int2(0, -1)],
-        _frontBuffer[id.xy + int2(1, 1)],
-        _frontBuffer[id.xy + int2(-1, 1)],
-        _frontBuffer[id.xy + int2(1, -1)],
-        _frontBuffer[id.xy + int2(-1, -1)],
+        _pass._frontBuffer[id.xy + int2(1, 0)],
+        _pass._frontBuffer[id.xy + int2(-1, 0)],
+        _pass._frontBuffer[id.xy + int2(0, 1)],
+        _pass._frontBuffer[id.xy + int2(0, -1)],
+        _pass._frontBuffer[id.xy + int2(1, 1)],
+        _pass._frontBuffer[id.xy + int2(-1, 1)],
+        _pass._frontBuffer[id.xy + int2(1, -1)],
+        _pass._frontBuffer[id.xy + int2(-1, -1)],
     };
 
     float attenuationSide = constants.attenuationSide;
     float attenuationCorner = constants.attenuationCorner;
 
-    float4 color = _frontBuffer[id.xy];
+    float4 color = _pass._frontBuffer[id.xy];
     color = max(color, AdjustLuminanceExponential(colors[0], attenuationSide));
     color = max(color, AdjustLuminanceExponential(colors[1], attenuationSide));
     color = max(color, AdjustLuminanceExponential(colors[2], attenuationSide));
@@ -94,10 +100,10 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     color = max(color, AdjustLuminanceExponential(colors[6], attenuationCorner));
     color = max(color, AdjustLuminanceExponential(colors[7], attenuationCorner));
 
-    float4 opacity = _opacityMap[id.xy];
+    float4 opacity = _opacityMap._opacityMap[id.xy];
     color = color * opacity;
 
-    _backBuffer[id.xy] = color * GetLightPassingFactor(id.xy);
+    _backBuffer._backBuffer[id.xy] = color * GetLightPassingFactor(id.xy);
 }
 
 

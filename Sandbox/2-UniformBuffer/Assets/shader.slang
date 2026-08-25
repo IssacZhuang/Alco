@@ -15,9 +15,12 @@ struct PixelInput{
     float4 position : SV_POSITION;
 };
 
-cbuffer color : register(b0, space0) {
-    float4 color;
-}
+public struct ColorParams
+{
+    public float4 color;
+};
+
+public ParameterBlock<ColorParams> _color;
 
 [shader("vertex")]
 PixelInput MainVS(Vertex input) {
@@ -28,5 +31,5 @@ PixelInput MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(PixelInput input) : SV_TARGET {
-    return color;
+    return _color.color;
 }

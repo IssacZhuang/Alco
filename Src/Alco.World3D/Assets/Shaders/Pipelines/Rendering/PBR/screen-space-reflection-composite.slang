@@ -1,8 +1,8 @@
 // file "screen-space-reflection-composite.slang" - module "screen_space_reflection_composite"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionComposite.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -12,28 +12,22 @@ import alco_world3d_ssr_post_common;
 import alco_world3d_reversed_depth;
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
-// alco_world3d_ssr_post_common owns set 0 (_ssrData); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_ssr_post_common declares _ssrData; this pass's ParameterBlock follows
+// it in declaration order.
+public struct PassParams
 {
-    Texture2D _sceneColor;
-    SamplerState _sceneColorSampler;
-    Texture2D _reflection;
-    Texture2D _reflectionMetadata;
-    Texture2D _albedo;
-    Texture2D _normal;
-    Texture2D _mrAO;
-    DepthTexture2D _gbufferDepth;
+    public Texture2D _sceneColor;
+    public SamplerState _sceneColorSampler;
+    public Texture2D _reflection;
+    public Texture2D _reflectionMetadata;
+    public Texture2D _albedo;
+    public Texture2D _normal;
+    public Texture2D _mrAO;
+    public DepthTexture2D _gbufferDepth;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 // Upsample the trace-resolution history without allowing hardware bilinear
 // filtering to mix unrelated receivers across a foreground/background edge.
@@ -45,8 +39,8 @@ float4 SsrPostGeometryAwareUpsample(
     float3 receiverNormal,
     float3 receiverWorld)
 {
-    int2 fullExtent = max(int2(ssrRenderSize.xy), int2(1, 1));
-    int2 traceExtent = max(int2(ssrRenderSize.zw), int2(1, 1));
+    int2 fullExtent = max(int2(_ssrData.ssrRenderSize.xy), int2(1, 1));
+    int2 traceExtent = max(int2(_ssrData.ssrRenderSize.zw), int2(1, 1));
     int2 traceCenter = clamp(
         int2(uv * float2(traceExtent)), int2(0, 0), traceExtent - 1);
 
@@ -54,10 +48,10 @@ float4 SsrPostGeometryAwareUpsample(
     // neighbourhood. An exact load also avoids a half-texel blur here.
     if (all(traceExtent == fullExtent))
     {
-        return GET_PIXEL_TEX2D(_reflection, traceCenter);
+        return _pass._reflection.Load(int3(traceCenter, 0));
     }
 
-    float receiverDistance = length(receiverWorld - ssrCameraPosition.xyz);
+    float receiverDistance = length(receiverWorld - _ssrData.ssrCameraPosition.xyz);
     float planeScale = 0.025 + receiverDistance * 0.002;
     float2 requestedTracePosition = uv * float2(traceExtent);
     float3 radianceSum = 0.0;
@@ -76,8 +70,8 @@ float4 SsrPostGeometryAwareUpsample(
                 continue;
             }
 
-            float4 metadata = GET_PIXEL_TEX2D(_reflectionMetadata, candidate);
-            float4 reflection = GET_PIXEL_TEX2D(_reflection, candidate);
+            float4 metadata = _pass._reflectionMetadata.Load(int3(candidate, 0));
+            float4 reflection = _pass._reflection.Load(int3(candidate, 0));
             if (metadata.w < 0.5 || reflection.a <= 0.001)
             {
                 continue;
@@ -94,7 +88,7 @@ float4 SsrPostGeometryAwareUpsample(
             int2 candidateFullPixel = clamp(
                 int2(candidateUV * float2(fullExtent)),
                 int2(0, 0), fullExtent - 1);
-            float candidateDepth = GetPixelDepth2D(_gbufferDepth, candidateFullPixel);
+            float candidateDepth = GetPixelDepth2D(_pass._gbufferDepth, candidateFullPixel);
             if (IS_SKY_DEPTH(candidateDepth))
             {
                 continue;
@@ -108,7 +102,7 @@ float4 SsrPostGeometryAwareUpsample(
             // metres between adjacent screen rows. Validate the metadata against its
             // own current G-buffer sample instead.
             float candidateDistance = length(
-                candidateWorld - ssrCameraPosition.xyz);
+                candidateWorld - _ssrData.ssrCameraPosition.xyz);
             float metadataDistanceScale = 0.04 + candidateDistance * 0.003;
             float metadataDistanceError = abs(metadata.z - candidateDistance);
             if (metadataDistanceError > metadataDistanceScale * 2.0)
@@ -158,20 +152,20 @@ V2F MainVS(Vertex input)
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float4 scene = SAMPLE_TEX2D(_sceneColor, input.uv);
+    float4 scene = _pass._sceneColor.Sample(_pass._sceneColorSampler, input.uv);
 
     // These two views are produced here instead of in deferred lighting so
     // the ray always samples the normal fully-lit scene color first.
-    bool debugSpecular = ssrParams.z > 1.5 && ssrParams.z < 2.5;
-    bool debugConfidence = ssrParams.z > 4.5 && ssrParams.z < 5.5;
-    if (ssrParams.z > 0.5 && !debugSpecular && !debugConfidence)
+    bool debugSpecular = _ssrData.ssrParams.z > 1.5 && _ssrData.ssrParams.z < 2.5;
+    bool debugConfidence = _ssrData.ssrParams.z > 4.5 && _ssrData.ssrParams.z < 5.5;
+    if (_ssrData.ssrParams.z > 0.5 && !debugSpecular && !debugConfidence)
     {
         return scene;
     }
 
-    float2 fullSize = ssrRenderSize.xy;
+    float2 fullSize = _ssrData.ssrRenderSize.xy;
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
-    float depth = GetPixelDepth2D(_gbufferDepth, pixel);
+    float depth = GetPixelDepth2D(_pass._gbufferDepth, pixel);
     if (IS_SKY_DEPTH(depth))
     {
         if (debugSpecular || debugConfidence)
@@ -181,7 +175,7 @@ float4 MainPS(V2F input) : SV_TARGET
         return scene;
     }
 
-    float3 normal = normalize(GET_PIXEL_TEX2D(_normal, pixel).xyz * 2.0 - 1.0);
+    float3 normal = normalize(_pass._normal.Load(int3(pixel, 0)).xyz * 2.0 - 1.0);
     float3 worldPosition = SsrPostReconstructWorldPosition(input.uv, depth);
     float4 reflection = SsrPostGeometryAwareUpsample(
         input.uv, normal, worldPosition);
@@ -198,16 +192,16 @@ float4 MainPS(V2F input) : SV_TARGET
         return scene;
     }
 
-    float4 packedAlbedo = GET_PIXEL_TEX2D(_albedo, pixel);
+    float4 packedAlbedo = _pass._albedo.Load(int3(pixel, 0));
     float3 albedo = SsrPostDecodeSRGB(packedAlbedo.rgb);
     float roughness = packedAlbedo.a;
-    float metallic = GET_PIXEL_TEX2D(_mrAO, pixel).x;
-    float3 V = normalize(ssrCameraPosition.xyz - worldPosition);
+    float metallic = _pass._mrAO.Load(int3(pixel, 0)).x;
+    float3 V = normalize(_ssrData.ssrCameraPosition.xyz - worldPosition);
     float NdotV = saturate(dot(normal, V));
     float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
     float3 reflectionWeight = SsrPostEnvBRDF(F0, roughness, NdotV)
-        * reflection.a * ssrParams.w;
-    reflectionWeight *= saturate((ssrRayParams.y - roughness) / 0.25);
+        * reflection.a * _ssrData.ssrParams.w;
+    reflectionWeight *= saturate((_ssrData.ssrRayParams.y - roughness) / 0.25);
 
     // Complementary's reflection composite is a Fresnel-weighted replacement,
     // not an unbounded additive light. This preserves energy while allowing a

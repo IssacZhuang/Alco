@@ -93,7 +93,7 @@ jsonc 直接反序列化成 `MaterialAsset`：加载器 `AssetLoaderMaterialAsse
 
 `SurfaceInput` 由模板填充：`worldPos / normalWS / tangentWS / uv` + 每实例因子（`baseColorFactor / metallicRoughnessAO / emissiveFactor / alphaCutoff`)。需要时间等全局数据时，surface 在自己模块作用域声明 engine 约定的 `_globalRenderData` cbuffer。
 
-surface 声明的资源是它的**自描述数据需求**：模块全局作用域的 set-scoped cbuffer 块（space2，材质集），引擎按成员名绑定，未绑的走**资产自己的兜底策略**(`GetTextureFallback`)。内置示例是 `Materials/pbr-standard.slang` 的 `Surface`(glTF metallic-roughness 四纹理槽 + 因子相乘）。
+surface 声明的资源是它的**自描述数据需求**：模块全局作用域的一个 `ParameterBlock<T>`（struct + 块变量，编译器自动分配 set），引擎按成员名绑定，未绑的走**资产自己的兜底策略**(`GetTextureFallback`)。内置示例是 `Materials/pbr-standard.slang` 的 `Surface`(glTF metallic-roughness 四纹理槽 + 因子相乘）。
 
 > 契约是管线家族自己的：World3D 的 `ISurface` 住在这里；2D 管线可以定义完全不同的 surface 契约（比如只有 `GetSpriteColor`),`MaterialCompiler`/`MaterialComposer` 不依赖契约的具体形状——它们只按 `ShaderLibrary` 组合、按反射读槽位和参数块。
 
@@ -110,7 +110,7 @@ surface 声明的资源是它的**自描述数据需求**：模块全局作用�
 
 | pass id | 模板 module | 入口 | 消费的 surface 接口 | 引擎资源 |
 | --- | --- | --- | --- | --- |
-| `gbuffer` | `gbuffer` | MainVS/MainPS | 除体素化外全部 | camera(space0)+ instance(space1) |
+| `gbuffer` | `gbuffer` | MainVS/MainPS | 除体素化外全部 | camera + instance（两个 ParameterBlock) |
 | `shadow` | `shadow_depth` | 同上 | IVertexSurface(AlphaTest 时 + IAlbedoSurface) | light VP + instance;`MainPS<T> where let AlphaTest : bool` 值特化 |
 | `rsm` | `rsm` | 同上 | IVertex + IAlbedo + INormal | camera(light VP)+ rsmData |
 | `glass` | `glass` | 同上 | 同 gbuffer | camera + lightingData（前向玻璃） |
@@ -159,24 +159,26 @@ public sealed class GBufferRenderer : ...
 - surface 里的 `Texture2D _albedoTexture` → 槽名 **`albedoTexture`**（去前导下划线，大小写敏感）。
 - 资产的 `Textures` 在加载期即解析成 `Texture2D`，资产到此完整，**不认识流式**。glTF 场景加载同理：loader 在场景返回前实现所有纹理（外部文件内容原位异步上传），由适配器直接填进资产描述符的 `Textures`；图像缺失或解码失败的槽留空，走资产兜底策略。
 - 未绑的槽走**资产自己的兜底策略**:`MaterialAsset.GetTextureFallback(slot)` 返回 `White/Black/FlatNormal`，编译器映射到 `RenderingSystem.TextureWhite/TextureBlack/TextureFlatNormal`。基类恒白；`PbrMaterialAsset` 按槽名前缀给 `normal*` → flat normal、`emissive*` → 黑。不同材质家族可以有不同的兜底策略，不需要编译器知道任何槽名约定。
-- surface 资源在 **space2**(`MaterialCompiler.SurfaceResourceSet`),set-scoped cbuffer 块约定与引擎其它部分一致（`cbuffer _material : register(b0, space2)`);pass 模板的引擎资源占用低位集，互不冲突。
+- surface 资源声明在自己的 `ParameterBlock` 里（块名自由）；纹理槽从 surface 模块自身的反射枚举（`GetModuleTextureSlots`），不读任何 set 号——set 是组合产物，不是输入。
 
 ## 参数块规则
 
-- surface 用 `[MaterialParams]` 标记自己的参数 cbuffer——**属性由引擎核心库 `alco_rendering_core` 声明**，用它的 surface 模块 `import alco_rendering_core;`。块名自由，可以有多块：
+- surface 用 `[MaterialParams]` 标记自己的参数块——**属性由引擎核心库 `alco_rendering_core` 声明**，用它的 surface 模块 `import alco_rendering_core;`。块名自由，可以有多块：
 
   ```slang
   import alco_rendering_core;
 
-  [MaterialParams]
-  cbuffer PulseParams : register(b1, space2)
+  public struct PulseParamsData
   {
-      float pulseSpeed;
-      float3 pulseColor;
-  }
+      public float pulseSpeed;
+      public float3 pulseColor;
+  };
+
+  [MaterialParams]
+  ParameterBlock<PulseParamsData> PulseParams;
   ```
 
-- 发现靠标记不靠名字：`GetParamsLayouts` 枚举模块里所有带标记的 cbuffer，从反射读每个成员的类型和字节偏移；`PackParamsBuffers` 把 `Parameters` 按成员名跨块分发、逐块打包成 GPU buffer，按块名绑定。参数值是 `Vector4`，每个成员读取自己宽度的前导分量（标量读 x,float3 读 xyz)，多余分量忽略。
+- 发现靠标记不靠名字：`GetParamsLayouts` 枚举模块里所有带标记的块，从反射读每个成员的类型和字节偏移；`PackParamsBuffers` 把 `Parameters` 按成员名跨块分发、逐块打包成 GPU buffer，按块名绑定。参数值是 `Vector4`，每个成员读取自己宽度的前导分量（标量读 x,float3 读 xyz)，多余分量忽略。
 - 未标记的块天然排除——surface 重声明的引擎数据块（如 `_globalRenderData`）不需要进排除名单。
 - 块里可以混声明纹理/sampler 成员（自描述资源块），只有标量/向量 float 成员参与参数打包；标记块一个 float 成员都没有 → `NotSupportedException`。
 - 快速失败：参数名对不上任何块的成员 → `InvalidDataException`（列出有效成员）；同一成员名出现在两个块 → 跨块歧义报错；传了 `Parameters` 但 surface 没标记任何参数块 → `InvalidDataException`。
@@ -209,7 +211,7 @@ public MainPOut MainPS<T : ISurface>(MainVOut v) where let AlphaTest : bool { ..
 新增一个材质效果：
 
 1. 写一个 .slang:`import alco_world3d_surface; public struct Surface : ISurface { override ... }`（文件名 kebab-case,module 名下划线）。
-2. 在模块作用域声明需要的纹理/参数块（space2，自描述；参数块记得 `import alco_rendering_core;`)。
+2. 在模块作用域声明需要的纹理/参数块（ParameterBlock，自描述；参数块记得 `import alco_rendering_core;`)。
 3. `.amat` 里 `"surface": "my_shader"`（模块名），或代码里 `PbrMaterialAsset { Surface = shaderSystem.GetLibrary("my_shader") }`;pass 自动可用，纹理槽按名绑。
 
 新增一个渲染设施（新 pass):

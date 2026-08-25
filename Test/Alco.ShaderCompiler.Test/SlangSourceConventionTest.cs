@@ -81,17 +81,12 @@ public partial class SlangSourceConventionTest
                 Assert.That(source, Does.Not.Contain("[shader(\"pixel\")]"),
                     $"{relative}: use the canonical 'fragment' stage name");
 
-                foreach (Match register in RegisterRegex().Matches(source))
-                {
-                    Assert.That(register.Groups[1].Value, Does.Contain(','),
-                        $"{relative}: register declarations must specify an explicit set/space");
-                }
             }
         });
     }
 
     [Test]
-    public void EverySlangSourceBindsBySetScopedBlocksOnly()
+    public void EverySlangSourceBindsByParameterBlockOnly()
     {
         string root = RepoRoot();
         Assert.Multiple(() =>
@@ -101,28 +96,24 @@ public partial class SlangSourceConventionTest
                 string source = File.ReadAllText(file);
                 string relative = Path.GetRelativePath(root, file);
 
-                // The set-only contract: resources live in cbuffer blocks that
-                // declare just their set (`register(b0, spaceN)`); binding
-                // numbers are compiler-assigned. Explicit vk::binding pairs
-                // pin every member and defeat the convention.
+                // The ParameterBlock contract: each resource group is one
+                // annotation-free ParameterBlock<T> - the compiler owns both
+                // the set (declaration order) and every binding number.
+                // Register annotations (and vk::binding pins) would reintroduce
+                // hand-maintained spaces the engine no longer reads.
                 Assert.That(source, Does.Not.Contain("[[vk::binding"),
-                    $"{relative}: declare the set with a cbuffer block instead of vk::binding");
+                    $"{relative}: ParameterBlock layout is compiler-owned; vk::binding is forbidden");
+                Assert.That(RegisterRegex().IsMatch(source), Is.False,
+                    $"{relative}: register() annotations are forbidden - group resources in a ParameterBlock<T> and let the compiler assign sets and bindings");
 
-                foreach (Match register in RegisterRegex().Matches(source))
-                {
-                    string line = LineOf(source, register.Index);
-                    Assert.That(line, Does.Match(@"\b(cbuffer|ConstantBuffer<)"),
-                        $"{relative}: register() is only for set-scoped cbuffer/ConstantBuffer blocks");
-                }
+                // The preprocessor cannot carry qualified member names across a
+                // ParameterBlock boundary (name##Sampler concatenation), and
+                // the sampling helpers of alco_rendering_core replace the old
+                // macro layer outright.
+                Assert.That(SamplingMacroRegex().IsMatch(source), Is.False,
+                    $"{relative}: SAMPLE_TEX*/GET_PIXEL*/LOAD_TEX* macros are retired; sample with qualified members or alco_rendering_core helpers");
             }
         });
-    }
-
-    private static string LineOf(string source, int index)
-    {
-        int start = source.LastIndexOf('\n', index) + 1;
-        int end = source.IndexOf('\n', index);
-        return source[start..(end < 0 ? source.Length : end)];
     }
 
     [Test]
@@ -179,4 +170,7 @@ public partial class SlangSourceConventionTest
 
     [GeneratedRegex(@"\bregister[ \t]*\(([^)]*)\)")]
     private static partial Regex RegisterRegex();
+
+    [GeneratedRegex(@"^[ 	]*#define[ 	]+(SAMPLE_TEX2D|SAMPLE_TEX2D_LEVEL|SAMPLE_TEX3D_LEVEL|SAMPLE_TEX2D_DEPTH_CMP|GET_PIXEL_TEX2D|LOAD_TEX3D)", RegexOptions.Multiline)]
+    private static partial Regex SamplingMacroRegex();
 }

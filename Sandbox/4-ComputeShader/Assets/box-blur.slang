@@ -8,31 +8,40 @@
 #language slang 2025
 module sandbox4_box_blur;
 
-cbuffer inputTexture : register(b0, space0)
+public struct InputTextureParams
 {
-    Texture2D inputTexture;
+    public Texture2D inputTexture;
 };
 
-cbuffer outputTexture : register(b0, space1)
+public ParameterBlock<InputTextureParams> _inputTexture;
+
+public struct OutputTextureParams
 {
-    [[vk::image_format("rgba8")]] RWTexture2D<float4> outputTexture;
+    public [[vk::image_format("rgba8")]] RWTexture2D<float4> outputTexture;
 };
 
-cbuffer Constants : register(b0, space2) { int iterations; };
+public ParameterBlock<OutputTextureParams> _outputTexture;
+
+public struct ConstantsParams
+{
+    public int iterations;
+};
+
+public ParameterBlock<ConstantsParams> _constants;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void MainCS(uint3 id: SV_DispatchThreadID) {
   // box blur
-  float4 color = inputTexture.Load(id.xyz);
+  float4 color = _inputTexture.inputTexture.Load(id.xyz);
 
-  int size = iterations;
+  int size = _constants.iterations;
   for (int i = -size; i <= size; i++) {
     for (int j = -size; j <= size; j++) {
-      color = color + inputTexture.Load(id.xyz + int3(i, j, 0));
+      color = color + _inputTexture.inputTexture.Load(id.xyz + int3(i, j, 0));
     }
   }
 
   color /= (2 * size + 1) * (2 * size + 1);
-  outputTexture[id.xy] =  color;
+  _outputTexture.outputTexture[id.xy] = color;
 }

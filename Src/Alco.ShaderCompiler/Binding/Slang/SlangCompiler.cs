@@ -437,6 +437,24 @@ public sealed class SlangCompileSession : IDisposable
     }
 
     /// <summary>
+    /// The texture slots of a surface module — every Texture2D member of every
+    /// uniform/parameter block the module declares, in declaration order, by bare
+    /// field name. Descriptor-set independent: a ParameterBlock's set is
+    /// compiler-assigned declaration order, nothing the engine pins or reads.
+    /// </summary>
+    public List<string> GetModuleTextureSlots(SlangModuleHandle module)
+    {
+        lock (_lock)
+        {
+            IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
+            if (layout == IntPtr.Zero)
+                throw new ShaderCompilationException(
+                    $"slang getLayout failed for module '{module.Name}': {diagnostics}");
+            return SlangReflectionReader.GetModuleTextureSlots(layout);
+        }
+    }
+
+    /// <summary>
     /// Compiles every [shader(...)] entry point the module defines, in definition order —
     /// callers that don't know entry names up front (module-name keyed lookups).
     /// </summary>

@@ -1,8 +1,8 @@
 // file "hbao.slang" - module "hbao"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/HBAO.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -11,16 +11,6 @@ module hbao;
 import alco_rendering_core;
 import alco_world3d_hbao_common;
 import alco_world3d_reversed_depth;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // HBAO+ (horizon-based ambient occlusion) raw pass for the deferred PBR pipeline.
 // Marches screen-space rays in several per-pixel rotated directions, finds the
@@ -34,45 +24,49 @@ import alco_world3d_reversed_depth;
 static const int HBAO_NUM_DIRECTIONS = 6;
 static const int HBAO_NUM_STEPS = 4;
 
-// alco_world3d_hbao_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_hbao_common declares _data; in the composed program the root
+// module's own blocks come first, so _pass takes set 0 and _data follows.
+public struct PassParams
 {
-    DepthTexture2D _gbufferDepth;
-    Texture2D _normal;
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _aoOutput;
+    public DepthTexture2D _gbufferDepth;
+    public Texture2D _normal;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _aoOutput;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint2 pixel = dispatchId.xy;
-    uint2 viewportSize = uint2(params2.y, params2.z);
+    uint2 viewportSize = uint2(_data.params2.y, _data.params2.z);
     if (pixel.x >= viewportSize.x || pixel.y >= viewportSize.y)
     {
         return;
     }
 
-    float depth = GetPixelDepth2D(_gbufferDepth, int2(pixel));
+    float depth = GetPixelDepth2D(_pass._gbufferDepth, int2(pixel));
     if (IS_SKY_DEPTH(depth))
     {
         // Sky pixels are never occluded.
-        _aoOutput[pixel] = float4(1.0, 1.0, 1.0, 1.0);
+        _pass._aoOutput[pixel] = float4(1.0, 1.0, 1.0, 1.0);
         return;
     }
 
     float2 uv = (float2(pixel) + 0.5) / float2(viewportSize);
     float3 position = ReconstructWorldPosition(uv, depth);
-    float3 normal = normalize(GET_PIXEL_TEX2D(_normal, int2(pixel)).xyz * 2.0 - 1.0);
-    float3 viewVector = normalize(cameraPosition.xyz - position);
+    float3 normal = normalize(_pass._normal.Load(int3(int2(pixel), 0)).xyz * 2.0 - 1.0);
+    float3 viewVector = normalize(_data.cameraPosition.xyz - position);
     float viewDepth = ViewDepth(position);
 
-    float radius = params.x;
-    float invRadius2 = params.w;
+    float radius = _data.params.x;
+    float invRadius2 = _data.params.w;
 
     // Project the world-space radius to a per-direction step length in pixels at
     // this depth, clamped so rays neither degenerate nor march across the screen.
-    float stepPixels = clamp(params2.x * radius / max(viewDepth, 1e-3) / HBAO_NUM_STEPS, 1.0, params2.w);
+    float stepPixels = clamp(_data.params2.x * radius / max(viewDepth, 1e-3) / HBAO_NUM_STEPS, 1.0, _data.params2.w);
     float2 texelSize = 1.0 / float2(viewportSize);
 
     float rotationNoise = InterleavedGradientNoise(pixel);
@@ -89,7 +83,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
         // World-space axis of this slice (screen UV y grows downward, opposite to
         // the camera up axis), orthogonalized against the view vector.
-        float3 sliceAxis = direction.x * cameraRight.xyz - direction.y * cameraUp.xyz;
+        float3 sliceAxis = direction.x * _data.cameraRight.xyz - direction.y * _data.cameraUp.xyz;
         sliceAxis = normalize(sliceAxis - viewVector * dot(sliceAxis, viewVector));
 
         // Elevation of the surface tangent inside the slice. With {u, V}
@@ -109,7 +103,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
                 break;
             }
 
-            float sampleDepth = GetPixelDepth2D(_gbufferDepth, int2(sampleUV * float2(viewportSize)));
+            float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, int2(sampleUV * float2(viewportSize)));
             float3 samplePosition = ReconstructWorldPosition(sampleUV, sampleDepth);
 
             float3 delta = samplePosition - position;
@@ -119,12 +113,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             // radius has a soft boundary instead of a hard cutoff.
             float horizonSin = dot(delta, viewVector) * rsqrt(distance2 + 1e-8);
             float falloff = saturate(1.0 - distance2 * invRadius2);
-            directionOcclusion = max(directionOcclusion, max(horizonSin - sinTangent - params.z, 0.0) * falloff);
+            directionOcclusion = max(directionOcclusion, max(horizonSin - sinTangent - _data.params.z, 0.0) * falloff);
         }
         occlusionSum += directionOcclusion;
     }
 
     float ao = saturate(1.0 - occlusionSum / HBAO_NUM_DIRECTIONS);
-    ao = pow(ao, params.y);
-    _aoOutput[pixel] = float4(ao, ao, ao, 1.0);
+    ao = pow(ao, _data.params.y);
+    _pass._aoOutput[pixel] = float4(ao, ao, ao, 1.0);
 }

@@ -1,8 +1,8 @@
 // file "clear-texture.slang" - module "clear_texture"
 //
 // Slang module converted from Shaders/Pipelines/Compute/ClearTexture.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module clear_texture;
@@ -13,13 +13,15 @@ struct Constants{
     float4 color;
 };
 
-cbuffer _texture : register(b0, space0)
+public struct TextureParams
 {
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _texture;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _texture;
 };
+
+public ParameterBlock<TextureParams> _texture;
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
 void MainCS(uint3 id : SV_DispatchThreadID) {
-    _texture[id.xy] = float4(0, 0, 0, 0);
+    _texture._texture[id.xy] = float4(0, 0, 0, 0);
 }

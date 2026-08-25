@@ -1,8 +1,8 @@
 // file "voxel-demosaic.slang" - module "voxel_demosaic"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelDemosaic.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -12,16 +12,6 @@ import alco_rendering_core;
 import alco_world3d_voxel_common;
 import alco_world3d_geometry_normal;
 import alco_world3d_reversed_depth;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Min/Max dual-layer spatial resolve for temporally integrated raw voxel GI.
 // One thread per trace pixel: a geometry-aware 9x9 filter reduces the small
@@ -55,19 +45,21 @@ struct VoxelDemosaicConstants
     float4 params; // x=specularHysteresis, y=spatialSigma, z=diffuseHysteresis, w=unused
 };
 
-// alco_world3d_voxel_common owns set 0 (the shared uniform); this pass's
-// resources take set 1 as one block.
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it
+// in declaration order.
+public struct PassParams
 {
-    Texture2D _traceInput;
-    DepthTexture2D _gbufferDepth;
-    Texture2D _normal;
-    Texture2D _historyInput;
-    Texture2D _emissive;
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _historyOut;
+    public Texture2D _traceInput;
+    public DepthTexture2D _gbufferDepth;
+    public Texture2D _normal;
+    public Texture2D _historyInput;
+    public Texture2D _emissive;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _historyOut;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [[vk::push_constant]] VoxelDemosaicConstants constants;
 
@@ -161,17 +153,17 @@ float4 AccumulateDiffuseLayer(
 
 void WriteZeroOutputs(int2 tracePixel, int halfWidth)
 {
-    _indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-    _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _indirectGI[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _indirectGI[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-    _historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _historyOut[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _historyOut[tracePixel + int2(halfWidth * 5, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._indirectGI[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._indirectGI[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._historyOut[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    _pass._historyOut[tracePixel + int2(halfWidth * 5, 0)] = float4(0.0, 0.0, 0.0, 0.0);
 }
 
 [shader("compute")]
@@ -182,9 +174,9 @@ void MainCS(
     uint3 groupThreadId : SV_GroupThreadID,
     uint groupIndex : SV_GroupIndex)
 {
-    uint2 traceResolution = uint2(giParams.z, giParams.w);
-    uint2 gbufferRes = uint2(giParams2.y, giParams2.z);
-    int halfWidth = (int)giParams.z;
+    uint2 traceResolution = uint2(_data.giParams.z, _data.giParams.w);
+    uint2 gbufferRes = uint2(_data.giParams2.y, _data.giParams2.z);
+    int halfWidth = (int)_data.giParams.z;
     bool validDispatch = all(dispatchId.xy < traceResolution);
     int2 traceMax = int2(traceResolution) - 1;
     int2 gbufferMax = int2(gbufferRes) - 1;
@@ -209,7 +201,7 @@ void MainCS(
             int2(sampleTraceUV * float2(gbufferRes)),
             int2(0, 0),
             gbufferMax);
-        float sampleDepth = GetPixelDepth2D(_gbufferDepth, sampleGbufferPixel);
+        float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, sampleGbufferPixel);
 
         float linearDepth = -1.0;
         float3 geometryNormal = float3(0.0, 0.0, 1.0);
@@ -218,9 +210,9 @@ void MainCS(
             float2 sampleGbufferUV =
                 (float2(sampleGbufferPixel) + 0.5) / float2(gbufferRes);
             linearDepth = ReconstructLinearDepth(
-                sampleGbufferUV, sampleDepth, invViewProjection);
-            float4 packedNormal = GET_PIXEL_TEX2D(_normal, sampleGbufferPixel);
-            float packedGeometryY = GET_PIXEL_TEX2D(_emissive, sampleGbufferPixel).a;
+                sampleGbufferUV, sampleDepth, _data.invViewProjection);
+            float4 packedNormal = _pass._normal.Load(int3(sampleGbufferPixel, 0));
+            float packedGeometryY = _pass._emissive.Load(int3(sampleGbufferPixel, 0)).a;
             geometryNormal = DecodeGeometryNormal(
                 float2(packedNormal.a, packedGeometryY));
         }
@@ -273,8 +265,8 @@ void MainCS(
             groupOrigin + int2(tileCoord) - int(DEMOSAIC_DIFFUSE_RADIUS),
             int2(0, 0),
             traceMax);
-        gsDiffuse[diffuseTileIndex] = _traceInput.Load(int3(sampleTracePixel, 0));
-        gsAld[diffuseTileIndex] = _traceInput.Load(
+        gsDiffuse[diffuseTileIndex] = _pass._traceInput.Load(int3(sampleTracePixel, 0));
+        gsAld[diffuseTileIndex] = _pass._traceInput.Load(
             int3(sampleTracePixel + int2(halfWidth * 2, 0), 0));
     }
 
@@ -290,7 +282,7 @@ void MainCS(
             groupOrigin + int2(tileCoord) - int(DEMOSAIC_SPECULAR_RADIUS),
             int2(0, 0),
             traceMax);
-        gsSpecular[specularTileIndex] = _traceInput.Load(
+        gsSpecular[specularTileIndex] = _pass._traceInput.Load(
             int3(sampleTracePixel + int2(halfWidth, 0), 0));
     }
     GroupMemoryBarrierWithGroupSync();
@@ -307,7 +299,7 @@ void MainCS(
     int2 gbufferPixel = int2(traceUV * float2(gbufferRes));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), gbufferMax);
 
-    float depth = GetPixelDepth2D(_gbufferDepth, gbufferPixel);
+    float depth = GetPixelDepth2D(_pass._gbufferDepth, gbufferPixel);
     if (IS_SKY_DEPTH(depth))
     {
         WriteZeroOutputs(tracePixel, halfWidth);
@@ -323,12 +315,12 @@ void MainCS(
     // Match VoxelTrace's canonical receiver grid. Using the selected full-res
     // G-buffer pixel center here creates the same fixed quarter-history-texel
     // offset and makes post-demosaic feedback smear toward screen-space left.
-    float3 worldPos = ReconstructWorldPosition(traceUV, depth, invViewProjection);
+    float3 worldPos = ReconstructWorldPosition(traceUV, depth, _data.invViewProjection);
     float3 geometryNormal = float3(
         gsGeometryNormalX[centerDiffuseIndex],
         gsGeometryNormalY[centerDiffuseIndex],
         gsGeometryNormalZ[centerDiffuseIndex]);
-    float currentLinearDepth = abs(mul(viewProjection, float4(worldPos, 1.0)).w);
+    float currentLinearDepth = abs(mul(_data.viewProjection, float4(worldPos, 1.0)).w);
     float4 centerDiffuse = gsDiffuse[centerDiffuseIndex];
     float4 centerSpecular = gsSpecular[centerSpecularIndex];
     float4 centerAld = gsAld[centerDiffuseIndex];
@@ -336,23 +328,23 @@ void MainCS(
     // Developer view: expose the cone-trace atlas before spatial/temporal
     // reconstruction. This makes it possible to distinguish a tracing issue
     // from a resolve issue at an exactly reproduced camera position.
-    if (giParams2.x > 3.5 && giParams2.x < 4.5)
+    if (_data.giParams2.x > 3.5 && _data.giParams2.x < 4.5)
     {
-        _indirectGI[tracePixel] = float4(centerDiffuse.rgb, currentLinearDepth);
-        _indirectGI[tracePixel + int2(halfWidth, 0)] =
+        _pass._indirectGI[tracePixel] = float4(centerDiffuse.rgb, currentLinearDepth);
+        _pass._indirectGI[tracePixel + int2(halfWidth, 0)] =
             float4(centerDiffuse.rgb, currentLinearDepth);
-        _indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
+        _pass._indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
             float4(centerSpecular.rgb, centerDiffuse.a);
-        _indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
+        _pass._indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
             float4(centerAld.xyz, currentLinearDepth);
-        _indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
+        _pass._indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
             float4(centerAld.xyz, currentLinearDepth);
-        _historyOut[tracePixel] = centerDiffuse;
-        _historyOut[tracePixel + int2(halfWidth, 0)] = centerDiffuse;
-        _historyOut[tracePixel + int2(halfWidth * 2, 0)] = centerSpecular;
-        _historyOut[tracePixel + int2(halfWidth * 3, 0)] = centerAld;
-        _historyOut[tracePixel + int2(halfWidth * 4, 0)] = centerAld;
-        _historyOut[tracePixel + int2(halfWidth * 5, 0)] =
+        _pass._historyOut[tracePixel] = centerDiffuse;
+        _pass._historyOut[tracePixel + int2(halfWidth, 0)] = centerDiffuse;
+        _pass._historyOut[tracePixel + int2(halfWidth * 2, 0)] = centerSpecular;
+        _pass._historyOut[tracePixel + int2(halfWidth * 3, 0)] = centerAld;
+        _pass._historyOut[tracePixel + int2(halfWidth * 4, 0)] = centerAld;
+        _pass._historyOut[tracePixel + int2(halfWidth * 5, 0)] =
             float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
         return;
     }
@@ -381,13 +373,13 @@ void MainCS(
                 gbufferPixel + int2(layerX, layerY),
                 int2(0, 0),
                 int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
-            float layerDepth = GetPixelDepth2D(_gbufferDepth, layerPixel);
+            float layerDepth = GetPixelDepth2D(_pass._gbufferDepth, layerPixel);
             if (!IS_SKY_DEPTH(layerDepth))
             {
                 float2 layerUV =
                     (float2(layerPixel) + 0.5) / float2(gbufferRes);
                 float layerLinearDepth = ReconstructLinearDepth(
-                    layerUV, layerDepth, invViewProjection);
+                    layerUV, layerDepth, _data.invViewProjection);
                 layerDepthMin = min(layerDepthMin, layerLinearDepth);
                 layerDepthMax = max(layerDepthMax, layerLinearDepth);
             }
@@ -401,7 +393,7 @@ void MainCS(
 
     // The depth acceptance is a relative ratio widened at grazing view angles,
     // not an absolute centimeter tolerance.
-    float3 viewDirection = normalize(cameraPosition.xyz - worldPos);
+    float3 viewDirection = normalize(_data.cameraPosition.xyz - worldPos);
     float viewFacing = abs(dot(viewDirection, geometryNormal));
     float depthRangeRatio = 0.12 + 0.08 * (1.0 - viewFacing);
 
@@ -582,11 +574,11 @@ void MainCS(
     float4 resultSpecular = specularCurrent;
     float4 resultAldMin = layerAldMin;
     float4 resultAldMax = layerAldMax;
-    bool historyAvailable = giFrameParams.z > 0.5;
+    bool historyAvailable = _data.giFrameParams.z > 0.5;
 
     if (historyAvailable)
     {
-        float4 prevClip = mul(viewProjectionPrev, float4(worldPos, 1.0));
+        float4 prevClip = mul(_data.viewProjectionPrev, float4(worldPos, 1.0));
         if (prevClip.w > 0.0)
         {
             float2 prevNDC = float2(prevClip.x / prevClip.w, prevClip.y / prevClip.w);
@@ -617,7 +609,7 @@ void MainCS(
                 // 4.7 m) only raises the blend from 0.1 to 0.16, keeping 84%
                 // of the accumulated history.
                 int2 metadataPixel = previousTracePixel + int2(halfWidth * 5, 0);
-                float4 historyMetadata = _historyInput.Load(int3(metadataPixel, 0));
+                float4 historyMetadata = _pass._historyInput.Load(int3(metadataPixel, 0));
                 float expectedPreviousDepth = abs(prevClip.w);
                 float depthRatio = abs(
                     expectedPreviousDepth / max(historyMetadata.x, 0.0001) - 1.0);
@@ -626,15 +618,15 @@ void MainCS(
 
                 if (historyConfidence > 0.001)
                 {
-                    float4 historyMin = _historyInput.Load(
+                    float4 historyMin = _pass._historyInput.Load(
                         int3(previousTracePixel, 0));
-                    float4 historyMax = _historyInput.Load(
+                    float4 historyMax = _pass._historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth, 0), 0));
-                    float4 historySpecular = _historyInput.Load(
+                    float4 historySpecular = _pass._historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 2, 0), 0));
-                    float4 historyAldMin = _historyInput.Load(
+                    float4 historyAldMin = _pass._historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 3, 0), 0));
-                    float4 historyAldMax = _historyInput.Load(
+                    float4 historyAldMax = _pass._historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 4, 0), 0));
 
                     // Diffuse tolerates camera motion far better than
@@ -710,19 +702,19 @@ void MainCS(
         / max(layerDepthMax - layerDepthMin, 0.0001));
     float selectedVisibility = lerp(resultMin.a, resultMax.a, layerLerp);
 
-    _indirectGI[tracePixel] = float4(resultMin.rgb, layerDepthMin);
-    _indirectGI[tracePixel + int2(halfWidth, 0)] = float4(resultMax.rgb, layerDepthMax);
-    _indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
+    _pass._indirectGI[tracePixel] = float4(resultMin.rgb, layerDepthMin);
+    _pass._indirectGI[tracePixel + int2(halfWidth, 0)] = float4(resultMax.rgb, layerDepthMax);
+    _pass._indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
         float4(resultSpecular.rgb, selectedVisibility);
-    _indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
+    _pass._indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
         float4(resultAldMin.xyz, layerDepthMin);
-    _indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
+    _pass._indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
         float4(resultAldMax.xyz, layerDepthMax);
-    _historyOut[tracePixel] = resultMin;
-    _historyOut[tracePixel + int2(halfWidth, 0)] = resultMax;
-    _historyOut[tracePixel + int2(halfWidth * 2, 0)] = resultSpecular;
-    _historyOut[tracePixel + int2(halfWidth * 3, 0)] = resultAldMin;
-    _historyOut[tracePixel + int2(halfWidth * 4, 0)] = resultAldMax;
-    _historyOut[tracePixel + int2(halfWidth * 5, 0)] =
+    _pass._historyOut[tracePixel] = resultMin;
+    _pass._historyOut[tracePixel + int2(halfWidth, 0)] = resultMax;
+    _pass._historyOut[tracePixel + int2(halfWidth * 2, 0)] = resultSpecular;
+    _pass._historyOut[tracePixel + int2(halfWidth * 3, 0)] = resultAldMin;
+    _pass._historyOut[tracePixel + int2(halfWidth * 4, 0)] = resultAldMax;
+    _pass._historyOut[tracePixel + int2(halfWidth * 5, 0)] =
         float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
 }

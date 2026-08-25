@@ -1,8 +1,8 @@
 // file "voxel-clear.slang" - module "voxel_clear"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelClear.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -19,13 +19,17 @@ struct VoxelClearConstants
     float4 params; // x=levelIndex
 };
 
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it in
+// declaration order.
+public struct PassParams
 {
-    RWStructuredBuffer<uint4> _attrOut;
-    RWStructuredBuffer<uint4> _dirtyBricks;
-    RWStructuredBuffer<uint> _pageTable;
+    public RWStructuredBuffer<uint4> _attrOut;
+    public RWStructuredBuffer<uint4> _dirtyBricks;
+    public RWStructuredBuffer<uint> _pageTable;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [[vk::push_constant]] VoxelClearConstants constants;
 
@@ -37,17 +41,17 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     int level = (int)constants.params.x;
     uint brickIndex = dispatchId.z / VOXEL_BRICK_SIZE;
     uint localZ = dispatchId.z % VOXEL_BRICK_SIZE;
-    uint3 logicalCoord = _dirtyBricks[brickIndex].xyz * VOXEL_BRICK_SIZE
+    uint3 logicalCoord = _pass._dirtyBricks[brickIndex].xyz * VOXEL_BRICK_SIZE
         + uint3(dispatchId.x, dispatchId.y, localZ);
     if (any(logicalCoord >= resolution))
     {
         return;
     }
 
-    uint pageEntry = _pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
+    uint pageEntry = _pass._pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
     if (pageEntry == 0u)
     {
         return;
     }
-    _attrOut[VoxelAttributeIndex(pageEntry, logicalCoord)] = uint4(0u, 0u, 0u, 0u);
+    _pass._attrOut[VoxelAttributeIndex(pageEntry, logicalCoord)] = uint4(0u, 0u, 0u, 0u);
 }

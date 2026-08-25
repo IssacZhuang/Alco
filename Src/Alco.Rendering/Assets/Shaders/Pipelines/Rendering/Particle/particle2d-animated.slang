@@ -1,24 +1,14 @@
 // file "particle2d-animated.slang" - module "particle2_d_animated"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module particle2d_animated;
 
 import alco_rendering_core;
 import alco_rendering_transform2d;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 struct Vertex {
   float3 position : POSITION;
@@ -34,7 +24,7 @@ struct V2F {
 };
 
 // same struct as Alco.Rendering.ParticleData2D in CSharp (ParticleData2D.cs)
-struct ParticleData2D {
+public struct ParticleData2D {
   Transform2D transform;
   float2 velocity;
   float4 color;
@@ -44,30 +34,42 @@ struct ParticleData2D {
   float depthVelocity;
 };
 
-cbuffer _camera : register(b0, space0) { float4x4 viewProjection; };
-
-
-cbuffer _material : register(b0, space1)
+public struct CameraParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public float4x4 viewProjection;
 };
 
-cbuffer _particles : register(b0, space2)
+public ParameterBlock<CameraParams> _camera;
+
+
+public struct MaterialParamsData
 {
-    RWStructuredBuffer<ParticleData2D> _particles;
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
 };
 
-cbuffer _data : register(b0, space3) { 
-    uint framePerRow;
-    uint framePerColumn;
+public ParameterBlock<MaterialParamsData> _material;
+
+public struct ParticlesParams
+{
+    public RWStructuredBuffer<ParticleData2D> _particles;
 };
+
+public ParameterBlock<ParticlesParams> _particles;
+
+public struct DataParams
+{
+    public uint framePerRow;
+    public uint framePerColumn;
+};
+
+public ParameterBlock<DataParams> _data;
 
 
 [shader("vertex")] 
 V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
-    ParticleData2D particle = _particles[input.instanceID];
+    ParticleData2D particle = _particles._particles[input.instanceID];
 
     float3 position = input.position;
     position.xy *= particle.transform.scale;
@@ -77,10 +79,10 @@ V2F MainVS(Vertex input) {
     position.xy += particle.transform.position;
 
     //  apply camera transform
-    output.position = mul(viewProjection, float4(position, 1.0));
+    output.position = mul(_camera.viewProjection, float4(position, 1.0));
 
-    uint framePerRow2 = max(framePerRow, 1);
-    uint framePerColumn2 = max(framePerColumn, 1);
+    uint framePerRow2 = max(_data.framePerRow, 1);
+    uint framePerColumn2 = max(_data.framePerColumn, 1);
 
     // Compute current frame index based on lifetime ratio
     float t = saturate(particle.lifetime / max(particle.duration, 1e-5));
@@ -106,7 +108,7 @@ V2F MainVS(Vertex input) {
 float4 MainPS(V2F input): SV_TARGET {
 
   // Sample texture
-  float4 texColor = SAMPLE_TEX2D(_texture, input.uv);
+  float4 texColor = _material._texture.Sample(_material._textureSampler, input.uv);
 
   // Multiply texture color with particle color
   float4 finalColor = texColor * input.color;

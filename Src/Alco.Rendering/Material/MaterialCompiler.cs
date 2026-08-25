@@ -42,10 +42,6 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class MaterialCompiler : AutoDisposable
 {
-    /// <summary>The descriptor set index the surface contract reserves for surface resources
-    /// (the material frequency group, <c>ALCO_GROUP_MATERIAL</c>).</summary>
-    public const int SurfaceResourceSet = 2;
-
     private readonly RenderingSystem _rendering;
     private readonly ShaderLibrary? _defaultSurface;
 
@@ -102,8 +98,11 @@ public sealed class MaterialCompiler : AutoDisposable
         ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
-        // declare is a typo in the asset — fail here, at compile time.
-        IReadOnlyList<string> textureSlots = MaterialComposer.EnumerateTextureSlots(reflection, SurfaceResourceSet);
+        // declare is a typo in the asset — fail here, at compile time. Slot
+        // discovery is the surface module's own declarations (name-keyed, no
+        // set number): a ParameterBlock's set is compiler-assigned declaration
+        // order, nothing the engine pins.
+        IReadOnlyList<string> textureSlots = Composer.EnumerateTextureSlots(SurfaceOf(asset), asset.Defines);
         foreach (string slot in asset.Textures.Keys)
         {
             if (!textureSlots.Contains(ResourceName(slot)))
@@ -201,7 +200,7 @@ public sealed class MaterialCompiler : AutoDisposable
 
         // Compile-time slot validation, the same rule as the graphics passes: a
         // texture slot the surface does not declare is a typo in the asset.
-        IReadOnlyList<string> textureSlots = MaterialComposer.EnumerateTextureSlots(reflection, SurfaceResourceSet);
+        IReadOnlyList<string> textureSlots = Composer.EnumerateTextureSlots(SurfaceOf(asset), asset.Defines);
         foreach (string slot in asset.Textures.Keys)
         {
             if (!textureSlots.Contains(ResourceName(slot)))

@@ -1,9 +1,10 @@
 // file "alco-world3d-pbr-common.slang" - module "alco_world3d_pbr_common"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/PBRCommon.hlsli (Phase 2 migration).
-// Each set is one block declared with its register space; bindings within a
-// set are assigned by the compiler in declaration order. Lib declarations are
-// public so importing modules see them.
+// Shared PBR definitions for the deferred lighting passes. Each resource
+// group is one ParameterBlock — the compiler assigns each block its own
+// descriptor set in declaration order; members resolve by bare field name
+// and the engine binds everything by name. Lib declarations are public so
+// importing modules see them.
 
 #language slang 2025
 module alco_world3d_pbr_common;
@@ -11,30 +12,18 @@ module alco_world3d_pbr_common;
 import alco_rendering_core;
 import alco_world3d_atmosphere;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
+// Shared PBR functions used by both the deferred lighting pass and the
+// forward glass pass. The cbuffer layout must match the C# side's frame
+// data layout exactly.
 
-// Shared PBR functions used by both DeferredLighting.hlsl and ForwardGlass.hlsl.
-// The including shader MUST declare the _data cbuffer (DEFINE_UNIFORM(0, _data)),
-// the PointLightData struct, the _pointLights storage buffer
-// (DEFINE_STORAGE(1, PointLightData, _pointLights)), and the _shadowMap depth
-// texture (DEFINE_TEX2D_DEPTH_SAMPLE(1, _shadowMap)) BEFORE including this file,
-// so the globals referenced below are visible.
-
-public cbuffer _data : register(b0, space0) {
+public struct PbrData
+{
     public float4x4 invViewProjection;
     public float4x4 sunViewProjection[4];
     public float4 cameraPosition;
     public float4 sunDirection;         // normalized direction the sun light travels
     public float4 sunColorAndIntensity; // rgb + intensity
-    // Atmosphere parameters, see Shaders/Libs/Atmosphere.hlsli.
+    // Atmosphere parameters, see alco-world3d-atmosphere.
     public float4 skyParams;            // x=rayleighScale y=mieScale z=miePhaseG w=exposure
     public float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=ambientFloor
     public float4 skyHorizonColor;      // azimuthally filtered physical sky at the horizon
@@ -50,6 +39,8 @@ public cbuffer _data : register(b0, space0) {
     public float4 cloudShadow;          // x=strength y=shadow plane altitude m z=half extent m w=enabled(>0; _cloudShadow texture holds the coverage)
 };
 
+public ParameterBlock<PbrData> _data;
+
 
 // Point light storage buffer element.
 public struct PointLightData {
@@ -59,12 +50,14 @@ public struct PointLightData {
 
 };
 
-public cbuffer _lightsAndShadow : register(b0, space1)
+public struct LightsAndShadow
 {
     public RWStructuredBuffer<PointLightData> _pointLights;
     public DepthTexture2D _shadowMap;
     public SamplerComparisonState _shadowMapSampler;
 };
+
+public ParameterBlock<LightsAndShadow> _lightsAndShadow;
 
 public float DistributionGGX(float NdotH, float roughness)
 {
@@ -109,10 +102,10 @@ public float3 EvaluatePBR(float3 N, float3 V, float3 L, float3 albedo, float met
 // Pick the shadow cascade for a radial camera distance; -1 when beyond the last split.
 public int SelectCascade(float viewDistance)
 {
-    if (viewDistance < cascadeSplits.x) return 0;
-    if (viewDistance < cascadeSplits.y) return 1;
-    if (viewDistance < cascadeSplits.z) return 2;
-    if (viewDistance < cascadeSplits.w) return 3;
+    if (viewDistance < _data.cascadeSplits.x) return 0;
+    if (viewDistance < _data.cascadeSplits.y) return 1;
+    if (viewDistance < _data.cascadeSplits.z) return 2;
+    if (viewDistance < _data.cascadeSplits.w) return 3;
     return -1;
 }
 
@@ -163,7 +156,8 @@ public float SampleShadowMapPCF5x5(
                 quadrantMin,
                 quadrantMax);
             shadow += uWeights[x] * vWeights[y]
-                * SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
+                * _lightsAndShadow._shadowMap.SampleCmpLevelZero(
+                    _lightsAndShadow._shadowMapSampler, uv, compareDepth);
         }
     }
 
@@ -221,7 +215,8 @@ public float SampleShadowMapPCF7x7(
                 quadrantMin,
                 quadrantMax);
             shadow += uWeights[x] * vWeights[y]
-                * SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, uv, compareDepth);
+                * _lightsAndShadow._shadowMap.SampleCmpLevelZero(
+                    _lightsAndShadow._shadowMapSampler, uv, compareDepth);
         }
     }
 
@@ -233,10 +228,10 @@ public float SampleShadowMapPCF7x7(
 // 5x5 to keep their cost and distant penumbra width under control.
 public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int cascade)
 {
-    float texelWorld = cascadeTexelSizes[cascade];
+    float texelWorld = _data.cascadeTexelSizes[cascade];
     float3 biasedWorld = worldPosition + N * texelWorld;
 
-    float4 clip = mul(sunViewProjection[cascade], float4(biasedWorld, 1.0));
+    float4 clip = mul(_data.sunViewProjection[cascade], float4(biasedWorld, 1.0));
     float3 ndc = clip.xyz / clip.w;
     if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
     {
@@ -250,7 +245,7 @@ public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int casca
     float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
     float compareDepth = ndc.z - bias;
 
-    float texelAtlas = 0.5 / pbrParams.z;
+    float texelAtlas = 0.5 / _data.pbrParams.z;
     float2 quadrantMin = quadrantOffset + texelAtlas * 0.5;
     float2 quadrantMax = quadrantOffset + 0.5 - texelAtlas * 0.5;
 
@@ -273,7 +268,7 @@ public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int casca
     // lit-to-shadow transition, buying a contact-hardening look for free.
     // Cascade 0 (contacts) gets the stronger curve. params2.z is the strength:
     // 0 = linear average (previous behavior), 1 = full effect.
-    float exponent = cascade == 0 ? lerp(1.0, 3.0, params2.z) : lerp(1.0, 2.0, params2.z);
+    float exponent = cascade == 0 ? lerp(1.0, 3.0, _data.params2.z) : lerp(1.0, 2.0, _data.params2.z);
     return pow(shadow, exponent);
 }
 
@@ -287,8 +282,8 @@ public float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 sc
 
     float shadow = SampleShadowMap(worldPosition, N, L, cascade);
 
-    float splitEnd = cascadeSplits[cascade];
-    float splitStart = cascade == 0 ? 0.0 : cascadeSplits[cascade - 1];
+    float splitEnd = _data.cascadeSplits[cascade];
+    float splitStart = cascade == 0 ? 0.0 : _data.cascadeSplits[cascade - 1];
     float blendWidth = (splitEnd - splitStart) * 0.1;
     float blend = saturate((viewDistance - (splitEnd - blendWidth)) / blendWidth);
     if (blend > 0.0)
@@ -302,14 +297,14 @@ public float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 sc
 // Physically-based procedural sky: single-scattering atmosphere with sun disc and stars.
 public float3 GetSkyColor(float3 direction)
 {
-    float3 dirToSun = normalize(-sunDirection.xyz);
-    float3 sky = AtmosphereSkyRadiance(direction, dirToSun, skyParams, skyParams2, 16, 8);
-    sky += AtmosphereStars(direction, dirToSun, skyParams2.x);
+    float3 dirToSun = normalize(-_data.sunDirection.xyz);
+    float3 sky = AtmosphereSkyRadiance(direction, dirToSun, _data.skyParams, _data.skyParams2, 16, 8);
+    sky += AtmosphereStars(direction, dirToSun, _data.skyParams2.x);
 
-    if (pbrParams.w > 0.5)
+    if (_data.pbrParams.w > 0.5)
     {
         float sunDot = dot(normalize(direction), dirToSun);
-        float cosRadius = params4.x;
+        float cosRadius = _data.params4.x;
         float edgeWidth = max((1.0 - cosRadius) * 0.2, 1e-7);
         float disc = smoothstep(cosRadius - edgeWidth, cosRadius, sunDot);
         float coronaRange = (1.0 - cosRadius) * 3.5;
@@ -323,7 +318,7 @@ public float3 GetSkyColor(float3 direction)
         // Keep the disc clearly separated from the atmospheric glare.  The old
         // 8% corona was already 1.44 HDR at the default disc brightness, so it
         // clipped together with the Mie lobe before bloom was even applied.
-        sky += sunColorAndIntensity.rgb * params4.y * (disc + corona * 0.025) * horizon;
+        sky += _data.sunColorAndIntensity.rgb * _data.params4.y * (disc + corona * 0.025) * horizon;
     }
     return sky;
 }
@@ -360,27 +355,26 @@ public float3 EnvBRDFApprox(float3 F0, float roughness, float NdotV)
 // Unit-albedo Lambert response for the CPU-filtered sky gradient.
 public float3 EvaluateDiffuseSky(float3 normal)
 {
-    float3 sideResponse = skyHorizonColor.rgb * 0.218505
-        + skyZenithColor.rgb * 0.281495;
-    float3 upResponse = skyHorizonColor.rgb * 0.230769
-        + skyZenithColor.rgb * 0.769231;
+    float3 sideResponse = _data.skyHorizonColor.rgb * 0.218505
+        + _data.skyZenithColor.rgb * 0.281495;
+    float3 upResponse = _data.skyHorizonColor.rgb * 0.230769
+        + _data.skyZenithColor.rgb * 0.769231;
     float upFacing = saturate(normal.z);
     float downFacing = saturate(-normal.z);
     return lerp(sideResponse, upResponse, upFacing) * (1.0 - downFacing);
 }
 
-// Evaluate point lights from the StructuredBuffer. The including shader must
-// have declared _pointLights via DEFINE_STORAGE.
+// Evaluate point lights from the StructuredBuffer.
 public float3 EvaluatePointLights(float3 N, float3 V, float3 worldPosition,
     float3 albedo, float metallic, float roughness)
 {
     float3 Lo = 0.0;
-    uint lightCount = (uint)pbrParams.y;
+    uint lightCount = (uint)_data.pbrParams.y;
     [loop]
     for (uint i = 0; i < lightCount; i++)
     {
-        float4 posRange = _pointLights[i].positionRange;
-        float4 colInt   = _pointLights[i].colorIntensity;
+        float4 posRange = _lightsAndShadow._pointLights[i].positionRange;
+        float4 colInt   = _lightsAndShadow._pointLights[i].colorIntensity;
         if (colInt.w <= 0.0)
         {
             continue;

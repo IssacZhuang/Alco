@@ -1,8 +1,8 @@
 // file "screen-space-reflection-blue-noise.slang" - module "screen_space_reflection_blue_noise"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionBlueNoise.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025

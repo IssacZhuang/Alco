@@ -61,15 +61,19 @@ struct ShadowConstants
 // Per-cascade light view-projection matrices, updated per frame on the CPU.
 // Kept in a uniform buffer (reference semantics) instead of push constants so
 // recorded render bundles stay valid while the camera-fitted cascades move.
-cbuffer _data : register(b0, space0)
+public struct ShadowData
 {
-    float4x4 lightViewProjections[4];
-}
+    public float4x4 lightViewProjections[4];
+};
 
-cbuffer _draw : register(b0, space1)
+public ParameterBlock<ShadowData> _data;
+
+public struct ShadowDrawParams
 {
-    RWStructuredBuffer<PbrInstance> _instances;
-}
+    public RWStructuredBuffer<PbrInstance> _instances;
+};
+
+public ParameterBlock<ShadowDrawParams> _draw;
 
 [[vk::push_constant]]
 cbuffer constants
@@ -81,7 +85,7 @@ cbuffer constants
 public ShadowV2F MainVS<T : ISurface>(ShadowVertex input)
 {
     ShadowV2F output;
-    PbrInstance inst = _instances[input.instanceID];
+    PbrInstance inst = _draw._instances[input.instanceID];
     float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
     float3 worldNormal = mul((float3x3)inst.model, input.normal);
     float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
@@ -89,7 +93,7 @@ public ShadowV2F MainVS<T : ISurface>(ShadowVertex input)
     // so shadows match the G-buffer silhouette.
     T surface = T();
     surface.ModifyVertex(worldPos, worldNormal, input.uv);
-    output.position = mul(lightViewProjections[(uint)shadowConstants.params_.x], float4(worldPos, 1.0f));
+    output.position = mul(_data.lightViewProjections[(uint)shadowConstants.params_.x], float4(worldPos, 1.0f));
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
     output.worldPos = worldPos;
@@ -103,7 +107,7 @@ public void MainPS<T : ISurface, let AlphaTest : bool>(ShadowV2F input)
 {
     if (AlphaTest)
     {
-        PbrInstance inst = _instances[input.instanceID];
+        PbrInstance inst = _draw._instances[input.instanceID];
         float alphaCutoff = inst.params_.x;
         if (alphaCutoff > 0.0)
         {

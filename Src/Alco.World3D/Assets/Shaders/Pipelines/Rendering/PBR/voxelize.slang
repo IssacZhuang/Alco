@@ -8,8 +8,10 @@
 // an explicit LOD - compute has no implicit derivatives.
 //
 // Converted from Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl (Phase 2
-// migration). Bindings within a set are assigned in declaration order and are
-// compiler-owned. Lib declarations are public so importing modules see them.
+// migration). Resources are grouped as ParameterBlocks — the compiler
+// assigns each block its own descriptor set in declaration order; members
+// resolve by bare field name. Lib declarations are public so importing modules
+// see them.
 
 #language slang 2025
 module voxelize;
@@ -39,18 +41,22 @@ struct VoxelizeConstants
     float4 params2;        // x=triangleCount, yz=packed voxel-space dirty range lo/hi (x|y<<8|z<<16), w=unused
 };
 
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-// The surface's textures/params live in the surface module's own set-2 blocks.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it
+// in declaration order. The surface's textures/params live in the surface
+// module's own ParameterBlocks.
+public struct PassParams
 {
-    RWStructuredBuffer<uint> _vertices;
-    RWStructuredBuffer<uint> _indices;
+    public RWStructuredBuffer<uint> _vertices;
+    public RWStructuredBuffer<uint> _indices;
 // Use a flat uint view for atomics. The same buffer is read as uint4 by later
 // passes; the byte layout is identical, while Vulkan atomics require the target
 // expression to be a direct runtime-array element rather than a vector member.
-    RWStructuredBuffer<uint> _attrOut;
-    RWStructuredBuffer<uint> _pageTable;
+    public RWStructuredBuffer<uint> _attrOut;
+    public RWStructuredBuffer<uint> _pageTable;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 // The mip the voxel feed samples: averages sub-triangle detail into the voxel.
 static const float VoxelTextureLod = 3.0;
@@ -61,32 +67,32 @@ uint LoadIndex(uint i)
 {
     if (constants.params.y > 0.5)
     {
-        uint packed = _indices[i >> 1];
+        uint packed = _pass._indices[i >> 1];
         return (i & 1u) == 0u ? packed & 0xFFFFu : packed >> 16;
     }
-    return _indices[i];
+    return _pass._indices[i];
 }
 
 float3 LoadFloat3(uint base)
 {
-    return float3(asfloat(_vertices[base]), asfloat(_vertices[base + 1]), asfloat(_vertices[base + 2]));
+    return float3(asfloat(_pass._vertices[base]), asfloat(_pass._vertices[base + 1]), asfloat(_pass._vertices[base + 2]));
 }
 
 void AtomicAccumulateVoxel(uint index, float3 albedo, float3 normal, float emissiveQ)
 {
     uint laneIndex = index * 4u;
     uint previousCountWord;
-    InterlockedAdd(_attrOut[laneIndex], 1u, previousCountWord);
+    InterlockedAdd(_pass._attrOut[laneIndex], 1u, previousCountWord);
     if ((previousCountWord & 65535u) >= 255u)
     {
         return;
     }
 
     uint4 contribution = PackVoxelAttr(albedo, normal, emissiveQ);
-    InterlockedAdd(_attrOut[laneIndex], contribution.x & 0xFFFF0000u);
-    InterlockedAdd(_attrOut[laneIndex + 1u], contribution.y);
-    InterlockedAdd(_attrOut[laneIndex + 2u], contribution.z);
-    InterlockedAdd(_attrOut[laneIndex + 3u], contribution.w);
+    InterlockedAdd(_pass._attrOut[laneIndex], contribution.x & 0xFFFF0000u);
+    InterlockedAdd(_pass._attrOut[laneIndex + 1u], contribution.y);
+    InterlockedAdd(_pass._attrOut[laneIndex + 2u], contribution.z);
+    InterlockedAdd(_pass._attrOut[laneIndex + 3u], contribution.w);
 }
 
 // Separating-axis test between an axis-aligned box and a triangle.
@@ -144,7 +150,7 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
 
     int level = (int)constants.params.x;
     uint strideUints = (uint)constants.params.z;
-    float4 originAndSize = levelOrigins[level];
+    float4 originAndSize = _data.levelOrigins[level];
     float voxelSize = originAndSize.w;
     uint resolution = VoxelResolution();
 
@@ -189,9 +195,9 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
     // projects onto the triangle (barycentric UV), not at the triangle
     // centroid. This preserves texture detail across large triangles that span
     // many voxels. The alpha-test also uses the per-voxel UV.
-    float2 uv0 = float2(asfloat(_vertices[i0 * strideUints + 6]), asfloat(_vertices[i0 * strideUints + 7]));
-    float2 uv1 = float2(asfloat(_vertices[i1 * strideUints + 6]), asfloat(_vertices[i1 * strideUints + 7]));
-    float2 uv2 = float2(asfloat(_vertices[i2 * strideUints + 6]), asfloat(_vertices[i2 * strideUints + 7]));
+    float2 uv0 = float2(asfloat(_pass._vertices[i0 * strideUints + 6]), asfloat(_pass._vertices[i0 * strideUints + 7]));
+    float2 uv1 = float2(asfloat(_pass._vertices[i1 * strideUints + 6]), asfloat(_pass._vertices[i1 * strideUints + 7]));
+    float2 uv2 = float2(asfloat(_pass._vertices[i2 * strideUints + 6]), asfloat(_pass._vertices[i2 * strideUints + 7]));
 
     // Precompute barycentric projection basis: map a world-space point to
     // barycentric coordinates (u, v, w) on the triangle plane.
@@ -258,7 +264,7 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
                     float emissiveQ = saturate(dot(emissive, float3(0.2126, 0.7152, 0.0722)) / 8.0);
 
                     uint3 logicalCoord = uint3(x, y, z);
-                    uint pageEntry = _pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
+                    uint pageEntry = _pass._pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
                     if (pageEntry != 0u)
                     {
                         AtomicAccumulateVoxel(VoxelAttributeIndex(pageEntry, logicalCoord), albedo, N, emissiveQ);

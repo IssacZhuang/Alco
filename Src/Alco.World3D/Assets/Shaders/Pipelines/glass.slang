@@ -51,13 +51,15 @@ struct GlassConstants
     float4 emissive;            // rgb = emissive factor
 }
 
-// Sets 0 and 1 are owned by alco_world3d_pbr_common and set 2 by the composed
-// surface module; the camera takes this template's own set 3. The engine binds
-// everything by name.
-cbuffer _camera : register(b0, space3)
+// Sets owned by alco_world3d_pbr_common and the composed surface module come
+// first; the camera takes this template's own ParameterBlock (its set is the
+// compiler-assigned declaration order). The engine binds everything by name.
+public struct GlassCamera
 {
-    float4x4 viewProjection;
-}
+    public float4x4 viewProjection;
+};
+
+public ParameterBlock<GlassCamera> _camera;
 
 [[vk::push_constant]]
 cbuffer constants
@@ -75,7 +77,7 @@ public GlassV2F MainVS<T : ISurface>(GlassVertex input)
     // The surface may deform the vertex; every pass applies this identically.
     T surface = T();
     surface.ModifyVertex(worldPosition, worldNormal, input.uv);
-    output.position = mul(viewProjection, float4(worldPosition, 1.0f));
+    output.position = mul(_camera.viewProjection, float4(worldPosition, 1.0f));
     output.worldPosition = worldPosition;
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
@@ -116,25 +118,25 @@ public float4 MainPS<T : ISurface>(GlassV2F input) : SV_TARGET
     float3 N = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
 
     float3 worldPosition = input.worldPosition;
-    float3 V = normalize(cameraPosition.xyz - worldPosition);
+    float3 V = normalize(_data.cameraPosition.xyz - worldPosition);
 
     float3 Lo = 0.0;
 
     // Directional sun light with cascaded shadows.
     {
-        float3 L = normalize(-sunDirection.xyz);
+        float3 L = normalize(-_data.sunDirection.xyz);
         float sunNdotL = dot(N, L);
         float sunShadow = 1.0;
-        float viewDistance = length(worldPosition - cameraPosition.xyz);
+        float viewDistance = length(worldPosition - _data.cameraPosition.xyz);
         int cascade = SelectCascade(viewDistance);
-        if (pbrParams.x > 0.5 && sunNdotL > 0.0)
+        if (_data.pbrParams.x > 0.5 && sunNdotL > 0.0)
         {
             sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
         }
 
         Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
-            * sunColorAndIntensity.rgb
-            * sunColorAndIntensity.w
+            * _data.sunColorAndIntensity.rgb
+            * _data.sunColorAndIntensity.w
             * sunShadow;
     }
 
@@ -146,7 +148,7 @@ public float4 MainPS<T : ISurface>(GlassV2F input) : SV_TARGET
     float upDot = saturate(N.z * 0.5 + 0.5);
     float3 skyBounce = float3(0.10, 0.12, 0.15);
     float3 groundBounce = float3(0.05, 0.045, 0.04);
-    float3 ambientFloor = skyParams2.w * lerp(groundBounce, skyBounce, upDot);
+    float3 ambientFloor = _data.skyParams2.w * lerp(groundBounce, skyBounce, upDot);
     float3 diffuseIrradiance = skyAmbient + ambientFloor;
     float3 ambient = diffuseIrradiance * albedo * (1.0 - metallic) * ao;
 

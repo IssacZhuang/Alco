@@ -6,15 +6,20 @@
 #language slang 2025
 module sandbox3_shader;
 
-cbuffer Constants : register(b0, space0) {
-    float3 color;
+public struct ConstantsParams
+{
+    public float3 color;
 };
 
-cbuffer _material : register(b0, space1)
+public ParameterBlock<ConstantsParams> _constants;
+
+public struct MaterialParams
 {
-    Texture2D image;
-    SamplerState imageSampler;
+    public Texture2D image;
+    public SamplerState imageSampler;
 };
+
+public ParameterBlock<MaterialParams> _material;
 
 struct VertexInput {
     float3 position : POSITION0;
@@ -37,7 +42,7 @@ VertexOutput MainVS(VertexInput model) {
 
 [shader("fragment")]
 float4 MainPS(VertexOutput input) : SV_Target0 {
-    float4 result =  image.Sample(imageSampler, input.texCoord);
+    float4 result = _material.image.Sample(_material.imageSampler, input.texCoord);
     // inverse gamma correction
     //result = pow(result, float4(2.2, 2.2, 2.2, 2.2));
     return result;

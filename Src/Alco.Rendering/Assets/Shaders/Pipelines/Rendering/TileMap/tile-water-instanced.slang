@@ -1,8 +1,8 @@
 // file "tile-water-instanced.slang" - module "tile_water_instanced"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module tile_water_instanced;
@@ -11,16 +11,6 @@ import alco_rendering_core;
 import alco_rendering_global_render_data;
 import alco_rendering_noise;
 import alco_rendering_texture_bombing;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 struct Constants
 {
@@ -33,7 +23,7 @@ struct Constants
     float tiling;
 };
 
-struct TileData {
+public struct TileData {
   float2 position;
 };
 
@@ -50,26 +40,42 @@ struct V2F {
   float2 worldPos : TEXCOORD1;
 };
 
-cbuffer _camera : register(b0, space0) { float4x4 viewProjection; };
-
-
-cbuffer _material : register(b0, space1)
+public struct CameraParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public float4x4 viewProjection;
 };
 
-cbuffer _instances : register(b0, space2)
+public ParameterBlock<CameraParams> _camera;
+
+
+public struct MaterialParamsData
 {
-    RWStructuredBuffer<TileData> _instances;
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
 };
 
-cbuffer _tileMap : register(b0, space3)
+public ParameterBlock<MaterialParamsData> _material;
+
+public struct InstancesParams
 {
-    RWStructuredBuffer<int> _tileMap;
+    public RWStructuredBuffer<TileData> _instances;
 };
 
-cbuffer _globalRenderData : register(b0, space4) { GlobalRenderData _globalRenderData; };
+public ParameterBlock<InstancesParams> _instances;
+
+public struct TileMapParams
+{
+    public RWStructuredBuffer<int> _tileMap;
+};
+
+public ParameterBlock<TileMapParams> _tileMap;
+
+public struct GlobalRenderDataParams
+{
+    public GlobalRenderData _globalRenderData;
+};
+
+public ParameterBlock<GlobalRenderDataParams> _globalRenderData;
 
 [[vk::push_constant]] Constants constants;
 
@@ -79,13 +85,13 @@ int GetTileId(int2 tilePos, int defaultValue) {
     return defaultValue;
   }
 
-  return _tileMap[tilePos.y * constants.size.x + tilePos.x];
+  return _tileMap._tileMap[tilePos.y * constants.size.x + tilePos.x];
 }
 
 [shader("vertex")] V2F VertexMain(Vertex input) {
   V2F output;
 
-  TileData tileData = _instances[input.instanceID];
+  TileData tileData = _instances._instances[input.instanceID];
 
   float3 pos = input.position;
   float2 tilePos = tileData.position;
@@ -117,7 +123,7 @@ int GetTileId(int2 tilePos, int defaultValue) {
   float3 worldPosition = pos + float3(tilePos, 0.0);
 
   float4 position = mul(constants.model, float4(worldPosition, 1.0));
-  position = mul(viewProjection, position);
+  position = mul(_camera.viewProjection, position);
 
   output.position = position;
   output.uv = uv;
@@ -130,7 +136,7 @@ int GetTileId(int2 tilePos, int defaultValue) {
   float2 uv = input.uv;
 
   float2 uvFrac = frac(uv * constants.tiling);
-  float4 color = SAMPLE_TEX2D(_texture, uvFrac);
+  float4 color = _material._texture.Sample(_material._textureSampler, uvFrac);
 
     color *= constants.color;
 
@@ -147,7 +153,7 @@ int GetTileId(int2 tilePos, int defaultValue) {
     }
 
     // Shimmering water effect - use sin and time as noise coordinates
-    float time = _globalRenderData.time;
+    float time = _globalRenderData._globalRenderData.time;
     float2 worldPos = input.worldPos;
 
     // Create noise state for FastNoiseLite

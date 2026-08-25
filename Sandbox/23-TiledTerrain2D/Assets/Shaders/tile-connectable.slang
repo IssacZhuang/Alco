@@ -1,15 +1,12 @@
 // file "tile-connectable.slang" - module "tile_connectable"
 //
 // Slang module converted from Assets/Shaders/TileConnectable.hlsl (Phase 2
-// migration). DEFINE_* macros became explicit set/binding declarations.
+// migration). Resources are grouped as ParameterBlocks — the compiler assigns
+// each block its own descriptor set in declaration order; members resolve by
+// bare field name.
 
 #language slang 2025
 module tile_connectable;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
 
 struct Vertex {
   float3 position : POSITION;
@@ -29,13 +26,20 @@ struct Constants {
   float2 offset;
 };
 
-cbuffer _camera : register(b0, space0) { float4x4 viewProjection; };
-
-cbuffer _material : register(b0, space1)
+public struct CameraParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public float4x4 viewProjection;
 };
+
+public ParameterBlock<CameraParams> _camera;
+
+public struct MaterialParams
+{
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
+};
+
+public ParameterBlock<MaterialParams> _material;
 
 [[vk::push_constant]] Constants constants;
 
@@ -49,13 +53,13 @@ V2F MainVS(Vertex input) {
   pos.z = 0.5f - pos.y;
   pos.xy += constants.offset;
   output.position = mul(constants.model, float4(pos, 1.0f));
-  output.position = mul(viewProjection, output.position);
+  output.position = mul(_camera.viewProjection, output.position);
   output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;
   return output;
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float4 color = SAMPLE_TEX2D(_texture, input.uv) * constants.color;
+  float4 color = _material._texture.Sample(_material._textureSampler, input.uv) * constants.color;
   return color;
 }

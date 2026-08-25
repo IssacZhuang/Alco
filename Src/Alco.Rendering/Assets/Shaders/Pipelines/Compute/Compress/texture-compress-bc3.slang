@@ -1,8 +1,8 @@
 // file "texture-compress-bc3.slang" - module "texture_compress_b_c3"
 //
 // Slang module converted from Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module texture_compress_bc3;
@@ -14,14 +14,18 @@ struct Constants {
     uint2 size;
 };
 
-cbuffer _pass : register(b0, space0)
+public struct PassParams
 {
-    RWStructuredBuffer<uint4> _output;
+    public RWStructuredBuffer<uint4> _output;
 };
-cbuffer _input : register(b0, space1)
+
+public ParameterBlock<PassParams> _pass;
+public struct InputParams
 {
-    Texture2D _input;
+    public Texture2D _input;
 };
+
+public ParameterBlock<InputParams> _input;
 
 [[vk::push_constant]] Constants constants;
 
@@ -39,17 +43,17 @@ void MainCS<let IsSRGB : bool>(uint3 id : SV_DispatchThreadID)
 
     float3 BlockBaseColor[16];
     float BlockA[16];
-    ReadBlockRGBA(_input, SamplePos, BlockBaseColor, BlockA);
+    ReadBlockRGBA(_input._input, SamplePos, BlockBaseColor, BlockA);
 
     // The sRGB choice is a generic value specialization of this module (the
     // CPU compressor requests MainCS<true> or MainCS<false> per texture format);
     // the library exports both paths.
     if (IsSRGB)
     {
-        _output[GetOutputIndex(id.xy)] = CompressBC3BlockSrgb(BlockBaseColor, BlockA);
+        _pass._output[GetOutputIndex(id.xy)] = CompressBC3BlockSrgb(BlockBaseColor, BlockA);
     }
     else
     {
-        _output[GetOutputIndex(id.xy)] = CompressBC3Block(BlockBaseColor, BlockA);
+        _pass._output[GetOutputIndex(id.xy)] = CompressBC3Block(BlockBaseColor, BlockA);
     }
 }

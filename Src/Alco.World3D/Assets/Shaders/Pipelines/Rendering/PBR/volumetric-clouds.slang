@@ -1,8 +1,8 @@
 // file "volumetric-clouds.slang" - module "volumetric_clouds"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VolumetricClouds.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -13,16 +13,6 @@ import alco_world3d_reversed_depth;
 import alco_world3d_pbr_common;
 import alco_world3d_clouds;
 import alco_world3d_atmosphere;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Volumetric clouds march pass for the deferred PBR pipeline: a half-
 // resolution full-screen pass that ray-marches a cloud slab (Perlin-Worley
@@ -62,33 +52,40 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-// This pass's resources take one block on its own set 2 (sets 0 and 1 are
-// alco_world3d_pbr_common's): the shared G-buffer depth for ray-length
-// clamping, the cloud parameters and the noise textures below.
+// This pass's resources form two ParameterBlocks after alco_world3d_pbr_common's
+// blocks: the shared G-buffer depth with the cloud parameters, and the noise
+// textures below.
 
 
 // Cloud parameters, assembled by RGNode_VolumetricClouds. Layout must match
 // the VolumetricCloudsData struct in RGNode_VolumetricClouds.cs exactly.
-cbuffer _cloudData : register(b0, space2) {
-    float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
-    float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
-    float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
-    float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
-    float4 cloudDebug;   // x=opacity debug view (grayscale, composite pass) y=shadow bake half extent km zw=shadow bake center (world xz, km)
+public struct CloudDataParams
+{
+    public float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
+    public float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
+    public float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
+    public float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
+    public float4 cloudDebug;   // x=opacity debug view (grayscale, composite pass) y=shadow bake half extent km zw=shadow bake center (world xz, km)
 
-    DepthTexture2D _gbufferDepth;
+    public DepthTexture2D _gbufferDepth;
 };
+
+public ParameterBlock<CloudDataParams> _cloudData;
+
 
 
 // Cloud noise (generated once by volumetric-cloud-noise.slang). The samplers
-// live inside the textures' own resource groups (linear repeat).
-cbuffer _cloudNoise : register(b0, space3)
+// sit beside their textures in the same block (linear repeat).
+public struct CloudNoiseParams
 {
-    Texture3D _cloudBaseNoise;
-    SamplerState _cloudBaseNoiseSampler;
-    Texture3D _cloudDetailNoise;
-    SamplerState _cloudDetailNoiseSampler;
+    public Texture3D _cloudBaseNoise;
+    public SamplerState _cloudBaseNoiseSampler;
+    public Texture3D _cloudDetailNoise;
+    public SamplerState _cloudDetailNoiseSampler;
 };
+
+public ParameterBlock<CloudNoiseParams> _cloudNoise;
+
 
 // World periods of the noise textures (one texture repeat per period), km.
 static const float CLOUD_BASE_SCALE = 1.0 / 24.0;
@@ -127,9 +124,9 @@ V2F MainVS(Vertex input)
 float CloudBaseDensity(float3 posKm, float bottomKm, float thicknessKm, float coverage)
 {
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
-    float3 winded = posKm + float3(cloudWind.xy, 0.0);
-    float lowFreq = SAMPLE_TEX3D_LEVEL(_cloudBaseNoise, winded * CLOUD_COVERAGE_SCALE, 0).r;
-    float4 baseNoise = SAMPLE_TEX3D_LEVEL(_cloudBaseNoise, winded * CLOUD_BASE_SCALE, 0);
+    float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
+    float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_cloudNoise._cloudBaseNoiseSampler, winded * CLOUD_COVERAGE_SCALE, 0).r;
+    float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_cloudNoise._cloudBaseNoiseSampler, winded * CLOUD_BASE_SCALE, 0);
     float coverageMask = CloudCoverageMask(lowFreq, coverage);
     float heightGradient = CloudHeightGradient(h, coverage);
     return CloudBaseShape(baseNoise, coverageMask, heightGradient);
@@ -144,9 +141,9 @@ float CloudFullDensity(float3 posKm, float bottomKm, float thicknessKm, float co
         return base;
     }
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
-    float3 winded = posKm + float3(cloudWind.xy, 0.0);
-    float3 drift = float3(0.7, 0.31, 0.49) * cloudWind.w;
-    float3 detailNoise = SAMPLE_TEX3D_LEVEL(_cloudDetailNoise, winded * CLOUD_DETAIL_SCALE + drift, 0).rgb;
+    float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
+    float3 drift = float3(0.7, 0.31, 0.49) * _cloudData.cloudWind.w;
+    float3 detailNoise = _cloudNoise._cloudDetailNoise.SampleLevel(_cloudNoise._cloudDetailNoiseSampler, winded * CLOUD_DETAIL_SCALE + drift, 0).rgb;
     return CloudErodeShape(base, detailNoise, detailStrength, h);
 }
 
@@ -199,34 +196,34 @@ float4 MainPS(V2F input) : SV_TARGET
 {
     // Reconstruct the view ray and the opaque-scene distance for this pixel.
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    float depth = GetPixelDepth2D(_gbufferDepth, int2(input.uv * viewportSize.xy));
-    float3 originKm = cameraPosition.xyz / 1000.0;
+    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(input.uv * _data.viewportSize.xy));
+    float3 originKm = _data.cameraPosition.xyz / 1000.0;
     float3 dir;
     float sceneDistanceKm;
     if (IS_SKY_DEPTH(depth))
     {
         // Any depth along the ray yields the same perspective direction; 1.0 is
         // the near plane under reversed depth and numerically the safest pick.
-        float4 farWorld = mul(invViewProjection, float4(ndc, 1.0, 1.0));
-        dir = normalize(farWorld.xyz / farWorld.w - cameraPosition.xyz);
+        float4 farWorld = mul(_data.invViewProjection, float4(ndc, 1.0, 1.0));
+        dir = normalize(farWorld.xyz / farWorld.w - _data.cameraPosition.xyz);
         sceneDistanceKm = 1e6;
     }
     else
     {
-        float4 world = mul(invViewProjection, float4(ndc, depth, 1.0));
+        float4 world = mul(_data.invViewProjection, float4(ndc, depth, 1.0));
         float3 worldPosition = world.xyz / world.w;
-        dir = normalize(worldPosition - cameraPosition.xyz);
-        sceneDistanceKm = max(length(worldPosition - cameraPosition.xyz) / 1000.0, 0.05);
+        dir = normalize(worldPosition - _data.cameraPosition.xyz);
+        sceneDistanceKm = max(length(worldPosition - _data.cameraPosition.xyz) / 1000.0, 0.05);
     }
 
-    float bottomKm = cloudParams.z;
-    float thicknessKm = cloudParams.w;
+    float bottomKm = _cloudData.cloudParams.z;
+    float thicknessKm = _cloudData.cloudParams.w;
     float topKm = bottomKm + thicknessKm;
-    float coverage = cloudParams.x;
-    float densityScale = cloudParams.y;
-    float detailStrength = cloudParams2.x;
-    float extinction = cloudParams2.y * densityScale;
-    int maxSteps = (int)cloudParams2.w;
+    float coverage = _cloudData.cloudParams.x;
+    float densityScale = _cloudData.cloudParams.y;
+    float detailStrength = _cloudData.cloudParams2.x;
+    float extinction = _cloudData.cloudParams2.y * densityScale;
+    int maxSteps = (int)_cloudData.cloudParams2.w;
 
     float tEntry;
     float tExit;
@@ -243,7 +240,7 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // ── Per-pixel lighting terms (constant along the march) ──
-    float3 dirToSun = normalize(-sunDirection.xyz);
+    float3 dirToSun = normalize(-_data.sunDirection.xyz);
 
     // Sun energy: the atmosphere's solar radiance driver attenuated by an
     // analytic transmittance march evaluated at the slab's mid height. This
@@ -257,10 +254,10 @@ float4 MainPS(V2F input) : SV_TARGET
         float2 sunDensity = AtmosphereSunDensityIntegral(probeKm, dirToSun, 6);
         if (sunDensity.x >= 0.0)
         {
-            float3 tau = ATM_BETA_RAYLEIGH * skyParams.x * sunDensity.x
-                + (ATM_BETA_MIE * 1.1 * skyParams.y) * sunDensity.y
+            float3 tau = ATM_BETA_RAYLEIGH * _data.skyParams.x * sunDensity.x
+                + (ATM_BETA_MIE * 1.1 * _data.skyParams.y) * sunDensity.y
                 + ATM_BETA_OZONE * sunDensity.x;
-            sunEnergy = exp(-tau) * skyParams2.z * cloudLight.y;
+            sunEnergy = exp(-tau) * _data.skyParams2.z * _cloudData.cloudLight.y;
         }
     }
 
@@ -268,9 +265,9 @@ float4 MainPS(V2F input) : SV_TARGET
     // base (light arrives from the whole lower hemisphere there) and zenith at
     // the tops. It already contains the night floor, so clouds never go fully
     // black after dark.
-    float3 ambientBottom = skyHorizonColor.rgb * 0.65 + skyZenithColor.rgb * 0.35;
-    float3 ambientTop = skyZenithColor.rgb * 0.85 + skyHorizonColor.rgb * 0.15;
-    float3 ambientEnergy = lerp(ambientBottom, ambientTop, 0.5) * cloudLight.x;
+    float3 ambientBottom = _data.skyHorizonColor.rgb * 0.65 + _data.skyZenithColor.rgb * 0.35;
+    float3 ambientTop = _data.skyZenithColor.rgb * 0.85 + _data.skyHorizonColor.rgb * 0.15;
+    float3 ambientEnergy = lerp(ambientBottom, ambientTop, 0.5) * _cloudData.cloudLight.x;
 
     float cosTheta = dot(dir, dirToSun);
     float phase = CloudPhaseDual(cosTheta);
@@ -324,7 +321,7 @@ float4 MainPS(V2F input) : SV_TARGET
         float sunVisibility = lerp(beer * powder, beerMulti * powderMulti, 0.55);
 
         float h = saturate((posKm.z - bottomKm) / thicknessKm);
-        float3 ambient = lerp(ambientBottom, ambientTop, h) * cloudLight.x;
+        float3 ambient = lerp(ambientBottom, ambientTop, h) * _cloudData.cloudLight.x;
         float3 lightEnergy = sunEnergy * phase * sunVisibility + ambient;
 
         // Energy-conserving integration between the transmittance at the
@@ -353,8 +350,8 @@ float4 MainPS(V2F input) : SV_TARGET
     float rangeFade = 1.0 - smoothstep(0.75, 1.0, midT / CLOUD_MAX_MARCH_KM);
     scattering *= rangeFade;
     alpha *= rangeFade;
-    float hazeT = smoothstep(cloudLight.z, cloudLight.w, midT);
-    scattering = lerp(scattering, skyHorizonColor.rgb * alpha, hazeT);
+    float hazeT = smoothstep(_cloudData.cloudLight.z, _cloudData.cloudLight.w, midT);
+    scattering = lerp(scattering, _data.skyHorizonColor.rgb * alpha, hazeT);
 
     return float4(scattering, alpha);
 }

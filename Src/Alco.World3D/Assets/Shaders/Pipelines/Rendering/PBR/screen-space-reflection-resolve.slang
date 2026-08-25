@@ -1,8 +1,8 @@
 // file "screen-space-reflection-resolve.slang" - module "screen_space_reflection_resolve"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionResolve.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -12,28 +12,22 @@ import alco_world3d_ssr_post_common;
 import alco_world3d_reversed_depth;
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
-// alco_world3d_ssr_post_common owns set 0 (_ssrData); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_ssr_post_common declares _ssrData; this pass's ParameterBlock follows
+// it in declaration order.
+public struct PassParams
 {
-    Texture2D _reflectionRaw;
-    SamplerState _reflectionRawSampler;
-    Texture2D _reflectionHistory;
-    SamplerState _reflectionHistorySampler;
-    Texture2D _historyMetadata;
-    SamplerState _historyMetadataSampler;
-    Texture2D _normal;
-    DepthTexture2D _gbufferDepth;
+    public Texture2D _reflectionRaw;
+    public SamplerState _reflectionRawSampler;
+    public Texture2D _reflectionHistory;
+    public SamplerState _reflectionHistorySampler;
+    public Texture2D _historyMetadata;
+    public SamplerState _historyMetadataSampler;
+    public Texture2D _normal;
+    public DepthTexture2D _gbufferDepth;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
@@ -47,11 +41,11 @@ void MainPS(
     out float4 reflectionOut : SV_TARGET0,
     out float4 metadataOut : SV_TARGET1)
 {
-    float2 fullSize = ssrRenderSize.xy;
-    float2 traceSize = ssrRenderSize.zw;
+    float2 fullSize = _ssrData.ssrRenderSize.xy;
+    float2 traceSize = _ssrData.ssrRenderSize.zw;
     int2 centerPixel = clamp(
         int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
-    float centerDepth = GetPixelDepth2D(_gbufferDepth, centerPixel);
+    float centerDepth = GetPixelDepth2D(_pass._gbufferDepth, centerPixel);
     if (IS_SKY_DEPTH(centerDepth))
     {
         reflectionOut = 0.0;
@@ -60,11 +54,11 @@ void MainPS(
     }
 
     float3 centerNormal = normalize(
-        GET_PIXEL_TEX2D(_normal, centerPixel).xyz * 2.0 - 1.0);
+        _pass._normal.Load(int3(centerPixel, 0)).xyz * 2.0 - 1.0);
     // Resolve and history share the trace grid, so input.uv must remain the
     // canonical receiver coordinate used by temporal reprojection.
     float3 centerWorld = SsrPostReconstructWorldPosition(input.uv, centerDepth);
-    float centerDistance = length(centerWorld - ssrCameraPosition.xyz);
+    float centerDistance = length(centerWorld - _ssrData.ssrCameraPosition.xyz);
 
     // Bilateral 5x5 filter. Plane distance is used instead of full world-space
     // distance so neighbouring samples on a floor remain eligible at grazing
@@ -83,17 +77,17 @@ void MainPS(
         {
             float2 sampleUV = clamp(
                 input.uv + float2(x, y) * traceTexel, 0.0, 1.0);
-            float4 sampleReflection = SAMPLE_TEX2D(_reflectionRaw, sampleUV);
+            float4 sampleReflection = _pass._reflectionRaw.Sample(_pass._reflectionRawSampler, sampleUV);
             int2 samplePixel = clamp(
                 int2(sampleUV * fullSize), int2(0, 0), int2(fullSize) - 1);
-            float sampleDepth = GetPixelDepth2D(_gbufferDepth, samplePixel);
+            float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, samplePixel);
             if (IS_SKY_DEPTH(sampleDepth))
             {
                 continue;
             }
 
             float3 sampleNormal = normalize(
-                GET_PIXEL_TEX2D(_normal, samplePixel).xyz * 2.0 - 1.0);
+                _pass._normal.Load(int3(samplePixel, 0)).xyz * 2.0 - 1.0);
             float3 sampleWorld = SsrPostReconstructWorldPosition(
                 sampleUV, sampleDepth);
             float normalWeight = pow(
@@ -126,10 +120,10 @@ void MainPS(
     float historyMotion = 0.0;
     float4 history = 0.0;
     bool historyValid = false;
-    if (ssrParams.y > 0.5)
+    if (_ssrData.ssrParams.y > 0.5)
     {
         float4 previousClip = mul(
-            ssrPreviousViewProjection, float4(centerWorld, 1.0));
+            _ssrData.ssrPreviousViewProjection, float4(centerWorld, 1.0));
         if (previousClip.w > 0.0)
         {
             float3 previousNdc = previousClip.xyz / previousClip.w;
@@ -139,16 +133,16 @@ void MainPS(
             if (all(previousUV >= 0.0) && all(previousUV <= 1.0)
                 && previousNdc.z >= 0.0 && previousNdc.z <= 1.0)
             {
-                history = SAMPLE_TEX2D(_reflectionHistory, previousUV);
-                float4 previousMetadata = SAMPLE_TEX2D(
-                    _historyMetadata, previousUV);
+                history = _pass._reflectionHistory.Sample(_pass._reflectionHistorySampler, previousUV);
+                float4 previousMetadata = _pass._historyMetadata.Sample(
+                    _pass._historyMetadataSampler, previousUV);
                 float3 previousNormal = SsrPostDecodeNormal(
                     previousMetadata.xy);
                 // Metadata stores linear receiver distance. R16F preserves this
                 // far more accurately than non-linear NDC depth, whose half-float
                 // quantisation was invalidating history on distant surfaces.
                 float expectedPreviousDistance = length(
-                    centerWorld - ssrPreviousCameraPosition.xyz);
+                    centerWorld - _ssrData.ssrPreviousCameraPosition.xyz);
                 float positionTolerance = 0.04
                     + expectedPreviousDistance * 0.005;
                 historyValid = previousMetadata.w > 0.5
@@ -161,8 +155,8 @@ void MainPS(
                     float receiverMotionPixels = length(
                         (previousUV - input.uv) * fullSize);
                     float cameraMotion = length(
-                        ssrCameraPosition.xyz
-                        - ssrPreviousCameraPosition.xyz);
+                        _ssrData.ssrCameraPosition.xyz
+                        - _ssrData.ssrPreviousCameraPosition.xyz);
                     historyMotion = saturate(
                         receiverMotionPixels * 0.15 + cameraMotion * 1.5);
                 }

@@ -1,33 +1,28 @@
 // file "reinhard-luminance-tonemap.slang" - module "reinhard_luminance_tonemap"
 //
 // Slang module converted from Shaders/Pipelines/PostProcess/Tonemap/ReinhardLuminanceTonemap.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module reinhard_luminance_tonemap;
 
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
-cbuffer _pass : register(b0, space0)
+public struct PassParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler; // should be HDR image
+    public Texture2D _texture;
+    public SamplerState _textureSampler; // should be HDR image
 };
-cbuffer _data : register(b0, space1) {
-    float MaxLuminance;
-    float Gamma;
+
+public ParameterBlock<PassParams> _pass;
+public struct DataParams
+{
+    public float MaxLuminance;
+    public float Gamma;
 };
+
+public ParameterBlock<DataParams> _data;
 
 
 struct Vertex {
@@ -58,14 +53,14 @@ float3 change_luminance(float3 color, float new_luminance) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float4 source = SAMPLE_TEX2D(_texture, input.uv);
+  float4 source = _pass._texture.Sample(_pass._textureSampler, input.uv);
 
   float old_luminance = dot(source.rgb, float3(0.2126, 0.7152, 0.0722));
-  float numerator = old_luminance * (1.0 + (old_luminance/(MaxLuminance*MaxLuminance)));
+  float numerator = old_luminance * (1.0 + (old_luminance/(_data.MaxLuminance*_data.MaxLuminance)));
   float new_luminance = numerator / (1.0 + old_luminance);
 
   float3 ldrColor = change_luminance(source.rgb, new_luminance);
-  ldrColor = pow(ldrColor, 1.0 / Gamma);
+  ldrColor = pow(ldrColor, 1.0 / _data.Gamma);
   ldrColor += OutputDither8Bit(input.position.xy);
   return float4(ldrColor, 1.0);
 }

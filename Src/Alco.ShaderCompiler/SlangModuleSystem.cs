@@ -343,13 +343,25 @@ public sealed partial class SlangModuleSystem : IDisposable
     /// Every uniform block of a module carrying the given user-defined attribute (e.g.
     /// <c>[MaterialParams]</c>), read from the module's own layout — no entry points,
     /// no link. The material-parameter discovery probe: blocks are found by the marker,
-    /// not by a fixed name, so a surface names and splits its parameter blocks freely.
+    /// not by a fixed name, so a surface names and split its parameter blocks freely.
     /// </summary>
     public List<(string BlockName, List<SlangUniformMember> Members)> GetModuleMarkedUniformBlocks(
         string moduleName, string attributeName, IReadOnlyList<string>? defines = null)
     {
         SlangModuleHandle module = GetOrLoadModule(moduleName, defines);
         return _session.GetModuleMarkedUniformBlocks(module, attributeName);
+    }
+
+    /// <summary>
+    /// The texture slots of a surface module — every Texture2D member of every
+    /// uniform/parameter block the module declares, in declaration order, by bare
+    /// field name. Descriptor-set independent: a ParameterBlock's set is
+    /// compiler-assigned declaration order, nothing the engine pins or reads.
+    /// </summary>
+    public List<string> GetModuleTextureSlots(string moduleName, IReadOnlyList<string>? defines = null)
+    {
+        SlangModuleHandle module = GetOrLoadModule(moduleName, defines);
+        return _session.GetModuleTextureSlots(module);
     }
 
     private SlangProgram GetProgramLocked(

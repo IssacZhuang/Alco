@@ -1,8 +1,8 @@
 // file "voxel-propagate.slang" - module "voxel_propagate"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelPropagate.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -10,16 +10,6 @@ module voxel_propagate;
 
 import alco_rendering_core;
 import alco_world3d_voxel_common;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Multi-bounce light propagation for the voxel GI clipmap: sparse dispatch
 // over a brick list (resident bricks only — freed bricks are handled by the
@@ -43,22 +33,24 @@ struct VoxelPropagateConstants
     float4 params; // x=levelIndex, y=bounceStrength, z=bounceIndex, w=unused
 };
 
-// alco_world3d_voxel_common owns set 0 (the shared uniform); this pass's
-// resources take set 1 as one block.
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it
+// in declaration order.
+public struct PassParams
 {
-    Texture3D _radiance;
-    SamplerState _radianceSampler;
-    RWStructuredBuffer<uint4> _attrStatic;
-    RWStructuredBuffer<uint4> _attrDynamic;
+    public Texture3D _radiance;
+    public SamplerState _radianceSampler;
+    public RWStructuredBuffer<uint4> _attrStatic;
+    public RWStructuredBuffer<uint4> _attrDynamic;
 // Combined page table: x=static, y=dynamic. Saves a binding for the brick list.
-    RWStructuredBuffer<uint2> _pageTable;
-    Texture3D _opacity;
-    SamplerState _opacitySampler;
-    RWStructuredBuffer<uint4> _brickList;
-    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _propagateOut;
+    public RWStructuredBuffer<uint2> _pageTable;
+    public Texture3D _opacity;
+    public SamplerState _opacitySampler;
+    public RWStructuredBuffer<uint4> _brickList;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _propagateOut;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [[vk::push_constant]] VoxelPropagateConstants constants;
 
@@ -98,23 +90,23 @@ float3x3 GetTangentBasis(float3 normal)
 float4 SamplePropagationBlended(float3 position, int level, float mip, float3 absoluteDirection, bool enableBlend)
 {
     float3 uvw = VoxelWorldToUVW(position, level, mip);
-    float4 radiance = SAMPLE_TEX3D_LEVEL(_radiance, uvw, mip);
-    float4 opacity = SAMPLE_TEX3D_LEVEL(_opacity, uvw, mip);
+    float4 radiance = _pass._radiance.SampleLevel(_pass._radianceSampler, uvw, mip);
+    float4 opacity = _pass._opacity.SampleLevel(_pass._opacitySampler, uvw, mip);
     if (enableBlend)
     {
-        int levelCount = (int)clipmapParams.y;
+        int levelCount = (int)_data.clipmapParams.y;
         if (level + 1 < levelCount)
         {
             float transitionWeight = VoxelLevelTransitionWeight(position, level);
             if (transitionWeight > 0.001)
             {
                 float nextMip = clamp(
-                    mip + log2(levelOrigins[level].w / levelOrigins[level + 1].w),
+                    mip + log2(_data.levelOrigins[level].w / _data.levelOrigins[level + 1].w),
                     0.0,
-                    clipmapParams.z - 1.0);
+                    _data.clipmapParams.z - 1.0);
                 float3 nextUVW = VoxelWorldToUVW(position, level + 1, nextMip);
-                float4 nextRadiance = SAMPLE_TEX3D_LEVEL(_radiance, nextUVW, nextMip);
-                float4 nextOpacity = SAMPLE_TEX3D_LEVEL(_opacity, nextUVW, nextMip);
+                float4 nextRadiance = _pass._radiance.SampleLevel(_pass._radianceSampler, nextUVW, nextMip);
+                float4 nextOpacity = _pass._opacity.SampleLevel(_pass._opacitySampler, nextUVW, nextMip);
                 radiance = lerp(radiance, nextRadiance, transitionWeight);
                 opacity = lerp(opacity, nextOpacity, transitionWeight);
             }
@@ -135,8 +127,8 @@ float4 SamplePropagationBlended(float3 position, int level, float mip, float3 ab
 float3 TracePropagationCone(float3 startPosition, float3 direction,
     float apertureTan, float maxDistance, bool allowSky)
 {
-    float mipCount = clipmapParams.z;
-    float fineVoxelSize = levelOrigins[0].w;
+    float mipCount = _data.clipmapParams.z;
+    float fineVoxelSize = _data.levelOrigins[0].w;
     float3 color = 0.0;
     float alpha = 0.0;
     int startLevel = VoxelFindLevel(startPosition);
@@ -164,7 +156,7 @@ float3 TracePropagationCone(float3 startPosition, float3 direction,
             prevLevel = level;
         }
 
-        float voxelSize = levelOrigins[level].w;
+        float voxelSize = _data.levelOrigins[level].w;
         float diameter = max(2.0 * t * apertureTan, voxelSize);
         // Clipmap origins move in whole 8-voxel bricks. Mips above 3 are not
         // invariant under that translation, so their downsample lattice changes
@@ -199,7 +191,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     int level = (int)constants.params.x;
     uint brickIndex = dispatchId.z / VOXEL_BRICK_SIZE;
     uint localZ = dispatchId.z % VOXEL_BRICK_SIZE;
-    uint3 logicalCoord = _brickList[brickIndex].xyz * VOXEL_BRICK_SIZE
+    uint3 logicalCoord = _pass._brickList[brickIndex].xyz * VOXEL_BRICK_SIZE
         + uint3(dispatchId.x, dispatchId.y, localZ);
     if (any(logicalCoord >= resolution))
     {
@@ -209,37 +201,37 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float bounceStrength = constants.params.y;
     uint bounceIndex = (uint)constants.params.z;
     bool allowSky = bounceIndex == 0u;
-    float4 originAndSize = levelOrigins[level];
+    float4 originAndSize = _data.levelOrigins[level];
     float voxelSize = originAndSize.w;
 
     uint3 storeCoord = uint3(logicalCoord.x, logicalCoord.y, (uint)level * resolution + logicalCoord.z);
 
     // Read attributes (dynamic wins over static), same as the injection pass.
     uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, level);
-    uint2 pages = _pageTable[pageSlot];
+    uint2 pages = _pass._pageTable[pageSlot];
     uint4 attr = uint4(0u, 0u, 0u, 0u);
     if (pages.y != 0u)
     {
-        attr = _attrDynamic[VoxelAttributeIndex(pages.y, logicalCoord)];
+        attr = _pass._attrDynamic[VoxelAttributeIndex(pages.y, logicalCoord)];
     }
     if (!VoxelAttrOccupied(attr))
     {
         if (pages.x != 0u)
         {
-            attr = _attrStatic[VoxelAttributeIndex(pages.x, logicalCoord)];
+            attr = _pass._attrStatic[VoxelAttributeIndex(pages.x, logicalCoord)];
         }
     }
 
     // Preserve the current radiance (direct lighting from injection) so the
     // copy-back step replaces mip 0 with direct + bounce.
-    float3 currentRadiance = SAMPLE_TEX3D_LEVEL(
-        _radiance,
+    float3 currentRadiance = _pass._radiance.SampleLevel(
+        _pass._radianceSampler,
         VoxelWorldToUVW(originAndSize.xyz + (float3(logicalCoord) + 0.5) * voxelSize, level, 0.0),
         0.0).rgb;
 
     if (!VoxelAttrOccupied(attr))
     {
-        _propagateOut[storeCoord] = float4(currentRadiance, 0.0);
+        _pass._propagateOut[storeCoord] = float4(currentRadiance, 0.0);
         return;
     }
 
@@ -250,7 +242,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     normal = dot(normal, normal) > 1e-6 ? normalize(normal) : float3(0.0, 0.0, 1.0);
 
     float3 worldPosition = originAndSize.xyz + (float3(logicalCoord) + 0.5) * voxelSize;
-    float receiverBias = max(levelOrigins[0].w * 2.0, voxelSize * 0.5);
+    float receiverBias = max(_data.levelOrigins[0].w * 2.0, voxelSize * 0.5);
     float3 startPosition = worldPosition + normal * receiverBias;
 
     // Trace a hemisphere of cones to gather incoming indirect light.
@@ -282,5 +274,5 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 bounceAlbedo = albedo + saturate(0.2 - dot(albedo, 0.333));
     float3 bounce = bounceAlbedo * gathered * bounceStrength;
 
-    _propagateOut[storeCoord] = float4(currentRadiance + bounce, 1.0);
+    _pass._propagateOut[storeCoord] = float4(currentRadiance + bounce, 1.0);
 }

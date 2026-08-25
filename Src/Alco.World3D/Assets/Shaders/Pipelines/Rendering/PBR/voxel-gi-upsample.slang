@@ -1,8 +1,8 @@
 // file "voxel-gi-upsample.slang" - module "voxel_gi_upsample"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelGiUpsample.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -10,16 +10,6 @@ module voxel_gi_upsample;
 
 import alco_rendering_core;
 import alco_world3d_reversed_depth;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Voxel GI full-resolution upsample pass. Runs after VoxelDemosaic as the last
 // compute pass of the VoxelGI plugin: reads the 5x-trace-width indirect atlas
@@ -31,36 +21,41 @@ import alco_world3d_reversed_depth;
 // migrated here verbatim from the old DeferredLighting.hlsl inline GI path so
 // the lighting shader can be a thin consumer.
 
-cbuffer _data : register(b0, space0) {
-    float4x4 invViewProjection;
-    float4 params; // xy = G-buffer size in pixels, z = 1/traceWidth (= 5/atlasWidth), w = 1/traceHeight
+public struct DataParams
+{
+    public float4x4 invViewProjection;
+    public float4 params; // xy = G-buffer size in pixels, z = 1/traceWidth (= 5/atlasWidth), w = 1/traceHeight
 };
+
+public ParameterBlock<DataParams> _data;
+
 
 
 // Indirect atlas (5x trace width), output of VoxelDemosaic. Uses explicit
 // LOD-0 sampling (SampleLevel) so the compute shader does not require
 // derivative capabilities.
-// This pass's resources take set 1 (set 0 is the _data block above).
-cbuffer _pass : register(b0, space1)
+// The pass block below follows the _data block above in declaration order.
+public struct PassParams
 {
-    Texture2D _indirectGI;
-    SamplerState _indirectGISampler;
+    public Texture2D _indirectGI;
+    public SamplerState _indirectGISampler;
     // G-buffer depth (for linear-depth-weighted blending) and normal (for ALD).
-    DepthTexture2D _gbufferDepth;
-    Texture2D _normal;
+    public DepthTexture2D _gbufferDepth;
+    public Texture2D _normal;
     // Full-resolution outputs consumed by DeferredLighting.
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giDiffuseOut;
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giSpecularOut;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giDiffuseOut;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _giSpecularOut;
 };
 
-#define SAMPLE_ATLAS(tex, uv) tex.SampleLevel(tex##Sampler, uv, 0)
+public ParameterBlock<PassParams> _pass;
+
 
 float ReconstructLinearDepth(uint2 pixel)
 {
-    float2 uv = (float2(pixel) + 0.5) / params.xy;
+    float2 uv = (float2(pixel) + 0.5) / _data.params.xy;
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float depth = GetPixelDepth2D(_gbufferDepth, int2(pixel));
-    float reciprocalClipW = dot(invViewProjection[3], float4(ndc, depth, 1.0));
+    float depth = GetPixelDepth2D(_pass._gbufferDepth, int2(pixel));
+    float reciprocalClipW = dot(_data.invViewProjection[3], float4(ndc, depth, 1.0));
     return abs(rcp(reciprocalClipW));
 }
 
@@ -69,30 +64,30 @@ float ReconstructLinearDepth(uint2 pixel)
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint2 pixel = dispatchId.xy;
-    uint2 viewportSize = uint2(params.x, params.y);
+    uint2 viewportSize = uint2(_data.params.x, _data.params.y);
     if (pixel.x >= viewportSize.x || pixel.y >= viewportSize.y)
     {
         return;
     }
 
     // Sky pixels get black output — the lighting pass replaces them with sky.
-    float rawDepth = GetPixelDepth2D(_gbufferDepth, int2(pixel));
+    float rawDepth = GetPixelDepth2D(_pass._gbufferDepth, int2(pixel));
     if (IS_SKY_DEPTH(rawDepth))
     {
-        _giDiffuseOut[pixel] = float4(0.0, 0.0, 0.0, 1.0);
-        _giSpecularOut[pixel] = float4(0.0, 0.0, 0.0, 1.0);
+        _pass._giDiffuseOut[pixel] = float4(0.0, 0.0, 0.0, 1.0);
+        _pass._giSpecularOut[pixel] = float4(0.0, 0.0, 0.0, 1.0);
         return;
     }
 
     float2 uv = (float2(pixel) + 0.5) / float2(viewportSize);
-    float3 N = normalize(GET_PIXEL_TEX2D(_normal, int2(pixel)).xyz * 2.0 - 1.0);
+    float3 N = normalize(_pass._normal.Load(int3(int2(pixel), 0)).xyz * 2.0 - 1.0);
 
     // Atlas layout: 5 segments (diffuse near/far, specular, ALD near/far).
     const float segmentCount = 5.0;
     float2 traceUV = uv * float2(1.0 / segmentCount, 1.0);
 
     float linearDepth = ReconstructLinearDepth(pixel);
-    float2 traceTexel = params.zw; // one trace texel in segment-local UV
+    float2 traceTexel = _data.params.zw; // one trace texel in segment-local UV
     float2 atlasTexel = float2(traceTexel.x / segmentCount, traceTexel.y);
     float4 sampleTM = float4(atlasTexel * 1.5, atlasTexel * 0.25);
     const float2 sampleOffsets[5] =
@@ -113,10 +108,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     for (int s = 0; s < 5; s++)
     {
         float2 tapUV = traceUV + sampleOffsets[s];
-        float4 tapDiffuseMin = SAMPLE_ATLAS(_indirectGI, tapUV);
-        float4 tapDiffuseMax = SAMPLE_ATLAS(_indirectGI, tapUV + float2(1.0 / segmentCount, 0.0));
-        float4 tapAldMin = SAMPLE_ATLAS(_indirectGI, tapUV + float2(3.0 / segmentCount, 0.0));
-        float4 tapAldMax = SAMPLE_ATLAS(_indirectGI, tapUV + float2(4.0 / segmentCount, 0.0));
+        float4 tapDiffuseMin = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV, 0);
+        float4 tapDiffuseMax = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV + float2(1.0 / segmentCount, 0.0), 0);
+        float4 tapAldMin = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV + float2(3.0 / segmentCount, 0.0), 0);
+        float4 tapAldMax = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV + float2(4.0 / segmentCount, 0.0), 0);
 
         float tapDepthMin = max(4.0, tapDiffuseMin.a);
         float tapDepthMax = max(4.0, tapDiffuseMax.a);
@@ -141,7 +136,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         indirectAldWeight += tapWeight;
     }
 
-    float4 indirectSpecularSection = SAMPLE_ATLAS(_indirectGI, traceUV + float2(2.0 / segmentCount, 0.0));
+    float4 indirectSpecularSection = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, traceUV + float2(2.0 / segmentCount, 0.0), 0);
     float3 indirectDiffuse = indirectDiffuseSum / indirectDiffuseWeight;
     float3 indirectSpecular = indirectSpecularSection.rgb;
     float selectedVisibility = indirectSpecularSection.a;
@@ -157,6 +152,6 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     float3 diffuseOut = indirectDiffuse * directionalMod;
 
-    _giDiffuseOut[pixel] = float4(diffuseOut, selectedVisibility);
-    _giSpecularOut[pixel] = float4(indirectSpecular, 1.0);
+    _pass._giDiffuseOut[pixel] = float4(diffuseOut, selectedVisibility);
+    _pass._giSpecularOut[pixel] = float4(indirectSpecular, 1.0);
 }

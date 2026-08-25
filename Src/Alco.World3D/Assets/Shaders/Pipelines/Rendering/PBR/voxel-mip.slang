@@ -1,8 +1,8 @@
 // file "voxel-mip.slang" - module "voxel_mip"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelMip.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -10,16 +10,6 @@ module voxel_mip;
 
 import alco_rendering_core;
 import alco_world3d_voxel_common;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Radiance + opacity mip downsample for the voxel GI clipmap. One dispatch
 // per mip transition covers ALL clipmap levels: the z dimension encodes both
@@ -39,14 +29,18 @@ struct VoxelMipConstants
     float4 params; // x=mipIndex, yzw=unused (level derived from dispatch z)
 };
 
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it in
+// declaration order.
+public struct PassParams
 {
-    Texture3D _radianceLoad;
-    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
-    Texture3D _opacityLoad;
-    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
+    public Texture3D _radianceLoad;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
+    public Texture3D _opacityLoad;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [[vk::push_constant]] VoxelMipConstants constants;
 
@@ -85,12 +79,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             {
                 uint3 coord = min(uint3(dispatchId.x * 2 + dx, dispatchId.y * 2 + dy, zTexel * 2 + dz), srcRes - 1);
                 uint3 loadCoord = uint3(coord.x, coord.y, level * srcRes + coord.z);
-                float4 radSample = LOAD_TEX3D(_radianceLoad, loadCoord, 0);
+                float4 radSample = _pass._radianceLoad.Load(int4(loadCoord, 0));
                 radianceSum += radSample.rgb * radSample.a;
                 radianceWeight += radSample.a;
                 occupancySum += radSample.a;
 
-                float4 opaSample = LOAD_TEX3D(_opacityLoad, loadCoord, 0);
+                float4 opaSample = _pass._opacityLoad.Load(int4(loadCoord, 0));
                 opacityChildren[dx + dy * 2u + dz * 4u] = opaSample.xyz;
                 opacityCoverageSum += opaSample.a;
             }
@@ -99,7 +93,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, level * dstRes + zTexel);
     float3 radiance = radianceWeight > 0.0 ? radianceSum / radianceWeight : 0.0;
-    _radianceOut[storeCoord] = float4(radiance, occupancySum / 8.0);
+    _pass._radianceOut[storeCoord] = float4(radiance, occupancySum / 8.0);
 
     // Preserve volume coverage at coarse mips. Dividing by only the occupied
     // children makes a single thin surface fully opaque at every mip and causes
@@ -125,5 +119,5 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
     float3 projectedOpacity = float3(opacityX, opacityY, opacityZ) * 0.25;
-    _opacityOut[storeCoord] = float4(projectedOpacity, opacityCoverageSum / 8.0);
+    _pass._opacityOut[storeCoord] = float4(projectedOpacity, opacityCoverageSum / 8.0);
 }

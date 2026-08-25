@@ -12,7 +12,10 @@ import alco_rendering_core;
 
 // Shared by the post-lighting SSR trace, temporal resolve and composite passes.
 // The layout must match ScreenSpaceReflectionRenderer.SsrData exactly.
-public cbuffer _ssrData : register(b0, space0) {
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set; members resolve by bare field name.
+public struct SsrData
+{
     public float4x4 ssrInvViewProjection;
     public float4x4 ssrViewProjection;
     public float4x4 ssrPreviousViewProjection;
@@ -22,6 +25,8 @@ public cbuffer _ssrData : register(b0, space0) {
     public float4 ssrParams;     // x = frame index, y = history valid, z = debug mode, w = strength
     public float4 ssrRayParams;  // x = max distance, y = roughness cutoff, zw = unused
 };
+
+public ParameterBlock<SsrData> _ssrData;
 
 
 public struct Vertex {
@@ -52,7 +57,7 @@ public V2F SsrPostFullQuadVS(Vertex input)
 public float3 SsrPostReconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(ssrInvViewProjection, float4(ndc, depth, 1.0));
+    float4 world = mul(_ssrData.ssrInvViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
 
@@ -84,7 +89,7 @@ public float3 SsrPostDecodeNormal(float2 encoded)
 
 public bool SsrPostProjectWorldPosition(float3 worldPosition, out float3 screenPosition)
 {
-    float4 clip = mul(ssrViewProjection, float4(worldPosition, 1.0));
+    float4 clip = mul(_ssrData.ssrViewProjection, float4(worldPosition, 1.0));
     if (clip.w <= 0.0)
     {
         screenPosition = 0.0;

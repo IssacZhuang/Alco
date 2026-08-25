@@ -1,8 +1,8 @@
 // file "screen-space-reflection-trace.slang" - module "screen_space_reflection_trace"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionTrace.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -12,30 +12,24 @@ import alco_world3d_ssr_post_common;
 import alco_world3d_reversed_depth;
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
 // This pass runs after deferred lighting and forward transparency. Unlike the
 // former GI-pass SSR, _sceneColor therefore contains the actual HDR shaded
 // result (direct light, shadows, GI, emissive and transparent content).
-// alco_world3d_ssr_post_common owns set 0 (_ssrData); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_ssr_post_common declares _ssrData; this pass's ParameterBlock follows
+// it in declaration order.
+public struct PassParams
 {
-    Texture2D _sceneColor;
-    SamplerState _sceneColorSampler;
-    Texture2D _albedo;
-    Texture2D _normal;
-    Texture2D _mrAO;
-    DepthTexture2D _gbufferDepth;
-    Texture2D _blueNoise;
+    public Texture2D _sceneColor;
+    public SamplerState _sceneColorSampler;
+    public Texture2D _albedo;
+    public Texture2D _normal;
+    public Texture2D _mrAO;
+    public DepthTexture2D _gbufferDepth;
+    public Texture2D _blueNoise;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 // Runtime-baked Heitz blue-noise lookup (see ScreenSpaceReflectionBlueNoise.hlsl).
 static const uint SSR_BLUE_NOISE_TILE = 128u;
@@ -56,14 +50,14 @@ float3 SsrSampleShadedScene(
         * lerp(1.0, 22.0, saturate(rayDistance / 45.0));
     if (blurPixels < 0.75)
     {
-        return SAMPLE_TEX2D(_sceneColor, hitUV).rgb;
+        return _pass._sceneColor.Sample(_pass._sceneColorSampler, hitUV).rgb;
     }
 
     float angle = rotationSample * TAU;
     float s, c;
     sincos(angle, s, c);
     float2x2 rotation = float2x2(c, -s, s, c);
-    float2 inverseSize = rcp(ssrRenderSize.xy);
+    float2 inverseSize = rcp(_ssrData.ssrRenderSize.xy);
     float3 result = 0.0;
     float weightSum = 0.0;
     [unroll]
@@ -71,7 +65,7 @@ float3 SsrSampleShadedScene(
     {
         float2 offset = mul(rotation, SSR_BLUR_OFFSETS[i]) * blurPixels * inverseSize;
         float weight = i == 0 ? 1.5 : 1.0;
-        result += SAMPLE_TEX2D(_sceneColor, clamp(hitUV + offset, 0.0, 1.0)).rgb * weight;
+        result += _pass._sceneColor.Sample(_pass._sceneColorSampler, clamp(hitUV + offset, 0.0, 1.0)).rgb * weight;
         weightSum += weight;
     }
     return result / weightSum;
@@ -86,17 +80,17 @@ V2F MainVS(Vertex input)
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float2 fullSize = ssrRenderSize.xy;
+    float2 fullSize = _ssrData.ssrRenderSize.xy;
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
-    float depth = GetPixelDepth2D(_gbufferDepth, pixel);
+    float depth = GetPixelDepth2D(_pass._gbufferDepth, pixel);
     if (IS_SKY_DEPTH(depth))
     {
         return 0.0;
     }
 
-    float4 packedAlbedo = GET_PIXEL_TEX2D(_albedo, pixel);
+    float4 packedAlbedo = _pass._albedo.Load(int3(pixel, 0));
     float roughness = packedAlbedo.a;
-    if (roughness >= ssrRayParams.y)
+    if (roughness >= _ssrData.ssrRayParams.y)
     {
         return 0.0;
     }
@@ -106,9 +100,9 @@ float4 MainPS(V2F input) : SV_TARGET
     // on the corresponding history texel instead of introducing a fixed
     // quarter-texel bilinear bias at half resolution.
     float3 worldPosition = SsrPostReconstructWorldPosition(input.uv, depth);
-    float3 normal = normalize(GET_PIXEL_TEX2D(_normal, pixel).xyz * 2.0 - 1.0);
-    float3 viewDirection = normalize(worldPosition - ssrCameraPosition.xyz);
-    float viewDistance = length(worldPosition - ssrCameraPosition.xyz);
+    float3 normal = normalize(_pass._normal.Load(int3(pixel, 0)).xyz * 2.0 - 1.0);
+    float3 viewDirection = normalize(worldPosition - _ssrData.ssrCameraPosition.xyz);
+    float viewDistance = length(worldPosition - _ssrData.ssrCameraPosition.xyz);
     float fresnel = saturate(1.0 + dot(normal, viewDirection));
 
     // Blue-noise sampling (Heitz's Owen-scrambled Sobol over an optimized
@@ -120,9 +114,9 @@ float4 MainPS(V2F input) : SV_TARGET
     // angle/radius pair uses the R2 low-discrepancy constants so every pixel's
     // 2D disk samples stay stratified over time. The blur rotation (A) always
     // reads the baked value and stays temporally stable.
-    uint2 noisePixel = uint2(input.uv * ssrRenderSize.zw) % SSR_BLUE_NOISE_TILE;
-    float4 blueNoise = GET_PIXEL_TEX2D(_blueNoise, int2(noisePixel));
-    uint noiseFrame = (uint)ssrParams.x % 256u;
+    uint2 noisePixel = uint2(input.uv * _ssrData.ssrRenderSize.zw) % SSR_BLUE_NOISE_TILE;
+    float4 blueNoise = _pass._blueNoise.Load(int3(int2(noisePixel), 0));
+    uint noiseFrame = (uint)_ssrData.ssrParams.x % 256u;
     float angleSample = frac(blueNoise.r + noiseFrame * 0.7548776662);
     float radialSample = frac(blueNoise.g + noiseFrame * 0.5698402910);
     float stepSample = frac(blueNoise.b + noiseFrame * 0.6180339887);
@@ -165,7 +159,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
         hitUV = screenPosition.xy;
         int2 hitPixel = clamp(int2(hitUV * fullSize), int2(0, 0), int2(fullSize) - 1);
-        hitDepth = GetPixelDepth2D(_gbufferDepth, hitPixel);
+        hitDepth = GetPixelDepth2D(_pass._gbufferDepth, hitPixel);
 
         // Empty depth is not a verified reflection hit. The shaded background
         // contains the procedural sun disc, but screen-space depth cannot tell
@@ -192,7 +186,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
         vector *= 2.0;
         travelVector += vector * (0.95 + 0.1 * stepSample);
-        if (length(travelVector) > ssrRayParams.x)
+        if (length(travelVector) > _ssrData.ssrRayParams.x)
         {
             break;
         }
@@ -203,7 +197,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float rayDistance = length(travelVector);
     if (geometryHit)
     {
-        float hitViewDistance = length(hitWorldPosition - ssrCameraPosition.xyz);
+        float hitViewDistance = length(hitWorldPosition - _ssrData.ssrCameraPosition.xyz);
         float2 selfDistance = abs(hitUV - input.uv) * fullSize;
         bool advanced = any(selfDistance > 2.0);
         bool plausibleThickness = hitError * (1.0 - fresnel)
@@ -217,7 +211,7 @@ float4 MainPS(V2F input) : SV_TARGET
             confidence = border * foregroundFade;
         }
     }
-    float roughnessFade = saturate((ssrRayParams.y - roughness) / 0.25);
+    float roughnessFade = saturate((_ssrData.ssrRayParams.y - roughness) / 0.25);
     confidence *= roughnessFade;
     if (confidence <= 0.001)
     {

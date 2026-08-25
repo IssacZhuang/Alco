@@ -3,11 +3,13 @@ using NUnit.Framework;
 
 namespace Alco.ShaderCompiler;
 
-// The set-only binding contract: a program declares each set as one block
-// (`cbuffer _name : register(b0, spaceN) { ... }` / ConstantBuffer<T> with a
-// register space). The compiler assigns member bindings in declaration order;
-// reflection exposes members by their bare field name and the block's uniform
-// data as one buffer entry. C# never reads a binding number.
+// The ParameterBlock binding contract: a program declares each resource group
+// as one annotation-free `ParameterBlock<BlockParams> _name;`. The compiler
+// owns the layout — each block takes one whole descriptor set, in declaration
+// order, with an automatically-introduced uniform buffer at binding 0 whenever
+// the block carries ordinary data (resource members continue after it).
+// Reflection exposes members by their bare field name and the block's uniform
+// data as one buffer entry under the block's name. C# never reads a set number.
 
 [TestFixture]
 public static class SlangBlockBindingTest
@@ -37,38 +39,40 @@ public static class SlangBlockBindingTest
     private const string MixedBlocks = """
         module block_mixed;
 
-        struct FrameParams
+        public struct FrameParams
         {
-            float4x4 viewProjection;
-            float time;
-            Texture2D blueNoise;
-            SamplerState noiseSampler;
+            public float4x4 viewProjection;
+            public float time;
+            public Texture2D blueNoise;
+            public SamplerState noiseSampler;
         };
 
-        ConstantBuffer<FrameParams> _frame : register(b0, space0);
+        public ParameterBlock<FrameParams> _frame;
 
-        cbuffer _pass : register(b0, space1)
+        public struct PassParams
         {
-            Texture2D sceneColor;
-            SamplerState sceneSampler;
-            RWStructuredBuffer<float4> output;
-            [[vk::image_format("rgba16f")]] RWTexture2D<float4> indirectGI;
-            DepthTexture2D sceneDepth;
-            SamplerComparisonState sceneDepthSampler;
+            public Texture2D sceneColor;
+            public SamplerState sceneSampler;
+            public RWStructuredBuffer<float4> output;
+            [[vk::image_format("rgba16f")]] public RWTexture2D<float4> indirectGI;
+            public DepthTexture2D sceneDepth;
+            public SamplerComparisonState sceneDepthSampler;
         };
+
+        public ParameterBlock<PassParams> _pass;
 
         [shader("fragment")]
         float4 MainPS() : SV_TARGET
         {
-            output[0] = sceneColor.Sample(sceneSampler, float2(0.5, 0.5));
-            indirectGI[int2(0, 0)] = float4(1);
-            float d = sceneDepth.SampleCmpLevelZero(sceneDepthSampler, float2(0.5, 0.5), 0.5);
+            _pass.output[0] = _pass.sceneColor.Sample(_pass.sceneSampler, float2(0.5, 0.5));
+            _pass.indirectGI[int2(0, 0)] = float4(1);
+            float d = _pass.sceneDepth.SampleCmpLevelZero(_pass.sceneDepthSampler, float2(0.5, 0.5), 0.5);
             return _frame.blueNoise.Sample(_frame.noiseSampler, float2(_frame.time, 0)) + _frame.viewProjection[0] + d;
         }
         """;
 
     [Test]
-    public static void BlockMembers_ReflectByBareName_InCompilerAssignedOrder()
+    public static void BlockMembers_ReflectByBareName_EachBlockOwnsOneSet()
     {
         using SlangProgram program = Compile("block_mixed", MixedBlocks);
 
@@ -76,8 +80,8 @@ public static class SlangBlockBindingTest
         Assert.That(program.Reflection.BindGroups[0].Group, Is.EqualTo(0u));
         Assert.That(program.Reflection.BindGroups[1].Group, Is.EqualTo(1u));
 
-        // Set 0: the block's uniform buffer first, then resource members in
-        // declaration order.
+        // Set 0: the block's automatically-introduced uniform buffer at
+        // binding 0, then resource members in declaration order.
         Assert.That(Entries(program, 0), Is.EqualTo(new[]
         {
             ("_frame", 0u, BindingType.UniformBuffer),
@@ -117,15 +121,19 @@ public static class SlangBlockBindingTest
         const string duplicate = """
             module block_dup;
 
-            cbuffer _first : register(b0, space0)
+            public struct FirstParams
             {
-                Texture2D shared;
+                public Texture2D shared;
             };
 
-            cbuffer _second : register(b0, space1)
+            public ParameterBlock<FirstParams> _first;
+
+            public struct SecondParams
             {
-                Texture2D shared;
+                public Texture2D shared;
             };
+
+            public ParameterBlock<SecondParams> _second;
 
             [shader("fragment")]
             float4 MainPS() : SV_TARGET { return shared; }
@@ -135,12 +143,16 @@ public static class SlangBlockBindingTest
     }
 
     [Test]
-    public static void FlatDeclarations_AutoAssignIntoSetZero()
+    public static void BareGlobals_TakeSetZero_BlocksGetTheirOwnSetsAfter()
     {
+        // Under auto layout bare globals (no block) fill set 0 first; every
+        // ParameterBlock then owns its own whole set, in declaration order.
+        // No mixed sets: a block never shares with loose globals.
         const string flat = """
             module block_flat;
 
-            cbuffer _data { float4x4 viewProjection; float time; };
+            public struct DataParams { public float4x4 viewProjection; public float time; };
+            public ParameterBlock<DataParams> _data;
             Texture2D _tex;
             SamplerState _texSampler;
             RWStructuredBuffer<float4> _output;
@@ -149,70 +161,79 @@ public static class SlangBlockBindingTest
             float4 MainPS() : SV_TARGET
             {
                 _output[0] = _tex.Sample(_texSampler, float2(_time_placeholder(), 0.5));
-                return viewProjection[0];
+                return _data.viewProjection[0];
             }
 
-            float _time_placeholder() { return time; }
+            float _time_placeholder() { return _data.time; }
             """;
 
         using SlangProgram program = Compile("block_flat", flat);
 
-        Assert.That(program.Reflection.BindGroups, Has.Count.EqualTo(1));
+        Assert.That(program.Reflection.BindGroups, Has.Count.EqualTo(2));
         Assert.That(program.Reflection.BindGroups[0].Group, Is.EqualTo(0u));
         Assert.That(Entries(program, 0), Is.EqualTo(new[]
         {
+            ("_tex", 0u, BindingType.Texture),
+            ("_texSampler", 1u, BindingType.Sampler),
+            ("_output", 2u, BindingType.StorageBuffer),
+        }));
+        Assert.That(Entries(program, 1), Is.EqualTo(new[]
+        {
             ("_data", 0u, BindingType.UniformBuffer),
-            ("_tex", 1u, BindingType.Texture),
-            ("_texSampler", 2u, BindingType.Sampler),
-            ("_output", 3u, BindingType.StorageBuffer),
         }));
     }
 
     [Test]
-    public static void MultipleBlocks_ShareOneSetWithMixedBlockLast()
+    public static void EachBlock_TakesItsOwnSet_InDeclarationOrder()
     {
-        // The material surface contract: one set owned by the module. Pure UBO
-        // blocks come first (sequential b-registers); the mixed block that
-        // carries both uniform parameters and resources comes last so its
-        // members continue past the UBOs. A register on a resource-only block
-        // is ignored by slang — its members would restart at 0 and collide —
-        // so resource-only blocks must always own their set alone.
+        // The material surface shape: the engine-data block and the marked
+        // parameter block are separate ParameterBlocks, so each owns its own
+        // set — no more shared-set b-register arithmetic (the UBO of a mixed
+        // block always restarts at binding 0 of its set).
         const string multi = """
             module block_multi;
 
-            cbuffer _globalRenderData : register(b0, space0)
+            public struct GlobalRenderDataParams
             {
-                float4 time;
+                public float4 time;
             };
 
-            cbuffer _materialParams : register(b1, space0)
+            public ParameterBlock<GlobalRenderDataParams> _globalRenderData;
+
+            [MaterialParams]
+            public struct MaterialParamsData
             {
-                float pulseSpeed;
-                float3 pulseColor;
-                Texture2D albedo;
-                SamplerState albedoSampler;
-                RWStructuredBuffer<float4> instances;
+                public float pulseSpeed;
+                public float3 pulseColor;
+                public Texture2D albedo;
+                public SamplerState albedoSampler;
+                public RWStructuredBuffer<float4> instances;
             };
+
+            public ParameterBlock<MaterialParamsData> _materialParams;
 
             [shader("fragment")]
             float4 MainPS() : SV_TARGET
             {
-                instances[0] = float4(pulseColor * pulseSpeed, time.x);
-                return albedo.Sample(albedoSampler, float2(0.5, 0.5)) + time;
+                _materialParams.instances[0] = float4(_materialParams.pulseColor * _materialParams.pulseSpeed, _globalRenderData.time.x);
+                return _materialParams.albedo.Sample(_materialParams.albedoSampler, float2(0.5, 0.5)) + _globalRenderData.time;
             }
             """;
 
         using SlangProgram program = Compile("block_multi", multi);
 
-        Assert.That(program.Reflection.BindGroups, Has.Count.EqualTo(1));
+        Assert.That(program.Reflection.BindGroups, Has.Count.EqualTo(2));
         Assert.That(program.Reflection.BindGroups[0].Group, Is.EqualTo(0u));
         Assert.That(Entries(program, 0), Is.EqualTo(new[]
         {
             ("_globalRenderData", 0u, BindingType.UniformBuffer),
-            ("_materialParams", 1u, BindingType.UniformBuffer),
-            ("albedo", 2u, BindingType.Texture),
-            ("albedoSampler", 3u, BindingType.Sampler),
-            ("instances", 4u, BindingType.StorageBuffer),
+        }));
+        Assert.That(Entries(program, 1), Is.EqualTo(new[]
+        {
+            ("_materialParams", 0u, BindingType.UniformBuffer),
+            ("albedo", 1u, BindingType.Texture),
+            ("albedoSampler", 2u, BindingType.Sampler),
+            ("instances", 3u, BindingType.StorageBuffer),
         }));
         List<SlangUniformMember> members = program.GetUniformMembers("_materialParams");
         Assert.That(members.Select(m => m.Name), Is.EqualTo(new[] { "pulseSpeed", "pulseColor" }));

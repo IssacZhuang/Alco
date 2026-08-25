@@ -1,8 +1,8 @@
 // file "volumetric-light.slang" - module "volumetric_light"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VolumetricLight.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -11,16 +11,6 @@ module volumetric_light;
 import alco_rendering_core;
 import alco_world3d_reversed_depth;
 import alco_world3d_pbr_common;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Volumetric light (god rays / atmospheric scattering) pass for the deferred
 // PBR pipeline. A full-screen pass rendered after deferred lighting; the
@@ -51,11 +41,15 @@ struct V2F
 };
 
 // G-buffer depth (for reconstructing world position and determining ray length).
-// Sets 0 and 1 are alco_world3d_pbr_common's; this pass's resources take set 2.
-cbuffer _pass : register(b0, space2)
+// alco_world3d_pbr_common's blocks come first in declaration order; this pass's
+// ParameterBlock follows them.
+public struct PassParams
 {
-    DepthTexture2D _gbufferDepth;
+    public DepthTexture2D _gbufferDepth;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 
 [shader("vertex")]
@@ -86,7 +80,7 @@ float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
         return 1.0;
     }
 
-    float4 clip = mul(sunViewProjection[cascade], float4(worldPosition, 1.0));
+    float4 clip = mul(_data.sunViewProjection[cascade], float4(worldPosition, 1.0));
     float3 ndc = clip.xyz / clip.w;
     if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
     {
@@ -97,7 +91,7 @@ float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
 
     float compareDepth = ndc.z - 0.0008;
-    return SAMPLE_TEX2D_DEPTH_CMP(_shadowMap, shadowUV, compareDepth);
+    return _lightsAndShadow._shadowMap.SampleCmpLevelZero(_lightsAndShadow._shadowMapSampler, shadowUV, compareDepth);
 }
 
 // Fog density at a world-space point: exponential falloff relative to the
@@ -106,16 +100,16 @@ float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
 // origin. sigma = sigma0 * exp(-|dh| / H) where dh = samplePos.z - cameraPos.z.
 float VolumetricDensity(float3 worldPos)
 {
-    float heightAboveCamera = worldPos.z - cameraPosition.z;
-    float scaleHeight = vlParams.z;
-    return vlParams.y * exp(-abs(heightAboveCamera) / max(scaleHeight, 1e-4));
+    float heightAboveCamera = worldPos.z - _data.cameraPosition.z;
+    float scaleHeight = _data.vlParams.z;
+    return _data.vlParams.y * exp(-abs(heightAboveCamera) / max(scaleHeight, 1e-4));
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
     // Early-out when volumetric light is disabled.
-    if (vlParams.x <= 0.0)
+    if (_data.vlParams.x <= 0.0)
     {
         return float4(0.0, 0.0, 0.0, 0.0);
     }
@@ -124,18 +118,18 @@ float4 MainPS(V2F input) : SV_TARGET
     // w finite for sky pixels (depth 0 under reversed infinite depth); the ray
     // direction is unchanged since any depth along the ray yields it.
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    int2 pixelCoord = int2(input.uv * viewportSize.xy);
-    float depth = GetPixelDepth2D(_gbufferDepth, pixelCoord);
-    float4 world = mul(invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
+    int2 pixelCoord = int2(input.uv * _data.viewportSize.xy);
+    float depth = GetPixelDepth2D(_pass._gbufferDepth, pixelCoord);
+    float4 world = mul(_data.invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
     float3 worldPosition = world.xyz / world.w;
 
-    float3 rayOrigin = cameraPosition.xyz;
+    float3 rayOrigin = _data.cameraPosition.xyz;
     float3 rayDir = normalize(worldPosition - rayOrigin);
 
     // Determine ray march bounds.
     // Beyond the last cascade there is no shadow information, so marching
     // farther would add unshadowed (flat) radiance — clamp to the last split.
-    float maxDistance = cascadeSplits.w;
+    float maxDistance = _data.cascadeSplits.w;
     bool isSky = IS_SKY_DEPTH(depth);
     float sceneDistance = isSky ? maxDistance : length(worldPosition - rayOrigin);
     float rayEnd = min(sceneDistance, maxDistance);
@@ -146,16 +140,16 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // Phase function.
-    float3 dirToSun = normalize(-sunDirection.xyz);
+    float3 dirToSun = normalize(-_data.sunDirection.xyz);
     float cosTheta = dot(rayDir, dirToSun);
-    float phaseG = vlParams.w;
+    float phaseG = _data.vlParams.w;
     float phase = HenyeyGreenstein(cosTheta, phaseG);
 
     // Per-pixel dither to break up banding (IGN — deterministic per pixel).
     float dither = InterleavedGradientNoise(input.position.xy);
 
     // Ray march.
-    float3 sunColor = sunColorAndIntensity.rgb * sunColorAndIntensity.w;
+    float3 sunColor = _data.sunColorAndIntensity.rgb * _data.sunColorAndIntensity.w;
     float3 radiance = 0.0;
     float transmittance = 1.0;
     float prevDist = 0.0;
@@ -199,7 +193,7 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // Apply intensity multiplier.
-    radiance *= vlParams.x;
+    radiance *= _data.vlParams.x;
 
     // Output: RGB holds the additively blended radiance; alpha = 1 so the
     // blend state (SrcAlpha, One) adds radiance directly to the target.

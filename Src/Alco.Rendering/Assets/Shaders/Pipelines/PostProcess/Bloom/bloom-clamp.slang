@@ -1,23 +1,13 @@
 // file "bloom-clamp.slang" - module "bloom_clamp"
 //
 // Slang module converted from Shaders/Pipelines/PostProcess/Bloom/BloomClamp.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module bloom_clamp;
 
 import alco_rendering_core;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 struct Constants
 {
@@ -27,11 +17,13 @@ struct Constants
     float Intensity;
 };
 
-cbuffer _pass : register(b0, space0)
+public struct PassParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
 };
+
+public ParameterBlock<PassParams> _pass;
 [[vk::push_constant]] Constants constants;
 
 struct Vertex
@@ -48,7 +40,7 @@ struct V2F
 
 float4 SampleTextureClamped(float2 uv)
 {
-    float4 color = SAMPLE_TEX2D(_texture, uv);
+    float4 color = _pass._texture.Sample(_pass._textureSampler, uv);
     if (any(isnan(color)) || any(isinf(color)))
     {
         return float4(0, 0, 0, 0);

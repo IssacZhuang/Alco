@@ -10,12 +10,13 @@ module alco_world3d_hbao_common;
 
 import alco_world3d_reversed_depth;
 
-// Shared per-frame data and helpers for the HBAO+ compute passes (HBAO.hlsl,
-// HBAOBlur.hlsl). Include after Shaders/Libs/Core.hlsli. The cbuffer layout
-// must match HbaoRenderer.HbaoData on the C# side exactly.
+// Shared per-frame data and helpers for the HBAO+ compute passes (hbao,
+// hbao-blur). The cbuffer layout must match HbaoRenderer.HbaoData on the C#
+// side exactly. Resources are grouped as ParameterBlocks — the compiler
+// assigns each block its own descriptor set; members resolve by bare name.
 
-
-public cbuffer _data : register(b0, space0) {
+public struct HbaoData
+{
     public float4x4 invViewProjection;
     public float4 cameraPosition; // xyz = world-space camera position
     public float4 cameraRight;    // xyz = world-space camera right axis
@@ -26,6 +27,8 @@ public cbuffer _data : register(b0, space0) {
     public float4 params3;        // x = strength (multiplies the blurred AO into the G-buffer AO channel), yzw = unused
 };
 
+public ParameterBlock<HbaoData> _data;
+
 
 // Reconstruct the world-space position of a pixel from its UV and depth.
 // The blur pass reconstructs sky pixels without a sentinel check first, so the
@@ -35,14 +38,14 @@ public cbuffer _data : register(b0, space0) {
 public float3 ReconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
+    float4 world = mul(_data.invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
     return world.xyz / world.w;
 }
 
 // Depth along the camera forward axis (positive in front of the camera).
 public float ViewDepth(float3 worldPosition)
 {
-    return dot(worldPosition - cameraPosition.xyz, cameraForward.xyz);
+    return dot(worldPosition - _data.cameraPosition.xyz, _data.cameraForward.xyz);
 }
 
 // Interleaved gradient noise: stable per-pixel pseudo-random value, 0 (inclusive)

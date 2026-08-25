@@ -1,8 +1,9 @@
 // file "shader.slang" - module "sandbox7_shader"
 //
 // Slang module converted from Shader.hlsl (Phase 4 migration): the low-level
-// sandbox compiles it through the native slang module API. The SLOT/readonly
-// macros became explicit decorations (read-only-ness is the cbuffer's own).
+// sandbox compiles it through the native slang module API. Resources are
+// grouped as ParameterBlocks — the compiler assigns each block its own
+// descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module sandbox7_shader;
@@ -24,27 +25,35 @@ struct Constants{
     float4x4 model;
 };
 
-cbuffer ViewProjection : register(b0, space0) {
-    float4x4 viewProjection;
-};
-
-cbuffer _material : register(b0, space1)
+public struct ViewProjectionParams
 {
-    Texture2D image;
-    SamplerState imageSampler;
+    public float4x4 viewProjection;
 };
 
-cbuffer PositionsBuffer : register(b0, space2) {
-    float4 Positions[MAX_INSTANCE_COUNT];
-}
+public ParameterBlock<ViewProjectionParams> _viewProjection;
+
+public struct MaterialParams
+{
+    public Texture2D image;
+    public SamplerState imageSampler;
+};
+
+public ParameterBlock<MaterialParams> _material;
+
+public struct PositionsParams
+{
+    public float4 Positions[MAX_INSTANCE_COUNT];
+};
+
+public ParameterBlock<PositionsParams> _positionsBuffer;
 
 [[vk::push_constant]] Constants constants;
 
 [shader("vertex")]
 V2F MainVS(Vertex2D input) {
-    float4 position = float4(input.position+Positions[input.instanceID].xy, 0.0f, 1.0f);
+    float4 position = float4(input.position+_positionsBuffer.Positions[input.instanceID].xy, 0.0f, 1.0f);
     position = mul(constants.model, position);
-    position = mul(viewProjection, position);
+    position = mul(_viewProjection.viewProjection, position);
 
     V2F output = (V2F)0;
     output.position = position;
@@ -54,5 +63,5 @@ V2F MainVS(Vertex2D input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-    return image.Sample(imageSampler, input.uv);
+    return _material.image.Sample(_material.imageSampler, input.uv);
 }

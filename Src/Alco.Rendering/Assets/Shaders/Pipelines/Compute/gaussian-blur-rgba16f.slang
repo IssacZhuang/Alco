@@ -1,8 +1,8 @@
 // file "gaussian-blur-rgba16f.slang" - module "gaussian_blur_r_g_b_a16_f"
 //
 // Slang module converted from Shaders/Pipelines/Compute/GaussianBlurRGBA16F.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module gaussian_blur_rgba16f;
@@ -17,21 +17,27 @@ struct Constants {
 };
 
 // Input and output textures (using rgba16f format)
-cbuffer _input : register(b0, space0)
+public struct InputParams
 {
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _input;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _input;
 };
 
-cbuffer _output : register(b0, space1)
+public ParameterBlock<InputParams> _input;
+
+public struct OutputParams
 {
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
 };
+
+public ParameterBlock<OutputParams> _output;
 
 // Gaussian kernel buffer (precomputed on CPU)
-cbuffer _gaussianKernel : register(b0, space2)
+public struct GaussianKernelParams
 {
-    RWStructuredBuffer<float> _gaussianKernel;
+    public RWStructuredBuffer<float> _gaussianKernel;
 };
+
+public ParameterBlock<GaussianKernelParams> _gaussianKernel;
 
 [[vk::push_constant]] Constants constants;
 
@@ -40,13 +46,13 @@ cbuffer _gaussianKernel : register(b0, space2)
 void MainCS(uint3 id: SV_DispatchThreadID) {
     // Apply Gaussian blur and write the result to output texture
     float4 blurredColor = GaussianBlur(
-        _input,
-        _gaussianKernel, 
+        _input._input,
+        _gaussianKernel._gaussianKernel, 
         constants.kernelSize, 
         constants.kernelSum, 
         id.xy, 
         constants.texSize
     );
     
-    _output[id.xy] = blurredColor;
+    _output._output[id.xy] = blurredColor;
 } 

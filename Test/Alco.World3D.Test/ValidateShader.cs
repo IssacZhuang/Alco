@@ -104,14 +104,16 @@ public class ValidateShader
             Assert.That(vertices.Elements.Select(element => element.Offset),
                 Is.EqualTo(new uint[] { 0, 12, 24, 32 }));
 
-            // hbao-common owns set 0 (_data); the pass block on set 1 packs the
-            // depth (member 0), normal (member 1) and AO output (member 2).
-            AssertResource(hbao, "_gbufferDepth", 1, 0, BindingType.Texture);
+            // The hbao pass block is the root module's own ParameterBlock and so
+            // takes set 0 (root-module blocks precede imported ones); it packs the
+            // depth (member 0), normal (member 1) and AO output (member 2), while
+            // the imported hbao-common _data block follows on set 1.
+            AssertResource(hbao, "_gbufferDepth", 0, 0, BindingType.Texture);
             ShaderResourceLocation depth = GetResource(hbao, "_gbufferDepth");
             Assert.That(hbao.BindGroups[depth.GroupIndex].Bindings[depth.EntryIndex]
                 .Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
 
-            AssertResource(hbao, "_aoOutput", 1, 2, BindingType.StorageTexture);
+            AssertResource(hbao, "_aoOutput", 0, 2, BindingType.StorageTexture);
             ShaderResourceLocation output = GetResource(hbao, "_aoOutput");
             Assert.That(hbao.BindGroups[output.GroupIndex].Bindings[output.EntryIndex]
                 .Entry.StorageTextureInfo.Format, Is.EqualTo(PixelFormat.RGBA16Float));

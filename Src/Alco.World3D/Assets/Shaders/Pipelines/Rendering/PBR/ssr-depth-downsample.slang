@@ -1,8 +1,8 @@
 // file "ssr-depth-downsample.slang" - module "ssr_depth_downsample"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/SsrDepthDownsample.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -10,16 +10,6 @@ module ssr_depth_downsample;
 
 import alco_rendering_core;
 import alco_world3d_voxel_common;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Hi-Z depth pyramid construction for SSR hierarchical raymarching.
 //
@@ -36,13 +26,17 @@ struct SsrDepthConstants
     float4 params; // x = srcMipLevel, y = isFirst(1.0|0.0), zw = unused
 };
 
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it in
+// declaration order.
+public struct PassParams
 {
-    DepthTexture2D _gbufferDepth;
-    Texture2D _depthSrc;
-    [[vk::image_format("rgba16f")]] RWTexture2D<float4> _depthOut;
+    public DepthTexture2D _gbufferDepth;
+    public Texture2D _depthSrc;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _depthOut;
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [[vk::push_constant]] SsrDepthConstants constants;
 
@@ -50,8 +44,8 @@ cbuffer _pass : register(b0, space1)
 [numthreads(8, 8, 1)]
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
-    int gbufferW = (int)giParams2.y;
-    int gbufferH = (int)giParams2.z;
+    int gbufferW = (int)_data.giParams2.y;
+    int gbufferH = (int)_data.giParams2.z;
     uint srcMip = (uint)constants.params.x;
     bool isFirst = constants.params.y > 0.5;
 
@@ -77,8 +71,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     if (isFirst)
     {
         // Copy depth from the G-buffer depth attachment into mip 0.
-        float depth = GetPixelDepth2D(_gbufferDepth, pixel);
-        _depthOut[pixel] = float4(depth, 0.0, 0.0, 0.0);
+        float depth = GetPixelDepth2D(_pass._gbufferDepth, pixel);
+        _pass._depthOut[pixel] = float4(depth, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -94,10 +88,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     p10 = clamp(p10, int2(0, 0), srcMax);
     p01 = clamp(p01, int2(0, 0), srcMax);
     p11 = clamp(p11, int2(0, 0), srcMax);
-    float d00 = _depthSrc.Load(int3(p00.x, p00.y, 0)).x;
-    float d10 = _depthSrc.Load(int3(p10.x, p10.y, 0)).x;
-    float d01 = _depthSrc.Load(int3(p01.x, p01.y, 0)).x;
-    float d11 = _depthSrc.Load(int3(p11.x, p11.y, 0)).x;
+    float d00 = _pass._depthSrc.Load(int3(p00.x, p00.y, 0)).x;
+    float d10 = _pass._depthSrc.Load(int3(p10.x, p10.y, 0)).x;
+    float d01 = _pass._depthSrc.Load(int3(p01.x, p01.y, 0)).x;
+    float d11 = _pass._depthSrc.Load(int3(p11.x, p11.y, 0)).x;
 
-    _depthOut[pixel] = float4(min(min(d00, d10), min(d01, d11)), 0.0, 0.0, 0.0);
+    _pass._depthOut[pixel] = float4(min(min(d00, d10), min(d01, d11)), 0.0, 0.0, 0.0);
 }

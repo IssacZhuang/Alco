@@ -1,8 +1,8 @@
 // file "volumetric-clouds-composite.slang" - module "volumetric_clouds_composite"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VolumetricCloudsComposite.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -11,16 +11,6 @@ module volumetric_clouds_composite;
 import alco_rendering_core;
 import alco_world3d_reversed_depth;
 import alco_world3d_pbr_common;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Volumetric clouds composite pass: a full-screen overlay on the HDR scene
 // color that reconstructs the half-resolution cloud result (premultiplied
@@ -48,10 +38,10 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-// This pass's resources take one block on its own set 2 (sets 0 and 1 are
-// alco_world3d_pbr_common's): the half-resolution cloud march result and the
-// shared G-buffer depth for the bilateral weights, joined with the same
-// _cloudData cbuffer the march pass binds.
+// This pass's resources form one ParameterBlock after alco_world3d_pbr_common's
+// blocks: the half-resolution cloud march result and the shared G-buffer depth
+// for the bilateral weights, joined with the same _cloudData block the march
+// pass binds.
 
 // Squared gaussian width of the upsample kernel, in half-resolution texels
 // (sigma ~ 0.67 texels): wide enough to average the march jitter grain into
@@ -59,20 +49,24 @@ struct V2F
 static const float CLOUD_UPSAMPLE_SIGMA2 = 0.45;
 
 
-// The same _cloudData cbuffer the march pass binds (RGNode_VolumetricClouds
+// The same _cloudData block the march pass binds (RGNode_VolumetricClouds
 // fills it); only cloudParams2.z (march resolution scale) and cloudDebug are
 // read here.
-cbuffer _cloudData : register(b0, space2) {
-    float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
-    float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
-    float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
-    float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
-    float4 cloudDebug;   // x=opacity debug view (grayscale) yzw=unused
+public struct CloudDataParams
+{
+    public float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
+    public float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
+    public float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
+    public float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
+    public float4 cloudDebug;   // x=opacity debug view (grayscale) yzw=unused
 
-    Texture2D _clouds;
-    SamplerState _cloudsSampler;
-    DepthTexture2D _gbufferDepth;
+    public Texture2D _clouds;
+    public SamplerState _cloudsSampler;
+    public DepthTexture2D _gbufferDepth;
 };
+
+public ParameterBlock<CloudDataParams> _cloudData;
+
 
 
 [shader("vertex")]
@@ -88,21 +82,21 @@ V2F MainVS(Vertex input)
 // finite so the weight differences never turn into inf - inf = NaN).
 float CloudCompositeLinearDepth(float2 uv)
 {
-    float depth = GetPixelDepth2D(_gbufferDepth, int2(uv * viewportSize.xy));
+    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(uv * _data.viewportSize.xy));
     if (IS_SKY_DEPTH(depth))
     {
         return 1e6;
     }
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float invW = dot(invViewProjection[3], float4(ndc, depth, 1.0));
+    float invW = dot(_data.invViewProjection[3], float4(ndc, depth, 1.0));
     return abs(rcp(invW));
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float scale = cloudParams2.z;
-    float2 halfSize = max(viewportSize.xy * scale, 1.0);
+    float scale = _cloudData.cloudParams2.z;
+    float2 halfSize = max(_data.viewportSize.xy * scale, 1.0);
     float2 halfTexel = 1.0 / halfSize;
 
     // Continuous position of this full-resolution pixel in half-resolution
@@ -136,7 +130,7 @@ float4 MainPS(V2F input) : SV_TARGET
             float depthWeight = exp(-abs(tapDepth - centerDepth) / sigma);
 
             float w = spatialWeight * depthWeight + 1e-5;
-            float4 tap = SAMPLE_TEX2D(_clouds, tapUv);
+            float4 tap = _cloudData._clouds.Sample(_cloudData._cloudsSampler, tapUv);
             scattering += tap.rgb * w;
             opacity += tap.a * w;
             weightSum += w;
@@ -146,7 +140,7 @@ float4 MainPS(V2F input) : SV_TARGET
     scattering /= weightSum;
     opacity /= weightSum;
 
-    if (cloudDebug.x > 0.5)
+    if (_cloudData.cloudDebug.x > 0.5)
     {
         // Opacity debug view: replace the scene with the coverage mask.
         return float4(opacity.xxx, 1.0);

@@ -1,40 +1,34 @@
 // file "bloom-upsample.slang" - module "bloom_up_sample"
 //
 // Slang module converted from Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module bloom_upsample;
 
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
 struct Constants {
     float2 invTextureSize;
     float spread;
 };
 
-cbuffer _previous : register(b0, space0)
+public struct PreviousParams
 {
-    Texture2D _previousTexture;
-    SamplerState _previousTextureSampler;
+    public Texture2D _previousTexture;
+    public SamplerState _previousTextureSampler;
 };
 
-cbuffer _current : register(b0, space1)
+public ParameterBlock<PreviousParams> _previous;
+
+public struct CurrentParams
 {
-    Texture2D _currentTexture;
-    SamplerState _currentTextureSampler;
+    public Texture2D _currentTexture;
+    public SamplerState _currentTextureSampler;
 };
+
+public ParameterBlock<CurrentParams> _current;
 
 [[vk::push_constant]] Constants constants;
 
@@ -67,11 +61,11 @@ float4 MainPS(V2F input) : SV_TARGET {
   for (int i = -2; i <= 2; ++i) {
     for (int j = -2; j <= 2; ++j) {
       float weight = weights[i + 2] * weights[j + 2];
-      sum += weight * SAMPLE_TEX2D(_previousTexture, input.uv + float2(i, j) * sampleOffset);
+      sum += weight * _previous._previousTexture.Sample(_previous._previousTextureSampler, input.uv + float2(i, j) * sampleOffset);
     }
   }
 
-  float3 current = SAMPLE_TEX2D(_currentTexture, input.uv).rgb;
+  float3 current = _current._currentTexture.Sample(_current._currentTextureSampler, input.uv).rgb;
 
   // Keep a uniform source below 2x energy across the complete pyramid. Fine
   // levels retain the source-sized core while coarser levels decay at every

@@ -1,8 +1,9 @@
 // file "shader.slang" - module "sandbox5_shader"
 //
 // Slang module converted from Shader.hlsl (Phase 4 migration): the low-level
-// sandbox compiles it through the native slang module API. The SLOT macro
-// became set-scoped cbuffer blocks (bindings are compiler-assigned).
+// sandbox compiles it through the native slang module API. Resources are
+// grouped as ParameterBlocks — the compiler assigns each block its own
+// descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module sandbox5_shader;
@@ -21,19 +22,27 @@ struct Constants{
     float4x4 model;
 };
 
-cbuffer ViewProjection : register(b0, space0) {
-    float4x4 viewProjection;
-};
-
-cbuffer Model : register(b0, space1) {
-    float4x4 model;
-};
-
-cbuffer _material : register(b0, space2)
+public struct ViewProjectionParams
 {
-    Texture2D image;
-    SamplerState imageSampler;
+    public float4x4 viewProjection;
 };
+
+public ParameterBlock<ViewProjectionParams> _viewProjection;
+
+public struct ModelParams
+{
+    public float4x4 model;
+};
+
+public ParameterBlock<ModelParams> _model;
+
+public struct MaterialParams
+{
+    public Texture2D image;
+    public SamplerState imageSampler;
+};
+
+public ParameterBlock<MaterialParams> _material;
 
 //[[vk::push_constant]] Constants constants;
 
@@ -41,8 +50,8 @@ cbuffer _material : register(b0, space2)
 V2F MainVS(Vertex2D input) {
 
     float4 position = float4(input.position, 0.0f, 1.0f);
-    position = mul(model, position);
-    position = mul(viewProjection, position);
+    position = mul(_model.model, position);
+    position = mul(_viewProjection.viewProjection, position);
 
     V2F output = (V2F)0;
     output.position = position;
@@ -52,5 +61,5 @@ V2F MainVS(Vertex2D input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-    return image.Sample(imageSampler, input.uv);
+    return _material.image.Sample(_material.imageSampler, input.uv);
 }

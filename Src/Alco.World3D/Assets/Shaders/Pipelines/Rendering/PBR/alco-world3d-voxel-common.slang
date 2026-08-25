@@ -9,9 +9,10 @@
 module alco_world3d_voxel_common;
 
 // Shared data and helpers for the voxel global illumination passes
-// (VoxelClear.hlsl, Voxelize.hlsl, VoxelInject.hlsl, VoxelMip.hlsl,
-// VoxelTrace.hlsl). Include after Shaders/Libs/Core.hlsli. The cbuffer
+// (voxel-clear, voxelize, voxel-inject, voxel-mip, voxel-trace). The cbuffer
 // layout must match VoxelGiRenderer.VoxelGiData on the C# side exactly.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set; members resolve by bare field name.
 // The scene is stored in a clipmap of up to 4 voxel levels, each a cube of
 // resolution^3 voxels at twice the voxel size of the previous level, centered
 // on the camera. Attribute voxels are packed into uint4 in storage buffers as
@@ -31,7 +32,8 @@ module alco_world3d_voxel_common;
 
 #define VOXEL_MAX_LEVELS 4
 
-public cbuffer _data : register(b0, space0) {
+public struct VoxelData
+{
     public float4x4 invViewProjection;
     public float4x4 viewProjectionPrev; // previous frame's view-projection (for temporal reprojection)
     public float4x4 viewProjection;
@@ -53,6 +55,8 @@ public cbuffer _data : register(b0, space0) {
     public float4 rsmParams;              // x=intensity(0=off) y=maxDistance z=cascade depth range (world->NDC-z scale) w=minAlbedo
     public float4 rsmParams2;             // xy=rsm resolution z=rsm texel world size
 };
+
+public ParameterBlock<VoxelData> _data;
 
 
 // ---------------------------------------------------------------- packing ---
@@ -102,7 +106,7 @@ public void UnpackVoxelAttr(uint4 attr, out float3 albedo, out float3 normal, ou
 
 public uint VoxelResolution()
 {
-    return (uint)clipmapParams.x;
+    return (uint)_data.clipmapParams.x;
 }
 
 public static const uint VOXEL_BRICK_SIZE = 8u;
@@ -116,7 +120,7 @@ public static const float VOXEL_BRICK_ALIGNED_MAX_MIP = 3.0;
 public uint VoxelPageTableSlot(uint3 coord, uint resolution, int level)
 {
     uint bricksPerAxis = resolution / VOXEL_BRICK_SIZE;
-    uint3 ringBrickOffset = (uint3)levelRingOffsets[level].xyz / VOXEL_BRICK_SIZE;
+    uint3 ringBrickOffset = (uint3)_data.levelRingOffsets[level].xyz / VOXEL_BRICK_SIZE;
     uint3 physicalBrick = (coord / VOXEL_BRICK_SIZE + ringBrickOffset) % bricksPerAxis;
     return physicalBrick.x
         + physicalBrick.y * bricksPerAxis
@@ -144,10 +148,10 @@ public uint VoxelAttributeIndex(uint pageEntry, uint3 coord)
 public float3 VoxelWorldToUVW(float3 position, int level, float mip)
 {
     uint resolution = VoxelResolution();
-    float4 originAndSize = levelOrigins[level];
+    float4 originAndSize = _data.levelOrigins[level];
 
     // Position normalized to the level cube (mip independent).
-    float extent = originAndSize.w * clipmapParams.x;
+    float extent = originAndSize.w * _data.clipmapParams.x;
     float3 p = (position - originAndSize.xyz) / extent;
 
     uint sizeMip = max(resolution >> (uint)ceil(mip), 1u);
@@ -161,16 +165,16 @@ public float3 VoxelWorldToUVW(float3 position, int level, float mip)
 // Whether a world position is inside the region covered by the given level.
 public bool VoxelLevelContains(float3 position, int level)
 {
-    float4 originAndSize = levelOrigins[level];
+    float4 originAndSize = _data.levelOrigins[level];
     float3 relative = position - originAndSize.xyz;
-    float extent = originAndSize.w * clipmapParams.x;
+    float extent = originAndSize.w * _data.clipmapParams.x;
     return all(relative >= 0.0) && all(relative < extent);
 }
 
 // The finest (smallest voxel) level covering the position; -1 when outside all.
 public int VoxelFindLevel(float3 position)
 {
-    int levelCount = (int)clipmapParams.y;
+    int levelCount = (int)_data.clipmapParams.y;
     for (int i = 0; i < levelCount; i++)
     {
         if (VoxelLevelContains(position, i))
@@ -186,8 +190,8 @@ public int VoxelFindLevel(float3 position)
 // weight keeps both sampled data and ray-march scale continuous at boundaries.
 public float VoxelLevelTransitionWeight(float3 position, int level)
 {
-    float4 originAndSize = levelOrigins[level];
-    float extent = originAndSize.w * clipmapParams.x;
+    float4 originAndSize = _data.levelOrigins[level];
+    float extent = originAndSize.w * _data.clipmapParams.x;
     float3 relative = (position - originAndSize.xyz) / extent;
     float3 distanceFromCenter = abs(relative - 0.5);
     float maximumDistance = max(distanceFromCenter.x, max(distanceFromCenter.y, distanceFromCenter.z));
@@ -197,13 +201,13 @@ public float VoxelLevelTransitionWeight(float3 position, int level)
 
 public float VoxelEffectiveVoxelSize(float3 position, int level)
 {
-    int levelCount = (int)clipmapParams.y;
-    float voxelSize = levelOrigins[level].w;
+    int levelCount = (int)_data.clipmapParams.y;
+    float voxelSize = _data.levelOrigins[level].w;
     if (level + 1 >= levelCount)
     {
         return voxelSize;
     }
-    return lerp(voxelSize, levelOrigins[level + 1].w, VoxelLevelTransitionWeight(position, level));
+    return lerp(voxelSize, _data.levelOrigins[level + 1].w, VoxelLevelTransitionWeight(position, level));
 }
 
 // The physical atmosphere contains more angular detail than six voxel cones
@@ -213,5 +217,5 @@ public float VoxelEffectiveVoxelSize(float3 position, int level)
 public float3 VoxelSkyColor(float3 direction)
 {
     float zenithWeight = pow(saturate(direction.z), 0.6);
-    return lerp(skyHorizonColor.rgb, skyZenithColor.rgb, zenithWeight) * giParams2.w;
+    return lerp(_data.skyHorizonColor.rgb, _data.skyZenithColor.rgb, zenithWeight) * _data.giParams2.w;
 }

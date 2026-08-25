@@ -1,8 +1,8 @@
 // file "voxel-mip-chain.slang" - module "voxel_mip_chain"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelMipChain.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -10,16 +10,6 @@ module voxel_mip_chain;
 
 import alco_rendering_core;
 import alco_world3d_voxel_common;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 // Cascades three mip transitions (srcMip → srcMip+1 → srcMip+2 → srcMip+3) in
 // a single dispatch per texture (radiance or opacity), eliminating the dispatch
@@ -38,14 +28,18 @@ struct VoxelMipChainConstants
     float4 params; // x=srcMip, y=mode(0=radiance,1=opacity), zw=unused
 };
 
-// alco_world3d_voxel_common owns set 0 (_data); this pass's resources take set 1.
-cbuffer _pass : register(b0, space1)
+// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it in
+// declaration order.
+public struct PassParams
 {
-    Texture3D _srcTex;
-    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex1; // mip srcMip+1
-    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex2; // mip srcMip+2
-    [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex3; // mip srcMip+3
+    public Texture3D _srcTex;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex1; // mip srcMip+1
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex2; // mip srcMip+2
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex3; // mip srcMip+3
 };
+
+public ParameterBlock<PassParams> _pass;
+
 
 [[vk::push_constant]] VoxelMipChainConstants constants;
 
@@ -137,7 +131,7 @@ void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
             {
                 uint3 cc = min(baseChild + uint3(dx, dy, dz), srcRes - 1u);
                 uint3 loadCoord = uint3(cc.x, cc.y, level * srcRes + cc.z);
-                children[dx + dy * 2u + dz * 4u] = LOAD_TEX3D(_srcTex, loadCoord, 0);
+                children[dx + dy * 2u + dz * 4u] = _pass._srcTex.Load(int4(loadCoord, 0));
             }
         }
     }
@@ -145,7 +139,7 @@ void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
     float4 m1 = Reduce(children);
     gsMip1[tid] = m1;
     uint3 s1 = uint3(gt.x, gt.y, level * dstRes1 + gt.z);
-    _outTex1[s1] = m1;
+    _pass._outTex1[s1] = m1;
 
     GroupMemoryBarrierWithGroupSync();
 
@@ -173,7 +167,7 @@ void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
         uint m2Idx = (gt.x / 2u) + (gt.y / 2u) * 2u + (gt.z / 2u) * 4u;
         gsMip2[m2Idx] = m2;
         uint3 s2 = uint3(gt.x / 2u, gt.y / 2u, level * dstRes2 + gt.z / 2u);
-        _outTex2[s2] = m2;
+        _pass._outTex2[s2] = m2;
     }
 
     GroupMemoryBarrierWithGroupSync();
@@ -199,6 +193,6 @@ void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
 
         float4 m3 = Reduce(children);
         uint3 s3 = uint3(0u, 0u, level * dstRes3);
-        _outTex3[s3] = m3;
+        _pass._outTex3[s3] = m3;
     }
 }

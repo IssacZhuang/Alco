@@ -8,17 +8,22 @@
 #language slang 2025
 module sandbox8_compute_position;
 
-cbuffer positions : register(b0, space0)
+public struct PositionsParams
 {
-    RWStructuredBuffer<float4> positions;
+    public RWStructuredBuffer<float4> positions;
 };
 
-cbuffer Time : register(b0, space1) {
-    float time;
+public ParameterBlock<PositionsParams> _positions;
+
+public struct TimeParams
+{
+    public float time;
 };
+
+public ParameterBlock<TimeParams> _time;
 
 [shader("compute")]
 [numthreads(8, 1, 1)]
 void MainCS(uint3 id: SV_DispatchThreadID) {
-    positions[id.x] = float4(id.x, cos(time + float(id.x)*0.1)*5, 0.0f, 1.0f);
+    _positions.positions[id.x] = float4(id.x, cos(_time.time + float(id.x)*0.1)*5, 0.0f, 1.0f);
 }

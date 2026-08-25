@@ -1,24 +1,14 @@
 // file "tile-instanced.slang" - module "tile_instanced"
 //
 // Slang module converted from Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module tile_instanced;
 
 import alco_rendering_core;
 import alco_rendering_texture_bombing;
-
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
 
 struct Constants
 {
@@ -31,7 +21,7 @@ struct Constants
     float tiling;
 };
 
-struct TileData
+public struct TileData
 {
     float2 position;
 };
@@ -51,26 +41,35 @@ struct V2F
     float2 worldPos : TEXCOORD1;
 };
 
-cbuffer _camera : register(b0, space0) {
-    float4x4 viewProjection;
-};
-
-
-cbuffer _material : register(b0, space1)
+public struct CameraParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public float4x4 viewProjection;
 };
 
-cbuffer _instances : register(b0, space2)
+public ParameterBlock<CameraParams> _camera;
+
+
+public struct MaterialParamsData
 {
-    RWStructuredBuffer<TileData> _instances;
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
 };
 
-cbuffer _tileMap : register(b0, space3)
+public ParameterBlock<MaterialParamsData> _material;
+
+public struct InstancesParams
 {
-    RWStructuredBuffer<int> _tileMap;
+    public RWStructuredBuffer<TileData> _instances;
 };
+
+public ParameterBlock<InstancesParams> _instances;
+
+public struct TileMapParams
+{
+    public RWStructuredBuffer<int> _tileMap;
+};
+
+public ParameterBlock<TileMapParams> _tileMap;
 
 [[vk::push_constant]] Constants constants;
 
@@ -81,7 +80,7 @@ int GetTileId(int2 tilePos, int defaultValue)
         return defaultValue;
     }
 
-    return _tileMap[tilePos.y * constants.size.x + tilePos.x];
+    return _tileMap._tileMap[tilePos.y * constants.size.x + tilePos.x];
 }
 
 // The facade/bombing axes are generic value specializations (plan D3): the
@@ -94,7 +93,7 @@ V2F VertexMain<let IsFacade : bool>(Vertex input)
 {
     V2F output;
 
-    TileData tileData = _instances[input.instanceID];
+    TileData tileData = _instances._instances[input.instanceID];
 
     float3 pos = input.position;
     float2 tilePos = tileData.position;
@@ -141,7 +140,7 @@ V2F VertexMain<let IsFacade : bool>(Vertex input)
     float3 worldPosition = pos + float3(tilePos, 0.0);
 
     float4 position = mul(constants.model, float4(worldPosition, 1.0));
-    position = mul(viewProjection, position);
+    position = mul(_camera.viewProjection, position);
 
     output.position = position;
     output.uv = uv;
@@ -158,12 +157,12 @@ float4 PixelMain<let Bombing : bool>(V2F input)
     float4 color;
     if (Bombing)
     {
-        color = TextureBombing(_texture, _textureSampler, input.worldPos, constants.tiling);
+        color = TextureBombing(_material._texture, _material._textureSampler, input.worldPos, constants.tiling);
     }
     else
     {
         float2 uvFrac = frac(uv * constants.tiling);
-        color = SAMPLE_TEX2D(_texture, uvFrac);
+        color = _material._texture.Sample(_material._textureSampler, uvFrac);
     }
 
     float blendFactor = constants.blendFactor;

@@ -1,36 +1,31 @@
 // file "fxaa.slang" - module "f_x_a_a"
 //
 // Slang module converted from Shaders/Pipelines/PostProcess/FXAA.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module fxaa;
 
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
-cbuffer _pass : register(b0, space0)
+public struct PassParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
 };
+
+public ParameterBlock<PassParams> _pass;
 
 // FXAA configuration constants
-cbuffer _fxaaData : register(b0, space1) {
-  float2 InvFrameSize; // 1.0 / FrameSize
-  float Threshold;     // Edge detection threshold (0.063-0.333)
-  float _padding;      // Padding for alignment
+public struct FxaaData
+{
+    public float2 InvFrameSize; // 1.0 / FrameSize
+    public float Threshold;     // Edge detection threshold (0.063-0.333)
+    public float _padding;      // Padding for alignment
 };
+
+public ParameterBlock<FxaaData> _fxaaData;
 
 
 struct Vertex {
@@ -159,7 +154,7 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
 ) {
   // FXAA algorithm parameters
   float fxaaQualitySubpix = 0.75; // Subpixel aliasing removal amount (standard value)
-  float fxaaQualityEdgeThreshold = Threshold; // Edge detection threshold
+  float fxaaQualityEdgeThreshold = _fxaaData.Threshold; // Edge detection threshold
   float fxaaQualityEdgeThresholdMin = 0.0625; // Minimum threshold
 
   /*--------------------------------------------------------------------------*/
@@ -167,11 +162,11 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   /*--------------------------------------------------------------------------*/
 
   // Sample center and surrounding pixels
-  float3 rgbN = SAMPLE_TEX2D(_texture, pos + float2(0.0, -1.0) * rcpFrame).rgb;
-  float3 rgbW = SAMPLE_TEX2D(_texture, pos + float2(-1.0, 0.0) * rcpFrame).rgb;
-  float3 rgbM = SAMPLE_TEX2D(_texture, pos).rgb;
-  float3 rgbE = SAMPLE_TEX2D(_texture, pos + float2(1.0, 0.0) * rcpFrame).rgb;
-  float3 rgbS = SAMPLE_TEX2D(_texture, pos + float2(0.0, 1.0) * rcpFrame).rgb;
+  float3 rgbN = _pass._texture.Sample(_pass._textureSampler, pos + float2(0.0, -1.0) * rcpFrame).rgb;
+  float3 rgbW = _pass._texture.Sample(_pass._textureSampler, pos + float2(-1.0, 0.0) * rcpFrame).rgb;
+  float3 rgbM = _pass._texture.Sample(_pass._textureSampler, pos).rgb;
+  float3 rgbE = _pass._texture.Sample(_pass._textureSampler, pos + float2(1.0, 0.0) * rcpFrame).rgb;
+  float3 rgbS = _pass._texture.Sample(_pass._textureSampler, pos + float2(0.0, 1.0) * rcpFrame).rgb;
 
   // Convert to luma
   float lumaN = FxaaLuma(rgbN);
@@ -199,10 +194,10 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   float3 rgbL = rgbN + rgbW + rgbM + rgbE + rgbS;
 
   float3 rgbNW =
-      SAMPLE_TEX2D(_texture, pos + float2(-1.0, -1.0) * rcpFrame).rgb;
-  float3 rgbNE = SAMPLE_TEX2D(_texture, pos + float2(1.0, -1.0) * rcpFrame).rgb;
-  float3 rgbSW = SAMPLE_TEX2D(_texture, pos + float2(-1.0, 1.0) * rcpFrame).rgb;
-  float3 rgbSE = SAMPLE_TEX2D(_texture, pos + float2(1.0, 1.0) * rcpFrame).rgb;
+      _pass._texture.Sample(_pass._textureSampler, pos + float2(-1.0, -1.0) * rcpFrame).rgb;
+  float3 rgbNE = _pass._texture.Sample(_pass._textureSampler, pos + float2(1.0, -1.0) * rcpFrame).rgb;
+  float3 rgbSW = _pass._texture.Sample(_pass._textureSampler, pos + float2(-1.0, 1.0) * rcpFrame).rgb;
+  float3 rgbSE = _pass._texture.Sample(_pass._textureSampler, pos + float2(1.0, 1.0) * rcpFrame).rgb;
 
   rgbL += (rgbNW + rgbNE + rgbSW + rgbSE);
   rgbL *= (1.0 / 9.0);
@@ -281,13 +276,13 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   for (int i = 0; i < FxaaNumSamples<Quality>(); i++) {
     if (!doneN) {
       posN -= offNP * FxaaSampleDistance<Quality>(i);
-      lumaEndN = FxaaLuma(SAMPLE_TEX2D(_texture, posN).rgb);
+      lumaEndN = FxaaLuma(_pass._texture.Sample(_pass._textureSampler, posN).rgb);
       doneN = abs(lumaEndN - lumaN) >= gradientN;
     }
 
     if (!doneP) {
       posP += offNP * FxaaSampleDistance<Quality>(i);
-      lumaEndP = FxaaLuma(SAMPLE_TEX2D(_texture, posP).rgb);
+      lumaEndP = FxaaLuma(_pass._texture.Sample(_pass._textureSampler, posP).rgb);
       doneP = abs(lumaEndP - lumaN) >= gradientN;
     }
     
@@ -321,7 +316,7 @@ float subPixelOffset = (0.5 + (dstN * (-1.0 / spanLength))) * lengthSign;
 
 // Apply subpixel shift
 float3 rgbF =
-    SAMPLE_TEX2D(_texture, float2(pos.x + (horzSpan ? 0.0 : subPixelOffset),
+    _pass._texture.Sample(_pass._textureSampler, float2(pos.x + (horzSpan ? 0.0 : subPixelOffset),
                                   pos.y + (horzSpan ? subPixelOffset : 0.0)))
         .rgb;
 
@@ -330,5 +325,5 @@ return float4(lerp(rgbF, rgbL, blendL), 1.0);
 }
 
 [shader("fragment")] float4 MainPS<let Quality : int>(V2F input) : SV_TARGET {
-  return FxaaPixelShader<Quality>(input.uv, InvFrameSize);
+  return FxaaPixelShader<Quality>(input.uv, _fxaaData.InvFrameSize);
 }

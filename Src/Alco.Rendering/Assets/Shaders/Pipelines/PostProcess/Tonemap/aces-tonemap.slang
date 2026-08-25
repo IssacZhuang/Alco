@@ -1,45 +1,40 @@
 // file "aces-tonemap.slang" - module "a_c_e_s_tonemap"
 //
 // Slang module converted from Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module aces_tonemap;
 
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
-cbuffer _pass : register(b0, space0)
+public struct PassParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
 };
-cbuffer _data : register(b0, space1) {
-    float A; // 2.51 (default)
-    float B; // 0.03
-    float C; // 2.43
-    float D; // 0.59
-    float E; // 0.14
-    float Exposure;
-    float Gamma;
+
+public ParameterBlock<PassParams> _pass;
+public struct DataParams
+{
+    public float A; // 2.51 (default)
+    public float B; // 0.03
+    public float C; // 2.43
+    public float D; // 0.59
+    public float E; // 0.14
+    public float Exposure;
+    public float Gamma;
 };
+
+public ParameterBlock<DataParams> _data;
 
 
 struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
 struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
 
 float3 ACES(float3 x) {
-  return clamp((x * (A * x + B)) / (x * (C * x + D) + E), 0.0, 1.0);
+  return clamp((x * (_data.A * x + _data.B)) / (x * (_data.C * x + _data.D) + _data.E), 0.0, 1.0);
 }
 
 [shader("vertex")]
@@ -48,9 +43,9 @@ V2F MainVS(Vertex input){ V2F o=(V2F)0; o.position=float4(input.position,1); o.u
 [shader("fragment")]
 float4 MainPS(V2F input): SV_TARGET
 {
-    float3 v = SAMPLE_TEX2D(_texture, input.uv).rgb * Exposure;
+    float3 v = _pass._texture.Sample(_pass._textureSampler, input.uv).rgb * _data.Exposure;
     float3 ldr = ACES(v);
-    ldr = pow(ldr, 1.0 / Gamma);
+    ldr = pow(ldr, 1.0 / _data.Gamma);
     ldr += OutputDither8Bit(input.position.xy);
     return float4(ldr, 1.0);
 }

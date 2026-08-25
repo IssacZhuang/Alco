@@ -1,55 +1,50 @@
 // file "color-grading.slang" - module "color_grading"
 //
 // Slang module converted from Shaders/Pipelines/PostProcess/ColorGrading.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module color_grading;
 
 import alco_rendering_core;
 
-// Transitional sampling shorthands: the preprocessor does not cross module
-// boundaries, so the old Core.hlsli macros live here until Phase 3 deletes the
-// name##Sampler convention outright.
-#define SAMPLE_TEX2D(textureName, uv) textureName.Sample(textureName##Sampler, uv)
-#define SAMPLE_TEX2D_LEVEL(textureName, uv, mip) textureName.SampleLevel(textureName##Sampler, uv, mip)
-#define SAMPLE_TEX3D_LEVEL(textureName, uvw, mip) textureName.SampleLevel(textureName##Sampler, uvw, mip)
-#define GET_PIXEL_TEX2D(textureName, position) textureName.Load(int3(position, 0))
-#define LOAD_TEX3D(textureName, coord, mip) textureName.Load(int4(coord, mip))
-#define SAMPLE_TEX2D_DEPTH_CMP(textureName, uv, compareDepth) textureName.SampleCmpLevelZero(textureName##Sampler, uv, compareDepth)
-
-cbuffer _pass : register(b0, space0)
+public struct PassParams
 {
-    Texture2D _texture;
-    SamplerState _textureSampler;
+    public Texture2D _texture;
+    public SamplerState _textureSampler;
 };
-cbuffer _data : register(b0, space1) {
-    float Brightness;
-    float Contrast;
-    float Saturation;
-    float HueShift;
-    float Temperature;
-    float Tint;
-    float LiftR;
-    float LiftG;
-    float LiftB;
-    float GammaR;
-    float GammaG;
-    float GammaB;
-    float GainR;
-    float GainG;
-    float GainB;
-    float ShadowR;
-    float ShadowG;
-    float ShadowB;
-    float ShadowStart;
-    float HighlightR;
-    float HighlightG;
-    float HighlightB;
-    float HighlightStart;
-    float SplitBlend;
+
+public ParameterBlock<PassParams> _pass;
+public struct DataParams
+{
+    public float Brightness;
+    public float Contrast;
+    public float Saturation;
+    public float HueShift;
+    public float Temperature;
+    public float Tint;
+    public float LiftR;
+    public float LiftG;
+    public float LiftB;
+    public float GammaR;
+    public float GammaG;
+    public float GammaB;
+    public float GainR;
+    public float GainG;
+    public float GainB;
+    public float ShadowR;
+    public float ShadowG;
+    public float ShadowB;
+    public float ShadowStart;
+    public float HighlightR;
+    public float HighlightG;
+    public float HighlightB;
+    public float HighlightStart;
+    public float SplitBlend;
 };
+
+public ParameterBlock<DataParams> _data;
 
 
 struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
@@ -92,66 +87,66 @@ V2F MainVS(Vertex input)
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float3 color = SAMPLE_TEX2D(_texture, input.uv).rgb;
+    float3 color = _pass._texture.Sample(_pass._textureSampler, input.uv).rgb;
 
     // 1. Color wheels: Lift / Gamma / Gain
     // Lift: additive offset (shadows)
-    color += float3(LiftR, LiftG, LiftB);
+    color += float3(_data.LiftR, _data.LiftG, _data.LiftB);
     // Gamma: power curve (midtones), applied as exp2 offset
     color *= float3(
-        exp2(GammaR),
-        exp2(GammaG),
-        exp2(GammaB)
+        exp2(_data.GammaR),
+        exp2(_data.GammaG),
+        exp2(_data.GammaB)
     );
     // Gain: multiplicative (highlights)
-    color *= float3(1.0 + GainR, 1.0 + GainG, 1.0 + GainB);
+    color *= float3(1.0 + _data.GainR, 1.0 + _data.GainG, 1.0 + _data.GainB);
 
     // 2. Brightness (additive)
-    color += Brightness;
+    color += _data.Brightness;
 
     // 3. Contrast (pivot around 0.5)
-    color = (color - 0.5) * (1.0 + Contrast) + 0.5;
+    color = (color - 0.5) * (1.0 + _data.Contrast) + 0.5;
 
     // 4. Saturation
     float lum = Luminance(color);
-    color = lerp(float3(lum, lum, lum), color, 1.0 + Saturation);
+    color = lerp(float3(lum, lum, lum), color, 1.0 + _data.Saturation);
 
     // 5. Hue shift (in HSV space)
-    if (HueShift != 0.0)
+    if (_data.HueShift != 0.0)
     {
         float3 hsv = RGBtoHSV(color);
-        hsv.x = frac(hsv.x + HueShift / 360.0);
+        hsv.x = frac(hsv.x + _data.HueShift / 360.0);
         color = HSVtoRGB(hsv);
     }
 
     // 6. Temperature / Tint (warm-cool shift)
-    if (Temperature != 0.0)
+    if (_data.Temperature != 0.0)
     {
         // Warm: boost R, reduce B. Cool: boost B, reduce R.
-        color.r += Temperature * 0.1;
-        color.b -= Temperature * 0.1;
+        color.r += _data.Temperature * 0.1;
+        color.b -= _data.Temperature * 0.1;
     }
-    if (Tint != 0.0)
+    if (_data.Tint != 0.0)
     {
         // Tint: magenta-green axis
-        color.g += Tint * 0.1;
-        color.r -= Tint * 0.05;
-        color.b -= Tint * 0.05;
+        color.g += _data.Tint * 0.1;
+        color.r -= _data.Tint * 0.05;
+        color.b -= _data.Tint * 0.05;
     }
 
     // 7. Split toning
-    if (SplitBlend > 0.0)
+    if (_data.SplitBlend > 0.0)
     {
         float lum2 = Luminance(color);
-        float3 shadowTint = float3(ShadowR, ShadowG, ShadowB);
-        float3 highlightTint = float3(HighlightR, HighlightG, HighlightB);
+        float3 shadowTint = float3(_data.ShadowR, _data.ShadowG, _data.ShadowB);
+        float3 highlightTint = float3(_data.HighlightR, _data.HighlightG, _data.HighlightB);
 
         // Smooth blend based on luminance
-        float shadowWeight = 1.0 - smoothstep(ShadowStart - 0.2, ShadowStart + 0.2, lum2);
-        float highlightWeight = smoothstep(HighlightStart - 0.2, HighlightStart + 0.2, lum2);
+        float shadowWeight = 1.0 - smoothstep(_data.ShadowStart - 0.2, _data.ShadowStart + 0.2, lum2);
+        float highlightWeight = smoothstep(_data.HighlightStart - 0.2, _data.HighlightStart + 0.2, lum2);
 
-        color += shadowTint * shadowWeight * SplitBlend;
-        color += highlightTint * highlightWeight * SplitBlend;
+        color += shadowTint * shadowWeight * _data.SplitBlend;
+        color += highlightTint * highlightWeight * _data.SplitBlend;
     }
 
     return float4(color, 1.0);

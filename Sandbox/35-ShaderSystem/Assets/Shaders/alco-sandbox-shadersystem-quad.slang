@@ -10,18 +10,23 @@ module alco_sandbox_shadersystem_quad;
 
 import alco_rendering_core;
 
-cbuffer _frame : register(b0, space0)
-    float4x4 viewProjection;
-    float4 tintColor;
+public struct FrameParams
+{
+    public float4x4 viewProjection;
+    public float4 tintColor;
 };
+
+public ParameterBlock<FrameParams> _frame;
 
 // Engine convention: one binding index per resource within a set (WebGPU
 // layouts reject a texture and sampler sharing an index).
-cbuffer _material : register(b0, space1)
+public struct MaterialParams
 {
-    Texture2D _albedo;
-    SamplerState _albedoSampler;
+    public Texture2D _albedo;
+    public SamplerState _albedoSampler;
 };
+
+public ParameterBlock<MaterialParams> _material;
 
 struct Vertex
 {
@@ -39,7 +44,7 @@ struct V2F
 V2F MainVS(Vertex input)
 {
     V2F output;
-    output.position = mul(viewProjection, float4(input.position, 1.0));
+    output.position = mul(_frame.viewProjection, float4(input.position, 1.0));
     output.uv = input.uv;
     return output;
 }
@@ -49,7 +54,7 @@ float4 MainPS(V2F input) : SV_TARGET
 {
     // The core import is load-bearing: SampleTex2D and OutputDither8Bit live
     // in Alco.Rendering.Core, so editing that module invalidates this shader.
-    float4 color = SampleTex2D(_albedo, _albedoSampler, input.uv) * tintColor;
+    float4 color = SampleTex2D(_material._albedo, _material._albedoSampler, input.uv) * _frame.tintColor;
     color.rgb += OutputDither8Bit(input.position.xy);
     return color;
 }

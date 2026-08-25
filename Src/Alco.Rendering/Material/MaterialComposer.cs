@@ -54,6 +54,7 @@ public sealed class MaterialComposer : IDisposable
     private readonly Lock _lock = new();
     private readonly Dictionary<CompositionKey, Shader> _shaders = new();
     private readonly Dictionary<(string Module, string Defines), Dictionary<string, IReadOnlyList<SlangUniformMember>>> _paramLayouts = new();
+    private readonly Dictionary<(string Module, string Defines), IReadOnlyList<string>> _textureSlots = new();
     private readonly List<SlangProgram> _pinnedPrograms = [];
     private bool _disposed;
 
@@ -256,22 +257,28 @@ public sealed class MaterialComposer : IDisposable
     }
 
     /// <summary>
-    /// The texture slots of one bind group (a shader's material-frequency set):
-    /// what the binding side fills from the material's texture table, with the
-    /// asset's fallback policy for unbound slots.
+    /// The texture slots of a surface library — what the binding side fills from
+    /// the material's texture table, with the asset's fallback policy for
+    /// unbound slots. Discovery is the surface module's own block declarations
+    /// (name-keyed, no set number): a ParameterBlock's set is compiler-assigned
+    /// declaration order, nothing the engine pins or reads.
     /// </summary>
-    public static IReadOnlyList<string> EnumerateTextureSlots(ShaderReflectionInfo reflection, int groupIndex)
+    public IReadOnlyList<string> EnumerateTextureSlots(
+        ShaderLibrary surface, IReadOnlyList<string>? defines = null)
     {
-        if (groupIndex >= reflection.BindGroups.Count)
+        string definesKey = defines == null ? "" : string.Join("|", defines);
+        lock (_lock)
         {
-            return [];
+            if (_textureSlots.TryGetValue((surface.Name, definesKey), out IReadOnlyList<string>? cached))
+            {
+                return cached;
+            }
+
+            IReadOnlyList<string> slots =
+                [.. _shaderSystem.Modules.GetModuleTextureSlots(surface.Name, defines)];
+            _textureSlots.Add((surface.Name, definesKey), slots);
+            return slots;
         }
-        return
-        [
-            .. reflection.BindGroups[groupIndex].Bindings
-                .Where(binding => binding.Entry.Type == BindingType.Texture)
-                .Select(binding => binding.Entry.Name),
-        ];
     }
 
     private Shader Compose(

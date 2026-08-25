@@ -478,24 +478,16 @@ public class MaterialComposerTest
     }
 
     [Test]
-    public void EnumerateTextureSlots_ListsTexturesOfTheMaterialSet()
+    public void EnumerateTextureSlots_ListsTexturesOfTheSurfaceModule()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         using MaterialComposer composer = CreateComposer(host, out ShaderSystem shaderSystem);
         using (shaderSystem)
         {
-            Shader shader = composer.ComposeGraphics(
-                shaderSystem.GetLibrary("test_lit_template"),
-                shaderSystem.GetLibrary("test_surface"));
-            ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
-
-            Assert.Multiple(() =>
-            {
-                // Set 2 holds the surface's texture (the sampler is not a slot).
-                Assert.That(MaterialComposer.EnumerateTextureSlots(reflection, 2),
-                    Is.EqualTo(new[] { "_albedoTexture" }));
-                Assert.That(MaterialComposer.EnumerateTextureSlots(reflection, 0), Is.Empty);
-            });
+            // Slot discovery reads the surface module's own declarations —
+            // set-number-free (a ParameterBlock's set is compiler-assigned).
+            Assert.That(composer.EnumerateTextureSlots(shaderSystem.GetLibrary("test_surface")),
+                Is.EqualTo(new[] { "_albedoTexture" }));
         }
     }
 

@@ -98,7 +98,10 @@ public class TestSlangMaterialCompiler
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
 
         // The real composition the material compiler produces for the G-buffer
-        // template with the test surface (mixed-type parameter block).
+        // template with the test surface (mixed-type parameter block). Each
+        // ParameterBlock owns one set: camera 0, instances 1, engine data 2,
+        // the surface's marked block 3 (auto uniform buffer at binding 0,
+        // then textures/samplers flattened after it).
         MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
         Shader shader = compiler.ComposeSurfaceShader(asset, Library(engine, "gbuffer"));
         ShaderReflectionInfo info = shader.GetShaderModules().ReflectionInfo;
@@ -108,15 +111,15 @@ public class TestSlangMaterialCompiler
             AssertResource(info, "_camera", 0, 0, BindingType.UniformBuffer);
             AssertResource(info, "_instances", 1, 0, BindingType.StorageBuffer);
             AssertResource(info, "_globalRenderData", 2, 0, BindingType.UniformBuffer);
-            AssertResource(info, "PulseParams", 2, 1, BindingType.UniformBuffer);
-            AssertResource(info, "_albedoTexture", 2, 2, BindingType.Texture);
-            AssertResource(info, "_normalTexture", 2, 4, BindingType.Texture);
-            AssertResource(info, "_metallicRoughnessTexture", 2, 6, BindingType.Texture);
+            AssertResource(info, "PulseParams", 3, 0, BindingType.UniformBuffer);
+            AssertResource(info, "_albedoTexture", 3, 1, BindingType.Texture);
+            AssertResource(info, "_normalTexture", 3, 3, BindingType.Texture);
+            AssertResource(info, "_metallicRoughnessTexture", 3, 5, BindingType.Texture);
 
             // Samplers are companion entries bound with their owning texture
             // (ShaderParameterSet's OwnerSampler plan), not name-addressable
             // resources — assert them through the bind group layouts.
-            AssertLayoutEntry(info, "_albedoTextureSampler", 2, 3, BindingType.Sampler);
+            AssertLayoutEntry(info, "_albedoTextureSampler", 3, 2, BindingType.Sampler);
 
             // The vertex layout matches Alco.Rendering.VertexPBR exactly.
             Assert.That(info.VertexLayouts.Count, Is.EqualTo(1));
