@@ -17,12 +17,12 @@ public class GraphicsMaterial : AutoDisposable
     protected GraphicsPipelineContext _pipelineContext;
 
     // Construction-bound (immutable for the material's lifetime): the shader
-    // handle and the specialization that pins its variant. Runtime variant
-    // switching means constructing another material (or, for non-material
-    // owners like FXAA, requesting another specialized pipeline from the same
-    // shader handle) — a material never mutates its binding.
+    // handle. The specialization starts at construction and can be swapped
+    // later through SetSpecializations (the same mutation surface the retired
+    // defines used to have); the swap rebuilds the pipeline lazily and carries
+    // the resource bindings over by name.
     protected readonly Shader _shader;
-    private readonly string[] _specializations;
+    private string[] _specializations;
 
     private uint _version;
 
@@ -111,8 +111,35 @@ public class GraphicsMaterial : AutoDisposable
         get => _shader;
     }
 
-    /// <summary>The specialization arguments the material was constructed for (its pinned variant).</summary>
+    /// <summary>The specialization arguments of the material's current variant.</summary>
     public IReadOnlyList<string> Specializations => _specializations;
+
+    /// <summary>
+    /// Switches the material to another specialization of its shader module
+    /// (the successor of the retired defines-based SetDefines): the new
+    /// variant's pipeline compiles lazily on the next use, and every resource
+    /// binding carries over by resource name (the modules of one shader share
+    /// their binding names). A no-op when the arguments are unchanged.
+    /// </summary>
+    /// <param name="specializations">The specialization arguments of the new
+    /// variant — C# values (<c>false</c>, <c>3</c>) or slang expressions,
+    /// normalized internally.</param>
+    public void SetSpecializations(params ReadOnlySpan<object> specializations)
+    {
+        string[] spec = Shader.NormalizeSpecializations(specializations);
+        if (spec.AsSpan().SequenceEqual(_specializations))
+        {
+            return;
+        }
+
+        _specializations = spec;
+        // The next GetPipelineContext sees the dirty flag, compiles the variant's
+        // modules through the shader handle and rebuilds the pipeline; the
+        // parameter set re-resolves its slots from the new reflection info,
+        // carrying bound values over by name.
+        _pipelineContext.Specializations = spec;
+        _isPipelineDirty = true;
+    }
 
     /// <summary>
     /// Gets the resource group at the specified index.

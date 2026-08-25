@@ -64,8 +64,10 @@ public sealed class TestPBRDeferredPreset
             return o;
         }
 
+        // Mirrors the real deferred-lighting module's DebugView axis: the preset
+        // constructs its lighting material with the Off specialization.
         [shader("pixel")]
-        float4 MainPS(V2F input) : SV_TARGET
+        float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         {
             return _albedo.Sample(_albedoSampler, input.uv);
         }

@@ -112,7 +112,11 @@ public static class RenderPipelines
         // IMPORTANT: DepthStencilState.None means depthCompare=Never — with a depth
         // attachment present (the engine's HDR main target), every fragment would be
         // rejected. Default (Always) disables the depth test without rejecting pixels.
-        var lightingMaterial = rendering.CreateGraphicsMaterial(lightingShader);
+        // The material starts pinned to the Off (normal rendering) specialization of
+        // the lighting shader's MainPS<let DebugView> axis; the lighting node caches
+        // one material per view and swaps on PBRSceneEnvironment.LightingDebugView.
+        var lightingMaterial = rendering.CreateGraphicsMaterial(lightingShader, "deferred_lighting",
+            (int)LightingDebugView.Off);
         lightingMaterial.DepthStencilState = DepthStencilState.Default;
         lightingMaterial.RasterizerState = RasterizerState.CullNone;
         lightingMaterial.SetBuffer(ShaderResourceId.Data, environment.LightingDataBuffer);
@@ -215,6 +219,7 @@ public static class RenderPipelines
             shadowNode.IsEnabled = enabled;
             lightingNode.ShadowMapEnabled = enabled;
         };
+        environment.LightingDebugViewChanged += view => lightingNode.LightingDebugView = view;
         environment.VolumetricLightEnabledChanged += enabled =>
         {
             if (volumetricLightNode != null)

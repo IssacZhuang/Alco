@@ -40,11 +40,11 @@ public struct DeferredLightingData
     public Vector4 CascadeSplits;
     /// <summary>World units per shadow texel of each cascade (for the normal-offset bias).</summary>
     public Vector4 CascadeTexelSizes;
-    /// <summary>x=cascadeDebugTint, y=shadowFactorView, z=shadowTightness (0=linear, 1=full penumbra power curve), w=aoDebugView.</summary>
+    /// <summary>x=shadowTightness (0=linear, 1=full penumbra power curve); y/z/w unused (the debug views moved to the DebugView specialization axis).</summary>
     public Vector4 Params2;
     /// <summary>xy=render target size in pixels (filled by the pipeline).</summary>
     public Vector4 ViewportSize;
-    /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility).</summary>
+    /// <summary>x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength; w unused (the GI debug views moved to the DebugView specialization axis).</summary>
     public Vector4 Params3;
     /// <summary>x=sunDiscSize (cosine angular threshold, higher = smaller disc), y=sunDiscBrightness (HDR visual brightness independent of lighting intensity), z=1/GI trace width, w=1/GI trace height (filled by the pipeline, 0 when GI is off).</summary>
     public Vector4 Params4;

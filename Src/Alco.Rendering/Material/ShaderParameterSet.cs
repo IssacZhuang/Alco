@@ -152,8 +152,7 @@ public sealed class ShaderParameterSet
     /// </summary>
     /// <param name="reflectionInfo">The reflection information of the shader.</param>
     /// <param name="resetResources">Whether to reset the resources.</param>
-    public void SetReflectionInfo(ShaderReflectionInfo reflectionInfo, bool resetResources = false)
-    {
+    public void SetReflectionInfo(ShaderReflectionInfo reflectionInfo, bool resetResources = false)    {
         ShaderReflectionInfo oldReflection = _reflectionInfo;
         Slot[] oldSlots = _slots;
 
@@ -204,6 +203,9 @@ public sealed class ShaderParameterSet
             newSlot.mipLevel = oldSlot.mipLevel;
             newSlot.mipView = oldSlot.mipView;
             newSlot.renderTextureVersion = oldSlot.renderTextureVersion;
+            // A depth-bound slot must stay depth-bound across the carry-over
+            // (the depth view and comparison sampler are resolved from this flag).
+            newSlot.isDepth = oldSlot.isDepth;
         }
     }
 

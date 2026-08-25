@@ -5,6 +5,30 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
+/// Debug visualization modes of the deferred lighting pass. Each mode is a
+/// specialization of the lighting shader's <c>MainPS&lt;let DebugView : int&gt;</c>
+/// entry — switching views re-specializes the lighting material (the bindings
+/// carry over by name; the variant's pipeline compiles lazily on next use).
+/// </summary>
+public enum LightingDebugView
+{
+    /// <summary>Normal rendering — no debug overlay.</summary>
+    Off = 0,
+    /// <summary>Combined ambient occlusion (material × screen-space).</summary>
+    AmbientOcclusion = 1,
+    /// <summary>Raw sun shadow factor (white = lit, black = shadowed).</summary>
+    SunShadowFactor = 2,
+    /// <summary>Shadow cascade tint (0=red 1=green 2=blue 3=yellow).</summary>
+    CascadeTint = 3,
+    /// <summary>GI diffuse irradiance only.</summary>
+    GiDiffuse = 4,
+    /// <summary>GI specular radiance only.</summary>
+    GiSpecular = 5,
+    /// <summary>GI visibility term (white=open, black=occluded).</summary>
+    GiVisibility = 6,
+}
+
+/// <summary>
 /// A deferred lighting graph node: draws a full-screen lighting material into the
 /// scene color target, resolving the G-buffer (plus the shadow map and AO/GI plugin
 /// outputs when wired) into lit HDR scene color. The scene color target shares the
@@ -24,6 +48,7 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
 {
     private readonly RenderGraph _graph;
     private readonly Mesh _fullScreenMesh;
+    private LightingDebugView _debugView;
 
     /// <summary>
     /// Creates the lighting node.
@@ -51,6 +76,26 @@ public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
 
     /// <summary>The lighting material (bind plugin output facades here).</summary>
     public GraphicsMaterial Material { get; }
+
+    /// <summary>
+    /// The lighting pass's debug view, selected through the lighting shader's
+    /// <c>MainPS&lt;let DebugView : int&gt;</c> specialization axis. Switching
+    /// re-specializes the material (bindings carry over by name; the variant's
+    /// pipeline compiles lazily on the next draw).
+    /// </summary>
+    public LightingDebugView LightingDebugView
+    {
+        get => _debugView;
+        set
+        {
+            if (_debugView == value)
+            {
+                return;
+            }
+            _debugView = value;
+            Material.SetSpecializations((int)value);
+        }
+    }
 
     /// <summary>The G-buffer resource read by the lighting pass.</summary>
     public RenderGraphTexture GBuffer { get; }

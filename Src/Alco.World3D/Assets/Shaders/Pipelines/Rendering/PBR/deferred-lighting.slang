@@ -117,8 +117,12 @@ float ReconstructLinearDepth(V2F input)
 // are provided by PBRCommon.hlsli included above.
 
 [shader("fragment")]
-float4 MainPS(V2F input) : SV_TARGET
+float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
 {
+    // DebugView is a generic value specialization (plan D3): 0 = normal
+    // rendering, 1 = combined AO, 2 = sun shadow factor, 3 = cascade tint,
+    // 4 = GI diffuse, 5 = GI specular, 6 = GI visibility. Dead branches fold
+    // away at compile time, so the non-debug variant carries no branch cost.
     float depth = GetPixelDepth2D(_gbufferDepth,
         int2(input.uv * viewportSize.xy));
 
@@ -126,7 +130,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 viewDirection = normalize(worldPosition - cameraPosition.xyz);
 
     // Debug: visualize the combined ambient occlusion (material × screen-space).
-    if (params2.w > 0.5)
+    if (DebugView == 1)
     {
         float3 mrAO = SAMPLE_TEX2D(_mrAO, input.uv).xyz;
         float matAO = mrAO.z;
@@ -187,7 +191,7 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // Debug: visualize the raw sun shadow factor (white = lit, black = shadowed).
-    if (params2.y > 0.5)
+    if (DebugView == 2)
     {
         return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
@@ -218,21 +222,17 @@ float4 MainPS(V2F input) : SV_TARGET
 
         // Debug: visualize bounce radiance, specular radiance, or voxel
         // environment visibility (white=open, black=occluded).
-        if (params3.w > 0.5)
+        if (DebugView == 4)
         {
-            if (params3.w < 1.5)
-            {
-                return float4(giDiffuseColor, 1.0);
-            }
-            if (params3.w < 2.5)
-            {
-                return float4(giSpecularColor, 1.0);
-            }
-            if (params3.w < 3.5)
-            {
-                return float4(giVisibility, giVisibility, giVisibility, 1.0);
-            }
             return float4(giDiffuseColor, 1.0);
+        }
+        if (DebugView == 5)
+        {
+            return float4(giSpecularColor, 1.0);
+        }
+        if (DebugView == 6)
+        {
+            return float4(giVisibility, giVisibility, giVisibility, 1.0);
         }
 
         // Cone tracing has already integrated sky radiance independently
@@ -263,7 +263,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float3 color = Lo + ambient + emissive;
 
     // Debug: tint each shadow cascade (0=red 1=green 2=blue 3=yellow).
-    if (params2.x > 0.5 && cascade >= 0)
+    if (DebugView == 3 && cascade >= 0)
     {
         float3 cascadeTints[4] = {
             float3(1.0, 0.35, 0.35), float3(0.4, 1.0, 0.4),

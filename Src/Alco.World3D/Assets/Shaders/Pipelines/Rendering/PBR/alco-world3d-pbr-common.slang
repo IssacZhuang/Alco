@@ -42,9 +42,9 @@ public cbuffer _data : register(b0, space0) {
     public float4 pbrParams;            // x=shadowEnabled y=numPointLights z=shadowMapSize w=sunDiscEnabled
     public float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
     public float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
-    public float4 params2;              // x=cascadeDebugTint, y=shadowFactorView, z=shadowTightness (0=linear, 1=full penumbra power curve), w=aoDebugView
+    public float4 params2;              // x=shadowTightness (0=linear, 1=full penumbra power curve); y/z/w unused (debug views are the DebugView specialization axis)
     public float4 viewportSize;         // xy = render target size in pixels
-    public float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength, w=giDebugView (0=off 1=diffuse 2=specular 3=visibility)
+    public float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength; w unused (GI debug views are the DebugView specialization axis)
     public float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
     public float4 vlParams;             // x=enabled(>0) y=fogDensity z=heightScaleHeight(constant model ignores) w=phaseG(Henyey-Greenstein anisotropy)
     public float4 cloudShadow;          // x=strength y=shadow plane altitude m z=half extent m w=enabled(>0; _cloudShadow texture holds the coverage)

@@ -235,14 +235,32 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// tinting it blue. The visible sky is not affected.</summary>
     public float SkyGiSaturation { get; set; } = 0.6f;
 
-    /// <summary>Tint shadow cascade quadrants for debugging.</summary>
-    public bool CascadeDebug { get; set; }
+    /// <summary>
+    /// Debug view of the deferred lighting pass, selected through the lighting
+    /// shader's <c>MainPS&lt;let DebugView&gt;</c> specialization axis (one
+    /// compiled variant per view; the non-debug variant carries no branch cost).
+    /// The composing preset wires <see cref="LightingDebugViewChanged"/> to the
+    /// lighting node's material swap.
+    /// </summary>
+    public LightingDebugView LightingDebugView
+    {
+        get => _lightingDebugView;
+        set
+        {
+            if (_lightingDebugView == value)
+            {
+                return;
+            }
+            _lightingDebugView = value;
+            LightingDebugViewChanged?.Invoke(value);
+        }
+    }
 
-    /// <summary>Visualize shadow factor instead of applying shadows.</summary>
-    public bool ShadowDebug { get; set; }
+    private LightingDebugView _lightingDebugView;
 
-    /// <summary>Visualize ambient occlusion only.</summary>
-    public bool AoDebugView { get; set; }
+    /// <summary>Raised when <see cref="LightingDebugView"/> changes. The composing
+    /// preset wires this to the lighting node's specialization swap.</summary>
+    public event Action<LightingDebugView>? LightingDebugViewChanged;
 
     /// <summary>Whether GI contributes to the lighting pass.</summary>
     public bool GiEnabled { get; set; } = true;
@@ -252,9 +270,6 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
 
     /// <summary>Specular GI strength multiplier.</summary>
     public float GiSpecularStrength { get; set; } = 1f;
-
-    /// <summary>GI debug view mode (0=off 1=diffuse 2=specular 3=visibility).</summary>
-    public int GiDebugView { get; set; }
 
     /// <summary>Whether volumetric light (god rays) contributes to the frame. The node
     /// synchronization is performed by the composition wiring
@@ -498,16 +513,16 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
         _lightingData.CascadeTexelSizes = new Vector4(
             _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
         _lightingData.Params2 = new Vector4(
-            CascadeDebug ? 1.0f : 0.0f,
-            ShadowDebug ? 1.0f : 0.0f,
+            0.0f,
+            0.0f,
             ShadowTightness,
-            AoDebugView ? 1.0f : 0.0f);
+            0.0f);
         _lightingData.ViewportSize = new Vector4(gbuffer.Width, gbuffer.Height, 0, 0);
         _lightingData.Params3 = new Vector4(
             (giDiffuseActive && GiEnabled) ? 1.0f : 0.0f,
             GiDiffuseStrength,
             GiSpecularStrength,
-            GiDebugView);
+            0.0f);
         _lightingData.Params4 = new Vector4(SunDiscSize, SunDiscBrightness, 0.0f, 0.0f);
         _lightingData.VLParams = new Vector4(
             VolumetricLightEnabled ? 1.0f : 0.0f,

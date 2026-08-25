@@ -71,7 +71,9 @@ public sealed class TestRenderGraphExtensibility
         }
 
         [shader("pixel")]
-        float4 MainPS(V2F input) : SV_TARGET
+        // Mirrors the real deferred-lighting module's DebugView axis: the
+        // pipeline constructs its lighting material with the Off specialization.
+        float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         {
             return _albedo.Sample(_albedoSampler, input.uv);
         }

@@ -320,6 +320,9 @@ public class Game : GameEngine
     private static readonly string[] GiDebugModes =
         ["Off", "Diffuse Irradiance", "Indirect Specular", "GI Visibility",
          "Raw Diffuse Trace", "SSR Hit Confidence"];
+    private static readonly string[] LightingDebugViewNames =
+        ["Off", "Ambient Occlusion", "Sun Shadow Factor", "Cascade Tint",
+         "GI Diffuse", "GI Specular", "GI Visibility"];
     private string[]? _objectNames;
 
     // Screenshot mode.
@@ -337,15 +340,35 @@ public class Game : GameEngine
         _screenshotPath = GetArgValue(args, "--screenshot=");
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 60;
         _waitForStreaming = args.Contains("--wait-load");
-        bool cascadeDebug = args.Contains("--cascade-debug");
-        bool shadowDebug = args.Contains("--shadow-debug");
+        LightingDebugView lightingDebug = LightingDebugView.Off;
+        if (args.Contains("--cascade-debug"))
+        {
+            lightingDebug = LightingDebugView.CascadeTint;
+        }
+        else if (args.Contains("--shadow-debug"))
+        {
+            lightingDebug = LightingDebugView.SunShadowFactor;
+        }
+        else if (args.Contains("--hbao-debug"))
+        {
+            lightingDebug = LightingDebugView.AmbientOcclusion;
+        }
         _hbaoEnabled = !args.Contains("--no-hbao");
-        bool hbaoDebugView = args.Contains("--hbao-debug");
         _giEnabled = !args.Contains("--no-gi");
         VoxelGiDebugMode giDebugView = default;
         if (Enum.TryParse<VoxelGiDebugMode>(GetArgValue(args, "--gi-debug="), ignoreCase: true, out var parsedDebug))
         {
             giDebugView = parsedDebug;
+            // The GI plugin's own trace/SSR views stay inside the plugin; the
+            // lighting-pass views map onto the DebugView specialization axis.
+            lightingDebug = giDebugView switch
+            {
+                VoxelGiDebugMode.DiffuseIrradiance => LightingDebugView.GiDiffuse,
+                VoxelGiDebugMode.IndirectSpecular or VoxelGiDebugMode.SsrConfidence
+                    => LightingDebugView.Off, // resolved by the SSR node itself
+                VoxelGiDebugMode.Visibility => LightingDebugView.GiVisibility,
+                _ => lightingDebug,
+            };
         }
         if (int.TryParse(GetArgValue(args, "--gi-resolution="), out int giResolutionPercent))
         {
@@ -486,9 +509,7 @@ public class Game : GameEngine
         _gbufferRenderer.SetCamera(_camera);
         _preset.GBufferPass.Content.Add(_gbufferRenderer);
         _preset.ShadowPass.Content.Add(_shadowRenderer);
-        _environment.CascadeDebug = cascadeDebug;
-        _environment.ShadowDebug = shadowDebug;
-        _environment.AoDebugView = hbaoDebugView;
+        _environment.LightingDebugView = lightingDebug;
         if (float.TryParse(GetArgValue(args, "--gi-diffuse="), out float giDiffuse))
         {
             _environment.GiDiffuseStrength = giDiffuse;
@@ -1251,11 +1272,14 @@ public class Game : GameEngine
             _environment.GiEnabled = _giEnabled;
             // Post-lighting SSR needs the normally shaded scene as its source.
             // Its own two debug modes are therefore resolved by the SSR node,
-            // while the pre-lighting deferred debug mode stays disabled.
-            _environment.GiDebugView = _voxelGI.DebugView is
-                VoxelGiDebugMode.IndirectSpecular or VoxelGiDebugMode.SsrConfidence
-                ? 0
-                : (int)_voxelGI.DebugView;
+            // while the lighting-pass GI views follow through the DebugView
+            // specialization axis.
+            _environment.LightingDebugView = _voxelGI.DebugView switch
+            {
+                VoxelGiDebugMode.DiffuseIrradiance => LightingDebugView.GiDiffuse,
+                VoxelGiDebugMode.Visibility => LightingDebugView.GiVisibility,
+                _ => _environment.LightingDebugView,
+            };
             _voxelGI.EmissiveScale = _pointLightsEnabled ? _emissiveBoost : 0.0f;
             if (_ssrRenderer != null)
             {
@@ -1530,12 +1554,6 @@ public class Game : GameEngine
             float shadowDistance = _environment.ShadowDistance;
             if (ImGui.SliderFloat("Shadow Distance", ref shadowDistance, 16, 2048))
                 _environment.ShadowDistance = shadowDistance;
-            bool cascadeDebug = _environment.CascadeDebug;
-            if (ImGui.Checkbox("Cascade Debug", ref cascadeDebug))
-                _environment.CascadeDebug = cascadeDebug;
-            bool shadowDebug = _environment.ShadowDebug;
-            if (ImGui.Checkbox("Shadow Debug", ref shadowDebug))
-                _environment.ShadowDebug = shadowDebug;
             bool sunDiscEnabled = _environment.SunDiscEnabled;
             if (ImGui.Checkbox("Sun disc", ref sunDiscEnabled))
                 _environment.SunDiscEnabled = sunDiscEnabled;
@@ -1655,9 +1673,15 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("AO Bias", ref bias, 0.0f, 0.2f))
                 _hbaoRenderer.Bias = bias;
             ImGui.SliderFloat("SSAO Amount With GI", ref _giSsaoAmount, 0.0f, 1.0f);
-            bool aoDebugView = _environment.AoDebugView;
-            if (ImGui.Checkbox("AO Debug View", ref aoDebugView))
-                _environment.AoDebugView = aoDebugView;
+        }
+
+        // The lighting debug view is the lighting shader's DebugView
+        // specialization axis: switching compiles/selects another
+        // construction-bound material variant (cached per view).
+        {
+            int debugView = (int)_environment.LightingDebugView;
+            if (ImGui.Combo("Lighting Debug View", ref debugView, LightingDebugViewNames, LightingDebugViewNames.Length))
+                _environment.LightingDebugView = (LightingDebugView)debugView;
         }
 
         if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))
