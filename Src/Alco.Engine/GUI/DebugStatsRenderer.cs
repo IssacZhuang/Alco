@@ -70,7 +70,7 @@ public class DebugStatsRenderer : IDisposable
 
         // The sprite module is generic (MainPS<let Repeated : bool>): the debug
         // overlay pins the non-repeating default specialization.
-        GraphicsMaterial spriteMaterial = _renderingSystem.CreateGraphicsMaterial(shaderSprite, "debug_stats_sprite", "false");
+        GraphicsMaterial spriteMaterial = _renderingSystem.CreateGraphicsMaterial(shaderSprite, "debug_stats_sprite", false);
         spriteMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         spriteMaterial.BlendState = BlendState.AlphaBlend;
         _spriteRenderer = _renderingSystem.CreateSpriteRenderer(_rendererContent, spriteMaterial);

@@ -87,7 +87,7 @@ public class Game : GameEngine
 
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);
 
-        GraphicsMaterial material = RenderingSystem.CreateGraphicsMaterial(_spriteShader, "sprite", "false");
+        GraphicsMaterial material = RenderingSystem.CreateGraphicsMaterial(_spriteShader, "sprite", false);
         material.SetBuffer(ShaderResourceId.Camera, _camera);
         _renderer = RenderingSystem.CreateSpriteRenderer(_mainPipeline.Graph.RenderContext, material);
     }

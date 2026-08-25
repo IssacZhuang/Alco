@@ -31,7 +31,7 @@ public class Game : GameEngine
         _materialText = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
         _materialText.SetBuffer(ShaderResourceId.Camera, _camera);
 
-        _materialSprite = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
+        _materialSprite = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", false);
         _materialSprite.BlendState = BlendState.AlphaBlend;
         _materialSprite.SetBuffer(ShaderResourceId.Camera, _camera);
 

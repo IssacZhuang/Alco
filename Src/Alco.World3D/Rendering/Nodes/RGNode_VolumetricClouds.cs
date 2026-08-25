@@ -265,9 +265,9 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         // (false = base shape bake, true = detail bake), bound when each
         // material is created; the two materials share the single injected
         // module handle.
-        _noiseBaseMaterial = rendering.CreateComputeMaterial(descriptor.NoiseShader, "false");
+        _noiseBaseMaterial = rendering.CreateComputeMaterial(descriptor.NoiseShader, false);
         _noiseBaseMaterial.SetTexture3DStorage("_noiseOut", _baseNoise, 0);
-        _noiseDetailMaterial = rendering.CreateComputeMaterial(descriptor.NoiseShader, "true");
+        _noiseDetailMaterial = rendering.CreateComputeMaterial(descriptor.NoiseShader, true);
         _noiseDetailMaterial.SetTexture3DStorage("_noiseOut", _detailNoise, 0);
         _shadowBakeMaterial = rendering.CreateComputeMaterial(descriptor.ShadowShader);
         _shadowBakeMaterial.SetBuffer("_cloudData", _dataBuffer);

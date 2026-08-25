@@ -9,8 +9,8 @@ public partial class RenderingSystem
     /// it pins one variant for its lifetime — runtime variant switching means
     /// constructing another dispatcher.
     /// </summary>
-    public ComputeMaterial CreateComputeMaterial(Shader shader, params ReadOnlySpan<string> specializations)
+    public ComputeMaterial CreateComputeMaterial(Shader shader, params ReadOnlySpan<object> specializations)
     {
-        return new ComputeMaterial(this, shader, specializations.ToArray());
+        return new ComputeMaterial(this, shader, Shader.NormalizeSpecializations(specializations));
     }
 }

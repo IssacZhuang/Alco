@@ -49,10 +49,10 @@ public class TestAttachmentLayout
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
         // The sprite module is generic (MainPS<let Repeated>): pin the default.
 
-        GPUPipeline pipeline1 = shader.GetGraphicsPipeline(pass1, "false").Pipeline;
-        GPUPipeline pipeline2 = shader.GetGraphicsPipeline(pass2, "false").Pipeline;
-        GPUPipeline pipeline3 = shader.GetGraphicsPipeline(pass3, "false").Pipeline;
-        GPUPipeline pipeline4 = shader.GetGraphicsPipeline(pass4, "false").Pipeline;
+        GPUPipeline pipeline1 = shader.GetGraphicsPipeline(pass1, false).Pipeline;
+        GPUPipeline pipeline2 = shader.GetGraphicsPipeline(pass2, false).Pipeline;
+        GPUPipeline pipeline3 = shader.GetGraphicsPipeline(pass3, false).Pipeline;
+        GPUPipeline pipeline4 = shader.GetGraphicsPipeline(pass4, false).Pipeline;
 
         Assert.IsTrue(pipeline1.GetHashCode() == pipeline2.GetHashCode());
         Assert.IsTrue(pipeline1 == pipeline2);

@@ -63,9 +63,9 @@ public sealed class TextureCompressorBC3 : AutoDisposable
         // The sRGB choice is a generic value specialization of the compression
         // shader (MainCS<let IsSRGB> : bool): true selects the sRGB output path,
         // false the linear one — two construction-bound dispatchers.
-        _linearMaterial = renderingSystem.CreateComputeMaterial(shader, "false");
+        _linearMaterial = renderingSystem.CreateComputeMaterial(shader, false);
         _linearMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
-        _srgbMaterial = renderingSystem.CreateComputeMaterial(shader, "true");
+        _srgbMaterial = renderingSystem.CreateComputeMaterial(shader, true);
         _srgbMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
 
         _material = _linearMaterial;

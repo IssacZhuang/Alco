@@ -462,4 +462,87 @@ public class SlangModuleSystemTest
                 "distinct values must produce distinct target code");
         });
     }
+
+    [Test]
+    public void GetProgram_BoolValueSpecializationsAcceptSlangLiteralsOnly()
+    {
+        // Feasibility probe for object-typed specialization arguments. The string
+        // is handed to slang as an *expression* (SlangSpecializationArg.FromExpr),
+        // so only slang spellings are valid: bool axes take the lowercase literals
+        // "true"/"false" — C# bool.ToString() yields "True"/"False", which the
+        // expression parser must reject (no such identifier in scope).
+        const string boolGenericModule = """
+            [shader("fragment")]
+            float4 MainPS<let Flag : bool>() : SV_TARGET
+            {
+                if (Flag) { return float4(1, 0, 0, 1); }
+                return float4(0, 1, 0, 1);
+            }
+            """;
+        Dictionary<string, string> files = new() { ["shaders/bool-generic.slang"] = boolGenericModule };
+        using SlangModuleSystem system = new(OptionsFor(files), null);
+        system.GetOrLoadModule("bool_generic", "shaders/bool-generic.slang", boolGenericModule);
+
+        List<SlangEntryPointRequest> entries = [new("MainPS", Alco.Graphics.ShaderStage.Fragment)];
+        using SlangProgram lowered = system.GetProgram("bool_generic", entries, ["true"]);
+        using SlangProgram loweredAgain = system.GetProgram("bool_generic", entries, ["true"]);
+        using SlangProgram upper = system.GetProgram("bool_generic", entries, ["false"]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(loweredAgain, Is.SameAs(lowered), "same bool specialization must return the cached program");
+            Assert.That(upper.EntryCode[0], Is.Not.EqualTo(lowered.EntryCode[0]),
+                "distinct bool values must produce distinct target code");
+        });
+
+        Assert.That(() => system.GetProgram("bool_generic", entries, ["True"]),
+            Throws.Exception,
+                "the C# bool.ToString() spelling must be rejected — object arguments need normalization to slang literals");
+    }
+
+    [Test]
+    public void GetProgram_ValueAxisTypeMatrix()
+    {
+        // slang generic value parameters accept integer and enum types only
+        // (E30624) — float/double/half axes are rejected at module parse time,
+        // so object-argument normalization only needs to cover bool, integer
+        // forms (C# ToString is invariant digits, no suffix) and identifier
+        // passthrough. Locked here so the normalization contract follows
+        // slang's actual surface, not assumptions.
+        (string Type, string Form, bool Supported)[] cases =
+        [
+            ("int", "1", true),
+            ("uint", "1", true),
+            ("uint", "1u", true),
+            ("bool", "true", true),
+            ("float", "1.5", false),
+            ("double", "1.5", false),
+            ("half", "0.5", false),
+        ];
+        foreach ((string type, string form, bool supported) in cases)
+        {
+            string src = $$"""
+                [shader("fragment")]
+                float4 MainPS<let X : {{type}}>() : SV_TARGET
+                {
+                    return float4(float(X), 0, 0, 1);
+                }
+                """;
+            Dictionary<string, string> files = new() { ["shaders/axis.slang"] = src };
+            using SlangModuleSystem system = new(OptionsFor(files), null);
+
+            if (supported)
+            {
+                system.GetOrLoadModule("axis", "shaders/axis.slang", src);
+                Assert.That(() => system.GetProgram(
+                    "axis", [new("MainPS", Alco.Graphics.ShaderStage.Fragment)], [form]),
+                    Throws.Nothing, $"{type} axis with '{form}' must specialize");
+            }
+            else
+            {
+                Assert.That(() => system.GetOrLoadModule("axis", "shaders/axis.slang", src),
+                    Throws.Exception, $"{type} axes are not supported by slang (E30624)");
+            }
+        }
+    }
 }

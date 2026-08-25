@@ -60,10 +60,18 @@ public sealed class Shader : AutoDisposable
     /// Gets the compiled shader modules of one specialization (cached per
     /// specialization; the default, empty arguments link the module unspecialized).
     /// </summary>
-    /// <param name="specializations">The specialization arguments — slang expressions
-    /// (<c>"0"</c>, <c>"true"</c>, type names) mapped to the entry points' generic
-    /// parameters in definition order.</param>
-    public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> specializations)
+    /// <param name="specializations">The specialization arguments — C# values
+    /// (<c>false</c>, <c>3</c>) or slang expressions (type names) mapped to the
+    /// entry points' generic parameters in definition order; they are normalized
+    /// to the canonical slang literal strings internally.</param>
+    public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<object> specializations)
+        => GetShaderModules(NormalizeSpecializations(specializations));
+
+    /// <summary>
+    /// Canonical-string core the internal pipeline uses: materials and pipeline
+    /// contexts already hold normalized specialization strings.
+    /// </summary>
+    internal ShaderModulesInfo GetShaderModules(string[] specializations)
     {
         string key = SpecializationKey(specializations);
         if (_modulesInfos.TryGetValue(key, out ShaderModulesInfo? cached))
@@ -80,7 +88,7 @@ public sealed class Shader : AutoDisposable
 
             // The module system owns its own disk caches (module IR + linked
             // programs); the shader keeps only the in-memory modules reference.
-            ShaderModulesInfo modulesInfo = _compileModules(specializations.ToArray());
+            ShaderModulesInfo modulesInfo = _compileModules(specializations);
             _modulesInfos[key] = modulesInfo;
             return modulesInfo;
         }
@@ -102,10 +110,10 @@ public sealed class Shader : AutoDisposable
         BlendState blend,
         RasterizerState rasterizer,
         PrimitiveTopology primitiveTopology,
-        params ReadOnlySpan<string> specializations
+        params ReadOnlySpan<object> specializations
         )
     {
-        string[] spec = specializations.ToArray();
+        string[] spec = NormalizeSpecializations(specializations);
         ShaderModulesInfo modulesInfo = GetShaderModules(spec);
         GPUPipeline pipeline = GetGraphicsPipeline(attachmentLayout, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
         return new GraphicsPipelineContext
@@ -128,7 +136,7 @@ public sealed class Shader : AutoDisposable
         GPUAttachmentLayout attachmentLayout,
         DepthStencilState depthStencil,
         BlendState blend,
-        params ReadOnlySpan<string> specializations
+        params ReadOnlySpan<object> specializations
         )
     {
         return GetGraphicsPipeline(
@@ -146,7 +154,7 @@ public sealed class Shader : AutoDisposable
     /// </summary>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
-        params ReadOnlySpan<string> specializations
+        params ReadOnlySpan<object> specializations
         )
     {
         return GetGraphicsPipeline(
@@ -162,7 +170,7 @@ public sealed class Shader : AutoDisposable
     /// <summary>
     /// Attempts to update an existing pipeline context with a new attachment layout.
     /// The context keeps the specialization it was built for (set by the
-    /// <see cref="GetGraphicsPipeline(GPUAttachmentLayout, DepthStencilState, BlendState, RasterizerState, PrimitiveTopology, ReadOnlySpan{string})"/>
+    /// <see cref="GetGraphicsPipeline(GPUAttachmentLayout, DepthStencilState, BlendState, RasterizerState, PrimitiveTopology, ReadOnlySpan{object})"/>
     /// call that created it) — switching variants means building a fresh context
     /// with different specialization arguments.
     /// </summary>
@@ -217,9 +225,9 @@ public sealed class Shader : AutoDisposable
     /// </summary>
     /// <param name="specializations">The specialization arguments of the variant to build.</param>
     /// <returns>A compute pipeline context containing the configured pipeline and reflection info</returns>
-    public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<string> specializations)
+    public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<object> specializations)
     {
-        string[] spec = specializations.ToArray();
+        string[] spec = NormalizeSpecializations(specializations);
         ShaderModulesInfo modulesInfo = GetShaderModules(spec);
         GPUPipeline pipeline = GetComputePipeline(modulesInfo);
         return new ComputePipelineContext
@@ -230,8 +238,50 @@ public sealed class Shader : AutoDisposable
         };
     }
 
-    private static string SpecializationKey(ReadOnlySpan<string> specializations)
-        => string.Join("|", specializations.ToArray());
+    private static string SpecializationKey(string[] specializations)
+        => string.Join("|", specializations);
+
+    /// <summary>
+    /// Normalizes object-typed specialization arguments into the canonical slang
+    /// expression strings used as cache keys and handed to the compiler: bool
+    /// takes the lowercase slang literals (C# <c>ToString()</c> casing is
+    /// rejected by slang's expression parser), the integer types invariant
+    /// digits, strings pass through (identifiers, type names). Slang value axes
+    /// are integer/enum only (error E30624), so floating-point arguments are
+    /// rejected here with a clear message instead of failing inside the compiler.
+    /// </summary>
+    internal static string[] NormalizeSpecializations(ReadOnlySpan<object> specializations)
+    {
+        if (specializations.IsEmpty)
+        {
+            return [];
+        }
+
+        string[] normalized = new string[specializations.Length];
+        for (int i = 0; i < specializations.Length; i++)
+        {
+            normalized[i] = specializations[i] switch
+            {
+                bool b => b ? "true" : "false",
+                int v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                uint v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                long v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ulong v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                short v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ushort v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                sbyte v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                byte v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                string s => s,
+                null => throw new ArgumentException(
+                    "Specialization arguments cannot be null; pass bool, an integer type or a string.", nameof(specializations)),
+                _ => throw new ArgumentException(
+                    $"Unsupported specialization argument type '{specializations[i].GetType().Name}': " +
+                    "pass bool, an integer type or a string — slang value axes are integer/enum only " +
+                    "(E30624), so floating-point values cannot be specialized.", nameof(specializations)),
+            };
+        }
+        return normalized;
+    }
 
     private unsafe GPUPipeline GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,

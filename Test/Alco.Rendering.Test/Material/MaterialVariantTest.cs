@@ -127,13 +127,13 @@ public class MaterialVariantTest
         using ShaderSystem shaderSystem = new(host.RenderingSystem, Options(), cacheDirectory: null);
 
         Shader shader = shaderSystem.GetShader("test-variant-quad");
-        ShaderModulesInfo variant0 = shader.GetShaderModules("0");
-        ShaderModulesInfo variant1 = shader.GetShaderModules("1");
+        ShaderModulesInfo variant0 = shader.GetShaderModules(0);
+        ShaderModulesInfo variant1 = shader.GetShaderModules(1);
 
         Assert.Multiple(() =>
         {
-            Assert.That(shader.GetShaderModules("0"), Is.SameAs(variant0), "specializations cache inside the shader");
-            Assert.That(shader.GetShaderModules("1"), Is.SameAs(variant1));
+            Assert.That(shader.GetShaderModules(0), Is.SameAs(variant0), "specializations cache inside the shader");
+            Assert.That(shader.GetShaderModules(1), Is.SameAs(variant1));
             Assert.That(variant0, Is.Not.SameAs(variant1),
                 "each specialization is its own compiled entry");
             // The module's entry points are generic (<let Flag>): it cannot link
@@ -148,10 +148,10 @@ public class MaterialVariantTest
         using ShaderSystem shaderSystem = new(host.RenderingSystem, Options(), cacheDirectory: null);
 
         Shader shader = shaderSystem.GetShader("test-variant-quad");
-        ShaderModulesInfo variant1 = shader.GetShaderModules("1");
+        ShaderModulesInfo variant1 = shader.GetShaderModules(1);
 
         // The variant pins at construction: no runtime switching surface exists.
-        using GraphicsMaterial material = host.RenderingSystem.CreateGraphicsMaterial(shader, "variant_material", "1");
+        using GraphicsMaterial material = host.RenderingSystem.CreateGraphicsMaterial(shader, "variant_material", 1);
 
         Assert.Multiple(() =>
         {
@@ -162,7 +162,7 @@ public class MaterialVariantTest
         });
 
         // A second material of the other variant shares the handle, not the modules.
-        using GraphicsMaterial other = host.RenderingSystem.CreateGraphicsMaterial(shader, "other_material", "0");
+        using GraphicsMaterial other = host.RenderingSystem.CreateGraphicsMaterial(shader, "other_material", 0);
         Assert.That(other.Specializations, Is.EqualTo(new[] { "0" }));
     }
 
@@ -173,7 +173,7 @@ public class MaterialVariantTest
         using ShaderSystem shaderSystem = new(host.RenderingSystem, Options(), cacheDirectory: null);
 
         using GraphicsMaterial material = host.RenderingSystem.CreateGraphicsMaterial(
-            shaderSystem.GetShader("test-variant-quad"), "variant_material", "1");
+            shaderSystem.GetShader("test-variant-quad"), "variant_material", 1);
         GraphicsMaterialInstance instance = material.CreateInstance();
 
         Assert.That(instance.Specializations, Is.EqualTo(new[] { "1" }),
@@ -191,7 +191,7 @@ public class MaterialVariantTest
         Assert.That(() =>
         {
             using GraphicsMaterial material = host.RenderingSystem.CreateGraphicsMaterial(
-                compute, "variant_material", "0");
+                compute, "variant_material", 0);
         }, Throws.InvalidOperationException);
     }
 
@@ -202,9 +202,9 @@ public class MaterialVariantTest
         using ShaderSystem shaderSystem = new(host.RenderingSystem, Options(), cacheDirectory: null);
 
         Shader shader = shaderSystem.GetShader("test-variant-compute");
-        ShaderModulesInfo variant1 = shader.GetShaderModules("1");
+        ShaderModulesInfo variant1 = shader.GetShaderModules(1);
 
-        using ComputeMaterial material = host.RenderingSystem.CreateComputeMaterial(shader, "1");
+        using ComputeMaterial material = host.RenderingSystem.CreateComputeMaterial(shader, 1);
         ComputeMaterialInstance instance = material.CreateInstance();
 
         Assert.Multiple(() =>

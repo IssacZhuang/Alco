@@ -265,7 +265,7 @@ public class FXAA : TextureProcessor
     private void ApplyQuality()
     {
         // Fresh context: the new variant's pipeline differs from the previous one's.
-        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PreferredLightMapPass, ((int)_quality).ToString());
+        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PreferredLightMapPass, (int)_quality);
         _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
         _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
     }

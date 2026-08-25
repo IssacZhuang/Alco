@@ -70,7 +70,7 @@ public class Game : GameEngine
 
 
         _dropletSystem = new DropletSystem(RenderingSystem, _camera, BuiltInAssets.Shader_SpriteInstanced, _texDroplet);
-        GraphicsMaterial cubeMaterial = RenderingSystem.CreateGraphicsMaterial(_shaderSprite, "Sprite", "false");
+        GraphicsMaterial cubeMaterial = RenderingSystem.CreateGraphicsMaterial(_shaderSprite, "Sprite", false);
         cubeMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
         _cubeSystem = new CubeSystem(RenderingSystem, cubeMaterial, RenderingSystem.TextureWhite);
 
