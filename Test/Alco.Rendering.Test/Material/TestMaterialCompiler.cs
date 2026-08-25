@@ -9,17 +9,16 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MaterialCompiler tests: the pipeline-agnostic registry/factory — pass
-// registration, caller-owned (asset, pass) compilation, Accepts routing
-// (including the checked asset-family cast of IMaterialPass<TAsset>),
-// texture-slot/parameter validation against the composed reflection, the
-// default-surface rule and the asset-driven fallback texture policy. Runs on
-// the NoGPU device with in-memory slang modules, mirroring MaterialComposerTest.
+// MaterialCompiler tests: the pipeline-agnostic factory — (asset, template)
+// compilation, texture-slot/parameter validation against the composed
+// reflection, the default-surface rule and the asset-driven fallback texture
+// policy. Runs on the NoGPU device with in-memory slang modules, mirroring
+// MaterialComposerTest.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class TestMaterialCompiler
 {
-    /// <summary>A pipeline-family asset for the tests below (the compiler's TAsset).</summary>
+    /// <summary>A pipeline-family asset for the tests below.</summary>
     private sealed class TestMaterialAsset : MaterialAsset
     {
         /// <summary>The family policy: flat normal for normal maps, black for emissive.</summary>
@@ -37,23 +36,14 @@ public class TestMaterialCompiler
         }
     }
 
-    /// <summary>A minimal materializing pass typed to the test asset family.</summary>
-    private class StubPass(string id, string templateModule, RenderingSystem rendering)
-        : IMaterialPass<TestMaterialAsset>
-    {
-        public string Id => id;
-        public ShaderLibrary Template => rendering.ShaderSystem.GetLibrary(templateModule);
-        public virtual bool Accepts(TestMaterialAsset asset) => true;
-        public GraphicsMaterial CreateMaterial(TestMaterialAsset asset, Shader shader)
-            => rendering.CreateGraphicsMaterial(shader, $"{asset.Name}_{id}");
-    }
+    /// <summary>The compile factory of the tests below: a minimal materializing one.</summary>
+    private static GraphicsMaterial CreateMaterial(RenderingSystem rendering, MaterialAsset asset, Shader shader)
+        => rendering.CreateGraphicsMaterial(shader, $"{asset.Name}_test");
 
-    /// <summary>A pass accepting nothing (a disabled feature's optional pass).</summary>
-    private sealed class RejectingPass(string id, RenderingSystem rendering)
-        : StubPass(id, "test_lit_template", rendering)
-    {
-        public override bool Accepts(TestMaterialAsset asset) => false;
-    }
+    /// <summary>The tests' compile entry point.</summary>
+    private static GraphicsMaterial Compile(MaterialCompiler compiler, RenderingSystem rendering, MaterialAsset asset)
+        => compiler.Compile(asset, rendering.ShaderSystem.GetLibrary("test_lit_template"),
+            valueSpecArgs: null, (a, shader) => CreateMaterial(rendering, a, shader));
 
     private const string Contract = """
         #language slang 2025
@@ -173,90 +163,22 @@ public class TestMaterialCompiler
     }
 
     [Test]
-    public void RegisterPassRejectsDuplicateIds()
-    {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
-        using MaterialCompiler compiler = new(host.RenderingSystem);
-
-        compiler.RegisterPass(new StubPass("main", "test_lit_template", host.RenderingSystem));
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(() => compiler.RegisterPass(new StubPass("main", "test_lit_template", host.RenderingSystem)),
-                Throws.ArgumentException, "A second pass under a live id is rejected.");
-            Assert.That(() => compiler.RegisterPass(new StubPass("other", "test_lit_template", host.RenderingSystem)),
-                Throws.Nothing);
-        });
-    }
-
-    [Test]
-    public void UnregisteredPassReportsUnusable()
-    {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
-        using MaterialCompiler compiler = new(host.RenderingSystem);
-        TestMaterialAsset asset = new() { Name = "a" };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(compiler.Accepts(asset, "ghost"), Is.False);
-            Assert.That(compiler.TryCompile(asset, "ghost"), Is.Null);
-            Assert.That(() => compiler.Compile(asset, "ghost"), Throws.ArgumentException);
-        });
-    }
-
-    [Test]
-    public void AcceptsRoutesRejectedAssetsBeforeCompiling()
-    {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
-        using MaterialCompiler compiler = new(host.RenderingSystem);
-        compiler.RegisterPass(new RejectingPass("off", host.RenderingSystem));
-        TestMaterialAsset asset = new() { Name = "a" };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(compiler.Accepts(asset, "off"), Is.False);
-            Assert.That(compiler.TryCompile(asset, "off"), Is.Null, "A rejecting pass yields no material.");
-            Assert.That(() => compiler.Compile(asset, "off"), Throws.TypeOf<InvalidDataException>(),
-                "Getting a rejecting pass directly is a usage error.");
-        });
-    }
-
-    [Test]
-    public void ForeignFamilyAssetsNeverReachThePass()
-    {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
-        using MaterialCompiler compiler = new(host.RenderingSystem);
-        // The pass is typed to TestMaterialAsset; the checked cast of
-        // IMaterialPass<TAsset> turns foreign-family assets away at Accepts.
-        compiler.RegisterPass(new StubPass("main", "test_lit_template", host.RenderingSystem));
-        MaterialAsset foreign = new() { Name = "foreign" };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(compiler.Accepts(foreign, "main"), Is.False);
-            Assert.That(compiler.TryCompile(foreign, "main"), Is.Null);
-            Assert.That(() => compiler.Compile(foreign, "main"), Throws.TypeOf<InvalidDataException>());
-        });
-    }
-
-    [Test]
     public void CompileProducesFreshCallerOwnedMaterials()
     {
         using DummyRenderingSystemHost host = CreateRenderingSystem();
         using MaterialCompiler compiler = new(host.RenderingSystem);
-        compiler.RegisterPass(new StubPass("main", "test_lit_template", host.RenderingSystem));
 
         TestMaterialAsset asset = new()
         {
             Name = "a",
             Surface = host.RenderingSystem.ShaderSystem.GetLibrary("test_compiler_surface"),
         };
-        GraphicsMaterial material = compiler.Compile(asset, "main");
+        GraphicsMaterial material = Compile(compiler, host.RenderingSystem, asset);
 
         Assert.Multiple(() =>
         {
-            Assert.That(compiler.Compile(asset, "main"), Is.Not.SameAs(material),
-                "Every Compile produces a fresh caller-owned material; sharing is the caller's job.");
+            Assert.That(Compile(compiler, host.RenderingSystem, asset), Is.Not.SameAs(material),
+                "Every compile produces a fresh caller-owned material; sharing is the caller's job.");
             Assert.That(material.TryGetResourceId("_camera", out _), Is.True, "The template's bindings survive.");
             Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True, "The surface's texture binds by name.");
             Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True, "The parameter block binds by name.");
@@ -268,7 +190,6 @@ public class TestMaterialCompiler
     {
         using DummyRenderingSystemHost host = CreateRenderingSystem();
         using MaterialCompiler compiler = new(host.RenderingSystem);
-        compiler.RegisterPass(new StubPass("main", "test_lit_template", host.RenderingSystem));
 
         // Declared slot and parameter pass validation.
         ShaderLibrary surface = host.RenderingSystem.ShaderSystem.GetLibrary("test_compiler_surface");
@@ -279,7 +200,7 @@ public class TestMaterialCompiler
             Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = host.RenderingSystem.TextureWhite },
             Parameters = new Dictionary<string, Vector4> { ["pulseSpeed"] = new Vector4(2.0f, 0.0f, 0.0f, 0.0f) },
         };
-        Assert.That(() => compiler.Compile(valid, "main"), Throws.Nothing);
+        Assert.That(() => Compile(compiler, host.RenderingSystem, valid), Throws.Nothing);
 
         // An undeclared slot / parameter name is a typo in the asset: fail at
         // compile time, not later at bind time.
@@ -297,31 +218,39 @@ public class TestMaterialCompiler
         };
         Assert.Multiple(() =>
         {
-            Assert.That(() => compiler.Compile(typoSlot, "main"), Throws.TypeOf<InvalidDataException>());
-            Assert.That(() => compiler.Compile(typoParam, "main"), Throws.TypeOf<InvalidDataException>());
+            Assert.That(() => Compile(compiler, host.RenderingSystem, typoSlot), Throws.TypeOf<InvalidDataException>());
+            Assert.That(() => Compile(compiler, host.RenderingSystem, typoParam), Throws.TypeOf<InvalidDataException>());
         });
     }
 
     [Test]
     public void FallbackTexturesFollowTheAssetPolicy()
     {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using DummyRenderingSystemHost host = CreateRenderingSystem();
         using MaterialCompiler compiler = new(host.RenderingSystem);
         RenderingSystem rendering = host.RenderingSystem;
 
-        MaterialAsset plain = new() { Name = "plain" };
-        TestMaterialAsset family = new() { Name = "family" };
-
-        Assert.Multiple(() =>
+        // Unbound slots bind the asset's own fallback policy (base: always
+        // white), addressed through a real compile of the test surface, which
+        // declares the albedo slot.
+        MaterialAsset plain = new()
         {
-            // The base policy is always white.
-            Assert.That(compiler.ResolveFallbackTexture(plain, "_albedoTexture"), Is.SameAs(rendering.TextureWhite));
-            // The family asset's own policy, addressed by slot (the leading
-            // underscore of the shader resource name is stripped).
-            Assert.That(compiler.ResolveFallbackTexture(family, "_albedoTexture"), Is.SameAs(rendering.TextureWhite));
-            Assert.That(compiler.ResolveFallbackTexture(family, "normalTexture"), Is.SameAs(rendering.TextureFlatNormal));
-            Assert.That(compiler.ResolveFallbackTexture(family, "_emissiveTexture"), Is.SameAs(rendering.TextureBlack));
-        });
+            Name = "plain",
+            Surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface"),
+        };
+        GraphicsMaterial plainMaterial = Compile(compiler, rendering, plain);
+        Assert.That(plainMaterial.Parameters.GetTexture("_albedoTexture"), Is.SameAs(rendering.TextureWhite),
+            "The base policy is always white.");
+
+        // The family asset's own policy decides per slot name.
+        TestMaterialAsset family = new()
+        {
+            Name = "family",
+            Surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface"),
+        };
+        GraphicsMaterial familyMaterial = Compile(compiler, rendering, family);
+        Assert.That(familyMaterial.Parameters.GetTexture("_albedoTexture"), Is.SameAs(rendering.TextureWhite),
+            "The family asset keeps white for a non-matching slot prefix.");
     }
 
     [Test]

@@ -199,8 +199,10 @@ public class TestSlangMaterialCompiler
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
 
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-        // The renderer's constructor registers itself as the "gbuffer" pass (template
-        // × asset surface, the renderer's factory as the pass state).
+        // The renderer compiles its per-asset materials through the material
+        // compiler (the template composes with the asset's surface, the factory
+        // applies the pass state); the stateless factory beneath compiles fresh
+        // materials per call.
         using GBufferRenderer gbuffer = new(
             engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
 
@@ -218,12 +220,12 @@ public class TestSlangMaterialCompiler
                 ["bandFrequency"] = new(4.0f, 0.0f, 0.0f, 0.0f),
             },
         };
-        GraphicsMaterial material = compiler.Compile(parameterized, "gbuffer");
+        GraphicsMaterial material = gbuffer.GetMaterial(parameterized);
 
         Assert.Multiple(() =>
         {
-            Assert.That(compiler.Compile(parameterized, "gbuffer"), Is.Not.SameAs(material),
-                "Every Compile produces a fresh caller-owned material; sharing is the caller's job.");
+            Assert.That(gbuffer.GetMaterial(parameterized), Is.SameAs(material),
+                "The renderer's cache shares one material per asset.");
             Assert.That(material.TryGetResourceId("PulseParams", out _), Is.True,
                 "The surface's parameter block binds by its (free) name.");
             Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True,
@@ -241,17 +243,18 @@ public class TestSlangMaterialCompiler
             Surface = Library(engine, ParameterizedSurfaceModule),
             Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(1.0f, 0.0f, 0.0f, 0.0f) },
         };
-        Assert.That(() => compiler.Compile(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
+        Assert.That(() => gbuffer.GetMaterial(typo), Throws.TypeOf<InvalidDataException>());
 
-        // A game-registered pass composes like the built-in ones: open registration
-        // is the extension point (here: a minimal materializing factory).
-        compiler.RegisterPass(new StubMaterialPass("glass", "glass", engine.RenderingSystem));
-        PbrMaterialAsset glass = new()
+        // A game-defined facility composes like the built-in ones: its template and
+        // factory are handed straight to the compiler (here: a minimal factory).
+        PbrMaterialAsset glassAsset = new()
         {
             Name = "glass",
             Surface = Library(engine, ParameterizedSurfaceModule),
         };
-        GraphicsMaterial glassMaterial = compiler.Compile(glass, "glass");
+        GraphicsMaterial glassMaterial = compiler.Compile(glassAsset,
+            Library(engine, "glass"), valueSpecArgs: null,
+            (a, shader) => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{a.Name}_glass"));
         Assert.That(glassMaterial.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
             "The glass template declares the camera binding.");
     }

@@ -16,11 +16,11 @@ namespace Alco.Rendering;
 /// <br/>The asset carries only pipeline-agnostic concepts: which surface module to
 /// evaluate, its specialization defines, its texture slots and its parameter values.
 /// Pipeline-family data (the PBR factors and alpha routing of World3D's materials, ...)
-/// lives on derived classes; pass implementations receive the derived type statically
-/// through <see cref="IMaterialPass{TAsset}"/>.
+/// lives on derived classes; the rendering facility compiling the asset receives
+/// the derived type directly (e.g. <c>GetMaterial(PbrMaterialAsset)</c>).
 /// <br/>Per-pass GPU materials are compiled from this description by
-/// <see cref="MaterialCompiler"/> from the policies of the registered
-/// <see cref="IMaterialPass"/>es, binding the carried textures by slot with the
+/// <see cref="MaterialCompiler"/> (each facility's template and factory),
+/// binding the carried textures by slot with the
 /// asset's fallback policy for unbound slots. The asset is complete at load time and
 /// never learns about streaming: streamed texture sources (e.g. a glTF scene's
 /// textures) are owned by the streaming consumer and override the compiled materials

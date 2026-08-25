@@ -54,10 +54,9 @@ public class Game : GameEngine
         public int VoxelStaticInstanceHandle = -1;
 
         // ── IGBufferRenderable (GBuffer renderer reads these) ──
-        public GraphicsMaterial? GBufferMaterial { get; set; }
+        public PbrMaterialAsset Material { get; set; } = PbrMaterialAsset.Default;
         public bool IsStatic => SpinSpeed == 0 && FloatSpeed == 0;
         Mesh IGBufferRenderable.Mesh => Mesh;
-        GraphicsMaterial IGBufferRenderable.Material => GBufferMaterial!;
         Matrix4x4 IGBufferRenderable.WorldMatrix => Transform.Matrix;
         Vector4 IGBufferRenderable.BaseColor => new(BaseColor, 1.0f);
         Vector4 IGBufferRenderable.MetallicRoughnessAO => new(Metallic, Roughness, AmbientOcclusion, 1.0f);
@@ -67,16 +66,11 @@ public class Game : GameEngine
         public Matrix4x4 WorldMatrix => Transform.Matrix;
 
         // ── IShadowRenderable (Shadow renderer reads these) ──
-        public GraphicsMaterial? ShadowMaterial { get; set; }
-        /// <summary>Optional RSM material for the GI sun-bounce pass (null skips the object).</summary>
-        public GraphicsMaterial? RsmMaterial { get; set; }
         bool IShadowRenderable.CastsShadow => CastsShadow;
         Mesh IShadowRenderable.Mesh => Mesh;
-        GraphicsMaterial IShadowRenderable.Material => ShadowMaterial!;
         Matrix4x4 IShadowRenderable.WorldMatrix => Transform.Matrix;
         float IShadowRenderable.AlphaCutoff => 0.0f;
         float IShadowRenderable.BaseColorAlpha => 1.0f;
-        GraphicsMaterial? IShadowRenderable.RsmMaterial => RsmMaterial;
         Vector4 IShadowRenderable.RsmBaseColor => new(BaseColor, 1.0f);
     }
 
@@ -88,21 +82,19 @@ public class Game : GameEngine
     {
         private readonly ModelDrawItem _item;
         private readonly PbrMaterialAsset _asset;
-        private readonly GraphicsMaterial _gbufferMaterial;
         private readonly Func<Vector3> _getEmissiveFactor;
 
-        public ModelRenderable(ModelDrawItem item, PbrMaterialAsset asset, GraphicsMaterial gbufferMaterial,
+        public ModelRenderable(ModelDrawItem item, PbrMaterialAsset asset,
             Func<Vector3> getEmissiveFactor)
         {
             _item = item;
             _asset = asset;
-            _gbufferMaterial = gbufferMaterial;
             _getEmissiveFactor = getEmissiveFactor;
         }
 
         public bool IsStatic => true;
         Mesh IGBufferRenderable.Mesh => _item.Mesh;
-        GraphicsMaterial IGBufferRenderable.Material => _gbufferMaterial;
+        PbrMaterialAsset IGBufferRenderable.Material => _asset;
         Matrix4x4 IGBufferRenderable.WorldMatrix => _item.World;
         Vector4 IGBufferRenderable.BaseColor => _asset.BaseColorFactor;
         Vector4 IGBufferRenderable.MetallicRoughnessAO => new(_asset.MetallicFactor, _asset.RoughnessFactor, 1.0f, 0.0f);
@@ -111,90 +103,56 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its shadow material as an
+    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its material asset as an
     /// <see cref="IShadowRenderable"/> for the ShadowRenderer registry.
     /// </summary>
     private sealed class ModelShadowRenderable : IShadowRenderable
     {
         private readonly ModelDrawItem _item;
         private readonly PbrMaterialAsset _asset;
-        private readonly GraphicsMaterial _shadowMaterial;
-        private readonly GraphicsMaterial? _rsmMaterial;
 
-        public ModelShadowRenderable(ModelDrawItem item, PbrMaterialAsset asset, GraphicsMaterial shadowMaterial,
-            GraphicsMaterial? rsmMaterial = null)
+        public ModelShadowRenderable(ModelDrawItem item, PbrMaterialAsset asset)
         {
             _item = item;
             _asset = asset;
-            _shadowMaterial = shadowMaterial;
-            _rsmMaterial = rsmMaterial;
         }
 
         public bool IsStatic => true;
         public bool CastsShadow => true;
         Mesh IShadowRenderable.Mesh => _item.Mesh;
-        GraphicsMaterial IShadowRenderable.Material => _shadowMaterial;
+        PbrMaterialAsset IShadowRenderable.Material => _asset;
         Matrix4x4 IShadowRenderable.WorldMatrix => _item.World;
         float IShadowRenderable.AlphaCutoff => ModelMaterialAdapter.ResolveAlphaCutoff(_asset);
         float IShadowRenderable.BaseColorAlpha => _asset.BaseColorFactor.W;
-        GraphicsMaterial? IShadowRenderable.RsmMaterial => _rsmMaterial;
         Vector4 IShadowRenderable.RsmBaseColor => _asset.BaseColorFactor;
     }
 
     /// <summary>
-    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its glass material
+    /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its material asset
     /// as an <see cref="IForwardRenderable"/> for the RGNode_Forward registry.
     /// </summary>
     private sealed class ModelGlassRenderable : IForwardRenderable
     {
         private readonly ModelDrawItem _item;
         private readonly PbrMaterialAsset _asset;
-        private readonly GraphicsMaterial _glassMaterial;
         private readonly Func<float> _getTransmission;
 
-        public ModelGlassRenderable(ModelDrawItem item, PbrMaterialAsset asset, GraphicsMaterial glassMaterial,
+        public ModelGlassRenderable(ModelDrawItem item, PbrMaterialAsset asset,
             Func<float> getTransmission)
         {
             _item = item;
             _asset = asset;
-            _glassMaterial = glassMaterial;
             _getTransmission = getTransmission;
         }
 
         public bool IsStatic => true;
         Mesh IForwardRenderable.Mesh => _item.Mesh;
-        GraphicsMaterial IForwardRenderable.Material => _glassMaterial;
+        PbrMaterialAsset IForwardRenderable.Material => _asset;
         Matrix4x4 IForwardRenderable.WorldMatrix => _item.World;
         Vector4 IForwardRenderable.BaseColor => _asset.BaseColorFactor;
         Vector4 IForwardRenderable.MetallicRoughnessAO => new(_asset.MetallicFactor, _asset.RoughnessFactor, 1.0f, 0.0f);
         Vector3 IForwardRenderable.EmissiveFactor => Vector3.Zero;
         float IForwardRenderable.TransmissionFactor => _getTransmission();
-    }
-
-    /// <summary>
-    /// The GPU materials of one glTF material: the compiled per-pass materials its
-    /// draw items bind. Textures come from the asset descriptor, so no per-material
-    /// instances are needed. Game-owned (the compiler is a stateless factory),
-    /// disposed in OnStop.
-    /// </summary>
-    private sealed class ModelMaterialSet
-    {
-        public GraphicsMaterial? Glass;
-        public GraphicsMaterial? GBuffer;
-        public GraphicsMaterial? Shadow;
-        public GraphicsMaterial? Rsm;
-
-        /// <summary>Collect every material of the set into a list.</summary>
-        public void CollectInto(List<GraphicsMaterial> materials)
-        {
-            foreach (GraphicsMaterial? material in new GraphicsMaterial?[] { Glass, GBuffer, Shadow, Rsm })
-            {
-                if (material != null)
-                {
-                    materials.Add(material);
-                }
-            }
-        }
     }
 
     private readonly PBRDeferredPreset _preset;
@@ -215,14 +173,10 @@ public class Game : GameEngine
     // Slang front end instead of the engine's DXC toolchain (engine built-ins
     // such as BuiltInAssets.Shader_Blit stay on the engine path).
     private MaterialCompiler? _materialCompiler;
-    // One material asset per glTF material: the data-only descriptors compiled
-    // once per pass into the game-owned material sets below.
+    // One material asset per glTF material: the data-only descriptors handed to
+    // the renderers, which compile and cache the per-pass materials themselves
+    // (weakly, following each asset's lifetime).
     private PbrMaterialAsset[]? _modelAssets;
-    // The compiled per-pass materials of each glTF material, shared by its draw items.
-    private ModelMaterialSet[]? _modelMaterialSets;
-    // Every GPU material this game owns — compiled bases and their instances —
-    // disposed in OnStop (caller ownership, see MaterialCompiler).
-    private readonly List<GraphicsMaterial> _ownedMaterials = new();
 
     // Forward transparency renderer for glass materials.
     private RGNode_Forward? _forwardRenderer;
@@ -624,21 +578,20 @@ public class Game : GameEngine
 
         if (_modelScene != null)
         {
-            // One material asset per glTF material — data-only descriptors compiled
-            // once per pass into the game-owned material sets. The glTF loader realizes
-            // every texture before the scene returns (external files stream their
-            // content in place), so the descriptors bind the final textures directly.
+            // One material asset per glTF material — data-only descriptors handed
+            // to the renderers, which compile and cache the per-pass materials
+            // themselves (blend assets only reach the forward glass pass). The
+            // glTF loader realizes every texture before the scene returns
+            // (external files stream their content in place), so the descriptors
+            // bind the final textures directly.
             _modelAssets = new PbrMaterialAsset[_modelScene.Materials.Count];
-            _modelMaterialSets = new ModelMaterialSet[_modelAssets.Length];
             for (int i = 0; i < _modelAssets.Length; i++)
             {
                 _modelAssets[i] = ModelMaterialAdapter.ToAsset(_modelScene.Materials[i]);
-                _modelMaterialSets[i] = CompileModelMaterialSet(_modelAssets[i]);
-                _modelMaterialSets[i].CollectInto(_ownedMaterials);
             }
 
-            // Register model draw items: the pass registry routes blend materials
-            // to the forward glass pass, everything else to G-buffer + shadow (+RSM).
+            // Register model draw items: the renderers route blend materials to
+            // the forward glass pass, everything else to G-buffer + shadow (+RSM).
             {
                 IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
 
@@ -646,11 +599,10 @@ public class Game : GameEngine
                 {
                     ModelDrawItem item = drawItems[i];
                     PbrMaterialAsset asset = _modelAssets[item.MaterialIndex];
-                    ModelMaterialSet materialSet = _modelMaterialSets[item.MaterialIndex];
-                    if (materialSet.Glass != null)
+                    if (asset.AlphaMode == MeshAlphaMode.Blend && _forwardRenderer != null)
                     {
                         _forwardRenderer.Add(new ModelGlassRenderable(
-                            item, asset, materialSet.Glass, () => _glassTransmission));
+                            item, asset, () => _glassTransmission));
                     }
                     else
                     {
@@ -658,10 +610,8 @@ public class Game : GameEngine
                         // the Point Lights toggle / Emissive Boost slider take
                         // effect on the next re-record (MarkStaticBundleDirty).
                         _gbufferRenderer.Add(new ModelRenderable(item, asset,
-                            materialSet.GBuffer!,
                             () => asset.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
-                        _shadowRenderer.Add(new ModelShadowRenderable(item, asset,
-                            materialSet.Shadow!, materialSet.Rsm));
+                        _shadowRenderer.Add(new ModelShadowRenderable(item, asset));
                     }
                 }
             }
@@ -676,28 +626,17 @@ public class Game : GameEngine
             _objectNames = _objects.Select(o => o.Mesh.Name).ToArray();
             // One material asset for all procedural objects: the built-in
             // PbrStandard surface with the checker texture on the albedo slot.
-            // Nothing streams here, so the game-owned compiled materials bind
-            // the asset's own texture directly and are shared as-is.
+            // The renderers compile and cache its materials themselves; the
+            // objects reference the shared asset.
             _proceduralAsset = new PbrMaterialAsset
             {
                 Name = "checker",
                 Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = _checkerTexture },
             };
-            GraphicsMaterial proceduralMaterial = _materialCompiler.Compile(_proceduralAsset, GBufferRenderer.PassId);
-            GraphicsMaterial proceduralShadowMaterial = _materialCompiler.Compile(_proceduralAsset, ShadowRenderer.PassId);
-            GraphicsMaterial? proceduralRsmMaterial = _materialCompiler.TryCompile(_proceduralAsset, ShadowRenderer.RsmPassId);
-            _ownedMaterials.Add(proceduralMaterial);
-            _ownedMaterials.Add(proceduralShadowMaterial);
-            if (proceduralRsmMaterial != null)
-            {
-                _ownedMaterials.Add(proceduralRsmMaterial);
-            }
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
             {
-                obj.GBufferMaterial = proceduralMaterial;
-                obj.ShadowMaterial = proceduralShadowMaterial;
-                obj.RsmMaterial = proceduralRsmMaterial;
+                obj.Material = (PbrMaterialAsset)_proceduralAsset;
                 _gbufferRenderer.Add(obj);
                 _shadowRenderer.Add(obj);
             }
@@ -888,13 +827,9 @@ public class Game : GameEngine
         _gbufferRenderer.Dispose();
         _shadowRenderer.Dispose();
         _preset.Dispose();
-        // The compiled materials are game-owned (the compiler is a stateless
-        // factory and disposes nothing of theirs).
-        foreach (GraphicsMaterial material in _ownedMaterials)
-        {
-            material.Dispose();
-        }
-        _ownedMaterials.Clear();
+        // The compiled materials live in the renderers' per-asset caches (weakly
+        // held, following each asset's lifetime) and finalize themselves with
+        // the GPU objects they reference.
         _materialCompiler?.Dispose();
     }
 
@@ -1457,25 +1392,6 @@ public class Game : GameEngine
             float ssaoAmount = _giEnabled && _voxelGI != null ? _giSsaoAmount : 1.0f;
             _hbaoRenderer.Strength = (_hbaoEnabled ? _hbaoStrength : 0.0f) * ssaoAmount;
         }
-    }
-
-    /// <summary>
-    /// Compile the per-pass materials of one glTF material asset. The pass registry
-    /// routes blend materials to the forward glass pass, everything else to
-    /// G-buffer + shadow (+RSM); a rejecting pass leaves its set entries null.
-    /// </summary>
-    private ModelMaterialSet CompileModelMaterialSet(PbrMaterialAsset asset)
-    {
-        var set = new ModelMaterialSet();
-        set.Glass = _materialCompiler!.TryCompile(asset, RGNode_Forward.PassId);
-        if (set.Glass != null)
-        {
-            return set;
-        }
-        set.GBuffer = _materialCompiler.Compile(asset, GBufferRenderer.PassId);
-        set.Shadow = _materialCompiler.Compile(asset, ShadowRenderer.PassId);
-        set.Rsm = _materialCompiler.TryCompile(asset, ShadowRenderer.RsmPassId);
-        return set;
     }
 
     /// <summary>

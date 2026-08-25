@@ -5,11 +5,13 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Compiles data-only <see cref="MaterialAsset"/>s into per-pass GPU materials: a
-/// pass registry plus a stateless (asset, pass) factory, pipeline-agnostic.
-/// Passes register as <see cref="IMaterialPass"/> implementations where their
-/// renderers/features come up (a 2D pipeline's sprite pass, a deferred pipeline's
-/// G-buffer/shadow/glass passes, a feature pass like a voxel GI's RSM where the
-/// feature is enabled, game-defined passes anywhere).
+/// stateless factory, pipeline-agnostic. There is no pass abstraction and no
+/// registry — a rendering facility (a deferred pipeline's G-buffer/shadow/glass
+/// passes, a 2D pipeline's sprite pass, a voxel GI's compute feed, game-defined
+/// facilities anywhere) owns its pass template and its material factory as plain
+/// private state, hands them straight to <see cref="Compile"/> (graphics) or
+/// <see cref="CompileCompute"/> (compute), and serves the per-asset materials
+/// from its own cache.
 /// <br/>Every surface is a <see cref="ShaderLibrary"/> exporting the pipeline family's
 /// surface contract (e.g. <c>public struct Surface : ISurface</c>). Compilation is
 /// slang's own component system: the pass template owns the surface-generic
@@ -18,7 +20,7 @@ namespace Alco.Rendering;
 /// stitching) — see <see cref="MaterialComposer"/>, the composition core this class
 /// builds its asset policy on. Value specialization replaces pass-private defines (a
 /// shadow pass's alpha test is the template's <c>let AlphaTest : bool</c> parameter,
-/// fed from the pass's <see cref="IMaterialPass.GetValueSpecArgs"/>).
+/// fed from the compile call's value-spec arguments).
 /// <br/>The parameter mapping reads slang's module-level reflection (a surface's
 /// <c>[MaterialParams]</c>-marked blocks may mix scalar and vector float members,
 /// under any block names); texture slots are validated against the composed
@@ -46,11 +48,10 @@ public sealed class MaterialCompiler : AutoDisposable
 
     private readonly RenderingSystem _rendering;
     private readonly ShaderLibrary? _defaultSurface;
-    private readonly Dictionary<string, IMaterialPass> _passes = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// Create the compiler. It starts out knowing no passes; register them as their
-    /// renderers/features come up (<see cref="RegisterPass"/>).
+    /// Create the compiler. The renderers/features that need materials compile
+    /// through it with their own templates and factories.
     /// </summary>
     /// <param name="rendering">The rendering system (material factory, fallback textures, shared ShaderSystem).</param>
     /// <param name="defaultSurface">
@@ -67,62 +68,37 @@ public sealed class MaterialCompiler : AutoDisposable
 
     /// <summary>
     /// The pipeline-agnostic composition core (template×surface shaders, parameter
-    /// layouts, parameter packing). Facilities composing outside the graphics pass
-    /// registry — e.g. a voxel GI's compute feed — use it directly.
+    /// layouts, parameter packing). Facilities composing outside a material
+    /// compile — e.g. a voxel GI's compute feed — use it directly.
     /// </summary>
     public MaterialComposer Composer { get; }
 
     /// <summary>
-    /// Register a material pass. Pass identifiers must be unique; registering a second
-    /// pass under a live id throws.
-    /// </summary>
-    /// <param name="pass">The pass to register.</param>
-    public void RegisterPass(IMaterialPass pass)
-    {
-        ArgumentNullException.ThrowIfNull(pass);
-        if (!_passes.TryAdd(pass.Id, pass))
-        {
-            throw new ArgumentException($"A material pass '{pass.Id}' is already registered.");
-        }
-    }
-
-    /// <summary>
-    /// Whether a pass is registered and accepts the asset — the pass-participation
-    /// routing that replaces game-side special cases.
-    /// </summary>
-    public bool Accepts(MaterialAsset asset, string passId)
-    {
-        ArgumentNullException.ThrowIfNull(asset);
-        return _passes.TryGetValue(passId, out IMaterialPass? pass)
-            && pass.Accepts(asset);
-    }
-
-    /// <summary>
-    /// Compile the material of an asset for the pass registered under an id. Every
-    /// call compiles a fresh material — the caller owns it: share it across the
-    /// meshes using the asset, dispose it with the owning scene/renderer, or drop
-    /// it for the GC.
+    /// Compile the material of an asset for one graphics pass: the pass template
+    /// composes with the asset's surface, and the caller's factory creates the
+    /// GPU material applying the pass-mandated state (depth/blend/rasterizer,
+    /// internal buffer bindings). Every call compiles a fresh material — the
+    /// caller owns it: share it across the meshes using the asset, dispose it
+    /// with the owning scene/renderer, or drop it for the GC.
     /// </summary>
     /// <param name="asset">The material asset.</param>
-    /// <param name="passId">The registered pass identifier.</param>
-    /// <returns>The caller-owned material of the (asset, pass) pair.</returns>
-    /// <exception cref="ArgumentException">No pass is registered under <paramref name="passId"/>.</exception>
-    /// <exception cref="InvalidDataException">The pass does not accept the asset.</exception>
-    public GraphicsMaterial Compile(MaterialAsset asset, string passId)
+    /// <param name="template">The pass-template library, composed with the asset's surface.</param>
+    /// <param name="valueSpecArgs">Value specialization arguments of the template's entries, in entry order; null when it takes none.</param>
+    /// <param name="createMaterial">The caller's factory: turns the composed shader into the pass's GPU material.</param>
+    /// <returns>The caller-owned material of the (asset, template) pair.</returns>
+    /// <exception cref="InvalidDataException">A texture slot or parameter of the asset matches nothing on the surface.</exception>
+    public GraphicsMaterial Compile(
+        MaterialAsset asset,
+        ShaderLibrary template,
+        IReadOnlyList<string>? valueSpecArgs,
+        Func<MaterialAsset, Shader, GraphicsMaterial> createMaterial)
     {
         ArgumentNullException.ThrowIfNull(asset);
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(createMaterial);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        if (!_passes.TryGetValue(passId, out IMaterialPass? pass))
-        {
-            throw new ArgumentException($"No material pass '{passId}' is registered.", nameof(passId));
-        }
-        if (!pass.Accepts(asset))
-        {
-            throw new InvalidDataException(
-                $"GraphicsMaterial pass '{passId}' does not accept material '{asset.Name}'.");
-        }
 
-        Shader shader = ComposeSurfaceShader(asset, pass.Template, pass.GetValueSpecArgs(asset));
+        Shader shader = ComposeSurfaceShader(asset, template, valueSpecArgs);
         ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
@@ -138,7 +114,7 @@ public sealed class MaterialCompiler : AutoDisposable
             }
         }
 
-        GraphicsMaterial material = pass.CreateMaterial(asset, shader);
+        GraphicsMaterial material = createMaterial(asset, shader);
         try
         {
             // The parameter blocks, packed from the asset's values; each block is
@@ -175,19 +151,10 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The compiled material of an asset for the pass registered under an id, or null
-    /// when no such pass exists or the pass does not accept the asset — e.g. the
-    /// optional pass of a feature that is disabled this run, a transparency pass for
-    /// an opaque material, or a pass of a different pipeline family.
-    /// </summary>
-    public GraphicsMaterial? TryCompile(MaterialAsset asset, string passId)
-        => Accepts(asset, passId) ? Compile(asset, passId) : null;
-
-    /// <summary>
     /// The shader of one pass template composed with an asset's surface (the compiler's
-    /// default surface when <paramref name="asset"/> is null or names none): what
-    /// renderer constructors receive as their pipeline-level default shader. Custom
-    /// passes go through <see cref="Composer"/> for non-graphics stage mixes.
+    /// default surface when <paramref name="asset"/> is null or names none) — the
+    /// composition step of <see cref="Compile"/>, on its own for inspection and tests.
+    /// Facilities needing non-graphics stage mixes go through <see cref="Composer"/>.
     /// </summary>
     /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
     /// <param name="template">The pass-template library.</param>
@@ -215,7 +182,6 @@ public sealed class MaterialCompiler : AutoDisposable
     /// as the graphics passes — texture slots are validated against the composed
     /// reflection and bound from the asset's own bindings (the asset's fallback policy
     /// for unbound slots), and the surface's parameter blocks are packed and bound.
-    /// Compute passes have no registry; the template is handed in directly.
     /// <br/>The material is caller-owned: share it across the dispatches using the asset
     /// and drop it with the owning facility; a compute material holds no disposable
     /// state of its own, and the GPU resources it references finalize themselves.
@@ -270,12 +236,11 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <summary>
     /// The fallback texture of one surface texture resource of an asset — the asset's
     /// own policy (<see cref="MaterialAsset.GetTextureFallback"/>) resolved to a device
-    /// texture. Facilities composing surface feeds outside the graphics pass registry
-    /// (e.g. the voxel GI) bind through this.
+    /// texture, for the unbound slots of a compile.
     /// </summary>
     /// <param name="asset">The material asset whose policy resolves.</param>
     /// <param name="resourceName">The shader resource name of the texture slot (a leading underscore is stripped).</param>
-    public Texture2D ResolveFallbackTexture(MaterialAsset asset, string resourceName)
+    private Texture2D ResolveFallbackTexture(MaterialAsset asset, string resourceName)
     {
         ArgumentNullException.ThrowIfNull(asset);
         string slot = resourceName.StartsWith('_') ? resourceName[1..] : resourceName;

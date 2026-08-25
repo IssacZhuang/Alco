@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
 using Alco;
@@ -20,8 +21,9 @@ public interface IGBufferRenderable
     /// <summary>The mesh to draw.</summary>
     Mesh Mesh { get; }
 
-    /// <summary>The G-buffer material (created via <see cref="GBufferRenderer.CreateMaterial"/>).</summary>
-    GraphicsMaterial Material { get; }
+    /// <summary>The material asset (compiled to a G-buffer material by
+    /// <see cref="GBufferRenderer.GetMaterial"/>).</summary>
+    PbrMaterialAsset Material { get; }
 
     /// <summary>The world transform of the object (read live each frame for dynamic items).</summary>
     Matrix4x4 WorldMatrix { get; }
@@ -40,10 +42,11 @@ public interface IGBufferRenderable
 }
 
 /// <summary>
-/// A G-buffer content provider of the deferred PBR pipeline. Registers the
-/// "gbuffer" material pass on the <see cref="MaterialCompiler"/> (the
-/// <c>gbuffer.slang</c> template composed per material asset) and holds a
-/// registry of <see cref="IGBufferRenderable"/> objects. Static objects are
+/// A G-buffer content provider of the deferred PBR pipeline. Compiles its per-asset
+/// G-buffer materials through the <see cref="MaterialCompiler"/> (the renderer is
+/// itself the pass strategy: the <c>gbuffer.slang</c> template composed per material
+/// asset — see <see cref="GetMaterial"/>) and holds a registry of
+/// <see cref="IGBufferRenderable"/> objects. Static objects are
 /// baked into an internal render bundle; dynamic objects are drawn immediately
 /// each frame. The owning <see cref="RGNode_GeometryPass"/> calls
 /// <see cref="OnRender"/> automatically inside its open G-buffer pass (register via
@@ -51,21 +54,26 @@ public interface IGBufferRenderable
 /// <br/>The renderer does <b>not</b> own the G-buffer render texture, attachment layout
 /// or render context — those are owned by the pass node.
 /// </summary>
-public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent, IMaterialPass<PbrMaterialAsset>
+public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
 {
-    /// <summary>The material-pass identifier this renderer registers ("gbuffer").</summary>
-    public const string PassId = "gbuffer";
-
-    /// <inheritdoc />
+    /// <summary><inheritdoc /></summary>
     public bool IsEnabled { get; set; } = true;
 
     private readonly RenderingSystem _rendering;
+    private readonly MaterialCompiler _materialCompiler;
     private readonly ShaderLibrary _template;
     private CameraPerspectiveBuffer? _camera;
 
     // Registered renderables split by static / dynamic.
     private readonly UnorderedList<IGBufferRenderable> _staticItems = new();
     private readonly UnorderedList<IGBufferRenderable> _dynamicItems = new();
+
+    // The compiled G-buffer material of each material asset, held weakly: the
+    // materials are derived per-asset state whose lifetime follows the asset's
+    // (the engine's ownership rule) instead of being pinned by this renderer —
+    // live registrations keep their assets, and so their materials, alive on
+    // their own. Compiled lazily on first use; reset when the camera changes.
+    private ConditionalWeakTable<PbrMaterialAsset, GraphicsMaterial> _materials = new();
 
     // Static render bundle — re-recorded only when dirty.
     private readonly SubRenderContext _staticBundle;
@@ -81,30 +89,60 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
     private readonly PbrInstanceBatch _dynamicBatch = new();
 
     /// <summary>
-    /// Create the G-buffer renderer and register its material pass on the compiler:
-    /// opaque and alpha-tested materials participate, blend materials are left to
-    /// the forward pass.
+    /// Create the G-buffer renderer. Opaque and alpha-tested materials participate;
+    /// blend materials are left to the forward pass.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
-    /// <param name="compiler">The material compiler the "gbuffer" pass registers on.</param>
+    /// <param name="compiler">The material compiler the per-asset materials compile through.</param>
     /// <param name="template">The G-buffer pass template library (gbuffer.slang), composed per material asset.</param>
     public GBufferRenderer(RenderingSystem rendering, MaterialCompiler compiler, ShaderLibrary template)
     {
         _rendering = rendering;
+        _materialCompiler = compiler;
         _template = template;
         _staticBundle = rendering.CreateSubRenderContext("pbr_gbuffer_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_gbuffer_dynamic");
-        compiler.RegisterPass(this);
+    }
+
+    // ── Per-asset materials ──
+
+    /// <summary>
+    /// The G-buffer material of one material asset: compiled once per asset through
+    /// the material compiler (the G-buffer template composes with the asset's
+    /// surface; this renderer's factory applies the pass-mandated state) and
+    /// shared by every item using the asset. The material is derived per-asset
+    /// state, held weakly so its lifetime follows the asset's.
+    /// </summary>
+    /// <param name="asset">The material asset; blend assets belong to the forward pass.</param>
+    /// <exception cref="InvalidDataException">The asset is a blend material of a foreign family.</exception>
+    public GraphicsMaterial GetMaterial(PbrMaterialAsset asset)
+    {
+        if (asset.AlphaMode == MeshAlphaMode.Blend)
+        {
+            throw new InvalidDataException(
+                $"Blend material '{asset.Name}' belongs to the forward transparency pass, not the G-buffer.");
+        }
+        return _materials.GetValue(asset, a => _materialCompiler.Compile(
+            a, _template, valueSpecArgs: null, (_, shader)
+                => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer")));
     }
 
     /// <summary>
-    /// Set the camera used for G-buffer material binding.
-    /// The caller must keep the camera updated (e.g. <c>UpdateMatrixToGPU</c>)
-    /// before drawing each frame.
+    /// Set the camera used for G-buffer material binding; compiled materials bind
+    /// the new camera. The caller must keep the camera updated (e.g.
+    /// <c>UpdateMatrixToGPU</c>) before drawing each frame.
     /// </summary>
     public void SetCamera(CameraPerspectiveBuffer camera)
     {
+        if (ReferenceEquals(_camera, camera))
+        {
+            return;
+        }
         _camera = camera;
+        // Materials bind the camera at compile time: drop the cache so later
+        // compiles bind the new one, and re-record with fresh materials.
+        _materials = new ConditionalWeakTable<PbrMaterialAsset, GraphicsMaterial>();
+        _staticBundleDirty = true;
     }
 
     // ── Renderable registry ──
@@ -213,7 +251,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
                 MetallicRoughnessAO = item.MetallicRoughnessAO,
                 Params = new Vector4(item.AlphaCutoff, 0.0f, 0.0f, 0.0f),
                 Emissive = new Vector4(item.EmissiveFactor, 1.0f),
-            }, item.Material, item.Mesh);
+            }, GetMaterial(item.Material), item.Mesh);
         }
         batch.Flush(_rendering, bufferName);
     }
@@ -237,19 +275,18 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
         }
     }
 
-    // ── GraphicsMaterial factory ──
+    // ── Material factory ──
 
     /// <summary>
-    /// Create a G-buffer material from a pass-template shader already composed with its
-    /// surface (see <see cref="MaterialCompiler"/>): applies the pass-mandated state —
-    /// reversed-infinite-depth write, cull mode from double-sidedness and the camera
-    /// binding — and leaves every texture slot to the caller. Called back by the
-    /// registered pass descriptor; the compiler owns the returned material.
+    /// Create a G-buffer material from the composed pass-template shader: applies
+    /// the pass-mandated state — reversed-infinite-depth write, cull mode from
+    /// double-sidedness and the camera binding — and leaves every texture slot
+    /// to the compile (see <see cref="GetMaterial"/>).
     /// </summary>
     /// <param name="shader">The composed G-buffer template shader.</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>
     /// <param name="name">The material name for debugging.</param>
-    public GraphicsMaterial CreateMaterial(Shader shader, bool doubleSided = false, string name = "pbr_gbuffer_material")
+    private GraphicsMaterial CreateMaterial(Shader shader, bool doubleSided, string name)
     {
         var material = _rendering.CreateGraphicsMaterial(shader, name);
         // Reversed infinite camera depth (near = 1, far = 0): GreaterEqual keeps
@@ -263,18 +300,6 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent,
         }
         return material;
     }
-
-    // ── IMaterialPass<PbrMaterialAsset> ──
-
-    string IMaterialPass.Id => PassId;
-
-    ShaderLibrary IMaterialPass.Template => _template;
-
-    GraphicsMaterial IMaterialPass<PbrMaterialAsset>.CreateMaterial(PbrMaterialAsset asset, Shader shader)
-        => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer");
-
-    bool IMaterialPass<PbrMaterialAsset>.Accepts(PbrMaterialAsset asset)
-        => asset.AlphaMode != MeshAlphaMode.Blend;
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
