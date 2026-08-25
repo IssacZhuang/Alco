@@ -31,9 +31,9 @@ namespace Alco.Rendering;
 /// owning scene/renderer — or simply drops it, since every GPU object finalizes
 /// itself. The compiler keeps no per-asset state, so an unloaded asset and the
 /// materials compiled from it are reclaimed by the GC with no notification
-/// required. Streamed textures never pass through here: the streaming consumer
-/// derives a <see cref="GraphicsMaterialInstance"/> from the compiled material and
-/// sets arriving textures on its own instance. A hot-reloaded asset file is a new
+/// required. Streamed textures need no accommodation here: streaming pre-creates
+/// the texture at its final specification and uploads the content in place, so a
+/// bound texture object is never replaced. A hot-reloaded asset file is a new
 /// <see cref="MaterialAsset"/> instance; its consumers recompile.
 /// <br/>Dispose the compiler to release the composed-shader cache
 /// (<see cref="Composer"/>); it owns nothing else.
@@ -208,6 +208,64 @@ public sealed class MaterialCompiler : AutoDisposable
         MaterialAsset? asset, ShaderLibrary template, IReadOnlyList<string>? valueSpecArgs = null)
         => Composer.ComposeCompute(
             template, SurfaceOf(asset), valueSpecArgs, defines: asset?.Defines);
+
+    /// <summary>
+    /// The compute counterpart of <see cref="Compile"/>: the material of an asset for a
+    /// compute pass template (e.g. a voxel GI's voxelization), under the same slot rules
+    /// as the graphics passes — texture slots are validated against the composed
+    /// reflection and bound from the asset's own bindings (the asset's fallback policy
+    /// for unbound slots), and the surface's parameter blocks are packed and bound.
+    /// Compute passes have no registry; the template is handed in directly.
+    /// <br/>The material is caller-owned: share it across the dispatches using the asset
+    /// and drop it with the owning facility; a compute material holds no disposable
+    /// state of its own, and the GPU resources it references finalize themselves.
+    /// </summary>
+    /// <param name="asset">The material asset; its fallback policy covers unbound slots.</param>
+    /// <param name="template">The pass-template library.</param>
+    /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
+    /// <returns>The caller-owned compute material, fully bound except facility data.</returns>
+    /// <exception cref="InvalidDataException">A texture slot or parameter of the asset matches nothing on the surface.</exception>
+    public ComputeMaterial CompileCompute(
+        MaterialAsset asset, ShaderLibrary template, IReadOnlyList<string>? valueSpecArgs = null)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        Shader shader = ComposeSurfaceComputeShader(asset, template, valueSpecArgs);
+        ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
+
+        // Compile-time slot validation, the same rule as the graphics passes: a
+        // texture slot the surface does not declare is a typo in the asset.
+        IReadOnlyList<string> textureSlots = MaterialComposer.EnumerateTextureSlots(reflection, SurfaceResourceSet);
+        foreach (string slot in asset.Textures.Keys)
+        {
+            if (!textureSlots.Contains(ResourceName(slot)))
+            {
+                throw new InvalidDataException(
+                    $"Compute material '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceOf(asset).Name}'; " +
+                    $"expected one of: {string.Join(", ", textureSlots.Select(name => name[1..]))}.");
+            }
+        }
+
+        ComputeMaterial material = _rendering.CreateComputeMaterial(shader);
+        foreach (KeyValuePair<string, GraphicsBuffer> block in PackParamsBuffers(asset))
+        {
+            if (reflection.TryGetResourceId(block.Key, out _))
+            {
+                material.SetBuffer(block.Key, block.Value);
+            }
+        }
+
+        // Bind every surface texture slot from the asset's own bindings, with the
+        // asset's fallback policy for unbound slots — the bindings are final: streamed
+        // textures upload in place and are never replaced.
+        foreach (string resource in textureSlots)
+        {
+            string slot = resource[1..];
+            Texture2D? texture = asset.Textures.GetValueOrDefault(slot);
+            material.SetTexture(resource, texture ?? ResolveFallbackTexture(asset, resource));
+        }
+        return material;
+    }
 
     /// <summary>
     /// The fallback texture of one surface texture resource of an asset — the asset's

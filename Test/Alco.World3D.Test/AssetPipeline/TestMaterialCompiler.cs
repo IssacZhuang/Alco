@@ -112,10 +112,79 @@ public class TestMaterialCompiler
                 new StubMaterialPass("gbuffer", "gbuffer", engine.RenderingSystem)), Throws.ArgumentException);
         });
 
-        // Streamed textures are owned by the streaming consumer: they override the
-        // compiled material through a derived instance, never through the compiler.
+        // Instance overrides remain the per-draw customization point; the compiled
+        // material itself is never mutated after compilation.
         GraphicsMaterialInstance instance = material.CreateInstance();
         Assert.That(() => instance.SetTexture("_albedoTexture", engine.RenderingSystem.TextureWhite), Throws.Nothing);
+    }
+
+    [Test]
+    public void ComputeFeedBindsTexturesOnce()
+    {
+        using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
+        using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
+        ShaderLibrary voxelize = engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize");
+
+        // The compute counterpart of Compile: the asset's textures bind once at
+        // creation; slots the asset leaves out take its fallback policy.
+        PbrMaterialAsset textured = new()
+        {
+            Name = "textured",
+            Textures = new Dictionary<string, Texture2D>
+                { ["albedoTexture"] = engine.RenderingSystem.TextureBlack },
+        };
+        ComputeMaterial material = compiler.CompileCompute(textured, voxelize);
+        Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True);
+
+        // Compile-time slot validation, the same rule as the graphics passes.
+        PbrMaterialAsset typo = new()
+        {
+            Name = "typo",
+            Textures = new Dictionary<string, Texture2D>
+                { ["albedo"] = engine.RenderingSystem.TextureWhite },
+        };
+        Assert.That(() => compiler.CompileCompute(typo, voxelize), Throws.TypeOf<InvalidDataException>());
+
+        // The shared default asset's feed binds its fallbacks without any bindings.
+        Assert.That(() => compiler.CompileCompute(PbrMaterialAsset.Default, voxelize), Throws.Nothing);
+    }
+
+    [Test]
+    public void ComputeFeedPacksSurfaceParameters()
+    {
+        using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
+        string surfaceModule = WriteTestSurface(engine.AssetSystem, out string directory);
+        try
+        {
+            using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
+            ShaderLibrary voxelize = engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize");
+            ShaderLibrary surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule);
+
+            // The surface's [MaterialParams] block binds in the compute feed by the
+            // block's own name, packed from the asset's values.
+            PbrMaterialAsset scaled = new()
+            {
+                Name = "scaled",
+                Surface = surface,
+                Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
+            };
+            ComputeMaterial material = compiler.CompileCompute(scaled, voxelize);
+            Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
+                "The surface's parameter block binds in the compute feed too.");
+
+            // Unknown parameter names fail loudly, as on the graphics passes.
+            PbrMaterialAsset typo = new()
+            {
+                Name = "typo",
+                Surface = surface,
+                Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
+            };
+            Assert.That(() => compiler.CompileCompute(typo, voxelize), Throws.TypeOf<InvalidDataException>());
+        }
+        finally
+        {
+            Directory.Delete(directory, true);
+        }
     }
 
     [Test]

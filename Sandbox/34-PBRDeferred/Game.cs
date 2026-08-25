@@ -1359,21 +1359,18 @@ public class Game : GameEngine
         if (_modelScene != null)
         {
             IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
-            IReadOnlyList<ModelMaterial> materials = _modelScene.Materials;
             for (int i = 0; i < drawItems.Count; i++)
             {
                 ModelDrawItem item = drawItems[i];
-                ModelMaterial material = materials[item.MaterialIndex];
                 PbrMaterialAsset asset = _modelAssets![item.MaterialIndex];
-                // The surface feeds the voxelization; the emissive factor is
-                // registered unboosted (the boost is a runtime cbuffer scale at
-                // injection time).
+                // The surface feeds the voxelization (the asset already carries the
+                // material's textures); the emissive factor is registered unboosted
+                // (the boost is a runtime cbuffer scale at injection time).
                 int meshHandle = _voxelGI.RegisterMesh(
                     item.Mesh,
                     (uint)VertexPBR.SizeInBytes,
                     new VoxelGiBounds(item.LocalBoundsMin, item.LocalBoundsMax),
-                    asset,
-                    ModelMaterialAdapter.TextureSlotsOf(material));
+                    asset);
                 _voxelGI.AddStaticInstance(
                     meshHandle,
                     item.World,
@@ -1427,8 +1424,7 @@ public class Game : GameEngine
                     mesh,
                     (uint)VertexPBR.SizeInBytes,
                     GetProceduralBounds(mesh),
-                    _proceduralAsset,
-                    new Dictionary<string, Texture2D> { ["albedoTexture"] = _checkerTexture });
+                    _proceduralAsset);
         }
     }
 

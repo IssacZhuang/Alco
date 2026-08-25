@@ -206,7 +206,7 @@ C# 侧 pass 的 `IMaterialPass.GetValueSpecArgs` 返回 `["true"]` / `["false"]`
 
 ## GI 体素化（compute feed)
 
-`RGNode_VoxelGI` 不是单一手写 shader:`RegisterMesh(mesh, stride, bounds, materialAsset, textures)` 按材质组合 `voxelize` 模板（compute,`IVoxelFeedSurface`),surface 的纹理槽/参数块规则与 graphics pass 完全一致，兜底纹理由 `MaterialCompiler.ResolveFallbackTexture(asset, resource)` 按资产策略解析。同材质的多 mesh 共享一个 feed;feed 是 per-asset 派生状态，feed 表（`ConditionalWeakTable`）弱持有——寿命跟随资产，不被这个长寿命节点钉住，存活的注册项自己持有自己的 feed。compute pass 不进 `IMaterialPass` 注册表——它直用 `MaterialComposer`。
+`RGNode_VoxelGI` 不是单一手写 shader:`RegisterMesh(mesh, stride, bounds, materialAsset)` 按材质编译 `voxelize` 模板（compute,`IVoxelFeedSurface`)——走 `MaterialCompiler.CompileCompute`，纹理槽/参数块规则与 graphics pass 完全一致（同一份实现）：槽位校验 fail-fast、纹理从 `asset.Textures` 一次绑定、缺槽经 `ResolveFallbackTexture` 按资产策略兜底、参数块打包绑定。同材质的多 mesh 共享一份编译产物；产物是 per-asset 派生状态，缓存表（`ConditionalWeakTable`）弱持有——寿命跟随资产，不被这个长寿命节点钉住，存活的注册项自己持有自己的材质。每次 dispatch 只绑真正逐次不同的数据：几何 buffer、输出 buffer 和 push constants。
 
 ## 接入一个新管线家族（2D / Game / 游戏自定义）
 

@@ -298,7 +298,11 @@ public static class SlangReflectionReader
             }
 
             // A block groups uniform data and resource members; the resource
-            // members are binding entries, not uniform members.
+            // members are binding entries, not uniform members. A struct field
+            // that carries only resources (e.g. a texture+sampler pair type)
+            // is binding entries all the way down — it contributes no uniform
+            // data. A struct that DOES carry uniform data stays unsupported:
+            // the params contract admits plain float members only.
             IntPtr fieldLayoutType = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
             int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldLayoutType);
             if (fieldKind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
@@ -306,6 +310,18 @@ public static class SlangReflectionReader
                 fieldKind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
             {
                 continue;
+            }
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_STRUCT)
+            {
+                uint structUniformSize = (uint)SlangNative.spReflectionTypeLayout_GetSize(
+                    fieldLayoutType, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
+                if (structUniformSize == 0)
+                {
+                    continue;
+                }
+
+                throw new NotSupportedException(
+                    "GraphicsMaterial parameter blocks support float members only; a nested struct with uniform data is not a valid parameter.");
             }
 
             uint offset = (uint)SlangNative.spReflectionVariableLayout_GetOffset(
@@ -444,6 +460,10 @@ public static class SlangReflectionReader
     /// body uses for unqualified member access. A member's binding index and
     /// space are compiler-assigned relative to the block's register
     /// (b0/spaceN), so both must be rebased onto the block's own indices.
+    /// A struct-typed field (e.g. a shared texture+sampler pair type) is
+    /// legal slang: the compiler flattens its resource leaves into the same
+    /// sequential block numbering, and reflection exposes them as
+    /// dotted qualified names (`_pair.tex`, `_pair.samp`).
     /// </summary>
     private static void AddBlockResourceMembers(
         IntPtr parameter,
@@ -455,10 +475,22 @@ public static class SlangReflectionReader
         uint blockSpace = SlangNative.spReflectionParameter_GetBindingSpace(parameter);
         uint blockBinding = SlangNative.spReflectionParameter_GetBindingIndex(parameter);
         IntPtr elementLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
-        uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(elementLayout);
+        AddResourceFields(elementLayout, blockSpace, blockBinding, prefix: null, entries, imageFormats, visibility);
+    }
+
+    private static void AddResourceFields(
+        IntPtr structLayout,
+        uint blockSpace,
+        uint bindingBase,
+        string? prefix,
+        List<(uint Space, BindGroupEntryInfo Entry)> entries,
+        Dictionary<string, PixelFormat> imageFormats,
+        ShaderStage visibility)
+    {
+        uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(structLayout);
         for (uint field = 0; field < fieldCount; field++)
         {
-            IntPtr fieldLayout = SlangNative.spReflectionTypeLayout_GetFieldByIndex(elementLayout, field);
+            IntPtr fieldLayout = SlangNative.spReflectionTypeLayout_GetFieldByIndex(structLayout, field);
             if (fieldLayout == IntPtr.Zero)
             {
                 continue;
@@ -470,6 +502,7 @@ public static class SlangReflectionReader
                 continue;
             }
 
+            string qualifiedName = prefix is null ? fieldName : $"{prefix}.{fieldName}";
             IntPtr fieldTypeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
             int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldTypeLayout);
 
@@ -482,10 +515,10 @@ public static class SlangReflectionReader
                 entries.Add((blockSpace, new BindGroupEntryInfo
                 {
                     Entry = new BindGroupEntry(
-                        blockBinding + SlangNative.spReflectionParameter_GetBindingIndex(fieldLayout),
+                        bindingBase + SlangNative.spReflectionParameter_GetBindingIndex(fieldLayout),
                         visibility,
                         comparison ? BindingType.SamplerComparison : BindingType.Sampler,
-                        name: fieldName),
+                        name: qualifiedName),
                 }));
                 continue;
             }
@@ -493,7 +526,18 @@ public static class SlangReflectionReader
             if (fieldKind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
                 fieldKind == SlangNative.SLANG_TYPE_KIND_SHADER_STORAGE_BUFFER)
             {
-                AddResourceEntry(fieldLayout, fieldTypeLayout, fieldKind, fieldName, entries, imageFormats, visibility, blockSpace, blockBinding);
+                AddResourceEntry(fieldLayout, fieldTypeLayout, fieldKind, qualifiedName, entries, imageFormats, visibility, blockSpace, bindingBase);
+                continue;
+            }
+
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_STRUCT)
+            {
+                // Slang numbers the struct's resource leaves depth-first in
+                // declaration order; each nested layout restarts at zero, so
+                // the struct field's own start index becomes the new base.
+                AddResourceFields(fieldTypeLayout, blockSpace,
+                    bindingBase + SlangNative.spReflectionParameter_GetBindingIndex(fieldLayout),
+                    qualifiedName, entries, imageFormats, visibility);
                 continue;
             }
 
