@@ -12,6 +12,10 @@ namespace Alco.Engine;
 /// Represents an asset loader for Texture2D assets.
 /// Creates and owns a <see cref="TextureOptionCache"/> internally for directory-level
 /// and per-file import option resolution.
+/// <br/>File-backed assets stream: the header is probed with minimal per-format reads,
+/// the texture is created at its final specification and returned immediately, and its
+/// content uploads in place asynchronously, so the texture's identity never changes.
+/// Preloaded (in-memory) contexts decode synchronously.
 /// </summary>
 public class AssetLoaderTexture2D : IAssetLoader
 {
@@ -86,8 +90,28 @@ public class AssetLoaderTexture2D : IAssetLoader
             metaData = meta;
         }
 
-        // 3. Create texture
-        Texture2D texture = _renderingSystem.CreateTexture2DFromFile(context.GetData(), option);
+        // 3. Create the texture. File-backed assets stream: probe the header, pre-create
+        // the texture at its final specification, upload the content in place
+        // asynchronously. Headers that cannot be probed fall back to synchronous decode,
+        // as do preloaded (in-memory) contexts.
+        Texture2D texture;
+        if (context.CanGetStream)
+        {
+            Stream stream = context.GetStream();
+            try
+            {
+                texture = _renderingSystem.CreateTexture2DStreaming(stream, option);
+            }
+            catch (ImageDecodeException)
+            {
+                stream.Dispose();
+                texture = _renderingSystem.CreateTexture2DFromFile(context.GetData(), option);
+            }
+        }
+        else
+        {
+            texture = _renderingSystem.CreateTexture2DFromFile(context.GetData(), option);
+        }
 
         // 4. Sprites (only from .meta)
         if (metaData != null && metaData.Sprites != null && metaData.Sprites.Count > 0)

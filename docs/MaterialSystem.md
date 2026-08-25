@@ -3,7 +3,7 @@
 Alco 的材质系统是引擎基础设施，由三层组成：
 
 - **`MaterialComposer`(Alco.Rendering)** — 引擎级 slang 组合基础设施，与具体渲染管线无关。
-- **`MaterialCompiler` + `MaterialAsset` + `IMaterialPass`(Alco.Rendering)** — 管线无关的材质编译器：数据资产 + 开放 pass 注册表 + 每 pass 编译/缓存。
+- **`MaterialCompiler` + `MaterialAsset` + `IMaterialPass`(Alco.Rendering)** — 管线无关的材质编译器：数据资产 + 开放 pass 注册表 + 每 pass 编译（无状态工厂，产物由调用方持有）。
 - **管线家族(World3D / 未来的 2D / 游戏自己的管线）** — 派生资产类型 + surface 契约 + pass 实现（`.amat` 的 `$type` 判别靠程序集扫描自动发现，无注册）。
 
 目标：游戏侧不修改引擎就能定义新材质（surface）和新 pass（渲染设施），双方各自独立演进，由 slang 的泛型特化在编译期组合。2D 还是 3D、G-buffer 里有哪些元素，都是管线家族自己的事，基础设施不耦合其中任何一个。
@@ -14,7 +14,7 @@ Alco 的材质系统是引擎基础设施，由三层组成：
 游戏侧 surface（Materials/pbr-standard.slang 或游戏自己的 .slang）
         │  public struct Surface : ISurface { override ... }
         ▼
-MaterialCompiler, Alco.Rendering（pass 注册表 + 每 pass 编译/缓存 + 纹理槽/参数块打包）
+MaterialCompiler, Alco.Rendering（pass 注册表 + (asset, pass) 纯工厂 + 纹理槽/参数块打包）
         │  RegisterPass(IMaterialPass)   —— 接口实现，不是回调
         ▼
 MaterialComposer.ComposeGraphics / ComposeCompute（slang 泛型特化 + 链接 + 反射）
@@ -153,15 +153,24 @@ public sealed class GBufferRenderer : ..., IMaterialPass<PbrMaterialAsset>
 ```
 
 - 每个 renderer 实现 pass 接口并在构造函数里注册；材质工厂（布局/缓冲）是 renderer 私有知识。
-- `Accepts` 拒绝的材质**不编译**该 pass（如 OPAQUE 材质不编 glass),`TryGet` 返回 null，直接 `Get` 抛 `InvalidDataException`。
+- `Accepts` 拒绝的材质**不编译**该 pass（如 OPAQUE 材质不编 glass),`TryCompile` 返回 null，直接 `Compile` 抛 `InvalidDataException`。
 - 同 surface module 的不同特化（如 shadow 的 AlphaTest true/false）是独立缓存条目。
 - 重复注册同一个 pass id 抛 `ArgumentException`。
 - 编译器构造时收一个可选的**默认 surface**(`ShaderLibrary`，如 World3D 的 PbrStandard):`World3DAssetPipeline.CreateMaterialCompiler(rendering)` 一步到位；不带默认的编译器要求每个材质都指名 surface。
 
+## 编译产物的所有权与生命周期
+
+`MaterialCompiler` 是无状态的 (asset, pass) 工厂：每次 `Compile` 新编一份材质，**调用方持有**——引擎资源原则（不好控制生命周期就 GC 自动回收，能确保安全就手动 dispose）在这里的落法：
+
+- **共享靠调用方**：同一资产被多个 mesh 使用时，由消费方（场景/模型的材质表）编译一次、把同一个 `GraphicsMaterial` 分发给各 renderable，而不是靠编译器里的中央缓存。渲染器经 renderable 收材质，自己不编译。
+- **回收靠 GC**：编译器不持有任何 per-asset 状态；场景卸载 = 弃掉材质表 = 资产、编译产物、参数 buffer 全链路由 GC 回收（`AssetSystem` 弱句柄 + `BaseGPUObject`/`AutoDisposable` finalizer)。手动 `Dispose` 只适用于能证明独占的部分：材质自身（其参数集不逃逸）由场景 teardown 释放；绑进槽位的值（纹理、参数 buffer）可被外部经参数集访问器（`TryGetBuffer` 等）取得，是生命周期不确定的共享引用——一律不随材质显式释放，由 finalizer 在真正无引用时回收。
+- **流式不改变绑定**：纹理流式是"按 header 预创建 + 内容原位上传"(`RenderingSystem.CreateTexture2DStreaming`)，纹理对象身份从创建即终态、从不替换，所以材质与管线不需要任何流式适配——加载方在资产完成前拿到纹理对象，直接填进 `Textures` 表。
+- **热重载 = 新资产实例**：旧实例的编译产物随旧实例被 GC，消费方用新实例重新 `Compile`；编译器没有 Invalidate。
+
 ## 纹理槽规则
 
 - surface 里的 `Texture2D _albedoTexture` → 槽名 **`albedoTexture`**（去前导下划线，大小写敏感）。
-- 资产的 `Textures` 在加载期即解析成 `Texture2D`;`BindTextures(asset, { ["albedoTexture"] = tex })` 是**流式覆盖**通道（如 glTF 场景在资产系统外 arrive 的纹理），对持有该 asset 材质的所有 pass 批量绑纹，优先级高于资产自带绑定。
+- 资产的 `Textures` 在加载期即解析成 `Texture2D`，资产到此完整，**不认识流式**。glTF 场景加载同理：loader 在场景返回前实现所有纹理（外部文件内容原位异步上传），由适配器直接填进资产描述符的 `Textures`；图像缺失或解码失败的槽留空，走资产兜底策略。
 - 未绑的槽走**资产自己的兜底策略**:`MaterialAsset.GetTextureFallback(slot)` 返回 `White/Black/FlatNormal`，编译器映射到 `RenderingSystem.TextureWhite/TextureBlack/TextureFlatNormal`。基类恒白；`PbrMaterialAsset` 按槽名前缀给 `normal*` → flat normal、`emissive*` → 黑。不同材质家族可以有不同的兜底策略，不需要编译器知道任何槽名约定。
 - surface 资源在 **space2**(`MaterialCompiler.SurfaceResourceSet`),set-scoped cbuffer 块约定与引擎其它部分一致（`cbuffer _material : register(b0, space2)`);pass 模板的引擎资源占用低位集，互不冲突。
 
@@ -197,7 +206,7 @@ C# 侧 pass 的 `IMaterialPass.GetValueSpecArgs` 返回 `["true"]` / `["false"]`
 
 ## GI 体素化（compute feed)
 
-`RGNode_VoxelGI` 不是单一手写 shader:`RegisterMesh(mesh, stride, bounds, materialAsset, textures)` 按材质组合 `voxelize` 模板（compute,`IVoxelFeedSurface`),surface 的纹理槽/参数块规则与 graphics pass 完全一致，兜底纹理由 `MaterialCompiler.ResolveFallbackTexture(asset, resource)` 按资产策略解析。同材质的多 mesh 共享一个 feed。compute pass 不进 `IMaterialPass` 注册表——它直用 `MaterialComposer`。
+`RGNode_VoxelGI` 不是单一手写 shader:`RegisterMesh(mesh, stride, bounds, materialAsset, textures)` 按材质组合 `voxelize` 模板（compute,`IVoxelFeedSurface`),surface 的纹理槽/参数块规则与 graphics pass 完全一致，兜底纹理由 `MaterialCompiler.ResolveFallbackTexture(asset, resource)` 按资产策略解析。同材质的多 mesh 共享一个 feed;feed 是 per-asset 派生状态，feed 表（`ConditionalWeakTable`）弱持有——寿命跟随资产，不被这个长寿命节点钉住，存活的注册项自己持有自己的 feed。compute pass 不进 `IMaterialPass` 注册表——它直用 `MaterialComposer`。
 
 ## 接入一个新管线家族（2D / Game / 游戏自定义）
 

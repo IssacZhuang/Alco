@@ -218,11 +218,12 @@ public class TestSlangMaterialCompiler
                 ["bandFrequency"] = new(4.0f, 0.0f, 0.0f, 0.0f),
             },
         };
-        GraphicsMaterial material = compiler.Get(parameterized, "gbuffer");
+        GraphicsMaterial material = compiler.Compile(parameterized, "gbuffer");
 
         Assert.Multiple(() =>
         {
-            Assert.That(compiler.Get(parameterized, "gbuffer"), Is.SameAs(material), "Composed Slang materials cache per (asset, pass).");
+            Assert.That(compiler.Compile(parameterized, "gbuffer"), Is.Not.SameAs(material),
+                "Every Compile produces a fresh caller-owned material; sharing is the caller's job.");
             Assert.That(material.TryGetResourceId("PulseParams", out _), Is.True,
                 "The surface's parameter block binds by its (free) name.");
             Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True,
@@ -240,7 +241,7 @@ public class TestSlangMaterialCompiler
             Surface = Library(engine, ParameterizedSurfaceModule),
             Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(1.0f, 0.0f, 0.0f, 0.0f) },
         };
-        Assert.That(() => compiler.Get(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
+        Assert.That(() => compiler.Compile(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
 
         // A game-registered pass composes like the built-in ones: open registration
         // is the extension point (here: a minimal materializing factory).
@@ -250,7 +251,7 @@ public class TestSlangMaterialCompiler
             Name = "glass",
             Surface = Library(engine, ParameterizedSurfaceModule),
         };
-        GraphicsMaterial glassMaterial = compiler.Get(glass, "glass");
+        GraphicsMaterial glassMaterial = compiler.Compile(glass, "glass");
         Assert.That(glassMaterial.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
             "The glass template declares the camera binding.");
     }

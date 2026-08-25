@@ -9,12 +9,12 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MaterialCompiler tests: the pipeline-agnostic registry — pass registration,
-// (asset, pass) caching, Accepts routing (including the checked asset-family cast
-// of IMaterialPass<TAsset>), texture-slot/parameter validation against the
-// composed reflection, the default-surface rule and the asset-driven fallback
-// texture policy. Runs on the NoGPU device with in-memory slang modules,
-// mirroring MaterialComposerTest.
+// MaterialCompiler tests: the pipeline-agnostic registry/factory — pass
+// registration, caller-owned (asset, pass) compilation, Accepts routing
+// (including the checked asset-family cast of IMaterialPass<TAsset>),
+// texture-slot/parameter validation against the composed reflection, the
+// default-surface rule and the asset-driven fallback texture policy. Runs on
+// the NoGPU device with in-memory slang modules, mirroring MaterialComposerTest.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class TestMaterialCompiler
@@ -199,8 +199,8 @@ public class TestMaterialCompiler
         Assert.Multiple(() =>
         {
             Assert.That(compiler.Accepts(asset, "ghost"), Is.False);
-            Assert.That(compiler.TryGet(asset, "ghost"), Is.Null);
-            Assert.That(() => compiler.Get(asset, "ghost"), Throws.ArgumentException);
+            Assert.That(compiler.TryCompile(asset, "ghost"), Is.Null);
+            Assert.That(() => compiler.Compile(asset, "ghost"), Throws.ArgumentException);
         });
     }
 
@@ -215,8 +215,8 @@ public class TestMaterialCompiler
         Assert.Multiple(() =>
         {
             Assert.That(compiler.Accepts(asset, "off"), Is.False);
-            Assert.That(compiler.TryGet(asset, "off"), Is.Null, "A rejecting pass yields no material.");
-            Assert.That(() => compiler.Get(asset, "off"), Throws.TypeOf<InvalidDataException>(),
+            Assert.That(compiler.TryCompile(asset, "off"), Is.Null, "A rejecting pass yields no material.");
+            Assert.That(() => compiler.Compile(asset, "off"), Throws.TypeOf<InvalidDataException>(),
                 "Getting a rejecting pass directly is a usage error.");
         });
     }
@@ -234,13 +234,13 @@ public class TestMaterialCompiler
         Assert.Multiple(() =>
         {
             Assert.That(compiler.Accepts(foreign, "main"), Is.False);
-            Assert.That(compiler.TryGet(foreign, "main"), Is.Null);
-            Assert.That(() => compiler.Get(foreign, "main"), Throws.TypeOf<InvalidDataException>());
+            Assert.That(compiler.TryCompile(foreign, "main"), Is.Null);
+            Assert.That(() => compiler.Compile(foreign, "main"), Throws.TypeOf<InvalidDataException>());
         });
     }
 
     [Test]
-    public void GetCompilesCachesAndInvalidates()
+    public void CompileProducesFreshCallerOwnedMaterials()
     {
         using DummyRenderingSystemHost host = CreateRenderingSystem();
         using MaterialCompiler compiler = new(host.RenderingSystem);
@@ -251,19 +251,16 @@ public class TestMaterialCompiler
             Name = "a",
             Surface = host.RenderingSystem.ShaderSystem.GetLibrary("test_compiler_surface"),
         };
-        GraphicsMaterial material = compiler.Get(asset, "main");
+        GraphicsMaterial material = compiler.Compile(asset, "main");
 
         Assert.Multiple(() =>
         {
-            Assert.That(compiler.Get(asset, "main"), Is.SameAs(material), "Materials cache per (asset, pass).");
+            Assert.That(compiler.Compile(asset, "main"), Is.Not.SameAs(material),
+                "Every Compile produces a fresh caller-owned material; sharing is the caller's job.");
             Assert.That(material.TryGetResourceId("_camera", out _), Is.True, "The template's bindings survive.");
             Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True, "The surface's texture binds by name.");
             Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True, "The parameter block binds by name.");
         });
-
-        compiler.Invalidate(asset);
-        Assert.That(compiler.Get(asset, "main"), Is.Not.SameAs(material),
-            "Invalidation drops the compiled material; the next request compiles a fresh one.");
     }
 
     [Test]
@@ -282,7 +279,7 @@ public class TestMaterialCompiler
             Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = host.RenderingSystem.TextureWhite },
             Parameters = new Dictionary<string, Vector4> { ["pulseSpeed"] = new Vector4(2.0f, 0.0f, 0.0f, 0.0f) },
         };
-        Assert.That(() => compiler.Get(valid, "main"), Throws.Nothing);
+        Assert.That(() => compiler.Compile(valid, "main"), Throws.Nothing);
 
         // An undeclared slot / parameter name is a typo in the asset: fail at
         // compile time, not later at bind time.
@@ -300,8 +297,8 @@ public class TestMaterialCompiler
         };
         Assert.Multiple(() =>
         {
-            Assert.That(() => compiler.Get(typoSlot, "main"), Throws.TypeOf<InvalidDataException>());
-            Assert.That(() => compiler.Get(typoParam, "main"), Throws.TypeOf<InvalidDataException>());
+            Assert.That(() => compiler.Compile(typoSlot, "main"), Throws.TypeOf<InvalidDataException>());
+            Assert.That(() => compiler.Compile(typoParam, "main"), Throws.TypeOf<InvalidDataException>());
         });
     }
 

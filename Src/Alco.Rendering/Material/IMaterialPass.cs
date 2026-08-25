@@ -23,7 +23,8 @@ public interface IMaterialPass
 
     /// <summary>
     /// Create the pass's GPU material for one asset from the composed template shader:
-    /// applies the pass-mandated state. The compiler owns the material afterwards.
+    /// applies the pass-mandated state. Ownership transfers to the compile caller
+    /// (see <see cref="MaterialCompiler.Compile"/>).
     /// </summary>
     GraphicsMaterial CreateMaterial(MaterialAsset asset, Shader shader);
 
@@ -37,7 +38,7 @@ public interface IMaterialPass
     /// <summary>
     /// Whether the pass participates for one asset (e.g. a transparency pass only accepts
     /// blend materials). The default accepts everything;
-    /// <see cref="MaterialCompiler.TryGet"/> returns null for rejected assets.
+    /// <see cref="MaterialCompiler.TryCompile"/> returns null for rejected assets.
     /// </summary>
     bool Accepts(MaterialAsset asset) => true;
 }

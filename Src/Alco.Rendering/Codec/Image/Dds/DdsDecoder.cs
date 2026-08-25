@@ -59,6 +59,10 @@ internal static class DdsDecoder
     public static bool IsDds(ReadOnlySpan<byte> data)
         => data.Length >= 4 && BinaryPrimitives.ReadUInt32LittleEndian(data) == Magic;
 
+    /// <summary>Check whether a DDS header carries the DX10 extended header (fourCC "DX10").</summary>
+    public static bool HasDx10Header(ReadOnlySpan<byte> data)
+        => data.Length >= 88 && BinaryPrimitives.ReadUInt32LittleEndian(data[84..]) == FourCcDx10;
+
     /// <summary>
     /// Parse and validate a DDS file. The mip chain is stored contiguously at
     /// <paramref name="dataOffset"/>, level 0 first, each level a tightly packed
@@ -85,6 +89,38 @@ internal static class DdsDecoder
     public static void Decode(
         ReadOnlySpan<byte> data,
         bool srgb,
+        out PixelFormat format,
+        out int width,
+        out int height,
+        out int mipLevels,
+        out int dataOffset)
+    {
+        ParseHeader(data, srgb, out BcFamily family, out format, out width, out height, out mipLevels, out dataOffset);
+
+        // The file must hold the whole used mip chain.
+        uint blockBytes = GetBlockBytes(family);
+        long required = dataOffset;
+        for (int level = 0; level < mipLevels; level++)
+        {
+            required += GetMipByteCount(width, height, level, blockBytes);
+        }
+        if (data.Length < required)
+        {
+            throw new ImageDecodeException($"Truncated DDS file: {data.Length} bytes, the {mipLevels}-level mip chain needs {required}.");
+        }
+    }
+
+    /// <summary>
+    /// Parse only the DDS header (128 bytes, or 148 with the DX10 extension), without
+    /// requiring the mip payload to be present. Suitable for probing a partially read
+    /// file ahead of streaming the content.
+    /// </summary>
+    /// <param name="family">The BC compression family of the pixel payload.</param>
+    /// <inheritdoc cref="Decode" select="param|remarks|exception"/>
+    public static void ParseHeader(
+        ReadOnlySpan<byte> data,
+        bool srgb,
+        out BcFamily family,
         out PixelFormat format,
         out int width,
         out int height,
@@ -120,7 +156,6 @@ internal static class DdsDecoder
 
         uint fourCc = BinaryPrimitives.ReadUInt32LittleEndian(data[84..]);
         dataOffset = HeaderSize;
-        BcFamily family;
         switch (fourCc)
         {
             case FourCcDxt1: family = BcFamily.BC1; break;
@@ -170,18 +205,6 @@ internal static class DdsDecoder
                 throw new ImageDecodeException($"DDS level-0 dimensions {width}x{height} are not multiples of the 4x4 BC block size.");
             }
             mipLevels = usableLevels;
-        }
-
-        // The file must hold the whole used mip chain.
-        uint blockBytes = GetBlockBytes(family);
-        long required = dataOffset;
-        for (int level = 0; level < mipLevels; level++)
-        {
-            required += GetMipByteCount(width, height, level, blockBytes);
-        }
-        if (data.Length < required)
-        {
-            throw new ImageDecodeException($"Truncated DDS file: {data.Length} bytes, the {mipLevels}-level mip chain needs {required}.");
         }
     }
 

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
 
@@ -325,8 +326,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     {
         public required MeshGeometry Geometry;
         public required VoxelizeFeed Feed;
-        /// <summary>Streamed textures by material texture slot (slot name = resource name without the leading underscore).</summary>
-        public required IReadOnlyDictionary<string, Texture2D?> Textures;
+        /// <summary>Textures by material texture slot (slot name = resource name without the leading underscore).</summary>
+        public required IReadOnlyDictionary<string, Texture2D> Textures;
     }
 
     /// <summary>A persistent structural instance stored in the static clipmap.</summary>
@@ -364,7 +365,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly ComputeMaterial _clearMaterial;
     // The voxelize feed composes per material asset surface (see RegisterMesh);
     // the built-in surface's feed is keyed by the shared PbrMaterialAsset.Default.
-    private readonly Dictionary<MaterialAsset, VoxelizeFeed> _voxelizeFeeds = new();
+    // Feeds are derived per-asset state, so the table holds them weakly: a feed's
+    // lifetime follows its asset's (the engine's ownership rule) instead of being
+    // pinned by this long-lived node, and live registrations keep their feeds
+    // alive on their own.
+    private readonly ConditionalWeakTable<MaterialAsset, VoxelizeFeed> _voxelizeFeeds = new();
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
     private readonly ComputeMaterial _mipChainMaterial;
@@ -1105,16 +1110,16 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// <param name="localBounds">The mesh bounds before the instance transform.</param>
     /// <param name="material">The material asset whose surface feeds the voxelization;
     /// null selects the built-in PbrStandard surface.</param>
-    /// <param name="textures">The streamed textures by material texture slot (slot name =
-    /// shader resource name without the leading underscore); slots missing or still
-    /// streaming bind the pattern fallbacks at dispatch time.</param>
+    /// <param name="textures">The mesh's textures by material texture slot (slot name =
+    /// shader resource name without the leading underscore); slots the table leaves out
+    /// bind the asset's fallback policy at dispatch time.</param>
     /// <returns>A mesh-material handle accepted by static and dynamic instance methods.</returns>
     public int RegisterMesh(
         Mesh mesh,
         uint vertexStrideBytes,
         in VoxelGiBounds localBounds,
         MaterialAsset? material = null,
-        IReadOnlyDictionary<string, Texture2D?>? textures = null)
+        IReadOnlyDictionary<string, Texture2D>? textures = null)
     {
         if (!_geometryByMesh.TryGetValue((mesh, vertexStrideBytes), out MeshGeometry? geometry))
         {
@@ -1132,24 +1137,27 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         return _meshes.Count - 1;
     }
 
-    private static readonly IReadOnlyDictionary<string, Texture2D?> EmptyTextures =
-        new Dictionary<string, Texture2D?>();
+    private static readonly IReadOnlyDictionary<string, Texture2D> EmptyTextures =
+        new Dictionary<string, Texture2D>();
 
     /// <summary>
-    /// The composed voxelize feed of one material asset, cached per asset: the
+    /// The composed voxelize feed of one material asset, cached per asset and held
+    /// weakly — the feed is derived per-asset state whose lifetime follows the
+    /// asset's (live registrations keep their own feed references): the
     /// <c>voxelize</c> template composed with the asset's surface, with the shared
     /// per-frame <c>_data</c> buffer and the surface's parameter block (when declared)
     /// bound once. The surface's texture slots are enumerated here and bound per
-    /// dispatch from each registration's streamed textures.
+    /// dispatch from each registration's textures.
     /// </summary>
     private VoxelizeFeed GetVoxelizeFeed(MaterialAsset? asset)
     {
         MaterialAsset key = asset ?? PbrMaterialAsset.Default;
-        if (_voxelizeFeeds.TryGetValue(key, out VoxelizeFeed? cached))
-        {
-            return cached;
-        }
+        return _voxelizeFeeds.GetValue(key, _ => CreateVoxelizeFeed(asset));
+    }
 
+    private VoxelizeFeed CreateVoxelizeFeed(MaterialAsset? asset)
+    {
+        MaterialAsset key = asset ?? PbrMaterialAsset.Default;
         Shader shader = _materialCompiler.ComposeSurfaceComputeShader(asset, _voxelizeTemplate);
         ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
         var material = _rendering.CreateComputeMaterial(shader);
@@ -1189,7 +1197,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             }
         }
 
-        _voxelizeFeeds.Add(key, feed);
         return feed;
     }
 
@@ -2338,11 +2345,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         material.SetBuffer("_attrOut", attrOut);
         material.SetBuffer("_pageTable", pageTable);
         // The surface's texture slots rebind per dispatch: specialization folds
-        // keep the full surface resource set in the layout, and streamed textures
-        // that have not arrived bind the asset's fallback policy.
+        // keep the full surface resource set in the layout, and slots without a
+        // texture bind the asset's fallback policy.
         foreach (string resource in registration.Feed.TextureSlots)
         {
-            if (!registration.Textures.TryGetValue(resource[1..], out Texture2D? texture) || texture == null)
+            if (!registration.Textures.TryGetValue(resource[1..], out Texture2D? texture))
             {
                 texture = _materialCompiler.ResolveFallbackTexture(registration.Feed.Asset, resource);
             }
@@ -2467,13 +2474,13 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             // their own and are not disposable.
             _historyGI[0].Dispose();
             _historyGI[1].Dispose();
-            foreach (VoxelizeFeed feed in _voxelizeFeeds.Values)
+            foreach (KeyValuePair<MaterialAsset, VoxelizeFeed> feedEntry in _voxelizeFeeds)
             {
-                if (feed.ParamsBuffers == null)
+                if (feedEntry.Value.ParamsBuffers == null)
                 {
                     continue;
                 }
-                foreach (GraphicsBuffer buffer in feed.ParamsBuffers.Values)
+                foreach (GraphicsBuffer buffer in feedEntry.Value.ParamsBuffers.Values)
                 {
                     buffer.Dispose();
                 }

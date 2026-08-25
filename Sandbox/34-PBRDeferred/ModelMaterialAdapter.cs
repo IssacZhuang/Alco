@@ -8,16 +8,17 @@ using Alco.World3D;
 /// data-only <see cref="PbrMaterialAsset"/> (Alco.World3D) the material compiler
 /// consumes — the game-side glue between the direct glTF scene load and the
 /// material system (the .amat asset chain describes the same data from files).
-/// Textures stay live objects: the glTF pipeline streams them outside the asset
-/// system, so they bind by slot through <see cref="MaterialCompiler.BindTextures"/>
-/// as they arrive.
+/// Textures stay live objects: the glTF loader realizes them before the scene
+/// returns (external files stream their content in place), so the asset descriptor
+/// binds the final textures directly (<see cref="MaterialAsset.Textures"/>).
 /// </summary>
 internal static class ModelMaterialAdapter
 {
     /// <summary>
     /// The material asset descriptor of one glTF material. The material evaluates the
     /// built-in PbrStandard surface (no <see cref="MaterialAsset.Surface"/>), so
-    /// the descriptor carries only the flat factors and routing fields.
+    /// the descriptor carries only the flat factors, the loaded textures and the
+    /// routing fields.
     /// <br/>glTF alpha routing: only BLEND materials whose name contains "Glass" are
     /// true transparency (forward glass pass); the remaining BLEND materials (Bistro's
     /// foliage, curtains, headlight lenses...) are alpha-cutout content authored as
@@ -46,21 +47,36 @@ internal static class ModelMaterialAdapter
                 ? 0.5f
                 : material.AlphaCutoff,
             DoubleSided = material.DoubleSided,
+            Textures = TextureSlotsOf(material),
         };
     }
 
     /// <summary>
-    /// The material's live textures keyed by texture slot (slot name = the surface's
-    /// resource name without the leading underscore); null values are still streaming
-    /// and bind the fallback textures until assigned.
+    /// The material's loaded textures keyed by texture slot (slot name = the surface's
+    /// resource name without the leading underscore); slots whose image is missing or
+    /// failed to decode are left out and bind the asset's fallback policy.
     /// </summary>
-    public static Dictionary<string, Texture2D?> TextureSlotsOf(ModelMaterial material) => new()
+    public static Dictionary<string, Texture2D> TextureSlotsOf(ModelMaterial material)
     {
-        ["albedoTexture"] = material.AlbedoTexture,
-        ["normalTexture"] = material.NormalTexture,
-        ["metallicRoughnessTexture"] = material.MetallicRoughnessTexture,
-        ["emissiveTexture"] = material.EmissiveTexture,
-    };
+        var slots = new Dictionary<string, Texture2D>();
+        if (material.AlbedoTexture != null)
+        {
+            slots["albedoTexture"] = material.AlbedoTexture;
+        }
+        if (material.NormalTexture != null)
+        {
+            slots["normalTexture"] = material.NormalTexture;
+        }
+        if (material.MetallicRoughnessTexture != null)
+        {
+            slots["metallicRoughnessTexture"] = material.MetallicRoughnessTexture;
+        }
+        if (material.EmissiveTexture != null)
+        {
+            slots["emissiveTexture"] = material.EmissiveTexture;
+        }
+        return slots;
+    }
 
     /// <summary>
     /// The alpha-test threshold of a material asset for the passes that test (G-buffer,

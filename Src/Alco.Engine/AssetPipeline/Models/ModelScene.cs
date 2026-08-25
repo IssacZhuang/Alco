@@ -22,20 +22,20 @@ public sealed class ModelMaterial
 
     /// <summary>
     /// The albedo (base color) texture, null when the material has none or the texture
-    /// is still streaming in (the pipeline falls back to white until assigned).
+    /// failed to load (the pipeline binds its white fallback).
     /// </summary>
     public Texture2D? AlbedoTexture { get; set; }
 
     /// <summary>
     /// The normal map texture (tangent space), null when the material has none or the
-    /// texture is still streaming in (the pipeline falls back to a flat normal until assigned).
+    /// texture failed to load (the pipeline binds its flat-normal fallback).
     /// </summary>
     public Texture2D? NormalTexture { get; set; }
 
     /// <summary>
     /// The metallic-roughness texture (roughness in G, metallic in B), null when the
-    /// material has none or the texture is still streaming in (the pipeline falls back
-    /// to white, i.e. the factors pass through, until assigned).
+    /// material has none or the texture failed to load (the pipeline binds its white
+    /// fallback, i.e. the factors pass through).
     /// </summary>
     public Texture2D? MetallicRoughnessTexture { get; set; }
 
@@ -43,8 +43,8 @@ public sealed class ModelMaterial
     public Vector3 EmissiveFactor { get; init; } = Vector3.Zero;
 
     /// <summary>
-    /// The emissive texture, null when the material has none or the texture is still
-    /// streaming in (no emission until assigned).
+    /// The emissive texture, null when the material has none or the texture failed to
+    /// load (no emission).
     /// </summary>
     public Texture2D? EmissiveTexture { get; set; }
 
@@ -103,9 +103,9 @@ public readonly struct ModelDrawItem
 /// <summary>
 /// A loaded 3D model scene: GPU meshes and textures plus a flattened draw list with
 /// engine-space world transforms. Owns all meshes and textures; dispose to release them.
-/// <br/>Textures may stream in asynchronously after creation: materials start with null
-/// albedo/normal/metallic-roughness textures and get them assigned on the main thread
-/// as loads complete.
+/// <br/>External textures stream their content in place: every texture object is final
+/// when the scene is created, its content uploads asynchronously into the same native
+/// texture, so material bindings never change after load.
 /// </summary>
 public sealed class ModelScene : AutoDisposable
 {
@@ -125,14 +125,8 @@ public sealed class ModelScene : AutoDisposable
     public Vector3 BoundsMax { get; }
 
     /// <summary>
-    /// Completes when all asynchronously streaming textures have arrived (or failed).
-    /// <see cref="Task.CompletedTask"/> when nothing streams.
-    /// </summary>
-    public Task LoadingCompletion { get; private set; } = Task.CompletedTask;
-
-    /// <summary>
-    /// Create a model scene taking ownership of the given meshes. Textures created later
-    /// by asynchronous streaming are taken over via <see cref="TakeOwnedTexture"/>.
+    /// Create a model scene taking ownership of the given meshes. Textures realized by
+    /// the loader are taken over via <see cref="TakeOwnedTexture"/>.
     /// </summary>
     public ModelScene(
         IReadOnlyList<ModelMaterial> materials,
@@ -149,25 +143,10 @@ public sealed class ModelScene : AutoDisposable
         BoundsMax = boundsMax;
     }
 
-    /// <summary>Set the task that completes when all streaming textures have arrived.</summary>
-    internal void SetLoadingCompletion(Task completion)
+    /// <summary>Take ownership of a texture the loader realized for this scene.</summary>
+    internal void TakeOwnedTexture(Texture2D texture)
     {
-        LoadingCompletion = completion;
-    }
-
-    /// <summary>
-    /// Take ownership of a texture that finished streaming in. When the scene is already
-    /// disposed the texture is disposed immediately instead and false is returned.
-    /// </summary>
-    internal bool TakeOwnedTexture(Texture2D texture)
-    {
-        if (IsDisposed)
-        {
-            texture.Dispose();
-            return false;
-        }
         _textures.Add(texture);
-        return true;
     }
 
     /// <inheritdoc />

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Numerics;
 using Alco.Graphics;
 using Alco.IO;
@@ -11,16 +10,15 @@ namespace Alco.Engine;
 /// Creates a <see cref="ModelScene"/>: GPU meshes, textures and a flattened draw list.
 /// <br/>Only the engine-relevant material subset is realized (base color, normal,
 /// metallic-roughness and emissive textures, factors, alpha mode); other extensions are ignored.
-/// <br/>Textures stream in asynchronously: the scene is returned immediately with null
-/// textures (the pipeline renders fallbacks) and each texture is decoded off-thread
-/// (rate-limited by <see cref="Environment.ProcessorCount"/>) and assigned on the main thread
-/// via the installed <see cref="SynchronizationContext"/>. <see cref="ModelScene.LoadingCompletion"/>
-/// completes when streaming finishes. Albedo and emissive textures decode as sRGB; normal and
-/// metallic-roughness textures decode as linear data.
+/// <br/>External textures stream: each is created at its final specification from a header
+/// probe and its content uploads in place asynchronously (see
+/// <see cref="RenderingSystem.CreateTexture2DStreaming"/>), so texture identities and
+/// material bindings are final when the scene returns. Albedo and emissive textures are
+/// sRGB color data; normal and metallic-roughness textures are linear.
 /// </summary>
 public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
 {
-    /// <summary>Which material slot a streaming texture belongs to.</summary>
+    /// <summary>Which material slot an image belongs to.</summary>
     private enum TextureRole
     {
         Albedo,
@@ -30,12 +28,6 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
     }
 
     private static readonly string[] Extensions = [FileExt.ModelGLTF, FileExt.ModelGLB];
-
-    /// <summary>
-    /// Process-wide limit of concurrent texture decodes; decoding is CPU-bound and a
-    /// 4K decode peaks at ~64MB of native memory, so unbounded fan-out must not happen.
-    /// </summary>
-    private static readonly SemaphoreSlim TextureLoadSlots = new(Math.Max(2, Environment.ProcessorCount));
 
     private readonly RenderingSystem _renderingSystem;
 
@@ -91,9 +83,10 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
             }
 
             // Materials, with a fallback default for primitives that lack one. Textures
-            // stay null here and stream in asynchronously after the scene returns. The
-            // same image may serve different roles (e.g. shared as albedo and MR source),
-            // so the streaming groups are keyed by (image, role).
+            // are realized before the scene returns (external files stream their content
+            // in asynchronously, in place). The same image may serve different roles
+            // (e.g. shared as albedo and MR source), so the load groups are keyed by
+            // (image, role).
             var materials = new List<ModelMaterial>(model.Materials.Count + 1);
             var materialsByImage = new Dictionary<(int ImageIndex, TextureRole Role), (AddressMode Wrap, List<ModelMaterial> Targets)>();
             foreach (GltfMaterial gltfMaterial in model.Materials)
@@ -168,7 +161,7 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
                 [.. ownedMeshes],
                 model.BoundsMin,
                 model.BoundsMax);
-            StartTextureStreaming(scene, model, materialsByImage, assetSystem, directory);
+            LoadTextures(scene, model, materialsByImage, assetSystem, directory);
             return scene;
         }
         finally
@@ -194,116 +187,57 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
     }
 
     /// <summary>
-    /// Kick asynchronous streaming of all referenced textures. Each unique (image, role) pair
-    /// is decoded and uploaded on thread-pool threads (rate-limited); the main-thread
-    /// continuation assigns the texture to its materials and hands ownership to the scene.
-    /// Missing image files are tolerated: those materials keep their fallbacks.
+    /// Realize every referenced image once per (image, role) group and assign it to its
+    /// materials; the scene takes ownership of each created texture. External files stream
+    /// their content in place, so material bindings are final when this returns. Missing
+    /// or undecodable images are tolerated: those materials keep their fallbacks.
     /// </summary>
-    private void StartTextureStreaming(
+    private void LoadTextures(
         ModelScene scene,
         GltfModel model,
         Dictionary<(int ImageIndex, TextureRole Role), (AddressMode Wrap, List<ModelMaterial> Targets)> materialsByImage,
         AssetSystem assetSystem,
         string directory)
     {
-        if (materialsByImage.Count == 0)
-        {
-            return;
-        }
-
-        var watch = Stopwatch.StartNew();
-        var tasks = new List<Task>(materialsByImage.Count);
         foreach (((int imageIndex, TextureRole role), (AddressMode wrap, List<ModelMaterial> targets)) in materialsByImage)
         {
-            GltfImage image = model.Images[imageIndex];
-
-            // Resolve external files up front so missing ones keep the fallbacks.
-            string? path = null;
-            if (image.Uri != null)
-            {
-                path = CombinePath(directory, image.Uri);
-                if (!assetSystem.IsFileExist(path))
-                {
-                    continue;
-                }
-            }
-            else if (image.EmbeddedData.IsEmpty)
+            Texture2D? texture = CreateImageTexture(
+                assetSystem, model.Images[imageIndex], directory, role, wrap);
+            if (texture == null)
             {
                 continue;
             }
-
-            Task<Texture2D?> imageTask = LoadImageTextureAsync(assetSystem, image, path, wrap, role);
-            tasks.Add(AssignImageTextureAsync(scene, targets, role, imageTask));
-        }
-
-        if (tasks.Count == 0)
-        {
-            return;
-        }
-        scene.SetLoadingCompletion(LogWhenStreamed(Task.WhenAll(tasks), tasks.Count, watch));
-    }
-
-    /// <summary>Decode and upload one image off-thread; null on failure (fallback kept).</summary>
-    private async Task<Texture2D?> LoadImageTextureAsync(
-        AssetSystem assetSystem, GltfImage image, string? path, AddressMode wrap, TextureRole role)
-    {
-        await TextureLoadSlots.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            return await Task.Run(() => DecodeImageTexture(assetSystem, image, path, wrap, role)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"Failed to stream glTF texture '{image.Name}': {ex.Message}");
-            return null;
-        }
-        finally
-        {
-            TextureLoadSlots.Release();
+            scene.TakeOwnedTexture(texture);
+            foreach (ModelMaterial target in targets)
+            {
+                switch (role)
+                {
+                    case TextureRole.Albedo:
+                        target.AlbedoTexture = texture;
+                        break;
+                    case TextureRole.Normal:
+                        target.NormalTexture = texture;
+                        break;
+                    case TextureRole.MetallicRoughness:
+                        target.MetallicRoughnessTexture = texture;
+                        break;
+                    case TextureRole.Emissive:
+                        target.EmissiveTexture = texture;
+                        break;
+                }
+            }
         }
     }
 
     /// <summary>
-    /// Runs on the main thread (via the installed SynchronizationContext): hand the texture
-    /// to the scene and assign it to its materials. Both are skipped after scene disposal.
+    /// Create the texture of one image, or null when it is missing or fails to decode.
+    /// External images stream from the asset system: the texture is created at its final
+    /// specification from a header probe and its content uploads in place asynchronously.
+    /// Images whose header cannot be probed fall back to a full synchronous decode, as do
+    /// embedded images (their bytes are already in memory).
     /// </summary>
-    private static async Task AssignImageTextureAsync(
-        ModelScene scene, List<ModelMaterial> targets, TextureRole role, Task<Texture2D?> imageTask)
-    {
-        Texture2D? texture = await imageTask;
-        if (texture == null || !scene.TakeOwnedTexture(texture))
-        {
-            return;
-        }
-        foreach (ModelMaterial target in targets)
-        {
-            switch (role)
-            {
-                case TextureRole.Albedo:
-                    target.AlbedoTexture = texture;
-                    break;
-                case TextureRole.Normal:
-                    target.NormalTexture = texture;
-                    break;
-                case TextureRole.MetallicRoughness:
-                    target.MetallicRoughnessTexture = texture;
-                    break;
-                case TextureRole.Emissive:
-                    target.EmissiveTexture = texture;
-                    break;
-            }
-        }
-    }
-
-    /// <summary>Report streaming duration as part of <see cref="ModelScene.LoadingCompletion"/>.</summary>
-    private static async Task LogWhenStreamed(Task whenAll, int count, Stopwatch watch)
-    {
-        await whenAll;
-        Log.Success($"glTF texture streaming finished: {count} images in {watch.ElapsedMilliseconds}ms");
-    }
-
-    /// <summary>Read, decode and upload one image. Runs on a thread-pool thread.</summary>
-    private Texture2D? DecodeImageTexture(AssetSystem assetSystem, GltfImage image, string? path, AddressMode wrap, TextureRole role)
+    private Texture2D? CreateImageTexture(
+        AssetSystem assetSystem, GltfImage image, string directory, TextureRole role, AddressMode wrap)
     {
         var option = ImageLoadOption.Default with
         {
@@ -316,18 +250,44 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
             Name = image.Name,
         };
 
-        if (path != null)
+        try
         {
-            if (!assetSystem.TryLoadRaw(path, out SafeMemoryHandle handle))
+            if (image.Uri != null)
             {
-                return null;
+                string path = CombinePath(directory, image.Uri);
+                if (!assetSystem.TryGetStream(path, out Stream? stream))
+                {
+                    return null;
+                }
+                try
+                {
+                    return _renderingSystem.CreateTexture2DStreaming(stream, option);
+                }
+                catch (ImageDecodeException)
+                {
+                    // The header could not be probed: fall back to a full synchronous decode.
+                    stream.Dispose();
+                    if (!assetSystem.TryLoadRaw(path, out SafeMemoryHandle handle))
+                    {
+                        return null;
+                    }
+                    using (handle)
+                    {
+                        return _renderingSystem.CreateTexture2DFromFile(handle.AsReadOnlySpan(), option);
+                    }
+                }
             }
-            using (handle)
+            if (!image.EmbeddedData.IsEmpty)
             {
-                return _renderingSystem.CreateTexture2DFromFile(handle.AsReadOnlySpan(), option);
+                return _renderingSystem.CreateTexture2DFromFile(image.EmbeddedData, option);
             }
+            return null;
         }
-        return _renderingSystem.CreateTexture2DFromFile(image.EmbeddedData, option);
+        catch (Exception ex)
+        {
+            Log.Warning($"Failed to load glTF texture '{image.Name}': {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>

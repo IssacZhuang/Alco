@@ -256,9 +256,9 @@ public sealed class MaterialComposer : IDisposable
     }
 
     /// <summary>
-    /// The texture slot names of one bind group (a shader's material-frequency set):
-    /// what the binding side fills from the material's texture table, with fallbacks
-    /// for slots still streaming.
+    /// The texture slots of one bind group (a shader's material-frequency set):
+    /// what the binding side fills from the material's texture table, with the
+    /// asset's fallback policy for unbound slots.
     /// </summary>
     public static IReadOnlyList<string> EnumerateTextureSlots(ShaderReflectionInfo reflection, int groupIndex)
     {

@@ -18,12 +18,13 @@ namespace Alco.Rendering;
 /// Pipeline-family data (the PBR factors and alpha routing of World3D's materials, ...)
 /// lives on derived classes; pass implementations receive the derived type statically
 /// through <see cref="IMaterialPass{TAsset}"/>.
-/// <br/>Per-pass GPU materials are derived from this description by
+/// <br/>Per-pass GPU materials are compiled from this description by
 /// <see cref="MaterialCompiler"/> from the policies of the registered
-/// <see cref="IMaterialPass"/>es; streamed texture sources (e.g. a glTF scene's
-/// textures) override the carried bindings through
-/// <see cref="MaterialCompiler.BindTextures"/>, with the asset's fallback policy for
-/// slots still streaming.
+/// <see cref="IMaterialPass"/>es, binding the carried textures by slot with the
+/// asset's fallback policy for unbound slots. The asset is complete at load time and
+/// never learns about streaming: streamed texture sources (e.g. a glTF scene's
+/// textures) are owned by the streaming consumer and override the compiled materials
+/// through <see cref="GraphicsMaterialInstance"/>s.
 /// </summary>
 public class MaterialAsset : IJsonOnDeserialized
 {
@@ -70,7 +71,7 @@ public class MaterialAsset : IJsonOnDeserialized
 
     /// <summary>
     /// The fallback texture policy of one surface texture slot, consulted when the slot
-    /// has no texture or its texture is still streaming. The base policy is always
+    /// has no texture. The base policy is always
     /// <see cref="MaterialTextureFallback.White"/>; pipeline-family assets override —
     /// e.g. the World3D PBR asset requests flat normals for <c>normal*</c> slots and
     /// black for <c>emissive*</c> ones.

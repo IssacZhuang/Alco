@@ -32,8 +32,9 @@ public readonly struct ModelMaterialSlot
 /// referenced <c>.amsh</c>/<c>.amat</c> files through the asset system as cheap meta loads —
 /// no geometry is resident, and material textures load with their material — and this
 /// object holds no GPU resources. Geometry streams per LOD via <see cref="Mesh.LoadLodAsync"/>;
-/// streamed texture sources (e.g. a glTF scene) bind into compiled materials via
-/// <see cref="MaterialCompiler.BindTextures"/>.
+/// streamed texture sources (e.g. a glTF scene's textures) are owned by the loading
+/// consumer and override the compiled materials through
+/// <see cref="GraphicsMaterialInstance"/>s.
 /// </summary>
 public sealed class ModelAsset
 {

@@ -171,6 +171,32 @@ public class Game : GameEngine
         float IForwardRenderable.TransmissionFactor => _getTransmission();
     }
 
+    /// <summary>
+    /// The GPU materials of one glTF material: the compiled per-pass materials its
+    /// draw items bind. Textures come from the asset descriptor, so no per-material
+    /// instances are needed. Game-owned (the compiler is a stateless factory),
+    /// disposed in OnStop.
+    /// </summary>
+    private sealed class ModelMaterialSet
+    {
+        public GraphicsMaterial? Glass;
+        public GraphicsMaterial? GBuffer;
+        public GraphicsMaterial? Shadow;
+        public GraphicsMaterial? Rsm;
+
+        /// <summary>Collect every material of the set into a list.</summary>
+        public void CollectInto(List<GraphicsMaterial> materials)
+        {
+            foreach (GraphicsMaterial? material in new GraphicsMaterial?[] { Glass, GBuffer, Shadow, Rsm })
+            {
+                if (material != null)
+                {
+                    materials.Add(material);
+                }
+            }
+        }
+    }
+
     private readonly PBRDeferredPreset _preset;
     private readonly PBRSceneEnvironment _environment;
     private readonly GBufferRenderer _gbufferRenderer;
@@ -189,9 +215,14 @@ public class Game : GameEngine
     // Slang front end instead of the engine's DXC toolchain (engine built-ins
     // such as BuiltInAssets.Shader_Blit stay on the engine path).
     private MaterialCompiler? _materialCompiler;
-    // One material asset per glTF material: the data-only descriptors the
-    // MaterialCompiler compiles into per-pass GPU materials (compiler-owned).
+    // One material asset per glTF material: the data-only descriptors compiled
+    // once per pass into the game-owned material sets below.
     private PbrMaterialAsset[]? _modelAssets;
+    // The compiled per-pass materials of each glTF material, shared by its draw items.
+    private ModelMaterialSet[]? _modelMaterialSets;
+    // Every GPU material this game owns — compiled bases and their instances —
+    // disposed in OnStop (caller ownership, see MaterialCompiler).
+    private readonly List<GraphicsMaterial> _ownedMaterials = new();
 
     // Forward transparency renderer for glass materials.
     private RGNode_Forward? _forwardRenderer;
@@ -207,7 +238,6 @@ public class Game : GameEngine
         ["Performance (64)", "Balanced (112)", "Quality (160)"];
 
     private bool _staticShadowBundlesDirty;
-    private bool _modelStreaming;
 
     // The loaded glTF scene (null when the assets are missing).
     private readonly ModelScene? _modelScene;
@@ -328,7 +358,6 @@ public class Game : GameEngine
     // Screenshot mode.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
-    private readonly bool _waitForStreaming;
     private readonly Vector3? _fixedCameraPosition;
     private readonly Vector3? _fixedCameraLook;
     private int _frameCount;
@@ -339,7 +368,6 @@ public class Game : GameEngine
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 60;
-        _waitForStreaming = args.Contains("--wait-load");
         LightingDebugView lightingDebug = LightingDebugView.Off;
         if (args.Contains("--cascade-debug"))
         {
@@ -596,19 +624,18 @@ public class Game : GameEngine
 
         if (_modelScene != null)
         {
-            // One material asset per glTF material — data-only descriptors the
-            // MaterialCompiler compiles per pass on first request. Textures still
-            // streaming in start as the fallbacks and are synced in PrepareModelFrame.
+            // One material asset per glTF material — data-only descriptors compiled
+            // once per pass into the game-owned material sets. The glTF loader realizes
+            // every texture before the scene returns (external files stream their
+            // content in place), so the descriptors bind the final textures directly.
             _modelAssets = new PbrMaterialAsset[_modelScene.Materials.Count];
+            _modelMaterialSets = new ModelMaterialSet[_modelAssets.Length];
             for (int i = 0; i < _modelAssets.Length; i++)
             {
                 _modelAssets[i] = ModelMaterialAdapter.ToAsset(_modelScene.Materials[i]);
+                _modelMaterialSets[i] = CompileModelMaterialSet(_modelAssets[i]);
+                _modelMaterialSets[i].CollectInto(_ownedMaterials);
             }
-            // Streaming may have completed during startup already (fast disk-cache
-            // hits), so LoadingCompletion.IsCompleted is not a reliable initial
-            // state here: always enter the sync loop and let PrepareModelFrame
-            // clear the flag once it has rebound the final textures.
-            _modelStreaming = true;
 
             // Register model draw items: the pass registry routes blend materials
             // to the forward glass pass, everything else to G-buffer + shadow (+RSM).
@@ -619,11 +646,11 @@ public class Game : GameEngine
                 {
                     ModelDrawItem item = drawItems[i];
                     PbrMaterialAsset asset = _modelAssets[item.MaterialIndex];
-                    GraphicsMaterial? glass = _materialCompiler.TryGet(asset, RGNode_Forward.PassId);
-                    if (glass != null)
+                    ModelMaterialSet materialSet = _modelMaterialSets[item.MaterialIndex];
+                    if (materialSet.Glass != null)
                     {
                         _forwardRenderer.Add(new ModelGlassRenderable(
-                            item, asset, glass, () => _glassTransmission));
+                            item, asset, materialSet.Glass, () => _glassTransmission));
                     }
                     else
                     {
@@ -631,11 +658,10 @@ public class Game : GameEngine
                         // the Point Lights toggle / Emissive Boost slider take
                         // effect on the next re-record (MarkStaticBundleDirty).
                         _gbufferRenderer.Add(new ModelRenderable(item, asset,
-                            _materialCompiler.Get(asset, GBufferRenderer.PassId),
+                            materialSet.GBuffer!,
                             () => asset.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
                         _shadowRenderer.Add(new ModelShadowRenderable(item, asset,
-                            _materialCompiler.Get(asset, ShadowRenderer.PassId),
-                            _materialCompiler.TryGet(asset, ShadowRenderer.RsmPassId)));
+                            materialSet.Shadow!, materialSet.Rsm));
                     }
                 }
             }
@@ -650,15 +676,22 @@ public class Game : GameEngine
             _objectNames = _objects.Select(o => o.Mesh.Name).ToArray();
             // One material asset for all procedural objects: the built-in
             // PbrStandard surface with the checker texture on the albedo slot.
-            // The compiler owns the compiled per-pass materials.
-            _proceduralAsset = new PbrMaterialAsset { Name = "checker" };
-            GraphicsMaterial proceduralMaterial = _materialCompiler.Get(_proceduralAsset, GBufferRenderer.PassId);
-            GraphicsMaterial proceduralShadowMaterial = _materialCompiler.Get(_proceduralAsset, ShadowRenderer.PassId);
-            GraphicsMaterial? proceduralRsmMaterial = _materialCompiler.TryGet(_proceduralAsset, ShadowRenderer.RsmPassId);
-            _materialCompiler.BindTextures(_proceduralAsset, new Dictionary<string, Texture2D?>
+            // Nothing streams here, so the game-owned compiled materials bind
+            // the asset's own texture directly and are shared as-is.
+            _proceduralAsset = new PbrMaterialAsset
             {
-                ["albedoTexture"] = _checkerTexture,
-            });
+                Name = "checker",
+                Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = _checkerTexture },
+            };
+            GraphicsMaterial proceduralMaterial = _materialCompiler.Compile(_proceduralAsset, GBufferRenderer.PassId);
+            GraphicsMaterial proceduralShadowMaterial = _materialCompiler.Compile(_proceduralAsset, ShadowRenderer.PassId);
+            GraphicsMaterial? proceduralRsmMaterial = _materialCompiler.TryCompile(_proceduralAsset, ShadowRenderer.RsmPassId);
+            _ownedMaterials.Add(proceduralMaterial);
+            _ownedMaterials.Add(proceduralShadowMaterial);
+            if (proceduralRsmMaterial != null)
+            {
+                _ownedMaterials.Add(proceduralRsmMaterial);
+            }
             // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
             {
@@ -833,10 +866,10 @@ public class Game : GameEngine
 
         // Capture here: after Render the forward render texture still holds the last
         // completed frame's HDR image. Bloom is composited into the swapchain by the
-        // chain and is not part of the capture. With --wait-load the capture is held
-        // back until the glTF scene's asynchronously streaming textures have all arrived.
-        if (_screenshotPath != null && _frameCount >= _screenshotFrames &&
-            (!_waitForStreaming || _modelScene == null || _modelScene.LoadingCompletion.IsCompleted))
+        // chain and is not part of the capture. Texture content streams in place, so
+        // a local scene is fully populated within the first few frames — pick
+        // --frames accordingly.
+        if (_screenshotPath != null && _frameCount >= _screenshotFrames)
         {
             CaptureScreenshot(_screenshotPath);
             Stop();
@@ -855,6 +888,13 @@ public class Game : GameEngine
         _gbufferRenderer.Dispose();
         _shadowRenderer.Dispose();
         _preset.Dispose();
+        // The compiled materials are game-owned (the compiler is a stateless
+        // factory and disposes nothing of theirs).
+        foreach (GraphicsMaterial material in _ownedMaterials)
+        {
+            material.Dispose();
+        }
+        _ownedMaterials.Clear();
         _materialCompiler?.Dispose();
     }
 
@@ -1289,50 +1329,13 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Per-frame render bookkeeping (texture streaming sync, stale bundle
-    /// re-records). The passes themselves are driven by the engine through the
-    /// main pipeline after OnUpdate: shadow → G-buffer → callback → plugins →
-    /// lighting → forward transparency.
+    /// Per-frame render bookkeeping (stale bundle re-records). The passes themselves
+    /// are driven by the engine through the main pipeline after OnUpdate: shadow →
+    /// G-buffer → callback → plugins → lighting → forward transparency.
     /// </summary>
     private void PrepareFrame()
     {
-        if (_modelScene != null)
-        {
-            PrepareModelFrame();
-            return;
-        }
-
         if (_staticShadowBundlesDirty)
-        {
-            _shadowRenderer.MarkStaticBundleDirty();
-            _staticShadowBundlesDirty = false;
-        }
-    }
-
-    /// <summary>
-    /// The loaded glTF scene is fully static: every pass the pipeline runs is a pure
-    /// bundle replay; only streaming and dirty bookkeeping happens here.
-    /// </summary>
-    private void PrepareModelFrame()
-    {
-        // Textures stream in asynchronously: refresh the materials and re-record the
-        // bundles until everything arrived (equivalent to drawing every frame), then
-        // the bundles stay frozen for the rest of the session.
-        if (_modelStreaming)
-        {
-            SyncModelMaterials();
-            _shadowRenderer.MarkStaticBundleDirty();
-            _gbufferRenderer.MarkStaticBundleDirty();
-            _modelStreaming = !_modelScene!.LoadingCompletion.IsCompleted;
-            if (!_modelStreaming && _voxelGI != null)
-            {
-                // Texture instances may have been swapped while streaming:
-                // re-register against the final textures.
-                _voxelGI.ClearStaticInstances();
-                RegisterVoxelMeshes();
-            }
-        }
-        else if (_staticShadowBundlesDirty)
         {
             _shadowRenderer.MarkStaticBundleDirty();
             _staticShadowBundlesDirty = false;
@@ -1425,7 +1428,7 @@ public class Game : GameEngine
                     (uint)VertexPBR.SizeInBytes,
                     GetProceduralBounds(mesh),
                     _proceduralAsset,
-                    new Dictionary<string, Texture2D?> { ["albedoTexture"] = _checkerTexture });
+                    new Dictionary<string, Texture2D> { ["albedoTexture"] = _checkerTexture });
         }
     }
 
@@ -1460,18 +1463,23 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Rebind the current (possibly still streaming) model textures on every pass material of each asset.</summary>
-    private void SyncModelMaterials()
+    /// <summary>
+    /// Compile the per-pass materials of one glTF material asset. The pass registry
+    /// routes blend materials to the forward glass pass, everything else to
+    /// G-buffer + shadow (+RSM); a rejecting pass leaves its set entries null.
+    /// </summary>
+    private ModelMaterialSet CompileModelMaterialSet(PbrMaterialAsset asset)
     {
-        IReadOnlyList<ModelMaterial> materials = _modelScene!.Materials;
-        for (int i = 0; i < materials.Count; i++)
+        var set = new ModelMaterialSet();
+        set.Glass = _materialCompiler!.TryCompile(asset, RGNode_Forward.PassId);
+        if (set.Glass != null)
         {
-            // One bind covers every pass material compiled from the asset
-            // (G-buffer, shadow, RSM, glass): streamed values replace the
-            // fallback textures.
-            _materialCompiler!.BindTextures(_modelAssets![i], ModelMaterialAdapter.TextureSlotsOf(materials[i]));
+            return set;
         }
-        _forwardRenderer?.MarkStaticBundleDirty();
+        set.GBuffer = _materialCompiler.Compile(asset, GBufferRenderer.PassId);
+        set.Shadow = _materialCompiler.Compile(asset, ShadowRenderer.PassId);
+        set.Rsm = _materialCompiler.TryCompile(asset, ShadowRenderer.RsmPassId);
+        return set;
     }
 
     /// <summary>

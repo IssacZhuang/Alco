@@ -12,10 +12,10 @@ namespace Alco.World3D.Test;
 
 /// <summary>
 /// Compilation of material assets into per-pass GPU materials: pass registration
-/// (<see cref="IMaterialPass"/>), the (asset, pass) cache, derived pipeline state,
-/// <see cref="IMaterialPass.Accepts"/> routing, texture-slot validation and the
-/// optional-pass guards. Uses a NoGPU engine with the module's real shaders,
-/// mirroring <see cref="ValidateShader"/>.
+/// (<see cref="IMaterialPass"/>), caller-owned (asset, pass) compilation, derived
+/// pipeline state, <see cref="IMaterialPass.Accepts"/> routing, texture-slot
+/// validation and the optional-pass guards. Uses a NoGPU engine with the module's
+/// real shaders, mirroring <see cref="ValidateShader"/>.
 /// </summary>
 public class TestMaterialCompiler
 {
@@ -73,7 +73,7 @@ public class TestMaterialCompiler
     }
 
     [Test]
-    public void GBufferMaterialsCompileCacheAndInvalidate()
+    public void GBufferMaterialsCompileWithCallerOwnership()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
 
@@ -87,37 +87,35 @@ public class TestMaterialCompiler
         PbrMaterialAsset opaque = new() { Name = "opaque" };
         PbrMaterialAsset doubled = new() { Name = "doubled", DoubleSided = true };
 
-        GraphicsMaterial material = compiler.Get(opaque, "gbuffer");
+        GraphicsMaterial material = compiler.Compile(opaque, "gbuffer");
 
         Assert.Multiple(() =>
         {
-            // One material per (asset, pass), reused across requests.
-            Assert.That(compiler.Get(opaque, "gbuffer"), Is.SameAs(material));
+            // Every Compile produces a fresh caller-owned material; sharing across
+            // the meshes of one asset is the caller's job.
+            Assert.That(compiler.Compile(opaque, "gbuffer"), Is.Not.SameAs(material));
 
             // The renderer applies reverse-Z depth for the G-buffer pass.
             Assert.That(material.DepthStencilState, Is.EqualTo(DepthStencilState.WriteReverseZ));
 
             // doubleSided derives the rasterizer cull mode.
             Assert.That(material.RasterizerState.CullMode, Is.EqualTo(CullMode.Back));
-            Assert.That(compiler.Get(doubled, "gbuffer").RasterizerState.CullMode, Is.EqualTo(CullMode.None));
+            Assert.That(compiler.Compile(doubled, "gbuffer").RasterizerState.CullMode, Is.EqualTo(CullMode.None));
 
             // Passes that were never registered report unusable (e.g. the optional
             // pass of a feature that is disabled this run).
-            Assert.That(compiler.TryGet(opaque, "shadow"), Is.Null);
-            Assert.That(compiler.TryGet(opaque, "rsm"), Is.Null);
+            Assert.That(compiler.TryCompile(opaque, "shadow"), Is.Null);
+            Assert.That(compiler.TryCompile(opaque, "rsm"), Is.Null);
 
             // Registering a duplicate pass id is rejected.
             Assert.That(() => compiler.RegisterPass(
                 new StubMaterialPass("gbuffer", "gbuffer", engine.RenderingSystem)), Throws.ArgumentException);
         });
 
-        // Streaming textures (still null here) rebind without disturbing the compiled material.
-        Assert.That(() => compiler.BindTextures(opaque, new Dictionary<string, Texture2D?>()), Throws.Nothing);
-
-        // Invalidation drops the compiled material; the next request compiles a fresh one.
-        compiler.Invalidate(opaque);
-        GraphicsMaterial recompiled = compiler.Get(opaque, "gbuffer");
-        Assert.That(recompiled, Is.Not.SameAs(material));
+        // Streamed textures are owned by the streaming consumer: they override the
+        // compiled material through a derived instance, never through the compiler.
+        GraphicsMaterialInstance instance = material.CreateInstance();
+        Assert.That(() => instance.SetTexture("_albedoTexture", engine.RenderingSystem.TextureWhite), Throws.Nothing);
     }
 
     [Test]
@@ -137,9 +135,9 @@ public class TestMaterialCompiler
         {
             Assert.That(compiler.Accepts(opaque, "glass"), Is.False);
             Assert.That(compiler.Accepts(blend, "glass"), Is.True);
-            Assert.That(compiler.TryGet(opaque, "glass"), Is.Null, "A rejecting pass yields no material.");
-            Assert.That(compiler.TryGet(blend, "glass"), Is.Not.Null);
-            Assert.That(() => compiler.Get(opaque, "glass"), Throws.TypeOf<InvalidDataException>(),
+            Assert.That(compiler.TryCompile(opaque, "glass"), Is.Null, "A rejecting pass yields no material.");
+            Assert.That(compiler.TryCompile(blend, "glass"), Is.Not.Null);
+            Assert.That(() => compiler.Compile(opaque, "glass"), Throws.TypeOf<InvalidDataException>(),
                 "Getting a rejecting pass directly is a usage error.");
         });
     }
@@ -154,8 +152,8 @@ public class TestMaterialCompiler
         // from the asset's alpha mode — value specialization, not a define.
         compiler.RegisterPass(new StubShadowPass(engine.RenderingSystem));
 
-        GraphicsMaterial opaque = compiler.Get(new PbrMaterialAsset { Name = "opaque" }, "shadow");
-        GraphicsMaterial mask = compiler.Get(
+        GraphicsMaterial opaque = compiler.Compile(new PbrMaterialAsset { Name = "opaque" }, "shadow");
+        GraphicsMaterial mask = compiler.Compile(
             new PbrMaterialAsset { Name = "mask", AlphaMode = MeshAlphaMode.Mask }, "shadow");
 
         Assert.Multiple(() =>
@@ -183,17 +181,17 @@ public class TestMaterialCompiler
             Textures = new Dictionary<string, Texture2D>
                 { ["albedoTexture"] = engine.RenderingSystem.TextureWhite },
         };
-        Assert.That(() => compiler.Get(textured, "gbuffer"), Throws.Nothing);
+        Assert.That(() => compiler.Compile(textured, "gbuffer"), Throws.Nothing);
 
         // An undeclared slot is a typo in the asset: fail at compile time with
-        // the valid slot names, not later at BindTextures.
+        // the valid slot names, not later at bind time.
         PbrMaterialAsset typo = new()
         {
             Name = "typo",
             Textures = new Dictionary<string, Texture2D>
                 { ["albedo"] = engine.RenderingSystem.TextureWhite },
         };
-        Assert.That(() => compiler.Get(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
+        Assert.That(() => compiler.Compile(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
     }
 
     [Test]
@@ -214,18 +212,17 @@ public class TestMaterialCompiler
                 Name = "checker",
                 Surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule),
             };
-            GraphicsMaterial material = compiler.Get(checker, "gbuffer");
+            GraphicsMaterial material = compiler.Compile(checker, "gbuffer");
 
             Assert.Multiple(() =>
             {
-                Assert.That(compiler.Get(checker, "gbuffer"), Is.SameAs(material), "Composed materials cache per (asset, pass).");
+                Assert.That(compiler.Compile(checker, "gbuffer"), Is.Not.SameAs(material),
+                    "Every Compile produces a fresh caller-owned material.");
                 Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.False, "The test surface declares no albedo slot.");
                 Assert.That(material.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True, "The pass template keeps its camera binding.");
                 Assert.That(material.TryGetResourceId(ShaderResourceId.GlobalRenderData, out _), Is.True,
                     "The surface's _globalRenderData declaration reaches the composed shader (time source).");
             });
-
-            compiler.Invalidate(checker);
         }
         finally
         {
@@ -254,7 +251,7 @@ public class TestMaterialCompiler
                 Surface = surface,
                 Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
             };
-            GraphicsMaterial material = compiler.Get(scaled, "gbuffer");
+            GraphicsMaterial material = compiler.Compile(scaled, "gbuffer");
             Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
                 "The composed shader exposes the surface's parameter block.");
 
@@ -265,7 +262,7 @@ public class TestMaterialCompiler
                 Surface = surface,
                 Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
             };
-            Assert.That(() => compiler.Get(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
+            Assert.That(() => compiler.Compile(typo, "gbuffer"), Throws.TypeOf<InvalidDataException>());
 
             // The built-in surface declares no parameter block; parameters without a
             // custom surface are rejected instead of silently ignored.
@@ -274,7 +271,7 @@ public class TestMaterialCompiler
                 Name = "builtin",
                 Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
             };
-            Assert.That(() => compiler.Get(builtinParams, "gbuffer"), Throws.TypeOf<InvalidDataException>());
+            Assert.That(() => compiler.Compile(builtinParams, "gbuffer"), Throws.TypeOf<InvalidDataException>());
         }
         finally
         {
@@ -322,7 +319,7 @@ public class TestMaterialCompiler
                 Name = "minimal",
                 Surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule),
             };
-            GraphicsMaterial material = compiler.Get(minimal, "gbuffer");
+            GraphicsMaterial material = compiler.Compile(minimal, "gbuffer");
             Assert.Multiple(() =>
             {
                 Assert.That(material.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
