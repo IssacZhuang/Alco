@@ -118,8 +118,6 @@ public partial class RenderingSystem
             throw new ImageDecodeException($"DDS pixel format {format} is not block-compressed.");
         }
 
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode, optionReal.Anisotropy);
-
         TextureDescriptor textureDescriptor = new TextureDescriptor(
             TextureDimension.Texture2D,
             format,
@@ -155,7 +153,6 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler,
             optionReal.SlicePadding
         );
     }
@@ -183,7 +180,6 @@ public partial class RenderingSystem
         }
 
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode, optionReal.Anisotropy);
 
         TextureDescriptor textureDescriptor = new TextureDescriptor(
             TextureDimension.Texture2D,
@@ -209,7 +205,6 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler,
             optionReal.SlicePadding
         );
     }
@@ -431,7 +426,6 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode, optionReal.Anisotropy);
 
         CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
@@ -445,44 +439,6 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler,
-            optionReal.SlicePadding
-        );
-    }
-
-    /// <summary>
-    /// Creates a Texture2D from raw data pointer with a custom sampler.
-    /// </summary>
-    /// <param name="data">Pointer to the raw image data.</param>
-    /// <param name="size">Size of the data in bytes.</param>
-    /// <param name="width">The width of the texture.</param>
-    /// <param name="height">The height of the texture.</param>
-    /// <param name="sampler">Custom GPU sampler to use.</param>
-    /// <param name="option">Image load options.</param>
-    /// <returns>A new Texture2D instance.</returns>
-    public unsafe Texture2D CreateTexture2D(
-        byte* data,
-        uint size,
-        uint width,
-        uint height,
-        GPUSampler sampler,
-        ImageLoadOption? option = null
-    )
-    {
-        CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
-
-        _device.WriteTexture(
-            texture,
-            data,
-            size
-        );
-
-        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        return new Texture2D(
-            _device,
-            texture,
-            textureView,
-            sampler,
             optionReal.SlicePadding
         );
     }
@@ -501,7 +457,6 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode, optionReal.Anisotropy);
 
         CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
@@ -509,34 +464,6 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler,
-            optionReal.SlicePadding
-        );
-    }
-
-    /// <summary>
-    /// Creates an empty Texture2D with a custom sampler.
-    /// </summary>
-    /// <param name="width">The width of the texture.</param>
-    /// <param name="height">The height of the texture.</param>
-    /// <param name="sampler">Custom GPU sampler to use.</param>
-    /// <param name="option">Image load options.</param>
-    /// <returns>A new Texture2D instance.</returns>
-    public unsafe Texture2D CreateTexture2D(
-        uint width,
-        uint height,
-        GPUSampler sampler,
-        ImageLoadOption? option = null
-    )
-    {
-        CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
-
-        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        return new Texture2D(
-            _device,
-            texture,
-            textureView,
-            sampler,
             optionReal.SlicePadding
         );
     }
@@ -546,20 +473,18 @@ public partial class RenderingSystem
     /// <br/>By default the wrapper does NOT take ownership of
     /// <paramref name="texture"/> and <paramref name="textureView"/>: being created
     /// outside, their lifetime is managed by the caller (e.g. the frame buffer whose
-    /// attachments they are), the same rule as the externally supplied sampler. Pass
-    /// <paramref name="ownsResources"/> to transfer ownership to the wrapper instead
-    /// (its disposal then releases the texture and view).
+    /// attachments they are). Pass <paramref name="ownsResources"/> to transfer
+    /// ownership to the wrapper instead (its disposal then releases the texture and
+    /// view).
     /// </summary>
     /// <param name="texture">The GPU texture.</param>
     /// <param name="textureView">The GPU texture view.</param>
-    /// <param name="sampler">The GPU sampler.</param>
     /// <param name="ownsResources">Whether the wrapper owns (and disposes) the
-    /// texture and view. The sampler's lifetime is always the caller's.</param>
+    /// texture and view.</param>
     /// <returns>A new Texture2D instance.</returns>
     public Texture2D CreateTexture2D(
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler,
         bool ownsResources = false
     )
     {
@@ -567,7 +492,6 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler,
             null,
             ownsResources
         );

@@ -5,15 +5,14 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// High level encapsulation of a GPUTexture with a TextureView whose dimension is 3D.
-/// <br/>Provides the sampled resource group of the full mip chain (<see cref="EntrySample"/>),
-/// the read-only resource group of the full mip chain (<see cref="EntryReadonly"/>) and
-/// per-mip read-only / storage resource groups (<see cref="EntryReadonlyMip"/> and
-/// <see cref="EntryStorage(uint)"/>), so compute passes can sample the whole chain, load a
-/// single mip and write a single mip within one dispatch without subresource usage conflicts.
+/// <br/>Provides the read-only resource group of the full mip chain (<see cref="EntryReadonly"/>)
+/// and per-mip read-only / storage resource groups (<see cref="EntryReadonlyMip"/> and
+/// <see cref="EntryStorage(uint)"/>), so compute passes can load a single mip and write a
+/// single mip within one dispatch without subresource usage conflicts. Filtered sampling
+/// goes through the consuming shader's shared sampler bank entries.
 /// </summary>
 public sealed class Texture3D : Texture
 {
-    private GPUResourceGroup? _resourcesSample;
     private GPUResourceGroup? _resourcesRead;
 
     private GPUBindGroup? _bindGroupStorage;
@@ -25,21 +24,6 @@ public sealed class Texture3D : Texture
     /// The number of mip levels of the texture.
     /// </summary>
     public uint MipLevels { get; }
-
-    /// <inheritdoc />
-    public override GPUResourceGroup EntrySample
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_resourcesSample == null)
-            {
-                _resourcesSample = CreateResourcesSample();
-            }
-
-            return _resourcesSample;
-        }
-    }
 
     /// <inheritdoc />
     public override GPUResourceGroup EntryReadonly
@@ -69,10 +53,9 @@ public sealed class Texture3D : Texture
     internal Texture3D(
         GPUDevice device,
         GPUTexture texture,
-        GPUTextureView textureView,
-        GPUSampler sampler
+        GPUTextureView textureView
         ) :
-        base(device, texture, textureView, sampler)
+        base(device, texture, textureView)
     {
         MipLevels = texture.MipLevelCount;
         _resourcesStorage = new GPUResourceGroup?[MipLevels];
@@ -151,13 +134,6 @@ public sealed class Texture3D : Texture
         return _resourcesStorage[mipLevel]!;
     }
 
-    /// <inheritdoc />
-    public override void SetSampler(GPUSampler sampler)
-    {
-        base.SetSampler(sampler);
-        _resourcesSample = null;
-    }
-
     internal GPUTextureView GetMipView(uint mipLevel)
     {
         if (_mipViews[mipLevel] == null)
@@ -181,19 +157,6 @@ public sealed class Texture3D : Texture
         }
     }
 
-    private GPUResourceGroup CreateResourcesSample()
-    {
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture3DSampled,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
-                new ResourceBindingEntry(1, _sampler)
-            }
-        );
-
-        return _device.CreateResourceGroup(descriptor);
-    }
-
     private GPUResourceGroup CreateResourceGroupRead()
     {
         ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
@@ -213,7 +176,6 @@ public sealed class Texture3D : Texture
         if (disposing)
         {
             //dispose non-private managed resources
-            _resourcesSample?.Dispose();
             _resourcesRead?.Dispose();
             _bindGroupStorage?.Dispose();
             for (int i = 0; i < _resourcesStorage.Length; i++)

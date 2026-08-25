@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace Alco.Graphics;
@@ -20,17 +19,9 @@ public abstract class GPUDevice
             this.delay = delay;
         }
     }
-    private readonly ConcurrentDictionary<int, GPUSampler> _samplers = new();
     private readonly UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
     private readonly Lock _lock = new();
 
-    private GPUSampler? _samplerNearestRepeat;
-    private GPUSampler? _samplerLinearRepeat;
-    private GPUSampler? _samplerNearestClamp;
-    private GPUSampler? _samplerLinearClamp;
-    private GPUSampler? _samplerNearestMirrorRepeat;
-    private GPUSampler? _samplerLinearMirrorRepeat;
-    private protected GPUSampler? _samplerDepthComparison;
 
     protected readonly IGPUDeviceHost _host;
 
@@ -74,75 +65,6 @@ public abstract class GPUDevice
         host.OnDispose += Dispose;
     }
 
-    // Default samplers, those are the most common samplers used in the graphics pipeline.
-    // user can also create their own samplers by using the CreateSampler method.
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the nearest filtering with repeat mode.
-    /// </summary> 
-    public GPUSampler SamplerNearestRepeat
-    {
-        get
-        {
-            _samplerNearestRepeat ??= GetSampler(FilterMode.Nearest, AddressMode.Repeat);
-            return _samplerNearestRepeat;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the linear filtering with repeat mode.
-    /// </summary>
-    public GPUSampler SamplerLinearRepeat
-    {
-        get
-        {
-            _samplerLinearRepeat ??= GetSampler(FilterMode.Linear, AddressMode.Repeat);
-            return _samplerLinearRepeat;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the nearest filtering with clamp mode.
-    /// </summary>
-    public GPUSampler SamplerNearestClamp
-    {
-        get
-        {
-            _samplerNearestClamp ??= GetSampler(FilterMode.Nearest, AddressMode.ClampToEdge);
-            return _samplerNearestClamp;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the linear filtering with clamp mode.
-    /// </summary>
-    public GPUSampler SamplerLinearClamp
-    {
-        get
-        {
-            _samplerLinearClamp ??= GetSampler(FilterMode.Linear, AddressMode.ClampToEdge);
-            return _samplerLinearClamp;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the nearest filtering with mirror repeat mode.
-    /// </summary>
-    public GPUSampler SamplerNearestMirrorRepeat
-    {
-        get
-        {
-            _samplerNearestMirrorRepeat ??= GetSampler(FilterMode.Nearest, AddressMode.MirrorRepeat);
-            return _samplerNearestMirrorRepeat;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the linear filtering with mirror repeat mode.
-    /// </summary>
-    public GPUSampler SamplerLinearMirrorRepeat
-    {
-        get
-        {
-            _samplerLinearMirrorRepeat ??= GetSampler(FilterMode.Linear, AddressMode.MirrorRepeat);
-            return _samplerLinearMirrorRepeat;
-        }
-    }
-
     // Default bind groups, those are the most common bind groups used in the graphics pipeline.
     /// <summary>
     /// The <see cref="GPUBindGroup"/> for the uniform buffer, which only contains a entry of the uniform buffer.
@@ -159,43 +81,6 @@ public abstract class GPUDevice
     public abstract GPUBindGroup BindGroupStorageBufferWithCounter { get; }
 
     /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the sampled 2D texture, which contains a texture view and a sampler.
-    /// </summary> 
-    public abstract GPUBindGroup BindGroupTexture2DSampled { get; }
-
-    /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the sampled depth 2D texture, which contains a texture view and a sampler.
-    /// </summary>
-    public abstract GPUBindGroup BindGroupTextureDepthRead { get; }
-
-    /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the depth 2D texture sampled with a comparison sampler
-    /// (e.g. shadow map PCF), which contains a texture view and a comparison sampler entry.
-    /// </summary>
-    public abstract GPUBindGroup BindGroupTextureDepthComparison { get; }
-
-    /// <summary>
-    /// The <see cref="GPUSampler"/> for depth comparison sampling (linear filtering, clamp to edge,
-    /// less-or-equal comparison), used for shadow map PCF.
-    /// </summary>
-    public GPUSampler SamplerDepthComparison
-    {
-        get
-        {
-            _samplerDepthComparison ??= CreateSampler(new SamplerDescriptor(
-                FilterMode.Linear,
-                FilterMode.Linear,
-                FilterMode.Linear,
-                AddressMode.ClampToEdge,
-                AddressMode.ClampToEdge,
-                AddressMode.ClampToEdge,
-                compare: CompareFunction.LessEqual,
-                name: "depth_comparison_sampler"));
-            return _samplerDepthComparison;
-        }
-    }
-
-    /// <summary>
     /// The <see cref="GPUBindGroup"/> for the read-only 2D texture, which contains a texture view. Can only be used in the compute shader.
     /// </summary>
     public abstract GPUBindGroup BindGroupTexture2DRead { get; }
@@ -203,11 +88,6 @@ public abstract class GPUDevice
     /// The <see cref="GPUBindGroup"/> for the write-only 2D texture, which contains a texture view. Can only be used in the compute shader.
     /// </summary>
     public abstract GPUBindGroup BindGroupTexture2DStorage { get; }
-
-    /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the sampled 3D texture, which contains a texture view and a sampler.
-    /// </summary>
-    public abstract GPUBindGroup BindGroupTexture3DSampled { get; }
 
     /// <summary>
     /// The <see cref="GPUBindGroup"/> for the read-only 3D texture, which contains a texture view. Can only be used in the compute shader.
@@ -425,55 +305,6 @@ public abstract class GPUDevice
     public GPUSwapchain CreateSwapchain(in SwapchainDescriptor descriptor)
     {
         return CreateSwapchainCore(descriptor);
-    }
-
-    public GPUSampler GetSampler(
-        FilterMode filter,
-        AddressMode addressMode
-    )
-    {
-        return GetSampler(filter, filter, filter, addressMode, addressMode, addressMode);
-    }
-
-    public GPUSampler GetSampler(
-        FilterMode filter,
-        AddressMode addressMode,
-        ushort maxAnisotropy
-    )
-    {
-        return GetSampler(filter, filter, filter, addressMode, addressMode, addressMode, maxAnisotropy);
-    }
-
-    public GPUSampler GetSampler(
-        FilterMode minFilter,
-        FilterMode magFilter,
-        FilterMode mipFilter,
-        AddressMode addressModeU,
-        AddressMode addressModeV,
-        AddressMode addressModeW,
-        ushort maxAnisotropy = 1
-    )
-    {
-        // Anisotropy above 1 only takes effect with linear filtering; wgpu caps it at 16.
-        maxAnisotropy = Math.Clamp(maxAnisotropy, (ushort)1, (ushort)16);
-
-        int hash = 17;
-        hash = hash * 23 + minFilter.GetHashCode();
-        hash = hash * 23 + magFilter.GetHashCode();
-        hash = hash * 23 + mipFilter.GetHashCode();
-        hash = hash * 23 + addressModeU.GetHashCode();
-        hash = hash * 23 + addressModeV.GetHashCode();
-        hash = hash * 23 + addressModeW.GetHashCode();
-        hash = hash * 23 + maxAnisotropy.GetHashCode();
-
-        if (_samplers.TryGetValue(hash, out var sampler))
-        {
-            return sampler;
-        }
-
-        sampler = CreateSampler(new SamplerDescriptor(minFilter, magFilter, mipFilter,
-            addressModeU, addressModeV, addressModeW, maxAnisotropy: maxAnisotropy));
-        return _samplers.TryAdd(hash, sampler) ? sampler : _samplers[hash];
     }
 
     /// <summary>
@@ -851,10 +682,6 @@ public abstract class GPUDevice
     private void Dispose()
     {
         OnEndFrame();
-        foreach (var sampler in _samplers)
-        {
-            sampler.Value.Destroy();
-        }
         DisposeCore();
 
         _host.LogInfo("GPU device closed");

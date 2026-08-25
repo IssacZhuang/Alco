@@ -39,7 +39,6 @@ public ParameterBlock<CameraParams> _camera;
 public struct MaterialParamsData
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<MaterialParamsData> _material;
@@ -60,6 +59,6 @@ float4 MainPS<let Repeated : bool>(V2F input) : SV_TARGET {
   float2 uv = input.uv;
   // Repeated-wrap sampling folds away for the default (false) specialization.
   if (Repeated) { uv = frac(uv); }
-  float4 color = _material._texture.Sample(_material._textureSampler, uv) * constants.color;
+  float4 color = _material._texture.Sample(_samplers._linearRepeat, uv) * constants.color;
   return color;
 }

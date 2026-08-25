@@ -12,7 +12,6 @@ import alco_rendering_core;
 public struct PassParams
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<PassParams> _pass;
@@ -162,11 +161,11 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   /*--------------------------------------------------------------------------*/
 
   // Sample center and surrounding pixels
-  float3 rgbN = _pass._texture.Sample(_pass._textureSampler, pos + float2(0.0, -1.0) * rcpFrame).rgb;
-  float3 rgbW = _pass._texture.Sample(_pass._textureSampler, pos + float2(-1.0, 0.0) * rcpFrame).rgb;
-  float3 rgbM = _pass._texture.Sample(_pass._textureSampler, pos).rgb;
-  float3 rgbE = _pass._texture.Sample(_pass._textureSampler, pos + float2(1.0, 0.0) * rcpFrame).rgb;
-  float3 rgbS = _pass._texture.Sample(_pass._textureSampler, pos + float2(0.0, 1.0) * rcpFrame).rgb;
+  float3 rgbN = _pass._texture.Sample(_samplers._linearClamp, pos + float2(0.0, -1.0) * rcpFrame).rgb;
+  float3 rgbW = _pass._texture.Sample(_samplers._linearClamp, pos + float2(-1.0, 0.0) * rcpFrame).rgb;
+  float3 rgbM = _pass._texture.Sample(_samplers._linearClamp, pos).rgb;
+  float3 rgbE = _pass._texture.Sample(_samplers._linearClamp, pos + float2(1.0, 0.0) * rcpFrame).rgb;
+  float3 rgbS = _pass._texture.Sample(_samplers._linearClamp, pos + float2(0.0, 1.0) * rcpFrame).rgb;
 
   // Convert to luma
   float lumaN = FxaaLuma(rgbN);
@@ -194,10 +193,10 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   float3 rgbL = rgbN + rgbW + rgbM + rgbE + rgbS;
 
   float3 rgbNW =
-      _pass._texture.Sample(_pass._textureSampler, pos + float2(-1.0, -1.0) * rcpFrame).rgb;
-  float3 rgbNE = _pass._texture.Sample(_pass._textureSampler, pos + float2(1.0, -1.0) * rcpFrame).rgb;
-  float3 rgbSW = _pass._texture.Sample(_pass._textureSampler, pos + float2(-1.0, 1.0) * rcpFrame).rgb;
-  float3 rgbSE = _pass._texture.Sample(_pass._textureSampler, pos + float2(1.0, 1.0) * rcpFrame).rgb;
+      _pass._texture.Sample(_samplers._linearClamp, pos + float2(-1.0, -1.0) * rcpFrame).rgb;
+  float3 rgbNE = _pass._texture.Sample(_samplers._linearClamp, pos + float2(1.0, -1.0) * rcpFrame).rgb;
+  float3 rgbSW = _pass._texture.Sample(_samplers._linearClamp, pos + float2(-1.0, 1.0) * rcpFrame).rgb;
+  float3 rgbSE = _pass._texture.Sample(_samplers._linearClamp, pos + float2(1.0, 1.0) * rcpFrame).rgb;
 
   rgbL += (rgbNW + rgbNE + rgbSW + rgbSE);
   rgbL *= (1.0 / 9.0);
@@ -276,13 +275,13 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   for (int i = 0; i < FxaaNumSamples<Quality>(); i++) {
     if (!doneN) {
       posN -= offNP * FxaaSampleDistance<Quality>(i);
-      lumaEndN = FxaaLuma(_pass._texture.Sample(_pass._textureSampler, posN).rgb);
+      lumaEndN = FxaaLuma(_pass._texture.Sample(_samplers._linearClamp, posN).rgb);
       doneN = abs(lumaEndN - lumaN) >= gradientN;
     }
 
     if (!doneP) {
       posP += offNP * FxaaSampleDistance<Quality>(i);
-      lumaEndP = FxaaLuma(_pass._texture.Sample(_pass._textureSampler, posP).rgb);
+      lumaEndP = FxaaLuma(_pass._texture.Sample(_samplers._linearClamp, posP).rgb);
       doneP = abs(lumaEndP - lumaN) >= gradientN;
     }
     
@@ -316,7 +315,7 @@ float subPixelOffset = (0.5 + (dstN * (-1.0 / spanLength))) * lengthSign;
 
 // Apply subpixel shift
 float3 rgbF =
-    _pass._texture.Sample(_pass._textureSampler, float2(pos.x + (horzSpan ? 0.0 : subPixelOffset),
+    _pass._texture.Sample(_samplers._linearClamp, float2(pos.x + (horzSpan ? 0.0 : subPixelOffset),
                                   pos.y + (horzSpan ? subPixelOffset : 0.0)))
         .rgb;
 

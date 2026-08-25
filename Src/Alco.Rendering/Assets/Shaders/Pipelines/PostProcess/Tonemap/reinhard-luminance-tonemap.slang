@@ -11,8 +11,7 @@ import alco_rendering_core;
 
 public struct PassParams
 {
-    public Texture2D _texture;
-    public SamplerState _textureSampler; // should be HDR image
+    public Texture2D _texture; // should be HDR image
 };
 
 public ParameterBlock<PassParams> _pass;
@@ -53,7 +52,7 @@ float3 change_luminance(float3 color, float new_luminance) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float4 source = _pass._texture.Sample(_pass._textureSampler, input.uv);
+  float4 source = _pass._texture.Sample(_samplers._linearClamp, input.uv);
 
   float old_luminance = dot(source.rgb, float3(0.2126, 0.7152, 0.0722));
   float numerator = old_luminance * (1.0 + (old_luminance/(_data.MaxLuminance*_data.MaxLuminance)));

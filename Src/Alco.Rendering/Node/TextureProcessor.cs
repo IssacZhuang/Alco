@@ -6,9 +6,9 @@ namespace Alco.Rendering;
 /// Base class for processors that render texture content into a target with fullscreen
 /// passes (bloom, FXAA, ...). Typically wrapped by a <see cref="RGNode_ChainTransform"/>
 /// for pipeline orchestration.
-/// <br/>Processors record onto a caller-owned <see cref="GPUCommandBuffer"/> and never
-/// submit: callers inside a render graph pass the frame-shared buffer so the passes
-/// execute in graph order with the rest of the frame.
+/// <br/>Processors record their passes through a <see cref="RenderContext"/> (the same
+/// high-level path every renderer uses: <see cref="RenderContext.BeginPass"/> plus
+/// materials) and never submit: the frame scope owning the context submits.
 /// </summary>
 public abstract class TextureProcessor : AutoDisposable
 {
@@ -23,15 +23,15 @@ public abstract class TextureProcessor : AutoDisposable
 
     /// <summary>
     /// Processes <paramref name="input"/> and records the passes onto
-    /// <paramref name="command"/>, rendering the result into <paramref name="target"/>.
+    /// <paramref name="context"/>, rendering the result into <paramref name="target"/>.
     /// Implementations rebuild their resolution-dependent resources lazily from the
     /// input's current size, so an in-place resized input needs no other notification.
     /// </summary>
-    /// <param name="command">The caller-owned command buffer to record into; it must
-    /// already be open and is neither ended nor submitted by this call.</param>
+    /// <param name="context">The render context recording the frame; passes open and
+    /// close inside this call and the context is never submitted here.</param>
     /// <param name="input">The input render texture.</param>
     /// <param name="target">The target framebuffer.</param>
-    public abstract void Blit(GPUCommandBuffer command, RenderTexture input, GPUFrameBuffer target);
+    public abstract void Blit(RenderContext context, RenderTexture input, GPUFrameBuffer target);
 
     protected override void Dispose(bool disposing)
     {

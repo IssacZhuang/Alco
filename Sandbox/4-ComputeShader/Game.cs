@@ -40,7 +40,9 @@ public class Game : GameEngine
     private GPUBuffer _colorBuffer;
     private GPUPipeline _graphicsPipeline;
     private GPUPipeline _computePipeline;
+    private GPUBindGroup _textureGroup;
     private GPUResourceGroup _resourceGroupBuffer;
+    private GPUResourceGroup _resourceGroupTexture;
 
     // resources for copmute shader
     private GraphicsValueBuffer<int> _iterationBuffer;
@@ -65,12 +67,26 @@ public class Game : GameEngine
 
         UpdateColor(new Vector3(1, 1, 1));
 
-        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, GraphicsDevice.BindGroupTexture2DSampled);
+        // The rasterizer shader declares group 1 as {texture, sampler}
+        // (DrawTexture.wgsl); the sampler comes from the rendering system's
+        // shared bank (linear filtering with repeat addressing).
+        _textureGroup = GraphicsDevice.CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "texture_sampler_group",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, _textureGroup);
         _computePipeline = CreateComputePipeline();
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
         _image = LaodTexture();
         _renderTarget = CreateRenderTarget(_image.Width, _image.Height);
+        _resourceGroupTexture = CreateTextureResourceGroup(_renderTarget);
         //_iterationBuffer = RenderingService.CreateTypedVRamBuffer<int>(8);
         _iterationBuffer = RenderingSystem.CreateGraphicsValueBuffer<int>(8, "iteration_buffer");
 
@@ -111,7 +127,7 @@ public class Game : GameEngine
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _resourceGroupBuffer);
-            renderPass.SetResources(1, _renderTarget.EntrySample);
+            renderPass.SetResources(1, _resourceGroupTexture);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
 
@@ -126,6 +142,8 @@ public class Game : GameEngine
         _colorBuffer.Dispose();
         _graphicsPipeline.Dispose();
         _resourceGroupBuffer.Dispose();
+        _resourceGroupTexture.Dispose();
+        _textureGroup.Dispose();
         _image.Dispose();
         _renderTarget.Dispose();
         _iterationBuffer.Dispose();
@@ -219,6 +237,18 @@ public class Game : GameEngine
                 new ResourceBindingEntry(0, buffer),
             }
         });
+    }
+
+    private GPUResourceGroup CreateTextureResourceGroup(Texture2D texture)
+    {
+        return GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor(
+            _textureGroup,
+            new ResourceBindingEntry[]
+            {
+                new ResourceBindingEntry(0, texture.View),
+                new ResourceBindingEntry(1, RenderingSystem.Samplers.LinearRepeat),
+            },
+            "texture_sampler_resources"));
     }
 
     private Texture2D LaodTexture()

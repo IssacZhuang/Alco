@@ -127,8 +127,8 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
             pass.Draw(_fullScreenMesh, _blitMaterial);
         }
 
-        // The pyramid records onto the frame-shared buffer after the copy pass, so the
-        // whole node executes in graph order inside the graph's single submission.
+        // The pyramid records onto the frame-shared context after the copy pass, so
+        // the whole node executes in graph order inside the graph's single submission.
         if (Instrumentation is { ShouldRecordGpu: true } instrumentation)
         {
             _bloom.TimestampSampler = instrumentation.GpuTimestamps;
@@ -138,7 +138,7 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
         {
             _bloom.TimestampSampler = null;
         }
-        _bloom.Blit(context.RenderContext.CommandBuffer, input, output.FrameBuffer);
+        _bloom.Blit(context.RenderContext, input, output.FrameBuffer);
     }
 
     /// <inheritdoc />

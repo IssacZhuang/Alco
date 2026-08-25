@@ -11,8 +11,7 @@ import alco_rendering_core;
 
 public struct PassParams
 {
-    public Texture2D _texture;
-    public SamplerState _textureSampler; // should be HDR image
+    public Texture2D _texture; // should be HDR image
 };
 
 public ParameterBlock<PassParams> _pass;
@@ -57,7 +56,7 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-    float3 hdrColor = max(0, _pass._texture.Sample(_pass._textureSampler, input.uv).rgb);
+    float3 hdrColor = max(0, _pass._texture.Sample(_samplers._linearClamp, input.uv).rgb);
     float3 ldrColor = Uncharted2Tonemap(hdrColor * _data.Exposure);
 
     //white scale

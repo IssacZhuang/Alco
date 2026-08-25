@@ -2,6 +2,7 @@ using System.Numerics;
 using Alco.Engine;
 using Alco.Rendering;
 using Alco;
+using Alco.IO;
 
 using FastRandom = Alco.FastRandom;
 using Alco.Graphics;
@@ -46,6 +47,31 @@ public class Game : GameEngine
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer("_camera", _camera);
         _material.SetRenderTexture("_texture", _atlas.RenderTexture);
+    }
+
+    /// <summary>
+    /// Serves engine modules (the built-in shaders resolved through the AssetSystem)
+    /// on top of the sandbox's own tree — the same sources every sandbox exposing
+    /// engine shaders registers.
+    /// </summary>
+    public override IEnumerable<IFileSource> CreateDefaultFileSources()
+    {
+        foreach (var fileSource in base.CreateDefaultFileSources())
+        {
+            yield return fileSource;
+        }
+        yield return new DirectoryWatcherFileSource(GetSolutionAssetPath("Alco.Engine"), AssetSystem);
+        yield return new DirectoryWatcherFileSource(GetSolutionAssetPath("Alco.Rendering"), AssetSystem);
+    }
+
+    private static string GetSolutionAssetPath(string project)
+    {
+        string? current = AppContext.BaseDirectory;
+        while (current != null && Directory.GetFiles(current, "*.slnx").Length == 0)
+        {
+            current = Path.GetDirectoryName(current);
+        }
+        return Path.Combine(current ?? ".", "Src", project, "Assets");
     }
 
     protected override void OnUpdate(float delta)

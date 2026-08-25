@@ -165,7 +165,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
             UvRect = uvRect
         };
 
-        _renderPass.SetResources(_shaderId_texture, texture.EntrySample);
+        _renderPass.SetResources(_shaderId_texture, texture.EntryReadonly);
         _renderPass.PushConstants(constant);
         _renderPass.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }

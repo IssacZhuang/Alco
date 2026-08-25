@@ -124,15 +124,15 @@ public class Game : GameEngine
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
 
-            renderPass.SetResources(1, _texGreen.EntrySample);
+            renderPass.SetResources(1, _texGreen.EntryReadonly);
             renderPass.PushConstants(_transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-            renderPass.SetResources(1, _texRed.EntrySample);
+            renderPass.SetResources(1, _texRed.EntryReadonly);
             renderPass.PushConstants(_transform2.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-            renderPass.SetResources(1, _texBlue.EntrySample);
+            renderPass.SetResources(1, _texBlue.EntryReadonly);
             renderPass.PushConstants(_transform3.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }

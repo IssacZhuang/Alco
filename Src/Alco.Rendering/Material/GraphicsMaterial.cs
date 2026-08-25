@@ -177,7 +177,7 @@ public class GraphicsMaterial : AutoDisposable
         }
 
         ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
-        _parameters = new ShaderParameterSet(system.GraphicsDevice, reflectionInfo);
+        _parameters = new ShaderParameterSet(system.GraphicsDevice, system.Samplers, reflectionInfo);
         UpdateSlotResources(reflectionInfo);
 
         _pipelineContext = GraphicsPipelineContext.Default;

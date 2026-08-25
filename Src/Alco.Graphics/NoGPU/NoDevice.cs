@@ -49,17 +49,11 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupStorageBufferWithCounter {get;}
 
-    public override GPUBindGroup BindGroupTexture2DSampled {get;}
-
-    public override GPUBindGroup BindGroupTextureDepthRead { get; }
-
-    public override GPUBindGroup BindGroupTextureDepthComparison { get; }
 
     public override GPUBindGroup BindGroupTexture2DRead {get;}
 
     public override GPUBindGroup BindGroupTexture2DStorage {get;}
 
-    public override GPUBindGroup BindGroupTexture3DSampled {get;}
 
     public override GPUBindGroup BindGroupTexture3DRead {get;}
 
@@ -117,53 +111,12 @@ internal class NoDevice : GPUDevice
             },
         });
 
-        BindGroupTexture2DSampled = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_texture",
-            Bindings = new BindGroupEntry[]
-            {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
-            },
-        });
-
-        BindGroupTexture3DSampled = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_texture_3d",
-            Bindings = new BindGroupEntry[]
-            {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
-            },
-        });
-
         BindGroupTexture3DRead = CreateBindGroup(new BindGroupDescriptor
         {
             Name = "default_bind_group_texture_3d_read",
             Bindings = new BindGroupEntry[]
             {
                 new BindGroupEntry(0, ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
-            },
-        });
-
-        BindGroupTextureDepthRead = CreateBindGroup(new BindGroupDescriptor
-
-        {
-            Name = "default_bind_group_texture_depth_sampled",
-            Bindings = new BindGroupEntry[]
-            {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
-            },
-        });
-
-        BindGroupTextureDepthComparison = CreateBindGroup(new BindGroupDescriptor
-
-        {
-            Name = "default_bind_group_texture_depth_comparison",
-            Bindings = new BindGroupEntry[]
-            {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.SamplerComparison),
             },
         });
 

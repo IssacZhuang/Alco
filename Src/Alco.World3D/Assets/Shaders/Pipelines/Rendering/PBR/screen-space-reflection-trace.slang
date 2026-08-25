@@ -20,7 +20,6 @@ import alco_rendering_core;
 public struct PassParams
 {
     public Texture2D _sceneColor;
-    public SamplerState _sceneColorSampler;
     public Texture2D _albedo;
     public Texture2D _normal;
     public Texture2D _mrAO;
@@ -50,7 +49,7 @@ float3 SsrSampleShadedScene(
         * lerp(1.0, 22.0, saturate(rayDistance / 45.0));
     if (blurPixels < 0.75)
     {
-        return _pass._sceneColor.Sample(_pass._sceneColorSampler, hitUV).rgb;
+        return _pass._sceneColor.Sample(_samplers._linearClamp, hitUV).rgb;
     }
 
     float angle = rotationSample * TAU;
@@ -65,7 +64,7 @@ float3 SsrSampleShadedScene(
     {
         float2 offset = mul(rotation, SSR_BLUR_OFFSETS[i]) * blurPixels * inverseSize;
         float weight = i == 0 ? 1.5 : 1.0;
-        result += _pass._sceneColor.Sample(_pass._sceneColorSampler, clamp(hitUV + offset, 0.0, 1.0)).rgb * weight;
+        result += _pass._sceneColor.Sample(_samplers._linearClamp, clamp(hitUV + offset, 0.0, 1.0)).rgb * weight;
         weightSum += weight;
     }
     return result / weightSum;

@@ -17,7 +17,6 @@ public partial class RenderingSystem
     /// <param name="format">The pixel format of the texture.</param>
     /// <param name="mipLevels">The number of mip levels.</param>
     /// <param name="usage">The texture usage flags.</param>
-    /// <param name="sampler">The sampler; null uses the shared linear clamp-to-edge sampler.</param>
     /// <param name="name">The texture name for debugging.</param>
     /// <returns>A new Texture3D instance.</returns>
     public Texture3D CreateTexture3D(
@@ -27,7 +26,6 @@ public partial class RenderingSystem
         PixelFormat format = PixelFormat.RGBA16Float,
         uint mipLevels = 1,
         TextureUsage usage = TextureUsage.TextureBinding | TextureUsage.StorageBinding,
-        GPUSampler? sampler = null,
         string name = "texture_3d"
     )
     {
@@ -53,13 +51,11 @@ public partial class RenderingSystem
         );
 
         GPUTextureView textureView = _device.CreateTextureView(textureViewDescriptor);
-        GPUSampler samplerReal = sampler ?? _device.GetSampler(FilterMode.Linear, AddressMode.ClampToEdge);
 
         return new Texture3D(
             _device,
             texture,
-            textureView,
-            samplerReal
+            textureView
         );
     }
 }

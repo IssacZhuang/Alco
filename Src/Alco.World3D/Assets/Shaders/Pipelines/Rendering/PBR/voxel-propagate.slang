@@ -38,13 +38,11 @@ struct VoxelPropagateConstants
 public struct PassParams
 {
     public Texture3D _radiance;
-    public SamplerState _radianceSampler;
     public RWStructuredBuffer<uint4> _attrStatic;
     public RWStructuredBuffer<uint4> _attrDynamic;
 // Combined page table: x=static, y=dynamic. Saves a binding for the brick list.
     public RWStructuredBuffer<uint2> _pageTable;
     public Texture3D _opacity;
-    public SamplerState _opacitySampler;
     public RWStructuredBuffer<uint4> _brickList;
     public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _propagateOut;
 };
@@ -90,8 +88,8 @@ float3x3 GetTangentBasis(float3 normal)
 float4 SamplePropagationBlended(float3 position, int level, float mip, float3 absoluteDirection, bool enableBlend)
 {
     float3 uvw = VoxelWorldToUVW(position, level, mip);
-    float4 radiance = _pass._radiance.SampleLevel(_pass._radianceSampler, uvw, mip);
-    float4 opacity = _pass._opacity.SampleLevel(_pass._opacitySampler, uvw, mip);
+    float4 radiance = _pass._radiance.SampleLevel(_samplers._linearClamp, uvw, mip);
+    float4 opacity = _pass._opacity.SampleLevel(_samplers._linearClamp, uvw, mip);
     if (enableBlend)
     {
         int levelCount = (int)_data.clipmapParams.y;
@@ -105,8 +103,8 @@ float4 SamplePropagationBlended(float3 position, int level, float mip, float3 ab
                     0.0,
                     _data.clipmapParams.z - 1.0);
                 float3 nextUVW = VoxelWorldToUVW(position, level + 1, nextMip);
-                float4 nextRadiance = _pass._radiance.SampleLevel(_pass._radianceSampler, nextUVW, nextMip);
-                float4 nextOpacity = _pass._opacity.SampleLevel(_pass._opacitySampler, nextUVW, nextMip);
+                float4 nextRadiance = _pass._radiance.SampleLevel(_samplers._linearClamp, nextUVW, nextMip);
+                float4 nextOpacity = _pass._opacity.SampleLevel(_samplers._linearClamp, nextUVW, nextMip);
                 radiance = lerp(radiance, nextRadiance, transitionWeight);
                 opacity = lerp(opacity, nextOpacity, transitionWeight);
             }
@@ -225,7 +223,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Preserve the current radiance (direct lighting from injection) so the
     // copy-back step replaces mip 0 with direct + bounce.
     float3 currentRadiance = _pass._radiance.SampleLevel(
-        _pass._radianceSampler,
+        _samplers._linearClamp,
         VoxelWorldToUVW(originAndSize.xyz + (float3(logicalCoord) + 0.5) * voxelSize, level, 0.0),
         0.0).rgb;
 

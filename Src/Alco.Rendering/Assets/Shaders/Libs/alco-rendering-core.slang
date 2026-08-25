@@ -37,6 +37,30 @@ public static const int ALCO_GROUP_DRAW = 3;     // per-draw instance data
 [__AttributeUsage(_AttributeTargets.Var)]
 public struct MaterialParams {};
 
+// ── shared sampler bank ─────────────────────────────────────────────────────
+// One ParameterBlock of engine-wide static samplers, bound by the rendering
+// system's SamplerLibrary. Modules never declare per-texture sampler
+// companions; they sample through the bank member matching the intent:
+//   _texture.Sample(_samplers._linearClamp, uv)
+// A sampler entry is reflected into the bank group when the preceding binding
+// of its set is not a texture (see ShaderParameterSet); materials override
+// individual members by name for custom sampling.
+
+public struct SamplerBankParams
+{
+    public SamplerState _linearClamp;
+    public SamplerState _linearRepeat;
+    public SamplerState _nearestClamp;
+    public SamplerState _nearestRepeat;
+    public SamplerState _linearMirrorRepeat;
+    public SamplerState _nearestMirrorRepeat;
+    public SamplerState _anisotropicClamp;
+    public SamplerState _anisotropicRepeat;
+    public SamplerComparisonState _depthComparison;
+};
+
+public ParameterBlock<SamplerBankParams> _samplers;
+
 // ── sampling helpers (real sampler types; the name##Sampler macro retires) ──
 
 public float4 SampleTex2D(Texture2D textureName, SamplerState samplerState, float2 uv)

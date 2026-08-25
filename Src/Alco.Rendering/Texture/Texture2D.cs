@@ -11,10 +11,7 @@ public sealed class Texture2D : Texture
     private readonly Sprite _defaultSprite;
     private readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
 
-    // bind group include texture and sampaler
-    private GPUResourceGroup? _resourcesSample;
-
-    // bind gorup only include texture
+    // bind group only include texture
     private GPUResourceGroup? _resourcesRead;
 
     private GPUBindGroup? _bindGroupStorage;
@@ -27,20 +24,6 @@ public sealed class Texture2D : Texture
     /// </summary>
     public uint MipLevels { get; }
 
-
-    public override GPUResourceGroup EntrySample
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_resourcesSample == null)
-            {
-                _resourcesSample = CreateResourcesSample();
-            }
-
-            return _resourcesSample;
-        }
-    }
 
     public override GPUResourceGroup EntryReadonly
     {
@@ -71,11 +54,10 @@ public sealed class Texture2D : Texture
         GPUDevice device,
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler,
         Padding? slicePadding = null,
         bool ownsResources = true
         ) :
-        base(device, texture, textureView, sampler, ownsResources)
+        base(device, texture, textureView, ownsResources)
     {
         if (slicePadding.HasValue)
         {
@@ -243,7 +225,6 @@ public sealed class Texture2D : Texture
         _textureView = textureView;
 
         //just let them collect by GC
-        _resourcesSample = null;
         _resourcesRead = null;
         _bindGroupStorage = null;
         for (int i = 0; i < _resourcesStorage.Length; i++)
@@ -254,32 +235,6 @@ public sealed class Texture2D : Texture
         }
 
         DiscardLayoutResourceGroups();
-    }
-
-    public override void SetSampler(GPUSampler sampler)
-    {
-        base.SetSampler(sampler);
-        _resourcesSample = null;
-        _resourcesRead = null;
-        _bindGroupStorage = null;
-        for (int i = 0; i < _resourcesStorage.Length; i++)
-        {
-            _resourcesStorage[i] = null;
-            _resourcesReadMip[i] = null;
-        }
-    }
-
-    private GPUResourceGroup CreateResourcesSample()
-    {
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DSampled,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
-                new ResourceBindingEntry(1, _sampler)
-            }
-        );
-
-        return _device.CreateResourceGroup(descriptor);
     }
 
     private GPUResourceGroup CreateResourceGroupRead()
@@ -300,7 +255,6 @@ public sealed class Texture2D : Texture
         if (disposing)
         {
             //dispose non-private managed resources
-            _resourcesSample?.Dispose();
             _resourcesRead?.Dispose();
             _bindGroupStorage?.Dispose();
             for (int i = 0; i < _resourcesStorage.Length; i++)

@@ -35,7 +35,6 @@ public ParameterBlock<CameraParams> _camera;
 public struct MaterialParamsData
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<MaterialParamsData> _material;
@@ -53,5 +52,5 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  return _material._texture.Sample(_material._textureSampler, input.uv) * constants.color;
+  return _material._texture.Sample(_samplers._linearRepeat, input.uv) * constants.color;
 }

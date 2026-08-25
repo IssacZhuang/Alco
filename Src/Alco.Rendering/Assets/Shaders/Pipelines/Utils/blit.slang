@@ -13,7 +13,6 @@ import alco_rendering_core;
 public struct PassParams
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<PassParams> _pass;
@@ -38,5 +37,5 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  return _pass._texture.Sample(_pass._textureSampler, input.uv);
+  return _pass._texture.Sample(_samplers._linearClamp, input.uv);
 }

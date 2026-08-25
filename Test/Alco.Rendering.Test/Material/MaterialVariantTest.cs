@@ -31,7 +31,7 @@ public class MaterialVariantTest
         cbuffer _material : register(b0, space1)
         {
             Texture2D _albedo;
-            SamplerState _albedoSampler;
+            SamplerState _linearClamp;
         };
 
         struct Vertex
@@ -59,7 +59,7 @@ public class MaterialVariantTest
         float4 MainPS<let Flag : int>(V2F input) : SV_TARGET
         {
             float dither = OutputDither8Bit(input.position.xy) * 0.0;
-            float4 color = SampleTex2D(_albedo, _albedoSampler, input.uv) + dither + PI * 0.0;
+            float4 color = SampleTex2D(_albedo, _linearClamp, input.uv) + dither + PI * 0.0;
             if (Flag != 0) { color.g += 0.0; }
             return color;
         }

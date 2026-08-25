@@ -78,8 +78,9 @@ public class TestSlangMaterialCompiler
             Assert.That(BitConverter.ToUInt32(modules.FragmentShader.GetValueOrDefault().Source.ToArray(), 0), Is.EqualTo(0x07230203u));
 
             // Set-scoped blocks (plan D2): camera set 0, instances set 1,
-            // surface resources set 2; bindings inside a set are compiler-assigned.
-            Assert.That(info.BindGroups.Count, Is.EqualTo(3));
+            // surface resources set 2, the shared sampler bank set 3; bindings
+            // inside a set are compiler-assigned.
+            Assert.That(info.BindGroups.Count, Is.EqualTo(4));
             foreach (string name in new[]
                      {
                          "_camera", "_instances", "_albedoTexture", "_normalTexture",
@@ -100,8 +101,9 @@ public class TestSlangMaterialCompiler
         // The real composition the material compiler produces for the G-buffer
         // template with the test surface (mixed-type parameter block). Each
         // ParameterBlock owns one set: camera 0, instances 1, engine data 2,
-        // the surface's marked block 3 (auto uniform buffer at binding 0,
-        // then textures/samplers flattened after it).
+        // the surface's marked block 3 (auto uniform buffer at binding 0, then
+        // the textures flattened after it — no companion samplers), and the
+        // shared sampler bank 4.
         MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
         Shader shader = compiler.ComposeSurfaceShader(asset, Library(engine, "gbuffer"));
         ShaderReflectionInfo info = shader.GetShaderModules().ReflectionInfo;
@@ -113,13 +115,14 @@ public class TestSlangMaterialCompiler
             AssertResource(info, "_globalRenderData", 2, 0, BindingType.UniformBuffer);
             AssertResource(info, "PulseParams", 3, 0, BindingType.UniformBuffer);
             AssertResource(info, "_albedoTexture", 3, 1, BindingType.Texture);
-            AssertResource(info, "_normalTexture", 3, 3, BindingType.Texture);
-            AssertResource(info, "_metallicRoughnessTexture", 3, 5, BindingType.Texture);
+            AssertResource(info, "_normalTexture", 3, 2, BindingType.Texture);
+            AssertResource(info, "_metallicRoughnessTexture", 3, 3, BindingType.Texture);
 
-            // Samplers are companion entries bound with their owning texture
-            // (ShaderParameterSet's OwnerSampler plan), not name-addressable
-            // resources — assert them through the bind group layouts.
-            AssertLayoutEntry(info, "_albedoTextureSampler", 3, 2, BindingType.Sampler);
+            // Samplers come from the shared bank (the _samplers block of
+            // alco_rendering_core): the whole bank reflects as its own set and
+            // every member resolves by name from the SamplerLibrary.
+            AssertLayoutEntry(info, "_linearRepeat", 4, 1, BindingType.Sampler);
+            AssertLayoutEntry(info, "_depthComparison", 4, 8, BindingType.SamplerComparison);
 
             // The vertex layout matches Alco.Rendering.VertexPBR exactly.
             Assert.That(info.VertexLayouts.Count, Is.EqualTo(1));

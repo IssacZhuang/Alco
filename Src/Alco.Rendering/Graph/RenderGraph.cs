@@ -647,8 +647,7 @@ public sealed class RenderGraph : AutoDisposable
         GPUFrameBuffer frameBuffer = ComposeFrameBuffer(resource, colors, depth);
         if (resource.Facade == null)
         {
-            GPUSampler sampler = _device.GetSampler(resource.Filter, AddressMode.ClampToEdge);
-            resource.SetFacade(new RenderTexture(_rendering, frameBuffer, sampler));
+            resource.SetFacade(new RenderTexture(_rendering, frameBuffer));
         }
         else
         {

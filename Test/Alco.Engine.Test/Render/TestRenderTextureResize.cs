@@ -13,15 +13,15 @@ namespace Alco.Engine.Test;
 /// </summary>
 public class TestRenderTextureResize
 {
-    // Group 0: sampled texture + sampler companion; group 1: a storage output so the
-    // sampled texture survives compilation.
+    // Group 0: read-only texture (sampled through the shared sampler bank);
+    // group 1: a storage output so the sampled texture survives compilation.
     private const string ResizeTestShader = """
         module rt_resize_shader;
 
         cbuffer _pass : register(b0, space0)
         {
             Texture2D _texture;
-            SamplerState _textureSampler;
+            SamplerState _linearClamp;
         };
 
         cbuffer _output : register(b0, space1)
@@ -33,7 +33,7 @@ public class TestRenderTextureResize
         [numthreads(1, 1, 1)]
         void MainCS(uint3 id : SV_DispatchThreadID)
         {
-            _output[id.xy] = _texture.SampleLevel(_textureSampler, float2(0, 0), 0);
+            _output[id.xy] = _texture.SampleLevel(_linearClamp, float2(0, 0), 0);
         }
         """;
 
@@ -95,14 +95,14 @@ public class TestRenderTextureResize
         RenderTexture rt = renderingSystem.CreateRenderTexture(layout, 64, 64, "test_rt_depth");
 
         Assert.That(rt.HasDepth, Is.True);
-        GPUResourceGroup? depthRead = rt.EntryDepthRead;
-        Assert.That(depthRead, Is.Not.Null);
+        GPUTextureView? depthView = rt.DepthView;
+        Assert.That(depthView, Is.Not.Null);
 
         rt.Resize(128, 128);
 
-        // The cached depth sample group referenced the old depth view and must be
-        // recreated lazily from the new frame buffer.
-        Assert.That(rt.EntryDepthRead, Is.Not.SameAs(depthRead));
+        // The depth view referenced the old frame buffer's depth attachment and
+        // must come from the recreated frame buffer.
+        Assert.That(rt.DepthView, Is.Not.SameAs(depthView));
     }
 
     [Test]

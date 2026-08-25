@@ -14,7 +14,7 @@ public enum FXAAQuality
     Low,
 
     /// <summary>
-    /// Medium quality - 8 search steps, balanced
+    /// Medium quality - 8 search steps, balanced performance
     /// </summary>
     Medium,
 
@@ -52,21 +52,15 @@ public class FXAA : TextureProcessor
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
 
-    // The fxaa shader handle: each quality preset is a generic value
-    // specialization of its MainPS<let Quality : int> entry, compiled lazily
-    // and cached inside the shader — switching presets is a cache-hit pipeline
-    // build, never a recompile of a previously used preset.
-    private readonly Shader _fxaaShader;
-    private GraphicsPipelineContext _fxaaPipelineInfo;
-    private uint _fxaaShaderId_texture;
-    private uint _fxaaShaderId_fxaaData;
+    // The fxaa material: each quality preset is a generic value specialization of
+    // the shader's MainPS<let Quality : int> entry, compiled lazily and cached
+    // inside the shader — switching presets is a cache-hit pipeline build, never
+    // a recompile of a previously used preset.
+    private readonly GraphicsMaterial _fxaaMaterial;
+    private FXAAQuality _quality;
 
-    private FXAAQuality _quality = FXAAQuality.Medium;
-
-    // Blit shader and pipeline for final copy
-    private readonly Shader _blitShader;
-    private GraphicsPipelineContext _blitPipelineInfo;
-    private uint _blitShaderId_texture;
+    // Blit material for the final copy.
+    private readonly GraphicsMaterial _blitMaterial;
 
     private readonly GraphicsValueBuffer<FXAAShaderData> _fxaaShaderData;
 
@@ -75,7 +69,7 @@ public class FXAA : TextureProcessor
 
     /// <summary>
     /// Gets or sets the FXAA quality preset.
-    /// Changes switch to the preset's specialized shader and rebuild the pipeline.
+    /// Changes switch to the preset's specialized material and rebuild the pipeline.
     /// </summary>
     public FXAAQuality Quality
     {
@@ -118,17 +112,11 @@ public class FXAA : TextureProcessor
     {
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
-        _blitShader = blitShader;
-        _fxaaShader = fxaaShader;
 
-        // Initialize the FXAA pipeline context with the default quality preset
-        ApplyQuality();
+        _quality = FXAAQuality.Medium;
+        _fxaaMaterial = renderingSystem.CreateGraphicsMaterial(fxaaShader, "fxaa_material", (int)_quality);
 
-        // Initialize blit pipeline context (placeholder layout only: Blit re-creates
-        // the pipeline against the real target layout on first use).
-        _blitPipelineInfo = GraphicsPipelineContext.Default;
-        _blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, renderingSystem.PreferredLightMapPass);
-        _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
+        _blitMaterial = renderingSystem.CreateGraphicsMaterial(blitShader, "fxaa_blit_material");
 
         // Create shader data buffer with default values
         _fxaaShaderData = renderingSystem.CreateGraphicsValueBuffer<FXAAShaderData>("fxaa_data");
@@ -139,6 +127,7 @@ public class FXAA : TextureProcessor
             Padding = 0.0f
         };
         _fxaaShaderData.UpdateBuffer();
+        _fxaaMaterial.SetBuffer(ShaderId_fxaaData, _fxaaShaderData);
     }
 
     // Keeps the intermediate texture matching the input's size and pixel format,
@@ -201,73 +190,57 @@ public class FXAA : TextureProcessor
 
     /// <summary>
     /// Anti-aliases the input and records two fullscreen passes onto
-    /// <paramref name="command"/>, rendering the result into <paramref name="target"/>.
-    /// The command buffer is neither ended nor submitted here.
+    /// <paramref name="context"/>, rendering the result into <paramref name="target"/>.
+    /// The context is neither opened nor submitted here.
     /// </summary>
-    /// <param name="command">The caller-owned open command buffer to record into.</param>
+    /// <param name="context">The render context recording the frame.</param>
     /// <param name="input">The input render texture to anti-alias.</param>
     /// <param name="target">The target framebuffer to render to</param>
-    public override void Blit(GPUCommandBuffer command, RenderTexture input, GPUFrameBuffer target)
+    public override void Blit(RenderContext context, RenderTexture input, GPUFrameBuffer target)
     {
         EnsureIntermediate(input);
 
         Mesh fullScreenMesh = FullScreenMesh;
 
         // EnsureIntermediate guarantees the intermediate texture exists.
-        if (_fxaaShader.TryUpdatePipelineContext(ref _fxaaPipelineInfo, _intermediateTexture!.FrameBuffer.AttachmentLayout))
-        {
-            _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
-            _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
-        }
-
-        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.AttachmentLayout))
-        {
-            _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
-        }
+        _fxaaMaterial.SetRenderTexture(ShaderId_texture, input);
+        _blitMaterial.SetRenderTexture(ShaderId_texture, _intermediateTexture!);
 
         GpuTimestampSampler? timestamps = TimestampSampler;
 
-        using (var renderPass = timestamps != null
-            ? command.BeginRender(_intermediateTexture.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+        using (RenderPassScope renderPass = timestamps != null
+            ? context.BeginPass(_intermediateTexture!.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, (uint)TimestampBaseSlot, null)
-            : command.BeginRender(_intermediateTexture.FrameBuffer))
+            : context.BeginPass(_intermediateTexture.FrameBuffer))
         {
-            renderPass.SetPipeline(_fxaaPipelineInfo.Pipeline!);
-            uint indexCount = renderPass.SetMesh(fullScreenMesh);
-            renderPass.SetResources(_fxaaShaderId_texture, input.ColorTextures[0].EntrySample);
-            renderPass.SetResources(_fxaaShaderId_fxaaData, _fxaaShaderData.EntryReadonly);
-            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+            renderPass.Draw(fullScreenMesh, _fxaaMaterial);
         }
 
-        using (var renderPass = timestamps != null
-            ? command.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
+        using (RenderPassScope renderPass = timestamps != null
+            ? context.BeginPass(target, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, null, (uint)(TimestampBaseSlot + 1))
-            : command.BeginRender(target))
+            : context.BeginPass(target))
         {
-            renderPass.SetPipeline(_blitPipelineInfo.Pipeline!);
-            uint indexCount = renderPass.SetMesh(fullScreenMesh);
-            renderPass.SetResources(_blitShaderId_texture, _intermediateTexture.ColorTextures[0].EntrySample);
-            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+            renderPass.Draw(fullScreenMesh, _blitMaterial);
         }
 
         if (timestamps != null)
         {
-            timestamps.ResolveAll(command);
+            timestamps.ResolveAll(context.CommandBuffer);
         }
     }
 
     /// <summary>
-    /// Switches to the current quality preset's specialized pipeline. The quality
+    /// Switches to the current quality preset's specialized material. The quality
     /// axis is a generic value specialization (MainPS&lt;let Quality : int&gt;):
     /// the shader compiles each preset once and caches it, so switching back to
     /// a used preset is a cache hit.
     /// </summary>
     private void ApplyQuality()
     {
-        // Fresh context: the new variant's pipeline differs from the previous one's.
-        _fxaaPipelineInfo = _fxaaShader.GetGraphicsPipeline(_renderingSystem.PreferredLightMapPass, (int)_quality);
-        _fxaaShaderId_texture = _fxaaPipelineInfo.GetResourceId(ShaderId_texture);
-        _fxaaShaderId_fxaaData = _fxaaPipelineInfo.GetResourceId(ShaderId_fxaaData);
+        // SetSpecializations rebuilds the variant's parameter set with bindings
+        // carried over by name, so the texture/data buffer bindings survive.
+        _fxaaMaterial.SetSpecializations((int)_quality);
     }
 
     /// <summary>
@@ -281,6 +254,8 @@ public class FXAA : TextureProcessor
             _fxaaShaderData.Dispose();
             _intermediateTexture?.Dispose();
             _intermediateLayout?.Dispose();
+            _fxaaMaterial.Dispose();
+            _blitMaterial.Dispose();
         }
         base.Dispose(disposing);
     }

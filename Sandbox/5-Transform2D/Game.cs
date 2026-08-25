@@ -126,7 +126,7 @@ public class Game : GameEngine
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
             renderPass.SetResources(1, _modelBuffer.EntryReadonly);
-            renderPass.SetResources(2, _texGreen.EntrySample);
+            renderPass.SetResources(2, _texGreen.EntryReadonly);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();
@@ -141,7 +141,7 @@ public class Game : GameEngine
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
             renderPass.SetResources(1, _modelBuffer.EntryReadonly);
-            renderPass.SetResources(2, _texRed.EntrySample);
+            renderPass.SetResources(2, _texRed.EntryReadonly);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();
@@ -156,7 +156,7 @@ public class Game : GameEngine
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
             renderPass.SetResources(1, _modelBuffer.EntryReadonly);
-            renderPass.SetResources(2, _texBlue.EntrySample);
+            renderPass.SetResources(2, _texBlue.EntryReadonly);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();

@@ -17,7 +17,6 @@ import alco_rendering_core;
 public struct PassParams
 {
     public Texture2D _sceneColor;
-    public SamplerState _sceneColorSampler;
     public Texture2D _reflection;
     public Texture2D _reflectionMetadata;
     public Texture2D _albedo;
@@ -152,7 +151,7 @@ V2F MainVS(Vertex input)
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float4 scene = _pass._sceneColor.Sample(_pass._sceneColorSampler, input.uv);
+    float4 scene = _pass._sceneColor.Sample(_samplers._linearClamp, input.uv);
 
     // These two views are produced here instead of in deferred lighting so
     // the ray always samples the normal fully-lit scene color first.

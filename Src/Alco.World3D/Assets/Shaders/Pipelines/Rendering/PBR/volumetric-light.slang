@@ -91,7 +91,7 @@ float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
 
     float compareDepth = ndc.z - 0.0008;
-    return _lightsAndShadow._shadowMap.SampleCmpLevelZero(_lightsAndShadow._shadowMapSampler, shadowUV, compareDepth);
+    return _lightsAndShadow._shadowMap.SampleCmpLevelZero(_samplers._depthComparison, shadowUV, compareDepth);
 }
 
 // Fog density at a world-space point: exponential falloff relative to the

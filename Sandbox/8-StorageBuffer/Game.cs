@@ -117,7 +117,7 @@ public class Game : GameEngine
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
-            renderPass.SetResources(1, _texWhite.EntrySample);
+            renderPass.SetResources(1, _texWhite.EntryReadonly);
             renderPass.SetResources(2, _positionsBuffer.EntryReadonly);
             renderPass.PushConstants(_transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);

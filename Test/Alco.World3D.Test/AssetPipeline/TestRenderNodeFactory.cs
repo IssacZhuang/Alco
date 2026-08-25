@@ -28,7 +28,7 @@ public class TestRenderNodeFactory
         cbuffer _pass : register(b0, space0)
         {
             Texture2D _texture;
-            SamplerState _textureSampler;
+            SamplerState _linearClamp;
         };
 
         struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
@@ -38,7 +38,7 @@ public class TestRenderNodeFactory
         V2F MainVS(Vertex input) { V2F o; o.position = float4(input.position, 1.0f); o.uv = input.uv; return o; }
 
         [shader("pixel")]
-        float4 MainPS(V2F input) : SV_TARGET { return _texture.Sample(_textureSampler, input.uv); }
+        float4 MainPS(V2F input) : SV_TARGET { return _texture.Sample(_linearClamp, input.uv); }
         """;
 
     private static JsonSerializerOptions CreateOptions(GameEngine engine)

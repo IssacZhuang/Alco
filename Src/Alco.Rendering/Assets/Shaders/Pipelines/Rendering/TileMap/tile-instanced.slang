@@ -52,7 +52,6 @@ public ParameterBlock<CameraParams> _camera;
 public struct MaterialParamsData
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<MaterialParamsData> _material;
@@ -157,12 +156,12 @@ float4 PixelMain<let Bombing : bool>(V2F input)
     float4 color;
     if (Bombing)
     {
-        color = TextureBombing(_material._texture, _material._textureSampler, input.worldPos, constants.tiling);
+        color = TextureBombing(_material._texture, _samplers._linearRepeat, input.worldPos, constants.tiling);
     }
     else
     {
         float2 uvFrac = frac(uv * constants.tiling);
-        color = _material._texture.Sample(_material._textureSampler, uvFrac);
+        color = _material._texture.Sample(_samplers._linearRepeat, uvFrac);
     }
 
     float blendFactor = constants.blendFactor;

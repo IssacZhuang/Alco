@@ -9,42 +9,25 @@ using Alco.ShaderCompiler;
 
 public class Game : GameEngine
 {
-    #region Geometry
-
     [StructLayout(LayoutKind.Sequential)]
-    private struct Vertex
+    private struct FrameConstants
     {
-        public Vector3 Position;
-        public Vector2 TexCoord;
+        public Matrix4x4 ViewProjection;
+        public Vector4 TintColor;
     }
-
-    private static readonly Vertex[] Vertices =
-    {
-        new() { Position = new Vector3(-0.5f, 0.5f, 0.5f), TexCoord = new Vector2(0.0f, 0.0f) },
-        new() { Position = new Vector3(0.5f, 0.5f, 0.5f), TexCoord = new Vector2(1.0f, 0.0f) },
-        new() { Position = new Vector3(0.5f, -0.5f, 0.5f), TexCoord = new Vector2(1.0f, 1.0f) },
-        new() { Position = new Vector3(-0.5f, -0.5f, 0.5f), TexCoord = new Vector2(0.0f, 1.0f) },
-    };
-
-    private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
-
-    #endregion
 
     private const string QuadModule = "alco-sandbox-shadersystem-quad";
     // AssetSystem paths are relative to the Assets/ root.
     private const string CoreAssetPath = "Shaders/Libs/alco-rendering-core.slang";
     private const string QuadAssetPath = "Shaders/alco-sandbox-shadersystem-quad.slang";
 
-    private GPUCommandBuffer _commandBuffer = null!;
-    private GPUBuffer _vertexBuffer = null!;
-    private GPUBuffer _indexBuffer = null!;
-    private GPUBuffer _frameBuffer = null!;
-    private GPUResourceGroup _frameResources = null!;
+    private GraphicsValueBuffer<FrameConstants> _frameData = null!;
     private Texture2D _texture = null!;
+    private RenderContext _renderContext = null!;
+    private GraphicsMaterial _material = null!;
 
     private ShaderSystem _shaderSystem = null!;
     private Shader _shader = null!;
-    private GraphicsPipelineContext _pipelineInfo;
 
     private FileSystemWatcher? _watcher;
     private volatile string? _pendingChange;
@@ -52,24 +35,15 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
-        _vertexBuffer = CreateVertexBuffer();
-        _indexBuffer = CreateIndexBuffer();
+        _renderContext = RenderingSystem.CreateRenderContext("sandbox_shader_system");
 
-        _frameBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
-        {
-            Name = "Frame Constants",
-            Size = (uint)(Marshal.SizeOf<Matrix4x4>() + Marshal.SizeOf<Vector4>()),
-            Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-        });
-        _frameResources = GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor
-        {
-            Layout = GraphicsDevice.BindGroupUniformBuffer,
-            Resources = new ResourceBindingEntry[]
+        _frameData = RenderingSystem.CreateGraphicsValueBuffer<FrameConstants>(
+            new FrameConstants
             {
-                new(0, _frameBuffer),
+                ViewProjection = Matrix4x4.Identity,
+                TintColor = new Vector4(1.0f, 0.9f, 0.8f, 1.0f),
             },
-        });
+            "frame_constants");
 
         _texture = RenderingSystem.CreateTexture2D(16, 16, 0xff5b8cff);
 
@@ -81,12 +55,40 @@ public class Game : GameEngine
             Resolver = ResolveShaderModule,
         });
         _shader = _shaderSystem.GetShader(QuadModule);
-        _pipelineInfo = _shader.GetGraphicsPipeline(
-            RenderingSystem.PreferredHDRPass,
-            DepthStencilState.Default,
-            BlendState.NonPremultipliedAlpha);
+
+        // Standard material consumption: the parameter set binds the shader's
+        // blocks by name (the _frame uniform block, the _albedo texture slot)
+        // and resolves the shared sampler bank automatically.
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader, "sandbox_shader_system_material");
+        _material.SetBuffer("_frame", _frameData);
+        _material.SetTexture("_albedo", _texture);
 
         WatchShaderSources();
+    }
+
+    /// <summary>
+    /// Serves engine modules (the built-in shaders resolved through the AssetSystem)
+    /// on top of the sandbox's own tree — the same sources every sandbox exposing
+    /// engine shaders registers.
+    /// </summary>
+    public override IEnumerable<IFileSource> CreateDefaultFileSources()
+    {
+        foreach (var fileSource in base.CreateDefaultFileSources())
+        {
+            yield return fileSource;
+        }
+        yield return new DirectoryWatcherFileSource(GetSolutionAssetPath("Alco.Engine"), AssetSystem);
+        yield return new DirectoryWatcherFileSource(GetSolutionAssetPath("Alco.Rendering"), AssetSystem);
+    }
+
+    private static string GetSolutionAssetPath(string project)
+    {
+        string? current = AppContext.BaseDirectory;
+        while (current != null && Directory.GetFiles(current, "*.slnx").Length == 0)
+        {
+            current = Path.GetDirectoryName(current);
+        }
+        return Path.Combine(current ?? ".", "Src", project, "Assets");
     }
 
     protected override void OnUpdate(float delta)
@@ -110,32 +112,28 @@ public class Game : GameEngine
             return;
         }
 
-        // Rebuilds lazily when the shader version changed (module invalidation).
-        _shader.TryUpdatePipelineContext(ref _pipelineInfo, frameBuffer.AttachmentLayout);
-
-        Matrix4x4 rotation = Matrix4x4.CreateRotationY(_timer) * Matrix4x4.CreateRotationZ(_timer * 0.5f);
-        GraphicsDevice.WriteBuffer(_frameBuffer, 0, rotation);
-        GraphicsDevice.WriteBuffer(_frameBuffer, (uint)Marshal.SizeOf<Matrix4x4>(),
-            new Vector4(1.0f, 0.9f, 0.8f, 1.0f));
-
-        _commandBuffer.Begin();
-        using var renderPass = _commandBuffer.BeginRender(frameBuffer);
+        _frameData.Value = new FrameConstants
         {
-            renderPass.SetPipeline(_pipelineInfo);
-            renderPass.SetVertexBuffer(0, _vertexBuffer);
-            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
-            renderPass.SetResources(0, _frameResources);
-            renderPass.SetResources(1, _texture.EntrySample);
-            renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
+            ViewProjection = Matrix4x4.CreateRotationY(_timer) * Matrix4x4.CreateRotationZ(_timer * 0.5f),
+            TintColor = new Vector4(1.0f, 0.9f, 0.8f, 1.0f),
+        };
+        _frameData.UpdateBuffer();
+
+        // The pipeline rebuilds lazily when the shader version changed (module invalidation).
+        using (RenderFrameScope frame = _renderContext.BeginFrame())
+        using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer))
+        {
+            pass.Draw(RenderingSystem.MeshFullScreen, _material);
         }
-        _commandBuffer.End();
-        GraphicsDevice.Submit(_commandBuffer);
     }
 
     protected override void OnStop()
     {
         _watcher?.Dispose();
         _shaderSystem.Dispose();
+        _renderContext.Dispose();
+        _material.Dispose();
+        _frameData.Dispose();
     }
 
     /// <summary>
@@ -218,25 +216,5 @@ public class Game : GameEngine
                 }
             }
         }
-    }
-
-    private GPUBuffer CreateIndexBuffer()
-    {
-        return GraphicsDevice.CreateBuffer(new BufferDescriptor
-        {
-            Name = "Quad Index Buffer",
-            Size = (uint)Marshal.SizeOf<ushort>() * (uint)Indices.Length,
-            Usage = BufferUsage.Index | BufferUsage.CopyDst,
-        }, Indices);
-    }
-
-    private GPUBuffer CreateVertexBuffer()
-    {
-        return GraphicsDevice.CreateBuffer(new BufferDescriptor
-        {
-            Name = "Quad Vertex Buffer",
-            Size = (uint)Marshal.SizeOf<Vertex>() * (uint)Vertices.Length,
-            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
-        }, Vertices);
     }
 }

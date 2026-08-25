@@ -12,12 +12,9 @@ namespace Alco.Rendering;
 public sealed class RenderTexture : AutoDisposable
 {
     private readonly RenderingSystem _rendering;
-    private readonly GPUSampler _sampler;
     private GPUFrameBuffer _frameBuffer;
     private GPUAttachmentLayout? _colorOnlyLayout;
     private GPUFrameBuffer? _colorOnlyFrameBuffer;
-    private GPUResourceGroup? _groupDepthSample;
-    private GPUResourceGroup? _groupDepthComparison;
     private readonly Texture2D[] _colorTextures;
     private uint _version;
 
@@ -119,53 +116,6 @@ public sealed class RenderTexture : AutoDisposable
 
 
     /// <summary>
-    /// The entry of depth view for sampling.
-    /// </summary>
-    /// <value></value>
-    public GPUResourceGroup? EntryDepthRead
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (!HasDepth)
-            {
-                return null;
-            }
-
-            if (_groupDepthSample == null)
-            {
-                _groupDepthSample = CreateGroupDepthRead(_frameBuffer.DepthView!);
-            }
-
-            return _groupDepthSample;
-        }
-    }
-
-    /// <summary>
-    /// The entry of depth view and comparison sampler for depth comparison sampling
-    /// (e.g. shadow map PCF).
-    /// </summary>
-    /// <value></value>
-    public GPUResourceGroup? EntryDepthComparison
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (!HasDepth)
-            {
-                return null;
-            }
-
-            if (_groupDepthComparison == null)
-            {
-                _groupDepthComparison = CreateGroupDepthComparison(_frameBuffer.DepthView!);
-            }
-
-            return _groupDepthComparison;
-        }
-    }
-
-    /// <summary>
     /// The depth texture view of the depth attachment, or null when the render texture
     /// has no depth attachment.
     /// </summary>
@@ -197,13 +147,11 @@ public sealed class RenderTexture : AutoDisposable
 
     internal RenderTexture(
         RenderingSystem renderingSystem,
-        GPUFrameBuffer frameBuffer,
-        GPUSampler sampler
+        GPUFrameBuffer frameBuffer
         )
     {
         _rendering = renderingSystem;
         _frameBuffer = frameBuffer;
-        _sampler = sampler;
 
         _colorTextures = new Texture2D[_frameBuffer.Colors.Length];
         for (int i = 0; i < _colorTextures.Length; i++)
@@ -213,8 +161,7 @@ public sealed class RenderTexture : AutoDisposable
             // disposing them here only releases the wrapper's own bind groups.
             _colorTextures[i] = renderingSystem.CreateTexture2D(
                 _frameBuffer.Colors[i],
-                _frameBuffer.ColorViews[i],
-                _sampler
+                _frameBuffer.ColorViews[i]
                 );
         }
     }
@@ -289,13 +236,6 @@ public sealed class RenderTexture : AutoDisposable
         _colorOnlyFrameBuffer?.Dispose();
         _colorOnlyFrameBuffer = null;
 
-        // The cached depth sample groups reference the old depth view; they are
-        // recreated lazily from the new frame buffer on next access.
-        _groupDepthSample?.Dispose();
-        _groupDepthSample = null;
-        _groupDepthComparison?.Dispose();
-        _groupDepthComparison = null;
-
         for (int i = 0; i < _colorTextures.Length; i++)
         {
             _colorTextures[i].Dispose();
@@ -308,8 +248,7 @@ public sealed class RenderTexture : AutoDisposable
         {
             _colorTextures[i] = _rendering.CreateTexture2D(
                 _frameBuffer.Colors[i],
-                _frameBuffer.ColorViews[i],
-                _sampler
+                _frameBuffer.ColorViews[i]
                 );
         }
 
@@ -319,31 +258,6 @@ public sealed class RenderTexture : AutoDisposable
         {
             _version++;
         }
-    }
-
-    private GPUResourceGroup CreateGroupDepthRead(GPUTextureView view)
-    {
-        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _rendering.GraphicsDevice.BindGroupTextureDepthRead,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, view),
-            }
-        );
-
-        return _rendering.GraphicsDevice.CreateResourceGroup(groupDescriptor);
-    }
-
-    private GPUResourceGroup CreateGroupDepthComparison(GPUTextureView view)
-    {
-        ResourceGroupDescriptor groupDescriptor = new ResourceGroupDescriptor(
-            _rendering.GraphicsDevice.BindGroupTextureDepthComparison,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, view),
-                new ResourceBindingEntry(1, _rendering.GraphicsDevice.SamplerDepthComparison),
-            }
-        );
-
-        return _rendering.GraphicsDevice.CreateResourceGroup(groupDescriptor);
     }
 
     protected override void Dispose(bool disposing)
@@ -356,8 +270,6 @@ public sealed class RenderTexture : AutoDisposable
                 texture.Dispose();
             }
 
-            _groupDepthSample?.Dispose();
-            _groupDepthComparison?.Dispose();
             _colorOnlyFrameBuffer?.Dispose();
             _colorOnlyLayout?.Dispose();
             _frameBuffer.Dispose();

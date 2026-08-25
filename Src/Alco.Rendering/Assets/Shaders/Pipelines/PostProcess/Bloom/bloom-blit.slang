@@ -16,7 +16,6 @@ struct Constants {
 public struct PassParams
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<PassParams> _pass;
@@ -43,7 +42,7 @@ V2F MainVS(Vertex input) {
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
     // Sample the bloom texture (this is the processed bloom result from upsampling)
-    float4 bloomColor = _pass._texture.Sample(_pass._textureSampler, input.uv);
+    float4 bloomColor = _pass._texture.Sample(_samplers._linearClamp, input.uv);
 
     float a = max(0.0, bloomColor.a); 
     a = pow(a, 1.0 / constants.gamma);

@@ -38,7 +38,10 @@ public class Game : GameEngine
     private GPUBuffer _indexBuffer;
     private GPUBuffer _colorBuffer;
     private GPUPipeline _pipeline;
+    private GPUBindGroup _textureGroup;
     private GPUResourceGroup _resourceGroupBuffer;
+    private GPUResourceGroup? _resourceGroupTexture;
+    private Texture2D? _resourceGroupTextureSource;
     private Texture2D _textureEmpty;
     private Texture2D _selected;
 
@@ -60,7 +63,21 @@ public class Game : GameEngine
 
         UpdateColor(new Vector3(1, 1, 1));
 
-        _pipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, GraphicsDevice.BindGroupTexture2DSampled);
+        // The shader's material block declares a Texture2D member followed by a
+        // SamplerState member: group 1 is the two-entry layout {texture, sampler},
+        // and the sampler is supplied from the rendering system's shared bank
+        // (asset textures default to linear filtering with repeat addressing).
+        _textureGroup = GraphicsDevice.CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "texture_sampler_group",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        _pipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, _textureGroup);
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
         _textureEmpty = RenderingSystem.CreateTexture2D(16, 16, 0xffffffff);
@@ -97,7 +114,7 @@ public class Game : GameEngine
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _resourceGroupBuffer);
-            renderPass.SetResources(1, _selected.EntrySample);
+            renderPass.SetResources(1, GetTextureResourceGroup(_selected));
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();
@@ -183,6 +200,27 @@ public class Game : GameEngine
                 new ResourceBindingEntry(0, buffer),
             }
         });
+    }
+
+    // The selected texture can be swapped at runtime (async asset loading), so
+    // the two-entry {texture, sampler} group is cached per texture reference.
+    private GPUResourceGroup GetTextureResourceGroup(Texture2D texture)
+    {
+        if (_resourceGroupTexture == null || !ReferenceEquals(_resourceGroupTextureSource, texture))
+        {
+            _resourceGroupTexture?.Dispose();
+            _resourceGroupTexture = GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor(
+                _textureGroup,
+                new ResourceBindingEntry[]
+                {
+                    new ResourceBindingEntry(0, texture.View),
+                    new ResourceBindingEntry(1, RenderingSystem.Samplers.LinearRepeat),
+                },
+                "texture_sampler_resources"));
+            _resourceGroupTextureSource = texture;
+        }
+
+        return _resourceGroupTexture;
     }
 
     private void UpdateColor(Vector3 color)

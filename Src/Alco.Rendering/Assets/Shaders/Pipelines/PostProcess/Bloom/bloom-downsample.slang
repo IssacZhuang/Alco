@@ -17,7 +17,6 @@ struct Constants {
 public struct PassParams
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<PassParams> _pass;
@@ -51,7 +50,7 @@ float4 MainPS(V2F input) : SV_TARGET {
   for (int i = -2; i <= 2; ++i) {
     for (int j = -2; j <= 2; ++j) {
         float weight = weights[i + 2] * weights[j + 2];
-        sum += weight * _pass._texture.Sample(_pass._textureSampler, input.uv + float2(i, j) * sampleOffset);
+        sum += weight * _pass._texture.Sample(_samplers._linearClamp, input.uv + float2(i, j) * sampleOffset);
     }
   }
 

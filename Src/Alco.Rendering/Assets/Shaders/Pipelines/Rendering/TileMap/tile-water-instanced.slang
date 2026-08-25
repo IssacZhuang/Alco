@@ -51,7 +51,6 @@ public ParameterBlock<CameraParams> _camera;
 public struct MaterialParamsData
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<MaterialParamsData> _material;
@@ -136,7 +135,7 @@ int GetTileId(int2 tilePos, int defaultValue) {
   float2 uv = input.uv;
 
   float2 uvFrac = frac(uv * constants.tiling);
-  float4 color = _material._texture.Sample(_material._textureSampler, uvFrac);
+  float4 color = _material._texture.Sample(_samplers._linearRepeat, uvFrac);
 
     color *= constants.color;
 

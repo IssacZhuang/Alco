@@ -36,15 +36,12 @@ public struct PointLightData
 public struct PassParams
 {
     public Texture3D _radiance;
-    public SamplerState _radianceSampler;
     public DepthTexture2D _gbufferDepth;
     public Texture2D _normal;
     public Texture2D _emissive;
     public Texture3D _opacity;
-    public SamplerState _opacitySampler;
     public Texture2D _albedo;
     public DepthTexture2D _shadowMap;
-    public SamplerComparisonState _shadowMapSampler;
 // Previous frame's raw trace atlas. Diffuse and ALD are accumulated here
 // before spatial demosaic so every trace pixel integrates its own directions.
     public Texture2D _traceHistory;
@@ -65,7 +62,6 @@ public struct PassParams
 // single RSM texels.
     public DepthTexture2D _rsmDepth;
     public Texture2D _rsmAlbedo;
-    public SamplerState _rsmAlbedoSampler;
     public Texture2D _rsmNormal;
     public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
 };
@@ -178,7 +174,7 @@ float SampleSunShadowScreen(float3 worldPosition, float3 N)
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
     float NdotL = saturate(dot(N, normalize(-_data.sunDirection.xyz)));
     float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
-    return _pass._shadowMap.SampleCmpLevelZero(_pass._shadowMapSampler, shadowUV, ndc.z - bias);
+    return _pass._shadowMap.SampleCmpLevelZero(_samplers._depthComparison, shadowUV, ndc.z - bias);
 }
 
 float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3 worldPosition)
@@ -293,14 +289,14 @@ float4 GatherScreenSpaceNearField(
 // along the w axis.
 float4 SampleRadiance(float3 position, int level, float mip)
 {
-    return _pass._radiance.SampleLevel(_pass._radianceSampler, VoxelWorldToUVW(position, level, mip), mip);
+    return _pass._radiance.SampleLevel(_samplers._linearClamp, VoxelWorldToUVW(position, level, mip), mip);
 }
 
 // Sample the directional opacity volume. xyz = directional opacity components
 // (project onto |rayDir| for anisotropic occlusion), a = coverage fraction.
 float4 SampleOpacity(float3 position, int level, float mip)
 {
-    return _pass._opacity.SampleLevel(_pass._opacitySampler, VoxelWorldToUVW(position, level, mip), mip);
+    return _pass._opacity.SampleLevel(_samplers._linearClamp, VoxelWorldToUVW(position, level, mip), mip);
 }
 
 // Sample radiance + opacity at a position, blending between the current level
@@ -327,10 +323,10 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
             float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, _data.clipmapParams.z - 1.0);
 
             float4 nextRad = _pass._radiance.SampleLevel(
-                _pass._radianceSampler,
+                _samplers._linearClamp,
                 VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
             float4 nextOpa = _pass._opacity.SampleLevel(
-                _pass._opacitySampler,
+                _samplers._linearClamp,
                 VoxelWorldToUVW(position, level + 1, nextMip), nextMip);
 
             radSample = lerp(radSample, nextRad, boundaryWeight);
@@ -445,7 +441,7 @@ float4 TraceCone(
                 // snaps. Cleared texels are (0,0,0,0), so filtering drives
                 // alpha toward 0 at the sun-patch border; alpha becomes a
                 // coverage weight and the RGB is un-premultiplied below.
-                float4 rsmAlbedoSample = _pass._rsmAlbedo.SampleLevel(_pass._rsmAlbedoSampler, rsmUv, 0.0);
+                float4 rsmAlbedoSample = _pass._rsmAlbedo.SampleLevel(_samplers._linearClamp, rsmUv, 0.0);
                 float rsmCoverage = saturate(rsmAlbedoSample.a);
                 if (rsmCoverage > 0.05)
                 {

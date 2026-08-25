@@ -115,7 +115,7 @@ public class TestMaterialCompiler
         cbuffer _material : register(b0, space2)
         {
             Texture2D<float4> _albedoTexture;
-            SamplerState _albedoTextureSampler;
+            SamplerState _linearClamp;
         }
 
         [MaterialParams]
@@ -128,7 +128,7 @@ public class TestMaterialCompiler
         {
             public override float4 GetBaseColor(SurfaceInput input)
             {
-                return _albedoTexture.Sample(_albedoTextureSampler, input.uv) * pulseSpeed;
+                return _albedoTexture.Sample(_linearClamp, input.uv) * pulseSpeed;
             }
         }
         """;

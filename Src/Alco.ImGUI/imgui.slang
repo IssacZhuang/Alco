@@ -8,6 +8,8 @@
 #language slang 2025
 module imgui;
 
+import alco_rendering_core;
+
 struct Vertex {
   float2 position : POSITION;
   float2 uv : TEXCOORD0;
@@ -27,13 +29,12 @@ public struct CameraParams
 
 public ParameterBlock<CameraParams> _camera;
 
-public struct MaterialParams
+public struct MaterialParamsData
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
-public ParameterBlock<MaterialParams> _material;
+public ParameterBlock<MaterialParamsData> _material;
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
@@ -46,6 +47,6 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float4 color = _material._texture.Sample(_material._textureSampler, input.uv);
+  float4 color = _material._texture.Sample(_samplers._linearRepeat, input.uv);
   return color * input.color;
 }

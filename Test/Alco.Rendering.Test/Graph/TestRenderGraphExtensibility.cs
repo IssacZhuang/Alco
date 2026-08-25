@@ -37,24 +37,16 @@ public sealed class TestRenderGraphExtensibility
         cbuffer _lighting : register(b0, space1)
         {
             Texture2D _albedo;
-            SamplerState _albedoSampler;
             Texture2D _normal;
-            SamplerState _normalSampler;
             Texture2D _mrAO;
-            SamplerState _mrAOSampler;
             DepthTexture2D _gbufferDepth;
             Texture2D _emissive;
-            SamplerState _emissiveSampler;
             Texture2D _giDiffuse;
-            SamplerState _giDiffuseSampler;
             Texture2D _giSpecular;
-            SamplerState _giSpecularSampler;
             Texture2D _aoTexture;
-            SamplerState _aoTextureSampler;
             Texture2D _cloudShadow;
-            SamplerState _cloudShadowSampler;
             DepthTexture2D _shadowMap;
-            SamplerComparisonState _shadowMapSampler;
+            SamplerState _linearClamp;
             RWStructuredBuffer<PointLightData> _pointLights;
         };
 
@@ -75,7 +67,7 @@ public sealed class TestRenderGraphExtensibility
         // pipeline constructs its lighting material with the Off specialization.
         float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         {
-            return _albedo.Sample(_albedoSampler, input.uv);
+            return _albedo.Sample(_linearClamp, input.uv);
         }
         """;
 
@@ -85,7 +77,7 @@ public sealed class TestRenderGraphExtensibility
         cbuffer _pass : register(b0, space0)
         {
             Texture2D _texture;
-            SamplerState _textureSampler;
+            SamplerState _linearClamp;
         };
 
         struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
@@ -103,7 +95,7 @@ public sealed class TestRenderGraphExtensibility
         [shader("pixel")]
         float4 MainPS(V2F input) : SV_TARGET
         {
-            return _texture.Sample(_textureSampler, input.uv);
+            return _texture.Sample(_linearClamp, input.uv);
         }
         """;
 

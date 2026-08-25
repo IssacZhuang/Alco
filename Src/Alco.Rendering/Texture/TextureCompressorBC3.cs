@@ -125,7 +125,7 @@ public sealed class TextureCompressorBC3 : AutoDisposable
             throw new InvalidOperationException("Texture width and height must be divisible by 4");
         }
 
-        var texture = _renderingSystem.CreateTexture2D(source.Width, source.Height, source.Sampler, ImageLoadOption.Default with
+        var texture = _renderingSystem.CreateTexture2D(source.Width, source.Height, ImageLoadOption.Default with
         {
             Format = PixelFormat.BC3RGBAUnorm
         });

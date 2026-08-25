@@ -37,7 +37,6 @@ public struct PassParams
     public RWStructuredBuffer<uint4> _attrStatic;
     public RWStructuredBuffer<uint4> _attrDynamic;
     public DepthTexture2D _shadowMap;
-    public SamplerComparisonState _shadowMapSampler;
 // Combined page table: x=static page entry, y=dynamic page entry. Merging the
 // two pools into one buffer frees a binding for the brick list.
     public RWStructuredBuffer<uint2> _pageTable;
@@ -141,7 +140,7 @@ float SampleSunShadowVoxel(float3 worldPosition, float3 N, float voxelSize,
 
     float NdotL = saturate(dot(N, normalize(-_data.sunDirection.xyz)));
     float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
-    return _pass._shadowMap.SampleCmpLevelZero(_pass._shadowMapSampler, shadowUV, ndc.z - bias);
+    return _pass._shadowMap.SampleCmpLevelZero(_samplers._depthComparison, shadowUV, ndc.z - bias);
 }
 
 // Upward visibility through the voxel grid: open sky above means the voxel is

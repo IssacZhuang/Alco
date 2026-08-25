@@ -76,7 +76,7 @@ public class ComputeMaterial : AutoDisposable
         }
 
         _pipelineContext = shader.GetComputePipelineInfo(_specializations);
-        _parameterSet = new ShaderParameterSet(system.GraphicsDevice, _pipelineContext.ReflectionInfo!);
+        _parameterSet = new ShaderParameterSet(system.GraphicsDevice, system.Samplers, _pipelineContext.ReflectionInfo!);
     }
 
     /// <summary>

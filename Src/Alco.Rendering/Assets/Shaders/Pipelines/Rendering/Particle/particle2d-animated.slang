@@ -45,7 +45,6 @@ public ParameterBlock<CameraParams> _camera;
 public struct MaterialParamsData
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<MaterialParamsData> _material;
@@ -108,7 +107,7 @@ V2F MainVS(Vertex input) {
 float4 MainPS(V2F input): SV_TARGET {
 
   // Sample texture
-  float4 texColor = _material._texture.Sample(_material._textureSampler, input.uv);
+  float4 texColor = _material._texture.Sample(_samplers._linearRepeat, input.uv);
 
   // Multiply texture color with particle color
   float4 finalColor = texColor * input.color;

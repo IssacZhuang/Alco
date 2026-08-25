@@ -20,7 +20,6 @@ struct Constants
 public struct PassParams
 {
     public Texture2D _texture;
-    public SamplerState _textureSampler;
 };
 
 public ParameterBlock<PassParams> _pass;
@@ -40,7 +39,7 @@ struct V2F
 
 float4 SampleTextureClamped(float2 uv)
 {
-    float4 color = _pass._texture.Sample(_pass._textureSampler, uv);
+    float4 color = _pass._texture.Sample(_samplers._linearClamp, uv);
     if (any(isnan(color)) || any(isinf(color)))
     {
         return float4(0, 0, 0, 0);

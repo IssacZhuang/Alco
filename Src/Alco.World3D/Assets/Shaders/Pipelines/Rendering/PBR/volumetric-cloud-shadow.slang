@@ -38,7 +38,6 @@ public ParameterBlock<CloudDataParams> _cloudData;
 public struct CloudNoiseParams
 {
     public Texture3D _cloudBaseNoise;
-    public SamplerState _cloudBaseNoiseSampler;
 };
 
 public ParameterBlock<CloudNoiseParams> _cloudNoise;
@@ -73,8 +72,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     {
         float3 posKm = float3(worldXz, bottomKm + thicknessKm * (0.25 + 0.25 * i));
         float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
-        float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_cloudNoise._cloudBaseNoiseSampler, winded * CLOUD_SHADOW_COVERAGE_SCALE, 0).r;
-        float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_cloudNoise._cloudBaseNoiseSampler, winded * CLOUD_SHADOW_BASE_SCALE, 0);
+        float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_SHADOW_COVERAGE_SCALE, 0).r;
+        float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_SHADOW_BASE_SCALE, 0);
         float h = saturate((posKm.z - bottomKm) / thicknessKm);
         float density = CloudBaseShape(baseNoise, CloudCoverageMask(lowFreq, coverage),
             CloudHeightGradient(h, coverage));

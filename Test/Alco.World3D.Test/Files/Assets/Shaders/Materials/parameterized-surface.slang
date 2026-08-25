@@ -35,11 +35,8 @@ public struct PulseParamsData
     public float bandFrequency;    // world-space bands per unit (0 = uniform pulse)
 
     public Texture2D<float4> _albedoTexture;
-    public SamplerState _albedoTextureSampler;
     public Texture2D<float4> _normalTexture;
-    public SamplerState _normalTextureSampler;
     public Texture2D<float4> _metallicRoughnessTexture;
-    public SamplerState _metallicRoughnessTextureSampler;
 };
 
 [MaterialParams]
@@ -49,18 +46,18 @@ public struct Surface : ISurface
 {
     public override float4 GetBaseColor(SurfaceInput input)
     {
-        return PulseParams._albedoTexture.Sample(PulseParams._albedoTextureSampler, input.uv) * input.baseColorFactor;
+        return PulseParams._albedoTexture.Sample(_samplers._linearRepeat, input.uv) * input.baseColorFactor;
     }
 
     public override float3 GetNormalTS(SurfaceInput input)
     {
-        float2 normalXY = PulseParams._normalTexture.Sample(PulseParams._normalTextureSampler, input.uv).rg * 2.0 - 1.0;
+        float2 normalXY = PulseParams._normalTexture.Sample(_samplers._linearRepeat, input.uv).rg * 2.0 - 1.0;
         return float3(normalXY, sqrt(saturate(1.0 - dot(normalXY, normalXY))));
     }
 
     public override float3 GetMetallicRoughnessAO(SurfaceInput input)
     {
-        float4 mrTex = PulseParams._metallicRoughnessTexture.Sample(PulseParams._metallicRoughnessTextureSampler, input.uv);
+        float4 mrTex = PulseParams._metallicRoughnessTexture.Sample(_samplers._linearRepeat, input.uv);
         return float3(
             input.metallicRoughnessAO.x * mrTex.b,
             input.metallicRoughnessAO.y * mrTex.g,

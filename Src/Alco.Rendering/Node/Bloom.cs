@@ -31,16 +31,19 @@ public class Bloom : TextureProcessor
     }
 
     public const string ShaderId_texture = "_texture";
-    public const string ShaderId_data = "_data";
     public const string ShaderId_previousTexture = "_previousTexture";
     public const string ShaderId_currentTexture = "_currentTexture";
 
     private readonly GPUAttachmentLayout _backBufferPass;
     private readonly RenderingSystem _renderingSystem;
 
-    private readonly Shader _blitShader;
-    private GraphicsPipelineContext _blitPipelineInfo;
-    private uint _blitShaderId_texture;
+    // One material per pass shader: pipeline states (additive blend on the final
+    // composite, opaque on the pyramid passes) live on the materials and the
+    // passes draw through RenderContext like every other renderer.
+    private readonly GraphicsMaterial _blitMaterial;
+    private readonly GraphicsMaterial _clampMaterial;
+    private readonly GraphicsMaterial _downSampleMaterial;
+    private readonly GraphicsMaterial _upSampleMaterial;
 
     // The input size the current pyramid was built for; a size mismatch on the next
     // blit rebuilds the pyramid lazily.
@@ -57,19 +60,19 @@ public class Bloom : TextureProcessor
     public float Threshold
     {
         get => _threshold;
-        set => _threshold = Math.Max(value, 0.0f); 
+        set => _threshold = Math.Max(value, 0.0f);
     }
 
     public float Spread
     {
         get => _spread;
-        set => _spread = Math.Max(value, 0.0001f); 
+        set => _spread = Math.Max(value, 0.0001f);
     }
 
     public float Intensity
     {
         get => _intensity;
-        set => _intensity = Math.Max(value, 0.0f); 
+        set => _intensity = Math.Max(value, 0.0f);
     }
 
     /// <summary>
@@ -81,61 +84,30 @@ public class Bloom : TextureProcessor
         set => _gamma = Math.Max(value, 0.0001f);
     }
 
-    //for clamp
-    private readonly Shader _clampShader;
-    private GraphicsPipelineContext _clampPipelineInfo;
-    private uint _clampShaderId_texture;
-
-    private readonly Shader _downSampleShader;
-    private GraphicsPipelineContext _downSamplePipelineInfo;
-    private uint _downSampleShaderId_texture;
-
-
     private readonly uint _targetDownSampleHeight;
 
     private RenderTexture[]? _downSampleTextures;
-
-    private readonly Shader _upSampleShader;
-    private GraphicsPipelineContext _upSamplePipelineInfo;
-    private uint _upSampleShaderId_previousTexture;
-    private uint _upSampleShaderId_currentTexture;
-
     private RenderTexture[]? _upSampleTextures;
-    internal Bloom(RenderingSystem _system, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(_system)
+
+    internal Bloom(RenderingSystem system, Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight) : base(system)
     {
-        _renderingSystem = _system;
+        _renderingSystem = system;
         _targetDownSampleHeight = targetDownSampleHeight;
 
-        _backBufferPass = _system.PreferredLightMapPass;
+        _backBufferPass = system.PreferredLightMapPass;
 
-        _blitShader = blitShader;
-        _blitPipelineInfo = GraphicsPipelineContext.Default with
-        {
-            DepthStencil = DepthStencilState.Default,
-            BlendState = BlendState.Additive
-        };
+        // The bloom composite is additive: the target already holds the scene image.
+        _blitMaterial = system.CreateGraphicsMaterial(blitShader, "bloom_blit_material");
+        _blitMaterial.BlendState = BlendState.Additive;
 
-
-        _clampShader = clampShader;
-        _clampPipelineInfo = GraphicsPipelineContext.Default;
-        _clampShader.TryUpdatePipelineContext(ref _clampPipelineInfo, _backBufferPass);
-        _clampShaderId_texture = _clampPipelineInfo.GetResourceId(ShaderId_texture);
-
-        _downSampleShader = downSampleShader;
-        _downSamplePipelineInfo = GraphicsPipelineContext.Default;
-        _downSampleShader.TryUpdatePipelineContext(ref _downSamplePipelineInfo, _backBufferPass);
-        _downSampleShaderId_texture = _downSamplePipelineInfo.GetResourceId(ShaderId_texture);
-
-        _upSampleShader = upSampleShader;
-        _upSamplePipelineInfo = GraphicsPipelineContext.Default;
-        _upSampleShader.TryUpdatePipelineContext(ref _upSamplePipelineInfo, _backBufferPass);
-        _upSampleShaderId_previousTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_previousTexture);
-        _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
+        _clampMaterial = system.CreateGraphicsMaterial(clampShader, "bloom_clamp_material");
+        _downSampleMaterial = system.CreateGraphicsMaterial(downSampleShader, "bloom_downsample_material");
+        _upSampleMaterial = system.CreateGraphicsMaterial(upSampleShader, "bloom_upsample_material");
     }
 
     // Rebuilds the down/up sample pyramid when the input size changed since the last
-    // blit. The pyramid textures are bound directly per pass (resolved fresh from the
-    // current objects every frame), so recreating them needs no other notification.
+    // blit. The pyramid textures are bound through the materials, so recreating them
+    // needs no other notification.
     private void EnsurePyramid(RenderTexture input)
     {
         if (_downSampleTextures != null && _builtWidth == input.Width && _builtHeight == input.Height)
@@ -156,20 +128,14 @@ public class Bloom : TextureProcessor
             uint width = input.Width >> (i + 1);
             uint height = input.Height >> (i + 1);
 
-
             if (i >= downSampleCount - 1)
             {
                 float aspectRatio = (float)input.Width / input.Height;
                 width = (uint)(_targetDownSampleHeight * aspectRatio);
                 height = _targetDownSampleHeight;
-
-
-                _downSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
             }
-            else
-            {
-                _downSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
-            }
+
+            _downSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
         }
 
         // Calculate and store InvFrameSize for clamp shader
@@ -184,14 +150,7 @@ public class Bloom : TextureProcessor
             uint width = input.Width >> (offset);
             uint height = input.Height >> (offset);
 
-            if (i == 0)
-            {
-                _upSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
-            }
-            else
-            {
-                _upSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
-            }
+            _upSampleTextures[i] = _renderingSystem.CreateRenderTexture(_backBufferPass, width, height);
         }
     }
 
@@ -209,13 +168,13 @@ public class Bloom : TextureProcessor
     /// <summary>
     /// Builds the bloom pyramid from <paramref name="input"/> and records the whole
     /// down/up-sample chain plus the final additive composite onto
-    /// <paramref name="command"/>, rendering into <paramref name="target"/>. The
-    /// command buffer is neither ended nor submitted here.
+    /// <paramref name="context"/>, rendering into <paramref name="target"/>. The
+    /// context is neither opened nor submitted here.
     /// </summary>
-    /// <param name="command">The caller-owned open command buffer to record into.</param>
+    /// <param name="context">The render context recording the frame.</param>
     /// <param name="input">The input render texture.</param>
     /// <param name="target">The target framebuffer; must already hold the scene image.</param>
-    public override void Blit(GPUCommandBuffer command, RenderTexture input, GPUFrameBuffer target)
+    public override void Blit(RenderContext context, RenderTexture input, GPUFrameBuffer target)
     {
         EnsurePyramid(input);
 
@@ -224,130 +183,82 @@ public class Bloom : TextureProcessor
 
         RenderTexture clampFrame = _downSampleTextures![0];
 
-        if (_clampShader.TryUpdatePipelineContext(ref _clampPipelineInfo, clampFrame.AttachmentLayout))
-        {
-            _clampShaderId_texture = _clampPipelineInfo.GetResourceId(ShaderId_texture);
-        }
-
         //clamp
-        using (var renderPass = timestamps != null
-            ? command.BeginRender(clampFrame.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
+        _clampMaterial.SetRenderTexture(ShaderId_texture, input);
+        var clampShaderData = new ClampConstant
+        {
+            InvFrameSize = _clampInvFrameSize,
+            Threshold = Threshold,
+            Spread = Spread,
+            Intensity = Intensity
+        };
+        using (RenderPassScope renderPass = timestamps != null
+            ? context.BeginPass(clampFrame.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, (uint)TimestampBaseSlot, null)
-            : command.BeginRender(clampFrame.FrameBuffer))
+            : context.BeginPass(clampFrame.FrameBuffer))
         {
-            renderPass.SetPipeline(_clampPipelineInfo);
-            uint indexCount = renderPass.SetMesh(mesh);
-            renderPass.SetResources(_clampShaderId_texture, input.ColorTextures[0].EntrySample);
-
-            var clampShaderData = new ClampConstant
-            {
-                InvFrameSize = _clampInvFrameSize,
-                Threshold = Threshold,
-                Spread = Spread,
-                Intensity = Intensity
-            };
-            renderPass.PushConstants(clampShaderData);
-            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
-        }
-
-        if (_downSampleShader.TryUpdatePipelineContext(ref _downSamplePipelineInfo, _downSampleTextures![0].AttachmentLayout))
-        {
-            _downSampleShaderId_texture = _downSamplePipelineInfo.GetResourceId(ShaderId_texture);
+            renderPass.DrawWithConstant(mesh, _clampMaterial, clampShaderData);
         }
 
         for (int i = 1; i < _downSampleTextures!.Length; i++)
         {
             RenderTexture downSampleFrame = _downSampleTextures[i];
             Vector2 invFrameSize = new Vector2(1f) / new Vector2(downSampleFrame.Width, downSampleFrame.Height);
-            using (var renderPass = command.BeginRender(downSampleFrame.FrameBuffer))
+            _downSampleMaterial.SetRenderTexture(ShaderId_texture, _downSampleTextures[i - 1]);
+            var downSampleConstants = new DownSampleConstants
             {
-                renderPass.SetPipeline(_downSamplePipelineInfo);
-                uint indexCount = renderPass.SetMesh(mesh);
-                renderPass.SetResources(_downSampleShaderId_texture, _downSampleTextures![i - 1].ColorTextures[0].EntrySample);
-
-                var downSampleConstants = new DownSampleConstants
-                {
-                    InvTextureSize = invFrameSize,
-                    Spread = Spread
-                };
-                renderPass.PushConstants(downSampleConstants);
-                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+                InvTextureSize = invFrameSize,
+                Spread = Spread
+            };
+            using (RenderPassScope renderPass = context.BeginPass(downSampleFrame.FrameBuffer))
+            {
+                renderPass.DrawWithConstant(mesh, _downSampleMaterial, downSampleConstants);
             }
         }
-
 
         //up sample
 
-        if (_upSampleShader.TryUpdatePipelineContext(ref _upSamplePipelineInfo, _upSampleTextures![0].AttachmentLayout))
-        {
-            _upSampleShaderId_previousTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_previousTexture);
-            _upSampleShaderId_currentTexture = _upSamplePipelineInfo.GetResourceId(ShaderId_currentTexture);
-        }
+        // First pass of the chain: previous is the pyramid's bottom, current the
+        // step above it; later passes walk previous through the up-sample chain.
+        _upSampleMaterial.SetRenderTexture(ShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1]);
+        _upSampleMaterial.SetRenderTexture(ShaderId_currentTexture, _downSampleTextures[_downSampleTextures.Length - 2]);
 
-        using (var renderPass = command.BeginRender(_upSampleTextures![0].FrameBuffer))
+        for (int i = 0; i < _upSampleTextures!.Length; i++)
         {
-            renderPass.SetPipeline(_upSamplePipelineInfo);
-            uint indexCount = renderPass.SetMesh(mesh);
-            renderPass.SetResources(_upSampleShaderId_previousTexture, _downSampleTextures![_downSampleTextures.Length - 1].ColorTextures[0].EntrySample);
-            renderPass.SetResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - 2].ColorTextures[0].EntrySample);
+            if (i > 0)
+            {
+                _upSampleMaterial.SetRenderTexture(ShaderId_previousTexture, _upSampleTextures[i - 1]);
+                _upSampleMaterial.SetRenderTexture(ShaderId_currentTexture, _downSampleTextures[_downSampleTextures.Length - i - 2]);
+            }
 
             var upSampleConstants = new UpSampleConstants
             {
-                InvTextureSize = new Vector2(1f) / new Vector2(_upSampleTextures[0].Width, _upSampleTextures[0].Height),
+                InvTextureSize = new Vector2(1f) / new Vector2(_upSampleTextures[i].Width, _upSampleTextures[i].Height),
                 Spread = Spread
             };
-            renderPass.PushConstants(upSampleConstants);
-            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
-        }
-
-
-
-        for (int i = 1; i < _upSampleTextures!.Length; i++)
-        {
-            using (var renderPass = command.BeginRender(_upSampleTextures[i].FrameBuffer))
+            using (RenderPassScope renderPass = context.BeginPass(_upSampleTextures[i].FrameBuffer))
             {
-                renderPass.SetPipeline(_upSamplePipelineInfo);
-                uint indexCount = renderPass.SetMesh(mesh);
-                renderPass.SetResources(_upSampleShaderId_previousTexture, _upSampleTextures![i - 1].ColorTextures[0].EntrySample);
-                renderPass.SetResources(_upSampleShaderId_currentTexture, _downSampleTextures![_downSampleTextures.Length - i - 2].ColorTextures[0].EntrySample);
-
-                var upSampleConstants = new UpSampleConstants
-                {
-                    InvTextureSize = new Vector2(1f) / new Vector2(_upSampleTextures[i].Width, _upSampleTextures[i].Height),
-                    Spread = Spread
-                };
-                renderPass.PushConstants(upSampleConstants);
-                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+                renderPass.DrawWithConstant(mesh, _upSampleMaterial, upSampleConstants);
             }
         }
 
-
-        if (_blitShader.TryUpdatePipelineContext(ref _blitPipelineInfo, target.AttachmentLayout))
-        {
-            _blitShaderId_texture = _blitPipelineInfo.GetResourceId(ShaderId_texture);
-        }
-
         //blit
-        using (var renderPass = timestamps != null
-            ? command.BeginRender(target, ReadOnlySpan<ClearColorData>.Empty,
-                timestamps.QuerySet, null, (uint)(TimestampBaseSlot + 1))
-            : command.BeginRender(target))
+        _blitMaterial.SetRenderTexture(ShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1]);
+        var blitConstants = new BlitConstants
         {
-            renderPass.SetPipeline(_blitPipelineInfo);
-            uint indexCount = renderPass.SetMesh(mesh);
-            renderPass.SetResources(_blitShaderId_texture, _upSampleTextures![_upSampleTextures.Length - 1].ColorTextures[0].EntrySample);
-
-            var blitConstants = new BlitConstants
-            {
-                Gamma = Gamma
-            };
-            renderPass.PushConstants(blitConstants);
-            renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+            Gamma = Gamma
+        };
+        using (RenderPassScope renderPass = timestamps != null
+            ? context.BeginPass(target, ReadOnlySpan<ClearColorData>.Empty,
+                timestamps.QuerySet, null, (uint)(TimestampBaseSlot + 1))
+            : context.BeginPass(target))
+        {
+            renderPass.DrawWithConstant(mesh, _blitMaterial, blitConstants);
         }
 
         if (timestamps != null)
         {
-            timestamps.ResolveAll(command);
+            timestamps.ResolveAll(context.CommandBuffer);
         }
     }
 
@@ -383,7 +294,13 @@ public class Bloom : TextureProcessor
 
     protected override void Dispose(bool disposing)
     {
-        //dispose non-private managed resources
-        TryDisposeFrames();
+        if (disposing)
+        {
+            TryDisposeFrames();
+            _blitMaterial.Dispose();
+            _clampMaterial.Dispose();
+            _downSampleMaterial.Dispose();
+            _upSampleMaterial.Dispose();
+        }
     }
 }

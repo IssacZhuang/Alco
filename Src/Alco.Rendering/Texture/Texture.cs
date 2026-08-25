@@ -15,21 +15,19 @@ public abstract class Texture : AutoDisposable
     protected GPUTexture _texture;
     protected GPUTextureView _textureView;
 
-    // from outside
-    protected GPUSampler _sampler;
-
     // Whether this wrapper owns _texture and _textureView. Wrappers created over
     // externally owned GPU resources (e.g. frame buffer attachments or render
     // graph pooled textures) are non-owning: their lifetime is managed by the
-    // creator, the same rule as the externally supplied sampler.
+    // creator.
     private readonly bool _ownsResources;
 
     // Bind groups that bind one view of this texture as the only resource of a
     // shader group, keyed by the group layout and the bound view (the full-chain
     // view or a per-mip view). A single-resource group is fully determined by
-    // (view, sampler, layout), so one group per combination is created for the
-    // texture's lifetime and shared across materials and frames instead of being
-    // rebuilt on every slot change.
+    // (view, layout), so one group per combination is created for the texture's
+    // lifetime and shared across materials and frames instead of being
+    // rebuilt on every slot change. Samplers never appear here: they are
+    // independent resources bound by the consuming shader's sampler entries.
     private Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup>? _layoutResourceGroups;
 
     public string Name { get; }
@@ -67,21 +65,6 @@ public abstract class Texture : AutoDisposable
     }
 
     /// <summary>
-    /// The sampler used when the texture is bound to a texture-and-sampler slot.
-    /// </summary>
-    public GPUSampler Sampler
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _sampler;
-    }
-
-    /// <summary>
-    /// The resource group containing the texture view and the sampler, for
-    /// texture-and-sampler shader bind groups.
-    /// </summary>
-    public abstract GPUResourceGroup EntrySample { get; }
-
-    /// <summary>
     /// The resource group containing only the texture view, for read-only texture
     /// shader bind groups.
     /// </summary>
@@ -97,14 +80,12 @@ public abstract class Texture : AutoDisposable
         GPUDevice device,
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler,
         bool ownsResources = true)
     {
         _device = device;
 
         _texture = texture;
         _textureView = textureView;
-        _sampler = sampler;
         _ownsResources = ownsResources;
 
         Name = texture.Name;
@@ -143,31 +124,18 @@ public abstract class Texture : AutoDisposable
         _device.WriteTexture(_texture, data, size);
     }
 
-    public virtual void SetSampler(GPUSampler sampler)
-    {
-        _sampler = sampler;
-        // Cached layout groups embed the old sampler. They are dropped without
-        // disposal: recorded commands and material caches may still reference
-        // them until their slots change, and the finalizer releases the native
-        // objects (the same policy as the texture hot reload).
-        DiscardLayoutResourceGroups();
-    }
-
     /// <summary>
-    /// Returns the bind group that binds the given view of this texture (plus
-    /// its sampler for texture-and-sampler groups) as the only resource of a
-    /// shader bind group with the given layout, creating it on first use. The
-    /// group is cached on the texture for its lifetime and shared across all
-    /// materials and frames, so cycling textures or mip views through a
-    /// material does not allocate a new bind group per change.
+    /// Returns the bind group that binds the given view of this texture as the
+    /// only resource of a shader bind group with the given layout, creating it
+    /// on first use. The group is cached on the texture for its lifetime and
+    /// shared across all materials and frames, so cycling textures or mip views
+    /// through a material does not allocate a new bind group per change.
     /// </summary>
     /// <param name="layout">The bind group layout of the consuming shader's group.</param>
     /// <param name="view">The texture view to bind (full-chain or single-mip).</param>
-    /// <param name="sampler">The companion sampler, or null when the group has no sampler binding.</param>
     /// <param name="binding">The binding number of the texture view inside the group.</param>
-    /// <param name="samplerBinding">The binding number of the sampler inside the group (used when <paramref name="sampler"/> is not null).</param>
     /// <returns>The cached or newly created resource group.</returns>
-    internal GPUResourceGroup GetOrCreateResourceGroup(GPUBindGroup layout, GPUTextureView view, GPUSampler? sampler, uint binding, uint samplerBinding)
+    internal GPUResourceGroup GetOrCreateResourceGroup(GPUBindGroup layout, GPUTextureView view, uint binding)
     {
         Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup> cache = _layoutResourceGroups ??= new Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup>();
         if (cache.TryGetValue((layout, view), out GPUResourceGroup? group))
@@ -175,9 +143,7 @@ public abstract class Texture : AutoDisposable
             return group;
         }
 
-        ResourceBindingEntry[] entries = sampler != null
-            ? new ResourceBindingEntry[] { new(binding, view), new(samplerBinding, sampler) }
-            : new ResourceBindingEntry[] { new(binding, view) };
+        ResourceBindingEntry[] entries = new ResourceBindingEntry[] { new(binding, view) };
         group = _device.CreateResourceGroup(new ResourceGroupDescriptor(layout, entries, $"{Name}_layout_bind_group"));
         cache[(layout, view)] = group;
         return group;
@@ -185,9 +151,9 @@ public abstract class Texture : AutoDisposable
 
     /// <summary>
     /// Drops the cached per-layout bind groups, e.g. after the native texture
-    /// or the sampler was replaced in place. The groups are not disposed:
-    /// recorded commands and material caches may still reference them; the
-    /// finalizer releases the native objects.
+    /// was replaced in place. The groups are not disposed: recorded commands
+    /// and material caches may still reference them; the finalizer releases
+    /// the native objects.
     /// </summary>
     internal void DiscardLayoutResourceGroups()
     {

@@ -17,11 +17,8 @@ import alco_rendering_core;
 public struct PassParams
 {
     public Texture2D _reflectionRaw;
-    public SamplerState _reflectionRawSampler;
     public Texture2D _reflectionHistory;
-    public SamplerState _reflectionHistorySampler;
     public Texture2D _historyMetadata;
-    public SamplerState _historyMetadataSampler;
     public Texture2D _normal;
     public DepthTexture2D _gbufferDepth;
 };
@@ -77,7 +74,7 @@ void MainPS(
         {
             float2 sampleUV = clamp(
                 input.uv + float2(x, y) * traceTexel, 0.0, 1.0);
-            float4 sampleReflection = _pass._reflectionRaw.Sample(_pass._reflectionRawSampler, sampleUV);
+            float4 sampleReflection = _pass._reflectionRaw.Sample(_samplers._linearClamp, sampleUV);
             int2 samplePixel = clamp(
                 int2(sampleUV * fullSize), int2(0, 0), int2(fullSize) - 1);
             float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, samplePixel);
@@ -133,9 +130,9 @@ void MainPS(
             if (all(previousUV >= 0.0) && all(previousUV <= 1.0)
                 && previousNdc.z >= 0.0 && previousNdc.z <= 1.0)
             {
-                history = _pass._reflectionHistory.Sample(_pass._reflectionHistorySampler, previousUV);
+                history = _pass._reflectionHistory.Sample(_samplers._linearClamp, previousUV);
                 float4 previousMetadata = _pass._historyMetadata.Sample(
-                    _pass._historyMetadataSampler, previousUV);
+                    _samplers._linearClamp, previousUV);
                 float3 previousNormal = SsrPostDecodeNormal(
                     previousMetadata.xy);
                 // Metadata stores linear receiver distance. R16F preserves this

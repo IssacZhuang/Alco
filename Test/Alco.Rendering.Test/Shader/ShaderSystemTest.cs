@@ -24,7 +24,7 @@ public class ShaderSystemTest
         };
 
         Texture2D _albedo        : register(t0, space1);
-        SamplerState _albedoSampler : register(s0, space1);
+        SamplerState _linearClamp : register(s0, space1);
 
         struct Vertex
         {
@@ -52,7 +52,7 @@ public class ShaderSystemTest
         {
             // Prove the import graph is live: core's helper and constant.
             float dither = OutputDither8Bit(input.position.xy) * 0.0;
-            return SampleTex2D(_albedo, _albedoSampler, input.uv) + dither + PI * 0.0;
+            return SampleTex2D(_albedo, _linearClamp, input.uv) + dither + PI * 0.0;
         }
         """;
 

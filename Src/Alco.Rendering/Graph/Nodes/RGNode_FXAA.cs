@@ -78,7 +78,7 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     /// <inheritdoc />
     protected override void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context)
     {
-        // The effect records onto the frame-shared buffer so the node executes in
+        // The effect records onto the frame-shared context so the node executes in
         // graph order inside the graph's single submission; hand it this frame's
         // timestamp span so both passes are bracketed by one pair.
         if (Instrumentation is { ShouldRecordGpu: true } instrumentation)
@@ -90,7 +90,7 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
         {
             _fxaa.TimestampSampler = null;
         }
-        _fxaa.Blit(context.RenderContext.CommandBuffer, input, output.FrameBuffer);
+        _fxaa.Blit(context.RenderContext, input, output.FrameBuffer);
     }
 
     /// <inheritdoc />

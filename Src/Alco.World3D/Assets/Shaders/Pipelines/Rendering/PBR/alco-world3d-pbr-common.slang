@@ -54,7 +54,6 @@ public struct LightsAndShadow
 {
     public RWStructuredBuffer<PointLightData> _pointLights;
     public DepthTexture2D _shadowMap;
-    public SamplerComparisonState _shadowMapSampler;
 };
 
 public ParameterBlock<LightsAndShadow> _lightsAndShadow;
@@ -157,7 +156,7 @@ public float SampleShadowMapPCF5x5(
                 quadrantMax);
             shadow += uWeights[x] * vWeights[y]
                 * _lightsAndShadow._shadowMap.SampleCmpLevelZero(
-                    _lightsAndShadow._shadowMapSampler, uv, compareDepth);
+                    _samplers._depthComparison, uv, compareDepth);
         }
     }
 
@@ -216,7 +215,7 @@ public float SampleShadowMapPCF7x7(
                 quadrantMax);
             shadow += uWeights[x] * vWeights[y]
                 * _lightsAndShadow._shadowMap.SampleCmpLevelZero(
-                    _lightsAndShadow._shadowMapSampler, uv, compareDepth);
+                    _samplers._depthComparison, uv, compareDepth);
         }
     }
 

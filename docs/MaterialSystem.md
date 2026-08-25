@@ -161,6 +161,23 @@ public sealed class GBufferRenderer : ...
 - 未绑的槽走**资产自己的兜底策略**:`MaterialAsset.GetTextureFallback(slot)` 返回 `White/Black/FlatNormal`，编译器映射到 `RenderingSystem.TextureWhite/TextureBlack/TextureFlatNormal`。基类恒白；`PbrMaterialAsset` 按槽名前缀给 `normal*` → flat normal、`emissive*` → 黑。不同材质家族可以有不同的兜底策略，不需要编译器知道任何槽名约定。
 - surface 资源声明在自己的 `ParameterBlock` 里（块名自由）；纹理槽从 surface 模块自身的反射枚举（`GetModuleTextureSlots`），不读任何 set 号——set 是组合产物，不是输入。
 
+## 共享 sampler 规则
+
+sampler 与纹理是**两种独立资源**：纹理不携带、不关联采样状态，shader 里的纹理声明不再有 companion sampler。采样统一走引擎级共享 sampler bank——`alco_rendering_core` 声明的 `_samplers` ParameterBlock（`SamplerBankParams`），import 该模块的 shader 自动把 bank 反射进自己的布局：
+
+```slang
+import alco_rendering_core;
+
+// 任意资源块里声明纹理——没有 companion sampler
+// 采样时按意图取 bank 成员：
+float4 c = _albedoTexture.Sample(_samplers._linearRepeat, uv);
+```
+
+- bank 由 `RenderingSystem.Samplers`（`SamplerLibrary`）持有并懒创建；GPUDevice 只保留 `CreateSampler(descriptor)` 原语，不再维护任何默认 sampler。成员名是唯一契约：`_linearClamp`、`_linearRepeat`、`_nearestClamp`、`_nearestRepeat`、`_linearMirrorRepeat`、`_nearestMirrorRepeat`、`_anisotropicClamp`（8x）、`_anisotropicRepeat`（8x）、`_depthComparison`（`SamplerComparisonState`，LessEqual，clamp）。
+- 解析发生在 bind group 组装期、按名字进行：material 的 `SetSampler` 覆盖（含 fallback 链继承）优先，其次 bank；名字既不是 bank 成员又没有覆盖 → 组装时抛 `GraphicsException`，不会静默失败。
+- 语义约定：屏幕空间 pass / render texture 读取 → `_linearClamp`；材质资产纹理 → `_linearRepeat`；阴影比较 → `_depthComparison`。
+- 自定义采样是显式特例：shader 声明自己的 `SamplerState _mySampler;` 成员（任意名字），material 侧 `parameterSet.SetSampler("_mySampler", device.CreateSampler(...))` 绑定。自定义 sampler 由调用方作为独立资源持有，绝不挂在纹理上。
+
 ## 参数块规则
 
 - surface 用 `[MaterialParams]` 标记自己的参数块——**属性由引擎核心库 `alco_rendering_core` 声明**，用它的 surface 模块 `import alco_rendering_core;`。块名自由，可以有多块：

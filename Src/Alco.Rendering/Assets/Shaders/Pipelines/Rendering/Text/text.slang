@@ -54,7 +54,6 @@ public ParameterBlock<TextBufferParams> _textBuffer;
 public struct MaterialParamsData
 {
     public Texture2D _font;
-    public SamplerState _fontSampler;
 };
 
 public ParameterBlock<MaterialParamsData> _material;
@@ -81,7 +80,7 @@ V2F MainVS(Vertex input) {
 float4 MainPS(V2F input) : SV_TARGET {
   TextData data = _textBuffer._textBuffer[input.instanceID];
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
-  float r = _material._font.Sample(_material._fontSampler, uv).r;
+  float r = _material._font.Sample(_samplers._linearRepeat, uv).r;
   // Emit premultiplied alpha for BlendState.PremultipliedAlpha (src=One, dst=OneMinusSrcAlpha).
   // Glyph coverage (r) is the geometric alpha; multiplying it with data.color.a gives the final
   // alpha, then RGB is premultiplied by that alpha. This zeroes both RGB and A when the parent

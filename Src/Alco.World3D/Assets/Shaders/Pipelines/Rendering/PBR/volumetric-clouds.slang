@@ -74,14 +74,12 @@ public ParameterBlock<CloudDataParams> _cloudData;
 
 
 
-// Cloud noise (generated once by volumetric-cloud-noise.slang). The samplers
-// sit beside their textures in the same block (linear repeat).
+// Cloud noise (generated once by volumetric-cloud-noise.slang), sampled
+// through the shared sampler bank's linear-repeat member.
 public struct CloudNoiseParams
 {
     public Texture3D _cloudBaseNoise;
-    public SamplerState _cloudBaseNoiseSampler;
     public Texture3D _cloudDetailNoise;
-    public SamplerState _cloudDetailNoiseSampler;
 };
 
 public ParameterBlock<CloudNoiseParams> _cloudNoise;
@@ -125,8 +123,8 @@ float CloudBaseDensity(float3 posKm, float bottomKm, float thicknessKm, float co
 {
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
     float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
-    float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_cloudNoise._cloudBaseNoiseSampler, winded * CLOUD_COVERAGE_SCALE, 0).r;
-    float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_cloudNoise._cloudBaseNoiseSampler, winded * CLOUD_BASE_SCALE, 0);
+    float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_COVERAGE_SCALE, 0).r;
+    float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_BASE_SCALE, 0);
     float coverageMask = CloudCoverageMask(lowFreq, coverage);
     float heightGradient = CloudHeightGradient(h, coverage);
     return CloudBaseShape(baseNoise, coverageMask, heightGradient);
@@ -143,7 +141,7 @@ float CloudFullDensity(float3 posKm, float bottomKm, float thicknessKm, float co
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
     float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
     float3 drift = float3(0.7, 0.31, 0.49) * _cloudData.cloudWind.w;
-    float3 detailNoise = _cloudNoise._cloudDetailNoise.SampleLevel(_cloudNoise._cloudDetailNoiseSampler, winded * CLOUD_DETAIL_SCALE + drift, 0).rgb;
+    float3 detailNoise = _cloudNoise._cloudDetailNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_DETAIL_SCALE + drift, 0).rgb;
     return CloudErodeShape(base, detailNoise, detailStrength, h);
 }
 

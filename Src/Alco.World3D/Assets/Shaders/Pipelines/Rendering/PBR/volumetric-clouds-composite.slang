@@ -61,7 +61,6 @@ public struct CloudDataParams
     public float4 cloudDebug;   // x=opacity debug view (grayscale) yzw=unused
 
     public Texture2D _clouds;
-    public SamplerState _cloudsSampler;
     public DepthTexture2D _gbufferDepth;
 };
 
@@ -130,7 +129,7 @@ float4 MainPS(V2F input) : SV_TARGET
             float depthWeight = exp(-abs(tapDepth - centerDepth) / sigma);
 
             float w = spatialWeight * depthWeight + 1e-5;
-            float4 tap = _cloudData._clouds.Sample(_cloudData._cloudsSampler, tapUv);
+            float4 tap = _cloudData._clouds.Sample(_samplers._linearClamp, tapUv);
             scattering += tap.rgb * w;
             opacity += tap.a * w;
             weightSum += w;

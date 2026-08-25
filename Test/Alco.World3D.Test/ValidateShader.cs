@@ -81,8 +81,8 @@ public class ValidateShader
 
         // The G-buffer template composed with the built-in surface: one block
         // per set with its register space — camera set 0, instances set 1,
-        // material resources set 2 — and compiler-assigned bindings inside
-        // each block, resolved by name.
+        // material resources set 2, then the shared sampler bank block — and
+        // compiler-assigned bindings inside each block, resolved by name.
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         ShaderReflectionInfo gbuffer = compiler.ComposeSurfaceShader(null,
                 engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"))
@@ -94,7 +94,7 @@ public class ValidateShader
 
         Assert.Multiple(() =>
         {
-            Assert.That(gbuffer.BindGroups.Count, Is.EqualTo(3));
+            Assert.That(gbuffer.BindGroups.Count, Is.EqualTo(4));
             AssertResource(gbuffer, "_camera", 0, 0, BindingType.UniformBuffer);
             AssertResource(gbuffer, "_instances", 1, 0, BindingType.StorageBuffer);
             AssertResource(gbuffer, "_albedoTexture", 2, 0, BindingType.Texture);

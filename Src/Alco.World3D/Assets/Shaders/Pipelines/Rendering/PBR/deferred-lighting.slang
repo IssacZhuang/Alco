@@ -39,31 +39,23 @@ struct V2F
 public struct LightingParams
 {
     public Texture2D _albedo;
-    public SamplerState _albedoSampler;
     public Texture2D _normal;
-    public SamplerState _normalSampler;
     public Texture2D _mrAO;
-    public SamplerState _mrAOSampler;
     public DepthTexture2D _gbufferDepth;
     public Texture2D _emissive;
-    public SamplerState _emissiveSampler;
 // Indirect GI textures from the GI render plugin (full-resolution):
 // diffuse irradiance with ALD directional modulation pre-applied, and
 // specular radiance. White/black fallbacks are bound by the pipeline when
 // no GI plugin is active.
     Texture2D _giDiffuse;
-    SamplerState _giDiffuseSampler;
     Texture2D _giSpecular;
-    SamplerState _giSpecularSampler;
 // Screen-space ambient occlusion from an AO render plugin (full-resolution,
 // white = unoccluded). The pipeline binds white when no AO plugin is active.
     Texture2D _aoTexture;
-    SamplerState _aoTextureSampler;
 // Cloud shadow coverage from the volumetric clouds plugin (r = 1 - column
 // transmittance at the cloud slab, camera-centered world grid; white when no
 // clouds plugin is active).
     public Texture2D _cloudShadow;
-    public SamplerState _cloudShadowSampler;
 };
 
 public ParameterBlock<LightingParams> _lighting;
@@ -124,9 +116,9 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
     // Debug: visualize the combined ambient occlusion (material × screen-space).
     if (DebugView == 1)
     {
-        float3 mrAO = _lighting._mrAO.Sample(_lighting._mrAOSampler, input.uv).xyz;
+        float3 mrAO = _lighting._mrAO.Sample(_samplers._linearClamp, input.uv).xyz;
         float matAO = mrAO.z;
-        float ssaoVal = _lighting._aoTexture.Sample(_lighting._aoTextureSampler, input.uv).r;
+        float ssaoVal = _lighting._aoTexture.Sample(_samplers._linearClamp, input.uv).r;
         float combined = matAO * ssaoVal;
         return float4(combined, combined, combined, 1.0);
     }
@@ -136,16 +128,16 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         return float4(GetSkyColor(viewDirection), 1.0);
     }
 
-    float3 albedo = DecodeSRGB(_lighting._albedo.Sample(_lighting._albedoSampler, input.uv).rgb);
-    float3 normalRT = _lighting._normal.Sample(_lighting._normalSampler, input.uv).xyz;
-    float4 mrAO = _lighting._mrAO.Sample(_lighting._mrAOSampler, input.uv);
+    float3 albedo = DecodeSRGB(_lighting._albedo.Sample(_samplers._linearClamp, input.uv).rgb);
+    float3 normalRT = _lighting._normal.Sample(_samplers._linearClamp, input.uv).xyz;
+    float4 mrAO = _lighting._mrAO.Sample(_samplers._linearClamp, input.uv);
 
     float3 N = normalize(normalRT * 2.0 - 1.0);
     float metallic = mrAO.x;
     float roughness = GeometricSpecularAA(N, mrAO.y);
     // Material AO from the G-buffer, screen-space AO from the AO plugin.
     float materialAO = mrAO.z;
-    float ssao = _lighting._aoTexture.Sample(_lighting._aoTextureSampler, input.uv).r;
+    float ssao = _lighting._aoTexture.Sample(_samplers._linearClamp, input.uv).r;
     float ao = materialAO * ssao;
     float3 V = -viewDirection; // surface to camera
 
@@ -173,7 +165,7 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         {
             float3 hit = worldPosition + L * ((_data.cloudShadow.y - worldPosition.z) / L.z);
             float2 uv = (hit.xy - _data.cameraPosition.xy) / _data.cloudShadow.z + 0.5;
-            sunShadow *= 1.0 - _data.cloudShadow.x * _lighting._cloudShadow.Sample(_lighting._cloudShadowSampler, uv).r;
+            sunShadow *= 1.0 - _data.cloudShadow.x * _lighting._cloudShadow.Sample(_samplers._linearClamp, uv).r;
         }
 
         Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
@@ -207,10 +199,10 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         // Full-resolution textures from the GI plugin's upsample pass. The
         // directional modulation (ALD), near/far layer blend and depth-weighted
         // upsampling have all been applied by the plugin already.
-        float4 giDiffuseSample = _lighting._giDiffuse.Sample(_lighting._giDiffuseSampler, input.uv);
+        float4 giDiffuseSample = _lighting._giDiffuse.Sample(_samplers._linearClamp, input.uv);
         float3 giDiffuseColor = giDiffuseSample.rgb;
         float giVisibility = giDiffuseSample.a;
-        float3 giSpecularColor = _lighting._giSpecular.Sample(_lighting._giSpecularSampler, input.uv).rgb;
+        float3 giSpecularColor = _lighting._giSpecular.Sample(_samplers._linearClamp, input.uv).rgb;
 
         // Debug: visualize bounce radiance, specular radiance, or voxel
         // environment visibility (white=open, black=occluded).
@@ -250,7 +242,7 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         + indirectSpecularTerm) * ao;
 
     // Emissive is added unshaded (stored linear in the G-buffer).
-    float3 emissive = _lighting._emissive.Sample(_lighting._emissiveSampler, input.uv).rgb;
+    float3 emissive = _lighting._emissive.Sample(_samplers._linearClamp, input.uv).rgb;
 
     float3 color = Lo + ambient + emissive;
 

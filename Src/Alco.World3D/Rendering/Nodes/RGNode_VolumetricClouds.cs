@@ -237,13 +237,14 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         _device = rendering.GraphicsDevice;
         _fullScreenMesh = rendering.MeshFullScreen;
 
-        GPUSampler noiseSampler = _device.GetSampler(FilterMode.Linear, AddressMode.Repeat);
+        // The 3D noise textures sample through the shared sampler bank on the
+        // shader side (repeat addressing for the tiling noise field).
         _baseNoise = rendering.CreateTexture3D(
             BaseNoiseSize, BaseNoiseSize, BaseNoiseSize, PixelFormat.RGBA8Unorm, 1,
-            TextureUsage.TextureBinding | TextureUsage.StorageBinding, noiseSampler, "cloud_base_noise");
+            TextureUsage.TextureBinding | TextureUsage.StorageBinding, "cloud_base_noise");
         _detailNoise = rendering.CreateTexture3D(
             DetailNoiseSize, DetailNoiseSize, DetailNoiseSize, PixelFormat.RGBA8Unorm, 1,
-            TextureUsage.TextureBinding | TextureUsage.StorageBinding, noiseSampler, "cloud_detail_noise");
+            TextureUsage.TextureBinding | TextureUsage.StorageBinding, "cloud_detail_noise");
 
         // Camera-centered shadow coverage map (sampled by the lighting pass
         // with a clamp-to-edge linear sampler).
@@ -256,7 +257,6 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             shadowTexture, TextureViewDimension.Texture2D, 0, 1, name: "cloud_shadow_coverage_view"));
         _shadowCoverage = rendering.CreateTexture2D(
             shadowTexture, shadowView,
-            _device.GetSampler(FilterMode.Linear, AddressMode.ClampToEdge),
             ownsResources: true);
 
         _dataBuffer = rendering.CreateGraphicsValueBuffer<VolumetricCloudsData>("volumetric_clouds_data");

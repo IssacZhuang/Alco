@@ -38,7 +38,6 @@ public ParameterBlock<DataParams> _data;
 public struct PassParams
 {
     public Texture2D _indirectGI;
-    public SamplerState _indirectGISampler;
     // G-buffer depth (for linear-depth-weighted blending) and normal (for ALD).
     public DepthTexture2D _gbufferDepth;
     public Texture2D _normal;
@@ -108,10 +107,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     for (int s = 0; s < 5; s++)
     {
         float2 tapUV = traceUV + sampleOffsets[s];
-        float4 tapDiffuseMin = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV, 0);
-        float4 tapDiffuseMax = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV + float2(1.0 / segmentCount, 0.0), 0);
-        float4 tapAldMin = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV + float2(3.0 / segmentCount, 0.0), 0);
-        float4 tapAldMax = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, tapUV + float2(4.0 / segmentCount, 0.0), 0);
+        float4 tapDiffuseMin = _pass._indirectGI.SampleLevel(_samplers._linearClamp, tapUV, 0);
+        float4 tapDiffuseMax = _pass._indirectGI.SampleLevel(_samplers._linearClamp, tapUV + float2(1.0 / segmentCount, 0.0), 0);
+        float4 tapAldMin = _pass._indirectGI.SampleLevel(_samplers._linearClamp, tapUV + float2(3.0 / segmentCount, 0.0), 0);
+        float4 tapAldMax = _pass._indirectGI.SampleLevel(_samplers._linearClamp, tapUV + float2(4.0 / segmentCount, 0.0), 0);
 
         float tapDepthMin = max(4.0, tapDiffuseMin.a);
         float tapDepthMax = max(4.0, tapDiffuseMax.a);
@@ -136,7 +135,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         indirectAldWeight += tapWeight;
     }
 
-    float4 indirectSpecularSection = _pass._indirectGI.SampleLevel(_pass._indirectGISampler, traceUV + float2(2.0 / segmentCount, 0.0), 0);
+    float4 indirectSpecularSection = _pass._indirectGI.SampleLevel(_samplers._linearClamp, traceUV + float2(2.0 / segmentCount, 0.0), 0);
     float3 indirectDiffuse = indirectDiffuseSum / indirectDiffuseWeight;
     float3 indirectSpecular = indirectSpecularSection.rgb;
     float selectedVisibility = indirectSpecularSection.a;

@@ -191,11 +191,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
                     if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
                     {
-                        renderPass.SetResources(_shaderId_Texture, texture.EntrySample);
+                        renderPass.SetResources(_shaderId_Texture, texture.EntryReadonly);
                     }
                     else
                     {
-                        renderPass.SetResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
+                        renderPass.SetResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntryReadonly);
                     }
 
                     Vector4 clipRect = cmd.ClipRect;

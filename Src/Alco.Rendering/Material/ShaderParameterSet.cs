@@ -12,11 +12,15 @@ namespace Alco.Rendering;
 /// lazily from the slot values: a group is (re)built only when one of its values
 /// changed, and identical contents are served from a per-group cache, so ping-pong
 /// updates (e.g. double buffering) do not recreate bind groups every frame.
-/// <br/>Groups that resolve from a single slot (one resource plus its sampler)
-/// are cached on the resource itself, keyed by the group
-/// layout: they are created once per resource and reused across frames and
-/// materials, so slots whose value changes per instance (e.g. the voxel GI
-/// voxelize dispatch cycling mesh buffers) do not allocate new bind groups.
+/// <br/>Groups that resolve from a single slot (one resource) are cached on the
+/// resource itself, keyed by the group layout: they are created once per resource
+/// and reused across frames and materials, so slots whose value changes per
+/// instance (e.g. the voxel GI voxelize dispatch cycling mesh buffers) do not
+/// allocate new bind groups.
+/// <br/>Sampler entries (the shared sampler bank's members or a module's own
+/// sampler declarations) are not texture companions: they resolve by their own
+/// name — a material-bound override first, else the rendering system's sampler
+/// library, so textures and samplers are independent resources.
 /// </summary>
 public sealed class ShaderParameterSet
 {
@@ -29,7 +33,6 @@ public sealed class ShaderParameterSet
     private enum ResourceType
     {
         Unavailable,
-        TextureWithSampler,
         TextureRead,
         TextureStorage,
         UniformBuffer,
@@ -56,7 +59,10 @@ public sealed class ShaderParameterSet
     private enum EntryKind : byte
     {
         Resource,
-        OwnerSampler
+        // A sampler entry (shared sampler bank member or a module's own sampler
+        // declaration), resolved by its own name from the sampler overrides or
+        // the sampler library.
+        SharedSampler
     }
 
     // How to fill one binding of a bind group during assembly.
@@ -66,6 +72,8 @@ public sealed class ShaderParameterSet
         public BindingType entryType;
         public EntryKind kind;
         public int slotIndex;
+        // The shader-side name of a SharedSampler entry; null for Resource.
+        public string? sharedName;
     }
 
     private sealed class GroupState
@@ -84,6 +92,11 @@ public sealed class ShaderParameterSet
     }
 
     private readonly GPUDevice _device;
+    private readonly SamplerLibrary _samplers;
+    // Material-bound sampler overrides by shader entry name; resolved ahead of
+    // the sampler library (custom samplers are independent resources bound by
+    // name, never attached to a texture).
+    private readonly Dictionary<string, GPUSampler> _samplerOverrides = new();
     private ShaderReflectionInfo _reflectionInfo;
     private Slot[] _slots;
     private GroupState[] _groups;
@@ -134,10 +147,12 @@ public sealed class ShaderParameterSet
     /// Initialize the shader parameter set.
     /// </summary>
     /// <param name="device">The GPU device used to assemble the bind groups.</param>
+    /// <param name="samplers">The rendering system's sampler library, resolving sampler entries by name.</param>
     /// <param name="reflectionInfo">The reflection information of the shader.</param>
-    internal ShaderParameterSet(GPUDevice device, ShaderReflectionInfo reflectionInfo)
+    internal ShaderParameterSet(GPUDevice device, SamplerLibrary samplers, ShaderReflectionInfo reflectionInfo)
     {
         _device = device;
+        _samplers = samplers;
         _reflectionInfo = reflectionInfo;
         _slots = [];
         _groups = [];
@@ -384,6 +399,71 @@ public sealed class ShaderParameterSet
 
     #endregion
 
+
+    #region Set Sampler
+
+    /// <summary>
+    /// Try to bind a custom sampler to the shader's sampler entry of the given
+    /// name (a shared sampler bank member or a module's own sampler declaration).
+    /// The override resolves ahead of the sampler library; entries without an
+    /// override resolve from the library.
+    /// </summary>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_linearClamp</c>).</param>
+    /// <param name="sampler">The custom sampler to bind.</param>
+    /// <returns>Whether any bind group of this shader declares the sampler entry.</returns>
+    public bool TrySetSampler(string name, GPUSampler sampler)
+    {
+        if (!HasSamplerEntry(name))
+        {
+            return false;
+        }
+
+        _samplerOverrides[name] = sampler;
+        MarkAllDirty();
+        return true;
+    }
+
+    /// <summary>
+    /// Bind a custom sampler to the shader's sampler entry of the given name.
+    /// </summary>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_linearClamp</c>).</param>
+    /// <param name="sampler">The custom sampler to bind.</param>
+    /// <exception cref="KeyNotFoundException">No bind group of this shader declares the sampler entry.</exception>
+    public void SetSampler(string name, GPUSampler sampler)
+    {
+        if (!TrySetSampler(name, sampler))
+        {
+            throw new KeyNotFoundException($"Sampler entry '{name}' not found in shader");
+        }
+    }
+
+    private bool HasSamplerEntry(string name)
+    {
+        for (int i = 0; i < _groups.Length; i++)
+        {
+            EntryPlan[] plans = _groups[i].plans;
+            for (int p = 0; p < plans.Length; p++)
+            {
+                if (plans[p].kind == EntryKind.SharedSampler && plans[p].sharedName == name)
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void MarkAllDirty()
+    {
+        for (int i = 0; i < _groups.Length; i++)
+        {
+            _groups[i].dirty = true;
+        }
+        _version++;
+    }
+
+    #endregion
 
     #region Set Texture
 
@@ -852,7 +932,7 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        if (slot.type != ResourceType.TextureRead && slot.type != ResourceType.TextureWithSampler)
+        if (slot.type != ResourceType.TextureRead)
         {
             return false;
         }
@@ -879,9 +959,8 @@ public sealed class ShaderParameterSet
     /// <summary>
     /// Set the depth texture in the render texture to the shader parameter set.
     /// The target resource must be a depth texture (a texture declared with the
-    /// Slang depth-texture type); a texture-only
-    /// resource gets the depth view, a texture-and-comparison-sampler resource
-    /// additionally gets the device default comparison sampler.
+    /// Slang depth-texture type) bound as a read-only view; comparison sampling
+    /// goes through the sampler library's <c>_depthComparison</c> bank member.
     /// </summary>
     /// <param name="id">The shader resource ID of the resource.</param>
     /// <param name="renderTexture">The render texture to set.</param>
@@ -903,9 +982,9 @@ public sealed class ShaderParameterSet
             throw new InvalidOperationException($"The resource {id}({_reflectionInfo.GetResourceName(id)}) is not a depth texture. Declare it with a Slang depth texture type.");
         }
 
-        if (slot.type != ResourceType.TextureRead && slot.type != ResourceType.TextureWithSampler)
+        if (slot.type != ResourceType.TextureRead)
         {
-            throw new InvalidOperationException($"The depth texture only supports texture read or texture with sampler which is not the case for resource {id}({_reflectionInfo.GetResourceName(id)}).");
+            throw new InvalidOperationException($"The depth texture only supports texture read which is not the case for resource {id}({_reflectionInfo.GetResourceName(id)}).");
         }
 
         SetTextureValue(ref slot, null, renderTexture, RenderTextureIndexDepth, 0, false);
@@ -1034,6 +1113,12 @@ public sealed class ShaderParameterSet
                 EntryPlan[] plans = group.plans;
                 for (int p = 0; p < plans.Length; p++)
                 {
+                    if (plans[p].kind != EntryKind.Resource)
+                    {
+                        // Sampler entries have no slot.
+                        continue;
+                    }
+
                     ref Slot slot = ref _slots[plans[p].slotIndex];
                     RenderTexture? renderTexture = slot.renderTexture;
                     if (renderTexture != null && renderTexture.Version != slot.renderTextureVersion)
@@ -1081,9 +1166,8 @@ public sealed class ShaderParameterSet
     }
 
     /// <summary>
-    /// Whether the resource with the given id is a sampled texture slot (texture and
-    /// sampler, not a depth texture) that has no value yet and therefore accepts the
-    /// default texture.
+    /// Whether the resource with the given id is a texture slot that has no value
+    /// yet and therefore accepts the default texture.
     /// </summary>
     /// <param name="id">The shader resource ID of the resource.</param>
     /// <returns>True if the slot accepts the default texture.</returns>
@@ -1095,7 +1179,7 @@ public sealed class ShaderParameterSet
         }
 
         ref Slot slot = ref _slots[id];
-        return slot.type == ResourceType.TextureWithSampler
+        return slot.type == ResourceType.TextureRead
             && !slot.isDepth
             && slot.texture == null
             && slot.renderTexture == null;
@@ -1160,12 +1244,11 @@ public sealed class ShaderParameterSet
     }
 
     /// <summary>
-    /// Assembles a group whose plans all resolve from one slot: one Resource
-    /// entry plus an optional sampler companion of that same slot. The
-    /// bind group of such a group is a pure function of the slot value and the
-    /// group layout, so it is cached on the buffer or texture itself (see
-    /// <see cref="GraphicsBuffer.GetOrCreateResourceGroup"/> and
-    /// <see cref="Texture.GetOrCreateResourceGroup"/>) instead of the per-group
+    /// Assembles a group whose plans resolve from one slot: exactly one Resource
+    /// entry and no sampler entries. The bind group of such a group is a pure
+    /// function of the slot value and the group layout, so it is cached on the
+    /// buffer or texture itself (see <see cref="GraphicsBuffer.GetOrCreateResourceGroup"/>
+    /// and <see cref="Texture.GetOrCreateResourceGroup"/>) instead of the per-group
     /// LRU: created once per resource and reused no matter how often the slot
     /// changes, for this set or any other set binding the same resource.
     /// <br/>Slots resolved through the fallback chain or backed by render
@@ -1177,16 +1260,20 @@ public sealed class ShaderParameterSet
         int resourceIndex = -1;
         for (int i = 0; i < plans.Length; i++)
         {
-            if (plans[i].kind == EntryKind.Resource)
+            if (plans[i].kind != EntryKind.Resource)
             {
-                if (resourceIndex >= 0)
-                {
-                    // More than one resource in the group.
-                    return false;
-                }
-
-                resourceIndex = i;
+                // Sampler entries resolve independently (sampler library or
+                // overrides): not a single-slot group.
+                return false;
             }
+
+            if (resourceIndex >= 0)
+            {
+                // More than one resource in the group.
+                return false;
+            }
+
+            resourceIndex = i;
         }
 
         if (resourceIndex < 0)
@@ -1194,32 +1281,7 @@ public sealed class ShaderParameterSet
             return false;
         }
 
-        int resourceSlot = plans[resourceIndex].slotIndex;
-        uint samplerBinding = 0;
-        bool hasSampler = false;
-        bool comparisonSampler = false;
-        for (int i = 0; i < plans.Length; i++)
-        {
-            if (plans[i].kind == EntryKind.Resource)
-            {
-                continue;
-            }
-
-            if (plans[i].slotIndex != resourceSlot)
-            {
-                // A companion of another resource: not a single-slot group.
-                return false;
-            }
-
-            if (plans[i].kind == EntryKind.OwnerSampler)
-            {
-                hasSampler = true;
-                samplerBinding = plans[i].binding;
-                comparisonSampler = plans[i].entryType == BindingType.SamplerComparison;
-            }
-        }
-
-        ref Slot slot = ref _slots[resourceSlot];
+        ref Slot slot = ref _slots[plans[resourceIndex].slotIndex];
         uint resourceBinding = plans[resourceIndex].binding;
         if (slot.buffer != null)
         {
@@ -1236,11 +1298,8 @@ public sealed class ShaderParameterSet
                 return false;
             }
 
-            GPUSampler? sampler = !hasSampler
-                ? null
-                : comparisonSampler ? _device.SamplerDepthComparison : ResolveSampler(in slot);
             group.layout ??= _device.CreateBindGroup(_reflectionInfo.BindGroups[groupIndex].ToDescriptor($"material_bind_group_layout_{groupIndex}"));
-            resourceGroup = slot.texture.GetOrCreateResourceGroup(group.layout, view, sampler, resourceBinding, samplerBinding);
+            resourceGroup = slot.texture.GetOrCreateResourceGroup(group.layout, view, resourceBinding);
             return true;
         }
 
@@ -1250,7 +1309,35 @@ public sealed class ShaderParameterSet
 
     private IGPUBindableResource? ResolveEntryValue(in EntryPlan plan)
     {
-        IGPUBindableResource? value = ResolveOwnSlot(plan.slotIndex, plan.kind, plan.entryType);
+        // Sampler entries resolve by their own name: own override, then the
+        // fallback chain's overrides, then the sampler library. They are not
+        // slots, so the resource-name walk below does not apply.
+        if (plan.kind == EntryKind.SharedSampler)
+        {
+            string samplerName = plan.sharedName!;
+            if (_samplerOverrides.TryGetValue(samplerName, out GPUSampler? own))
+            {
+                return own;
+            }
+
+            for (ShaderParameterSet? set = _fallback; set != null; set = set._fallback)
+            {
+                if (set._samplerOverrides.TryGetValue(samplerName, out GPUSampler? inherited))
+                {
+                    return inherited;
+                }
+            }
+
+            if (!_samplers.TryGetByName(samplerName, out GPUSampler? bank))
+            {
+                throw new GraphicsException(
+                    $"Unknown sampler entry '{samplerName}': it is not a shared sampler bank member and no sampler was bound for it (bind one through the material's SetSampler).");
+            }
+
+            return bank;
+        }
+
+        IGPUBindableResource? value = ResolveOwnSlot(plan.slotIndex);
         if (value != null)
         {
             return value;
@@ -1264,7 +1351,7 @@ public sealed class ShaderParameterSet
         {
             if (set._reflectionInfo.TryGetResourceId(name, out uint fallbackId))
             {
-                value = set.ResolveOwnSlot((int)fallbackId, plan.kind, plan.entryType);
+                value = set.ResolveOwnSlot((int)fallbackId);
                 if (value != null)
                 {
                     return value;
@@ -1275,31 +1362,17 @@ public sealed class ShaderParameterSet
         return null;
     }
 
-    private IGPUBindableResource? ResolveOwnSlot(int slotIndex, EntryKind kind, BindingType entryType)
+    private IGPUBindableResource? ResolveOwnSlot(int slotIndex)
     {
         ref Slot slot = ref _slots[slotIndex];
-        switch (kind)
+        switch (slot.type)
         {
-            case EntryKind.Resource:
-                switch (slot.type)
-                {
-                    case ResourceType.UniformBuffer:
-                    case ResourceType.StorageBuffer:
-                        return slot.buffer?.NativeBuffer;
-                    case ResourceType.TextureWithSampler:
-                    case ResourceType.TextureRead:
-                    case ResourceType.TextureStorage:
-                        return ResolveView(in slot);
-                    default:
-                        return null;
-                }
-            case EntryKind.OwnerSampler:
-                if (entryType == BindingType.SamplerComparison)
-                {
-                    return _device.SamplerDepthComparison;
-                }
-
-                return ResolveSampler(in slot);
+            case ResourceType.UniformBuffer:
+            case ResourceType.StorageBuffer:
+                return slot.buffer?.NativeBuffer;
+            case ResourceType.TextureRead:
+            case ResourceType.TextureStorage:
+                return ResolveView(in slot);
             default:
                 return null;
         }
@@ -1336,21 +1409,6 @@ public sealed class ShaderParameterSet
         return texture.View;
     }
 
-    private GPUSampler? ResolveSampler(in Slot slot)
-    {
-        if (slot.renderTexture != null)
-        {
-            if (slot.renderTextureIndex == RenderTextureIndexDepth)
-            {
-                return _device.SamplerDepthComparison;
-            }
-
-            return slot.renderTexture.ColorTextures[slot.renderTextureIndex].Sampler;
-        }
-
-        return slot.texture?.Sampler;
-    }
-
     private void SetTextureValue(ref Slot slot, Texture? texture, RenderTexture? renderTexture, int renderTextureIndex, uint mipLevel, bool mipView)
     {
         if (ReferenceEquals(slot.texture, texture)
@@ -1381,8 +1439,7 @@ public sealed class ShaderParameterSet
 
     private static bool IsTextureSlot(ResourceType type)
     {
-        return type == ResourceType.TextureWithSampler
-            || type == ResourceType.TextureRead
+        return type == ResourceType.TextureRead
             || type == ResourceType.TextureStorage;
     }
 
@@ -1415,15 +1472,15 @@ public sealed class ShaderParameterSet
             {
                 BindingType.UniformBuffer => ResourceType.UniformBuffer,
                 BindingType.StorageBuffer => ResourceType.StorageBuffer,
-                // Upgraded to TextureWithSampler in pass 2 when a sampler companion exists.
                 BindingType.Texture => ResourceType.TextureRead,
                 BindingType.StorageTexture => ResourceType.TextureStorage,
                 _ => ResourceType.Unavailable,
             };
         }
 
-        // Pass 2: per-group entry plans; resolve sampler companions to the
-        // texture resource that owns them.
+        // Pass 2: per-group entry plans. Sampler entries are independent
+        // resources resolved by their own name (sampler library or material
+        // override); textures and buffers resolve from their slot.
         for (int groupIndex = 0; groupIndex < groupCount; groupIndex++)
         {
             IReadOnlyList<BindGroupEntryInfo> bindings = reflection.BindGroups[groupIndex].Bindings;
@@ -1439,15 +1496,9 @@ public sealed class ShaderParameterSet
                     case BindingType.Sampler:
                     case BindingType.SamplerComparison:
                     {
-                        int owner = FindOwnerSlot(locations, groupIndex, entry, BindingType.Texture);
-                        plans[entryIndex].kind = EntryKind.OwnerSampler;
-                        plans[entryIndex].slotIndex = owner;
-                        ref Slot ownerSlot = ref _slots[owner];
-                        if (ownerSlot.type == ResourceType.TextureRead)
-                        {
-                            ownerSlot.type = ResourceType.TextureWithSampler;
-                        }
-
+                        plans[entryIndex].kind = EntryKind.SharedSampler;
+                        plans[entryIndex].slotIndex = -1;
+                        plans[entryIndex].sharedName = entry.Name;
                         break;
                     }
                     default:
@@ -1462,7 +1513,9 @@ public sealed class ShaderParameterSet
             bool hasTextureSlots = false;
             for (int i = 0; i < plans.Length; i++)
             {
-                if (IsTextureSlot(_slots[plans[i].slotIndex].type))
+                // SharedSampler plans carry no slot (slotIndex -1); only resource
+                // plans index into _slots.
+                if (plans[i].kind == EntryKind.Resource && IsTextureSlot(_slots[plans[i].slotIndex].type))
                 {
                     hasTextureSlots = true;
                     break;
@@ -1486,24 +1539,4 @@ public sealed class ShaderParameterSet
         throw new InvalidOperationException($"The entry at binding {entryIndex} of bind group {groupIndex} is not a settable resource.");
     }
 
-    // A sampler companion belongs to the texture at the preceding reflected
-    // binding in the same bind group. Slang reflects the sampler kind directly;
-    // no resource-name suffix participates in the decision.
-    private static int FindOwnerSlot(IReadOnlyList<ShaderResourceLocation> locations, int groupIndex, in BindGroupEntry entry, BindingType ownerType)
-    {
-        if (entry.Binding > 0)
-        {
-            for (int i = 0; i < locations.Count; i++)
-            {
-                if (locations[i].GroupIndex == groupIndex
-                && locations[i].Type == ownerType
-                && locations[i].Binding == entry.Binding - 1)
-                {
-                    return i;
-                }
-            }
-        }
-
-        throw new InvalidOperationException($"The sampler entry '{entry.Name}' in bind group {groupIndex} has no owning {ownerType} resource at the preceding binding.");
-    }
 }
