@@ -189,6 +189,17 @@ public readonly struct VoxelGiDescriptor
 /// <br/>Mesh geometry is registered once through <see cref="RegisterMesh"/> and
 /// shared by persistent structural instances and per-frame movable instances.
 /// Structural bricks are rebuilt incrementally after edits or camera scrolling.
+/// <br/>Known limitation: registered textures may still be streaming their content
+/// in place (see <see cref="RenderingSystem.CreateTexture2DStreaming"/>). The binding
+/// needs no accommodation — the bound texture object is never replaced, so every
+/// dispatch samples the latest content. But voxel attributes are surface samples
+/// baked at voxelize time, and content arrival raises no invalidation: a brick
+/// voxelized before its texture arrived keeps the stale (zero-initialized) sample
+/// until its region is invalidated by an edit or a clipmap scroll. In practice the
+/// rate-limited dirty-brick drain voxelizes most bricks after their textures have
+/// arrived, so the defect is barely perceptible; consumers that need the baked
+/// lighting correct right after load can call <see cref="InvalidateStatic()"/> once
+/// streaming has settled.
 /// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting
 /// pass; the resulting configurable-resolution <see cref="IndirectTexture"/>
 /// atlas is upsampled internally to the full-resolution <see cref="DiffuseTexture"/>
@@ -1256,7 +1267,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _clipmap.InvalidateAll();
     }
 
-    /// <summary>Schedule a static re-voxelization of every clipmap level.</summary>
+    /// <summary>Schedule a static re-voxelization of every clipmap level. Also the remedy
+    /// when baked attributes went stale for reasons the node cannot observe — e.g. texture
+    /// content that streamed in after the bricks were voxelized (see the class remarks).</summary>
     public void InvalidateStatic()
     {
         for (int level = 0; level < LevelCount; level++)
