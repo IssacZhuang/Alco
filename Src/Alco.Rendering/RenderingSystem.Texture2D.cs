@@ -167,13 +167,15 @@ public partial class RenderingSystem
     /// content is uploaded in place later via <see cref="UploadTexture2DContent"/>.
     /// The backend zero-initializes the content, so until the upload arrives sampling
     /// yields transparent black.
+    /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
+    /// public creation path.
     /// </summary>
     /// <param name="info">The probed file header.</param>
     /// <param name="option">Image load options. For block-compressed files the format
     /// and mip count come from <paramref name="info"/> instead (the same rule as
     /// <see cref="CreateTexture2DFromDds"/>).</param>
     /// <returns>A new Texture2D instance with zero-initialized content.</returns>
-    public Texture2D CreateTexture2DFromHeader(in ImageFileInfo info, ImageLoadOption? option = null)
+    internal Texture2D CreateTexture2DFromHeader(in ImageFileInfo info, ImageLoadOption? option = null)
     {
         if (!info.IsBlockCompressed)
         {
@@ -219,6 +221,8 @@ public partial class RenderingSystem
     /// for streaming loads. DDS files (BC1-BC7) upload their blocks and mip chain
     /// verbatim; other formats (PNG/JPEG) decode to RGBA8 and upload mip 0.
     /// <br/>There is no thread constraint: the upload may run on any thread.
+    /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
+    /// public upload path.
     /// </summary>
     /// <param name="texture">The target texture, previously created at the file's
     /// specification.</param>
@@ -228,7 +232,7 @@ public partial class RenderingSystem
     /// <exception cref="InvalidOperationException">The texture is not writable.</exception>
     /// <exception cref="ImageDecodeException">The file is invalid, or its specification
     /// differs from the texture's (the texture is left untouched).</exception>
-    public unsafe void UploadTexture2DContent(Texture2D texture, ReadOnlySpan<byte> fileBytes, ImageLoadOption? option = null)
+    internal unsafe void UploadTexture2DContent(Texture2D texture, ReadOnlySpan<byte> fileBytes, ImageLoadOption? option = null)
     {
         if (!texture.IsWriteable)
         {
@@ -291,19 +295,12 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Process-wide limit of concurrent streaming texture decodes; decoding is CPU-bound
-    /// and a 4K decode peaks at ~64MB of native memory, so unbounded fan-out must not happen.
-    /// </summary>
-    private static readonly SemaphoreSlim TextureStreamSlots = new(Math.Max(2, Environment.ProcessorCount));
-
-    /// <summary>
     /// Creates a Texture2D whose content streams in asynchronously: the header is probed
     /// from the stream (reading only the bytes each format's header needs, see
     /// <see cref="ImageDecodeUtility.GetImageFileInfo(Stream, bool)"/>), the texture is
     /// created at its final specification, and the file content is then read and uploaded
-    /// in place on a thread-pool thread (rate-limited process-wide). The texture's
-    /// identity never changes; a failed upload leaves the zero-initialized content and
-    /// logs a warning.
+    /// in place on a thread-pool thread. The texture's identity never changes; a failed
+    /// upload leaves the zero-initialized content and logs a warning.
     /// <br/>On success the stream's ownership transfers to the streaming task, which
     /// disposes it on completion; when probing fails (an <see cref="ImageDecodeException"/>
     /// escapes this call) the caller keeps ownership of the stream.
@@ -340,7 +337,6 @@ public partial class RenderingSystem
     /// </summary>
     private async Task StreamTexture2DContentAsync(Texture2D texture, Stream stream, ImageLoadOption option)
     {
-        await TextureStreamSlots.WaitAsync().ConfigureAwait(false);
         try
         {
             await Task.Run(() =>
@@ -358,10 +354,6 @@ public partial class RenderingSystem
         {
             // Includes a disposed texture when its owner was disposed mid-upload.
             Log.Warning($"Failed to stream texture '{texture.Name}': {ex.Message}");
-        }
-        finally
-        {
-            TextureStreamSlots.Release();
         }
     }
 
