@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
@@ -22,7 +23,11 @@ public class GraphicsBuffer : AutoDisposable
     // group is fully determined by (buffer, layout), so one group per layout
     // is created for the buffer's lifetime and shared across materials and
     // frames instead of being rebuilt on every slot change.
-    private Dictionary<GPUBindGroup, GPUResourceGroup>? _layoutResourceGroups;
+    // Thread safety: reads are lock free; the first creation per key serializes
+    // on _createGroupLock, so materials on multiple threads may bind the same
+    // buffer concurrently. The lock also guards the lazy counter buffer.
+    private readonly ConcurrentDictionary<GPUBindGroup, GPUResourceGroup> _layoutResourceGroups = new();
+    private readonly Lock _createGroupLock = new();
 
     /// <summary>The <paramref name="counterBinding"/> value of
     /// <see cref="GetOrCreateResourceGroup"/> for groups without a counter companion.</summary>
@@ -35,12 +40,15 @@ public class GraphicsBuffer : AutoDisposable
         {
             if (_bufferCounter == null)
             {
-                _bufferCounter = _device.CreateBuffer(new BufferDescriptor
+                lock (_createGroupLock)
                 {
-                    Usage = BufferUsage.Storage,
-                    Size = sizeof(uint),// todo: impl the real counter struct
-                    Name = $"{Name}_counter"
-                });
+                    _bufferCounter ??= _device.CreateBuffer(new BufferDescriptor
+                    {
+                        Usage = BufferUsage.Storage,
+                        Size = sizeof(uint),// todo: impl the real counter struct
+                        Name = $"{Name}_counter"
+                    });
+                }
             }
 
             return _bufferCounter;
@@ -123,18 +131,25 @@ public class GraphicsBuffer : AutoDisposable
     /// <returns>The cached or newly created resource group.</returns>
     internal GPUResourceGroup GetOrCreateResourceGroup(GPUBindGroup layout, uint binding, uint counterBinding = NoCounterBinding)
     {
-        Dictionary<GPUBindGroup, GPUResourceGroup> cache = _layoutResourceGroups ??= new Dictionary<GPUBindGroup, GPUResourceGroup>();
-        if (cache.TryGetValue(layout, out GPUResourceGroup? group))
+        if (_layoutResourceGroups.TryGetValue(layout, out GPUResourceGroup? group))
         {
             return group;
         }
 
-        ResourceBindingEntry[] entries = counterBinding == NoCounterBinding
-            ? new ResourceBindingEntry[] { new(binding, NativeBuffer) }
-            : new ResourceBindingEntry[] { new(binding, NativeBuffer), new(counterBinding, CounterBuffer) };
-        group = _device.CreateResourceGroup(new ResourceGroupDescriptor(layout, entries, $"{Name}_layout_bind_group"));
-        cache[layout] = group;
-        return group;
+        lock (_createGroupLock)
+        {
+            if (_layoutResourceGroups.TryGetValue(layout, out group))
+            {
+                return group;
+            }
+
+            ResourceBindingEntry[] entries = counterBinding == NoCounterBinding
+                ? new ResourceBindingEntry[] { new(binding, NativeBuffer) }
+                : new ResourceBindingEntry[] { new(binding, NativeBuffer), new(counterBinding, CounterBuffer) };
+            group = _device.CreateResourceGroup(new ResourceGroupDescriptor(layout, entries, $"{Name}_layout_bind_group"));
+            _layoutResourceGroups[layout] = group;
+            return group;
+        }
     }
 
     /// <summary>
@@ -247,15 +262,12 @@ public class GraphicsBuffer : AutoDisposable
             _resourcesReadOnly?.Dispose();
             _resourcesReadWrite?.Dispose();
             _resourcesReadWriteWithCounter?.Dispose();
-            if (_layoutResourceGroups != null)
+            foreach (GPUResourceGroup group in _layoutResourceGroups.Values)
             {
-                foreach (GPUResourceGroup group in _layoutResourceGroups.Values)
-                {
-                    group.Dispose();
-                }
-
-                _layoutResourceGroups = null;
+                group.Dispose();
             }
+
+            _layoutResourceGroups.Clear();
         }
 
     }

@@ -40,12 +40,24 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
         }
     }
 
+    private readonly Lock _flushLock = new();
+
     private void FlushDirty()
     {
         if (_dirty)
         {
-            UpdateBuffer(_data.ViewProjectionMatrix);
-            _dirty = false;
+            // Materials on any number of threads read this buffer during bind
+            // group assembly; without the guard several of them would issue the
+            // same pending upload concurrently (buffer writes are externally
+            // synchronized in the native layer).
+            lock (_flushLock)
+            {
+                if (_dirty)
+                {
+                    UpdateBuffer(_data.ViewProjectionMatrix);
+                    _dirty = false;
+                }
+            }
         }
     }
 

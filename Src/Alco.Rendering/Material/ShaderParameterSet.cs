@@ -21,6 +21,12 @@ namespace Alco.Rendering;
 /// sampler declarations) are not texture companions: they resolve by their own
 /// name — a material-bound override first, else the rendering system's sampler
 /// library, so textures and samplers are independent resources.
+/// <br/>Thread safety: one material (its parameter set) is used from a single
+/// thread at a time, but different materials may live on different threads —
+/// every state they transitively share (the sampler bank, per-resource bind
+/// group caches, the shader module/pipeline caches) is synchronized; the
+/// native layer only requires command recording and buffer/texture writes to
+/// stay per-thread.
 /// </summary>
 public sealed class ShaderParameterSet
 {

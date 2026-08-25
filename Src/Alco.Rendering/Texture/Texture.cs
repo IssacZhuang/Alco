@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
@@ -28,7 +29,11 @@ public abstract class Texture : AutoDisposable
     // lifetime and shared across materials and frames instead of being
     // rebuilt on every slot change. Samplers never appear here: they are
     // independent resources bound by the consuming shader's sampler entries.
-    private Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup>? _layoutResourceGroups;
+    // Thread safety: reads are lock free; the first creation per key serializes
+    // on _createGroupLock, so materials on multiple threads may bind the same
+    // texture concurrently.
+    private readonly ConcurrentDictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup> _layoutResourceGroups = new();
+    private readonly Lock _createGroupLock = new();
 
     public string Name { get; }
 
@@ -137,16 +142,23 @@ public abstract class Texture : AutoDisposable
     /// <returns>The cached or newly created resource group.</returns>
     internal GPUResourceGroup GetOrCreateResourceGroup(GPUBindGroup layout, GPUTextureView view, uint binding)
     {
-        Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup> cache = _layoutResourceGroups ??= new Dictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup>();
-        if (cache.TryGetValue((layout, view), out GPUResourceGroup? group))
+        if (_layoutResourceGroups.TryGetValue((layout, view), out GPUResourceGroup? group))
         {
             return group;
         }
 
-        ResourceBindingEntry[] entries = new ResourceBindingEntry[] { new(binding, view) };
-        group = _device.CreateResourceGroup(new ResourceGroupDescriptor(layout, entries, $"{Name}_layout_bind_group"));
-        cache[(layout, view)] = group;
-        return group;
+        lock (_createGroupLock)
+        {
+            if (_layoutResourceGroups.TryGetValue((layout, view), out group))
+            {
+                return group;
+            }
+
+            ResourceBindingEntry[] entries = new ResourceBindingEntry[] { new(binding, view) };
+            group = _device.CreateResourceGroup(new ResourceGroupDescriptor(layout, entries, $"{Name}_layout_bind_group"));
+            _layoutResourceGroups[(layout, view)] = group;
+            return group;
+        }
     }
 
     /// <summary>
@@ -157,7 +169,7 @@ public abstract class Texture : AutoDisposable
     /// </summary>
     internal void DiscardLayoutResourceGroups()
     {
-        _layoutResourceGroups = null;
+        _layoutResourceGroups.Clear();
     }
 
     protected override void Dispose(bool disposing)
@@ -169,14 +181,14 @@ public abstract class Texture : AutoDisposable
             _textureView?.Dispose();
         }
 
-        if (disposing && _layoutResourceGroups != null)
+        if (disposing)
         {
             foreach (GPUResourceGroup group in _layoutResourceGroups.Values)
             {
                 group.Dispose();
             }
 
-            _layoutResourceGroups = null;
+            _layoutResourceGroups.Clear();
         }
     }
 

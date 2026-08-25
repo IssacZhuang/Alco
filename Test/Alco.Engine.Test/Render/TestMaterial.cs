@@ -1,3 +1,4 @@
+using System.Threading;
 using NUnit.Framework;
 using Alco.Graphics;
 using Alco.Rendering;
@@ -147,6 +148,106 @@ public class TestMaterial
             FilterMode.Nearest, FilterMode.Nearest, FilterMode.Nearest,
             AddressMode.Repeat, AddressMode.Repeat, AddressMode.Repeat, name: "attempt"));
         Assert.IsFalse(sprite.TrySetSampler("_linearClamp", attempt));
+    }
+
+    [Test]
+    public void TestMaterialsOnMultipleThreadsAreSafe()
+    {
+        GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
+        RenderingSystem renderingSystem = engine.RenderingSystem;
+
+        const int threadCount = 4;
+        const int iterations = 32;
+        System.Collections.Concurrent.ConcurrentQueue<Exception> errors = new();
+        GPUResourceGroup?[] bankGroups = new GPUResourceGroup?[threadCount];
+        Barrier start = new Barrier(threadCount);
+
+        // Prime the shader's first specialization on the main thread so the
+        // worker threads race only through the engine-side caches (module and
+        // program caches, bank group cache, per-resource group caches).
+        // The sprite module's entry points are generic — like every other sprite
+        // test, the material pins the specialization explicitly.
+        using (GraphicsMaterial primer = renderingSystem.CreateGraphicsMaterial(
+            engine.BuiltInAssets.Shader_Sprite, "primer", false))
+        {
+            Assert.IsTrue(primer[0] != null);
+        }
+
+        static GPUResourceGroup? FindBankGroup(RenderingSystem renderingSystem, GraphicsMaterial material)
+        {
+            ShaderReflectionInfo reflection = material.ReflectionInfo;
+            for (int g = 0; g < reflection.BindGroups.Count; g++)
+            {
+                IReadOnlyList<BindGroupEntryInfo> bindings = reflection.BindGroups[g].Bindings;
+                bool allBank = bindings.Count > 0;
+                for (int e = 0; e < bindings.Count; e++)
+                {
+                    BindGroupEntry entry = bindings[e].Entry;
+                    if (entry.Type is not (BindingType.Sampler or BindingType.SamplerComparison)
+                        || !renderingSystem.Samplers.IsBankMember(entry.Name))
+                    {
+                        allBank = false;
+                        break;
+                    }
+                }
+                if (allBank)
+                {
+                    return material[g];
+                }
+            }
+            return null;
+        }
+
+        Thread[] threads = new Thread[threadCount];
+        for (int t = 0; t < threadCount; t++)
+        {
+            int index = t;
+            threads[t] = new Thread(() =>
+            {
+                try
+                {
+                    // Align the threads so they hit the shared caches together:
+                    // the sampler bank's group cache, the shader module/pipeline
+                    // caches and the texture's per-layout group cache.
+                    start.SignalAndWait();
+
+                    using GraphicsBuffer camera = renderingSystem.CreateCamera2D(1280, 720, 100);
+                    for (int i = 0; i < iterations; i++)
+                    {
+                        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(
+                            engine.BuiltInAssets.Shader_Sprite, $"mt_{index}_{i}", false);
+                        material.SetBuffer(0, camera);
+                        material.SetTexture(1, renderingSystem.TextureWhite);
+                        for (int g = 0; g < material.ReflectionInfo.BindGroups.Count; g++)
+                        {
+                            GPUResourceGroup? group = material[g];
+                            Assert.IsTrue(group != null,
+                                $"Thread {index} iteration {i}: group {g} did not assemble.");
+                        }
+
+                        bankGroups[index] ??= FindBankGroup(renderingSystem, material);
+                    }
+                }
+                catch (Exception e)
+                {
+                    errors.Enqueue(e);
+                }
+            });
+            threads[t].Start();
+        }
+
+        for (int t = 0; t < threadCount; t++)
+        {
+            threads[t].Join();
+        }
+
+        Assert.IsTrue(errors.IsEmpty, $"Concurrent material use failed: {string.Join("; ", errors)}");
+        for (int t = 0; t < threadCount; t++)
+        {
+            Assert.IsTrue(bankGroups[t] != null, $"Thread {t} did not resolve a sampler bank group.");
+            Assert.IsTrue(ReferenceEquals(bankGroups[0], bankGroups[t]),
+                "The bank group is one shared engine-wide instance across threads.");
+        }
     }
 
     [Test]

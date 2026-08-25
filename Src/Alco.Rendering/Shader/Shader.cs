@@ -17,7 +17,11 @@ public sealed class Shader : AutoDisposable
     // module compiles lazily, once per specialization, and the compiled modules
     // are cached inside this object.
     private readonly Func<string[], ShaderModulesInfo> _compileModules;
-    private readonly Dictionary<string, ShaderModulesInfo> _modulesInfos = new(StringComparer.Ordinal);
+    // Thread safety: ConcurrentDictionary keeps the lock-free read path safe
+    // while another thread compiles a new specialization (materials may be
+    // created on any number of threads); the create lock below keeps one
+    // compile per key.
+    private readonly ConcurrentDictionary<string, ShaderModulesInfo> _modulesInfos = new(StringComparer.Ordinal);
 
     private readonly ConcurrentDictionary<long, GPUPipeline> _graphicsPipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
     private readonly ConcurrentDictionary<ShaderModulesInfo, GPUPipeline> _computePipelineCache = new ConcurrentDictionary<ShaderModulesInfo, GPUPipeline>();
@@ -85,7 +89,6 @@ public sealed class Shader : AutoDisposable
             {
                 return cached2;
             }
-
             // The module system owns its own disk caches (module IR + linked
             // programs); the shader keeps only the in-memory modules reference.
             ShaderModulesInfo modulesInfo = _compileModules(specializations);
