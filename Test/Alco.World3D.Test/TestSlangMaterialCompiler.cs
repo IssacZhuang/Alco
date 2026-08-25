@@ -120,7 +120,7 @@ public class TestSlangMaterialCompiler
 
             // Samplers come from the shared bank (the _samplers block of
             // alco_rendering_core): the whole bank reflects as its own set and
-            // every member resolves by name from the SamplerLibrary.
+            // every member resolves by name from the SharedSamplers.
             AssertLayoutEntry(info, "_linearRepeat", 4, 1, BindingType.Sampler);
             AssertLayoutEntry(info, "_depthComparison", 4, 8, BindingType.SamplerComparison);
 

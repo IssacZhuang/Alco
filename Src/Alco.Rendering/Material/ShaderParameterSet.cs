@@ -59,9 +59,10 @@ public sealed class ShaderParameterSet
     private enum EntryKind : byte
     {
         Resource,
-        // A sampler entry (shared sampler bank member or a module's own sampler
-        // declaration), resolved by its own name from the sampler overrides or
-        // the sampler library.
+        // A sampler entry, resolved by its own name: a shared sampler bank
+        // member resolves from the sampler library (immutable, never
+        // overridable); a module-declared custom sampler resolves from the
+        // material's SetSampler bindings only.
         SharedSampler
     }
 
@@ -84,6 +85,10 @@ public sealed class ShaderParameterSet
         // Whether any slot of this group is a texture slot; groups without one skip the
         // render texture version validation in FlushResourceGroups entirely.
         public bool hasTextureSlots;
+        // A sampler-only group of bank members: the whole group is engine-wide
+        // immutable state served by the sampler library's shared resource group —
+        // no assembly, per-material cache or dirty tracking ever applies.
+        public bool isBank;
         // The fallback chain version at the time this group was last assembled.
         public int fallbackVersion;
         public GPUResourceGroup? current;
@@ -92,11 +97,11 @@ public sealed class ShaderParameterSet
     }
 
     private readonly GPUDevice _device;
-    private readonly SamplerLibrary _samplers;
-    // Material-bound sampler overrides by shader entry name; resolved ahead of
-    // the sampler library (custom samplers are independent resources bound by
-    // name, never attached to a texture).
-    private readonly Dictionary<string, GPUSampler> _samplerOverrides = new();
+    private readonly SharedSamplers _samplers;
+    // Material-bound custom samplers by shader entry name. These serve only
+    // module-declared sampler entries; shared sampler bank members are immutable
+    // engine constants resolved from the library and are never bound here.
+    private readonly Dictionary<string, GPUSampler> _customSamplers = new();
     private ShaderReflectionInfo _reflectionInfo;
     private Slot[] _slots;
     private GroupState[] _groups;
@@ -149,7 +154,7 @@ public sealed class ShaderParameterSet
     /// <param name="device">The GPU device used to assemble the bind groups.</param>
     /// <param name="samplers">The rendering system's sampler library, resolving sampler entries by name.</param>
     /// <param name="reflectionInfo">The reflection information of the shader.</param>
-    internal ShaderParameterSet(GPUDevice device, SamplerLibrary samplers, ShaderReflectionInfo reflectionInfo)
+    internal ShaderParameterSet(GPUDevice device, SharedSamplers samplers, ShaderReflectionInfo reflectionInfo)
     {
         _device = device;
         _samplers = samplers;
@@ -403,37 +408,46 @@ public sealed class ShaderParameterSet
     #region Set Sampler
 
     /// <summary>
-    /// Try to bind a custom sampler to the shader's sampler entry of the given
-    /// name (a shared sampler bank member or a module's own sampler declaration).
-    /// The override resolves ahead of the sampler library; entries without an
-    /// override resolve from the library.
+    /// Try to bind a custom sampler to the shader's own sampler entry of the given
+    /// name (a module-declared <c>SamplerState</c> member that is not a shared
+    /// sampler bank member). Shared bank members are immutable engine constants
+    /// resolved from the sampler library and cannot be bound or overridden.
     /// </summary>
-    /// <param name="name">The shader-side sampler entry name (e.g. <c>_linearClamp</c>).</param>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_mySampler</c>).</param>
     /// <param name="sampler">The custom sampler to bind.</param>
     /// <returns>Whether any bind group of this shader declares the sampler entry.</returns>
     public bool TrySetSampler(string name, GPUSampler sampler)
     {
+        // Bank member names are reserved for the shared bank and never settable.
+        if (_samplers.IsBankMember(name))
+        {
+            return false;
+        }
+
         if (!HasSamplerEntry(name))
         {
             return false;
         }
 
-        _samplerOverrides[name] = sampler;
+        _customSamplers[name] = sampler;
         MarkAllDirty();
         return true;
     }
 
     /// <summary>
-    /// Bind a custom sampler to the shader's sampler entry of the given name.
+    /// Bind a custom sampler to the shader's own sampler entry of the given name.
     /// </summary>
-    /// <param name="name">The shader-side sampler entry name (e.g. <c>_linearClamp</c>).</param>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_mySampler</c>).</param>
     /// <param name="sampler">The custom sampler to bind.</param>
-    /// <exception cref="KeyNotFoundException">No bind group of this shader declares the sampler entry.</exception>
+    /// <exception cref="KeyNotFoundException">No bind group of this shader declares
+    /// the sampler entry, or the name is a shared sampler bank member (immutable,
+    /// not bindable).</exception>
     public void SetSampler(string name, GPUSampler sampler)
     {
         if (!TrySetSampler(name, sampler))
         {
-            throw new KeyNotFoundException($"Sampler entry '{name}' not found in shader");
+            throw new KeyNotFoundException(
+                $"Sampler entry '{name}' not found in shader (or it is a shared sampler bank member, which is immutable and cannot be bound)");
         }
     }
 
@@ -1105,6 +1119,13 @@ public sealed class ShaderParameterSet
         {
             GroupState group = _groups[i];
 
+            // A bank group is immutable shared state owned by the sampler library;
+            // it never reassembles.
+            if (group.isBank)
+            {
+                continue;
+            }
+
             // A render texture resized in place keeps its object identity, so the slot
             // values look unchanged; the recorded version is the only signal that the
             // assembled group still references the destroyed textures.
@@ -1152,6 +1173,12 @@ public sealed class ShaderParameterSet
         for (int i = 0; i < _groups.Length; i++)
         {
             GroupState group = _groups[i];
+            // Bank groups live in the sampler library (shared, not owned here).
+            if (group.isBank)
+            {
+                _resourceGroups[i] = null;
+                continue;
+            }
             group.layout?.Dispose();
             group.layout = null;
             group.current = null;
@@ -1309,32 +1336,38 @@ public sealed class ShaderParameterSet
 
     private IGPUBindableResource? ResolveEntryValue(in EntryPlan plan)
     {
-        // Sampler entries resolve by their own name: own override, then the
-        // fallback chain's overrides, then the sampler library. They are not
-        // slots, so the resource-name walk below does not apply.
+        // Sampler entries resolve by their own name: a bank member is immutable
+        // engine state served by the library, a module-declared custom sampler
+        // comes from the material's bindings (own set, then the fallback chain).
+        // Neither is a slot, so the resource-name walk below does not apply.
         if (plan.kind == EntryKind.SharedSampler)
         {
             string samplerName = plan.sharedName!;
-            if (_samplerOverrides.TryGetValue(samplerName, out GPUSampler? own))
+            if (_samplers.IsBankMember(samplerName))
+            {
+                if (!_samplers.TryGetByName(samplerName, out GPUSampler? bank))
+                {
+                    throw new GraphicsException(
+                        $"Sampler entry '{samplerName}' did not resolve in the sampler library.");
+                }
+                return bank;
+            }
+
+            if (_customSamplers.TryGetValue(samplerName, out GPUSampler? own))
             {
                 return own;
             }
 
             for (ShaderParameterSet? set = _fallback; set != null; set = set._fallback)
             {
-                if (set._samplerOverrides.TryGetValue(samplerName, out GPUSampler? inherited))
+                if (set._customSamplers.TryGetValue(samplerName, out GPUSampler? inherited))
                 {
                     return inherited;
                 }
             }
 
-            if (!_samplers.TryGetByName(samplerName, out GPUSampler? bank))
-            {
-                throw new GraphicsException(
-                    $"Unknown sampler entry '{samplerName}': it is not a shared sampler bank member and no sampler was bound for it (bind one through the material's SetSampler).");
-            }
-
-            return bank;
+            throw new GraphicsException(
+                $"Custom sampler entry '{samplerName}' has no sampler bound; declare it in the shader and bind one through the material's SetSampler.");
         }
 
         IGPUBindableResource? value = ResolveOwnSlot(plan.slotIndex);
@@ -1479,8 +1512,9 @@ public sealed class ShaderParameterSet
         }
 
         // Pass 2: per-group entry plans. Sampler entries are independent
-        // resources resolved by their own name (sampler library or material
-        // override); textures and buffers resolve from their slot.
+        // resources resolved by their own name (bank members from the sampler
+        // library, module-declared ones from the material's custom bindings);
+        // textures and buffers resolve from their slot.
         for (int groupIndex = 0; groupIndex < groupCount; groupIndex++)
         {
             IReadOnlyList<BindGroupEntryInfo> bindings = reflection.BindGroups[groupIndex].Bindings;
@@ -1511,18 +1545,33 @@ public sealed class ShaderParameterSet
             }
 
             bool hasTextureSlots = false;
+            bool isBank = plans.Length > 0;
             for (int i = 0; i < plans.Length; i++)
             {
                 // SharedSampler plans carry no slot (slotIndex -1); only resource
                 // plans index into _slots.
-                if (plans[i].kind == EntryKind.Resource && IsTextureSlot(_slots[plans[i].slotIndex].type))
+                if (plans[i].kind == EntryKind.Resource)
                 {
-                    hasTextureSlots = true;
-                    break;
+                    if (IsTextureSlot(_slots[plans[i].slotIndex].type))
+                    {
+                        hasTextureSlots = true;
+                    }
+                    isBank = false;
+                }
+                else if (!_samplers.IsBankMember(plans[i].sharedName!))
+                {
+                    // A module-declared custom sampler mixes into normal assembly.
+                    isBank = false;
                 }
             }
 
-            _groups[groupIndex] = new GroupState { plans = plans, dirty = true, hasTextureSlots = hasTextureSlots };
+            GroupState state = new GroupState { plans = plans, dirty = true, hasTextureSlots = hasTextureSlots, isBank = isBank };
+            _groups[groupIndex] = state;
+            // A bank group is immutable engine state: take the library's shared
+            // group once; it never reassembles, caches or dirties.
+            _resourceGroups[groupIndex] = isBank
+                ? _samplers.GetSamplerGroup(reflection.BindGroups[groupIndex])
+                : null;
         }
     }
 

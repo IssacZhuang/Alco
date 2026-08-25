@@ -100,6 +100,56 @@ public class TestMaterial
     }
 
     [Test]
+    public void TestSharedSamplerBankGroupIsEngineWideImmutable()
+    {
+        GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());
+        RenderingSystem renderingSystem = engine.RenderingSystem;
+
+        // Two core-importing shaders with no resources in common: their bank
+        // groups must still be the very same engine-wide GPUResourceGroup.
+        GraphicsMaterial sprite = renderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_Sprite, "sprite", false);
+        GraphicsMaterial blit = renderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_Blit, "blit");
+
+        GPUResourceGroup? BankGroup(GraphicsMaterial material)
+        {
+            ShaderReflectionInfo reflection = material.ReflectionInfo;
+            for (int g = 0; g < reflection.BindGroups.Count; g++)
+            {
+                IReadOnlyList<BindGroupEntryInfo> bindings = reflection.BindGroups[g].Bindings;
+                bool allBank = bindings.Count > 0;
+                for (int e = 0; e < bindings.Count; e++)
+                {
+                    BindGroupEntry entry = bindings[e].Entry;
+                    if (entry.Type is not (BindingType.Sampler or BindingType.SamplerComparison)
+                        || !renderingSystem.Samplers.IsBankMember(entry.Name))
+                    {
+                        allBank = false;
+                        break;
+                    }
+                }
+                if (allBank)
+                {
+                    return material[g];
+                }
+            }
+            return null;
+        }
+
+        GPUResourceGroup? spriteBank = BankGroup(sprite);
+        GPUResourceGroup? blitBank = BankGroup(blit);
+        Assert.IsTrue(spriteBank != null, "The sprite shader has a sampler bank group.");
+        Assert.IsTrue(blitBank != null, "The blit shader has a sampler bank group.");
+        Assert.IsTrue(ReferenceEquals(spriteBank, blitBank),
+            "The bank group is one shared engine-wide instance across shaders, not per material.");
+
+        // The bank is immutable: its member names never accept a binding.
+        using GPUSampler attempt = renderingSystem.GraphicsDevice.CreateSampler(new SamplerDescriptor(
+            FilterMode.Nearest, FilterMode.Nearest, FilterMode.Nearest,
+            AddressMode.Repeat, AddressMode.Repeat, AddressMode.Repeat, name: "attempt"));
+        Assert.IsFalse(sprite.TrySetSampler("_linearClamp", attempt));
+    }
+
+    [Test]
     public void TestFlushSteadyStateNoAllocation()
     {
         GameEngine engine = new GameEngine(TestEngineSettings.CreateNoGPUWithShaderCache());

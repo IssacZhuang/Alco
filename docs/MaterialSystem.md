@@ -173,10 +173,10 @@ import alco_rendering_core;
 float4 c = _albedoTexture.Sample(_samplers._linearRepeat, uv);
 ```
 
-- bank 由 `RenderingSystem.Samplers`（`SamplerLibrary`）持有并懒创建；GPUDevice 只保留 `CreateSampler(descriptor)` 原语，不再维护任何默认 sampler。成员名是唯一契约：`_linearClamp`、`_linearRepeat`、`_nearestClamp`、`_nearestRepeat`、`_linearMirrorRepeat`、`_nearestMirrorRepeat`、`_anisotropicClamp`（8x）、`_anisotropicRepeat`（8x）、`_depthComparison`（`SamplerComparisonState`，LessEqual，clamp）。
-- 解析发生在 bind group 组装期、按名字进行：material 的 `SetSampler` 覆盖（含 fallback 链继承）优先，其次 bank；名字既不是 bank 成员又没有覆盖 → 组装时抛 `GraphicsException`，不会静默失败。
+- bank 由 `RenderingSystem.Samplers`（`SharedSamplers`，九个可直接访问的属性成员，懒创建）持有；GPUDevice 只保留 `CreateSampler(descriptor)` 原语，不再维护任何默认 sampler。成员名是唯一契约：`_linearClamp`、`_linearRepeat`、`_nearestClamp`、`_nearestRepeat`、`_linearMirrorRepeat`、`_nearestMirrorRepeat`、`_anisotropicClamp`（8x）、`_anisotropicRepeat`（8x）、`_depthComparison`（`SamplerComparisonState`，LessEqual，clamp）。
+- **bank 是引擎级不可变状态，不能被覆盖**：库按反射布局构建一个共享的 sampler-only bind group（`GetSamplerGroup`，同结构布局只建一次），所有材质、所有帧原样绑定；bank 组不进材质的组装/缓存/dirty 流程。试图 `SetSampler` 一个 bank 成员名会直接失败（名字保留给 bank）。
 - 语义约定：屏幕空间 pass / render texture 读取 → `_linearClamp`；材质资产纹理 → `_linearRepeat`；阴影比较 → `_depthComparison`。
-- 自定义采样是显式特例：shader 声明自己的 `SamplerState _mySampler;` 成员（任意名字），material 侧 `parameterSet.SetSampler("_mySampler", device.CreateSampler(...))` 绑定。自定义 sampler 由调用方作为独立资源持有，绝不挂在纹理上。
+- 自定义采样是显式特例：shader 声明自己的 `SamplerState _mySampler;` 成员（**不得用 bank 成员名**），material 侧 `material.SetSampler("_mySampler", device.CreateSampler(...))` 绑定（含 fallback 链继承）。自定义 sampler 由调用方作为独立资源持有，绝不挂在纹理上；自定义名未绑定 → bind group 组装时抛 `GraphicsException`，不会静默失败。
 
 ## 参数块规则
 

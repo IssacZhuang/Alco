@@ -39,12 +39,13 @@ public struct MaterialParams {};
 
 // ── shared sampler bank ─────────────────────────────────────────────────────
 // One ParameterBlock of engine-wide static samplers, bound by the rendering
-// system's SamplerLibrary. Modules never declare per-texture sampler
+// system's SharedSamplers. Modules never declare per-texture sampler
 // companions; they sample through the bank member matching the intent:
 //   _texture.Sample(_samplers._linearClamp, uv)
 // A sampler entry is reflected into the bank group when the preceding binding
-// of its set is not a texture (see ShaderParameterSet); materials override
-// individual members by name for custom sampling.
+// of its set is not a texture (see ShaderParameterSet). The bank is immutable
+// engine-wide state and never overridden; a module that needs a custom sampler
+// declares its own member and the material binds it via SetSampler.
 
 public struct SamplerBankParams
 {

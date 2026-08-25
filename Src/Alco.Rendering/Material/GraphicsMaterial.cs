@@ -244,6 +244,43 @@ public class GraphicsMaterial : AutoDisposable
 
     #endregion
 
+    #region Set sampler
+
+    /// <summary>
+    /// Try to bind a custom sampler to the shader's own sampler entry of the given
+    /// name (a module-declared <c>SamplerState</c> member that is not a shared
+    /// sampler bank member). Shared bank members are immutable engine constants
+    /// resolved from the sampler library and cannot be bound or overridden.
+    /// </summary>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_mySampler</c>).</param>
+    /// <param name="sampler">The custom sampler to bind.</param>
+    /// <returns>Whether any bind group of this shader declares the sampler entry.</returns>
+    public bool TrySetSampler(string name, GPUSampler sampler)
+    {
+        if (_parameters.TrySetSampler(name, sampler))
+        {
+            IncreaseVersion();
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Bind a custom sampler to the shader's own sampler entry of the given name.
+    /// </summary>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_mySampler</c>).</param>
+    /// <param name="sampler">The custom sampler to bind.</param>
+    /// <exception cref="KeyNotFoundException">No bind group of this shader declares
+    /// the sampler entry, or the name is a shared sampler bank member (immutable,
+    /// not bindable).</exception>
+    public void SetSampler(string name, GPUSampler sampler)
+    {
+        _parameters.SetSampler(name, sampler);
+        IncreaseVersion();
+    }
+
+    #endregion
+
     #region Set texture
 
     /// <summary>

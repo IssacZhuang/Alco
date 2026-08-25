@@ -15,7 +15,7 @@ public partial class RenderingSystem
 
     private readonly GPUDevice _device;
     private readonly IRenderingSystemHost _host;
-    private readonly SamplerLibrary _samplerLibrary;
+    private readonly SharedSamplers _samplerLibrary;
 
     //preferred
     private readonly GPUAttachmentLayout _preferredHDRPass;
@@ -40,10 +40,12 @@ public partial class RenderingSystem
     /// (the <c>_samplers</c> block of <c>alco-rendering-core.slang</c>) plus the
     /// name table resolving shader member names to GPUSampler instances. Owned by
     /// the rendering system, not the GPU device — the device only creates raw
-    /// samplers. Materials bind custom samplers per shader entry name through
-    /// <see cref="ShaderParameterSet.SetSampler"/>; textures never carry samplers.
+    /// samplers. The bank is immutable engine-wide state served as shared sampler
+    /// bind groups; custom samplers are module-declared entries bound per material
+    /// through <see cref="ShaderParameterSet.SetSampler"/>; textures never carry
+    /// samplers.
     /// </summary>
-    public SamplerLibrary Samplers
+    public SharedSamplers Samplers
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _samplerLibrary;
@@ -176,7 +178,7 @@ public partial class RenderingSystem
     {
         _device = device;
         _host = host;
-        _samplerLibrary = new SamplerLibrary(device);
+        _samplerLibrary = new SharedSamplers(device);
 
         _preferredHDRFormat = preferredHDRFormat;
         _preferredDepthStencilFormat = preferredDepthStencilFormat;

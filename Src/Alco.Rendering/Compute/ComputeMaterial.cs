@@ -251,6 +251,44 @@ public class ComputeMaterial : AutoDisposable
     #endregion
 
 
+    #region Set Sampler
+
+    /// <summary>
+    /// Tries to bind a custom sampler to the compute shader's own sampler entry of
+    /// the given name (a module-declared <c>SamplerState</c> member that is not a
+    /// shared sampler bank member). Shared bank members are immutable engine
+    /// constants resolved from the sampler library and cannot be bound or overridden.
+    /// <br/>Compute shaders sample through <c>SampleLevel</c>/<c>SampleCompareLevel</c>
+    /// (WebGPU disallows implicit-LOD sampling outside the fragment stage), which
+    /// makes the bank (and custom samplers) as usable from compute as from pixel
+    /// shaders.
+    /// </summary>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_mySampler</c>).</param>
+    /// <param name="sampler">The custom sampler to bind.</param>
+    /// <returns>Whether any bind group of this shader declares the sampler entry.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TrySetSampler(string name, GPUSampler sampler)
+    {
+        return _parameterSet.TrySetSampler(name, sampler);
+    }
+
+    /// <summary>
+    /// Binds a custom sampler to the compute shader's own sampler entry of the
+    /// given name.
+    /// </summary>
+    /// <param name="name">The shader-side sampler entry name (e.g. <c>_mySampler</c>).</param>
+    /// <param name="sampler">The custom sampler to bind.</param>
+    /// <exception cref="KeyNotFoundException">No bind group of this shader declares
+    /// the sampler entry, or the name is a shared sampler bank member (immutable,
+    /// not bindable).</exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void SetSampler(string name, GPUSampler sampler)
+    {
+        _parameterSet.SetSampler(name, sampler);
+    }
+
+    #endregion
+
     #region Set Texture
 
     /// <summary>
