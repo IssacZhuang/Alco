@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
@@ -145,7 +146,7 @@ public sealed class SharedSamplers : IDisposable
     /// neither a bank member nor material-bound — resolved loudly at bind group
     /// assembly, not silently ignored.
     /// </summary>
-    public bool TryGetByName(string shaderMemberName, out GPUSampler? sampler)
+    public bool TryGetByName(string shaderMemberName, [NotNullWhen(true)] out GPUSampler? sampler)
     {
         switch (shaderMemberName)
         {

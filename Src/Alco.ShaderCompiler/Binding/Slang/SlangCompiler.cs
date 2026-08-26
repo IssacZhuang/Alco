@@ -3,9 +3,10 @@ using Alco.Graphics;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Managed facade over the slang modern API (plan §4.1). One SlangCompiler
-// owns the process-wide IGlobalSession; each SlangCompileSession owns an
-// ISession for one (search-path set, macros, target options) combination.
+// Managed facade over the slang modern API (plan §4.1). The slang
+// IGlobalSession is process-wide (see SlangCompiler); each
+// SlangCompileSession owns an ISession for one (search-path set, macros,
+// target options) combination.
 // Sessions (and everything derived from them) are NOT thread-safe — callers
 // serialize front-end operations and may then parallelize only per-entry
 // code generation on a fully linked program.
@@ -25,9 +26,6 @@ public sealed class SlangCompilerOptions
 
     /// <summary>Virtual search paths passed to slang ('/'-separated, relative to the file system root).</summary>
     public IReadOnlyList<string> SearchPaths { get; init; } = [];
-
-    /// <summary>Session-global preprocessor macros (plan D3: transitional only).</summary>
-    public IReadOnlyList<(string Name, string Value)> PreprocessorMacros { get; init; } = [];
 
     /// <summary>Serves module/import/include contents; when null, slang uses the OS file system.</summary>
     public SlangFileResolver? Resolver { get; init; }
@@ -113,36 +111,39 @@ public sealed class SlangProgram : IDisposable
     }
 }
 
-/// <summary>Owns the slang global session (the slang core module) for the process.</summary>
+/// <summary>
+/// Stateless view over the process-wide slang global session (the slang core
+/// module). The global session is created on first use and never released —
+/// releasing it while any module system (or the serialized-IR caches it
+/// stamped) outlives one would invalidate slang's process-wide state, and its
+/// one-time cost is irrelevant next to the compiles it serves. Dispose is a
+/// no-op; dispose the <see cref="SlangCompileSession"/>s instead.
+/// </summary>
 public sealed class SlangCompiler : IDisposable
 {
-    private SlangGlobalSession? _globalSession;
+    private static SlangGlobalSession? _globalSession;
+
+    private static SlangGlobalSession GlobalSession =>
+        _globalSession ??= SlangGlobalSession.Create();
 
     /// <summary>The pinned slang release's build tag (e.g. "2026.16..."), for cache key stamping.</summary>
     public string BuildTag { get; }
 
-    private SlangCompiler(SlangGlobalSession globalSession)
+    public SlangCompiler()
     {
-        _globalSession = globalSession;
-        BuildTag = globalSession.GetBuildTagString();
-    }
-
-    public static SlangCompiler Create()
-    {
-        return new SlangCompiler(SlangGlobalSession.Create());
+        BuildTag = GlobalSession.GetBuildTagString();
     }
 
     /// <summary>Creates a session for one (search paths, macros, options) combination.</summary>
     public SlangCompileSession CreateSession(SlangCompilerOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        return new SlangCompileSession(_globalSession ?? throw new ObjectDisposedException(nameof(SlangCompiler)), options);
+        return new SlangCompileSession(GlobalSession, options);
     }
 
+    /// <summary>No-op: the global session is process-wide and outlives every compiler.</summary>
     public void Dispose()
     {
-        _globalSession?.Release();
-        _globalSession = null;
     }
 }
 
@@ -213,16 +214,6 @@ public sealed class SlangCompileSession : IDisposable
                 searchPaths[i] = pinnedPaths[i].Pointer;
             }
 
-            SlangPinnedUtf8[] pinnedNames = new SlangPinnedUtf8[options.PreprocessorMacros.Count];
-            SlangPinnedUtf8[] pinnedValues = new SlangPinnedUtf8[options.PreprocessorMacros.Count];
-            SlangPreprocessorMacroDesc* macros = stackalloc SlangPreprocessorMacroDesc[Math.Max(options.PreprocessorMacros.Count, 1)];
-            for (int i = 0; i < options.PreprocessorMacros.Count; i++)
-            {
-                pinnedNames[i] = new SlangPinnedUtf8(options.PreprocessorMacros[i].Name);
-                pinnedValues[i] = new SlangPinnedUtf8(options.PreprocessorMacros[i].Value);
-                macros[i] = new SlangPreprocessorMacroDesc { Name = pinnedNames[i].Pointer, Value = pinnedValues[i].Pointer };
-            }
-
             SlangSessionDesc desc = SlangSessionDesc.Create();
             desc.Targets = &target;
             desc.TargetCount = 1;
@@ -231,8 +222,6 @@ public sealed class SlangCompileSession : IDisposable
             desc.DefaultMatrixLayoutMode = SlangNative.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
             desc.SearchPaths = options.SearchPaths.Count > 0 ? searchPaths : null;
             desc.SearchPathCount = options.SearchPaths.Count;
-            desc.PreprocessorMacros = options.PreprocessorMacros.Count > 0 ? macros : null;
-            desc.PreprocessorMacroCount = options.PreprocessorMacros.Count;
             desc.FileSystem = _fileSystem?.Pointer ?? IntPtr.Zero;
             desc.CompilerOptionEntries = optionEntries;
             desc.CompilerOptionEntryCount = (uint)optionCount;

@@ -102,7 +102,7 @@ public sealed class MaterialCompiler : AutoDisposable
         // discovery is the surface module's own declarations (name-keyed, no
         // set number): a ParameterBlock's set is compiler-assigned declaration
         // order, nothing the engine pins.
-        IReadOnlyList<string> textureSlots = Composer.EnumerateTextureSlots(SurfaceOf(asset), asset.Defines);
+        IReadOnlyList<string> textureSlots = Composer.EnumerateTextureSlots(SurfaceOf(asset));
         foreach (string slot in asset.Textures.Keys)
         {
             if (!textureSlots.Contains(ResourceName(slot)))
@@ -160,8 +160,7 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
     public Shader ComposeSurfaceShader(
         MaterialAsset? asset, ShaderLibrary template, IReadOnlyList<string>? valueSpecArgs = null)
-        => Composer.ComposeGraphics(
-            template, SurfaceOf(asset), valueSpecArgs, defines: asset?.Defines);
+        => Composer.ComposeGraphics(template, SurfaceOf(asset), valueSpecArgs);
 
     /// <summary>
     /// The compute counterpart of <see cref="ComposeSurfaceShader"/>, for facilities
@@ -172,8 +171,7 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
     public Shader ComposeSurfaceComputeShader(
         MaterialAsset? asset, ShaderLibrary template, IReadOnlyList<string>? valueSpecArgs = null)
-        => Composer.ComposeCompute(
-            template, SurfaceOf(asset), valueSpecArgs, defines: asset?.Defines);
+        => Composer.ComposeCompute(template, SurfaceOf(asset), valueSpecArgs);
 
     /// <summary>
     /// The compute counterpart of <see cref="Compile"/>: the material of an asset for a
@@ -200,7 +198,7 @@ public sealed class MaterialCompiler : AutoDisposable
 
         // Compile-time slot validation, the same rule as the graphics passes: a
         // texture slot the surface does not declare is a typo in the asset.
-        IReadOnlyList<string> textureSlots = Composer.EnumerateTextureSlots(SurfaceOf(asset), asset.Defines);
+        IReadOnlyList<string> textureSlots = Composer.EnumerateTextureSlots(SurfaceOf(asset));
         foreach (string slot in asset.Textures.Keys)
         {
             if (!textureSlots.Contains(ResourceName(slot)))
@@ -258,7 +256,7 @@ public sealed class MaterialCompiler : AutoDisposable
     /// reflected. Packed once per (asset, surface) and cached on the asset — every
     /// pass compiles the same bytes, so the passes share the buffers (see
     /// <see cref="MaterialAsset.ParameterBuffers"/>); re-setting the asset's
-    /// surface/defines/parameters drops the cache for a fresh pack.
+    /// surface/parameters drops the cache for a fresh pack.
     /// </summary>
     private IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(MaterialAsset asset)
     {
@@ -268,7 +266,7 @@ public sealed class MaterialCompiler : AutoDisposable
             return asset.ParameterBuffers!;
         }
         IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
-            Composer.GetParamsLayouts(surface, defines: asset.Defines);
+            Composer.GetParamsLayouts(surface);
         if (layouts.Count == 0)
         {
             if (asset.Parameters.Count > 0)

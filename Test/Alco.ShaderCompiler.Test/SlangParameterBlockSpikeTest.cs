@@ -392,7 +392,7 @@ public class SlangParameterBlockSpikeTest
             Exists = path => files.ContainsKey(SlangPathUtility.NormalizePath(path)),
         };
 
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(options);
         SlangModuleHandle module = session.LoadModuleFromSource(name, $"{name}.slang", source);
 
@@ -557,7 +557,7 @@ public class SlangParameterBlockSpikeTest
         };
         SlangCompilerOptions options = OptionsFor(files);
 
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(options);
         SlangModuleHandle template = session.LoadModuleFromSource(
             "test_pb_template", "test_pb_template.slang", TemplateModule);
@@ -710,7 +710,7 @@ public class SlangParameterBlockSpikeTest
             ["test_pb_core.slang"] = CoreModule,
             ["test_pb_entry.slang"] = EntryModule,
         });
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(options);
         SlangModuleHandle module = session.LoadModuleFromSource("test_pb_entry", "test_pb_entry.slang", EntryModule);
         using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainPS", Alco.Graphics.ShaderStage.Fragment)]);

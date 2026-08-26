@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO.Hashing;
-using System.Text.RegularExpressions;
 using Alco.Graphics;
 
 namespace Alco.ShaderCompiler;
@@ -14,27 +13,27 @@ namespace Alco.ShaderCompiler;
 //
 //   (a) modules/<hash>.slang-module + .meta — serialized module IR. The meta
 //       sidecar stamps the slang build tag, the session's code target, the
-//       hash of the EXACT source the module was built from (a file's content
-//       or its define-prefixed permutation) and every FILE dependency's
-//       content hash. The module's own path identity is deliberately not a
-//       recorded dependency: an extension-less module name and a permutation's
-//       disambiguated path both resolve to nothing through the file resolver,
-//       and validating them through it made every cache read miss. For the
-//       same reason isBinaryModuleUpToDate is bypassed — it accepts
-//       source-less blobs without validation (the plan's explicit caveat).
+//       hash of the module's EXACT source (the resolved file content) and
+//       every FILE dependency's content hash. The module's own path identity
+//       is deliberately not a recorded dependency: an extension-less module
+//       name resolves to nothing through the file resolver, and validating it
+//       through it made every cache read miss. For the same reason
+//       isBinaryModuleUpToDate is bypassed — it accepts source-less blobs
+//       without validation (the plan's explicit caveat).
 //   (b) programs/<hash>.bin — linked programs (per-entry target code +
 //       materialized reflection + uniform members), keyed by module IR hash,
 //       entry set, specialization, code target and build tag.
 //
-// Invalidation rebuilds the whole session: slang caches imported modules inside
-// the session and modules are immutable, so a changed lib can only be observed
-// through a fresh session. Unaffected modules reload from the IR disk cache.
-// The Alco.Rendering ShaderSystem wraps this class and turns ModulesInvalidated
-// into Shader version bumps; nothing here touches GPU types.
+// Invalidation rebuilds the compile session: slang caches imported modules
+// inside the session and modules are immutable, so a changed lib can only be
+// observed through a fresh session (the process-wide global session stays
+// valid — see SlangCompiler). Unaffected modules reload from the IR disk
+// cache. The Alco.Rendering ShaderSystem wraps this class and turns
+// ModulesInvalidated into Shader version bumps; nothing here touches GPU types.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>Owns slang modules, their dependency graph and the shader disk caches.</summary>
-public sealed partial class SlangModuleSystem : IDisposable
+public sealed class SlangModuleSystem : IDisposable
 {
     private const int MetaVersion = 3;
     private const int ProgramCacheKeyVersion = 4;
@@ -43,7 +42,10 @@ public sealed partial class SlangModuleSystem : IDisposable
     private readonly string? _cacheDirectory;
     private readonly Lock _lock = new();
 
-    private SlangCompiler _compiler = null!;
+    // Immutable for the system's lifetime: the global slang session is
+    // process-wide (see SlangCompiler); only the per-system compile session is
+    // rebuilt on invalidation.
+    private readonly SlangCompiler _compiler = new();
     private SlangCompileSession _session = null!;
 
     private readonly Dictionary<string, ModuleEntry> _modules = new();
@@ -53,9 +55,8 @@ public sealed partial class SlangModuleSystem : IDisposable
     private readonly HashSet<string> _rootLoadedPaths = new(StringComparer.OrdinalIgnoreCase);
 
     // Virtual module sources, resolved by name ahead of the file resolver:
-    // generated wrapper modules and define-mangled permutations (the material
-    // compiler's template+surface compositions). Sources survive session
-    // rebuilds — they are inputs, like files.
+    // generated wrapper modules (e.g. tests registering embedded sources).
+    // Sources survive session rebuilds — they are inputs, like files.
     private readonly ConcurrentDictionary<string, string> _virtualSources = new(StringComparer.Ordinal);
 
     /// <summary>The pinned slang release's build tag — part of every cache key.</summary>
@@ -84,15 +85,13 @@ public sealed partial class SlangModuleSystem : IDisposable
 
     private void CreateSession()
     {
-        _compiler = SlangCompiler.Create();
         // Virtual modules resolve ahead of the asset resolver so a wrapper's
-        // import-by-name reaches generated and define-mangled modules.
+        // import-by-name reaches generated modules.
         SlangCompilerOptions sessionOptions = _options.Resolver == null
             ? _options
             : new SlangCompilerOptions
             {
                 SearchPaths = _options.SearchPaths,
-                PreprocessorMacros = _options.PreprocessorMacros,
                 Resolver = ResolveWithVirtualSources,
                 Exists = _options.Exists,
                 OptimizationLevel = _options.OptimizationLevel,
@@ -138,19 +137,15 @@ public sealed partial class SlangModuleSystem : IDisposable
 
     /// <summary>
     /// Loads a module by name through the session's search paths / resolver.
-    /// <paramref name="defines"/> selects a preprocessor permutation of the
-    /// module — the material-keyword mechanism (user asset keywords,
-    /// SHADOW_CUTOUT, REPEATED): each set is a distinct module identity with
-    /// its own caches, realized as #define lines prefixed to the resolved
-    /// source. Engine-owned variant axes use generic value specializations
-    /// instead (see GetProgram's specialization arguments).
+    /// Variant axes are expressed as generic value specializations at link
+    /// time (see GetProgram's specialization arguments), never as
+    /// preprocessor permutations.
     /// </summary>
-    public SlangModuleHandle GetOrLoadModule(string moduleName, IReadOnlyList<string>? defines = null)
+    public SlangModuleHandle GetOrLoadModule(string moduleName)
     {
         lock (_lock)
         {
-            string key = ModuleKey(moduleName, defines);
-            if (_modules.TryGetValue(key, out ModuleEntry? existing))
+            if (_modules.TryGetValue(moduleName, out ModuleEntry? existing))
                 return existing.Module;
 
             // The disk cache is keyed by content hashes served through the
@@ -164,8 +159,8 @@ public sealed partial class SlangModuleSystem : IDisposable
                     Module = module,
                     Dependencies = [.. module.GetDependencyFilePaths().Select(SlangPathUtility.NormalizePath)],
                 };
-                _modules[key] = raw;
-                IndexDependenciesLocked(key, raw);
+                _modules[moduleName] = raw;
+                IndexDependenciesLocked(moduleName, raw);
                 return module;
             }
 
@@ -178,27 +173,12 @@ public sealed partial class SlangModuleSystem : IDisposable
             // while every read missed and each run re-parsed the module.
             if (ResolveModuleSource(moduleName) is not { } probe)
                 throw new ShaderCompilationException($"slang module '{moduleName}' not found through the resolver.");
-            string source = probe.Source;
-            if (defines is { Count: > 0 })
-            {
-                string suffix = string.Concat(defines.Select(define => "_" + define));
-                source = string.Concat(defines.Select(define => "#define " + define + " 1\n")) + source;
-                // A define permutation reuses the file's source, including its
-                // `module X;` declaration — slang keys a session's module table
-                // by the DECLARED name, so the permutation must declare a
-                // mangled one or the second load trips slang's dictionary assert.
-                source = ModuleDeclarationRegex().Replace(
-                    source, m => $"{m.Groups[1].Value}module {m.Groups[2].Value}{suffix};");
-            }
-            ModuleEntry entry = LoadModuleLocked(key, probe.Candidate, source);
-            _modules[key] = entry;
-            IndexDependenciesLocked(key, entry);
+            ModuleEntry entry = LoadModuleLocked(moduleName, probe.Candidate, probe.Source);
+            _modules[moduleName] = entry;
+            IndexDependenciesLocked(moduleName, entry);
             return entry.Module;
         }
     }
-
-    internal static string ModuleKey(string moduleName, IReadOnlyList<string>? defines)
-        => defines is { Count: > 0 } ? $"{moduleName}|{string.Join("|", defines)}" : moduleName;
 
     /// <summary>Every file the module (transitively) depends on, normalized; empty when not loaded.</summary>
     public IReadOnlyList<string> GetModuleDependencies(string moduleName)
@@ -234,17 +214,16 @@ public sealed partial class SlangModuleSystem : IDisposable
     /// defines the EntryCode order.
     /// </summary>
     public SlangProgram GetProgram(
-        string moduleName, IReadOnlyList<SlangEntryPointRequest> entryPoints, IReadOnlyList<string> specializationArgs,
-        IReadOnlyList<string>? defines = null)
+        string moduleName, IReadOnlyList<SlangEntryPointRequest> entryPoints, IReadOnlyList<string> specializationArgs)
     {
         lock (_lock)
         {
-            if (!_modules.TryGetValue(ModuleKey(moduleName, defines), out ModuleEntry? entry))
+            if (!_modules.TryGetValue(moduleName, out ModuleEntry? entry))
                 throw new InvalidOperationException(
                     $"Module '{moduleName}' is not loaded; call GetOrLoadModule first.");
 
             string entriesKey = string.Join(";", entryPoints.Select(request => $"{request.Name}:{(int)request.Stage}"));
-            return GetProgramLocked(ModuleKey(moduleName, defines), entry, entriesKey,
+            return GetProgramLocked(moduleName, entry, entriesKey,
                 specArgs => _session.Compile(entry.Module, entryPoints, specArgs), specializationArgs);
         }
     }
@@ -254,15 +233,15 @@ public sealed partial class SlangModuleSystem : IDisposable
     /// in definition order — the module-name keyed lookup path.
     /// </summary>
     public SlangProgram GetProgramAllEntries(
-        string moduleName, IReadOnlyList<string> specializationArgs, IReadOnlyList<string>? defines = null)
+        string moduleName, IReadOnlyList<string> specializationArgs)
     {
         lock (_lock)
         {
-            if (!_modules.TryGetValue(ModuleKey(moduleName, defines), out ModuleEntry? entry))
+            if (!_modules.TryGetValue(moduleName, out ModuleEntry? entry))
                 throw new InvalidOperationException(
                     $"Module '{moduleName}' is not loaded; call GetOrLoadModule first.");
 
-            return GetProgramLocked(ModuleKey(moduleName, defines), entry, "all",
+            return GetProgramLocked(moduleName, entry, "all",
                 specArgs => _session.CompileAllEntryPoints(entry.Module, specArgs), specializationArgs);
         }
     }
@@ -271,28 +250,27 @@ public sealed partial class SlangModuleSystem : IDisposable
     /// Links (or restores) a composed program: the template module owns the (generic)
     /// [shader(...)] entry points, the companion (surface) module contributes the
     /// specialization type — the material-composition path, which needs no generated
-    /// wrapper module. Both modules load through <see cref="GetOrLoadModule(string, IReadOnlyList{string}?)"/>
-    /// (define permutations apply to both). Every generic entry point takes
-    /// <paramref name="companionTypeName"/> as its first specialization argument;
-    /// <paramref name="valueSpecializationArgs"/> feed the entries' value parameters
-    /// in entry order (e.g. the shadow template's AlphaTest flag).
+    /// wrapper module. Both modules load through <see cref="GetOrLoadModule(string)"/>.
+    /// Every generic entry point takes <paramref name="companionTypeName"/> as its
+    /// first specialization argument; <paramref name="valueSpecializationArgs"/> feed
+    /// the entries' value parameters in entry order (e.g. the shadow template's
+    /// AlphaTest flag).
     /// </summary>
     public SlangProgram GetComposedProgram(
         string templateModuleName, string companionModuleName,
-        string companionTypeName, IReadOnlyList<string> valueSpecializationArgs,
-        IReadOnlyList<string>? defines = null)
+        string companionTypeName, IReadOnlyList<string> valueSpecializationArgs)
     {
-        SlangModuleHandle template = GetOrLoadModule(templateModuleName, defines);
-        SlangModuleHandle companion = GetOrLoadModule(companionModuleName, defines);
+        SlangModuleHandle template = GetOrLoadModule(templateModuleName);
+        SlangModuleHandle companion = GetOrLoadModule(companionModuleName);
         lock (_lock)
         {
-            ModuleEntry templateEntry = _modules[ModuleKey(templateModuleName, defines)];
-            ModuleEntry companionEntry = _modules[ModuleKey(companionModuleName, defines)];
+            ModuleEntry templateEntry = _modules[templateModuleName];
+            ModuleEntry companionEntry = _modules[companionModuleName];
 
             string logicalName = $"{templateEntry.LogicalName}+{companionEntry.LogicalName}";
             string key = ComposedProgramCacheKey(
-                ModuleKey(templateModuleName, defines), templateEntry.IrHash,
-                ModuleKey(companionModuleName, defines), companionEntry.IrHash,
+                templateModuleName, templateEntry.IrHash,
+                companionModuleName, companionEntry.IrHash,
                 companionTypeName, valueSpecializationArgs);
             if (_programs.TryGetValue(key, out SlangProgram? cached))
                 return cached;
@@ -332,9 +310,8 @@ public sealed partial class SlangModuleSystem : IDisposable
     /// probe. Empty when the module declares no such block; throws when the
     /// block's members do not fit the float view.
     /// </summary>
-    public IReadOnlyList<ShaderUniformMember> GetModuleUniformMembers(
-        string moduleName, string cbufferName, IReadOnlyList<string>? defines = null)
-        => GetModuleReflection(moduleName, defines).UniformBlocks
+    public IReadOnlyList<ShaderUniformMember> GetModuleUniformMembers(string moduleName, string cbufferName)
+        => GetModuleReflection(moduleName).UniformBlocks
             .FirstOrDefault(block => block.Name == cbufferName)?.Members ?? [];
 
     /// <summary>
@@ -345,13 +322,13 @@ public sealed partial class SlangModuleSystem : IDisposable
     /// (e.g. MaterialParams) are filtered by the caller. Cached per module entry;
     /// invalidated together with the module on session rebuilds.
     /// </summary>
-    public ShaderLibraryReflection GetModuleReflection(string moduleName, IReadOnlyList<string>? defines = null)
+    public ShaderLibraryReflection GetModuleReflection(string moduleName)
     {
         // Loads outside the module lock (same pattern as GetComposedProgram).
-        GetOrLoadModule(moduleName, defines);
+        GetOrLoadModule(moduleName);
         lock (_lock)
         {
-            ModuleEntry entry = _modules[ModuleKey(moduleName, defines)];
+            ModuleEntry entry = _modules[moduleName];
             return entry.LibraryReflection ??= _session.GetModuleReflection(entry.Module);
         }
     }
@@ -434,8 +411,9 @@ public sealed partial class SlangModuleSystem : IDisposable
         _modules.Clear();
         _fileToModules.Clear();
         _rootLoadedPaths.Clear();
+        // Only the compile session is rebuilt — the global slang session is
+        // process-wide and stays valid (see SlangCompiler).
         _session.Dispose();
-        _compiler.Dispose();
         CreateSession();
     }
 
@@ -455,10 +433,9 @@ public sealed partial class SlangModuleSystem : IDisposable
         }
 
         // slang keys root-loaded modules by PATH identity: a second module made
-        // from the same file (a define permutation registered under a distinct
-        // name) must enter under a distinct one, or slang's dictionary assert
-        // fires on the duplicate add.
-        string loadName = key.Replace('|', '_');
+        // from the same file (e.g. two module names over one source) must
+        // enter under a distinct one, or slang's dictionary assert fires on the
+        // duplicate add.
         string modulePath = pathIdentity;
         if (_rootLoadedPaths.Contains(modulePath))
         {
@@ -471,13 +448,13 @@ public sealed partial class SlangModuleSystem : IDisposable
         }
         _rootLoadedPaths.Add(modulePath);
         long parseStart = Stopwatch.GetTimestamp();
-        SlangModuleHandle module = _session.LoadModuleFromSource(loadName, modulePath, source);
+        SlangModuleHandle module = _session.LoadModuleFromSource(key, modulePath, source);
         byte[]? ir = module.Serialize();
         ModuleEntry entry = new()
         {
             // The key (not the path identity) names the module for consumers:
             // InvalidateModulesContaining/GetLoadedModuleNames report logical names.
-            LogicalName = key.Split('|')[0],
+            LogicalName = key,
             Module = module,
             Dependencies = [.. module.GetDependencyFilePaths().Select(SlangPathUtility.NormalizePath)],
             SerializedIR = ir,
@@ -525,9 +502,9 @@ public sealed partial class SlangModuleSystem : IDisposable
             // compiled under one target must not be restored into another's session.
             if (reader.ReadInt32() != (int)_options.Target)
                 return false;
-            // Own-source staleness: the exact source this entry was built from —
-            // the resolved file content or the define-prefixed permutation
-            // derived from it — hashes equal without a resolver round-trip.
+            // Own-source staleness: the exact source this entry was built from
+            // (the resolved file content) hashes equal without a resolver
+            // round-trip.
             if (reader.ReadString() != HashContent(source))
                 return false;
             int depCount = reader.ReadInt32();
@@ -550,10 +527,10 @@ public sealed partial class SlangModuleSystem : IDisposable
             if (!dependencies.Contains(normalizedIdentity))
                 dependencies.Add(normalizedIdentity);
 
-            SlangModuleHandle module = _session.LoadModuleFromIRBlob(key.Replace('|', '_'), blobPath, ir);
+            SlangModuleHandle module = _session.LoadModuleFromIRBlob(key, blobPath, ir);
             entry = new ModuleEntry
             {
-                LogicalName = key.Split('|')[0],
+                LogicalName = key,
                 Module = module,
                 Dependencies = dependencies,
                 SerializedIR = ir,
@@ -574,9 +551,8 @@ public sealed partial class SlangModuleSystem : IDisposable
             return;
         try
         {
-            // File deps exclude the module's own path identity — the plain
-            // candidate or a permutation's disambiguated variant: neither is
-            // validated through the resolver (the source hash covers both).
+            // File deps exclude the module's own path identity: it is not
+            // validated through the resolver (the source hash covers it).
             string ownPath = SlangPathUtility.NormalizePath(modulePath);
             List<string> fileDeps = entry.Dependencies.Where(dep => dep != ownPath).ToList();
             string blobPath = ModuleCachePath(key, "slang-module");
@@ -771,7 +747,6 @@ public sealed partial class SlangModuleSystem : IDisposable
             _modules.Clear();
             _fileToModules.Clear();
             _session.Dispose();
-            _compiler.Dispose();
         }
     }
 
@@ -791,7 +766,4 @@ public sealed partial class SlangModuleSystem : IDisposable
         /// </summary>
         public ShaderLibraryReflection? LibraryReflection { get; set; }
     }
-
-    [GeneratedRegex(@"(^|\n)[ \t]*module[ \t]+([A-Za-z_][A-Za-z0-9_.]*)[ \t]*;")]
-    private static partial Regex ModuleDeclarationRegex();
 }

@@ -30,7 +30,6 @@ MaterialComposer.ComposeGraphics / ComposeCompute（slang 泛型特化 + 链接 
 | --- | --- |
 | `Name` | 材质名（缺省取文件名） |
 | `Surface` | surface 的 `ShaderLibrary` 引用；null 选编译器的默认 surface |
-| `Defines` | surface 的特化 define |
 | `Textures` | 纹理槽 → `Texture2D`（反序列化时即经资产系统加载；未设置的槽走兜底策略） |
 | `Parameters` | surface `[MaterialParams]` 块的成员名 → `Vector4` |
 | `GetTextureFallback(slot)` | **虚方法**，槽位的兜底纹理策略（白/黑/flat normal)，基类恒白 |
@@ -55,7 +54,6 @@ jsonc 直接反序列化成 `MaterialAsset`：加载器 `AssetLoaderMaterialAsse
     "version": "1.0",
     "name": "mossy_rock",                        // 省略 → 取文件名
     "surface": "mossy_rock",                     // surface 模块名(ShaderLibrary);省略 → 编译器默认 surface
-    "defines": ["MOSS_ANIMATE"],
     "textures": {
         // 槽名 → 纹理资产路径,反序列化时即加载;路径写错/文件缺失在 .amat 加载期报错
         "albedoTexture": "Textures/mossy_albedo.png"
@@ -201,15 +199,15 @@ float4 c = _albedoTexture.Sample(_samplers._linearRepeat, uv);
 - 快速失败：参数名对不上任何块的成员 → `InvalidDataException`（列出有效成员）；同一成员名出现在两个块 → 跨块歧义报错；传了 `Parameters` 但 surface 没标记任何参数块 → `InvalidDataException`。
 - 引擎侧（渲染节点等）不再手写 CPU 孪生结构体做对齐：`rendering.CreateUniformGraphicsBuffer(block, name)` 从反射出的 `ShaderUniformBlock` 建一个按名写入的 uniform buffer——`SetValue<T>(name, value)`（`float3` ↔ `Vector3`，`int/uint/bool` 同宽直传）与 `SetValues<T>(name, span)`（数组成员，按元素数校验），写进 CPU staging，首次绑定时整块上传（uniform 块小，整写优于 span 跟踪）。成员类型身份由反射提供（`ShaderUniformScalarType`/`ComponentCount`/`ElementCount`），块含不可表示成员（嵌套 struct、多维数组、非 32 位标量）时构造即抛。
 
-## 值特化优先于 define
+## 值特化是唯一的变体轴
 
-shader 内行为分支用 slang 值特化而不是字符串 define:
+shader 内行为分支用 slang 值特化（不再有字符串 define 机制）:
 
 ```slang
 public MainPOut MainPS<T : ISurface>(MainVOut v) where let AlphaTest : bool { ... }
 ```
 
-调用方把值特化参数（如 `["true"]` / `["false"]`）作为 `Compile` 的 `valueSpecArgs` 传入,composer 以 `let AlphaTest : bool = true` 实例化特化类型，特化参数进程序缓存标识。define 只留给真正需要整个 module 级文本开关的组合期场景（如 `MaterialAsset.Defines`、`SHADOW_CUTOUT` 切 varying 结构形状）——它们在组合前烘进材质键，运行时不存在 define 变体轴。
+调用方把值特化参数（如 `["true"]` / `["false"]`）作为 `Compile` 的 `valueSpecArgs` 传入,composer 以 `let AlphaTest : bool = true` 实例化特化类型，特化参数进程序缓存标识。平台差异走 slang 自己的机制（`__target_switch`、`[require]` capabilities），与预处理无关。
 
 ## GI 体素化（compute feed)
 

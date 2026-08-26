@@ -46,7 +46,6 @@ public sealed class MaterialComposer : IDisposable
         ShaderLibrary Surface,
         string SurfaceType,
         string Specialization,
-        string Defines,
         bool Compute);
 
     private readonly RenderingSystem _rendering;
@@ -82,17 +81,11 @@ public sealed class MaterialComposer : IDisposable
     /// <param name="surface">The surface library (exports the surface type).</param>
     /// <param name="valueSpecArgs">Value specialization arguments in entry order (e.g. ["true"] for the shadow template's AlphaTest).</param>
     /// <param name="surfaceType">The companion type name; <see cref="DefaultSurfaceTypeName"/> by convention.</param>
-    /// <param name="defines">
-    /// Composition-static preprocessor defines (a material asset's surface feature
-    /// toggles): baked into the composition identity. Runtime variant switching is
-    /// specialization-only — a variant is a distinct composed shader.
-    /// </param>
     public Shader ComposeGraphics(
         ShaderLibrary template, ShaderLibrary surface,
         IReadOnlyList<string>? valueSpecArgs = null,
-        string surfaceType = DefaultSurfaceTypeName,
-        IReadOnlyList<string>? defines = null)
-        => Compose(template, surface, valueSpecArgs, surfaceType, compute: false, defines);
+        string surfaceType = DefaultSurfaceTypeName)
+        => Compose(template, surface, valueSpecArgs, surfaceType, compute: false);
 
     /// <summary>
     /// The composed compute shader of one (template, surface) pair — e.g. the voxel-GI
@@ -102,25 +95,23 @@ public sealed class MaterialComposer : IDisposable
     public Shader ComposeCompute(
         ShaderLibrary template, ShaderLibrary surface,
         IReadOnlyList<string>? valueSpecArgs = null,
-        string surfaceType = DefaultSurfaceTypeName,
-        IReadOnlyList<string>? defines = null)
-        => Compose(template, surface, valueSpecArgs, surfaceType, compute: true, defines);
+        string surfaceType = DefaultSurfaceTypeName)
+        => Compose(template, surface, valueSpecArgs, surfaceType, compute: true);
 
     /// <summary>
     /// The material-parameter blocks of a surface library — every uniform block
     /// marked <c>[<see cref="ParamsMarkerAttribute"/>]</c>, with its scalar/vector
     /// float members — from the library's own reflection (no entry points, no
     /// link; cached by the module system). The material domain's view of
-    /// <see cref="ShaderSystem.GetLibraryReflection"/>: blocks are found by the
+    /// <see cref="ShaderLibrary.Reflection"/>: blocks are found by the
     /// marker, and a marked block the float view cannot fully represent fails
     /// here (the parameter system writes floats only). Empty means the module
     /// marks no parameter blocks.
     /// </summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> GetParamsLayouts(
-        ShaderLibrary surface, IReadOnlyList<string>? defines = null)
+    public IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> GetParamsLayouts(ShaderLibrary surface)
     {
         Dictionary<string, IReadOnlyList<ShaderUniformMember>> lookup = new(StringComparer.Ordinal);
-        foreach (ShaderUniformBlock block in surface.GetReflection(defines).UniformBlocks)
+        foreach (ShaderUniformBlock block in surface.Reflection.UniformBlocks)
         {
             if (!block.Attributes.Contains(ParamsMarkerAttribute))
             {
@@ -430,21 +421,17 @@ public sealed class MaterialComposer : IDisposable
     /// stays name-keyed, no set number — a ParameterBlock's set is
     /// compiler-assigned declaration order, nothing the engine pins or reads.
     /// </summary>
-    public IReadOnlyList<string> EnumerateTextureSlots(
-        ShaderLibrary surface, IReadOnlyList<string>? defines = null)
-        => [.. surface.GetReflection(defines).TextureSlots.Select(slot => slot.Name)];
+    public IReadOnlyList<string> EnumerateTextureSlots(ShaderLibrary surface)
+        => [.. surface.Reflection.TextureSlots.Select(slot => slot.Name)];
 
     private Shader Compose(
         ShaderLibrary template, ShaderLibrary surface,
-        IReadOnlyList<string>? valueSpecArgs, string surfaceType, bool compute,
-        IReadOnlyList<string>? defines)
+        IReadOnlyList<string>? valueSpecArgs, string surfaceType, bool compute)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         string[] specArgs = valueSpecArgs == null ? [] : [.. valueSpecArgs];
-        string[] staticDefines = defines == null ? [] : [.. defines];
         string specKey = string.Join("|", specArgs);
-        CompositionKey key = new(template, surface, surfaceType, specKey,
-            string.Join("|", staticDefines), compute);
+        CompositionKey key = new(template, surface, surfaceType, specKey, compute);
         lock (_lock)
         {
             if (_shaders.TryGetValue(key, out Shader? cached))
@@ -455,26 +442,22 @@ public sealed class MaterialComposer : IDisposable
             string shaderName = specArgs.Length == 0
                 ? $"{template.Name}+{surface.Name}"
                 : $"{template.Name}+{surface.Name}[{specKey}]";
-            // The asset's defines are composition-static (baked into the identity);
-            // runtime variant switching happens through the composition owner's
-            // spec-keyed compositions, never through a material's defines. A
-            // composed shader has no open specialization axis of its own — the
+            // A composed shader has no open specialization axis of its own — the
             // variant was fixed by the composition — so the handle ignores the
             // accessor-level specialization arguments.
             Shader shader = _rendering.CreateShader(
                 shaderName,
-                _ => CompilePermutation(key, specArgs, staticDefines, shaderName));
+                _ => CompilePermutation(key, specArgs, shaderName));
             _shaders.Add(key, shader);
             return shader;
         }
     }
 
-    private ShaderModulesInfo CompilePermutation(
-        CompositionKey key, string[] specArgs, string[] staticDefines, string shaderName)
+    private ShaderModulesInfo CompilePermutation(CompositionKey key, string[] specArgs, string shaderName)
     {
         SlangModuleSystem modules = _shaderSystem.Modules;
         SlangProgram program = modules.GetComposedProgram(
-            key.Template.Name, key.Surface.Name, key.SurfaceType, specArgs, staticDefines);
+            key.Template.Name, key.Surface.Name, key.SurfaceType, specArgs);
 
         // Programs stay pinned: ShaderModule structs reference the code arrays.
         lock (_lock)

@@ -65,8 +65,8 @@ public sealed class ShaderSamplerSlot
 /// required shape, no set numbers — a set is a composition product, not an
 /// input). Sibling of <see cref="ShaderReflection"/> (the linked program's
 /// view of the same block vocabulary plus its pipeline interface); deliberately
-/// not a base class of it. Cached per (module, defines) by the module system
-/// and invalidated with the module.
+/// not a base class of it. Cached per module by the module system and
+/// invalidated with the module.
 /// </summary>
 public sealed class ShaderLibraryReflection
 {

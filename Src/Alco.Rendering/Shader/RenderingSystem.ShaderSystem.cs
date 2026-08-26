@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Alco.Graphics;
 using Alco.ShaderCompiler;
 
@@ -5,60 +6,43 @@ namespace Alco.Rendering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RenderingSystem × ShaderSystem (plan §4.2): the engine-owned module shader
-// factory. The host (GameEngine) installs the module resolver — backed by the
-// asset system as a plain file provider — before the first GetShader; callers
-// load shaders by module name through here, never through asset loads.
+// factory. Constructed eagerly with the rendering system (RAII, like every
+// other subsystem): the module resolver — backed by the asset system as a
+// plain file provider — is a constructor dependency the host supplies; a null
+// resolver falls back to slang's OS file system. Callers load shaders by
+// module name through here, never through asset loads.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public partial class RenderingSystem
 {
-    private ShaderSystem? _shaderSystem;
-    private SlangFileResolver? _moduleResolver;
-    private readonly Lock _shaderSystemLock = new();
+    private readonly ShaderSystem _shaderSystem;
 
     /// <summary>
-    /// Installs the module source resolver (module-name probes → source text).
-    /// Must be set before the first <see cref="ShaderSystem"/> use; the host
-    /// does this during startup.
+    /// Creates the module-backed shader factory (module cache, disk caches, hot
+    /// reload) over the given module source resolver.
     /// </summary>
-    public void SetShaderModuleResolver(SlangFileResolver resolver)
+    /// <param name="moduleResolver">
+    /// Serves module-name probes and import paths (module-name → source text);
+    /// null uses slang's OS file system (tests and disk-backed sandboxes).
+    /// </param>
+    /// <param name="slangCacheDirectory">Disk-cache root for slang modules/programs; null disables caching.</param>
+    private ShaderSystem CreateShaderSystem(SlangFileResolver? moduleResolver, string? slangCacheDirectory)
     {
-        lock (_shaderSystemLock)
+        return new ShaderSystem(this, new SlangCompilerOptions
         {
-            _moduleResolver = resolver;
-            // A resolver change invalidates everything a previous system knew.
-            _shaderSystem?.Dispose();
-            _shaderSystem = null;
-        }
+            Resolver = moduleResolver,
+            Target = SlangCodeTargetFor(GraphicsDevice.Backend),
+            // Cache/compile events (hit/miss with timings) — the old
+            // DXC ShaderCache logged these; the slang path stayed silent.
+            Log = message => Log.Info(message),
+        }, slangCacheDirectory);
     }
 
     /// <summary>The module-backed shader factory (module cache, disk caches, hot reload).</summary>
     public ShaderSystem ShaderSystem
     {
-        get
-        {
-            lock (_shaderSystemLock)
-            {
-                if (_shaderSystem == null)
-                {
-                    if (_moduleResolver == null)
-                    {
-                        throw new InvalidOperationException(
-                            "The slang module resolver is not installed; the host must call " +
-                            "SetShaderModuleResolver before any module shader is requested.");
-                    }
-                    _shaderSystem = new ShaderSystem(this, new SlangCompilerOptions
-                    {
-                        Resolver = _moduleResolver,
-                        Target = SlangCodeTargetFor(GraphicsDevice.Backend),
-                        // Cache/compile events (hit/miss with timings) — the old
-                        // DXC ShaderCache logged these; the slang path stayed silent.
-                        Log = message => Log.Info(message),
-                    }, ShaderModuleCacheDirectory);
-                }
-                return _shaderSystem;
-            }
-        }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _shaderSystem;
     }
 
     /// <summary>
@@ -72,18 +56,4 @@ public partial class RenderingSystem
         GraphicsBackend.Metal => SlangCodeTarget.Msl,
         _ => SlangCodeTarget.Spirv,
     };
-
-    /// <summary>
-    /// Disk-cache root for slang modules/programs; null disables caching.
-    /// Defaults to the engine-provided cache directory (GraphicsSetting's
-    /// shader cache path), or the built-in location when unset.
-    /// </summary>
-    protected internal virtual string? ShaderModuleCacheDirectory
-        => SlangCacheDirectory ?? ".cache/shader-slang";
-
-    private void OnDisposeShaderSystem()
-    {
-        _shaderSystem?.Dispose();
-        _shaderSystem = null;
-    }
 }

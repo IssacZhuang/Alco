@@ -6,6 +6,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
+using Alco.ShaderCompiler;
 
 /// <summary>
 /// The facility to manage global rendering resource and provide the factory to create rendering resource.
@@ -173,6 +174,7 @@ public partial class RenderingSystem
         GPUDevice device,
         PixelFormat preferredHDRFormat,
         PixelFormat preferredDepthStencilFormat,
+        SlangFileResolver? moduleResolver = null,
         string? slangCacheDirectory = null
     )
     {
@@ -215,6 +217,10 @@ public partial class RenderingSystem
         ));
 
         SlangCacheDirectory = slangCacheDirectory;
+
+        // RAII like every other subsystem: the module shader factory is created
+        // eagerly with its resolver (compilation itself stays lazy).
+        _shaderSystem = CreateShaderSystem(moduleResolver, slangCacheDirectory ?? ".cache/shader-slang");
 
         _host.OnUpdate += OnUpdate;
         _host.OnDispose += OnDispose;
@@ -260,6 +266,6 @@ public partial class RenderingSystem
         _preferredRGBATexturePass.Dispose();
         _preferredRTexturePass.Dispose();
         _preferredLightMapPass.Dispose();
-        OnDisposeShaderSystem();
+        _shaderSystem.Dispose();
     }
 }

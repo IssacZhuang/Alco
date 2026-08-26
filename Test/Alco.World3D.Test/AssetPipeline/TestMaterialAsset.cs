@@ -70,12 +70,11 @@ public class TestMaterialAsset
             Assert.That(material.DoubleSided, Is.True);
             Assert.That(material.Surface, Is.Null, "No surface named: the compiler's default composes.");
             Assert.That(material.Textures, Is.Empty);
-            Assert.That(material.Defines, Is.Empty);
         });
     }
 
     [Test]
-    public void ParseMapsSurfaceDefinesAndParameterShapes()
+    public void ParseMapsSurfaceAndParameterShapes()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
         const string json = """
@@ -83,7 +82,6 @@ public class TestMaterialAsset
             "version": "1.0",
             "name": "mossy_rock",
             "surface": "pbr_standard",
-            "defines": ["MOSS_ANIMATE", " MOSS_ANIMATE ", ""],
             "parameters": {
                 "tint": { "r": 1, "g": 0.5, "b": 0.25, "a": 1 },
                 "speed": 2,
@@ -101,8 +99,6 @@ public class TestMaterialAsset
             // The surface resolves (and validates) into the shared library reference.
             Assert.That(material.Surface,
                 Is.SameAs(engine.RenderingSystem.ShaderSystem.GetLibrary("pbr_standard")));
-            // Defines trim to uniqueness; empty entries drop.
-            Assert.That(material.Defines, Is.EqualTo(new[] { "MOSS_ANIMATE" }));
             // Parameters are typed ShaderValues: component objects read
             // rgba/xyzw (missing components zero), an integer reads as int, a
             // hex color reads as authored float4.
@@ -147,14 +143,6 @@ public class TestMaterialAsset
     }
 
     [Test]
-    public void ParseRejectsDefinesWithWhitespace()
-    {
-        using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        Assert.That(() => Parse(engine, """{ "version": "1.0", "defines": ["A B"] }"""),
-            Throws.TypeOf<InvalidDataException>());
-    }
-
-    [Test]
     public void ParseAppliesDefaultsToMinimalFile()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
@@ -164,7 +152,6 @@ public class TestMaterialAsset
         {
             Assert.That(material.Name, Is.Empty, "The loader backfills the file name, not the parser.");
             Assert.That(material.Surface, Is.Null);
-            Assert.That(material.Defines, Is.Empty);
             Assert.That(material.BaseColorFactor, Is.EqualTo(Vector4.One));
             Assert.That(material.MetallicFactor, Is.EqualTo(0.0f));
             Assert.That(material.RoughnessFactor, Is.EqualTo(1.0f));

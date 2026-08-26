@@ -1,13 +1,14 @@
 using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
+using Alco.ShaderCompiler;
 
 namespace Alco.World3D.Test;
 
 internal static class Utility
 {
 
-    internal static DummyRenderingSystemHost CreateRenderingSystem()
+    internal static DummyRenderingSystemHost CreateRenderingSystem(SlangFileResolver? resolver = null)
     {
         GPUDevice device = GraphicsDeviceFactory.GetNoGPUDevice();
         DummyRenderingSystemHost host = new DummyRenderingSystemHost();
@@ -15,7 +16,8 @@ internal static class Utility
             host,
             device,
             PixelFormat.RGBA16Float,
-            PixelFormat.Depth24PlusStencil8
+            PixelFormat.Depth24PlusStencil8,
+            resolver
         );
         host.RenderingSystem = renderingSystem;
         return host;

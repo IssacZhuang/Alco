@@ -139,8 +139,8 @@ internal sealed class SlangBlob
 }
 
 /// <summary>
-/// IGlobalSession wrapper. Created once per process via slang_createGlobalSession;
-/// owns the slang core module.
+/// IGlobalSession wrapper. Created once per process via slang_createGlobalSession
+/// (SlangCompiler holds it for the process lifetime); owns the slang core module.
 /// </summary>
 internal sealed class SlangGlobalSession
 {

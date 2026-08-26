@@ -180,9 +180,6 @@ public sealed class TestRenderGraphExtensibility
     [SetUp]
     public void SetUp()
     {
-        _host = Utility.CreateRenderingSystem();
-        _rendering = _host.RenderingSystem;
-        _device = _rendering.GraphicsDevice;
         // The preset's scene environment reflects the real PBR common module
         // (reflection-driven uniform buffer), so the resolver serves both shader
         // trees (Alco.Rendering's core libs + Alco.World3D's pipelines) from the
@@ -210,15 +207,18 @@ public sealed class TestRenderGraphExtensibility
             => shaderFiles.TryGetValue(Path.GetFileName(path).Replace('_', '-'), out string? file)
                 ? File.ReadAllText(file)
                 : null;
+        // Installed at construction: the rendering system's own shader system
+        // (used by PBRSceneEnvironment's reflection lookup) and the test's
+        // isolated one share the same file-serving resolver.
+        _host = Utility.CreateRenderingSystem(ResolveShader);
+        _rendering = _host.RenderingSystem;
+        _device = _rendering.GraphicsDevice;
         _shaderSystem = new ShaderSystem(
             _rendering, new SlangCompilerOptions { Resolver = ResolveShader }, cacheDirectory: null);
         _blitShader = _shaderSystem.GetShaderFromModule(
             "test_render_graph_blit", "test_render_graph_blit.slang", BlitShaderSource);
         _lightingShader = _shaderSystem.GetShaderFromModule(
             "test_render_graph_lighting", "test_render_graph_lighting.slang", LightingShaderSource);
-        // The rendering system's own shader system (used by PBRSceneEnvironment's
-        // lazy reflection lookup) shares the same file-serving resolver.
-        _rendering.SetShaderModuleResolver(ResolveShader);
         _destinationLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "test_destination"));
         _postProcessLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(

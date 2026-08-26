@@ -9,8 +9,7 @@ namespace Alco.Rendering;
 // GetShader(moduleName, specialization…) instead of Load<Shader>(path); the
 // returned Shader is the unified (module, entries, specialization) object.
 //
-// Compatibility defines and specialization arguments are both part of the
-// module/program cache identity.
+// Specialization arguments are part of the program cache identity.
 //
 // Hot reload: SlangModuleSystem.ModulesInvalidated → every Shader of an
 // affected module gets UnsafeModuleReload (version bump, cache clear) and
@@ -22,8 +21,13 @@ public sealed class ShaderSystem : IDisposable
 {
     private readonly RenderingSystem _renderingSystem;
     private readonly SlangModuleSystem _modules;
-    private readonly Lock _lock = new();
-    private readonly Dictionary<string, Shader> _shaders = new(StringComparer.Ordinal);
+    // Interned handles: lock-free reads (ConcurrentDictionary), the create lock
+    // keeps one creation per key — the same pattern Shader.GetShaderModules
+    // uses. The module system serializes all slang/disk work itself.
+    private readonly Lock _lockCreate = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Shader> _shaders = new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, ShaderLibrary> _libraries = new(StringComparer.Ordinal);
+    private readonly Lock _lockPins = new();
     private readonly List<SlangProgram> _pinnedPrograms = [];
 
     /// <summary>Raised for each shader whose module was invalidated (after its caches were cleared).</summary>
@@ -39,25 +43,30 @@ public sealed class ShaderSystem : IDisposable
     /// <summary>The headless module system (module cache, dependency graph, disk caches).</summary>
     public SlangModuleSystem Modules => _modules;
 
-    private readonly Dictionary<string, ShaderLibrary> _libraries = new(StringComparer.Ordinal);
-
     /// <summary>
-    /// Gets (or creates) the interned <see cref="ShaderLibrary"/> reference of one module,
-    /// validating that the module name resolves to a source (the same probing
-    /// <c>GetOrLoadModule</c> uses) without compiling anything. Library references are
-    /// the typed identity the material system composes with; they stay valid across
-    /// hot reloads (the module re-resolves by name on the next use after a session
-    /// rebuild). Resolver-backed modules only — modules registered from explicit
-    /// source (<see cref="GetShaderFromModule"/>) are not addressable this way.
+    /// Gets (or creates) the interned <see cref="ShaderLibrary"/> reference of one module.
+    /// Creation acquires the resource: the module is loaded (parsed or restored from
+    /// the IR cache) and its reflection materialized, so the returned reference is
+    /// usable immediately — a name that resolves to nothing or a module that fails
+    /// to parse throws here, not at first use. Library references are the typed
+    /// identity the material system composes with; their held reflection is
+    /// refreshed in place across hot reloads. Resolver-backed modules only —
+    /// modules registered from explicit source (<see cref="GetShaderFromModule"/>)
+    /// are not addressable this way.
     /// </summary>
     /// <param name="moduleName">The module name (e.g. <c>pbr_standard</c>).</param>
     /// <exception cref="InvalidDataException">The name resolves to no module source.</exception>
+    /// <exception cref="ShaderCompilationException">The module source failed to parse.</exception>
     public ShaderLibrary GetLibrary(string moduleName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(moduleName);
-        lock (_lock)
+        if (_libraries.TryGetValue(moduleName, out ShaderLibrary? cached))
         {
-            if (_libraries.TryGetValue(moduleName, out ShaderLibrary? cached))
+            return cached;
+        }
+        using (_lockCreate.EnterScope())
+        {
+            if (_libraries.TryGetValue(moduleName, out cached))
             {
                 return cached;
             }
@@ -67,25 +76,12 @@ public sealed class ShaderSystem : IDisposable
                     $"Shader library '{moduleName}' resolves to no module source; check the module name " +
                     "(it must match the source file's module declaration, e.g. 'pbr_standard').");
             }
-            ShaderLibrary library = new(moduleName, this);
-            _libraries.Add(moduleName, library);
+            _modules.GetOrLoadModule(moduleName);
+            ShaderLibrary library = new(moduleName, _modules.GetModuleReflection(moduleName));
+            _libraries[moduleName] = library;
             return library;
         }
     }
-
-    /// <summary>
-    /// The library reflection of a module (uniform blocks with their attributes and
-    /// members, texture and sampler slots) — the library-domain counterpart of a
-    /// shader's <see cref="ShaderReflection"/>. Underlying route behind
-    /// <see cref="ShaderLibrary.GetReflection"/>; reads through the module
-    /// system's per-module cache, and hot reload invalidation rides the session
-    /// rebuild.
-    /// </summary>
-    /// <param name="library">The library reference (its module resolves by name).</param>
-    /// <param name="defines">Optional preprocessor permutation of the module.</param>
-    public ShaderLibraryReflection GetLibraryReflection(
-        ShaderLibrary library, IReadOnlyList<string>? defines = null)
-        => _modules.GetModuleReflection(library.Name, defines);
 
     /// <summary>
     /// Gets (or creates) the shader handle of one module: the module's entry
@@ -96,9 +92,12 @@ public sealed class ShaderSystem : IDisposable
     /// </summary>
     public Shader GetShader(string moduleName)
     {
-        lock (_lock)
+        if (_shaders.TryGetValue(moduleName, out Shader? cached))
+            return cached;
+
+        using (_lockCreate.EnterScope())
         {
-            if (_shaders.TryGetValue(moduleName, out Shader? cached))
+            if (_shaders.TryGetValue(moduleName, out cached))
                 return cached;
 
             // Loads through the resolver's name→source conventions (validates
@@ -127,9 +126,12 @@ public sealed class ShaderSystem : IDisposable
     public Shader GetShaderFromModule(string moduleName, string path, string source,
         IReadOnlyList<VertexInputLayout>? customVertexLayouts = null)
     {
-        lock (_lock)
+        if (_shaders.TryGetValue(moduleName, out Shader? cached))
+            return cached;
+
+        using (_lockCreate.EnterScope())
         {
-            if (_shaders.TryGetValue(moduleName, out Shader? cached))
+            if (_shaders.TryGetValue(moduleName, out cached))
                 return cached;
 
             _modules.GetOrLoadModule(moduleName, path, source);
@@ -157,7 +159,7 @@ public sealed class ShaderSystem : IDisposable
 
         // Programs stay pinned: ShaderModule structs reference the SPIR-V arrays.
         SlangProgram program = _modules.GetProgramAllEntries(moduleName, specializationArgs);
-        lock (_lock)
+        lock (_lockPins)
         {
             _pinnedPrograms.Add(program);
         }
@@ -228,14 +230,32 @@ public sealed class ShaderSystem : IDisposable
 
     private void OnModulesInvalidated(IReadOnlyList<string> affectedModules)
     {
-        List<Shader> affectedShaders;
-        lock (_lock)
+        lock (_lockPins)
         {
             // Stale programs die with the session rebuild; pins are refreshed lazily.
             _pinnedPrograms.Clear();
-            affectedShaders = [.. _shaders.Where(pair => affectedModules.Contains(pair.Key))
-                                          .Select(pair => pair.Value)];
         }
+        // Refresh affected libraries' held reflections in place (identity is the
+        // point — holders keep their references); a broken edit keeps the
+        // last-known-good snapshot until the next invalidation.
+        foreach (KeyValuePair<string, ShaderLibrary> pair in _libraries)
+        {
+            if (!affectedModules.Contains(pair.Key))
+                continue;
+            try
+            {
+                _modules.GetOrLoadModule(pair.Key);
+                pair.Value.Reflection = _modules.GetModuleReflection(pair.Key);
+            }
+            catch (Exception ex) when (ex is ShaderCompilationException or InvalidDataException)
+            {
+                Log.Warning(
+                    $"shader library '{pair.Key}' keeps its last-known-good reflection " +
+                    $"after a failed hot-reload refresh: {ex.Message}");
+            }
+        }
+        List<Shader> affectedShaders = [.. _shaders.Where(pair => affectedModules.Contains(pair.Key))
+                                      .Select(pair => pair.Value)];
         foreach (Shader shader in affectedShaders)
         {
             shader.UnsafeModuleReload();
@@ -245,15 +265,15 @@ public sealed class ShaderSystem : IDisposable
 
     public void Dispose()
     {
-        lock (_lock)
+        lock (_lockPins)
         {
             _pinnedPrograms.Clear();
-            foreach (Shader shader in _shaders.Values)
-            {
-                shader.Dispose();
-            }
-            _shaders.Clear();
         }
+        foreach (Shader shader in _shaders.Values)
+        {
+            shader.Dispose();
+        }
+        _shaders.Clear();
         _modules.Dispose();
     }
 }

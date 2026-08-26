@@ -151,14 +151,12 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>
     /// The deferred lighting data buffer (per-frame sun, sky, cascade and camera
     /// constants). Shared with forward renderers so they can evaluate the same PBR.
-    /// Created on first access: the environment may be constructed before the host
-    /// installs the shader module resolver the reflection lookup needs.
     /// </summary>
     public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer ??= CreateLightingDataBuffer();
 
     private UniformGraphicsBuffer CreateLightingDataBuffer()
         => _rendering.CreateUniformGraphicsBuffer(
-            _rendering.ShaderSystem.GetLibrary("alco_world3d_pbr_common").GetReflection().UniformBlocks.First(block => block.Name == "_data"),
+            _rendering.ShaderSystem.GetLibrary("alco_world3d_pbr_common").Reflection.UniformBlocks.First(block => block.Name == "_data"),
             "pbr_lighting_data");
 
     /// <summary>

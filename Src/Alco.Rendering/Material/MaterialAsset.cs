@@ -14,7 +14,7 @@ namespace Alco.Rendering;
 /// booleans, component objects, colors or arrays). The asset itself touches no asset
 /// system and no GPU beyond holding those objects.
 /// <br/>The asset carries only pipeline-agnostic concepts: which surface module to
-/// evaluate, its specialization defines, its texture slots and its parameter values.
+/// evaluate, its texture slots and its parameter values.
 /// Pipeline-family data (the PBR factors and alpha routing of World3D's materials, ...)
 /// lives on derived classes; the rendering facility compiling the asset receives
 /// the derived type directly (e.g. <c>GetMaterial(PbrMaterialAsset)</c>).
@@ -29,7 +29,6 @@ namespace Alco.Rendering;
 public class MaterialAsset : IJsonOnDeserialized
 {
     private ShaderLibrary? _surface;
-    private IReadOnlyList<string> _defines = [];
     private IReadOnlyDictionary<string, ShaderValue> _parameters = new Dictionary<string, ShaderValue>();
     private IReadOnlyDictionary<string, GraphicsBuffer>? _parameterBuffers;
     private ShaderLibrary? _parameterBuffersSurface;
@@ -55,21 +54,6 @@ public class MaterialAsset : IJsonOnDeserialized
         set
         {
             _surface = value;
-            _parameterBuffers = null;
-        }
-    }
-
-    /// <summary>
-    /// Specialization defines of the surface, baked into the compiled shader permutations
-    /// (e.g. feature toggles of the surface's own code). Setting them drops the shared
-    /// parameter buffers (see <see cref="ParameterBuffers"/>).
-    /// </summary>
-    public IReadOnlyList<string> Defines
-    {
-        get => _defines;
-        set
-        {
-            _defines = value;
             _parameterBuffers = null;
         }
     }
@@ -108,11 +92,11 @@ public class MaterialAsset : IJsonOnDeserialized
     /// reused by every pass the asset compiles into: the values are the asset's own
     /// and never differ per pass, so per-pass copies would be identical bytes.
     /// Exposed as the base <see cref="GraphicsBuffer"/> on purpose — nothing outside
-    /// the packing step can rewrite the shared bytes. Setting <see cref="Surface"/>,
-    /// <see cref="Defines"/> or <see cref="Parameters"/> drops the cache; the dropped
-    /// buffers finalize themselves once the last material referencing them dies, as
-    /// the engine's escapable-binding rule prescribes. Null until the first compile
-    /// (and when the surface declares no parameter blocks).
+    /// the packing step can rewrite the shared bytes. Setting <see cref="Surface"/> or
+    /// <see cref="Parameters"/> drops the cache; the dropped buffers finalize
+    /// themselves once the last material referencing them dies, as the engine's
+    /// escapable-binding rule prescribes. Null until the first compile (and when
+    /// the surface declares no parameter blocks).
     /// </summary>
     public IReadOnlyDictionary<string, GraphicsBuffer>? ParameterBuffers => _parameterBuffers;
 
@@ -137,35 +121,11 @@ public class MaterialAsset : IJsonOnDeserialized
     /// <param name="slot">The material texture slot (the shader resource name without the leading underscore).</param>
     public virtual MaterialTextureFallback GetTextureFallback(string slot) => MaterialTextureFallback.White;
 
-    /// <summary>Normalize the deserialized tables (see <see cref="Defines"/>, <see cref="Textures"/>).</summary>
+    /// <summary>Normalize the deserialized tables (see <see cref="Textures"/>).</summary>
     void IJsonOnDeserialized.OnDeserialized()
     {
-        Defines = NormalizeDefines(Defines);
         Textures = NormalizeSlots(Textures);
         Parameters = NormalizeParameters(Parameters);
-    }
-
-    /// <summary>Defines: trimmed, empty entries dropped, duplicates removed in first-seen order.</summary>
-    private static IReadOnlyList<string> NormalizeDefines(IReadOnlyList<string> defines)
-    {
-        List<string> result = new(defines.Count);
-        foreach (string define in defines)
-        {
-            string trimmed = define.Trim();
-            if (trimmed.Length == 0)
-            {
-                continue;
-            }
-            if (trimmed.Contains(' '))
-            {
-                throw new InvalidDataException($"GraphicsMaterial asset has a define with whitespace: '{trimmed}'.");
-            }
-            if (!result.Contains(trimmed))
-            {
-                result.Add(trimmed);
-            }
-        }
-        return result;
     }
 
     /// <summary>Texture slots: trimmed slot names; empty slot names and unset (null) entries drop.</summary>

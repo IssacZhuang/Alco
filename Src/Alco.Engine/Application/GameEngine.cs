@@ -231,14 +231,14 @@ IDisposable
             _graphicsDevice,
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat,
+            // Slang modules resolve through the asset system (plan D1):
+            // module-name probes are answered by dashed-name matching over
+            // the asset list.
+            ShaderModuleResolver.Create(
+                path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
+                () => _assetSystem.AllAssetNames),
             CreateShaderCacheDirectory(_setting.Graphics)
             );
-
-        // Slang modules resolve through the asset system (plan D1): module-name
-        // probes are answered by dashed-name matching over the asset list.
-        _renderingSystem.SetShaderModuleResolver(ShaderModuleResolver.Create(
-            path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
-            () => _assetSystem.AllAssetNames));
 
         _builtInAssets = new BuiltInAssets(_assetSystem, _renderingSystem);
 

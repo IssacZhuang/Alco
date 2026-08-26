@@ -167,7 +167,6 @@ public class TestModelGltfTextures
             GraphicsDeviceFactory.GetNoGPUDevice(),
             PixelFormat.RGBA16Float,
             PixelFormat.Depth24PlusStencil8);
-        _renderingSystem.SetShaderModuleResolver(ShaderModuleResolver.Create(_ => null, () => []));
 
         _lifeCycle = new LifeCycleProvider();
         _assetSystem = new AssetSystem(_lifeCycle);

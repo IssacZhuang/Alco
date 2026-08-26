@@ -82,7 +82,7 @@ public class SlangNativeApiTest
     [Test]
     public void CreateGlobalSession_ReturnsBuildTag()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         Assert.That(compiler.BuildTag, Is.Not.Empty);
         Assert.That(compiler.BuildTag, Does.Contain("2026"));
     }
@@ -90,7 +90,7 @@ public class SlangNativeApiTest
     [Test]
     public void CreateSession_RejectsUnknownTargetProfile()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         ArgumentException error = Assert.Throws<ArgumentException>(() =>
             compiler.CreateSession(new SlangCompilerOptions
             {
@@ -103,7 +103,7 @@ public class SlangNativeApiTest
     [Test]
     public void Compile_GraphicsShader_DxilTarget_ReturnsContainers()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(new SlangCompilerOptions
         {
             Target = SlangCodeTarget.Dxil,
@@ -129,7 +129,7 @@ public class SlangNativeApiTest
     [Test]
     public void Compile_ComputeShader_MslTarget_ReturnsNamedEntrySource()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(new SlangCompilerOptions
         {
             Target = SlangCodeTarget.Msl,
@@ -152,7 +152,7 @@ public class SlangNativeApiTest
     [Test]
     public void Compile_GraphicsShader_ReturnsSpirvAndReflection()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default);
         SlangModuleHandle module = session.LoadModuleFromSource("alco_test_graphics", "alco_test_graphics.slang", GraphicsShader);
         using SlangProgram program = session.Compile(module,
@@ -177,7 +177,7 @@ public class SlangNativeApiTest
     [Test]
     public void Compile_GraphicsShader_ReflectionMatchesDeclarations()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default);
         SlangModuleHandle module = session.LoadModuleFromSource("alco_test_graphics2", "alco_test_graphics2.slang", GraphicsShader);
         using SlangProgram program = session.Compile(module,
@@ -224,7 +224,7 @@ public class SlangNativeApiTest
     [Test]
     public void Compile_ComputeShader_ReflectionCarriesThreadGroupSize()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default);
         SlangModuleHandle module = session.LoadModuleFromSource("alco_test_compute", "alco_test_compute.slang", ComputeShader);
         using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainCS", ShaderStage.Compute)]);
@@ -247,7 +247,7 @@ public class SlangNativeApiTest
             ["alco_test_lib.slang"] = ImportableLib,
         };
 
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         SlangCompilerOptions options = new()
         {
             Resolver = path => files.TryGetValue(path, out string? content) ? content : null,
@@ -282,7 +282,7 @@ public class SlangNativeApiTest
 
         try
         {
-            using SlangCompiler compiler = SlangCompiler.Create();
+            using SlangCompiler compiler = new SlangCompiler();
             SlangCompilerOptions diskOptions = new()
             {
                 SearchPaths = [dir.Replace('\\', '/')],
@@ -297,7 +297,7 @@ public class SlangNativeApiTest
             Directory.Delete(Path.GetDirectoryName(dir)!, true);
         }
 
-        using SlangCompiler compiler2 = SlangCompiler.Create();
+        using SlangCompiler compiler2 = new SlangCompiler();
         string[] searchRoots = ["shaders"];
         SlangCompilerOptions options = new()
         {
@@ -327,7 +327,7 @@ public class SlangNativeApiTest
     [Test]
     public void ModuleIR_RoundTripsThroughSerializeAndLoadFromIRBlob()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         ShaderReflection fromSource;
         byte[] ir;
         using (SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default))
@@ -366,7 +366,7 @@ public class SlangNativeApiTest
     [Test]
     public void Compile_InvalidShader_ReportsErrors()
     {
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default);
 
         Assert.Throws<ShaderCompilationException>(() =>
@@ -388,7 +388,7 @@ public class SlangNativeApiTest
             float4 MainPS() : SV_TARGET { return tint * baseColor; }
             """;
 
-        using SlangCompiler compiler = SlangCompiler.Create();
+        using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default);
         SlangModuleHandle module = session.LoadModuleFromSource("alco_test_params", "alco_test_params.slang", shader);
         using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainPS", ShaderStage.Fragment)]);

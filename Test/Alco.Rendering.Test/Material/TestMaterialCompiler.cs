@@ -143,8 +143,7 @@ public class TestMaterialCompiler
     /// <summary>A rendering system whose shader modules resolve from <see cref="Files"/>.</summary>
     private static DummyRenderingSystemHost CreateRenderingSystem()
     {
-        DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
-        host.RenderingSystem.SetShaderModuleResolver(ShaderModuleResolver.Create(
+        return Utility.CreateRenderingSystem(resolver: ShaderModuleResolver.Create(
             path =>
             {
                 // Imports probe several module-name→file forms; match on the dashed form.
@@ -159,7 +158,6 @@ public class TestMaterialCompiler
                 return null;
             },
             () => Files.Keys));
-        return host;
     }
 
     [Test]
