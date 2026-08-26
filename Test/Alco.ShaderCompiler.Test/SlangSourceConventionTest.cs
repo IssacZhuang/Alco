@@ -191,7 +191,9 @@ public partial class SlangSourceConventionTest
     private static bool IsKnownNonFileModule(string name) =>
         name is "glsl" or "hlsl" or "metal" or "cuda" or "cpp" or "spirv";
 
-    [GeneratedRegex(@"(?m)^#language[ \t]+slang[ \t]+2025[ \t]*$")]
+    // \r?$: tolerate CRLF checkouts (core.autocrlf rewrites the working tree
+    // on Windows, where a bare $ anchor would fail after the carriage return).
+    [GeneratedRegex(@"(?m)^#language[ \t]+slang[ \t]+2025[ \t]*\r?$")]
     private static partial Regex LanguageDirectiveRegex();
 
     [GeneratedRegex(@"(?m)^[ \t]*module[ \t]+[A-Za-z_][A-Za-z0-9_.]*[ \t]*;")]

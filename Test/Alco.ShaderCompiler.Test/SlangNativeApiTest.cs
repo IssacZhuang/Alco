@@ -139,6 +139,7 @@ public class SlangNativeApiTest
     [Test]
     public void Compile_GraphicsShader_DxilTarget_ReturnsContainers()
     {
+        DxilDownstreamAvailability.AssertAvailable();
         using SlangCompiler compiler = new SlangCompiler();
         using SlangCompileSession session = compiler.CreateSession(new SlangCompilerOptions
         {

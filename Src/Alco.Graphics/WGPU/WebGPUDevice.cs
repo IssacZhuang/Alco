@@ -1063,9 +1063,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
             {
                 // wgpuGetProcAddress is an unimplemented stub upstream (it
                 // panics), so probe the loaded library's export table instead —
-                // an older build keeps the MSL source path.
-                // TryLoad is idempotent: the library is already loaded here.
-                MetalLibPassthrough = NativeLibrary.TryLoad("wgpu_native", out nint library)
+                // an older build keeps the MSL source path. The path-aware
+                // load also returns the already-loaded DllImport handle.
+                MetalLibPassthrough = WGPUNativeLibrary.TryLoad(out nint library)
                     && NativeLibrary.TryGetExport(library, "wgpuDeviceCreateShaderModuleMetalLib", out _);
                 if (MetalLibPassthrough)
                 {

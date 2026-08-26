@@ -259,6 +259,7 @@ public class SlangModuleSystemTest
     [Test]
     public void ProgramAndModuleCaches_AreKeyedByCodeTarget()
     {
+        DxilDownstreamAvailability.AssertAvailable();
         // One cache directory serves a machine that switches graphics backends
         // (Vulkan ↔ D3D12): a module/program compiled for one code target must
         // never be restored by a session emitting another.

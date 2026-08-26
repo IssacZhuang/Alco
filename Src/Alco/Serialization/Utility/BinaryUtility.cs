@@ -18,7 +18,7 @@ namespace Alco
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] EncodeValue<T>(T value) where T : unmanaged
         {
-            byte[] bytes = new byte[sizeof(T)];
+            byte[] bytes = new byte[Unsafe.SizeOf<T>()];
             if (typeof(T).IsPrimitive || typeof(T).IsEnum)
             {
                 WriteScalar(bytes, ref value);
@@ -111,7 +111,9 @@ namespace Alco
         /// </summary>
         private static void WriteScalar<T>(Span<byte> bytes, ref T value) where T : unmanaged
         {
-            switch (sizeof(T))
+            // Unsafe.SizeOf instead of sizeof: sizeof(T) is only legal in an
+            // unsafe context, and newer compilers reject the previous usage.
+            switch (Unsafe.SizeOf<T>())
             {
                 case 1:
                     bytes[0] = Unsafe.As<T, byte>(ref value);
@@ -126,7 +128,7 @@ namespace Alco
                     BinaryPrimitives.WriteInt64LittleEndian(bytes, Unsafe.As<T, long>(ref value));
                     break;
                 default:
-                    throw new NotSupportedException($"Unhandled scalar size {sizeof(T)} for {typeof(T).Name}.");
+                    throw new NotSupportedException($"Unhandled scalar size {Unsafe.SizeOf<T>()} for {typeof(T).Name}.");
             }
         }
 

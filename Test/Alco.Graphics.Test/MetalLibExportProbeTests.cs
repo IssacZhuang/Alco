@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using Alco.Graphics.WebGPU;
 using NUnit.Framework;
 
 namespace Alco.Graphics.Test;
@@ -18,7 +19,9 @@ public sealed class MetalLibExportProbeTests
     [Test]
     public void NativeLibraryGetExport_ResolvesMetalLibEntryPoint()
     {
-        nint handle = NativeLibrary.Load("wgpu_native");
+        Assert.That(WGPUNativeLibrary.TryLoad(out nint handle), Is.True,
+            "wgpu_native could not be loaded from the test output directory; " +
+            "check the runtimes content copy in Alco.Graphics.csproj");
         try
         {
             Assert.That(NativeLibrary.TryGetExport(handle, "wgpuDeviceCreateShaderModuleMetalLib", out nint _),
