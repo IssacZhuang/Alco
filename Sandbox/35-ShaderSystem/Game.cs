@@ -47,9 +47,9 @@ public class Game : GameEngine
 
         _texture = RenderingSystem.CreateTexture2D(16, 16, 0xff5b8cff);
 
-        // The module-name keyed factory (plan §4.2): no asset load, no text mode.
-        // The virtual file system resolves module names against the game's own
-        // Assets/Shaders tree plus the engine's ported core module.
+        // Module-name keyed factory, no asset load: the virtual file system
+        // resolves module names against the game's own Assets/Shaders tree
+        // plus the engine's ported core module.
         _shaderSystem = new ShaderSystem(RenderingSystem, new SlangCompilerOptions
         {
             Resolver = ResolveShaderModule,

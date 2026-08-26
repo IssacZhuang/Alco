@@ -1,10 +1,8 @@
 // file "AlcoRendering_Core.slang" - module "AlcoRendering_Core"
 //
-// The Slang-native port of Shaders/Libs/Core.hlsli (plan Phase 1.3). The HLSL
-// file stays for the DXC path; new modules import this one instead. Everything
-// shared across engine shader modules lives here: constants, the frequency-
-// group set indices, sampling helpers over real sampler types (replacing the
-// SAMPLE_* macro layer) and small math utilities.
+// Everything shared across engine shader modules lives here: constants, the
+// frequency-group set indices, sampling helpers over real sampler types and
+// small math utilities.
 
 #language slang 2025
 module AlcoRendering_Core;

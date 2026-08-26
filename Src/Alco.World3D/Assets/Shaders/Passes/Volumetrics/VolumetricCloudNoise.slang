@@ -1,6 +1,5 @@
 // file "VolumetricCloudNoise.slang" - module "VolumetricCloudNoise"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VolumetricCloudNoise.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -123,10 +122,9 @@ float cloudRemapBake(float v, float l0, float l1, float r0, float r1)
 
 [[vk::image_format("rgba8")]] RWTexture3D<float4> noiseOut;
 
-// The bake kind is a generic value specialization (plan D3): true = detail
+// The bake kind is a generic value specialization: true = detail
 // bake (32^3 Worley FBM), false = base shape bake (128^3 Perlin-Worley). The
-// C# owner requests the specialized entry (mainCS<true> / mainCS<false>)
-// instead of passing a preprocessor permutation.
+// C# owner requests the specialized entry (mainCS<true> / mainCS<false>).
 [shader("compute")]
 [numthreads(4, 4, 4)]
 void mainCS<let isDetail : bool>(uint3 dispatchId : SV_DispatchThreadID)

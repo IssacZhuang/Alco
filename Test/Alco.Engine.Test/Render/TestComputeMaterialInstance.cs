@@ -7,9 +7,9 @@ namespace Alco.Engine.Test;
 
 public class TestComputeMaterialInstance
 {
-    // Mirrors the legacy one-set-per-resource layout of the game shader
-    // Shaders/Compute/GaussianBlurWithColorGrading.slang (4 sets, 1 resource each),
-    // as a self-contained slang module.
+    // Self-contained slang module mirroring the engine's one-set-per-resource
+    // compute-pass layout (see Assets/Shaders/Passes/Compute/GaussianBlur*.slang).
+    // 4 sets, one resource each.
     private const string ComputeShaderSource = """
         module test_compute_instance;
 

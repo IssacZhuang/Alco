@@ -64,7 +64,6 @@ public abstract class ReusableBatchTask : AutoDisposable
             }
             finally
             {
-                // Signal completion
                 _task._completionCount.Release();
             }
         }
@@ -106,13 +105,11 @@ public abstract class ReusableBatchTask : AutoDisposable
         int actualBatchSize = batchSize ?? Math.Max(1, totalCount / _maxConcurrency);
         int taskCount = (totalCount + actualBatchSize - 1) / actualBatchSize;
 
-        // Ensure we have enough TaskItem objects
         while (_taskItems.Count < taskCount)
         {
             _taskItems.Add(new TaskItem(this));
         }
 
-        // Queue all tasks
         for (int i = 0; i < taskCount; i++)
         {
             int start = i * actualBatchSize;
@@ -125,13 +122,11 @@ public abstract class ReusableBatchTask : AutoDisposable
             ThreadPool.UnsafeQueueUserWorkItem(item, false);
         }
 
-        // Wait for all tasks to complete
         for (int i = 0; i < taskCount; i++)
         {
             _completionCount.Wait();
         }
 
-        // Check for exceptions and aggregate them if any occurred
         _exceptions.Clear();
         for (int i = 0; i < taskCount; i++)
         {

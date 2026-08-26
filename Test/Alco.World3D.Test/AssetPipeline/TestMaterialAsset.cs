@@ -206,8 +206,8 @@ public class TestMaterialAsset
     public void ParseRejectsUnknownFields()
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
-        // Strict mapping: a renamed/removed field (the old "shader") is an authoring
-        // error, not silently ignored.
+        // Strict mapping: a renamed/removed field is an authoring error,
+        // not silently ignored.
         Assert.That(() => Parse(engine,
                 $$"""{ {{PbrType}}, "version": "1.0", "shader": "mossy_rock" }"""),
             Throws.TypeOf<JsonException>());

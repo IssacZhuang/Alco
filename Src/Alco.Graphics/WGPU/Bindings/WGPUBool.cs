@@ -17,17 +17,11 @@ internal readonly struct WGPUBool : IEquatable<WGPUBool>
     /// <summary>
     /// Initializes a new instance of the <see cref="WGPUBool" /> class.
     /// </summary>
-    /// <param name="boolValue">if set to <c>true</c> [bool value].</param>
     public WGPUBool(bool boolValue)
     {
         _value = boolValue ? 1u : 0u;
     }
 
-    /// <summary>
-    /// Indicates whether this instance and a specified object are equal.
-    /// </summary>
-    /// <param name="other">The other.</param>
-    /// <returns>true if <paramref name="other" /> and this instance are the same type and represent the same value; otherwise, false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(WGPUBool other) => _value == other._value;
 
@@ -37,21 +31,9 @@ internal readonly struct WGPUBool : IEquatable<WGPUBool>
     /// <inheritdoc/>
     public override int GetHashCode() => _value.GetHashCode();
 
-    /// <summary>
-    /// Implements the ==.
-    /// </summary>
-    /// <param name="left">The left.</param>
-    /// <param name="right">The right.</param>
-    /// <returns>The result of the operator.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator ==(WGPUBool left, WGPUBool right) => left.Equals(right);
 
-    /// <summary>
-    /// Implements the !=.
-    /// </summary>
-    /// <param name="left">The left.</param>
-    /// <param name="right">The right.</param>
-    /// <returns>The result of the operator.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool operator !=(WGPUBool left, WGPUBool right) => !left.Equals(right);
 

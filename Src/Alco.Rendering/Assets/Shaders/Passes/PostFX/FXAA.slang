@@ -1,6 +1,5 @@
 // file "FXAA.slang" - module "FXAA"
 //
-// Slang module converted from Shaders/Pipelines/PostProcess/FXAA.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 
@@ -47,10 +46,8 @@ struct V2F {
                         FXAA 3.11 QUALITY PRESETS
 ============================================================================*/
 
-// quality is a generic value parameter (plan D3): the C# owner requests a
-// specialized shader per quality (0=Low, 1=Medium, 2=High, 3=Ultra) instead of
-// compiling preprocessor permutations. The tables stay verbatim; the selector
-// functions fold to one table after specialization (dead branches eliminate).
+// The C# owner requests one specialized shader per quality level; after
+// specialization each selector function folds to its single matching table.
 
 // 0 = FXAA_QUALITY_LOW    - 4 steps,  fastest performance
 // 1 = FXAA_QUALITY_MEDIUM - 8 steps,  balanced

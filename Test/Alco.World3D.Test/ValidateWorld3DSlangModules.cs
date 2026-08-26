@@ -6,13 +6,12 @@ using Alco.ShaderCompiler;
 namespace Alco.World3D.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Slang-mode validation of Alco.World3D's plain pipeline shaders (migration
-// plan Phase 2): every converted .slang module under Alco.World3D's Shaders
-// tree must load through SlangModuleSystem headlessly and link every
-// [shader(...)] entry point to non-empty SPIR-V. The file-tree resolver spans
-// BOTH the Alco.Rendering and Alco.World3D Shaders roots (World3D modules
-// import AlcoRendering_Core) and mirrors the engine resolver's
-// module-name matching conventions.
+// Slang-mode validation of Alco.World3D's plain pipeline shaders: every .slang
+// module under Alco.World3D's Shaders tree must load through SlangModuleSystem
+// headlessly and link every [shader(...)] entry point to non-empty SPIR-V.
+// The file-tree resolver spans BOTH the Alco.Rendering and Alco.World3D Shaders
+// roots (World3D modules import AlcoRendering_Core) and mirrors the engine
+// resolver's module-name matching conventions.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class ValidateWorld3DSlangModules
@@ -23,8 +22,7 @@ public class ValidateWorld3DSlangModules
         Path.Combine(RepoRoot(), "Src", "Alco.World3D", "Assets", "Shaders"),
     ];
 
-    // The nine Phase-2 lib modules (converted from .slang); import-only, so
-    // they own no entry points but must still load cleanly.
+    // Import-only lib modules: they own no entry points but must still load cleanly.
     private static readonly string[] LibModules =
     [
         "AlcoWorld3D_Atmosphere",
@@ -126,7 +124,7 @@ public class ValidateWorld3DSlangModules
         }
     }
 
-    // Modules with generic entry points (plan D3 specialization): every valid
+    // Modules with generic entry points: every valid
     // specialization must link — a generic entry point cannot link unspecialized,
     // so these modules are only tested through their argument sets. Modules not
     // listed here have no generic parameters and link with empty arguments.

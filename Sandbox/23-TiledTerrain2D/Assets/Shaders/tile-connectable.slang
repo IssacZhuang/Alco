@@ -1,7 +1,6 @@
 // file "tile-connectable.slang" - module "tile_connectable"
 //
-// Slang module converted from Assets/Shaders/TileConnectable.hlsl (Phase 2
-// migration). Resources are grouped as ParameterBlocks — the compiler assigns
+// Resources are grouped as ParameterBlocks — the compiler assigns
 // each block its own descriptor set in declaration order; members resolve by
 // bare field name.
 

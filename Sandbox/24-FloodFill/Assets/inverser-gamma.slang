@@ -1,6 +1,5 @@
 // file "inverser-gamma.slang" - module "inverser_gamma"
 //
-// Slang module converted from Assets/InverserGamma.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field
 // name.

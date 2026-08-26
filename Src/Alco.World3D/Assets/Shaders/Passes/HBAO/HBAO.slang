@@ -1,6 +1,5 @@
 // file "HBAO.slang" - module "HBAO"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/HBAO.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -17,10 +16,9 @@ import AlcoWorld3D_ReversedDepth;
 // highest occluder elevation (horizon) along each ray and integrates the
 // unoccluded arc against the surface tangent plane (Bavoil & Sainz 2008, plus
 // the NVIDIA HBAO+ refinements: per-pixel rotation/jitter noise, distance
-// falloff and an angle bias). Writes raw (noisy) AO; HBAOBlur.hlsl filters it.
+// falloff and an angle bias). Writes raw (noisy) AO; HBAOBlur.slang filters it.
 
-// quality knobs as compile-time constants (nobody overrides them; the previous
-// #ifndef default guards are gone with the preprocessor permutation cleanup).
+// Quality knobs are compile-time constants (nothing overrides them).
 static const int HBAO_NUM_DIRECTIONS = 6;
 static const int HBAO_NUM_STEPS = 4;
 

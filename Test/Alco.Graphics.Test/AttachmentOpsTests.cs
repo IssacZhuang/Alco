@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace Alco.Graphics.Test;
 
 /// <summary>
-/// Verifies the stage-0 RHI additions with the NoGPU backend: attachment load/store ops,
+/// NoGPU-backend verification: attachment load/store ops,
 /// batch submission and external frame buffer validation.
 /// </summary>
 [TestFixture]

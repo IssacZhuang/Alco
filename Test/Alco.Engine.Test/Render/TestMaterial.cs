@@ -58,9 +58,8 @@ public class TestMaterial
         Camera2DBuffer camera = renderingSystem.CreateCamera2D(1280, 720, 1000);
         camera.Position = new System.Numerics.Vector2(100, 100);
 
-        // The camera has a pending matrix upload (dirty) which used to be flushed by
-        // SetBuffer through the EntryReadonly getter. The bind group assembly must
-        // preserve that flush, otherwise the bound camera UBO stays zero.
+        // The bind group assembly must flush a dirty camera matrix via the
+        // EntryReadonly getter, otherwise the bound camera UBO stays zero.
         Assert.IsTrue(IsDirty(camera));
 
         material.SetBuffer(0, camera);

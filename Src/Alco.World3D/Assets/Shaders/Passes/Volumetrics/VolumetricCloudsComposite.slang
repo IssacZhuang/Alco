@@ -1,6 +1,5 @@
 // file "VolumetricCloudsComposite.slang" - module "VolumetricCloudsComposite"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VolumetricCloudsComposite.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -14,7 +13,7 @@ import AlcoWorld3D_PBRCommon;
 
 // Volumetric clouds composite pass: a full-screen overlay on the HDR scene
 // color that reconstructs the half-resolution cloud result (premultiplied
-// scattering + opacity, written by VolumetricClouds.hlsl) with a 3x3
+// scattering + opacity, written by VolumetricClouds.slang) with a 3x3
 // gaussian-bilateral upsample and blends it over the completed scene with
 // premultiplied-alpha blending (One, OneMinusSrcAlpha) — the scene color is
 // never bound as a texture, the blend hardware performs the composite.
@@ -134,8 +133,8 @@ float4 MainPS(V2F input) : SV_TARGET
             float2 tapPos = clamp(center + float2(x, y), 0.5, halfSize - 0.5);
             float2 tapUv = tapPos * halfTexel;
 
-            // Spatial gaussian over the sub-texel distance: substitutes the
-            // old bilinear fractions while averaging the march jitter grain.
+            // Spatial gaussian over the sub-texel distance: averages out the
+            // march jitter grain.
             float2 delta = halfPos - tapPos;
             float spatialWeight = exp(-0.5 * dot(delta, delta) / CLOUD_UPSAMPLE_SIGMA2);
             float tapDepth = cloudCompositeLinearDepth(tapUv);

@@ -128,8 +128,7 @@ public partial class RenderingSystem
 
     /// <summary>
     /// The slang module system's disk-cache directory (`.slang-module` IR blobs and
-    /// linked programs), or null when caching is disabled — replaces the retired
-    /// Slang module/program cache (plan §4.2).
+    /// linked programs), or null when caching is disabled.
     /// </summary>
     public string? SlangCacheDirectory { get; }
 

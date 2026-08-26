@@ -10,11 +10,9 @@ public sealed class Shader : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
 
-    // A Shader is one module's handle (plan §4.4/D3): its entry points are the
-    // module's own [shader(...)] definitions and every variant axis is a generic
-    // value specialization, requested where the retired defines used to be —
-    // through the specialization arguments of the accessor methods below. The
-    // module compiles lazily, once per specialization, and the compiled modules
+    // A Shader is one module's handle; variant axes are expressed via the
+    // specialization arguments of the accessor methods below. The module
+    // compiles lazily, once per specialization, and the compiled modules
     // are cached inside this object.
     private readonly Func<string[], ShaderModulesInfo> _compileModules;
     // Thread safety: ConcurrentDictionary keeps the lock-free read path safe
@@ -445,7 +443,7 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Module-based hot reload (plan Phase 1): the ShaderSystem invalidated this shader's
+    /// Module-based hot reload: the ShaderSystem invalidated this shader's
     /// module; drop the compiled modules of every specialization and every cached
     /// pipeline so the next use recompiles from the module system's current sources.
     /// The version bump drives lazy pipeline rebuilds through the existing

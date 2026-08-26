@@ -4,11 +4,9 @@ namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Translates a slang ProgramLayout (SlangReflection*) into the engine's
-// ShaderReflection, keeping its shape unchanged (plan D4): only the
-// producer changes. This is a port of the proven World3D beachhead reader
-// with the two SPIR-V fact lookups replaced by first-class slang reflection:
-//   - compute thread group size: spReflectionEntryPoint_getComputeThreadGroupSize
-//   - storage image formats:     binding-range queries on the global params layout
+// ShaderReflection vocabulary:
+//   - compute thread group size comes from the entry point reflection
+//   - storage image formats come from binding-range queries on the global params layout
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>

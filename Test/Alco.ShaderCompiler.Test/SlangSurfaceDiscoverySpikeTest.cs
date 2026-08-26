@@ -294,7 +294,8 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         Assert.That(conformers.Select(c => c.Name), Is.EqualTo(new[] { "MossyRock" }));
         IntPtr mossyType = conformers[0].Type;
 
-        // The old convention would break on this module — no type is named Surface.
+        // This module deliberately exports no 'Surface' type; discovery must
+        // work regardless of the type name.
         IntPtr surfaceModuleLayout = mossy.Native.AsComponentType().GetLayout(out _);
         Assert.That(FindTypeByName(surfaceModuleLayout, "Surface"), Is.EqualTo(IntPtr.Zero),
             "the module deliberately exports no 'Surface' type");
@@ -365,8 +366,8 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
     {
         using SlangModuleSystem system = new(OptionsFor(Files()), null);
 
-        // The surface type is deliberately NOT named "Surface" — the old
-        // type-name convention would fail here; discovery must not care.
+        // The surface type is deliberately NOT named "Surface"; discovery must
+        // work regardless of the type name.
         using SlangProgram program = system.GetComposedProgram(
             "disc_template", "disc_mossy", []);
         Assert.Multiple(() =>

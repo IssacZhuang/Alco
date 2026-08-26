@@ -143,28 +143,24 @@ public unsafe class TestCollisionWorld2D
         Vector2 point = new Vector2(0, 0);
         TestSphereCollector collector1 = new TestSphereCollector(123);
 
-        //hit 
         TestBoxTarget box1 = new TestBoxTarget
         {
             id = 0,
             shape = new ShapeBox2D(new Vector2(0, 0), new Vector2(1, 1), Rotation2D.Identity)
         };
 
-        //hit
         TestBoxTarget box2 = new TestBoxTarget
         {
             id = 1,
             shape = new ShapeBox2D(new Vector2(0.2f, 0), new Vector2(1, 1), Rotation2D.Identity)
         };
 
-        //hit
         TestBoxTarget box3 = new TestBoxTarget
         {
             id = 2,
             shape = new ShapeBox2D(new Vector2(0.4f, 0), new Vector2(1, 1), Rotation2D.Identity)
         };
 
-        //not hit
         TestBoxTarget box4 = new TestBoxTarget
         {
             id = 3,

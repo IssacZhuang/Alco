@@ -1,6 +1,5 @@
 // file "VolumetricLight.slang" - module "VolumetricLight"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VolumetricLight.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -71,7 +70,7 @@ float henyeyGreenstein(float cosTheta, float g)
 }
 
 // Single-tap shadow visibility for a world-space point. Uses the same atlas
-// layout and bias as sampleShadowMap in PBRCommon.hlsli but does only one
+// layout and bias as sampleShadowMap in AlcoWorld3D_PBRCommon but does only one
 // hardware-PCF comparison (the ray march provides spatial softening).
 float sampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
 {

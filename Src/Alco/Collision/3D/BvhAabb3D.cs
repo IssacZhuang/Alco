@@ -10,31 +10,16 @@ namespace Alco
     /// <summary>
     /// A flat, 4-wide AABB bounding volume hierarchy for 3D workloads (frustum culling,
     /// ray picking, visibility queries), built with the same Morton-code LBVH (Karras 2012)
-    /// pipeline as <see cref="NativeBvh3D"/> but shaped after Embree's BVH4:
+    /// pipeline as <see cref="NativeBvh3D"/>.
     /// <para>
     /// - Nodes store the SoA bounds of their (up to) 4 children in a 128-byte block, so one
-    ///   Vector128 slab test covers all children (kernels/bvh/bvh_node_aabb.h layout).
-    /// - Child references are tagged in the sign bit: &gt;= 0 node index, &lt; 0 leaf block
-    ///   (~ref), mirroring Embree's low-bit tagged NodeRef leaves.
-    /// - Leaves are blocks of up to 4 items packed SoA (Embree M-wide primitive blocks);
-    ///   unused slots carry empty bounds that fail every intersection test.
-    /// - The 4-way split is a "falling split" over the binary Morton splits, and children
-    ///   are ordered by descending subtree size for any-hit queries.
-    /// - Closest-hit traversal tests all 4 children with one SIMD slab test, continues with
-    ///   the nearest child, pushes the rest with their entry distance, and prunes stale
-    ///   stack entries against the running best hit (kernels/bvh/bvh_intersector1.cpp
-    ///   behaviour). The slab test picks the near/far plane per dimension from the ray
-    ///   direction sign (the TravRay organization of node_intersector1.h); besides being
-    ///   branch-free in the vector body, this formulation rejects the inverted bounds of
-    ///   unused slots, which a min/max slab test cannot.
+    ///   Vector128 slab test covers all children.
+    /// - Child references are tagged in the sign bit (&gt;= 0 node index, &lt; 0 leaf block);
+    ///   unused leaf slots carry empty bounds that fail every intersection test.
+    /// - The 4-way split is a "falling split" over the binary Morton splits; children are
+    ///   ordered by descending subtree size for any-hit queries.
     /// </para>
-    /// The segment acceptance test and the raw-entry pruning stay decoupled: acceptance
-    /// clamps to the segment [0,1] while candidates are ranked by the raw (unclamped) slab
-    /// entry, which can be negative when the ray starts inside a box.
-    /// <para>
-    /// Build and queries are separated: <see cref="Build"/> constructs the tree (not thread-safe),
-    /// and all query methods are safe for concurrent reads.
-    /// </para>
+    /// <see cref="Build"/> is not thread-safe; all query methods are safe for concurrent reads.
     /// </summary>
     public unsafe class BvhAabb3D : IDisposable
     {

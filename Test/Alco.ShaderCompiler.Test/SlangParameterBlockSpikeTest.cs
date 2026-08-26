@@ -234,13 +234,7 @@ public class SlangParameterBlockSpikeTest
         (byte[][] code, string dump) = CompileAndDump("test_pb_entry", EntryModule);
         TestContext.Progress.WriteLine(dump);
 
-        // Without any annotation: one ParameterBlock = one descriptor set.
-        // The entry module's block comes first (set 0), the imported module's
-        // block after it (set 1). Ordinary data introduces a uniform buffer at
-        // binding 0 and shifts the resource members after it. Members the
-        // shader never uses (_sceneSampler, linearRepeat, depthCompare) keep
-        // their layout slots (bindings are assigned before dead-code
-        // elimination) but are absent from the compiled entry code.
+        // Auto layout, as described at the top of this file.
         Assert.That(code[0][0..4], Is.EqualTo(new byte[] { 0x03, 0x02, 0x23, 0x07 }),
             "the entry must be SPIR-V");
         Assert.That(Rows(code[0]), Is.EqualTo(new[]
@@ -258,11 +252,7 @@ public class SlangParameterBlockSpikeTest
         (byte[][] code, string dump) = CompileAndDump("test_pb_pinned_entry", PinnedEntryModule, PinnedCoreModule);
         TestContext.Progress.WriteLine(dump);
 
-        // A register(...) on the block works for the entry module's own block
-        // (pinned to space 1: UBO at binding 0, members sequential) but is
-        // IGNORED on the imported module's block (declared space0, landed on
-        // an auto-assigned set). Register pinning is therefore unreliable for
-        // cross-module set ownership.
+        // Pinned-layout caveat, as described at the top of this file.
         List<(uint Set, uint Binding, string Name)> rows = Rows(code[0]);
         Assert.That(rows, Does.Contain((1u, 0u, "pass")));
         Assert.That(rows, Does.Contain((1u, 1u, "pass.sceneColor")));

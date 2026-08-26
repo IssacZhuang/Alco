@@ -1,6 +1,5 @@
 // file "VoxelGIUpsample.slang" - module "VoxelGIUpsample"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelGiUpsample.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -16,10 +15,9 @@ import AlcoWorld3D_ReversedDepth;
 // and produces two full-GBuffer-resolution textures (giDiffuseOut, giSpecularOut)
 // that the deferred lighting pass samples directly.
 //
-// The 5-tap depth-weighted cross-kernel upscaling, the near/far layer depth
-// blend and the ALD (Average Light Direction) directional modulation are
-// migrated here verbatim from the old DeferredLighting.hlsl inline GI path so
-// the lighting shader can be a thin consumer.
+// Performs the depth-weighted cross-kernel upscaling, the near/far layer
+// blend and the ALD (Average Light Direction) directional modulation;
+// deferred lighting consumes its output.
 
 public struct DataParams
 {

@@ -5,22 +5,6 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// UniformGraphicsBuffer: a uniform buffer whose layout comes from reflection,
-// not from a hand-written C# twin struct. The caller sets members by name —
-// the CPU/GPU alignment contract (offsets, 32-bit scalar kinds, array spans)
-// is enforced by the ShaderUniformBlock the buffer was built from, so shader
-// blocks may mix float/int/uint/bool members and arrays freely while the C#
-// side stays readable (SetValue("levelIndex", 3) instead of packing
-// Vector4.Params.x). Pass nodes get reflection from ShaderLibrary.GetReflection
-// (module state) or a linked shader's reflection; either view works — the
-// buffer only consumes the block vocabulary.
-//
-// Writes stage into a CPU-side buffer and flush lazily: the first EntryReadonly
-// access (bind-group assembly) uploads dirty spans once per frame, mirroring
-// GraphicsValueBuffer's write-then-bind rhythm without per-set uploads.
-// ─────────────────────────────────────────────────────────────────────────────
-
 /// <summary>
 /// A reflection-driven uniform buffer: created from a <see cref="ShaderUniformBlock"/>,
 /// written by member name, flushed to the GPU lazily on first bind after a change.

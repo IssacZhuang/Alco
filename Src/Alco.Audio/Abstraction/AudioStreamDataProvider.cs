@@ -4,37 +4,20 @@ using Alco;
 namespace Alco.Audio;
 
 /// <summary>
-/// An optional base class for <see cref="IAudioStreamDataProvider"/> implementations that opens
-/// lazily on a thread-pool thread and decodes each PCM chunk ahead of demand on a thread-pool
-/// thread, so neither file I/O nor decoding blocks the main thread.
+/// Optional base class for <see cref="IAudioStreamDataProvider"/> implementations: opens lazily
+/// and prefetch-decodes PCM chunks on a thread-pool thread, so neither file I/O nor decoding
+/// blocks the main thread.
 /// </summary>
 /// <remarks>
-/// <para>
 /// A subclass implements three synchronous methods (<see cref="OpenCore"/>,
-/// <see cref="ReadCore"/>, <see cref="ResetCore"/>) and inherits the threading machinery: a
-/// reusable open task (Phase 1) and a reusable prefetch-decode task with a 2-slot native float
-/// ring (Phase 2). The subclass's three methods all run on the pool thread; the base class
-/// guarantees they never run concurrently with each other, so no locking is required inside them.
-/// </para>
-/// <para>
-/// Providers that do not want this machinery may implement <see cref="IAudioStreamDataProvider"/>
-/// directly (implementing <see cref="IAudioStreamDataProvider.WaitForOpen"/> as a no-op and
-/// decoding synchronously on the caller thread).
-/// </para>
-/// <para>
-/// <b>Threading model.</b> <see cref="WaitForOpen"/>, <see cref="ReadSamples"/>,
-/// <see cref="Reset"/>, and <see cref="Dispose"/> are called only from the main (owner) thread.
-/// <see cref="OpenCore"/>, <see cref="ReadCore"/>, and <see cref="ResetCore"/> run only on the
-/// pool thread, strictly one at a time (the decode task is single-shot and never overlaps a run).
-/// Because the pool thread holds the only decoder access, subclass methods need no locking.
-/// </para>
-/// <para>
-/// <b>Prefetch model.</b> Two slots are kept ready: while the main thread consumes slot N, the pool
-/// thread decodes the previous slot. <see cref="ReadSamples"/> returns the ready slot immediately
-/// (a <see cref="Span{T}"/> copy) and hands the consumed slot back for refill. Decodes are
-/// serialized (the decoder is not thread-safe); the 3-buffer OpenAL ring provides ample slack so
-/// the serialized refill never blocks the main thread in practice.
-/// </para>
+/// <see cref="ReadCore"/>, <see cref="ResetCore"/>) that run strictly one at a time on the pool
+/// thread, while the public API (<see cref="WaitForOpen"/>, <see cref="ReadSamples"/>,
+/// <see cref="Reset"/>, <see cref="Dispose"/>) is called only from the main (owner) thread —
+/// so subclass methods need no locking. Two slots are kept ready: while the main thread consumes
+/// slot N, the pool thread decodes the previous slot; <see cref="ReadSamples"/> returns the ready
+/// slot immediately (a <see cref="Span{T}"/> copy) and hands the consumed slot back for refill.
+/// Decodes are serialized (the decoder is not thread-safe); the 3-buffer OpenAL ring provides
+/// ample slack so the refill never blocks the main thread in practice.
 /// </remarks>
 public abstract unsafe class AudioStreamDataProvider : IAudioStreamDataProvider
 {
@@ -44,7 +27,7 @@ public abstract unsafe class AudioStreamDataProvider : IAudioStreamDataProvider
     // Phase 1: async open. Owned by this provider; disposed in Dispose.
     private readonly OpenTask _openTask;
 
-    // Phase 2: prefetch decode, re-run per chunk. Owned by this provider; disposed in Dispose.
+    // Prefetch decode, re-run per chunk. Owned by this provider; disposed in Dispose.
     private readonly DecodeTask _decodeTask;
 
     // One float ring per slot, allocated after OpenCore sets the format.

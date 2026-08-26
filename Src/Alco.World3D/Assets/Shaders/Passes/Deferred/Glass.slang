@@ -1,6 +1,5 @@
 // Forward-lit glass pass template for surface materials of the PBR deferred
-// pipeline's transparency pass. Slang counterpart of Shaders/Pipelines/
-// Rendering/PBR/ForwardGlass.hlsl.
+// pipeline's transparency pass.
 //
 // A pass template is a self-describing module: it owns the [shader] entry
 // points, generic over the surface type; the material compiler composes this

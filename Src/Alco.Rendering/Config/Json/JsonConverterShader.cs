@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// shader system at deserialization time, so a typo fails at asset load with
 /// the file's context instead of at first use. Variant axes are not part of the
 /// reference — they are specialization arguments requested where the shader is
-/// used (GetGraphicsPipeline/material construction), the way defines used to be.
+/// used (GetGraphicsPipeline/material construction).
 /// An empty or whitespace string reads as null, for optional shader slots.
 /// </summary>
 public class JsonConverterShader : JsonConverter<Shader>

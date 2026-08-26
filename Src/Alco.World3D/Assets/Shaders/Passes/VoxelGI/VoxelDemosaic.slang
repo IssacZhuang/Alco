@@ -1,6 +1,5 @@
 // file "VoxelDemosaic.slang" - module "VoxelDemosaic"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelDemosaic.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -398,7 +397,7 @@ void mainCS(
     float depthRangeRatio = 0.12 + 0.08 * (1.0 - viewFacing);
 
     // --- Dual-layer diffuse gather on the trace input ---
-    // The symmetric 9-tap weights [0.5 1 1 1 1 1 1 1 0.5] give every legacy
+    // The symmetric 9-tap weights [0.5 1 1 1 1 1 1 1 0.5] give every possible
     // 8x8 start phase equal total weight while smoothing the residual variance
     // of the per-pixel temporal integrals. Every tap contributes to both the
     // near and the far layer with independent soft depth tests.

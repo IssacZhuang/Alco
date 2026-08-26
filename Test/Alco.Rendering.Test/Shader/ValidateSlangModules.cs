@@ -6,7 +6,7 @@ using Alco.ShaderCompiler;
 namespace Alco.Rendering.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Slang-mode ValidateShader (plan §7): every engine .slang module under
+// Slang-mode ValidateShader: every engine .slang module under
 // Alco.Rendering's Shaders tree must load through the module system and
 // link every [shader(...)] entry point headlessly. File-tree resolver mirrors
 // the engine's asset resolver conventions (module-name matching).
@@ -41,7 +41,7 @@ public class ValidateSlangModules
         }
     }
 
-    // Modules with generic entry points (plan D3 specialization): a generic
+    // Modules with generic entry points: a generic
     // entry point cannot link unspecialized, so the no-argument asset-load
     // sweep (Engine's ValidateAllShaders) excludes them — this table is their
     // only link/codegen coverage, through ONE representative argument set per

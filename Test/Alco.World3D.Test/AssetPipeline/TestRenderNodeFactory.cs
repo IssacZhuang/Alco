@@ -98,8 +98,7 @@ public class TestRenderNodeFactory
     {
         using GameEngine engine = CreateEngine();
         // A shader reference is the module name — variants are specialization
-        // arguments requested where the shader is used, never part of the
-        // reference (the retired defines position, now specialization-shaped).
+        // arguments passed at the point of use, never part of the reference.
         Shader handle = engine.RenderingSystem.ShaderSystem.GetShader("FXAA");
 
         RenderNodeFactory factory = Parse(engine, """

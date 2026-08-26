@@ -1,6 +1,5 @@
 // file "VolumetricClouds.slang" - module "VolumetricClouds"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VolumetricClouds.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -18,7 +17,7 @@ import AlcoWorld3D_Atmosphere;
 // resolution full-screen pass that ray-marches a cloud slab (Perlin-Worley
 // base shape reshaped by coverage + height gradient, Worley-detail erosion)
 // against the shared G-buffer depth, and outputs premultiplied HDR scattering
-// in rgb with opacity in A. VolumetricCloudsComposite.hlsl then upsamples the
+// in rgb with opacity in A. VolumetricCloudsComposite.slang then upsamples the
 // result depth-aware and blends it over the completed HDR scene color.
 //
 // Performance pillars:

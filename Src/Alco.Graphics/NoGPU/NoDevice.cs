@@ -40,7 +40,6 @@ internal class NoDevice : GPUDevice
     }
     public static readonly NoDevice noDevice = new NoDevice();
 
-    // The representative bind-group limit reported in NoGPU mode (no real adapter is available).
     private const int NoGpuMaxBindGroups = 8;
 
     public override GPUBindGroup BindGroupUniformBuffer {get;}

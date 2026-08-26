@@ -1,9 +1,6 @@
 // file "box-blur.slang" - module "sandbox4_box_blur"
 //
-// Slang module converted from BoxBlur.hlsl (Phase 4 migration): the low-level
-// sandbox compiles it through the native slang module API. The dxc-era
-// writeonly/rgba8 extension macros became native declarations — storage image
-// formats are spelled with [[vk::image_format]] directly.
+// Storage image format is declared directly with [[vk::image_format]] rgba8.
 
 #language slang 2025
 module sandbox4_box_blur;

@@ -1,7 +1,7 @@
 // file "AlcoRendering_Transform2D.slang" - module "AlcoRendering_Transform2D"
 //
-// Slang port of Shaders/Libs/Transform2D.hlsli: the 2D transform value type
-// shared by the CPU particle systems and their shaders.
+// The 2D transform value type shared by the CPU particle systems and their
+// shaders.
 
 #language slang 2025
 module AlcoRendering_Transform2D;

@@ -29,8 +29,7 @@ public enum NavOrientation
 /// <summary>
 /// Coordinates D-Pad/arrow-key navigation and canvas hover for any navigable list.
 /// Owns the edge detection, focus tracking, hover application, and hover-seeded
-/// start logic that was previously duplicated across <see cref="UILayoutNavigator"/>,
-/// <see cref="UIVirtualList{TData}"/>, and <see cref="UIPageList{TData}"/>.
+/// start logic.
 /// </summary>
 /// <remarks>
 /// The host control supplies two callbacks:

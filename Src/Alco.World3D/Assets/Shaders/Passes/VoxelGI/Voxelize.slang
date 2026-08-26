@@ -7,11 +7,9 @@
 // own albedo/emissive to GI. The surface's IVoxelFeedSurface methods receive
 // an explicit LOD - compute has no implicit derivatives.
 //
-// Converted from Shaders/Pipelines/Rendering/PBR/Voxelize.hlsl (Phase 2
-// migration). Resources are grouped as ParameterBlocks — the compiler
-// assigns each block its own descriptor set in declaration order; members
-// resolve by bare field name. Lib declarations are public so importing modules
-// see them.
+// Resources are grouped as ParameterBlocks — the compiler assigns each block
+// its own descriptor set in declaration order; members resolve by bare field
+// name. Lib declarations are public so importing modules see them.
 
 #language slang 2025
 module Voxelize;

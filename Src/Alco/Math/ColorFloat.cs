@@ -169,15 +169,7 @@ public struct ColorFloat
         );
     }
 
-    /// <summary>
-    /// Converts an integer hex color to <see cref="ColorFloat"/>.
-    /// </summary>
-    /// <remarks>
-    /// If <paramref name="color"/> fits in 6 hex digits (≤ 0xFFFFFF), it is treated as RGB
-    /// with alpha = 1.0. Otherwise, it is treated as an 8-digit RGBA value (AA BB GG RR).
-    /// This matches the <see cref="uint"/> overload behavior for values that happen to fit
-    /// in a signed <see cref="int"/> (e.g., <c>0x484848FF</c>).
-    /// </remarks>
+    /// <summary>Converts an integer hex color to <see cref="ColorFloat"/>: values &le; 0xFFFFFF are RGB with alpha = 1.0, anything larger is an 8-digit RGBA value (AA BB GG RR).</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(int color)
     {

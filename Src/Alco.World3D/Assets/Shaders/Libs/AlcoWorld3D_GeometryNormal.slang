@@ -1,8 +1,7 @@
 // file "AlcoWorld3D_GeometryNormal.slang" - module "AlcoWorld3D_GeometryNormal"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/GeometryNormal.hlsli (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Explicit set/binding declarations; bindings within a set are assigned in
+// declaration order and are compiler-owned.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025

@@ -109,11 +109,11 @@ public static unsafe class ImageDecodeUtility
     }
 
     /// <summary>
-    /// Probe the file-level specification of an image from its header alone, without
-    /// decoding pixels. Detects format by magic bytes: DDS ("DDS "), PNG (89 50 4E 47)
-    /// or JPEG (FF D8). Only the header bytes need to be present (33 for PNG, up to the
-    /// SOF marker for JPEG, 128/148 for DDS), so a partially read file can be probed
-    /// ahead of streaming its content.
+    /// Probe the file-level specification from the leading header bytes alone,
+    /// without decoding pixels — the per-format header byte requirements and
+    /// format detection are those of the stream overload
+    /// (<see cref="GetImageFileInfo(Stream, bool)"/>); a partially read file can
+    /// be probed ahead of streaming its content.
     /// </summary>
     /// <param name="data">The leading bytes of the image file.</param>
     /// <param name="srgb">

@@ -1,6 +1,5 @@
 // file "HBAOBlur.slang" - module "HBAOBlur"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/HBAOBlur.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.

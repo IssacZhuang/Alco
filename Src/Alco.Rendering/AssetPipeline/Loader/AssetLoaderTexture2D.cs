@@ -67,10 +67,10 @@ public class AssetLoaderTexture2D : IAssetLoader
     /// <inheritdoc/>
     public object CreateAsset(in AssetLoadContext context)
     {
-        // 1. Engine defaults
+        // Engine defaults
         ImageLoadOption option = ImageLoadOption.Default with { Name = context.Filename };
 
-        // 2. Resolve import options (directory cascade + .meta)
+        // Resolve import options (directory cascade + .meta)
         Texture2DMeta? metaData = null;
         if (_cache != null)
         {
@@ -89,7 +89,7 @@ public class AssetLoaderTexture2D : IAssetLoader
             metaData = meta;
         }
 
-        // 3. Create the texture. File-backed assets stream: probe the header, pre-create
+        // Create the texture. File-backed assets stream: probe the header, pre-create
         // the texture at its final specification, upload the content in place
         // asynchronously. Headers that cannot be probed fall back to synchronous decode,
         // as do preloaded (in-memory) contexts.
@@ -112,7 +112,7 @@ public class AssetLoaderTexture2D : IAssetLoader
             texture = _renderingSystem.CreateTexture2DFromFile(context.GetData(), option);
         }
 
-        // 4. Sprites (only from .meta)
+        // Sprites (only from .meta)
         if (metaData != null && metaData.Sprites != null && metaData.Sprites.Count > 0)
         {
             texture.ClearSprites();

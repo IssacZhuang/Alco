@@ -8,7 +8,6 @@ internal unsafe static class VorbisDecoder
     {
         fixed (byte* ptr = data)
         {
-            //stb vorbis
             int error = 0;
             stb_vorbis vorbis = stb_vorbis_open_memory(ptr, data.Length, &error);
             if (vorbis == null)
@@ -56,7 +55,6 @@ internal unsafe static class VorbisDecoder
     {
         fixed (byte* ptr = data)
         {
-            //stb vorbis
             int error = 0;
             stb_vorbis vorbis = stb_vorbis_open_memory(ptr, data.Length, &error);
             if (vorbis == null)

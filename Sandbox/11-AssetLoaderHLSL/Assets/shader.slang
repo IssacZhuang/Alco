@@ -1,8 +1,4 @@
 // file "shader.slang" - module "sandbox11_shader"
-//
-// Slang module converted from Assets/Shader.hlsl (Phase 2 migration): the
-// asset loader derives the module from the file name and the ShaderSystem
-// compiles it through the native slang module API.
 
 #language slang 2025
 module sandbox11_shader;

@@ -188,8 +188,7 @@ public static class SlangBlockBindingTest
     {
         // The material surface shape: the engine-data block and the marked
         // parameter block are separate ParameterBlocks, so each owns its own
-        // set — no more shared-set b-register arithmetic (the UBO of a mixed
-        // block always restarts at binding 0 of its set).
+        // set — the UBO of a mixed block always restarts at binding 0 of its set.
         const string multi = """
             module block_multi;
 

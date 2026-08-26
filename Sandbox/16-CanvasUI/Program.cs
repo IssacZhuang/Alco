@@ -11,8 +11,6 @@ GameEngineSetting setting = new GameEngineSetting
     }
 };
 
-//setting.Window.VSync = true;
-
 using (Game game = new Game(setting))
 {
     game.Run();

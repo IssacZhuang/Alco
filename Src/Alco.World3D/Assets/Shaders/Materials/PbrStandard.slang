@@ -1,8 +1,8 @@
 // module "pbr_standard"
 //
 // The built-in glTF metallic-roughness surface: the four standard texture
-// slots, each multiplied with its per-instance factor. Slang counterpart of
-// Shaders/Materials/PbrStandard.hlsli - the surface is a module exporting its
+// slots, each multiplied with its per-instance factor. The surface is a module
+// exporting its
 // single ISurface implementation; its resources live at module scope in
 // one ParameterBlock (the compiler assigns its descriptor set; members
 // resolve by bare field name and the engine binds them by name). No pass

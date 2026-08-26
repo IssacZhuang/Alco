@@ -17,12 +17,11 @@ namespace Alco.World3D.Test;
 /// Slang's own reflection translated into the engine's shader reflection, and the
 /// reflection-driven mapping of <c>[MaterialParams]</c>-marked parameter blocks.
 /// Uses a NoGPU engine with the module's real Slang sources, mirroring
-/// <see cref="AssetPipeline.TestMaterialCompiler"/>; the retired DXC toolchain and
-/// the retired wrapper generator are not involved anywhere.
+/// <see cref="AssetPipeline.TestMaterialCompiler"/>.
 /// </summary>
 public class TestSlangMaterialCompiler
 {
-    /// <summary>The module name of this fixture's test surface (Files/Assets/Shaders/Materials/parameterized-surface.slang).</summary>
+    /// <summary>The module name of this fixture's test surface (Files/Assets/Shaders/Materials/ParameterizedSurface.slang).</summary>
     private const string ParameterizedSurfaceModule = "ParameterizedSurface";
 
     /// <summary>The interned library reference of one module, as assets and passes hold it.</summary>
@@ -77,7 +76,7 @@ public class TestSlangMaterialCompiler
             Assert.That(BitConverter.ToUInt32(modules.VertexShader.GetValueOrDefault().Source.ToArray(), 0), Is.EqualTo(0x07230203u));
             Assert.That(BitConverter.ToUInt32(modules.FragmentShader.GetValueOrDefault().Source.ToArray(), 0), Is.EqualTo(0x07230203u));
 
-            // Set-scoped blocks (plan D2): camera set 0, instances set 1,
+            // Set-scoped blocks: camera set 0, instances set 1,
             // surface resources set 2, the shared sampler bank set 3; bindings
             // inside a set are compiler-assigned.
             Assert.That(info.BindGroups.Count, Is.EqualTo(4));

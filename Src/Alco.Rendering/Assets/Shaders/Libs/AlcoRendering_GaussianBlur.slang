@@ -1,7 +1,7 @@
 // file "AlcoRendering_GaussianBlur.slang" - module "AlcoRendering_GaussianBlur"
 //
-// Slang port of Shaders/Libs/gaussianBlur.hlsli: separable gaussian blur over
-// an RW texture with weights from a kernel storage buffer.
+// Separable gaussian blur over an RW texture with weights from a kernel
+// storage buffer.
 
 #language slang 2025
 module AlcoRendering_GaussianBlur;

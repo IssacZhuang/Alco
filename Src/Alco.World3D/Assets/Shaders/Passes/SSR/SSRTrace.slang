@@ -1,6 +1,5 @@
 // file "SSRTrace.slang" - module "SSRTrace"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionTrace.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -30,7 +29,7 @@ public struct PassParams
 public ParameterBlock<PassParams> pass;
 
 
-// Runtime-baked Heitz blue-noise lookup (see ScreenSpaceReflectionBlueNoise.hlsl).
+// Runtime-baked Heitz blue-noise lookup (see SSRBlueNoise.slang).
 static const uint SSR_BLUE_NOISE_TILE = 128u;
 
 static const float2 SSR_BLUR_OFFSETS[9] = {

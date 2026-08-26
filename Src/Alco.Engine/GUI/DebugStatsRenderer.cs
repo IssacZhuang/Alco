@@ -10,14 +10,12 @@ public class DebugStatsRenderer : IDisposable
     private readonly Input _input;
     private readonly View _window;
 
-    //for rendering
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
 
     private readonly Camera2DBuffer _camera;
     private readonly Texture2D _textureWhite;
 
-    //blit
     private readonly RenderContext _rendererContent;
     private readonly TextRenderer _textRenderer;
     private readonly SpriteRenderer _spriteRenderer;
@@ -53,7 +51,6 @@ public class DebugStatsRenderer : IDisposable
         _window = window;
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
-        //external resources
         _textureWhite = renderingSystem.TextureWhite;
 
         //internal resources

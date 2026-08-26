@@ -3,23 +3,10 @@ using NUnit.Framework;
 
 namespace Alco.ShaderCompiler;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Phase-0 spike for the material-composition refactor: proves the slang
-// mechanisms the rebuilt MaterialCompiler stands on, in the shape the material
-// system uses them (contract + pass template + surface):
-//
-//   1. cross-module composite + type specialization — the template module owns
-//      the generic [shader] entry points, the surface module owns the Surface
-//      type, and NO generated wrapper module is involved;
-//   2. interface default implementations + interface inheritance — a surface
-//      overrides only what it customizes (the "unconnected pin" equivalent);
-//   3. bool value specialization (<let AlphaTest : bool>) replacing pass-private
-//      defines (SHADOW_CUTOUT), with dead-code elimination verified through
-//      reflection (the gated texture disappears when AlphaTest is false);
-//   4. module-level reflection of a _materialParams block without entry points
-//      or a link — the parameter probe no longer borrows a pass template;
-//   5. composed-program disk-cache round-trip.
-// ─────────────────────────────────────────────────────────────────────────────
+// Proves the slang composition mechanisms the material system relies on:
+// cross-module composite + type specialization, interface defaults,
+// bool value specialization with DCE, parameter-block reflection,
+// disk-cache round-trip.
 [TestFixture]
 public class SlangCompositionSpikeTest
 {

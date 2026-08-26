@@ -4,12 +4,9 @@ using Alco.ShaderCompiler;
 namespace Alco.Rendering;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ShaderSystem (plan §4.2, runtime service): the module-name keyed shader
-// factory on top of SlangModuleSystem. Callers ask for
-// GetShader(moduleName, specialization…) instead of Load<Shader>(path); the
-// returned Shader is the unified (module, entries, specialization) object.
-//
-// Specialization arguments are part of the program cache identity.
+// ShaderSystem: the module-name keyed shader factory on top of SlangModuleSystem.
+// The returned Shader is the unified (module, entries, specialization) object;
+// specialization arguments are part of the program cache identity.
 //
 // Hot reload: SlangModuleSystem.ModulesInvalidated → every Shader of an
 // affected module gets UnsafeModuleReload (version bump, cache clear) and
@@ -87,8 +84,7 @@ public sealed class ShaderSystem : IDisposable
     /// Gets (or creates) the shader handle of one module: the module's entry
     /// points are its own [shader(...)] definitions, and generic value variant
     /// axes are requested through the specialization arguments of the Shader's
-    /// accessor methods (where the retired defines used to be). Handles are
-    /// interned per module name.
+    /// accessor methods. Handles are interned per module name.
     /// </summary>
     public Shader GetShader(string moduleName)
     {

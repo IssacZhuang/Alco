@@ -12,9 +12,8 @@ public static class ImGUIResourceHelper
 {
     public static Shader GetImGUIShader(RenderingSystem renderingSystem)
     {
-        // The embedded module compiles through the shared slang module system
-        // (plan Phase 2): source-registered under "ImGUI" with the custom
-        // vertex layout ImGui's packed vertices require.
+        // Compiles through the shared slang module system: source registered
+        // under "ImGUI" with ImGui's packed vertex layout.
         string source = GetEmbeddedResourceString("ImGUI.slang");
         return renderingSystem.ShaderSystem.GetShaderFromModule("ImGUI", "ImGUI.slang", source,
         [

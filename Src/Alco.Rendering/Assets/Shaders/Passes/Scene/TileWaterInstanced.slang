@@ -1,6 +1,5 @@
 // file "TileWaterInstanced.slang" - module "TileWaterInstanced"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 
@@ -193,13 +192,6 @@ int getTileId(int2 tilePos, int defaultValue) {
         worldPos.x + time ,
         worldPos.y + time
     );
-
-    // Sample cellular noise for ripples
-    // float ripples = fnlGetNoise2D(noiseState, rippleCoord.x, rippleCoord.y);
-
-    // ripples = (ripples + 1) * 0.1;
-
-    // color.rgb *=(1-ripples);
 
     return color;
 }

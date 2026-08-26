@@ -1,6 +1,5 @@
 // file "Particle2D.slang" - module "Particle2D"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 

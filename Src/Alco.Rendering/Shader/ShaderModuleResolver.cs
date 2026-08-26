@@ -3,7 +3,7 @@ using Alco.ShaderCompiler;
 namespace Alco.Rendering;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Module-name → asset-path resolution (plan D1/D5): slang probes a module name
+// Module-name → asset-path resolution: slang probes a module name
 // ('AlcoRendering_Core') as several file forms ('AlcoRendering/Core.slang',
 // 'AlcoRendering-Core.slang', 'AlcoRendering_Core.slang'). The engine resolver
 // answers those probes against the asset system by comparing dashed forms, so a
@@ -43,7 +43,7 @@ public static class ShaderModuleResolver
             //    Relative import probes ('Shaders/Materials/Surface.slang' for
             //    'import Surface;' from a module in that folder) retry on the probe's
             //    base name: module names are global, so a module's directory
-            //    position is never load-bearing (plan D5).
+            //    position is never load-bearing.
             string? match = ProbeDashed(key, listNames, openStream);
             if (match != null)
             {

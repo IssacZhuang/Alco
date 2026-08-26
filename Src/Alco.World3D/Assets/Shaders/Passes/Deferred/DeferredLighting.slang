@@ -1,8 +1,7 @@
 // file "DeferredLighting.slang" - module "DeferredLighting"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/DeferredLighting.hlsl (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Explicit set/binding declarations; bindings within a set are assigned in
+// declaration order and are compiler-owned.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -18,8 +17,8 @@ import AlcoWorld3D_PBRCommon;
 // an ambient term (sky/probe baseline modulated by voxel visibility plus
 // traced bounce light) and a physically-based procedural sky (single
 // scattering atmosphere plus sun disc and stars) for empty pixels.
-// Shared PBR functions, cbuffer, point-light buffer and shadow map are in
-// PBRCommon.hlsli (included after the pass-specific declarations below).
+// Shared PBR functions, cbuffer, point-light buffer and shadow map are
+// provided by AlcoWorld3D_PBRCommon (imported above).
 
 struct Vertex
 {
@@ -98,12 +97,12 @@ float reconstructLinearDepth(V2F input)
 
 // Shared PBR functions (distributionGGX, evaluatePBR, shadow sampling, sky,
 // envBRDFApprox, evaluateDiffuseSky, geometricSpecularAA, evaluatePointLights)
-// are provided by PBRCommon.hlsli included above.
+// are provided by AlcoWorld3D_PBRCommon.
 
 [shader("fragment")]
 float4 MainPS<let debugView : int>(V2F input) : SV_TARGET
 {
-    // debugView is a generic value specialization (plan D3): 0 = normal
+    // debugView is a generic value specialization: 0 = normal
     // rendering, 1 = combined AO, 2 = sun shadow factor, 3 = cascade tint,
     // 4 = GI diffuse, 5 = GI specular, 6 = GI visibility. Dead branches fold
     // away at compile time, so the non-debug variant carries no branch cost.
@@ -180,7 +179,7 @@ float4 MainPS<let debugView : int>(V2F input) : SV_TARGET
         return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
 
-    // Point lights (shared loop from PBRCommon.hlsli).
+    // Point lights (shared loop from AlcoWorld3D_PBRCommon).
     lo += evaluatePointLights(n, v, worldPosition, albedo, metallic, roughness);
 
     // Build the diffuse environment baseline independently of voxel GI. This is

@@ -43,7 +43,6 @@ public class TextSDF : AutoDisposable
         // For ping-pong buffering, we'll assume the caller provides both input and output
         // textures and we'll swap between them
 
-        // Set up constant data
         var constant = new TextSdfConstant
         {
             attenuation = 1.0f / _maxDistance  // Normalize attenuation
@@ -52,14 +51,11 @@ public class TextSDF : AutoDisposable
         RenderTexture frontBuffer = input;
         RenderTexture backBuffer = output;
 
-        // Perform flood-fill passes
         for (int pass = 0; pass < numPasses; pass++)
         {
-            // Set textures for this pass
             _material.TrySetRenderTexture(ShaderResourceId.FrontBuffer, frontBuffer);
             _material.TrySetRenderTexture(ShaderResourceId.BackBuffer, backBuffer);
 
-            // Dispatch compute shader
             _material.DispatchBySizeWithConstant(
                 computePass,
                 input.Width,
@@ -68,7 +64,6 @@ public class TextSDF : AutoDisposable
                 constant
             );
 
-            // Swap buffers for next pass (ping-pong)
             if (pass < numPasses - 1)
             {
                 (frontBuffer, backBuffer) = (backBuffer, frontBuffer);
@@ -93,7 +88,6 @@ public class TextSDF : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        // ComputeMaterial instances are managed by the rendering system
-        // No manual disposal needed like GaussianBlur
+        // Nothing to dispose here: ComputeMaterial instances are managed by the rendering system.
     }
 }

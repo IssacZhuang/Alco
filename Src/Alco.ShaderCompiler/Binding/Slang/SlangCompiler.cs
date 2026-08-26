@@ -4,7 +4,7 @@ using Alco.Graphics;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Managed facade over the slang modern API (plan §4.1). The slang
+// Managed facade over the slang modern API. The slang
 // IGlobalSession is process-wide (see SlangCompiler); each
 // SlangCompileSession owns an ISession for one (search-path set, macros,
 // target options) combination.

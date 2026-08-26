@@ -1,7 +1,7 @@
 // file "AlcoRendering_TextureBombing.slang" - module "AlcoRendering_TextureBombing"
 //
-// Slang port of Shaders/Libs/textureBombing.hlsli: two-splat triangle bombing
-// with per-splat hash offsets (translated from the shadertoy "flt3Wn").
+// Two-splat triangle bombing with per-splat hash offsets (translated from the
+// shadertoy "flt3Wn").
 
 #language slang 2025
 module AlcoRendering_TextureBombing;

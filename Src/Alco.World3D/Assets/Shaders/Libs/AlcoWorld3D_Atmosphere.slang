@@ -1,8 +1,7 @@
 // file "AlcoWorld3D_Atmosphere.slang" - module "AlcoWorld3D_Atmosphere"
 //
-// Slang module converted from Shaders/Libs/Atmosphere.hlsli (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Explicit set/binding declarations; bindings within a set are assigned in
+// declaration order and are compiler-owned.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -12,7 +11,7 @@ import AlcoRendering_Core;
 
 // Physically-based procedural sky: single-scattering atmosphere (Rayleigh +
 // Mie) over a spherical earth, plus a hash-based procedural star field for the
-// night. Uses PI from Core.hlsli (included above).
+// night. Uses PI from AlcoRendering_Core.
 //
 // The model follows the classic GPU Gems 2 / Hillaire formulation: density
 // falls off exponentially with height (separate scale heights for Rayleigh
@@ -29,7 +28,8 @@ import AlcoRendering_Core;
 // Alco.Rendering.ProceduralSkyUtility; the atmosphere constants below MUST
 // stay in sync with it.
 //
-// Parameter packing (same in DeferredLighting.hlsl and VoxelCommon.hlsli):
+// Parameter packing (identical in DeferredLighting.slang and
+// AlcoWorld3D_VoxelCommon.slang):
 //   skyParams:  x = rayleigh density scale (1 = earth default)
 //               y = mie density scale (1 = default, raise for haze)
 //               z = mie phase anisotropy g (0.8 default)

@@ -9,7 +9,7 @@ using NUnit.Framework;
 namespace Alco.Engine.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Texture2D asset streaming (plan A): the loader probes the header with minimal
+// Texture2D asset streaming: the loader probes the header with minimal
 // per-format reads, pre-creates the texture at its final specification and streams
 // the content in asynchronously, uploading in place so the texture's identity never
 // changes. The texture holds no streaming state; tests observe completion through the

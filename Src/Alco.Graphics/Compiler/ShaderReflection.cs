@@ -7,12 +7,8 @@ namespace Alco.Graphics;
 /// The reflection of a linked shader program — its pipeline interface: bind
 /// groups (set/binding-keyed), vertex input layouts, push constants, thread
 /// group size and fragment output count — plus its uniform blocks in the
-/// shared <see cref="ShaderUniformBlock"/> vocabulary (the linked survivors
-/// with their post-link member layouts, correlated to bind-group entries by
-/// name). Sibling of <see cref="ShaderLibraryReflection"/> (the module's
-/// declared-blocks view of the same vocabulary); the two are deliberately
-/// unrelated types — a linked program is not a library, and no consumer of
-/// one shape can consume the other.
+/// shared <see cref="ShaderUniformBlock"/> vocabulary. The module-level
+/// declarations view is <see cref="ShaderLibraryReflection"/>.
 /// </summary>
 public sealed class ShaderReflection
 {
@@ -314,10 +310,6 @@ public sealed class ShaderReflection
                 builder.AppendLine(bindGroup.ToString());
             }
         }
-        // foreach (var bindGroup in BindGroups)
-        // {
-        //     builder.AppendLine(bindGroup.ToString());
-        // }
 
         if (Size != ThreadGroupSize.Default)
         {

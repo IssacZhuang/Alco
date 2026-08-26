@@ -7,26 +7,16 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// The shader parameter set which manages the resources of the shader.
-/// <br/>Resources are addressed by dense resource id (one slot per settable shader
-/// variable: a buffer or a texture). The bind groups of the shader are assembled
-/// lazily from the slot values: a group is (re)built only when one of its values
-/// changed, and identical contents are served from a per-group cache, so ping-pong
-/// updates (e.g. double buffering) do not recreate bind groups every frame.
-/// <br/>Groups that resolve from a single slot (one resource) are cached on the
-/// resource itself, keyed by the group layout: they are created once per resource
-/// and reused across frames and materials, so slots whose value changes per
-/// instance (e.g. the voxel GI voxelize dispatch cycling mesh buffers) do not
-/// allocate new bind groups.
-/// <br/>Sampler entries (the shared sampler bank's members or a module's own
-/// sampler declarations) are not texture companions: they resolve by their own
+/// Resources are addressed by dense resource id (one slot per settable shader
+/// variable: a buffer or a texture); their bind groups assemble lazily from the
+/// slot values and are cached per contents, so unchanged groups are reused frame
+/// to frame. Sampler entries are independent resources resolving by their own
 /// name — a material-bound override first, else the rendering system's sampler
-/// library, so textures and samplers are independent resources.
+/// library.
 /// <br/>Thread safety: one material (its parameter set) is used from a single
 /// thread at a time, but different materials may live on different threads —
-/// every state they transitively share (the sampler bank, per-resource bind
-/// group caches, the shader module/pipeline caches) is synchronized; the
-/// native layer only requires command recording and buffer/texture writes to
-/// stay per-thread.
+/// every state they transitively share (the sampler bank, bind group caches,
+/// module/pipeline caches) is synchronized.
 /// </summary>
 public sealed class ShaderParameterSet
 {
@@ -1238,11 +1228,6 @@ public sealed class ShaderParameterSet
             hash = (hash ^ (ulong)RuntimeHelpers.GetHashCode(value)) * 1099511628211UL;
         }
 
-        // Single-slot groups (one resource plus its sampler companion)
-        // are fully determined by the slot value and the group layout, so their
-        // bind groups are cached on the resource itself and shared across frames
-        // and materials. Binding new instances into such a group stops being a
-        // native allocation once each resource has its group.
         if (TryAssembleSingleSlotGroup(groupIndex, group, plans, out GPUResourceGroup? resourceOwned))
         {
             return resourceOwned;

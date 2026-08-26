@@ -90,7 +90,6 @@ public abstract class ReusableBatchTask3D : AutoDisposable
             }
             finally
             {
-                // Signal completion
                 _task._completionCount.Release();
             }
         }
@@ -137,7 +136,6 @@ public abstract class ReusableBatchTask3D : AutoDisposable
 
         int totalVoxels = x * y * z;
 
-        // Calculate batch size if not provided
         int actualBatchSizeX;
         int actualBatchSizeY;
         int actualBatchSizeZ;
@@ -160,19 +158,16 @@ public abstract class ReusableBatchTask3D : AutoDisposable
             actualBatchSizeZ = Math.Min(actualBatchSizeZ, z);
         }
 
-        // Calculate number of batches in each dimension
         int batchesX = (x + actualBatchSizeX - 1) / actualBatchSizeX;
         int batchesY = (y + actualBatchSizeY - 1) / actualBatchSizeY;
         int batchesZ = (z + actualBatchSizeZ - 1) / actualBatchSizeZ;
         int totalBatches = batchesX * batchesY * batchesZ;
 
-        // Ensure we have enough TaskItem objects
         while (_taskItems.Count < totalBatches)
         {
             _taskItems.Add(new TaskItem(this));
         }
 
-        // Queue all tasks
         int batchIndex = 0;
         for (int bz = 0; bz < batchesZ; bz++)
         {
@@ -202,13 +197,11 @@ public abstract class ReusableBatchTask3D : AutoDisposable
             }
         }
 
-        // Wait for all tasks to complete
         for (int i = 0; i < totalBatches; i++)
         {
             _completionCount.Wait();
         }
 
-        // Check for exceptions and aggregate them if any occurred
         _exceptions.Clear();
         for (int i = 0; i < totalBatches; i++)
         {

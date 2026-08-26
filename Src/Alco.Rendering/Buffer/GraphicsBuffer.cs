@@ -84,7 +84,6 @@ public class GraphicsBuffer : AutoDisposable
     /// <br/>[warning] It will throw an exception if the buffer size is larger than the limit(65536). Try use <see cref="EntryReadWrite"/> if you need to bind a large buffer.
     /// </summary>
     /// <value>The GPU resource group to bind.</value>
-    /// <exception cref="GraphicsException"></exception>
     public virtual GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -157,7 +156,6 @@ public class GraphicsBuffer : AutoDisposable
     /// <br/>Accessed by the material system when assembling bind groups; subclasses
     /// may override it to flush pending uploads lazily (see <see cref="BaseCameraBuffer{T}"/>).
     /// </summary>
-    /// <value></value>
     public virtual GPUBuffer NativeBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

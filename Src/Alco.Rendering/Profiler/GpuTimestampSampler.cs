@@ -5,28 +5,20 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A throttled GPU timestamp sampler that records timestamps, resolves, and
-/// readbacks only once per configurable interval (default 1s). Between samples,
-/// zero GPU timestamp work is performed — no command-buffer overhead, no CPU
-/// readback stalls. The readback always reads data from the previous sample
-/// (≥ interval seconds ago), so the GPU work is guaranteed complete.
+/// A throttled GPU timestamp sampler: timestamps are recorded, resolved, and read
+/// back only once per interval (default 1s) — no GPU timestamp work in between — and
+/// the readback always returns the previous sample (≥ one interval old), so its GPU
+/// work is guaranteed complete. Per frame: gate on <see cref="ShouldRecord"/>, record
+/// into <see cref="QuerySet"/>, resolve into <see cref="ResolveBuffer"/>, then call
+/// <see cref="EndSample"/>; <see cref="TryReadback"/> returns the previous sample's
+/// slots (indexed by logical slot) or null.
 /// <para>
-/// Call <see cref="ShouldRecord"/> at the start of each frame to check whether
-/// this is a sample frame. If true, record timestamps into <see cref="QuerySet"/>,
-/// resolve into <see cref="ResolveBuffer"/>, then call <see cref="EndSample"/>.
-/// Call <see cref="TryReadback"/> to get the previous sample's timestamps (returns
-/// null if none are available or this isn't a sample frame).
-/// </para>
-/// <para>
-/// Two resolve layouts exist. The default contiguous layout packs the slots
-/// tightly and is served by <see cref="ResolveAll"/> — valid when every slot is
-/// written before the resolve runs (the sampler's owner resolves once, after all
-/// its passes). The padded-pair layout (<paramref name="pairStrideBytes"/>) gives
-/// each consecutive slot pair its own stride-aligned buffer region served by
-/// <see cref="ResolvePair(RenderPassScope, int)"/> — for samplers shared by
-/// several passes that resolve their own pair right after it is written.
-/// Resolving only already-written slots matters: mid-frame resolves of slots not
-/// yet written can lose the device on some backends.
+/// Two resolve layouts: contiguous, slots packed tightly and resolved together via
+/// <see cref="ResolveAll"/> once every slot has been written; padded-pair, each slot
+/// pair resolved into its own stride-aligned region (<see cref="PairStrideBytes"/>)
+/// via <see cref="ResolvePair(RenderPassScope, int)"/> right after it is written.
+/// Resolving slots that were not yet written (mid-frame, partial set) can lose the
+/// device on some backends.
 /// </para>
 /// </summary>
 public sealed class GpuTimestampSampler : AutoDisposable

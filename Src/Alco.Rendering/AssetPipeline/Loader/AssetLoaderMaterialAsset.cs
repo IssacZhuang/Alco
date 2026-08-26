@@ -6,13 +6,10 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Loads material asset files (<c>.amat</c>) directly into <see cref="MaterialAsset"/>s —
-/// no DTO layer: the file's <c>$type</c> discriminator selects the pipeline family's
-/// derived asset type (the engine's polymorphic JSON convention, discovered by assembly
-/// scan; a file without one parses as the pipeline-agnostic base type), and resource
-/// references land typed — textures load through the asset system, the surface resolves
-/// and validates into a <see cref="ShaderLibrary"/>, parameters and PBR factors read as
-/// vectors/colors. A bad reference (missing texture, unknown module, unknown field,
-/// unknown <c>$type</c>) fails here, at load time, with the file's name.
+/// no DTO layer: resource references land typed — textures load through the asset system,
+/// the surface resolves and validates into a <see cref="ShaderLibrary"/>, parameters and
+/// PBR factors read as vectors/colors. A bad reference (missing texture, unknown module,
+/// unknown field, unknown <c>$type</c>) fails here, at load time, with the file's name.
 /// </summary>
 public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
 {

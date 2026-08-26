@@ -56,17 +56,14 @@ internal static unsafe class ObjDecoder
         vertexCount = vertices.Count;
         indexCount = indexList.Count;
 
-        // Allocate native memory for vertices
         int vertexSize = vertexCount * sizeof(VertexPBR);
         VertexPBR* vertexPtr = (VertexPBR*)NativeMemory.Alloc((nuint)vertexSize);
 
         try
         {
-            // Copy vertices to native memory
             var vertexSpan = new Span<VertexPBR>(vertexPtr, vertexCount);
             CollectionsMarshal.AsSpan(vertices).CopyTo(vertexSpan);
 
-            // Allocate native memory for indices
             int indexSize = indexCount * sizeof(uint);
             indices = (uint*)NativeMemory.Alloc((nuint)indexSize);
 

@@ -7,9 +7,9 @@ using Alco.Graphics;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SlangModuleSystem (plan §4.2, headless core): owns the slang compile session,
+// SlangModuleSystem (headless core): owns the slang compile session,
 // the module cache, the dependency graph with reverse invalidation, and the two
-// disk-cache layers that replace ShaderCache:
+// disk-cache layers:
 //
 //   (a) modules/<hash>.slang-module + .meta — serialized module IR. The meta
 //       sidecar stamps the slang build tag, the session's code target, the

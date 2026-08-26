@@ -15,14 +15,10 @@ namespace Alco.Rendering;
 /// Alco.World3D module's <c>RenderPipelines.CreatePBRDeferred</c>) or by hand from
 /// the same public building blocks.
 /// <br/>The pipeline is a plain object, created and driven manually by its owner
-/// (the engine for the main view, game code for additional views):
-/// <list type="number">
-/// <item><see cref="Use"/> the nodes in the order they should execute.</item>
-/// <item><see cref="Render"/>: clears the scene texture, then runs the graph into the
-/// final destination (typically the swapchain frame buffer).</item>
-/// <item><see cref="Resize"/> when the view size changes.</item>
-/// </list>
-/// Everything the pipeline does is public API: the same frame can be composed by hand
+/// (the engine for the main view, game code for additional views): register nodes
+/// with <see cref="Use"/>, drive frames with <see cref="Render"/>, propagate view
+/// resizes with <see cref="Resize"/>.
+/// <br/>Everything the pipeline does is public API: the same frame can be composed by hand
 /// from <see cref="RenderGraph"/>, <see cref="RGNode_Clear"/>, <see cref="RenderChain"/>
 /// and <see cref="RGNode_Blit"/>, and any stage of a pipeline can be replaced or
 /// reordered through <see cref="Graph"/>.

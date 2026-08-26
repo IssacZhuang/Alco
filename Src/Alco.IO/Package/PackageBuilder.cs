@@ -104,16 +104,12 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
         int finalLength = checked((int)(12L + metaBytes.Length + totalContentLength));
         byte[] package = new byte[finalLength];
 
-        // Write magic number
         TMeta.Magic.CopyTo(package.AsSpan(0, 4));
 
-        // Write meta length (Int64 LE)
         BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4, 8), metaBytes.Length);
 
-        // Write meta payload
         metaBytes.Span.CopyTo(package.AsSpan(12));
 
-        // Write content payload
         int cursor = 12 + metaBytes.Length;
         foreach (string name in _order)
         {
@@ -142,16 +138,13 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
 
         (TMeta meta, ReadOnlyMemory<byte> metaBytes, long _) = PrepareBuild();
 
-        // Write magic number
         Span<byte> header = stackalloc byte[12];
         TMeta.Magic.CopyTo(header[..4]);
         BinaryPrimitives.WriteInt64LittleEndian(header.Slice(4, 8), metaBytes.Length);
         output.Write(header);
 
-        // Write meta payload
         output.Write(metaBytes.Span);
 
-        // Write content payload
         byte[] padding = new byte[Math.Max(0, _entryAlignment - 1)];
         foreach (string name in _order)
         {

@@ -1,7 +1,6 @@
 // file "shader.slang" - module "sandbox7_shader"
 //
-// Slang module converted from Shader.hlsl (Phase 4 migration): the low-level
-// sandbox compiles it through the native slang module API. Resources are
+// Resources are
 // grouped as ParameterBlocks — the compiler assigns each block its own
 // descriptor set in declaration order; members resolve by bare field name.
 

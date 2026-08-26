@@ -5,7 +5,7 @@ using Alco.ShaderCompiler;
 namespace Alco.Rendering;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RenderingSystem × ShaderSystem (plan §4.2): the engine-owned module shader
+// RenderingSystem × ShaderSystem: the engine-owned module shader
 // factory. Constructed eagerly with the rendering system (RAII, like every
 // other subsystem): the module resolver — backed by the asset system as a
 // plain file provider — is a constructor dependency the host supplies; a null
@@ -45,8 +45,7 @@ public partial class RenderingSystem
         {
             Resolver = moduleResolver,
             Target = target,
-            // Cache/compile events (hit/miss with timings) — the old
-            // DXC ShaderCache logged these; the slang path stayed silent.
+            // Forwards slang cache/compile hit-miss events with timings.
             Log = message => Log.Info(message),
         }, slangCacheDirectory);
     }

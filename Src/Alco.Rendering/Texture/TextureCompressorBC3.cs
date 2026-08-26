@@ -16,9 +16,7 @@ public sealed class TextureCompressorBC3 : AutoDisposable
 
     private GraphicsArrayBuffer<uint4> _blocks;//resizeable
 
-    // The compression shader handle: the linear/sRGB dispatchers are the two
-    // construction-bound specializations of its MainCS<let IsSRGB> entry —
-    // each compiles once and caches inside the shader.
+    // Linear/sRGB are construction-time specializations of MainCS<let IsSRGB>.
     private readonly Shader _shader;
     private ComputeMaterial _linearMaterial = null!;
     private ComputeMaterial _srgbMaterial = null!;
@@ -33,8 +31,6 @@ public sealed class TextureCompressorBC3 : AutoDisposable
             if (_isSRGB != value)
             {
                 _isSRGB = value;
-                // Both dispatchers are construction-bound variants; switching
-                // selects between them (each stays cached in the shader).
                 _material = _isSRGB ? _srgbMaterial : _linearMaterial;
             }
         }
@@ -60,9 +56,6 @@ public sealed class TextureCompressorBC3 : AutoDisposable
         _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
         _blocks.UpdateBuffer();
 
-        // The sRGB choice is a generic value specialization of the compression
-        // shader (MainCS<let IsSRGB> : bool): true selects the sRGB output path,
-        // false the linear one — two construction-bound dispatchers.
         _linearMaterial = renderingSystem.CreateComputeMaterial(shader, false);
         _linearMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
         _srgbMaterial = renderingSystem.CreateComputeMaterial(shader, true);

@@ -3,7 +3,7 @@ using Alco.Graphics;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The code formats slang emits for wgpu's shader passthrough (plan §4.1):
+// The code formats slang emits for wgpu's shader passthrough:
 // each runtime backend consumes exactly one of them — Vulkan/SPIR-V,
 // D3D12/DXIL, Metal/MSL — so the target is a per-device constant that keys
 // every cache and names every entry point.

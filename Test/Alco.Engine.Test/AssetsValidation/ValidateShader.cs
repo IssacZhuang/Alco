@@ -6,8 +6,7 @@ namespace Alco.Engine.Test;
 
 public class ValidateShader
 {
-    // Uses the plain NoGPU setting (shader cache disabled): this test must exercise
-    // real Slang compilation, so a cached hit would defeat its purpose.
+    // Must exercise real compilation; a cache hit would defeat the purpose.
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine

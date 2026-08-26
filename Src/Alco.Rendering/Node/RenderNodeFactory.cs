@@ -86,20 +86,12 @@ public readonly struct RenderNodeFactoryContext
 }
 
 /// <summary>
-/// A serializable recipe for creating a render node: the class holds the node's
-/// replaceable surface (its <see cref="Shader"/>s, tunable parameters) as plain
-/// properties, and <see cref="Create"/> assembles the node from them. Factories
-/// are data — they load from <c>.rnfact</c> jsonc files whose <c>$type</c>
-/// discriminator selects the factory class (the engine's polymorphic JSON
-/// convention, discovered by assembly scan: writing a new factory class is all it
-/// takes to make it configurable), with shader references resolving through the
-/// shared shader system at load time, typed and validated (the material asset
-/// convention) — retargeting a node's shaders is a config edit, never a code
-/// change. Factories are shared cached assets: never mutate a loaded factory's
-/// properties; runtime overrides go to the created node's own properties.
-/// Everything a shader swap does not change (graph resources, sibling nodes,
-/// scene services) stays in the composing code and keeps flowing through the
-/// node's own constructor and Attach parameters.
+/// A serializable recipe for creating a render node: plain properties hold the
+/// node's replaceable surface (its <see cref="Shader"/>s, tunable parameters), and
+/// <see cref="Create"/> assembles the node from them. Factories are shared cached
+/// assets loaded from <c>.rnfact</c> jsonc files, with shader references resolving
+/// through the shader system at load time — treat a loaded factory as immutable;
+/// runtime overrides go to the created node's own properties.
 /// </summary>
 public abstract class RenderNodeFactory
 {

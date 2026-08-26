@@ -1,13 +1,12 @@
 // G-buffer pass template for surface materials of the deferred pipeline.
-// Slang counterpart of Shaders/Pipelines/Rendering/PBR/GBuffer.hlsl.
 //
 // A pass template is a self-describing module: it owns the [shader] entry
 // points, generic over the surface type. The material compiler composes this
 // module with a material's surface module through slang's component system
 // (composite + link-time specialization with the surface's conforming type,
 // discovered by the compiler - no type names, no generated wrapper code).
-// Slang type-checks the surface against ISurface
-// (Shaders/Libs/alco-world3d-surface.slang) at instantiation.
+// Slang type-checks the surface against ISurface (AlcoWorld3D_Surface) at
+// instantiation.
 //
 // Writes albedo, world-space normal (from the surface's tangent-space normal
 // via TBN), material and emissive data. The interpolated mesh normal is

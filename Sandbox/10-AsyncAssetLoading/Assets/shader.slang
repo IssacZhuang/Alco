@@ -1,7 +1,4 @@
 // file "shader.slang" - module "sandbox10_shader"
-//
-// Slang module converted from Shader.hlsl (Phase 4 migration): the low-level
-// sandbox compiles it through the native slang module API.
 
 #language slang 2025
 module sandbox10_shader;

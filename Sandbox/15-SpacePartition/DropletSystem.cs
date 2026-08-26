@@ -170,7 +170,6 @@ public class DropletSystem : IDisposable
         {
             _renderRanges[i].start = i * _activeList.Count / RenderThreadCount;
             _renderRanges[i].end = (i + 1) * _activeList.Count / RenderThreadCount;
-            //if last
             if (i == RenderThreadCount - 1)
             {
                 _renderRanges[i].end = _activeList.Count;

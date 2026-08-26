@@ -1,8 +1,7 @@
 // file "AlcoWorld3D_Clouds.slang" - module "AlcoWorld3D_Clouds"
 //
-// Slang module converted from Shaders/Libs/Clouds.hlsli (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Explicit set/binding declarations; bindings within a set are assigned in
+// declaration order and are compiler-owned.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -18,7 +17,7 @@ import AlcoRendering_Core;
 // octarve, lit by a short sun march with Beer-Powder extinction and a
 // dual-lobe Henyey-Greenstein phase.
 //
-// The noise textures are generated once by VolumetricCloudNoise.hlsl:
+// The noise textures are generated once by VolumetricCloudNoise.slang:
 //   base (128^3 RGBA8): R = Perlin-Worley, G/B/A = Worley FBM octaves
 //   detail (32^3 RGBA8): R/G/B = Worley FBM octaves (A unused)
 
@@ -29,7 +28,7 @@ public float cloudRemap(float v, float l0, float l1, float r0, float r1)
     return r0 + (v - l0) * (r1 - r0) / max(l1 - l0, 1e-6);
 }
 
-// Henyey-Greenstein phase (matches VolumetricLight.hlsl's formulation).
+// Henyey-Greenstein phase (same formulation as VolumetricLight.slang).
 public float cloudPhaseHG(float cosTheta, float g)
 {
     float g2 = g * g;

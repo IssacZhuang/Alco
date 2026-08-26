@@ -52,10 +52,10 @@ public class AssetLoaderTexture2DNoGPU : IAssetLoader
     /// <inheritdoc/>
     public object CreateAsset(in AssetLoadContext context)
     {
-        // 1. Engine defaults
+        // Engine defaults
         ImageLoadOption option = ImageLoadOption.Default with { Name = context.Filename };
 
-        // 2. Resolve import options (directory cascade + .meta)
+        // Resolve import options (directory cascade + .meta)
         if (_cache != null)
         {
             var (importOption, _) = _cache.Resolve(context.Filename);

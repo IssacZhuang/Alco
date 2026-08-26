@@ -25,12 +25,10 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
     private Func<Vector2, Vector2> _curve = AxisInputAction.CurveQuadratic;
 
     /// <summary>
-    /// When <see langword="true"/> (default), this system reads the selected stick, accumulates
-    /// cursor motion, and writes <see cref="Input.MousePosition"/> each frame (free-cursor mode,
-    /// used for UI/Overworld/in-map aiming). When <see langword="false"/>, <see cref="OnUpdate"/>
-    /// returns early so the game layer can drive the cursor position directly (e.g. in-map snap
-    /// to a fixed offset from the player). The game layer (centralized owner) writes this each
-    /// frame; <see cref="GamepadCursorSystem"/> only reads it.
+    /// When <see langword="true"/> (default), the system accumulates stick motion into
+    /// <see cref="Input.MousePosition"/> each frame; when <see langword="false"/>, it returns
+    /// early so the game layer drives the cursor directly. Written by the game layer each frame;
+    /// this system only reads it.
     /// </summary>
     public bool IsEnabled { get; set; } = true;
 
@@ -71,7 +69,6 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
         float sx = gamepad.GetAxis(IsLeftStickCursor ? GamepadAxis.LeftX : GamepadAxis.RightX);
         float sy = gamepad.GetAxis(IsLeftStickCursor ? GamepadAxis.LeftY : GamepadAxis.RightY);
 
-        // Apply dead zone
         if (MathF.Abs(sx) < DeadZone) { sx = 0f; }
         if (MathF.Abs(sy) < DeadZone) { sy = 0f; }
 
@@ -80,13 +77,9 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
             return;
         }
 
-        // Convert stick to pixel delta. View coordinates are top-left origin with Y+ down.
-        // SDL right stick Y is negative when pushed up. Using sy directly makes up (sy<0)
-        // produce a negative delta Y, which moves the cursor up as expected.
         float speed = MathF.Max(0f, Sensitivity);
-        // Stick Y at the SDL layer is normalized to Y+ up; screen-space is Y+ down, so invert here
+        // SDL stick Y+up vs screen Y+down: invert.
         Vector2 axis = new Vector2(sx, -sy);
-        // Apply response curve (quadratic by default)
         axis = _curve(axis);
         Vector2 velocity = axis * speed * VelocityMultiplier * ScreenHeightMultiplier * _view.Size.Y;
         Vector2 deltaPixels = velocity * delta;
@@ -104,16 +97,13 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
         _pixelAccumulator.X -= moveX;
         _pixelAccumulator.Y -= moveY;
 
-        // Current local mouse position in the window
         Vector2 localPos = _view.MousePosition;
         Vector2 newLocal = localPos + new Vector2(moveX, moveY);
 
-        // Clamp within window bounds [0, Size)
         uint2 size = _view.Size;
         newLocal.X = MathF.Min(MathF.Max(newLocal.X, 0f), size.X - 1);
         newLocal.Y = MathF.Min(MathF.Max(newLocal.Y, 0f), size.Y - 1);
 
-        // Convert local (window) coords to global screen coords for Input.MousePosition setter
         int2 windowPos = _view.Position;
         Vector2 global = new Vector2(windowPos.X + newLocal.X, windowPos.Y + newLocal.Y);
 

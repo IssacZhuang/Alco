@@ -1,9 +1,9 @@
 namespace Alco.Graphics;
 
-/// <surmmary>
-/// The instance of the color attachments and depth attachment of a <see cref="GPUAttachmentLayout"/> 
+/// <summary>
+/// The instance of the color attachments and depth attachment of a <see cref="GPUAttachmentLayout"/>
 /// <br/>Used as the render target of a shader
-/// </surmmary>
+/// </summary>
 public abstract class GPUFrameBuffer : BaseGPUObject
 {
     public static readonly TextureUsage ColorAttachmentUsage =
@@ -28,12 +28,10 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     /// <summary>
     /// The list of color textures of the frame buffer
     /// </summary>
-    /// <value>The list of color textures of the frame buffer</value>
     public abstract ReadOnlySpan<GPUTexture> Colors { get; }
     /// <summary>
     /// The list of color texture views of the frame buffer
     /// </summary>
-    /// <value>The list of color texture views of the frame buffer</value>
     public abstract ReadOnlySpan<GPUTextureView> ColorViews { get; }
     /// <summary>
     /// The depth stencil texture of the frame buffer
@@ -64,12 +62,10 @@ public abstract class GPUFrameBuffer : BaseGPUObject
     /// <summary>
     /// The width of the frame buffer
     /// </summary>
-    /// <value>The width of the frame buffer</value>
     public abstract uint Width { get; }
     /// <summary>
     /// The height of the frame buffer
     /// </summary>
-    /// <value>The height of the frame buffer</value>
     public abstract uint Height { get; }
 
     protected GPUFrameBuffer(in FrameBufferDescriptor descriptor): base(descriptor.Name)

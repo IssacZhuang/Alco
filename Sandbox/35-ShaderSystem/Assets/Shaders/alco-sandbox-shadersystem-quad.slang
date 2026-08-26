@@ -1,9 +1,8 @@
 // file "alco-sandbox-shadersystem-quad.slang" - module "alco-sandbox-shadersystem-quad"
 //
-// Sandbox 35: a shader consumed as a native slang MODULE through ShaderSystem
-// (plan Phase 1) instead of an HLSL asset. It imports the ported core module
-// (Alco.Rendering.Core) — editing either file and saving triggers module
-// invalidation and a hot rebuild of the pipeline.
+// Sandbox 35: a shader consumed as a native slang MODULE through ShaderSystem.
+// Imports the core module (Alco.Rendering.Core) — editing either file and
+// saving triggers module invalidation and a hot rebuild of the pipeline.
 
 #language slang 2025
 module alco_sandbox_shadersystem_quad;

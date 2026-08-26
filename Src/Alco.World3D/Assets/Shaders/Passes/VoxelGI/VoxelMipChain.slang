@@ -1,6 +1,5 @@
 // file "VoxelMipChain.slang" - module "VoxelMipChain"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelMipChain.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -47,7 +46,7 @@ public ParameterBlock<PassParams> pass;
 groupshared float4 gsMip1[64]; // 4³ texels at mip srcMip+1
 groupshared float4 gsMip2[8];  // 2³ texels at mip srcMip+2
 
-// Occupancy-weighted radiance average (matches VoxelMip.hlsl).
+// Occupancy-weighted radiance average (matches VoxelMip.slang).
 float4 reduceRadiance(float4 c[8])
 {
     float3 radianceSum = 0.0;
@@ -64,7 +63,7 @@ float4 reduceRadiance(float4 c[8])
     return float4(radiance, occupancySum * 0.125);
 }
 
-// Projected-area opacity reduction (matches VoxelMip.hlsl).
+// Projected-area opacity reduction (matches VoxelMip.slang).
 float4 reduceOpacity(float4 c[8])
 {
     float coverageSum = 0.0;

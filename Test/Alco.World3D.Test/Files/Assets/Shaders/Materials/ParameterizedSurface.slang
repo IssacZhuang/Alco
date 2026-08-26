@@ -1,12 +1,8 @@
-// module "parameterized_surface"
-//
 // Test-only surface for exercising the native Slang material-parameter path:
-// the standard glTF surface plus a sinusoidal emissive pulse. Unlike the HLSL
-// surface contract (bare float4 members only, one register each, parsed by regex),
-// the [MaterialParams] block here mixes scalar and vector types with natural HLSL
-// packing — and is named freely (the marker, not the name, makes it a parameter
-// block). The material compiler reads each member's type and byte offset from
-// Slang reflection and fills the buffer by name.
+// the standard glTF surface plus a sinusoidal emissive pulse. Its [MaterialParams]
+// block mixes scalar/vector members with natural packing and is named freely
+// (the marker, not the name, makes it a parameter block); offsets come from
+// Slang reflection and the buffer is filled by name.
 
 #language slang 2025
 module ParameterizedSurface;

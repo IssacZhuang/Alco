@@ -18,7 +18,6 @@ public static class ShaderReflectionUtility
         IReadOnlyList<BindGroupLayout> bindGroups = info.BindGroups;
         int count = bindGroups.Count;
 
-        // Rule 1: the number of bind groups must not exceed the device limit.
         if (count > maxBindGroups)
         {
             throw new ShaderReflectionException(
@@ -26,8 +25,6 @@ public static class ShaderReflectionUtility
                 $"which exceeds the maximum {maxBindGroups}.");
         }
 
-        // Rule 2: bind group (set) indices must be contiguous starting at 0.
-        // Sorting first lets a single pass detect a non-zero start, a gap, or a duplicate.
         uint[] indices = new uint[count];
         for (int i = 0; i < count; i++)
         {

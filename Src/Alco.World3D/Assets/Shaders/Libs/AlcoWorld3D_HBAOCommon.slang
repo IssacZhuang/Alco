@@ -1,8 +1,7 @@
 // file "AlcoWorld3D_HBAOCommon.slang" - module "AlcoWorld3D_HBAOCommon"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/HBAOCommon.hlsli (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Explicit set/binding declarations; bindings within a set are assigned in
+// declaration order and are compiler-owned.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -39,9 +38,8 @@ public ParameterBlock<HbaoData> data;
 
 // Reconstruct the world-space position of a pixel from its UV and depth.
 // The blur pass reconstructs sky pixels without a sentinel check first, so the
-// clamp keeps the homogeneous w finite under reversed infinite depth (the
-// reconstructed sky point lands ~near / epsilon metres away, which the
-// bilateral depth weight then rejects exactly like the old far plane).
+// clamp keeps the homogeneous w finite under reversed infinite depth; the
+// reconstructed far point is then rejected by the bilateral depth weight.
 public float3 reconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);

@@ -1,9 +1,6 @@
 // file "compute-position.slang" - module "sandbox8_compute_position"
 //
-// Slang module converted from ComputePosition.hlsl (Phase 4 migration): the
-// low-level sandbox compiles it through the native slang module API. The
-// READ_ONLY/WRITE_ONLY extension macros became native declarations — slang
-// decorates storage buffers from their usage.
+// Storage buffer access qualifiers derive from their usage.
 
 #language slang 2025
 module sandbox8_compute_position;

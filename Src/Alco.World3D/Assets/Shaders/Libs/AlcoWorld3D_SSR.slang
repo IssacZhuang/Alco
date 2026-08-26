@@ -1,8 +1,7 @@
 // file "AlcoWorld3D_SSR.slang" - module "AlcoWorld3D_SSR"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/ScreenSpaceReflectionPostCommon.hlsli (Phase 2 migration).
-// DEFINE_* macros became explicit set/binding declarations; bindings within a
-// set are assigned in the original declaration order and are compiler-owned.
+// Explicit set/binding declarations; bindings within a set are assigned in
+// declaration order and are compiler-owned.
 // Lib declarations are public so importing modules see them.
 
 #language slang 2025
@@ -136,7 +135,8 @@ public float3 ssrPostDecodeSRGB(float3 color)
     return lerp(hi, lo, step(color, float3(0.04045, 0.04045, 0.04045)));
 }
 
-// Lazarov split-sum BRDF approximation, matching DeferredLighting.hlsl.
+// Lazarov split-sum BRDF approximation (same formula as envBRDFApprox in
+// AlcoWorld3D_PBRCommon).
 public float3 ssrPostEnvBRDF(float3 f0, float roughness, float ndotV)
 {
     const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);

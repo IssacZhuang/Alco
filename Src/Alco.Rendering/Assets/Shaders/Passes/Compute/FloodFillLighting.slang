@@ -1,6 +1,5 @@
 // file "FloodFillLighting.slang" - module "FloodFillLighting"
 //
-// Slang module converted from Shaders/Pipelines/Compute/FloodFillLighting.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 
@@ -44,20 +43,6 @@ float getLightPassingFactor(uint2 pos) {
     return 1;
 }
 
-// float4 AdjustLuminance(float4 color, float attenuation) {
-//     float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
-//     float newLuminance = max(0, luminance - attenuation);
-
-//     // Avoid division by zero and improve numerical stability
-//     if (luminance < 1e-6) {
-//         return float4(0, 0, 0, color.a);
-//     }
-
-//     float scale = newLuminance / luminance;
-//     return float4(color.rgb * scale, color.a);
-// }
-
-// Alternative 1: Exponential decay (more physically accurate)
 float4 adjustLuminanceExponential(float4 color, float attenuation) {
     float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
 

@@ -125,9 +125,7 @@ public partial class SlangSourceConventionTest
                     $"{relative}: register() annotations are forbidden - group resources in a ParameterBlock<T> and let the compiler assign sets and bindings");
 
                 // The preprocessor cannot carry qualified member names across a
-                // ParameterBlock boundary (name##Sampler concatenation), and
-                // the sampling helpers of AlcoRendering_Core replace the old
-                // macro layer outright.
+                // ParameterBlock boundary (name##Sampler concatenation).
                 Assert.That(SamplingMacroRegex().IsMatch(source), Is.False,
                     $"{relative}: SAMPLE_TEX*/GET_PIXEL*/LOAD_TEX* macros are retired; sample with qualified members or AlcoRendering_Core helpers");
             }

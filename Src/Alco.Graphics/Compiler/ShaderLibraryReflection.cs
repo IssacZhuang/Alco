@@ -36,8 +36,8 @@ public sealed class ShaderTextureSlot
 /// (e.g. a surface's custom <c>SamplerState _mySampler;</c>), by its bare field
 /// name — the identity a material binds through <c>SetSampler</c>. The
 /// library-level counterpart of the linked view's sampler bind-group entries.
-/// The engine's shared sampler bank is deliberately NOT a slot: its members
-/// are engine-owned state, never bound by a material.
+/// This list excludes the engine-owned shared sampler bank; materials cannot
+/// bind it directly.
 /// </summary>
 public sealed class ShaderSamplerSlot
 {
@@ -58,15 +58,10 @@ public sealed class ShaderSamplerSlot
 }
 
 /// <summary>
-/// The reflection of a shader library — one module's own declarations before
-/// any composition or link: its uniform blocks (the shared
-/// <see cref="ShaderUniformBlock"/> vocabulary, with their user-defined
-/// attributes and members) and its texture slots (bare field names with their
-/// required shape, no set numbers — a set is a composition product, not an
-/// input). Sibling of <see cref="ShaderReflection"/> (the linked program's
-/// view of the same block vocabulary plus its pipeline interface); deliberately
-/// not a base class of it. Cached per module by the module system and
-/// invalidated with the module.
+/// Declarations view of one shader module before any composition or link:
+/// its uniform blocks and texture/sampler slots, keyed by bare field names
+/// with no set numbers. Cached per module by the module system and
+/// invalidated with it.
 /// </summary>
 public sealed class ShaderLibraryReflection
 {

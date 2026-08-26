@@ -1,6 +1,5 @@
 // file "VoxelTrace.slang" - module "VoxelTrace"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelTrace.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -48,7 +47,7 @@ public struct PassParams
 // Previous demosaic metadata, segment 5: x = linear depth, yzw = world normal.
     public Texture2D giHistoryMetadata;
 // 128x128 blue-noise tile baked once from
-// ScreenSpaceReflectionBlueNoise.hlsl (the same tile the SSR trace samples).
+// SSRBlueNoise.slang (the same tile the SSR trace samples).
 // Its B channel jitters the cone march below.
     public Texture2D blueNoise;
 // Point lights are included in the compact screen-space near-field diffuse
@@ -117,7 +116,7 @@ float3 getDiffuseKernelDirection(uint sequenceIndex)
         sqrt(max(1.0 - radialSample, 0.0)));
 }
 
-// --- Utility helpers (ported from the DDGI-era shader) ----------------------
+// --- Utility helpers --------------------------------------------------------
 
 float3 decodeSRGB(float3 color)
 {

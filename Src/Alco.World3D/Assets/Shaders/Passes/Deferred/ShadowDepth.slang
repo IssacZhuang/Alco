@@ -1,6 +1,5 @@
 // Shadow map depth-only pass template for surface materials of the deferred
-// PBR pipeline. Slang counterpart of Shaders/Pipelines/Rendering/PBR/
-// ShadowDepth.hlsl.
+// PBR pipeline.
 //
 // A pass template is a self-describing module: it owns the [shader] entry
 // points, generic over the surface type; the material compiler composes this
@@ -9,15 +8,15 @@
 //
 // Renders into a depth-only render texture from the light's point of view.
 // The vertex layout must match Alco.Rendering.VertexPBR exactly. All material
-// evaluation lives in the surface module (contract:
-// Shaders/Libs/alco-world3d-surface.slang); this template owns the entry
+// evaluation lives in the surface module (contract: AlcoWorld3D_Surface);
+// this template owns the entry
 // points, the depth write and the cascade bindings. Per-instance data (model
 // matrix, cutout scalars) lives in the instances storage buffer and is fetched
 // by SV_VulkanInstanceID; the push constant carries only the cascade index so
 // per-cascade render bundles never re-record.
 //
-// The AlphaTest value specialization replaces the retired SHADOW_CUTOUT define:
-// when on, the pixel shader evaluates the surface's base color alpha
+// Alpha cutout is an AlphaTest value specialization: when on, the pixel
+// shader evaluates the surface's base color alpha
 // (getBaseColor - the only surface function this pass consumes) and discards
 // fragments below the cutoff, so cutout meshes (foliage, fences, etc.) cast
 // correctly shaped shadows. When off, specialization folds the pixel shader

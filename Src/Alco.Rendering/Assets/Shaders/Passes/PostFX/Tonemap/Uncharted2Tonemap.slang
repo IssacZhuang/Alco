@@ -1,6 +1,5 @@
 // file "Uncharted2Tonemap.slang" - module "Uncharted2Tonemap"
 //
-// Slang module converted from Shaders/Pipelines/PostProcess/Tonemap/uncharted2Tonemap.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 

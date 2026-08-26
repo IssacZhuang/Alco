@@ -7,8 +7,8 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase-1 ShaderSystem tests (plan §4.2): module-name keyed Shader creation
-// through the provider seam, specialization identity, and hot-reload
+// ShaderSystem tests: module-name keyed Shader creation through the provider
+// seam, specialization identity, and hot-reload
 // invalidation wired to Shader version bumps. Runs on the NoGPU device; only
 // module/reflection level behavior is asserted (pipelines need a real device).
 // ─────────────────────────────────────────────────────────────────────────────

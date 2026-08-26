@@ -4,48 +4,14 @@ using Alco.ShaderCompiler;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The material facility: composes pass templates with surface shader libraries
-/// into cached, hot-reloadable shaders, and compiles data-only
-/// <see cref="MaterialAsset"/>s into per-pass GPU materials — a stateless
-/// factory, pipeline-agnostic. There is no pass abstraction and no registry — a
-/// rendering facility (a deferred pipeline's G-buffer/shadow/glass passes, a 2D
-/// pipeline's sprite pass, a voxel GI's compute feed, game-defined facilities
-/// anywhere) owns its pass template and its material factory as plain private
-/// state, hands them straight to <see cref="Compile"/> (graphics) or
-/// <see cref="CompileCompute"/> (compute), and serves the per-asset materials
-/// from its own cache.
-/// <br/><b>Composition is discovery-based</b>: a pass template owns generic
-/// <c>[shader]</c> entry points whose first type parameter is constrained by the
-/// pass's surface-contract interface, and a surface library exports exactly one
-/// struct implementing that interface. The composer reads the contract from the
-/// template's own reflection and finds the conforming type with slang's subtype
-/// reflection — no type name is configured, so a renamed or mismatched surface
-/// implementation cannot slip through (zero conformers and ambiguous modules
-/// fail with precise errors). Compilation is slang's own component system
-/// (composite + link-time specialization, no generated wrapper modules, no
-/// preprocessor stitching). Value specialization replaces pass-private defines
-/// (a shadow pass's alpha test is the template's <c>let AlphaTest : bool</c>
-/// parameter, fed from the compile call's value-spec arguments).
-/// <br/>The parameter mapping reads slang's module-level reflection (a surface's
-/// <c>[MaterialParams]</c>-marked blocks may mix scalar and vector float members,
-/// under any block names); texture slots are validated against the composed
-/// reflection at compile time and bound by name from the asset's own bindings
-/// (<see cref="MaterialAsset.Textures"/>), with the asset's fallback policy
-/// (<see cref="MaterialAsset.GetTextureFallback"/>) for unbound slots.
-/// <br/>Ownership follows the engine's resource rule. Composed shaders are cached
-/// per (template, surface, value-args, kind) and owned by this compiler;
-/// compiled materials are caller-owned: every <see cref="Compile"/> call produces
-/// a fresh material, and the caller shares it across the meshes using the asset
-/// and disposes it with the owning scene/renderer — or simply drops it, since
-/// every GPU object finalizes itself. The compiler keeps no per-asset state, so
-/// an unloaded asset and the materials compiled from it are reclaimed by the GC
-/// with no notification required. Streamed textures need no accommodation here:
-/// streaming pre-creates the texture at its final specification and uploads the
-/// content in place, so a bound texture object is never replaced. A hot-reloaded
-/// asset file is a new <see cref="MaterialAsset"/> instance; its consumers
-/// recompile.
-/// <br/>Dispose the compiler to release the composed-shader cache; it owns
-/// nothing else.
+/// The material facility: a stateless factory that composes pass templates with
+/// surface shader libraries into cached, hot-reloadable shaders, and compiles
+/// data-only <see cref="MaterialAsset"/>s into per-pass GPU materials via
+/// <see cref="Compile"/> (graphics) or <see cref="CompileCompute"/> (compute).
+/// Composed shaders are cached per key and owned by this compiler; compiled
+/// materials are caller-owned — every compile produces a fresh material the
+/// caller shares across meshes and disposes. Dispose the compiler to release
+/// the composed-shader cache; it owns nothing else.
 /// </summary>
 public sealed class MaterialCompiler : AutoDisposable
 {
@@ -146,10 +112,8 @@ public sealed class MaterialCompiler : AutoDisposable
         ShaderReflection reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
-        // declare is a typo in the asset — fail here, at compile time. Slot
-        // discovery is the surface module's own declarations (name-keyed, no
-        // set number): a ParameterBlock's set is compiler-assigned declaration
-        // order, nothing the engine pins.
+        // declare is a typo in the asset — fail here, at compile time.
+        // (Slot discovery: see EnumerateTextureSlots.)
         IReadOnlyList<string> textureSlots = EnumerateTextureSlots(SurfaceOf(asset));
         foreach (string slot in asset.Textures.Keys)
         {

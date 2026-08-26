@@ -6,14 +6,11 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Loads render node factory files (<c>.rnfact</c>, jsonc) into
-/// <see cref="RenderNodeFactory"/>s: the file's <c>$type</c> discriminator
-/// selects the factory class (the engine's polymorphic JSON convention,
-/// discovered by assembly scan — factory classes in user assemblies configure
-/// without registration), shader references resolve typed through the shared
-/// shader system at load time (the material asset convention — a typoed module
-/// fails at load with the file's name), and a bad file (unknown discriminator,
-/// unknown field, malformed value) fails here too. The factories stay inert
-/// data otherwise: nodes materialize only when
+/// <see cref="RenderNodeFactory"/>s: shader references resolve typed through the
+/// shared shader system at load time (the material asset convention — a typoed
+/// module fails at load with the file's name), and a bad file (unknown
+/// discriminator, unknown field, malformed value) fails here too. The factories
+/// stay inert data otherwise: nodes materialize only when
 /// <see cref="RenderNodeFactory.Create"/> runs.
 /// </summary>
 public class AssetLoaderRenderNodeFactory : BaseAssetLoader<RenderNodeFactory>

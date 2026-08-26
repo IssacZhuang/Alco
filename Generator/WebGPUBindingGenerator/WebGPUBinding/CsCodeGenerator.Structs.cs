@@ -208,11 +208,6 @@ partial class CsCodeGenerator
                 fieldPrefix += "unsafe ";
             }
 
-            //if (field.Comment is not null && string.IsNullOrEmpty(field.Comment.ToString()) == false)
-            //{
-            //    writer.WriteLine($"/// <summary>{field.Comment}</summary>");
-            //}
-
             writer.WriteLine($"public {fieldPrefix}{csFieldType} {csFieldName};");
         }
     }

@@ -214,7 +214,6 @@ internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
     {
         if (_sourceId == 0 || State != AudioStreamState.Playing) return;
 
-        // Unqueue and refill all processed buffers.
         AL.GetSourceProperty(_sourceId, GetSourceInteger.BuffersProcessed, out int processed);
         for (int i = 0; i < processed; i++)
         {

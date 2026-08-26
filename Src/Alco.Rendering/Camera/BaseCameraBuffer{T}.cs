@@ -28,8 +28,7 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
         }
     }
 
-    // Bind group assembly reads the buffer through this property (the Entry* properties are
-    // no longer touched by the material system), so the pending matrix upload is flushed here.
+    // Bind-group assembly reads through this property, so the pending matrix upload flushes here.
     public override GPUBuffer NativeBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -77,7 +76,7 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
     }
 
     /// <summary>
-    /// Update the camera matrix to GPU. This method is uses <see cref="GraphicsBuffer.UpdateBuffer<T> to update the buffer./>.
+    /// Update the camera matrix on the GPU by writing the current view-projection matrix to the buffer.
     /// </summary>
     public void UpdateMatrixToGPU()
     {

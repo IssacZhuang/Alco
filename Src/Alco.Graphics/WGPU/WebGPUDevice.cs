@@ -53,8 +53,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
     internal bool ShaderPassthroughEnabled { get; }
 
     /// <summary>
-    /// Whether the loaded wgpu-native exports wgpuDeviceCreateShaderModuleMetalLib
-    /// (the third Alco patch). Probed once per device; the shader factory keeps the
+    /// Whether the loaded wgpu-native exports wgpuDeviceCreateShaderModuleMetalLib.
+    /// Probed once per device; the shader factory keeps the
     /// MSL target when this is false so an older library still runs.
     /// </summary>
     private bool MetalLibPassthrough { get; set; }
@@ -1060,10 +1060,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
             if (backendType == WGPUBackendType.Metal)
             {
-                // The metallib entry point arrives with the third Alco patch
-                // (v29.0.1.1-alco.3+). wgpuGetProcAddress is an unimplemented
-                // stub upstream (panics), so probe the loaded library's export
-                // table instead — an older build keeps the MSL source path.
+                // wgpuGetProcAddress is an unimplemented stub upstream (it
+                // panics), so probe the loaded library's export table instead —
+                // an older build keeps the MSL source path.
                 // TryLoad is idempotent: the library is already loaded here.
                 MetalLibPassthrough = NativeLibrary.TryLoad("wgpu_native", out nint library)
                     && NativeLibrary.TryGetExport(library, "wgpuDeviceCreateShaderModuleMetalLib", out _);

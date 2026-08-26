@@ -77,7 +77,6 @@ public abstract class ReusableBatchTask2D : AutoDisposable
             }
             finally
             {
-                // Signal completion
                 _task._completionCount.Release();
             }
         }
@@ -121,7 +120,6 @@ public abstract class ReusableBatchTask2D : AutoDisposable
 
         int totalPixels = x * y;
 
-        // Calculate batch size if not provided
         int actualBatchSizeX;
         int actualBatchSizeY;
         if (batchSizeX.HasValue && batchSizeY.HasValue)
@@ -131,7 +129,7 @@ public abstract class ReusableBatchTask2D : AutoDisposable
         }
         else
         {
-            // Try to create square-ish batches
+            // Square-ish batches reduce wasted edge tiles.
             int pixelsPerBatch = Math.Max(1, totalPixels / _maxConcurrency);
             actualBatchSizeX = Math.Max(1, (int)Math.Sqrt(pixelsPerBatch));
             actualBatchSizeY = Math.Max(1, pixelsPerBatch / actualBatchSizeX);
@@ -139,18 +137,15 @@ public abstract class ReusableBatchTask2D : AutoDisposable
             actualBatchSizeY = Math.Min(actualBatchSizeY, y);
         }
 
-        // Calculate number of batches in each dimension
         int batchesX = (x + actualBatchSizeX - 1) / actualBatchSizeX;
         int batchesY = (y + actualBatchSizeY - 1) / actualBatchSizeY;
         int totalBatches = batchesX * batchesY;
 
-        // Ensure we have enough TaskItem objects
         while (_taskItems.Count < totalBatches)
         {
             _taskItems.Add(new TaskItem(this));
         }
 
-        // Queue all tasks
         int batchIndex = 0;
         for (int by = 0; by < batchesY; by++)
         {
@@ -173,13 +168,11 @@ public abstract class ReusableBatchTask2D : AutoDisposable
             }
         }
 
-        // Wait for all tasks to complete
         for (int i = 0; i < totalBatches; i++)
         {
             _completionCount.Wait();
         }
 
-        // Check for exceptions and aggregate them if any occurred
         _exceptions.Clear();
         for (int i = 0; i < totalBatches; i++)
         {

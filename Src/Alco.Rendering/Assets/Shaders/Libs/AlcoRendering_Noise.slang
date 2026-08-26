@@ -1,8 +1,8 @@
 // file "AlcoRendering_Noise.slang" - module "AlcoRendering_Noise"
 //
-// Slang port of Shaders/Libs/Noise.hlsli (FastNoiseLite 1.1.1, MIT license,
-// copyright Jordan Peck and contributors - original header below). Body is
-// verbatim; only the public API gained `public` for module visibility.
+// FastNoiseLite 1.1.1, MIT license, copyright Jordan Peck and contributors -
+// original header below. Body is verbatim; only the public API gained
+// `public` for module visibility.
 
 #language slang 2025
 module AlcoRendering_Noise;

@@ -1,6 +1,5 @@
 // Reflective shadow map (RSM) pass template for the voxel GI's sun-bounce
-// injection (CRYENGINE SVOTI style). Slang counterpart of
-// Shaders/Pipelines/Rendering/PBR/Rsm.hlsl.
+// injection (CRYENGINE SVOTI style).
 //
 // A pass template is a self-describing module: it owns the [shader] entry
 // points, generic over the surface type; the material compiler composes this

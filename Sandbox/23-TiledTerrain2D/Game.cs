@@ -128,9 +128,8 @@ public class Game : GameEngine
         _lightingManager.SetLightMapDirty();
         _lightingManager.SetOpacityMapDirty();
 
-        // The facade/bombing axes are generic value specializations now (plan D3):
-        // tile-instanced declares VertexMain<let IsFacade> / PixelMain<let Bombing>;
-        // each material is construction-bound to one specialization combination.
+        // Facade/bombing are value specializations: VertexMain<let IsFacade> / PixelMain<let Bombing>;
+        // each material binds one combination.
         _surfaceMaterial = RenderingSystem.CreateGraphicsMaterial(
             RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_surface", false, false);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;

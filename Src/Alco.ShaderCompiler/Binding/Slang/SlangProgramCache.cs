@@ -3,7 +3,7 @@ using Alco.Graphics;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Linked-program disk cache payload (plan §4.2 layer b): per-entry SPIR-V plus
+// Linked-program disk cache payload: per-entry SPIR-V plus
 // the materialized ShaderReflection (pipeline interface AND its uniform blocks
 // in the shared ShaderUniformBlock vocabulary), so a cached program restores
 // without invoking the slang front end at all. The cache key (module IR hash,

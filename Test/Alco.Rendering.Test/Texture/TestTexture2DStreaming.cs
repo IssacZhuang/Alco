@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Texture streaming primitives (plan A): CreateTexture2DFromHeader pre-creates the
+// Texture streaming primitives: CreateTexture2DFromHeader pre-creates the
 // texture at the file-dictated specification and UploadTexture2DContent uploads the
 // decoded content in place, so the texture's identity never changes. Runs on the
 // NoGPU device: specification and identity are verifiable, pixel content is not

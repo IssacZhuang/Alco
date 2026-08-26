@@ -5,11 +5,11 @@ namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Spike for the marked material-parameter blocks: a surface marks its parameter
-// cbuffers with a user-defined attribute ([MaterialParams]) instead of following
-// a fixed block-name convention. The compiler layer reflects every block with
-// its user attributes (domain-neutral GetModuleReflection); marker filtering is
-// the material domain's job. Proves the slang mechanisms the discovery is
-// built on:
+// cbuffers with the user-defined attribute ([MaterialParams]) — block names stay
+// free and discovery keys off an explicit source marker. The compiler layer
+// reflects every block with its user attributes (domain-neutral
+// GetModuleReflection); marker filtering is the material domain's job. Proves
+// the slang mechanisms the discovery is built on:
 //
 //   1. a user-defined attribute declared in one module is usable from an
 //      importing module and is visible on the cbuffer VARIABLE through slang's

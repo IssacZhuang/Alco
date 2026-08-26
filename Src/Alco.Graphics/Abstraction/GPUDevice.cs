@@ -47,8 +47,8 @@ public abstract class GPUDevice
 
     /// <summary>
     /// Gets whether the active device can consume precompiled Metal libraries:
-    /// wgpu-native was built with the metallib passthrough entry (third Alco
-    /// patch) and the backend is Metal. The shader factory picks the slang
+    /// wgpu-native was built with the metallib passthrough entry and the
+    /// backend is Metal. The shader factory picks the slang
     /// metallib target only when this is true; everything else stays on MSL.
     /// </summary>
     public abstract bool MetalLibPassthroughSupported { get; }

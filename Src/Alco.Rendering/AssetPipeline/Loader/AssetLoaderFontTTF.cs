@@ -28,7 +28,6 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
 
     public override object CreateAsset(in AssetLoadContext context)
     {
-        // Step 1: Generate regular atlas (with padding if SDF is enabled)
         int padding = _generateSdf ? 6 : 1; // Use padding for SDF, minimal for regular
         using FontAtlasPacker packer = new FontAtlasPacker(
             width: 8192,
@@ -60,7 +59,6 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
                 UnicodeUtility.RangeGeneralPunctuation,
             });
 
-        // Step 2: Get atlas data
         ReadOnlySpan<byte> bitmap = packer.Bitmap;
         int width = packer.Width;
         int height = packer.Height;
@@ -71,7 +69,6 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
             // Adjust GlyphInfo for SDF padding - expand UV coordinates to include padding area
             AdjustGlyphInfoForSdf(glyphs, width, height, padding, 32.0f);
 
-            // Generate SDF using compute shader
             var inputTexture = _renderingSystem.CreateRenderTexture(
                 _renderingSystem.PreferredRTexturePass, (uint)width, (uint)height, "font_atlas_input"
             );
@@ -80,7 +77,6 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
                 _renderingSystem.PreferredRTexturePass, (uint)width, (uint)height, "font_atlas_sdf_output"
             );
 
-            // Upload padded bitmap to input texture
             unsafe
             {
                 fixed (byte* dataPtr = bitmap)
@@ -89,11 +85,9 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
                 }
             }
 
-            // Create TextSDF processor and generate SDF
             var computeMaterial = _renderingSystem.CreateComputeMaterial(_textSdfShader!);
             using var textSdf = _renderingSystem.CreateTextSDF(computeMaterial, maxDistance: 6.0f);
 
-            // Generate SDF using compute shader
             using var commandBuffer = _renderingSystem.GraphicsDevice.CreateCommandBuffer("sdf_generation");
             commandBuffer.Begin();
             using (var computePass = commandBuffer.BeginCompute())
@@ -102,15 +96,12 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
             }
             commandBuffer.End();
 
-            // Submit command buffer and wait for completion
             _renderingSystem.GraphicsDevice.Submit(commandBuffer);
 
-            // Create font using the SDF output texture
             return _renderingSystem.CreateFont(outputTexture.ColorTextures[0], glyphs);
         }
         else
         {
-            // Create regular font from bitmap data
             return _renderingSystem.CreateFont(bitmap, width, height, glyphs);
         }
     }

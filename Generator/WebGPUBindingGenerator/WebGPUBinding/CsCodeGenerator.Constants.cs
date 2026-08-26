@@ -29,8 +29,6 @@ partial class CsCodeGenerator
                     continue;
                 }
 
-                //string csName = GetPrettyEnumName(cppMacro.Name, "VK_");
-
                 string modifier = "const";
                 string macroValue = NormalizeEnumValue(cppMacro.Value, out string csDataType);
 

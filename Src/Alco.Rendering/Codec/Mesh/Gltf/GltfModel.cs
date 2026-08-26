@@ -6,8 +6,6 @@ namespace Alco.Rendering;
 /// <summary>
 /// A decoded glTF scene: meshes with GPU-ready vertex/index data in native memory,
 /// materials, images and a flattened list of draw items with engine-space world transforms.
-/// <br/>Coordinates are converted from the glTF right-handed +Y-up convention to the
-/// engine's left-handed +Z-up convention during decoding; triangle winding is preserved.
 /// <br/>Dispose to free the native vertex/index buffers.
 /// </summary>
 public sealed unsafe class GltfModel : AutoDisposable

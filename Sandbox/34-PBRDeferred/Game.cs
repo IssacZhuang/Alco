@@ -438,7 +438,6 @@ public class Game : GameEngine
         // MaterialCompiler — the renderers register their passes on it.
         _materialCompiler = World3DAssetPipeline.CreateMaterialCompiler(RenderingSystem);
 
-        // Create the PBR deferred pipeline preset that drives the whole frame.
         // The composition's own shaders are named here — game code may name
         // modules directly (only the engine forbids hardcoded module names).
         _preset = RenderPipelines.CreatePBRDeferred(
@@ -634,7 +633,6 @@ public class Game : GameEngine
                 Name = "checker",
                 Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = _checkerTexture },
             };
-            // Register all procedural objects with the GBufferRenderer and ShadowRenderer.
             foreach (SceneObject obj in _objects)
             {
                 obj.Material = (PbrMaterialAsset)_proceduralAsset;
@@ -755,7 +753,6 @@ public class Game : GameEngine
     {
         AddSystem(new ImGUISystem(this));
 
-        // Use ACES tone mapping with gamma 2.2.
         if (_tonemapStage != null)
         {
             _tonemapStage.Operator = TonemapType.ACES;
@@ -801,7 +798,7 @@ public class Game : GameEngine
         // G-buffer depth attachment.
         _forwardRenderer!.IsEnabled = _forwardRenderer.HasContent;
 
-        // Render the frame and resolve it through the forward chain into the swapchain.
+        // Render resolves the frame through the forward chain onto the swapchain.
         _preset.Pipeline.Render(MainPresenter.FrameBuffer);
 
         // Capture here: after Render the forward render texture still holds the last
@@ -2004,7 +2001,6 @@ public class Game : GameEngine
 
     private void BuildScene()
     {
-        // Ground.
         _objects.Add(new SceneObject
         {
             Mesh = _groundMesh!,

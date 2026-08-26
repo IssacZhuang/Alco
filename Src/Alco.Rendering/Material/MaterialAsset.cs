@@ -4,27 +4,13 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Data-only description of one material — the runtime form of a material asset file
-/// (<c>.amat</c>), deserialized directly (no DTO): polymorphism rides the engine's
-/// <c>$type</c> discriminator convention (a file without one parses as this base type;
-/// pipeline-family assets like World3D's PBR asset are discovered by assembly scan),
-/// and resource references land typed — texture slots hold <see cref="Texture2D"/>s
-/// resolved by the loader, the surface is a validated <see cref="ShaderLibrary"/>, and
-/// parameter values are <see cref="ShaderValue"/>s (authored as numbers, integers,
-/// booleans, component objects, colors or arrays). The asset itself touches no asset
-/// system and no GPU beyond holding those objects.
-/// <br/>The asset carries only pipeline-agnostic concepts: which surface module to
-/// evaluate, its texture slots and its parameter values.
-/// Pipeline-family data (the PBR factors and alpha routing of World3D's materials, ...)
-/// lives on derived classes; the rendering facility compiling the asset receives
-/// the derived type directly (e.g. <c>GetMaterial(PbrMaterialAsset)</c>).
-/// <br/>Per-pass GPU materials are compiled from this description by
-/// <see cref="MaterialCompiler"/> (each facility's template and factory),
-/// binding the carried textures by slot with the
-/// asset's fallback policy for unbound slots. The asset is complete at load time and
-/// never learns about streaming: streamed texture sources (e.g. a glTF scene's
-/// textures) are owned by the streaming consumer and override the compiled materials
-/// through <see cref="GraphicsMaterialInstance"/>s.
+/// Data-only description of one material — the runtime form of a material asset
+/// file (<c>.amat</c>), deserialized directly from JSON. It carries only
+/// pipeline-agnostic concepts: which surface module (<see cref="ShaderLibrary"/>)
+/// to evaluate, its texture slots and its parameter values; pipeline-family data
+/// lives on derived classes, which the compiling facility receives directly.
+/// Per-pass GPU materials are compiled from this description by
+/// <see cref="MaterialCompiler"/>.
 /// </summary>
 public class MaterialAsset : IJsonOnDeserialized
 {

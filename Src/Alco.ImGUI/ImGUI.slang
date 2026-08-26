@@ -1,9 +1,9 @@
 // file "ImGUI.slang" - module "ImGUI"
 //
-// Slang module converted from ImGui.hlsl (Phase 2 migration): compiled
-// through the native slang module API from the embedded resource. The vertex
-// color arrives as Unorm8x4 and converts to float4 at the input boundary; the
-// C# side supplies the custom vertex layout (see ImGUIResourceHelper).
+// Compiled through the native slang module API from the embedded resource.
+// The vertex color arrives as Unorm8x4 and converts to float4 at the input
+// boundary; the C# side supplies the custom vertex layout
+// (see ImGUIResourceHelper).
 
 #language slang 2025
 module ImGUI;

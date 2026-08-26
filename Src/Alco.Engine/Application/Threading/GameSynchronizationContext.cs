@@ -41,7 +41,6 @@ namespace Alco.Engine
         {
             ArgumentNullException.ThrowIfNull(callback);
 
-            // If we're already on the main thread, execute immediately
             if (Environment.CurrentManagedThreadId == _mainThreadId)
             {
                 callback(state);

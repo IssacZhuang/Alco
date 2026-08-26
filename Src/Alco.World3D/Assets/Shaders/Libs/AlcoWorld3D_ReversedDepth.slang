@@ -1,10 +1,7 @@
 // file "AlcoWorld3D_ReversedDepth.slang" - module "AlcoWorld3D_ReversedDepth"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli
-// (Phase 2 migration). The HLSL header exposed the convention through the
-// preprocessor (PBR_SKY_DEPTH_EPSILON / isSkyDepth); the preprocessor does not
-// cross module boundaries, so the module exports the same names as a public
-// constant and a public function. Call sites are unchanged.
+// Exports PBR_SKY_DEPTH_EPSILON and isSkyDepth() publicly so the convention
+// crosses module boundaries.
 
 #language slang 2025
 module AlcoWorld3D_ReversedDepth;

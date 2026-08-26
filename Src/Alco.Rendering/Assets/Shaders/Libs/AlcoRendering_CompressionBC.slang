@@ -1,15 +1,14 @@
 // file "AlcoRendering_CompressionBC.slang" - module "AlcoRendering_CompressionBC"
 //
-// Slang port of Shaders/Libs/CompressionBC.hlsli (from
-// github.com/su366350579/textureCompression). The two `#if defined(IS_SRGB)`
-// variants split into dedicated *Srgb functions: a module compiles once, so
-// the sRGB choice is made by the caller (its IS_SRGB define selects which
-// function to call) instead of by recompiling the library.
+// upstream: github.com/su366350579/textureCompression.
+//
+// The two `#if defined(IS_SRGB)` variants split into dedicated *Srgb
+// functions: a module compiles once, so the sRGB choice is made by the caller
+// (its IS_SRGB define selects which function to call) instead of by
+// recompiling the library.
 
 #language slang 2025
 module AlcoRendering_CompressionBC;
-
-// from https://github.com/su366350579/textureCompression
 
 public half linearToSrgbBranchingChannel(half lin)
 {

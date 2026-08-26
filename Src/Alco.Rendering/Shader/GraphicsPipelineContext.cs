@@ -21,7 +21,7 @@ public struct GraphicsPipelineContext
     /// <summary>
     /// The specialization arguments the context was built for (set by the
     /// Shader.GetGraphicsPipeline call; TryUpdatePipelineContext keeps them) —
-    /// the variant identity of the cached pipeline, where defines used to live.
+    /// the variant identity of the cached pipeline.
     /// </summary>
     public string[]? Specializations;
 

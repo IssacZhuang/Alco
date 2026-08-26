@@ -7,13 +7,10 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shader variant model (plan D3 runtime story): one Shader is one module's
-// handle; every variant axis is a generic value specialization requested where
-// the retired defines used to be — through the specialization arguments of the
-// accessor methods (GetShaderModules/GetGraphicsPipeline/GetComputePipelineInfo)
-// or the material factories (materials are construction-bound to shader+spec).
-// Specializations compile lazily, once per argument set, and cache inside the
-// shader. Runs on the NoGPU device; module/reflection level behavior only.
+// Shader variant model: one Shader is one module handle; every variant axis is
+// a generic value specialization passed to GetShaderModules/pipeline/material
+// factories. Specializations compile lazily and cache inside the shader.
+// Runs on the NoGPU device; module/reflection level behavior only.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class MaterialVariantTest

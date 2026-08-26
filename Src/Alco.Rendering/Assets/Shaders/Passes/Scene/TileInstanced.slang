@@ -1,6 +1,5 @@
 // file "TileInstanced.slang" - module "TileInstanced"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 
@@ -82,11 +81,10 @@ int getTileId(int2 tilePos, int defaultValue)
     return tileMap.tileMap[tilePos.y * constants.size.x + tilePos.x];
 }
 
-// The facade/bombing axes are generic value specializations (plan D3): the
-// entry points declare <let isFacade>/<let bombing> and the C# owner passes
-// "true"/"false" where the retired defines used to be (CreateGraphicsMaterial
-// specialization arguments map to the entry points in definition order)
-// instead of preprocessor permutations.
+// The facade/bombing axes are generic value specializations: the entry points
+// declare <let isFacade>/<let bombing> and the C# owner passes "true"/"false"
+// as CreateGraphicsMaterial specialization arguments, which map to the entry
+// points in definition order.
 [shader("vertex")]
 V2F VertexMain<let isFacade : bool>(Vertex input)
 {

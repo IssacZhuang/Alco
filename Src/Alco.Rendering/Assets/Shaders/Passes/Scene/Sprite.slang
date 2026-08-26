@@ -1,11 +1,9 @@
 // file "Sprite.slang" - module "Sprite"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // The REPEATED texture-wrap toggle is the module's one generic value axis
-// (MainPS<let repeated : bool>) — requested as a specialization argument where
-// the retired define used to be.
+// (MainPS<let repeated : bool>).
 
 #language slang 2025
 module Sprite;

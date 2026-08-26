@@ -1,6 +1,5 @@
 // file "VoxelPropagate.slang" - module "VoxelPropagate"
 //
-// Slang module converted from Shaders/Pipelines/Rendering/PBR/VoxelPropagate.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // Lib declarations are public so importing modules see them.
@@ -55,7 +54,7 @@ public ParameterBlock<PassParams> pass;
 // --- Propagation cone set ---------------------------------------------------
 // Nine wide cones cover the hemisphere for cached propagation: 1 cone at
 // θ=0°, 4 at θ=45° and 4 at θ=75°. The final screen-space gather uses the
-// separate rotation-balanced narrow-cone kernel from VoxelTrace.hlsl.
+// separate rotation-balanced narrow-cone kernel from VoxelTrace.slang.
 static const uint PROP_CONE_COUNT = 9u;
 static const float PROP_CONE_APERTURE = 0.57735; // tan(30°)
 

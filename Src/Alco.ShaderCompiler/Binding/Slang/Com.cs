@@ -2,8 +2,8 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.ShaderCompiler;
 
-// COM-shape interop helpers shared by the slang vtable bindings (plan §4.1:
-// the hand-rolled COM ABI used by the pinned Slang runtime).
+// COM-shape interop helpers shared by the slang vtable bindings
+// (the hand-rolled COM ABI of the pinned Slang runtime).
 internal static class Com
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

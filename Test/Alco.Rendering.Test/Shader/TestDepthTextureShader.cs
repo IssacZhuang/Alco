@@ -9,8 +9,8 @@ namespace Alco.Rendering.Test;
 /// Integration tests for depth texture handling on the slang module path:
 /// modules declare native <c>DepthTexture2D</c> parameters, slang emits the
 /// depth (shadow) image flavor in SPIR-V itself, and the reflection must report
-/// the depth sample type and the comparison sampler binding. The retired DXC
-/// macro + SPIR-V patcher route is gone; nothing rewrites bytecode anymore.
+/// the depth sample type and the comparison sampler binding. No bytecode
+/// rewriting anywhere — reflection drives the depth bindings directly.
 /// </summary>
 [TestFixture]
 public class TestDepthTextureShader

@@ -18,9 +18,8 @@ public class GraphicsMaterial : AutoDisposable
 
     // Construction-bound (immutable for the material's lifetime): the shader
     // handle. The specialization starts at construction and can be swapped
-    // later through SetSpecializations (the same mutation surface the retired
-    // defines used to have); the swap rebuilds the pipeline lazily and carries
-    // the resource bindings over by name.
+    // later through SetSpecializations; the swap rebuilds the pipeline lazily
+    // and carries the resource bindings over by name.
     protected readonly Shader _shader;
     private string[] _specializations;
 
@@ -115,11 +114,10 @@ public class GraphicsMaterial : AutoDisposable
     public IReadOnlyList<string> Specializations => _specializations;
 
     /// <summary>
-    /// Switches the material to another specialization of its shader module
-    /// (the successor of the retired defines-based SetDefines): the new
-    /// variant's pipeline compiles lazily on the next use, and every resource
-    /// binding carries over by resource name (the modules of one shader share
-    /// their binding names). A no-op when the arguments are unchanged.
+    /// Switches the material to another specialization of its shader module:
+    /// the new variant's pipeline compiles lazily on the next use, and every
+    /// resource binding carries over by resource name (the modules of one shader
+    /// share their binding names). A no-op when the arguments are unchanged.
     /// </summary>
     /// <param name="specializations">The specialization arguments of the new
     /// variant — C# values (<c>false</c>, <c>3</c>) or slang expressions,

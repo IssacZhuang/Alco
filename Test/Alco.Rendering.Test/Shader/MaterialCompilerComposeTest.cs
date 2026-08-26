@@ -7,19 +7,11 @@ using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MaterialCompiler composition tests: template×surface composition through
-// slang's component system (no generated wrappers, the surface type discovered
-// from the contract — no type names configured), value specialization as the
-// define replacement, module-level parameter-block reflection, parameter
-// packing and hot-reload invalidation. Runs on the NoGPU device; only
-// module/reflection level behavior is asserted (pipelines need a real device).
-// The in-memory modules mirror the shipped convention: surface resources live
-// in set-scoped cbuffer blocks, parameter blocks are discovered by the
-// [MaterialParams] marker and mix scalar/vector float members. Templates and
-// surfaces are addressed by ShaderLibrary references, as production passes and
-// assets do.
-// ─────────────────────────────────────────────────────────────────────────────
+// MaterialCompiler composition tests: template×surface composition through the
+// slang component system, value specialization, parameter-block reflection and
+// hot-reload invalidation. NoGPU device; reflection-level assertions only.
+// Mirrors production conventions: set-scoped cbuffer resource blocks,
+// [MaterialParams]-marked parameter blocks, ShaderLibrary addressing.
 [TestFixture]
 public class MaterialCompilerComposeTest
 {

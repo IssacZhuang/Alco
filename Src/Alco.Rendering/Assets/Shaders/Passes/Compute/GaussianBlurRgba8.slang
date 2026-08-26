@@ -1,6 +1,5 @@
 // file "GaussianBlurRgba8.slang" - module "GaussianBlurRgba8"
 //
-// Slang module converted from Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 

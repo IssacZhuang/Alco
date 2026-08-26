@@ -3,9 +3,9 @@ using NUnit.Framework;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase-1 unit tests for the ShaderSystem's headless core (plan §4.2): module
-// cache, dependency graph, reverse invalidation and the two disk-cache layers
-// (module IR + linked programs) — hit/miss/invalidation/staleness.
+// Unit tests for the ShaderSystem's headless core: module cache, dependency
+// graph, reverse invalidation and the two disk-cache layers (module IR +
+// linked programs) — hit/miss/invalidation/staleness.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class SlangModuleSystemTest
@@ -155,10 +155,9 @@ public class SlangModuleSystemTest
     public void ModuleIRDiskCache_NameKeyedModules_RestoreAcrossSystems()
     {
         // Name-keyed loads (the engine's GetShader route) probe the module by
-        // name→file conventions; the probe candidate must become the module's
-        // path identity. The extension-less module name previously used as the
-        // identity resolved to nothing through the resolver, so cache writes
-        // succeeded while every read missed — each run re-parsed the module.
+        // name→file conventions. The probe candidate must become the module's
+        // path identity — an unresolvable identity silently turns every cache
+        // read into a re-parse.
         Dictionary<string, string> files = new()
         {
             ["shaders/name-keyed.slang"] = MainModule,
@@ -349,7 +348,7 @@ public class SlangModuleSystemTest
     [Test]
     public void GetProgram_IntValueSpecializationsAreDistinctPrograms()
     {
-        // Generic value parameters (plan D3): integer-literal arguments drive the
+        // Generic value parameters: integer-literal arguments drive the
         // engine's variant axes (fxaa quality, sRGB compression, cloud noise bake).
         const string valueGenericModule = """
             [shader("fragment")]

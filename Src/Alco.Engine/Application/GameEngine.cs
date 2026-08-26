@@ -231,9 +231,8 @@ IDisposable
             _graphicsDevice,
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat,
-            // Slang modules resolve through the asset system (plan D1):
-            // module-name probes are answered by dashed-name matching over
-            // the asset list.
+            // Module-name probes resolve via dashed-name matching over
+            // asset-system assets.
             ShaderModuleResolver.Create(
                 path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
                 () => _assetSystem.AllAssetNames),
