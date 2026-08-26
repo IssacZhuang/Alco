@@ -1,8 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Alco.Rendering;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Json converter for <see cref="Shader"/>: an asset references a shader by

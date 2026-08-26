@@ -1,7 +1,7 @@
 using Alco.Graphics;
 using Alco;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 public class Texture2DMeta : Meta
 {

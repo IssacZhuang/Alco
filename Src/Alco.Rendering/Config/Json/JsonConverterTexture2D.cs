@@ -2,9 +2,8 @@
 
 using System.Text.Json;
 using Alco.IO;
-using Alco.Rendering;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 
 public class JsonConverterTexture2D : BaseJsonConverterAsset<Texture2D>

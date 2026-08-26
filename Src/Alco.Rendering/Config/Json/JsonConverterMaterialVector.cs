@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Json converter for material vector values (surface parameters and PBR factors).

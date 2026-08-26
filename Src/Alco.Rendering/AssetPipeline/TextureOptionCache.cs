@@ -5,7 +5,7 @@ using Alco;
 using Alco.Graphics;
 using Alco.IO;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Self-contained texture option cache. Discovers <c>.texture-option.meta</c> files,

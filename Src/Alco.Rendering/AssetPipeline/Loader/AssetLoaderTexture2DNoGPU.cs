@@ -1,9 +1,8 @@
-using Alco.Rendering;
 using Alco.IO;
 using Alco.Graphics;
 using Alco;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Lightweight Texture2D asset loader for NoGPU mode.

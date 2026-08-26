@@ -2,11 +2,10 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using StbImageSharp;
 using Alco.Graphics;
-using Alco.Rendering;
 using Alco.IO;
 using Alco;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Represents an asset loader for Texture2D assets.

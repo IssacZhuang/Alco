@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Alco;
 using Alco.Graphics;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Json converter for authored material-parameter values (<see cref="ShaderValue"/>).

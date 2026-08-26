@@ -1,7 +1,6 @@
 using System.Numerics;
-using Alco.Rendering;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// A material of a loaded 3D model scene, metallic-roughness workflow subset.

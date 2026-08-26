@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Alco; // Add import for Color32 and ColorFloat
 using Alco.Engine;
+using Alco.Rendering;
 
 namespace Alco.Engine.Test;
 

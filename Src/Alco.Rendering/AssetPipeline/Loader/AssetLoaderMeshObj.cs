@@ -1,8 +1,7 @@
 using System.Runtime.InteropServices;
 using Alco.IO;
-using Alco.Rendering;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Asset loader for Wavefront OBJ model files.

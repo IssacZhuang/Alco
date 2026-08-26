@@ -1,9 +1,8 @@
 using System.Numerics;
 using Alco.Graphics;
 using Alco.IO;
-using Alco.Rendering;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Asset loader for glTF 2.0 model scenes (.gltf / .glb).

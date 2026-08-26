@@ -1,7 +1,6 @@
-using Alco.Rendering;
 using Alco.IO;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Lightweight Font asset loader for NoGPU mode.

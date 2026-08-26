@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Alco.Graphics;
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// JSON converter for BlendState type.

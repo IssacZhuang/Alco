@@ -1,4 +1,4 @@
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Base class for asset meta data.

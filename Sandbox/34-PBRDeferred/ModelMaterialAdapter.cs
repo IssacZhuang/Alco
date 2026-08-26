@@ -4,7 +4,7 @@ using Alco.Rendering;
 using Alco.World3D;
 
 /// <summary>
-/// Maps the glTF loader's runtime <see cref="ModelMaterial"/> (Alco.Engine) to the
+/// Maps the glTF loader's runtime <see cref="ModelMaterial"/> (Alco.Rendering) to the
 /// data-only <see cref="PbrMaterialAsset"/> (Alco.World3D) the material compiler
 /// consumes — the game-side glue between the direct glTF scene load and the
 /// material system (the .amat asset chain describes the same data from files).

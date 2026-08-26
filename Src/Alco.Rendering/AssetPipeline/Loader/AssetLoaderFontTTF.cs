@@ -1,11 +1,10 @@
 using System.Diagnostics.CodeAnalysis;
-using Alco.Rendering;
 using Alco.IO;
 using Alco.Graphics;
 using System.Numerics;
 
 
-namespace Alco.Engine;
+namespace Alco.Rendering;
 
 /// <summary>
 /// The loader for true type font file with SDF (Signed Distance Field) generation
