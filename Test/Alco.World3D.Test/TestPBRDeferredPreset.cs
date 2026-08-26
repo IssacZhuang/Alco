@@ -27,6 +27,12 @@ public sealed class TestPBRDeferredPreset
     private const string LightingShaderSource = """
         module test_lighting;
 
+        // Marks the environment's lighting-data block for PBRSceneEnvironment's
+        // discovery; declared inline, module-local like the engine's own PBR common.
+        [__AttributeUsage(_AttributeTargets.Var)]
+        public struct SceneEnvironmentParams {};
+
+        [SceneEnvironmentParams]
         cbuffer data : register(b0, space0)
         {
             float4x4 invViewProjection;

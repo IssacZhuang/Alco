@@ -65,7 +65,7 @@ public class Game : GameEngine
         _camera = RenderingSystem.CreateCamera2D(128, 72, 100);
 
         // Create material for particles
-        _materialParticle = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2d);
+        _materialParticle = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
         _materialParticle.BlendState = BlendState.Additive;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 

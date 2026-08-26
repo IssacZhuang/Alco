@@ -13,7 +13,10 @@ public sealed class PackageEntry : ISerializable
     public long Start => _start;
     public long Size => _size;
 
-    //empty constructor for serialization
+    /// <summary>
+    /// Serialization-only parameterless constructor, filled by the serializer when loading a
+    /// package entry. Do not call manually.
+    /// </summary>
     public PackageEntry(){
 
     }

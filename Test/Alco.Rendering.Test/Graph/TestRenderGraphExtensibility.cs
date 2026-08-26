@@ -30,8 +30,14 @@ public sealed class TestRenderGraphExtensibility
     private const string LightingShaderSource = """
         module test_render_graph_lighting;
 
-        // Mirrors AlcoWorld3D_PBRCommon's PbrData: the environment writes
-        // every member by name through the reflection-driven uniform buffer.
+        // Mirrors AlcoWorld3D_PBRCommon's marked data block: the environment finds
+        // the block by the [SceneEnvironmentParams] marker (declared inline here,
+        // module-local like the engine's own) and writes every member by name
+        // through the reflection-driven uniform buffer.
+        [__AttributeUsage(_AttributeTargets.Var)]
+        public struct SceneEnvironmentParams {};
+
+        [SceneEnvironmentParams]
         cbuffer data : register(b0, space0)
         {
             float4x4 invViewProjection;

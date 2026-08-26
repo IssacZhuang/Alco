@@ -59,12 +59,22 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>The maximum number of point lights the StructuredBuffer can hold.</summary>
     public const int MaxPointLights = 256;
 
+    /// <summary>
+    /// The user-defined shader attribute marking the uniform block that mirrors
+    /// this environment's shared lighting state (<c>[SceneEnvironmentParams]</c>,
+    /// declared in AlcoWorld3D_PBRCommon). Discovery keys off this marker, not
+    /// the block variable's name — the shader may rename it freely; a library
+    /// without exactly one marked block fails at buffer creation with the fix named.
+    /// </summary>
+    public const string EnvironmentDataMarker = "SceneEnvironmentParams";
+
     private readonly RenderingSystem _rendering;
     private readonly ShaderLibrary _lightingDataLibrary;
-    // Reflection-driven uniform buffer over the shared PBR _data block — no CPU
-    // twin of PbrData; AssembleLightingData writes members by name at their
-    // reflected offsets. Created lazily: the constructor may run before the host
-    // installs the shader module resolver the reflection lookup needs.
+    // Reflection-driven uniform buffer over the shared PBR block marked
+    // [SceneEnvironmentParams] — no CPU twin of PbrData; AssembleLightingData
+    // writes members by name at their reflected offsets. Created lazily: the
+    // constructor may run before the host installs the shader module resolver
+    // the reflection lookup needs.
     private UniformGraphicsBuffer? _lightingDataBuffer;
     private readonly GraphicsValueBuffer<ShadowCascadeData> _shadowDataBuffer;
     private readonly GraphicsArrayBuffer<PointLight> _pointLightBuffer;
@@ -84,9 +94,9 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// Creates the environment and its GPU buffers.
     /// </summary>
     /// <param name="rendering">The rendering system used to create the buffers.</param>
-    /// <param name="lightingDataLibrary">The library whose <c>data</c> uniform block shapes
-    /// <see cref="LightingDataBuffer"/> (the PBR common module of the composed lighting
-    /// stack). Caller-owned; the block layout is captured lazily at first access.</param>
+    /// <param name="lightingDataLibrary">The library whose [<c>SceneEnvironmentParams</c>]-marked
+    /// uniform block shapes <see cref="LightingDataBuffer"/> (the PBR common module of the
+    /// composed lighting stack). Caller-owned; the block layout is captured lazily at first access.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels
     /// (the shadow map is a 2x2 atlas of <see cref="ShadowCascadeCount"/> cascades, so
     /// the actual texture is twice this size along each axis).</param>
@@ -157,16 +167,32 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>
     /// The deferred lighting data buffer (per-frame sun, sky, cascade and camera
     /// constants). Shared with forward renderers so they can evaluate the same PBR.
-    /// The buffer layout mirrors the <c>data</c> uniform block of the lighting-data
-    /// library injected at construction; the library must stay alive for the
-    /// buffer's lifetime (reflection is captured at creation).
+    /// The buffer layout mirrors the [<c>SceneEnvironmentParams</c>]-marked uniform
+    /// block of the lighting-data library injected at construction; the library
+    /// must stay alive for the buffer's lifetime (reflection is captured at creation).
     /// </summary>
     public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer ??= CreateLightingDataBuffer();
 
+    // Finds this library's [SceneEnvironmentParams] block: exactly one is required.
+    // A wrong or unmarked library fails here — at creation, with the library named
+    // and the fix spelled out — instead of silently building a buffer over an
+    // unrelated same-named block.
     private UniformGraphicsBuffer CreateLightingDataBuffer()
-        => _rendering.CreateUniformGraphicsBuffer(
-            _lightingDataLibrary.Reflection.UniformBlocks.First(block => block.Name == "data"),
-            "pbr_lighting_data");
+    {
+        ShaderUniformBlock[] marked = _lightingDataLibrary.Reflection.UniformBlocks
+            .Where(block => block.Attributes.Contains(EnvironmentDataMarker))
+            .ToArray();
+        return marked.Length switch
+        {
+            1 => _rendering.CreateUniformGraphicsBuffer(marked[0], "pbr_lighting_data"),
+            0 => throw new InvalidDataException(
+                $"Shader library '{_lightingDataLibrary.Name}' declares no [{EnvironmentDataMarker}] uniform block; " +
+                "mark the one mirroring the scene lighting state (see AlcoWorld3D_PBRCommon)."),
+            _ => throw new InvalidDataException(
+                $"Shader library '{_lightingDataLibrary.Name}' declares {marked.Length} [{EnvironmentDataMarker}] blocks " +
+                $"({string.Join(", ", marked.Select(block => block.Name))}); exactly one must mirror the lighting state."),
+        };
+    }
 
     /// <summary>
     /// The GPU buffer holding the point light array. Read by the lighting pass

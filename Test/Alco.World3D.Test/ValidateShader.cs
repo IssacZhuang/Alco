@@ -17,8 +17,10 @@ namespace Alco.World3D.Test;
 /// </summary>
 public class ValidateShader
 {
-    // Uses the plain NoGPU setting (shader cache disabled): this test must exercise
-    // real slang compilation, so a cached hit would defeat its purpose.
+    /// <summary>
+    /// Uses the plain no-GPU setting (shader cache disabled): this test must exercise real
+    /// slang compilation, so a cached hit would defeat its purpose.
+    /// </summary>
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine

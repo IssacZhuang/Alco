@@ -6,7 +6,10 @@ namespace Alco.Engine.Test;
 
 public class ValidateShader
 {
-    // Must exercise real compilation; a cache hit would defeat the purpose.
+    /// <summary>
+    /// The fixture validates shaders against the no-GPU engine setting. Compilation must be
+    /// real; a shader-cache hit would defeat the purpose.
+    /// </summary>
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
     public class ShaderValidator : GameEngine

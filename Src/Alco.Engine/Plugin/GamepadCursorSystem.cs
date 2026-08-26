@@ -17,7 +17,10 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
     private readonly Input _input;
     private readonly View _view;
 
-    // dead zone to avoid drift
+    /// <summary>
+    /// Normalized stick magnitude (0-1) below which axis input snaps to zero, preventing
+    /// cursor drift while the stick rests near the neutral position. Default <c>0.1f</c>.
+    /// </summary>
     public float DeadZone { get; set; } = 0.1f;
     public float Sensitivity { get; set; } = 1.0f;
 

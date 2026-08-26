@@ -2,20 +2,20 @@ namespace Alco.IO;
 
 public static class FileExt
 {
-    // shader
+    /// <summary>The compiled shader binary asset extension (<c>.scb</c>).</summary>
     public const string ShaderBinary = ".scb";
     public const string ShaderSlang = ".slang";
     public const string ShaderGLSL = ".glsl";
     public const string ShaderGLSLInclude = ".glslinc";
     public const string ShaderWGSL = ".wgsl";
 
-    // package
+    /// <summary>The asset package archive extension (<c>.vpkg</c>).</summary>
     public const string Package = ".vpkg";
     public const string Zip = ".zip";
     public const string Tar = ".tar";
     public const string TarGz = ".tar.gz";
 
-    // image
+    /// <summary>The compressed texture asset extension (<c>.ctex</c>).</summary>
     public const string TextureCompresed = ".ctex";
 
     public const string ImagePNG = ".png";
@@ -26,7 +26,7 @@ public static class FileExt
     public const string ImageGIF = ".gif";
     public const string ImageDDS = ".dds";
 
-    // Text
+    /// <summary>The plain text file extension (<c>.txt</c>).</summary>
     public const string Text = ".txt";
     public const string TextCSV = ".csv";
     public const string TextJSON = ".json";
@@ -39,30 +39,30 @@ public static class FileExt
     public const string TextTOML = ".toml";
     
 
-    //meta
+    /// <summary>The marker extension appended to imported external assets (<c>.imported</c>).</summary>
     public const string Imported = ".imported";
 
-    //font
+    /// <summary>The TrueType font file extension (<c>.ttf</c>).</summary>
     public const string FontTrueType = ".ttf";
 
-    //audio
+    /// <summary>The WAV audio file extension (<c>.wav</c>).</summary>
     public const string AudioWav = ".wav";
     public const string AudioOgg = ".ogg";
     public const string AudioMp3 = ".mp3";
     public const string AudioFlac = ".flac";
     public const string AudioAiff = ".aiff";
 
-    //model
+    /// <summary>The Wavefront OBJ model file extension (<c>.obj</c>).</summary>
     public const string ModelOBJ = ".obj";
     public const string ModelGLTF = ".gltf";
     public const string ModelGLB = ".glb";
 
-    //material
+    /// <summary>The material asset extension (<c>.amat</c>).</summary>
     public const string Material = ".amat";
 
-    //render node factory
+    /// <summary>The render node factory asset extension (<c>.rnfact</c>).</summary>
     public const string RenderNodeFactory = ".rnfact";
 
-    //meta
+    /// <summary>The sidecar metadata file extension (<c>.meta</c>).</summary>
     public const string Meta = ".meta";
 }

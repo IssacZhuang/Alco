@@ -54,6 +54,17 @@ public struct PbrData
     public bool   cloudShadowEnabled;
 };
 
+// ── scene-environment blocks ───────────────────────────────────────────────
+// Marks the uniform block mirroring PBRSceneEnvironment's shared per-frame
+// lighting state (sun/sky/shadow/GI/volumetric constants). The engine finds
+// the block by this marker, not by variable name — same convention as the
+// material system's [MaterialParams], owned here (not in AlcoRendering_Core)
+// because the scene environment is a World3D concern. Public so a composed
+// environment library can import and reuse it.
+[__AttributeUsage(_AttributeTargets.Var)]
+public struct SceneEnvironmentParams {};
+
+[SceneEnvironmentParams]
 public ParameterBlock<PbrData> data;
 
 

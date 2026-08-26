@@ -6,7 +6,10 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Benchmark;
 
-// the old sprite renderer, use less command for better performance, but not flexible
+/// <summary>
+/// The old sprite rendering path, retained as a benchmark baseline: it issues fewer GPU
+/// commands for better performance, but is less flexible than the current renderer.
+/// </summary>
 internal sealed class OldSpriteRenderer : AutoDisposable
 {
     public const string ShaderId_camera = "camera";
