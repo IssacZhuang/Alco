@@ -903,6 +903,16 @@ internal partial struct WGPUShaderModuleDescriptorMsl
 	public uint workgroupSizeZ;
 }
 
+internal partial struct WGPUShaderModuleDescriptorMetalLib
+{
+	public WGPUStringView label;
+	public uint codeSize;
+	public unsafe byte* code;
+	public uint workgroupSizeX;
+	public uint workgroupSizeY;
+	public uint workgroupSizeZ;
+}
+
 internal partial struct WGPURegistryReport
 {
 	public nuint numAllocated;

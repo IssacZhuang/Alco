@@ -46,6 +46,14 @@ public abstract class GPUDevice
     public abstract bool TimestampQuerySupported { get; }
 
     /// <summary>
+    /// Gets whether the active device can consume precompiled Metal libraries:
+    /// wgpu-native was built with the metallib passthrough entry (third Alco
+    /// patch) and the backend is Metal. The shader factory picks the slang
+    /// metallib target only when this is true; everything else stays on MSL.
+    /// </summary>
+    public abstract bool MetalLibPassthroughSupported { get; }
+
+    /// <summary>
     /// Gets whether timestamp writes are allowed inside an open compute pass
     /// (wgpu-native <c>TimestampQueryInsidePasses</c>). When false, timestamps
     /// can only be written at pass boundaries.

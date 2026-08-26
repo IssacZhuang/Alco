@@ -39,16 +39,18 @@ public sealed class SlangCompilerOptions
 
     /// <summary>
     /// The code format this session emits — selected from the runtime graphics
-    /// backend (Vulkan/SPIR-V, D3D12/DXIL, Metal/MSL); see <see cref="SlangCodeTarget"/>.
+    /// backend (Vulkan/SPIR-V, D3D12/DXIL, Metal/MSL or Metal/metallib); see
+    /// <see cref="SlangCodeTarget"/>.
     /// </summary>
     public SlangCodeTarget Target { get; init; } = SlangCodeTarget.Spirv;
 
     /// <summary>
     /// Optional profile override for the target (e.g. "spirv_1_5", "sm_6_6").
     /// Null selects the target's pinned default: SPIR-V 1.3 (so a bundled compiler
-    /// update cannot silently change the dialect) and DXIL shader model 6.0 (the
-    /// only level every SM6 driver guarantees). MSL has no profile name in slang;
-    /// an override must be null for it.
+    /// update cannot silently change the dialect), DXIL shader model 6.0 (the
+    /// only level every SM6 driver guarantees) and metallib 2.3 (the oldest
+    /// dialect every macOS 13 / iOS 16 runtime loads; newer OSes load it fine).
+    /// MSL has no profile name in slang; an override must be null for it.
     /// </summary>
     public string? TargetProfile { get; init; }
 
@@ -65,6 +67,7 @@ public sealed class SlangCompilerOptions
         {
             SlangCodeTarget.Spirv => "spirv_1_3",
             SlangCodeTarget.Dxil => "sm_6_0",
+            SlangCodeTarget.MetalLib => "metallib_2_3",
             _ => "",
         };
 }
@@ -135,6 +138,45 @@ public sealed class SlangCompiler : IDisposable
         BuildTag = GlobalSession.GetBuildTagString();
     }
 
+    /// <summary>
+    /// Whether slang can actually produce metallib containers on this machine.
+    /// <see cref="SlangGlobalSession.CheckCompileTargetSupport"/> is not enough: it
+    /// only reports whether the metallib codegen is compiled into slang, while the
+    /// codegen shells out to Apple's Metal toolchain (xcrun metal on macOS, the Metal
+    /// Developer Tools on Windows) and fails with error E52002 where that toolchain
+    /// is absent. The honest probe is one trial compile of a minimal module; the
+    /// result is cached for the process.
+    /// </summary>
+    public bool MetalLibSupported => _metalLibSupported ??= ProbeMetalLibSupport();
+
+    private bool? _metalLibSupported;
+
+    private bool ProbeMetalLibSupport()
+    {
+        if (!GlobalSession.CheckCompileTargetSupport(SlangNative.SLANG_METAL_LIB))
+        {
+            return false;
+        }
+        try
+        {
+            using SlangCompileSession session = CreateSession(new SlangCompilerOptions
+            {
+                Target = SlangCodeTarget.MetalLib,
+            });
+            SlangModuleHandle module = session.LoadModuleFromSource(
+                "alco_metallib_probe", "alco_metallib_probe.slang",
+                "[numthreads(1,1,1)][shader(\"compute\")] void Probe(uint3 id : SV_DispatchThreadID) {}");
+            using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("Probe", ShaderStage.Compute)]);
+            return program.EntryCode is [ { Length: > 4 }, .. ];
+        }
+        catch (Exception ex) when (ex is ShaderCompilationException or InvalidOperationException or ArgumentException)
+        {
+            // E52002 (pass-through compiler not found) and friends surface as
+            // either exception kind; any probe failure means "no metallib here".
+            return false;
+        }
+    }
+
     /// <summary>Creates a session for one (search paths, macros, options) combination.</summary>
     public SlangCompileSession CreateSession(SlangCompilerOptions options)
     {
@@ -170,6 +212,7 @@ public sealed class SlangCompileSession : IDisposable
                 SlangCodeTarget.Spirv => SlangNative.SLANG_SPIRV,
                 SlangCodeTarget.Dxil => SlangNative.SLANG_DXIL,
                 SlangCodeTarget.Msl => SlangNative.SLANG_METAL,
+                SlangCodeTarget.MetalLib => SlangNative.SLANG_METAL_LIB,
                 _ => throw new ArgumentException($"Unsupported slang code target {options.Target}.", nameof(options)),
             };
 

@@ -8,6 +8,7 @@ namespace Alco.Graphics
         SPIRV,
         WGSL,
         DXIL,
-        MSL
+        MSL,
+        MetalLib
     }
 }

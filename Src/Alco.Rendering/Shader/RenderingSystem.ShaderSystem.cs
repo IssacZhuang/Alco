@@ -28,10 +28,23 @@ public partial class RenderingSystem
     /// <param name="slangCacheDirectory">Disk-cache root for slang modules/programs; null disables caching.</param>
     private ShaderSystem CreateShaderSystem(SlangFileResolver? moduleResolver, string? slangCacheDirectory)
     {
+        bool metalLib = MetalLibTargetEnabled(GraphicsDevice.Backend, GraphicsDevice.MetalLibPassthroughSupported);
+        SlangCodeTarget target = GraphicsDevice.Backend switch
+        {
+            GraphicsBackend.D3D12 => SlangCodeTarget.Dxil,
+            GraphicsBackend.Metal => metalLib ? SlangCodeTarget.MetalLib : SlangCodeTarget.Msl,
+            _ => SlangCodeTarget.Spirv,
+        };
+        if (GraphicsDevice.Backend == GraphicsBackend.Metal)
+        {
+            Log.Info(metalLib
+                ? "Metal shaders compile to precompiled metallib (Apple toolchain + wgpu metallib passthrough present)"
+                : "Metal shaders compile to MSL source (metallib toolchain or wgpu metallib passthrough unavailable)");
+        }
         return new ShaderSystem(this, new SlangCompilerOptions
         {
             Resolver = moduleResolver,
-            Target = SlangCodeTargetFor(GraphicsDevice.Backend),
+            Target = target,
             // Cache/compile events (hit/miss with timings) — the old
             // DXC ShaderCache logged these; the slang path stayed silent.
             Log = message => Log.Info(message),
@@ -46,14 +59,24 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// The slang code format wgpu's shader passthrough consumes per backend:
-    /// Vulkan/SPIR-V, D3D12/DXIL, Metal/MSL. Unknown backends keep SPIR-V, which
-    /// still has the Naga-import fallback when passthrough is unavailable.
+    /// Whether the Metal backend compiles shaders to precompiled metallib containers:
+    /// both sides must agree — slang's metallib codegen (Apple's external Metal
+    /// toolchain present) and wgpu-native's metallib passthrough entry (the third
+    /// Alco patch). Probed once per rendering system; falls back to MSL source.
     /// </summary>
-    internal static SlangCodeTarget SlangCodeTargetFor(GraphicsBackend backend) => backend switch
+    internal static bool MetalLibTargetEnabled(GraphicsBackend backend, bool metalLibPassthrough)
     {
-        GraphicsBackend.D3D12 => SlangCodeTarget.Dxil,
-        GraphicsBackend.Metal => SlangCodeTarget.Msl,
-        _ => SlangCodeTarget.Spirv,
-    };
+        if (backend != GraphicsBackend.Metal || !metalLibPassthrough)
+        {
+            return false;
+        }
+        try
+        {
+            return new SlangCompiler().MetalLibSupported;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

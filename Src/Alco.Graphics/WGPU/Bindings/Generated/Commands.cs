@@ -1068,6 +1068,9 @@ internal unsafe partial class WebGPU
 	[LibraryImport(LibraryName, EntryPoint = "wgpuDeviceCreateShaderModuleMsl")]
 	public static partial WGPUShaderModule wgpuDeviceCreateShaderModuleMsl(WGPUDevice device, WGPUShaderModuleDescriptorMsl* descriptor);
 
+	[LibraryImport(LibraryName, EntryPoint = "wgpuDeviceCreateShaderModuleMetalLib")]
+	public static partial WGPUShaderModule wgpuDeviceCreateShaderModuleMetalLib(WGPUDevice device, WGPUShaderModuleDescriptorMetalLib* descriptor);
+
 	[LibraryImport(LibraryName, EntryPoint = "wgpuSetLogCallback")]
 	public static partial void wgpuSetLogCallback(delegate* unmanaged<WGPULogLevel, WGPUStringView, void*, void> callback, void* userdata);
 

@@ -200,6 +200,29 @@ internal static partial class WebGPUUtility
                 return wgpuDeviceCreateShaderModuleMsl(nativeDevice, &descriptor);
             }
         }
+        else if (source.Language == ShaderLanguage.MetalLib)
+        {
+            RequirePassthrough(device, source, "MetalLib");
+
+            ReadOnlySpan<byte> code = source.Source.Span;
+            fixed (byte* ptr = code)
+            {
+                // A precompiled .metallib container: wgpu loads it with
+                // newLibraryWithData instead of compiling source at runtime;
+                // entry points keep their declared function names.
+                WGPUShaderModuleDescriptorMetalLib descriptor = new()
+                {
+                    label = WGPUStringView.Empty,
+                    codeSize = (uint)code.Length,
+                    code = ptr,
+                    workgroupSizeX = source.WorkgroupSize.X,
+                    workgroupSizeY = source.WorkgroupSize.Y,
+                    workgroupSizeZ = source.WorkgroupSize.Z,
+                };
+
+                return wgpuDeviceCreateShaderModuleMetalLib(nativeDevice, &descriptor);
+            }
+        }
         else if (source.Language == ShaderLanguage.WGSL)
         {
             ReadOnlySpan<byte> code = source.Source.Span;
@@ -221,13 +244,13 @@ internal static partial class WebGPUUtility
             }
         }
 
-        throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV, DXIL, MSL and WGSL are supported.");
+        throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV, DXIL, MSL, MetalLib and WGSL are supported.");
     }
 
     /// <summary>
-    /// DXIL/MSL have no Naga fallback — wgpu can only take them through passthrough, so a
-    /// device without the PassthroughShaders feature (or an unpatched wgpu-native build)
-    /// fails here with the actionable reason instead of an entry-point lookup error.
+    /// DXIL/MSL/MetalLib have no Naga fallback — wgpu can only take them through passthrough, so
+    /// a device without the PassthroughShaders feature (or an unpatched wgpu-native build) fails
+    /// here with the actionable reason instead of an entry-point lookup error.
     /// </summary>
     private static void RequirePassthrough(WebGPUDevice device, in ShaderModule source, string targetName)
     {
@@ -235,7 +258,7 @@ internal static partial class WebGPUUtility
         {
             throw new GraphicsException(
                 $"{targetName} shaders require wgpu's PassthroughShaders feature, which the active device does not expose. " +
-                $"Build wgpu-native with the Alco passthrough patch (see Generator/WebGPUBindingGenerator/patches).");
+                $"Build wgpu-native with the Alco passthrough patch (see the alco-wgpu-native overlay repository).");
         }
     }
 

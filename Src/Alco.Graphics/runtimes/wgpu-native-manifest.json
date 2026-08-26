@@ -84,11 +84,11 @@
   "files": {
     "win-x64": {
       "path": "runtimes/win-x64/native/wgpu_native.dll",
-      "size": 8731136,
-      "sha256": "2d03d7ecdb672edf4aa331d61f73c5fe0baea2759e443b9b5d89c23e65da2d5f",
+      "size": 8730112,
+      "sha256": "908a337028e898c6fc8bfc832090323a90a41116163e3bce8c70069ae696db38",
       "binaryFormat": "pe",
       "architecture": "x64",
-      "exportCount": 230
+      "exportCount": 231
     },
     "win-arm64": {
       "path": "runtimes/win-arm64/native/wgpu_native.dll",

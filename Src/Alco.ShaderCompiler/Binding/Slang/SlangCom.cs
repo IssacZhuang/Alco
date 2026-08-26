@@ -182,6 +182,15 @@ internal sealed class SlangGlobalSession
             NativePointer, profileName.Pointer);
     }
 
+    /// <summary>
+    /// IGlobalSession::checkCompileTargetSupport — SLANG_OK when the target compiles
+    /// on this machine. The metallib target additionally requires Apple's external
+    /// Metal toolchain, so "supported" here means an actual compile can run.
+    /// </summary>
+    public unsafe bool CheckCompileTargetSupport(int target)
+        => ((delegate* unmanaged[Stdcall]<IntPtr, int, int>)Com.Vcall(NativePointer, 17))(
+            NativePointer, target) == SlangNative.SLANG_OK;
+
     public void Release() => Com.Release(NativePointer);
 }
 

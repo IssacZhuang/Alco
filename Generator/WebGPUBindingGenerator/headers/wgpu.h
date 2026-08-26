@@ -1291,6 +1291,18 @@ typedef struct WGPUShaderModuleDescriptorMsl
     uint32_t workgroupSizeZ;
 } WGPUShaderModuleDescriptorMsl;
 
+typedef struct WGPUShaderModuleDescriptorMetalLib
+{
+    WGPUStringView label;
+    /** Number of bytes in @c code (a precompiled .metallib container). */
+    uint32_t codeSize;
+    uint8_t const *code;
+    /** Compute threadgroup size ([numthreads]); graphics stages ignore it. */
+    uint32_t workgroupSizeX;
+    uint32_t workgroupSizeY;
+    uint32_t workgroupSizeZ;
+} WGPUShaderModuleDescriptorMetalLib;
+
 typedef struct WGPURegistryReport
 {
     size_t numAllocated;
@@ -1513,6 +1525,7 @@ extern "C"
     WGPUShaderModule wgpuDeviceCreateShaderModuleSpirV(WGPUDevice device, WGPUShaderModuleDescriptorSpirV const *descriptor);
     WGPUShaderModule wgpuDeviceCreateShaderModuleDxil(WGPUDevice device, WGPUShaderModuleDescriptorDxil const *descriptor);
     WGPUShaderModule wgpuDeviceCreateShaderModuleMsl(WGPUDevice device, WGPUShaderModuleDescriptorMsl const *descriptor);
+    WGPUShaderModule wgpuDeviceCreateShaderModuleMetalLib(WGPUDevice device, WGPUShaderModuleDescriptorMetalLib const *descriptor);
 
     void wgpuSetLogCallback(WGPULogCallback callback, void *userdata);
 

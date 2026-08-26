@@ -20,6 +20,14 @@ public enum SlangCodeTarget
 
     /// <summary>MSL source for wgpu's Metal backend (slang's Metal codegen).</summary>
     Msl = 2,
+
+    /// <summary>
+    /// Precompiled Metal libraries for wgpu's Metal backend — slang's metallib target,
+    /// which shells out to Apple's Metal toolchain (xcrun metal, or the Windows Metal
+    /// Developer Tools) to produce a .metallib container ahead of time. Only available
+    /// where that toolchain exists; <see cref="SlangCompiler.MetalLibSupported"/> probes it.
+    /// </summary>
+    MetalLib = 3,
 }
 
 public static class SlangCodeTargetExtensions
@@ -30,19 +38,21 @@ public static class SlangCodeTargetExtensions
         SlangCodeTarget.Spirv => ShaderLanguage.SPIRV,
         SlangCodeTarget.Dxil => ShaderLanguage.DXIL,
         SlangCodeTarget.Msl => ShaderLanguage.MSL,
+        SlangCodeTarget.MetalLib => ShaderLanguage.MetalLib,
         _ => throw new ArgumentOutOfRangeException(nameof(target)),
     };
 
     /// <summary>
     /// The name wgpu must use to select the entry point: slang names every SPIR-V
-    /// entry "main" regardless of the source function, while DXIL containers and
-    /// MSL libraries keep the declared function names.
+    /// entry "main" regardless of the source function, while DXIL containers,
+    /// MSL libraries and metallib containers keep the declared function names.
     /// </summary>
     public static string EntryPointName(this SlangCodeTarget target, string sourceName) => target switch
     {
         SlangCodeTarget.Spirv => "main",
         SlangCodeTarget.Dxil => sourceName,
         SlangCodeTarget.Msl => sourceName,
+        SlangCodeTarget.MetalLib => sourceName,
         _ => throw new ArgumentOutOfRangeException(nameof(target)),
     };
 }

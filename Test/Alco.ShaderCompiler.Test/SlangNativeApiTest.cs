@@ -88,6 +88,42 @@ public class SlangNativeApiTest
     }
 
     [Test]
+    public void MetalLibSupportProbe_MatchesCompileOutcome()
+    {
+        using SlangCompiler compiler = new SlangCompiler();
+        // The probe itself is a trial compile, so on this machine it already
+        // reflects the toolchain; verify the compile outcome agrees with it.
+        bool supported = compiler.MetalLibSupported;
+
+        using SlangCompileSession session = compiler.CreateSession(new SlangCompilerOptions
+        {
+            Target = SlangCodeTarget.MetalLib,
+        });
+        SlangModuleHandle module = session.LoadModuleFromSource(
+            "alco_test_metallib", "alco_test_metallib.slang", ComputeShader);
+        SlangProgram program;
+        try
+        {
+            program = session.Compile(module, [new SlangEntryPointRequest("MainCS", ShaderStage.Compute)]);
+        }
+        catch (Exception ex) when (ex is ShaderCompilationException or InvalidOperationException)
+        {
+            // E52002 "pass-through compiler not found" arrives as either kind.
+            Assert.That(supported, Is.False,
+                $"MetalLibSupported=true but the compile failed: {ex.Message}");
+            return;
+        }
+        using (program)
+        {
+            if (supported)
+            {
+                Assert.That(program.EntryCode[0][0..4], Is.EqualTo(new byte[] { (byte)'M', (byte)'T', (byte)'L', (byte)'B' }),
+                    "MetalLibSupported=true but slang emitted no metallib container");
+            }
+        }
+    }
+
+    [Test]
     public void CreateSession_RejectsUnknownTargetProfile()
     {
         using SlangCompiler compiler = new SlangCompiler();

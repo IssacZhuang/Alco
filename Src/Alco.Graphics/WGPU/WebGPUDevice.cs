@@ -46,10 +46,18 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     /// <summary>
     /// Whether the device was created with wgpu's PassthroughShaders feature: slang's
-    /// SPIR-V (Vulkan), DXIL (D3D12) and MSL (Metal) reach the backend as-is. Required
-    /// for DXIL/MSL (no translation fallback exists); SPIR-V falls back to Naga import.
+    /// SPIR-V (Vulkan), DXIL (D3D12) and MSL/metallib (Metal) reach the backend as-is.
+    /// Required for DXIL/MSL/MetalLib (no translation fallback exists); SPIR-V falls
+    /// back to Naga import.
     /// </summary>
     internal bool ShaderPassthroughEnabled { get; }
+
+    /// <summary>
+    /// Whether the loaded wgpu-native exports wgpuDeviceCreateShaderModuleMetalLib
+    /// (the third Alco patch). Probed once per device; the shader factory keeps the
+    /// MSL target when this is false so an older library still runs.
+    /// </summary>
+    private bool MetalLibPassthrough { get; set; }
 
     /// <summary>The backend the adapter actually selected (Auto resolves per platform).</summary>
     public override GraphicsBackend Backend { get; }
@@ -110,6 +118,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public override bool TextureCompressBC3Supported { get; }
 
     public override bool TimestampQuerySupported { get; }
+
+    public override bool MetalLibPassthroughSupported => MetalLibPassthrough;
 
     public override bool TimestampQueryInsidePassesSupported { get; }
 
@@ -1033,19 +1043,35 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
         else if (backendType == WGPUBackendType.D3D12 || backendType == WGPUBackendType.Metal)
         {
-            // Slang emits DXIL for D3D12 and MSL for Metal; wgpu can only consume
-            // them through passthrough, so the feature is required, not optional.
+            // Slang emits DXIL for D3D12 and MSL (or precompiled metallib) for
+            // Metal; wgpu can only consume them through passthrough, so the
+            // feature is required, not optional.
             WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
             if (!IsFeatureSupported(passthroughShaders, supportedFeatures))
             {
                 throw new GraphicsException(
                     $"{backendType} requires wgpu's PassthroughShaders feature for slang DXIL/MSL shaders, " +
                     "but the adapter or wgpu-native build does not expose it. " +
-                    "Use a wgpu-native build with the Alco passthrough patch (Generator/WebGPUBindingGenerator/patches).");
+                    "Use a wgpu-native build with the Alco passthrough patch (see the alco-wgpu-native overlay repository).");
             }
             ShaderPassthroughEnabled = true;
             featuresList.Add(passthroughShaders);
             _host.LogSuccess($"Native {backendType} shader passthrough is enabled");
+
+            if (backendType == WGPUBackendType.Metal)
+            {
+                // The metallib entry point arrives with the third Alco patch
+                // (v29.0.1.1-alco.3+). wgpuGetProcAddress is an unimplemented
+                // stub upstream (panics), so probe the loaded library's export
+                // table instead — an older build keeps the MSL source path.
+                // TryLoad is idempotent: the library is already loaded here.
+                MetalLibPassthrough = NativeLibrary.TryLoad("wgpu_native", out nint library)
+                    && NativeLibrary.TryGetExport(library, "wgpuDeviceCreateShaderModuleMetalLib", out _);
+                if (MetalLibPassthrough)
+                {
+                    _host.LogSuccess("Precompiled metallib shader passthrough is enabled");
+                }
+            }
         }
 
 
