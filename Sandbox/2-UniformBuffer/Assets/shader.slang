@@ -20,7 +20,7 @@ public struct ColorParams
     public float4 color;
 };
 
-public ParameterBlock<ColorParams> _color;
+public ParameterBlock<ColorParams> color;
 
 [shader("vertex")]
 PixelInput MainVS(Vertex input) {
@@ -31,5 +31,5 @@ PixelInput MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(PixelInput input) : SV_TARGET {
-    return _color.color;
+    return color.color;
 }

@@ -653,7 +653,7 @@ public static class SlangReflectionReader
     /// <summary>
     /// Enumerates the resource members (textures, samplers, structured and
     /// storage buffers) of a uniform block declared as
-    /// <c>cbuffer _name : register(b0, spaceN) { ... }</c>. Members resolve by
+    /// <c>cbuffer name : register(b0, spaceN) { ... }</c>. Members resolve by
     /// their bare field name — the C# contract keeps the flat name the shader
     /// body uses for unqualified member access. A member's binding index and
     /// space are compiler-assigned relative to the block's register
@@ -661,7 +661,7 @@ public static class SlangReflectionReader
     /// A struct-typed field (e.g. a shared texture+sampler pair type) is
     /// legal slang: the compiler flattens its resource leaves into the same
     /// sequential block numbering, and reflection exposes them as
-    /// dotted qualified names (`_pair.tex`, `_pair.samp`).
+    /// dotted qualified names (`pair.tex`, `pair.samp`).
     /// </summary>
     private static void AddBlockResourceMembers(
         IntPtr parameter,

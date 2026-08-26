@@ -18,24 +18,24 @@ import alco_world3d_voxel_common;
 // and give a future importer the documented surface.
 public struct SsrInputs
 {
-    public Texture2D<float4> _depthPyramid;
-    public Texture2D _normal;
-    public DepthTexture2D _gbufferDepth;
+    public Texture2D<float4> depthPyramid;
+    public Texture2D normal;
+    public DepthTexture2D gbufferDepth;
 };
 
-public ParameterBlock<SsrInputs> _ssrInputs;
+public ParameterBlock<SsrInputs> ssrInputs;
 
-public float3 ReconstructWorldPosition(float2 uv, float depth)
+public float3 reconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(_data.invViewProjection, float4(ndc, depth, 1.0));
+    float4 world = mul(data.invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
 
 // TODO(phase 3): the include-era consumers approximated hit radiance from the
 // shaded scene; no scene-color binding exists in this contract, so the
 // placeholder returns black until a real consumer owns this function.
-public float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3 worldPosition)
+public float3 approximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3 worldPosition)
 {
     return float3(0.0, 0.0, 0.0);
 }
@@ -44,10 +44,10 @@ public float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3
 // temporal AABB clip). Adapted from FidelityFX SSSR.
 //
 // Pure algorithm — no resource bindings. The including .hlsl must define:
-//   - Bindings: _gbufferDepth, _normal, _ssrHistory, _depthPyramid,
-//     _ssrHistoryOut
-//   - Functions: ReconstructWorldPosition, ApproximateScreenSurfaceRadiance
-// The shared cbuffer _data (viewProjection, gbufferWidth, frameIndex, ...) comes
+//   - Bindings: gbufferDepth, normal, ssrHistory, depthPyramid,
+//     ssrHistoryOut
+//   - Functions: reconstructWorldPosition, approximateScreenSurfaceRadiance
+// The shared cbuffer data (viewProjection, gbufferWidth, frameIndex, ...) comes
 // from VoxelCommon.hlsli.
 
 
@@ -60,7 +60,7 @@ public float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3
 // --- Screen-space projection helpers -----------------------------------------
 
 // Transform a world-space position to screen UV [0,1]³ with NDC z in .z.
-public float3 SsrProjectPosition(float3 worldPos, float4x4 mat)
+public float3 ssrProjectPosition(float3 worldPos, float4x4 mat)
 {
     float4 projected = mul(mat, float4(worldPos, 1.0));
     projected.xyz /= projected.w;
@@ -70,16 +70,16 @@ public float3 SsrProjectPosition(float3 worldPos, float4x4 mat)
 }
 
 // Project a direction as the delta between projected (origin+dir) and projectedOrigin.
-public float3 SsrProjectDirection(float3 origin, float3 direction, float3 screenOrigin, float4x4 mat)
+public float3 ssrProjectDirection(float3 origin, float3 direction, float3 screenOrigin, float4x4 mat)
 {
-    return SsrProjectPosition(origin + direction, mat) - screenOrigin;
+    return ssrProjectPosition(origin + direction, mat) - screenOrigin;
 }
 
 // --- Hi-Z hierarchical raymarch ----------------------------------------------
 
 // Intersect a ray with the cell boundaries in screen UV space and advance.
 // Returns true if the ray skipped a tile (went coarser); false if it hit the surface.
-public bool SsrAdvanceRay(
+public bool ssrAdvanceRay(
     float3 origin, float3 direction, float3 invDirection,
     float2 currentMipPosition, float2 currentMipResolutionInv,
     float2 floorOffset, float2 uvOffset, float surfaceZ,
@@ -107,7 +107,7 @@ public bool SsrAdvanceRay(
 }
 
 // Initial advance to get past the starting cell and avoid self-intersection.
-public void SsrInitialAdvanceRay(
+public void ssrInitialAdvanceRay(
     float3 origin, float3 direction, float3 invDirection,
     float2 currentMipResolution, float2 currentMipResolutionInv,
     float2 floorOffset, float2 uvOffset,
@@ -121,7 +121,7 @@ public void SsrInitialAdvanceRay(
     position = origin + currentT * direction;
 }
 
-public float2 SsrGetMipResolution(float2 screenDimensions, int mipLevel)
+public float2 ssrGetMipResolution(float2 screenDimensions, int mipLevel)
 {
     return screenDimensions * pow(0.5, mipLevel);
 }
@@ -129,7 +129,7 @@ public float2 SsrGetMipResolution(float2 screenDimensions, int mipLevel)
 // Hierarchical raymarch through the depth pyramid. Origin and direction must
 // be in screen UV space [0,1]³. Returns the hit position; validHit reports
 // whether the loop completed within the step budget.
-public float3 SsrHierarchicalRaymarch(
+public float3 ssrHierarchicalRaymarch(
     float3 origin, float3 direction, bool isMirror,
     float2 screenSize, int mostDetailedMip,
     uint maxTraversalIntersections,
@@ -140,7 +140,7 @@ public float3 SsrHierarchicalRaymarch(
         : float3(SSR_FLOAT_MAX, SSR_FLOAT_MAX, SSR_FLOAT_MAX);
 
     int currentMip = mostDetailedMip;
-    float2 currentMipResolution = SsrGetMipResolution(screenSize, currentMip);
+    float2 currentMipResolution = ssrGetMipResolution(screenSize, currentMip);
     float2 currentMipResolutionInv = rcp(currentMipResolution);
 
     float2 uvOffset = 0.005 * exp2(mostDetailedMip) / screenSize;
@@ -153,7 +153,7 @@ public float3 SsrHierarchicalRaymarch(
 
     float currentT;
     float3 position;
-    SsrInitialAdvanceRay(origin, direction, invDirection,
+    ssrInitialAdvanceRay(origin, direction, invDirection,
         currentMipResolution, currentMipResolutionInv, floorOffset, uvOffset,
         position, currentT);
 
@@ -163,8 +163,8 @@ public float3 SsrHierarchicalRaymarch(
     {
         float2 currentMipPosition = currentMipResolution * position.xy;
         int2 mipPixel = int2(floor(currentMipPosition));
-        float surfaceZ = _ssrInputs._depthPyramid.Load(int3(mipPixel.x, mipPixel.y, currentMip)).x;
-        bool skippedTile = SsrAdvanceRay(origin, direction, invDirection,
+        float surfaceZ = ssrInputs.depthPyramid.Load(int3(mipPixel.x, mipPixel.y, currentMip)).x;
+        bool skippedTile = ssrAdvanceRay(origin, direction, invDirection,
             currentMipPosition, currentMipResolutionInv, floorOffset, uvOffset,
             surfaceZ, position, currentT);
 
@@ -186,7 +186,7 @@ public float3 SsrHierarchicalRaymarch(
 
 // Validate a hit: reject offscreen, self-reflection, backface, and background.
 // Returns a confidence weight combining vignette and depth-consistency.
-public float SsrValidateHit(float3 hit, float2 uv, float3 worldRayDirection, float2 screenSize, float depthBufferThickness)
+public float ssrValidateHit(float3 hit, float2 uv, float3 worldRayDirection, float2 screenSize, float depthBufferThickness)
 {
     if (hit.x < 0.0 || hit.y < 0.0 || hit.x > 1.0 || hit.y > 1.0)
         return 0.0;
@@ -196,11 +196,11 @@ public float SsrValidateHit(float3 hit, float2 uv, float3 worldRayDirection, flo
         return 0.0;
 
     int2 texelCoords = int2(floor(screenSize * hit.xy));
-    float surfaceZ = _ssrInputs._depthPyramid.Load(int3(texelCoords.x, texelCoords.y, 0)).x;
-    if (IS_SKY_DEPTH(surfaceZ))
+    float surfaceZ = ssrInputs.depthPyramid.Load(int3(texelCoords.x, texelCoords.y, 0)).x;
+    if (isSkyDepth(surfaceZ))
         return 0.0;
 
-    float3 hitNormal = normalize(_ssrInputs._normal.Load(int3(texelCoords, 0)).xyz * 2.0 - 1.0);
+    float3 hitNormal = normalize(ssrInputs.normal.Load(int3(texelCoords, 0)).xyz * 2.0 - 1.0);
     if (dot(hitNormal, worldRayDirection) > 0.0)
         return 0.0;
 
@@ -221,24 +221,24 @@ public float SsrValidateHit(float3 hit, float2 uv, float3 worldRayDirection, flo
 
 // --- GGX VNDF importance sampling (Eric Heitz 2018) -------------------------
 
-public float3 SampleGGXVNDF(float3 Ve, float alphaX, float alphaY, float U1, float U2)
+public float3 sampleGGXVNDF(float3 ve, float alphaX, float alphaY, float u1, float u2)
 {
-    float3 Vh = normalize(float3(alphaX * Ve.x, alphaY * Ve.y, Ve.z));
-    float lensq = Vh.x * Vh.x + Vh.y * Vh.y;
-    float3 T1 = lensq > 0.0 ? float3(-Vh.y, Vh.x, 0.0) * rsqrt(lensq) : float3(1.0, 0.0, 0.0);
-    float3 T2 = cross(Vh, T1);
-    float r = sqrt(U1);
-    float phi = 2.0 * PI * U2;
+    float3 vh = normalize(float3(alphaX * ve.x, alphaY * ve.y, ve.z));
+    float lensq = vh.x * vh.x + vh.y * vh.y;
+    float3 tan1 = lensq > 0.0 ? float3(-vh.y, vh.x, 0.0) * rsqrt(lensq) : float3(1.0, 0.0, 0.0);
+    float3 tan2 = cross(vh, tan1);
+    float r = sqrt(u1);
+    float phi = 2.0 * PI * u2;
     float t1 = r * cos(phi);
     float t2 = r * sin(phi);
-    float s = 0.5 * (1.0 + Vh.z);
+    float s = 0.5 * (1.0 + vh.z);
     t2 = (1.0 - s) * sqrt(max(1.0 - t1 * t1, 0.0)) + s * t2;
-    float3 Nh = t1 * T1 + t2 * T2 + sqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
-    return normalize(float3(alphaX * Nh.x, alphaY * Nh.y, max(0.0, Nh.z)));
+    float3 nh = t1 * tan1 + t2 * tan2 + sqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * vh;
+    return normalize(float3(alphaX * nh.x, alphaY * nh.y, max(0.0, nh.z)));
 }
 
 // Interleaved gradient noise for per-pixel, per-frame stochastic variation.
-public float SsrIGN(uint2 pixel, uint frame)
+public float ssrIGN(uint2 pixel, uint frame)
 {
     return frac(52.9829189 * frac(dot(float2(pixel),
         float2(0.06711056, 0.00583715))) + frame * 2.3992821);
@@ -246,7 +246,7 @@ public float SsrIGN(uint2 pixel, uint frame)
 
 // --- Temporal denoising: AABB clip (Playdead TRAA) --------------------------
 
-public float3 SsrClipAABB(float3 aabbMin, float3 aabbMax, float3 prevSample)
+public float3 ssrClipAABB(float3 aabbMin, float3 aabbMax, float3 prevSample)
 {
     float3 center = 0.5 * (aabbMax + aabbMin);
     float3 extent = 0.5 * (aabbMax - aabbMin) + 0.001;
@@ -260,38 +260,38 @@ public float3 SsrClipAABB(float3 aabbMin, float3 aabbMax, float3 prevSample)
 // --- Entry point: Hi-Z screen-space reflection ------------------------------
 
 // Raymarches the depth pyramid in screen UV space, validates the hit, and
-// returns radiance + confidence. Depends on ReconstructWorldPosition and
-// ApproximateScreenSurfaceRadiance from the including file.
-public float4 TraceScreenSpaceReflection(
+// returns radiance + confidence. Depends on reconstructWorldPosition and
+// approximateScreenSurfaceRadiance from the including file.
+public float4 traceScreenSpaceReflection(
     float3 worldPosition,
     float3 reflectDirection,
     float roughness,
     float2 uv)
 {
-    float2 screenSize = float2(_data.gbufferWidth, _data.gbufferHeight);
+    float2 screenSize = float2(data.gbufferWidth, data.gbufferHeight);
 
-    float3 screenOrigin = SsrProjectPosition(worldPosition, _data.viewProjection);
-    float3 screenDir = SsrProjectDirection(worldPosition, reflectDirection, screenOrigin, _data.viewProjection);
+    float3 screenOrigin = ssrProjectPosition(worldPosition, data.viewProjection);
+    float3 screenDir = ssrProjectDirection(worldPosition, reflectDirection, screenOrigin, data.viewProjection);
 
     bool isMirror = roughness < 0.001;
     int mostDetailedMip = isMirror ? 0 : 2;  // start coarser to avoid self-hit
 
     bool validHit = false;
-    float3 hit = SsrHierarchicalRaymarch(
+    float3 hit = ssrHierarchicalRaymarch(
         screenOrigin, screenDir, isMirror, screenSize,
         mostDetailedMip, 30u, validHit);
 
-    float3 worldRay = ReconstructWorldPosition(hit.xy, hit.z) - worldPosition;
-    float confidence = SsrValidateHit(hit, uv, worldRay, screenSize, 0.15);
+    float3 worldRay = reconstructWorldPosition(hit.xy, hit.z) - worldPosition;
+    float confidence = ssrValidateHit(hit, uv, worldRay, screenSize, 0.15);
 
     if (confidence > 0.0)
     {
         int2 hitPixel = clamp(int2(floor(screenSize * hit.xy)), int2(0, 0), int2(screenSize) - 1);
-        float hitDepth = GetPixelDepth2D(_ssrInputs._gbufferDepth, hitPixel);
-        float3 hitWorldPos = ReconstructWorldPosition(hit.xy, hitDepth);
-        float3 hitNormal = normalize(_ssrInputs._normal.Load(int3(hitPixel, 0)).xyz * 2.0 - 1.0);
+        float hitDepth = getPixelDepth2D(ssrInputs.gbufferDepth, hitPixel);
+        float3 hitWorldPos = reconstructWorldPosition(hit.xy, hitDepth);
+        float3 hitNormal = normalize(ssrInputs.normal.Load(int3(hitPixel, 0)).xyz * 2.0 - 1.0);
         return float4(
-            ApproximateScreenSurfaceRadiance(hitPixel, hitNormal, hitWorldPos),
+            approximateScreenSurfaceRadiance(hitPixel, hitNormal, hitWorldPos),
             confidence * (1.0 - roughness));
     }
     return float4(0.0, 0.0, 0.0, 0.0);

@@ -24,7 +24,7 @@ import alco_world3d_reversed_depth;
 // accumulates each layer independently. Specular keeps a small sharp
 // footprint to preserve detail.
 //
-// ALD (Average Light Direction) is accumulated alongside RGB with the same
+// ALD (Average Light Direction) is accumulated alongside rgb with the same
 // bilateral weights. The deferred lighting pass uses ALD to give indirect
 // light a directional diffuse response.
 //
@@ -45,20 +45,20 @@ struct VoxelDemosaicConstants
     float4 params; // x=specularHysteresis, y=spatialSigma, z=diffuseHysteresis, w=unused
 };
 
-// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it
+// alco_world3d_voxel_common declares data; this pass's ParameterBlock follows it
 // in declaration order.
 public struct PassParams
 {
-    public Texture2D _traceInput;
-    public DepthTexture2D _gbufferDepth;
-    public Texture2D _normal;
-    public Texture2D _historyInput;
-    public Texture2D _emissive;
-    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _indirectGI;
-    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _historyOut;
+    public Texture2D traceInput;
+    public DepthTexture2D gbufferDepth;
+    public Texture2D normal;
+    public Texture2D historyInput;
+    public Texture2D emissive;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> indirectGI;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> historyOut;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 [[vk::push_constant]] VoxelDemosaicConstants constants;
@@ -90,14 +90,14 @@ groupshared float gsGeometryNormalY[DEMOSAIC_DIFFUSE_TILE_COUNT];
 groupshared float gsGeometryNormalZ[DEMOSAIC_DIFFUSE_TILE_COUNT];
 groupshared uint gsHasGeometry;
 
-float3 ClampRadianceLuminance(float3 radiance, float maximumLuminance)
+float3 clampRadianceLuminance(float3 radiance, float maximumLuminance)
 {
     radiance = max(radiance, 0.0);
     float luminance = dot(radiance, float3(0.2126, 0.7152, 0.0722));
     return radiance * min(1.0, maximumLuminance / max(luminance, 0.0001));
 }
 
-float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invVP)
+float3 reconstructWorldPosition(float2 uv, float depth, float4x4 invVP)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
     float4 world = mul(invVP, float4(ndc, depth, 1.0));
@@ -107,14 +107,14 @@ float3 ReconstructWorldPosition(float2 uv, float depth, float4x4 invVP)
 // Recover view-linear depth from the homogeneous w produced by the inverse
 // view-projection. Only the fourth matrix row is needed, avoiding a full world
 // reconstruction for every bilateral tap.
-float ReconstructLinearDepth(float2 uv, float depth, float4x4 invVP)
+float reconstructLinearDepth(float2 uv, float depth, float4x4 invVP)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
     float reciprocalClipW = dot(invVP[3], float4(ndc, depth, 1.0));
     return abs(rcp(reciprocalClipW));
 }
 
-float NormalSimilarity(float3 centerNormal, float3 sampleNormal)
+float normalSimilarity(float3 centerNormal, float3 sampleNormal)
 {
     // Normal-map detail may vary strongly inside one low-frequency irradiance
     // footprint. Accept up to roughly 60 degrees, but still give orthogonal
@@ -125,7 +125,7 @@ float NormalSimilarity(float3 centerNormal, float3 sampleNormal)
 // Clamp the reprojected diffuse layer estimate to the current geometry-aware
 // neighborhood, then accumulate it at a confidence-weighted rate. Disoccluded
 // pixels use only the current frame.
-float4 AccumulateDiffuseLayer(
+float4 accumulateDiffuseLayer(
     float4 history,
     float4 current,
     float4 neighborhoodMin,
@@ -151,32 +151,32 @@ float4 AccumulateDiffuseLayer(
     return lerp(history, current, blendRate);
 }
 
-void WriteZeroOutputs(int2 tracePixel, int halfWidth)
+void writeZeroOutputs(int2 tracePixel, int halfWidth)
 {
-    _pass._indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._indirectGI[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._indirectGI[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._historyOut[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
-    _pass._historyOut[tracePixel + int2(halfWidth * 5, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.indirectGI[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.indirectGI[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.indirectGI[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.indirectGI[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.indirectGI[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.historyOut[tracePixel] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.historyOut[tracePixel + int2(halfWidth, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.historyOut[tracePixel + int2(halfWidth * 2, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.historyOut[tracePixel + int2(halfWidth * 3, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.historyOut[tracePixel + int2(halfWidth * 4, 0)] = float4(0.0, 0.0, 0.0, 0.0);
+    pass.historyOut[tracePixel + int2(halfWidth * 5, 0)] = float4(0.0, 0.0, 0.0, 0.0);
 }
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void MainCS(
+void mainCS(
     uint3 dispatchId : SV_DispatchThreadID,
     uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint groupIndex : SV_GroupIndex)
 {
-    uint2 traceResolution = uint2(_data.traceWidth, _data.traceHeight);
-    uint2 gbufferRes = uint2(_data.gbufferWidth, _data.gbufferHeight);
-    int halfWidth = (int)_data.traceWidth;
+    uint2 traceResolution = uint2(data.traceWidth, data.traceHeight);
+    uint2 gbufferRes = uint2(data.gbufferWidth, data.gbufferHeight);
+    int halfWidth = (int)data.traceWidth;
     bool validDispatch = all(dispatchId.xy < traceResolution);
     int2 traceMax = int2(traceResolution) - 1;
     int2 gbufferMax = int2(gbufferRes) - 1;
@@ -201,19 +201,19 @@ void MainCS(
             int2(sampleTraceUV * float2(gbufferRes)),
             int2(0, 0),
             gbufferMax);
-        float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, sampleGbufferPixel);
+        float sampleDepth = getPixelDepth2D(pass.gbufferDepth, sampleGbufferPixel);
 
         float linearDepth = -1.0;
         float3 geometryNormal = float3(0.0, 0.0, 1.0);
-        if (!IS_SKY_DEPTH(sampleDepth))
+        if (!isSkyDepth(sampleDepth))
         {
             float2 sampleGbufferUV =
                 (float2(sampleGbufferPixel) + 0.5) / float2(gbufferRes);
-            linearDepth = ReconstructLinearDepth(
-                sampleGbufferUV, sampleDepth, _data.invViewProjection);
-            float4 packedNormal = _pass._normal.Load(int3(sampleGbufferPixel, 0));
-            float packedGeometryY = _pass._emissive.Load(int3(sampleGbufferPixel, 0)).a;
-            geometryNormal = DecodeGeometryNormal(
+            linearDepth = reconstructLinearDepth(
+                sampleGbufferUV, sampleDepth, data.invViewProjection);
+            float4 packedNormal = pass.normal.Load(int3(sampleGbufferPixel, 0));
+            float packedGeometryY = pass.emissive.Load(int3(sampleGbufferPixel, 0)).a;
+            geometryNormal = decodeGeometryNormal(
                 float2(packedNormal.a, packedGeometryY));
         }
 
@@ -246,7 +246,7 @@ void MainCS(
     {
         if (validDispatch)
         {
-            WriteZeroOutputs(int2(dispatchId.xy), halfWidth);
+            writeZeroOutputs(int2(dispatchId.xy), halfWidth);
         }
         return;
     }
@@ -265,8 +265,8 @@ void MainCS(
             groupOrigin + int2(tileCoord) - int(DEMOSAIC_DIFFUSE_RADIUS),
             int2(0, 0),
             traceMax);
-        gsDiffuse[diffuseTileIndex] = _pass._traceInput.Load(int3(sampleTracePixel, 0));
-        gsAld[diffuseTileIndex] = _pass._traceInput.Load(
+        gsDiffuse[diffuseTileIndex] = pass.traceInput.Load(int3(sampleTracePixel, 0));
+        gsAld[diffuseTileIndex] = pass.traceInput.Load(
             int3(sampleTracePixel + int2(halfWidth * 2, 0), 0));
     }
 
@@ -282,7 +282,7 @@ void MainCS(
             groupOrigin + int2(tileCoord) - int(DEMOSAIC_SPECULAR_RADIUS),
             int2(0, 0),
             traceMax);
-        gsSpecular[specularTileIndex] = _pass._traceInput.Load(
+        gsSpecular[specularTileIndex] = pass.traceInput.Load(
             int3(sampleTracePixel + int2(halfWidth, 0), 0));
     }
     GroupMemoryBarrierWithGroupSync();
@@ -299,10 +299,10 @@ void MainCS(
     int2 gbufferPixel = int2(traceUV * float2(gbufferRes));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), gbufferMax);
 
-    float depth = GetPixelDepth2D(_pass._gbufferDepth, gbufferPixel);
-    if (IS_SKY_DEPTH(depth))
+    float depth = getPixelDepth2D(pass.gbufferDepth, gbufferPixel);
+    if (isSkyDepth(depth))
     {
-        WriteZeroOutputs(tracePixel, halfWidth);
+        writeZeroOutputs(tracePixel, halfWidth);
         return;
     }
 
@@ -315,12 +315,12 @@ void MainCS(
     // Match VoxelTrace's canonical receiver grid. Using the selected full-res
     // G-buffer pixel center here creates the same fixed quarter-history-texel
     // offset and makes post-demosaic feedback smear toward screen-space left.
-    float3 worldPos = ReconstructWorldPosition(traceUV, depth, _data.invViewProjection);
+    float3 worldPos = reconstructWorldPosition(traceUV, depth, data.invViewProjection);
     float3 geometryNormal = float3(
         gsGeometryNormalX[centerDiffuseIndex],
         gsGeometryNormalY[centerDiffuseIndex],
         gsGeometryNormalZ[centerDiffuseIndex]);
-    float currentLinearDepth = abs(mul(_data.viewProjection, float4(worldPos, 1.0)).w);
+    float currentLinearDepth = abs(mul(data.viewProjection, float4(worldPos, 1.0)).w);
     float4 centerDiffuse = gsDiffuse[centerDiffuseIndex];
     float4 centerSpecular = gsSpecular[centerSpecularIndex];
     float4 centerAld = gsAld[centerDiffuseIndex];
@@ -328,23 +328,23 @@ void MainCS(
     // Developer view: expose the cone-trace atlas before spatial/temporal
     // reconstruction. This makes it possible to distinguish a tracing issue
     // from a resolve issue at an exactly reproduced camera position.
-    if (_data.debugView == 4)
+    if (data.debugView == 4)
     {
-        _pass._indirectGI[tracePixel] = float4(centerDiffuse.rgb, currentLinearDepth);
-        _pass._indirectGI[tracePixel + int2(halfWidth, 0)] =
+        pass.indirectGI[tracePixel] = float4(centerDiffuse.rgb, currentLinearDepth);
+        pass.indirectGI[tracePixel + int2(halfWidth, 0)] =
             float4(centerDiffuse.rgb, currentLinearDepth);
-        _pass._indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
+        pass.indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
             float4(centerSpecular.rgb, centerDiffuse.a);
-        _pass._indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
+        pass.indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
             float4(centerAld.xyz, currentLinearDepth);
-        _pass._indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
+        pass.indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
             float4(centerAld.xyz, currentLinearDepth);
-        _pass._historyOut[tracePixel] = centerDiffuse;
-        _pass._historyOut[tracePixel + int2(halfWidth, 0)] = centerDiffuse;
-        _pass._historyOut[tracePixel + int2(halfWidth * 2, 0)] = centerSpecular;
-        _pass._historyOut[tracePixel + int2(halfWidth * 3, 0)] = centerAld;
-        _pass._historyOut[tracePixel + int2(halfWidth * 4, 0)] = centerAld;
-        _pass._historyOut[tracePixel + int2(halfWidth * 5, 0)] =
+        pass.historyOut[tracePixel] = centerDiffuse;
+        pass.historyOut[tracePixel + int2(halfWidth, 0)] = centerDiffuse;
+        pass.historyOut[tracePixel + int2(halfWidth * 2, 0)] = centerSpecular;
+        pass.historyOut[tracePixel + int2(halfWidth * 3, 0)] = centerAld;
+        pass.historyOut[tracePixel + int2(halfWidth * 4, 0)] = centerAld;
+        pass.historyOut[tracePixel + int2(halfWidth * 5, 0)] =
             float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
         return;
     }
@@ -373,27 +373,27 @@ void MainCS(
                 gbufferPixel + int2(layerX, layerY),
                 int2(0, 0),
                 int2((int)gbufferRes.x - 1, (int)gbufferRes.y - 1));
-            float layerDepth = GetPixelDepth2D(_pass._gbufferDepth, layerPixel);
-            if (!IS_SKY_DEPTH(layerDepth))
+            float layerDepth = getPixelDepth2D(pass.gbufferDepth, layerPixel);
+            if (!isSkyDepth(layerDepth))
             {
                 float2 layerUV =
                     (float2(layerPixel) + 0.5) / float2(gbufferRes);
-                float layerLinearDepth = ReconstructLinearDepth(
-                    layerUV, layerDepth, _data.invViewProjection);
+                float layerLinearDepth = reconstructLinearDepth(
+                    layerUV, layerDepth, data.invViewProjection);
                 layerDepthMin = min(layerDepthMin, layerLinearDepth);
                 layerDepthMax = max(layerDepthMax, layerLinearDepth);
             }
         }
     }
 
-    centerDiffuse.rgb = ClampRadianceLuminance(
+    centerDiffuse.rgb = clampRadianceLuminance(
         centerDiffuse.rgb, diffuseMaximumLuminance);
-    centerSpecular.rgb = ClampRadianceLuminance(
+    centerSpecular.rgb = clampRadianceLuminance(
         centerSpecular.rgb, diffuseMaximumLuminance);
 
     // The depth acceptance is a relative ratio widened at grazing view angles,
     // not an absolute centimeter tolerance.
-    float3 viewDirection = normalize(_data.cameraPosition.xyz - worldPos);
+    float3 viewDirection = normalize(data.cameraPosition.xyz - worldPos);
     float viewFacing = abs(dot(viewDirection, geometryNormal));
     float depthRangeRatio = 0.12 + 0.08 * (1.0 - viewFacing);
 
@@ -409,7 +409,7 @@ void MainCS(
     float4 neighborhoodMin = centerDiffuse;
     float4 neighborhoodMax = centerDiffuse;
 
-    // --- ALD accumulation state (accumulated alongside RGB with identical
+    // --- ALD accumulation state (accumulated alongside rgb with identical
     // bilateral weights) ---
     float4 layerAldSumMin = centerAld * 0.001;
     float4 layerAldSumMax = centerAld * 0.001;
@@ -439,7 +439,7 @@ void MainCS(
 
             float nLinearDepth = gsLinearDepth[tileIndex];
             float4 diffuseTap = gsDiffuse[tileIndex];
-            // ALD accumulates with the same bilateral weights as RGB. ALD is
+            // ALD accumulates with the same bilateral weights as rgb. ALD is
             // a direction-weighted value, not HDR color, so no luminance
             // clamping is applied.
             float4 aldTap = gsAld[tileIndex];
@@ -459,7 +459,7 @@ void MainCS(
                 // Orthogonal architecture still contributes at a 0.25 floor
                 // so concave corners do not starve the kernel; coplanar taps
                 // keep full weight.
-                float normalWeight = NormalSimilarity(
+                float normalWeight = normalSimilarity(
                     geometryNormal, nGeometryNormal) * 0.75 + 0.25;
 
                 // Independent soft depth tests per layer. The +0.001 floor
@@ -483,7 +483,7 @@ void MainCS(
                 diffuseTap = 0.0;
             }
 
-            diffuseTap.rgb = ClampRadianceLuminance(
+            diffuseTap.rgb = clampRadianceLuminance(
                 diffuseTap.rgb, diffuseMaximumLuminance);
             layerSumMin += diffuseTap * weightMin;
             layerSumMax += diffuseTap * weightMax;
@@ -541,16 +541,16 @@ void MainCS(
                 float depthWeight = exp(
                     -abs(nLinearDepth - currentLinearDepth)
                     / depthTolerance);
-                surfaceW = NormalSimilarity(geometryNormal, nGeometryNormal)
+                surfaceW = normalSimilarity(geometryNormal, nGeometryNormal)
                     * depthWeight;
             }
-            float spatialW_neighbour = exp(
+            float spatialWNeighbour = exp(
                 -(sx * sx + sy * sy) / (2.0 * spatialSigma * spatialSigma));
             float normalW = pow(max(dot(geometryNormal, nGeometryNormal), 0.0), 16.0);
 
-            float w = surfaceW * spatialW_neighbour * normalW;
+            float w = surfaceW * spatialWNeighbour * normalW;
             float4 specularTap = gsSpecular[specularTileIndex];
-            specularTap.rgb = ClampRadianceLuminance(
+            specularTap.rgb = clampRadianceLuminance(
                 specularTap.rgb, diffuseMaximumLuminance);
             specularSum += specularTap * w;
             specularWeight += w;
@@ -574,11 +574,11 @@ void MainCS(
     float4 resultSpecular = specularCurrent;
     float4 resultAldMin = layerAldMin;
     float4 resultAldMax = layerAldMax;
-    bool historyAvailable = _data.historyValid;
+    bool historyAvailable = data.historyValid;
 
     if (historyAvailable)
     {
-        float4 prevClip = mul(_data.viewProjectionPrev, float4(worldPos, 1.0));
+        float4 prevClip = mul(data.viewProjectionPrev, float4(worldPos, 1.0));
         if (prevClip.w > 0.0)
         {
             float2 prevNDC = float2(prevClip.x / prevClip.w, prevClip.y / prevClip.w);
@@ -609,7 +609,7 @@ void MainCS(
                 // 4.7 m) only raises the blend from 0.1 to 0.16, keeping 84%
                 // of the accumulated history.
                 int2 metadataPixel = previousTracePixel + int2(halfWidth * 5, 0);
-                float4 historyMetadata = _pass._historyInput.Load(int3(metadataPixel, 0));
+                float4 historyMetadata = pass.historyInput.Load(int3(metadataPixel, 0));
                 float expectedPreviousDepth = abs(prevClip.w);
                 float depthRatio = abs(
                     expectedPreviousDepth / max(historyMetadata.x, 0.0001) - 1.0);
@@ -618,15 +618,15 @@ void MainCS(
 
                 if (historyConfidence > 0.001)
                 {
-                    float4 historyMin = _pass._historyInput.Load(
+                    float4 historyMin = pass.historyInput.Load(
                         int3(previousTracePixel, 0));
-                    float4 historyMax = _pass._historyInput.Load(
+                    float4 historyMax = pass.historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth, 0), 0));
-                    float4 historySpecular = _pass._historyInput.Load(
+                    float4 historySpecular = pass.historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 2, 0), 0));
-                    float4 historyAldMin = _pass._historyInput.Load(
+                    float4 historyAldMin = pass.historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 3, 0), 0));
-                    float4 historyAldMax = _pass._historyInput.Load(
+                    float4 historyAldMax = pass.historyInput.Load(
                         int3(previousTracePixel + int2(halfWidth * 4, 0), 0));
 
                     // Diffuse tolerates camera motion far better than
@@ -639,15 +639,15 @@ void MainCS(
                     // its own history.
                     float diffuseHysteresis = constants.params.z
                         * (1.0 - 0.5 * saturate(motionDist / 0.05));
-                    resultMin = AccumulateDiffuseLayer(
+                    resultMin = accumulateDiffuseLayer(
                         historyMin, layerMin, neighborhoodMin, neighborhoodMax,
                         diffuseHysteresis, historyConfidence);
-                    resultMax = AccumulateDiffuseLayer(
+                    resultMax = accumulateDiffuseLayer(
                         historyMax, layerMax, neighborhoodMin, neighborhoodMax,
                         diffuseHysteresis, historyConfidence);
 
                     // ALD accumulates with the same temporal scheme as diffuse
-                    // RGB: clamp to a neighbourhood, blend at the confidence-
+                    // rgb: clamp to a neighbourhood, blend at the confidence-
                     // weighted rate. ALD magnitude (w) is clamped against the
                     // diffuse neighbourhood alpha range so a stale bright
                     // direction cannot persist after the source surface moves.
@@ -657,7 +657,7 @@ void MainCS(
 
                     // Clamp history specular to the current-frame neighborhood
                     // bounding box before blending (same principle as diffuse's
-                    // AccumulateDiffuseLayer). Without this, a single bright
+                    // accumulateDiffuseLayer). Without this, a single bright
                     // firefly voxel sample persists across frames and manifests
                     // as per-pixel flicker during camera motion.
                     float3 specularRange = specularNeighborhoodMax - specularNeighborhoodMin;
@@ -702,19 +702,19 @@ void MainCS(
         / max(layerDepthMax - layerDepthMin, 0.0001));
     float selectedVisibility = lerp(resultMin.a, resultMax.a, layerLerp);
 
-    _pass._indirectGI[tracePixel] = float4(resultMin.rgb, layerDepthMin);
-    _pass._indirectGI[tracePixel + int2(halfWidth, 0)] = float4(resultMax.rgb, layerDepthMax);
-    _pass._indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
+    pass.indirectGI[tracePixel] = float4(resultMin.rgb, layerDepthMin);
+    pass.indirectGI[tracePixel + int2(halfWidth, 0)] = float4(resultMax.rgb, layerDepthMax);
+    pass.indirectGI[tracePixel + int2(halfWidth * 2, 0)] =
         float4(resultSpecular.rgb, selectedVisibility);
-    _pass._indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
+    pass.indirectGI[tracePixel + int2(halfWidth * 3, 0)] =
         float4(resultAldMin.xyz, layerDepthMin);
-    _pass._indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
+    pass.indirectGI[tracePixel + int2(halfWidth * 4, 0)] =
         float4(resultAldMax.xyz, layerDepthMax);
-    _pass._historyOut[tracePixel] = resultMin;
-    _pass._historyOut[tracePixel + int2(halfWidth, 0)] = resultMax;
-    _pass._historyOut[tracePixel + int2(halfWidth * 2, 0)] = resultSpecular;
-    _pass._historyOut[tracePixel + int2(halfWidth * 3, 0)] = resultAldMin;
-    _pass._historyOut[tracePixel + int2(halfWidth * 4, 0)] = resultAldMax;
-    _pass._historyOut[tracePixel + int2(halfWidth * 5, 0)] =
+    pass.historyOut[tracePixel] = resultMin;
+    pass.historyOut[tracePixel + int2(halfWidth, 0)] = resultMax;
+    pass.historyOut[tracePixel + int2(halfWidth * 2, 0)] = resultSpecular;
+    pass.historyOut[tracePixel + int2(halfWidth * 3, 0)] = resultAldMin;
+    pass.historyOut[tracePixel + int2(halfWidth * 4, 0)] = resultAldMax;
+    pass.historyOut[tracePixel + int2(halfWidth * 5, 0)] =
         float4(currentLinearDepth, geometryNormal * 0.5 + 0.5);
 }

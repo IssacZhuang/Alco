@@ -111,7 +111,7 @@ surface 声明的资源是它的**自描述数据需求**：模块全局作用�
 | `shadow` | `shadow_depth` | 同上 | IVertexSurface(AlphaTest 时 + IAlbedoSurface) | light VP + instance;`MainPS<T> where let AlphaTest : bool` 值特化 |
 | `rsm` | `rsm` | 同上 | IVertex + IAlbedo + INormal | camera(light VP)+ rsmData |
 | `glass` | `glass` | 同上 | 同 gbuffer | camera + lightingData（前向玻璃） |
-| `voxelize` | `voxelize` | `MainCS<T : IVoxelFeedSurface>` compute | IVoxelFeedSurface | `_data` + `_vertices/_indices/_attrOut/_pageTable` |
+| `voxelize` | `voxelize` | `MainCS<T : IVoxelFeedSurface>` compute | IVoxelFeedSurface | `data` + `vertices/indices/attrOut/pageTable` |
 
 新管线可以有自己的 pass——模板 module 只是磁盘上的一个 .slang 文件。
 
@@ -153,27 +153,27 @@ public sealed class GBufferRenderer : ...
 
 ## 纹理槽规则
 
-- surface 里的 `Texture2D _albedoTexture` → 槽名 **`albedoTexture`**（去前导下划线，大小写敏感）。
+- surface 里的 `Texture2D albedoTexture` → 槽名 **`albedoTexture`**（资源名即槽名，大小写敏感）。
 - 资产的 `Textures` 在加载期即解析成 `Texture2D`，资产到此完整，**不认识流式**。glTF 场景加载同理：loader 在场景返回前实现所有纹理（外部文件内容原位异步上传），由适配器直接填进资产描述符的 `Textures`；图像缺失或解码失败的槽留空，走资产兜底策略。
 - 未绑的槽走**资产自己的兜底策略**:`MaterialAsset.GetTextureFallback(slot)` 返回 `White/Black/FlatNormal`，编译器映射到 `RenderingSystem.TextureWhite/TextureBlack/TextureFlatNormal`。基类恒白；`PbrMaterialAsset` 按槽名前缀给 `normal*` → flat normal、`emissive*` → 黑。不同材质家族可以有不同的兜底策略，不需要编译器知道任何槽名约定。
 - surface 资源声明在自己的 `ParameterBlock` 里（块名自由）；纹理槽从 surface 库自身的反射枚举（`library.GetReflection()` → `TextureSlots`），不读任何 set 号——set 是组合产物，不是输入。
 
 ## 共享 sampler 规则
 
-sampler 与纹理是**两种独立资源**：纹理不携带、不关联采样状态，shader 里的纹理声明不再有 companion sampler。采样统一走引擎级共享 sampler bank——`alco_rendering_core` 声明的 `_samplers` ParameterBlock（`SamplerBankParams`），import 该模块的 shader 自动把 bank 反射进自己的布局：
+sampler 与纹理是**两种独立资源**：纹理不携带、不关联采样状态，shader 里的纹理声明不再有 companion sampler。采样统一走引擎级共享 sampler bank——`alco_rendering_core` 声明的 `samplers` ParameterBlock（`SamplerBankParams`），import 该模块的 shader 自动把 bank 反射进自己的布局：
 
 ```slang
 import alco_rendering_core;
 
 // 任意资源块里声明纹理——没有 companion sampler
 // 采样时按意图取 bank 成员：
-float4 c = _albedoTexture.Sample(_samplers._linearRepeat, uv);
+float4 c = albedoTexture.Sample(samplers.linearRepeat, uv);
 ```
 
-- bank 由 `RenderingSystem.Samplers`（`SharedSamplers`，九个可直接访问的属性成员，懒创建）持有；GPUDevice 只保留 `CreateSampler(descriptor)` 原语，不再维护任何默认 sampler。成员名是唯一契约：`_linearClamp`、`_linearRepeat`、`_nearestClamp`、`_nearestRepeat`、`_linearMirrorRepeat`、`_nearestMirrorRepeat`、`_anisotropicClamp`（8x）、`_anisotropicRepeat`（8x）、`_depthComparison`（`SamplerComparisonState`，LessEqual，clamp）。
+- bank 由 `RenderingSystem.Samplers`（`SharedSamplers`，九个可直接访问的属性成员，懒创建）持有；GPUDevice 只保留 `CreateSampler(descriptor)` 原语，不再维护任何默认 sampler。成员名是唯一契约：`linearClamp`、`linearRepeat`、`nearestClamp`、`nearestRepeat`、`linearMirrorRepeat`、`nearestMirrorRepeat`、`anisotropicClamp`（8x）、`anisotropicRepeat`（8x）、`depthComparison`（`SamplerComparisonState`，LessEqual，clamp）。
 - **bank 是引擎级不可变状态，不能被覆盖**：库按反射布局构建一个共享的 sampler-only bind group（`GetSamplerGroup`，同结构布局只建一次），所有材质、所有帧原样绑定；bank 组不进材质的组装/缓存/dirty 流程。试图 `SetSampler` 一个 bank 成员名会直接失败（名字保留给 bank）。
-- 语义约定：屏幕空间 pass / render texture 读取 → `_linearClamp`；材质资产纹理 → `_linearRepeat`；阴影比较 → `_depthComparison`。
-- 自定义采样是显式特例：shader 声明自己的 `SamplerState _mySampler;` 成员（**不得用 bank 成员名**），material 侧 `material.SetSampler("_mySampler", device.CreateSampler(...))` 绑定（含 fallback 链继承）。自定义 sampler 由调用方作为独立资源持有，绝不挂在纹理上；自定义名未绑定 → bind group 组装时抛 `GraphicsException`，不会静默失败。
+- 语义约定：屏幕空间 pass / render texture 读取 → `linearClamp`；材质资产纹理 → `linearRepeat`；阴影比较 → `depthComparison`。
+- 自定义采样是显式特例：shader 声明自己的 `SamplerState mySampler;` 成员（**不得用 bank 成员名**），material 侧 `material.SetSampler("mySampler", device.CreateSampler(...))` 绑定（含 fallback 链继承）。自定义 sampler 由调用方作为独立资源持有，绝不挂在纹理上；自定义名未绑定 → bind group 组装时抛 `GraphicsException`，不会静默失败。
 
 ## 参数块规则
 
@@ -189,11 +189,11 @@ float4 c = _albedoTexture.Sample(_samplers._linearRepeat, uv);
   };
 
   [MaterialParams]
-  ParameterBlock<PulseParamsData> PulseParams;
+  ParameterBlock<PulseParamsData> pulseParams;
   ```
 
 - 发现靠标记不靠名字：库反射（`ShaderLibraryReflection`，经 `library.GetReflection()` 取得，编译器中立、按模块缓存）列出全部块及其 user attribute；`GetParamsLayouts` 在材质域按 `[MaterialParams]` 过滤出参数块，从反射读每个成员的类型和字节偏移；`PackParamsBuffers` 把 `Parameters` 按成员名跨块分发、逐块打包成 GPU buffer，按块名绑定。参数值是 `Vector4`，每个成员读取自己宽度的前导分量（标量读 x,float3 读 xyz)，多余分量忽略。
-- 未标记的块天然排除——surface 重声明的引擎数据块（如 `_globalRenderData`）不需要进排除名单。
+- 未标记的块天然排除——surface 重声明的引擎数据块（如 `globalRenderData`）不需要进排除名单。
 - 块里可以混声明纹理/sampler 成员（自描述资源块），只有标量/向量 float 成员参与参数打包；标记块一个 float 成员都没有 → `NotSupportedException`。
 - 快速失败：参数名对不上任何块的成员 → `InvalidDataException`（列出有效成员）；同一成员名出现在两个块 → 跨块歧义报错；传了 `Parameters` 但 surface 没标记任何参数块 → `InvalidDataException`。
 - 引擎侧（渲染节点等）不再手写 CPU 孪生结构体做对齐：`rendering.CreateUniformGraphicsBuffer(block, name)` 从反射出的 `ShaderUniformBlock` 建一个按名写入的 uniform buffer——`SetValue<T>(name, value)`（`float3` ↔ `Vector3`，`int/uint/bool` 同宽直传）与 `SetValues<T>(name, span)`（数组成员，按元素数校验），写进 CPU staging，首次绑定时整块上传（uniform 块小，整写优于 span 跟踪）。成员类型身份由反射提供（`ShaderUniformScalarType`/`ComponentCount`/`ElementCount`），块含不可表示成员（嵌套 struct、多维数组、非 32 位标量）时构造即抛。

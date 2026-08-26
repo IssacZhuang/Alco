@@ -34,7 +34,7 @@ import alco_rendering_core;
 //               y = mie density scale (1 = default, raise for haze)
 //               z = mie phase anisotropy g (0.8 default)
 //               w = sky exposure scale
-//   skyParams2: x = star intensity (used by AtmosphereStars only)
+//   skyParams2: x = star intensity (used by atmosphereStars only)
 //               y = night floor radiance (faint ambient after dark)
 //               z = solar radiance scale driving the scattering integral
 //               w = unused
@@ -54,7 +54,7 @@ public static const float ATM_VIEW_HEIGHT = 0.2;          // viewer height above
 
 // Both intersection distances of ray (origin, dir) with a sphere of the given
 // radius centered at the origin; (-1, -1) when the ray misses.
-public float2 AtmosphereRaySphere(float3 origin, float3 dir, float radius)
+public float2 atmosphereRaySphere(float3 origin, float3 dir, float radius)
 {
     float b = dot(origin, dir);
     float c = dot(origin, origin) - radius * radius;
@@ -70,14 +70,14 @@ public float2 AtmosphereRaySphere(float3 origin, float3 dir, float radius)
 // Density integral (km, multiply by beta for optical depth) from pos toward
 // the sun until the ray leaves the atmosphere. Returns (-1, -1) when the
 // earth occludes the sun. x = rayleigh, y = mie.
-public float2 AtmosphereSunDensityIntegral(float3 pos, float3 dirToSun, int sampleCount)
+public float2 atmosphereSunDensityIntegral(float3 pos, float3 dirToSun, int sampleCount)
 {
-    if (AtmosphereRaySphere(pos, dirToSun, ATM_EARTH_RADIUS).x > 0.0)
+    if (atmosphereRaySphere(pos, dirToSun, ATM_EARTH_RADIUS).x > 0.0)
     {
         return float2(-1.0, -1.0);
     }
 
-    float tEnd = AtmosphereRaySphere(pos, dirToSun, ATM_ATMOSPHERE_RADIUS).y;
+    float tEnd = atmosphereRaySphere(pos, dirToSun, ATM_ATMOSPHERE_RADIUS).y;
     float dt = tEnd / (float)sampleCount;
     float2 integral = 0.0;
     for (int i = 0; i < sampleCount; i++)
@@ -92,7 +92,7 @@ public float2 AtmosphereSunDensityIntegral(float3 pos, float3 dirToSun, int samp
 // Single-scattering sky radiance for a view ray (HDR, linear). viewSamples /
 // sunSamples trade quality for speed: use (16, 8) for the sky itself and
 // (8, 4) for ambient / GI queries evaluated many times per pixel.
-public float3 AtmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyParams, float4 skyParams2, int viewSamples, int sunSamples)
+public float3 atmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyParams, float4 skyParams2, int viewSamples, int sunSamples)
 {
     float3 origin = float3(0.0, 0.0, ATM_EARTH_RADIUS + ATM_VIEW_HEIGHT);
 
@@ -106,7 +106,7 @@ public float3 AtmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyPa
     // (Complementary Unbound style).
     float3 marchDir = normalize(float3(rayDir.x, rayDir.y, max(rayDir.z, 0.0)));
 
-    float2 atmHit = AtmosphereRaySphere(origin, marchDir, ATM_ATMOSPHERE_RADIUS);
+    float2 atmHit = atmosphereRaySphere(origin, marchDir, ATM_ATMOSPHERE_RADIUS);
     float tStart = max(atmHit.x, 0.0);
     float tEnd = atmHit.y;
 
@@ -130,7 +130,7 @@ public float3 AtmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyPa
         float2 dLocal = float2(exp(-height / ATM_H_RAYLEIGH), exp(-height / ATM_H_MIE)) * dt;
         viewDensity += dLocal;
 
-        float2 sunDensity = AtmosphereSunDensityIntegral(p, dirToSun, sunSamples);
+        float2 sunDensity = atmosphereSunDensityIntegral(p, dirToSun, sunSamples);
         if (sunDensity.x < 0.0)
         {
             continue; // this sample is in the earth's shadow
@@ -167,14 +167,14 @@ public float3 AtmosphereSkyRadiance(float3 rayDir, float3 dirToSun, float4 skyPa
 
 // ------------------------------------------------------------- star field ---
 
-public float3 AtmosphereHash33(float3 p)
+public float3 atmosphereHash33(float3 p)
 {
     p = frac(p * float3(0.1031, 0.1030, 0.0973));
     p += dot(p, p.yxz + 33.33);
     return frac((p.xxy + p.yxx) * p.zyx);
 }
 
-public float AtmosphereHash13(float3 p)
+public float atmosphereHash13(float3 p)
 {
     p = frac(p * 0.1031);
     p += dot(p, p.zyx + 31.32);
@@ -184,7 +184,7 @@ public float AtmosphereHash13(float3 p)
 // Procedural star field (HDR, linear). Stars fade in as the sun drops below
 // the horizon and are extinguished near the horizon line. Not for GI queries:
 // point stars would turn into noise under cone tracing.
-public float3 AtmosphereStars(float3 rayDir, float3 dirToSun, float intensity)
+public float3 atmosphereStars(float3 rayDir, float3 dirToSun, float intensity)
 {
     float night = 1.0 - smoothstep(-0.08, 0.06, dirToSun.z);
     float extinction = smoothstep(-0.02, 0.2, rayDir.z);
@@ -197,18 +197,18 @@ public float3 AtmosphereStars(float3 rayDir, float3 dirToSun, float intensity)
     float3 p = rayDir * 90.0;
     float3 cell = floor(p);
     float3 f = frac(p) - 0.5;
-    if (AtmosphereHash13(cell) < 0.93)
+    if (atmosphereHash13(cell) < 0.93)
     {
         return 0.0; // only ~7% of cells hold a star
     }
 
-    float3 starPos = (AtmosphereHash33(cell + 17.17) - 0.5) * 0.85;
+    float3 starPos = (atmosphereHash33(cell + 17.17) - 0.5) * 0.85;
     float d = length(f - starPos);
     float core = smoothstep(0.16, 0.0, d);
     // Magnitude distribution: many dim stars, few bright ones.
-    float magnitude = pow(AtmosphereHash13(cell + 7.31), 5.0);
+    float magnitude = pow(atmosphereHash13(cell + 7.31), 5.0);
     float brightness = core * core * (0.15 + magnitude);
     // Subtle temperature tint per star (blue-white to orange).
-    float3 tint = lerp(float3(0.65, 0.8, 1.0), float3(1.0, 0.85, 0.65), AtmosphereHash13(cell + 3.77));
+    float3 tint = lerp(float3(0.65, 0.8, 1.0), float3(1.0, 0.85, 0.65), atmosphereHash13(cell + 3.77));
     return tint * brightness * intensity * night * extinction * 2.0;
 }

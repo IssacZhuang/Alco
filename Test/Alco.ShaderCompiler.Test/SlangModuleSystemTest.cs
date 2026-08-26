@@ -13,7 +13,7 @@ public class SlangModuleSystemTest
     private const string MainModule = """
         import alco_sys_lib;
 
-        cbuffer _frame : register(b0, space0)
+        cbuffer frame : register(b0, space0)
         {
             float4x4 viewProjection;
         };
@@ -139,7 +139,7 @@ public class SlangModuleSystemTest
                     "restored vertex SPIR-V differs");
                 Assert.That(cached.EntryCode[1], Is.EqualTo(firstCode[1]).AsCollection,
                     "restored fragment SPIR-V differs");
-                Assert.That(cached.GetUniformMembers("_frame").Count, Is.GreaterThan(0),
+                Assert.That(cached.GetUniformMembers("frame").Count, Is.GreaterThan(0),
                     "uniform members must survive the program cache round-trip");
                 Assert.That(Directory.GetFiles(Path.Combine(cache, "modules"), "*.slang-module"), Has.Length.EqualTo(1));
                 Assert.That(Directory.GetFiles(Path.Combine(cache, "programs"), "*.bin"), Has.Length.EqualTo(1));

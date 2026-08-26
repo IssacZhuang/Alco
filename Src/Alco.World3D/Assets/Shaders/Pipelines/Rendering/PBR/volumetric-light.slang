@@ -23,9 +23,9 @@ import alco_world3d_pbr_common;
 // steps themselves provide softening that makes multi-tap PCF unnecessary.
 //
 // Density model: exponential height falloff (denser near ground, thinner
-// at altitude). Scale height H is controlled via vlParams.z.
+// at altitude). scale height H is controlled via vlParams.z.
 //
-// Quality (sample count) is a compile-time constant (default 24).
+// quality (sample count) is a compile-time constant (default 24).
 static const int VL_SAMPLES = 24;
 
 struct Vertex
@@ -45,10 +45,10 @@ struct V2F
 // ParameterBlock follows them.
 public struct PassParams
 {
-    public DepthTexture2D _gbufferDepth;
+    public DepthTexture2D gbufferDepth;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 
@@ -63,7 +63,7 @@ V2F MainVS(Vertex input)
 
 // Henyey-Greenstein phase function for the Mie-like forward scattering of the
 // sun through the atmosphere. g in [-1, 1]: 0 = isotropic, >0 = forward.
-float HenyeyGreenstein(float cosTheta, float g)
+float henyeyGreenstein(float cosTheta, float g)
 {
     float g2 = g * g;
     float denom = 1.0 + g2 - 2.0 * g * cosTheta;
@@ -71,16 +71,16 @@ float HenyeyGreenstein(float cosTheta, float g)
 }
 
 // Single-tap shadow visibility for a world-space point. Uses the same atlas
-// layout and bias as SampleShadowMap in PBRCommon.hlsli but does only one
+// layout and bias as sampleShadowMap in PBRCommon.hlsli but does only one
 // hardware-PCF comparison (the ray march provides spatial softening).
-float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
+float sampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
 {
     if (cascade < 0)
     {
         return 1.0;
     }
 
-    float4 clip = mul(_data.sunViewProjection[cascade], float4(worldPosition, 1.0));
+    float4 clip = mul(data.sunViewProjection[cascade], float4(worldPosition, 1.0));
     float3 ndc = clip.xyz / clip.w;
     if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
     {
@@ -91,25 +91,25 @@ float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
 
     float compareDepth = ndc.z - 0.0008;
-    return _lightsAndShadow._shadowMap.SampleCmpLevelZero(_samplers._depthComparison, shadowUV, compareDepth);
+    return lightsAndShadow.shadowMap.SampleCmpLevelZero(samplers.depthComparison, shadowUV, compareDepth);
 }
 
 // Fog density at a world-space point: exponential falloff relative to the
 // camera height. This keeps volumetric light visible regardless of terrain
 // elevation — the density profile follows the camera rather than the world
 // origin. sigma = sigma0 * exp(-|dh| / H) where dh = samplePos.z - cameraPos.z.
-float VolumetricDensity(float3 worldPos)
+float volumetricDensity(float3 worldPos)
 {
-    float heightAboveCamera = worldPos.z - _data.cameraPosition.z;
-    float scaleHeight = _data.heightScaleHeight;
-    return _data.fogDensity * exp(-abs(heightAboveCamera) / max(scaleHeight, 1e-4));
+    float heightAboveCamera = worldPos.z - data.cameraPosition.z;
+    float scaleHeight = data.heightScaleHeight;
+    return data.fogDensity * exp(-abs(heightAboveCamera) / max(scaleHeight, 1e-4));
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
     // Early-out when volumetric light is disabled.
-    if (!_data.volumetricLightEnabled)
+    if (!data.volumetricLightEnabled)
     {
         return float4(0.0, 0.0, 0.0, 0.0);
     }
@@ -118,19 +118,19 @@ float4 MainPS(V2F input) : SV_TARGET
     // w finite for sky pixels (depth 0 under reversed infinite depth); the ray
     // direction is unchanged since any depth along the ray yields it.
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    int2 pixelCoord = int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight));
-    float depth = GetPixelDepth2D(_pass._gbufferDepth, pixelCoord);
-    float4 world = mul(_data.invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
+    int2 pixelCoord = int2(input.uv * uint2(data.viewportWidth, data.viewportHeight));
+    float depth = getPixelDepth2D(pass.gbufferDepth, pixelCoord);
+    float4 world = mul(data.invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
     float3 worldPosition = world.xyz / world.w;
 
-    float3 rayOrigin = _data.cameraPosition.xyz;
+    float3 rayOrigin = data.cameraPosition.xyz;
     float3 rayDir = normalize(worldPosition - rayOrigin);
 
     // Determine ray march bounds.
     // Beyond the last cascade there is no shadow information, so marching
     // farther would add unshadowed (flat) radiance — clamp to the last split.
-    float maxDistance = _data.cascadeSplits.w;
-    bool isSky = IS_SKY_DEPTH(depth);
+    float maxDistance = data.cascadeSplits.w;
+    bool isSky = isSkyDepth(depth);
     float sceneDistance = isSky ? maxDistance : length(worldPosition - rayOrigin);
     float rayEnd = min(sceneDistance, maxDistance);
 
@@ -140,16 +140,16 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // Phase function.
-    float3 dirToSun = normalize(-_data.sunDirection.xyz);
+    float3 dirToSun = normalize(-data.sunDirection.xyz);
     float cosTheta = dot(rayDir, dirToSun);
-    float phaseG = _data.phaseG;
-    float phase = HenyeyGreenstein(cosTheta, phaseG);
+    float phaseG = data.phaseG;
+    float phase = henyeyGreenstein(cosTheta, phaseG);
 
     // Per-pixel dither to break up banding (IGN — deterministic per pixel).
-    float dither = InterleavedGradientNoise(input.position.xy);
+    float dither = interleavedGradientNoise(input.position.xy);
 
     // Ray march.
-    float3 sunColor = _data.sunColorAndIntensity.rgb * _data.sunColorAndIntensity.w;
+    float3 sunColor = data.sunColorAndIntensity.rgb * data.sunColorAndIntensity.w;
     float3 radiance = 0.0;
     float transmittance = 1.0;
     float prevDist = 0.0;
@@ -170,11 +170,11 @@ float4 MainPS(V2F input) : SV_TARGET
         float3 samplePos = rayOrigin + rayDir * sampleDist;
 
         // Shadow visibility at this point.
-        int cascade = SelectCascade(sampleDist);
-        float visibility = SampleShadowVL(samplePos, cascade, input.position.xy);
+        int cascade = selectCascade(sampleDist);
+        float visibility = sampleShadowVL(samplePos, cascade, input.position.xy);
 
         // Participating-medium density and extinction.
-        float sigma = VolumetricDensity(samplePos);
+        float sigma = volumetricDensity(samplePos);
         float opticalDepth = sigma * dt;
         float sampleTransmittance = exp(-opticalDepth);
 
@@ -193,9 +193,9 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // Apply intensity multiplier.
-    radiance *= _data.volumetricLightIntensity;
+    radiance *= data.volumetricLightIntensity;
 
-    // Output: RGB holds the additively blended radiance; alpha = 1 so the
+    // Output: rgb holds the additively blended radiance; alpha = 1 so the
     // blend state (SrcAlpha, One) adds radiance directly to the target.
     return float4(radiance, 1.0);
 }

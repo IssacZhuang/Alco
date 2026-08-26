@@ -71,14 +71,14 @@ public class TestMaterialCompiler
 
         import test_compiler_contract;
 
-        cbuffer _camera : register(b0, space0)
+        cbuffer camera : register(b0, space0)
         {
             float4x4 viewProjection;
         }
 
-        cbuffer _draw : register(b0, space1)
+        cbuffer draw : register(b0, space1)
         {
-            RWStructuredBuffer<float4> _instances;
+            RWStructuredBuffer<float4> instances;
         }
 
         public struct LitV2F
@@ -91,7 +91,7 @@ public class TestMaterialCompiler
         public LitV2F MainVS<T : ISurface>(float3 position : POSITION, float2 uv : TEXCOORD0)
         {
             LitV2F output;
-            output.position = mul(viewProjection, float4(position + _instances[0].xyz, 1.0));
+            output.position = mul(viewProjection, float4(position + instances[0].xyz, 1.0));
             output.uv = uv;
             return output;
         }
@@ -112,14 +112,14 @@ public class TestMaterialCompiler
 
         import test_compiler_contract;
 
-        cbuffer _material : register(b0, space2)
+        cbuffer material : register(b0, space2)
         {
-            Texture2D<float4> _albedoTexture;
-            SamplerState _linearClamp;
+            Texture2D<float4> albedoTexture;
+            SamplerState linearClamp;
         }
 
         [MaterialParams]
-        cbuffer _surfaceParams : register(b1, space2)
+        cbuffer surfaceParams : register(b1, space2)
         {
             float pulseSpeed;
         }
@@ -128,7 +128,7 @@ public class TestMaterialCompiler
         {
             public override float4 GetBaseColor(SurfaceInput input)
             {
-                return _albedoTexture.Sample(_linearClamp, input.uv) * pulseSpeed;
+                return albedoTexture.Sample(linearClamp, input.uv) * pulseSpeed;
             }
         }
         """;
@@ -177,9 +177,9 @@ public class TestMaterialCompiler
         {
             Assert.That(Compile(compiler, host.RenderingSystem, asset), Is.Not.SameAs(material),
                 "Every compile produces a fresh caller-owned material; sharing is the caller's job.");
-            Assert.That(material.TryGetResourceId("_camera", out _), Is.True, "The template's bindings survive.");
-            Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True, "The surface's texture binds by name.");
-            Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True, "The parameter block binds by name.");
+            Assert.That(material.TryGetResourceId("camera", out _), Is.True, "The template's bindings survive.");
+            Assert.That(material.TryGetResourceId("albedoTexture", out _), Is.True, "The surface's texture binds by name.");
+            Assert.That(material.TryGetResourceId("surfaceParams", out _), Is.True, "The parameter block binds by name.");
         });
     }
 
@@ -237,7 +237,7 @@ public class TestMaterialCompiler
             Surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface"),
         };
         GraphicsMaterial plainMaterial = Compile(compiler, rendering, plain);
-        Assert.That(plainMaterial.Parameters.GetTexture("_albedoTexture"), Is.SameAs(rendering.TextureWhite),
+        Assert.That(plainMaterial.Parameters.GetTexture("albedoTexture"), Is.SameAs(rendering.TextureWhite),
             "The base policy is always white.");
 
         // The family asset's own policy decides per slot name.
@@ -247,7 +247,7 @@ public class TestMaterialCompiler
             Surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface"),
         };
         GraphicsMaterial familyMaterial = Compile(compiler, rendering, family);
-        Assert.That(familyMaterial.Parameters.GetTexture("_albedoTexture"), Is.SameAs(rendering.TextureWhite),
+        Assert.That(familyMaterial.Parameters.GetTexture("albedoTexture"), Is.SameAs(rendering.TextureWhite),
             "The family asset keeps white for a non-matching slot prefix.");
     }
 

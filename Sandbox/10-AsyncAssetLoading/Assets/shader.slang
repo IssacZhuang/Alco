@@ -11,7 +11,7 @@ public struct ConstantsParams
     public float3 color;
 };
 
-public ParameterBlock<ConstantsParams> _constants;
+public ParameterBlock<ConstantsParams> constants;
 
 public struct MaterialParams
 {
@@ -19,7 +19,7 @@ public struct MaterialParams
     public SamplerState imageSampler;
 };
 
-public ParameterBlock<MaterialParams> _material;
+public ParameterBlock<MaterialParams> material;
 
 struct VertexInput {
     float3 position : POSITION0;
@@ -28,21 +28,21 @@ struct VertexInput {
 };
 
 struct VertexOutput {
-    float4 clip_position : SV_POSITION;
+    float4 clipPosition : SV_POSITION;
     float2 texCoord : TEXCOORD0;
 };
 
 [shader("vertex")]
 VertexOutput MainVS(VertexInput model) {
     VertexOutput v2f;
-    v2f.clip_position = float4(model.position, 1);
+    v2f.clipPosition = float4(model.position, 1);
     v2f.texCoord = model.texCoord;
     return v2f;
 }
 
 [shader("fragment")]
 float4 MainPS(VertexOutput input) : SV_Target0 {
-    float4 result = _material.image.Sample(_material.imageSampler, input.texCoord);
+    float4 result = material.image.Sample(material.imageSampler, input.texCoord);
     // inverse gamma correction
     result = pow(result, float4(2.2, 2.2, 2.2, 2.2));
     return result;

@@ -15,13 +15,13 @@ public class SlangNativeApiTest
     private const uint Spirv13 = 0x00010300;
 
     private const string GraphicsShader = """
-        cbuffer _frame : register(b0, space0)
+        cbuffer frame : register(b0, space0)
         {
             float4x4 viewProjection;
         };
 
-        Texture2D _albedo        : register(t0, space1);
-        SamplerState _albedoSampler : register(s0, space1);
+        Texture2D albedo        : register(t0, space1);
+        SamplerState albedoSampler : register(s0, space1);
 
         struct VSInput
         {
@@ -47,18 +47,18 @@ public class SlangNativeApiTest
         [shader("fragment")]
         float4 MainPS(VSOutput input) : SV_TARGET
         {
-            return _albedo.Sample(_albedoSampler, input.uv);
+            return albedo.Sample(albedoSampler, input.uv);
         }
         """;
 
     private const string ComputeShader = """
-        RWStructuredBuffer<float> _buffer : register(u0, space0);
+        RWStructuredBuffer<float> buffer : register(u0, space0);
 
         [numthreads(8, 4, 1)]
         [shader("compute")]
         void MainCS(uint3 dispatchThreadID : SV_DispatchThreadID)
         {
-            _buffer[dispatchThreadID.x] = float(dispatchThreadID.y);
+            buffer[dispatchThreadID.x] = float(dispatchThreadID.y);
         }
         """;
 
@@ -231,7 +231,7 @@ public class SlangNativeApiTest
             BindGroupLayout frameGroup = reflection.BindGroups[0];
             Assert.That(frameGroup.Group, Is.EqualTo(0u));
             Assert.That(frameGroup.Bindings.Count, Is.EqualTo(1));
-            Assert.That(frameGroup.Bindings[0].Entry.Name, Is.EqualTo("_frame"));
+            Assert.That(frameGroup.Bindings[0].Entry.Name, Is.EqualTo("frame"));
             Assert.That(frameGroup.Bindings[0].Entry.Type, Is.EqualTo(BindingType.UniformBuffer));
             // Bindings carry the engine's Standard (V|F|C) visibility, matching
             // the DXC SPIR-V reflector (ResolveEffectiveStage) so pipeline
@@ -242,9 +242,9 @@ public class SlangNativeApiTest
             BindGroupLayout materialGroup = reflection.BindGroups[1];
             Assert.That(materialGroup.Group, Is.EqualTo(1u));
             Assert.That(materialGroup.Bindings.Count, Is.EqualTo(2));
-            Assert.That(materialGroup.Bindings[0].Entry.Name, Is.EqualTo("_albedo"));
+            Assert.That(materialGroup.Bindings[0].Entry.Name, Is.EqualTo("albedo"));
             Assert.That(materialGroup.Bindings[0].Entry.Type, Is.EqualTo(BindingType.Texture));
-            Assert.That(materialGroup.Bindings[1].Entry.Name, Is.EqualTo("_albedoSampler"));
+            Assert.That(materialGroup.Bindings[1].Entry.Name, Is.EqualTo("albedoSampler"));
             Assert.That(materialGroup.Bindings[1].Entry.Type, Is.EqualTo(BindingType.Sampler));
 
             // Vertex input: POSITION (float3) + TEXCOORD0 (float2) → stride 12 + 8 = 20
@@ -413,7 +413,7 @@ public class SlangNativeApiTest
     public void GetUniformMembers_ReturnsReflectedOffsets()
     {
         const string shader = """
-            cbuffer _materialParams : register(b0, space0)
+            cbuffer materialParams : register(b0, space0)
             {
                 float baseColor;
                 float2 tiling;
@@ -429,7 +429,7 @@ public class SlangNativeApiTest
         SlangModuleHandle module = session.LoadModuleFromSource("alco_test_params", "alco_test_params.slang", shader);
         using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainPS", ShaderStage.Fragment)]);
 
-        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("materialParams");
         Assert.Multiple(() =>
         {
             Assert.That(members.Count, Is.EqualTo(3));

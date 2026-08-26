@@ -16,17 +16,17 @@ struct Constants {
 
 public struct PreviousParams
 {
-    public Texture2D _previousTexture;
+    public Texture2D previousTexture;
 };
 
-public ParameterBlock<PreviousParams> _previous;
+public ParameterBlock<PreviousParams> previous;
 
 public struct CurrentParams
 {
-    public Texture2D _currentTexture;
+    public Texture2D currentTexture;
 };
 
-public ParameterBlock<CurrentParams> _current;
+public ParameterBlock<CurrentParams> current;
 
 [[vk::push_constant]] Constants constants;
 
@@ -59,11 +59,11 @@ float4 MainPS(V2F input) : SV_TARGET {
   for (int i = -2; i <= 2; ++i) {
     for (int j = -2; j <= 2; ++j) {
       float weight = weights[i + 2] * weights[j + 2];
-      sum += weight * _previous._previousTexture.Sample(_samplers._linearClamp, input.uv + float2(i, j) * sampleOffset);
+      sum += weight * previous.previousTexture.Sample(samplers.linearClamp, input.uv + float2(i, j) * sampleOffset);
     }
   }
 
-  float3 current = _current._currentTexture.Sample(_samplers._linearClamp, input.uv).rgb;
+  float3 current = current.currentTexture.Sample(samplers.linearClamp, input.uv).rgb;
 
   // Keep a uniform source below 2x energy across the complete pyramid. Fine
   // levels retain the source-sized core while coarser levels decay at every

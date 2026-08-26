@@ -21,40 +21,40 @@ struct Constants {
 // Input and output textures
 public struct InputParams
 {
-    public [[vk::image_format("rgba8")]] RWTexture2D<float4> _input;
+    public [[vk::image_format("rgba8")]] RWTexture2D<float4> input;
 };
 
-public ParameterBlock<InputParams> _input;
+public ParameterBlock<InputParams> input;
 
 public struct OutputParams
 {
-    public [[vk::image_format("rgba8")]] RWTexture2D<float4> _output;
+    public [[vk::image_format("rgba8")]] RWTexture2D<float4> output;
 };
 
-public ParameterBlock<OutputParams> _output;
+public ParameterBlock<OutputParams> output;
 
 // Gaussian kernel buffer (precomputed on CPU)
 public struct GaussianKernelParams
 {
-    public RWStructuredBuffer<float> _gaussianKernel;
+    public RWStructuredBuffer<float> gaussianKernel;
 };
 
-public ParameterBlock<GaussianKernelParams> _gaussianKernel;
+public ParameterBlock<GaussianKernelParams> gaussianKernel;
 
 [[vk::push_constant]] Constants constants;
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
-void MainCS(uint3 id: SV_DispatchThreadID) {
+void mainCS(uint3 id: SV_DispatchThreadID) {
     // Apply Gaussian blur and write the result to output texture
-    float4 blurredColor = GaussianBlur(
-        _input._input,
-        _gaussianKernel._gaussianKernel, 
+    float4 blurredColor = gaussianBlur(
+        input.input,
+        gaussianKernel.gaussianKernel, 
         constants.kernelSize, 
         constants.kernelSum, 
         id.xy, 
         constants.texSize
     );
     
-    _output._output[id.xy] = blurredColor;
+    output.output[id.xy] = blurredColor;
 } 

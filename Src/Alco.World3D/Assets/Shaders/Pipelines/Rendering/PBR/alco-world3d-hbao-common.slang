@@ -34,7 +34,7 @@ public struct HbaoData
     public float  strength;       // multiplies the blurred AO into the G-buffer AO channel
 };
 
-public ParameterBlock<HbaoData> _data;
+public ParameterBlock<HbaoData> data;
 
 
 // Reconstruct the world-space position of a pixel from its UV and depth.
@@ -42,22 +42,22 @@ public ParameterBlock<HbaoData> _data;
 // clamp keeps the homogeneous w finite under reversed infinite depth (the
 // reconstructed sky point lands ~near / epsilon metres away, which the
 // bilateral depth weight then rejects exactly like the old far plane).
-public float3 ReconstructWorldPosition(float2 uv, float depth)
+public float3 reconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(_data.invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
+    float4 world = mul(data.invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
     return world.xyz / world.w;
 }
 
 // Depth along the camera forward axis (positive in front of the camera).
-public float ViewDepth(float3 worldPosition)
+public float viewDepth(float3 worldPosition)
 {
-    return dot(worldPosition - _data.cameraPosition.xyz, _data.cameraForward.xyz);
+    return dot(worldPosition - data.cameraPosition.xyz, data.cameraForward.xyz);
 }
 
 // Interleaved gradient noise: stable per-pixel pseudo-random value, 0 (inclusive)
 // to 1 (exclusive). Two decorrelated channels are obtained by re-hashing with an offset.
-public float InterleavedGradientNoise(uint2 pixel)
+public float interleavedGradientNoise(uint2 pixel)
 {
     return frac(52.9829189 * frac(dot(float2(pixel), float2(0.06711056, 0.00583715))));
 }

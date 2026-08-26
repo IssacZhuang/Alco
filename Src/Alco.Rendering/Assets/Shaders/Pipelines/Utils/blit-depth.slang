@@ -11,10 +11,10 @@ import alco_rendering_core;
 
 public struct TextureParams
 {
-    public DepthTexture2D _texture;
+    public DepthTexture2D texture;
 };
 
-public ParameterBlock<TextureParams> _texture;
+public ParameterBlock<TextureParams> texture;
 
 public struct DataParams
 {
@@ -22,7 +22,7 @@ public struct DataParams
     public float2 dynamicRange;
 };
 
-public ParameterBlock<DataParams> _data;
+public ParameterBlock<DataParams> data;
 struct Vertex {
   float3 position : POSITION;
   float2 uv : TEXCOORD0;
@@ -44,13 +44,13 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-    float2 c = input.uv * _data.canvasSize;
+    float2 c = input.uv * data.canvasSize;
     int2 position = int2(c);
     // Reversed depth (near = 1, far = 0) already follows the visualization
     // convention of near = white, far = black — no flip needed.
-    float depth = _texture._texture.Load(int3(position, 0));
+    float depth = texture.texture.Load(int3(position, 0));
     // Renormalize depth: map [dynamicRange.x, dynamicRange.y] to [0, 1]
-    depth = (depth - _data.dynamicRange.x) / (_data.dynamicRange.y - _data.dynamicRange.x);
+    depth = (depth - data.dynamicRange.x) / (data.dynamicRange.y - data.dynamicRange.x);
 
     return float4(depth, depth, depth, 1);
 }

@@ -200,8 +200,8 @@ public static class RenderPipelines
             volumetricLightMaterial.BlendState = BlendState.Additive;
             volumetricLightMaterial.SetBuffer(ShaderResourceId.Data, environment.LightingDataBuffer);
             volumetricLightMaterial.SetBuffer(ShaderResourceId.PointLights, environment.PointLightBuffer);
-            volumetricLightMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferResource.Texture);
-            volumetricLightMaterial.SetRenderTextureDepth("_shadowMap", shadowMapResource.Texture);
+            volumetricLightMaterial.SetRenderTextureDepth("gbufferDepth", gbufferResource.Texture);
+            volumetricLightMaterial.SetRenderTextureDepth("shadowMap", shadowMapResource.Texture);
             volumetricLightNode = new RGNode_FullscreenOverlay(rendering, graph, chain,
                 volumetricLightMaterial)
             {
@@ -295,16 +295,16 @@ public static class RenderPipelines
         RenderGraphTexture gbufferResource, RenderGraphTexture shadowMapResource)
     {
         RenderTexture gbuffer = gbufferResource.Texture;
-        lightingMaterial.SetRenderTexture("_albedo",   gbuffer, 0);
-        lightingMaterial.SetRenderTexture("_normal",   gbuffer, 1);
-        lightingMaterial.SetRenderTexture("_mrAO",     gbuffer, 2);
-        lightingMaterial.SetRenderTexture("_emissive", gbuffer, 3);
-        lightingMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-        lightingMaterial.SetRenderTextureDepth("_shadowMap", shadowMapResource.Texture);
+        lightingMaterial.SetRenderTexture("albedo",   gbuffer, 0);
+        lightingMaterial.SetRenderTexture("normal",   gbuffer, 1);
+        lightingMaterial.SetRenderTexture("mrAO",     gbuffer, 2);
+        lightingMaterial.SetRenderTexture("emissive", gbuffer, 3);
+        lightingMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
+        lightingMaterial.SetRenderTextureDepth("shadowMap", shadowMapResource.Texture);
         // Plugin output textures default to white/black until a plugin sets them.
-        lightingMaterial.SetTexture("_aoTexture", rendering.TextureWhite);
-        lightingMaterial.SetTexture("_cloudShadow", rendering.TextureWhite);
-        lightingMaterial.SetTexture("_giDiffuse", rendering.TextureBlack);
-        lightingMaterial.SetTexture("_giSpecular", rendering.TextureBlack);
+        lightingMaterial.SetTexture("aoTexture", rendering.TextureWhite);
+        lightingMaterial.SetTexture("cloudShadow", rendering.TextureWhite);
+        lightingMaterial.SetTexture("giDiffuse", rendering.TextureBlack);
+        lightingMaterial.SetTexture("giSpecular", rendering.TextureBlack);
     }
 }

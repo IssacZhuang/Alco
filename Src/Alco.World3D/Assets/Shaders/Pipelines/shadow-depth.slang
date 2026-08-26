@@ -12,13 +12,13 @@
 // evaluation lives in the surface module (contract:
 // Shaders/Libs/alco-world3d-surface.slang); this template owns the entry
 // points, the depth write and the cascade bindings. Per-instance data (model
-// matrix, cutout scalars) lives in the _instances storage buffer and is fetched
+// matrix, cutout scalars) lives in the instances storage buffer and is fetched
 // by SV_VulkanInstanceID; the push constant carries only the cascade index so
 // per-cascade render bundles never re-record.
 //
 // The AlphaTest value specialization replaces the retired SHADOW_CUTOUT define:
 // when on, the pixel shader evaluates the surface's base color alpha
-// (GetBaseColor - the only surface function this pass consumes) and discards
+// (getBaseColor - the only surface function this pass consumes) and discards
 // fragments below the cutoff, so cutout meshes (foliage, fences, etc.) cast
 // correctly shaped shadows. When off, specialization folds the pixel shader
 // away to an empty body (zero-overhead opaque depth write); the interpolants
@@ -55,7 +55,7 @@ public struct ShadowV2F
 struct ShadowConstants
 {
     // x = shadow cascade index, yzw unused
-    float4 params_;
+    float4 params;
 }
 
 // Per-cascade light view-projection matrices, updated per frame on the CPU.
@@ -66,14 +66,14 @@ public struct ShadowData
     public float4x4 lightViewProjections[4];
 };
 
-public ParameterBlock<ShadowData> _data;
+public ParameterBlock<ShadowData> data;
 
 public struct ShadowDrawParams
 {
-    public RWStructuredBuffer<PbrInstance> _instances;
+    public RWStructuredBuffer<PbrInstance> instances;
 };
 
-public ParameterBlock<ShadowDrawParams> _draw;
+public ParameterBlock<ShadowDrawParams> draw;
 
 [[vk::push_constant]]
 cbuffer constants
@@ -85,15 +85,15 @@ cbuffer constants
 public ShadowV2F MainVS<T : ISurface>(ShadowVertex input)
 {
     ShadowV2F output;
-    PbrInstance inst = _draw._instances[input.instanceID];
+    PbrInstance inst = draw.instances[input.instanceID];
     float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
     float3 worldNormal = mul((float3x3)inst.model, input.normal);
     float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically
     // so shadows match the G-buffer silhouette.
     T surface = T();
-    surface.ModifyVertex(worldPos, worldNormal, input.uv);
-    output.position = mul(_data.lightViewProjections[(uint)shadowConstants.params_.x], float4(worldPos, 1.0f));
+    surface.modifyVertex(worldPos, worldNormal, input.uv);
+    output.position = mul(data.lightViewProjections[(uint)shadowConstants.params.x], float4(worldPos, 1.0f));
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
     output.worldPos = worldPos;
@@ -107,8 +107,8 @@ public void MainPS<T : ISurface, let AlphaTest : bool>(ShadowV2F input)
 {
     if (AlphaTest)
     {
-        PbrInstance inst = _draw._instances[input.instanceID];
-        float alphaCutoff = inst.params_.x;
+        PbrInstance inst = draw.instances[input.instanceID];
+        float alphaCutoff = inst.params.x;
         if (alphaCutoff > 0.0)
         {
             // TBN frame: re-orthogonalize the interpolated tangent against the normal.
@@ -127,7 +127,7 @@ public void MainPS<T : ISurface, let AlphaTest : bool>(ShadowV2F input)
             surfaceInput.alphaCutoff = alphaCutoff;
 
             T surface = T();
-            clip(surface.GetBaseColor(surfaceInput).a - alphaCutoff);
+            clip(surface.getBaseColor(surfaceInput).a - alphaCutoff);
         }
     }
 }

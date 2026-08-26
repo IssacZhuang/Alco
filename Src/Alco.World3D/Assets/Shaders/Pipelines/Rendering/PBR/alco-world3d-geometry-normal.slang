@@ -12,7 +12,7 @@ module alco_world3d_geometry_normal;
 // alpha channels of the normal and emissive G-buffer targets. Diffuse GI needs
 // this stable low-frequency normal; the regular xyz normal remains the
 // normal-mapped value used by direct and specular lighting.
-public float2 EncodeGeometryNormal(float3 normal)
+public float2 encodeGeometryNormal(float3 normal)
 {
     normal /= max(abs(normal.x) + abs(normal.y) + abs(normal.z), 0.0001);
     float2 encoded = normal.xy;
@@ -25,7 +25,7 @@ public float2 EncodeGeometryNormal(float3 normal)
     return encoded * 0.5 + 0.5;
 }
 
-public float3 DecodeGeometryNormal(float2 encoded)
+public float3 decodeGeometryNormal(float2 encoded)
 {
     float2 octahedron = encoded * 2.0 - 1.0;
     float3 normal = float3(

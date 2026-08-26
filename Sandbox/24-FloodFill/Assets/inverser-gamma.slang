@@ -29,15 +29,15 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 public struct MaterialParams
 {
-    public Texture2D _texture;
-    public SamplerState _textureSampler;
+    public Texture2D texture;
+    public SamplerState textureSampler;
 };
 
-public ParameterBlock<MaterialParams> _material;
+public ParameterBlock<MaterialParams> material;
 
 [[vk::push_constant]] Constants constants;
 
@@ -45,14 +45,14 @@ public ParameterBlock<MaterialParams> _material;
 V2F MainVS(Vertex input) {
   V2F output = (V2F)0;
   output.position = mul(constants.model, float4(input.position, 1.0f));
-  output.position = mul(_camera.viewProjection, output.position);
+  output.position = mul(camera.viewProjection, output.position);
   output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;
   return output;
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float4 color = _material._texture.Sample(_material._textureSampler, input.uv) * constants.color;
+  float4 color = material.texture.Sample(material.textureSampler, input.uv) * constants.color;
   //inverse gamma
   color.rgb = pow(color.rgb, 2.2f);
   return color;

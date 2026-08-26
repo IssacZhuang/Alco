@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace Alco.ShaderCompiler;
 
 // The ParameterBlock binding contract: a program declares each resource group
-// as one annotation-free `ParameterBlock<BlockParams> _name;`. The compiler
+// as one annotation-free `ParameterBlock<BlockParams> name;`. The compiler
 // owns the layout — each block takes one whole descriptor set, in declaration
 // order, with an automatically-introduced uniform buffer at binding 0 whenever
 // the block carries ordinary data (resource members continue after it).
@@ -47,7 +47,7 @@ public static class SlangBlockBindingTest
             public SamplerState noiseSampler;
         };
 
-        public ParameterBlock<FrameParams> _frame;
+        public ParameterBlock<FrameParams> frame;
 
         public struct PassParams
         {
@@ -59,15 +59,15 @@ public static class SlangBlockBindingTest
             public SamplerComparisonState sceneDepthSampler;
         };
 
-        public ParameterBlock<PassParams> _pass;
+        public ParameterBlock<PassParams> pass;
 
         [shader("fragment")]
         float4 MainPS() : SV_TARGET
         {
-            _pass.output[0] = _pass.sceneColor.Sample(_pass.sceneSampler, float2(0.5, 0.5));
-            _pass.indirectGI[int2(0, 0)] = float4(1);
-            float d = _pass.sceneDepth.SampleCmpLevelZero(_pass.sceneDepthSampler, float2(0.5, 0.5), 0.5);
-            return _frame.blueNoise.Sample(_frame.noiseSampler, float2(_frame.time, 0)) + _frame.viewProjection[0] + d;
+            pass.output[0] = pass.sceneColor.Sample(pass.sceneSampler, float2(0.5, 0.5));
+            pass.indirectGI[int2(0, 0)] = float4(1);
+            float d = pass.sceneDepth.SampleCmpLevelZero(pass.sceneDepthSampler, float2(0.5, 0.5), 0.5);
+            return frame.blueNoise.Sample(frame.noiseSampler, float2(frame.time, 0)) + frame.viewProjection[0] + d;
         }
         """;
 
@@ -84,7 +84,7 @@ public static class SlangBlockBindingTest
         // binding 0, then resource members in declaration order.
         Assert.That(Entries(program, 0), Is.EqualTo(new[]
         {
-            ("_frame", 0u, BindingType.UniformBuffer),
+            ("frame", 0u, BindingType.UniformBuffer),
             ("blueNoise", 1u, BindingType.Texture),
             ("noiseSampler", 2u, BindingType.Sampler),
         }));
@@ -105,7 +105,7 @@ public static class SlangBlockBindingTest
     public static void UniformMembers_SkipResourceFields()
     {
         using SlangProgram program = Compile("block_mixed", MixedBlocks);
-        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_frame");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("frame");
 
         Assert.That(members.Select(m => m.Name), Is.EqualTo(new[] { "viewProjection", "time" }));
         Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
@@ -126,14 +126,14 @@ public static class SlangBlockBindingTest
                 public Texture2D shared;
             };
 
-            public ParameterBlock<FirstParams> _first;
+            public ParameterBlock<FirstParams> first;
 
             public struct SecondParams
             {
                 public Texture2D shared;
             };
 
-            public ParameterBlock<SecondParams> _second;
+            public ParameterBlock<SecondParams> second;
 
             [shader("fragment")]
             float4 MainPS() : SV_TARGET { return shared; }
@@ -152,19 +152,19 @@ public static class SlangBlockBindingTest
             module block_flat;
 
             public struct DataParams { public float4x4 viewProjection; public float time; };
-            public ParameterBlock<DataParams> _data;
-            Texture2D _tex;
-            SamplerState _texSampler;
-            RWStructuredBuffer<float4> _output;
+            public ParameterBlock<DataParams> data;
+            Texture2D tex;
+            SamplerState texSampler;
+            RWStructuredBuffer<float4> output;
 
             [shader("fragment")]
             float4 MainPS() : SV_TARGET
             {
-                _output[0] = _tex.Sample(_texSampler, float2(_time_placeholder(), 0.5));
-                return _data.viewProjection[0];
+                output[0] = tex.Sample(texSampler, float2(time_placeholder(), 0.5));
+                return data.viewProjection[0];
             }
 
-            float _time_placeholder() { return _data.time; }
+            float time_placeholder() { return data.time; }
             """;
 
         using SlangProgram program = Compile("block_flat", flat);
@@ -173,13 +173,13 @@ public static class SlangBlockBindingTest
         Assert.That(program.Reflection.BindGroups[0].Group, Is.EqualTo(0u));
         Assert.That(Entries(program, 0), Is.EqualTo(new[]
         {
-            ("_tex", 0u, BindingType.Texture),
-            ("_texSampler", 1u, BindingType.Sampler),
-            ("_output", 2u, BindingType.StorageBuffer),
+            ("tex", 0u, BindingType.Texture),
+            ("texSampler", 1u, BindingType.Sampler),
+            ("output", 2u, BindingType.StorageBuffer),
         }));
         Assert.That(Entries(program, 1), Is.EqualTo(new[]
         {
-            ("_data", 0u, BindingType.UniformBuffer),
+            ("data", 0u, BindingType.UniformBuffer),
         }));
     }
 
@@ -198,7 +198,7 @@ public static class SlangBlockBindingTest
                 public float4 time;
             };
 
-            public ParameterBlock<GlobalRenderDataParams> _globalRenderData;
+            public ParameterBlock<GlobalRenderDataParams> globalRenderData;
 
             [MaterialParams]
             public struct MaterialParamsData
@@ -210,13 +210,13 @@ public static class SlangBlockBindingTest
                 public RWStructuredBuffer<float4> instances;
             };
 
-            public ParameterBlock<MaterialParamsData> _materialParams;
+            public ParameterBlock<MaterialParamsData> materialParams;
 
             [shader("fragment")]
             float4 MainPS() : SV_TARGET
             {
-                _materialParams.instances[0] = float4(_materialParams.pulseColor * _materialParams.pulseSpeed, _globalRenderData.time.x);
-                return _materialParams.albedo.Sample(_materialParams.albedoSampler, float2(0.5, 0.5)) + _globalRenderData.time;
+                materialParams.instances[0] = float4(materialParams.pulseColor * materialParams.pulseSpeed, globalRenderData.time.x);
+                return materialParams.albedo.Sample(materialParams.albedoSampler, float2(0.5, 0.5)) + globalRenderData.time;
             }
             """;
 
@@ -226,16 +226,16 @@ public static class SlangBlockBindingTest
         Assert.That(program.Reflection.BindGroups[0].Group, Is.EqualTo(0u));
         Assert.That(Entries(program, 0), Is.EqualTo(new[]
         {
-            ("_globalRenderData", 0u, BindingType.UniformBuffer),
+            ("globalRenderData", 0u, BindingType.UniformBuffer),
         }));
         Assert.That(Entries(program, 1), Is.EqualTo(new[]
         {
-            ("_materialParams", 0u, BindingType.UniformBuffer),
+            ("materialParams", 0u, BindingType.UniformBuffer),
             ("albedo", 1u, BindingType.Texture),
             ("albedoSampler", 2u, BindingType.Sampler),
             ("instances", 3u, BindingType.StorageBuffer),
         }));
-        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("materialParams");
         Assert.That(members.Select(m => m.Name), Is.EqualTo(new[] { "pulseSpeed", "pulseColor" }));
     }
 

@@ -17,29 +17,29 @@ struct Constants {
 // light map texture
 public struct PassParams
 {
-    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _frontBuffer;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> frontBuffer;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 public struct BackBufferParams
 {
-    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _backBuffer;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> backBuffer;
 };
 
-public ParameterBlock<BackBufferParams> _backBuffer;
+public ParameterBlock<BackBufferParams> backBuffer;
 
 // opacity map texture
 public struct OpacityMapParams
 {
-    public [[vk::image_format("rgba8")]] RWTexture2D<float4> _opacityMap;
+    public [[vk::image_format("rgba8")]] RWTexture2D<float4> opacityMap;
 };
 
-public ParameterBlock<OpacityMapParams> _opacityMap;
+public ParameterBlock<OpacityMapParams> opacityMap;
 
 [[vk::push_constant]] Constants constants;
 
 
-float GetLightPassingFactor(uint2 pos) {
+float getLightPassingFactor(uint2 pos) {
     //todo: the passing factor of wall is 0
     return 1;
 }
@@ -58,7 +58,7 @@ float GetLightPassingFactor(uint2 pos) {
 // }
 
 // Alternative 1: Exponential decay (more physically accurate)
-float4 AdjustLuminanceExponential(float4 color, float attenuation) {
+float4 adjustLuminanceExponential(float4 color, float attenuation) {
     float luminance = dot(color.rgb, float3(0.2126, 0.7152, 0.0722));
 
     if (luminance < 1e-6) {
@@ -73,37 +73,37 @@ float4 AdjustLuminanceExponential(float4 color, float attenuation) {
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
-void MainCS(uint3 id: SV_DispatchThreadID) {
+void mainCS(uint3 id: SV_DispatchThreadID) {
     uint2 pos = id.xy;
 
     float4 colors[8] = {
-        _pass._frontBuffer[id.xy + int2(1, 0)],
-        _pass._frontBuffer[id.xy + int2(-1, 0)],
-        _pass._frontBuffer[id.xy + int2(0, 1)],
-        _pass._frontBuffer[id.xy + int2(0, -1)],
-        _pass._frontBuffer[id.xy + int2(1, 1)],
-        _pass._frontBuffer[id.xy + int2(-1, 1)],
-        _pass._frontBuffer[id.xy + int2(1, -1)],
-        _pass._frontBuffer[id.xy + int2(-1, -1)],
+        pass.frontBuffer[id.xy + int2(1, 0)],
+        pass.frontBuffer[id.xy + int2(-1, 0)],
+        pass.frontBuffer[id.xy + int2(0, 1)],
+        pass.frontBuffer[id.xy + int2(0, -1)],
+        pass.frontBuffer[id.xy + int2(1, 1)],
+        pass.frontBuffer[id.xy + int2(-1, 1)],
+        pass.frontBuffer[id.xy + int2(1, -1)],
+        pass.frontBuffer[id.xy + int2(-1, -1)],
     };
 
     float attenuationSide = constants.attenuationSide;
     float attenuationCorner = constants.attenuationCorner;
 
-    float4 color = _pass._frontBuffer[id.xy];
-    color = max(color, AdjustLuminanceExponential(colors[0], attenuationSide));
-    color = max(color, AdjustLuminanceExponential(colors[1], attenuationSide));
-    color = max(color, AdjustLuminanceExponential(colors[2], attenuationSide));
-    color = max(color, AdjustLuminanceExponential(colors[3], attenuationSide));
-    color = max(color, AdjustLuminanceExponential(colors[4], attenuationCorner));
-    color = max(color, AdjustLuminanceExponential(colors[5], attenuationCorner));
-    color = max(color, AdjustLuminanceExponential(colors[6], attenuationCorner));
-    color = max(color, AdjustLuminanceExponential(colors[7], attenuationCorner));
+    float4 color = pass.frontBuffer[id.xy];
+    color = max(color, adjustLuminanceExponential(colors[0], attenuationSide));
+    color = max(color, adjustLuminanceExponential(colors[1], attenuationSide));
+    color = max(color, adjustLuminanceExponential(colors[2], attenuationSide));
+    color = max(color, adjustLuminanceExponential(colors[3], attenuationSide));
+    color = max(color, adjustLuminanceExponential(colors[4], attenuationCorner));
+    color = max(color, adjustLuminanceExponential(colors[5], attenuationCorner));
+    color = max(color, adjustLuminanceExponential(colors[6], attenuationCorner));
+    color = max(color, adjustLuminanceExponential(colors[7], attenuationCorner));
 
-    float4 opacity = _opacityMap._opacityMap[id.xy];
+    float4 opacity = opacityMap.opacityMap[id.xy];
     color = color * opacity;
 
-    _backBuffer._backBuffer[id.xy] = color * GetLightPassingFactor(id.xy);
+    backBuffer.backBuffer[id.xy] = color * getLightPassingFactor(id.xy);
 }
 
 

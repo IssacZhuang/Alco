@@ -30,61 +30,61 @@ public struct PointLightData
     float4 positionRange;    // xyz = world-space position, w = cutoff radius
     float4 colorIntensity;   // rgb = linear color, a = intensity (0 disables)
 };
-// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it
+// alco_world3d_voxel_common declares data; this pass's ParameterBlock follows it
 // in declaration order.
 public struct PassParams
 {
-    public RWStructuredBuffer<uint4> _attrStatic;
-    public RWStructuredBuffer<uint4> _attrDynamic;
-    public DepthTexture2D _shadowMap;
+    public RWStructuredBuffer<uint4> attrStatic;
+    public RWStructuredBuffer<uint4> attrDynamic;
+    public DepthTexture2D shadowMap;
 // Combined page table: x=static page entry, y=dynamic page entry. Merging the
 // two pools into one buffer frees a binding for the brick list.
-    public RWStructuredBuffer<uint2> _pageTable;
-    public RWStructuredBuffer<uint4> _brickList;
+    public RWStructuredBuffer<uint2> pageTable;
+    public RWStructuredBuffer<uint4> brickList;
 
 // Point lights shared with the deferred lighting pass (same StructuredBuffer).
-    public RWStructuredBuffer<PointLightData> _pointLights;
-    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
-    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
+    public RWStructuredBuffer<PointLightData> pointLights;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> radianceOut;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> opacityOut;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 [[vk::push_constant]] VoxelInjectConstants constants;
 
 // Read the occupancy flag of one voxel from the merged attribute buffers.
-bool IsVoxelOccupied(uint3 logicalCoord, uint resolution, int level)
+bool isVoxelOccupied(uint3 logicalCoord, uint resolution, int level)
 {
-    uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, level);
-    uint2 pages = _pass._pageTable[pageSlot];
+    uint pageSlot = voxelPageTableSlot(logicalCoord, resolution, level);
+    uint2 pages = pass.pageTable[pageSlot];
     uint4 attr = uint4(0u, 0u, 0u, 0u);
     if (pages.y != 0u)
     {
-        attr = _pass._attrDynamic[VoxelAttributeIndex(pages.y, logicalCoord)];
+        attr = pass.attrDynamic[voxelAttributeIndex(pages.y, logicalCoord)];
     }
-    if (!VoxelAttrOccupied(attr))
+    if (!voxelAttrOccupied(attr))
     {
         if (pages.x != 0u)
         {
-            attr = _pass._attrStatic[VoxelAttributeIndex(pages.x, logicalCoord)];
+            attr = pass.attrStatic[voxelAttributeIndex(pages.x, logicalCoord)];
         }
     }
-    return VoxelAttrOccupied(attr);
+    return voxelAttrOccupied(attr);
 }
 
 // Cone march along the sun direction through the voxel grid, accumulating
 // occlusion. The cone traces up to 63 m; here we march through the
 // clipmap's attribute buffers (the opacity volume isn't built yet at inject
 // time). Used for voxels beyond the CSM shadow range.
-float TraceVoxelSunCone(float3 worldPosition, float3 sunDir, float voxelSize,
+float traceVoxelSunCone(float3 worldPosition, float3 sunDir, float voxelSize,
     float4 originAndSize, uint resolution, int level)
 {
     float3 origin = originAndSize.xyz;
     float extent = originAndSize.w * resolution;
     float alpha = 0.0;
     float t = voxelSize * 2.0;
-    float maxDistance = min(63.0, _data.traceMaxDistance);
+    float maxDistance = min(63.0, data.traceMaxDistance);
 
     [loop]
     for (int step = 0; step < 24 && t <= maxDistance && alpha < 0.99; step++)
@@ -96,7 +96,7 @@ float TraceVoxelSunCone(float3 worldPosition, float3 sunDir, float voxelSize,
             break;
         }
         uint3 coord = (uint3)floor(relative / voxelSize);
-        if (IsVoxelOccupied(coord, resolution, level))
+        if (isVoxelOccupied(coord, resolution, level))
         {
             alpha += (1.0 - alpha) * 0.35;
         }
@@ -107,25 +107,25 @@ float TraceVoxelSunCone(float3 worldPosition, float3 sunDir, float voxelSize,
 
 // Sun shadow for a voxel: CSM when inside the cascade range; cone march
 // through the voxel grid when beyond it.
-float SampleSunShadowVoxel(float3 worldPosition, float3 N, float voxelSize,
+float sampleSunShadowVoxel(float3 worldPosition, float3 n, float voxelSize,
     float4 originAndSize, uint resolution, int level)
 {
-    float viewDistance = length(worldPosition - _data.cameraPosition.xyz);
+    float viewDistance = length(worldPosition - data.cameraPosition.xyz);
     int cascade = -1;
-    if (viewDistance < _data.cascadeSplits.x) cascade = 0;
-    else if (viewDistance < _data.cascadeSplits.y) cascade = 1;
-    else if (viewDistance < _data.cascadeSplits.z) cascade = 2;
-    else if (viewDistance < _data.cascadeSplits.w) cascade = 3;
+    if (viewDistance < data.cascadeSplits.x) cascade = 0;
+    else if (viewDistance < data.cascadeSplits.y) cascade = 1;
+    else if (viewDistance < data.cascadeSplits.z) cascade = 2;
+    else if (viewDistance < data.cascadeSplits.w) cascade = 3;
     if (cascade < 0)
     {
         // Beyond CSM range: cone march along the sun direction through the
         // voxel grid (cone-traced sun shadow).
-        float3 sunDir = normalize(-_data.sunDirection.xyz);
-        return TraceVoxelSunCone(worldPosition, sunDir, voxelSize, originAndSize, resolution, level);
+        float3 sunDir = normalize(-data.sunDirection.xyz);
+        return traceVoxelSunCone(worldPosition, sunDir, voxelSize, originAndSize, resolution, level);
     }
 
-    float3 biasedWorld = worldPosition + N * (_data.cascadeTexelSizes[cascade] + voxelSize * 0.5);
-    float4 clip = mul(_data.sunViewProjection[cascade], float4(biasedWorld, 1.0));
+    float3 biasedWorld = worldPosition + n * (data.cascadeTexelSizes[cascade] + voxelSize * 0.5);
+    float4 clip = mul(data.sunViewProjection[cascade], float4(biasedWorld, 1.0));
     float3 ndc = clip.xyz / clip.w;
     if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
     {
@@ -134,19 +134,19 @@ float SampleSunShadowVoxel(float3 worldPosition, float3 N, float voxelSize,
 
     float2 quadrantOffset = float2((cascade % 2) * 0.5, (cascade / 2) * 0.5);
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
-    float2 quadrantMin = quadrantOffset + 0.25 / _data.shadowMapSize;
-    float2 quadrantMax = quadrantOffset + 0.5 - 0.25 / _data.shadowMapSize;
+    float2 quadrantMin = quadrantOffset + 0.25 / data.shadowMapSize;
+    float2 quadrantMax = quadrantOffset + 0.5 - 0.25 / data.shadowMapSize;
     shadowUV = clamp(shadowUV, quadrantMin, quadrantMax);
 
-    float NdotL = saturate(dot(N, normalize(-_data.sunDirection.xyz)));
-    float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
-    return _pass._shadowMap.SampleCmpLevelZero(_samplers._depthComparison, shadowUV, ndc.z - bias);
+    float ndotL = saturate(dot(n, normalize(-data.sunDirection.xyz)));
+    float bias = 0.0003 + 0.0015 * (1.0 - ndotL);
+    return pass.shadowMap.SampleCmpLevelZero(samplers.depthComparison, shadowUV, ndc.z - bias);
 }
 
 // Upward visibility through the voxel grid: open sky above means the voxel is
 // sky-lit; each occupied voxel overhead dims it. Gives interiors a dark sky
 // term without an extra data structure.
-float SampleSkyVisibility(float3 worldPosition, float4 originAndSize, uint resolution, int level)
+float sampleSkyVisibility(float3 worldPosition, float4 originAndSize, uint resolution, int level)
 {
     float voxelSize = originAndSize.w;
     float visibility = 1.0;
@@ -160,7 +160,7 @@ float SampleSkyVisibility(float3 worldPosition, float4 originAndSize, uint resol
         {
             break;
         }
-        if (IsVoxelOccupied((uint3)coord, resolution, level))
+        if (isVoxelOccupied((uint3)coord, resolution, level))
         {
             visibility *= 0.25;
         }
@@ -170,50 +170,50 @@ float SampleSkyVisibility(float3 worldPosition, float4 originAndSize, uint resol
 
 [shader("compute")]
 [numthreads(4, 4, 4)]
-void MainCS(uint3 dispatchId : SV_DispatchThreadID)
+void mainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
-    uint resolution = VoxelResolution();
+    uint resolution = voxelResolution();
     int level = (int)constants.params.x;
     uint brickIndex = dispatchId.z / VOXEL_BRICK_SIZE;
     uint localZ = dispatchId.z % VOXEL_BRICK_SIZE;
-    uint3 logicalCoord = _pass._brickList[brickIndex].xyz * VOXEL_BRICK_SIZE
+    uint3 logicalCoord = pass.brickList[brickIndex].xyz * VOXEL_BRICK_SIZE
         + uint3(dispatchId.x, dispatchId.y, localZ);
     if (any(logicalCoord >= resolution))
     {
         return;
     }
 
-    float4 originAndSize = _data.levelOrigins[level];
+    float4 originAndSize = data.levelOrigins[level];
     float voxelSize = originAndSize.w;
-    uint pageSlot = VoxelPageTableSlot(logicalCoord, resolution, level);
+    uint pageSlot = voxelPageTableSlot(logicalCoord, resolution, level);
     // All levels share one radiance Texture3D; this level's slab starts at its
     // depth slice (mip 0 view bound, full resolution).
     uint3 storeCoord = uint3(logicalCoord.x, logicalCoord.y, (uint)level * resolution + logicalCoord.z);
 
-    uint2 pages = _pass._pageTable[pageSlot];
+    uint2 pages = pass.pageTable[pageSlot];
     uint4 attr = uint4(0u, 0u, 0u, 0u);
     if (pages.y != 0u)
     {
-        attr = _pass._attrDynamic[VoxelAttributeIndex(pages.y, logicalCoord)];
+        attr = pass.attrDynamic[voxelAttributeIndex(pages.y, logicalCoord)];
     }
-    if (!VoxelAttrOccupied(attr))
+    if (!voxelAttrOccupied(attr))
     {
         if (pages.x != 0u)
         {
-            attr = _pass._attrStatic[VoxelAttributeIndex(pages.x, logicalCoord)];
+            attr = pass.attrStatic[voxelAttributeIndex(pages.x, logicalCoord)];
         }
     }
-    if (!VoxelAttrOccupied(attr))
+    if (!voxelAttrOccupied(attr))
     {
-        _pass._radianceOut[storeCoord] = float4(0.0, 0.0, 0.0, 0.0);
-        _pass._opacityOut[storeCoord] = float4(0.0, 0.0, 0.0, 0.0);
+        pass.radianceOut[storeCoord] = float4(0.0, 0.0, 0.0, 0.0);
+        pass.opacityOut[storeCoord] = float4(0.0, 0.0, 0.0, 0.0);
         return;
     }
 
     float3 albedo;
     float3 normal;
     float emissiveQ;
-    UnpackVoxelAttr(attr, albedo, normal, emissiveQ);
+    unpackVoxelAttr(attr, albedo, normal, emissiveQ);
     normal = dot(normal, normal) > 1e-6 ? normalize(normal) : float3(0.0, 0.0, 1.0);
 
     float3 worldPosition = originAndSize.xyz + (float3(logicalCoord) + 0.5) * voxelSize;
@@ -229,19 +229,19 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 direct = 0.0;
 
     // Sun (with CSM shadow). The 1/PI matches the direct pass's diffuse BRDF.
-    float3 L = normalize(-_data.sunDirection.xyz);
-    float NdotL = max(dot(normal, L), 0.0);
-    float shadow = _data.shadowEnabled ? SampleSunShadowVoxel(worldPosition, normal, voxelSize, originAndSize, resolution, level) : 1.0;
-    direct += _data.sunColorAndIntensity.rgb * _data.sunColorAndIntensity.w * (NdotL / PI) * shadow;
+    float3 l = normalize(-data.sunDirection.xyz);
+    float ndotL = max(dot(normal, l), 0.0);
+    float shadow = data.shadowEnabled ? sampleSunShadowVoxel(worldPosition, normal, voxelSize, originAndSize, resolution, level) : 1.0;
+    direct += data.sunColorAndIntensity.rgb * data.sunColorAndIntensity.w * (ndotL / PI) * shadow;
 
     // Point lights (unshadowed, StructuredBuffer with per-light range).
     {
-        uint lightCount = (uint)_data.numPointLights;
+        uint lightCount = (uint)data.numPointLights;
         [loop]
         for (uint i = 0; i < lightCount; i++)
         {
-            float4 posRange = _pass._pointLights[i].positionRange;
-            float4 colInt   = _pass._pointLights[i].colorIntensity;
+            float4 posRange = pass.pointLights[i].positionRange;
+            float4 colInt   = pass.pointLights[i].colorIntensity;
             if (colInt.w <= 0.0)
             {
                 continue;
@@ -265,18 +265,18 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     // DiffuseBias injection: bake a minimum sky ambient into every occupied
     // voxel so shadowed surfaces still have non-zero radiance.
-    // _data.giDiffuseBias = DiffuseBias (default 0.05).
-    direct += _data.giDiffuseBias * _data.skyZenithColor.rgb * _data.giSkyIntensity;
+    // data.giDiffuseBias = DiffuseBias (default 0.05).
+    direct += data.giDiffuseBias * data.skyZenithColor.rgb * data.giSkyIntensity;
 
     // Emissive: albedo-tinted, intensity recovered from the quantized value.
-    float3 emissive = albedo * emissiveQ * 8.0 * _data.emissiveScale;
+    float3 emissive = albedo * emissiveQ * 8.0 * data.emissiveScale;
 
     // Store exiting surface radiance = albedo × (direct irradiance) + emissive.
     float3 radiance = albedo * direct + emissive;
-    _pass._radianceOut[storeCoord] = float4(radiance, 1.0);
+    pass.radianceOut[storeCoord] = float4(radiance, 1.0);
 
     // Directional opacity: the surface is opaque along the normal axis and
     // transparent along the other two. Stored as xyz = |normal components|
     // so a cone ray projects it via dot(opacity.xyz, abs(rayDir)).
-    _pass._opacityOut[storeCoord] = float4(abs(normal), 1.0);
+    pass.opacityOut[storeCoord] = float4(abs(normal), 1.0);
 }

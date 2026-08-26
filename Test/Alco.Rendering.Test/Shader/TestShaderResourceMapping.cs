@@ -20,32 +20,32 @@ public class TestShaderResourceMapping
     private const string PackedShader = """
         module packed_shader;
 
-        cbuffer _data : register(b0, space0)
+        cbuffer data : register(b0, space0)
         {
             float4 value;
-            Texture2D _albedo;
+            Texture2D albedo;
         };
 
-        cbuffer _albedoSampler : register(b0, space1)
+        cbuffer albedoSampler : register(b0, space1)
         {
-            SamplerState _albedoSampler;
+            SamplerState albedoSampler;
         };
 
-        cbuffer _buffer : register(b0, space2)
+        cbuffer buffer : register(b0, space2)
         {
-            RWStructuredBuffer<float> _buffer;
+            RWStructuredBuffer<float> buffer;
         };
 
-        cbuffer _storage : register(b0, space3)
+        cbuffer storage : register(b0, space3)
         {
-            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _storage;
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> storage;
         };
 
         [shader("compute")]
         [numthreads(1, 1, 1)]
         void MainCS(uint3 id : SV_DispatchThreadID)
         {
-            _storage[id.xy] = _albedo.SampleLevel(_albedoSampler, float2(0, 0), 0) + value + _buffer[0];
+            storage[id.xy] = albedo.SampleLevel(albedoSampler, float2(0, 0), 0) + value + buffer[0];
         }
         """;
 
@@ -62,13 +62,13 @@ public class TestShaderResourceMapping
         Assert.That(info.ResourceCount, Is.EqualTo(4));
 
         // Sampler companions are not settable resources.
-        Assert.IsFalse(info.TryGetResourceId("_albedoSampler", out _));
+        Assert.IsFalse(info.TryGetResourceId("albedoSampler", out _));
 
         // Id and name lookups agree with the resource locations.
-        AssertResource(info, 0, "_data", 0, 0, BindingType.UniformBuffer);
-        AssertResource(info, 1, "_albedo", 0, 1, BindingType.Texture);
-        AssertResource(info, 2, "_buffer", 2, 0, BindingType.StorageBuffer);
-        AssertResource(info, 3, "_storage", 3, 0, BindingType.StorageTexture);
+        AssertResource(info, 0, "data", 0, 0, BindingType.UniformBuffer);
+        AssertResource(info, 1, "albedo", 0, 1, BindingType.Texture);
+        AssertResource(info, 2, "buffer", 2, 0, BindingType.StorageBuffer);
+        AssertResource(info, 3, "storage", 3, 0, BindingType.StorageTexture);
     }
 
     private static void AssertResource(ShaderReflection info, uint id, string name, int group, uint binding, BindingType type)

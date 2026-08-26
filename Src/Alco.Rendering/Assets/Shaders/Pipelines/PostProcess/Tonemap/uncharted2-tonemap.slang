@@ -1,6 +1,6 @@
 // file "uncharted2-tonemap.slang" - module "uncharted2_tonemap"
 //
-// Slang module converted from Shaders/Pipelines/PostProcess/Tonemap/Uncharted2Tonemap.hlsl (Phase 2 migration).
+// Slang module converted from Shaders/Pipelines/PostProcess/Tonemap/uncharted2Tonemap.hlsl (Phase 2 migration).
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 
@@ -11,28 +11,28 @@ import alco_rendering_core;
 
 public struct PassParams
 {
-    public Texture2D _texture; // should be HDR image
+    public Texture2D texture; // should be HDR image
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 public struct DataParams
 {
-    public float A;
-    public float B;
-    public float C;
-    public float D;
-    public float E;
-    public float F;
-    public float W;
-    public float Exposure;
-    public float Gamma;
+    public float a;
+    public float b;
+    public float c;
+    public float d;
+    public float e;
+    public float f;
+    public float w;
+    public float exposure;
+    public float gamma;
 };
 
-public ParameterBlock<DataParams> _data;
+public ParameterBlock<DataParams> data;
 
 
-float3 Uncharted2Tonemap(float3 x) {
-    return ((x*(_data.A*x+_data.C*_data.B)+_data.D*_data.E)/(x*(_data.A*x+_data.B)+_data.D*_data.F)) - _data.E/_data.F;
+float3 uncharted2Tonemap(float3 x) {
+    return ((x*(data.a*x+data.c*data.b)+data.d*data.e)/(x*(data.a*x+data.b)+data.d*data.f)) - data.e/data.f;
 }
 
 
@@ -56,16 +56,16 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-    float3 hdrColor = max(0, _pass._texture.Sample(_samplers._linearClamp, input.uv).rgb);
-    float3 ldrColor = Uncharted2Tonemap(hdrColor * _data.Exposure);
+    float3 hdrColor = max(0, pass.texture.Sample(samplers.linearClamp, input.uv).rgb);
+    float3 ldrColor = uncharted2Tonemap(hdrColor * data.exposure);
 
     //white scale
-    float3 whiteScale = 1.0 / Uncharted2Tonemap(_data.W);
+    float3 whiteScale = 1.0 / uncharted2Tonemap(data.w);
     ldrColor *= whiteScale;
 
     //gamma correction
-    ldrColor = pow(ldrColor, 1.0 / _data.Gamma);
-    ldrColor += OutputDither8Bit(input.position.xy);
+    ldrColor = pow(ldrColor, 1.0 / data.gamma);
+    ldrColor += outputDither8Bit(input.position.xy);
 
     float4 color = float4(ldrColor, 1.0);
     return color;

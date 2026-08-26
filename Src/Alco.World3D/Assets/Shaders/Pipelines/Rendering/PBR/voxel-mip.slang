@@ -29,26 +29,26 @@ struct VoxelMipConstants
     float4 params; // x=mipIndex, yzw=unused (level derived from dispatch z)
 };
 
-// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it in
+// alco_world3d_voxel_common declares data; this pass's ParameterBlock follows it in
 // declaration order.
 public struct PassParams
 {
-    public Texture3D _radianceLoad;
-    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _radianceOut;
-    public Texture3D _opacityLoad;
-    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _opacityOut;
+    public Texture3D radianceLoad;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> radianceOut;
+    public Texture3D opacityLoad;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> opacityOut;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 [[vk::push_constant]] VoxelMipConstants constants;
 
 [shader("compute")]
 [numthreads(4, 4, 4)]
-void MainCS(uint3 dispatchId : SV_DispatchThreadID)
+void mainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
-    uint resolution = VoxelResolution();
+    uint resolution = voxelResolution();
     uint mip = (uint)constants.params.x;
     uint srcRes = max(resolution >> mip, 1u);
     uint dstRes = max(resolution >> (mip + 1u), 1u);
@@ -79,12 +79,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             {
                 uint3 coord = min(uint3(dispatchId.x * 2 + dx, dispatchId.y * 2 + dy, zTexel * 2 + dz), srcRes - 1);
                 uint3 loadCoord = uint3(coord.x, coord.y, level * srcRes + coord.z);
-                float4 radSample = _pass._radianceLoad.Load(int4(loadCoord, 0));
+                float4 radSample = pass.radianceLoad.Load(int4(loadCoord, 0));
                 radianceSum += radSample.rgb * radSample.a;
                 radianceWeight += radSample.a;
                 occupancySum += radSample.a;
 
-                float4 opaSample = _pass._opacityLoad.Load(int4(loadCoord, 0));
+                float4 opaSample = pass.opacityLoad.Load(int4(loadCoord, 0));
                 opacityChildren[dx + dy * 2u + dz * 4u] = opaSample.xyz;
                 opacityCoverageSum += opaSample.a;
             }
@@ -93,7 +93,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     uint3 storeCoord = uint3(dispatchId.x, dispatchId.y, level * dstRes + zTexel);
     float3 radiance = radianceWeight > 0.0 ? radianceSum / radianceWeight : 0.0;
-    _pass._radianceOut[storeCoord] = float4(radiance, occupancySum / 8.0);
+    pass.radianceOut[storeCoord] = float4(radiance, occupancySum / 8.0);
 
     // Preserve volume coverage at coarse mips. Dividing by only the occupied
     // children makes a single thin surface fully opaque at every mip and causes
@@ -119,5 +119,5 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
         }
     }
     float3 projectedOpacity = float3(opacityX, opacityY, opacityZ) * 0.25;
-    _pass._opacityOut[storeCoord] = float4(projectedOpacity, opacityCoverageSum / 8.0);
+    pass.opacityOut[storeCoord] = float4(projectedOpacity, opacityCoverageSum / 8.0);
 }

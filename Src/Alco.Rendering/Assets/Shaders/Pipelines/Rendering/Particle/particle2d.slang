@@ -39,27 +39,27 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 
 public struct MaterialParamsData
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 public struct ParticlesParams
 {
-    public RWStructuredBuffer<ParticleData2D> _particles;
+    public RWStructuredBuffer<ParticleData2D> particles;
 };
 
-public ParameterBlock<ParticlesParams> _particles;
+public ParameterBlock<ParticlesParams> particles;
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
-    ParticleData2D particle = _particles._particles[input.instanceID];
+    ParticleData2D particle = particles.particles[input.instanceID];
     
     float3 position = input.position;
     position.xy *= particle.transform.scale;
@@ -69,7 +69,7 @@ V2F MainVS(Vertex input) {
     position.xy += particle.transform.position;
 
     //  apply camera transform
-    output.position = mul(_camera.viewProjection, float4(position, 1.0));
+    output.position = mul(camera.viewProjection, float4(position, 1.0));
     
     // Pass UV coordinates and instance ID
     output.uv = input.uv;
@@ -83,7 +83,7 @@ V2F MainVS(Vertex input) {
 float4 MainPS(V2F input) : SV_TARGET {
     
     // Sample texture
-    float4 texColor = _material._texture.Sample(_samplers._linearRepeat, input.uv);
+    float4 texColor = material.texture.Sample(samplers.linearRepeat, input.uv);
     
     // Multiply texture color with particle color
     float4 finalColor = texColor * input.color;

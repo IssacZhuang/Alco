@@ -41,33 +41,33 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 
 public struct TextBufferParams
 {
-    public RWStructuredBuffer<TextData> _textBuffer;
+    public RWStructuredBuffer<TextData> textBuffer;
 };
 
-public ParameterBlock<TextBufferParams> _textBuffer;
+public ParameterBlock<TextBufferParams> textBuffer;
 
 public struct MaterialParamsData
 {
-    public Texture2D _font;
+    public Texture2D font;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 [[vk::push_constant]] Constants constants;
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
-  TextData data = _textBuffer._textBuffer[input.instanceID];
+  TextData data = textBuffer.textBuffer[input.instanceID];
   float3 vertexPos = input.position * float3(data.size, 1.0f);
   float3 offset = float3(data.offset + constants.vertexOffset, 0.0f);
   float4 position = float4(vertexPos + offset, 1.0f);
   position = mul(constants.model, position);
-  position = mul(_camera.viewProjection, position);
+  position = mul(camera.viewProjection, position);
 
   V2F output = (V2F)0;
   output.position = position;
@@ -78,13 +78,13 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  TextData data = _textBuffer._textBuffer[input.instanceID];
+  TextData data = textBuffer.textBuffer[input.instanceID];
   float2 uv = input.uv * data.uvRect.zw + data.uvRect.xy;
-  float r = _material._font.Sample(_samplers._linearRepeat, uv).r;
+  float r = material.font.Sample(samplers.linearRepeat, uv).r;
   // Emit premultiplied alpha for BlendState.PremultipliedAlpha (src=One, dst=OneMinusSrcAlpha).
   // Glyph coverage (r) is the geometric alpha; multiplying it with data.color.a gives the final
-  // alpha, then RGB is premultiplied by that alpha. This zeroes both RGB and A when the parent
-  // opacity is 0 (e.g. XP notification fade-out), instead of leaking RGB through a zero alpha.
+  // alpha, then rgb is premultiplied by that alpha. This zeroes both rgb and A when the parent
+  // opacity is 0 (e.g. XP notification fade-out), instead of leaking rgb through a zero alpha.
   float a = r * data.color.a;
   return float4(data.color.rgb * a, a);
 }

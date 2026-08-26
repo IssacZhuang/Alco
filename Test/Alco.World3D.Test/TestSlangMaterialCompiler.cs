@@ -83,8 +83,8 @@ public class TestSlangMaterialCompiler
             Assert.That(info.BindGroups.Count, Is.EqualTo(4));
             foreach (string name in new[]
                      {
-                         "_camera", "_instances", "_albedoTexture", "_normalTexture",
-                         "_metallicRoughnessTexture", "_emissiveTexture",
+                         "camera", "instances", "albedoTexture", "normalTexture",
+                         "metallicRoughnessTexture", "emissiveTexture",
                      })
             {
                 Assert.That(info.TryGetResourceLocation(name, out _), Is.True, $"Missing {name}");
@@ -110,19 +110,19 @@ public class TestSlangMaterialCompiler
 
         Assert.Multiple(() =>
         {
-            AssertResource(info, "_camera", 0, 0, BindingType.UniformBuffer);
-            AssertResource(info, "_instances", 1, 0, BindingType.StorageBuffer);
-            AssertResource(info, "_globalRenderData", 2, 0, BindingType.UniformBuffer);
-            AssertResource(info, "PulseParams", 3, 0, BindingType.UniformBuffer);
-            AssertResource(info, "_albedoTexture", 3, 1, BindingType.Texture);
-            AssertResource(info, "_normalTexture", 3, 2, BindingType.Texture);
-            AssertResource(info, "_metallicRoughnessTexture", 3, 3, BindingType.Texture);
+            AssertResource(info, "camera", 0, 0, BindingType.UniformBuffer);
+            AssertResource(info, "instances", 1, 0, BindingType.StorageBuffer);
+            AssertResource(info, "globalRenderData", 2, 0, BindingType.UniformBuffer);
+            AssertResource(info, "pulseParams", 3, 0, BindingType.UniformBuffer);
+            AssertResource(info, "albedoTexture", 3, 1, BindingType.Texture);
+            AssertResource(info, "normalTexture", 3, 2, BindingType.Texture);
+            AssertResource(info, "metallicRoughnessTexture", 3, 3, BindingType.Texture);
 
             // Samplers come from the shared bank (the _samplers block of
             // alco_rendering_core): the whole bank reflects as its own set and
             // every member resolves by name from the SharedSamplers.
-            AssertLayoutEntry(info, "_linearRepeat", 4, 1, BindingType.Sampler);
-            AssertLayoutEntry(info, "_depthComparison", 4, 8, BindingType.SamplerComparison);
+            AssertLayoutEntry(info, "linearRepeat", 4, 1, BindingType.Sampler);
+            AssertLayoutEntry(info, "depthComparison", 4, 8, BindingType.SamplerComparison);
 
             // The vertex layout matches Alco.Rendering.VertexPBR exactly.
             Assert.That(info.VertexLayouts.Count, Is.EqualTo(1));
@@ -145,8 +145,8 @@ public class TestSlangMaterialCompiler
             // data and stays out.
             IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
                 compiler.GetParamsLayouts(Library(engine, ParameterizedSurfaceModule));
-            Assert.That(layouts.Keys, Is.EqualTo(new[] { "PulseParams" }));
-            IReadOnlyList<ShaderUniformMember> members = layouts["PulseParams"];
+            Assert.That(layouts.Keys, Is.EqualTo(new[] { "pulseParams" }));
+            IReadOnlyList<ShaderUniformMember> members = layouts["pulseParams"];
             Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.ComponentCount)),
                 Is.EqualTo(new[]
                 {
@@ -185,8 +185,8 @@ public class TestSlangMaterialCompiler
             // The surface's explicit set-2 bindings stay in the layout across
             // specializations (specialization folds code, not explicit bindings),
             // so the binding side always sees the full surface resource set.
-            ShaderResourceLocation plainAlbedo = GetResource(plain.ReflectionInfo, "_albedoTexture");
-            ShaderResourceLocation cutoutAlbedo = GetResource(alphaTested.ReflectionInfo, "_albedoTexture");
+            ShaderResourceLocation plainAlbedo = GetResource(plain.ReflectionInfo, "albedoTexture");
+            ShaderResourceLocation cutoutAlbedo = GetResource(alphaTested.ReflectionInfo, "albedoTexture");
             Assert.That((cutoutAlbedo.GroupIndex, cutoutAlbedo.Binding),
                 Is.EqualTo((plainAlbedo.GroupIndex, plainAlbedo.Binding)),
                 "The albedo texture keeps its binding across specializations.");
@@ -232,14 +232,14 @@ public class TestSlangMaterialCompiler
         {
             Assert.That(gbuffer.GetMaterial(parameterized), Is.SameAs(material),
                 "The renderer's cache shares one material per asset.");
-            Assert.That(material.TryGetResourceId("PulseParams", out _), Is.True,
+            Assert.That(material.TryGetResourceId("pulseParams", out _), Is.True,
                 "The surface's parameter block binds by its (free) name.");
-            Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True,
+            Assert.That(material.TryGetResourceId("albedoTexture", out _), Is.True,
                 "The surface's textures bind by name.");
             Assert.That(material.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
                 "The template's camera binding survives.");
             Assert.That(material.TryGetResourceId(ShaderResourceId.GlobalRenderData, out _), Is.True,
-                "The surface's _globalRenderData declaration reaches the compiled shader.");
+                "The surface's globalRenderData declaration reaches the compiled shader.");
         });
 
         // Unknown parameter names fail loudly (typo in the asset).

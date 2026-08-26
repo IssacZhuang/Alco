@@ -25,10 +25,10 @@ public class TestRenderNodeFactory
     private const string FxaaModuleSource = """
         module test_fxaa;
 
-        cbuffer _pass : register(b0, space0)
+        cbuffer pass : register(b0, space0)
         {
-            Texture2D _texture;
-            SamplerState _linearClamp;
+            Texture2D texture;
+            SamplerState linearClamp;
         };
 
         struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
@@ -38,7 +38,7 @@ public class TestRenderNodeFactory
         V2F MainVS(Vertex input) { V2F o; o.position = float4(input.position, 1.0f); o.uv = input.uv; return o; }
 
         [shader("pixel")]
-        float4 MainPS(V2F input) : SV_TARGET { return _texture.Sample(_linearClamp, input.uv); }
+        float4 MainPS(V2F input) : SV_TARGET { return texture.Sample(linearClamp, input.uv); }
         """;
 
     private static JsonSerializerOptions CreateOptions(GameEngine engine)

@@ -39,22 +39,22 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 
 public struct MaterialParamsData
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 public struct ParticlesParams
 {
-    public RWStructuredBuffer<ParticleData2D> _particles;
+    public RWStructuredBuffer<ParticleData2D> particles;
 };
 
-public ParameterBlock<ParticlesParams> _particles;
+public ParameterBlock<ParticlesParams> particles;
 
 public struct DataParams
 {
@@ -62,13 +62,13 @@ public struct DataParams
     public uint framePerColumn;
 };
 
-public ParameterBlock<DataParams> _data;
+public ParameterBlock<DataParams> data;
 
 
 [shader("vertex")] 
 V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
-    ParticleData2D particle = _particles._particles[input.instanceID];
+    ParticleData2D particle = particles.particles[input.instanceID];
 
     float3 position = input.position;
     position.xy *= particle.transform.scale;
@@ -78,10 +78,10 @@ V2F MainVS(Vertex input) {
     position.xy += particle.transform.position;
 
     //  apply camera transform
-    output.position = mul(_camera.viewProjection, float4(position, 1.0));
+    output.position = mul(camera.viewProjection, float4(position, 1.0));
 
-    uint framePerRow2 = max(_data.framePerRow, 1);
-    uint framePerColumn2 = max(_data.framePerColumn, 1);
+    uint framePerRow2 = max(data.framePerRow, 1);
+    uint framePerColumn2 = max(data.framePerColumn, 1);
 
     // Compute current frame index based on lifetime ratio
     float t = saturate(particle.lifetime / max(particle.duration, 1e-5));
@@ -107,7 +107,7 @@ V2F MainVS(Vertex input) {
 float4 MainPS(V2F input): SV_TARGET {
 
   // Sample texture
-  float4 texColor = _material._texture.Sample(_samplers._linearRepeat, input.uv);
+  float4 texColor = material.texture.Sample(samplers.linearRepeat, input.uv);
 
   // Multiply texture color with particle color
   float4 finalColor = texColor * input.color;

@@ -30,7 +30,7 @@ import alco_rendering_core;
 
 static const uint SSR_BLUE_NOISE_SIZE = 128u;
 
-uint SsrBlueNoiseHash(uint x, uint y, uint dimension)
+uint ssrBlueNoiseHash(uint x, uint y, uint dimension)
 {
     uint value = x * 0x9E3779B9u;
     value ^= y * 0x85EBCA6Bu;
@@ -70,7 +70,7 @@ float4 MainPS(V2F input) : SV_TARGET {
   [unroll]
   for (uint dimension = 0; dimension < 4; dimension++)
   {
-    uint center = SsrBlueNoiseHash(tile.x, tile.y, dimension);
+    uint center = ssrBlueNoiseHash(tile.x, tile.y, dimension);
     uint rank = 0;
     [unroll]
     for (int dy = -1; dy <= 1; dy++)
@@ -80,10 +80,10 @@ float4 MainPS(V2F input) : SV_TARGET {
       {
         int2 neighbor = (int2(tile) + int2(dx, dy) + (int)SSR_BLUE_NOISE_SIZE)
             % (int)SSR_BLUE_NOISE_SIZE;
-        rank += SsrBlueNoiseHash(neighbor.x, neighbor.y, dimension) < center;
+        rank += ssrBlueNoiseHash(neighbor.x, neighbor.y, dimension) < center;
       }
     }
-    uint subJitter = SsrBlueNoiseHash(tile.x, tile.y, dimension + 4u);
+    uint subJitter = ssrBlueNoiseHash(tile.x, tile.y, dimension + 4u);
     result[dimension] = (float(rank) + float(subJitter) * (1.0 / 16777216.0)) / 9.0;
   }
   return result;

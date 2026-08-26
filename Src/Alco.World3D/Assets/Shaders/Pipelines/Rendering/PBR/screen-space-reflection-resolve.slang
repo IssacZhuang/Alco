@@ -12,24 +12,24 @@ import alco_world3d_ssr_post_common;
 import alco_world3d_reversed_depth;
 import alco_rendering_core;
 
-// alco_world3d_ssr_post_common declares _ssrData; this pass's ParameterBlock follows
+// alco_world3d_ssr_post_common declares ssrData; this pass's ParameterBlock follows
 // it in declaration order.
 public struct PassParams
 {
-    public Texture2D _reflectionRaw;
-    public Texture2D _reflectionHistory;
-    public Texture2D _historyMetadata;
-    public Texture2D _normal;
-    public DepthTexture2D _gbufferDepth;
+    public Texture2D reflectionRaw;
+    public Texture2D reflectionHistory;
+    public Texture2D historyMetadata;
+    public Texture2D normal;
+    public DepthTexture2D gbufferDepth;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 [shader("vertex")]
 V2F MainVS(Vertex input)
 {
-    return SsrPostFullQuadVS(input);
+    return ssrPostFullQuadVS(input);
 }
 
 [shader("fragment")]
@@ -38,12 +38,12 @@ void MainPS(
     out float4 reflectionOut : SV_TARGET0,
     out float4 metadataOut : SV_TARGET1)
 {
-    float2 fullSize = float2(_ssrData.fullWidth, _ssrData.fullHeight);
-    float2 traceSize = float2(_ssrData.traceWidth, _ssrData.traceHeight);
+    float2 fullSize = float2(ssrData.fullWidth, ssrData.fullHeight);
+    float2 traceSize = float2(ssrData.traceWidth, ssrData.traceHeight);
     int2 centerPixel = clamp(
         int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
-    float centerDepth = GetPixelDepth2D(_pass._gbufferDepth, centerPixel);
-    if (IS_SKY_DEPTH(centerDepth))
+    float centerDepth = getPixelDepth2D(pass.gbufferDepth, centerPixel);
+    if (isSkyDepth(centerDepth))
     {
         reflectionOut = 0.0;
         metadataOut = 0.0;
@@ -51,11 +51,11 @@ void MainPS(
     }
 
     float3 centerNormal = normalize(
-        _pass._normal.Load(int3(centerPixel, 0)).xyz * 2.0 - 1.0);
+        pass.normal.Load(int3(centerPixel, 0)).xyz * 2.0 - 1.0);
     // Resolve and history share the trace grid, so input.uv must remain the
     // canonical receiver coordinate used by temporal reprojection.
-    float3 centerWorld = SsrPostReconstructWorldPosition(input.uv, centerDepth);
-    float centerDistance = length(centerWorld - _ssrData.ssrCameraPosition.xyz);
+    float3 centerWorld = ssrPostReconstructWorldPosition(input.uv, centerDepth);
+    float centerDistance = length(centerWorld - ssrData.ssrCameraPosition.xyz);
 
     // Bilateral 5x5 filter. Plane distance is used instead of full world-space
     // distance so neighbouring samples on a floor remain eligible at grazing
@@ -74,18 +74,18 @@ void MainPS(
         {
             float2 sampleUV = clamp(
                 input.uv + float2(x, y) * traceTexel, 0.0, 1.0);
-            float4 sampleReflection = _pass._reflectionRaw.Sample(_samplers._linearClamp, sampleUV);
+            float4 sampleReflection = pass.reflectionRaw.Sample(samplers.linearClamp, sampleUV);
             int2 samplePixel = clamp(
                 int2(sampleUV * fullSize), int2(0, 0), int2(fullSize) - 1);
-            float sampleDepth = GetPixelDepth2D(_pass._gbufferDepth, samplePixel);
-            if (IS_SKY_DEPTH(sampleDepth))
+            float sampleDepth = getPixelDepth2D(pass.gbufferDepth, samplePixel);
+            if (isSkyDepth(sampleDepth))
             {
                 continue;
             }
 
             float3 sampleNormal = normalize(
-                _pass._normal.Load(int3(samplePixel, 0)).xyz * 2.0 - 1.0);
-            float3 sampleWorld = SsrPostReconstructWorldPosition(
+                pass.normal.Load(int3(samplePixel, 0)).xyz * 2.0 - 1.0);
+            float3 sampleWorld = ssrPostReconstructWorldPosition(
                 sampleUV, sampleDepth);
             float normalWeight = pow(
                 saturate(dot(centerNormal, sampleNormal)), 24.0);
@@ -117,10 +117,10 @@ void MainPS(
     float historyMotion = 0.0;
     float4 history = 0.0;
     bool historyValid = false;
-    if (_ssrData.historyValid)
+    if (ssrData.historyValid)
     {
         float4 previousClip = mul(
-            _ssrData.ssrPreviousViewProjection, float4(centerWorld, 1.0));
+            ssrData.ssrPreviousViewProjection, float4(centerWorld, 1.0));
         if (previousClip.w > 0.0)
         {
             float3 previousNdc = previousClip.xyz / previousClip.w;
@@ -130,16 +130,16 @@ void MainPS(
             if (all(previousUV >= 0.0) && all(previousUV <= 1.0)
                 && previousNdc.z >= 0.0 && previousNdc.z <= 1.0)
             {
-                history = _pass._reflectionHistory.Sample(_samplers._linearClamp, previousUV);
-                float4 previousMetadata = _pass._historyMetadata.Sample(
-                    _samplers._linearClamp, previousUV);
-                float3 previousNormal = SsrPostDecodeNormal(
+                history = pass.reflectionHistory.Sample(samplers.linearClamp, previousUV);
+                float4 previousMetadata = pass.historyMetadata.Sample(
+                    samplers.linearClamp, previousUV);
+                float3 previousNormal = ssrPostDecodeNormal(
                     previousMetadata.xy);
                 // Metadata stores linear receiver distance. R16F preserves this
                 // far more accurately than non-linear NDC depth, whose half-float
                 // quantisation was invalidating history on distant surfaces.
                 float expectedPreviousDistance = length(
-                    centerWorld - _ssrData.ssrPreviousCameraPosition.xyz);
+                    centerWorld - ssrData.ssrPreviousCameraPosition.xyz);
                 float positionTolerance = 0.04
                     + expectedPreviousDistance * 0.005;
                 historyValid = previousMetadata.w > 0.5
@@ -152,8 +152,8 @@ void MainPS(
                     float receiverMotionPixels = length(
                         (previousUV - input.uv) * fullSize);
                     float cameraMotion = length(
-                        _ssrData.ssrCameraPosition.xyz
-                        - _ssrData.ssrPreviousCameraPosition.xyz);
+                        ssrData.ssrCameraPosition.xyz
+                        - ssrData.ssrPreviousCameraPosition.xyz);
                     historyMotion = saturate(
                         receiverMotionPixels * 0.15 + cameraMotion * 1.5);
                 }
@@ -203,5 +203,5 @@ void MainPS(
 
     reflectionOut = float4(max(color, 0.0), saturate(confidence));
     metadataOut = float4(
-        SsrPostEncodeNormal(centerNormal), centerDistance, nextSampleCount);
+        ssrPostEncodeNormal(centerNormal), centerDistance, nextSampleCount);
 }

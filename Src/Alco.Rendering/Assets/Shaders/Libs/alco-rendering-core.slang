@@ -32,7 +32,7 @@ public static const int ALCO_GROUP_DRAW = 3;     // per-draw instance data
 // block name, any number of blocks, scalar/vector float members may mix) in its
 // material set; the engine discovers the marked blocks from Slang reflection
 // and packs them from the material asset's parameter table. Unmarked blocks
-// (engine data such as _globalRenderData) are never treated as parameters.
+// (engine data such as globalRenderData) are never treated as parameters.
 
 [__AttributeUsage(_AttributeTargets.Var)]
 public struct MaterialParams {};
@@ -41,7 +41,7 @@ public struct MaterialParams {};
 // One ParameterBlock of engine-wide static samplers, bound by the rendering
 // system's SharedSamplers. Modules never declare per-texture sampler
 // companions; they sample through the bank member matching the intent:
-//   _texture.Sample(_samplers._linearClamp, uv)
+//   texture.Sample(samplers.linearClamp, uv)
 // A sampler entry is reflected into the bank group when the preceding binding
 // of its set is not a texture (see ShaderParameterSet). The bank is immutable
 // engine-wide state and never overridden; a module that needs a custom sampler
@@ -49,56 +49,56 @@ public struct MaterialParams {};
 
 public struct SamplerBankParams
 {
-    public SamplerState _linearClamp;
-    public SamplerState _linearRepeat;
-    public SamplerState _nearestClamp;
-    public SamplerState _nearestRepeat;
-    public SamplerState _linearMirrorRepeat;
-    public SamplerState _nearestMirrorRepeat;
-    public SamplerState _anisotropicClamp;
-    public SamplerState _anisotropicRepeat;
-    public SamplerComparisonState _depthComparison;
+    public SamplerState linearClamp;
+    public SamplerState linearRepeat;
+    public SamplerState nearestClamp;
+    public SamplerState nearestRepeat;
+    public SamplerState linearMirrorRepeat;
+    public SamplerState nearestMirrorRepeat;
+    public SamplerState anisotropicClamp;
+    public SamplerState anisotropicRepeat;
+    public SamplerComparisonState depthComparison;
 };
 
-public ParameterBlock<SamplerBankParams> _samplers;
+public ParameterBlock<SamplerBankParams> samplers;
 
 // ── sampling helpers (real sampler types; the name##Sampler macro retires) ──
 
-public float4 SampleTex2D(Texture2D textureName, SamplerState samplerState, float2 uv)
+public float4 sampleTex2D(Texture2D textureName, SamplerState samplerState, float2 uv)
 {
     return textureName.Sample(samplerState, uv);
 }
 
-public float4 SampleTex2DLevel(Texture2D textureName, SamplerState samplerState, float2 uv, float mip)
+public float4 sampleTex2DLevel(Texture2D textureName, SamplerState samplerState, float2 uv, float mip)
 {
     return textureName.SampleLevel(samplerState, uv, mip);
 }
 
-public float4 SampleTex3DLevel(Texture3D textureName, SamplerState samplerState, float3 uvw, float mip)
+public float4 sampleTex3DLevel(Texture3D textureName, SamplerState samplerState, float3 uvw, float mip)
 {
     return textureName.SampleLevel(samplerState, uvw, mip);
 }
 
-public float4 GetPixelTex2D(Texture2D textureName, int2 position)
+public float4 getPixelTex2D(Texture2D textureName, int2 position)
 {
     return textureName.Load(int3(position, 0));
 }
 
 // Native load from a depth texture. Slang reflects this as a depth-sampled
 // texture, so the renderer binds the actual framebuffer depth attachment.
-public float GetPixelDepth2D(DepthTexture2D textureName, int2 position)
+public float getPixelDepth2D(DepthTexture2D textureName, int2 position)
 {
     return textureName.Load(int3(position, 0));
 }
 
-public float4 LoadTex3D(Texture3D textureName, int3 coord, int mip)
+public float4 loadTex3D(Texture3D textureName, int3 coord, int mip)
 {
     return textureName.Load(int4(coord, mip));
 }
 
 // Hardware depth comparison (shadow map PCF): returns 1.0 when compareDepth is
 // behind the stored depth (lit), 0.0 otherwise, filtered by the sampler.
-public float SampleTex2DDepthCompare(
+public float sampleTex2DDepthCompare(
     Texture2D<float> textureName, SamplerComparisonState samplerState, float2 uv, float compareDepth)
 {
     return textureName.SampleCmpLevelZero(samplerState, uv, compareDepth);
@@ -110,7 +110,7 @@ public float SampleTex2DDepthCompare(
 // scaled to +/-1 code of an 8-bit UNORM target. Add it to the final LDR color
 // before the output is quantized to the swapchain to hide banding in dark
 // gradients.
-public float OutputDither8Bit(float2 pixelPos)
+public float outputDither8Bit(float2 pixelPos)
 {
     const float2 k = float2(0.06711056f, 0.00583715f);
     float r1 = frac(52.9829189f * frac(dot(pixelPos, k)));

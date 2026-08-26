@@ -596,7 +596,7 @@ Trace reads from the last-written radiance texture
   - `_radiance` (单 Texture3D) + `_propagateTemp` (单 mip Texture3D) → `_radiance[2]` (双完整 mip-chain Texture3D)
   - 移除 `_bounceApplyMaterial` 字段和构造函数 `bounceApplyShader` 参数
   - `BuildMipChains` 改为接收 `Texture3D radiance` 参数，每次在正确的纹理上构建 mip 链
-  - Render 方法中每个 bounce 动态切换 propagate 的读写绑定：`SetTexture("_radiance", read)` + `SetTexture3DStorage("_propagateOut", write, 0)`
+  - Render 方法中每个 bounce 动态切换 propagate 的读写绑定：`SetTexture("radiance", read)` + `SetTexture3DStorage("propagateOut", write, 0)`
   - Trace 在 bounce 循环结束后绑定到最后写入的纹理
 
 - **Shader 侧**：VoxelPropagate.hlsl 无算法修改，仅更新头部注释说明双缓冲方案。VoxelBounceApply.hlsl 不再使用（文件保留但已不被引用）。

@@ -1,13 +1,13 @@
 // file "alco-rendering-gaussian-blur.slang" - module "alco-rendering-gaussian-blur"
 //
-// Slang port of Shaders/Libs/GaussianBlur.hlsli: separable gaussian blur over
+// Slang port of Shaders/Libs/gaussianBlur.hlsli: separable gaussian blur over
 // an RW texture with weights from a kernel storage buffer.
 
 #language slang 2025
 module alco_rendering_gaussian_blur;
 
 // Helper function to get 1D index from 2D kernel position
-public uint GetGaussianKernelIndex(int x, int y, int2 kernelSize)
+public uint getGaussianKernelIndex(int x, int y, int2 kernelSize)
 {
     int halfKernelX = kernelSize.x / 2;
     int halfKernelY = kernelSize.y / 2;
@@ -24,7 +24,7 @@ public uint GetGaussianKernelIndex(int x, int y, int2 kernelSize)
 // pixelPos: The position of the pixel to blur
 // texSize: The dimensions of the texture
 // Returns: The blurred color value
-public float4 GaussianBlur(RWTexture2D<float4> inputTexture,
+public float4 gaussianBlur(RWTexture2D<float4> inputTexture,
                            RWStructuredBuffer<float> kernelData, int2 kernelSize,
                            float kernelSum, int2 pixelPos, int2 texSize)
 {
@@ -47,7 +47,7 @@ public float4 GaussianBlur(RWTexture2D<float4> inputTexture,
                                   clamp(pixelPos.y + y, 0, texSize.y - 1));
 
             // Get kernel weight for this sample
-            float kernelWeight = kernelData[GetGaussianKernelIndex(x, y, kernelSize)];
+            float kernelWeight = kernelData[getGaussianKernelIndex(x, y, kernelSize)];
 
             // Sample the texture and apply weight
             float4 sampleColor = inputTexture[samplePos];

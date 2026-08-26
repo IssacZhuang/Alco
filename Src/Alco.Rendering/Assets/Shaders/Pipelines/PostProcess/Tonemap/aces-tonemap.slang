@@ -11,29 +11,29 @@ import alco_rendering_core;
 
 public struct PassParams
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 public struct DataParams
 {
-    public float A; // 2.51 (default)
-    public float B; // 0.03
-    public float C; // 2.43
-    public float D; // 0.59
-    public float E; // 0.14
-    public float Exposure;
-    public float Gamma;
+    public float a; // 2.51 (default)
+    public float b; // 0.03
+    public float c; // 2.43
+    public float d; // 0.59
+    public float e; // 0.14
+    public float exposure;
+    public float gamma;
 };
 
-public ParameterBlock<DataParams> _data;
+public ParameterBlock<DataParams> data;
 
 
 struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
 struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
 
-float3 ACES(float3 x) {
-  return clamp((x * (_data.A * x + _data.B)) / (x * (_data.C * x + _data.D) + _data.E), 0.0, 1.0);
+float3 aces(float3 x) {
+  return clamp((x * (data.a * x + data.b)) / (x * (data.c * x + data.d) + data.e), 0.0, 1.0);
 }
 
 [shader("vertex")]
@@ -42,10 +42,10 @@ V2F MainVS(Vertex input){ V2F o=(V2F)0; o.position=float4(input.position,1); o.u
 [shader("fragment")]
 float4 MainPS(V2F input): SV_TARGET
 {
-    float3 v = _pass._texture.Sample(_samplers._linearClamp, input.uv).rgb * _data.Exposure;
-    float3 ldr = ACES(v);
-    ldr = pow(ldr, 1.0 / _data.Gamma);
-    ldr += OutputDither8Bit(input.position.xy);
+    float3 v = pass.texture.Sample(samplers.linearClamp, input.uv).rgb * data.exposure;
+    float3 ldr = aces(v);
+    ldr = pow(ldr, 1.0 / data.gamma);
+    ldr += outputDither8Bit(input.position.xy);
     return float4(ldr, 1.0);
 }
 

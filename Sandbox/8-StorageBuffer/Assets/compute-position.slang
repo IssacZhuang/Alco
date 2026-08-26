@@ -13,17 +13,17 @@ public struct PositionsParams
     public RWStructuredBuffer<float4> positions;
 };
 
-public ParameterBlock<PositionsParams> _positions;
+public ParameterBlock<PositionsParams> positions;
 
 public struct TimeParams
 {
     public float time;
 };
 
-public ParameterBlock<TimeParams> _time;
+public ParameterBlock<TimeParams> time;
 
 [shader("compute")]
 [numthreads(8, 1, 1)]
-void MainCS(uint3 id: SV_DispatchThreadID) {
-    _positions.positions[id.x] = float4(id.x, cos(_time.time + float(id.x)*0.1)*5, 0.0f, 1.0f);
+void mainCS(uint3 id: SV_DispatchThreadID) {
+    positions.positions[id.x] = float4(id.x, cos(time.time + float(id.x)*0.1)*5, 0.0f, 1.0f);
 }

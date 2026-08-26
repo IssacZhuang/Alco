@@ -45,8 +45,8 @@ public class Game : GameEngine
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _materialRenderer = RenderingSystem.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
-        _material.SetBuffer("_camera", _camera);
-        _material.SetRenderTexture("_texture", _atlas.RenderTexture);
+        _material.SetBuffer("camera", _camera);
+        _material.SetRenderTexture("texture", _atlas.RenderTexture);
     }
 
     /// <summary>

@@ -18,7 +18,7 @@ import alco_world3d_atmosphere;
 // resolution full-screen pass that ray-marches a cloud slab (Perlin-Worley
 // base shape reshaped by coverage + height gradient, Worley-detail erosion)
 // against the shared G-buffer depth, and outputs premultiplied HDR scattering
-// in RGB with opacity in A. VolumetricCloudsComposite.hlsl then upsamples the
+// in rgb with opacity in A. VolumetricCloudsComposite.hlsl then upsamples the
 // result depth-aware and blends it over the completed HDR scene color.
 //
 // Performance pillars:
@@ -37,8 +37,8 @@ import alco_world3d_atmosphere;
 // and redden naturally after the ground light has faded), and the ambient is
 // the CPU-filtered sky gradient (horizon at the slab base, zenith above).
 //
-// Quality knobs arrive as uniforms (no shader variants): the march step count
-// is capped by cloudFade.w-ish (see _cloudData below).
+// quality knobs arrive as uniforms (no shader variants): the march step count
+// is capped by cloudFade.w-ish (see cloudData below).
 
 struct Vertex
 {
@@ -82,10 +82,10 @@ public struct CloudDataParams
     public float  shadowExtentKm;       // shadow bake half extent in km
     public float2 shadowCenterKm;       // shadow bake window center (world xz, km)
 
-    public DepthTexture2D _gbufferDepth;
+    public DepthTexture2D gbufferDepth;
 };
 
-public ParameterBlock<CloudDataParams> _cloudData;
+public ParameterBlock<CloudDataParams> cloudData;
 
 
 
@@ -93,11 +93,11 @@ public ParameterBlock<CloudDataParams> _cloudData;
 // through the shared sampler bank's linear-repeat member.
 public struct CloudNoiseParams
 {
-    public Texture3D _cloudBaseNoise;
-    public Texture3D _cloudDetailNoise;
+    public Texture3D cloudBaseNoise;
+    public Texture3D cloudDetailNoise;
 };
 
-public ParameterBlock<CloudNoiseParams> _cloudNoise;
+public ParameterBlock<CloudNoiseParams> cloudNoise;
 
 
 // World periods of the noise textures (one texture repeat per period), km.
@@ -134,35 +134,35 @@ V2F MainVS(Vertex input)
 
 // Base-shape density (no detail erosion) at a cloud-slab position in km.
 // Cheap enough for empty-space gating and the sun light march.
-float CloudBaseDensity(float3 posKm, float bottomKm, float thicknessKm, float coverage)
+float cloudBaseDensity(float3 posKm, float bottomKm, float thicknessKm, float coverage)
 {
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
-    float3 winded = posKm + float3(float2(_cloudData.windOffsetX, _cloudData.windOffsetY), 0.0);
-    float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_COVERAGE_SCALE, 0).r;
-    float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_BASE_SCALE, 0);
-    float coverageMask = CloudCoverageMask(lowFreq, coverage);
-    float heightGradient = CloudHeightGradient(h, coverage);
-    return CloudBaseShape(baseNoise, coverageMask, heightGradient);
+    float3 winded = posKm + float3(float2(cloudData.windOffsetX, cloudData.windOffsetY), 0.0);
+    float lowFreq = cloudNoise.cloudBaseNoise.SampleLevel(samplers.linearRepeat, winded * CLOUD_COVERAGE_SCALE, 0).r;
+    float4 baseNoise = cloudNoise.cloudBaseNoise.SampleLevel(samplers.linearRepeat, winded * CLOUD_BASE_SCALE, 0);
+    float coverageMask = cloudCoverageMask(lowFreq, coverage);
+    float heightGradient = cloudHeightGradient(h, coverage);
+    return cloudBaseShape(baseNoise, coverageMask, heightGradient);
 }
 
 // Full density: base shape eroded by the animated detail octaves.
-float CloudFullDensity(float3 posKm, float bottomKm, float thicknessKm, float coverage, float detailStrength)
+float cloudFullDensity(float3 posKm, float bottomKm, float thicknessKm, float coverage, float detailStrength)
 {
-    float base = CloudBaseDensity(posKm, bottomKm, thicknessKm, coverage);
+    float base = cloudBaseDensity(posKm, bottomKm, thicknessKm, coverage);
     if (base <= 0.0 || detailStrength <= 0.0)
     {
         return base;
     }
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
-    float3 winded = posKm + float3(float2(_cloudData.windOffsetX, _cloudData.windOffsetY), 0.0);
-    float3 drift = float3(0.7, 0.31, 0.49) * _cloudData.detailDriftPhase;
-    float3 detailNoise = _cloudNoise._cloudDetailNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_DETAIL_SCALE + drift, 0).rgb;
-    return CloudErodeShape(base, detailNoise, detailStrength, h);
+    float3 winded = posKm + float3(float2(cloudData.windOffsetX, cloudData.windOffsetY), 0.0);
+    float3 drift = float3(0.7, 0.31, 0.49) * cloudData.detailDriftPhase;
+    float3 detailNoise = cloudNoise.cloudDetailNoise.SampleLevel(samplers.linearRepeat, winded * CLOUD_DETAIL_SCALE + drift, 0).rgb;
+    return cloudErodeShape(base, detailNoise, detailStrength, h);
 }
 
 // Sun optical depth (extinction integral) toward the sun from a slab position,
 // via the cheap base density. Returns the optical depth (unitless).
-float CloudSunOpticalDepth(float3 posKm, float3 dirToSun, float bottomKm, float thicknessKm,
+float cloudSunOpticalDepth(float3 posKm, float3 dirToSun, float bottomKm, float thicknessKm,
     float coverage, float extinction)
 {
     float od = 0.0;
@@ -172,7 +172,7 @@ float CloudSunOpticalDepth(float3 posKm, float3 dirToSun, float bottomKm, float 
     {
         float offset = CLOUD_SUN_MARCH_OFFSETS[i];
         float3 p = posKm + dirToSun * offset;
-        od += CloudBaseDensity(p, bottomKm, thicknessKm, coverage) * (offset - prev);
+        od += cloudBaseDensity(p, bottomKm, thicknessKm, coverage) * (offset - prev);
         prev = offset;
     }
     return od * extinction;
@@ -180,7 +180,7 @@ float CloudSunOpticalDepth(float3 posKm, float3 dirToSun, float bottomKm, float 
 
 // Entry / exit distances (km) of the ray with the cloud slab; false when the
 // ray never crosses it. tEntry is clamped to zero (camera inside the slab).
-bool CloudSlabIntersect(float3 originKm, float3 dir, float bottomKm, float topKm,
+bool cloudSlabIntersect(float3 originKm, float3 dir, float bottomKm, float topKm,
     out float tEntry, out float tExit)
 {
     tEntry = 0.0;
@@ -209,38 +209,38 @@ float4 MainPS(V2F input) : SV_TARGET
 {
     // Reconstruct the view ray and the opaque-scene distance for this pixel.
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight)));
-    float3 originKm = _data.cameraPosition.xyz / 1000.0;
+    float depth = getPixelDepth2D(cloudData.gbufferDepth, int2(input.uv * uint2(data.viewportWidth, data.viewportHeight)));
+    float3 originKm = data.cameraPosition.xyz / 1000.0;
     float3 dir;
     float sceneDistanceKm;
-    if (IS_SKY_DEPTH(depth))
+    if (isSkyDepth(depth))
     {
         // Any depth along the ray yields the same perspective direction; 1.0 is
         // the near plane under reversed depth and numerically the safest pick.
-        float4 farWorld = mul(_data.invViewProjection, float4(ndc, 1.0, 1.0));
-        dir = normalize(farWorld.xyz / farWorld.w - _data.cameraPosition.xyz);
+        float4 farWorld = mul(data.invViewProjection, float4(ndc, 1.0, 1.0));
+        dir = normalize(farWorld.xyz / farWorld.w - data.cameraPosition.xyz);
         sceneDistanceKm = 1e6;
     }
     else
     {
-        float4 world = mul(_data.invViewProjection, float4(ndc, depth, 1.0));
+        float4 world = mul(data.invViewProjection, float4(ndc, depth, 1.0));
         float3 worldPosition = world.xyz / world.w;
-        dir = normalize(worldPosition - _data.cameraPosition.xyz);
-        sceneDistanceKm = max(length(worldPosition - _data.cameraPosition.xyz) / 1000.0, 0.05);
+        dir = normalize(worldPosition - data.cameraPosition.xyz);
+        sceneDistanceKm = max(length(worldPosition - data.cameraPosition.xyz) / 1000.0, 0.05);
     }
 
-    float bottomKm = _cloudData.bottomAltitudeKm;
-    float thicknessKm = _cloudData.slabThicknessKm;
+    float bottomKm = cloudData.bottomAltitudeKm;
+    float thicknessKm = cloudData.slabThicknessKm;
     float topKm = bottomKm + thicknessKm;
-    float coverage = _cloudData.coverage;
-    float densityScale = _cloudData.densityMultiplier;
-    float detailStrength = _cloudData.detailStrength;
-    float extinction = _cloudData.extinctionPerKm * densityScale;
-    int maxSteps = _cloudData.maxMarchSteps;
+    float coverage = cloudData.coverage;
+    float densityScale = cloudData.densityMultiplier;
+    float detailStrength = cloudData.detailStrength;
+    float extinction = cloudData.extinctionPerKm * densityScale;
+    int maxSteps = cloudData.maxMarchSteps;
 
     float tEntry;
     float tExit;
-    if (!CloudSlabIntersect(originKm, dir, bottomKm, topKm, tEntry, tExit))
+    if (!cloudSlabIntersect(originKm, dir, bottomKm, topKm, tEntry, tExit))
     {
         return float4(0.0, 0.0, 0.0, 0.0);
     }
@@ -253,7 +253,7 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // ── Per-pixel lighting terms (constant along the march) ──
-    float3 dirToSun = normalize(-_data.sunDirection.xyz);
+    float3 dirToSun = normalize(-data.sunDirection.xyz);
 
     // Sun energy: the atmosphere's solar radiance driver attenuated by an
     // analytic transmittance march evaluated at the slab's mid height. This
@@ -264,13 +264,13 @@ float4 MainPS(V2F input) : SV_TARGET
     if (dirToSun.z > -0.2)
     {
         float3 probeKm = float3(0.0, 0.0, 6360.0 + bottomKm + thicknessKm * 0.5);
-        float2 sunDensity = AtmosphereSunDensityIntegral(probeKm, dirToSun, 6);
+        float2 sunDensity = atmosphereSunDensityIntegral(probeKm, dirToSun, 6);
         if (sunDensity.x >= 0.0)
         {
-            float3 tau = ATM_BETA_RAYLEIGH * _data.skyParams.x * sunDensity.x
-                + (ATM_BETA_MIE * 1.1 * _data.skyParams.y) * sunDensity.y
+            float3 tau = ATM_BETA_RAYLEIGH * data.skyParams.x * sunDensity.x
+                + (ATM_BETA_MIE * 1.1 * data.skyParams.y) * sunDensity.y
                 + ATM_BETA_OZONE * sunDensity.x;
-            sunEnergy = exp(-tau) * _data.skyParams2.z * _cloudData.sunStrength;
+            sunEnergy = exp(-tau) * data.skyParams2.z * cloudData.sunStrength;
         }
     }
 
@@ -278,13 +278,13 @@ float4 MainPS(V2F input) : SV_TARGET
     // base (light arrives from the whole lower hemisphere there) and zenith at
     // the tops. It already contains the night floor, so clouds never go fully
     // black after dark.
-    float3 ambientBottom = _data.skyHorizonColor.rgb * 0.65 + _data.skyZenithColor.rgb * 0.35;
-    float3 ambientTop = _data.skyZenithColor.rgb * 0.85 + _data.skyHorizonColor.rgb * 0.15;
-    float3 ambientEnergy = lerp(ambientBottom, ambientTop, 0.5) * _cloudData.ambientStrength;
+    float3 ambientBottom = data.skyHorizonColor.rgb * 0.65 + data.skyZenithColor.rgb * 0.35;
+    float3 ambientTop = data.skyZenithColor.rgb * 0.85 + data.skyHorizonColor.rgb * 0.15;
+    float3 ambientEnergy = lerp(ambientBottom, ambientTop, 0.5) * cloudData.ambientStrength;
 
     float cosTheta = dot(dir, dirToSun);
-    float phase = CloudPhaseDual(cosTheta);
-    float dither = InterleavedGradientNoise(input.position.xy);
+    float phase = cloudPhaseDual(cosTheta);
+    float dither = interleavedGradientNoise(input.position.xy);
 
     // ── The march ──
     float3 scattering = 0.0;
@@ -307,14 +307,14 @@ float4 MainPS(V2F input) : SV_TARGET
 
         // Cheap gate: no base density means no detail either — skip ahead at
         // double length without paying for the erosion sample.
-        float cheap = CloudBaseDensity(posKm, bottomKm, thicknessKm, coverage);
+        float cheap = cloudBaseDensity(posKm, bottomKm, thicknessKm, coverage);
         if (cheap <= 0.02)
         {
             t += dt * 2.0;
             continue;
         }
 
-        float density = CloudFullDensity(posKm, bottomKm, thicknessKm, coverage, detailStrength)
+        float density = cloudFullDensity(posKm, bottomKm, thicknessKm, coverage, detailStrength)
             * densityScale;
         if (density <= 0.01)
         {
@@ -325,7 +325,7 @@ float4 MainPS(V2F input) : SV_TARGET
         // Sun extinction integral through the cloud toward the sun, widened
         // into a cheap multiple-scattering approximation with the powder term
         // (dark crevices, bright silver edges).
-        float odSun = CloudSunOpticalDepth(posKm, dirToSun, bottomKm, thicknessKm,
+        float odSun = cloudSunOpticalDepth(posKm, dirToSun, bottomKm, thicknessKm,
             coverage, extinction);
         float beer = exp(-odSun);
         float beerMulti = exp(-odSun * 0.25);
@@ -334,7 +334,7 @@ float4 MainPS(V2F input) : SV_TARGET
         float sunVisibility = lerp(beer * powder, beerMulti * powderMulti, 0.55);
 
         float h = saturate((posKm.z - bottomKm) / thicknessKm);
-        float3 ambient = lerp(ambientBottom, ambientTop, h) * _cloudData.ambientStrength;
+        float3 ambient = lerp(ambientBottom, ambientTop, h) * cloudData.ambientStrength;
         float3 lightEnergy = sunEnergy * phase * sunVisibility + ambient;
 
         // Energy-conserving integration between the transmittance at the
@@ -363,8 +363,8 @@ float4 MainPS(V2F input) : SV_TARGET
     float rangeFade = 1.0 - smoothstep(0.75, 1.0, midT / CLOUD_MAX_MARCH_KM);
     scattering *= rangeFade;
     alpha *= rangeFade;
-    float hazeT = smoothstep(_cloudData.aerialFadeStartKm, _cloudData.aerialFadeEndKm, midT);
-    scattering = lerp(scattering, _data.skyHorizonColor.rgb * alpha, hazeT);
+    float hazeT = smoothstep(cloudData.aerialFadeStartKm, cloudData.aerialFadeEndKm, midT);
+    scattering = lerp(scattering, data.skyHorizonColor.rgb * alpha, hazeT);
 
     return float4(scattering, alpha);
 }

@@ -16,7 +16,7 @@ public struct FrameParams
     public float4 tintColor;
 };
 
-public ParameterBlock<FrameParams> _frame;
+public ParameterBlock<FrameParams> frame;
 
 // Engine convention: one binding index per resource within a set (WebGPU
 // layouts reject a texture and sampler sharing an index). Sampling goes
@@ -26,10 +26,10 @@ public ParameterBlock<FrameParams> _frame;
 // attribute of that name and an import makes the reference ambiguous.
 public struct MaterialParamsData
 {
-    public Texture2D _albedo;
+    public Texture2D albedo;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 struct Vertex
 {
@@ -47,7 +47,7 @@ struct V2F
 V2F MainVS(Vertex input)
 {
     V2F output;
-    output.position = mul(_frame.viewProjection, float4(input.position, 1.0));
+    output.position = mul(frame.viewProjection, float4(input.position, 1.0));
     output.uv = input.uv;
     return output;
 }
@@ -55,9 +55,9 @@ V2F MainVS(Vertex input)
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    // The core import is load-bearing: SampleTex2D and OutputDither8Bit live
+    // The core import is load-bearing: sampleTex2D and outputDither8Bit live
     // in Alco.Rendering.Core, so editing that module invalidates this shader.
-    float4 color = SampleTex2D(_material._albedo, _samplers._linearRepeat, input.uv) * _frame.tintColor;
-    color.rgb += OutputDither8Bit(input.position.xy);
+    float4 color = sampleTex2D(material.albedo, samplers.linearRepeat, input.uv) * frame.tintColor;
+    color.rgb += outputDither8Bit(input.position.xy);
     return color;
 }

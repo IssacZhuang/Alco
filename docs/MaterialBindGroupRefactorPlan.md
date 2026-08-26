@@ -101,7 +101,7 @@ Add explicit (set, binding) macro variants and redefine the existing macros as w
 
 Rules that must be preserved (consumed by name-based post-processing):
 
-- Sampler naming: texture `_x` pairs with `_xSampler` (used by `SAMPLE_TEX2D` and by
+- Sampler naming: texture `x` pairs with `xSampler` (used by `SAMPLE_TEX2D` and by
   `ShaderUtility.MarkDepthComparisonSamplers`, `Src/Alco.Rendering/Shader/ShaderUtility.cs:358`).
 - Depth macros: `SpirvDepthTexturePatcher` finds depth texture names by regexing the shader
   text for the `DEFINE_TEX2D_DEPTH*` macro calls (`ShaderUtility.cs:20-25`). The regexes must
@@ -110,15 +110,15 @@ Rules that must be preserved (consumed by name-based post-processing):
 ### 3.3 DeferredLighting.hlsl regrouping (8 sets → 2)
 
 ```hlsl
-DEFINE_UNIFORM_AT(ALCO_GROUP_FRAME, 0, _data) { ... };
+DEFINE_UNIFORM_AT(ALCO_GROUP_FRAME, 0, data) { ... };
 
-DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 1, _albedo);        // b1  tex, b2  sampler
-DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 3, _normal);        // b3  tex, b4  sampler
-DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 5, _mrAO);          // b5  tex, b6  sampler
-DEFINE_TEX2D_DEPTH_AT(ALCO_GROUP_PASS, 7, _gbufferDepth);   // b7  tex (read)
-DEFINE_TEX2D_DEPTH_SAMPLE_AT(ALCO_GROUP_PASS, 8, _shadowMap); // b8 tex, b9 cmp sampler
-DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 10, _emissive);     // b10 tex, b11 sampler
-DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 12, _indirectGI);   // b12 tex, b13 sampler
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 1, albedo);        // b1  tex, b2  sampler
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 3, normal);        // b3  tex, b4  sampler
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 5, mrAO);          // b5  tex, b6  sampler
+DEFINE_TEX2D_DEPTH_AT(ALCO_GROUP_PASS, 7, gbufferDepth);   // b7  tex (read)
+DEFINE_TEX2D_DEPTH_SAMPLE_AT(ALCO_GROUP_PASS, 8, shadowMap); // b8 tex, b9 cmp sampler
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 10, emissive);     // b10 tex, b11 sampler
+DEFINE_TEX2D_SAMPLE_AT(ALCO_GROUP_PASS, 12, indirectGI);   // b12 tex, b13 sampler
 ```
 
 Fragment-stage budget: 7 sampled textures ≤ 16, 6 samplers ≤ 16, 1 UBO ≤ 12. Vertex stage
@@ -126,7 +126,7 @@ uses only the UBO.
 
 ### 3.4 Voxel shader regrouping (8 sets → 2–3, compute)
 
-`VoxelCommon.hlsli` owns set 0 (`DEFINE_UNIFORM(0, _data)`); each pass adds sets 1–7.
+`VoxelCommon.hlsli` owns set 0 (`DEFINE_UNIFORM(0, data)`); each pass adds sets 1–7.
 Regroup by direction of data flow:
 
 - set 0: uniform buffers + read-only inputs (sampled textures 3D, read-only storage buffers)
@@ -239,15 +239,15 @@ frame. Two mandatory mechanisms bring the steady state to ≈ 0:
   update the hand-written layouts to the packed form. Either way the "must stay in sync"
   comment goes away.
 - `RebindLightingTargets` (`:940-949`): switch from numeric group ids to names
-  (`"_albedo"`, `"_normal"`, ...) or cached ids from `GetResourceId`; semantics unchanged.
+  (`"albedo"`, `"normal"`, ...) or cached ids from `GetResourceId`; semantics unchanged.
 
 ### 3.8 By-id API evaluation — KEEP
 
 The numeric-id setters stay, with id redefined as an opaque dense resource ordinal:
 
 - Every call site found treats ids as opaque: they are resolved per shader via
-  `GetResourceId(name)`/`TryGetResourceId` and cached (`_shaderId_texture`, ...), or
-  well-known **name** constants (`ShaderResourceId.Camera = "_camera"`, etc.) are passed to
+  `GetResourceId(name)`/`TryGetResourceId` and cached (`ShaderId_texture`, ...), or
+  well-known **name** constants (`ShaderResourceId.Camera = "camera"`, etc.) are passed to
   the string overloads. No call site hardcodes a numeric group index.
 - Keeping the id overloads costs one extra array (id → location) in `ShaderReflection`.
 - The XML docs on the id overloads must be updated to say "resource id obtained from

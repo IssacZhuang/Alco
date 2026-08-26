@@ -48,7 +48,7 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     /// <param name="renderingSystem">The rendering system used for creating graphics resources.</param>
     /// <param name="context">The render context for command submission.</param>
     /// <param name="material">The material to use for rendering instances.</param>
-    /// <param name="instanceBufferShaderId">The shader resource name for the instance buffer. Default is "_instances".</param>
+    /// <param name="instanceBufferShaderId">The shader resource name for the instance buffer. Default is "instances".</param>
     /// <param name="sizePerBuffer">The size of each GPU buffer in bytes. Default is 256KB.</param>
     /// <param name="name">The name of the renderer. Default is "unnamed_instance_renderer".</param>
     internal InstanceRenderer(

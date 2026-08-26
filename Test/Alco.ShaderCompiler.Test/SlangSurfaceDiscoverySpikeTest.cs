@@ -53,7 +53,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
 
         import disc_contract;
 
-        cbuffer _camera : register(b0, space0)
+        cbuffer camera : register(b0, space0)
         {
             float4x4 viewProjection;
         }
@@ -92,7 +92,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
 
         import disc_contract;
 
-        cbuffer _light : register(b0, space0)
+        cbuffer light : register(b0, space0)
         {
             float4x4 lightViewProjection;
         }
@@ -135,10 +135,10 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
 
         import disc_contract;
 
-        [[vk::binding(0, 1)]] Texture2D<float4> _mossTexture;
-        [[vk::binding(1, 1)]] SamplerState _mossSampler;
+        [[vk::binding(0, 1)]] Texture2D<float4> mossTexture;
+        [[vk::binding(1, 1)]] SamplerState mossSampler;
 
-        [[vk::binding(2, 1)]] cbuffer _mossParams
+        [[vk::binding(2, 1)]] cbuffer mossParams
         {
             float intensity;
         }
@@ -147,7 +147,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         {
             public override float4 GetBaseColor(SurfaceInput input)
             {
-                return _mossTexture.Sample(_mossSampler, input.uv) * intensity;
+                return mossTexture.Sample(mossSampler, input.uv) * intensity;
             }
         }
 
@@ -179,16 +179,16 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
 
         import disc_contract;
 
-        [[vk::binding(0, 1)]] Texture2D<float4> _snowTex;
-        [[vk::binding(1, 1)]] SamplerState _snowSampler;
-        [[vk::binding(2, 1)]] Texture2D<float4> _baseTex;
-        [[vk::binding(3, 1)]] SamplerState _baseSampler;
+        [[vk::binding(0, 1)]] Texture2D<float4> snowTex;
+        [[vk::binding(1, 1)]] SamplerState snowSampler;
+        [[vk::binding(2, 1)]] Texture2D<float4> baseTex;
+        [[vk::binding(3, 1)]] SamplerState baseSampler;
 
         public struct Snow : ISurface
         {
             public override float4 GetBaseColor(SurfaceInput input)
             {
-                return _snowTex.Sample(_snowSampler, input.uv);
+                return snowTex.Sample(snowSampler, input.uv);
             }
         }
 
@@ -196,7 +196,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         {
             public override float4 GetBaseColor(SurfaceInput input)
             {
-                return _baseTex.Sample(_baseSampler, input.uv);
+                return baseTex.Sample(baseSampler, input.uv);
             }
         }
 
@@ -308,9 +308,9 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
             Assert.That(code, Has.Length.EqualTo(2));
             foreach (byte[] entry in code)
                 Assert.That(entry[0..4], Is.EqualTo(new byte[] { 0x03, 0x02, 0x23, 0x07 }), "SPIR-V magic");
-            Assert.That(reflection.TryGetResourceId("_mossTexture", out _), Is.True,
+            Assert.That(reflection.TryGetResourceId("mossTexture", out _), Is.True,
                 "the discovered type's resources must be in the composed layout");
-            Assert.That(reflection.TryGetResourceId("_mossParams", out _), Is.True);
+            Assert.That(reflection.TryGetResourceId("mossParams", out _), Is.True);
         });
     }
 
@@ -340,7 +340,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
             Assert.That(code, Has.Length.EqualTo(2));
             foreach (byte[] entry in code)
                 Assert.That(entry[0..4], Is.EqualTo(new byte[] { 0x03, 0x02, 0x23, 0x07 }), "SPIR-V magic");
-            Assert.That(reflection.TryGetResourceId("_mossTexture", out _), Is.True,
+            Assert.That(reflection.TryGetResourceId("mossTexture", out _), Is.True,
                 "AlphaTest=true must keep the alpha-test fetch in the layout");
         });
     }
@@ -372,8 +372,8 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         Assert.Multiple(() =>
         {
             Assert.That(program.EntryPoints, Has.Count.EqualTo(2));
-            Assert.That(program.Reflection.TryGetResourceId("_mossTexture", out _), Is.True);
-            Assert.That(program.Reflection.TryGetResourceId("_mossParams", out _), Is.True);
+            Assert.That(program.Reflection.TryGetResourceId("mossTexture", out _), Is.True);
+            Assert.That(program.Reflection.TryGetResourceId("mossParams", out _), Is.True);
         });
     }
 
@@ -444,9 +444,9 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
             Assert.That(code, Has.Length.EqualTo(2));
             foreach (byte[] entry in code)
                 Assert.That(entry[0..4], Is.EqualTo(new byte[] { 0x03, 0x02, 0x23, 0x07 }), "SPIR-V magic");
-            Assert.That(reflection.TryGetResourceId("_snowTex", out _), Is.True,
+            Assert.That(reflection.TryGetResourceId("snowTex", out _), Is.True,
                 "both layers' resources must survive the aggregation");
-            Assert.That(reflection.TryGetResourceId("_baseTex", out _), Is.True);
+            Assert.That(reflection.TryGetResourceId("baseTex", out _), Is.True);
         });
     }
 

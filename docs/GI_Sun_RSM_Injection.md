@@ -135,7 +135,7 @@ ShadowPass ──► RsmPass(新, ~1/4 shadow 几何) ──► GBuffer ──�
 
 - **资源**：1 张 D32 深度 + 2 张 RGBA8（`_rsmAlbedo`、`_rsmNormal`），同尺寸 framebuffer。默认 1024²（3×4 MiB = 12 MiB）。分辨率独立于 CSM，可调。
 - **VP**：直接复用 `PBRSceneEnvironment` 的 `cascadeViewProjections[RsmCascadeIndex]`（默认 2，对齐 CE5 `GsmCascadeLod=2`）。语义 = "以 cascade 2 的正交盒从太阳看出去"。
-- **Shader `Rsm.hlsl`**：以 `ShadowDepth.hlsl` 为模板——VS 相同（复用 `_data` 的级联 VP 或自带 push constant）；PS 输出 `albedo = baseColor 纹理 RGB`（现有 cutout 变体已有采样 `_albedoTexture` 的先例）和 `worldNormal * 0.5 + 0.5`（插值世界法线，normal map 可选，建议第一版用几何法线）。
+- **Shader `Rsm.hlsl`**：以 `ShadowDepth.hlsl` 为模板——VS 相同（复用 `data` 的级联 VP 或自带 push constant）；PS 输出 `albedo = baseColor 纹理 RGB`（现有 cutout 变体已有采样 `albedoTexture` 的先例）和 `worldNormal * 0.5 + 0.5`（插值世界法线，normal map 可选，建议第一版用几何法线）。
 - **内容源**：`ShadowRenderer` 的注册表（`IShadowRenderable` 列表）。扩展接口加一个可选 `RsmMaterial` 属性，或提供 `ShadowRenderer.CreateRsmMaterial(albedoTexture, ...)` 工厂让场景侧自建（Sandbox 的 `BistroShadowRenderable` 已持有 `ModelMaterial`，拿 base color 纹理零成本）。静态 bundle 机制照搬。
 
 **为什么不直接抄 CE5 的 MRT 方案**：CE5 把 RSM MRT 挂在阴影级联 pass 上（零几何开销），但 Alco 的 `RGNode_ShadowPass` 是 depth-only framebuffer + 每级联 scissor + 静态 bundle 按布局录制——改成 MRT 要动 per-cascade framebuffer/布局/bundle 兼容性。独立 pass 结构最简、可单独开关、分辨率解耦，代价只是一个级联的几何重画（shadow pass 的 1/4）。**MRT 化列为 Phase C 的优化项**，接口不变（消费者只看纹理）。

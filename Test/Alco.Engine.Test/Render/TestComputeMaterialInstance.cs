@@ -13,22 +13,22 @@ public class TestComputeMaterialInstance
     private const string ComputeShaderSource = """
         module test_compute_instance;
 
-        cbuffer _input : register(b0, space0)
+        cbuffer input : register(b0, space0)
         {
-            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _input;
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> input;
         };
 
-        cbuffer _output : register(b0, space1)
+        cbuffer output : register(b0, space1)
         {
-            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> output;
         };
 
-        cbuffer _gaussianKernel : register(b0, space2)
+        cbuffer gaussianKernel : register(b0, space2)
         {
-            RWStructuredBuffer<float> _gaussianKernel;
+            RWStructuredBuffer<float> gaussianKernel;
         };
 
-        cbuffer _data : register(b0, space3) { float4 baseColor; };
+        cbuffer data : register(b0, space3) { float4 baseColor; };
 
         float4 Blur(RWTexture2D<float4> input, RWStructuredBuffer<float> kernel, uint2 id)
         {
@@ -39,7 +39,7 @@ public class TestComputeMaterialInstance
         [numthreads(16, 16, 1)]
         void MainCS(uint3 id : SV_DispatchThreadID)
         {
-            _output[id.xy] = Blur(_input, _gaussianKernel, id.xy) + baseColor;
+            output[id.xy] = Blur(input, gaussianKernel, id.xy) + baseColor;
         }
         """;
 
@@ -56,7 +56,7 @@ public class TestComputeMaterialInstance
 
         GraphicsValueBuffer<Vector4> dataBuffer = renderingSystem.CreateGraphicsValueBuffer<Vector4>();
         dataBuffer.UpdateBuffer(Vector4.One);
-        parent.TrySetBuffer("_data", dataBuffer);
+        parent.TrySetBuffer("data", dataBuffer);
 
         ComputeMaterialInstance instance = parent.CreateInstance();
 
@@ -66,12 +66,12 @@ public class TestComputeMaterialInstance
             kernelBuffer[i] = 1f;
         }
         kernelBuffer.UpdateBuffer();
-        instance.SetBuffer("_gaussianKernel", kernelBuffer);
+        instance.SetBuffer("gaussianKernel", kernelBuffer);
 
         RenderTexture input = renderingSystem.CreateRenderTexture(renderingSystem.PreferredLightMapPass, 16, 16);
         RenderTexture output = renderingSystem.CreateRenderTexture(renderingSystem.PreferredLightMapPass, 16, 16);
-        instance.TrySetRenderTexture("_input", input);
-        instance.TrySetRenderTexture("_output", output);
+        instance.TrySetRenderTexture("input", input);
+        instance.TrySetRenderTexture("output", output);
 
         // The dispatch assembles the bind groups: the kernel comes from the
         // instance, _data is inherited from the parent, so every group resolves.

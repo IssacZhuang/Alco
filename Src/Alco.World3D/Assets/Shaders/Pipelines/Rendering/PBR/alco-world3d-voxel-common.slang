@@ -63,7 +63,7 @@ public struct VoxelData
     public float  traceMaxDistance;       // world units a GI cone may march
     public uint   traceWidth;             // trace atlas width in pixels
     public uint   traceHeight;            // trace atlas height in pixels
-    public int    debugView;              // DebugView enum passthrough
+    public int    debugView;              // debugView enum passthrough
     public uint   gbufferWidth;           // G-buffer width in pixels
     public uint   gbufferHeight;          // G-buffer height in pixels
     public float  giSkyIntensity;         // sky light multiplier for voxel GI
@@ -80,38 +80,38 @@ public struct VoxelData
     public float  rsmTexelWorldSize;      // world size of one RSM texel
 };
 
-public ParameterBlock<VoxelData> _data;
+public ParameterBlock<VoxelData> data;
 
 
 // ---------------------------------------------------------------- packing ---
 
-public uint PackWords2(uint low, uint high)
+public uint packWords2(uint low, uint high)
 {
     return (low & 65535u) | ((high & 65535u) << 16);
 }
 
-public uint QuantizeVoxelAttribute(float value)
+public uint quantizeVoxelAttribute(float value)
 {
     return (uint)(saturate(value) * 255.0 + 0.5);
 }
 
-public uint4 PackVoxelAttr(float3 albedo, float3 normal, float emissiveQ)
+public uint4 packVoxelAttr(float3 albedo, float3 normal, float emissiveQ)
 {
     float3 encodedNormal = normal * 0.5 + 0.5;
     uint4 packed;
-    packed.x = PackWords2(1u, QuantizeVoxelAttribute(emissiveQ));
-    packed.y = PackWords2(QuantizeVoxelAttribute(albedo.r), QuantizeVoxelAttribute(albedo.g));
-    packed.z = PackWords2(QuantizeVoxelAttribute(albedo.b), QuantizeVoxelAttribute(encodedNormal.x));
-    packed.w = PackWords2(QuantizeVoxelAttribute(encodedNormal.y), QuantizeVoxelAttribute(encodedNormal.z));
+    packed.x = packWords2(1u, quantizeVoxelAttribute(emissiveQ));
+    packed.y = packWords2(quantizeVoxelAttribute(albedo.r), quantizeVoxelAttribute(albedo.g));
+    packed.z = packWords2(quantizeVoxelAttribute(albedo.b), quantizeVoxelAttribute(encodedNormal.x));
+    packed.w = packWords2(quantizeVoxelAttribute(encodedNormal.y), quantizeVoxelAttribute(encodedNormal.z));
     return packed;
 }
 
-public bool VoxelAttrOccupied(uint4 attr)
+public bool voxelAttrOccupied(uint4 attr)
 {
     return (attr.x & 65535u) != 0u;
 }
 
-public void UnpackVoxelAttr(uint4 attr, out float3 albedo, out float3 normal, out float emissiveQ)
+public void unpackVoxelAttr(uint4 attr, out float3 albedo, out float3 normal, out float emissiveQ)
 {
     float sampleCount = min((float)(attr.x & 65535u), 255.0);
     float inverseScale = rcp(max(sampleCount, 1.0) * 255.0);
@@ -128,9 +128,9 @@ public void UnpackVoxelAttr(uint4 attr, out float3 albedo, out float3 normal, ou
 
 // ------------------------------------------------------------- addressing ---
 
-public uint VoxelResolution()
+public uint voxelResolution()
 {
-    return (uint)_data.voxelResolution;
+    return (uint)data.voxelResolution;
 }
 
 public static const uint VOXEL_BRICK_SIZE = 8u;
@@ -141,17 +141,17 @@ public static const float VOXEL_BRICK_ALIGNED_MAX_MIP = 3.0;
 
 // Maps a logical clipmap voxel to its toroidal page-table slot. Page-table
 // values are one-based physical page indices; zero means the brick is absent.
-public uint VoxelPageTableSlot(uint3 coord, uint resolution, int level)
+public uint voxelPageTableSlot(uint3 coord, uint resolution, int level)
 {
     uint bricksPerAxis = resolution / VOXEL_BRICK_SIZE;
-    uint3 ringBrickOffset = (uint3)_data.levelRingOffsets[level].xyz / VOXEL_BRICK_SIZE;
+    uint3 ringBrickOffset = (uint3)data.levelRingOffsets[level].xyz / VOXEL_BRICK_SIZE;
     uint3 physicalBrick = (coord / VOXEL_BRICK_SIZE + ringBrickOffset) % bricksPerAxis;
     return physicalBrick.x
         + physicalBrick.y * bricksPerAxis
         + physicalBrick.z * bricksPerAxis * bricksPerAxis;
 }
 
-public uint VoxelBrickLocalIndex(uint3 coord)
+public uint voxelBrickLocalIndex(uint3 coord)
 {
     uint3 local = coord % VOXEL_BRICK_SIZE;
     return local.x
@@ -159,9 +159,9 @@ public uint VoxelBrickLocalIndex(uint3 coord)
         + local.z * VOXEL_BRICK_SIZE * VOXEL_BRICK_SIZE;
 }
 
-public uint VoxelAttributeIndex(uint pageEntry, uint3 coord)
+public uint voxelAttributeIndex(uint pageEntry, uint3 coord)
 {
-    return (pageEntry - 1u) * VOXEL_BRICK_VOXEL_COUNT + VoxelBrickLocalIndex(coord);
+    return (pageEntry - 1u) * VOXEL_BRICK_VOXEL_COUNT + voxelBrickLocalIndex(coord);
 }
 
 // Normalized texture coordinates of a world position inside a clipmap level's
@@ -169,13 +169,13 @@ public uint VoxelAttributeIndex(uint pageEntry, uint3 coord)
 // occupying 1/VOXEL_MAX_LEVELS of the depth at every mip). The coordinates are
 // clamped to a half-texel inset of the coarsest sampled mip so hardware
 // trilinear taps never bleed across slab boundaries.
-public float3 VoxelWorldToUVW(float3 position, int level, float mip)
+public float3 voxelWorldToUVW(float3 position, int level, float mip)
 {
-    uint resolution = VoxelResolution();
-    float4 originAndSize = _data.levelOrigins[level];
+    uint resolution = voxelResolution();
+    float4 originAndSize = data.levelOrigins[level];
 
     // Position normalized to the level cube (mip independent).
-    float extent = originAndSize.w * _data.voxelResolution;
+    float extent = originAndSize.w * data.voxelResolution;
     float3 p = (position - originAndSize.xyz) / extent;
 
     uint sizeMip = max(resolution >> (uint)ceil(mip), 1u);
@@ -187,21 +187,21 @@ public float3 VoxelWorldToUVW(float3 position, int level, float mip)
 // ----------------------------------------------------------------- levels ---
 
 // Whether a world position is inside the region covered by the given level.
-public bool VoxelLevelContains(float3 position, int level)
+public bool voxelLevelContains(float3 position, int level)
 {
-    float4 originAndSize = _data.levelOrigins[level];
+    float4 originAndSize = data.levelOrigins[level];
     float3 relative = position - originAndSize.xyz;
-    float extent = originAndSize.w * _data.voxelResolution;
+    float extent = originAndSize.w * data.voxelResolution;
     return all(relative >= 0.0) && all(relative < extent);
 }
 
 // The finest (smallest voxel) level covering the position; -1 when outside all.
-public int VoxelFindLevel(float3 position)
+public int voxelFindLevel(float3 position)
 {
-    int levelCount = (int)_data.levelCount;
+    int levelCount = (int)data.levelCount;
     for (int i = 0; i < levelCount; i++)
     {
-        if (VoxelLevelContains(position, i))
+        if (voxelLevelContains(position, i))
         {
             return i;
         }
@@ -212,10 +212,10 @@ public int VoxelFindLevel(float3 position)
 // Smooth transition weight from a clipmap level to its next coarser level.
 // The outer 20 percent of the cube is a blend band; returning a smooth cubic
 // weight keeps both sampled data and ray-march scale continuous at boundaries.
-public float VoxelLevelTransitionWeight(float3 position, int level)
+public float voxelLevelTransitionWeight(float3 position, int level)
 {
-    float4 originAndSize = _data.levelOrigins[level];
-    float extent = originAndSize.w * _data.voxelResolution;
+    float4 originAndSize = data.levelOrigins[level];
+    float extent = originAndSize.w * data.voxelResolution;
     float3 relative = (position - originAndSize.xyz) / extent;
     float3 distanceFromCenter = abs(relative - 0.5);
     float maximumDistance = max(distanceFromCenter.x, max(distanceFromCenter.y, distanceFromCenter.z));
@@ -223,23 +223,23 @@ public float VoxelLevelTransitionWeight(float3 position, int level)
     return linearWeight * linearWeight * (3.0 - 2.0 * linearWeight);
 }
 
-public float VoxelEffectiveVoxelSize(float3 position, int level)
+public float voxelEffectiveVoxelSize(float3 position, int level)
 {
-    int levelCount = (int)_data.levelCount;
-    float voxelSize = _data.levelOrigins[level].w;
+    int levelCount = (int)data.levelCount;
+    float voxelSize = data.levelOrigins[level].w;
     if (level + 1 >= levelCount)
     {
         return voxelSize;
     }
-    return lerp(voxelSize, _data.levelOrigins[level + 1].w, VoxelLevelTransitionWeight(position, level));
+    return lerp(voxelSize, data.levelOrigins[level + 1].w, voxelLevelTransitionWeight(position, level));
 }
 
 // The physical atmosphere contains more angular detail than six voxel cones
 // can sample without aliasing against normal maps. The CPU evaluates and
 // azimuthally prefilters the current atmosphere into this smooth two-color
 // representation; the visible sky and direct sun retain their full detail.
-public float3 VoxelSkyColor(float3 direction)
+public float3 voxelSkyColor(float3 direction)
 {
     float zenithWeight = pow(saturate(direction.z), 0.6);
-    return lerp(_data.skyHorizonColor.rgb, _data.skyZenithColor.rgb, zenithWeight) * _data.giSkyIntensity;
+    return lerp(data.skyHorizonColor.rgb, data.skyZenithColor.rgb, zenithWeight) * data.giSkyIntensity;
 }

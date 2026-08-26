@@ -32,29 +32,29 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 
 public struct MaterialParamsData
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 public struct InstancesParams
 {
-    public RWStructuredBuffer<Constants> _instances;
+    public RWStructuredBuffer<Constants> instances;
 };
 
-public ParameterBlock<InstancesParams> _instances;
+public ParameterBlock<InstancesParams> instances;
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
     V2F output = (V2F)0;
-  Constants constants = _instances._instances[input.instanceID];
+  Constants constants = instances.instances[input.instanceID];
   output.position = mul(constants.model, float4(input.position, 1.0f));
-  output.position = mul(_camera.viewProjection, output.position);
+  output.position = mul(camera.viewProjection, output.position);
   output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;
   output.instanceID = input.instanceID;
   return output;
@@ -62,7 +62,7 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  Constants constants = _instances._instances[input.instanceID];
-  float4 color = _material._texture.Sample(_samplers._linearRepeat, input.uv) * constants.color;
+  Constants constants = instances.instances[input.instanceID];
+  float4 color = material.texture.Sample(samplers.linearRepeat, input.uv) * constants.color;
   return color;
 }

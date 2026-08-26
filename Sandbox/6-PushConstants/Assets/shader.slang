@@ -27,7 +27,7 @@ public struct ViewProjectionParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<ViewProjectionParams> _viewProjection;
+public ParameterBlock<ViewProjectionParams> viewProjection;
 
 public struct MaterialParams
 {
@@ -35,7 +35,7 @@ public struct MaterialParams
     public SamplerState imageSampler;
 };
 
-public ParameterBlock<MaterialParams> _material;
+public ParameterBlock<MaterialParams> material;
 
 [[vk::push_constant]] Constants constants;
 
@@ -44,7 +44,7 @@ V2F MainVS(Vertex2D input) {
 
     float4 position = float4(input.position, 0.0f, 1.0f);
     position = mul(constants.model, position);
-    position = mul(_viewProjection.viewProjection, position);
+    position = mul(viewProjection.viewProjection, position);
 
     V2F output = (V2F)0;
     output.position = position;
@@ -54,5 +54,5 @@ V2F MainVS(Vertex2D input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-    return _material.image.Sample(_material.imageSampler, input.uv);
+    return material.image.Sample(material.imageSampler, input.uv);
 }

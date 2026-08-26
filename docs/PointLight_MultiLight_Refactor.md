@@ -44,7 +44,7 @@ PBRDeferredPipeline.RenderLighting(ref data)
    │  _lightingDataBuffer.UpdateBuffer(data)
    │  → 整个 struct 作为单个 Uniform Buffer 一次性上传
    ▼
-GPU Uniform Buffer (set 0 的 _data cbuffer)
+GPU Uniform Buffer (set 0 的 data cbuffer)
    │
    ├──▶ DeferredLighting.hlsl
    │      for (i = 0; i < 4; i++) {
@@ -471,7 +471,7 @@ HLSL 中 cbuffer 里的数组元素**按 16 字节（float4）对齐**。如果�
 
 ```hlsl
 // ❌ 危险：cbuffer 中的结构体数组会被自动 padding
-cbuffer _data {
+cbuffer data {
     struct PointLightData {
         float3 pos;       // 12 bytes → 实际占 16 bytes (padded to float4)
         float3 color;     // 12 bytes → 实际占 16 bytes
@@ -486,7 +486,7 @@ cbuffer _data {
 
 ```hlsl
 // ✅ 安全：float4 数组，16 字节对齐，无 padding 歧义
-cbuffer _data {
+cbuffer data {
     float4 pointLightPositions[MAX]; // xyz = pos, w = range
     float4 pointLightColors[MAX];    // rgb = color, w = intensity
 };
@@ -506,7 +506,7 @@ cbuffer _data {
 
 ### 5.3 C# struct 与 HLSL cbuffer 逐字节对齐
 
-`DeferredLightingData` 的注释明确要求"必须与 `DeferredLighting.hlsl` 的 `_data` cbuffer 逐字节对齐"。修改光源字段时必须同步修改 C# struct 和 HLSL cbuffer，否则会导致数据错位。
+`DeferredLightingData` 的注释明确要求"必须与 `DeferredLighting.hlsl` 的 `data` cbuffer 逐字节对齐"。修改光源字段时必须同步修改 C# struct 和 HLSL cbuffer，否则会导致数据错位。
 
 ---
 

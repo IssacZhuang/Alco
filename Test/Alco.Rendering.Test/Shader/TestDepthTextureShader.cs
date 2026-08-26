@@ -18,15 +18,15 @@ public class TestDepthTextureShader
     private const string DepthShaderSource = """
         module test_depth_texture;
 
-        cbuffer _gbufferDepth : register(b0, space0)
+        cbuffer gbufferDepth : register(b0, space0)
         {
-            DepthTexture2D _gbufferDepth;
+            DepthTexture2D gbufferDepth;
         };
 
-        cbuffer _shadow : register(b0, space1)
+        cbuffer shadow : register(b0, space1)
         {
-            DepthTexture2D _shadowMap;
-            SamplerComparisonState _shadowMapSampler;
+            DepthTexture2D shadowMap;
+            SamplerComparisonState shadowMapSampler;
         };
 
         struct V2F
@@ -47,8 +47,8 @@ public class TestDepthTextureShader
         [shader("pixel")]
         float4 MainPS(V2F input) : SV_TARGET
         {
-            float d = _gbufferDepth.Load(int3(0, 0, 0));
-            float s = _shadowMap.SampleCmpLevelZero(_shadowMapSampler, input.uv, 0.5);
+            float d = gbufferDepth.Load(int3(0, 0, 0));
+            float s = shadowMap.SampleCmpLevelZero(shadowMapSampler, input.uv, 0.5);
             return float4(d, s, 0, 1);
         }
         """;

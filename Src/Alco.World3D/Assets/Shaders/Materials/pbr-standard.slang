@@ -20,55 +20,55 @@ import alco_world3d_surface;
 // uniform members (the marker's float-packing contract would reject it).
 public struct MaterialParamsData
 {
-    public Texture2D<float4> _albedoTexture;
-    public Texture2D<float4> _normalTexture;
-    public Texture2D<float4> _metallicRoughnessTexture;
-    public Texture2D<float4> _emissiveTexture;
+    public Texture2D<float4> albedoTexture;
+    public Texture2D<float4> normalTexture;
+    public Texture2D<float4> metallicRoughnessTexture;
+    public Texture2D<float4> emissiveTexture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 public struct Surface : ISurface
 {
-    public override float4 GetBaseColor(SurfaceInput input)
+    public override float4 getBaseColor(SurfaceInput input)
     {
-        return _material._albedoTexture.Sample(_samplers._linearRepeat, input.uv) * input.baseColorFactor;
+        return material.albedoTexture.Sample(samplers.linearRepeat, input.uv) * input.baseColorFactor;
     }
 
-    public override float3 GetNormalTS(SurfaceInput input)
+    public override float3 getNormalTS(SurfaceInput input)
     {
         // Two-channel tangent-space normal map (BC5); z is reconstructed.
-        float2 normalXY = _material._normalTexture.Sample(_samplers._linearRepeat, input.uv).rg * 2.0 - 1.0;
+        float2 normalXY = material.normalTexture.Sample(samplers.linearRepeat, input.uv).rg * 2.0 - 1.0;
         return float3(normalXY, sqrt(saturate(1.0 - dot(normalXY, normalXY))));
     }
 
-    public override float3 GetMetallicRoughnessAO(SurfaceInput input)
+    public override float3 getMetallicRoughnessAO(SurfaceInput input)
     {
         // glTF metallic-roughness texture: roughness in G, metallic in B, both
         // multiplied with their factors. AO stays factor-only (no AO texture).
-        float4 mrTex = _material._metallicRoughnessTexture.Sample(_samplers._linearRepeat, input.uv);
+        float4 mrTex = material.metallicRoughnessTexture.Sample(samplers.linearRepeat, input.uv);
         return float3(
             input.metallicRoughnessAO.x * mrTex.b,
             input.metallicRoughnessAO.y * mrTex.g,
             input.metallicRoughnessAO.z);
     }
 
-    public override float3 GetEmissive(SurfaceInput input)
+    public override float3 getEmissive(SurfaceInput input)
     {
         // Emissive texture (sRGB-decoded by the sampler) times the linear factor.
-        return _material._emissiveTexture.Sample(_samplers._linearRepeat, input.uv).rgb * input.emissiveFactor.rgb;
+        return material.emissiveTexture.Sample(samplers.linearRepeat, input.uv).rgb * input.emissiveFactor.rgb;
     }
 
     // Voxel-GI feed: the compute stage has no implicit derivatives, so the feed
     // samples with the explicit LOD the voxelizer passes (a coarse mip averages
     // sub-triangle detail).
-    public override float4 GetVoxelBaseColor(SurfaceInput input, float lod)
+    public override float4 getVoxelBaseColor(SurfaceInput input, float lod)
     {
-        return _material._albedoTexture.SampleLevel(_samplers._linearRepeat, input.uv, lod) * input.baseColorFactor;
+        return material.albedoTexture.SampleLevel(samplers.linearRepeat, input.uv, lod) * input.baseColorFactor;
     }
 
-    public override float3 GetVoxelEmissive(SurfaceInput input, float lod)
+    public override float3 getVoxelEmissive(SurfaceInput input, float lod)
     {
-        return _material._emissiveTexture.SampleLevel(_samplers._linearRepeat, input.uv, lod).rgb * input.emissiveFactor.rgb;
+        return material.emissiveTexture.SampleLevel(samplers.linearRepeat, input.uv, lod).rgb * input.emissiveFactor.rgb;
     }
 }

@@ -147,7 +147,7 @@ public class TestMaterial
         using GPUSampler attempt = renderingSystem.GraphicsDevice.CreateSampler(new SamplerDescriptor(
             FilterMode.Nearest, FilterMode.Nearest, FilterMode.Nearest,
             AddressMode.Repeat, AddressMode.Repeat, AddressMode.Repeat, name: "attempt"));
-        Assert.IsFalse(sprite.TrySetSampler("_linearClamp", attempt));
+        Assert.IsFalse(sprite.TrySetSampler("linearClamp", attempt));
     }
 
     [Test]

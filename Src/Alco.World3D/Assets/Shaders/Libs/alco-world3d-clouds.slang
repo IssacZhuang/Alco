@@ -24,13 +24,13 @@ import alco_rendering_core;
 
 // Remap v from [l0, l1] onto [r0, r1]. Unclamped by design so callers choose
 // where to saturate; the epsilon keeps a closed window from dividing by zero.
-public float CloudRemap(float v, float l0, float l1, float r0, float r1)
+public float cloudRemap(float v, float l0, float l1, float r0, float r1)
 {
     return r0 + (v - l0) * (r1 - r0) / max(l1 - l0, 1e-6);
 }
 
 // Henyey-Greenstein phase (matches VolumetricLight.hlsl's formulation).
-public float CloudPhaseHG(float cosTheta, float g)
+public float cloudPhaseHG(float cosTheta, float g)
 {
     float g2 = g * g;
     float denom = 1.0 + g2 - 2.0 * g * cosTheta;
@@ -40,59 +40,59 @@ public float CloudPhaseHG(float cosTheta, float g)
 // Dual-lobe phase: a strong forward peak (silver lining toward the sun) mixed
 // with a mild back-scatter lobe (soft grey when looking away). Mixing ~0.35 of
 // the back lobe keeps the anti-solar side from going flat black.
-public float CloudPhaseDual(float cosTheta)
+public float cloudPhaseDual(float cosTheta)
 {
-    float forward = CloudPhaseHG(cosTheta, 0.72);
-    float back = CloudPhaseHG(cosTheta, -0.18);
+    float forward = cloudPhaseHG(cosTheta, 0.72);
+    float back = cloudPhaseHG(cosTheta, -0.18);
     return lerp(forward, back, 0.35);
 }
 
 // Height gradient inside the cloud slab (0 at the faces, 1 mid-slab). The top
 // descent starts higher as coverage grows, so dense weather builds tall
 // rounded towers while sparse skies stay thin and wispy.
-public float CloudHeightGradient(float h, float coverage)
+public float cloudHeightGradient(float h, float coverage)
 {
-    float rise = saturate(CloudRemap(h, 0.0, 0.07 + 0.10 * (1.0 - coverage), 0.0, 1.0));
-    float fall = saturate(CloudRemap(h, 0.45 + 0.35 * coverage, 1.0, 1.0, 0.0));
+    float rise = saturate(cloudRemap(h, 0.0, 0.07 + 0.10 * (1.0 - coverage), 0.0, 1.0));
+    float fall = saturate(cloudRemap(h, 0.45 + 0.35 * coverage, 1.0, 1.0, 0.0));
     return rise * fall;
 }
 
 // Coverage mask from the low-frequency field: the coverage parameter slides
 // the empty-sky → overcast window over the same field, so raising coverage
 // grows existing clouds first and only then closes the gaps.
-public float CloudCoverageMask(float lowFreq, float coverage)
+public float cloudCoverageMask(float lowFreq, float coverage)
 {
-    return saturate(CloudRemap(lowFreq, 1.0 - coverage, 0.98, 0.0, 1.0));
+    return saturate(cloudRemap(lowFreq, 1.0 - coverage, 0.98, 0.0, 1.0));
 }
 
 // FBM weights combining the base texture's Worley octaves / the detail
 // texture's octaves (the classic 0.625 / 0.25 / 0.125 distribution).
-public float CloudWorleyFbm(float4 baseNoise)
+public float cloudWorleyFbm(float4 baseNoise)
 {
     return baseNoise.g * 0.625 + baseNoise.b * 0.25 + baseNoise.a * 0.125;
 }
 
-public float CloudDetailFbm(float3 detailNoise)
+public float cloudDetailFbm(float3 detailNoise)
 {
     return detailNoise.r * 0.625 + detailNoise.g * 0.25 + detailNoise.b * 0.125;
 }
 
 // Carve the Perlin-Worley channel by its Worley octaves into the billowy base
 // shape, then reshape by coverage mask and height gradient.
-public float CloudBaseShape(float4 baseNoise, float coverageMask, float heightGradient)
+public float cloudBaseShape(float4 baseNoise, float coverageMask, float heightGradient)
 {
-    float carved = saturate(CloudRemap(baseNoise.r, CloudWorleyFbm(baseNoise) - 1.0, 1.0, 0.0, 1.0));
+    float carved = saturate(cloudRemap(baseNoise.r, cloudWorleyFbm(baseNoise) - 1.0, 1.0, 0.0, 1.0));
     return saturate(carved * coverageMask * heightGradient);
 }
 
 // Erode the base shape's silhouette with the high-frequency detail octaves.
-public float CloudErodeShape(float density, float3 detailNoise, float detailStrength, float heightFraction)
+public float cloudErodeShape(float density, float3 detailNoise, float detailStrength, float heightFraction)
 {
     // Erode harder near the slab bottom (wispy evaporating bases) and let the
     // detail fade toward the tops so summits keep their rounded density.
     float verticalBias = lerp(1.0, 0.55, saturate(heightFraction * 1.4));
-    float erode = CloudDetailFbm(detailNoise) * detailStrength * verticalBias;
-    return saturate(CloudRemap(density, erode, 1.0, 0.0, 1.0));
+    float erode = cloudDetailFbm(detailNoise) * detailStrength * verticalBias;
+    return saturate(cloudRemap(density, erode, 1.0, 0.0, 1.0));
 }
 
 

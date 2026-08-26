@@ -9,8 +9,8 @@ namespace Alco.Engine.Benchmark;
 // the old sprite renderer, use less command for better performance, but not flexible
 internal sealed class OldSpriteRenderer : AutoDisposable
 {
-    public const string ShaderId_camera = "_camera";
-    public const string ShaderId_texture = "_texture";
+    public const string ShaderId_camera = "camera";
+    public const string ShaderId_texture = "texture";
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant

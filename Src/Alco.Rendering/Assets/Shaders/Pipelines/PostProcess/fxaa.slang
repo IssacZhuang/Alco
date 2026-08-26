@@ -11,19 +11,19 @@ import alco_rendering_core;
 
 public struct PassParams
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 // FXAA configuration constants
 public struct FxaaData
 {
-    public float2 InvFrameSize; // 1.0 / FrameSize
-    public float Threshold;     // Edge detection threshold (0.063-0.333)
+    public float2 invFrameSize; // 1.0 / FrameSize
+    public float threshold;     // Edge detection threshold (0.063-0.333)
 };
 
-public ParameterBlock<FxaaData> _fxaaData;
+public ParameterBlock<FxaaData> fxaaData;
 
 
 struct Vertex {
@@ -47,7 +47,7 @@ struct V2F {
                         FXAA 3.11 QUALITY PRESETS
 ============================================================================*/
 
-// Quality is a generic value parameter (plan D3): the C# owner requests a
+// quality is a generic value parameter (plan D3): the C# owner requests a
 // specialized shader per quality (0=Low, 1=Medium, 2=High, 3=Ultra) instead of
 // compiling preprocessor permutations. The tables stay verbatim; the selector
 // functions fold to one table after specialization (dead branches eliminate).
@@ -57,14 +57,14 @@ struct V2F {
 // 2 = FXAA_QUALITY_HIGH   - 12 steps, high quality
 // 3 = FXAA_QUALITY_ULTRA  - 29 steps, maximum quality
 
-static const float s_SampleDistances_Low[4] = {
+static const float sampleDistancesLow[4] = {
   1.5,
   3.0,
   12.0,
   12.0
 };
 
-static const float s_SampleDistances_Medium[8] = {
+static const float sampleDistancesMedium[8] = {
   1.0,
   1.5,
   2.0,
@@ -75,7 +75,7 @@ static const float s_SampleDistances_Medium[8] = {
   8.0
 };
 
-static const float s_SampleDistances_High[12] = {
+static const float sampleDistancesHigh[12] = {
   1.0,
   1.5,
   2.0,
@@ -90,7 +90,7 @@ static const float s_SampleDistances_High[12] = {
   8.0
 };
 
-static const float s_SampleDistances_Ultra[29] = {
+static const float sampleDistancesUltra[29] = {
   1.0,
   1.0,
   1.0,
@@ -123,36 +123,36 @@ static const float s_SampleDistances_Ultra[29] = {
 };
 
 /// The number of edge-search steps of one quality preset (0=Low..3=Ultra).
-int FxaaNumSamples<let Quality : int>() {
-  if (Quality == 0) { return 4; }
-  else if (Quality == 1) { return 8; }
-  else if (Quality == 3) { return 29; }
+int fxaaNumSamples<let quality : int>() {
+  if (quality == 0) { return 4; }
+  else if (quality == 1) { return 8; }
+  else if (quality == 3) { return 29; }
   else { return 12; }
 }
 
 /// The i-th search-step distance of one quality preset.
-float FxaaSampleDistance<let Quality : int>(int i) {
-  if (Quality == 0) { return s_SampleDistances_Low[i]; }
-  else if (Quality == 1) { return s_SampleDistances_Medium[i]; }
-  else if (Quality == 3) { return s_SampleDistances_Ultra[i]; }
-  else { return s_SampleDistances_High[i]; }
+float fxaaSampleDistance<let quality : int>(int i) {
+  if (quality == 0) { return sampleDistancesLow[i]; }
+  else if (quality == 1) { return sampleDistancesMedium[i]; }
+  else if (quality == 3) { return sampleDistancesUltra[i]; }
+  else { return sampleDistancesHigh[i]; }
 }
 
 /*============================================================================
                         FXAA 3.11 ALGORITHM
 ============================================================================*/
 
-// Convert RGB to luma (perceptual luminance)
-float FxaaLuma(float3 rgb) {
+// Convert rgb to luma (perceptual luminance)
+float fxaaLuma(float3 rgb) {
   return rgb.y * (0.587 / 0.299) + rgb.x;
 }
 
-float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
+float4 fxaaPixelShader<let quality : int>(float2 pos,     // Pixel position
                                           float2 rcpFrame // 1.0 / screen size
 ) {
   // FXAA algorithm parameters
   float fxaaQualitySubpix = 0.75; // Subpixel aliasing removal amount (standard value)
-  float fxaaQualityEdgeThreshold = _fxaaData.Threshold; // Edge detection threshold
+  float fxaaQualityEdgeThreshold = fxaaData.threshold; // Edge detection threshold
   float fxaaQualityEdgeThresholdMin = 0.0625; // Minimum threshold
 
   /*--------------------------------------------------------------------------*/
@@ -160,18 +160,18 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   /*--------------------------------------------------------------------------*/
 
   // Sample center and surrounding pixels
-  float3 rgbN = _pass._texture.Sample(_samplers._linearClamp, pos + float2(0.0, -1.0) * rcpFrame).rgb;
-  float3 rgbW = _pass._texture.Sample(_samplers._linearClamp, pos + float2(-1.0, 0.0) * rcpFrame).rgb;
-  float3 rgbM = _pass._texture.Sample(_samplers._linearClamp, pos).rgb;
-  float3 rgbE = _pass._texture.Sample(_samplers._linearClamp, pos + float2(1.0, 0.0) * rcpFrame).rgb;
-  float3 rgbS = _pass._texture.Sample(_samplers._linearClamp, pos + float2(0.0, 1.0) * rcpFrame).rgb;
+  float3 rgbN = pass.texture.Sample(samplers.linearClamp, pos + float2(0.0, -1.0) * rcpFrame).rgb;
+  float3 rgbW = pass.texture.Sample(samplers.linearClamp, pos + float2(-1.0, 0.0) * rcpFrame).rgb;
+  float3 rgbM = pass.texture.Sample(samplers.linearClamp, pos).rgb;
+  float3 rgbE = pass.texture.Sample(samplers.linearClamp, pos + float2(1.0, 0.0) * rcpFrame).rgb;
+  float3 rgbS = pass.texture.Sample(samplers.linearClamp, pos + float2(0.0, 1.0) * rcpFrame).rgb;
 
   // Convert to luma
-  float lumaN = FxaaLuma(rgbN);
-  float lumaW = FxaaLuma(rgbW);
-  float lumaM = FxaaLuma(rgbM);
-  float lumaE = FxaaLuma(rgbE);
-  float lumaS = FxaaLuma(rgbS);
+  float lumaN = fxaaLuma(rgbN);
+  float lumaW = fxaaLuma(rgbW);
+  float lumaM = fxaaLuma(rgbM);
+  float lumaE = fxaaLuma(rgbE);
+  float lumaS = fxaaLuma(rgbS);
 
   // Find the maximum and minimum luma around this pixel
   float rangeMin = min(lumaM, min(min(lumaN, lumaW), min(lumaS, lumaE)));
@@ -192,18 +192,18 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
   float3 rgbL = rgbN + rgbW + rgbM + rgbE + rgbS;
 
   float3 rgbNW =
-      _pass._texture.Sample(_samplers._linearClamp, pos + float2(-1.0, -1.0) * rcpFrame).rgb;
-  float3 rgbNE = _pass._texture.Sample(_samplers._linearClamp, pos + float2(1.0, -1.0) * rcpFrame).rgb;
-  float3 rgbSW = _pass._texture.Sample(_samplers._linearClamp, pos + float2(-1.0, 1.0) * rcpFrame).rgb;
-  float3 rgbSE = _pass._texture.Sample(_samplers._linearClamp, pos + float2(1.0, 1.0) * rcpFrame).rgb;
+      pass.texture.Sample(samplers.linearClamp, pos + float2(-1.0, -1.0) * rcpFrame).rgb;
+  float3 rgbNE = pass.texture.Sample(samplers.linearClamp, pos + float2(1.0, -1.0) * rcpFrame).rgb;
+  float3 rgbSW = pass.texture.Sample(samplers.linearClamp, pos + float2(-1.0, 1.0) * rcpFrame).rgb;
+  float3 rgbSE = pass.texture.Sample(samplers.linearClamp, pos + float2(1.0, 1.0) * rcpFrame).rgb;
 
   rgbL += (rgbNW + rgbNE + rgbSW + rgbSE);
   rgbL *= (1.0 / 9.0);
 
-  float lumaNW = FxaaLuma(rgbNW);
-  float lumaNE = FxaaLuma(rgbNE);
-  float lumaSW = FxaaLuma(rgbSW);
-  float lumaSE = FxaaLuma(rgbSE);
+  float lumaNW = fxaaLuma(rgbNW);
+  float lumaNE = fxaaLuma(rgbNE);
+  float lumaSW = fxaaLuma(rgbSW);
+  float lumaSE = fxaaLuma(rgbSE);
 
   // Compute the subpixel offset
   float lumaL = (lumaN + lumaW + lumaE + lumaS) * 0.25;
@@ -271,16 +271,16 @@ float4 FxaaPixelShader<let Quality : int>(float2 pos,     // Pixel position
 
   // Variable step search using the quality preset's sample distances
   [unroll]
-  for (int i = 0; i < FxaaNumSamples<Quality>(); i++) {
+  for (int i = 0; i < fxaaNumSamples<quality>(); i++) {
     if (!doneN) {
-      posN -= offNP * FxaaSampleDistance<Quality>(i);
-      lumaEndN = FxaaLuma(_pass._texture.Sample(_samplers._linearClamp, posN).rgb);
+      posN -= offNP * fxaaSampleDistance<quality>(i);
+      lumaEndN = fxaaLuma(pass.texture.Sample(samplers.linearClamp, posN).rgb);
       doneN = abs(lumaEndN - lumaN) >= gradientN;
     }
 
     if (!doneP) {
-      posP += offNP * FxaaSampleDistance<Quality>(i);
-      lumaEndP = FxaaLuma(_pass._texture.Sample(_samplers._linearClamp, posP).rgb);
+      posP += offNP * fxaaSampleDistance<quality>(i);
+      lumaEndP = fxaaLuma(pass.texture.Sample(samplers.linearClamp, posP).rgb);
       doneP = abs(lumaEndP - lumaN) >= gradientN;
     }
     
@@ -314,7 +314,7 @@ float subPixelOffset = (0.5 + (dstN * (-1.0 / spanLength))) * lengthSign;
 
 // Apply subpixel shift
 float3 rgbF =
-    _pass._texture.Sample(_samplers._linearClamp, float2(pos.x + (horzSpan ? 0.0 : subPixelOffset),
+    pass.texture.Sample(samplers.linearClamp, float2(pos.x + (horzSpan ? 0.0 : subPixelOffset),
                                   pos.y + (horzSpan ? subPixelOffset : 0.0)))
         .rgb;
 
@@ -322,6 +322,6 @@ float3 rgbF =
 return float4(lerp(rgbF, rgbL, blendL), 1.0);
 }
 
-[shader("fragment")] float4 MainPS<let Quality : int>(V2F input) : SV_TARGET {
-  return FxaaPixelShader<Quality>(input.uv, _fxaaData.InvFrameSize);
+[shader("fragment")] float4 MainPS<let quality : int>(V2F input) : SV_TARGET {
+  return fxaaPixelShader<quality>(input.uv, fxaaData.invFrameSize);
 }

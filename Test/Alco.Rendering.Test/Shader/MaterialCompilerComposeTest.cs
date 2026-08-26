@@ -57,14 +57,14 @@ public class MaterialCompilerComposeTest
 
         import test_contract;
 
-        cbuffer _camera : register(b0, space0)
+        cbuffer camera : register(b0, space0)
         {
             float4x4 viewProjection;
         }
 
-        cbuffer _draw : register(b0, space1)
+        cbuffer draw : register(b0, space1)
         {
-            RWStructuredBuffer<float4> _instances;
+            RWStructuredBuffer<float4> instances;
         }
 
         public struct LitV2F
@@ -77,7 +77,7 @@ public class MaterialCompilerComposeTest
         public LitV2F MainVS<T : ISurface>(float3 position : POSITION, float2 uv : TEXCOORD0)
         {
             T surface = T();
-            float3 worldPos = position + _instances[0].xyz;
+            float3 worldPos = position + instances[0].xyz;
             surface.ModifyVertex(worldPos, uv);
             LitV2F output;
             output.position = mul(viewProjection, float4(worldPos, 1.0));
@@ -102,14 +102,14 @@ public class MaterialCompilerComposeTest
 
         import test_contract;
 
-        cbuffer _data : register(b0, space0)
+        cbuffer data : register(b0, space0)
         {
             float4x4 lightViewProjection;
         }
 
-        cbuffer _draw : register(b0, space1)
+        cbuffer draw : register(b0, space1)
         {
-            RWStructuredBuffer<float4> _instances;
+            RWStructuredBuffer<float4> instances;
         }
 
         public struct ShadowV2F
@@ -122,7 +122,7 @@ public class MaterialCompilerComposeTest
         public ShadowV2F MainVS<T : ISurface>(float3 position : POSITION, float2 uv : TEXCOORD0)
         {
             T surface = T();
-            float3 worldPos = position + _instances[0].xyz;
+            float3 worldPos = position + instances[0].xyz;
             surface.ModifyVertex(worldPos, uv);
             ShadowV2F output;
             output.position = mul(lightViewProjection, float4(worldPos, 1.0));
@@ -151,14 +151,14 @@ public class MaterialCompilerComposeTest
 
         import test_contract;
 
-        cbuffer _pass : register(b0, space0)
+        cbuffer pass : register(b0, space0)
         {
-            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> output;
         }
 
-        cbuffer _draw : register(b0, space1)
+        cbuffer draw : register(b0, space1)
         {
-            RWStructuredBuffer<uint> _tiles;
+            RWStructuredBuffer<uint> tiles;
         }
 
         [shader("compute")]
@@ -169,8 +169,8 @@ public class MaterialCompilerComposeTest
             SurfaceInput surfaceInput;
             surfaceInput.uv = float2(0, 0);
             surfaceInput.tint = float4(1, 1, 1, 1);
-            _output[tid] = surface.GetBaseColor(surfaceInput);
-            _tiles[tid.x] = 0u;
+            output[tid] = surface.GetBaseColor(surfaceInput);
+            tiles[tid.x] = 0u;
         }
         """;
 
@@ -180,14 +180,14 @@ public class MaterialCompilerComposeTest
 
         import test_contract;
 
-        cbuffer _material : register(b0, space2)
+        cbuffer material : register(b0, space2)
         {
-            Texture2D<float4> _albedoTexture;
-            SamplerState _albedoTextureSampler;
+            Texture2D<float4> albedoTexture;
+            SamplerState albedoTextureSampler;
         }
 
         [MaterialParams]
-        cbuffer _surfaceParams : register(b1, space2)
+        cbuffer surfaceParams : register(b1, space2)
         {
             float pulseSpeed;
             float3 pulseColor;
@@ -198,7 +198,7 @@ public class MaterialCompilerComposeTest
         {
             public override float4 GetBaseColor(SurfaceInput input)
             {
-                return _albedoTexture.Sample(_albedoTextureSampler, input.uv)
+                return albedoTexture.Sample(albedoTextureSampler, input.uv)
                      * input.tint * pulseSpeed;
             }
         }
@@ -220,14 +220,14 @@ public class MaterialCompilerComposeTest
         import test_contract;
 
         [MaterialParams]
-        cbuffer _pulse : register(b0, space2)
+        cbuffer pulse : register(b0, space2)
         {
             float pulseSpeed;
             float3 pulseColor;
         }
 
         [MaterialParams]
-        cbuffer _bands : register(b1, space2)
+        cbuffer bands : register(b1, space2)
         {
             float bandFrequency;
         }
@@ -248,7 +248,7 @@ public class MaterialCompilerComposeTest
         import test_contract;
 
         [MaterialParams]
-        cbuffer _typedParams : register(b1, space2)
+        cbuffer typedParams : register(b1, space2)
         {
             float pulseSpeed;
             int levelIndex;
@@ -318,8 +318,8 @@ public class MaterialCompilerComposeTest
                 Assert.That(modules.IsGraphicsShader, Is.True);
                 Assert.That(modules.VertexShader!.Value.Source.Length, Is.GreaterThan(4));
                 Assert.That(modules.FragmentShader!.Value.Source.Length, Is.GreaterThan(4));
-                Assert.That(modules.ReflectionInfo.TryGetResourceId("_albedoTexture", out _), Is.True);
-                Assert.That(modules.ReflectionInfo.TryGetResourceId("_surfaceParams", out _), Is.True);
+                Assert.That(modules.ReflectionInfo.TryGetResourceId("albedoTexture", out _), Is.True);
+                Assert.That(modules.ReflectionInfo.TryGetResourceId("surfaceParams", out _), Is.True);
                 Assert.That(compiler.ComposeGraphics(lit, surface),
                     Is.SameAs(shader), "same composition must return the cached shader");
             });
@@ -341,7 +341,7 @@ public class MaterialCompilerComposeTest
             Assert.Multiple(() =>
             {
                 Assert.That(modules.IsGraphicsShader, Is.True);
-                Assert.That(modules.ReflectionInfo.TryGetResourceId("_albedoTexture", out _), Is.False,
+                Assert.That(modules.ReflectionInfo.TryGetResourceId("albedoTexture", out _), Is.False,
                     "the defaults reference no texture");
             });
         }
@@ -363,8 +363,8 @@ public class MaterialCompilerComposeTest
             {
                 Assert.That(modules.IsComputeShader, Is.True);
                 Assert.That(modules.ComputeShader!.Value.WorkgroupSize, Is.EqualTo((8u, 8u, 1u)));
-                Assert.That(modules.ReflectionInfo.TryGetResourceId("_output", out _), Is.True);
-                Assert.That(modules.ReflectionInfo.TryGetResourceId("_albedoTexture", out _), Is.True);
+                Assert.That(modules.ReflectionInfo.TryGetResourceId("output", out _), Is.True);
+                Assert.That(modules.ReflectionInfo.TryGetResourceId("albedoTexture", out _), Is.True);
             });
         }
     }
@@ -426,8 +426,8 @@ public class MaterialCompilerComposeTest
             {
                 // Only the [MaterialParams]-marked block is reported — the unmarked
                 // resource block above it is not a parameter block.
-                Assert.That(layouts.Keys, Is.EqualTo(new[] { "_surfaceParams" }));
-                IReadOnlyList<ShaderUniformMember> members = layouts["_surfaceParams"];
+                Assert.That(layouts.Keys, Is.EqualTo(new[] { "surfaceParams" }));
+                IReadOnlyList<ShaderUniformMember> members = layouts["surfaceParams"];
                 Assert.That(members.Select(member => member.Name),
                     Is.EqualTo(new[] { "pulseSpeed", "pulseColor", "bandFrequency" }));
                 Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
@@ -447,7 +447,7 @@ public class MaterialCompilerComposeTest
         using (shaderSystem)
         {
             IReadOnlyList<ShaderUniformMember> layout =
-                compiler.GetParamsLayouts(shaderSystem.GetLibrary("test_surface"))["_surfaceParams"];
+                compiler.GetParamsLayouts(shaderSystem.GetLibrary("test_surface"))["surfaceParams"];
 
             Assert.Multiple(() =>
             {
@@ -477,7 +477,7 @@ public class MaterialCompilerComposeTest
         using (shaderSystem)
         {
             IReadOnlyList<ShaderUniformMember> layout =
-                compiler.GetParamsLayouts(shaderSystem.GetLibrary("test_surface_typed"))["_typedParams"];
+                compiler.GetParamsLayouts(shaderSystem.GetLibrary("test_surface_typed"))["typedParams"];
 
             // Every authored kind lands on its member: an int onto a float member
             // reads as its exact scalar; int/uint/bool marshal their 32-bit
@@ -538,7 +538,7 @@ public class MaterialCompilerComposeTest
             // discovery reports each one.
             IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
                 compiler.GetParamsLayouts(shaderSystem.GetLibrary("test_surface_multiblock"));
-            Assert.That(layouts.Keys, Is.EqualTo(new[] { "_pulse", "_bands" }));
+            Assert.That(layouts.Keys, Is.EqualTo(new[] { "pulse", "bands" }));
 
             // One value table spans blocks by member name; each marked block gets
             // its own buffer. An unknown name fails against the union of members.
@@ -550,8 +550,8 @@ public class MaterialCompilerComposeTest
                     ["pulseColor"] = new Vector4(1f, 0.5f, 0.25f, 0f),
                     ["bandFrequency"] = new Vector4(4f, 0f, 0f, 0f),
                 }, "mat");
-            using (buffers["_pulse"])
-            using (buffers["_bands"])
+            using (buffers["pulse"])
+            using (buffers["bands"])
             {
                 Assert.Multiple(() =>
                 {
@@ -573,7 +573,7 @@ public class MaterialCompilerComposeTest
             // Slot discovery reads the surface module's own declarations —
             // set-number-free (a ParameterBlock's set is compiler-assigned).
             Assert.That(compiler.EnumerateTextureSlots(shaderSystem.GetLibrary("test_surface")),
-                Is.EqualTo(new[] { "_albedoTexture" }));
+                Is.EqualTo(new[] { "albedoTexture" }));
         }
     }
 

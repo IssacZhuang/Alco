@@ -8,7 +8,7 @@ namespace Alco.Rendering;
 /// the GPU device only creates raw samplers
 /// (<see cref="GPUDevice.CreateSampler"/>); which samplers exist and how they
 /// map to shader member names is a rendering-layer policy.
-/// <br/>The shader-side counterpart is the <c>_samplers</c> ParameterBlock of
+/// <br/>The shader-side counterpart is the <c>samplers</c> ParameterBlock of
 /// <c>alco-rendering-core.slang</c>; every shader importing the core module gets
 /// the block reflected into one of its bind groups. The bank is immutable
 /// engine-wide state and is never overridable: the bank serves a whole
@@ -135,13 +135,13 @@ public sealed class SharedSamplers : IDisposable
     /// entries.
     /// </summary>
     public bool IsBankMember(string shaderMemberName) => shaderMemberName is
-        "_linearClamp" or "_linearRepeat" or "_nearestClamp" or "_nearestRepeat"
-        or "_linearMirrorRepeat" or "_nearestMirrorRepeat" or "_anisotropicClamp"
-        or "_anisotropicRepeat" or "_depthComparison";
+        "linearClamp" or "linearRepeat" or "nearestClamp" or "nearestRepeat"
+        or "linearMirrorRepeat" or "nearestMirrorRepeat" or "anisotropicClamp"
+        or "anisotropicRepeat" or "depthComparison";
 
     /// <summary>
     /// Resolves a bank sampler by its shader-side member name (e.g.
-    /// <c>_linearClamp</c>). This is the single name table of the shared sampler
+    /// <c>linearClamp</c>). This is the single name table of the shared sampler
     /// convention; an unknown name means a shader declared a sampler that is
     /// neither a bank member nor material-bound — resolved loudly at bind group
     /// assembly, not silently ignored.
@@ -150,22 +150,22 @@ public sealed class SharedSamplers : IDisposable
     {
         switch (shaderMemberName)
         {
-            case "_linearClamp": sampler = _linearClamp; return true;
-            case "_linearRepeat": sampler = _linearRepeat; return true;
-            case "_nearestClamp": sampler = _nearestClamp; return true;
-            case "_nearestRepeat": sampler = _nearestRepeat; return true;
-            case "_linearMirrorRepeat": sampler = _linearMirrorRepeat; return true;
-            case "_nearestMirrorRepeat": sampler = _nearestMirrorRepeat; return true;
-            case "_anisotropicClamp": sampler = _anisotropicClamp; return true;
-            case "_anisotropicRepeat": sampler = _anisotropicRepeat; return true;
-            case "_depthComparison": sampler = _depthComparison; return true;
+            case "linearClamp": sampler = _linearClamp; return true;
+            case "linearRepeat": sampler = _linearRepeat; return true;
+            case "nearestClamp": sampler = _nearestClamp; return true;
+            case "nearestRepeat": sampler = _nearestRepeat; return true;
+            case "linearMirrorRepeat": sampler = _linearMirrorRepeat; return true;
+            case "nearestMirrorRepeat": sampler = _nearestMirrorRepeat; return true;
+            case "anisotropicClamp": sampler = _anisotropicClamp; return true;
+            case "anisotropicRepeat": sampler = _anisotropicRepeat; return true;
+            case "depthComparison": sampler = _depthComparison; return true;
             default: sampler = null; return false;
         }
     }
 
     /// <summary>
     /// Gets the shared, immutable resource group binding the bank samplers for a
-    /// reflected sampler-only bind group layout (the <c>_samplers</c> block of the
+    /// reflected sampler-only bind group layout (the <c>samplers</c> block of the
     /// core module reflected into a shader). The group is created once per
     /// structural layout and shared by every material and frame — bank samplers
     /// are engine-wide constants and are never overridden. Lookups after the

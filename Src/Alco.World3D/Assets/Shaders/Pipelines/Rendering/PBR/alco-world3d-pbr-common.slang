@@ -48,13 +48,13 @@ public struct PbrData
     public float  fogDensity;               // volumetric light scattering density
     public float  heightScaleHeight;        // height-falloff model (constant model ignores)
     public float  phaseG;                   // Henyey-Greenstein anisotropy
-    public float  cloudShadowStrength;  // 0 = off; _cloudShadow texture holds the coverage
+    public float  cloudShadowStrength;  // 0 = off; cloudShadow texture holds the coverage
     public float  cloudShadowPlaneAltitude; // meters, mid-slab
     public float  cloudShadowExtent;    // half extent of the coverage grid in meters
     public bool   cloudShadowEnabled;
 };
 
-public ParameterBlock<PbrData> _data;
+public ParameterBlock<PbrData> data;
 
 
 // Point light storage buffer element.
@@ -67,65 +67,65 @@ public struct PointLightData {
 
 public struct LightsAndShadow
 {
-    public RWStructuredBuffer<PointLightData> _pointLights;
-    public DepthTexture2D _shadowMap;
+    public RWStructuredBuffer<PointLightData> pointLights;
+    public DepthTexture2D shadowMap;
 };
 
-public ParameterBlock<LightsAndShadow> _lightsAndShadow;
+public ParameterBlock<LightsAndShadow> lightsAndShadow;
 
-public float DistributionGGX(float NdotH, float roughness)
+public float distributionGGX(float ndotH, float roughness)
 {
     float a = roughness * roughness;
     float a2 = a * a;
-    float d = NdotH * NdotH * (a2 - 1.0) + 1.0;
+    float d = ndotH * ndotH * (a2 - 1.0) + 1.0;
     return a2 / (PI * d * d + 1e-6);
 }
 
-public float GeometrySchlickGGX(float NdotX, float roughness)
+public float geometrySchlickGGX(float ndotX, float roughness)
 {
     float r = roughness + 1.0;
     float k = r * r / 8.0;
-    return NdotX / (NdotX * (1.0 - k) + k + 1e-6);
+    return ndotX / (ndotX * (1.0 - k) + k + 1e-6);
 }
 
-public float3 FresnelSchlick(float3 F0, float VdotH)
+public float3 fresnelSchlick(float3 f0, float vdotH)
 {
-    return F0 + (1.0 - F0) * pow(1.0 - VdotH, 5.0);
+    return f0 + (1.0 - f0) * pow(1.0 - vdotH, 5.0);
 }
 
-// Returns (diffuse + specular) * NdotL for one light.
-public float3 EvaluatePBR(float3 N, float3 V, float3 L, float3 albedo, float metallic, float roughness)
+// Returns (diffuse + specular) * ndotL for one light.
+public float3 evaluatePBR(float3 n, float3 v, float3 l, float3 albedo, float metallic, float roughness)
 {
-    float3 H = normalize(V + L);
-    float NdotL = max(dot(N, L), 0.0);
-    float NdotV = max(dot(N, V), 0.0);
-    float NdotH = max(dot(N, H), 0.0);
-    float VdotH = max(dot(V, H), 0.0);
+    float3 h = normalize(v + l);
+    float ndotL = max(dot(n, l), 0.0);
+    float ndotV = max(dot(n, v), 0.0);
+    float ndotH = max(dot(n, h), 0.0);
+    float vdotH = max(dot(v, h), 0.0);
 
-    float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
-    float3 F = FresnelSchlick(F0, VdotH);
-    float D = DistributionGGX(NdotH, roughness);
-    float G = GeometrySchlickGGX(NdotL, roughness) * GeometrySchlickGGX(NdotV, roughness);
+    float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+    float3 f = fresnelSchlick(f0, vdotH);
+    float d = distributionGGX(ndotH, roughness);
+    float g = geometrySchlickGGX(ndotL, roughness) * geometrySchlickGGX(ndotV, roughness);
 
-    float3 specular = D * G * F / (4.0 * NdotL * NdotV + 1e-6);
-    float3 diffuse = (1.0 - F) * (1.0 - metallic) * albedo / PI;
+    float3 specular = d * g * f / (4.0 * ndotL * ndotV + 1e-6);
+    float3 diffuse = (1.0 - f) * (1.0 - metallic) * albedo / PI;
 
-    return (diffuse + specular) * NdotL;
+    return (diffuse + specular) * ndotL;
 }
 
 // Pick the shadow cascade for a radial camera distance; -1 when beyond the last split.
-public int SelectCascade(float viewDistance)
+public int selectCascade(float viewDistance)
 {
-    if (viewDistance < _data.cascadeSplits.x) return 0;
-    if (viewDistance < _data.cascadeSplits.y) return 1;
-    if (viewDistance < _data.cascadeSplits.z) return 2;
-    if (viewDistance < _data.cascadeSplits.w) return 3;
+    if (viewDistance < data.cascadeSplits.x) return 0;
+    if (viewDistance < data.cascadeSplits.y) return 1;
+    if (viewDistance < data.cascadeSplits.z) return 2;
+    if (viewDistance < data.cascadeSplits.w) return 3;
     return -1;
 }
 
 // Interleaved gradient noise remains shared by the volumetric passes. Sun-shadow
 // PCF itself is deterministic and no longer uses this value to rotate its taps.
-public float InterleavedGradientNoise(float2 pix)
+public float interleavedGradientNoise(float2 pix)
 {
     return frac(52.9829189 * frac(dot(pix, float2(0.06711056, 0.00583715))));
 }
@@ -133,7 +133,7 @@ public float InterleavedGradientNoise(float2 pix)
 // Separable 5x5 PCF with the [1 3 4 3 1] kernel. Hardware bilinear comparison
 // sampling combines each adjacent pair, reducing 25 comparisons to 9 while the
 // sub-texel-dependent weights keep the filter stable as the receiver moves.
-public float SampleShadowMapPCF5x5(
+public float sampleShadowMapPCF5x5(
     float2 shadowUV,
     float compareDepth,
     float texelAtlas,
@@ -170,8 +170,8 @@ public float SampleShadowMapPCF5x5(
                 quadrantMin,
                 quadrantMax);
             shadow += uWeights[x] * vWeights[y]
-                * _lightsAndShadow._shadowMap.SampleCmpLevelZero(
-                    _samplers._depthComparison, uv, compareDepth);
+                * lightsAndShadow.shadowMap.SampleCmpLevelZero(
+                    samplers.depthComparison, uv, compareDepth);
         }
     }
 
@@ -180,7 +180,7 @@ public float SampleShadowMapPCF5x5(
 
 // Separable 7x7 PCF with the [1 4 7 8 7 4 1] kernel. The same bilinear
 // reduction evaluates the 49-texel footprint with 16 comparisons.
-public float SampleShadowMapPCF7x7(
+public float sampleShadowMapPCF7x7(
     float2 shadowUV,
     float compareDepth,
     float texelAtlas,
@@ -229,8 +229,8 @@ public float SampleShadowMapPCF7x7(
                 quadrantMin,
                 quadrantMax);
             shadow += uWeights[x] * vWeights[y]
-                * _lightsAndShadow._shadowMap.SampleCmpLevelZero(
-                    _samplers._depthComparison, uv, compareDepth);
+                * lightsAndShadow.shadowMap.SampleCmpLevelZero(
+                    samplers.depthComparison, uv, compareDepth);
         }
     }
 
@@ -240,12 +240,12 @@ public float SampleShadowMapPCF7x7(
 // Deterministic optimized PCF against the shadow map cascade atlas. Cascade 0
 // receives the wider 7x7 kernel for close contacts; the remaining cascades use
 // 5x5 to keep their cost and distant penumbra width under control.
-public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int cascade)
+public float sampleShadowMap(float3 worldPosition, float3 n, float3 l, int cascade)
 {
-    float texelWorld = _data.cascadeTexelSizes[cascade];
-    float3 biasedWorld = worldPosition + N * texelWorld;
+    float texelWorld = data.cascadeTexelSizes[cascade];
+    float3 biasedWorld = worldPosition + n * texelWorld;
 
-    float4 clip = mul(_data.sunViewProjection[cascade], float4(biasedWorld, 1.0));
+    float4 clip = mul(data.sunViewProjection[cascade], float4(biasedWorld, 1.0));
     float3 ndc = clip.xyz / clip.w;
     if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0 || ndc.z < 0.0 || ndc.z > 1.0)
     {
@@ -255,11 +255,11 @@ public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int casca
     float2 quadrantOffset = float2((cascade % 2) * 0.5, (cascade / 2) * 0.5);
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
 
-    float NdotL = saturate(dot(N, L));
-    float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
+    float ndotL = saturate(dot(n, l));
+    float bias = 0.0003 + 0.0015 * (1.0 - ndotL);
     float compareDepth = ndc.z - bias;
 
-    float texelAtlas = 0.5 / _data.shadowMapSize;
+    float texelAtlas = 0.5 / data.shadowMapSize;
     float2 quadrantMin = quadrantOffset + texelAtlas * 0.5;
     float2 quadrantMax = quadrantOffset + 0.5 - texelAtlas * 0.5;
 
@@ -267,12 +267,12 @@ public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int casca
     [branch]
     if (cascade == 0)
     {
-        shadow = SampleShadowMapPCF7x7(
+        shadow = sampleShadowMapPCF7x7(
             shadowUV, compareDepth, texelAtlas, quadrantMin, quadrantMax);
     }
     else
     {
-        shadow = SampleShadowMapPCF5x5(
+        shadow = sampleShadowMapPCF5x5(
             shadowUV, compareDepth, texelAtlas, quadrantMin, quadrantMax);
     }
 
@@ -282,43 +282,43 @@ public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int casca
     // lit-to-shadow transition, buying a contact-hardening look for free.
     // Cascade 0 (contacts) gets the stronger curve. params2.z is the strength:
     // 0 = linear average (previous behavior), 1 = full effect.
-    float exponent = cascade == 0 ? lerp(1.0, 3.0, _data.shadowTightness) : lerp(1.0, 2.0, _data.shadowTightness);
+    float exponent = cascade == 0 ? lerp(1.0, 3.0, data.shadowTightness) : lerp(1.0, 2.0, data.shadowTightness);
     return pow(shadow, exponent);
 }
 
 // Sun shadow with cascade blending.
-public float SampleSunShadow(float3 worldPosition, float3 N, float3 L, float2 screenPos, float viewDistance, int cascade)
+public float sampleSunShadow(float3 worldPosition, float3 n, float3 l, float2 screenPos, float viewDistance, int cascade)
 {
     if (cascade < 0)
     {
         return 1.0;
     }
 
-    float shadow = SampleShadowMap(worldPosition, N, L, cascade);
+    float shadow = sampleShadowMap(worldPosition, n, l, cascade);
 
-    float splitEnd = _data.cascadeSplits[cascade];
-    float splitStart = cascade == 0 ? 0.0 : _data.cascadeSplits[cascade - 1];
+    float splitEnd = data.cascadeSplits[cascade];
+    float splitStart = cascade == 0 ? 0.0 : data.cascadeSplits[cascade - 1];
     float blendWidth = (splitEnd - splitStart) * 0.1;
     float blend = saturate((viewDistance - (splitEnd - blendWidth)) / blendWidth);
     if (blend > 0.0)
     {
-        float nextShadow = cascade < 3 ? SampleShadowMap(worldPosition, N, L, cascade + 1) : 1.0;
+        float nextShadow = cascade < 3 ? sampleShadowMap(worldPosition, n, l, cascade + 1) : 1.0;
         shadow = lerp(shadow, nextShadow, blend);
     }
     return shadow;
 }
 
 // Physically-based procedural sky: single-scattering atmosphere with sun disc and stars.
-public float3 GetSkyColor(float3 direction)
+public float3 getSkyColor(float3 direction)
 {
-    float3 dirToSun = normalize(-_data.sunDirection.xyz);
-    float3 sky = AtmosphereSkyRadiance(direction, dirToSun, _data.skyParams, _data.skyParams2, 16, 8);
-    sky += AtmosphereStars(direction, dirToSun, _data.skyParams2.x);
+    float3 dirToSun = normalize(-data.sunDirection.xyz);
+    float3 sky = atmosphereSkyRadiance(direction, dirToSun, data.skyParams, data.skyParams2, 16, 8);
+    sky += atmosphereStars(direction, dirToSun, data.skyParams2.x);
 
-    if (_data.sunDiscEnabled)
+    if (data.sunDiscEnabled)
     {
         float sunDot = dot(normalize(direction), dirToSun);
-        float cosRadius = _data.sunDiscSize;
+        float cosRadius = data.sunDiscSize;
         float edgeWidth = max((1.0 - cosRadius) * 0.2, 1e-7);
         float disc = smoothstep(cosRadius - edgeWidth, cosRadius, sunDot);
         float coronaRange = (1.0 - cosRadius) * 3.5;
@@ -332,13 +332,13 @@ public float3 GetSkyColor(float3 direction)
         // Keep the disc clearly separated from the atmospheric glare.  The old
         // 8% corona was already 1.44 HDR at the default disc brightness, so it
         // clipped together with the Mie lobe before bloom was even applied.
-        sky += _data.sunColorAndIntensity.rgb * _data.sunDiscBrightness * (disc + corona * 0.025) * horizon;
+        sky += data.sunColorAndIntensity.rgb * data.sunDiscBrightness * (disc + corona * 0.025) * horizon;
     }
     return sky;
 }
 
-// sRGB to linear RGB decoding.
-public float3 DecodeSRGB(float3 color)
+// sRGB to linear rgb decoding.
+public float3 decodeSRGB(float3 color)
 {
     float3 lo = color / 12.92;
     float3 hi = pow(max((color + 0.055) / 1.055, 0.0), 2.4);
@@ -346,49 +346,49 @@ public float3 DecodeSRGB(float3 color)
 }
 
 // Geometric specular antialiasing (Karis).
-public float GeometricSpecularAA(float3 N, float roughness)
+public float geometricSpecularAA(float3 n, float roughness)
 {
-    float3 dNdx = ddx(N);
-    float3 dNdy = ddy(N);
+    float3 dNdx = ddx(n);
+    float3 dNdy = ddy(n);
     float variance = (dot(dNdx, dNdx) + dot(dNdy, dNdy)) * 0.5;
     float kernelRoughness2 = min(2.0 * variance, 0.18);
     return saturate(roughness + sqrt(kernelRoughness2));
 }
 
 // Analytic approximation of the split-sum BRDF integral (Lazarov).
-public float3 EnvBRDFApprox(float3 F0, float roughness, float NdotV)
+public float3 envBRDFApprox(float3 f0, float roughness, float ndotV)
 {
     const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
     const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
     float4 r = roughness * c0 + c1;
-    float a004 = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
-    float2 AB = float2(-1.04, 1.04) * a004 + r.zw;
-    return F0 * AB.x + AB.y;
+    float a004 = min(r.x * r.x, exp2(-9.28 * ndotV)) * r.x + r.y;
+    float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
+    return f0 * ab.x + ab.y;
 }
 
 // Unit-albedo Lambert response for the CPU-filtered sky gradient.
-public float3 EvaluateDiffuseSky(float3 normal)
+public float3 evaluateDiffuseSky(float3 normal)
 {
-    float3 sideResponse = _data.skyHorizonColor.rgb * 0.218505
-        + _data.skyZenithColor.rgb * 0.281495;
-    float3 upResponse = _data.skyHorizonColor.rgb * 0.230769
-        + _data.skyZenithColor.rgb * 0.769231;
+    float3 sideResponse = data.skyHorizonColor.rgb * 0.218505
+        + data.skyZenithColor.rgb * 0.281495;
+    float3 upResponse = data.skyHorizonColor.rgb * 0.230769
+        + data.skyZenithColor.rgb * 0.769231;
     float upFacing = saturate(normal.z);
     float downFacing = saturate(-normal.z);
     return lerp(sideResponse, upResponse, upFacing) * (1.0 - downFacing);
 }
 
 // Evaluate point lights from the StructuredBuffer.
-public float3 EvaluatePointLights(float3 N, float3 V, float3 worldPosition,
+public float3 evaluatePointLights(float3 n, float3 v, float3 worldPosition,
     float3 albedo, float metallic, float roughness)
 {
-    float3 Lo = 0.0;
-    uint lightCount = _data.numPointLights;
+    float3 lo = 0.0;
+    uint lightCount = data.numPointLights;
     [loop]
     for (uint i = 0; i < lightCount; i++)
     {
-        float4 posRange = _lightsAndShadow._pointLights[i].positionRange;
-        float4 colInt   = _lightsAndShadow._pointLights[i].colorIntensity;
+        float4 posRange = lightsAndShadow.pointLights[i].positionRange;
+        float4 colInt   = lightsAndShadow.pointLights[i].colorIntensity;
         if (colInt.w <= 0.0)
         {
             continue;
@@ -408,11 +408,11 @@ public float3 EvaluatePointLights(float3 N, float3 V, float3 worldPosition,
             attenuation *= fallOff * fallOff;
         }
 
-        float3 L = toLight / max(dist, 1e-6);
-        Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
+        float3 l = toLight / max(dist, 1e-6);
+        lo += evaluatePBR(n, v, l, albedo, metallic, roughness)
             * colInt.rgb
             * colInt.w
             * attenuation;
     }
-    return Lo;
+    return lo;
 }

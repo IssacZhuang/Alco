@@ -11,18 +11,18 @@ import alco_rendering_core;
 
 struct Constants
 {
-    float2 InvTextureSize;
-    float Threshold;
-    float Spread;
-    float Intensity;
+    float2 invTextureSize;
+    float threshold;
+    float spread;
+    float intensity;
 };
 
 public struct PassParams
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 [[vk::push_constant]] Constants constants;
 
 struct Vertex
@@ -37,9 +37,9 @@ struct V2F
     float2 uv : TEXCOORD0;
 };
 
-float4 SampleTextureClamped(float2 uv)
+float4 sampleTextureClamped(float2 uv)
 {
-    float4 color = _pass._texture.Sample(_samplers._linearClamp, uv);
+    float4 color = pass.texture.Sample(samplers.linearClamp, uv);
     if (any(isnan(color)) || any(isinf(color)))
     {
         return float4(0, 0, 0, 0);
@@ -49,10 +49,10 @@ float4 SampleTextureClamped(float2 uv)
     // source radiance. The old color * (brightness - threshold) response grew
     // quadratically and turned very bright sources into solid bloom volumes.
     float brightness = max(max(color.r, color.g), color.b);
-    float knee = max(constants.Threshold * 0.5, 0.0001);
-    float soft = clamp(brightness - constants.Threshold + knee, 0.0, 2.0 * knee);
+    float knee = max(constants.threshold * 0.5, 0.0001);
+    float soft = clamp(brightness - constants.threshold + knee, 0.0, 2.0 * knee);
     soft = soft * soft / (4.0 * knee);
-    float contribution = max(soft, brightness - constants.Threshold) / max(brightness, 0.0001);
+    float contribution = max(soft, brightness - constants.threshold) / max(brightness, 0.0001);
     return float4(max(color.rgb, 0.0) * contribution, 1.0);
 }
 
@@ -70,7 +70,7 @@ V2F MainVS(Vertex input)
 float4 MainPS(V2F input)
     : SV_TARGET
 {
-    float2 sampleOffset = constants.InvTextureSize * constants.Spread;
+    float2 sampleOffset = constants.invTextureSize * constants.spread;
     float4 sum = float4(0, 0, 0, 0);
     float weights[5] = { 0.06136, 0.24477, 0.38774, 0.24477,
                          0.06136 }; // Normalized Gaussian weights for a 5x5 kernel
@@ -81,12 +81,12 @@ float4 MainPS(V2F input)
         for (int j = -2; j <= 2; ++j)
         {
             float weight = weights[i + 2] * weights[j + 2];
-            sum += weight * SampleTextureClamped(input.uv + float2(i, j) * sampleOffset);
+            sum += weight * sampleTextureClamped(input.uv + float2(i, j) * sampleOffset);
         }
     }
 
-    // Intensity is applied exactly once. The 2x display scale preserves the
+    // intensity is applied exactly once. The 2x display scale preserves the
     // established control range while the extracted radiance stays linear.
-    // Spread changes only the blur footprint, never its energy.
-    return float4(sum.rgb * constants.Intensity, 1.0);
+    // spread changes only the blur footprint, never its energy.
+    return float4(sum.rgb * constants.intensity, 1.0);
 }

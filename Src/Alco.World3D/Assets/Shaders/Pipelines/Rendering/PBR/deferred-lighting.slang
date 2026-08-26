@@ -38,27 +38,27 @@ struct V2F
 // Members resolve by bare field name; the engine binds them by name.
 public struct LightingParams
 {
-    public Texture2D _albedo;
-    public Texture2D _normal;
-    public Texture2D _mrAO;
-    public DepthTexture2D _gbufferDepth;
-    public Texture2D _emissive;
+    public Texture2D albedo;
+    public Texture2D normal;
+    public Texture2D mrAO;
+    public DepthTexture2D gbufferDepth;
+    public Texture2D emissive;
 // Indirect GI textures from the GI render plugin (full-resolution):
 // diffuse irradiance with ALD directional modulation pre-applied, and
 // specular radiance. White/black fallbacks are bound by the pipeline when
 // no GI plugin is active.
-    Texture2D _giDiffuse;
-    Texture2D _giSpecular;
+    Texture2D giDiffuse;
+    Texture2D giSpecular;
 // Screen-space ambient occlusion from an AO render plugin (full-resolution,
 // white = unoccluded). The pipeline binds white when no AO plugin is active.
-    Texture2D _aoTexture;
+    Texture2D aoTexture;
 // Cloud shadow coverage from the volumetric clouds plugin (r = 1 - column
 // transmittance at the cloud slab, camera-centered world grid; white when no
 // clouds plugin is active).
-    public Texture2D _cloudShadow;
+    public Texture2D cloudShadow;
 };
 
-public ParameterBlock<LightingParams> _lighting;
+public ParameterBlock<LightingParams> lighting;
 
 
 [shader("vertex")]
@@ -73,148 +73,148 @@ V2F MainVS(Vertex input)
 // Reversed infinite camera depth (near = 1, sky = 0): back-projecting depth 0
 // would divide by a homogeneous w of 0, so the clamps below map sky to a finite
 // far point (~near / PBR_SKY_DEPTH_EPSILON metres). Sky pixels are still
-// rejected by IS_SKY_DEPTH before their reconstruction is used; the clamp only
+// rejected by isSkyDepth before their reconstruction is used; the clamp only
 // keeps the view ray finite when a reconstruction slips past a sentinel.
-float3 ReconstructWorldPosition(V2F input)
+float3 reconstructWorldPosition(V2F input)
 {
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    float depth = max(GetPixelDepth2D(_lighting._gbufferDepth,
-        int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight))), PBR_SKY_DEPTH_EPSILON);
-    float4 world = mul(_data.invViewProjection, float4(ndc, depth, 1.0));
+    float depth = max(getPixelDepth2D(lighting.gbufferDepth,
+        int2(input.uv * uint2(data.viewportWidth, data.viewportHeight))), PBR_SKY_DEPTH_EPSILON);
+    float4 world = mul(data.invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
 
 // View-linear depth of the current pixel from the homogeneous w produced by
 // the inverse view-projection (fourth matrix row only). Matches the metric
 // stored in the GI atlas layer depths.
-float ReconstructLinearDepth(V2F input)
+float reconstructLinearDepth(V2F input)
 {
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    float depth = max(GetPixelDepth2D(_lighting._gbufferDepth,
-        int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight))), PBR_SKY_DEPTH_EPSILON);
-    float reciprocalClipW = dot(_data.invViewProjection[3], float4(ndc, depth, 1.0));
+    float depth = max(getPixelDepth2D(lighting.gbufferDepth,
+        int2(input.uv * uint2(data.viewportWidth, data.viewportHeight))), PBR_SKY_DEPTH_EPSILON);
+    float reciprocalClipW = dot(data.invViewProjection[3], float4(ndc, depth, 1.0));
     return abs(rcp(reciprocalClipW));
 }
 
-// Shared PBR functions (DistributionGGX, EvaluatePBR, shadow sampling, sky,
-// EnvBRDFApprox, EvaluateDiffuseSky, GeometricSpecularAA, EvaluatePointLights)
+// Shared PBR functions (distributionGGX, evaluatePBR, shadow sampling, sky,
+// envBRDFApprox, evaluateDiffuseSky, geometricSpecularAA, evaluatePointLights)
 // are provided by PBRCommon.hlsli included above.
 
 [shader("fragment")]
-float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
+float4 MainPS<let debugView : int>(V2F input) : SV_TARGET
 {
-    // DebugView is a generic value specialization (plan D3): 0 = normal
+    // debugView is a generic value specialization (plan D3): 0 = normal
     // rendering, 1 = combined AO, 2 = sun shadow factor, 3 = cascade tint,
     // 4 = GI diffuse, 5 = GI specular, 6 = GI visibility. Dead branches fold
     // away at compile time, so the non-debug variant carries no branch cost.
-    float depth = GetPixelDepth2D(_lighting._gbufferDepth,
-        int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight)));
+    float depth = getPixelDepth2D(lighting.gbufferDepth,
+        int2(input.uv * uint2(data.viewportWidth, data.viewportHeight)));
 
-    float3 worldPosition = ReconstructWorldPosition(input);
-    float3 viewDirection = normalize(worldPosition - _data.cameraPosition.xyz);
+    float3 worldPosition = reconstructWorldPosition(input);
+    float3 viewDirection = normalize(worldPosition - data.cameraPosition.xyz);
 
     // Debug: visualize the combined ambient occlusion (material × screen-space).
-    if (DebugView == 1)
+    if (debugView == 1)
     {
-        float3 mrAO = _lighting._mrAO.Sample(_samplers._linearClamp, input.uv).xyz;
+        float3 mrAO = lighting.mrAO.Sample(samplers.linearClamp, input.uv).xyz;
         float matAO = mrAO.z;
-        float ssaoVal = _lighting._aoTexture.Sample(_samplers._linearClamp, input.uv).r;
+        float ssaoVal = lighting.aoTexture.Sample(samplers.linearClamp, input.uv).r;
         float combined = matAO * ssaoVal;
         return float4(combined, combined, combined, 1.0);
     }
 
-    if (IS_SKY_DEPTH(depth))
+    if (isSkyDepth(depth))
     {
-        return float4(GetSkyColor(viewDirection), 1.0);
+        return float4(getSkyColor(viewDirection), 1.0);
     }
 
-    float3 albedo = DecodeSRGB(_lighting._albedo.Sample(_samplers._linearClamp, input.uv).rgb);
-    float3 normalRT = _lighting._normal.Sample(_samplers._linearClamp, input.uv).xyz;
-    float4 mrAO = _lighting._mrAO.Sample(_samplers._linearClamp, input.uv);
+    float3 albedo = decodeSRGB(lighting.albedo.Sample(samplers.linearClamp, input.uv).rgb);
+    float3 normalRT = lighting.normal.Sample(samplers.linearClamp, input.uv).xyz;
+    float4 mrAO = lighting.mrAO.Sample(samplers.linearClamp, input.uv);
 
-    float3 N = normalize(normalRT * 2.0 - 1.0);
+    float3 n = normalize(normalRT * 2.0 - 1.0);
     float metallic = mrAO.x;
-    float roughness = GeometricSpecularAA(N, mrAO.y);
+    float roughness = geometricSpecularAA(n, mrAO.y);
     // Material AO from the G-buffer, screen-space AO from the AO plugin.
     float materialAO = mrAO.z;
-    float ssao = _lighting._aoTexture.Sample(_samplers._linearClamp, input.uv).r;
+    float ssao = lighting.aoTexture.Sample(samplers.linearClamp, input.uv).r;
     float ao = materialAO * ssao;
-    float3 V = -viewDirection; // surface to camera
+    float3 v = -viewDirection; // surface to camera
 
-    float3 Lo = 0.0;
+    float3 lo = 0.0;
 
     // Directional sun light (cascaded shadow map).
-    float viewDistance = length(worldPosition - _data.cameraPosition.xyz);
-    int cascade = SelectCascade(viewDistance);
+    float viewDistance = length(worldPosition - data.cameraPosition.xyz);
+    int cascade = selectCascade(viewDistance);
     float sunShadow = 1.0;
     {
-        float3 L = normalize(-_data.sunDirection.xyz);
-        // Skip shadow sampling for back-facing pixels: EvaluatePBR already
-        // zeroes their contribution via max(NdotL, 0), so the PCF taps are
+        float3 l = normalize(-data.sunDirection.xyz);
+        // Skip shadow sampling for back-facing pixels: evaluatePBR already
+        // zeroes their contribution via max(ndotL, 0), so the PCF taps are
         // pure waste on roughly 30–50 % of screen-space pixels.
-        float sunNdotL = dot(N, L);
-        if (_data.shadowEnabled && sunNdotL > 0.0)
+        float sunNdotL = dot(n, l);
+        if (data.shadowEnabled && sunNdotL > 0.0)
         {
-            sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
+            sunShadow = sampleSunShadow(worldPosition, n, l, input.position.xy, viewDistance, cascade);
         }
 
         // Volumetric cloud shadows: dim the direct sun by the cloud column
         // coverage where the receiver's sun ray pierces the cloud slab. The
         // coverage texture is baked by the clouds plugin around the camera.
-        if (_data.cloudShadowEnabled && L.z > 0.02)
+        if (data.cloudShadowEnabled && l.z > 0.02)
         {
-            float3 hit = worldPosition + L * ((_data.cloudShadowPlaneAltitude - worldPosition.z) / L.z);
-            float2 uv = (hit.xy - _data.cameraPosition.xy) / _data.cloudShadowExtent + 0.5;
-            sunShadow *= 1.0 - _data.cloudShadowStrength * _lighting._cloudShadow.Sample(_samplers._linearClamp, uv).r;
+            float3 hit = worldPosition + l * ((data.cloudShadowPlaneAltitude - worldPosition.z) / l.z);
+            float2 uv = (hit.xy - data.cameraPosition.xy) / data.cloudShadowExtent + 0.5;
+            sunShadow *= 1.0 - data.cloudShadowStrength * lighting.cloudShadow.Sample(samplers.linearClamp, uv).r;
         }
 
-        Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
-            * _data.sunColorAndIntensity.rgb
-            * _data.sunColorAndIntensity.w
+        lo += evaluatePBR(n, v, l, albedo, metallic, roughness)
+            * data.sunColorAndIntensity.rgb
+            * data.sunColorAndIntensity.w
             * sunShadow;
     }
 
     // Debug: visualize the raw sun shadow factor (white = lit, black = shadowed).
-    if (DebugView == 2)
+    if (debugView == 2)
     {
         return float4(sunShadow, sunShadow, sunShadow, 1.0);
     }
 
     // Point lights (shared loop from PBRCommon.hlsli).
-    Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
+    lo += evaluatePointLights(n, v, worldPosition, albedo, metallic, roughness);
 
     // Build the diffuse environment baseline independently of voxel GI. This is
     // the diffuse environment-probe accumulation: shadows only remove direct
     // sun and never remove this low-frequency illumination.
-    float3 skyAmbient = EvaluateDiffuseSky(N);
-    float upDot = saturate(N.z * 0.5 + 0.5);
+    float3 skyAmbient = evaluateDiffuseSky(n);
+    float upDot = saturate(n.z * 0.5 + 0.5);
     float3 skyBounce = float3(0.10, 0.12, 0.15);
     float3 groundBounce = float3(0.05, 0.045, 0.04);
-    float3 ambientFloor = _data.skyParams2.w * lerp(groundBounce, skyBounce, upDot);
+    float3 ambientFloor = data.skyParams2.w * lerp(groundBounce, skyBounce, upDot);
     float3 diffuseIrradiance = skyAmbient + ambientFloor;
     float3 indirectSpecularTerm = 0.0;
 
-    if (_data.giEnabled)
+    if (data.giEnabled)
     {
         // Full-resolution textures from the GI plugin's upsample pass. The
         // directional modulation (ALD), near/far layer blend and depth-weighted
         // upsampling have all been applied by the plugin already.
-        float4 giDiffuseSample = _lighting._giDiffuse.Sample(_samplers._linearClamp, input.uv);
+        float4 giDiffuseSample = lighting.giDiffuse.Sample(samplers.linearClamp, input.uv);
         float3 giDiffuseColor = giDiffuseSample.rgb;
         float giVisibility = giDiffuseSample.a;
-        float3 giSpecularColor = _lighting._giSpecular.Sample(_samplers._linearClamp, input.uv).rgb;
+        float3 giSpecularColor = lighting.giSpecular.Sample(samplers.linearClamp, input.uv).rgb;
 
         // Debug: visualize bounce radiance, specular radiance, or voxel
         // environment visibility (white=open, black=occluded).
-        if (DebugView == 4)
+        if (debugView == 4)
         {
             return float4(giDiffuseColor, 1.0);
         }
-        if (DebugView == 5)
+        if (debugView == 5)
         {
             return float4(giSpecularColor, 1.0);
         }
-        if (DebugView == 6)
+        if (debugView == 6)
         {
             return float4(giVisibility, giVisibility, giVisibility, 1.0);
         }
@@ -226,13 +226,13 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         // is small (~0.05–0.15) and still multiplied by AO below, so
         // GI-driven AO contrast is preserved.
         diffuseIrradiance = max(giDiffuseColor, 0.0)
-            * _data.giDiffuseStrength + ambientFloor;
+            * data.giDiffuseStrength + ambientFloor;
 
-        float NdotV = max(dot(N, V), 0.0);
-        float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+        float ndotV = max(dot(n, v), 0.0);
+        float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
         indirectSpecularTerm = giSpecularColor
-            * EnvBRDFApprox(F0, roughness, NdotV)
-            * _data.giSpecularStrength;
+            * envBRDFApprox(f0, roughness, ndotV)
+            * data.giSpecularStrength;
     }
 
     // Material AO and screen-space AO affect indirect/environment illumination
@@ -242,12 +242,12 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         + indirectSpecularTerm) * ao;
 
     // Emissive is added unshaded (stored linear in the G-buffer).
-    float3 emissive = _lighting._emissive.Sample(_samplers._linearClamp, input.uv).rgb;
+    float3 emissive = lighting.emissive.Sample(samplers.linearClamp, input.uv).rgb;
 
-    float3 color = Lo + ambient + emissive;
+    float3 color = lo + ambient + emissive;
 
     // Debug: tint each shadow cascade (0=red 1=green 2=blue 3=yellow).
-    if (DebugView == 3 && cascade >= 0)
+    if (debugView == 3 && cascade >= 0)
     {
         float3 cascadeTints[4] = {
             float3(1.0, 0.35, 0.35), float3(0.4, 1.0, 0.4),

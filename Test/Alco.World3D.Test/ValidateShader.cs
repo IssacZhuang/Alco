@@ -95,9 +95,9 @@ public class ValidateShader
         Assert.Multiple(() =>
         {
             Assert.That(gbuffer.BindGroups.Count, Is.EqualTo(4));
-            AssertResource(gbuffer, "_camera", 0, 0, BindingType.UniformBuffer);
-            AssertResource(gbuffer, "_instances", 1, 0, BindingType.StorageBuffer);
-            AssertResource(gbuffer, "_albedoTexture", 2, 0, BindingType.Texture);
+            AssertResource(gbuffer, "camera", 0, 0, BindingType.UniformBuffer);
+            AssertResource(gbuffer, "instances", 1, 0, BindingType.StorageBuffer);
+            AssertResource(gbuffer, "albedoTexture", 2, 0, BindingType.Texture);
 
             VertexInputLayout vertices = gbuffer.VertexLayouts.Single();
             Assert.That(vertices.Stride, Is.EqualTo(48u));
@@ -108,13 +108,13 @@ public class ValidateShader
             // takes set 0 (root-module blocks precede imported ones); it packs the
             // depth (member 0), normal (member 1) and AO output (member 2), while
             // the imported hbao-common _data block follows on set 1.
-            AssertResource(hbao, "_gbufferDepth", 0, 0, BindingType.Texture);
-            ShaderResourceLocation depth = GetResource(hbao, "_gbufferDepth");
+            AssertResource(hbao, "gbufferDepth", 0, 0, BindingType.Texture);
+            ShaderResourceLocation depth = GetResource(hbao, "gbufferDepth");
             Assert.That(hbao.BindGroups[depth.GroupIndex].Bindings[depth.EntryIndex]
                 .Entry.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
 
-            AssertResource(hbao, "_aoOutput", 0, 2, BindingType.StorageTexture);
-            ShaderResourceLocation output = GetResource(hbao, "_aoOutput");
+            AssertResource(hbao, "aoOutput", 0, 2, BindingType.StorageTexture);
+            ShaderResourceLocation output = GetResource(hbao, "aoOutput");
             Assert.That(hbao.BindGroups[output.GroupIndex].Bindings[output.EntryIndex]
                 .Entry.StorageTextureInfo.Format, Is.EqualTo(PixelFormat.RGBA16Float));
         });

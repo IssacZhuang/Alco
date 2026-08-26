@@ -11,17 +11,17 @@ import alco_rendering_core;
 
 public struct PassParams
 {
-    public Texture2D _texture; // should be HDR image
+    public Texture2D texture; // should be HDR image
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 public struct DataParams
 {
-    public float MaxLuminance;
-    public float Gamma;
+    public float maxLuminance;
+    public float gamma;
 };
 
-public ParameterBlock<DataParams> _data;
+public ParameterBlock<DataParams> data;
 
 
 struct Vertex {
@@ -46,20 +46,20 @@ float luminance(float3 color) {
   return dot(color, float3(0.2126, 0.7152, 0.0722));
 }
 
-float3 change_luminance(float3 color, float new_luminance) {
-  return color * (new_luminance / luminance(color));
+float3 changeLuminance(float3 color, float newLuminance) {
+  return color * (newLuminance / luminance(color));
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float4 source = _pass._texture.Sample(_samplers._linearClamp, input.uv);
+  float4 source = pass.texture.Sample(samplers.linearClamp, input.uv);
 
-  float old_luminance = dot(source.rgb, float3(0.2126, 0.7152, 0.0722));
-  float numerator = old_luminance * (1.0 + (old_luminance/(_data.MaxLuminance*_data.MaxLuminance)));
-  float new_luminance = numerator / (1.0 + old_luminance);
+  float oldLuminance = dot(source.rgb, float3(0.2126, 0.7152, 0.0722));
+  float numerator = oldLuminance * (1.0 + (oldLuminance/(data.maxLuminance*data.maxLuminance)));
+  float newLuminance = numerator / (1.0 + oldLuminance);
 
-  float3 ldrColor = change_luminance(source.rgb, new_luminance);
-  ldrColor = pow(ldrColor, 1.0 / _data.Gamma);
-  ldrColor += OutputDither8Bit(input.position.xy);
+  float3 ldrColor = changeLuminance(source.rgb, newLuminance);
+  ldrColor = pow(ldrColor, 1.0 / data.gamma);
+  ldrColor += outputDither8Bit(input.position.xy);
   return float4(ldrColor, 1.0);
 }

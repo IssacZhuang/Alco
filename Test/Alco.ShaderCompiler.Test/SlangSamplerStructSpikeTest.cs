@@ -44,25 +44,25 @@ public static class SlangSamplerStructSpikeTest
 
         import test_texlib;
 
-        cbuffer _frame : register(b0, space0)
+        cbuffer frame : register(b0, space0)
         {
             float4 time;
         };
 
-        cbuffer _pass : register(b0, space1)
+        cbuffer pass : register(b0, space1)
         {
-            Sampled2D _albedo;
-            Sampled2D _detail;
-            DepthCmp2D _shadow;
-            RWStructuredBuffer<float4> _output;
+            Sampled2D albedo;
+            Sampled2D detail;
+            DepthCmp2D shadow;
+            RWStructuredBuffer<float4> output;
         };
 
         [shader("fragment")]
         float4 MainPS() : SV_TARGET
         {
-            float4 c = _albedo.Sample(float2(0.5, 0.5)) + _detail.SampleLevel(float2(0.25, 0.25), 2.0);
-            c.r += _shadow.SampleCmp(float2(0.5, 0.5), 0.5);
-            _output[0] = c + time;
+            float4 c = albedo.Sample(float2(0.5, 0.5)) + detail.SampleLevel(float2(0.25, 0.25), 2.0);
+            c.r += shadow.SampleCmp(float2(0.5, 0.5), 0.5);
+            output[0] = c + time;
             return c;
         }
         """;
@@ -74,18 +74,18 @@ public static class SlangSamplerStructSpikeTest
 
         import test_texlib;
 
-        cbuffer _frame : register(b0, space0)
+        cbuffer frame : register(b0, space0)
         {
             float4 time;
         };
 
-        cbuffer _pass : register(b0, space1)
+        cbuffer pass : register(b0, space1)
         {
-            Sampled2D _sceneColor;
+            Sampled2D sceneColor;
         };
 
         [shader("fragment")]
-        float4 MainPS() : SV_TARGET { return _sceneColor.Sample(float2(0.5, 0.5)) * time; }
+        float4 MainPS() : SV_TARGET { return sceneColor.Sample(float2(0.5, 0.5)) * time; }
         """;
 
     // A material-style mixed block: float parameters around a struct pair —
@@ -96,17 +96,17 @@ public static class SlangSamplerStructSpikeTest
 
         import test_texlib;
 
-        cbuffer _materialParams
+        cbuffer materialParams
         {
             float pulseSpeed;
-            Sampled2D _albedo;
+            Sampled2D albedo;
             float3 pulseColor;
         };
 
         [shader("fragment")]
         float4 MainPS() : SV_TARGET
         {
-            return _albedo.Sample(float2(0.5, 0.5)) * pulseSpeed + float4(pulseColor, 1);
+            return albedo.Sample(float2(0.5, 0.5)) * pulseSpeed + float4(pulseColor, 1);
         }
         """;
 
@@ -150,13 +150,13 @@ public static class SlangSamplerStructSpikeTest
 
         Assert.That(Entries(program, 1), Is.EqualTo(new[]
         {
-            ("_albedo.tex", 0u, BindingType.Texture),
-            ("_albedo.samp", 1u, BindingType.Sampler),
-            ("_detail.tex", 2u, BindingType.Texture),
-            ("_detail.samp", 3u, BindingType.Sampler),
-            ("_shadow.tex", 4u, BindingType.Texture),
-            ("_shadow.samp", 5u, BindingType.SamplerComparison),
-            ("_output", 6u, BindingType.StorageBuffer),
+            ("albedo.tex", 0u, BindingType.Texture),
+            ("albedo.samp", 1u, BindingType.Sampler),
+            ("detail.tex", 2u, BindingType.Texture),
+            ("detail.samp", 3u, BindingType.Sampler),
+            ("shadow.tex", 4u, BindingType.Texture),
+            ("shadow.samp", 5u, BindingType.SamplerComparison),
+            ("output", 6u, BindingType.StorageBuffer),
         }));
     }
 
@@ -166,8 +166,8 @@ public static class SlangSamplerStructSpikeTest
         using SlangProgram program = Compile("test_pass_a", PassASource);
 
         BindGroupLayout pass = program.Reflection.BindGroups[1];
-        BindGroupEntry albedo = pass.Bindings.First(b => b.Entry.Name == "_albedo.tex").Entry;
-        BindGroupEntry shadow = pass.Bindings.First(b => b.Entry.Name == "_shadow.tex").Entry;
+        BindGroupEntry albedo = pass.Bindings.First(b => b.Entry.Name == "albedo.tex").Entry;
+        BindGroupEntry shadow = pass.Bindings.First(b => b.Entry.Name == "shadow.tex").Entry;
 
         Assert.That(albedo.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Float));
         Assert.That(shadow.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
@@ -181,8 +181,8 @@ public static class SlangSamplerStructSpikeTest
         Assert.That(program.Reflection.BindGroups, Has.Count.EqualTo(2));
         Assert.That(Entries(program, 1), Is.EqualTo(new[]
         {
-            ("_sceneColor.tex", 0u, BindingType.Texture),
-            ("_sceneColor.samp", 1u, BindingType.Sampler),
+            ("sceneColor.tex", 0u, BindingType.Texture),
+            ("sceneColor.samp", 1u, BindingType.Sampler),
         }));
     }
 
@@ -191,7 +191,7 @@ public static class SlangSamplerStructSpikeTest
     {
         using SlangProgram program = Compile("test_mixed_params", MixedParams);
 
-        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("materialParams");
         Assert.That(members.Select(m => m.Name), Is.EqualTo(new[] { "pulseSpeed", "pulseColor" }));
         Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
     }

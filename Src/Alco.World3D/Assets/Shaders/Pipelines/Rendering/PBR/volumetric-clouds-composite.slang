@@ -40,7 +40,7 @@ struct V2F
 
 // This pass's resources form one ParameterBlock after alco_world3d_pbr_common's
 // blocks: the half-resolution cloud march result and the shared G-buffer depth
-// for the bilateral weights, joined with the same _cloudData block the march
+// for the bilateral weights, joined with the same cloudData block the march
 // pass binds.
 
 // Squared gaussian width of the upsample kernel, in half-resolution texels
@@ -49,7 +49,7 @@ struct V2F
 static const float CLOUD_UPSAMPLE_SIGMA2 = 0.45;
 
 
-// The same _cloudData block the march pass binds (RGNode_VolumetricClouds
+// The same cloudData block the march pass binds (RGNode_VolumetricClouds
 // fills it); only marchResolutionScale and opacityDebugView are read here.
 public struct CloudDataParams
 {
@@ -73,11 +73,11 @@ public struct CloudDataParams
     public float  shadowExtentKm;       // shadow bake half extent in km
     public float2 shadowCenterKm;       // shadow bake window center (world xz, km)
 
-    public Texture2D _clouds;
-    public DepthTexture2D _gbufferDepth;
+    public Texture2D clouds;
+    public DepthTexture2D gbufferDepth;
 };
 
-public ParameterBlock<CloudDataParams> _cloudData;
+public ParameterBlock<CloudDataParams> cloudData;
 
 
 
@@ -92,23 +92,23 @@ V2F MainVS(Vertex input)
 
 // View-linear depth at a full-resolution uv (1e6 at the far plane — kept
 // finite so the weight differences never turn into inf - inf = NaN).
-float CloudCompositeLinearDepth(float2 uv)
+float cloudCompositeLinearDepth(float2 uv)
 {
-    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(uv * uint2(_data.viewportWidth, _data.viewportHeight)));
-    if (IS_SKY_DEPTH(depth))
+    float depth = getPixelDepth2D(cloudData.gbufferDepth, int2(uv * uint2(data.viewportWidth, data.viewportHeight)));
+    if (isSkyDepth(depth))
     {
         return 1e6;
     }
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float invW = dot(_data.invViewProjection[3], float4(ndc, depth, 1.0));
+    float invW = dot(data.invViewProjection[3], float4(ndc, depth, 1.0));
     return abs(rcp(invW));
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float scale = _cloudData.marchResolutionScale;
-    float2 halfSize = max(uint2(_data.viewportWidth, _data.viewportHeight) * scale, 1.0);
+    float scale = cloudData.marchResolutionScale;
+    float2 halfSize = max(uint2(data.viewportWidth, data.viewportHeight) * scale, 1.0);
     float2 halfTexel = 1.0 / halfSize;
 
     // Continuous position of this full-resolution pixel in half-resolution
@@ -117,7 +117,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float2 halfPos = input.position.xy * scale;
     float2 center = floor(halfPos) + 0.5;
 
-    float centerDepth = CloudCompositeLinearDepth(input.uv);
+    float centerDepth = cloudCompositeLinearDepth(input.uv);
     // Depth tolerance grows with distance: nearby geometry gets tight edges,
     // distant silhouettes still aggregate their sky taps.
     float sigma = max(centerDepth, 1.0) * 0.03;
@@ -138,11 +138,11 @@ float4 MainPS(V2F input) : SV_TARGET
             // old bilinear fractions while averaging the march jitter grain.
             float2 delta = halfPos - tapPos;
             float spatialWeight = exp(-0.5 * dot(delta, delta) / CLOUD_UPSAMPLE_SIGMA2);
-            float tapDepth = CloudCompositeLinearDepth(tapUv);
+            float tapDepth = cloudCompositeLinearDepth(tapUv);
             float depthWeight = exp(-abs(tapDepth - centerDepth) / sigma);
 
             float w = spatialWeight * depthWeight + 1e-5;
-            float4 tap = _cloudData._clouds.Sample(_samplers._linearClamp, tapUv);
+            float4 tap = cloudData.clouds.Sample(samplers.linearClamp, tapUv);
             scattering += tap.rgb * w;
             opacity += tap.a * w;
             weightSum += w;
@@ -152,7 +152,7 @@ float4 MainPS(V2F input) : SV_TARGET
     scattering /= weightSum;
     opacity /= weightSum;
 
-    if (_cloudData.opacityDebugView)
+    if (cloudData.opacityDebugView)
     {
         // Opacity debug view: replace the scene with the coverage mask.
         return float4(opacity.xxx, 1.0);

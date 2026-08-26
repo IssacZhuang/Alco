@@ -15,10 +15,10 @@ struct Constants {
 
 public struct PassParams
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 [[vk::push_constant]] Constants constants;
 
 struct Vertex {
@@ -41,6 +41,6 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  return _pass._texture.Sample(_samplers._linearClamp, input.uv) * constants.color;
+  return pass.texture.Sample(samplers.linearClamp, input.uv) * constants.color;
 }
 

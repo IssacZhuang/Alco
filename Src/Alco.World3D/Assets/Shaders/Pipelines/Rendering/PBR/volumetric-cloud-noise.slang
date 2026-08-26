@@ -21,7 +21,7 @@ import alco_rendering_core;
 //                 sampled at ~2 km world period to erode cloud silhouettes.
 // Storage is unorm rgba8 ("rgba8" in DXC image_format spelling).
 
-float3 CloudNoiseHash33(float3 p)
+float3 cloudNoiseHash33(float3 p)
 {
     p = frac(p * float3(0.1031, 0.1030, 0.0973));
     p += dot(p, p.yxz + 33.33);
@@ -30,7 +30,7 @@ float3 CloudNoiseHash33(float3 p)
 
 // Worley cellular noise, tileable at the given integer frequency. Returns
 // 1 - (distance to the nearest feature point), roughly [0, 1].
-float CloudNoiseWorley(float3 uvw, int frequency)
+float cloudNoiseWorley(float3 uvw, int frequency)
 {
     float3 p = uvw * (float)frequency;
     float3 id = floor(p);
@@ -48,7 +48,7 @@ float CloudNoiseWorley(float3 uvw, int frequency)
                 float3 cell = float3(x, y, z);
                 // Wrap the cell id modulo the frequency so the pattern tiles.
                 float3 wrapped = (id + cell + frequency) % frequency;
-                float3 feature = CloudNoiseHash33(wrapped);
+                float3 feature = cloudNoiseHash33(wrapped);
                 float3 diff = cell + feature - f;
                 minDist2 = min(minDist2, dot(diff, diff));
             }
@@ -58,7 +58,7 @@ float CloudNoiseWorley(float3 uvw, int frequency)
 }
 
 // Tileable Perlin gradient noise, roughly [-1, 1].
-float CloudNoisePerlin(float3 uvw, int frequency)
+float cloudNoisePerlin(float3 uvw, int frequency)
 {
     float3 p = uvw * (float)frequency;
     float3 id = floor(p);
@@ -77,7 +77,7 @@ float CloudNoisePerlin(float3 uvw, int frequency)
             {
                 float3 corner = float3(x, y, z);
                 float3 wrapped = (id + corner + frequency) % frequency;
-                float3 gradient = CloudNoiseHash33(wrapped) * 2.0 - 1.0;
+                float3 gradient = cloudNoiseHash33(wrapped) * 2.0 - 1.0;
                 sum += dot(gradient, f - corner)
                     * (z == 0 ? (1.0 - u.z) : u.z)
                     * (y == 0 ? (1.0 - u.y) : u.y)
@@ -88,72 +88,72 @@ float CloudNoisePerlin(float3 uvw, int frequency)
     return sum * 1.6; // rough normalization toward [-1, 1]
 }
 
-float CloudNoisePerlinFbm(float3 uvw, int frequency, int octaves)
+float cloudNoisePerlinFbm(float3 uvw, int frequency, int octaves)
 {
     float sum = 0.0;
     float amplitude = 0.5;
     [loop]
     for (int o = 0; o < octaves; o++)
     {
-        sum += amplitude * CloudNoisePerlin(uvw, frequency);
+        sum += amplitude * cloudNoisePerlin(uvw, frequency);
         frequency *= 2;
         amplitude *= 0.5;
     }
     return saturate(0.5 + sum);
 }
 
-float CloudNoiseWorleyFbm(float3 uvw, int frequency, int octaves)
+float cloudNoiseWorleyFbm(float3 uvw, int frequency, int octaves)
 {
     float sum = 0.0;
     float amplitude = 0.5;
     [loop]
     for (int o = 0; o < octaves; o++)
     {
-        sum += amplitude * CloudNoiseWorley(uvw, frequency);
+        sum += amplitude * cloudNoiseWorley(uvw, frequency);
         frequency *= 2;
         amplitude *= 0.5;
     }
     return sum;
 }
 
-float CloudRemapBake(float v, float l0, float l1, float r0, float r1)
+float cloudRemapBake(float v, float l0, float l1, float r0, float r1)
 {
     return r0 + (v - l0) * (r1 - r0) / max(l1 - l0, 1e-6);
 }
 
-[[vk::image_format("rgba8")]] RWTexture3D<float4> _noiseOut;
+[[vk::image_format("rgba8")]] RWTexture3D<float4> noiseOut;
 
 // The bake kind is a generic value specialization (plan D3): true = detail
 // bake (32^3 Worley FBM), false = base shape bake (128^3 Perlin-Worley). The
-// C# owner requests the specialized entry (MainCS<true> / MainCS<false>)
+// C# owner requests the specialized entry (mainCS<true> / mainCS<false>)
 // instead of passing a preprocessor permutation.
 [shader("compute")]
 [numthreads(4, 4, 4)]
-void MainCS<let IsDetail : bool>(uint3 dispatchId : SV_DispatchThreadID)
+void mainCS<let isDetail : bool>(uint3 dispatchId : SV_DispatchThreadID)
 {
-    if (IsDetail)
+    if (isDetail)
     {
         const float size = 32.0;
         float3 uvw = (dispatchId + 0.5) / size;
         float3 octaves = float3(
-            CloudNoiseWorleyFbm(uvw, 2, 2),
-            CloudNoiseWorleyFbm(uvw, 4, 2),
-            CloudNoiseWorleyFbm(uvw, 8, 2));
-        _noiseOut[dispatchId] = float4(octaves, octaves.z);
+            cloudNoiseWorleyFbm(uvw, 2, 2),
+            cloudNoiseWorleyFbm(uvw, 4, 2),
+            cloudNoiseWorleyFbm(uvw, 8, 2));
+        noiseOut[dispatchId] = float4(octaves, octaves.z);
     }
     else // base shape bake
     {
         const float size = 128.0;
         float3 uvw = (dispatchId + 0.5) / size;
-        float perlin = CloudNoisePerlinFbm(uvw, 4, 4);
-        float worley = CloudNoiseWorleyFbm(uvw, 4, 3);
+        float perlin = cloudNoisePerlinFbm(uvw, 4, 4);
+        float worley = cloudNoiseWorleyFbm(uvw, 4, 3);
         // Perlin-Worley: carve the Perlin FBM by the Worley FBM so the resulting
         // shape has both large billows and cauliflower detail (Nubis R channel).
-        float perlinWorley = saturate(CloudRemapBake(perlin, worley, 1.0, 0.0, 1.0));
-        _noiseOut[dispatchId] = float4(
+        float perlinWorley = saturate(cloudRemapBake(perlin, worley, 1.0, 0.0, 1.0));
+        noiseOut[dispatchId] = float4(
             perlinWorley,
-            CloudNoiseWorleyFbm(uvw, 8, 2),
-            CloudNoiseWorleyFbm(uvw, 16, 2),
-            CloudNoiseWorleyFbm(uvw, 32, 1));
+            cloudNoiseWorleyFbm(uvw, 8, 2),
+            cloudNoiseWorleyFbm(uvw, 16, 2),
+            cloudNoiseWorleyFbm(uvw, 32, 1));
     }
 }

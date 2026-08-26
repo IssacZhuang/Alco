@@ -4,7 +4,7 @@
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set in declaration order; members resolve by bare field name.
 // The REPEATED texture-wrap toggle is the module's one generic value axis
-// (MainPS<let Repeated : bool>) — requested as a specialization argument where
+// (MainPS<let repeated : bool>) — requested as a specialization argument where
 // the retired define used to be.
 
 #language slang 2025
@@ -33,15 +33,15 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 
 public struct MaterialParamsData
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 [[vk::push_constant]] Constants constants;
 
@@ -49,16 +49,16 @@ public ParameterBlock<MaterialParamsData> _material;
 V2F MainVS(Vertex input) {
   V2F output = (V2F)0;
   output.position = mul(constants.model, float4(input.position, 1.0f));
-  output.position = mul(_camera.viewProjection, output.position);
+  output.position = mul(camera.viewProjection, output.position);
   output.uv = input.uv * constants.uvRect.zw + constants.uvRect.xy;
   return output;
 }
 
 [shader("fragment")]
-float4 MainPS<let Repeated : bool>(V2F input) : SV_TARGET {
+float4 MainPS<let repeated : bool>(V2F input) : SV_TARGET {
   float2 uv = input.uv;
-  // Repeated-wrap sampling folds away for the default (false) specialization.
-  if (Repeated) { uv = frac(uv); }
-  float4 color = _material._texture.Sample(_samplers._linearRepeat, uv) * constants.color;
+  // repeated-wrap sampling folds away for the default (false) specialization.
+  if (repeated) { uv = frac(uv); }
+  float4 color = material.texture.Sample(samplers.linearRepeat, uv) * constants.color;
   return color;
 }

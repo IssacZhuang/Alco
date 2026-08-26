@@ -83,7 +83,7 @@ public class Game : GameEngine
         _renderer = RenderingSystem.CreateInstanceRenderer<ParticleData2D>(
             _subRenderContext, 
             _materialParticle, 
-            "_particles", 
+            "particles", 
             256 * 1024, // 2MB buffer for better batching
             "ParticleBatchingRenderer"
         );

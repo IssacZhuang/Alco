@@ -134,7 +134,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
                 _rawResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
                     _rendering.PreferredLightMapPass, resolutionScale: value, name: "ssr_raw"));
                 _reflectionRaw = _rawResource.Texture;
-                _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
+                _resolveMaterial.SetRenderTexture("reflectionRaw", _reflectionRaw);
             }
         }
     }
@@ -244,7 +244,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         // Reflection-driven uniform buffer over the shared _ssrData block — no
         // CPU twin of SsrData; members land by name at their reflected offsets.
         _dataBuffer = rendering.CreateUniformGraphicsBuffer(
-            descriptor.TraceShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_ssrData"),
+            descriptor.TraceShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "ssrData"),
             "ssr_post_data");
         _traceResolutionScale = descriptor.TraceResolutionScale;
         _historyLayout = rendering.GraphicsDevice.CreateAttachmentLayout(
@@ -309,26 +309,26 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         RenderTexture gbufferTexture = _gbuffer.Texture;
         _copyMaterial.SetRenderTexture(ShaderResourceId.Texture, sceneColorTexture);
 
-        _traceMaterial.SetBuffer("_ssrData", _dataBuffer);
-        _traceMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
-        _traceMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
-        _traceMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
-        _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
-        _traceMaterial.SetRenderTexture("_blueNoise", _blueNoiseTexture);
+        _traceMaterial.SetBuffer("ssrData", _dataBuffer);
+        _traceMaterial.SetRenderTexture("albedo", gbufferTexture, 0);
+        _traceMaterial.SetRenderTexture("normal", gbufferTexture, 1);
+        _traceMaterial.SetRenderTexture("mrAO", gbufferTexture, 2);
+        _traceMaterial.SetRenderTextureDepth("gbufferDepth", gbufferTexture);
+        _traceMaterial.SetRenderTexture("blueNoise", _blueNoiseTexture);
 
-        _resolveMaterial.SetBuffer("_ssrData", _dataBuffer);
-        _resolveMaterial.SetRenderTexture("_reflectionHistory", _reflectionHistory[0], 0);
-        _resolveMaterial.SetRenderTexture("_historyMetadata", _reflectionHistory[0], 1);
-        _resolveMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
-        _resolveMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
+        _resolveMaterial.SetBuffer("ssrData", _dataBuffer);
+        _resolveMaterial.SetRenderTexture("reflectionHistory", _reflectionHistory[0], 0);
+        _resolveMaterial.SetRenderTexture("historyMetadata", _reflectionHistory[0], 1);
+        _resolveMaterial.SetRenderTexture("normal", gbufferTexture, 1);
+        _resolveMaterial.SetRenderTextureDepth("gbufferDepth", gbufferTexture);
 
-        _compositeMaterial.SetBuffer("_ssrData", _dataBuffer);
-        _compositeMaterial.SetRenderTexture("_reflection", _reflectionHistory[1], 0);
-        _compositeMaterial.SetRenderTexture("_reflectionMetadata", _reflectionHistory[1], 1);
-        _compositeMaterial.SetRenderTexture("_albedo", gbufferTexture, 0);
-        _compositeMaterial.SetRenderTexture("_normal", gbufferTexture, 1);
-        _compositeMaterial.SetRenderTexture("_mrAO", gbufferTexture, 2);
-        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferTexture);
+        _compositeMaterial.SetBuffer("ssrData", _dataBuffer);
+        _compositeMaterial.SetRenderTexture("reflection", _reflectionHistory[1], 0);
+        _compositeMaterial.SetRenderTexture("reflectionMetadata", _reflectionHistory[1], 1);
+        _compositeMaterial.SetRenderTexture("albedo", gbufferTexture, 0);
+        _compositeMaterial.SetRenderTexture("normal", gbufferTexture, 1);
+        _compositeMaterial.SetRenderTexture("mrAO", gbufferTexture, 2);
+        _compositeMaterial.SetRenderTextureDepth("gbufferDepth", gbufferTexture);
     }
 
     /// <summary>
@@ -356,9 +356,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             _rendering.PreferredLightMapPass, resolutionScale: _traceResolutionScale, name: "ssr_raw"));
         _sceneCopy = _sceneCopyResource.Texture;
         _reflectionRaw = _rawResource.Texture;
-        _traceMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
-        _compositeMaterial.SetRenderTexture("_sceneColor", _sceneCopy);
-        _resolveMaterial.SetRenderTexture("_reflectionRaw", _reflectionRaw);
+        _traceMaterial.SetRenderTexture("sceneColor", _sceneCopy);
+        _compositeMaterial.SetRenderTexture("sceneColor", _sceneCopy);
+        _resolveMaterial.SetRenderTexture("reflectionRaw", _reflectionRaw);
         _graph.InsertBefore(insertBefore, this);
     }
 
@@ -486,9 +486,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 
         int historyWriteIndex = 1 - _historyReadIndex;
         _resolveMaterial.SetRenderTexture(
-            "_reflectionHistory", _reflectionHistory[_historyReadIndex], 0);
+            "reflectionHistory", _reflectionHistory[_historyReadIndex], 0);
         _resolveMaterial.SetRenderTexture(
-            "_historyMetadata", _reflectionHistory[_historyReadIndex], 1);
+            "historyMetadata", _reflectionHistory[_historyReadIndex], 1);
         using (RenderPassScope pass = querySet != null
             ? renderContext.BeginPass(_reflectionHistory[historyWriteIndex].FrameBuffer, ReadOnlySpan<ClearColorData>.Empty, querySet, ResolveQueryBase, ResolveQueryBase + 1)
             : renderContext.BeginPass(_reflectionHistory[historyWriteIndex].FrameBuffer))
@@ -497,9 +497,9 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         }
 
         _compositeMaterial.SetRenderTexture(
-            "_reflection", _reflectionHistory[historyWriteIndex], 0);
+            "reflection", _reflectionHistory[historyWriteIndex], 0);
         _compositeMaterial.SetRenderTexture(
-            "_reflectionMetadata", _reflectionHistory[historyWriteIndex], 1);
+            "reflectionMetadata", _reflectionHistory[historyWriteIndex], 1);
         using (RenderPassScope pass = querySet != null
             ? renderContext.BeginPass(target, ReadOnlySpan<ClearColorData>.Empty, querySet, CompositeQueryBase, CompositeQueryBase + 1)
             : renderContext.BeginPass(target))

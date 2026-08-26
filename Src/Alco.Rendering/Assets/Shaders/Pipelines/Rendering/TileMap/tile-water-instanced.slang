@@ -17,7 +17,7 @@ struct Constants
     float4x4 model;
     int2 size; // the map size
     int currentTileId;
-    int _reserved; // for memory alignment
+    int reserved; // for memory alignment
     float4 color;
     float blendFactor;
     float tiling;
@@ -45,52 +45,52 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 
 public struct MaterialParamsData
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 public struct InstancesParams
 {
-    public RWStructuredBuffer<TileData> _instances;
+    public RWStructuredBuffer<TileData> instances;
 };
 
-public ParameterBlock<InstancesParams> _instances;
+public ParameterBlock<InstancesParams> instances;
 
 public struct TileMapParams
 {
-    public RWStructuredBuffer<int> _tileMap;
+    public RWStructuredBuffer<int> tileMap;
 };
 
-public ParameterBlock<TileMapParams> _tileMap;
+public ParameterBlock<TileMapParams> tileMap;
 
 public struct GlobalRenderDataParams
 {
-    public GlobalRenderData _globalRenderData;
+    public GlobalRenderData globalRenderData;
 };
 
-public ParameterBlock<GlobalRenderDataParams> _globalRenderData;
+public ParameterBlock<GlobalRenderDataParams> globalRenderData;
 
 [[vk::push_constant]] Constants constants;
 
-int GetTileId(int2 tilePos, int defaultValue) {
+int getTileId(int2 tilePos, int defaultValue) {
   if (tilePos.x < 0 || tilePos.x >= constants.size.x || tilePos.y < 0 ||
       tilePos.y >= constants.size.y) {
     return defaultValue;
   }
 
-  return _tileMap._tileMap[tilePos.y * constants.size.x + tilePos.x];
+  return tileMap.tileMap[tilePos.y * constants.size.x + tilePos.x];
 }
 
 [shader("vertex")] V2F VertexMain(Vertex input) {
   V2F output;
 
-  TileData tileData = _instances._instances[input.instanceID];
+  TileData tileData = instances.instances[input.instanceID];
 
   float3 pos = input.position;
   float2 tilePos = tileData.position;
@@ -107,13 +107,13 @@ int GetTileId(int2 tilePos, int defaultValue) {
   int2 checkX = int2(check.x, 0);
   int2 checkY = int2(0, check.y);
 
-  int tileId = GetTileId(tilePosInt + checkX, constants.currentTileId);
+  int tileId = getTileId(tilePosInt + checkX, constants.currentTileId);
   if (tileId != constants.currentTileId) {
     tilePos.x += check.x * blendFactor;
     uv.x += checkX.x * blendFactor;
   }
 
-  tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
+  tileId = getTileId(tilePosInt + checkY, constants.currentTileId);
   if (tileId != constants.currentTileId) {
     tilePos.y += check.y * blendFactor;
     uv.y -= checkY.y * blendFactor;
@@ -122,7 +122,7 @@ int GetTileId(int2 tilePos, int defaultValue) {
   float3 worldPosition = pos + float3(tilePos, 0.0);
 
   float4 position = mul(constants.model, float4(worldPosition, 1.0));
-  position = mul(_camera.viewProjection, position);
+  position = mul(camera.viewProjection, position);
 
   output.position = position;
   output.uv = uv;
@@ -135,7 +135,7 @@ int GetTileId(int2 tilePos, int defaultValue) {
   float2 uv = input.uv;
 
   float2 uvFrac = frac(uv * constants.tiling);
-  float4 color = _material._texture.Sample(_samplers._linearRepeat, uvFrac);
+  float4 color = material.texture.Sample(samplers.linearRepeat, uvFrac);
 
     color *= constants.color;
 
@@ -152,7 +152,7 @@ int GetTileId(int2 tilePos, int defaultValue) {
     }
 
     // Shimmering water effect - use sin and time as noise coordinates
-    float time = _globalRenderData._globalRenderData.time;
+    float time = globalRenderData.globalRenderData.time;
     float2 worldPos = input.worldPos;
 
     // Create noise state for FastNoiseLite

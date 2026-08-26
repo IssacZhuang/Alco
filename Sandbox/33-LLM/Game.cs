@@ -74,7 +74,7 @@ public class Game : GameEngine
         _material = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
 
         _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
-        _material.SetBuffer("_camera", _cameraBuffer);
+        _material.SetBuffer("camera", _cameraBuffer);
 
         // Add initial cube
         var initialCube = CreateCube(ColorFloat.White);

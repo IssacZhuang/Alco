@@ -13,21 +13,21 @@ import alco_world3d_reversed_depth;
 import alco_rendering_core;
 
 // This pass runs after deferred lighting and forward transparency. Unlike the
-// former GI-pass SSR, _sceneColor therefore contains the actual HDR shaded
+// former GI-pass SSR, sceneColor therefore contains the actual HDR shaded
 // result (direct light, shadows, GI, emissive and transparent content).
-// alco_world3d_ssr_post_common declares _ssrData; this pass's ParameterBlock follows
+// alco_world3d_ssr_post_common declares ssrData; this pass's ParameterBlock follows
 // it in declaration order.
 public struct PassParams
 {
-    public Texture2D _sceneColor;
-    public Texture2D _albedo;
-    public Texture2D _normal;
-    public Texture2D _mrAO;
-    public DepthTexture2D _gbufferDepth;
-    public Texture2D _blueNoise;
+    public Texture2D sceneColor;
+    public Texture2D albedo;
+    public Texture2D normal;
+    public Texture2D mrAO;
+    public DepthTexture2D gbufferDepth;
+    public Texture2D blueNoise;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 // Runtime-baked Heitz blue-noise lookup (see ScreenSpaceReflectionBlueNoise.hlsl).
@@ -39,7 +39,7 @@ static const float2 SSR_BLUR_OFFSETS[9] = {
     float2(-1.0, -0.2), float2( 0.5,  0.9), float2(-0.6,  0.9),
 };
 
-float3 SsrSampleShadedScene(
+float3 ssrSampleShadedScene(
     float2 hitUV,
     float roughness,
     float rayDistance,
@@ -49,14 +49,14 @@ float3 SsrSampleShadedScene(
         * lerp(1.0, 22.0, saturate(rayDistance / 45.0));
     if (blurPixels < 0.75)
     {
-        return _pass._sceneColor.Sample(_samplers._linearClamp, hitUV).rgb;
+        return pass.sceneColor.Sample(samplers.linearClamp, hitUV).rgb;
     }
 
     float angle = rotationSample * TAU;
     float s, c;
     sincos(angle, s, c);
     float2x2 rotation = float2x2(c, -s, s, c);
-    float2 inverseSize = rcp(float2(_ssrData.fullWidth, _ssrData.fullHeight));
+    float2 inverseSize = rcp(float2(ssrData.fullWidth, ssrData.fullHeight));
     float3 result = 0.0;
     float weightSum = 0.0;
     [unroll]
@@ -64,7 +64,7 @@ float3 SsrSampleShadedScene(
     {
         float2 offset = mul(rotation, SSR_BLUR_OFFSETS[i]) * blurPixels * inverseSize;
         float weight = i == 0 ? 1.5 : 1.0;
-        result += _pass._sceneColor.Sample(_samplers._linearClamp, clamp(hitUV + offset, 0.0, 1.0)).rgb * weight;
+        result += pass.sceneColor.Sample(samplers.linearClamp, clamp(hitUV + offset, 0.0, 1.0)).rgb * weight;
         weightSum += weight;
     }
     return result / weightSum;
@@ -73,23 +73,23 @@ float3 SsrSampleShadedScene(
 [shader("vertex")]
 V2F MainVS(Vertex input)
 {
-    return SsrPostFullQuadVS(input);
+    return ssrPostFullQuadVS(input);
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float2 fullSize = float2(_ssrData.fullWidth, _ssrData.fullHeight);
+    float2 fullSize = float2(ssrData.fullWidth, ssrData.fullHeight);
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
-    float depth = GetPixelDepth2D(_pass._gbufferDepth, pixel);
-    if (IS_SKY_DEPTH(depth))
+    float depth = getPixelDepth2D(pass.gbufferDepth, pixel);
+    if (isSkyDepth(depth))
     {
         return 0.0;
     }
 
-    float4 packedAlbedo = _pass._albedo.Load(int3(pixel, 0));
+    float4 packedAlbedo = pass.albedo.Load(int3(pixel, 0));
     float roughness = packedAlbedo.a;
-    if (roughness >= _ssrData.roughnessCutoff)
+    if (roughness >= ssrData.roughnessCutoff)
     {
         return 0.0;
     }
@@ -98,10 +98,10 @@ float4 MainPS(V2F input) : SV_TARGET
     // reconstruction on that grid makes a stationary reprojection land exactly
     // on the corresponding history texel instead of introducing a fixed
     // quarter-texel bilinear bias at half resolution.
-    float3 worldPosition = SsrPostReconstructWorldPosition(input.uv, depth);
-    float3 normal = normalize(_pass._normal.Load(int3(pixel, 0)).xyz * 2.0 - 1.0);
-    float3 viewDirection = normalize(worldPosition - _ssrData.ssrCameraPosition.xyz);
-    float viewDistance = length(worldPosition - _ssrData.ssrCameraPosition.xyz);
+    float3 worldPosition = ssrPostReconstructWorldPosition(input.uv, depth);
+    float3 normal = normalize(pass.normal.Load(int3(pixel, 0)).xyz * 2.0 - 1.0);
+    float3 viewDirection = normalize(worldPosition - ssrData.ssrCameraPosition.xyz);
+    float viewDistance = length(worldPosition - ssrData.ssrCameraPosition.xyz);
     float fresnel = saturate(1.0 + dot(normal, viewDirection));
 
     // Blue-noise sampling (Heitz's Owen-scrambled Sobol over an optimized
@@ -113,9 +113,9 @@ float4 MainPS(V2F input) : SV_TARGET
     // angle/radius pair uses the R2 low-discrepancy constants so every pixel's
     // 2D disk samples stay stratified over time. The blur rotation (A) always
     // reads the baked value and stays temporally stable.
-    uint2 noisePixel = uint2(input.uv * float2(_ssrData.traceWidth, _ssrData.traceHeight)) % SSR_BLUE_NOISE_TILE;
-    float4 blueNoise = _pass._blueNoise.Load(int3(int2(noisePixel), 0));
-    uint noiseFrame = _ssrData.frameIndex % 256u;
+    uint2 noisePixel = uint2(input.uv * float2(ssrData.traceWidth, ssrData.traceHeight)) % SSR_BLUE_NOISE_TILE;
+    float4 blueNoise = pass.blueNoise.Load(int3(int2(noisePixel), 0));
+    uint noiseFrame = ssrData.frameIndex % 256u;
     float angleSample = frac(blueNoise.r + noiseFrame * 0.7548776662);
     float radialSample = frac(blueNoise.g + noiseFrame * 0.5698402910);
     float stepSample = frac(blueNoise.b + noiseFrame * 0.6180339887);
@@ -151,14 +151,14 @@ float4 MainPS(V2F input) : SV_TARGET
     for (int i = 0; i < 38; i++)
     {
         float3 screenPosition;
-        if (!SsrPostProjectWorldPosition(rayPosition, screenPosition))
+        if (!ssrPostProjectWorldPosition(rayPosition, screenPosition))
         {
             break;
         }
 
         hitUV = screenPosition.xy;
         int2 hitPixel = clamp(int2(hitUV * fullSize), int2(0, 0), int2(fullSize) - 1);
-        hitDepth = GetPixelDepth2D(_pass._gbufferDepth, hitPixel);
+        hitDepth = getPixelDepth2D(pass.gbufferDepth, hitPixel);
 
         // Empty depth is not a verified reflection hit. The shaded background
         // contains the procedural sun disc, but screen-space depth cannot tell
@@ -166,9 +166,9 @@ float4 MainPS(V2F input) : SV_TARGET
         // for screen-visible geometry and leave sky misses to the occlusion-aware
         // voxel specular fallback. Direct sun specular is already shadowed in the
         // deferred lighting pass.
-        if (!IS_SKY_DEPTH(hitDepth))
+        if (!isSkyDepth(hitDepth))
         {
-            hitWorldPosition = SsrPostReconstructWorldPosition(hitUV, hitDepth);
+            hitWorldPosition = ssrPostReconstructWorldPosition(hitUV, hitDepth);
             hitError = length(rayPosition - hitWorldPosition);
             if (hitError * 0.33333 < length(vector))
             {
@@ -185,7 +185,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
         vector *= 2.0;
         travelVector += vector * (0.95 + 0.1 * stepSample);
-        if (length(travelVector) > _ssrData.maxTraceDistance)
+        if (length(travelVector) > ssrData.maxTraceDistance)
         {
             break;
         }
@@ -196,7 +196,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float rayDistance = length(travelVector);
     if (geometryHit)
     {
-        float hitViewDistance = length(hitWorldPosition - _ssrData.ssrCameraPosition.xyz);
+        float hitViewDistance = length(hitWorldPosition - ssrData.ssrCameraPosition.xyz);
         float2 selfDistance = abs(hitUV - input.uv) * fullSize;
         bool advanced = any(selfDistance > 2.0);
         bool plausibleThickness = hitError * (1.0 - fresnel)
@@ -210,14 +210,14 @@ float4 MainPS(V2F input) : SV_TARGET
             confidence = border * foregroundFade;
         }
     }
-    float roughnessFade = saturate((_ssrData.roughnessCutoff - roughness) / 0.25);
+    float roughnessFade = saturate((ssrData.roughnessCutoff - roughness) / 0.25);
     confidence *= roughnessFade;
     if (confidence <= 0.001)
     {
         return 0.0;
     }
 
-    float3 reflectedColor = SsrSampleShadedScene(
+    float3 reflectedColor = ssrSampleShadedScene(
         hitUV, roughness, rayDistance, blurRotationSample);
     return float4(max(reflectedColor, 0.0), confidence);
 }

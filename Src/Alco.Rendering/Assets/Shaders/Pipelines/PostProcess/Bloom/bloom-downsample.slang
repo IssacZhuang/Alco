@@ -16,10 +16,10 @@ struct Constants {
 
 public struct PassParams
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 [[vk::push_constant]] Constants constants;
 
 struct Vertex {
@@ -50,7 +50,7 @@ float4 MainPS(V2F input) : SV_TARGET {
   for (int i = -2; i <= 2; ++i) {
     for (int j = -2; j <= 2; ++j) {
         float weight = weights[i + 2] * weights[j + 2];
-        sum += weight * _pass._texture.Sample(_samplers._linearClamp, input.uv + float2(i, j) * sampleOffset);
+        sum += weight * pass.texture.Sample(samplers.linearClamp, input.uv + float2(i, j) * sampleOffset);
     }
   }
 

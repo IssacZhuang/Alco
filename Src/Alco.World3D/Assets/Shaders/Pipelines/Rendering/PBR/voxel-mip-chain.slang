@@ -28,17 +28,17 @@ struct VoxelMipChainConstants
     float4 params; // x=srcMip, y=mode(0=radiance,1=opacity), zw=unused
 };
 
-// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it in
+// alco_world3d_voxel_common declares data; this pass's ParameterBlock follows it in
 // declaration order.
 public struct PassParams
 {
-    public Texture3D _srcTex;
-    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex1; // mip srcMip+1
-    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex2; // mip srcMip+2
-    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> _outTex3; // mip srcMip+3
+    public Texture3D srcTex;
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> outTex1; // mip srcMip+1
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> outTex2; // mip srcMip+2
+    public [[vk::image_format("rgba16f")]] RWTexture3D<float4> outTex3; // mip srcMip+3
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 [[vk::push_constant]] VoxelMipChainConstants constants;
@@ -48,7 +48,7 @@ groupshared float4 gsMip1[64]; // 4³ texels at mip srcMip+1
 groupshared float4 gsMip2[8];  // 2³ texels at mip srcMip+2
 
 // Occupancy-weighted radiance average (matches VoxelMip.hlsl).
-float4 ReduceRadiance(float4 c[8])
+float4 reduceRadiance(float4 c[8])
 {
     float3 radianceSum = 0.0;
     float radianceWeight = 0.0;
@@ -65,7 +65,7 @@ float4 ReduceRadiance(float4 c[8])
 }
 
 // Projected-area opacity reduction (matches VoxelMip.hlsl).
-float4 ReduceOpacity(float4 c[8])
+float4 reduceOpacity(float4 c[8])
 {
     float coverageSum = 0.0;
     [unroll]
@@ -91,21 +91,21 @@ float4 ReduceOpacity(float4 c[8])
     return float4(float3(opacityX, opacityY, opacityZ) * 0.25, coverageSum * 0.125);
 }
 
-float4 Reduce(float4 c[8])
+float4 reduce(float4 c[8])
 {
     [branch]
     if (constants.params.y < 0.5)
     {
-        return ReduceRadiance(c);
+        return reduceRadiance(c);
     }
-    return ReduceOpacity(c);
+    return reduceOpacity(c);
 }
 
 [shader("compute")]
 [numthreads(4, 4, 4)]
-void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
+void mainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
 {
-    uint resolution = VoxelResolution();
+    uint resolution = voxelResolution();
     uint srcMip = (uint)constants.params.x;
     uint level = groupId.z;
 
@@ -131,15 +131,15 @@ void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
             {
                 uint3 cc = min(baseChild + uint3(dx, dy, dz), srcRes - 1u);
                 uint3 loadCoord = uint3(cc.x, cc.y, level * srcRes + cc.z);
-                children[dx + dy * 2u + dz * 4u] = _pass._srcTex.Load(int4(loadCoord, 0));
+                children[dx + dy * 2u + dz * 4u] = pass.srcTex.Load(int4(loadCoord, 0));
             }
         }
     }
 
-    float4 m1 = Reduce(children);
+    float4 m1 = reduce(children);
     gsMip1[tid] = m1;
     uint3 s1 = uint3(gt.x, gt.y, level * dstRes1 + gt.z);
-    _pass._outTex1[s1] = m1;
+    pass.outTex1[s1] = m1;
 
     GroupMemoryBarrierWithGroupSync();
 
@@ -163,11 +163,11 @@ void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
             }
         }
 
-        float4 m2 = Reduce(children);
+        float4 m2 = reduce(children);
         uint m2Idx = (gt.x / 2u) + (gt.y / 2u) * 2u + (gt.z / 2u) * 4u;
         gsMip2[m2Idx] = m2;
         uint3 s2 = uint3(gt.x / 2u, gt.y / 2u, level * dstRes2 + gt.z / 2u);
-        _pass._outTex2[s2] = m2;
+        pass.outTex2[s2] = m2;
     }
 
     GroupMemoryBarrierWithGroupSync();
@@ -191,8 +191,8 @@ void MainCS(uint3 gt : SV_GroupThreadID, uint3 groupId : SV_GroupID)
             }
         }
 
-        float4 m3 = Reduce(children);
+        float4 m3 = reduce(children);
         uint3 s3 = uint3(0u, 0u, level * dstRes3);
-        _pass._outTex3[s3] = m3;
+        pass.outTex3[s3] = m3;
     }
 }

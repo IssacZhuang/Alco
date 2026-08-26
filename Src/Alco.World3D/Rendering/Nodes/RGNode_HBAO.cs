@@ -114,10 +114,10 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         // Reflection-driven uniform buffer over the shared _data block — no CPU
         // twin of HbaoData; members land by name at their reflected offsets.
         _dataBuffer = rendering.CreateUniformGraphicsBuffer(
-            descriptor.HbaoShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_data"),
+            descriptor.HbaoShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "data"),
             "hbao_data");
-        _hbaoMaterial.SetBuffer("_data", _dataBuffer);
-        _blurMaterial.SetBuffer("_data", _dataBuffer);
+        _hbaoMaterial.SetBuffer("data", _dataBuffer);
+        _blurMaterial.SetBuffer("data", _dataBuffer);
 
         if (_device.TimestampQuerySupported)
         {
@@ -160,12 +160,12 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
             _rendering.PreferredLightMapPass, name: "hbao_raw"));
         _rawAO = _rawAOResource.Texture;
         _aoResult = _aoResource.Texture;
-        _hbaoMaterial.SetRenderTexture("_aoOutput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoInput", _rawAO);
-        _blurMaterial.SetRenderTexture("_aoResult", _aoResult);
+        _hbaoMaterial.SetRenderTexture("aoOutput", _rawAO);
+        _blurMaterial.SetRenderTexture("aoInput", _rawAO);
+        _blurMaterial.SetRenderTexture("aoResult", _aoResult);
         graph.InsertBefore(lighting, this);
         lighting.AoInput = _aoResource;
-        lighting.Material.SetRenderTexture("_aoTexture", _aoResult);
+        lighting.Material.SetRenderTexture("aoTexture", _aoResult);
     }
 
     /// <summary>
@@ -195,7 +195,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         if (_lighting != null)
         {
             _lighting.AoInput = null;
-            _lighting.Material.SetTexture("_aoTexture", _rendering.TextureWhite);
+            _lighting.Material.SetTexture("aoTexture", _rendering.TextureWhite);
         }
         _graph = null;
         _lighting = null;
@@ -267,10 +267,10 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         // The G-buffer render texture is recreated on resize; avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _hbaoMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-            _hbaoMaterial.SetRenderTexture("_normal", gbuffer, 1);
-            _blurMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-            _blurMaterial.SetRenderTexture("_normal", gbuffer, 1);
+            _hbaoMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
+            _hbaoMaterial.SetRenderTexture("normal", gbuffer, 1);
+            _blurMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
+            _blurMaterial.SetRenderTexture("normal", gbuffer, 1);
             _boundGBuffer = gbuffer;
         }
 

@@ -18,22 +18,22 @@ public class TestRenderTextureResize
     private const string ResizeTestShader = """
         module rt_resize_shader;
 
-        cbuffer _pass : register(b0, space0)
+        cbuffer pass : register(b0, space0)
         {
-            Texture2D _texture;
-            SamplerState _linearClamp;
+            Texture2D texture;
+            SamplerState linearClamp;
         };
 
-        cbuffer _output : register(b0, space1)
+        cbuffer output : register(b0, space1)
         {
-            [[vk::image_format("rgba16f")]] RWTexture2D<float4> _output;
+            [[vk::image_format("rgba16f")]] RWTexture2D<float4> output;
         };
 
         [shader("compute")]
         [numthreads(1, 1, 1)]
         void MainCS(uint3 id : SV_DispatchThreadID)
         {
-            _output[id.xy] = _texture.SampleLevel(_linearClamp, float2(0, 0), 0);
+            output[id.xy] = texture.SampleLevel(linearClamp, float2(0, 0), 0);
         }
         """;
 
@@ -115,7 +115,7 @@ public class TestRenderTextureResize
         ComputeMaterial material = renderingSystem.CreateComputeMaterial(shader);
         RenderTexture rt = renderingSystem.CreateRenderTexture(CreateColorLayout(renderingSystem.GraphicsDevice), 64, 64, "test_rt");
 
-        material.SetRenderTexture("_texture", rt);
+        material.SetRenderTexture("texture", rt);
 
         GPUResourceGroup? before = material[0];
         Assert.That(before, Is.Not.Null);
@@ -126,7 +126,7 @@ public class TestRenderTextureResize
         // Re-setting the same reference is a no-op for the slot (identity check), so
         // the in-place resize is detected only through the version check.
         rt.Resize(128, 128);
-        material.SetRenderTexture("_texture", rt);
+        material.SetRenderTexture("texture", rt);
 
         GPUResourceGroup? after = material[0];
         Assert.That(after, Is.Not.Null);

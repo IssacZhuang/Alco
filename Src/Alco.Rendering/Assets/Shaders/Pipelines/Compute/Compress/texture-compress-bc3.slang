@@ -16,44 +16,44 @@ struct Constants {
 
 public struct PassParams
 {
-    public RWStructuredBuffer<uint4> _output;
+    public RWStructuredBuffer<uint4> output;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 public struct InputParams
 {
-    public Texture2D _input;
+    public Texture2D input;
 };
 
-public ParameterBlock<InputParams> _input;
+public ParameterBlock<InputParams> input;
 
 [[vk::push_constant]] Constants constants;
 
-uint GetOutputIndex(uint2 pos)
+uint getOutputIndex(uint2 pos)
 {
     return pos.y * constants.size.x + pos.x;
 }
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void MainCS<let IsSRGB : bool>(uint3 id : SV_DispatchThreadID)
+void mainCS<let isSRGB : bool>(uint3 id : SV_DispatchThreadID)
 
 {
-    uint2 SamplePos = id.xy * 4;
+    uint2 samplePos = id.xy * 4;
 
-    float3 BlockBaseColor[16];
-    float BlockA[16];
-    ReadBlockRGBA(_input._input, SamplePos, BlockBaseColor, BlockA);
+    float3 blockBaseColor[16];
+    float blockA[16];
+    readBlockRGBA(input.input, samplePos, blockBaseColor, blockA);
 
     // The sRGB choice is a generic value specialization of this module (the
-    // CPU compressor requests MainCS<true> or MainCS<false> per texture format);
+    // CPU compressor requests mainCS<true> or mainCS<false> per texture format);
     // the library exports both paths.
-    if (IsSRGB)
+    if (isSRGB)
     {
-        _pass._output[GetOutputIndex(id.xy)] = CompressBC3BlockSrgb(BlockBaseColor, BlockA);
+        pass.output[getOutputIndex(id.xy)] = compressBC3BlockSrgb(blockBaseColor, blockA);
     }
     else
     {
-        _pass._output[GetOutputIndex(id.xy)] = CompressBC3Block(BlockBaseColor, BlockA);
+        pass.output[getOutputIndex(id.xy)] = compressBC3Block(blockBaseColor, blockA);
     }
 }

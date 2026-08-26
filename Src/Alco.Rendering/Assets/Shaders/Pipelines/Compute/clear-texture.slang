@@ -15,13 +15,13 @@ struct Constants{
 
 public struct TextureParams
 {
-    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _texture;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> texture;
 };
 
-public ParameterBlock<TextureParams> _texture;
+public ParameterBlock<TextureParams> texture;
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
-void MainCS(uint3 id : SV_DispatchThreadID) {
-    _texture._texture[id.xy] = float4(0, 0, 0, 0);
+void mainCS(uint3 id : SV_DispatchThreadID) {
+    texture.texture[id.xy] = float4(0, 0, 0, 0);
 }

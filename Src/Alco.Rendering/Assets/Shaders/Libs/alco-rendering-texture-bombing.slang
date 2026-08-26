@@ -1,6 +1,6 @@
 // file "alco-rendering-texture-bombing.slang" - module "alco-rendering-texture-bombing"
 //
-// Slang port of Shaders/Libs/TextureBombing.hlsli: two-splat triangle bombing
+// Slang port of Shaders/Libs/textureBombing.hlsli: two-splat triangle bombing
 // with per-splat hash offsets (translated from the shadertoy "flt3Wn").
 
 #language slang 2025
@@ -21,9 +21,9 @@ float lengthSqr(float2 v)
     return dot(v, v);
 }
 
-public float4 TextureBombing(Texture2D texture, SamplerState textureSampler, float2 uv, float tiling = 1.0, float scrambleFreq = 2.0)
+public float4 textureBombing(Texture2D texture, SamplerState textureSampler, float2 uv, float tiling = 1.0, float scrambleFreq = 2.0)
 {
-    // Scale UV coordinates
+    // scale UV coordinates
     float2 scaledUV = -scrambleFreq * tiling * uv;
 
     float2 uvFloor = floor(scaledUV);
@@ -50,15 +50,15 @@ public float4 TextureBombing(Texture2D texture, SamplerState textureSampler, flo
 
     // Explicit gradients for consistent mip selection
     float2 sampleUV = scaledUV / scrambleFreq;
-    float2 duv_dx = ddx(sampleUV);
-    float2 duv_dy = ddy(sampleUV);
+    float2 duvDx = ddx(sampleUV);
+    float2 duvDy = ddy(sampleUV);
 
     // Sample texture with random offsets for each splat center
     float3 col = float3(0.0, 0.0, 0.0);
-    col += weights[0] * texture.SampleGrad(textureSampler, sampleUV + tweak * (hash22(splatCenters[0]) - 0.5), duv_dx, duv_dy).rgb;
-    col += weights[1] * texture.SampleGrad(textureSampler, sampleUV + tweak * (hash22(splatCenters[1]) - 0.5), duv_dx, duv_dy).rgb;
+    col += weights[0] * texture.SampleGrad(textureSampler, sampleUV + tweak * (hash22(splatCenters[0]) - 0.5), duvDx, duvDy).rgb;
+    col += weights[1] * texture.SampleGrad(textureSampler, sampleUV + tweak * (hash22(splatCenters[1]) - 0.5), duvDx, duvDy).rgb;
 
-    // Contrast correction
+    // contrast correction
     float3 mean = texture.SampleBias(textureSampler, sampleUV, 16.0).rgb;
     col = mean + (col - mean) / length(weights);
 

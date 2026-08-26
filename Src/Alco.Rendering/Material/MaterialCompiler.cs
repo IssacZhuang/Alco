@@ -153,11 +153,11 @@ public sealed class MaterialCompiler : AutoDisposable
         IReadOnlyList<string> textureSlots = EnumerateTextureSlots(SurfaceOf(asset));
         foreach (string slot in asset.Textures.Keys)
         {
-            if (!textureSlots.Contains(ResourceName(slot)))
+            if (!textureSlots.Contains(slot))
             {
                 throw new InvalidDataException(
                     $"GraphicsMaterial '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceOf(asset).Name}'; " +
-                    $"expected one of: {string.Join(", ", textureSlots.Select(name => name[1..]))}.");
+                    $"expected one of: {string.Join(", ", textureSlots)}.");
             }
         }
 
@@ -184,8 +184,7 @@ public sealed class MaterialCompiler : AutoDisposable
             // side always sees every slot.
             foreach (string resource in textureSlots)
             {
-                string slot = resource[1..];
-                Texture2D? texture = asset.Textures.GetValueOrDefault(slot);
+                Texture2D? texture = asset.Textures.GetValueOrDefault(resource);
                 material.SetTexture(resource, texture ?? ResolveFallbackTexture(asset, resource));
             }
         }
@@ -248,11 +247,11 @@ public sealed class MaterialCompiler : AutoDisposable
         IReadOnlyList<string> textureSlots = EnumerateTextureSlots(SurfaceOf(asset));
         foreach (string slot in asset.Textures.Keys)
         {
-            if (!textureSlots.Contains(ResourceName(slot)))
+            if (!textureSlots.Contains(slot))
             {
                 throw new InvalidDataException(
                     $"Compute material '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceOf(asset).Name}'; " +
-                    $"expected one of: {string.Join(", ", textureSlots.Select(name => name[1..]))}.");
+                    $"expected one of: {string.Join(", ", textureSlots)}.");
             }
         }
 
@@ -270,8 +269,7 @@ public sealed class MaterialCompiler : AutoDisposable
         // textures upload in place and are never replaced.
         foreach (string resource in textureSlots)
         {
-            string slot = resource[1..];
-            Texture2D? texture = asset.Textures.GetValueOrDefault(slot);
+            Texture2D? texture = asset.Textures.GetValueOrDefault(resource);
             material.SetTexture(resource, texture ?? ResolveFallbackTexture(asset, resource));
         }
         return material;
@@ -687,12 +685,11 @@ public sealed class MaterialCompiler : AutoDisposable
     /// texture, for the unbound slots of a compile.
     /// </summary>
     /// <param name="asset">The material asset whose policy resolves.</param>
-    /// <param name="resourceName">The shader resource name of the texture slot (a leading underscore is stripped).</param>
+    /// <param name="resourceName">The shader resource name of the texture slot.</param>
     private Texture2D ResolveFallbackTexture(MaterialAsset asset, string resourceName)
     {
         ArgumentNullException.ThrowIfNull(asset);
-        string slot = resourceName.StartsWith('_') ? resourceName[1..] : resourceName;
-        return asset.GetTextureFallback(slot) switch
+        return asset.GetTextureFallback(resourceName) switch
         {
             MaterialTextureFallback.Black => _rendering.TextureBlack,
             MaterialTextureFallback.FlatNormal => _rendering.TextureFlatNormal,
@@ -747,9 +744,6 @@ public sealed class MaterialCompiler : AutoDisposable
         }
         return surface;
     }
-
-    /// <summary>The shader resource name a material texture slot binds to: the slot name with a leading underscore.</summary>
-    private static string ResourceName(string slot) => "_" + slot;
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)

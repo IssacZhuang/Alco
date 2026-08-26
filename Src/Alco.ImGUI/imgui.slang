@@ -27,19 +27,19 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 public struct MaterialParamsData
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 [shader("vertex")]
 V2F MainVS(Vertex input) {
   V2F output = (V2F)0;
-  output.position = mul(_camera.viewProjection, float4(input.position, 0.0f, 1.0f));
+  output.position = mul(camera.viewProjection, float4(input.position, 0.0f, 1.0f));
   output.uv = input.uv;
   output.color = input.color;
   return output;
@@ -47,6 +47,6 @@ V2F MainVS(Vertex input) {
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float4 color = _material._texture.Sample(_samplers._linearRepeat, input.uv);
+  float4 color = material.texture.Sample(samplers.linearRepeat, input.uv);
   return color * input.color;
 }

@@ -26,26 +26,26 @@ struct SsrDepthConstants
     float4 params; // x = srcMipLevel, y = isFirst(1.0|0.0), zw = unused
 };
 
-// alco_world3d_voxel_common declares _data; this pass's ParameterBlock follows it in
+// alco_world3d_voxel_common declares data; this pass's ParameterBlock follows it in
 // declaration order.
 public struct PassParams
 {
-    public DepthTexture2D _gbufferDepth;
-    public Texture2D _depthSrc;
-    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> _depthOut;
+    public DepthTexture2D gbufferDepth;
+    public Texture2D depthSrc;
+    public [[vk::image_format("rgba16f")]] RWTexture2D<float4> depthOut;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 
 
 [[vk::push_constant]] SsrDepthConstants constants;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void MainCS(uint3 dispatchId : SV_DispatchThreadID)
+void mainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
-    int gbufferW = (int)_data.gbufferWidth;
-    int gbufferH = (int)_data.gbufferHeight;
+    int gbufferW = (int)data.gbufferWidth;
+    int gbufferH = (int)data.gbufferHeight;
     uint srcMip = (uint)constants.params.x;
     bool isFirst = constants.params.y > 0.5;
 
@@ -71,8 +71,8 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     if (isFirst)
     {
         // Copy depth from the G-buffer depth attachment into mip 0.
-        float depth = GetPixelDepth2D(_pass._gbufferDepth, pixel);
-        _pass._depthOut[pixel] = float4(depth, 0.0, 0.0, 0.0);
+        float depth = getPixelDepth2D(pass.gbufferDepth, pixel);
+        pass.depthOut[pixel] = float4(depth, 0.0, 0.0, 0.0);
         return;
     }
 
@@ -88,10 +88,10 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     p10 = clamp(p10, int2(0, 0), srcMax);
     p01 = clamp(p01, int2(0, 0), srcMax);
     p11 = clamp(p11, int2(0, 0), srcMax);
-    float d00 = _pass._depthSrc.Load(int3(p00.x, p00.y, 0)).x;
-    float d10 = _pass._depthSrc.Load(int3(p10.x, p10.y, 0)).x;
-    float d01 = _pass._depthSrc.Load(int3(p01.x, p01.y, 0)).x;
-    float d11 = _pass._depthSrc.Load(int3(p11.x, p11.y, 0)).x;
+    float d00 = pass.depthSrc.Load(int3(p00.x, p00.y, 0)).x;
+    float d10 = pass.depthSrc.Load(int3(p10.x, p10.y, 0)).x;
+    float d01 = pass.depthSrc.Load(int3(p01.x, p01.y, 0)).x;
+    float d11 = pass.depthSrc.Load(int3(p11.x, p11.y, 0)).x;
 
-    _pass._depthOut[pixel] = float4(min(min(d00, d10), min(d01, d11)), 0.0, 0.0, 0.0);
+    pass.depthOut[pixel] = float4(min(min(d00, d10), min(d01, d11)), 0.0, 0.0, 0.0);
 }

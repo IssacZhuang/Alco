@@ -5,37 +5,37 @@ namespace Alco.Rendering;
 
 public static class ShaderResourceId
 {
-    public const string Camera = "_camera";
-    public const string Texture = "_texture";
-    public const string Mask = "_mask";
-    public const string LightMap = "_lightMap";
-    public const string OpacityMap = "_opacityMap";
-    public const string Data = "_data";
-    public const string Font = "_font";
-    public const string TextBuffer = "_textBuffer";
+    public const string Camera = "camera";
+    public const string Texture = "texture";
+    public const string Mask = "mask";
+    public const string LightMap = "lightMap";
+    public const string OpacityMap = "opacityMap";
+    public const string Data = "data";
+    public const string Font = "font";
+    public const string TextBuffer = "textBuffer";
 
-    public const string FrontBuffer = "_frontBuffer";
-    public const string BackBuffer = "_backBuffer";
+    public const string FrontBuffer = "frontBuffer";
+    public const string BackBuffer = "backBuffer";
 
-    public const string GlobalRenderData = "_globalRenderData";
-    public const string SpriteData = "_spriteData";
-    public const string TileData = "_tileData";
-    public const string ColorData = "_colorData";
-    public const string HeightData = "_heightData";
+    public const string GlobalRenderData = "globalRenderData";
+    public const string SpriteData = "spriteData";
+    public const string TileData = "tileData";
+    public const string ColorData = "colorData";
+    public const string HeightData = "heightData";
 
-    public const string PositionData = "_positionData";
-    public const string TileIdData = "_tileIdData";
-    public const string TileSetData = "_tileSetData";
+    public const string PositionData = "positionData";
+    public const string TileIdData = "tileIdData";
+    public const string TileSetData = "tileSetData";
 
-    public const string TileMap = "_tileMap";
+    public const string TileMap = "tileMap";
 
-    public const string Input = "_input";
-    public const string Output = "_output";
+    public const string Input = "input";
+    public const string Output = "output";
 
-    public const string Particles = "_particles";
-    public const string Instances = "_instances";
+    public const string Particles = "particles";
+    public const string Instances = "instances";
 
-    public const string GaussianKernel = "_gaussianKernel";
+    public const string GaussianKernel = "gaussianKernel";
 
-    public const string PointLights = "_pointLights";
+    public const string PointLights = "pointLights";
 }

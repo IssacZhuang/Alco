@@ -62,14 +62,14 @@ public class SlangCompositionSpikeTest
 
         import test_contract;
 
-        cbuffer _camera : register(b0, space0)
+        cbuffer camera : register(b0, space0)
         {
             float4x4 viewProjection;
         }
 
-        cbuffer _draw : register(b0, space1)
+        cbuffer draw : register(b0, space1)
         {
-            RWStructuredBuffer<float4> _instances;
+            RWStructuredBuffer<float4> instances;
         }
 
         public struct LitV2F
@@ -82,7 +82,7 @@ public class SlangCompositionSpikeTest
         public LitV2F MainVS<T : ISurface>(float3 position : POSITION, float2 uv : TEXCOORD0)
         {
             T surface = T();
-            float3 worldPos = position + _instances[0].xyz;
+            float3 worldPos = position + instances[0].xyz;
             surface.ModifyVertex(worldPos, uv);
             LitV2F output;
             output.position = mul(viewProjection, float4(worldPos, 1.0));
@@ -111,14 +111,14 @@ public class SlangCompositionSpikeTest
 
         import test_contract;
 
-        cbuffer _data : register(b0, space0)
+        cbuffer data : register(b0, space0)
         {
             float4x4 lightViewProjection;
         }
 
-        cbuffer _draw : register(b0, space1)
+        cbuffer draw : register(b0, space1)
         {
-            RWStructuredBuffer<float4> _instances;
+            RWStructuredBuffer<float4> instances;
         }
 
         public struct ShadowV2F
@@ -131,7 +131,7 @@ public class SlangCompositionSpikeTest
         public ShadowV2F MainVS<T : ISurface>(float3 position : POSITION, float2 uv : TEXCOORD0)
         {
             T surface = T();
-            float3 worldPos = position + _instances[0].xyz;
+            float3 worldPos = position + instances[0].xyz;
             surface.ModifyVertex(worldPos, uv);
             ShadowV2F output;
             output.position = mul(lightViewProjection, float4(worldPos, 1.0));
@@ -164,10 +164,10 @@ public class SlangCompositionSpikeTest
 
         import test_contract;
 
-        [[vk::binding(0, 2)]] Texture2D<float4> _albedoTexture;
-        [[vk::binding(1, 2)]] SamplerState _albedoTextureSampler;
+        [[vk::binding(0, 2)]] Texture2D<float4> albedoTexture;
+        [[vk::binding(1, 2)]] SamplerState albedoTextureSampler;
 
-        [[vk::binding(2, 2)]] cbuffer _materialParams
+        [[vk::binding(2, 2)]] cbuffer materialParams
         {
             float pulseSpeed;
             float3 pulseColor;
@@ -178,7 +178,7 @@ public class SlangCompositionSpikeTest
         {
             public override float4 GetBaseColor(SurfaceInput input)
             {
-                return _albedoTexture.Sample(_albedoTextureSampler, input.uv)
+                return albedoTexture.Sample(albedoTextureSampler, input.uv)
                      * input.tint * pulseSpeed;
             }
         }
@@ -220,8 +220,8 @@ public class SlangCompositionSpikeTest
                 SlangCompileSession.SlangStageToEngine(program.EntryPoints[1].Stage),
                 Is.EqualTo(Alco.Graphics.ShaderStage.Fragment));
             // Resources of both modules appear in the composed reflection.
-            Assert.That(program.Reflection.TryGetResourceId("_albedoTexture", out _), Is.True);
-            Assert.That(program.Reflection.TryGetResourceId("_materialParams", out _), Is.True);
+            Assert.That(program.Reflection.TryGetResourceId("albedoTexture", out _), Is.True);
+            Assert.That(program.Reflection.TryGetResourceId("materialParams", out _), Is.True);
         });
 
         using SlangProgram again = system.GetComposedProgram(
@@ -243,9 +243,9 @@ public class SlangCompositionSpikeTest
         {
             Assert.That(program.EntryCode, Has.Length.EqualTo(2));
             Assert.That(program.EntryCode[1].Length, Is.GreaterThan(4));
-            Assert.That(program.Reflection.TryGetResourceId("_albedoTexture", out _), Is.False,
+            Assert.That(program.Reflection.TryGetResourceId("albedoTexture", out _), Is.False,
                 "the defaults reference no texture");
-            Assert.That(program.Reflection.TryGetResourceId("_materialParams", out _), Is.False);
+            Assert.That(program.Reflection.TryGetResourceId("materialParams", out _), Is.False);
         });
     }
 
@@ -269,8 +269,8 @@ public class SlangCompositionSpikeTest
             // surface's explicitly-bound global resource in the program layout.
             // The binding side therefore always sees the surface's full resource
             // set and binds fallbacks for what a specialization never samples.
-            Assert.That(opaque.Reflection.TryGetResourceId("_albedoTexture", out _), Is.True);
-            Assert.That(cutout.Reflection.TryGetResourceId("_albedoTexture", out _), Is.True);
+            Assert.That(opaque.Reflection.TryGetResourceId("albedoTexture", out _), Is.True);
+            Assert.That(cutout.Reflection.TryGetResourceId("albedoTexture", out _), Is.True);
             // The fold itself is real: the opaque PS carries no sample/branch.
             Assert.That(cutout.EntryCode[1].Length, Is.GreaterThan(opaque.EntryCode[1].Length),
                 "the opaque PS must be specialized down to (near-)empty code");
@@ -282,7 +282,7 @@ public class SlangCompositionSpikeTest
     {
         using SlangModuleSystem system = new(OptionsFor(SpikeFiles()), null);
 
-        IReadOnlyList<ShaderUniformMember> members = system.GetModuleUniformMembers("test_surface", "_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = system.GetModuleUniformMembers("test_surface", "materialParams");
 
         Assert.Multiple(() =>
         {
@@ -295,7 +295,7 @@ public class SlangCompositionSpikeTest
             Assert.That(members[2].OffsetBytes, Is.EqualTo(28u));
         });
 
-        Assert.That(system.GetModuleUniformMembers("test_surface_minimal", "_materialParams"),
+        Assert.That(system.GetModuleUniformMembers("test_surface_minimal", "materialParams"),
             Is.Empty, "a module without the block reports empty");
     }
 
@@ -322,7 +322,7 @@ public class SlangCompositionSpikeTest
                     Assert.That(program.EntryCode[0], Is.EqualTo(first[0]),
                         "the restored program must match the compiled one");
                     Assert.That(program.EntryCode[1], Is.EqualTo(first[1]));
-                    Assert.That(program.Reflection.TryGetResourceId("_albedoTexture", out _), Is.True);
+                    Assert.That(program.Reflection.TryGetResourceId("albedoTexture", out _), Is.True);
                 });
             }
         }

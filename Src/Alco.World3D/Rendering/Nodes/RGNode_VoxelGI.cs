@@ -737,7 +737,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // The linked trace shader's reflection carries the shared _data block
         // every voxel pass binds.
         _dataBuffer = rendering.CreateUniformGraphicsBuffer(
-            descriptor.Trace.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_data"),
+            descriptor.Trace.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "data"),
             "voxel_gi_data");
 
         // Persistent blue-noise lookup for the cone-march jitter (the same
@@ -757,15 +757,15 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "voxel_gi");
         }
 
-        _clearMaterial.SetBuffer("_data", _dataBuffer);
-        _injectMaterial.SetBuffer("_data", _dataBuffer);
-        _mipMaterial.SetBuffer("_data", _dataBuffer);
-        _mipChainMaterial.SetBuffer("_data", _dataBuffer);
-        _propagateMaterial.SetBuffer("_data", _dataBuffer);
-        _traceMaterial.SetBuffer("_data", _dataBuffer);
-        _demosaicMaterial.SetBuffer("_data", _dataBuffer);
+        _clearMaterial.SetBuffer("data", _dataBuffer);
+        _injectMaterial.SetBuffer("data", _dataBuffer);
+        _mipMaterial.SetBuffer("data", _dataBuffer);
+        _mipChainMaterial.SetBuffer("data", _dataBuffer);
+        _propagateMaterial.SetBuffer("data", _dataBuffer);
+        _traceMaterial.SetBuffer("data", _dataBuffer);
+        _demosaicMaterial.SetBuffer("data", _dataBuffer);
         // The blue-noise tile never changes after the bake, so bind it once.
-        _traceMaterial.SetRenderTexture("_blueNoise", _blueNoiseTexture);
+        _traceMaterial.SetRenderTexture("blueNoise", _blueNoiseTexture);
 
         // Attribute voxels are sparse physical 8^3 pages. The static pool covers
         // the structural demand ceiling — one page per logical brick slot across
@@ -823,11 +823,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
         // Initial bindings (rebound per-bounce in Render for propagate/trace):
         // Inject always writes to radiance[0] mip 0 at the start of each frame.
-        _injectMaterial.SetTexture3DStorage("_radianceOut", _radiance[0], 0);
-        _injectMaterial.SetTexture3DStorage("_opacityOut", _opacity, 0);
-        _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, 0);
-        _propagateMaterial.SetTexture("_opacity", _opacity);
-        _traceMaterial.SetTexture("_opacity", _opacity);
+        _injectMaterial.SetTexture3DStorage("radianceOut", _radiance[0], 0);
+        _injectMaterial.SetTexture3DStorage("opacityOut", _opacity, 0);
+        _mipMaterial.SetTexture3DRead("opacityLoad", _opacity, 0);
+        _propagateMaterial.SetTexture("opacity", _opacity);
+        _traceMaterial.SetTexture("opacity", _opacity);
 
         uint traceWidth = TraceWidth(_gbufferWidth);
         uint traceHeight = TraceHeight(_gbufferHeight);
@@ -841,11 +841,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // traceRaw.Width / 3 (one segment width).
         _historyGI[0] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_a");
         _historyGI[1] = rendering.CreateRenderTexture(rendering.PreferredLightMapPass, traceWidth * 6, traceHeight, "voxel_history_b");
-        _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
-        _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
-        _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[0], 0);
-        _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
-        _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
+        _traceMaterial.SetRenderTexture("indirectGI", _traceRaw);
+        _traceMaterial.SetRenderTexture("traceHistory", _traceHistory, 0);
+        _traceMaterial.SetRenderTexture("giHistoryMetadata", _historyGI[0], 0);
+        _demosaicMaterial.SetRenderTexture("traceInput", _traceRaw, 0);
+        _demosaicMaterial.SetRenderTexture("indirectGI", _indirectAtlas, 0);
 
         // The full-resolution GI outputs (upsampled from the trace-resolution
         // atlas by voxel-gi-upsample.slang, consumed by the deferred lighting pass)
@@ -867,10 +867,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // Reflection-driven uniform buffer over the upsample _data block —
         // no CPU twin of DataParams.
         _upsampleDataBuffer = _rendering.CreateUniformGraphicsBuffer(
-            upsampleShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_data"),
+            upsampleShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "data"),
             "voxel_gi_upsample_data");
-        _upsampleMaterial.SetBuffer("_data", _upsampleDataBuffer);
-        _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
+        _upsampleMaterial.SetBuffer("data", _upsampleDataBuffer);
+        _upsampleMaterial.SetRenderTexture("indirectGI", _indirectAtlas);
         // _giDiffuseOut/_giSpecularOut are bound by Attach once the graph
         // transients exist.
     }
@@ -890,9 +890,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _rsmBound = true;
         if (rsmMap != null)
         {
-            _traceMaterial.SetRenderTextureDepth("_rsmDepth", rsmMap);
-            _traceMaterial.SetRenderTexture("_rsmAlbedo", rsmMap, 0);
-            _traceMaterial.SetRenderTexture("_rsmNormal", rsmMap, 1);
+            _traceMaterial.SetRenderTextureDepth("rsmDepth", rsmMap);
+            _traceMaterial.SetRenderTexture("rsmAlbedo", rsmMap, 0);
+            _traceMaterial.SetRenderTexture("rsmNormal", rsmMap, 1);
             RsmResolution = (int)rsmMap.Width;
         }
         else
@@ -904,9 +904,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
                 _rendering.GraphicsDevice.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
                     [], new DepthAttachment(PixelFormat.Depth32Float), "voxel_gi_rsm_fallback")),
                 1, 1, "voxel_gi_rsm_fallback");
-            _traceMaterial.SetRenderTextureDepth("_rsmDepth", _rsmFallbackDepth);
-            _traceMaterial.SetTexture("_rsmAlbedo", _rendering.TextureBlack);
-            _traceMaterial.SetTexture("_rsmNormal", _rendering.TextureBlack);
+            _traceMaterial.SetRenderTextureDepth("rsmDepth", _rsmFallbackDepth);
+            _traceMaterial.SetTexture("rsmAlbedo", _rendering.TextureBlack);
+            _traceMaterial.SetTexture("rsmNormal", _rendering.TextureBlack);
         }
         _boundRsmMap = rsmMap;
     }
@@ -956,14 +956,14 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _giSpecularFullRes = _giSpecularResource.Texture;
         if (_upsampleMaterial != null)
         {
-            _upsampleMaterial.SetRenderTexture("_giDiffuseOut", _giDiffuseFullRes);
-            _upsampleMaterial.SetRenderTexture("_giSpecularOut", _giSpecularFullRes);
+            _upsampleMaterial.SetRenderTexture("giDiffuseOut", _giDiffuseFullRes);
+            _upsampleMaterial.SetRenderTexture("giSpecularOut", _giSpecularFullRes);
         }
         graph.InsertBefore(lighting, this);
         lighting.GiDiffuseInput = _giDiffuseResource;
         lighting.GiSpecularInput = _giSpecularResource;
-        lighting.Material.SetRenderTexture("_giDiffuse", _giDiffuseFullRes);
-        lighting.Material.SetRenderTexture("_giSpecular", _giSpecularFullRes);
+        lighting.Material.SetRenderTexture("giDiffuse", _giDiffuseFullRes);
+        lighting.Material.SetRenderTexture("giSpecular", _giSpecularFullRes);
     }
 
     /// <summary>
@@ -994,8 +994,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         {
             _lighting.GiDiffuseInput = null;
             _lighting.GiSpecularInput = null;
-            _lighting.Material.SetTexture("_giDiffuse", _rendering.TextureBlack);
-            _lighting.Material.SetTexture("_giSpecular", _rendering.TextureBlack);
+            _lighting.Material.SetTexture("giDiffuse", _rendering.TextureBlack);
+            _lighting.Material.SetTexture("giSpecular", _rendering.TextureBlack);
         }
         _graph = null;
         _lighting = null;
@@ -1063,8 +1063,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // block once; dispatches only rebind the per-dispatch attribute-pool
         // buffers (each a single-member block cached on the buffer itself).
         ComputeMaterial voxelize = GetVoxelizeMaterial(material).CreateInstance();
-        voxelize.SetBuffer("_vertices", geometry.Vertices);
-        voxelize.SetBuffer("_indices", geometry.Indices);
+        voxelize.SetBuffer("vertices", geometry.Vertices);
+        voxelize.SetBuffer("indices", geometry.Indices);
 
         _meshes.Add(new MeshRegistration
         {
@@ -1090,7 +1090,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         return _voxelizeMaterials.GetValue(key, _ =>
         {
             ComputeMaterial material = _materialCompiler.CompileCompute(key, _voxelizeTemplate);
-            material.SetBuffer("_data", _dataBuffer);
+            material.SetBuffer("data", _dataBuffer);
             return material;
         });
     }
@@ -1287,14 +1287,14 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // The full-resolution outputs are graph transients, rematerialized by the
         // graph's own resize (the facades rebind through the render texture version
         // check), so only internal textures are recreated here.
-        _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
-        _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
-        _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[0], 0);
-        _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
-        _demosaicMaterial.SetRenderTexture("_indirectGI", _indirectAtlas, 0);
+        _traceMaterial.SetRenderTexture("indirectGI", _traceRaw);
+        _traceMaterial.SetRenderTexture("traceHistory", _traceHistory, 0);
+        _traceMaterial.SetRenderTexture("giHistoryMetadata", _historyGI[0], 0);
+        _demosaicMaterial.SetRenderTexture("traceInput", _traceRaw, 0);
+        _demosaicMaterial.SetRenderTexture("indirectGI", _indirectAtlas, 0);
         if (_upsampleMaterial != null)
         {
-            _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
+            _upsampleMaterial.SetRenderTexture("indirectGI", _indirectAtlas);
         }
         _historyReadIndex = 0;
         _historyValid = false;
@@ -1366,24 +1366,24 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // (recreated on resize); avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _traceMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-            _traceMaterial.SetRenderTexture("_albedo", gbuffer, 0);
-            _traceMaterial.SetRenderTexture("_normal", gbuffer, 1);
-            _traceMaterial.SetRenderTexture("_emissive", gbuffer, 3);
-            _demosaicMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-            _demosaicMaterial.SetRenderTexture("_normal", gbuffer, 1);
-            _demosaicMaterial.SetRenderTexture("_emissive", gbuffer, 3);
+            _traceMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
+            _traceMaterial.SetRenderTexture("albedo", gbuffer, 0);
+            _traceMaterial.SetRenderTexture("normal", gbuffer, 1);
+            _traceMaterial.SetRenderTexture("emissive", gbuffer, 3);
+            _demosaicMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
+            _demosaicMaterial.SetRenderTexture("normal", gbuffer, 1);
+            _demosaicMaterial.SetRenderTexture("emissive", gbuffer, 3);
             if (_upsampleMaterial != null)
             {
-                _upsampleMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-                _upsampleMaterial.SetRenderTexture("_normal", gbuffer, 1);
+                _upsampleMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
+                _upsampleMaterial.SetRenderTexture("normal", gbuffer, 1);
             }
             _boundGBuffer = gbuffer;
         }
         if (!ReferenceEquals(_boundShadowMap, shadowMap))
         {
-            _injectMaterial.SetRenderTextureDepth("_shadowMap", shadowMap);
-            _traceMaterial.SetRenderTextureDepth("_shadowMap", shadowMap);
+            _injectMaterial.SetRenderTextureDepth("shadowMap", shadowMap);
+            _traceMaterial.SetRenderTextureDepth("shadowMap", shadowMap);
             _boundShadowMap = shadowMap;
         }
 
@@ -1483,10 +1483,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             // Gather rotation-balanced narrow-cone diffuse and specular from the
             // last-written radiance texture (direct + bounce).
             uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
-            _traceMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
-            _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
-            _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[_historyReadIndex], 0);
-            _traceMaterial.SetRenderTexture("_indirectGI", _traceRaw);
+            _traceMaterial.SetTexture("radiance", _radiance[radianceReadIndex]);
+            _traceMaterial.SetRenderTexture("traceHistory", _traceHistory, 0);
+            _traceMaterial.SetRenderTexture("giHistoryMetadata", _historyGI[_historyReadIndex], 0);
+            _traceMaterial.SetRenderTexture("indirectGI", _traceRaw);
             _traceMaterial.DispatchBySize(computePass, traceWidth, _traceRaw.Height, 1);
 
             if (measureGpu && inPassTimestamps)
@@ -1499,9 +1499,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             // per-layer history accumulation.
             int historyRead = _historyReadIndex;
             int historyWrite = 1 - historyRead;
-            _demosaicMaterial.SetRenderTexture("_traceInput", _traceRaw, 0);
-            _demosaicMaterial.SetRenderTexture("_historyInput", _historyGI[historyRead], 0);
-            _demosaicMaterial.SetRenderTexture("_historyOut", _historyGI[historyWrite], 0);
+            _demosaicMaterial.SetRenderTexture("traceInput", _traceRaw, 0);
+            _demosaicMaterial.SetRenderTexture("historyInput", _historyGI[historyRead], 0);
+            _demosaicMaterial.SetRenderTexture("historyOut", _historyGI[historyWrite], 0);
             _demosaicMaterial.DispatchBySizeWithConstant(
                 computePass,
                 traceWidth,
@@ -1840,10 +1840,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             {
                 continue;
             }
-            _injectMaterial.SetBuffer("_attrStatic", _attrStatic);
-            _injectMaterial.SetBuffer("_attrDynamic", _attrDynamic);
-            _injectMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
-            _injectMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
+            _injectMaterial.SetBuffer("attrStatic", _attrStatic);
+            _injectMaterial.SetBuffer("attrDynamic", _attrDynamic);
+            _injectMaterial.SetBuffer("pageTable", _pageTableCombined[level]);
+            _injectMaterial.SetBuffer("brickList", _residentBrickCoordinates[level]);
             _injectMaterial.DispatchBySizeWithConstant(
                 computePass, BrickSize, BrickSize, (uint)(BrickSize * injectCount),
                 new Vector4(level, 0, 0, 0));
@@ -1877,8 +1877,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         for (int bounce = 0; bounce < bounceCount; bounce++)
         {
             int writeIndex = 1 - radianceReadIndex;
-            _propagateMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
-            _propagateMaterial.SetTexture3DStorage("_propagateOut", _radiance[writeIndex], 0);
+            _propagateMaterial.SetTexture("radiance", _radiance[radianceReadIndex]);
+            _propagateMaterial.SetTexture3DStorage("propagateOut", _radiance[writeIndex], 0);
 
             for (int level = 0; level < LevelCount; level++)
             {
@@ -1887,10 +1887,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
                 {
                     continue;
                 }
-                _propagateMaterial.SetBuffer("_attrStatic", _attrStatic);
-                _propagateMaterial.SetBuffer("_attrDynamic", _attrDynamic);
-                _propagateMaterial.SetBuffer("_pageTable", _pageTableCombined[level]);
-                _propagateMaterial.SetBuffer("_brickList", _residentBrickCoordinates[level]);
+                _propagateMaterial.SetBuffer("attrStatic", _attrStatic);
+                _propagateMaterial.SetBuffer("attrDynamic", _attrDynamic);
+                _propagateMaterial.SetBuffer("pageTable", _pageTableCombined[level]);
+                _propagateMaterial.SetBuffer("brickList", _residentBrickCoordinates[level]);
                 _propagateMaterial.DispatchBySizeWithConstant(
                     computePass, BrickSize, BrickSize, (uint)(BrickSize * residentCount),
                     new Vector4(level, BounceStrength, bounce, 0));
@@ -2168,10 +2168,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
         for (int mip = 0; mip < cascadeSrcMip; mip++)
         {
-            _mipMaterial.SetTexture3DRead("_radianceLoad", radiance, (uint)mip);
-            _mipMaterial.SetTexture3DStorage("_radianceOut", radiance, (uint)(mip + 1));
-            _mipMaterial.SetTexture3DRead("_opacityLoad", _opacity, (uint)mip);
-            _mipMaterial.SetTexture3DStorage("_opacityOut", _opacity, (uint)(mip + 1));
+            _mipMaterial.SetTexture3DRead("radianceLoad", radiance, (uint)mip);
+            _mipMaterial.SetTexture3DStorage("radianceOut", radiance, (uint)(mip + 1));
+            _mipMaterial.SetTexture3DRead("opacityLoad", _opacity, (uint)mip);
+            _mipMaterial.SetTexture3DStorage("opacityOut", _opacity, (uint)(mip + 1));
             uint dstResolution = (uint)Math.Max(_resolution >> (mip + 1), 1);
             // All levels in one dispatch: z = dstRes * LevelCount.
             _mipMaterial.DispatchBySizeWithConstant(
@@ -2192,10 +2192,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private void DispatchMipChain(
         GPUCommandBuffer.ComputePass computePass, Texture3D texture, int srcMip, int mode)
     {
-        _mipChainMaterial.SetTexture3DRead("_srcTex", texture, (uint)srcMip);
-        _mipChainMaterial.SetTexture3DStorage("_outTex1", texture, (uint)(srcMip + 1));
-        _mipChainMaterial.SetTexture3DStorage("_outTex2", texture, (uint)(srcMip + 2));
-        _mipChainMaterial.SetTexture3DStorage("_outTex3", texture, (uint)(srcMip + 3));
+        _mipChainMaterial.SetTexture3DRead("srcTex", texture, (uint)srcMip);
+        _mipChainMaterial.SetTexture3DStorage("outTex1", texture, (uint)(srcMip + 1));
+        _mipChainMaterial.SetTexture3DStorage("outTex2", texture, (uint)(srcMip + 2));
+        _mipChainMaterial.SetTexture3DStorage("outTex3", texture, (uint)(srcMip + 3));
         // 4 × 4 × (4 * LevelCount) threads: one 4³ group per clipmap level.
         _mipChainMaterial.DispatchBySizeWithConstant(
             computePass, 4, 4, 4 * (uint)LevelCount,
@@ -2210,9 +2210,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         int level,
         int brickCount)
     {
-        _clearMaterial.SetBuffer("_attrOut", attributes);
-        _clearMaterial.SetBuffer("_dirtyBricks", dirtyBricks);
-        _clearMaterial.SetBuffer("_pageTable", pageTable);
+        _clearMaterial.SetBuffer("attrOut", attributes);
+        _clearMaterial.SetBuffer("dirtyBricks", dirtyBricks);
+        _clearMaterial.SetBuffer("pageTable", pageTable);
         _clearMaterial.DispatchBySizeWithConstant(
             computePass,
             BrickSize,
@@ -2245,8 +2245,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // The two pool buffers cycle per dispatch; each lives in its own
         // single-member block, so its bind group is cached on the buffer itself
         // and switching pools/levels allocates nothing.
-        material.SetBuffer("_attrOut", attrOut);
-        material.SetBuffer("_pageTable", pageTable);
+        material.SetBuffer("attrOut", attrOut);
+        material.SetBuffer("pageTable", pageTable);
         material.DispatchBySizeWithConstant(computePass, geometry.TriangleCount, 8, 1, new VoxelizeConstants
         {
             Model = world,

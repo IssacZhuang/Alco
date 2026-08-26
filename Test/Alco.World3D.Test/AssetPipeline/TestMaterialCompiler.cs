@@ -41,20 +41,20 @@ public class TestMaterialCompiler
             import alco_world3d_surface;
             import alco_rendering_core;
 
-            cbuffer _globalRenderData : register(b0, space2)
+            cbuffer globalRenderData : register(b0, space2)
             {
                 float4 time; // x = time, y = deltaTime, z = sinTime, w = cosTime
             };
 
             [MaterialParams]
-            cbuffer _surfaceParams : register(b1, space2)
+            cbuffer surfaceParams : register(b1, space2)
             {
                 float4 scale; // x = cells per meter; 0 = the default 2
             };
 
             public struct Surface : ISurface
             {
-                public override float4 GetBaseColor(SurfaceInput input)
+                public override float4 getBaseColor(SurfaceInput input)
                 {
                     float cellsPerMeter = scale.x > 0.0 ? scale.x : 2.0;
                     float3 cell = floor(input.worldPos * cellsPerMeter - time.x);
@@ -63,7 +63,7 @@ public class TestMaterialCompiler
                     return float4(albedo * input.baseColorFactor.rgb, input.baseColorFactor.a);
                 }
 
-                public override float3 GetMetallicRoughnessAO(SurfaceInput input)
+                public override float3 getMetallicRoughnessAO(SurfaceInput input)
                 {
                     return float3(0.0, 0.5, 1.0);
                 }
@@ -113,7 +113,7 @@ public class TestMaterialCompiler
         // Instance overrides remain the per-draw customization point; the compiled
         // material itself is never mutated after compilation.
         GraphicsMaterialInstance instance = material.CreateInstance();
-        Assert.That(() => instance.SetTexture("_albedoTexture", engine.RenderingSystem.TextureWhite), Throws.Nothing);
+        Assert.That(() => instance.SetTexture("albedoTexture", engine.RenderingSystem.TextureWhite), Throws.Nothing);
     }
 
     [Test]
@@ -132,7 +132,7 @@ public class TestMaterialCompiler
                 { ["albedoTexture"] = engine.RenderingSystem.TextureBlack },
         };
         ComputeMaterial material = compiler.CompileCompute(textured, voxelize);
-        Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.True);
+        Assert.That(material.TryGetResourceId("albedoTexture", out _), Is.True);
 
         // Compile-time slot validation, the same rule as the graphics passes.
         PbrMaterialAsset typo = new()
@@ -167,7 +167,7 @@ public class TestMaterialCompiler
                 Parameters = new Dictionary<string, ShaderValue> { ["scale"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             ComputeMaterial material = compiler.CompileCompute(scaled, voxelize);
-            Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
+            Assert.That(material.TryGetResourceId("surfaceParams", out _), Is.True,
                 "The surface's parameter block binds in the compute feed too.");
 
             // Unknown parameter names fail loudly, as on the graphics passes.
@@ -283,10 +283,10 @@ public class TestMaterialCompiler
             {
                 Assert.That(gbuffer.GetMaterial(checker), Is.SameAs(material),
                     "The renderer's cache shares one material per asset.");
-                Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.False, "The test surface declares no albedo slot.");
+                Assert.That(material.TryGetResourceId("albedoTexture", out _), Is.False, "The test surface declares no albedo slot.");
                 Assert.That(material.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True, "The pass template keeps its camera binding.");
                 Assert.That(material.TryGetResourceId(ShaderResourceId.GlobalRenderData, out _), Is.True,
-                    "The surface's _globalRenderData declaration reaches the composed shader (time source).");
+                    "The surface's globalRenderData declaration reaches the composed shader (time source).");
             });
         }
         finally
@@ -317,7 +317,7 @@ public class TestMaterialCompiler
                 Parameters = new Dictionary<string, ShaderValue> { ["scale"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             GraphicsMaterial material = gbuffer.GetMaterial(scaled);
-            Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
+            Assert.That(material.TryGetResourceId("surfaceParams", out _), Is.True,
                 "The composed shader exposes the surface's parameter block.");
 
             // Unknown parameter names fail loudly (typo in the asset).
@@ -389,7 +389,7 @@ public class TestMaterialCompiler
             {
                 Assert.That(material.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
                     "The pass template keeps its camera binding.");
-                Assert.That(material.TryGetResourceId("_albedoTexture", out _), Is.False,
+                Assert.That(material.TryGetResourceId("albedoTexture", out _), Is.False,
                     "The minimal surface declares no textures.");
             });
 
@@ -400,12 +400,12 @@ public class TestMaterialCompiler
             ShaderReflection feedReflection = voxelFeed.GetShaderModules().ReflectionInfo;
             Assert.Multiple(() =>
             {
-                foreach (string name in new[] { "_data", "_vertices", "_indices", "_attrOut", "_pageTable" })
+                foreach (string name in new[] { "data", "vertices", "indices", "attrOut", "pageTable" })
                 {
                     Assert.That(feedReflection.TryGetResourceLocation(name, out _), Is.True,
                         $"The voxelize feed is missing {name}.");
                 }
-                Assert.That(feedReflection.TryGetResourceLocation("_albedoTexture", out _), Is.False);
+                Assert.That(feedReflection.TryGetResourceLocation("albedoTexture", out _), Is.False);
             });
 
             // The built-in surface's explicit bindings stay visible across the fold
@@ -413,7 +413,7 @@ public class TestMaterialCompiler
             Shader builtinFeed = compiler.ComposeSurfaceComputeShader(
                 null, engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize"));
             Assert.That(builtinFeed.GetShaderModules().ReflectionInfo
-                .TryGetResourceLocation("_albedoTexture", out _), Is.True);
+                .TryGetResourceLocation("albedoTexture", out _), Is.True);
         }
         finally
         {

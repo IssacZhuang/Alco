@@ -42,7 +42,7 @@ public class SlangParameterBlockSpikeTest
             public SamplerComparisonState depthCompare;
         };
 
-        public ParameterBlock<GlobalSamplers> _globalSamplers;
+        public ParameterBlock<GlobalSamplers> globalSamplers;
         """;
 
     // The entry module: a mixed pass block (ordinary data + texture + sampler
@@ -57,18 +57,18 @@ public class SlangParameterBlockSpikeTest
         public struct PassParams
         {
             public float4 tint;
-            public Texture2D _sceneColor;
-            public SamplerState _sceneSampler;
-            public RWStructuredBuffer<float4> _output;
+            public Texture2D sceneColor;
+            public SamplerState sceneSampler;
+            public RWStructuredBuffer<float4> output;
         };
 
-        public ParameterBlock<PassParams> _pass;
+        public ParameterBlock<PassParams> pass;
 
         [shader("fragment")]
         float4 MainPS(float2 uv : TEXCOORD0) : SV_TARGET
         {
-            float4 color = _pass._sceneColor.Sample(_globalSamplers.linearClamp, uv) * _pass.tint;
-            _pass._output[0] = color;
+            float4 color = pass.sceneColor.Sample(globalSamplers.linearClamp, uv) * pass.tint;
+            pass.output[0] = color;
             return color;
         }
         """;
@@ -80,23 +80,23 @@ public class SlangParameterBlockSpikeTest
 
         import test_pb_core;
 
-        cbuffer _camera
+        cbuffer camera
         {
             float4x4 viewProjection;
         };
 
-        ParameterBlock<PassParams> _pass;
+        ParameterBlock<PassParams> pass;
 
         public struct PassParams
         {
             public float4 tint;
-            public Texture2D _sceneColor;
+            public Texture2D sceneColor;
         };
 
         [shader("fragment")]
         float4 MainPS(float2 uv : TEXCOORD0) : SV_TARGET
         {
-            return _pass._sceneColor.Sample(_globalSamplers.linearClamp, uv) * _pass.tint
+            return pass.sceneColor.Sample(globalSamplers.linearClamp, uv) * pass.tint
                  + viewProjection._m00;
         }
         """;
@@ -114,7 +114,7 @@ public class SlangParameterBlockSpikeTest
             public SamplerComparisonState depthCompare;
         };
 
-        public ParameterBlock<GlobalSamplers> _globalSamplers : register(b0, space0);
+        public ParameterBlock<GlobalSamplers> globalSamplers : register(b0, space0);
         """;
 
     private const string PinnedEntryModule = """
@@ -126,18 +126,18 @@ public class SlangParameterBlockSpikeTest
         public struct PassParams
         {
             public float4 tint;
-            public Texture2D _sceneColor;
-            public SamplerState _sceneSampler;
-            public RWStructuredBuffer<float4> _output;
+            public Texture2D sceneColor;
+            public SamplerState sceneSampler;
+            public RWStructuredBuffer<float4> output;
         };
 
-        public ParameterBlock<PassParams> _pass : register(b0, space1);
+        public ParameterBlock<PassParams> pass : register(b0, space1);
 
         [shader("fragment")]
         float4 MainPS(float2 uv : TEXCOORD0) : SV_TARGET
         {
-            float4 color = _pass._sceneColor.Sample(_globalSamplers.linearClamp, uv) * _pass.tint;
-            _pass._output[0] = color;
+            float4 color = pass.sceneColor.Sample(globalSamplers.linearClamp, uv) * pass.tint;
+            pass.output[0] = color;
             return color;
         }
         """;
@@ -153,18 +153,18 @@ public class SlangParameterBlockSpikeTest
         public struct VkPassParams
         {
             public float4 tint;
-            public Texture2D _sceneColor;
-            public RWStructuredBuffer<float4> _output;
+            public Texture2D sceneColor;
+            public RWStructuredBuffer<float4> output;
         };
 
-        [[vk::binding(0, 1)]] ParameterBlock<VkPassParams> _pass;
-        [[vk::binding(0, 0)]] ParameterBlock<GlobalSamplers> _globalSamplers2;
+        [[vk::binding(0, 1)]] ParameterBlock<VkPassParams> pass;
+        [[vk::binding(0, 0)]] ParameterBlock<GlobalSamplers> globalSamplers2;
 
         [shader("fragment")]
         float4 MainPS(float2 uv : TEXCOORD0) : SV_TARGET
         {
-            float4 color = _pass._sceneColor.Sample(_globalSamplers2.linearClamp, uv) * _pass.tint;
-            _pass._output[0] = color;
+            float4 color = pass.sceneColor.Sample(globalSamplers2.linearClamp, uv) * pass.tint;
+            pass.output[0] = color;
             return color;
         }
         """;
@@ -175,14 +175,14 @@ public class SlangParameterBlockSpikeTest
         #language slang 2025
         module test_pb_baseline;
 
-        cbuffer _pass : register(b0, space1)
+        cbuffer pass : register(b0, space1)
         {
             float4 tint;
-            Texture2D _sceneColor;
-            SamplerState _sceneSampler;
+            Texture2D sceneColor;
+            SamplerState sceneSampler;
         };
 
-        cbuffer _frame : register(b0, space0)
+        cbuffer frame : register(b0, space0)
         {
             float4 time;
         };
@@ -190,7 +190,7 @@ public class SlangParameterBlockSpikeTest
         [shader("fragment")]
         float4 MainPS(float2 uv : TEXCOORD0) : SV_TARGET
         {
-            return _sceneColor.Sample(_sceneSampler, uv) * tint * time;
+            return sceneColor.Sample(sceneSampler, uv) * tint * time;
         }
         """;
 
@@ -203,10 +203,10 @@ public class SlangParameterBlockSpikeTest
         // the auto-introduced uniform buffer (binding 0) in declaration order.
         Assert.That(Rows(code[0]), Is.EqualTo(new[]
         {
-            (0u, 0u, "_globalSamplers2.linearClamp"),
-            (1u, 0u, "_pass"),
-            (1u, 1u, "_pass._sceneColor"),
-            (1u, 2u, "_pass._output"),
+            (0u, 0u, "globalSamplers2.linearClamp"),
+            (1u, 0u, "pass"),
+            (1u, 1u, "pass.sceneColor"),
+            (1u, 2u, "pass.output"),
         }));
     }
 
@@ -221,10 +221,10 @@ public class SlangParameterBlockSpikeTest
         // resource members continue in declaration order.
         Assert.That(Rows(code[0]), Is.EqualTo(new[]
         {
-            (0u, 0u, "_frame"),
-            (1u, 0u, "_pass"),
-            (1u, 1u, "_pass._sceneColor"),
-            (1u, 2u, "_pass._sceneSampler"),
+            (0u, 0u, "frame"),
+            (1u, 0u, "pass"),
+            (1u, 1u, "pass.sceneColor"),
+            (1u, 2u, "pass.sceneSampler"),
         }));
     }
 
@@ -245,10 +245,10 @@ public class SlangParameterBlockSpikeTest
             "the entry must be SPIR-V");
         Assert.That(Rows(code[0]), Is.EqualTo(new[]
         {
-            (0u, 0u, "_pass"),
-            (0u, 1u, "_pass._sceneColor"),
-            (0u, 3u, "_pass._output"),
-            (1u, 0u, "_globalSamplers.linearClamp"),
+            (0u, 0u, "pass"),
+            (0u, 1u, "pass.sceneColor"),
+            (0u, 3u, "pass.output"),
+            (1u, 0u, "globalSamplers.linearClamp"),
         }));
     }
 
@@ -264,10 +264,10 @@ public class SlangParameterBlockSpikeTest
         // an auto-assigned set). Register pinning is therefore unreliable for
         // cross-module set ownership.
         List<(uint Set, uint Binding, string Name)> rows = Rows(code[0]);
-        Assert.That(rows, Does.Contain((1u, 0u, "_pass")));
-        Assert.That(rows, Does.Contain((1u, 1u, "_pass._sceneColor")));
-        Assert.That(rows, Does.Contain((1u, 3u, "_pass._output")));
-        Assert.That(rows.Where(row => row.Name == "_globalSamplers.linearClamp").Single().Set,
+        Assert.That(rows, Does.Contain((1u, 0u, "pass")));
+        Assert.That(rows, Does.Contain((1u, 1u, "pass.sceneColor")));
+        Assert.That(rows, Does.Contain((1u, 3u, "pass.output")));
+        Assert.That(rows.Where(row => row.Name == "globalSamplers.linearClamp").Single().Set,
             Is.Not.EqualTo(0u), "the imported module's register(space0) pin must not hold");
     }
 
@@ -281,10 +281,10 @@ public class SlangParameterBlockSpikeTest
         // explicit parameter blocks then number from set 1 upward.
         Assert.That(Rows(code[0]), Is.EqualTo(new[]
         {
-            (0u, 0u, "_camera"),
-            (1u, 0u, "_pass"),
-            (1u, 1u, "_pass._sceneColor"),
-            (2u, 0u, "_globalSamplers.linearClamp"),
+            (0u, 0u, "camera"),
+            (1u, 0u, "pass"),
+            (1u, 1u, "pass.sceneColor"),
+            (2u, 0u, "globalSamplers.linearClamp"),
         }));
     }
 
@@ -511,10 +511,10 @@ public class SlangParameterBlockSpikeTest
         import test_pb_core;
 
         public struct CameraParams { public float4x4 viewProjection; };
-        public struct DrawParams { public RWStructuredBuffer<float4> _instances; };
+        public struct DrawParams { public RWStructuredBuffer<float4> instances; };
 
-        public ParameterBlock<CameraParams> _camera;
-        public ParameterBlock<DrawParams> _draw;
+        public ParameterBlock<CameraParams> camera;
+        public ParameterBlock<DrawParams> draw;
 
         public struct TmplV2F
         {
@@ -525,7 +525,7 @@ public class SlangParameterBlockSpikeTest
         public TmplV2F MainVS(float3 position : POSITION)
         {
             TmplV2F output;
-            output.position = mul(_camera.viewProjection, float4(position, 1.0)) + _draw._instances[0];
+            output.position = mul(camera.viewProjection, float4(position, 1.0)) + draw.instances[0];
             return output;
         }
         """;
@@ -536,11 +536,11 @@ public class SlangParameterBlockSpikeTest
 
         public struct MaterialParams
         {
-            public Texture2D<float4> _albedoTexture;
-            public SamplerState _albedoTextureSampler;
+            public Texture2D<float4> albedoTexture;
+            public SamplerState albedoTextureSampler;
         };
 
-        public ParameterBlock<MaterialParams> _material;
+        public ParameterBlock<MaterialParams> material;
         """;
 
     [Test]
@@ -595,13 +595,13 @@ public class SlangParameterBlockSpikeTest
                 TestContext.Progress.WriteLine(string.Join("\n", layoutRows.Select(r => $"  set={r.Set} binding={r.Binding}  '{r.Name}'")));
                 Assert.That(layoutRows, Is.EqualTo(new[]
                 {
-                    (0u, 0u, "_camera"),
-                    (1u, 0u, "_draw._instances"),
-                    (2u, 0u, "_material._albedoTexture"),
-                    (2u, 1u, "_material._albedoTextureSampler"),
-                    (3u, 0u, "_globalSamplers.linearClamp"),
-                    (3u, 1u, "_globalSamplers.linearRepeat"),
-                    (3u, 2u, "_globalSamplers.depthCompare"),
+                    (0u, 0u, "camera"),
+                    (1u, 0u, "draw.instances"),
+                    (2u, 0u, "material.albedoTexture"),
+                    (2u, 1u, "material.albedoTextureSampler"),
+                    (3u, 0u, "globalSamplers.linearClamp"),
+                    (3u, 1u, "globalSamplers.linearRepeat"),
+                    (3u, 2u, "globalSamplers.depthCompare"),
                 }), "block binding index = set; member binding index = binding in set");
 
                 // Entry-code truth: only the resources the entry actually
@@ -611,8 +611,8 @@ public class SlangParameterBlockSpikeTest
                 // The used blocks' SPIR-V sets equal their parameter order.
                 Assert.That(rows, Is.EqualTo(new[]
                 {
-                    (0u, 0u, "_camera"),
-                    (1u, 0u, "_draw._instances"),
+                    (0u, 0u, "camera"),
+                    (1u, 0u, "draw.instances"),
                 }));
             }
             finally
@@ -722,10 +722,10 @@ public class SlangParameterBlockSpikeTest
         Assert.That(pass.Group, Is.EqualTo(0u));
         Assert.That(pass.Bindings.Select(b => (b.Entry.Name, b.Entry.Binding, b.Entry.Type)), Is.EqualTo(new[]
         {
-            ("_pass", 0u, Alco.Graphics.BindingType.UniformBuffer),      // auto-introduced UBO (tint)
-            ("_sceneColor", 1u, Alco.Graphics.BindingType.Texture),      // bare name, shifted past the UBO
-            ("_sceneSampler", 2u, Alco.Graphics.BindingType.Sampler),    // unused by the body, kept pre-DCE
-            ("_output", 3u, Alco.Graphics.BindingType.StorageBuffer),
+            ("pass", 0u, Alco.Graphics.BindingType.UniformBuffer),      // auto-introduced UBO (tint)
+            ("sceneColor", 1u, Alco.Graphics.BindingType.Texture),      // bare name, shifted past the UBO
+            ("sceneSampler", 2u, Alco.Graphics.BindingType.Sampler),    // unused by the body, kept pre-DCE
+            ("output", 3u, Alco.Graphics.BindingType.StorageBuffer),
         }));
 
         Alco.Graphics.BindGroupLayout samplers = reflection.BindGroups[1];
@@ -736,7 +736,7 @@ public class SlangParameterBlockSpikeTest
             ("linearRepeat", 1u, Alco.Graphics.BindingType.Sampler),
             ("depthCompare", 2u, Alco.Graphics.BindingType.SamplerComparison),
         }));
-        Assert.That(reflection.TryGetResourceId("_sceneColor", out _), Is.True,
+        Assert.That(reflection.TryGetResourceId("sceneColor", out _), Is.True,
             "members resolve by their bare names");
     }
 

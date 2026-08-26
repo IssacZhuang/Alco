@@ -41,13 +41,13 @@ struct VoxelizeConstants
     float4 params2;        // x=triangleCount, yz=packed voxel-space dirty range lo/hi (x|y<<8|z<<16), w=unused
 };
 
-// alco_world3d_voxel_common declares _data; this pass's ParameterBlocks follow
+// alco_world3d_voxel_common declares data; this pass's ParameterBlocks follow
 // it in declaration order. The surface's textures/params live in the surface
 // module's own ParameterBlocks.
 //
-// The split is by binding frequency. _geometry is bound once per mesh
+// The split is by binding frequency. geometry is bound once per mesh
 // registration (each registration derives its own material instance from the
-// per-asset material); _attrOut and _pageTable cycle per dispatch (attribute
+// per-asset material); attrOut and pageTable cycle per dispatch (attribute
 // pool, clipmap level) and are therefore single-member blocks: a one-resource
 // bind group is a pure function of that buffer, so the runtime caches it on
 // the buffer itself and cycling pools/levels allocates nothing. Bundling all
@@ -56,69 +56,69 @@ struct VoxelizeConstants
 
 public struct GeometryParams
 {
-    public RWStructuredBuffer<uint> _vertices;
-    public RWStructuredBuffer<uint> _indices;
+    public RWStructuredBuffer<uint> vertices;
+    public RWStructuredBuffer<uint> indices;
 };
 
-public ParameterBlock<GeometryParams> _geometry;
+public ParameterBlock<GeometryParams> geometry;
 
 // Use a flat uint view for atomics. The same buffer is read as uint4 by later
 // passes; the byte layout is identical, while Vulkan atomics require the target
 // expression to be a direct runtime-array element rather than a vector member.
 public struct AttrOutParams
 {
-    public RWStructuredBuffer<uint> _attrOut;
+    public RWStructuredBuffer<uint> attrOut;
 };
 
-public ParameterBlock<AttrOutParams> _attr;
+public ParameterBlock<AttrOutParams> attr;
 
 public struct PageTableParams
 {
-    public RWStructuredBuffer<uint> _pageTable;
+    public RWStructuredBuffer<uint> pageTable;
 };
 
-public ParameterBlock<PageTableParams> _page;
+public ParameterBlock<PageTableParams> page;
 
 
 // The mip the voxel feed samples: averages sub-triangle detail into the voxel.
-static const float VoxelTextureLod = 3.0;
+static const float voxelTextureLod = 3.0;
 
 [[vk::push_constant]] VoxelizeConstants constants;
 
-uint LoadIndex(uint i)
+uint loadIndex(uint i)
 {
     if (constants.params.y > 0.5)
     {
-        uint packed = _geometry._indices[i >> 1];
+        uint packed = geometry.indices[i >> 1];
         return (i & 1u) == 0u ? packed & 0xFFFFu : packed >> 16;
     }
-    return _geometry._indices[i];
+    return geometry.indices[i];
 }
 
-float3 LoadFloat3(uint base)
+float3 loadFloat3(uint base)
 {
-    return float3(asfloat(_geometry._vertices[base]), asfloat(_geometry._vertices[base + 1]), asfloat(_geometry._vertices[base + 2]));
+    return float3(asfloat(geometry.vertices[base]), asfloat(geometry.vertices[base + 1]), asfloat(geometry.vertices[base + 2]));
 }
 
-void AtomicAccumulateVoxel(uint index, float3 albedo, float3 normal, float emissiveQ)
+void atomicAccumulateVoxel(uint index, float3 albedo, float3 normal, float emissiveQ)
 {
     uint laneIndex = index * 4u;
     uint previousCountWord;
-    InterlockedAdd(_attr._attrOut[laneIndex], 1u, previousCountWord);
+    InterlockedAdd(attr.attrOut[laneIndex], 1u, previousCountWord);
     if ((previousCountWord & 65535u) >= 255u)
     {
         return;
     }
 
-    uint4 contribution = PackVoxelAttr(albedo, normal, emissiveQ);
-    InterlockedAdd(_attr._attrOut[laneIndex], contribution.x & 0xFFFF0000u);
-    InterlockedAdd(_attr._attrOut[laneIndex + 1u], contribution.y);
-    InterlockedAdd(_attr._attrOut[laneIndex + 2u], contribution.z);
-    InterlockedAdd(_attr._attrOut[laneIndex + 3u], contribution.w);
+    uint4 contribution = packVoxelAttr(albedo, normal, emissiveQ);
+    InterlockedAdd(attr.attrOut[laneIndex], contribution.x & 0xFFFF0000u);
+    InterlockedAdd(attr.attrOut[laneIndex + 1u], contribution.y);
+    InterlockedAdd(attr.attrOut[laneIndex + 2u], contribution.z);
+    InterlockedAdd(attr.attrOut[laneIndex + 3u], contribution.w);
 }
 
 // Separating-axis test between an axis-aligned box and a triangle.
-bool AxisSeparates(float3 axis, float3 v0, float3 v1, float3 v2, float3 boxHalf)
+bool axisSeparates(float3 axis, float3 v0, float3 v1, float3 v2, float3 boxHalf)
 {
     float p0 = dot(v0, axis);
     float p1 = dot(v1, axis);
@@ -129,7 +129,7 @@ bool AxisSeparates(float3 axis, float3 v0, float3 v1, float3 v2, float3 boxHalf)
     return minP > radius || maxP < -radius;
 }
 
-bool TriBoxOverlap(float3 boxCenter, float3 boxHalf, float3 v0, float3 v1, float3 v2)
+bool triBoxOverlap(float3 boxCenter, float3 boxHalf, float3 v0, float3 v1, float3 v2)
 {
     v0 -= boxCenter;
     v1 -= boxCenter;
@@ -140,15 +140,15 @@ bool TriBoxOverlap(float3 boxCenter, float3 boxHalf, float3 v0, float3 v1, float
     float3 e2 = v0 - v2;
 
     // 9 axes: triangle edges crossed with the box axes.
-    if (AxisSeparates(cross(e0, float3(1, 0, 0)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e0, float3(0, 1, 0)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e0, float3(0, 0, 1)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e1, float3(1, 0, 0)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e1, float3(0, 1, 0)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e1, float3(0, 0, 1)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e2, float3(1, 0, 0)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e2, float3(0, 1, 0)), v0, v1, v2, boxHalf)) return false;
-    if (AxisSeparates(cross(e2, float3(0, 0, 1)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e0, float3(1, 0, 0)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e0, float3(0, 1, 0)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e0, float3(0, 0, 1)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e1, float3(1, 0, 0)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e1, float3(0, 1, 0)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e1, float3(0, 0, 1)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e2, float3(1, 0, 0)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e2, float3(0, 1, 0)), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e2, float3(0, 0, 1)), v0, v1, v2, boxHalf)) return false;
 
     // Triangle AABB against the box.
     float3 boxMin = min(v0, min(v1, v2));
@@ -156,13 +156,13 @@ bool TriBoxOverlap(float3 boxCenter, float3 boxHalf, float3 v0, float3 v1, float
     if (any(boxMax < -boxHalf) || any(boxMin > boxHalf)) return false;
 
     // Triangle plane.
-    if (AxisSeparates(cross(e0, e1), v0, v1, v2, boxHalf)) return false;
+    if (axisSeparates(cross(e0, e1), v0, v1, v2, boxHalf)) return false;
     return true;
 }
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
-public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID)
+public void mainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint triangleIndex = dispatchId.x;
     if (triangleIndex >= (uint)constants.params2.x)
@@ -172,17 +172,17 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
 
     int level = (int)constants.params.x;
     uint strideUints = (uint)constants.params.z;
-    float4 originAndSize = _data.levelOrigins[level];
+    float4 originAndSize = data.levelOrigins[level];
     float voxelSize = originAndSize.w;
-    uint resolution = VoxelResolution();
+    uint resolution = voxelResolution();
 
-    uint i0 = LoadIndex(triangleIndex * 3);
-    uint i1 = LoadIndex(triangleIndex * 3 + 1);
-    uint i2 = LoadIndex(triangleIndex * 3 + 2);
+    uint i0 = loadIndex(triangleIndex * 3);
+    uint i1 = loadIndex(triangleIndex * 3 + 1);
+    uint i2 = loadIndex(triangleIndex * 3 + 2);
 
-    float3 w0 = mul(constants.model, float4(LoadFloat3(i0 * strideUints), 1.0)).xyz;
-    float3 w1 = mul(constants.model, float4(LoadFloat3(i1 * strideUints), 1.0)).xyz;
-    float3 w2 = mul(constants.model, float4(LoadFloat3(i2 * strideUints), 1.0)).xyz;
+    float3 w0 = mul(constants.model, float4(loadFloat3(i0 * strideUints), 1.0)).xyz;
+    float3 w1 = mul(constants.model, float4(loadFloat3(i1 * strideUints), 1.0)).xyz;
+    float3 w2 = mul(constants.model, float4(loadFloat3(i2 * strideUints), 1.0)).xyz;
 
     // Early-out when the triangle's world AABB misses the level region.
     float3 worldMin = min(w0, min(w1, w2));
@@ -217,9 +217,9 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
     // projects onto the triangle (barycentric UV), not at the triangle
     // centroid. This preserves texture detail across large triangles that span
     // many voxels. The alpha-test also uses the per-voxel UV.
-    float2 uv0 = float2(asfloat(_geometry._vertices[i0 * strideUints + 6]), asfloat(_geometry._vertices[i0 * strideUints + 7]));
-    float2 uv1 = float2(asfloat(_geometry._vertices[i1 * strideUints + 6]), asfloat(_geometry._vertices[i1 * strideUints + 7]));
-    float2 uv2 = float2(asfloat(_geometry._vertices[i2 * strideUints + 6]), asfloat(_geometry._vertices[i2 * strideUints + 7]));
+    float2 uv0 = float2(asfloat(geometry.vertices[i0 * strideUints + 6]), asfloat(geometry.vertices[i0 * strideUints + 7]));
+    float2 uv1 = float2(asfloat(geometry.vertices[i1 * strideUints + 6]), asfloat(geometry.vertices[i1 * strideUints + 7]));
+    float2 uv2 = float2(asfloat(geometry.vertices[i2 * strideUints + 6]), asfloat(geometry.vertices[i2 * strideUints + 7]));
 
     // Precompute barycentric projection basis: map a world-space point to
     // barycentric coordinates (u, v, w) on the triangle plane.
@@ -231,7 +231,7 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
     {
         return;
     }
-    float3 N = faceNormal / faceArea;
+    float3 n = faceNormal / faceArea;
     float d00 = dot(edge0, edge0);
     float d01 = dot(edge0, edge1);
     float d11 = dot(edge1, edge1);
@@ -248,7 +248,7 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
             for (int x = lo.x; x <= hi.x; x++)
             {
                 float3 center = originAndSize.xyz + (float3(x, y, z) + 0.5) * voxelSize;
-                if (TriBoxOverlap(center, boxHalf, w0, w1, w2))
+                if (triBoxOverlap(center, boxHalf, w0, w1, w2))
                 {
                     // Project the voxel center onto the triangle plane and
                     // compute barycentric coordinates for per-voxel UV.
@@ -266,7 +266,7 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
                     // tangentWS - it consumes base color and emissive only).
                     SurfaceInput surfaceInput;
                     surfaceInput.worldPos = w0 * u + w1 * v + w2 * w;
-                    surfaceInput.normalWS = N;
+                    surfaceInput.normalWS = n;
                     surfaceInput.tangentWS = float4(1, 0, 0, 1);
                     surfaceInput.uv = voxelUV;
                     surfaceInput.baseColorFactor = constants.baseColor;
@@ -275,21 +275,21 @@ public void MainCS<T : IVoxelFeedSurface>(uint3 dispatchId : SV_DispatchThreadID
                     surfaceInput.alphaCutoff = alphaCutoff;
 
                     T surface = T();
-                    float4 baseColor = surface.GetVoxelBaseColor(surfaceInput, VoxelTextureLod);
+                    float4 baseColor = surface.getVoxelBaseColor(surfaceInput, voxelTextureLod);
                     if (alphaCutoff > 0.0 && baseColor.a < alphaCutoff)
                     {
                         continue;
                     }
 
                     float3 albedo = baseColor.rgb;
-                    float3 emissive = surface.GetVoxelEmissive(surfaceInput, VoxelTextureLod);
+                    float3 emissive = surface.getVoxelEmissive(surfaceInput, voxelTextureLod);
                     float emissiveQ = saturate(dot(emissive, float3(0.2126, 0.7152, 0.0722)) / 8.0);
 
                     uint3 logicalCoord = uint3(x, y, z);
-                    uint pageEntry = _page._pageTable[VoxelPageTableSlot(logicalCoord, resolution, level)];
+                    uint pageEntry = page.pageTable[voxelPageTableSlot(logicalCoord, resolution, level)];
                     if (pageEntry != 0u)
                     {
-                        AtomicAccumulateVoxel(VoxelAttributeIndex(pageEntry, logicalCoord), albedo, N, emissiveQ);
+                        atomicAccumulateVoxel(voxelAttributeIndex(pageEntry, logicalCoord), albedo, n, emissiveQ);
                     }
                 }
             }

@@ -30,24 +30,24 @@ public sealed class TestRenderGraphExtensibility
     private const string LightingShaderSource = """
         module test_render_graph_lighting;
 
-        cbuffer _data : register(b0, space0) { float4 dummy0; float4 dummy1; };
+        cbuffer data : register(b0, space0) { float4 dummy0; float4 dummy1; };
 
         struct PointLightData { float4 positionRange; float4 colorIntensity; };
 
-        cbuffer _lighting : register(b0, space1)
+        cbuffer lighting : register(b0, space1)
         {
-            Texture2D _albedo;
-            Texture2D _normal;
-            Texture2D _mrAO;
-            DepthTexture2D _gbufferDepth;
-            Texture2D _emissive;
-            Texture2D _giDiffuse;
-            Texture2D _giSpecular;
-            Texture2D _aoTexture;
-            Texture2D _cloudShadow;
-            DepthTexture2D _shadowMap;
-            SamplerState _linearClamp;
-            RWStructuredBuffer<PointLightData> _pointLights;
+            Texture2D albedo;
+            Texture2D normal;
+            Texture2D mrAO;
+            DepthTexture2D gbufferDepth;
+            Texture2D emissive;
+            Texture2D giDiffuse;
+            Texture2D giSpecular;
+            Texture2D aoTexture;
+            Texture2D cloudShadow;
+            DepthTexture2D shadowMap;
+            SamplerState linearClamp;
+            RWStructuredBuffer<PointLightData> pointLights;
         };
 
         struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
@@ -67,17 +67,17 @@ public sealed class TestRenderGraphExtensibility
         // pipeline constructs its lighting material with the Off specialization.
         float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         {
-            return _albedo.Sample(_linearClamp, input.uv);
+            return albedo.Sample(linearClamp, input.uv);
         }
         """;
 
     private const string BlitShaderSource = """
         module test_render_graph_blit;
 
-        cbuffer _pass : register(b0, space0)
+        cbuffer pass : register(b0, space0)
         {
-            Texture2D _texture;
-            SamplerState _linearClamp;
+            Texture2D texture;
+            SamplerState linearClamp;
         };
 
         struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
@@ -95,7 +95,7 @@ public sealed class TestRenderGraphExtensibility
         [shader("pixel")]
         float4 MainPS(V2F input) : SV_TARGET
         {
-            return _texture.Sample(_linearClamp, input.uv);
+            return texture.Sample(linearClamp, input.uv);
         }
         """;
 

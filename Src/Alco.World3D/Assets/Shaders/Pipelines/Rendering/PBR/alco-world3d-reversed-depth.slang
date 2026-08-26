@@ -2,7 +2,7 @@
 //
 // Slang module converted from Shaders/Pipelines/Rendering/PBR/ReversedDepth.hlsli
 // (Phase 2 migration). The HLSL header exposed the convention through the
-// preprocessor (PBR_SKY_DEPTH_EPSILON / IS_SKY_DEPTH); the preprocessor does not
+// preprocessor (PBR_SKY_DEPTH_EPSILON / isSkyDepth); the preprocessor does not
 // cross module boundaries, so the module exports the same names as a public
 // constant and a public function. Call sites are unchanged.
 
@@ -21,7 +21,7 @@ module alco_world3d_reversed_depth;
 // sky value of 0.0 falls below it.
 public static const float PBR_SKY_DEPTH_EPSILON = 1e-6;
 
-public bool IS_SKY_DEPTH(float d)
+public bool isSkyDepth(float d)
 {
     return d <= PBR_SKY_DEPTH_EPSILON;
 }

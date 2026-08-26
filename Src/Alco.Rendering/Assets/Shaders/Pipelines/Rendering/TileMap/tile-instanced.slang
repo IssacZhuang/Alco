@@ -15,7 +15,7 @@ struct Constants
     float4x4 model;
     int2 size; // the map size
     int currentTileId;
-    int _reserved; // for memory alignment
+    int reserved; // for memory alignment
     float4 color;
     float blendFactor;
     float tiling;
@@ -46,53 +46,53 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 
 public struct MaterialParamsData
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<MaterialParamsData> _material;
+public ParameterBlock<MaterialParamsData> material;
 
 public struct InstancesParams
 {
-    public RWStructuredBuffer<TileData> _instances;
+    public RWStructuredBuffer<TileData> instances;
 };
 
-public ParameterBlock<InstancesParams> _instances;
+public ParameterBlock<InstancesParams> instances;
 
 public struct TileMapParams
 {
-    public RWStructuredBuffer<int> _tileMap;
+    public RWStructuredBuffer<int> tileMap;
 };
 
-public ParameterBlock<TileMapParams> _tileMap;
+public ParameterBlock<TileMapParams> tileMap;
 
 [[vk::push_constant]] Constants constants;
 
-int GetTileId(int2 tilePos, int defaultValue)
+int getTileId(int2 tilePos, int defaultValue)
 {
     if (tilePos.x < 0 || tilePos.x >= constants.size.x || tilePos.y < 0 || tilePos.y >= constants.size.y)
     {
         return defaultValue;
     }
 
-    return _tileMap._tileMap[tilePos.y * constants.size.x + tilePos.x];
+    return tileMap.tileMap[tilePos.y * constants.size.x + tilePos.x];
 }
 
 // The facade/bombing axes are generic value specializations (plan D3): the
-// entry points declare <let IsFacade>/<let Bombing> and the C# owner passes
+// entry points declare <let isFacade>/<let bombing> and the C# owner passes
 // "true"/"false" where the retired defines used to be (CreateGraphicsMaterial
 // specialization arguments map to the entry points in definition order)
 // instead of preprocessor permutations.
 [shader("vertex")]
-V2F VertexMain<let IsFacade : bool>(Vertex input)
+V2F VertexMain<let isFacade : bool>(Vertex input)
 {
     V2F output;
 
-    TileData tileData = _instances._instances[input.instanceID];
+    TileData tileData = instances.instances[input.instanceID];
 
     float3 pos = input.position;
     float2 tilePos = tileData.position;
@@ -113,14 +113,14 @@ V2F VertexMain<let IsFacade : bool>(Vertex input)
     int2 checkX = int2(check.x, 0);
     int2 checkY = int2(0, check.y);
 
-    int tileId = GetTileId(tilePosInt + checkX, constants.currentTileId);
+    int tileId = getTileId(tilePosInt + checkX, constants.currentTileId);
     if (tileId != constants.currentTileId)
     {
         tilePos.x += check.x * blendFactor;
         uv.x += checkX.x * blendFactor;
     }
 
-    if (IsFacade)
+    if (isFacade)
     {
         // make it render as a facade
         pos.z = 0.5f - pos.y;
@@ -128,7 +128,7 @@ V2F VertexMain<let IsFacade : bool>(Vertex input)
     }
     else
     {
-        tileId = GetTileId(tilePosInt + checkY, constants.currentTileId);
+        tileId = getTileId(tilePosInt + checkY, constants.currentTileId);
         if (tileId != constants.currentTileId)
         {
             tilePos.y += check.y * blendFactor;
@@ -139,7 +139,7 @@ V2F VertexMain<let IsFacade : bool>(Vertex input)
     float3 worldPosition = pos + float3(tilePos, 0.0);
 
     float4 position = mul(constants.model, float4(worldPosition, 1.0));
-    position = mul(_camera.viewProjection, position);
+    position = mul(camera.viewProjection, position);
 
     output.position = position;
     output.uv = uv;
@@ -148,20 +148,20 @@ V2F VertexMain<let IsFacade : bool>(Vertex input)
 }
 
 [shader("fragment")]
-float4 PixelMain<let Bombing : bool>(V2F input)
+float4 PixelMain<let bombing : bool>(V2F input)
     : SV_TARGET
 {
     float2 uv = input.uv;
 
     float4 color;
-    if (Bombing)
+    if (bombing)
     {
-        color = TextureBombing(_material._texture, _samplers._linearRepeat, input.worldPos, constants.tiling);
+        color = textureBombing(material.texture, samplers.linearRepeat, input.worldPos, constants.tiling);
     }
     else
     {
         float2 uvFrac = frac(uv * constants.tiling);
-        color = _material._texture.Sample(_samplers._linearRepeat, uvFrac);
+        color = material.texture.Sample(samplers.linearRepeat, uvFrac);
     }
 
     float blendFactor = constants.blendFactor;

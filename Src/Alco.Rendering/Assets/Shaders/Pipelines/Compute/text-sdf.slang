@@ -16,17 +16,17 @@ struct Constants {
 // Font atlas textures (single channel but read as float4 to avoid compiler errors)
 public struct FrontBufferParams
 {
-    public [[vk::image_format("r8")]] RWTexture2D<float4> _frontBuffer;
+    public [[vk::image_format("r8")]] RWTexture2D<float4> frontBuffer;
 };
 
-public ParameterBlock<FrontBufferParams> _frontBuffer;
+public ParameterBlock<FrontBufferParams> frontBuffer;
 
 public struct BackBufferParams
 {
-    public [[vk::image_format("r8")]] RWTexture2D<float4> _backBuffer;
+    public [[vk::image_format("r8")]] RWTexture2D<float4> backBuffer;
 };
 
-public ParameterBlock<BackBufferParams> _backBuffer;
+public ParameterBlock<BackBufferParams> backBuffer;
 
 [[vk::push_constant]] Constants constants;
 
@@ -36,7 +36,7 @@ public ParameterBlock<BackBufferParams> _backBuffer;
 /// <param name="value">Current distance field value</param>
 /// <param name="attenuation">Attenuation amount to subtract</param>
 /// <returns>New distance field value with linear attenuation applied</returns>
-float4 ApplyLinearAttenuation(float4 value, float attenuation) {
+float4 applyLinearAttenuation(float4 value, float attenuation) {
     // For SDF, we work with the red channel only
     float distance = value.r;
     
@@ -51,22 +51,22 @@ float4 ApplyLinearAttenuation(float4 value, float attenuation) {
 
 [shader("compute")]
 [numthreads(16, 16, 1)]
-void MainCS(uint3 id: SV_DispatchThreadID) {
+void mainCS(uint3 id: SV_DispatchThreadID) {
     uint2 pos = id.xy;
     
     // Read current distance field value
-    float4 currentValue = _frontBuffer._frontBuffer[pos];
+    float4 currentValue = frontBuffer.frontBuffer[pos];
     
     // Sample neighboring distance field values
     float4 neighbors[8] = {
-        _frontBuffer._frontBuffer[pos + int2(1, 0)],   // right
-        _frontBuffer._frontBuffer[pos + int2(-1, 0)],  // left  
-        _frontBuffer._frontBuffer[pos + int2(0, 1)],   // up
-        _frontBuffer._frontBuffer[pos + int2(0, -1)],  // down
-        _frontBuffer._frontBuffer[pos + int2(1, 1)],   // top-right
-        _frontBuffer._frontBuffer[pos + int2(-1, 1)],  // top-left
-        _frontBuffer._frontBuffer[pos + int2(1, -1)],  // bottom-right
-        _frontBuffer._frontBuffer[pos + int2(-1, -1)]  // bottom-left
+        frontBuffer.frontBuffer[pos + int2(1, 0)],   // right
+        frontBuffer.frontBuffer[pos + int2(-1, 0)],  // left  
+        frontBuffer.frontBuffer[pos + int2(0, 1)],   // up
+        frontBuffer.frontBuffer[pos + int2(0, -1)],  // down
+        frontBuffer.frontBuffer[pos + int2(1, 1)],   // top-right
+        frontBuffer.frontBuffer[pos + int2(-1, 1)],  // top-left
+        frontBuffer.frontBuffer[pos + int2(1, -1)],  // bottom-right
+        frontBuffer.frontBuffer[pos + int2(-1, -1)]  // bottom-left
     };
     
     float attenuation = constants.attenuation;
@@ -76,16 +76,16 @@ void MainCS(uint3 id: SV_DispatchThreadID) {
     float4 maxValue = currentValue;
     
     // Check side neighbors (4-connected)
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[0], attenuation));
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[1], attenuation));
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[2], attenuation));
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[3], attenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[0], attenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[1], attenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[2], attenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[3], attenuation));
     
     // Check corner neighbors (8-connected)
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[4], cornerAttenuation));
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[5], cornerAttenuation));
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[6], cornerAttenuation));
-    maxValue = max(maxValue, ApplyLinearAttenuation(neighbors[7], cornerAttenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[4], cornerAttenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[5], cornerAttenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[6], cornerAttenuation));
+    maxValue = max(maxValue, applyLinearAttenuation(neighbors[7], cornerAttenuation));
     
-    _backBuffer._backBuffer[pos] = maxValue;
+    backBuffer.backBuffer[pos] = maxValue;
 }

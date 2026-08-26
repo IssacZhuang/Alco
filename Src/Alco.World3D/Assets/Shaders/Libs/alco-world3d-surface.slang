@@ -10,7 +10,7 @@
 //
 // The material compiler composes a pass template with a surface module through
 // slang's component system (composite + link-time specialization, no generated
-// code): the template's generic entry points ([shader] MainVS/MainPS/MainCS)
+// code): the template's generic entry points ([shader] MainVS/MainPS/mainCS)
 // take the surface type as their first specialization argument - the conforming
 // struct is discovered from the surface module by the compiler (exactly one, or
 // the composition fails), so slang type-checks it against the contract at
@@ -29,21 +29,21 @@
 //
 // Surface resources (textures, samplers, uniform blocks) are declared at the
 // surface module's global scope in set-scoped blocks (a cbuffer that declares
-// only its set, e.g. `cbuffer _material` in space2); the engine binds them by
+// only its set, e.g. `cbuffer material` in space2); the engine binds them by
 // name. A surface marks its material-parameter cbuffers with [MaterialParams]
 // (declared in alco_rendering_core — import it) — any names, any number of
 // blocks, members mixing ANY scalar/vector float types; the engine discovers
 // the marked blocks from Slang reflection, reads each member's type and byte
 // offset, and fills the buffers from the material asset's parameter table.
-// Unmarked blocks (engine data such as _globalRenderData) are never treated
+// Unmarked blocks (engine data such as globalRenderData) are never treated
 // as material parameters.
 //
-// Fragment-domain methods (GetBaseColor & co.) run in vertex/fragment stages
+// Fragment-domain methods (getBaseColor & co.) run in vertex/fragment stages
 // and may sample with implicit derivatives (Sample). The voxel-GI feed runs in
-// a COMPUTE stage where implicit derivatives do not exist: GetVoxelBaseColor /
-// GetVoxelEmissive receive an explicit LOD and must sample with SampleLevel.
+// a COMPUTE stage where implicit derivatives do not exist: getVoxelBaseColor /
+// getVoxelEmissive receive an explicit LOD and must sample with SampleLevel.
 //
-// Time, when needed, comes from the engine-bound `_globalRenderData` cbuffer
+// Time, when needed, comes from the engine-bound `globalRenderData` cbuffer
 // declared at the surface's global scope.
 
 #language slang 2025
@@ -65,31 +65,31 @@ public struct SurfaceInput
 /// projection in every pass, so silhouettes stay consistent across passes.
 public interface IVertexSurface
 {
-    void ModifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv) { }
+    void modifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv) { }
 }
 
 /// Base color: linear albedo (rgb) and coverage alpha (a) - one fetch.
 public interface IAlbedoSurface
 {
-    float4 GetBaseColor(SurfaceInput input) { return input.baseColorFactor; }
+    float4 getBaseColor(SurfaceInput input) { return input.baseColorFactor; }
 }
 
 /// Tangent-space normal; lifted to world space by the pass template's TBN.
 public interface INormalSurface
 {
-    float3 GetNormalTS(SurfaceInput input) { return float3(0, 0, 1); }
+    float3 getNormalTS(SurfaceInput input) { return float3(0, 0, 1); }
 }
 
 /// PBR factors: metallic (x), roughness (y), ambient occlusion (z).
 public interface IMaterialPropsSurface
 {
-    float3 GetMetallicRoughnessAO(SurfaceInput input) { return input.metallicRoughnessAO.xyz; }
+    float3 getMetallicRoughnessAO(SurfaceInput input) { return input.metallicRoughnessAO.xyz; }
 }
 
 /// Linear emissive radiance.
 public interface IEmissiveSurface
 {
-    float3 GetEmissive(SurfaceInput input) { return input.emissiveFactor.rgb; }
+    float3 getEmissive(SurfaceInput input) { return input.emissiveFactor.rgb; }
 }
 
 /// The voxel-GI feed: what the compute voxelizer accumulates per voxel. Runs in
@@ -98,15 +98,15 @@ public interface IEmissiveSurface
 /// defaults keep a textureless material's GI contribution factor-exact.
 public interface IVoxelFeedSurface
 {
-    float4 GetVoxelBaseColor(SurfaceInput input, float lod) { return input.baseColorFactor; }
-    float3 GetVoxelEmissive(SurfaceInput input, float lod) { return input.emissiveFactor.rgb; }
+    float4 getVoxelBaseColor(SurfaceInput input, float lod) { return input.baseColorFactor; }
+    float3 getVoxelEmissive(SurfaceInput input, float lod) { return input.emissiveFactor.rgb; }
 }
 
 /// The full material surface: every built-in pass consumes a subset. Implement
 /// it with an empty struct and override only what the material customizes:
 ///     public struct Surface : ISurface
 ///     {
-///         public override float3 GetEmissive(SurfaceInput input) { ... }
+///         public override float3 getEmissive(SurfaceInput input) { ... }
 ///     }
 public interface ISurface : IVertexSurface, IAlbedoSurface, INormalSurface,
     IMaterialPropsSurface, IEmissiveSurface, IVoxelFeedSurface { }

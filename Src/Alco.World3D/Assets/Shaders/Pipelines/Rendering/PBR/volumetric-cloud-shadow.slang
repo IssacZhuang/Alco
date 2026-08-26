@@ -46,23 +46,23 @@ public struct CloudDataParams
     public float2 shadowCenterKm;       // shadow bake window center (world xz, km)
 };
 
-public ParameterBlock<CloudDataParams> _cloudData;
+public ParameterBlock<CloudDataParams> cloudData;
 
 
 public struct CloudNoiseParams
 {
-    public Texture3D _cloudBaseNoise;
+    public Texture3D cloudBaseNoise;
 };
 
-public ParameterBlock<CloudNoiseParams> _cloudNoise;
+public ParameterBlock<CloudNoiseParams> cloudNoise;
 
 
 public struct ShadowOutParams
 {
-    public [[vk::image_format("rgba8")]] RWTexture2D<float4> _shadowOut;
+    public [[vk::image_format("rgba8")]] RWTexture2D<float4> shadowOut;
 };
 
-public ParameterBlock<ShadowOutParams> _shadowOut;
+public ParameterBlock<ShadowOutParams> shadowOut;
 
 
 static const float CLOUD_SHADOW_BASE_SCALE = 1.0 / 24.0;
@@ -70,14 +70,14 @@ static const float CLOUD_SHADOW_COVERAGE_SCALE = 1.0 / 72.0;
 
 [shader("compute")]
 [numthreads(8, 8, 1)]
-void MainCS(uint3 dispatchId : SV_DispatchThreadID)
+void mainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     float2 texel = (dispatchId.xy + 0.5) / 256.0;
-    float2 worldXz = (texel - 0.5) * (2.0 * _cloudData.shadowExtentKm) + _cloudData.shadowCenterKm;
+    float2 worldXz = (texel - 0.5) * (2.0 * cloudData.shadowExtentKm) + cloudData.shadowCenterKm;
 
-    float bottomKm = _cloudData.bottomAltitudeKm;
-    float thicknessKm = _cloudData.slabThicknessKm;
-    float coverage = _cloudData.coverage;
+    float bottomKm = cloudData.bottomAltitudeKm;
+    float thicknessKm = cloudData.slabThicknessKm;
+    float coverage = cloudData.coverage;
 
     // Vertical column transmittance through three slab samples (Beer-Lambert).
     float od = 0.0;
@@ -85,17 +85,17 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     for (int i = 0; i < 3; i++)
     {
         float3 posKm = float3(worldXz, bottomKm + thicknessKm * (0.25 + 0.25 * i));
-        float3 winded = posKm + float3(float2(_cloudData.windOffsetX, _cloudData.windOffsetY), 0.0);
-        float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_SHADOW_COVERAGE_SCALE, 0).r;
-        float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_SHADOW_BASE_SCALE, 0);
+        float3 winded = posKm + float3(float2(cloudData.windOffsetX, cloudData.windOffsetY), 0.0);
+        float lowFreq = cloudNoise.cloudBaseNoise.SampleLevel(samplers.linearRepeat, winded * CLOUD_SHADOW_COVERAGE_SCALE, 0).r;
+        float4 baseNoise = cloudNoise.cloudBaseNoise.SampleLevel(samplers.linearRepeat, winded * CLOUD_SHADOW_BASE_SCALE, 0);
         float h = saturate((posKm.z - bottomKm) / thicknessKm);
-        float density = CloudBaseShape(baseNoise, CloudCoverageMask(lowFreq, coverage),
-            CloudHeightGradient(h, coverage));
+        float density = cloudBaseShape(baseNoise, cloudCoverageMask(lowFreq, coverage),
+            cloudHeightGradient(h, coverage));
         od += density * (thicknessKm / 3.0);
     }
-    od *= _cloudData.extinctionPerKm * _cloudData.densityMultiplier;
+    od *= cloudData.extinctionPerKm * cloudData.densityMultiplier;
 
     float shadow = 1.0 - exp(-od);
     shadow = pow(shadow, 0.8); // soften full-opacity cores a touch
-    _shadowOut._shadowOut[dispatchId.xy] = float4(shadow, 0.0, 0.0, 0.0);
+    shadowOut.shadowOut[dispatchId.xy] = float4(shadow, 0.0, 0.0, 0.0);
 }

@@ -23,15 +23,15 @@ public class MaterialVariantTest
     private const string QuadModule = """
         import alco.rendering.core;
 
-        cbuffer _camera : register(b0, space0)
+        cbuffer camera : register(b0, space0)
         {
             float4x4 viewProjection;
         };
 
-        cbuffer _material : register(b0, space1)
+        cbuffer material : register(b0, space1)
         {
-            Texture2D _albedo;
-            SamplerState _linearClamp;
+            Texture2D albedo;
+            SamplerState linearClamp;
         };
 
         struct Vertex
@@ -58,8 +58,8 @@ public class MaterialVariantTest
         [shader("fragment")]
         float4 MainPS<let Flag : int>(V2F input) : SV_TARGET
         {
-            float dither = OutputDither8Bit(input.position.xy) * 0.0;
-            float4 color = SampleTex2D(_albedo, _linearClamp, input.uv) + dither + PI * 0.0;
+            float dither = outputDither8Bit(input.position.xy) * 0.0;
+            float4 color = sampleTex2D(albedo, linearClamp, input.uv) + dither + PI * 0.0;
             if (Flag != 0) { color.g += 0.0; }
             return color;
         }
@@ -69,23 +69,23 @@ public class MaterialVariantTest
     private const string ComputeModule = """
         import alco.rendering.core;
 
-        cbuffer _pass : register(b0, space0)
+        cbuffer pass : register(b0, space0)
         {
-            RWStructuredBuffer<float4> _output;
+            RWStructuredBuffer<float4> output;
         };
 
-        cbuffer _material : register(b0, space1)
+        cbuffer material : register(b0, space1)
         {
-            Texture2D _source;
+            Texture2D source;
         };
 
         [shader("compute")]
         void MainCS<let Flag : int>(uint3 dispatchThreadID : SV_DispatchThreadID)
         {
             // Compute cannot use implicit derivatives — Load instead of Sample.
-            float4 value = _source.Load(int3(dispatchThreadID.xy, 0));
+            float4 value = source.Load(int3(dispatchThreadID.xy, 0));
             if (Flag != 0) { value.g += 0.0; }
-            _output[dispatchThreadID.x] = value;
+            output[dispatchThreadID.x] = value;
         }
         """;
 

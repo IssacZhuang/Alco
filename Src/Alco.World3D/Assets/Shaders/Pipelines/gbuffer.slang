@@ -13,7 +13,7 @@
 // via TBN), material and emissive data. The interpolated mesh normal is
 // octahedrally packed into two spare channels for stable diffuse GI. The
 // vertex layout must match Alco.Rendering.VertexPBR exactly. All per-item
-// data (model matrix, factors, alpha cutoff) lives in the _instances storage
+// data (model matrix, factors, alpha cutoff) lives in the instances storage
 // buffer and is fetched by SV_VulkanInstanceID; the pixel shader re-reads it
 // through the instance id interpolant.
 
@@ -47,18 +47,18 @@ public struct CameraParams
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<CameraParams> _camera;
+public ParameterBlock<CameraParams> camera;
 
 public struct DrawParams
 {
-    public RWStructuredBuffer<PbrInstance> _instances;
+    public RWStructuredBuffer<PbrInstance> instances;
 };
 
-public ParameterBlock<DrawParams> _draw;
+public ParameterBlock<DrawParams> draw;
 
 // Octahedral encoding keeps the interpolated mesh normal in the two half-float
 // alpha channels of the normal and emissive G-buffer targets.
-float2 EncodeGeometryNormal(float3 normal)
+float2 encodeGeometryNormal(float3 normal)
 {
     normal /= max(abs(normal.x) + abs(normal.y) + abs(normal.z), 0.0001);
     float2 encoded = normal.xy;
@@ -71,8 +71,8 @@ float2 EncodeGeometryNormal(float3 normal)
     return encoded * 0.5 + 0.5;
 }
 
-// Linear RGB to sRGB encoding (the albedo target is RGBA8Unorm).
-float3 EncodeSRGB(float3 color)
+// Linear rgb to sRGB encoding (the albedo target is RGBA8Unorm).
+float3 encodeSRGB(float3 color)
 {
     float3 lo = color * 12.92;
     float3 hi = 1.055 * pow(max(color, 0.0), float3(1.0 / 2.4)) - 0.055;
@@ -83,7 +83,7 @@ float3 EncodeSRGB(float3 color)
 public GBufferV2F MainVS<T : ISurface>(GBufferVertex input)
 {
     GBufferV2F output;
-    PbrInstance inst = _draw._instances[input.instanceID];
+    PbrInstance inst = draw.instances[input.instanceID];
     // Rigid transform only (uniform scale); fine for the demo scene.
     float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
     float3 worldNormal = mul((float3x3)inst.model, input.normal);
@@ -91,8 +91,8 @@ public GBufferV2F MainVS<T : ISurface>(GBufferVertex input)
     // The surface may deform the vertex; every pass applies this identically
     // so G-buffer, shadows and GI stay consistent.
     T surface = T();
-    surface.ModifyVertex(worldPos, worldNormal, input.uv);
-    output.position = mul(_camera.viewProjection, float4(worldPos, 1.0f));
+    surface.modifyVertex(worldPos, worldNormal, input.uv);
+    output.position = mul(camera.viewProjection, float4(worldPos, 1.0f));
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
     output.uv = input.uv;
@@ -109,7 +109,7 @@ public void MainPS<T : ISurface>(
     out float4 mrAORT : SV_TARGET2,
     out float4 emissiveRT : SV_TARGET3)
 {
-    PbrInstance inst = _draw._instances[input.instanceID];
+    PbrInstance inst = draw.instances[input.instanceID];
 
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);
@@ -125,11 +125,11 @@ public void MainPS<T : ISurface>(
     surfaceInput.baseColorFactor = inst.baseColor;
     surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
     surfaceInput.emissiveFactor = inst.emissive;
-    surfaceInput.alphaCutoff = inst.params_.x;
+    surfaceInput.alphaCutoff = inst.params.x;
 
     T surface = T();
-    float4 baseColor = surface.GetBaseColor(surfaceInput);
-    float3 mrAO = surface.GetMetallicRoughnessAO(surfaceInput);
+    float4 baseColor = surface.getBaseColor(surfaceInput);
+    float3 mrAO = surface.getMetallicRoughnessAO(surfaceInput);
 
     // Alpha test: discard fragments below the cutoff (0 disables the test).
     if (surfaceInput.alphaCutoff > 0.0 && baseColor.a < surfaceInput.alphaCutoff)
@@ -137,15 +137,15 @@ public void MainPS<T : ISurface>(
         discard;
     }
 
-    albedoRT = float4(EncodeSRGB(baseColor.rgb), mrAO.y);
+    albedoRT = float4(encodeSRGB(baseColor.rgb), mrAO.y);
 
-    float3 normalTS = surface.GetNormalTS(surfaceInput);
+    float3 normalTS = surface.getNormalTS(surfaceInput);
     float3 worldNormal = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
-    float2 geometryNormal = EncodeGeometryNormal(n);
+    float2 geometryNormal = encodeGeometryNormal(n);
     normalRT = float4(worldNormal * 0.5 + 0.5, geometryNormal.x);
 
     mrAORT = float4(mrAO, 1.0);
 
     // Stored linear in the RGBA16Float target; no shading applied downstream.
-    emissiveRT = float4(surface.GetEmissive(surfaceInput), geometryNormal.y);
+    emissiveRT = float4(surface.getEmissive(surfaceInput), geometryNormal.y);
 }

@@ -11,494 +11,494 @@ module alco_rendering_compression_bc;
 
 // from https://github.com/su366350579/textureCompression
 
-public half LinearToSrgbBranchingChannel(half lin)
+public half linearToSrgbBranchingChannel(half lin)
 {
     if (lin < 0.00313067)
         return lin * 12.92;
     return pow(lin, (1.0 / 2.4)) * 1.055 - 0.055;
 }
-public half3 LinearToSrgbBranching(half3 lin)
+public half3 linearToSrgbBranching(half3 lin)
 {
     return half3(
-		LinearToSrgbBranchingChannel(lin.r),
-		LinearToSrgbBranchingChannel(lin.g),
-		LinearToSrgbBranchingChannel(lin.b));
+		linearToSrgbBranchingChannel(lin.r),
+		linearToSrgbBranchingChannel(lin.g),
+		linearToSrgbBranchingChannel(lin.b));
 }
 
-public half3 LinearToSrgb(half3 lin)
+public half3 linearToSrgb(half3 lin)
 {
 	// Branching is faster than branchless on AMD on PC.
-	return LinearToSrgbBranching(lin);
+	return linearToSrgbBranching(lin);
 }
 
 // Simple convert float3 color to 565 uint using 'round' arithmetic
-public uint Float3ToUint565(in float3 Color)
+public uint float3ToUint565(in float3 color)
 {
-    float3 Scale = float3(31.f, 63.f, 31.f);
-    float3 ColorScaled = round(saturate(Color) * Scale);
-    uint ColorPacked = ((uint) ColorScaled.r << 11) | ((uint) ColorScaled.g << 5) | (uint) ColorScaled.b;
+    float3 scale = float3(31.f, 63.f, 31.f);
+    float3 colorScaled = round(saturate(color) * scale);
+    uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5) | (uint) colorScaled.b;
 	
-    return ColorPacked;
+    return colorPacked;
 }
 
 // Convert float3 color to 565 uint using 'ceil' arithmetic
-// Color parameter is inout and is modified to match the converted value
-uint Float3ToUint565_Ceil(inout float3 Color)
+// color parameter is inout and is modified to match the converted value
+uint float3ToUint565Ceil(inout float3 color)
 {
-    float3 Scale = float3(31.f, 63.f, 31.f);
-    float3 ColorScaled = ceil(saturate(Color) * Scale);
-    uint ColorPacked = ((uint) ColorScaled.r << 11) | ((uint) ColorScaled.g << 5) | (uint) ColorScaled.b;
-    Color = ColorScaled / Scale;
+    float3 scale = float3(31.f, 63.f, 31.f);
+    float3 colorScaled = ceil(saturate(color) * scale);
+    uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5) | (uint) colorScaled.b;
+    color = colorScaled / scale;
 
-    return ColorPacked;
+    return colorPacked;
 }
 
 // Convert float3 color to 565 uint using 'floor' arithmetic
-// Color parameter is inout and is modified to match the converted value
-uint Float3ToUint565_Floor(inout float3 Color)
+// color parameter is inout and is modified to match the converted value
+uint float3ToUint565Floor(inout float3 color)
 {
-    float3 Scale = float3(31.f, 63.f, 31.f);
-    float3 ColorScaled = floor(saturate(Color) * Scale);
-    uint ColorPacked = ((uint) ColorScaled.r << 11) | ((uint) ColorScaled.g << 5) | (uint) ColorScaled.b;
-    Color = ColorScaled / Scale;
+    float3 scale = float3(31.f, 63.f, 31.f);
+    float3 colorScaled = floor(saturate(color) * scale);
+    uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5) | (uint) colorScaled.b;
+    color = colorScaled / scale;
 
-    return ColorPacked;
+    return colorPacked;
 }
 
 // Get min and max values in a single channel block
-void GetMinMax(in float Block[16], out float OutMin, out float OutMax)
+void getMinMax(in float Block[16], out float outMin, out float outMax)
 {
-    OutMin = Block[0];
-    OutMax = Block[0];
+    outMin = Block[0];
+    outMax = Block[0];
 
     for (int i = 1; i < 16; ++i)
     {
-        OutMin = min(OutMin, Block[i]);
-        OutMax = max(OutMax, Block[i]);
+        outMin = min(outMin, Block[i]);
+        outMax = max(outMax, Block[i]);
     }
 }
 
 // Get min and max values in two single channel blocks
-void GetMinMax(in float Block0[16], in float Block1[16], out float OutMin0, out float OutMax0, out float OutMin1, out float OutMax1)
+void getMinMax(in float Block0[16], in float Block1[16], out float outMin0, out float outMax0, out float outMin1, out float outMax1)
 {
-    OutMin0 = Block0[0];
-    OutMax0 = Block0[0];
-    OutMin1 = Block1[0];
-    OutMax1 = Block1[0];
+    outMin0 = Block0[0];
+    outMax0 = Block0[0];
+    outMin1 = Block1[0];
+    outMax1 = Block1[0];
 
     for (int i = 1; i < 16; ++i)
     {
-        OutMin0 = min(OutMin0, Block0[i]);
-        OutMax0 = max(OutMax0, Block0[i]);
-        OutMin1 = min(OutMin1, Block1[i]);
-        OutMax1 = max(OutMax1, Block1[i]);
+        outMin0 = min(outMin0, Block0[i]);
+        outMax0 = max(outMax0, Block0[i]);
+        outMin1 = min(outMin1, Block1[i]);
+        outMax1 = max(outMax1, Block1[i]);
     }
 }
 
 // Get min and max values in a single three channel block
-void GetMinMax(in float3 Block[16], out float3 OutMin, out float3 OutMax)
+void getMinMax(in float3 Block[16], out float3 outMin, out float3 outMax)
 {
-    OutMin = Block[0];
-    OutMax = Block[0];
+    outMin = Block[0];
+    outMax = Block[0];
 
     for (int i = 1; i < 16; ++i)
     {
-        OutMin = min(OutMin, Block[i]);
-        OutMax = max(OutMax, Block[i]);
+        outMin = min(outMin, Block[i]);
+        outMax = max(outMax, Block[i]);
     }
 }
 
 // Calculate the final packed indices for a color block
-uint GetPackedColorBlockIndices(in float3 Block[16], in float3 MinColor, in float3 MaxColor)
+uint getPackedColorBlockIndices(in float3 Block[16], in float3 minColor, in float3 maxColor)
 {
-    uint PackedIndices = 0;
+    uint packedIndices = 0;
 
 	// Project onto max->min color vector and segment into range [0,3]
-    float3 Range = MinColor - MaxColor;
-    float Scale = 3.f / dot(Range, Range);
-    float3 ScaledRange = Range * Scale;
-    float Bias = (dot(MaxColor, MaxColor) - dot(MaxColor, MinColor)) * Scale;
+    float3 range = minColor - maxColor;
+    float scale = 3.f / dot(range, range);
+    float3 scaledRange = range * scale;
+    float bias = (dot(maxColor, maxColor) - dot(maxColor, minColor)) * scale;
 	
     for (int i = 15; i >= 0; --i)
     {
 		// Compute the distance index for this element
-        uint Index = round(dot(Block[i], ScaledRange) + Bias);
+        uint index = round(dot(Block[i], scaledRange) + bias);
 		// Convert distance index into the BC index
-        Index += (Index > 0) - (3 * (Index == 3));
-		// OR into the final PackedIndices
-        PackedIndices = (PackedIndices << 2) | Index;
+        index += (index > 0) - (3 * (index == 3));
+		// OR into the final packedIndices
+        packedIndices = (packedIndices << 2) | index;
     }
 
-    return PackedIndices;
+    return packedIndices;
 }
 
 // Calculate the final packed indices for an alpha block
 // The results are in their final location of the uint2 indices and will need ORing with the min and max alpha
-uint2 GetPackedAlphaBlockIndices(in float Block[16], in float MinAlpha, in float MaxAlpha)
+uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float maxAlpha)
 {
-    uint2 PackedIndices = 0;
+    uint2 packedIndices = 0;
 
 	// Segment alpha max->min into range [0,7]
-    float Range = MinAlpha - MaxAlpha;
-    float Scale = 7.f / Range;
-    float Bias = -Scale * MaxAlpha;
+    float range = minAlpha - maxAlpha;
+    float scale = 7.f / range;
+    float bias = -scale * maxAlpha;
 
     uint i = 0;
 	// The first 5 elements of the block will go into the top 16 bits of the x component
     for (i = 0; i < 5; ++i)
     {
 		// Compute the distance index for this element
-        uint Index = round(Block[i] * Scale + Bias);
+        uint index = round(Block[i] * scale + bias);
 		// Convert distance index into the BC index
-        Index += (Index > 0) - (7 * (Index == 7));
-		// OR into the final PackedIndices
-        PackedIndices.x |= (Index << (i * 3 + 16));
+        index += (index > 0) - (7 * (index == 7));
+		// OR into the final packedIndices
+        packedIndices.x |= (index << (i * 3 + 16));
     }
 
 	// The 6th element is split across the x and y components
 	{
         i = 5;
-        uint Index = round(Block[i] * Scale + Bias);
-        Index += (Index > 0) - (7 * (Index == 7));
-        PackedIndices.x |= (Index << 31);
-        PackedIndices.y |= (Index >> 1);
+        uint index = round(Block[i] * scale + bias);
+        index += (index > 0) - (7 * (index == 7));
+        packedIndices.x |= (index << 31);
+        packedIndices.y |= (index >> 1);
     }
 
 	// The rest of the elements fill the y component
     for (i = 6; i < 16; ++i)
     {
-        uint Index = round(Block[i] * Scale + Bias);
-        Index += (Index > 0) - (7 * (Index == 7 ? 1 : 0));
-        PackedIndices.y |= (Index << (i * 3 - 16));
+        uint index = round(Block[i] * scale + bias);
+        index += (index > 0) - (7 * (index == 7 ? 1 : 0));
+        packedIndices.y |= (index << (i * 3 - 16));
     }
 
-    return PackedIndices;
+    return packedIndices;
 }
 
 // Compress a BC1 block
-public uint2 CompressBC1Block(in float3 Block[16])
+public uint2 compressBC1Block(in float3 Block[16])
 {
-    float3 MinColor, MaxColor;
-    GetMinMax(Block, MinColor, MaxColor);
+    float3 minColor, maxColor;
+    getMinMax(Block, minColor, maxColor);
 
-    uint MinColor565 = Float3ToUint565_Floor(MinColor);
-    uint MaxColor565 = Float3ToUint565_Ceil(MaxColor);
+    uint minColor565 = float3ToUint565Floor(minColor);
+    uint maxColor565 = float3ToUint565Ceil(maxColor);
 
-    uint Indices = 0;
-    if (MinColor565 < MaxColor565)
+    uint indices = 0;
+    if (minColor565 < maxColor565)
     {
-        Indices = GetPackedColorBlockIndices(Block, MinColor, MaxColor);
+        indices = getPackedColorBlockIndices(Block, minColor, maxColor);
     }
 
-    return uint2((MinColor565 << 16) | MaxColor565, Indices);
+    return uint2((minColor565 << 16) | maxColor565, indices);
 }
 
 // Compress a BC1 block that will be sampled as sRGB
 // We expect linear colors as input and convert internally
-public uint2 CompressBC1BlockSrgb(in float3 Block[16])
+public uint2 compressBC1BlockSrgb(in float3 Block[16])
 {
-    float3 MinColor, MaxColor;
-    GetMinMax(Block, MinColor, MaxColor);
+    float3 minColor, maxColor;
+    getMinMax(Block, minColor, maxColor);
 
-    uint MinColor565 = Float3ToUint565(LinearToSrgb(MinColor));
-    uint MaxColor565 = Float3ToUint565(LinearToSrgb(MaxColor));
+    uint minColor565 = float3ToUint565(linearToSrgb(minColor));
+    uint maxColor565 = float3ToUint565(linearToSrgb(maxColor));
 
-    uint Indices = 0;
-    if (MinColor565 < MaxColor565)
+    uint indices = 0;
+    if (minColor565 < maxColor565)
     {
-        Indices = GetPackedColorBlockIndices(Block, MinColor, MaxColor);
+        indices = getPackedColorBlockIndices(Block, minColor, maxColor);
     }
 
-    return uint2((MinColor565 << 16) | MaxColor565, Indices);
+    return uint2((minColor565 << 16) | maxColor565, indices);
 }
 
 // Compress a BC3 block
-public uint4 CompressBC3Block(in float3 BlockRGB[16], in float BlockA[16])
+public uint4 compressBC3Block(in float3 BlockRGB[16], in float blockA[16])
 {
-    float3 MinColor, MaxColor;
-    GetMinMax(BlockRGB, MinColor, MaxColor);
+    float3 minColor, maxColor;
+    getMinMax(BlockRGB, minColor, maxColor);
 
-    uint MinColor565 = Float3ToUint565_Floor(MinColor);
-    uint MaxColor565 = Float3ToUint565_Ceil(MaxColor);
+    uint minColor565 = float3ToUint565Floor(minColor);
+    uint maxColor565 = float3ToUint565Ceil(maxColor);
 
-    float MinAlpha, MaxAlpha;
-    GetMinMax(BlockA, MinAlpha, MaxAlpha);
+    float minAlpha, maxAlpha;
+    getMinMax(blockA, minAlpha, maxAlpha);
 
-    uint MinAlphaUint = (uint) round(MinAlpha * 255.f);
-    uint MaxAlphaUint = (uint) round(MaxAlpha * 255.f);
+    uint minAlphaUint = (uint) round(minAlpha * 255.f);
+    uint maxAlphaUint = (uint) round(maxAlpha * 255.f);
 
-    uint ColorIndices = 0;
-    if (MinColor565 < MaxColor565)
+    uint colorIndices = 0;
+    if (minColor565 < maxColor565)
     {
-        ColorIndices = GetPackedColorBlockIndices(BlockRGB, MinColor, MaxColor);
+        colorIndices = getPackedColorBlockIndices(BlockRGB, minColor, maxColor);
     }
 
-    uint2 AlphaIndices = 0;
-    if (MinAlphaUint < MaxAlphaUint)
+    uint2 alphaIndices = 0;
+    if (minAlphaUint < maxAlphaUint)
     {
-        AlphaIndices = GetPackedAlphaBlockIndices(BlockA, MinAlpha, MaxAlpha);
+        alphaIndices = getPackedAlphaBlockIndices(blockA, minAlpha, maxAlpha);
     }
 
-    return uint4((MinAlphaUint << 8) | MaxAlphaUint | AlphaIndices.x, AlphaIndices.y, (MinColor565 << 16) | MaxColor565, ColorIndices);
+    return uint4((minAlphaUint << 8) | maxAlphaUint | alphaIndices.x, alphaIndices.y, (minColor565 << 16) | maxColor565, colorIndices);
 }
 
 // Compress a BC3 block that will be sampled as sRGB
 // We expect linear colors as input and convert internally
-public uint4 CompressBC3BlockSrgb(in float3 BlockRGB[16], in float BlockA[16])
+public uint4 compressBC3BlockSrgb(in float3 BlockRGB[16], in float blockA[16])
 {
-    float3 MinColor, MaxColor;
-    GetMinMax(BlockRGB, MinColor, MaxColor);
+    float3 minColor, maxColor;
+    getMinMax(BlockRGB, minColor, maxColor);
 
 
-    uint MinColor565 = Float3ToUint565(LinearToSrgb(MinColor));
-    uint MaxColor565 = Float3ToUint565(LinearToSrgb(MaxColor));
+    uint minColor565 = float3ToUint565(linearToSrgb(minColor));
+    uint maxColor565 = float3ToUint565(linearToSrgb(maxColor));
 
-    float MinAlpha, MaxAlpha;
-    GetMinMax(BlockA, MinAlpha, MaxAlpha);
+    float minAlpha, maxAlpha;
+    getMinMax(blockA, minAlpha, maxAlpha);
 
-    uint MinAlphaUint = (uint)round(MinAlpha * 255.f);
-    uint MaxAlphaUint = (uint)round(MaxAlpha * 255.f);
+    uint minAlphaUint = (uint)round(minAlpha * 255.f);
+    uint maxAlphaUint = (uint)round(maxAlpha * 255.f);
 
-    uint ColorIndices = 0;
-    if (MinColor565 < MaxColor565)
+    uint colorIndices = 0;
+    if (minColor565 < maxColor565)
     {
-        ColorIndices = GetPackedColorBlockIndices(BlockRGB, MinColor, MaxColor);
+        colorIndices = getPackedColorBlockIndices(BlockRGB, minColor, maxColor);
     }
 
-    uint2 AlphaIndices = 0;
-    if (MinAlphaUint < MaxAlphaUint)
+    uint2 alphaIndices = 0;
+    if (minAlphaUint < maxAlphaUint)
     {
-        AlphaIndices = GetPackedAlphaBlockIndices(BlockA, MinAlpha, MaxAlpha);
+        alphaIndices = getPackedAlphaBlockIndices(blockA, minAlpha, maxAlpha);
     }
 
-    return uint4((MinAlphaUint << 8) | MaxAlphaUint | AlphaIndices.x, AlphaIndices.y, (MinColor565 << 16) | MaxColor565, ColorIndices);
+    return uint4((minAlphaUint << 8) | maxAlphaUint | alphaIndices.x, alphaIndices.y, (minColor565 << 16) | maxColor565, colorIndices);
 }
 
 // Compress a BC4 block
-public uint2 CompressBC4Block(in float Block[16])
+public uint2 compressBC4Block(in float Block[16])
 {
-    float MinAlpha, MaxAlpha;
-    GetMinMax(Block, MinAlpha, MaxAlpha);
+    float minAlpha, maxAlpha;
+    getMinMax(Block, minAlpha, maxAlpha);
 
-    uint MinAlphaUint = (uint) round(MinAlpha * 255.f);
-    uint MaxAlphaUint = (uint) round(MaxAlpha * 255.f);
+    uint minAlphaUint = (uint) round(minAlpha * 255.f);
+    uint maxAlphaUint = (uint) round(maxAlpha * 255.f);
 
-    uint2 Indices = 0;
-    if (MinAlphaUint < MaxAlphaUint)
+    uint2 indices = 0;
+    if (minAlphaUint < maxAlphaUint)
     {
-        Indices = GetPackedAlphaBlockIndices(Block, MinAlpha, MaxAlpha);
+        indices = getPackedAlphaBlockIndices(Block, minAlpha, maxAlpha);
     }
 
-    return uint2((MinAlphaUint << 8) | MaxAlphaUint | Indices.x, Indices.y);
+    return uint2((minAlphaUint << 8) | maxAlphaUint | indices.x, indices.y);
 }
 
 // Compress a BC5 block
-public uint4 CompressBC5Block(in float BlockU[16], in float BlockV[16])
+public uint4 compressBC5Block(in float BlockU[16], in float BlockV[16])
 {
-    float MinU, MaxU, MinV, MaxV;
-    GetMinMax(BlockU, BlockV, MinU, MaxU, MinV, MaxV);
+    float minU, MaxU, MinV, MaxV;
+    getMinMax(BlockU, BlockV, minU, MaxU, MinV, MaxV);
 
-    uint MinUUint = (uint) round(MinU * 255.f);
-    uint MaxUUint = (uint) round(MaxU * 255.f);
-    uint MinVUint = (uint) round(MinV * 255.f);
-    uint MaxVUint = (uint) round(MaxV * 255.f);
+    uint minUUint = (uint) round(minU * 255.f);
+    uint maxUUint = (uint) round(MaxU * 255.f);
+    uint minVUint = (uint) round(MinV * 255.f);
+    uint maxVUint = (uint) round(MaxV * 255.f);
 
-    uint2 IndicesU = 0;
-    if (MinUUint < MaxUUint)
+    uint2 indicesU = 0;
+    if (minUUint < maxUUint)
     {
-        IndicesU = GetPackedAlphaBlockIndices(BlockU, MinU, MaxU);
+        indicesU = getPackedAlphaBlockIndices(BlockU, minU, MaxU);
     }
 
-    uint2 IndicesV = 0;
-    if (MinVUint < MaxVUint)
+    uint2 indicesV = 0;
+    if (minVUint < maxVUint)
     {
-        IndicesV = GetPackedAlphaBlockIndices(BlockV, MinV, MaxV);
+        indicesV = getPackedAlphaBlockIndices(BlockV, MinV, MaxV);
     }
 
-    return uint4((MinUUint << 8) | MaxUUint | IndicesU.x, IndicesU.y, (MinVUint << 8) | MaxVUint | IndicesV.x, IndicesV.y);
+    return uint4((minUUint << 8) | maxUUint | indicesU.x, indicesU.y, (minVUint << 8) | maxVUint | indicesV.x, indicesV.y);
 }
 
-// Convert RGB linear color to YCoCG
-float3 RGB2YCoCg(float3 RGB)
+// Convert rgb linear color to YCoCG
+float3 rGB2YCoCg(float3 rgb)
 {
-    float Y = (RGB.r + 2.f * RGB.g + RGB.b) * 0.25f;
-    float Co = ((2.f * RGB.r - 2.f * RGB.b) * 0.25f + 128.f / 255.f);
-    float Cg = ((-RGB.r + 2.f * RGB.g - RGB.b) * 0.25f + 128.f / 255.f);
-    return float3(Y, Co, Cg);
+    float y = (rgb.r + 2.f * rgb.g + rgb.b) * 0.25f;
+    float co = ((2.f * rgb.r - 2.f * rgb.b) * 0.25f + 128.f / 255.f);
+    float cg = ((-rgb.r + 2.f * rgb.g - rgb.b) * 0.25f + 128.f / 255.f);
+    return float3(y, co, cg);
 }
 
 // Get a single scale factor to use for a YCoCg color block
 // This increases precision at the expense of potential blending artifacts across blocks
-float2 GetYCoCgScale(float2 MinCoCg, float2 MaxCoCg)
+float2 getYCoCgScale(float2 minCoCg, float2 maxCoCg)
 {
-    MinCoCg = abs(MinCoCg - 128.f / 255.f);
-    MaxCoCg = abs(MaxCoCg - 128.f / 255.f);
+    minCoCg = abs(minCoCg - 128.f / 255.f);
+    maxCoCg = abs(maxCoCg - 128.f / 255.f);
 
-    float MaxComponent = max(max(MinCoCg.x, MinCoCg.y), max(MaxCoCg.x, MaxCoCg.y));
+    float maxComponent = max(max(minCoCg.x, minCoCg.y), max(maxCoCg.x, maxCoCg.y));
 
-    return (MaxComponent < 32.f / 255.f) ? float2(4.f, 0.25f) : (MaxComponent < 64.f / 255.f) ? float2(2.f, 0.5f) : float2(1.f, 1.f);
+    return (maxComponent < 32.f / 255.f) ? float2(4.f, 0.25f) : (maxComponent < 64.f / 255.f) ? float2(2.f, 0.5f) : float2(1.f, 1.f);
 }
 
-void ApplyYCoCgScale(inout float2 MinCoCg, inout float2 MaxCoCg, float Scale)
+void applyYCoCgScale(inout float2 minCoCg, inout float2 maxCoCg, float scale)
 {
-    MinCoCg = (MinCoCg - 128.f / 255.f) * Scale + 128.f / 255.f;
-    MaxCoCg = (MaxCoCg - 128.f / 255.f) * Scale + 128.f / 255.f;
+    minCoCg = (minCoCg - 128.f / 255.f) * scale + 128.f / 255.f;
+    maxCoCg = (maxCoCg - 128.f / 255.f) * scale + 128.f / 255.f;
 }
 
-// Inset the CoCg bounding end points
-void InsetCoCgEndPoints(inout float2 MinCoCg, inout float2 MaxCoGg)
+// inset the coCg bounding end points
+void insetCoCgEndPoints(inout float2 minCoCg, inout float2 maxCoGg)
 {
-    float2 Inset = (MaxCoGg - MinCoCg - (8.f / 255.f)) / 16.f;
-    MinCoCg = saturate(MinCoCg + Inset);
-    MaxCoGg = saturate(MaxCoGg - Inset);
+    float2 inset = (maxCoGg - minCoCg - (8.f / 255.f)) / 16.f;
+    minCoCg = saturate(minCoCg + inset);
+    maxCoGg = saturate(maxCoGg - inset);
 }
 
-// Inset the luminance end points
-void InsetLumaEndPoints(inout float MinY, inout float MaxY)
+// inset the luminance end points
+void insetLumaEndPoints(inout float minY, inout float maxY)
 {
-    float Inset = (MaxY - MinY - (16.f / 255.f)) / 32.f;
-    MinY = saturate(MinY + Inset);
-    MaxY = saturate(MaxY - Inset);
+    float inset = (maxY - minY - (16.f / 255.f)) / 32.f;
+    minY = saturate(minY + inset);
+    maxY = saturate(maxY - inset);
 }
 
-// Select the 2 min/max end points from the CoCg bounding rectangle based on the block contents 
-void AdjustMinMaxDiagonalYCoCg(const float3 Block[16], inout float2 MinCoCg, inout float2 MaxCoGg)
+// Select the 2 min/max end points from the coCg bounding rectangle based on the block contents 
+void adjustMinMaxDiagonalYCoCg(const float3 Block[16], inout float2 minCoCg, inout float2 maxCoGg)
 {
-    float2 MidCoCg = (MaxCoGg + MinCoCg) * 0.5;
+    float2 midCoCg = (maxCoGg + minCoCg) * 0.5;
 
-    float Sum = 0.f;
+    float sum = 0.f;
     for (int i = 0; i < 16; i++)
     {
-        float2 Diff = Block[i].yz - MidCoCg;
-        Sum += Diff.x * Diff.y;
+        float2 diff = Block[i].yz - midCoCg;
+        sum += diff.x * diff.y;
     }
-    if (Sum < 0.f)
+    if (sum < 0.f)
     {
-        float Temp = MaxCoGg.y;
-        MaxCoGg.y = MinCoCg.y;
-        MinCoCg.y = Temp;
+        float temp = maxCoGg.y;
+        maxCoGg.y = minCoCg.y;
+        minCoCg.y = temp;
     }
 }
 
-uint CoCgToUint565(inout float2 CoCg)
+uint coCgToUint565(inout float2 coCg)
 {
-    float2 Scale = float2(31.f, 63.f);
-    float2 ColorScaled = round(saturate(CoCg) * Scale);
-    uint ColorPacked = ((uint) ColorScaled.r << 11) | ((uint) ColorScaled.g << 5);
-    CoCg = ColorScaled / Scale;
+    float2 scale = float2(31.f, 63.f);
+    float2 colorScaled = round(saturate(coCg) * scale);
+    uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5);
+    coCg = colorScaled / scale;
 
-    return ColorPacked;
+    return colorPacked;
 }
 
-// Calculate the final packed indices for the CoCg part of a color block
-uint GetPackedCoCgBlockIndices(in float3 Block[16], in float2 MinCoCg, in float2 MaxCoCg)
+// Calculate the final packed indices for the coCg part of a color block
+uint getPackedCoCgBlockIndices(in float3 Block[16], in float2 minCoCg, in float2 maxCoCg)
 {
-    uint PackedIndices = 0;
+    uint packedIndices = 0;
 
 	// Project onto max->min color vector and segment into range [0,3]
-    float2 Range = MinCoCg - MaxCoCg;
-    float Scale = 3.f / dot(Range, Range);
-    float2 ScaledRange = Range * Scale;
-    float Bias = (dot(MaxCoCg, MaxCoCg) - dot(MaxCoCg, MinCoCg)) * Scale;
+    float2 range = minCoCg - maxCoCg;
+    float scale = 3.f / dot(range, range);
+    float2 scaledRange = range * scale;
+    float bias = (dot(maxCoCg, maxCoCg) - dot(maxCoCg, minCoCg)) * scale;
 
     for (int i = 15; i >= 0; --i)
     {
 		// Compute the distance index for this element
-        uint Index = round(dot(Block[i].yz, ScaledRange) + Bias);
+        uint index = round(dot(Block[i].yz, scaledRange) + bias);
 		// Convert distance index into the BC index
-        Index += (Index > 0) - (3 * (Index == 3));
-		// OR into the final PackedIndices
-        PackedIndices = (PackedIndices << 2) | Index;
+        index += (index > 0) - (3 * (index == 3));
+		// OR into the final packedIndices
+        packedIndices = (packedIndices << 2) | index;
     }
 
-    return PackedIndices;
+    return packedIndices;
 }
 
 // Calculate the final packed indices for the Luma part of a color block
-uint2 GetPackedLumaBlockIndices(in float3 Block[16], in float MinAlpha, in float MaxAlpha)
+uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float maxAlpha)
 {
-    uint2 PackedIndices = 0;
+    uint2 packedIndices = 0;
 
 	// Segment alpha max->min into range [0,7]
-    float Range = MinAlpha - MaxAlpha;
-    float Scale = 7.f / Range;
-    float Bias = -Scale * MaxAlpha;
+    float range = minAlpha - maxAlpha;
+    float scale = 7.f / range;
+    float bias = -scale * maxAlpha;
 
     uint i = 0;
 	// The first 5 elements of the block will go into the top 16 bits of the x component
     for (i = 0; i < 5; ++i)
     {
 		// Compute the distance index for this element
-        uint Index = round(Block[i].x * Scale + Bias);
+        uint index = round(Block[i].x * scale + bias);
 		// Convert distance index into the BC index
-        Index += (Index > 0) - (7 * (Index == 7));
-		// OR into the final PackedIndices
-        PackedIndices.x |= (Index << (i * 3 + 16));
+        index += (index > 0) - (7 * (index == 7));
+		// OR into the final packedIndices
+        packedIndices.x |= (index << (i * 3 + 16));
     }
 
 	// The 6th element is split across the x and y components
 	{
         i = 5;
-        uint Index = round(Block[i].x * Scale + Bias);
-        Index += (Index > 0) - (7 * (Index == 7));
-        PackedIndices.x |= (Index << 31);
-        PackedIndices.y |= (Index >> 1);
+        uint index = round(Block[i].x * scale + bias);
+        index += (index > 0) - (7 * (index == 7));
+        packedIndices.x |= (index << 31);
+        packedIndices.y |= (index >> 1);
     }
 
 	// The rest of the elements fill the y component
     for (i = 6; i < 16; ++i)
     {
-        uint Index = round(Block[i].x * Scale + Bias);
-        Index += (Index > 0) - (7 * (Index == 7 ? 1 : 0));
-        PackedIndices.y |= (Index << (i * 3 - 16));
+        uint index = round(Block[i].x * scale + bias);
+        index += (index > 0) - (7 * (index == 7 ? 1 : 0));
+        packedIndices.y |= (index << (i * 3 - 16));
     }
 
-    return PackedIndices;
+    return packedIndices;
 }
 
-// Convert a linear RGB block to YCoCg and compress a BC3 block 
-public uint4 CompressBC3BlockYCoCg(in float3 Block[16])
+// Convert a linear rgb block to YCoCg and compress a BC3 block 
+public uint4 compressBC3BlockYCoCg(in float3 Block[16])
 {
     for (int i = 0; i < 16; ++i)
     {
-        Block[i] = RGB2YCoCg(Block[i]);
+        Block[i] = rGB2YCoCg(Block[i]);
     }
 
-    float3 MinColor, MaxColor;
-    GetMinMax(Block, MinColor, MaxColor);
+    float3 minColor, maxColor;
+    getMinMax(Block, minColor, maxColor);
 
-    AdjustMinMaxDiagonalYCoCg(Block, MinColor.yz, MaxColor.yz);
+    adjustMinMaxDiagonalYCoCg(Block, minColor.yz, maxColor.yz);
 
-    float2 Scale = GetYCoCgScale(MinColor.yz, MaxColor.yz);
+    float2 scale = getYCoCgScale(minColor.yz, maxColor.yz);
 
-    ApplyYCoCgScale(MinColor.yz, MaxColor.yz, Scale.x);
+    applyYCoCgScale(minColor.yz, maxColor.yz, scale.x);
 
-    InsetCoCgEndPoints(MinColor.yz, MaxColor.yz);
+    insetCoCgEndPoints(minColor.yz, maxColor.yz);
 
-    uint MinColor565 = CoCgToUint565(MinColor.yz) | ((uint) Scale.x - 1);
-    uint MaxColor565 = CoCgToUint565(MaxColor.yz) | ((uint) Scale.x - 1);
+    uint minColor565 = coCgToUint565(minColor.yz) | ((uint) scale.x - 1);
+    uint maxColor565 = coCgToUint565(maxColor.yz) | ((uint) scale.x - 1);
 
-    ApplyYCoCgScale(MinColor.yz, MaxColor.yz, Scale.y);
+    applyYCoCgScale(minColor.yz, maxColor.yz, scale.y);
 
-    uint CoCgIndices = GetPackedCoCgBlockIndices(Block, MinColor.yz, MaxColor.yz);
+    uint coCgIndices = getPackedCoCgBlockIndices(Block, minColor.yz, maxColor.yz);
 
-    InsetLumaEndPoints(MinColor.x, MaxColor.x);
+    insetLumaEndPoints(minColor.x, maxColor.x);
 
-    uint MinLumaUint = round(MinColor.x * 255.f);
-    uint MaxLumaUint = round(MaxColor.x * 255.f);
+    uint minLumaUint = round(minColor.x * 255.f);
+    uint maxLumaUint = round(maxColor.x * 255.f);
 
-    uint2 Indices = GetPackedLumaBlockIndices(Block, MinColor.x, MaxColor.x);
+    uint2 indices = getPackedLumaBlockIndices(Block, minColor.x, maxColor.x);
 
-    return uint4((MinLumaUint << 8) | MaxLumaUint | Indices.x, Indices.y, (MinColor565 << 16) | MaxColor565, CoCgIndices);
+    return uint4((minLumaUint << 8) | maxLumaUint | indices.x, indices.y, (minColor565 << 16) | maxColor565, coCgIndices);
 }
 
 
-public void ReadBlockRGBA(Texture2D<float4> SourceTexture, uint2 BasePos,
+public void readBlockRGBA(Texture2D<float4> sourceTexture, uint2 basePos,
                    out float3 Block[16], out float BlockAlpha[16]) {
   for (int y = 0; y < 4; y++) {
     for (int x = 0; x < 4; x++) {
-      uint2 pos = BasePos + uint2(x, y);
-      float4 pixel = SourceTexture.Load(int3(pos, 0));
+      uint2 pos = basePos + uint2(x, y);
+      float4 pixel = sourceTexture.Load(int3(pos, 0));
 
       int index = y * 4 + x;
       Block[index] = pixel.rgb;

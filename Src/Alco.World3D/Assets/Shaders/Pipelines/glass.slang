@@ -15,7 +15,7 @@
 // blending with Max on alpha (no sorting). Opacity is driven by the
 // transmission factor (texture alpha only raises it further), so glass stays
 // visible even when the albedo texture's alpha channel is zero. Lighting
-// functions and the shared _data cbuffer come from alco_world3d_pbr_common;
+// functions and the shared data cbuffer come from alco_world3d_pbr_common;
 // the material textures live in the surface module (set 2).
 
 #language slang 2025
@@ -48,7 +48,7 @@ struct GlassConstants
     float4x4 model;
     float4 baseColor;
     float4 metallicRoughnessAO; // x=metallic y=roughness z=ambientOcclusion
-    float4 params_;             // x=transmissionFactor (0=opaque, 1=fully transparent)
+    float4 params;             // x=transmissionFactor (0=opaque, 1=fully transparent)
     float4 emissive;            // rgb = emissive factor
 }
 
@@ -60,7 +60,7 @@ public struct GlassCamera
     public float4x4 viewProjection;
 };
 
-public ParameterBlock<GlassCamera> _camera;
+public ParameterBlock<GlassCamera> camera;
 
 [[vk::push_constant]]
 cbuffer constants
@@ -77,8 +77,8 @@ public GlassV2F MainVS<T : ISurface>(GlassVertex input)
     float3 worldTangent = mul((float3x3)glassConstants.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically.
     T surface = T();
-    surface.ModifyVertex(worldPosition, worldNormal, input.uv);
-    output.position = mul(_camera.viewProjection, float4(worldPosition, 1.0f));
+    surface.modifyVertex(worldPosition, worldNormal, input.uv);
+    output.position = mul(camera.viewProjection, float4(worldPosition, 1.0f));
     output.worldPosition = worldPosition;
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);
@@ -106,9 +106,9 @@ public float4 MainPS<T : ISurface>(GlassV2F input) : SV_TARGET
     surfaceInput.alphaCutoff = 0.0f; // glass does not alpha-test
 
     T surface = T();
-    float4 baseColor = surface.GetBaseColor(surfaceInput);
-    float3 mrAO = surface.GetMetallicRoughnessAO(surfaceInput);
-    float3 normalTS = surface.GetNormalTS(surfaceInput);
+    float4 baseColor = surface.getBaseColor(surfaceInput);
+    float3 mrAO = surface.getMetallicRoughnessAO(surfaceInput);
+    float3 normalTS = surface.getNormalTS(surfaceInput);
 
     float3 albedo = baseColor.rgb;
     float alpha = baseColor.a;
@@ -116,53 +116,53 @@ public float4 MainPS<T : ISurface>(GlassV2F input) : SV_TARGET
     float roughness = mrAO.y;
     float ao = mrAO.z;
 
-    float3 N = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
+    float3 nWorld = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
 
     float3 worldPosition = input.worldPosition;
-    float3 V = normalize(_data.cameraPosition.xyz - worldPosition);
+    float3 v = normalize(data.cameraPosition.xyz - worldPosition);
 
-    float3 Lo = 0.0;
+    float3 lo = 0.0;
 
     // Directional sun light with cascaded shadows.
     {
-        float3 L = normalize(-_data.sunDirection.xyz);
-        float sunNdotL = dot(N, L);
+        float3 l = normalize(-data.sunDirection.xyz);
+        float sunNdotL = dot(nWorld, l);
         float sunShadow = 1.0;
-        float viewDistance = length(worldPosition - _data.cameraPosition.xyz);
-        int cascade = SelectCascade(viewDistance);
-        if (_data.shadowEnabled && sunNdotL > 0.0)
+        float viewDistance = length(worldPosition - data.cameraPosition.xyz);
+        int cascade = selectCascade(viewDistance);
+        if (data.shadowEnabled && sunNdotL > 0.0)
         {
-            sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
+            sunShadow = sampleSunShadow(worldPosition, nWorld, l, input.position.xy, viewDistance, cascade);
         }
 
-        Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
-            * _data.sunColorAndIntensity.rgb
-            * _data.sunColorAndIntensity.w
+        lo += evaluatePBR(nWorld, v, l, albedo, metallic, roughness)
+            * data.sunColorAndIntensity.rgb
+            * data.sunColorAndIntensity.w
             * sunShadow;
     }
 
     // Point lights (shared loop from alco_world3d_pbr_common).
-    Lo += EvaluatePointLights(N, V, worldPosition, albedo, metallic, roughness);
+    lo += evaluatePointLights(nWorld, v, worldPosition, albedo, metallic, roughness);
 
     // Ambient / environment lighting.
-    float3 skyAmbient = EvaluateDiffuseSky(N);
-    float upDot = saturate(N.z * 0.5 + 0.5);
+    float3 skyAmbient = evaluateDiffuseSky(nWorld);
+    float upDot = saturate(nWorld.z * 0.5 + 0.5);
     float3 skyBounce = float3(0.10, 0.12, 0.15);
     float3 groundBounce = float3(0.05, 0.045, 0.04);
-    float3 ambientFloor = _data.skyParams2.w * lerp(groundBounce, skyBounce, upDot);
+    float3 ambientFloor = data.skyParams2.w * lerp(groundBounce, skyBounce, upDot);
     float3 diffuseIrradiance = skyAmbient + ambientFloor;
     float3 ambient = diffuseIrradiance * albedo * (1.0 - metallic) * ao;
 
     // Emissive (surface = emissive texture times the push-constant factor).
-    float3 emissive = surface.GetEmissive(surfaceInput);
+    float3 emissive = surface.getEmissive(surfaceInput);
 
-    float3 color = Lo + ambient + emissive;
+    float3 color = lo + ambient + emissive;
 
     // Output alpha: blend factor onto the lit scene. Opacity comes from the
     // transmission factor and the texture alpha (whichever is larger — the
     // Bistro glass textures carry a zero alpha channel, so transmission must
     // not rely on it).
-    float transmission = glassConstants.params_.x;
+    float transmission = glassConstants.params.x;
     float outputAlpha = saturate(max(alpha, 1.0 - transmission));
 
     return float4(color, outputAlpha);

@@ -12,23 +12,23 @@ import alco_rendering_core;
 // Texture input and parameters
 public struct PassParams
 {
-    public Texture2D _texture;
+    public Texture2D texture;
 };
 
-public ParameterBlock<PassParams> _pass;
+public ParameterBlock<PassParams> pass;
 public struct DataParams
 {
-    // Exposure multiplier applied before tone mapping
-    public float Exposure;
-    // Gamma value for final gamma correction
-    public float Gamma;
+    // exposure multiplier applied before tone mapping
+    public float exposure;
+    // gamma value for final gamma correction
+    public float gamma;
     // Start of compression (linear region end)
-    public float StartCompression;
-    // Desaturation factor in compression region
-    public float Desaturation;
+    public float startCompression;
+    // desaturation factor in compression region
+    public float desaturation;
 };
 
-public ParameterBlock<DataParams> _data;
+public ParameterBlock<DataParams> data;
 
 
 struct Vertex { float3 position : POSITION; float2 uv : TEXCOORD0; };
@@ -37,7 +37,7 @@ struct V2F { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
 // Khronos PBR Neutral tone mapping (ported from pbrNeutral.glsl)
 // Reference: https://github.com/KhronosGroup/ToneMapping/blob/main/PBR_Neutral/pbrNeutral.glsl
 
-float3 PBRNeutralToneMap(float3 color)
+float3 pBRNeutralToneMap(float3 color)
 {
     // Toe & offset
     float x = min(color.r, min(color.g, color.b));
@@ -46,18 +46,18 @@ float3 PBRNeutralToneMap(float3 color)
 
     // If below compression start, return early
     float peak = max(color.r, max(color.g, color.b));
-    if (peak < _data.StartCompression)
+    if (peak < data.startCompression)
     {
         return color;
     }
 
     // Compress peak to fit in [0,1]
-    float d = 1.0f - _data.StartCompression;
-    float newPeak = 1.0f - (d * d) / (peak + d - _data.StartCompression);
+    float d = 1.0f - data.startCompression;
+    float newPeak = 1.0f - (d * d) / (peak + d - data.startCompression);
     color *= (newPeak / peak);
 
     // Desaturate towards white based on removed brightness
-    float g = 1.0f - 1.0f / (_data.Desaturation * (peak - newPeak) + 1.0f);
+    float g = 1.0f - 1.0f / (data.desaturation * (peak - newPeak) + 1.0f);
     float3 white = float3(newPeak, newPeak, newPeak);
     color = lerp(color, white, g);
     return color;
@@ -72,10 +72,10 @@ V2F MainVS(Vertex input)
 [shader("fragment")]
 float4 MainPS(V2F input): SV_TARGET
 {
-    float3 hdr = _pass._texture.Sample(_samplers._linearClamp, input.uv).rgb * _data.Exposure;
-    float3 ldr = PBRNeutralToneMap(hdr);
-    ldr = pow(ldr, 1.0 / _data.Gamma);
-    ldr += OutputDither8Bit(input.position.xy);
+    float3 hdr = pass.texture.Sample(samplers.linearClamp, input.uv).rgb * data.exposure;
+    float3 ldr = pBRNeutralToneMap(hdr);
+    ldr = pow(ldr, 1.0 / data.gamma);
+    ldr += outputDither8Bit(input.position.xy);
     return float4(ldr, 1.0);
 }
 

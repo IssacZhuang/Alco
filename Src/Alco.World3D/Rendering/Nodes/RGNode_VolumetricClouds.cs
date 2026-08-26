@@ -243,7 +243,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         // no CPU twin of CloudDataParams; members land by name at their
         // reflected offsets. All three passes bind the same block layout.
         _dataBuffer = rendering.CreateUniformGraphicsBuffer(
-            descriptor.MarchShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_cloudData"),
+            descriptor.MarchShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "cloudData"),
             "volumetric_clouds_data");
 
         // The bake kind is a generic value specialization of the noise module
@@ -251,26 +251,26 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         // material is created; the two materials share the single injected
         // module handle.
         _noiseBaseMaterial = rendering.CreateComputeMaterial(descriptor.NoiseShader, false);
-        _noiseBaseMaterial.SetTexture3DStorage("_noiseOut", _baseNoise, 0);
+        _noiseBaseMaterial.SetTexture3DStorage("noiseOut", _baseNoise, 0);
         _noiseDetailMaterial = rendering.CreateComputeMaterial(descriptor.NoiseShader, true);
-        _noiseDetailMaterial.SetTexture3DStorage("_noiseOut", _detailNoise, 0);
+        _noiseDetailMaterial.SetTexture3DStorage("noiseOut", _detailNoise, 0);
         _shadowBakeMaterial = rendering.CreateComputeMaterial(descriptor.ShadowShader);
-        _shadowBakeMaterial.SetBuffer("_cloudData", _dataBuffer);
-        _shadowBakeMaterial.SetTexture("_cloudBaseNoise", _baseNoise);
-        _shadowBakeMaterial.SetTexture2DStorage("_shadowOut", _shadowCoverage, 0);
+        _shadowBakeMaterial.SetBuffer("cloudData", _dataBuffer);
+        _shadowBakeMaterial.SetTexture("cloudBaseNoise", _baseNoise);
+        _shadowBakeMaterial.SetTexture2DStorage("shadowOut", _shadowCoverage, 0);
 
         _marchMaterial = rendering.CreateGraphicsMaterial(descriptor.MarchShader);
         _marchMaterial.DepthStencilState = DepthStencilState.Default;
         _marchMaterial.RasterizerState = RasterizerState.CullNone;
-        _marchMaterial.SetBuffer("_cloudData", _dataBuffer);
-        _marchMaterial.SetTexture3D("_cloudBaseNoise", _baseNoise);
-        _marchMaterial.SetTexture3D("_cloudDetailNoise", _detailNoise);
+        _marchMaterial.SetBuffer("cloudData", _dataBuffer);
+        _marchMaterial.SetTexture3D("cloudBaseNoise", _baseNoise);
+        _marchMaterial.SetTexture3D("cloudDetailNoise", _detailNoise);
 
         _compositeMaterial = rendering.CreateGraphicsMaterial(descriptor.CompositeShader);
         _compositeMaterial.DepthStencilState = DepthStencilState.Default;
         _compositeMaterial.RasterizerState = RasterizerState.CullNone;
         _compositeMaterial.BlendState = BlendState.PremultipliedAlpha;
-        _compositeMaterial.SetBuffer("_cloudData", _dataBuffer);
+        _compositeMaterial.SetBuffer("cloudData", _dataBuffer);
 
         if (_device.TimestampQuerySupported)
         {
@@ -324,8 +324,8 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             _rendering.PreferredLightMapPass, resolutionScale: MarchResolutionScale, name: "volumetric_clouds_march"));
 
         RenderTexture gbufferFacade = gbuffer.Texture;
-        _marchMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferFacade);
-        _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbufferFacade);
+        _marchMaterial.SetRenderTextureDepth("gbufferDepth", gbufferFacade);
+        _compositeMaterial.SetRenderTextureDepth("gbufferDepth", gbufferFacade);
         _boundGBuffer = gbufferFacade;
 
         // The march and composite passes include PBRCommon.slang, whose
@@ -335,12 +335,12 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         // opportunistically.
         _marchMaterial.SetBuffer(ShaderResourceId.Data, environment.LightingDataBuffer);
         _marchMaterial.TrySetBuffer(ShaderResourceId.PointLights, environment.PointLightBuffer);
-        _marchMaterial.TrySetRenderTextureDepth("_shadowMap", shadowMap.Texture);
+        _marchMaterial.TrySetRenderTextureDepth("shadowMap", shadowMap.Texture);
         _compositeMaterial.SetBuffer(ShaderResourceId.Data, environment.LightingDataBuffer);
         _compositeMaterial.TrySetBuffer(ShaderResourceId.PointLights, environment.PointLightBuffer);
-        _compositeMaterial.TrySetRenderTextureDepth("_shadowMap", shadowMap.Texture);
+        _compositeMaterial.TrySetRenderTextureDepth("shadowMap", shadowMap.Texture);
 
-        lighting.Material.SetTexture("_cloudShadow", _shadowCoverage);
+        lighting.Material.SetTexture("cloudShadow", _shadowCoverage);
         SyncShadowEnvironment();
 
         graph.InsertAfter(lighting, this);
@@ -366,7 +366,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         }
         if (_lighting != null)
         {
-            _lighting.Material.SetTexture("_cloudShadow", _rendering.TextureWhite);
+            _lighting.Material.SetTexture("cloudShadow", _rendering.TextureWhite);
             _lighting = null;
         }
         if (_environment != null)
@@ -454,13 +454,13 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         RenderTexture marchTarget = _marchResource!.Texture;
         if (!ReferenceEquals(_boundGBuffer, gbuffer))
         {
-            _marchMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
-            _compositeMaterial.SetRenderTextureDepth("_gbufferDepth", gbuffer);
+            _marchMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
+            _compositeMaterial.SetRenderTextureDepth("gbufferDepth", gbuffer);
             _boundGBuffer = gbuffer;
         }
         if (!ReferenceEquals(_boundMarchTarget, marchTarget))
         {
-            _compositeMaterial.SetRenderTexture("_clouds", marchTarget, 0);
+            _compositeMaterial.SetRenderTexture("clouds", marchTarget, 0);
             _boundMarchTarget = marchTarget;
         }
 

@@ -18,13 +18,13 @@ public class ShaderSystemTest
     private const string QuadModule = """
         import alco.rendering.core;
 
-        cbuffer _camera : register(b0, space0)
+        cbuffer camera : register(b0, space0)
         {
             float4x4 viewProjection;
         };
 
-        Texture2D _albedo        : register(t0, space1);
-        SamplerState _linearClamp : register(s0, space1);
+        Texture2D albedo        : register(t0, space1);
+        SamplerState linearClamp : register(s0, space1);
 
         struct Vertex
         {
@@ -51,8 +51,8 @@ public class ShaderSystemTest
         float4 MainPS(V2F input) : SV_TARGET
         {
             // Prove the import graph is live: core's helper and constant.
-            float dither = OutputDither8Bit(input.position.xy) * 0.0;
-            return SampleTex2D(_albedo, _linearClamp, input.uv) + dither + PI * 0.0;
+            float dither = outputDither8Bit(input.position.xy) * 0.0;
+            return sampleTex2D(albedo, linearClamp, input.uv) + dither + PI * 0.0;
         }
         """;
 
@@ -104,8 +104,8 @@ public class ShaderSystemTest
             Assert.That(modules.FragmentShader, Is.Not.Null);
             Assert.That(modules.VertexShader!.Value.Source.Length, Is.GreaterThan(4));
             // Name-based binding surface survives (D1): the engine resolves by name.
-            Assert.That(modules.ReflectionInfo.TryGetResourceId("_camera", out _), Is.True);
-            Assert.That(modules.ReflectionInfo.TryGetResourceId("_albedo", out _), Is.True);
+            Assert.That(modules.ReflectionInfo.TryGetResourceId("camera", out _), Is.True);
+            Assert.That(modules.ReflectionInfo.TryGetResourceId("albedo", out _), Is.True);
             Assert.That(modules.ReflectionInfo.VertexLayouts.Count, Is.EqualTo(1));
             // The core module is part of the dependency graph.
             Assert.That(shaderSystem.Modules.GetModuleDependencies("alco-sandbox-quad"),

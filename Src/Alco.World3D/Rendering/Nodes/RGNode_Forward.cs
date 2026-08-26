@@ -379,7 +379,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         material.SetBuffer(ShaderResourceId.PointLights, _pointLightBuffer);
         // Shadow map for shadow comparison (the forward target shares the
         // G-buffer's depth attachment, so no G-buffer depth sampling is needed).
-        material.SetRenderTextureDepth("_shadowMap", _shadowRT);
+        material.SetRenderTextureDepth("shadowMap", _shadowRT);
         return material;
     }
 

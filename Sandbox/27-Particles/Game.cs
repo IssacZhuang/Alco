@@ -49,7 +49,7 @@ public class Game : GameEngine
 
         _mesh = RenderingSystem.MeshCenteredSprite;
 
-        _renderer = RenderingSystem.CreateInstanceRenderer<ParticleData2D>(_subRenderContext, _materialParticle, "_particles", 512 * 1024, "ParticleRenderer");
+        _renderer = RenderingSystem.CreateInstanceRenderer<ParticleData2D>(_subRenderContext, _materialParticle, "particles", 512 * 1024, "ParticleRenderer");
 
         // Create particle emitter
         _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(0, 0));

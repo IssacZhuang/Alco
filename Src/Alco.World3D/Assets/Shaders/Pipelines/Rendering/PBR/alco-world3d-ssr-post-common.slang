@@ -34,7 +34,7 @@ public struct SsrData
     public float  roughnessCutoff;             // reflections fade out above this roughness
 };
 
-public ParameterBlock<SsrData> _ssrData;
+public ParameterBlock<SsrData> ssrData;
 
 
 public struct Vertex {
@@ -54,7 +54,7 @@ public struct V2F {
 // Full-screen-quad vertex shader shared by the SSR post passes. A lib module
 // owns no [shader(...)] entry points — each importing pipeline module declares
 // its own MainVS entry forwarding to this.
-public V2F SsrPostFullQuadVS(Vertex input)
+public V2F ssrPostFullQuadVS(Vertex input)
 {
     V2F output = (V2F)0;
     output.position = float4(input.position, 1.0);
@@ -62,14 +62,14 @@ public V2F SsrPostFullQuadVS(Vertex input)
     return output;
 }
 
-public float3 SsrPostReconstructWorldPosition(float2 uv, float depth)
+public float3 ssrPostReconstructWorldPosition(float2 uv, float depth)
 {
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
-    float4 world = mul(_ssrData.ssrInvViewProjection, float4(ndc, depth, 1.0));
+    float4 world = mul(ssrData.ssrInvViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
 
-public float2 SsrPostEncodeNormal(float3 normal)
+public float2 ssrPostEncodeNormal(float3 normal)
 {
     normal /= abs(normal.x) + abs(normal.y) + abs(normal.z);
     float2 encoded = normal.xy;
@@ -82,7 +82,7 @@ public float2 SsrPostEncodeNormal(float3 normal)
     return encoded * 0.5 + 0.5;
 }
 
-public float3 SsrPostDecodeNormal(float2 encoded)
+public float3 ssrPostDecodeNormal(float2 encoded)
 {
     float2 oct = encoded * 2.0 - 1.0;
     float3 normal = float3(oct, 1.0 - abs(oct.x) - abs(oct.y));
@@ -95,9 +95,9 @@ public float3 SsrPostDecodeNormal(float2 encoded)
     return normalize(normal);
 }
 
-public bool SsrPostProjectWorldPosition(float3 worldPosition, out float3 screenPosition)
+public bool ssrPostProjectWorldPosition(float3 worldPosition, out float3 screenPosition)
 {
-    float4 clip = mul(_ssrData.ssrViewProjection, float4(worldPosition, 1.0));
+    float4 clip = mul(ssrData.ssrViewProjection, float4(worldPosition, 1.0));
     if (clip.w <= 0.0)
     {
         screenPosition = 0.0;
@@ -110,7 +110,7 @@ public bool SsrPostProjectWorldPosition(float3 worldPosition, out float3 screenP
         && screenPosition.z >= 0.0 && screenPosition.z <= 1.0;
 }
 
-public uint SsrPostHashUint(uint value)
+public uint ssrPostHashUint(uint value)
 {
     value ^= value >> 16;
     value *= 0x7FEB352Du;
@@ -120,16 +120,16 @@ public uint SsrPostHashUint(uint value)
     return value;
 }
 
-public float SsrPostRandom(uint2 pixel, uint frameIndex, uint dimension)
+public float ssrPostRandom(uint2 pixel, uint frameIndex, uint dimension)
 {
     uint seed = pixel.x * 0x9E3779B9u;
     seed ^= pixel.y * 0x85EBCA6Bu;
     seed ^= frameIndex * 0xC2B2AE35u;
     seed ^= dimension * 0x27D4EB2Fu;
-    return float(SsrPostHashUint(seed) >> 8) * (1.0 / 16777216.0);
+    return float(ssrPostHashUint(seed) >> 8) * (1.0 / 16777216.0);
 }
 
-public float3 SsrPostDecodeSRGB(float3 color)
+public float3 ssrPostDecodeSRGB(float3 color)
 {
     float3 lo = color / 12.92;
     float3 hi = pow(max((color + 0.055) / 1.055, 0.0), 2.4);
@@ -137,14 +137,14 @@ public float3 SsrPostDecodeSRGB(float3 color)
 }
 
 // Lazarov split-sum BRDF approximation, matching DeferredLighting.hlsl.
-public float3 SsrPostEnvBRDF(float3 F0, float roughness, float NdotV)
+public float3 ssrPostEnvBRDF(float3 f0, float roughness, float ndotV)
 {
     const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
     const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
     float4 r = roughness * c0 + c1;
-    float a004 = min(r.x * r.x, exp2(-9.28 * NdotV)) * r.x + r.y;
-    float2 AB = float2(-1.04, 1.04) * a004 + r.zw;
-    return F0 * AB.x + AB.y;
+    float a004 = min(r.x * r.x, exp2(-9.28 * ndotV)) * r.x + r.y;
+    float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
+    return f0 * ab.x + ab.y;
 }
 
 

@@ -50,7 +50,7 @@ public struct RsmV2F
 struct RsmConstants
 {
     // x = shadow cascade index (the RSM cascade), yzw unused
-    float4 params_;
+    float4 params;
 }
 
 // Per-cascade light view-projection matrices, updated per frame on the CPU and
@@ -61,14 +61,14 @@ public struct RsmData
     public float4x4 lightViewProjections[4];
 };
 
-public ParameterBlock<RsmData> _data;
+public ParameterBlock<RsmData> data;
 
 public struct RsmDrawParams
 {
-    public RWStructuredBuffer<PbrInstance> _instances;
+    public RWStructuredBuffer<PbrInstance> instances;
 };
 
-public ParameterBlock<RsmDrawParams> _draw;
+public ParameterBlock<RsmDrawParams> draw;
 
 [[vk::push_constant]]
 cbuffer constants
@@ -76,9 +76,9 @@ cbuffer constants
     RsmConstants rsmConstants;
 }
 
-// Linear RGB to sRGB encoding (the albedo target is RGBA8Unorm, matching the
+// Linear rgb to sRGB encoding (the albedo target is RGBA8Unorm, matching the
 // G-buffer's albedo path; the GI trace decodes it back).
-float3 EncodeSRGB(float3 color)
+float3 encodeSRGB(float3 color)
 {
     float3 lo = color * 12.92;
     float3 hi = 1.055 * pow(max(color, 0.0), float3(1.0 / 2.4)) - 0.055;
@@ -89,16 +89,16 @@ float3 EncodeSRGB(float3 color)
 public RsmV2F MainVS<T : ISurface>(RsmVertex input)
 {
     RsmV2F output;
-    PbrInstance inst = _draw._instances[input.instanceID];
+    PbrInstance inst = draw.instances[input.instanceID];
     float3 worldPos = mul(inst.model, float4(input.position, 1.0f)).xyz;
     float3 worldNormal = mul((float3x3)inst.model, input.normal);
     float3 worldTangent = mul((float3x3)inst.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically
     // so the RSM matches the G-buffer silhouette.
     T surface = T();
-    surface.ModifyVertex(worldPos, worldNormal, input.uv);
-    uint cascade = (uint)rsmConstants.params_.x;
-    float4 folded = mul(_data.lightViewProjections[cascade], float4(worldPos, 1.0f));
+    surface.modifyVertex(worldPos, worldNormal, input.uv);
+    uint cascade = (uint)rsmConstants.params.x;
+    float4 folded = mul(data.lightViewProjections[cascade], float4(worldPos, 1.0f));
     // RGNode_ShadowPass folds the cascade into its atlas quadrant with
     // ndc' = ndc * 0.5 + offset, offset = ((cascade % 2) - 0.5, 0.5 - cascade / 2).
     // The RSM covers a full target, so unfold back to [-1, 1] here.
@@ -120,7 +120,7 @@ public void MainPS<T : ISurface>(
     out float4 albedoRT : SV_TARGET0,
     out float4 normalRT : SV_TARGET1)
 {
-    PbrInstance inst = _draw._instances[input.instanceID];
+    PbrInstance inst = draw.instances[input.instanceID];
 
     // TBN frame: re-orthogonalize the interpolated tangent against the normal.
     float3 n = normalize(input.normal);
@@ -136,10 +136,10 @@ public void MainPS<T : ISurface>(
     surfaceInput.baseColorFactor = inst.baseColor;
     surfaceInput.metallicRoughnessAO = inst.metallicRoughnessAO;
     surfaceInput.emissiveFactor = inst.emissive;
-    surfaceInput.alphaCutoff = inst.params_.x;
+    surfaceInput.alphaCutoff = inst.params.x;
 
     T surface = T();
-    float4 baseColor = surface.GetBaseColor(surfaceInput);
+    float4 baseColor = surface.getBaseColor(surfaceInput);
 
     // Alpha test (mirrors gbuffer.slang): cutout meshes keep correctly shaped
     // bounce light, not the alpha-quantized silhouette.
@@ -148,8 +148,8 @@ public void MainPS<T : ISurface>(
         discard;
     }
 
-    albedoRT = float4(EncodeSRGB(baseColor.rgb), 1.0);
-    float3 normalTS = surface.GetNormalTS(surfaceInput);
+    albedoRT = float4(encodeSRGB(baseColor.rgb), 1.0);
+    float3 normalTS = surface.getNormalTS(surfaceInput);
     float3 worldNormal = normalize(t * normalTS.x + b * normalTS.y + n * normalTS.z);
     normalRT = float4(worldNormal * 0.5 + 0.5, 1.0);
 }

@@ -42,25 +42,25 @@ public class SlangMarkedUniformBlocksTest
 
         import test_marked_contract;
 
-        cbuffer _globalRenderData : register(b0, space2)
+        cbuffer globalRenderData : register(b0, space2)
         {
             float4 time;
         }
 
         [MaterialParams]
-        cbuffer PulseParams : register(b1, space2)
+        cbuffer pulseParams : register(b1, space2)
         {
             float pulseSpeed;
             float3 pulseColor;
         }
 
         [MaterialParams]
-        cbuffer WindParams : register(b2, space2)
+        cbuffer windParams : register(b2, space2)
         {
             float windStrength;
 
-            Texture2D<float4> _noiseTexture;
-            SamplerState _noiseTextureSampler;
+            Texture2D<float4> noiseTexture;
+            SamplerState noiseTextureSampler;
         }
         """;
 
@@ -70,7 +70,7 @@ public class SlangMarkedUniformBlocksTest
 
         import test_marked_contract;
 
-        cbuffer _unmarked : register(b0, space2)
+        cbuffer unmarked : register(b0, space2)
         {
             float anything;
         }
@@ -86,14 +86,14 @@ public class SlangMarkedUniformBlocksTest
         Assert.Multiple(() =>
         {
             Assert.That(reflection.UniformBlocks.Select(block => block.Name),
-                Is.EqualTo(new[] { "_globalRenderData", "PulseParams", "WindParams" }),
+                Is.EqualTo(new[] { "globalRenderData", "pulseParams", "windParams" }),
                 "module reflection is exhaustive and domain-neutral: every block, declaration order");
             var marked = reflection.UniformBlocks
                 .Where(block => block.Attributes.Contains("MaterialParams"))
                 .Select(block => block.Name)
                 .ToArray();
-            Assert.That(marked, Is.EqualTo(new[] { "PulseParams", "WindParams" }),
-                "the material-domain filter is attribute-driven: free names, no _globalRenderData");
+            Assert.That(marked, Is.EqualTo(new[] { "pulseParams", "windParams" }),
+                "the material-domain filter is attribute-driven: free names, no globalRenderData");
         });
     }
 
@@ -103,8 +103,8 @@ public class SlangMarkedUniformBlocksTest
         using SlangModuleSystem system = new(OptionsFor(Files()), null);
 
         ShaderLibraryReflection reflection = system.GetModuleReflection("test_marked_surface");
-        ShaderUniformBlock pulse = reflection.UniformBlocks.First(block => block.Name == "PulseParams");
-        ShaderUniformBlock wind = reflection.UniformBlocks.First(block => block.Name == "WindParams");
+        ShaderUniformBlock pulse = reflection.UniformBlocks.First(block => block.Name == "pulseParams");
+        ShaderUniformBlock wind = reflection.UniformBlocks.First(block => block.Name == "windParams");
 
         Assert.Multiple(() =>
         {
@@ -115,11 +115,11 @@ public class SlangMarkedUniformBlocksTest
             Assert.That(wind.Members.Select(member => member.Name),
                 Is.EqualTo(new[] { "windStrength" }),
                 "the texture/sampler members of a mixed block are binding entries, not uniform members");
-            Assert.That(reflection.TextureSlots.Select(slot => slot.Name), Is.EqualTo(new[] { "_noiseTexture" }));
+            Assert.That(reflection.TextureSlots.Select(slot => slot.Name), Is.EqualTo(new[] { "noiseTexture" }));
             Assert.That(reflection.TextureSlots[0].ViewDimension, Is.EqualTo(TextureViewDimension.Texture2D));
             Assert.That(reflection.TextureSlots[0].SampleType, Is.EqualTo(TextureSampleType.Float));
             Assert.That(reflection.SamplerSlots.Select(slot => slot.Name),
-                Is.EqualTo(new[] { "_noiseTextureSampler" }));
+                Is.EqualTo(new[] { "noiseTextureSampler" }));
             Assert.That(reflection.SamplerSlots[0].IsComparison, Is.False);
         });
     }

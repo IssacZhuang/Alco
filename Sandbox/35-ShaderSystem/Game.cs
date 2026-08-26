@@ -60,8 +60,8 @@ public class Game : GameEngine
         // blocks by name (the _frame uniform block, the _albedo texture slot)
         // and resolves the shared sampler bank automatically.
         _material = RenderingSystem.CreateGraphicsMaterial(_shader, "sandbox_shader_system_material");
-        _material.SetBuffer("_frame", _frameData);
-        _material.SetTexture("_albedo", _texture);
+        _material.SetBuffer("frame", _frameData);
+        _material.SetTexture("albedo", _texture);
 
         WatchShaderSources();
     }

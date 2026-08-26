@@ -10,10 +10,10 @@ Shader sources declare only **which set they own**; Slang assigns member
 bindings in declaration order. Every set is one cbuffer block:
 
 ```slang
-cbuffer _pass : register(b0, space1)
+cbuffer pass : register(b0, space1)
 {
-    Texture2D<float4> _albedo;   // binding 0 in the set
-    SamplerState _albedoSampler; // binding 1
+    Texture2D<float4> albedo;   // binding 0 in the set
+    SamplerState albedoSampler; // binding 1
 };
 ```
 

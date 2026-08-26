@@ -30,9 +30,9 @@ public class Bloom : TextureProcessor
         public float Gamma;
     }
 
-    public const string ShaderId_texture = "_texture";
-    public const string ShaderId_previousTexture = "_previousTexture";
-    public const string ShaderId_currentTexture = "_currentTexture";
+    public const string ShaderId_texture = "texture";
+    public const string ShaderId_previousTexture = "previousTexture";
+    public const string ShaderId_currentTexture = "currentTexture";
 
     private readonly GPUAttachmentLayout _backBufferPass;
     private readonly RenderingSystem _renderingSystem;
