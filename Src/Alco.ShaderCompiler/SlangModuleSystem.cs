@@ -209,6 +209,17 @@ public sealed class SlangModuleSystem : IDisposable
         }
     }
 
+    /// <summary>Whether a module of this name is loaded — including source-registered
+    /// modules, which resolver probing alone cannot discover.</summary>
+    public bool IsModuleLoaded(string moduleName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(moduleName);
+        lock (_lock)
+        {
+            return _modules.ContainsKey(moduleName);
+        }
+    }
+
     /// <summary>
     /// Links (or restores) one program of a loaded module. <paramref name="entryPoints"/> order
     /// defines the EntryCode order.

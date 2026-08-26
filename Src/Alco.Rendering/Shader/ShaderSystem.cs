@@ -50,9 +50,9 @@ public sealed class ShaderSystem : IDisposable
     /// usable immediately — a name that resolves to nothing or a module that fails
     /// to parse throws here, not at first use. Library references are the typed
     /// identity the material system composes with; their held reflection is
-    /// refreshed in place across hot reloads. Resolver-backed modules only —
-    /// modules registered from explicit source (<see cref="GetShaderFromModule"/>)
-    /// are not addressable this way.
+    /// refreshed in place across hot reloads. Resolver-backed modules and modules
+    /// already loaded from explicit source (<see cref="GetShaderFromModule"/>) are
+    /// addressable this way.
     /// </summary>
     /// <param name="moduleName">The module name (e.g. <c>PbrStandard</c>).</param>
     /// <exception cref="InvalidDataException">The name resolves to no module source.</exception>
@@ -70,7 +70,7 @@ public sealed class ShaderSystem : IDisposable
             {
                 return cached;
             }
-            if (_modules.GetModuleSource(moduleName) == null)
+            if (_modules.GetModuleSource(moduleName) == null && !_modules.IsModuleLoaded(moduleName))
             {
                 throw new InvalidDataException(
                     $"Shader library '{moduleName}' resolves to no module source; check the module name " +

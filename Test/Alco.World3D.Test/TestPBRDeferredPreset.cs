@@ -21,10 +21,47 @@ public sealed class TestPBRDeferredPreset
     // by name (the cbuffer layout itself is irrelevant to the NoGPU backend).
     // One cbuffer block per set — the slang module convention — with depth
     // textures as native DepthTexture2D.
+    // The data block mirrors AlcoWorld3D_PBRCommon's PbrData: the environment
+    // writes every member by name through the reflection-driven uniform buffer,
+    // so the fixture must spell the same members (types included).
     private const string LightingShaderSource = """
         module test_lighting;
 
-        cbuffer data : register(b0, space0) { float4 dummy0; float4 dummy1; };
+        cbuffer data : register(b0, space0)
+        {
+            float4x4 invViewProjection;
+            float4x4 sunViewProjection[4];
+            float4 cameraPosition;
+            float4 sunDirection;
+            float4 sunColorAndIntensity;
+            float4 skyParams;
+            float4 skyParams2;
+            float4 skyHorizonColor;
+            float4 skyZenithColor;
+            bool shadowEnabled;
+            uint numPointLights;
+            float shadowMapSize;
+            bool sunDiscEnabled;
+            float4 cascadeSplits;
+            float4 cascadeTexelSizes;
+            float shadowTightness;
+            uint viewportWidth;
+            uint viewportHeight;
+            bool giEnabled;
+            float giDiffuseStrength;
+            float giSpecularStrength;
+            float sunDiscSize;
+            float sunDiscBrightness;
+            bool volumetricLightEnabled;
+            float volumetricLightIntensity;
+            float fogDensity;
+            float heightScaleHeight;
+            float phaseG;
+            float cloudShadowStrength;
+            float cloudShadowPlaneAltitude;
+            float cloudShadowExtent;
+            bool cloudShadowEnabled;
+        };
 
         struct PointLightData { float4 positionRange; float4 colorIntensity; };
 
@@ -230,7 +267,9 @@ public sealed class TestPBRDeferredPreset
     private PBRDeferredPreset CreatePreset(uint width = 64, uint height = 64)
     {
         return RenderPipelines.CreatePBRDeferred(
-            _rendering,            _lightingShader,
+            _rendering,
+            _lightingShader,
+            _shaderSystem.GetLibrary("test_lighting"),
             _blitShader,
             shadowMapSize: 64,
             width: width,

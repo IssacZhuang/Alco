@@ -444,6 +444,7 @@ public class Game : GameEngine
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
             RenderingSystem.ShaderSystem.GetShader("DeferredLighting"),
+            RenderingSystem.ShaderSystem.GetLibrary("AlcoWorld3D_PBRCommon"),
             BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,

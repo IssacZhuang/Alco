@@ -60,6 +60,7 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     public const int MaxPointLights = 256;
 
     private readonly RenderingSystem _rendering;
+    private readonly ShaderLibrary _lightingDataLibrary;
     // Reflection-driven uniform buffer over the shared PBR _data block — no CPU
     // twin of PbrData; AssembleLightingData writes members by name at their
     // reflected offsets. Created lazily: the constructor may run before the host
@@ -83,14 +84,19 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// Creates the environment and its GPU buffers.
     /// </summary>
     /// <param name="rendering">The rendering system used to create the buffers.</param>
+    /// <param name="lightingDataLibrary">The library whose <c>data</c> uniform block shapes
+    /// <see cref="LightingDataBuffer"/> (the PBR common module of the composed lighting
+    /// stack). Caller-owned; the block layout is captured lazily at first access.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels
     /// (the shadow map is a 2x2 atlas of <see cref="ShadowCascadeCount"/> cascades, so
     /// the actual texture is twice this size along each axis).</param>
-    public PBRSceneEnvironment(RenderingSystem rendering, uint shadowMapSize = 2048)
+    public PBRSceneEnvironment(RenderingSystem rendering, ShaderLibrary lightingDataLibrary, uint shadowMapSize = 2048)
     {
         ArgumentNullException.ThrowIfNull(rendering);
+        ArgumentNullException.ThrowIfNull(lightingDataLibrary);
         ShadowMapSize = shadowMapSize;
         _rendering = rendering;
+        _lightingDataLibrary = lightingDataLibrary;
         _shadowDataBuffer = rendering.CreateGraphicsValueBuffer<ShadowCascadeData>("pbr_shadow_data");
         // Point lights are uploaded as a StructuredBuffer (not cbuffer) so the
         // count is bounded only by GPU memory, not by cbuffer size limits.
@@ -151,12 +157,15 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>
     /// The deferred lighting data buffer (per-frame sun, sky, cascade and camera
     /// constants). Shared with forward renderers so they can evaluate the same PBR.
+    /// The buffer layout mirrors the <c>data</c> uniform block of the lighting-data
+    /// library injected at construction; the library must stay alive for the
+    /// buffer's lifetime (reflection is captured at creation).
     /// </summary>
     public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer ??= CreateLightingDataBuffer();
 
     private UniformGraphicsBuffer CreateLightingDataBuffer()
         => _rendering.CreateUniformGraphicsBuffer(
-            _rendering.ShaderSystem.GetLibrary("AlcoWorld3D_PBRCommon").Reflection.UniformBlocks.First(block => block.Name == "data"),
+            _lightingDataLibrary.Reflection.UniformBlocks.First(block => block.Name == "data"),
             "pbr_lighting_data");
 
     /// <summary>

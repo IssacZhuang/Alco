@@ -43,6 +43,8 @@ public static class RenderPipelines
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="lightingShader">The deferred lighting shader (DeferredLighting.slang). Caller-owned, like every shader the composition takes. Scene and shadow depth are bound as native Slang depth textures.</param>
+    /// <param name="lightingDataLibrary">The library owning the <c>data</c> uniform block the
+    /// shared lighting buffer mirrors (the PBR common module of the lighting stack).</param>
     /// <param name="blitShader">The shader the final blit uses for plain copies.</param>
     /// <param name="shadowMapSize">The per-cascade shadow map resolution in texels; the shadow map is a 2x2 atlas of <see cref="PBRSceneEnvironment.ShadowCascadeCount"/> cascades, so the actual texture is twice this size along each axis.</param>
     /// <param name="width">The initial G-buffer width in pixels.</param>
@@ -53,6 +55,7 @@ public static class RenderPipelines
     public static PBRDeferredPreset CreatePBRDeferred(
         RenderingSystem rendering,
         Shader lightingShader,
+        ShaderLibrary lightingDataLibrary,
         Shader blitShader,
         uint shadowMapSize = 2048,
         uint width = 1280,
@@ -62,7 +65,7 @@ public static class RenderPipelines
         ArgumentNullException.ThrowIfNull(rendering);
         GPUDevice device = rendering.GraphicsDevice;
 
-        var environment = new PBRSceneEnvironment(rendering, shadowMapSize);
+        var environment = new PBRSceneEnvironment(rendering, lightingDataLibrary, shadowMapSize);
 
         var gbufferLayout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [
