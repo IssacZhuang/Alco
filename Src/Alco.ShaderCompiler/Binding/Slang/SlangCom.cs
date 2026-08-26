@@ -388,9 +388,8 @@ internal sealed class SlangComponentType
         IntPtr diag = IntPtr.Zero;
         int hr = ((delegate* unmanaged[Stdcall]<IntPtr, nint, nint, IntPtr*, IntPtr*, int>)Com.Vcall(NativePointer, 6))(
             NativePointer, entryPointIndex, 0, &code, &diag);
+        // DiagText releases the blob; releasing again here would double-free.
         diagnostics = DiagText(diag);
-        if (diag != IntPtr.Zero)
-            Com.Release(diag);
         if (hr < 0 || code == IntPtr.Zero)
             throw new InvalidOperationException($"slang getEntryPointCode({entryPointIndex}) failed: 0x{hr:X8} {diagnostics}");
         try
@@ -409,9 +408,8 @@ internal sealed class SlangComponentType
         IntPtr diag = IntPtr.Zero;
         int hr = ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr*, IntPtr*, int>)Com.Vcall(NativePointer, 10))(
             NativePointer, &linked, &diag);
+        // DiagText releases the blob; releasing again here would double-free.
         diagnostics = DiagText(diag);
-        if (diag != IntPtr.Zero)
-            Com.Release(diag);
         if (hr < 0 || linked == IntPtr.Zero)
             throw new InvalidOperationException($"slang link failed: 0x{hr:X8} {diagnostics}");
         return new SlangComponentType(linked);
