@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "alco-wgpu-native",
-  "releaseTag": "v29.0.1.1-alco.2",
+  "releaseTag": "v29.0.1.1-alco.4",
   "upstream": {
     "repository": "https://github.com/gfx-rs/wgpu-native.git",
     "tag": "v29.0.1.1",
@@ -30,6 +30,10 @@
     {
       "path": "patches/v29.0.1.1/0002-dxil-msl-passthrough-abi.patch",
       "sha256": "e5001b1d2cef92ce088d8cc17196acb02cb98f71b09b8c57c5aa7261eb4fc2f2"
+    },
+    {
+      "path": "patches/v29.0.1.1/0003-metallib-passthrough-abi.patch",
+      "sha256": "836330c0ca2914439fa705324ea79b8b70fcd93ca12e4f0f1993af56e3e6292f"
     }
   ],
   "requiredExports": [
@@ -37,7 +41,8 @@
     "wgpuDeviceCreateShaderModuleSpirV",
     "wgpuGetVersion",
     "wgpuDeviceCreateShaderModuleDxil",
-    "wgpuDeviceCreateShaderModuleMsl"
+    "wgpuDeviceCreateShaderModuleMsl",
+    "wgpuDeviceCreateShaderModuleMetalLib"
   ],
   "targets": {
     "win-x64": {
@@ -84,67 +89,67 @@
   "files": {
     "win-x64": {
       "path": "runtimes/win-x64/native/wgpu_native.dll",
-      "size": 8730112,
-      "sha256": "908a337028e898c6fc8bfc832090323a90a41116163e3bce8c70069ae696db38",
+      "size": 8732672,
+      "sha256": "87d4d193e399241c3557c352debcdc8a53b6a18d8a66b6938a84acdae6d49606",
       "binaryFormat": "pe",
       "architecture": "x64",
       "exportCount": 231
     },
     "win-arm64": {
       "path": "runtimes/win-arm64/native/wgpu_native.dll",
-      "size": 7405056,
-      "sha256": "5da84a6e6de917d1114670d36e537ecb0fe4f64cb366d70ccf13861e13f28f91",
+      "size": 7406080,
+      "sha256": "dea1df7667f8ffc0f15fb410870d430aed84fe2a1b46f7f35056ca87a8b26d3b",
       "binaryFormat": "pe",
       "architecture": "arm64",
-      "exportCount": 230
+      "exportCount": 231
     },
     "linux-x64": {
       "path": "runtimes/linux-x64/native/libwgpu_native.so",
-      "size": 9334584,
-      "sha256": "94a42805ce2b882c65f321b0813d1c6adecfdcb2949e5882a62de32bad3dc223",
+      "size": 9335840,
+      "sha256": "ec2436cd61d79f9925f94053f80ec74832eedea012d0ee7285f5b13fba36e833",
       "binaryFormat": "elf",
       "architecture": "x64",
-      "exportCount": 230
+      "exportCount": 231
     },
     "linux-arm64": {
       "path": "runtimes/linux-arm64/native/libwgpu_native.so",
-      "size": 9498928,
-      "sha256": "b67db6cb72007fce5e2bde41c550cf7a74d81c0f80ba7ddfbea7538842563d55",
+      "size": 9499160,
+      "sha256": "6a1391c432ef3ff462940c2b4624920475b4a0d84ef356a251c81c8767959ffa",
       "binaryFormat": "elf",
       "architecture": "arm64",
-      "exportCount": 230
+      "exportCount": 231
     },
     "osx-x64": {
       "path": "runtimes/osx-x64/native/libwgpu_native.dylib",
-      "size": 7082168,
-      "sha256": "5a02d6bc72f4e1524e62e2932e0512da620ab0d4ea0d7c8ae4045a9732f8bed3",
+      "size": 7082232,
+      "sha256": "3e589178ceccf3850e2348bb9d06b53a9b3296b7c28cc4b6995321d11bd9a57b",
       "binaryFormat": "macho",
       "architecture": "x64",
-      "exportCount": 234
+      "exportCount": 235
     },
     "osx-arm64": {
       "path": "runtimes/osx-arm64/native/libwgpu_native.dylib",
-      "size": 6766144,
-      "sha256": "6ddc5cb976d5c8aaa74014237a9e8efac9fcb2de0e142de3d25d33a72ae2035b",
+      "size": 6782768,
+      "sha256": "4e4c8e19f75709c849bf15ae33b5eaac8eeb7258592a2d50544831d296ef570e",
       "binaryFormat": "macho",
       "architecture": "arm64",
-      "exportCount": 234
+      "exportCount": 235
     },
     "android-x64": {
       "path": "runtimes/android-x64/native/libwgpu_native.so",
-      "size": 9364120,
-      "sha256": "ffeea02fe67bc3c8864826cf5eb228bd02d096704a3c8a175e71db70b44ca750",
+      "size": 9365384,
+      "sha256": "bb68ab6fb2c9a49ca7c7b39a4c9ae89cc5f4183955d71b02ec6373037a35f04b",
       "binaryFormat": "elf",
       "architecture": "x64",
-      "exportCount": 230
+      "exportCount": 231
     },
     "android-arm64": {
       "path": "runtimes/android-arm64/native/libwgpu_native.so",
-      "size": 9754976,
-      "sha256": "381454cbddbeb26051282de584427bff00c76d7ae2435e478eb81e89e10b5569",
+      "size": 9756176,
+      "sha256": "ac979c2e1e4e4602cd3e9f08768a94ff9eb40ae0f35e5b23ec0157dc5272dddf",
       "binaryFormat": "elf",
       "architecture": "arm64",
-      "exportCount": 230
+      "exportCount": 231
     }
   }
 }
