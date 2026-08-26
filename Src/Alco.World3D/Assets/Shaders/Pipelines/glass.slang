@@ -129,7 +129,7 @@ public float4 MainPS<T : ISurface>(GlassV2F input) : SV_TARGET
         float sunShadow = 1.0;
         float viewDistance = length(worldPosition - _data.cameraPosition.xyz);
         int cascade = SelectCascade(viewDistance);
-        if (_data.pbrParams.x > 0.5 && sunNdotL > 0.0)
+        if (_data.shadowEnabled && sunNdotL > 0.0)
         {
             sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
         }

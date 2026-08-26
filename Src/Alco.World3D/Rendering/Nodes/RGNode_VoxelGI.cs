@@ -1308,7 +1308,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         RenderTexture gbuffer = _gbufferResource!.Texture;
         RenderTexture shadowMap = _shadowMapResource!.Texture;
         environment.AssembleLightingData(invViewProjection, gbuffer, giDiffuseActive: _giDiffuseResource != null);
-        DeferredLightingData lightingData = environment.CurrentLightingData;
         GraphicsBuffer? pointLightBuffer = environment.PointLightBuffer;
         float deltaTime = context.DeltaTime;
         long recordStart = Stopwatch.GetTimestamp();
@@ -1337,27 +1336,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _clipmap.UpdateOrigins(cameraTransform.Position);
         }
 
-        // ── Assemble the GPU constant buffer internally ──
-        // Members land by name at their reflected offsets; no CPU twin struct
-        // to keep aligned with VoxelData on the shader side.
-        UniformGraphicsBuffer data = _dataBuffer;
-        data.SetValue("invViewProjection", invViewProjection);
-        data.SetValue("cameraPosition", new Vector4(cameraTransform.Position, 0.0f));
-
-        // Copy lighting/shadow/sky data from the scene environment.
-        DeferredLightingData ld = lightingData;
-        data.SetValues("sunViewProjection",
-            [ld.SunViewProjection0, ld.SunViewProjection1, ld.SunViewProjection2, ld.SunViewProjection3]);
-        data.SetValue("sunDirection", ld.SunDirection);
-        data.SetValue("sunColorAndIntensity", ld.SunColorAndIntensity);
-        data.SetValue("skyHorizonColor", ld.SkyHorizonColor);
-        data.SetValue("skyZenithColor", ld.SkyZenithColor);
-        data.SetValue("cascadeSplits", ld.CascadeSplits);
-        data.SetValue("cascadeTexelSizes", ld.CascadeTexelSizes);
-        data.SetValue("shadowEnabled", ld.Params.X > 0.5f);
-        data.SetValue("numPointLights", (uint)ld.Params.Y);
-        data.SetValue("shadowMapSize", ld.Params.Z);
-        data.SetValue("rsmCascadeIndex", (uint)RsmCascadeIndex);
+        UpdateData(environment, invViewProjection, cameraTransform.Position, gbuffer);
 
         // Bind the point-light buffer once (the buffer is stable across frames).
         if (pointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, pointLightBuffer))
@@ -1367,58 +1346,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _boundPointLightBuffer = pointLightBuffer;
         }
 
-        // User-tunable GI parameters.
-        Matrix4x4.Invert(invViewProjection, out Matrix4x4 viewProjection);
-        data.SetValue("viewProjection", viewProjection);
-        data.SetValue("viewProjectionPrev", _viewProjectionPrev);
-
-        data.SetValues("levelOrigins",
-        [
-            _clipmap.GetOriginAndVoxelSize(0), _clipmap.GetOriginAndVoxelSize(1),
-            _clipmap.GetOriginAndVoxelSize(2), _clipmap.GetOriginAndVoxelSize(3),
-        ]);
-        data.SetValues("levelRingOffsets",
-        [
-            _clipmap.GetRingOffset(0), _clipmap.GetRingOffset(1),
-            _clipmap.GetRingOffset(2), _clipmap.GetRingOffset(3),
-        ]);
-        data.SetValue("voxelResolution", (uint)_resolution);
-        data.SetValue("levelCount", (uint)LevelCount);
-        data.SetValue("mipCount", (uint)_mipCount);
-        data.SetValue("voxelSpecularEnabled", !SsrOnly);
-        uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
-        data.SetValue("emissiveScale", EmissiveScale);
-        data.SetValue("traceMaxDistance", TraceMaxDistance);
-        data.SetValue("traceWidth", traceWidth);
-        data.SetValue("traceHeight", (uint)_traceRaw.Height);
-        data.SetValue("debugView", (int)DebugView);
-        data.SetValue("gbufferWidth", (uint)gbuffer.Width);
-        data.SetValue("gbufferHeight", (uint)gbuffer.Height);
-        data.SetValue("giSkyIntensity", SkyIntensity);
-        data.SetValue("frameIndex", _frameIndex);
-        data.SetValue("giDiffuseBias", 0.05f);
-        data.SetValue("historyValid", _historyValid);
-        data.SetValue("diffuseSpreading", DiffuseSpreading);
-
-        // RSM sun bounce. The injection intensity is forced off when no map is
-        // bound (detached / RSM pass never attached) even if the property says
-        // otherwise, so the shader gate and the bindings stay consistent.
         RenderTexture? rsmMap = _rsmMapResource?.Texture;
         BindRsmTextures(rsmMap);
-        float rsmIntensity = rsmMap != null ? RsmInjectionIntensity : 0.0f;
-        // The shader sizes the glowing shell from its current march step
-        // (never thinner than 1.5 fine voxels / RSM texels), so it only needs
-        // the world-to-NDC-z scale of the cascade (depth range) and the RSM
-        // texel's world size.
-        float rsmTexelWorld = ld.CascadeTexelSizes[RsmCascadeIndex] * ld.Params.Z / MathF.Max(RsmResolution, 1);
-        float rsmDepthRange = MathF.Max(environment.CascadeDepthRanges[RsmCascadeIndex], 1e-3f);
-        data.SetValue("rsmIntensity", rsmIntensity);
-        data.SetValue("rsmMaxDistance", RsmMaxDistance);
-        data.SetValue("rsmDepthRange", rsmDepthRange);
-        data.SetValue("rsmMinAlbedo", RsmMinAlbedo);
-        data.SetValue("rsmResolution", (uint)RsmResolution);
-        data.SetValue("rsmTexelWorldSize", rsmTexelWorld);
-        data.Flush();
 
         // The G-buffer and shadow map render textures are stable across frames
         // (recreated on resize); avoid rebinding every frame.
@@ -1540,6 +1469,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
             // Gather rotation-balanced narrow-cone diffuse and specular from the
             // last-written radiance texture (direct + bounce).
+            uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
             _traceMaterial.SetTexture("_radiance", _radiance[radianceReadIndex]);
             _traceMaterial.SetRenderTexture("_traceHistory", _traceHistory, 0);
             _traceMaterial.SetRenderTexture("_giHistoryMetadata", _historyGI[_historyReadIndex], 0);
@@ -1578,10 +1508,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
                 ? commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 8, 9)
                 : commandBuffer.BeginCompute();
             _upsampleDataBuffer.SetValue("invViewProjection", invViewProjection);
-            _upsampleDataBuffer.SetValue("params", new Vector4(
-                _gbufferWidth, _gbufferHeight,
-                5.0f / _indirectAtlas.Width,
-                1.0f / _indirectAtlas.Height));
+            _upsampleDataBuffer.SetValue("gbufferWidth", _gbufferWidth);
+            _upsampleDataBuffer.SetValue("gbufferHeight", _gbufferHeight);
+            _upsampleDataBuffer.SetValue("invTraceWidth", 5.0f / _indirectAtlas.Width);
+            _upsampleDataBuffer.SetValue("invTraceHeight", 1.0f / _indirectAtlas.Height);
             _upsampleDataBuffer.Flush();
             _upsampleMaterial.DispatchBySize(upsamplePass, _gbufferWidth, _gbufferHeight, 1);
         }
@@ -1592,6 +1522,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         _instances.Clear();
+        Matrix4x4.Invert(invViewProjection, out Matrix4x4 viewProjection);
         _viewProjectionPrev = viewProjection;
         _historyReadIndex = 1 - _historyReadIndex;
         (_traceRaw, _traceHistory) = (_traceHistory, _traceRaw);
@@ -1634,6 +1565,68 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _gpuMilliseconds,
             sparseBrickTotal,
             bricksPerLevel * LevelCount);
+    }
+
+    /// <summary>
+    /// Assembles the per-frame voxel GI constants: members land by name at their
+    /// reflected offsets (no CPU twin of the shader block), flushed once per frame.
+    /// </summary>
+    /// <param name="environment">The scene environment (assembled this frame) providing sun/sky/cascade state.</param>
+    /// <param name="invViewProjection">The inverse view-projection matrix of the frame.</param>
+    /// <param name="cameraPosition">The world-space camera position.</param>
+    /// <param name="gbuffer">The G-buffer whose dimensions feed the trace constants.</param>
+    private void UpdateData(PBRSceneEnvironment environment, Matrix4x4 invViewProjection, Vector3 cameraPosition, RenderTexture gbuffer)
+    {
+        UniformGraphicsBuffer data = _dataBuffer;
+        data.SetValue("invViewProjection", invViewProjection);
+        data.SetValue("cameraPosition", new Vector4(cameraPosition, 0.0f));
+        data.SetValues("sunViewProjection", environment.CascadeViewProjections);
+        data.SetValue("sunDirection", new Vector4(environment.SunDirection, 0.0f));
+        data.SetValue("sunColorAndIntensity", new Vector4(environment.SunColor, environment.SunIntensity));
+        data.SetValue("skyHorizonColor", new Vector4(environment.SkyHorizonColor, 0.0f));
+        data.SetValue("skyZenithColor", new Vector4(environment.SkyZenithColor, 0.0f));
+        data.SetValue("cascadeSplits", new Vector4(
+            environment.CascadeSplits[0], environment.CascadeSplits[1], environment.CascadeSplits[2], environment.CascadeSplits[3]));
+        data.SetValue("cascadeTexelSizes", new Vector4(
+            environment.CascadeTexelSizes[0], environment.CascadeTexelSizes[1], environment.CascadeTexelSizes[2], environment.CascadeTexelSizes[3]));
+        data.SetValue("shadowEnabled", environment.ShadowEnabled);
+        data.SetValue("numPointLights", (uint)environment.PointLightCount);
+        data.SetValue("shadowMapSize", (float)environment.ShadowMapSize);
+        data.SetValue("rsmCascadeIndex", (uint)RsmCascadeIndex);
+        Matrix4x4.Invert(invViewProjection, out Matrix4x4 viewProjection);
+        data.SetValue("viewProjection", viewProjection);
+        data.SetValue("viewProjectionPrev", _viewProjectionPrev);
+        data.SetValues("levelOrigins", [_clipmap.GetOriginAndVoxelSize(0), _clipmap.GetOriginAndVoxelSize(1), _clipmap.GetOriginAndVoxelSize(2), _clipmap.GetOriginAndVoxelSize(3)]);
+        data.SetValues("levelRingOffsets", [_clipmap.GetRingOffset(0), _clipmap.GetRingOffset(1), _clipmap.GetRingOffset(2), _clipmap.GetRingOffset(3)]);
+        data.SetValue("voxelResolution", (uint)_resolution);
+        data.SetValue("levelCount", (uint)LevelCount);
+        data.SetValue("mipCount", (uint)_mipCount);
+        data.SetValue("voxelSpecularEnabled", !SsrOnly);
+        uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
+        data.SetValue("emissiveScale", EmissiveScale);
+        data.SetValue("traceMaxDistance", TraceMaxDistance);
+        data.SetValue("traceWidth", traceWidth);
+        data.SetValue("traceHeight", (uint)_traceRaw.Height);
+        data.SetValue("debugView", (int)DebugView);
+        data.SetValue("gbufferWidth", (uint)gbuffer.Width);
+        data.SetValue("gbufferHeight", (uint)gbuffer.Height);
+        data.SetValue("giSkyIntensity", SkyIntensity);
+        data.SetValue("frameIndex", _frameIndex);
+        data.SetValue("giDiffuseBias", 0.05f);
+        data.SetValue("historyValid", _historyValid);
+        data.SetValue("diffuseSpreading", DiffuseSpreading);
+        // RSM sun bounce: without a bound map the intensity stays 0, matching the shader-side gate.
+        RenderTexture? rsmMap = _rsmMapResource?.Texture;
+        float rsmIntensity = rsmMap != null ? RsmInjectionIntensity : 0.0f;
+        float rsmTexelWorld = environment.CascadeTexelSizes[RsmCascadeIndex] * environment.ShadowMapSize / MathF.Max(RsmResolution, 1);
+        float rsmDepthRange = MathF.Max(environment.CascadeDepthRanges[RsmCascadeIndex], 1e-3f);
+        data.SetValue("rsmIntensity", rsmIntensity);
+        data.SetValue("rsmMaxDistance", RsmMaxDistance);
+        data.SetValue("rsmDepthRange", rsmDepthRange);
+        data.SetValue("rsmMinAlbedo", RsmMinAlbedo);
+        data.SetValue("rsmResolution", (uint)RsmResolution);
+        data.SetValue("rsmTexelWorldSize", rsmTexelWorld);
+        data.Flush();
     }
 
     /// <summary>

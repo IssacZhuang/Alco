@@ -18,18 +18,6 @@ namespace Alco.World3D;
 /// </remarks>
 public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 {
-    private struct SsrData
-    {
-        public Matrix4x4 InvViewProjection;
-        public Matrix4x4 ViewProjection;
-        public Matrix4x4 PreviousViewProjection;
-        public Vector4 CameraPosition;
-        public Vector4 PreviousCameraPosition;
-        public Vector4 RenderSize;
-        public Vector4 Params;
-        public Vector4 RayParams;
-    }
-
     // GPU timestamp slots: two per pipeline stage (begin + end).
     private const int CopyQueryBase = 0;
     private const int TraceQueryBase = 2;
@@ -57,7 +45,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     private readonly GPUAttachmentLayout _blueNoiseLayout;
     private readonly RenderTexture _blueNoiseTexture;
     private bool _blueNoiseBaked;
-    private readonly GraphicsValueBuffer<SsrData> _dataBuffer;
+    private readonly UniformGraphicsBuffer _dataBuffer;
     private readonly GPUAttachmentLayout _historyLayout;
 
     // Facades of the graph-owned transients below; null until Attach creates them.
@@ -253,7 +241,11 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _resolveMaterial = rendering.CreateGraphicsMaterial(descriptor.ResolveShader, "ssr_resolve");
         _compositeMaterial = rendering.CreateGraphicsMaterial(descriptor.CompositeShader, "ssr_composite");
         _blueNoiseMaterial = rendering.CreateGraphicsMaterial(descriptor.BlueNoiseShader, "ssr_blue_noise_bake");
-        _dataBuffer = rendering.CreateGraphicsValueBuffer<SsrData>("ssr_post_data");
+        // Reflection-driven uniform buffer over the shared _ssrData block — no
+        // CPU twin of SsrData; members land by name at their reflected offsets.
+        _dataBuffer = rendering.CreateUniformGraphicsBuffer(
+            descriptor.TraceShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_ssrData"),
+            "ssr_post_data");
         _traceResolutionScale = descriptor.TraceResolutionScale;
         _historyLayout = rendering.GraphicsDevice.CreateAttachmentLayout(
             new AttachmentLayoutDescriptor(
@@ -441,22 +433,24 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
             invViewProjection = Matrix4x4.Identity;
         }
 
-        SsrData data = new()
-        {
-            InvViewProjection = invViewProjection,
-            ViewProjection = viewProjection,
-            PreviousViewProjection = _historyValid ? _previousViewProjection : viewProjection,
-            CameraPosition = new Vector4(_camera.Transform.Position, 1.0f),
-            PreviousCameraPosition = new Vector4(
-                _historyValid ? _previousCameraPosition : _camera.Transform.Position,
-                1.0f),
-            RenderSize = new Vector4(scene.Width, scene.Height,
-                reflectionRaw.Width, reflectionRaw.Height),
-            Params = new Vector4(_frameIndex, _historyValid ? 1.0f : 0.0f,
-                (int)_voxelGi.DebugView, _environment.GiSpecularStrength),
-            RayParams = new Vector4(MaxTraceDistance, RoughnessCutoff, 0.0f, 0.0f),
-        };
-        _dataBuffer.UpdateBuffer(data);
+        _dataBuffer.SetValue("ssrInvViewProjection", invViewProjection);
+        _dataBuffer.SetValue("ssrViewProjection", viewProjection);
+        _dataBuffer.SetValue("ssrPreviousViewProjection", _historyValid ? _previousViewProjection : viewProjection);
+        _dataBuffer.SetValue("ssrCameraPosition", new Vector4(_camera.Transform.Position, 1.0f));
+        _dataBuffer.SetValue("ssrPreviousCameraPosition", new Vector4(
+            _historyValid ? _previousCameraPosition : _camera.Transform.Position,
+            1.0f));
+        _dataBuffer.SetValue("fullWidth", scene.Width);
+        _dataBuffer.SetValue("fullHeight", scene.Height);
+        _dataBuffer.SetValue("traceWidth", reflectionRaw.Width);
+        _dataBuffer.SetValue("traceHeight", reflectionRaw.Height);
+        _dataBuffer.SetValue("frameIndex", _frameIndex);
+        _dataBuffer.SetValue("historyValid", _historyValid);
+        _dataBuffer.SetValue("debugMode", (int)_voxelGi.DebugView);
+        _dataBuffer.SetValue("strength", _environment.GiSpecularStrength);
+        _dataBuffer.SetValue("maxTraceDistance", MaxTraceDistance);
+        _dataBuffer.SetValue("roughnessCutoff", RoughnessCutoff);
+        _dataBuffer.Flush();
 
         GPUTimestampQuerySet? querySet = measureGpu ? _gpuTimestamps!.QuerySet : null;
 

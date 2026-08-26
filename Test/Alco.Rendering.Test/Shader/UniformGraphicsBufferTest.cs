@@ -89,6 +89,26 @@ public class UniformGraphicsBufferTest
             Throws.TypeOf<ArgumentException>(), "a float member cannot take a float4 value");
     }
 
+    [Test(Description = "An int blitted into a float member reads as a denormal on the GPU — the invisible-clouds regression")]
+    public void SetValue_ScalarKindMismatch_Throws()
+    {
+        ShaderUniformBlock block = ReflectBlock();
+
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using UniformGraphicsBuffer buffer = host.RenderingSystem
+            .CreateUniformGraphicsBuffer(block, "test_uniform");
+
+        Assert.That(() => buffer.SetValue("pulseSpeed", 64),
+            Throws.TypeOf<ArgumentException>().With.Message.Contains("Float32"),
+            "an int value against a float member is a silent reinterpretation");
+        Assert.That(() => buffer.SetValue("levelIndex", 1.5f),
+            Throws.TypeOf<ArgumentException>().With.Message.Contains("Int32"),
+            "a float value against an int member is a silent reinterpretation");
+        Assert.That(() => buffer.SetValue("enabled", 1u),
+            Throws.TypeOf<ArgumentException>().With.Message.Contains("Bool32"),
+            "a uint value against a bool member reinterprets instead of marshaling");
+    }
+
     [Test]
     public void SetValues_WrongElementCount_Throws()
     {

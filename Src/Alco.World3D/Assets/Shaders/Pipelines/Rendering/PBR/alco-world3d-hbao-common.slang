@@ -11,9 +11,10 @@ module alco_world3d_hbao_common;
 import alco_world3d_reversed_depth;
 
 // Shared per-frame data and helpers for the HBAO+ compute passes (hbao,
-// hbao-blur). The cbuffer layout must match HbaoRenderer.HbaoData on the C#
-// side exactly. Resources are grouped as ParameterBlocks — the compiler
-// assigns each block its own descriptor set; members resolve by bare name.
+// hbao-blur). The C# side writes members by name through UniformGraphicsBuffer
+// (reflection-driven offsets), so this layout needs no CPU twin. Resources are
+// grouped as ParameterBlocks — the compiler assigns each block its own
+// descriptor set; members resolve by bare name.
 
 public struct HbaoData
 {
@@ -22,9 +23,15 @@ public struct HbaoData
     public float4 cameraRight;    // xyz = world-space camera right axis
     public float4 cameraUp;       // xyz = world-space camera up axis
     public float4 cameraForward;  // xyz = world-space camera forward axis
-    public float4 params;         // x = radius (world units), y = intensity exponent, z = angle bias (sin space), w = 1 / radius^2
-    public float4 params2;        // x = projScale (0.5 * viewportHeight * projection y-scale), yz = viewport size in pixels, w = max step length in pixels
-    public float4 params3;        // x = strength (multiplies the blurred AO into the G-buffer AO channel), yzw = unused
+    public float  radius;         // world units
+    public float  intensity;      // exponent applied to the occlusion term
+    public float  bias;           // angle bias (sin space)
+    public float  invRadius2;     // 1 / radius^2
+    public float  projScale;      // 0.5 * viewportHeight * projection y-scale
+    public uint   viewportWidth;  // viewport size in pixels
+    public uint   viewportHeight;
+    public float  maxStepPixels;  // max step length in pixels
+    public float  strength;       // multiplies the blurred AO into the G-buffer AO channel
 };
 
 public ParameterBlock<HbaoData> _data;

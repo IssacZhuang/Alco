@@ -183,12 +183,42 @@ public sealed class TestRenderGraphExtensibility
         _host = Utility.CreateRenderingSystem();
         _rendering = _host.RenderingSystem;
         _device = _rendering.GraphicsDevice;
+        // The preset's scene environment reflects the real PBR common module
+        // (reflection-driven uniform buffer), so the resolver serves both shader
+        // trees (Alco.Rendering's core libs + Alco.World3D's pipelines) from the
+        // repository, applying the engine resolver's underscore→dashed filename
+        // convention; the two test modules stay virtual sources that bypass it.
+        Dictionary<string, string> shaderFiles = [];
+        DirectoryInfo? repoRoot = new(AppContext.BaseDirectory);
+        while (repoRoot != null && !File.Exists(Path.Combine(repoRoot.FullName, "Alco.slnx")))
+        {
+            repoRoot = repoRoot.Parent;
+        }
+        foreach (string module in new[] { "Alco.Rendering", "Alco.World3D" })
+        {
+            string shaderRoot = Path.Combine(
+                repoRoot?.FullName ?? throw new InvalidOperationException("Repository root not found."),
+                "Src", module, "Assets", "Shaders");
+            foreach (IGrouping<string, string> group in Directory
+                .EnumerateFiles(shaderRoot, "*.slang", SearchOption.AllDirectories)
+                .GroupBy(file => Path.GetFileName(file).Replace('_', '-'), StringComparer.OrdinalIgnoreCase))
+            {
+                shaderFiles.TryAdd(group.Key, group.First());
+            }
+        }
+        string? ResolveShader(string path)
+            => shaderFiles.TryGetValue(Path.GetFileName(path).Replace('_', '-'), out string? file)
+                ? File.ReadAllText(file)
+                : null;
         _shaderSystem = new ShaderSystem(
-            _rendering, new SlangCompilerOptions { Resolver = _ => null }, cacheDirectory: null);
+            _rendering, new SlangCompilerOptions { Resolver = ResolveShader }, cacheDirectory: null);
         _blitShader = _shaderSystem.GetShaderFromModule(
             "test_render_graph_blit", "test_render_graph_blit.slang", BlitShaderSource);
         _lightingShader = _shaderSystem.GetShaderFromModule(
             "test_render_graph_lighting", "test_render_graph_lighting.slang", LightingShaderSource);
+        // The rendering system's own shader system (used by PBRSceneEnvironment's
+        // lazy reflection lookup) shares the same file-serving resolver.
+        _rendering.SetShaderModuleResolver(ResolveShader);
         _destinationLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "test_destination"));
         _postProcessLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(

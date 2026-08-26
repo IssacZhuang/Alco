@@ -38,8 +38,8 @@ void MainPS(
     out float4 reflectionOut : SV_TARGET0,
     out float4 metadataOut : SV_TARGET1)
 {
-    float2 fullSize = _ssrData.ssrRenderSize.xy;
-    float2 traceSize = _ssrData.ssrRenderSize.zw;
+    float2 fullSize = float2(_ssrData.fullWidth, _ssrData.fullHeight);
+    float2 traceSize = float2(_ssrData.traceWidth, _ssrData.traceHeight);
     int2 centerPixel = clamp(
         int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float centerDepth = GetPixelDepth2D(_pass._gbufferDepth, centerPixel);
@@ -117,7 +117,7 @@ void MainPS(
     float historyMotion = 0.0;
     float4 history = 0.0;
     bool historyValid = false;
-    if (_ssrData.ssrParams.y > 0.5)
+    if (_ssrData.historyValid)
     {
         float4 previousClip = mul(
             _ssrData.ssrPreviousViewProjection, float4(centerWorld, 1.0));

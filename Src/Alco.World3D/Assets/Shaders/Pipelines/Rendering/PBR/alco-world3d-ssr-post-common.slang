@@ -11,7 +11,8 @@ module alco_world3d_ssr_post_common;
 import alco_rendering_core;
 
 // Shared by the post-lighting SSR trace, temporal resolve and composite passes.
-// The layout must match ScreenSpaceReflectionRenderer.SsrData exactly.
+// The C# side writes members by name through UniformGraphicsBuffer (reflection-
+// driven offsets), so this layout needs no CPU twin.
 // Resources are grouped as ParameterBlocks — the compiler assigns each block
 // its own descriptor set; members resolve by bare field name.
 public struct SsrData
@@ -19,11 +20,18 @@ public struct SsrData
     public float4x4 ssrInvViewProjection;
     public float4x4 ssrViewProjection;
     public float4x4 ssrPreviousViewProjection;
-    public float4 ssrCameraPosition;
-    public float4 ssrPreviousCameraPosition;
-    public float4 ssrRenderSize; // xy = full resolution, zw = trace resolution
-    public float4 ssrParams;     // x = frame index, y = history valid, z = debug mode, w = strength
-    public float4 ssrRayParams;  // x = max distance, y = roughness cutoff, zw = unused
+    public float4 ssrCameraPosition;           // xyz = world-space camera position
+    public float4 ssrPreviousCameraPosition;   // xyz = previous frame camera position
+    public uint   fullWidth;                   // full-resolution scene width in pixels
+    public uint   fullHeight;                  // full-resolution scene height in pixels
+    public uint   traceWidth;                  // trace-resolution width in pixels
+    public uint   traceHeight;                 // trace-resolution height in pixels
+    public uint   frameIndex;                  // animation frame counter
+    public bool   historyValid;                // temporal history may be reprojected
+    public int    debugMode;                   // composite debug view (0 = off)
+    public float  strength;                    // specular strength multiplier
+    public float  maxTraceDistance;            // world units
+    public float  roughnessCutoff;             // reflections fade out above this roughness
 };
 
 public ParameterBlock<SsrData> _ssrData;

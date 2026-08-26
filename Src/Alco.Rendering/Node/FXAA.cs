@@ -35,16 +35,6 @@ public enum FXAAQuality
 /// </summary>
 public class FXAA : TextureProcessor
 {
-    /// <summary>
-    /// Shader data structure for FXAA parameters
-    /// </summary>
-    private struct FXAAShaderData
-    {
-        public Vector2 InvFrameSize;    // 1.0 / frame size
-        public float Threshold;         // Edge detection threshold (0.063-0.333, default: 0.125)
-        public float Padding;           // Padding for alignment
-    }
-
     // Shader resource identifiers
     public const string ShaderId_texture = "_texture";
     public const string ShaderId_fxaaData = "_fxaaData";
@@ -62,7 +52,11 @@ public class FXAA : TextureProcessor
     // Blit material for the final copy.
     private readonly GraphicsMaterial _blitMaterial;
 
-    private readonly GraphicsValueBuffer<FXAAShaderData> _fxaaShaderData;
+    // Threshold mirrored on the CPU: the uniform buffer is write-only by name.
+    private float _threshold = 0.125f;
+    // Reflection-driven uniform buffer over the shader's _fxaaData block — no
+    // hand-written CPU twin (the alignment padding lives in the reflected layout).
+    private readonly UniformGraphicsBuffer _fxaaShaderData;
 
     private RenderTexture? _intermediateTexture;
     private GPUAttachmentLayout? _intermediateLayout;
@@ -91,13 +85,12 @@ public class FXAA : TextureProcessor
     /// </summary>
     public float Threshold
     {
-        get => _fxaaShaderData.Value.Threshold;
+        get => _threshold;
         set
         {
-            var data = _fxaaShaderData.Value;
-            data.Threshold = Math.Clamp(value, 0.063f, 0.333f);
-            _fxaaShaderData.Value = data;
-            _fxaaShaderData.UpdateBuffer();
+            _threshold = Math.Clamp(value, 0.063f, 0.333f);
+            _fxaaShaderData.SetValue("Threshold", _threshold);
+            _fxaaShaderData.Flush();
         }
     }
 
@@ -118,15 +111,16 @@ public class FXAA : TextureProcessor
 
         _blitMaterial = renderingSystem.CreateGraphicsMaterial(blitShader, "fxaa_blit_material");
 
-        // Create shader data buffer with default values
-        _fxaaShaderData = renderingSystem.CreateGraphicsValueBuffer<FXAAShaderData>("fxaa_data");
-        _fxaaShaderData.Value = new FXAAShaderData
-        {
-            InvFrameSize = Vector2.One,
-            Threshold = 0.125f,
-            Padding = 0.0f
-        };
-        _fxaaShaderData.UpdateBuffer();
+        // Create the reflection-driven data buffer over the shader's _fxaaData
+        // block; members land by name at their reflected offsets. The entry
+        // points are Quality-generic, so the reflected module is the current
+        // preset's specialization (the block layout is quality-independent).
+        _fxaaShaderData = renderingSystem.CreateUniformGraphicsBuffer(
+            fxaaShader.GetShaderModules((int)_quality).ReflectionInfo.UniformBlocks.First(block => block.Name == ShaderId_fxaaData),
+            "fxaa_data");
+        _fxaaShaderData.SetValue("InvFrameSize", Vector2.One);
+        _fxaaShaderData.SetValue("Threshold", _threshold);
+        _fxaaShaderData.Flush();
         _fxaaMaterial.SetBuffer(ShaderId_fxaaData, _fxaaShaderData);
     }
 
@@ -172,10 +166,8 @@ public class FXAA : TextureProcessor
         }
 
         // Update frame size for shader
-        var data = _fxaaShaderData.Value;
-        data.InvFrameSize = new Vector2(1.0f / input.Width, 1.0f / input.Height);
-        _fxaaShaderData.Value = data;
-        _fxaaShaderData.UpdateBuffer();
+        _fxaaShaderData.SetValue("InvFrameSize", new Vector2(1.0f / input.Width, 1.0f / input.Height));
+        _fxaaShaderData.Flush();
     }
 
     /// <summary>

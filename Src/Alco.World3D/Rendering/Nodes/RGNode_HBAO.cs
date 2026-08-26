@@ -20,36 +20,11 @@ namespace Alco.World3D;
 /// </summary>
 public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
 {
-    /// <summary>
-    /// Per-frame HBAO data uploaded to both compute passes. Layout must match the
-    /// <c>_data</c> cbuffer in HBAOCommon.slang exactly. Assembled internally by
-    /// the renderer from camera data and user-tunable properties.
-    /// </summary>
-    private struct HbaoData
-    {
-        /// <summary>Inverse of the camera view-projection matrix.</summary>
-        public Matrix4x4 InvViewProjection;
-        /// <summary>World-space camera position (w unused).</summary>
-        public Vector4 CameraPosition;
-        /// <summary>World-space camera right axis (w unused).</summary>
-        public Vector4 CameraRight;
-        /// <summary>World-space camera up axis (w unused).</summary>
-        public Vector4 CameraUp;
-        /// <summary>World-space camera forward axis (w unused).</summary>
-        public Vector4 CameraForward;
-        /// <summary>x=radius (world units) y=intensity exponent z=angle bias (sin space) w=1/radius^2.</summary>
-        public Vector4 Params;
-        /// <summary>x=projScale (0.5 * viewportHeight * projection[1][1]) yz=viewport size in pixels (filled by <see cref="Execute"/>) w=max step length in pixels.</summary>
-        public Vector4 Params2;
-        /// <summary>x=strength (0 disables; scales how much of the blurred AO is written to the result texture) yzw=unused.</summary>
-        public Vector4 Params3;
-    }
-
     private readonly RenderingSystem _rendering;
     private readonly GPUDevice _device;
     private readonly ComputeMaterial _hbaoMaterial;
     private readonly ComputeMaterial _blurMaterial;
-    private readonly GraphicsValueBuffer<HbaoData> _dataBuffer;
+    private readonly UniformGraphicsBuffer _dataBuffer;
 
     // GPU timestamp ring buffer for per-stage timing (slot 0 = pass begin,
     // slot 1 = after AO before Blur, slot 2 = pass end).
@@ -136,7 +111,11 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         _device = rendering.GraphicsDevice;
         _hbaoMaterial = rendering.CreateComputeMaterial(descriptor.HbaoShader);
         _blurMaterial = rendering.CreateComputeMaterial(descriptor.BlurShader);
-        _dataBuffer = rendering.CreateGraphicsValueBuffer<HbaoData>("hbao_data");
+        // Reflection-driven uniform buffer over the shared _data block — no CPU
+        // twin of HbaoData; members land by name at their reflected offsets.
+        _dataBuffer = rendering.CreateUniformGraphicsBuffer(
+            descriptor.HbaoShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_data"),
+            "hbao_data");
         _hbaoMaterial.SetBuffer("_data", _dataBuffer);
         _blurMaterial.SetBuffer("_data", _dataBuffer);
 
@@ -269,18 +248,21 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         Quaternion rot = cameraTransform.Rotation;
         float r2 = MathF.Max(Radius * Radius, 1e-6f);
         float projectionScale = 0.5f * gbuffer.Height * projectionMatrix.M22;
-        HbaoData data = new()
-        {
-            InvViewProjection = invViewProjection,
-            CameraPosition = new Vector4(cameraTransform.Position, 0.0f),
-            CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, rot), 0.0f),
-            CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, rot), 0.0f),
-            CameraForward = new Vector4(Vector3.Transform(Vector3.UnitX, rot), 0.0f),
-            Params = new Vector4(Radius, Intensity, Bias, 1.0f / r2),
-            Params2 = new Vector4(projectionScale, gbuffer.Width, gbuffer.Height, MaxStepPixels),
-            Params3 = new Vector4(Strength, 0.0f, 0.0f, 0.0f),
-        };
-        _dataBuffer.UpdateBuffer(data);
+        _dataBuffer.SetValue("invViewProjection", invViewProjection);
+        _dataBuffer.SetValue("cameraPosition", new Vector4(cameraTransform.Position, 0.0f));
+        _dataBuffer.SetValue("cameraRight", new Vector4(Vector3.Transform(Vector3.UnitY, rot), 0.0f));
+        _dataBuffer.SetValue("cameraUp", new Vector4(Vector3.Transform(Vector3.UnitZ, rot), 0.0f));
+        _dataBuffer.SetValue("cameraForward", new Vector4(Vector3.Transform(Vector3.UnitX, rot), 0.0f));
+        _dataBuffer.SetValue("radius", Radius);
+        _dataBuffer.SetValue("intensity", Intensity);
+        _dataBuffer.SetValue("bias", Bias);
+        _dataBuffer.SetValue("invRadius2", 1.0f / r2);
+        _dataBuffer.SetValue("projScale", projectionScale);
+        _dataBuffer.SetValue("viewportWidth", gbuffer.Width);
+        _dataBuffer.SetValue("viewportHeight", gbuffer.Height);
+        _dataBuffer.SetValue("maxStepPixels", MaxStepPixels);
+        _dataBuffer.SetValue("strength", Strength);
+        _dataBuffer.Flush();
 
         // The G-buffer render texture is recreated on resize; avoid rebinding every frame.
         if (!ReferenceEquals(_boundGBuffer, gbuffer))

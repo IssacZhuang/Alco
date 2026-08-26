@@ -41,7 +41,7 @@ public ParameterBlock<PassParams> _pass;
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint2 pixel = dispatchId.xy;
-    uint2 viewportSize = uint2(_data.params2.y, _data.params2.z);
+    uint2 viewportSize = uint2(_data.viewportWidth, _data.viewportHeight);
     if (pixel.x >= viewportSize.x || pixel.y >= viewportSize.y)
     {
         return;
@@ -61,12 +61,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 viewVector = normalize(_data.cameraPosition.xyz - position);
     float viewDepth = ViewDepth(position);
 
-    float radius = _data.params.x;
-    float invRadius2 = _data.params.w;
+    float radius = _data.radius;
+    float invRadius2 = _data.invRadius2;
 
     // Project the world-space radius to a per-direction step length in pixels at
     // this depth, clamped so rays neither degenerate nor march across the screen.
-    float stepPixels = clamp(_data.params2.x * radius / max(viewDepth, 1e-3) / HBAO_NUM_STEPS, 1.0, _data.params2.w);
+    float stepPixels = clamp(_data.projScale * radius / max(viewDepth, 1e-3) / HBAO_NUM_STEPS, 1.0, _data.maxStepPixels);
     float2 texelSize = 1.0 / float2(viewportSize);
 
     float rotationNoise = InterleavedGradientNoise(pixel);
@@ -113,12 +113,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             // radius has a soft boundary instead of a hard cutoff.
             float horizonSin = dot(delta, viewVector) * rsqrt(distance2 + 1e-8);
             float falloff = saturate(1.0 - distance2 * invRadius2);
-            directionOcclusion = max(directionOcclusion, max(horizonSin - sinTangent - _data.params.z, 0.0) * falloff);
+            directionOcclusion = max(directionOcclusion, max(horizonSin - sinTangent - _data.bias, 0.0) * falloff);
         }
         occlusionSum += directionOcclusion;
     }
 
     float ao = saturate(1.0 - occlusionSum / HBAO_NUM_DIRECTIONS);
-    ao = pow(ao, _data.params.y);
+    ao = pow(ao, _data.intensity);
     _pass._aoOutput[pixel] = float4(ao, ao, ao, 1.0);
 }

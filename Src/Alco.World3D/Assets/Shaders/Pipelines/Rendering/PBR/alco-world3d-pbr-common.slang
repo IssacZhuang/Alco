@@ -13,8 +13,9 @@ import alco_rendering_core;
 import alco_world3d_atmosphere;
 
 // Shared PBR functions used by both the deferred lighting pass and the
-// forward glass pass. The cbuffer layout must match the C# side's frame
-// data layout exactly.
+// forward glass pass. The C# side (PBRSceneEnvironment) writes members by
+// name through UniformGraphicsBuffer (reflection-driven offsets), so this
+// layout needs no CPU twin.
 
 public struct PbrData
 {
@@ -28,15 +29,29 @@ public struct PbrData
     public float4 skyParams2;           // x=starIntensity y=nightFloor z=sunRadianceScale w=ambientFloor
     public float4 skyHorizonColor;      // azimuthally filtered physical sky at the horizon
     public float4 skyZenithColor;       // filtered physical sky at the zenith
-    public float4 pbrParams;            // x=shadowEnabled y=numPointLights z=shadowMapSize w=sunDiscEnabled
+    public bool   shadowEnabled;        // sun shadow map bound and sampled
+    public uint   numPointLights;       // active point lights in the StructuredBuffer
+    public float  shadowMapSize;        // per-cascade texel count (the atlas is 2x this)
+    public bool   sunDiscEnabled;       // procedural sky renders the sun disc
     public float4 cascadeSplits;        // radial end distance of each cascade; beyond w there is no shadow
     public float4 cascadeTexelSizes;    // world units per shadow texel of each cascade
-    public float4 params2;              // x=shadowTightness (0=linear, 1=full penumbra power curve); y/z/w unused (debug views are the DebugView specialization axis)
-    public float4 viewportSize;         // xy = render target size in pixels
-    public float4 params3;              // x=giEnabled, y=giDiffuseStrength, z=giSpecularStrength; w unused (GI debug views are the DebugView specialization axis)
-    public float4 params4;              // x=sunDiscSize(cosine threshold, higher=smaller) y=sunDiscBrightness z=1/GI trace width w=1/GI trace height (0 when GI is off)
-    public float4 vlParams;             // x=enabled(>0) y=fogDensity z=heightScaleHeight(constant model ignores) w=phaseG(Henyey-Greenstein anisotropy)
-    public float4 cloudShadow;          // x=strength y=shadow plane altitude m z=half extent m w=enabled(>0; _cloudShadow texture holds the coverage)
+    public float  shadowTightness;      // 0 = linear PCF average, 1 = full penumbra power curve
+    public uint   viewportWidth;        // render target size in pixels
+    public uint   viewportHeight;
+    public bool   giEnabled;            // diffuse GI input wired and enabled
+    public float  giDiffuseStrength;
+    public float  giSpecularStrength;
+    public float  sunDiscSize;          // cosine angular threshold, higher = smaller disc
+    public float  sunDiscBrightness;    // HDR visual brightness independent of lighting intensity
+    public bool   volumetricLightEnabled;
+    public float  volumetricLightIntensity; // radiance multiplier (the gate above reads the enabled flag)
+    public float  fogDensity;               // volumetric light scattering density
+    public float  heightScaleHeight;        // height-falloff model (constant model ignores)
+    public float  phaseG;                   // Henyey-Greenstein anisotropy
+    public float  cloudShadowStrength;  // 0 = off; _cloudShadow texture holds the coverage
+    public float  cloudShadowPlaneAltitude; // meters, mid-slab
+    public float  cloudShadowExtent;    // half extent of the coverage grid in meters
+    public bool   cloudShadowEnabled;
 };
 
 public ParameterBlock<PbrData> _data;
@@ -244,7 +259,7 @@ public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int casca
     float bias = 0.0003 + 0.0015 * (1.0 - NdotL);
     float compareDepth = ndc.z - bias;
 
-    float texelAtlas = 0.5 / _data.pbrParams.z;
+    float texelAtlas = 0.5 / _data.shadowMapSize;
     float2 quadrantMin = quadrantOffset + texelAtlas * 0.5;
     float2 quadrantMax = quadrantOffset + 0.5 - texelAtlas * 0.5;
 
@@ -267,7 +282,7 @@ public float SampleShadowMap(float3 worldPosition, float3 N, float3 L, int casca
     // lit-to-shadow transition, buying a contact-hardening look for free.
     // Cascade 0 (contacts) gets the stronger curve. params2.z is the strength:
     // 0 = linear average (previous behavior), 1 = full effect.
-    float exponent = cascade == 0 ? lerp(1.0, 3.0, _data.params2.z) : lerp(1.0, 2.0, _data.params2.z);
+    float exponent = cascade == 0 ? lerp(1.0, 3.0, _data.shadowTightness) : lerp(1.0, 2.0, _data.shadowTightness);
     return pow(shadow, exponent);
 }
 
@@ -300,10 +315,10 @@ public float3 GetSkyColor(float3 direction)
     float3 sky = AtmosphereSkyRadiance(direction, dirToSun, _data.skyParams, _data.skyParams2, 16, 8);
     sky += AtmosphereStars(direction, dirToSun, _data.skyParams2.x);
 
-    if (_data.pbrParams.w > 0.5)
+    if (_data.sunDiscEnabled)
     {
         float sunDot = dot(normalize(direction), dirToSun);
-        float cosRadius = _data.params4.x;
+        float cosRadius = _data.sunDiscSize;
         float edgeWidth = max((1.0 - cosRadius) * 0.2, 1e-7);
         float disc = smoothstep(cosRadius - edgeWidth, cosRadius, sunDot);
         float coronaRange = (1.0 - cosRadius) * 3.5;
@@ -317,7 +332,7 @@ public float3 GetSkyColor(float3 direction)
         // Keep the disc clearly separated from the atmospheric glare.  The old
         // 8% corona was already 1.44 HDR at the default disc brightness, so it
         // clipped together with the Mie lobe before bloom was even applied.
-        sky += _data.sunColorAndIntensity.rgb * _data.params4.y * (disc + corona * 0.025) * horizon;
+        sky += _data.sunColorAndIntensity.rgb * _data.sunDiscBrightness * (disc + corona * 0.025) * horizon;
     }
     return sky;
 }
@@ -368,7 +383,7 @@ public float3 EvaluatePointLights(float3 N, float3 V, float3 worldPosition,
     float3 albedo, float metallic, float roughness)
 {
     float3 Lo = 0.0;
-    uint lightCount = (uint)_data.pbrParams.y;
+    uint lightCount = _data.numPointLights;
     [loop]
     for (uint i = 0; i < lightCount; i++)
     {

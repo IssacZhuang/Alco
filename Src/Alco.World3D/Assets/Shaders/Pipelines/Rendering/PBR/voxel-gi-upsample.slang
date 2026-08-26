@@ -24,7 +24,10 @@ import alco_world3d_reversed_depth;
 public struct DataParams
 {
     public float4x4 invViewProjection;
-    public float4 params; // xy = G-buffer size in pixels, z = 1/traceWidth (= 5/atlasWidth), w = 1/traceHeight
+    public uint gbufferWidth;    // G-buffer width in pixels
+    public uint gbufferHeight;   // G-buffer height in pixels
+    public float invTraceWidth;  // one trace texel in segment-local UV (5/atlasWidth)
+    public float invTraceHeight; // one trace texel in segment-local UV (1/traceHeight)
 };
 public ParameterBlock<DataParams> _data;
 
@@ -50,7 +53,7 @@ public ParameterBlock<PassParams> _pass;
 
 float ReconstructLinearDepth(uint2 pixel)
 {
-    float2 uv = (float2(pixel) + 0.5) / _data.params.xy;
+    float2 uv = (float2(pixel) + 0.5) / float2(_data.gbufferWidth, _data.gbufferHeight);
     float2 ndc = float2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
     float depth = GetPixelDepth2D(_pass._gbufferDepth, int2(pixel));
     float reciprocalClipW = dot(_data.invViewProjection[3], float4(ndc, depth, 1.0));
@@ -62,7 +65,7 @@ float ReconstructLinearDepth(uint2 pixel)
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint2 pixel = dispatchId.xy;
-    uint2 viewportSize = uint2(_data.params.x, _data.params.y);
+    uint2 viewportSize = uint2(_data.gbufferWidth, _data.gbufferHeight);
     if (pixel.x >= viewportSize.x || pixel.y >= viewportSize.y)
     {
         return;
@@ -85,7 +88,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float2 traceUV = uv * float2(1.0 / segmentCount, 1.0);
 
     float linearDepth = ReconstructLinearDepth(pixel);
-    float2 traceTexel = _data.params.zw; // one trace texel in segment-local UV
+    float2 traceTexel = float2(_data.invTraceWidth, _data.invTraceHeight); // one trace texel in segment-local UV
     float2 atlasTexel = float2(traceTexel.x / segmentCount, traceTexel.y);
     float4 sampleTM = float4(atlasTexel * 1.5, atlasTexel * 0.25);
     const float2 sampleOffsets[5] =

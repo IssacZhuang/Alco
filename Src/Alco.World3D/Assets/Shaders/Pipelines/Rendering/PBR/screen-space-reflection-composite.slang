@@ -38,8 +38,8 @@ float4 SsrPostGeometryAwareUpsample(
     float3 receiverNormal,
     float3 receiverWorld)
 {
-    int2 fullExtent = max(int2(_ssrData.ssrRenderSize.xy), int2(1, 1));
-    int2 traceExtent = max(int2(_ssrData.ssrRenderSize.zw), int2(1, 1));
+    int2 fullExtent = max(int2(_ssrData.fullWidth, _ssrData.fullHeight), int2(1, 1));
+    int2 traceExtent = max(int2(_ssrData.traceWidth, _ssrData.traceHeight), int2(1, 1));
     int2 traceCenter = clamp(
         int2(uv * float2(traceExtent)), int2(0, 0), traceExtent - 1);
 
@@ -155,14 +155,14 @@ float4 MainPS(V2F input) : SV_TARGET
 
     // These two views are produced here instead of in deferred lighting so
     // the ray always samples the normal fully-lit scene color first.
-    bool debugSpecular = _ssrData.ssrParams.z > 1.5 && _ssrData.ssrParams.z < 2.5;
-    bool debugConfidence = _ssrData.ssrParams.z > 4.5 && _ssrData.ssrParams.z < 5.5;
-    if (_ssrData.ssrParams.z > 0.5 && !debugSpecular && !debugConfidence)
+    bool debugSpecular = _ssrData.debugMode == 1;
+    bool debugConfidence = _ssrData.debugMode == 5;
+    if (_ssrData.debugMode != 0 && !debugSpecular && !debugConfidence)
     {
         return scene;
     }
 
-    float2 fullSize = _ssrData.ssrRenderSize.xy;
+    float2 fullSize = float2(_ssrData.fullWidth, _ssrData.fullHeight);
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float depth = GetPixelDepth2D(_pass._gbufferDepth, pixel);
     if (IS_SKY_DEPTH(depth))
@@ -199,8 +199,8 @@ float4 MainPS(V2F input) : SV_TARGET
     float NdotV = saturate(dot(normal, V));
     float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
     float3 reflectionWeight = SsrPostEnvBRDF(F0, roughness, NdotV)
-        * reflection.a * _ssrData.ssrParams.w;
-    reflectionWeight *= saturate((_ssrData.ssrRayParams.y - roughness) / 0.25);
+        * reflection.a * _ssrData.strength;
+    reflectionWeight *= saturate((_ssrData.roughnessCutoff - roughness) / 0.25);
 
     // Complementary's reflection composite is a Fresnel-weighted replacement,
     // not an unbounded additive light. This preserves energy while allowing a

@@ -169,10 +169,40 @@ public sealed class TestPBRDeferredPreset
         _host = Utility.CreateRenderingSystem();
         _rendering = _host.RenderingSystem;
         _device = _rendering.GraphicsDevice;
+        // The preset's scene environment reflects the real PBR common module
+        // (reflection-driven uniform buffer), so the resolver serves both shader
+        // trees (Alco.Rendering's core libs + Alco.World3D's pipelines) from the
+        // repository, applying the engine resolver's underscore→dashed filename
+        // convention (module 'alco_world3d_pbr_common' lives in
+        // 'alco-world3d-pbr-common.slang'); the two test modules stay virtual
+        // sources that bypass the resolver.
+        Dictionary<string, string> shaderFiles = [];
+        foreach (string module in new[] { "Alco.Rendering", "Alco.World3D" })
+        {
+            string shaderRoot = Path.Combine(RepoRoot(), "Src", module, "Assets", "Shaders");
+            foreach (IGrouping<string, string> group in Directory
+                .EnumerateFiles(shaderRoot, "*.slang", SearchOption.AllDirectories)
+                .GroupBy(file => Path.GetFileName(file).Replace('_', '-'), StringComparer.OrdinalIgnoreCase))
+            {
+                shaderFiles.TryAdd(group.Key, group.First());
+            }
+        }
+        string? ResolveShader(string path)
+            => shaderFiles.TryGetValue(Path.GetFileName(path).Replace('_', '-'), out string? file)
+                ? File.ReadAllText(file)
+                : null;
         _shaderSystem = new ShaderSystem(
-            _rendering, new SlangCompilerOptions { Resolver = _ => null }, cacheDirectory: null);
+            _rendering,
+            new SlangCompilerOptions
+            {
+                Resolver = ResolveShader,
+            },
+            cacheDirectory: null);
         _blitShader = _shaderSystem.GetShaderFromModule("test_blit", "test_blit.slang", BlitShaderSource);
         _lightingShader = _shaderSystem.GetShaderFromModule("test_lighting", "test_lighting.slang", LightingShaderSource);
+        // The rendering system's own shader system (used by PBRSceneEnvironment's
+        // lazy reflection lookup) shares the same file-serving resolver.
+        _rendering.SetShaderModuleResolver(ResolveShader);
         _destinationLayout = _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "test_destination"));
     }
@@ -187,11 +217,20 @@ public sealed class TestPBRDeferredPreset
         _host.Dispose();
     }
 
+    private static string RepoRoot()
+    {
+        DirectoryInfo? dir = new(AppContext.BaseDirectory);
+        while (dir != null && !File.Exists(Path.Combine(dir.FullName, "Alco.slnx")))
+        {
+            dir = dir.Parent;
+        }
+        return dir?.FullName ?? throw new InvalidOperationException("Repository root not found.");
+    }
+
     private PBRDeferredPreset CreatePreset(uint width = 64, uint height = 64)
     {
         return RenderPipelines.CreatePBRDeferred(
-            _rendering,
-            _lightingShader,
+            _rendering,            _lightingShader,
             _blitShader,
             shadowMapSize: 64,
             width: width,

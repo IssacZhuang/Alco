@@ -21,7 +21,6 @@ public struct FxaaData
 {
     public float2 InvFrameSize; // 1.0 / FrameSize
     public float Threshold;     // Edge detection threshold (0.063-0.333)
-    public float _padding;      // Padding for alignment
 };
 
 public ParameterBlock<FxaaData> _fxaaData;

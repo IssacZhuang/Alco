@@ -42,7 +42,7 @@ public ParameterBlock<PassParams> _pass;
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint2 pixel = dispatchId.xy;
-    uint2 viewportSize = uint2(_data.params2.y, _data.params2.z);
+    uint2 viewportSize = uint2(_data.viewportWidth, _data.viewportHeight);
     if (pixel.x >= viewportSize.x || pixel.y >= viewportSize.y)
     {
         return;
@@ -89,6 +89,6 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Write the blurred AO to the standalone result texture. The lighting pass
     // multiplies this with the material AO from the G-buffer. White (1.0) when
     // strength is zero → no screen-space occlusion.
-    float result = lerp(1.0, ao, saturate(_data.params3.x));
+    float result = lerp(1.0, ao, saturate(_data.strength));
     _pass._aoResult[pixel] = float4(result, result, result, 1.0);
 }

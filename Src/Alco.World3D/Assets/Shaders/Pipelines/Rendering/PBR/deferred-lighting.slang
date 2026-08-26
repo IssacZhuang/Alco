@@ -79,7 +79,7 @@ float3 ReconstructWorldPosition(V2F input)
 {
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
     float depth = max(GetPixelDepth2D(_lighting._gbufferDepth,
-        int2(input.uv * _data.viewportSize.xy)), PBR_SKY_DEPTH_EPSILON);
+        int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight))), PBR_SKY_DEPTH_EPSILON);
     float4 world = mul(_data.invViewProjection, float4(ndc, depth, 1.0));
     return world.xyz / world.w;
 }
@@ -91,7 +91,7 @@ float ReconstructLinearDepth(V2F input)
 {
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
     float depth = max(GetPixelDepth2D(_lighting._gbufferDepth,
-        int2(input.uv * _data.viewportSize.xy)), PBR_SKY_DEPTH_EPSILON);
+        int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight))), PBR_SKY_DEPTH_EPSILON);
     float reciprocalClipW = dot(_data.invViewProjection[3], float4(ndc, depth, 1.0));
     return abs(rcp(reciprocalClipW));
 }
@@ -108,7 +108,7 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
     // 4 = GI diffuse, 5 = GI specular, 6 = GI visibility. Dead branches fold
     // away at compile time, so the non-debug variant carries no branch cost.
     float depth = GetPixelDepth2D(_lighting._gbufferDepth,
-        int2(input.uv * _data.viewportSize.xy));
+        int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight)));
 
     float3 worldPosition = ReconstructWorldPosition(input);
     float3 viewDirection = normalize(worldPosition - _data.cameraPosition.xyz);
@@ -153,7 +153,7 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         // zeroes their contribution via max(NdotL, 0), so the PCF taps are
         // pure waste on roughly 30–50 % of screen-space pixels.
         float sunNdotL = dot(N, L);
-        if (_data.pbrParams.x > 0.5 && sunNdotL > 0.0)
+        if (_data.shadowEnabled && sunNdotL > 0.0)
         {
             sunShadow = SampleSunShadow(worldPosition, N, L, input.position.xy, viewDistance, cascade);
         }
@@ -161,11 +161,11 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         // Volumetric cloud shadows: dim the direct sun by the cloud column
         // coverage where the receiver's sun ray pierces the cloud slab. The
         // coverage texture is baked by the clouds plugin around the camera.
-        if (_data.cloudShadow.w > 0.5 && L.z > 0.02)
+        if (_data.cloudShadowEnabled && L.z > 0.02)
         {
-            float3 hit = worldPosition + L * ((_data.cloudShadow.y - worldPosition.z) / L.z);
-            float2 uv = (hit.xy - _data.cameraPosition.xy) / _data.cloudShadow.z + 0.5;
-            sunShadow *= 1.0 - _data.cloudShadow.x * _lighting._cloudShadow.Sample(_samplers._linearClamp, uv).r;
+            float3 hit = worldPosition + L * ((_data.cloudShadowPlaneAltitude - worldPosition.z) / L.z);
+            float2 uv = (hit.xy - _data.cameraPosition.xy) / _data.cloudShadowExtent + 0.5;
+            sunShadow *= 1.0 - _data.cloudShadowStrength * _lighting._cloudShadow.Sample(_samplers._linearClamp, uv).r;
         }
 
         Lo += EvaluatePBR(N, V, L, albedo, metallic, roughness)
@@ -194,7 +194,7 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
     float3 diffuseIrradiance = skyAmbient + ambientFloor;
     float3 indirectSpecularTerm = 0.0;
 
-    if (_data.params3.x > 0.5)
+    if (_data.giEnabled)
     {
         // Full-resolution textures from the GI plugin's upsample pass. The
         // directional modulation (ALD), near/far layer blend and depth-weighted
@@ -226,13 +226,13 @@ float4 MainPS<let DebugView : int>(V2F input) : SV_TARGET
         // is small (~0.05–0.15) and still multiplied by AO below, so
         // GI-driven AO contrast is preserved.
         diffuseIrradiance = max(giDiffuseColor, 0.0)
-            * _data.params3.y + ambientFloor;
+            * _data.giDiffuseStrength + ambientFloor;
 
         float NdotV = max(dot(N, V), 0.0);
         float3 F0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
         indirectSpecularTerm = giSpecularColor
             * EnvBRDFApprox(F0, roughness, NdotV)
-            * _data.params3.z;
+            * _data.giSpecularStrength;
     }
 
     // Material AO and screen-space AO affect indirect/environment illumination

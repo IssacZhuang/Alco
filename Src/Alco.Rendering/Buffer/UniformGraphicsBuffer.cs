@@ -34,7 +34,7 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
 
     internal UniformGraphicsBuffer(
         RenderingSystem renderingSystem, ShaderUniformBlock block, string name)
-        : base(renderingSystem, (uint)blockSize(block), name)
+        : base(renderingSystem, (uint)BlockSize(block), name)
     {
         if (block.UnsupportedMemberReason != null)
         {
@@ -53,14 +53,38 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
     /// Writes one member by name, staging the value at the member's reflected
     /// offset. A scalar/vector/matrix member takes its matching unmanaged type
     /// (e.g. <c>float3</c> ↔ <c>Vector3</c>); integer members marshal through
-    /// the same-width managed types (e.g. <c>uint</c> ↔ <c>uint</c>).
+    /// the same-width managed types (e.g. <c>uint</c> ↔ <c>uint</c>), and
+    /// <see langword="bool"/> marshals to the GPU's 4-byte 0/1. The value's
+    /// scalar kind must match the member's reflected type — an <see langword="int"/>
+    /// written to a <c>float</c> member is a silent garbage reinterpretation, so
+    /// it throws instead.
     /// </summary>
     /// <param name="name">The member name, as reflected.</param>
-    /// <param name="value">The value to write (blitted raw, no reinterpretation).</param>
+    /// <param name="value">The value to write (blitted raw once the kind matches).</param>
     /// <exception cref="KeyNotFoundException">No member of that name exists.</exception>
-    /// <exception cref="ArgumentException">The value's size does not fit the member.</exception>
+    /// <exception cref="ArgumentException">The value's kind or size does not match the member.</exception>
     public void SetValue<T>(string name, T value) where T : unmanaged
     {
+        if (typeof(T) == typeof(bool))
+        {
+            // Managed bool is 1 byte; the GPU slot is a 4-byte 0/1. Marshal
+            // explicitly instead of blitting a partial byte.
+            ShaderUniformMember member = Resolve(name);
+            if (member.ScalarType != ShaderUniformScalarType.Bool32 || member.ComponentCount != 1)
+            {
+                throw new ArgumentException(
+                    $"Uniform member '{name}' of block '{_blockName}' is {member.ScalarType}; a bool value needs a bool shader member.");
+            }
+            uint flag = Unsafe.As<T, bool>(ref value) ? 1u : 0u;
+            ReadOnlySpan<byte> flagBytes;
+            unsafe
+            {
+                flagBytes = new ReadOnlySpan<byte>(&flag, sizeof(uint));
+            }
+            SetSpan(name, flagBytes);
+            return;
+        }
+        ValidateElement<T>(name);
         ReadOnlySpan<byte> bytes;
         unsafe
         {
@@ -77,7 +101,8 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
     /// <param name="name">The array member name, as reflected.</param>
     /// <param name="values">The elements, exactly <see cref="ShaderUniformMember.ElementCount"/> of them.</param>
     /// <exception cref="KeyNotFoundException">No member of that name exists.</exception>
-    /// <exception cref="ArgumentException">The element count or element size does not match the member.</exception>
+    /// <exception cref="ArgumentException">The element count, kind or size does not match the member.</exception>
+    /// <exception cref="NotSupportedException">The element type needs per-element marshaling (<see langword="bool"/> arrays).</exception>
     public void SetValues<T>(string name, ReadOnlySpan<T> values) where T : unmanaged
     {
         ShaderUniformMember member = Resolve(name);
@@ -91,6 +116,12 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
             throw new ArgumentException(
                 $"Uniform member '{name}' of block '{_blockName}' takes exactly {member.ElementCount} elements, got {values.Length}.");
         }
+        if (typeof(T) == typeof(bool))
+        {
+            throw new NotSupportedException(
+                $"Uniform member '{name}' of block '{_blockName}' is a bool array; write it through a uint array instead.");
+        }
+        ValidateElement<T>(name);
         uint elementBytes = (uint)(sizeof(T) * values.Length);
         ReadOnlySpan<byte> bytes;
         unsafe
@@ -101,6 +132,34 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
             }
         }
         SetSpan(name, bytes);
+    }
+
+    // One element of T must be exactly one reflected element of the member and
+    // carry the same scalar kind — same-width blits across kinds (int → float)
+    // are silent garbage, so they fail loudly with the fix spelled out.
+    private void ValidateElement<T>(string name)
+    {
+        ShaderUniformMember member = Resolve(name);
+        int elementBytes = member.ComponentCount * 4;
+        if (sizeof(T) != elementBytes)
+        {
+            throw new ArgumentException(
+                $"Uniform member '{name}' of block '{_blockName}' is {member.ComponentCount} component(s) ({elementBytes} bytes per element); the value's {sizeof(T)} bytes do not match.");
+        }
+        ShaderUniformScalarType? kind = typeof(T) switch
+        {
+            Type t when t == typeof(float) || t == typeof(Vector2) || t == typeof(Vector3)
+                || t == typeof(Vector4) || t == typeof(Matrix4x4) => ShaderUniformScalarType.Float32,
+            Type t when t == typeof(int) => ShaderUniformScalarType.Int32,
+            Type t when t == typeof(uint) => ShaderUniformScalarType.UInt32,
+            _ => null,
+        };
+        if (kind is { } valueKind && valueKind != member.ScalarType)
+        {
+            throw new ArgumentException(
+                $"Uniform member '{name}' of block '{_blockName}' is {member.ScalarType} but the value is {valueKind}; " +
+                "convert the value or retype the shader member so both sides agree.");
+        }
     }
 
     /// <summary>
@@ -162,7 +221,7 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
                 $"Uniform member '{name}' not found in block '{_blockName}'; expected one of: {string.Join(", ", _members.Keys)}.");
 
     // The GPU block size, 16-byte aligned like every uniform binding.
-    private static int blockSize(ShaderUniformBlock block)
+    private static int BlockSize(ShaderUniformBlock block)
     {
         uint size = 0;
         for (int i = 0; i < block.Members.Count; i++)

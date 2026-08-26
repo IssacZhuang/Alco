@@ -229,7 +229,7 @@ public class Game : GameEngine
     private readonly float _cameraNear;
 
     // Time of day and physically-based sky (atmosphere parameters are packed
-    // into DeferredLightingData.SkyParams/SkyParams2, see alco-world3d-atmosphere.slang).
+    // into PBRSceneEnvironment.SkyParams/SkyParams2, see alco-world3d-atmosphere.slang).
     private float _timeOfDay = 10.0f;
     private float _timeSpeed = 0.5f;
     private float _skyExposure = 1.0f;

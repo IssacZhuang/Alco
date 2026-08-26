@@ -101,15 +101,15 @@ float SampleShadowVL(float3 worldPosition, int cascade, float2 screenPos)
 float VolumetricDensity(float3 worldPos)
 {
     float heightAboveCamera = worldPos.z - _data.cameraPosition.z;
-    float scaleHeight = _data.vlParams.z;
-    return _data.vlParams.y * exp(-abs(heightAboveCamera) / max(scaleHeight, 1e-4));
+    float scaleHeight = _data.heightScaleHeight;
+    return _data.fogDensity * exp(-abs(heightAboveCamera) / max(scaleHeight, 1e-4));
 }
 
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
     // Early-out when volumetric light is disabled.
-    if (_data.vlParams.x <= 0.0)
+    if (!_data.volumetricLightEnabled)
     {
         return float4(0.0, 0.0, 0.0, 0.0);
     }
@@ -118,7 +118,7 @@ float4 MainPS(V2F input) : SV_TARGET
     // w finite for sky pixels (depth 0 under reversed infinite depth); the ray
     // direction is unchanged since any depth along the ray yields it.
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    int2 pixelCoord = int2(input.uv * _data.viewportSize.xy);
+    int2 pixelCoord = int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight));
     float depth = GetPixelDepth2D(_pass._gbufferDepth, pixelCoord);
     float4 world = mul(_data.invViewProjection, float4(ndc, max(depth, PBR_SKY_DEPTH_EPSILON), 1.0));
     float3 worldPosition = world.xyz / world.w;
@@ -142,7 +142,7 @@ float4 MainPS(V2F input) : SV_TARGET
     // Phase function.
     float3 dirToSun = normalize(-_data.sunDirection.xyz);
     float cosTheta = dot(rayDir, dirToSun);
-    float phaseG = _data.vlParams.w;
+    float phaseG = _data.phaseG;
     float phase = HenyeyGreenstein(cosTheta, phaseG);
 
     // Per-pixel dither to break up banding (IGN — deterministic per pixel).
@@ -193,7 +193,7 @@ float4 MainPS(V2F input) : SV_TARGET
     }
 
     // Apply intensity multiplier.
-    radiance *= _data.vlParams.x;
+    radiance *= _data.volumetricLightIntensity;
 
     // Output: RGB holds the additively blended radiance; alpha = 1 so the
     // blend state (SrcAlpha, One) adds radiance directly to the target.

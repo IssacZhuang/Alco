@@ -57,15 +57,30 @@ struct V2F
 // textures below.
 
 
-// Cloud parameters, assembled by RGNode_VolumetricClouds. Layout must match
-// the VolumetricCloudsData struct in RGNode_VolumetricClouds.cs exactly.
+// Cloud parameters, assembled by RGNode_VolumetricClouds. The C# side writes
+// members by name through UniformGraphicsBuffer (reflection-driven offsets),
+// so this layout needs no CPU twin.
 public struct CloudDataParams
 {
-    public float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
-    public float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
-    public float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
-    public float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
-    public float4 cloudDebug;   // x=opacity debug view (grayscale, composite pass) y=shadow bake half extent km zw=shadow bake center (world xz, km)
+    public float  coverage;             // 0..1 cloud coverage threshold
+    public float  densityMultiplier;    // density scale
+    public float  bottomAltitudeKm;     // cloud slab bottom altitude in km
+    public float  slabThicknessKm;      // cloud slab thickness in km
+    public float  detailStrength;       // detail erosion strength
+    public float  extinctionPerKm;      // extinction coefficient 1/km
+    public float  marchResolutionScale; // march resolution relative to the viewport
+    public int   maxMarchSteps;        // maximum ray-march step count
+    public float  windOffsetX;          // accumulated wind offset in km
+    public float  windOffsetY;
+    public float  timeSeconds;          // accumulated time in seconds
+    public float  detailDriftPhase;     // detail noise drift phase
+    public float  ambientStrength;      // ambient light strength
+    public float  sunStrength;          // sun light strength
+    public float  aerialFadeStartKm;    // aerial perspective fade start in km
+    public float  aerialFadeEndKm;      // aerial perspective fade end in km
+    public bool   opacityDebugView;     // grayscale opacity debug view (composite pass)
+    public float  shadowExtentKm;       // shadow bake half extent in km
+    public float2 shadowCenterKm;       // shadow bake window center (world xz, km)
 
     public DepthTexture2D _gbufferDepth;
 };
@@ -122,7 +137,7 @@ V2F MainVS(Vertex input)
 float CloudBaseDensity(float3 posKm, float bottomKm, float thicknessKm, float coverage)
 {
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
-    float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
+    float3 winded = posKm + float3(float2(_cloudData.windOffsetX, _cloudData.windOffsetY), 0.0);
     float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_COVERAGE_SCALE, 0).r;
     float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_BASE_SCALE, 0);
     float coverageMask = CloudCoverageMask(lowFreq, coverage);
@@ -139,8 +154,8 @@ float CloudFullDensity(float3 posKm, float bottomKm, float thicknessKm, float co
         return base;
     }
     float h = saturate((posKm.z - bottomKm) / thicknessKm);
-    float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
-    float3 drift = float3(0.7, 0.31, 0.49) * _cloudData.cloudWind.w;
+    float3 winded = posKm + float3(float2(_cloudData.windOffsetX, _cloudData.windOffsetY), 0.0);
+    float3 drift = float3(0.7, 0.31, 0.49) * _cloudData.detailDriftPhase;
     float3 detailNoise = _cloudNoise._cloudDetailNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_DETAIL_SCALE + drift, 0).rgb;
     return CloudErodeShape(base, detailNoise, detailStrength, h);
 }
@@ -194,7 +209,7 @@ float4 MainPS(V2F input) : SV_TARGET
 {
     // Reconstruct the view ray and the opaque-scene distance for this pixel.
     float2 ndc = float2(input.uv.x * 2.0 - 1.0, 1.0 - input.uv.y * 2.0);
-    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(input.uv * _data.viewportSize.xy));
+    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(input.uv * uint2(_data.viewportWidth, _data.viewportHeight)));
     float3 originKm = _data.cameraPosition.xyz / 1000.0;
     float3 dir;
     float sceneDistanceKm;
@@ -214,14 +229,14 @@ float4 MainPS(V2F input) : SV_TARGET
         sceneDistanceKm = max(length(worldPosition - _data.cameraPosition.xyz) / 1000.0, 0.05);
     }
 
-    float bottomKm = _cloudData.cloudParams.z;
-    float thicknessKm = _cloudData.cloudParams.w;
+    float bottomKm = _cloudData.bottomAltitudeKm;
+    float thicknessKm = _cloudData.slabThicknessKm;
     float topKm = bottomKm + thicknessKm;
-    float coverage = _cloudData.cloudParams.x;
-    float densityScale = _cloudData.cloudParams.y;
-    float detailStrength = _cloudData.cloudParams2.x;
-    float extinction = _cloudData.cloudParams2.y * densityScale;
-    int maxSteps = (int)_cloudData.cloudParams2.w;
+    float coverage = _cloudData.coverage;
+    float densityScale = _cloudData.densityMultiplier;
+    float detailStrength = _cloudData.detailStrength;
+    float extinction = _cloudData.extinctionPerKm * densityScale;
+    int maxSteps = _cloudData.maxMarchSteps;
 
     float tEntry;
     float tExit;
@@ -255,7 +270,7 @@ float4 MainPS(V2F input) : SV_TARGET
             float3 tau = ATM_BETA_RAYLEIGH * _data.skyParams.x * sunDensity.x
                 + (ATM_BETA_MIE * 1.1 * _data.skyParams.y) * sunDensity.y
                 + ATM_BETA_OZONE * sunDensity.x;
-            sunEnergy = exp(-tau) * _data.skyParams2.z * _cloudData.cloudLight.y;
+            sunEnergy = exp(-tau) * _data.skyParams2.z * _cloudData.sunStrength;
         }
     }
 
@@ -265,7 +280,7 @@ float4 MainPS(V2F input) : SV_TARGET
     // black after dark.
     float3 ambientBottom = _data.skyHorizonColor.rgb * 0.65 + _data.skyZenithColor.rgb * 0.35;
     float3 ambientTop = _data.skyZenithColor.rgb * 0.85 + _data.skyHorizonColor.rgb * 0.15;
-    float3 ambientEnergy = lerp(ambientBottom, ambientTop, 0.5) * _cloudData.cloudLight.x;
+    float3 ambientEnergy = lerp(ambientBottom, ambientTop, 0.5) * _cloudData.ambientStrength;
 
     float cosTheta = dot(dir, dirToSun);
     float phase = CloudPhaseDual(cosTheta);
@@ -319,7 +334,7 @@ float4 MainPS(V2F input) : SV_TARGET
         float sunVisibility = lerp(beer * powder, beerMulti * powderMulti, 0.55);
 
         float h = saturate((posKm.z - bottomKm) / thicknessKm);
-        float3 ambient = lerp(ambientBottom, ambientTop, h) * _cloudData.cloudLight.x;
+        float3 ambient = lerp(ambientBottom, ambientTop, h) * _cloudData.ambientStrength;
         float3 lightEnergy = sunEnergy * phase * sunVisibility + ambient;
 
         // Energy-conserving integration between the transmittance at the
@@ -348,7 +363,7 @@ float4 MainPS(V2F input) : SV_TARGET
     float rangeFade = 1.0 - smoothstep(0.75, 1.0, midT / CLOUD_MAX_MARCH_KM);
     scattering *= rangeFade;
     alpha *= rangeFade;
-    float hazeT = smoothstep(_cloudData.cloudLight.z, _cloudData.cloudLight.w, midT);
+    float hazeT = smoothstep(_cloudData.aerialFadeStartKm, _cloudData.aerialFadeEndKm, midT);
     scattering = lerp(scattering, _data.skyHorizonColor.rgb * alpha, hazeT);
 
     return float4(scattering, alpha);

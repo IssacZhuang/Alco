@@ -10,7 +10,7 @@ namespace Alco.World3D;
 /// The shared scene state of a deferred PBR frame — sun/sky/shadow/GI/volumetric
 /// parameters, the camera, the point-light list and the shadow cascade fitting —
 /// together with the GPU buffers those parameters are assembled into
-/// (a <see cref="DeferredLightingData"/> uniform, a <see cref="ShadowCascadeData"/>
+/// (a reflection-driven lighting uniform, a <see cref="ShadowCascadeData"/>
 /// uniform and a point-light structured buffer).
 /// <br/>This object is not a graph node and knows nothing about the render graph:
 /// the nodes of a deferred pipeline read it (the lighting node's
@@ -59,7 +59,12 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>The maximum number of point lights the StructuredBuffer can hold.</summary>
     public const int MaxPointLights = 256;
 
-    private readonly GraphicsValueBuffer<DeferredLightingData> _lightingDataBuffer;
+    private readonly RenderingSystem _rendering;
+    // Reflection-driven uniform buffer over the shared PBR _data block — no CPU
+    // twin of PbrData; AssembleLightingData writes members by name at their
+    // reflected offsets. Created lazily: the constructor may run before the host
+    // installs the shader module resolver the reflection lookup needs.
+    private UniformGraphicsBuffer? _lightingDataBuffer;
     private readonly GraphicsValueBuffer<ShadowCascadeData> _shadowDataBuffer;
     private readonly GraphicsArrayBuffer<PointLight> _pointLightBuffer;
 
@@ -70,8 +75,6 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     private readonly float[] _cascadeTexelSizes = new float[RGNode_ShadowPass.CascadeCount];
     private readonly float[] _cascadeDepthRanges = new float[RGNode_ShadowPass.CascadeCount];
 
-    // Assembled internally from properties + camera + cascade state each frame.
-    private DeferredLightingData _lightingData;
     private int _pointLightCount;
     private bool _shadowEnabled = true;
     private bool _volumetricLightEnabled;
@@ -87,7 +90,7 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ShadowMapSize = shadowMapSize;
-        _lightingDataBuffer = rendering.CreateGraphicsValueBuffer<DeferredLightingData>("pbr_lighting_data");
+        _rendering = rendering;
         _shadowDataBuffer = rendering.CreateGraphicsValueBuffer<ShadowCascadeData>("pbr_shadow_data");
         // Point lights are uploaded as a StructuredBuffer (not cbuffer) so the
         // count is bounded only by GPU memory, not by cbuffer size limits.
@@ -121,6 +124,22 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// </summary>
     public float[] CascadeDepthRanges => _cascadeDepthRanges;
 
+    /// <summary>
+    /// The radial end distance of each cascade in world units, filled by
+    /// <see cref="ComputeShadowCascades"/> (read by GI renderers that fit the
+    /// same cascades).
+    /// </summary>
+    public float[] CascadeSplits => _cascadeSplits;
+
+    /// <summary>
+    /// The world units per shadow texel of each cascade, filled by
+    /// <see cref="ComputeShadowCascades"/> (read by GI renderers).
+    /// </summary>
+    public float[] CascadeTexelSizes => _cascadeTexelSizes;
+
+    /// <summary>The number of active point lights set by the last point-light upload.</summary>
+    public int PointLightCount => _pointLightCount;
+
     // ── GPU buffers (bound to lighting / volumetric / forward / GI materials) ──
 
     /// <summary>
@@ -132,8 +151,15 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>
     /// The deferred lighting data buffer (per-frame sun, sky, cascade and camera
     /// constants). Shared with forward renderers so they can evaluate the same PBR.
+    /// Created on first access: the environment may be constructed before the host
+    /// installs the shader module resolver the reflection lookup needs.
     /// </summary>
-    public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer;
+    public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer ??= CreateLightingDataBuffer();
+
+    private UniformGraphicsBuffer CreateLightingDataBuffer()
+        => _rendering.CreateUniformGraphicsBuffer(
+            _rendering.ShaderSystem.GetLibrary("alco_world3d_pbr_common").GetReflection().UniformBlocks.First(block => block.Name == "_data"),
+            "pbr_lighting_data");
 
     /// <summary>
     /// The GPU buffer holding the point light array. Read by the lighting pass
@@ -141,17 +167,8 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// </summary>
     public GraphicsBuffer PointLightBuffer => _pointLightBuffer;
 
-    /// <summary>The typed lighting data buffer, for nodes that upload it.</summary>
-    internal GraphicsValueBuffer<DeferredLightingData> LightingDataBufferTyped => _lightingDataBuffer;
-
     /// <summary>The typed cascade data buffer, for the shadow pass node.</summary>
     internal GraphicsValueBuffer<ShadowCascadeData> ShadowDataBufferTyped => _shadowDataBuffer;
-
-    /// <summary>
-    /// The lighting data most recently assembled by <see cref="AssembleLightingData"/>
-    /// (a snapshot; not uploaded by the getter).
-    /// </summary>
-    public DeferredLightingData CurrentLightingData => _lightingData;
 
     // ── Scene properties (caller-set each frame) ──
 
@@ -491,67 +508,59 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
         {
             throw new InvalidOperationException("AssembleLightingData requires a camera (set Camera first).");
         }
-        _lightingData.InvViewProjection = invViewProjection;
-        _lightingData.SunViewProjection0 = _cascadeViewProjections[0];
-        _lightingData.SunViewProjection1 = _cascadeViewProjections[1];
-        _lightingData.SunViewProjection2 = _cascadeViewProjections[2];
-        _lightingData.SunViewProjection3 = _cascadeViewProjections[3];
-        _lightingData.CameraPosition = new Vector4(Camera.Transform.Position, 1.0f);
-        _lightingData.SunDirection = new Vector4(SunDirection, 0);
-        _lightingData.SunColorAndIntensity = new Vector4(SunColor, SunIntensity);
-        _lightingData.SkyParams = SkyParams;
-        _lightingData.SkyParams2 = SkyParams2;
-        _lightingData.SkyHorizonColor = new Vector4(DesaturateAmbientSky(SkyHorizonColor), 0.0f);
-        _lightingData.SkyZenithColor = new Vector4(DesaturateAmbientSky(SkyZenithColor), 0.0f);
-        _lightingData.Params = new Vector4(
-            ShadowEnabled ? 1.0f : 0.0f,
-            _pointLightCount,
-            ShadowMapSize,
-            SunDiscEnabled ? 1.0f : 0.0f);
-        _lightingData.CascadeSplits = new Vector4(
-            _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]);
-        _lightingData.CascadeTexelSizes = new Vector4(
-            _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]);
-        _lightingData.Params2 = new Vector4(
-            0.0f,
-            0.0f,
-            ShadowTightness,
-            0.0f);
-        _lightingData.ViewportSize = new Vector4(gbuffer.Width, gbuffer.Height, 0, 0);
-        _lightingData.Params3 = new Vector4(
-            (giDiffuseActive && GiEnabled) ? 1.0f : 0.0f,
-            GiDiffuseStrength,
-            GiSpecularStrength,
-            0.0f);
-        _lightingData.Params4 = new Vector4(SunDiscSize, SunDiscBrightness, 0.0f, 0.0f);
-        _lightingData.VLParams = new Vector4(
-            VolumetricLightEnabled ? 1.0f : 0.0f,
-            VolumetricLightDensity,
-            VolumetricLightHeightScale,
-            VolumetricLightPhaseG);
-        _lightingData.CloudShadow = new Vector4(
-            CloudShadowStrength,
-            CloudShadowPlaneAltitude,
-            CloudShadowExtent,
-            CloudShadowStrength > 0.0f ? 1.0f : 0.0f);
+        UniformGraphicsBuffer data = LightingDataBuffer as UniformGraphicsBuffer
+            ?? throw new InvalidOperationException("The lighting data buffer must be the reflection-driven uniform buffer.");
+        data.SetValue("invViewProjection", invViewProjection);
+        data.SetValues("sunViewProjection", _cascadeViewProjections);
+        data.SetValue("cameraPosition", new Vector4(Camera.Transform.Position, 1.0f));
+        data.SetValue("sunDirection", new Vector4(SunDirection, 0));
+        data.SetValue("sunColorAndIntensity", new Vector4(SunColor, SunIntensity));
+        data.SetValue("skyParams", SkyParams);
+        data.SetValue("skyParams2", SkyParams2);
+        data.SetValue("skyHorizonColor", new Vector4(DesaturateAmbientSky(SkyHorizonColor), 0.0f));
+        data.SetValue("skyZenithColor", new Vector4(DesaturateAmbientSky(SkyZenithColor), 0.0f));
+        data.SetValue("shadowEnabled", ShadowEnabled);
+        data.SetValue("numPointLights", (uint)_pointLightCount);
+        data.SetValue("shadowMapSize", (float)ShadowMapSize);
+        data.SetValue("sunDiscEnabled", SunDiscEnabled);
+        data.SetValue("cascadeSplits", new Vector4(
+            _cascadeSplits[0], _cascadeSplits[1], _cascadeSplits[2], _cascadeSplits[3]));
+        data.SetValue("cascadeTexelSizes", new Vector4(
+            _cascadeTexelSizes[0], _cascadeTexelSizes[1], _cascadeTexelSizes[2], _cascadeTexelSizes[3]));
+        data.SetValue("shadowTightness", ShadowTightness);
+        data.SetValue("viewportWidth", gbuffer.Width);
+        data.SetValue("viewportHeight", gbuffer.Height);
+        data.SetValue("giEnabled", giDiffuseActive && GiEnabled);
+        data.SetValue("giDiffuseStrength", GiDiffuseStrength);
+        data.SetValue("giSpecularStrength", GiSpecularStrength);
+        data.SetValue("sunDiscSize", SunDiscSize);
+        data.SetValue("sunDiscBrightness", SunDiscBrightness);
+        data.SetValue("volumetricLightEnabled", VolumetricLightEnabled);
+        data.SetValue("volumetricLightIntensity", VolumetricLightIntensity);
+        data.SetValue("fogDensity", VolumetricLightDensity);
+        data.SetValue("heightScaleHeight", VolumetricLightHeightScale);
+        data.SetValue("phaseG", VolumetricLightPhaseG);
+        data.SetValue("cloudShadowStrength", CloudShadowStrength);
+        data.SetValue("cloudShadowPlaneAltitude", CloudShadowPlaneAltitude);
+        data.SetValue("cloudShadowExtent", CloudShadowExtent);
+        data.SetValue("cloudShadowEnabled", CloudShadowStrength > 0.0f);
     }
 
     /// <summary>
-    /// Uploads the assembled <see cref="CurrentLightingData"/> to the GPU lighting data
-    /// buffer. Runs before the lighting pass is recorded (the graph's deferred
-    /// submission requires uploads first).
+    /// Flushes the members staged by <see cref="AssembleLightingData"/> to the
+    /// GPU lighting data buffer. Runs before the lighting pass is recorded (the
+    /// graph's deferred submission requires uploads first).
     /// </summary>
     public void UploadLightingData()
     {
-        _lightingDataBuffer.UpdateBuffer(_lightingData);
+        _lightingDataBuffer?.Flush();
     }
-
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
         if (disposing)
         {
-            _lightingDataBuffer.Dispose();
+            _lightingDataBuffer?.Dispose();
             _shadowDataBuffer.Dispose();
             _pointLightBuffer.Dispose();
         }

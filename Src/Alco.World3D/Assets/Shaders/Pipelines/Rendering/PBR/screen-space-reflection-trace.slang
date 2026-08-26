@@ -56,7 +56,7 @@ float3 SsrSampleShadedScene(
     float s, c;
     sincos(angle, s, c);
     float2x2 rotation = float2x2(c, -s, s, c);
-    float2 inverseSize = rcp(_ssrData.ssrRenderSize.xy);
+    float2 inverseSize = rcp(float2(_ssrData.fullWidth, _ssrData.fullHeight));
     float3 result = 0.0;
     float weightSum = 0.0;
     [unroll]
@@ -79,7 +79,7 @@ V2F MainVS(Vertex input)
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float2 fullSize = _ssrData.ssrRenderSize.xy;
+    float2 fullSize = float2(_ssrData.fullWidth, _ssrData.fullHeight);
     int2 pixel = clamp(int2(input.uv * fullSize), int2(0, 0), int2(fullSize) - 1);
     float depth = GetPixelDepth2D(_pass._gbufferDepth, pixel);
     if (IS_SKY_DEPTH(depth))
@@ -89,7 +89,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
     float4 packedAlbedo = _pass._albedo.Load(int3(pixel, 0));
     float roughness = packedAlbedo.a;
-    if (roughness >= _ssrData.ssrRayParams.y)
+    if (roughness >= _ssrData.roughnessCutoff)
     {
         return 0.0;
     }
@@ -113,9 +113,9 @@ float4 MainPS(V2F input) : SV_TARGET
     // angle/radius pair uses the R2 low-discrepancy constants so every pixel's
     // 2D disk samples stay stratified over time. The blur rotation (A) always
     // reads the baked value and stays temporally stable.
-    uint2 noisePixel = uint2(input.uv * _ssrData.ssrRenderSize.zw) % SSR_BLUE_NOISE_TILE;
+    uint2 noisePixel = uint2(input.uv * float2(_ssrData.traceWidth, _ssrData.traceHeight)) % SSR_BLUE_NOISE_TILE;
     float4 blueNoise = _pass._blueNoise.Load(int3(int2(noisePixel), 0));
-    uint noiseFrame = (uint)_ssrData.ssrParams.x % 256u;
+    uint noiseFrame = _ssrData.frameIndex % 256u;
     float angleSample = frac(blueNoise.r + noiseFrame * 0.7548776662);
     float radialSample = frac(blueNoise.g + noiseFrame * 0.5698402910);
     float stepSample = frac(blueNoise.b + noiseFrame * 0.6180339887);
@@ -185,7 +185,7 @@ float4 MainPS(V2F input) : SV_TARGET
 
         vector *= 2.0;
         travelVector += vector * (0.95 + 0.1 * stepSample);
-        if (length(travelVector) > _ssrData.ssrRayParams.x)
+        if (length(travelVector) > _ssrData.maxTraceDistance)
         {
             break;
         }
@@ -210,7 +210,7 @@ float4 MainPS(V2F input) : SV_TARGET
             confidence = border * foregroundFade;
         }
     }
-    float roughnessFade = saturate((_ssrData.ssrRayParams.y - roughness) / 0.25);
+    float roughnessFade = saturate((_ssrData.roughnessCutoff - roughness) / 0.25);
     confidence *= roughnessFade;
     if (confidence <= 0.001)
     {

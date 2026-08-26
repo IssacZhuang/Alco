@@ -32,26 +32,6 @@ namespace Alco.World3D;
 /// </summary>
 public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 {
-    /// <summary>
-    /// Per-frame cloud data uploaded to the march, composite and shadow bake
-    /// passes. Layout must match the <c>_cloudData</c> cbuffer in
-    /// volumetric-clouds.slang / volumetric-clouds-composite.slang /
-    /// volumetric-cloud-shadow.slang exactly.
-    /// </summary>
-    private struct VolumetricCloudsData
-    {
-        /// <summary>x=coverage y=density multiplier z=bottom altitude km w=slab thickness km.</summary>
-        public Vector4 CloudParams;
-        /// <summary>x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps.</summary>
-        public Vector4 CloudParams2;
-        /// <summary>xy=accumulated wind offset km z=accumulated time s w=detail drift phase.</summary>
-        public Vector4 CloudWind;
-        /// <summary>x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km.</summary>
-        public Vector4 CloudLight;
-        /// <summary>x=opacity debug view y=shadow bake half extent km zw=shadow bake center (world xz, km).</summary>
-        public Vector4 CloudDebug;
-    }
-
     private const int BaseNoiseSize = 128;
     private const int DetailNoiseSize = 32;
     private const int ShadowCoverageSize = 256;
@@ -71,7 +51,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     private readonly ComputeMaterial _noiseBaseMaterial;
     private readonly ComputeMaterial _noiseDetailMaterial;
     private readonly ComputeMaterial _shadowBakeMaterial;
-    private readonly GraphicsValueBuffer<VolumetricCloudsData> _dataBuffer;
+    private readonly UniformGraphicsBuffer _dataBuffer;
     private readonly Texture3D _baseNoise;
     private readonly Texture3D _detailNoise;
     private readonly Texture2D _shadowCoverage;
@@ -259,7 +239,12 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
             shadowTexture, shadowView,
             ownsResources: true);
 
-        _dataBuffer = rendering.CreateGraphicsValueBuffer<VolumetricCloudsData>("volumetric_clouds_data");
+        // Reflection-driven uniform buffer over the shared _cloudData block —
+        // no CPU twin of CloudDataParams; members land by name at their
+        // reflected offsets. All three passes bind the same block layout.
+        _dataBuffer = rendering.CreateUniformGraphicsBuffer(
+            descriptor.MarchShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_cloudData"),
+            "volumetric_clouds_data");
 
         // The bake kind is a generic value specialization of the noise module
         // (false = base shape bake, true = detail bake), bound when each
@@ -435,19 +420,26 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         _timeSeconds += deltaSeconds;
 
         Vector3 cameraPosition = camera.Transform.Position;
-        VolumetricCloudsData data = new()
-        {
-            CloudParams = new Vector4(Coverage, Density, BottomAltitudeKm, ThicknessKm),
-            CloudParams2 = new Vector4(DetailStrength, ExtinctionPerKm, MarchResolutionScale, MaxMarchSteps),
-            CloudWind = new Vector4(_windOffsetX, _windOffsetY, _timeSeconds, _timeSeconds * DetailDriftSpeed),
-            CloudLight = new Vector4(AmbientStrength, SunStrength, AerialFadeStartKm, AerialFadeEndKm),
-            CloudDebug = new Vector4(
-                DebugOpacityView ? 1.0f : 0.0f,
-                ShadowExtentKm,
-                cameraPosition.X * 0.001f,
-                cameraPosition.Y * 0.001f),
-        };
-        _dataBuffer.UpdateBuffer(data);
+        _dataBuffer.SetValue("coverage", Coverage);
+        _dataBuffer.SetValue("densityMultiplier", Density);
+        _dataBuffer.SetValue("bottomAltitudeKm", BottomAltitudeKm);
+        _dataBuffer.SetValue("slabThicknessKm", ThicknessKm);
+        _dataBuffer.SetValue("detailStrength", DetailStrength);
+        _dataBuffer.SetValue("extinctionPerKm", ExtinctionPerKm);
+        _dataBuffer.SetValue("marchResolutionScale", MarchResolutionScale);
+        _dataBuffer.SetValue("maxMarchSteps", MaxMarchSteps);
+        _dataBuffer.SetValue("windOffsetX", _windOffsetX);
+        _dataBuffer.SetValue("windOffsetY", _windOffsetY);
+        _dataBuffer.SetValue("timeSeconds", _timeSeconds);
+        _dataBuffer.SetValue("detailDriftPhase", _timeSeconds * DetailDriftSpeed);
+        _dataBuffer.SetValue("ambientStrength", AmbientStrength);
+        _dataBuffer.SetValue("sunStrength", SunStrength);
+        _dataBuffer.SetValue("aerialFadeStartKm", AerialFadeStartKm);
+        _dataBuffer.SetValue("aerialFadeEndKm", AerialFadeEndKm);
+        _dataBuffer.SetValue("opacityDebugView", DebugOpacityView);
+        _dataBuffer.SetValue("shadowExtentKm", ShadowExtentKm);
+        _dataBuffer.SetValue("shadowCenterKm", new Vector2(cameraPosition.X * 0.001f, cameraPosition.Y * 0.001f));
+        _dataBuffer.Flush();
 
         // Publish the shadow uniforms the lighting pass reads next frame (it
         // assembles its data before this node runs), in lockstep with the

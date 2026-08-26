@@ -50,15 +50,28 @@ static const float CLOUD_UPSAMPLE_SIGMA2 = 0.45;
 
 
 // The same _cloudData block the march pass binds (RGNode_VolumetricClouds
-// fills it); only cloudParams2.z (march resolution scale) and cloudDebug are
-// read here.
+// fills it); only marchResolutionScale and opacityDebugView are read here.
 public struct CloudDataParams
 {
-    public float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
-    public float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
-    public float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
-    public float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
-    public float4 cloudDebug;   // x=opacity debug view (grayscale) yzw=unused
+    public float  coverage;             // 0..1 cloud coverage threshold
+    public float  densityMultiplier;    // density scale
+    public float  bottomAltitudeKm;     // cloud slab bottom altitude in km
+    public float  slabThicknessKm;      // cloud slab thickness in km
+    public float  detailStrength;       // detail erosion strength
+    public float  extinctionPerKm;      // extinction coefficient 1/km
+    public float  marchResolutionScale; // march resolution relative to the viewport
+    public int   maxMarchSteps;        // maximum ray-march step count
+    public float  windOffsetX;          // accumulated wind offset in km
+    public float  windOffsetY;
+    public float  timeSeconds;          // accumulated time in seconds
+    public float  detailDriftPhase;     // detail noise drift phase
+    public float  ambientStrength;      // ambient light strength
+    public float  sunStrength;          // sun light strength
+    public float  aerialFadeStartKm;    // aerial perspective fade start in km
+    public float  aerialFadeEndKm;      // aerial perspective fade end in km
+    public bool   opacityDebugView;     // grayscale opacity debug view
+    public float  shadowExtentKm;       // shadow bake half extent in km
+    public float2 shadowCenterKm;       // shadow bake window center (world xz, km)
 
     public Texture2D _clouds;
     public DepthTexture2D _gbufferDepth;
@@ -81,7 +94,7 @@ V2F MainVS(Vertex input)
 // finite so the weight differences never turn into inf - inf = NaN).
 float CloudCompositeLinearDepth(float2 uv)
 {
-    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(uv * _data.viewportSize.xy));
+    float depth = GetPixelDepth2D(_cloudData._gbufferDepth, int2(uv * uint2(_data.viewportWidth, _data.viewportHeight)));
     if (IS_SKY_DEPTH(depth))
     {
         return 1e6;
@@ -94,8 +107,8 @@ float CloudCompositeLinearDepth(float2 uv)
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET
 {
-    float scale = _cloudData.cloudParams2.z;
-    float2 halfSize = max(_data.viewportSize.xy * scale, 1.0);
+    float scale = _cloudData.marchResolutionScale;
+    float2 halfSize = max(uint2(_data.viewportWidth, _data.viewportHeight) * scale, 1.0);
     float2 halfTexel = 1.0 / halfSize;
 
     // Continuous position of this full-resolution pixel in half-resolution
@@ -139,7 +152,7 @@ float4 MainPS(V2F input) : SV_TARGET
     scattering /= weightSum;
     opacity /= weightSum;
 
-    if (_cloudData.cloudDebug.x > 0.5)
+    if (_cloudData.opacityDebugView)
     {
         // Opacity debug view: replace the scene with the coverage mask.
         return float4(opacity.xxx, 1.0);

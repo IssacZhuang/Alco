@@ -25,11 +25,25 @@ import alco_world3d_clouds;
 
 public struct CloudDataParams
 {
-    public float4 cloudParams;  // x=coverage(0..1) y=density multiplier z=bottom altitude km w=slab thickness km
-    public float4 cloudParams2; // x=detailStrength y=extinction 1/km z=march resolution scale w=max march steps
-    public float4 cloudWind;    // xy=accumulated wind offset km z=time seconds w=detail drift phase
-    public float4 cloudLight;   // x=ambient strength y=sun strength z=aerial fade start km w=aerial fade end km
-    public float4 cloudDebug;   // x=opacity debug view y=bake half extent km zw=bake window center (world xz, km)
+    public float  coverage;             // 0..1 cloud coverage threshold
+    public float  densityMultiplier;    // density scale
+    public float  bottomAltitudeKm;     // cloud slab bottom altitude in km
+    public float  slabThicknessKm;      // cloud slab thickness in km
+    public float  detailStrength;       // detail erosion strength
+    public float  extinctionPerKm;      // extinction coefficient 1/km
+    public float  marchResolutionScale; // march resolution relative to the viewport
+    public int   maxMarchSteps;        // maximum ray-march step count
+    public float  windOffsetX;          // accumulated wind offset in km
+    public float  windOffsetY;
+    public float  timeSeconds;          // accumulated time in seconds
+    public float  detailDriftPhase;     // detail noise drift phase
+    public float  ambientStrength;      // ambient light strength
+    public float  sunStrength;          // sun light strength
+    public float  aerialFadeStartKm;    // aerial perspective fade start in km
+    public float  aerialFadeEndKm;      // aerial perspective fade end in km
+    public bool   opacityDebugView;     // grayscale opacity debug view
+    public float  shadowExtentKm;       // shadow bake half extent in km
+    public float2 shadowCenterKm;       // shadow bake window center (world xz, km)
 };
 
 public ParameterBlock<CloudDataParams> _cloudData;
@@ -59,11 +73,11 @@ static const float CLOUD_SHADOW_COVERAGE_SCALE = 1.0 / 72.0;
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     float2 texel = (dispatchId.xy + 0.5) / 256.0;
-    float2 worldXz = (texel - 0.5) * (2.0 * _cloudData.cloudDebug.y) + _cloudData.cloudDebug.zw;
+    float2 worldXz = (texel - 0.5) * (2.0 * _cloudData.shadowExtentKm) + _cloudData.shadowCenterKm;
 
-    float bottomKm = _cloudData.cloudParams.z;
-    float thicknessKm = _cloudData.cloudParams.w;
-    float coverage = _cloudData.cloudParams.x;
+    float bottomKm = _cloudData.bottomAltitudeKm;
+    float thicknessKm = _cloudData.slabThicknessKm;
+    float coverage = _cloudData.coverage;
 
     // Vertical column transmittance through three slab samples (Beer-Lambert).
     float od = 0.0;
@@ -71,7 +85,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     for (int i = 0; i < 3; i++)
     {
         float3 posKm = float3(worldXz, bottomKm + thicknessKm * (0.25 + 0.25 * i));
-        float3 winded = posKm + float3(_cloudData.cloudWind.xy, 0.0);
+        float3 winded = posKm + float3(float2(_cloudData.windOffsetX, _cloudData.windOffsetY), 0.0);
         float lowFreq = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_SHADOW_COVERAGE_SCALE, 0).r;
         float4 baseNoise = _cloudNoise._cloudBaseNoise.SampleLevel(_samplers._linearRepeat, winded * CLOUD_SHADOW_BASE_SCALE, 0);
         float h = saturate((posKm.z - bottomKm) / thicknessKm);
@@ -79,7 +93,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
             CloudHeightGradient(h, coverage));
         od += density * (thicknessKm / 3.0);
     }
-    od *= _cloudData.cloudParams2.y * _cloudData.cloudParams.y;
+    od *= _cloudData.extinctionPerKm * _cloudData.densityMultiplier;
 
     float shadow = 1.0 - exp(-od);
     shadow = pow(shadow, 0.8); // soften full-opacity cores a touch
