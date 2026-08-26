@@ -55,6 +55,7 @@ public enum WGPUTextureUsage : ulong
 	TextureBinding = 4,
 	StorageBinding = 8,
 	RenderAttachment = 16,
+	TransientAttachment = 32,
 }
 public enum WGPUInstanceBackend : ulong
 {
@@ -63,19 +64,35 @@ public enum WGPUInstanceBackend : ulong
 	GL = 2,
 	Metal = 4,
 	DX12 = 8,
-	DX11 = 16,
 	BrowserWebGPU = 32,
 	Primary = 45,
-	Secondary = 18,
+	Secondary = 2,
 	Force32 = 2147483647,
 }
 public enum WGPUInstanceFlag : ulong
 {
-	Default = 0,
+	Empty = 0,
 	Debug = 1,
 	Validation = 2,
 	DiscardHalLabels = 4,
+	AllowUnderlyingNoncompliantAdapter = 8,
+	GPUBasedValidation = 16,
+	ValidationIndirectCall = 32,
+	AutomaticTimestampNormalization = 64,
+	Default = 16777216,
+	Debugging = 33554432,
+	AdvancedDebugging = 67108864,
+	WithEnv = 134217728,
 	Force32 = 2147483647,
+}
+public enum WGPUShaderRuntimeChecks : ulong
+{
+	None = 0,
+	BoundsChecks = 1,
+	ForceLoopBounding = 2,
+	RayQueryInitializationTracking = 4,
+	TaskShaderDispatchTracking = 8,
+	MeshShaderPrimitiveIndicesClamp = 16,
 }
 internal enum WGPUAdapterType
 {
@@ -187,9 +204,7 @@ internal enum WGPUCompilationInfoRequestStatus
 {
 	None = 0,
 	Success = 0x00000001,
-	InstanceDropped = 0x00000002,
-	Error = 0x00000003,
-	Unknown = 0x00000004,
+	CallbackCancelled = 0x00000002,
 }
 
 internal enum WGPUCompilationMessageType
@@ -198,6 +213,18 @@ internal enum WGPUCompilationMessageType
 	Error = 0x00000001,
 	Warning = 0x00000002,
 	Info = 0x00000003,
+}
+
+internal enum WGPUComponentSwizzle
+{
+	None = 0,
+	Undefined = 0x00000000,
+	Zero = 0x00000001,
+	One = 0x00000002,
+	R = 0x00000003,
+	G = 0x00000004,
+	B = 0x00000005,
+	A = 0x00000006,
 }
 
 internal enum WGPUCompositeAlphaMode
@@ -214,10 +241,9 @@ internal enum WGPUCreatePipelineAsyncStatus
 {
 	None = 0,
 	Success = 0x00000001,
-	InstanceDropped = 0x00000002,
+	CallbackCancelled = 0x00000002,
 	ValidationError = 0x00000003,
 	InternalError = 0x00000004,
-	Unknown = 0x00000005,
 }
 
 internal enum WGPUCullMode
@@ -233,7 +259,7 @@ internal enum WGPUDeviceLostReason
 	None = 0,
 	Unknown = 0x00000001,
 	Destroyed = 0x00000002,
-	InstanceDropped = 0x00000003,
+	CallbackCancelled = 0x00000003,
 	FailedCreation = 0x00000004,
 }
 
@@ -258,6 +284,7 @@ internal enum WGPUErrorType
 internal enum WGPUFeatureLevel
 {
 	None = 0,
+	Undefined = 0x00000000,
 	Compatibility = 0x00000001,
 	Core = 0x00000002,
 }
@@ -265,23 +292,28 @@ internal enum WGPUFeatureLevel
 internal enum WGPUFeatureName
 {
 	None = 0,
-	Undefined = 0x00000000,
-	DepthClipControl = 0x00000001,
-	Depth32FloatStencil8 = 0x00000002,
-	TimestampQuery = 0x00000003,
+	CoreFeaturesAndLimits = 0x00000001,
+	DepthClipControl = 0x00000002,
+	Depth32FloatStencil8 = 0x00000003,
 	TextureCompressionBC = 0x00000004,
 	TextureCompressionBCSliced3D = 0x00000005,
 	TextureCompressionETC2 = 0x00000006,
 	TextureCompressionASTC = 0x00000007,
 	TextureCompressionASTCSliced3D = 0x00000008,
-	IndirectFirstInstance = 0x00000009,
-	ShaderF16 = 0x0000000A,
-	RG11B10UfloatRenderable = 0x0000000B,
-	BGRA8UnormStorage = 0x0000000C,
-	Float32Filterable = 0x0000000D,
-	Float32Blendable = 0x0000000E,
-	ClipDistances = 0x0000000F,
-	DualSourceBlending = 0x00000010,
+	TimestampQuery = 0x00000009,
+	IndirectFirstInstance = 0x0000000A,
+	ShaderF16 = 0x0000000B,
+	RG11B10UfloatRenderable = 0x0000000C,
+	BGRA8UnormStorage = 0x0000000D,
+	Float32Filterable = 0x0000000E,
+	Float32Blendable = 0x0000000F,
+	ClipDistances = 0x00000010,
+	DualSourceBlending = 0x00000011,
+	Subgroups = 0x00000012,
+	TextureFormatsTier1 = 0x00000013,
+	TextureFormatsTier2 = 0x00000014,
+	PrimitiveIndex = 0x00000015,
+	TextureComponentSwizzle = 0x00000016,
 }
 
 internal enum WGPUFilterMode
@@ -308,6 +340,14 @@ internal enum WGPUIndexFormat
 	Uint32 = 0x00000002,
 }
 
+internal enum WGPUInstanceFeatureName
+{
+	None = 0,
+	TimedWaitAny = 0x00000001,
+	ShaderSourceSPIRV = 0x00000002,
+	MultipleDevicesPerAdapter = 0x00000003,
+}
+
 internal enum WGPULoadOp
 {
 	None = 0,
@@ -320,10 +360,9 @@ internal enum WGPUMapAsyncStatus
 {
 	None = 0,
 	Success = 0x00000001,
-	InstanceDropped = 0x00000002,
+	CallbackCancelled = 0x00000002,
 	Error = 0x00000003,
 	Aborted = 0x00000004,
-	Unknown = 0x00000005,
 }
 
 internal enum WGPUMipmapFilterMode
@@ -346,8 +385,8 @@ internal enum WGPUPopErrorScopeStatus
 {
 	None = 0,
 	Success = 0x00000001,
-	InstanceDropped = 0x00000002,
-	EmptyStack = 0x00000003,
+	CallbackCancelled = 0x00000002,
+	Error = 0x00000003,
 }
 
 internal enum WGPUPowerPreference
@@ -356,6 +395,13 @@ internal enum WGPUPowerPreference
 	Undefined = 0x00000000,
 	LowPower = 0x00000001,
 	HighPerformance = 0x00000002,
+}
+
+internal enum WGPUPredefinedColorSpace
+{
+	None = 0,
+	SRGB = 0x00000001,
+	DisplayP3 = 0x00000002,
 }
 
 internal enum WGPUPresentMode
@@ -390,42 +436,25 @@ internal enum WGPUQueueWorkDoneStatus
 {
 	None = 0,
 	Success = 0x00000001,
-	InstanceDropped = 0x00000002,
+	CallbackCancelled = 0x00000002,
 	Error = 0x00000003,
-	Unknown = 0x00000004,
 }
 
 internal enum WGPURequestAdapterStatus
 {
 	None = 0,
 	Success = 0x00000001,
-	InstanceDropped = 0x00000002,
+	CallbackCancelled = 0x00000002,
 	Unavailable = 0x00000003,
 	Error = 0x00000004,
-	Unknown = 0x00000005,
 }
 
 internal enum WGPURequestDeviceStatus
 {
 	None = 0,
 	Success = 0x00000001,
-	InstanceDropped = 0x00000002,
+	CallbackCancelled = 0x00000002,
 	Error = 0x00000003,
-	Unknown = 0x00000004,
-}
-
-internal enum WGPUSType
-{
-	None = 0,
-	ShaderSourceSPIRV = 0x00000001,
-	ShaderSourceWGSL = 0x00000002,
-	RenderPassMaxDrawCount = 0x00000003,
-	SurfaceSourceMetalLayer = 0x00000004,
-	SurfaceSourceWindowsHWND = 0x00000005,
-	SurfaceSourceXlibWindow = 0x00000006,
-	SurfaceSourceWaylandSurface = 0x00000007,
-	SurfaceSourceAndroidNativeWindow = 0x00000008,
-	SurfaceSourceXCBWindow = 0x00000009,
 }
 
 internal enum WGPUSamplerBindingType
@@ -477,6 +506,27 @@ internal enum WGPUStoreOp
 	Discard = 0x00000002,
 }
 
+internal enum WGPUSType
+{
+	None = 0,
+	ShaderSourceSPIRV = 0x00000001,
+	ShaderSourceWGSL = 0x00000002,
+	RenderPassMaxDrawCount = 0x00000003,
+	SurfaceSourceMetalLayer = 0x00000004,
+	SurfaceSourceWindowsHWND = 0x00000005,
+	SurfaceSourceXlibWindow = 0x00000006,
+	SurfaceSourceWaylandSurface = 0x00000007,
+	SurfaceSourceAndroidNativeWindow = 0x00000008,
+	SurfaceSourceXCBWindow = 0x00000009,
+	SurfaceColorManagement = 0x0000000A,
+	RequestAdapterWebXROptions = 0x0000000B,
+	TextureComponentSwizzleDescriptor = 0x0000000C,
+	ExternalTextureBindingLayout = 0x0000000D,
+	ExternalTextureBindingEntry = 0x0000000E,
+	CompatibilityModeLimits = 0x0000000F,
+	TextureBindingViewDimension = 0x00000010,
+}
+
 internal enum WGPUSurfaceGetCurrentTextureStatus
 {
 	None = 0,
@@ -485,9 +535,7 @@ internal enum WGPUSurfaceGetCurrentTextureStatus
 	Timeout = 0x00000003,
 	Outdated = 0x00000004,
 	Lost = 0x00000005,
-	OutOfMemory = 0x00000006,
-	DeviceLost = 0x00000007,
-	Error = 0x00000008,
+	Error = 0x00000006,
 }
 
 internal enum WGPUTextureAspect
@@ -516,97 +564,103 @@ internal enum WGPUTextureFormat
 	R8Snorm = 0x00000002,
 	R8Uint = 0x00000003,
 	R8Sint = 0x00000004,
-	R16Uint = 0x00000005,
-	R16Sint = 0x00000006,
-	R16Float = 0x00000007,
-	RG8Unorm = 0x00000008,
-	RG8Snorm = 0x00000009,
-	RG8Uint = 0x0000000A,
-	RG8Sint = 0x0000000B,
-	R32Float = 0x0000000C,
-	R32Uint = 0x0000000D,
-	R32Sint = 0x0000000E,
-	RG16Uint = 0x0000000F,
-	RG16Sint = 0x00000010,
-	RG16Float = 0x00000011,
-	RGBA8Unorm = 0x00000012,
-	RGBA8UnormSrgb = 0x00000013,
-	RGBA8Snorm = 0x00000014,
-	RGBA8Uint = 0x00000015,
-	RGBA8Sint = 0x00000016,
-	BGRA8Unorm = 0x00000017,
-	BGRA8UnormSrgb = 0x00000018,
-	RGB10A2Uint = 0x00000019,
-	RGB10A2Unorm = 0x0000001A,
-	RG11B10Ufloat = 0x0000001B,
-	RGB9E5Ufloat = 0x0000001C,
-	RG32Float = 0x0000001D,
-	RG32Uint = 0x0000001E,
-	RG32Sint = 0x0000001F,
-	RGBA16Uint = 0x00000020,
-	RGBA16Sint = 0x00000021,
-	RGBA16Float = 0x00000022,
-	RGBA32Float = 0x00000023,
-	RGBA32Uint = 0x00000024,
-	RGBA32Sint = 0x00000025,
-	Stencil8 = 0x00000026,
-	Depth16Unorm = 0x00000027,
-	Depth24Plus = 0x00000028,
-	Depth24PlusStencil8 = 0x00000029,
-	Depth32Float = 0x0000002A,
-	Depth32FloatStencil8 = 0x0000002B,
-	BC1RGBAUnorm = 0x0000002C,
-	BC1RGBAUnormSrgb = 0x0000002D,
-	BC2RGBAUnorm = 0x0000002E,
-	BC2RGBAUnormSrgb = 0x0000002F,
-	BC3RGBAUnorm = 0x00000030,
-	BC3RGBAUnormSrgb = 0x00000031,
-	BC4RUnorm = 0x00000032,
-	BC4RSnorm = 0x00000033,
-	BC5RGUnorm = 0x00000034,
-	BC5RGSnorm = 0x00000035,
-	BC6HRGBUfloat = 0x00000036,
-	BC6HRGBFloat = 0x00000037,
-	BC7RGBAUnorm = 0x00000038,
-	BC7RGBAUnormSrgb = 0x00000039,
-	ETC2RGB8Unorm = 0x0000003A,
-	ETC2RGB8UnormSrgb = 0x0000003B,
-	ETC2RGB8A1Unorm = 0x0000003C,
-	ETC2RGB8A1UnormSrgb = 0x0000003D,
-	ETC2RGBA8Unorm = 0x0000003E,
-	ETC2RGBA8UnormSrgb = 0x0000003F,
-	EACR11Unorm = 0x00000040,
-	EACR11Snorm = 0x00000041,
-	EACRG11Unorm = 0x00000042,
-	EACRG11Snorm = 0x00000043,
-	ASTC4x4Unorm = 0x00000044,
-	ASTC4x4UnormSrgb = 0x00000045,
-	ASTC5x4Unorm = 0x00000046,
-	ASTC5x4UnormSrgb = 0x00000047,
-	ASTC5x5Unorm = 0x00000048,
-	ASTC5x5UnormSrgb = 0x00000049,
-	ASTC6x5Unorm = 0x0000004A,
-	ASTC6x5UnormSrgb = 0x0000004B,
-	ASTC6x6Unorm = 0x0000004C,
-	ASTC6x6UnormSrgb = 0x0000004D,
-	ASTC8x5Unorm = 0x0000004E,
-	ASTC8x5UnormSrgb = 0x0000004F,
-	ASTC8x6Unorm = 0x00000050,
-	ASTC8x6UnormSrgb = 0x00000051,
-	ASTC8x8Unorm = 0x00000052,
-	ASTC8x8UnormSrgb = 0x00000053,
-	ASTC10x5Unorm = 0x00000054,
-	ASTC10x5UnormSrgb = 0x00000055,
-	ASTC10x6Unorm = 0x00000056,
-	ASTC10x6UnormSrgb = 0x00000057,
-	ASTC10x8Unorm = 0x00000058,
-	ASTC10x8UnormSrgb = 0x00000059,
-	ASTC10x10Unorm = 0x0000005A,
-	ASTC10x10UnormSrgb = 0x0000005B,
-	ASTC12x10Unorm = 0x0000005C,
-	ASTC12x10UnormSrgb = 0x0000005D,
-	ASTC12x12Unorm = 0x0000005E,
-	ASTC12x12UnormSrgb = 0x0000005F,
+	R16Unorm = 0x00000005,
+	R16Snorm = 0x00000006,
+	R16Uint = 0x00000007,
+	R16Sint = 0x00000008,
+	R16Float = 0x00000009,
+	RG8Unorm = 0x0000000A,
+	RG8Snorm = 0x0000000B,
+	RG8Uint = 0x0000000C,
+	RG8Sint = 0x0000000D,
+	R32Float = 0x0000000E,
+	R32Uint = 0x0000000F,
+	R32Sint = 0x00000010,
+	RG16Unorm = 0x00000011,
+	RG16Snorm = 0x00000012,
+	RG16Uint = 0x00000013,
+	RG16Sint = 0x00000014,
+	RG16Float = 0x00000015,
+	RGBA8Unorm = 0x00000016,
+	RGBA8UnormSrgb = 0x00000017,
+	RGBA8Snorm = 0x00000018,
+	RGBA8Uint = 0x00000019,
+	RGBA8Sint = 0x0000001A,
+	BGRA8Unorm = 0x0000001B,
+	BGRA8UnormSrgb = 0x0000001C,
+	RGB10A2Uint = 0x0000001D,
+	RGB10A2Unorm = 0x0000001E,
+	RG11B10Ufloat = 0x0000001F,
+	RGB9E5Ufloat = 0x00000020,
+	RG32Float = 0x00000021,
+	RG32Uint = 0x00000022,
+	RG32Sint = 0x00000023,
+	RGBA16Unorm = 0x00000024,
+	RGBA16Snorm = 0x00000025,
+	RGBA16Uint = 0x00000026,
+	RGBA16Sint = 0x00000027,
+	RGBA16Float = 0x00000028,
+	RGBA32Float = 0x00000029,
+	RGBA32Uint = 0x0000002A,
+	RGBA32Sint = 0x0000002B,
+	Stencil8 = 0x0000002C,
+	Depth16Unorm = 0x0000002D,
+	Depth24Plus = 0x0000002E,
+	Depth24PlusStencil8 = 0x0000002F,
+	Depth32Float = 0x00000030,
+	Depth32FloatStencil8 = 0x00000031,
+	BC1RGBAUnorm = 0x00000032,
+	BC1RGBAUnormSrgb = 0x00000033,
+	BC2RGBAUnorm = 0x00000034,
+	BC2RGBAUnormSrgb = 0x00000035,
+	BC3RGBAUnorm = 0x00000036,
+	BC3RGBAUnormSrgb = 0x00000037,
+	BC4RUnorm = 0x00000038,
+	BC4RSnorm = 0x00000039,
+	BC5RGUnorm = 0x0000003A,
+	BC5RGSnorm = 0x0000003B,
+	BC6HRGBUfloat = 0x0000003C,
+	BC6HRGBFloat = 0x0000003D,
+	BC7RGBAUnorm = 0x0000003E,
+	BC7RGBAUnormSrgb = 0x0000003F,
+	ETC2RGB8Unorm = 0x00000040,
+	ETC2RGB8UnormSrgb = 0x00000041,
+	ETC2RGB8A1Unorm = 0x00000042,
+	ETC2RGB8A1UnormSrgb = 0x00000043,
+	ETC2RGBA8Unorm = 0x00000044,
+	ETC2RGBA8UnormSrgb = 0x00000045,
+	EACR11Unorm = 0x00000046,
+	EACR11Snorm = 0x00000047,
+	EACRG11Unorm = 0x00000048,
+	EACRG11Snorm = 0x00000049,
+	ASTC4x4Unorm = 0x0000004A,
+	ASTC4x4UnormSrgb = 0x0000004B,
+	ASTC5x4Unorm = 0x0000004C,
+	ASTC5x4UnormSrgb = 0x0000004D,
+	ASTC5x5Unorm = 0x0000004E,
+	ASTC5x5UnormSrgb = 0x0000004F,
+	ASTC6x5Unorm = 0x00000050,
+	ASTC6x5UnormSrgb = 0x00000051,
+	ASTC6x6Unorm = 0x00000052,
+	ASTC6x6UnormSrgb = 0x00000053,
+	ASTC8x5Unorm = 0x00000054,
+	ASTC8x5UnormSrgb = 0x00000055,
+	ASTC8x6Unorm = 0x00000056,
+	ASTC8x6UnormSrgb = 0x00000057,
+	ASTC8x8Unorm = 0x00000058,
+	ASTC8x8UnormSrgb = 0x00000059,
+	ASTC10x5Unorm = 0x0000005A,
+	ASTC10x5UnormSrgb = 0x0000005B,
+	ASTC10x6Unorm = 0x0000005C,
+	ASTC10x6UnormSrgb = 0x0000005D,
+	ASTC10x8Unorm = 0x0000005E,
+	ASTC10x8UnormSrgb = 0x0000005F,
+	ASTC10x10Unorm = 0x00000060,
+	ASTC10x10UnormSrgb = 0x00000061,
+	ASTC12x10Unorm = 0x00000062,
+	ASTC12x10UnormSrgb = 0x00000063,
+	ASTC12x12Unorm = 0x00000064,
+	ASTC12x12UnormSrgb = 0x00000065,
 }
 
 internal enum WGPUTextureSampleType
@@ -631,6 +685,13 @@ internal enum WGPUTextureViewDimension
 	Cube = 0x00000004,
 	CubeArray = 0x00000005,
 	_3D = 0x00000006,
+}
+
+internal enum WGPUToneMappingMode
+{
+	None = 0,
+	Standard = 0x00000001,
+	Extended = 0x00000002,
 }
 
 internal enum WGPUVertexFormat
@@ -682,10 +743,17 @@ internal enum WGPUVertexFormat
 internal enum WGPUVertexStepMode
 {
 	None = 0,
-	VertexBufferNotUsed = 0x00000000,
-	Undefined = 0x00000001,
-	Vertex = 0x00000002,
-	Instance = 0x00000003,
+	Undefined = 0x00000000,
+	Vertex = 0x00000001,
+	Instance = 0x00000002,
+}
+
+internal enum WGPUWaitStatus
+{
+	None = 0,
+	Success = 0x00000001,
+	TimedOut = 0x00000002,
+	Error = 0x00000003,
 }
 
 internal enum WGPUWGSLLanguageFeatureName
@@ -695,16 +763,12 @@ internal enum WGPUWGSLLanguageFeatureName
 	Packed4x8IntegerDotProduct = 0x00000002,
 	UnrestrictedPointerParameters = 0x00000003,
 	PointerCompositeAccess = 0x00000004,
-}
-
-internal enum WGPUWaitStatus
-{
-	None = 0,
-	Success = 0x00000001,
-	TimedOut = 0x00000002,
-	UnsupportedTimeout = 0x00000003,
-	UnsupportedCount = 0x00000004,
-	UnsupportedMixedSources = 0x00000005,
+	UniformBufferStandardLayout = 0x00000005,
+	SubgroupId = 0x00000006,
+	TextureAndSamplerLet = 0x00000007,
+	SubgroupUniformity = 0x00000008,
+	TextureFormatsTier1 = 0x00000009,
+	LinearIndexing = 0x0000000A,
 }
 
 internal enum WGPUNativeSType
@@ -712,21 +776,27 @@ internal enum WGPUNativeSType
 	None = 0,
 	DeviceExtras = 0x00030001,
 	NativeLimits = 0x00030002,
-	PipelineLayoutExtras = 0x00030003,
-	ShaderSourceGLSL = 0x00030004,
-	InstanceExtras = 0x00030006,
-	BindGroupEntryExtras = 0x00030007,
-	BindGroupLayoutEntryExtras = 0x00030008,
-	QuerySetDescriptorExtras = 0x00030009,
-	SurfaceConfigurationExtras = 0x0003000A,
-	SurfaceSourceSwapChainPanel = 0x0003000B,
-	PrimitiveStateExtras = 0x0003000C,
+	ShaderSourceGLSL = 0x00030003,
+	InstanceExtras = 0x00030004,
+	BindGroupEntryExtras = 0x00030005,
+	BindGroupLayoutEntryExtras = 0x00030006,
+	QuerySetDescriptorExtras = 0x00030007,
+	SurfaceConfigurationExtras = 0x00030008,
+	SurfaceSourceSwapChainPanel = 0x00030009,
+	PrimitiveStateExtras = 0x0003000A,
+	SamplerDescriptorExtras = 0x0003000B,
+}
+
+internal enum WGPUNativeSurfaceGetCurrentTextureStatus
+{
+	None = 0,
+	Occluded = 0x00030001,
 }
 
 internal enum WGPUNativeFeature
 {
 	None = 0,
-	PushConstants = 0x00030001,
+	Immediates = 0x00030001,
 	TextureAdapterSpecificFormatFeatures = 0x00030002,
 	MultiDrawIndirectCount = 0x00030004,
 	VertexWritableStorage = 0x00030005,
@@ -739,17 +809,19 @@ internal enum WGPUNativeFeature
 	TextureCompressionAstcHdr = 0x0003000C,
 	MappablePrimaryBuffers = 0x0003000E,
 	BufferBindingArray = 0x0003000F,
-	UniformBufferAndStorageTextureArrayNonUniformIndexing = 0x00030010,
+	StorageTextureArrayNonUniformIndexing = 0x00030010,
+	AddressModeClampToZero = 0x00030011,
+	AddressModeClampToBorder = 0x00030012,
 	PolygonModeLine = 0x00030013,
 	PolygonModePoint = 0x00030014,
 	ConservativeRasterization = 0x00030015,
-	SpirvShaderPassthrough = 0x00030017,
+	ClearTexture = 0x00030016,
+	Multiview = 0x00030018,
 	VertexAttribute64bit = 0x00030019,
 	TextureFormatNv12 = 0x0003001A,
 	RayQuery = 0x0003001C,
 	ShaderF64 = 0x0003001D,
 	ShaderI16 = 0x0003001E,
-	ShaderPrimitiveIndex = 0x0003001F,
 	ShaderEarlyDepthTest = 0x00030020,
 	Subgroup = 0x00030021,
 	SubgroupVertex = 0x00030022,
@@ -757,6 +829,23 @@ internal enum WGPUNativeFeature
 	TimestampQueryInsideEncoders = 0x00030024,
 	TimestampQueryInsidePasses = 0x00030025,
 	ShaderInt64 = 0x00030026,
+	ShaderFloat32Atomic = 0x00030027,
+	TextureAtomic = 0x00030028,
+	TextureFormatP010 = 0x00030029,
+	PipelineCache = 0x0003002B,
+	ShaderInt64AtomicMinMax = 0x0003002C,
+	ShaderInt64AtomicAllOps = 0x0003002D,
+	TextureInt64Atomic = 0x00030030,
+	PassthroughShaders = 0x00030036,
+	ShaderBarycentrics = 0x00030037,
+	SelectiveMultiview = 0x00030038,
+	MultisampleArray = 0x0003003A,
+	CooperativeMatrix = 0x0003003B,
+	ShaderPerVertex = 0x0003003C,
+	ShaderDrawIndex = 0x0003003D,
+	AccelerationStructureBindingArray = 0x0003003E,
+	MemoryDecorationCoherent = 0x0003003F,
+	MemoryDecorationVolatile = 0x00030040,
 }
 
 internal enum WGPULogLevel
@@ -831,6 +920,14 @@ internal enum WGPUDx12SwapchainKind
 	DxgiFromVisual = 0x00000002,
 }
 
+internal enum WGPUNativeDisplayHandleType
+{
+	None = 0x00000000,
+	Xlib = 0x00000001,
+	Xcb = 0x00000002,
+	Wayland = 0x00000003,
+}
+
 internal enum WGPUPolygonMode
 {
 	None = 0,
@@ -842,13 +939,23 @@ internal enum WGPUPolygonMode
 internal enum WGPUNativeTextureFormat
 {
 	None = 0,
-	R16Unorm = 0x00030001,
-	R16Snorm = 0x00030002,
-	Rg16Unorm = 0x00030003,
-	Rg16Snorm = 0x00030004,
-	Rgba16Unorm = 0x00030005,
-	Rgba16Snorm = 0x00030006,
 	NV12 = 0x00030007,
 	P010 = 0x00030008,
+}
+
+internal enum WGPUNativeAddressMode
+{
+	None = 0,
+	ClampToBorder = 0x00000004,
+}
+
+internal enum WGPUSamplerBorderColor
+{
+	None = 0,
+	Undefined = 0x00000000,
+	TransparentBlack = 0x00000001,
+	OpaqueBlack = 0x00000002,
+	OpaqueWhite = 0x00000003,
+	Zero = 0x00000004,
 }
 

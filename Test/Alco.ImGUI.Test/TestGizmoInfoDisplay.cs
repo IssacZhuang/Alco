@@ -3,7 +3,7 @@ using System.Numerics;
 namespace Alco.ImGUI.Test;
 
 /// <summary>
-/// Tests for the drag info display fixes: translation delta shown in the caller's
+/// Verifies the gizmo drag info display: translation delta shown in the caller's
 /// authoring unit (InfoUnitScale) and rotation angle shown in the engine's euler
 /// sign convention (EngineRotationSign).
 /// </summary>

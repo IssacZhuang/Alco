@@ -45,6 +45,31 @@ public readonly ref struct AssetLoadContext
     }
 
     /// <summary>
+    /// Gets a value indicating whether a seekable stream can be opened for this asset
+    /// (true for file-backed contexts, false for preloaded in-memory contexts).
+    /// </summary>
+    public bool CanGetStream => _loader != null;
+
+    /// <summary>
+    /// Opens a seekable read stream over the asset file without loading it into memory.
+    /// Ownership of the stream transfers to the caller; dispose it when done. Loaders that
+    /// keep streaming after CreateAsset (e.g. mesh assets) may hand the stream to the
+    /// created asset instead of disposing it here.
+    /// </summary>
+    /// <returns>The seekable asset stream.</returns>
+    /// <exception cref="InvalidOperationException">Thrown for preloaded contexts or when the
+    /// file source cannot open a stream.</exception>
+    public Stream GetStream()
+    {
+        if (_loader == null)
+        {
+            throw new InvalidOperationException($"No stream available for preloaded asset '{Filename}'.");
+        }
+
+        return _loader.GetStream();
+    }
+
+    /// <summary>
     /// Disposes any data loaded by <see cref="GetData"/>. No-op for pre-loaded contexts.
     /// </summary>
     internal void DisposeLoadedData() => _loader?.Dispose();
@@ -71,6 +96,16 @@ public readonly ref struct AssetLoadContext
                 _loaded = true;
             }
             return _handle != null ? _handle.AsReadOnlySpan() : ReadOnlySpan<byte>.Empty;
+        }
+
+        public Stream GetStream()
+        {
+            if (!_assetSystem.TryGetStreamFromSource(_filename, out Stream? stream) || stream == null)
+            {
+                throw new InvalidOperationException($"Failed to open stream for asset '{_filename}'");
+            }
+
+            return stream;
         }
 
         public void Dispose()

@@ -1,54 +1,42 @@
-namespace Alco.Engine;
+using System;
 
-/// <summary>
-/// The global component of the engine
-/// </summary>
-public interface IEngineSystem:IDisposable
+namespace Alco.Engine
 {
     /// <summary>
-    /// The execution order of the system. The lower the number, the earlier it will be executed.
+    /// A self-contained unit of engine logic driven by the engine lifecycle.
+    /// Systems are registered via <see cref="GameEngine.AddSystem"/> and updated
+    /// each frame in priority order.
     /// </summary>
-    int Order { get; }
-    /// <summary>
-    /// Called when the engine starts
-    /// </summary>
-    void OnStart();
-    /// <summary>
-    /// Called every logic tick
-    /// </summary>
-    /// <param name="delta">The time since the last logic tick</param>
-    void OnTick(float delta);
-    /// <summary>
-    /// Called after the logic tick
-    /// </summary>
-    /// <param name="delta">The time since the last logic tick</param>
-    void OnPostTick(float delta);
-    /// <summary>
-    /// Called every frame
-    /// </summary>
-    /// <param name="delta">The time since the last frame</param>
-    void OnUpdate(float delta);
-    /// <summary>
-    /// Called after the frame
-    /// </summary>
-    /// <param name="delta">The time since the last frame</param>
-    void OnPostUpdate(float delta);
-    /// <summary>
-    /// Called after scene rendering but before UI rendering.
-    /// Use this for scene-only post-processing effects.
-    /// </summary>
-    /// <param name="delta">The time since the last frame</param>
-    void OnPostSceneUpdate(float delta);
-    /// <summary>
-    /// Called before rendering the update
-    /// </summary>
-    void OnBeginFrame(float deltaTime);
-    /// <summary>
-    /// Called before swapping the frame buffer
-    /// </summary>
-    void OnEndFrame(float deltaTime);
-    /// <summary>
-    /// Called when the engine stops
-    /// </summary>
-    void OnStop();
+    public interface IEngineSystem : IDisposable
+    {
+        /// <summary>
+        /// The execution order. Lower values run first.
+        /// </summary>
+        int Order { get; }
+
+        /// <summary>
+        /// Called once before the main loop starts.
+        /// </summary>
+        void OnStart();
+
+        /// <summary>
+        /// Called each fixed-rate tick.
+        /// </summary>
+        void OnTick(float delta);
+
+        /// <summary>
+        /// Called each frame.
+        /// </summary>
+        void OnUpdate(float delta);
+
+        /// <summary>
+        /// Called at the end of each frame, after scene rendering and before present.
+        /// </summary>
+        void OnEndFrame(float deltaTime);
+
+        /// <summary>
+        /// Called once after the main loop ends, before dispose.
+        /// </summary>
+        void OnStop();
+    }
 }

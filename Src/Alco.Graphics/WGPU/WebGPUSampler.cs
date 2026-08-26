@@ -65,7 +65,9 @@ internal sealed class WebGPUSampler : GPUSampler
         }
     }
 
-    // only call by GPU device to release default samplers
+    /// <summary>
+    /// Releases the native sampler handle. Only call by the owning <c>GPUDevice</c> to release the default samplers.
+    /// </summary>
     internal void InternalDispose()
     {
         wgpuSamplerRelease(_native);

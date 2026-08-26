@@ -23,12 +23,43 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            if (_dirty)
-            {
-                UpdateBuffer(_data.ViewProjectionMatrix);
-                _dirty = false;
-            }
+            FlushDirty();
             return base.EntryReadonly;
+        }
+    }
+
+    /// <summary>
+    /// Bind-group assembly reads through this property, so the pending matrix
+    /// upload flushes here.
+    /// </summary>
+    public override GPUBuffer NativeBuffer
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get
+        {
+            FlushDirty();
+            return base.NativeBuffer;
+        }
+    }
+
+    private readonly Lock _flushLock = new();
+
+    private void FlushDirty()
+    {
+        if (_dirty)
+        {
+            // Materials on any number of threads read this buffer during bind
+            // group assembly; without the guard several of them would issue the
+            // same pending upload concurrently (buffer writes are externally
+            // synchronized in the native layer).
+            lock (_flushLock)
+            {
+                if (_dirty)
+                {
+                    UpdateBuffer(_data.ViewProjectionMatrix);
+                    _dirty = false;
+                }
+            }
         }
     }
 
@@ -48,7 +79,7 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
     }
 
     /// <summary>
-    /// Update the camera matrix to GPU. This method is uses <see cref="GraphicsBuffer.UpdateBuffer<T> to update the buffer./>.
+    /// Update the camera matrix on the GPU by writing the current view-projection matrix to the buffer.
     /// </summary>
     public void UpdateMatrixToGPU()
     {

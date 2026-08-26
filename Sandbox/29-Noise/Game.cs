@@ -28,6 +28,8 @@ public class Game : GameEngine
 
     private ImGUILogger _logger;
 
+    private readonly GPUCommandBuffer _commandBuffer;
+
     /// <summary>
     /// Parallel noise generation task that extends ReusableBatchTask2D for optimized performance.
     /// </summary>
@@ -69,6 +71,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
+
         // Initialize noise generator with default seed
         _noise = new Noise(1337);
 
@@ -96,6 +101,16 @@ public class Game : GameEngine
 
     protected override void OnUpdate(float delta)
     {
+        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        {
+            _commandBuffer.Begin();
+            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            {
+            }
+            _commandBuffer.End();
+            GraphicsDevice.Submit(_commandBuffer);
+        }
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();

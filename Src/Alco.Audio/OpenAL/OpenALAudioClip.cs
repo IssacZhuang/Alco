@@ -91,7 +91,6 @@ internal unsafe class OpenALAudioClip : AudioClip
                 _device.LogWarning("AL_SOFT_source_spatialize is not supported, downmix stereo to mono for spatialization");
             }
 
-            // Delete the old buffer and create a new one with the updated data
             AL.DeleteBuffer(_buffer);
             _buffer = AL.GenBuffer();
 

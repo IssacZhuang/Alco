@@ -2,7 +2,6 @@ using _33_LLM;
 using Alco;
 using Alco.Engine;
 using Alco.Graphics;
-using Alco.ImGUI;
 
 GameEngineSetting setting = new GameEngineSetting
 {
@@ -12,9 +11,7 @@ GameEngineSetting setting = new GameEngineSetting
     {
         Backend = GraphicsBackend.Vulkan
     },
-}.
-With<PluginDefaultAssets>().
-With<PluginImGUI>();
+};
 
 using (Game game = new Game(setting))
 {

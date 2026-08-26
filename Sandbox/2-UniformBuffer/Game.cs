@@ -68,8 +68,9 @@ public class Game : GameEngine
         _timer += delta;
         UpdateColor(new Vector4(MathF.Sin(_timer), MathF.Cos(_timer), 0.0f, 1.0f));
 
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_pipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
@@ -115,27 +116,15 @@ public class Game : GameEngine
 
     private GPUPipeline CreatePipeline(GPUBindGroup bindGroup)
     {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.slang"));
+        // slang module program: every [shader(...)] entry point compiled to SPIR-V
+        SlangProgram program = CompileProgram("sandbox2_shader", "shader.slang");
+        ShaderModule vertexShader = StageModule(program, "MainVS");
+        ShaderModule fragmentShader = StageModule(program, "MainPS");
         string appPath = Environment.CurrentDirectory;
+        string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
+        string filePathFragment = Path.Combine(appPath, "spirv", "Shader.slang.frag.spv");
 
-        //dxc
-        ShaderModule vertexShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
-        ShaderModule fragmentShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
-        string filePathVetex = Path.Combine(appPath, "spirv", "Shader.dxc.vert.spv");
-        string filePathFragment = Path.Combine(appPath, "spirv", "Shader.dxc.frag.spv");
-
-        //shaderc
-        // ShaderStageSource vertexShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
-        // ShaderStageSource fragmentShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
-
-        //slang
-        // ShaderModule[] shaderModules = ShaderCompilerSlang.CrearteSpirvShaderModules(shaderCode, "Shader.hlsl");
-        // ShaderModule vertexShader = shaderModules[0];
-        // ShaderModule fragmentShader = shaderModules[1];
-        // string filePathVetex = Path.Combine(appPath, "spirv", "Shader.slang.vert.spv");
-        // string filePathFragment = Path.Combine(appPath, "spirv", "Shader.slang.frag.spv");
-
-        Log.Info(ShaderReflectionUtility.GetSpirvReflection(vertexShader.Source));
+        Log.Info(program.Reflection);
 
         if (!Directory.Exists(Path.Combine(appPath, "spirv")))
         {
@@ -160,7 +149,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.Opaque;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroup },
@@ -171,8 +160,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { attachmentLayout.Colors[0].Format },
             attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
-            null,
-            "quad_pipeline"
+            name: "quad_pipeline"
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(pipelineDescriptor);
@@ -193,6 +181,30 @@ public class Game : GameEngine
     private void UpdateColor(Vector4 color)
     {
         GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
+    }
+
+    private SlangProgram CompileProgram(string moduleName, string fileName)
+    {
+        string path = Path.Combine("Assets", fileName);
+        SlangModuleSystem modules = RenderingSystem.ShaderSystem.Modules;
+        modules.GetOrLoadModule(moduleName, path, File.ReadAllText(path));
+        return modules.GetProgramAllEntries(moduleName, []);
+    }
+
+    private static ShaderModule StageModule(SlangProgram program, string entryName)
+    {
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            if (program.EntryPoints[i].Name == entryName)
+            {
+                return new ShaderModule(
+                    SlangCompileSession.SlangStageToEngine(program.EntryPoints[i].Stage),
+                    ShaderLanguage.SPIRV,
+                    program.EntryCode[i],
+                    "main");
+            }
+        }
+        throw new ArgumentException($"Entry point '{entryName}' not found in module '{program.ModuleName}'.");
     }
 
     private static byte[] LoadFile(string path)

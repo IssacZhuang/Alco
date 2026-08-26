@@ -18,13 +18,13 @@ public class Wall : IObstacle, IConnectableTile
     public int2 Position { get; set; }
     public Color32 Opacity { get; set; }
 
-    public Material Material {get;}
+    public GraphicsMaterial Material {get;}
 
     public Vector2 Size {get;}
 
     public Vector2 Offset {get;}
 
-    public Wall(int2 position, Material material, Vector2 size, Vector2 offset, Color32 opacity)
+    public Wall(int2 position, GraphicsMaterial material, Vector2 size, Vector2 offset, Color32 opacity)
     {
         Position = position;
         Material = material;

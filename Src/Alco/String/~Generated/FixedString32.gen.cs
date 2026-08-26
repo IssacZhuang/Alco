@@ -349,19 +349,23 @@ public unsafe partial struct FixedString32 : IEquatable<FixedString32>
     {
         if (Length >= MaxLength) return;
 
-        if (value < 0)
+        // Round in double precision before extracting digits: truncating raw float digits
+        // misprints values whose binary representation sits just below the decimal (0.7f would
+        // print as "0.6", 0.099999994 as "0.0"). ToEven matches standard .NET "F{n}" formatting.
+        double rounded = Math.Round((double)value, decimalPlaces, MidpointRounding.ToEven);
+        if (rounded < 0)
         {
             Append('-');
-            value = -value;
+            rounded = -rounded;
         }
 
-        int integral = (int)value;
+        int integral = (int)rounded;
         Append(integral);
 
         if (decimalPlaces > 0)
         {
             Append('.');
-            float fractional = value - integral;
+            double fractional = rounded - integral;
             for (int i = 0; i < decimalPlaces; i++)
             {
                 fractional *= 10;

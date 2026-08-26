@@ -73,6 +73,13 @@ public struct ImageLoadOption
     public FilterMode FilterMode { get; init; } = FilterMode.Linear;
 
     /// <summary>
+    /// The maximum anisotropy for texture sampling; 1 disables anisotropic filtering.
+    /// Values above 1 reduce minification blur and moiré on surfaces seen at grazing
+    /// angles; clamped to the GPU limit (16) at sampler creation.
+    /// </summary>
+    public ushort Anisotropy { get; init; } = 1;
+
+    /// <summary>
     /// The texture addressing mode.
     /// </summary>
     public AddressMode AddressMode { get; init; } = AddressMode.Repeat;

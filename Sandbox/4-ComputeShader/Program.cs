@@ -1,11 +1,11 @@
-﻿using Alco;
+using Alco;
 using Alco.Engine;
 
 GameEngineSetting setting = new GameEngineSetting
 {
     StopWhenError = true,
     View = new ViewSetting(400, 400, "Compute Shader"),
-}.With<PluginDebugStats>();
+};
 
 using (Game game = new Game(setting))
 {

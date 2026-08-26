@@ -34,6 +34,10 @@ public unsafe class TestCollisionWorld2D
             {
                 hitIds.Add(target.id);
             }
+            else if (hitObject is TestSphereTarget sphere)
+            {
+                hitIds.Add(sphere.id);
+            }
             return true;
         }
 
@@ -42,6 +46,10 @@ public unsafe class TestCollisionWorld2D
             if (target is TestBoxTarget box)
             {
                 hitIds.Add(box.id);
+            }
+            else if (target is TestSphereTarget sphere)
+            {
+                hitIds.Add(sphere.id);
             }
             return true;
         }
@@ -135,28 +143,24 @@ public unsafe class TestCollisionWorld2D
         Vector2 point = new Vector2(0, 0);
         TestSphereCollector collector1 = new TestSphereCollector(123);
 
-        //hit 
         TestBoxTarget box1 = new TestBoxTarget
         {
             id = 0,
             shape = new ShapeBox2D(new Vector2(0, 0), new Vector2(1, 1), Rotation2D.Identity)
         };
 
-        //hit
         TestBoxTarget box2 = new TestBoxTarget
         {
             id = 1,
             shape = new ShapeBox2D(new Vector2(0.2f, 0), new Vector2(1, 1), Rotation2D.Identity)
         };
 
-        //hit
         TestBoxTarget box3 = new TestBoxTarget
         {
             id = 2,
             shape = new ShapeBox2D(new Vector2(0.4f, 0), new Vector2(1, 1), Rotation2D.Identity)
         };
 
-        //not hit
         TestBoxTarget box4 = new TestBoxTarget
         {
             id = 3,
@@ -283,5 +287,69 @@ public unsafe class TestCollisionWorld2D
         Ray2D ray = new Ray2D(new Vector2(0, 0), new Vector2(20, 0));
         Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out var hitTarget, out _), Is.True);
         Assert.That(hitTarget!.id, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void TestMortonBuilderWorld2D()
+    {
+        // A world with an injected Morton builder must cast identically to the default build path,
+        // including across repeated clear/push/build cycles like the map service's per-frame rebuild
+        using CollisionWorld2D defaultWorld = new CollisionWorld2D();
+        using CollisionWorld2D mortonWorld = new CollisionWorld2D { Builder = new MortonBvhBuilder2D() };
+
+        for (int cycle = 0; cycle < 3; cycle++)
+        {
+            defaultWorld.ClearAll();
+            mortonWorld.ClearAll();
+
+            for (int i = 0; i < 40; i++)
+            {
+                Vector2 pos = new Vector2((i * 7) % 31, (i * 13) % 19);
+                TestBoxTarget box = new TestBoxTarget
+                {
+                    id = i,
+                    shape = new ShapeBox2D(pos, new Vector2(1, 1), Rotation2D.Identity)
+                };
+                TestSphereTarget sphere = new TestSphereTarget
+                {
+                    id = 100 + i,
+                    shape = new ShapeSphere2D { Center = pos + new Vector2(0.5f, 0.5f), Radius = 0.75f }
+                };
+                defaultWorld.PushCollisionTarget(box, box.shape);
+                defaultWorld.PushCollisionTarget(sphere, sphere.shape);
+                mortonWorld.PushCollisionTarget(box, box.shape);
+                mortonWorld.PushCollisionTarget(sphere, sphere.shape);
+            }
+
+            defaultWorld.BuildTree();
+            mortonWorld.BuildTree();
+
+            ShapeSphere2D castSphere = new ShapeSphere2D { Center = new Vector2(15, 9), Radius = 5 };
+            TestSphereCollector defaultCollector = new TestSphereCollector(0);
+            TestSphereCollector mortonCollector = new TestSphereCollector(0);
+            defaultWorld.CastSphere(ref defaultCollector, castSphere);
+            mortonWorld.CastSphere(ref mortonCollector, castSphere);
+            defaultCollector.hitIds.Sort();
+            mortonCollector.hitIds.Sort();
+            Assert.That(mortonCollector.hitIds, Is.EqualTo(defaultCollector.hitIds));
+            Assert.That(mortonCollector.hitIds.Count, Is.GreaterThan(0));
+
+            Ray2D ray = new Ray2D(new Vector2(-5, -5), new Vector2(80, 40));
+            TestSphereCollector defaultRay = new TestSphereCollector(0);
+            TestSphereCollector mortonRay = new TestSphereCollector(0);
+            defaultWorld.CastRay(ref defaultRay, ray);
+            mortonWorld.CastRay(ref mortonRay, ray);
+            defaultRay.hitIds.Sort();
+            mortonRay.hitIds.Sort();
+            Assert.That(mortonRay.hitIds, Is.EqualTo(defaultRay.hitIds));
+            Assert.That(mortonRay.hitIds.Count, Is.GreaterThan(0));
+
+            bool defaultHit = defaultWorld.TryCastRayClosestHit<object>(ray, out object? defaultTarget, out RaycastHit2D defaultHitInfo);
+            bool mortonHit = mortonWorld.TryCastRayClosestHit<object>(ray, out object? mortonTarget, out RaycastHit2D mortonHitInfo);
+            Assert.That(mortonHit, Is.EqualTo(defaultHit));
+            Assert.That(mortonHit, Is.True);
+            Assert.That(mortonTarget, Is.EqualTo(defaultTarget));
+            Assert.That(mortonHitInfo.Fraction, Is.EqualTo(defaultHitInfo.Fraction));
+        }
     }
 }

@@ -23,6 +23,7 @@ public class Game : GameEngine
         VirtualGridList
     }
 
+    private readonly RenderPipeline _mainPipeline;
     private readonly Canvas _canvas;
     private readonly Font _font;
 
@@ -50,6 +51,8 @@ public class Game : GameEngine
 
     private Display _display = Display.Button;
 
+    private float _delta;
+
 
     private float _alignHorizontal = TextAlign.Left;
     private float _alignVertical = TextAlign.Top;
@@ -68,6 +71,35 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        // The node chain: scene content first, then tone mapping.
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
+
+        var tonemapNode = new RGNode_Tonemap(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
         _font = BuiltInAssets.Font_Default;
 
         CavanUIFactoryStyle style = new CavanUIFactoryStyle
@@ -96,9 +128,9 @@ public class Game : GameEngine
 
         UIInputTracker inputTracker = new UIInputTracker(Input, MainView);
 
-        Material defaultSpriteMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        GraphicsMaterial defaultSpriteMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", false);
         defaultSpriteMaterial.BlendState = BlendState.NonPremultipliedAlpha;
-        Material defaultTextMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Text);
+        GraphicsMaterial defaultTextMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
         defaultTextMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
 
@@ -273,6 +305,8 @@ public class Game : GameEngine
         _root.Add(_virtualGridListSlider);
         _intVirtualGridList.Scrollable.SliderVertical = _virtualGridListSlider;
 
+        AddSystem(new ImGUISystem(this));
+
         // default display
         UpdateDisplayActive();
     }
@@ -337,10 +371,8 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugStats.Text(FrameRate);
-
         //_canvas.Tick(_root, delta);
-        _canvas.Update(MainFrameBuffer, delta);
+        _delta = delta;
 
         // ImGUI Controls
         ImGui.Begin("Canvas UI Controls");
@@ -631,6 +663,8 @@ public class Game : GameEngine
         ImGui.Begin("UI Tree Inspector");
         _root.DrawDebugTreeWithInspector(ref _selectedNode);
         ImGui.End();
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 
     private void PopulateIntList(int count)
@@ -697,6 +731,7 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _canvas.Dispose();
+        _mainPipeline.Dispose();
     }
 
     private void UpdateDisplayActive()
@@ -773,6 +808,24 @@ public class Game : GameEngine
                 _intVirtualGridList.IsEnable = true;
                 if (_virtualGridListSlider != null) _virtualGridListSlider.IsEnable = true;
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Content node updating and drawing the canvas UI into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : RGNode_SceneContent
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        {
+            _game = game;
+        }
+
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            _game._canvas.Update(target, _game._delta);
         }
     }
 }

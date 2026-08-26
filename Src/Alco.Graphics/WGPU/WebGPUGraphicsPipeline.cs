@@ -65,8 +65,8 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
             _stages |= descriptor.ShaderModules[i].Stage;
         }
 
-        WGPUShaderModule vertexShader = nativeDevice.CreateShaderModule(vertex);
-        WGPUShaderModule pixelShader = nativeDevice.CreateShaderModule(pixel);
+        WGPUShaderModule vertexShader = device.CreateShaderModule(vertex);
+        WGPUShaderModule pixelShader = device.CreateShaderModule(pixel);
         //wgpuShaderModuleGetCompilationInfo(vertexShader, &ShaderCompileErrorCallback, 0);
 
         // === Create vertex layout ======================================
@@ -125,11 +125,15 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
 
             for (int i = 0; i < descriptor.ColorFormats.Length; i++)
             {
+                // WebGPU rejects a color target without a matching fragment output unless its
+                // write mask is zero, so extra targets (e.g. a MRT position buffer a shader
+                // does not write) are masked out instead of failing pipeline validation.
+                bool writesTarget = i < descriptor.FragmentOutputCount;
                 targets[i] = new WGPUColorTargetState()
                 {
                     format = WebGPUUtility.PixelFormatToWebGPU(descriptor.ColorFormats[i]),
-                    blend = &blendState,
-                    writeMask = WGPUColorWriteMask.All,
+                    blend = writesTarget ? &blendState : null,
+                    writeMask = writesTarget ? WGPUColorWriteMask.All : WGPUColorWriteMask.None,
                 };
             }
 
@@ -174,35 +178,8 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
                 label = _nativeNameView,
                 bindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
                 bindGroupLayouts = bindGroupLayouts,
+                immediateSize = descriptor.PushConstantsSize,
             };
-
-            if (descriptor.PushConstantsRanges != null)
-            {
-                WGPUPushConstantRange* pushConstants = stackalloc WGPUPushConstantRange[descriptor.PushConstantsRanges.Length];
-                for (int i = 0; i < descriptor.PushConstantsRanges.Length; i++)
-                {
-                    PushConstantsRange range = descriptor.PushConstantsRanges[i];
-                    pushConstants[i] = new WGPUPushConstantRange
-                    {
-
-                        stages = WebGPUUtility.ConvertShaderStage(range.Stage),
-                        start = range.Start,
-                        end = range.End
-                    };
-                }
-                WGPUPipelineLayoutExtras extras = new WGPUPipelineLayoutExtras
-                {
-                    chain = new WGPUChainedStruct
-                    {
-                        sType = (WGPUSType)WGPUNativeSType.PipelineLayoutExtras,
-                        next = null,
-                    },
-                    pushConstantRangeCount = (uint)descriptor.PushConstantsRanges.Length,
-                    pushConstantRanges = pushConstants,
-                };
-
-                pipelineLayoutDescriptor.nextInChain = &extras.chain;
-            }
 
             WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(nativeDevice, &pipelineLayoutDescriptor);
 
@@ -264,7 +241,7 @@ internal unsafe sealed class WebGPUGraphicsPipeline : GPUPipeline
                     stencilFront = WebGPUUtility.ConvertToWebGPU(descriptor.DepthStencilState.FrontFace),
                     stencilBack = WebGPUUtility.ConvertToWebGPU(descriptor.DepthStencilState.BackFace),
                     stencilReadMask = descriptor.DepthStencilState.StencilReadMask,
-                    stencilWriteMask = descriptor.DepthStencilState.StencilReadMask,
+                    stencilWriteMask = descriptor.DepthStencilState.StencilWriteMask,
                 };
 
                 pipelineDescriptor.depthStencil = &depthStencilState;

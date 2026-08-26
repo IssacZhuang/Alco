@@ -39,7 +39,7 @@ IDisposable
     private readonly Platform _platform;
     private readonly Input _input;
     private readonly View _mainView;
-    private readonly ViewRenderTarget _mainRenderTarget;
+    private readonly ViewPresenter _mainPresenter;
 
     #endregion
 
@@ -112,18 +112,14 @@ IDisposable
         get => _mainView;
     }
 
-    public ViewRenderTarget MainRenderTarget
+    /// <summary>
+    /// The presenter of the main view: owns the swapchain surface (acquire, present, resize).
+    /// </summary>
+    public ViewPresenter MainPresenter
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainRenderTarget;
+        get => _mainPresenter;
     }
-
-    public GPUFrameBuffer MainFrameBuffer
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _mainRenderTarget.RenderTexture.FrameBuffer;
-    }
-
 
     /// <summary>
     /// The asset manager of the game<br/>
@@ -233,13 +229,17 @@ IDisposable
         _renderingSystem = new RenderingSystem(
             this,
             _graphicsDevice,
-            _setting.Graphics.PreferredSDRFormat,
             _setting.Graphics.PreferredHDRFormat,
             _setting.Graphics.PreferredDepthStencilFormat,
-            CreateShaderCache(_setting.Graphics)
+            // Module-name probes resolve via dashed-name matching over
+            // asset-system assets.
+            ShaderModuleResolver.Create(
+                path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
+                () => _assetSystem.AllAssetNames),
+            CreateShaderCacheDirectory(_setting.Graphics)
             );
 
-        _builtInAssets = new BuiltInAssets(_assetSystem);
+        _builtInAssets = new BuiltInAssets(_assetSystem, _renderingSystem);
 
         _audioDevice = CreateAudioDevice(_setting.Audio);
 
@@ -258,8 +258,6 @@ IDisposable
             _assetSystem.RegisterAssetHotReloader(assetHotReloader);
         }
 
-        Task<Shader> shaderBlit = _assetSystem.LoadAsync<Shader>(BuiltInAssetsPath.Shader_Blit);
-
         _platform = _setting.Platform ?? new Sdl3Platform();
         _platform.TargetFrameRate = _setting.TargetFrameRate;
         _input = _platform.Input;
@@ -269,11 +267,10 @@ IDisposable
 
         //main view
         _mainView = CreateView(_setting.View);
-        _mainRenderTarget = CreateViewRenderTarget(_mainView, _renderingSystem.PreferredSDRPass, shaderBlit.Result);
-        AddSystem(_mainRenderTarget);
+        _mainPresenter = new ViewPresenter(_mainView);
 
-
-        InitializePlugins(_setting.Plugins);
+        // Auto-initialize debug stats overlay as an engine-managed system.
+        AddSystem(new DebugStatsSystem(this));
 
         _preferenceSerializerOption = new JsonSerializerOptions
         {
@@ -294,14 +291,14 @@ IDisposable
     [STAThread]
     public void Run()
     {
-        InternaleRun();
+        InternalRun();
     }
 
 
     /// <summary>
     /// The loop with graphics, which is used for the client
     /// </summary>
-    private void InternaleRun()
+    private void InternalRun()
     {
         try
         {
@@ -352,30 +349,6 @@ IDisposable
 
     }
 
-    protected virtual void OnBeginFrame()
-    {
-
-    }
-
-    /// <summary>
-    /// Called before the frame swap buffer. This method is usually used for handle the custom swap chain
-    /// </summary>
-    protected virtual void OnEndFrame()
-    {
-
-    }
-
-    /// <summary>
-    /// Called after scene rendering and scene post-processing, before combined post-processing.
-    /// Use this for rendering UI elements that should not be affected by scene-only effects.
-    /// </summary>
-    /// <param name="delta">The time since the last frame</param>
-    protected virtual void OnUpdateUI(float delta)
-    {
-
-    }
-
-
     /// <summary>
     /// Called when player exit the game
     /// </summary>
@@ -422,7 +395,6 @@ IDisposable
             Log.Error("[Tick Error]", e);
             TryErrorStop();
         }
-        OnSystemPostTick(delta);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -435,16 +407,8 @@ IDisposable
 
         _audioDevice.Poll(delta);
 
-        try
-        {
-            OnBeginFrame();
-        }
-        catch (Exception e)
-        {
-            Log.Error("[Begin Frame Error]", e);
-            TryErrorStop();
-        }
-        OnSystemBeginFrame(delta);
+        // Acquire the swapchain surface for this frame
+        _mainPresenter.BeginFrame();
 
         EventOnUpdate?.Invoke(delta);
 
@@ -460,35 +424,13 @@ IDisposable
             TryErrorStop();
         }
 
-        OnSystemPostSceneUpdate(delta);
-
-        try
-        {
-            OnUpdateUI(delta);
-        }
-        catch (Exception e)
-        {
-            Log.Error("[UpdateUI Error]", e);
-            TryErrorStop();
-        }
-
-        OnSystemPostUpdate(delta);
-
-        EventOnHandleAssetLoaded?.Invoke();
-        try
-        {
-            OnEndFrame();
-        }
-        catch (Exception e)
-        {
-            Log.Error("[End Frame Error]", e);
-            TryErrorStop();
-        }
-
         OnSystemEndFrame(delta);
 
+        // Per-frame resource disposal (deferred GPU resource destruction)
         EventOnEndFrame?.Invoke();
 
+        // Present the frame
+        _mainPresenter.EndFrame();
     }
 
 
@@ -538,7 +480,7 @@ IDisposable
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
-        DisposePlugins(_setting.Plugins);
+        _mainPresenter.Dispose();
         MainView.Close();
         _platform.Dispose();
 
@@ -546,54 +488,12 @@ IDisposable
         GC.SuppressFinalize(this);
     }
 
-    private void InitializePlugins(IReadOnlyList<IEnginePlugin> plugins)
-    {
-        for (int i = 0; i < plugins.Count; i++)
-        {
-            try
-            {
-                plugins[i].OnPostInitialize(this);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when initialize plugin {plugins[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
-    private void DisposePlugins(IReadOnlyList<IEnginePlugin> plugins)
-    {
-        for (int i = 0; i < plugins.Count; i++)
-        {
-            try
-            {
-                plugins[i].Dispose();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when dispose plugin {plugins[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
     private void OnSystemStart()
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnStart();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when start system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnStart(); }
+            catch (Exception e) { Log.Error($"Error when start system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -601,33 +501,8 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnTick(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when tick system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
-    private void OnSystemPostTick(float delta)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try
-            {
-                _systems[i].OnPostTick(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post tick system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnTick(delta); }
+            catch (Exception e) { Log.Error($"Error when tick system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -635,67 +510,8 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnUpdate(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when update system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
-    private void OnSystemPostUpdate(float delta)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try
-            {
-                _systems[i].OnPostUpdate(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post update system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
-    private void OnSystemPostSceneUpdate(float delta)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try
-            {
-                _systems[i].OnPostSceneUpdate(delta);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post scene update system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
-        }
-    }
-
-    private void OnSystemBeginFrame(float deltaTime)
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            try
-            {
-                _systems[i].OnBeginFrame(deltaTime);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when pre swap frame system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnUpdate(delta); }
+            catch (Exception e) { Log.Error($"Error when update system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -703,34 +519,17 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnEndFrame(deltaTime);
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when post swap frame system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnEndFrame(deltaTime); }
+            catch (Exception e) { Log.Error($"Error when end frame system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
-
 
     private void OnSystemStop()
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].OnStop();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when stop system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].OnStop(); }
+            catch (Exception e) { Log.Error($"Error when stop system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
 
@@ -738,20 +537,10 @@ IDisposable
     {
         for (int i = 0; i < _systems.Count; i++)
         {
-            try
-            {
-                _systems[i].Dispose();
-            }
-            catch (Exception e)
-            {
-                Log.Error($"Error when dispose system {_systems[i].GetType().Name}: ");
-                Log.Error(e);
-                TryErrorStop();
-            }
+            try { _systems[i].Dispose(); }
+            catch (Exception e) { Log.Error($"Error when dispose system {_systems[i].GetType().Name}: "); Log.Error(e); TryErrorStop(); }
         }
     }
-
-
 
     #endregion
 
@@ -770,23 +559,6 @@ IDisposable
         _systems.Add(system);
     }
 
-    public void RemoveSystem(IEngineSystem system)
-    {
-        _systems.Remove(system);
-    }
-
-    public T GetSystem<T>()
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            if (_systems[i] is T system)
-            {
-                return system;
-            }
-        }
-        throw new Exception($"System {typeof(T).Name} not found");
-    }
-
     public bool TryGetSystem<T>([NotNullWhen(true)] out T? system)
     {
         for (int i = 0; i < _systems.Count; i++)
@@ -799,48 +571,6 @@ IDisposable
         }
         system = default;
         return false;
-    }
-
-    public IEnumerable<T> GetSystems<T>()
-    {
-        for (int i = 0; i < _systems.Count; i++)
-        {
-            if (_systems[i] is T system)
-            {
-                yield return system;
-            }
-        }
-        yield break;
-    }
-
-
-    public bool TryGetPlugin<T>([NotNullWhen(true)] out T? plugin)
-    {
-        IReadOnlyList<IEnginePlugin> plugins = Setting.Plugins;
-        for (int i = 0; i < plugins.Count; i++)
-        {
-            if (plugins[i] is T p)
-            {
-                plugin = p;
-                return true;
-            }
-        }
-
-        plugin = default;
-        return false;
-    }
-
-    public IEnumerable<T> GetPlugins<T>()
-    {
-        for (int i = 0; i < Setting.Plugins.Count; i++)
-        {
-            if (Setting.Plugins[i] is T plugin)
-            {
-                yield return plugin;
-            }
-        }
-
-        yield break;
     }
 
     public static void DoGarbageCollection(bool compactLOH = false)

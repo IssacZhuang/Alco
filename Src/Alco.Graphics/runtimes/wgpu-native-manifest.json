@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "package": "alco-wgpu-native",
+  "releaseTag": "v29.0.1.1-alco.4",
+  "upstream": {
+    "repository": "https://github.com/gfx-rs/wgpu-native.git",
+    "tag": "v29.0.1.1",
+    "commit": "6aed50955d934ac36049ba8d002034841633ae02",
+    "webgpuHeadersCommit": "673658bc2bd70ec39fc55ebe6bb0173cf6d0a603",
+    "rustToolchain": "1.93.1",
+    "wgpuNativeVersion": "v29.0.1.1"
+  },
+  "cargo": {
+    "lockGitBlob": "3e218bbaa95a9825dad90dd17402595e08848434",
+    "features": [
+      "wgsl",
+      "spirv",
+      "glsl",
+      "dx12",
+      "metal",
+      "vulkan",
+      "gles"
+    ]
+  },
+  "patches": [
+    {
+      "path": "patches/v29.0.1.1/0001-expose-passthrough-shaders.patch",
+      "sha256": "2297da2967e8ea50a45bea26df21380849314e4b590cafafe3e907b49eedaa7f"
+    },
+    {
+      "path": "patches/v29.0.1.1/0002-dxil-msl-passthrough-abi.patch",
+      "sha256": "e5001b1d2cef92ce088d8cc17196acb02cb98f71b09b8c57c5aa7261eb4fc2f2"
+    },
+    {
+      "path": "patches/v29.0.1.1/0003-metallib-passthrough-abi.patch",
+      "sha256": "836330c0ca2914439fa705324ea79b8b70fcd93ca12e4f0f1993af56e3e6292f"
+    }
+  ],
+  "requiredExports": [
+    "wgpuCreateInstance",
+    "wgpuDeviceCreateShaderModuleSpirV",
+    "wgpuGetVersion",
+    "wgpuDeviceCreateShaderModuleDxil",
+    "wgpuDeviceCreateShaderModuleMsl",
+    "wgpuDeviceCreateShaderModuleMetalLib"
+  ],
+  "targets": {
+    "win-x64": {
+      "rustTarget": "x86_64-pc-windows-msvc",
+      "binaryFormat": "pe",
+      "architecture": "x64"
+    },
+    "win-arm64": {
+      "rustTarget": "aarch64-pc-windows-msvc",
+      "binaryFormat": "pe",
+      "architecture": "arm64"
+    },
+    "linux-x64": {
+      "rustTarget": "x86_64-unknown-linux-gnu",
+      "binaryFormat": "elf",
+      "architecture": "x64"
+    },
+    "linux-arm64": {
+      "rustTarget": "aarch64-unknown-linux-gnu",
+      "binaryFormat": "elf",
+      "architecture": "arm64"
+    },
+    "osx-x64": {
+      "rustTarget": "x86_64-apple-darwin",
+      "binaryFormat": "macho",
+      "architecture": "x64"
+    },
+    "osx-arm64": {
+      "rustTarget": "aarch64-apple-darwin",
+      "binaryFormat": "macho",
+      "architecture": "arm64"
+    },
+    "android-x64": {
+      "rustTarget": "x86_64-linux-android",
+      "binaryFormat": "elf",
+      "architecture": "x64"
+    },
+    "android-arm64": {
+      "rustTarget": "aarch64-linux-android",
+      "binaryFormat": "elf",
+      "architecture": "arm64"
+    }
+  },
+  "files": {
+    "win-x64": {
+      "path": "runtimes/win-x64/native/wgpu_native.dll",
+      "size": 8732672,
+      "sha256": "87d4d193e399241c3557c352debcdc8a53b6a18d8a66b6938a84acdae6d49606",
+      "binaryFormat": "pe",
+      "architecture": "x64",
+      "exportCount": 231
+    },
+    "win-arm64": {
+      "path": "runtimes/win-arm64/native/wgpu_native.dll",
+      "size": 7406080,
+      "sha256": "dea1df7667f8ffc0f15fb410870d430aed84fe2a1b46f7f35056ca87a8b26d3b",
+      "binaryFormat": "pe",
+      "architecture": "arm64",
+      "exportCount": 231
+    },
+    "linux-x64": {
+      "path": "runtimes/linux-x64/native/libwgpu_native.so",
+      "size": 9335840,
+      "sha256": "ec2436cd61d79f9925f94053f80ec74832eedea012d0ee7285f5b13fba36e833",
+      "binaryFormat": "elf",
+      "architecture": "x64",
+      "exportCount": 231
+    },
+    "linux-arm64": {
+      "path": "runtimes/linux-arm64/native/libwgpu_native.so",
+      "size": 9499160,
+      "sha256": "6a1391c432ef3ff462940c2b4624920475b4a0d84ef356a251c81c8767959ffa",
+      "binaryFormat": "elf",
+      "architecture": "arm64",
+      "exportCount": 231
+    },
+    "osx-x64": {
+      "path": "runtimes/osx-x64/native/libwgpu_native.dylib",
+      "size": 7082232,
+      "sha256": "3e589178ceccf3850e2348bb9d06b53a9b3296b7c28cc4b6995321d11bd9a57b",
+      "binaryFormat": "macho",
+      "architecture": "x64",
+      "exportCount": 235
+    },
+    "osx-arm64": {
+      "path": "runtimes/osx-arm64/native/libwgpu_native.dylib",
+      "size": 6782768,
+      "sha256": "4e4c8e19f75709c849bf15ae33b5eaac8eeb7258592a2d50544831d296ef570e",
+      "binaryFormat": "macho",
+      "architecture": "arm64",
+      "exportCount": 235
+    },
+    "android-x64": {
+      "path": "runtimes/android-x64/native/libwgpu_native.so",
+      "size": 9365384,
+      "sha256": "bb68ab6fb2c9a49ca7c7b39a4c9ae89cc5f4183955d71b02ec6373037a35f04b",
+      "binaryFormat": "elf",
+      "architecture": "x64",
+      "exportCount": 231
+    },
+    "android-arm64": {
+      "path": "runtimes/android-arm64/native/libwgpu_native.so",
+      "size": 9756176,
+      "sha256": "ac979c2e1e4e4602cd3e9f08768a94ff9eb40ae0f35e5b23ec0157dc5272dddf",
+      "binaryFormat": "elf",
+      "architecture": "arm64",
+      "exportCount": 231
+    }
+  }
+}

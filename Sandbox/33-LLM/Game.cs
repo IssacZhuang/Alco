@@ -49,6 +49,8 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+
         _llmSystem = new LLMSystem(this);
         AddSystem(_llmSystem);
         _preference = LoadPreference<SandboxPreference>("33-LLM", "config");
@@ -63,16 +65,16 @@ public class Game : GameEngine
         }
 
         // Initialize rendering components
-        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _shader = BuiltInAssets.Shader_Unlit;
         _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
         _camera.Transform.Position.X = -10;
         _camera.UpdateMatrixToGPU();
 
         _renderer = RenderingSystem.CreateRenderContext();
-        _material = RenderingSystem.CreateMaterial(_shader, "Unlit");
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
 
         _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
-        _material.SetBuffer("_camera", _cameraBuffer);
+        _material.SetBuffer("camera", _cameraBuffer);
 
         // Add initial cube
         var initialCube = CreateCube(ColorFloat.White);
@@ -108,12 +110,15 @@ public class Game : GameEngine
         }
 
         // Rendering logic
-        _renderer.Begin(MainFrameBuffer);
-        foreach (var cube in _entities.Values)
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+        using (RenderFrameScope frame = _renderer.BeginFrame())
+        using (RenderPassScope pass = _renderer.BeginPass(frameBuffer, ColorFloat.Black))
         {
-            cube.OnDraw(_renderer);
+            foreach (var cube in _entities.Values)
+            {
+                cube.OnDraw(pass);
+            }
         }
-        _renderer.End();
 
         RenderConfigWindow();
         RenderChatWindow();

@@ -1,0 +1,14 @@
+// Volumetric clouds render plugin node. The descriptor carries the module
+// handles as plain names; the noise-bake base/detail variants are generic
+// value specializations (MainCS<let IsDetail>: false = base, true = detail)
+// picked in code when the bake materials are created (RGNode_VolumetricClouds).
+{
+    "$type": "Alco.World3D.RGNodeFactory_VolumetricClouds",
+    "descriptor": {
+        "marchShader": "VolumetricClouds",
+        "compositeShader": "VolumetricCloudsComposite",
+        "shadowShader": "VolumetricCloudShadow",
+        "noiseShader": "VolumetricCloudNoise",
+        "marchResolutionScale": 0.5
+    }
+}

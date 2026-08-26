@@ -1,4 +1,4 @@
-﻿using CppAst;
+using CppAst;
 
 
 partial class CsCodeGenerator
@@ -35,6 +35,8 @@ partial class CsCodeGenerator
                 || cppClass.Name == "VkAccelerationStructureInstanceKHR"
                 || cppClass.Name == "VkAccelerationStructureSRTMotionInstanceNV"
                 || cppClass.Name == "VkAccelerationStructureMatrixMotionInstanceNV"
+                // Contains an anonymous union that CppAst cannot map; hand-written in WGPUNativeDisplayHandle.cs
+                || cppClass.Name == "WGPUNativeDisplayHandle"
                 )
             {
                 continue;
@@ -205,11 +207,6 @@ partial class CsCodeGenerator
             {
                 fieldPrefix += "unsafe ";
             }
-
-            //if (field.Comment is not null && string.IsNullOrEmpty(field.Comment.ToString()) == false)
-            //{
-            //    writer.WriteLine($"/// <summary>{field.Comment}</summary>");
-            //}
 
             writer.WriteLine($"public {fieldPrefix}{csFieldType} {csFieldName};");
         }

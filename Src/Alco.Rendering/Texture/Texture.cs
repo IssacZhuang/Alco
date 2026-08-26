@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
@@ -11,12 +12,27 @@ namespace Alco.Rendering;
 public abstract class Texture : AutoDisposable
 {
     protected readonly GPUDevice _device;
-    // internal
     protected GPUTexture _texture;
     protected GPUTextureView _textureView;
 
-    // from outside
-    protected GPUSampler _sampler;
+    // Whether this wrapper owns _texture and _textureView. Wrappers created over
+    // externally owned GPU resources (e.g. frame buffer attachments or render
+    // graph pooled textures) are non-owning: their lifetime is managed by the
+    // creator.
+    private readonly bool _ownsResources;
+
+    // Bind groups that bind one view of this texture as the only resource of a
+    // shader group, keyed by the group layout and the bound view (the full-chain
+    // view or a per-mip view). A single-resource group is fully determined by
+    // (view, layout), so one group per combination is created for the texture's
+    // lifetime and shared across materials and frames instead of being
+    // rebuilt on every slot change. Samplers never appear here: they are
+    // independent resources bound by the consuming shader's sampler entries.
+    // Thread safety: reads are lock free; the first creation per key serializes
+    // on _createGroupLock, so materials on multiple threads may bind the same
+    // texture concurrently.
+    private readonly ConcurrentDictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup> _layoutResourceGroups = new();
+    private readonly Lock _createGroupLock = new();
 
     public string Name { get; }
 
@@ -43,17 +59,38 @@ public abstract class Texture : AutoDisposable
 
     public GPUTexture NativeTexture => _texture;
 
+    /// <summary>
+    /// The full-chain texture view of the texture.
+    /// </summary>
+    public GPUTextureView View
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _textureView;
+    }
+
+    /// <summary>
+    /// The resource group containing only the texture view, for read-only texture
+    /// shader bind groups.
+    /// </summary>
+    public abstract GPUResourceGroup EntryReadonly { get; }
+
+    /// <summary>
+    /// The resource group containing only the texture view, for storage texture
+    /// shader bind groups.
+    /// </summary>
+    public abstract GPUResourceGroup EntryWriteable { get; }
+
     internal Texture(
         GPUDevice device,
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler)
+        bool ownsResources = true)
     {
         _device = device;
 
         _texture = texture;
         _textureView = textureView;
-        _sampler = sampler;
+        _ownsResources = ownsResources;
 
         Name = texture.Name;
     }
@@ -91,18 +128,66 @@ public abstract class Texture : AutoDisposable
         _device.WriteTexture(_texture, data, size);
     }
 
-    public virtual void SetSampler(GPUSampler sampler)
+    /// <summary>
+    /// Returns the bind group that binds the given view of this texture as the
+    /// only resource of a shader bind group with the given layout, creating it
+    /// on first use. The group is cached on the texture for its lifetime and
+    /// shared across all materials and frames, so cycling textures or mip views
+    /// through a material does not allocate a new bind group per change.
+    /// </summary>
+    /// <param name="layout">The bind group layout of the consuming shader's group.</param>
+    /// <param name="view">The texture view to bind (full-chain or single-mip).</param>
+    /// <param name="binding">The binding number of the texture view inside the group.</param>
+    /// <returns>The cached or newly created resource group.</returns>
+    internal GPUResourceGroup GetOrCreateResourceGroup(GPUBindGroup layout, GPUTextureView view, uint binding)
     {
-        _sampler = sampler;
+        if (_layoutResourceGroups.TryGetValue((layout, view), out GPUResourceGroup? group))
+        {
+            return group;
+        }
+
+        lock (_createGroupLock)
+        {
+            if (_layoutResourceGroups.TryGetValue((layout, view), out group))
+            {
+                return group;
+            }
+
+            ResourceBindingEntry[] entries = new ResourceBindingEntry[] { new(binding, view) };
+            group = _device.CreateResourceGroup(new ResourceGroupDescriptor(layout, entries, $"{Name}_layout_bind_group"));
+            _layoutResourceGroups[(layout, view)] = group;
+            return group;
+        }
+    }
+
+    /// <summary>
+    /// Drops the cached per-layout bind groups, e.g. after the native texture
+    /// was replaced in place. The groups are not disposed: recorded commands
+    /// and material caches may still reference them; the finalizer releases
+    /// the native objects.
+    /// </summary>
+    internal void DiscardLayoutResourceGroups()
+    {
+        _layoutResourceGroups.Clear();
     }
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && _ownsResources)
         {
             //dispose non-private managed resources
             _texture?.Dispose();
             _textureView?.Dispose();
+        }
+
+        if (disposing)
+        {
+            foreach (GPUResourceGroup group in _layoutResourceGroups.Values)
+            {
+                group.Dispose();
+            }
+
+            _layoutResourceGroups.Clear();
         }
     }
 

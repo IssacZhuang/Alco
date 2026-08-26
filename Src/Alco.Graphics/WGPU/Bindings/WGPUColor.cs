@@ -3,7 +3,7 @@ namespace WebGPU;
 internal partial struct WGPUColor : IEquatable<WGPUColor>
 {
     /// <summary>
-    /// Initializes a new instance of <see cref="WGPUOrigin3D"/> structure.
+    /// Initializes a new instance of <see cref="WGPUColor"/> structure.
     /// </summary>
     /// <param name="red">The red component of the color.</param>
     /// <param name="green">The green component of the color.</param>
@@ -43,7 +43,7 @@ internal partial struct WGPUColor : IEquatable<WGPUColor>
     /// Compares two <see cref="WGPUColor"/> objects for inequality.
     /// </summary>
     /// <param name="left">The <see cref="WGPUColor"/> on the left hand of the operand.</param>
-    /// <param name="right">The <see cref="WGPUOrigin3D"/> on the right hand of the operand.</param>
+    /// <param name="right">The <see cref="WGPUColor"/> on the right hand of the operand.</param>
     /// <returns>
     /// True if the current left is unequal to the <paramref name="right"/> parameter; otherwise, false.
     /// </returns>

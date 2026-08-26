@@ -22,14 +22,58 @@ public class Game : GameEngine
 
     private readonly Cube _entity;
 
+    private readonly RenderPipeline _mainPipeline;
+
     private Plane3D _plane;
     private Vector3 offset;
+
+    public RenderPipeline MainPipeline => _mainPipeline;
 
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
 
-        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
+
+        MainPipeline.Use(new RGNode_Bloom(
+            RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
+            new RGNode_Bloom.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_BloomBlit,
+                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
+                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
+                TargetDownsampleHeight = 11,
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+            }));
+
+        var tonemapNode = new RGNode_Tonemap(
+            RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
+        MainPipeline.Use(tonemapNode);
+
+        _shader = BuiltInAssets.Shader_Unlit;
 
         _camera = RenderingSystem.CreateCameraPerspective(1.03f, 16f / 9, 0.1f, 1000);
 
@@ -37,16 +81,18 @@ public class Game : GameEngine
         _camera.UpdateMatrixToGPU();
 
         _renderer = RenderingSystem.CreateRenderContext();
-        _material = RenderingSystem.CreateMaterial(_shader, "Unlit");
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
 
         _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer(_camera.Data.ViewProjectionMatrix, "camera_buffer");
-        _material.SetBuffer("_camera", _cameraBuffer);
+        _material.SetBuffer("camera", _cameraBuffer);
 
         _plane = new Plane3D(new Vector3(1, 0, 0), 0);
 
         _entity = CreateCube(Color);
         _entity.transform.Position = new Vector3(2, 0, 0);
         _entity.transform.Rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 8);
+
+        AddSystem(new ImGUISystem(this));
 
         MainView.OnResize += OnMainWindowResize;
     }
@@ -58,11 +104,6 @@ public class Game : GameEngine
             Stop();
         }
         
-
-        _renderer.Begin(MainFrameBuffer);
-        _entity.OnDraw(_renderer);
-
-        _renderer.End();
 
         Vector2 localMousePosition = MainView.MousePosition;
 
@@ -122,19 +163,41 @@ public class Game : GameEngine
         ImGui.End();
 
         Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, GizmoOperation.Translate, GizmoMode.Local, ref _entity.transform);
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
-
-
 
     protected void OnMainWindowResize(uint2 size)
     {
         _camera.AspectRatio = (float)size.X / size.Y;
         _camera.UpdateMatrixToGPU();
+        _mainPipeline.Resize(size.X, size.Y);
     }
 
     protected override void OnStop()
     {
+        _mainPipeline.Dispose();
+    }
 
+    /// <summary>
+    /// Content node drawing the collision scene into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : RGNode_SceneContent
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        {
+            _game = game;
+        }
+
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                _game._entity.OnDraw(pass);
+            }
+        }
     }
 
     private Cube CreateCube(ColorFloat color)

@@ -11,7 +11,7 @@ public struct GraphicsPipelineDescriptor
         DepthStencilState depthStencilState,
         PixelFormat[] colorFormats,
         PixelFormat? depthStencilFormat,
-        PushConstantsRange[]? pushConstantsRanges = null,
+        uint pushConstantsSize = 0,
         string name = "unnamed_graphics_pipeline"
         )
     {
@@ -23,7 +23,7 @@ public struct GraphicsPipelineDescriptor
         VertexInputLayouts = vertexInputLayouts;
         ColorFormats = colorFormats;
         DepthStencilFormat = depthStencilFormat;
-        PushConstantsRanges = pushConstantsRanges;
+        PushConstantsSize = pushConstantsSize;
         Name = name;
     }
 
@@ -37,7 +37,7 @@ public struct GraphicsPipelineDescriptor
         PrimitiveTopology primitiveTopology,
         PixelFormat[] colorFormats,
         PixelFormat? depthStencilFormat,
-        PushConstantsRange[]? pushConstantsRanges = null,
+        uint pushConstantsSize = 0,
         string name = "unnamed_graphics_pipeline"
         )
     {
@@ -50,7 +50,7 @@ public struct GraphicsPipelineDescriptor
         PrimitiveTopology = primitiveTopology;
         ColorFormats = colorFormats;
         DepthStencilFormat = depthStencilFormat;
-        PushConstantsRanges = pushConstantsRanges;
+        PushConstantsSize = pushConstantsSize;
         Name = name;
     }
 
@@ -63,6 +63,17 @@ public struct GraphicsPipelineDescriptor
     public DepthStencilState DepthStencilState { get; init; } = DepthStencilState.None;
     public PixelFormat[] ColorFormats { get; init; }
     public PixelFormat? DepthStencilFormat { get; init; }
-    public PushConstantsRange[]? PushConstantsRanges { get; init; }
+    /// <summary>
+    /// The number of color targets the fragment shader writes to. Color targets at or
+    /// beyond this index have no matching fragment output and are created with a zero
+    /// write mask, which WebGPU requires instead of failing pipeline validation.
+    /// Defaults to writing every target.
+    /// </summary>
+    public int FragmentOutputCount { get; init; } = int.MaxValue;
+    /// <summary>
+    /// Total size in bytes of the push constants (immediates) block used by the shaders, 0 when unused.
+    /// Per-stage visibility is declared by the shaders themselves.
+    /// </summary>
+    public uint PushConstantsSize { get; init; }
     public string Name { get; init; } = "unnamed_graphics_pipeline";
 }

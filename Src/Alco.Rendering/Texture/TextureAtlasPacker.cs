@@ -14,13 +14,13 @@ public sealed class TextureAtlasPacker: AutoDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly RectPacker<TextureItem> _packer;
     private readonly PixelFormat _format;
-    private readonly Material _blitMaterial;
+    private readonly GraphicsMaterial _blitMaterial;
     private readonly Camera2DBuffer _camera;
-    private readonly GPUCommandBuffer _commandBuffer;
+    private readonly RenderContext _renderContext;
 
     internal TextureAtlasPacker(RenderingSystem rendering,
     PixelFormat format,
-    Material blitMaterial,
+    GraphicsMaterial blitMaterial,
     //it just initial size
     int minWidth = 256,
     int minHeight = 256
@@ -35,7 +35,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
         _packer = new RectPacker<TextureItem>(minWidth, minHeight);
         _format = format;
         _blitMaterial = blitMaterial;
-        _commandBuffer = rendering.GraphicsDevice.CreateCommandBuffer("atlas_command_buffer");
+        _renderContext = rendering.CreateRenderContext("atlas_render_context");
         _camera = rendering.CreateCamera2D(minWidth, minHeight, 1000);
     }
 
@@ -44,28 +44,14 @@ public sealed class TextureAtlasPacker: AutoDisposable
         _packer.AddRect((int)texture.Width, (int)texture.Height, new TextureItem { Name = name, Texture = texture });
     }
 
-    public TextureAtlas BuildTextureAtlas(GPUSampler? sampler = null)
+    public TextureAtlas BuildTextureAtlas()
     {
-        RenderTexture atlasTexture;
-        if (sampler == null)
-        {
-            atlasTexture = _renderingSystem.CreateRenderTexture(
+        RenderTexture atlasTexture = _renderingSystem.CreateRenderTexture(
             _renderingSystem.PreferredRGBATexturePass,
             (uint)_packer.Width,
             (uint)_packer.Height,
-                "atlas_texture"
-            );
-        }
-        else
-        {
-            atlasTexture = _renderingSystem.CreateRenderTexture(
-                _renderingSystem.PreferredRGBATexturePass,
-                (uint)_packer.Width,
-                (uint)_packer.Height,
-                sampler,
-                "atlas_texture"
-            );
-        }
+            "atlas_texture"
+        );
 
         List<Sprite> sprites = new List<Sprite>();
 
@@ -85,9 +71,10 @@ public sealed class TextureAtlasPacker: AutoDisposable
 
         Mesh mesh = _renderingSystem.MeshCenteredSprite;
 
-        ShaderPipelineInfo pipelineInfo = _blitMaterial.GetPipelineInfo(atlasTexture.AttachmentLayout);
-        uint shaderId_texture = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Texture);
-        uint shaderId_camera = pipelineInfo.ReflectionInfo.GetResourceId(ShaderResourceId.Camera);
+        // A private instance of the caller's material: the atlas' camera and the
+        // per-item texture bindings below must not leak into the caller's material.
+        using GraphicsMaterial material = _blitMaterial.CreateInstance();
+        material.SetBuffer(ShaderResourceId.Camera, _camera);
 
         SpriteConstant constant = new SpriteConstant
         {
@@ -98,35 +85,10 @@ public sealed class TextureAtlasPacker: AutoDisposable
 
         Transform2D transform = Transform2D.Identity;
 
-        _commandBuffer.Begin();
-
-        // _commandBuffer.SetFrameBuffer(atlasTexture);
-        // _commandBuffer.ClearColor(ColorFloat.Black);
-        // _commandBuffer.SetGraphicsPipeline(pipelineInfo.Pipeline);
-        // uint indexCount = _commandBuffer.SetMesh(mesh);
-
-        // _commandBuffer.SetGraphicsResources(shaderId_camera, _camera.EntryReadonly);
-
-        // for (int i = 0; i < _packer.Count; i++)
-        // {
-        //     var item = _packer.GetRect(i);
-        //     transform.Position = item.Rect.Center;
-        //     transform.Position.Y = -transform.Position.Y;//the rect packer is start from top left
-        //     transform.Scale = item.Rect.Size;
-        //     constant.Model = transform.Matrix;
-
-        //     _commandBuffer.SetGraphicsResources(shaderId_texture, item.Data.Texture.EntrySample);
-        //     _commandBuffer.PushGraphicsConstants(pipelineInfo.PushConstantsStages, constant);
-        //     _commandBuffer.DrawIndexed(indexCount, 1, 0, 0, 0);
-        // }
-
-        using (var renderPass = _commandBuffer.BeginRender(atlasTexture.FrameBuffer, [new ClearColorData(0, ColorFloat.Black)]))
+        using (RenderFrameScope frame = _renderContext.BeginFrame())
+        using (RenderPassScope renderPass = _renderContext.BeginPass(
+            atlasTexture.FrameBuffer, [new ClearColorData(0, ColorFloat.Black)]))
         {
-            renderPass.SetPipeline(pipelineInfo.Pipeline);
-            uint indexCount = renderPass.SetMesh(mesh);
-
-            renderPass.SetResources(shaderId_camera, _camera.EntryReadonly);
-
             for (int i = 0; i < _packer.Count; i++)
             {
                 var item = _packer.GetRect(i);
@@ -135,16 +97,10 @@ public sealed class TextureAtlasPacker: AutoDisposable
                 transform.Scale = item.Rect.Size;
                 constant.Model = transform.Matrix;
 
-                renderPass.SetResources(shaderId_texture, item.Data.Texture.EntrySample);
-                renderPass.PushConstants(pipelineInfo.PushConstantsStages, constant);
-                renderPass.DrawIndexed(indexCount, 1, 0, 0, 0);
+                material.SetTexture(ShaderResourceId.Texture, item.Data.Texture);
+                renderPass.DrawWithConstant(mesh, material, constant);
             }
-
         }
-
-        _commandBuffer.End();
-        _renderingSystem.GraphicsDevice.Submit(_commandBuffer);
-
 
         return new TextureAtlas(atlasTexture, sprites);
     }
@@ -155,7 +111,7 @@ public sealed class TextureAtlasPacker: AutoDisposable
         {
             _camera.Dispose();
             _packer.Dispose();
-            _commandBuffer.Dispose();
+            _renderContext.Dispose();
         }
     }
 }

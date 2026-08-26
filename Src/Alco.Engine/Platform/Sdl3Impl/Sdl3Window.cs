@@ -81,6 +81,8 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
+    public override bool IsFocused => (SDL_GetWindowFlags(_window) & SDL_WindowFlags.InputFocus) != 0;
+
     public override Vector2 MousePosition
     {
         get
@@ -281,7 +283,10 @@ public unsafe partial class Sdl3Window : View
     }
 
 
-    //create with native window
+    /// <summary>
+    /// Creates an SDL window that wraps an already-existing native Win32 window instead of
+    /// creating a new OS-level window; <paramref name="hwnd"/> is the window handle to adopt.
+    /// </summary>
     public static Sdl3Window CreateFromHWND(GPUDevice device, IntPtr hwnd, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;

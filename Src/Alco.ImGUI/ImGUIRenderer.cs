@@ -19,9 +19,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private readonly GPUCommandBuffer _commandBuffer;
     private readonly PrimitiveMesh _mesh;
     private readonly GraphicsBuffer _viewProjectionBuffer;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private IntPtr _imGuiContext;
-    private GPUFrameBuffer? _target;
     private readonly uint _shaderId_Texture;
     private readonly IntPtr _fontTextureId = (IntPtr)(-1);
     private Texture2D _fontTexture;
@@ -31,7 +30,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
     private readonly List<Texture2D> _textures = new List<Texture2D>();
 
-    public ImGUIRenderer(RenderingSystem renderingSystem, Material material, string name)
+    public ImGUIRenderer(RenderingSystem renderingSystem, GraphicsMaterial material, string name)
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
@@ -85,10 +84,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
         return _textures.Count - 1;
     }
 
-    public void Begin(GPUFrameBuffer target, float deltaTime)
+    /// <summary>
+    /// Starts a new ImGui frame with the given display size in pixels.
+    /// </summary>
+    public void Begin(uint width, uint height, float deltaTime)
     {
-        uint width = target.Width;
-        uint height = target.Height;
         ImGuiIOPtr io = ImGui.GetIO();
 
         if (_fontTextureDirty)
@@ -102,12 +102,23 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         ImGui.NewFrame();
         Gizmo.BeginFrame(width, height);
-        _target = target;
     }
 
-    public void End()
+    /// <summary>
+    /// Finalize the ImGui frame. Must be called every frame after <see cref="Begin"/>,
+    /// regardless of whether the draw data will be submitted to the GPU.
+    /// </summary>
+    public void Render()
     {
         ImGui.Render();
+    }
+
+    /// <summary>
+    /// Submit ImGui draw data to the GPU. Call after <see cref="Render"/> and after
+    /// the pipeline resolved the frame, so UI colors are not affected by post-processing.
+    /// </summary>
+    public void Draw(GPUFrameBuffer target)
+    {
         ImDrawDataPtr drawData = ImGui.GetDrawData();
 
         if (drawData.CmdListsCount <= 0)
@@ -153,15 +164,15 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         drawData.ScaleClipRects(ImGui.GetIO().DisplayFramebufferScale);
 
-        ShaderPipelineInfo pipelineInfo = _material.GetPipelineInfo(_target!.AttachmentLayout);
-        float targetWidth = _target.Width;
-        float targetHeight = _target.Height;
+        GraphicsPipelineContext pipelineContext = _material.GetPipelineContext(target.AttachmentLayout);
+        float targetWidth = target.Width;
+        float targetHeight = target.Height;
 
         _commandBuffer.Begin();
 
-        using (var renderPass = _commandBuffer.BeginRender(_target))
+        using (var renderPass = _commandBuffer.BeginRender(target))
         {
-            renderPass.SetPipeline(pipelineInfo.Pipeline);
+            renderPass.SetPipeline(pipelineContext.Pipeline!);
             renderPass.SetVertexBuffer(0, _mesh.VertexBuffer);
             renderPass.SetIndexBuffer(_mesh.IndexBuffer, IndexFormat.UInt16);
             _material.PushResources(renderPass);
@@ -180,11 +191,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
                     if (TryGetTexture(textureId, out Texture2D? texture) && !texture.IsDisposed)
                     {
-                        renderPass.SetResources(_shaderId_Texture, texture.EntrySample);
+                        renderPass.SetResources(_shaderId_Texture, texture.EntryReadonly);
                     }
                     else
                     {
-                        renderPass.SetResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntrySample);
+                        renderPass.SetResources(_shaderId_Texture, _renderingSystem.TextureWhite.EntryReadonly);
                     }
 
                     Vector4 clipRect = cmd.ClipRect;
@@ -220,8 +231,6 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         _commandBuffer.End();
         _device.Submit(_commandBuffer);
-        _target = null;
-
         _textures.Clear();
     }
 

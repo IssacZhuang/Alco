@@ -47,5 +47,11 @@ namespace Alco.Graphics
         /// The entry point function name.
         /// </summary>
         public string EntryPoint { get; init; }
+
+        /// <summary>
+        /// The compute threadgroup size ([numthreads]) carried for passthrough targets
+        /// that cannot reflect it from submitted code (DXIL/MSL). Graphics stages ignore it.
+        /// </summary>
+        public (uint X, uint Y, uint Z) WorkgroupSize { get; init; } = (1, 1, 1);
     }
 }

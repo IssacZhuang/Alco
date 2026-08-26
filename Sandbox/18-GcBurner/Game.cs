@@ -36,6 +36,8 @@ public class Game : GameEngine
 
     private TestThreadWorkerItem _item = new TestThreadWorkerItem();
 
+    private readonly RenderPipeline _mainPipeline;
+
     private readonly ConcurrentPool<GPUCommandBuffer> _gpuCommandBufferPool;
     private readonly List<GPUCommandBuffer> _gpuCommandBufferList = new List<GPUCommandBuffer>();
     private readonly TestParallelTask _task = new TestParallelTask();
@@ -43,6 +45,34 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
     {
         _gpuCommandBufferPool = new ConcurrentPool<GPUCommandBuffer>(CreateGPUCommandBuffer);
+
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        var tonemapNode = new RGNode_Tonemap(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
+        AddSystem(new ImGUISystem(this));
     }
 
     protected override void OnTick(float delta)
@@ -54,9 +84,6 @@ public class Game : GameEngine
 
     override protected void OnUpdate(float delta)
     {
-
-        DebugStats.Text(FrameRate);
-
         int count = 1000;
         for (int i = 0; i < count; i++)
         {
@@ -129,11 +156,13 @@ public class Game : GameEngine
         ImGui.End();
 
         TestSpanParam("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
-        
+        _mainPipeline.Dispose();
     }
 
     private void AllocResource()
@@ -142,7 +171,7 @@ public class Game : GameEngine
         //load asset without cache
         //AssetSystem.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
         RenderingSystem.CreateGraphicsArrayBuffer<Vector3>(1000);
-        RenderingSystem.CreateRenderTexture(RenderingSystem.PreferredSDRPass, 1280, 720);
+        RenderingSystem.CreateRenderTexture(RenderingSystem.PreferredHDRPass, 1280, 720);
     }
 
     private void ParallelCallback(int index)

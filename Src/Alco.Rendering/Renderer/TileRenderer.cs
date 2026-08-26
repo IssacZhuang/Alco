@@ -8,7 +8,7 @@ namespace Alco.Rendering;
 public sealed class TileItem
 {
     public string Name { get; }
-    public Material Material { get; }
+    public GraphicsMaterial Material { get; }
     public float RenderOrder { get; }
     public object? UserData { get; }
     
@@ -16,7 +16,7 @@ public sealed class TileItem
     public float BlendFactor { get; set; } = 0.2f;
     public float Tiling { get; set; } = 1.0f;
 
-    public TileItem(string name, Material material, float renderOrder, object? userData)
+    public TileItem(string name, GraphicsMaterial material, float renderOrder, object? userData)
     {
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(material);
@@ -177,7 +177,7 @@ public sealed class TileRenderer : AutoDisposable
             _renderers = new Renderer[tileSet.Count];
             for (int i = 0; i < tileSet.Count; i++)
             {
-                Material material = tileSet.GetItem(i).Material.CreateInstance();
+                GraphicsMaterial material = tileSet.GetItem(i).Material.CreateInstance();
                 material.TrySetBuffer(ShaderResourceId.TileMap, tileMapBuffer);
                 _renderers[i] = new Renderer(rendering.MeshCenteredSprite,
                     rendering.CreateInstanceRenderer<TileInstanceData>(context, material));
@@ -288,7 +288,9 @@ public sealed class TileRenderer : AutoDisposable
     private RectInt _viewport;
     private bool _hasViewport;
 
-    //The global transform of the tile renderer
+    /// <summary>
+    /// The global transform of the tile renderer.
+    /// </summary>
     public Transform3D Transform;
 
     public string Name { get; }

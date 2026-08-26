@@ -30,14 +30,19 @@ public partial class BuiltInAssets
     private static readonly string GenStatementShader = @"    public Shader {0} => GetShader(""{1}"");";
     private static readonly string GenStatementFont = @"    public Font {0} => GetFont(""{1}"");";
 
-    private readonly List<FileInfo> _files;
+    private readonly List<(FileInfo File, string RelativePath)> _files;
     private readonly Dictionary<string, string> _duplicateCheck = new Dictionary<string, string>();
-    private readonly string _assetsPath;
 
-    public FileBuiltInAsset(List<FileInfo> files, string assetsPath)
+    /// <summary>Turns a kebab/snake asset stem into a PascalCase identifier
+    /// ('gaussian-blur-rgba16f' → 'GaussianBlurRgba16f').</summary>
+    public static string ToPascalIdentifier(string stem) =>
+        string.Join(string.Empty, stem
+            .Split('-', '_')
+            .Select(word => word.Length == 0 ? word : char.ToUpper(word[0]) + word[1..]));
+
+    public FileBuiltInAsset(List<(FileInfo File, string RelativePath)> files)
     {
         _files = files;
-        _assetsPath = assetsPath;
     }
 
     public string GenerateContent()
@@ -45,19 +50,32 @@ public partial class BuiltInAssets
         StringBuilder code = new StringBuilder();
         code.AppendLine(GenFileContentBegin);
 
-        foreach (var file in _files)
+        foreach (var (file, localPath) in _files)
         {
             string filePath = file.FullName;
-            string localPath = GetLocalPath(filePath);
 
             if (ShouldGenerate(filePath, out string namePrefix, out string statement))
             {
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                string variableName = namePrefix + fileName;
-
-                if (!VariableNameRegex.IsMatch(fileName))
+                // Import-only shader libraries own no entry points; loading them
+                // as shaders would fail to link, so no accessors are generated.
+                if (Path.GetExtension(filePath) == ".slang" && localPath.Contains("Shaders/Libs/"))
                 {
-                    Console.WriteLine($"Warning: Invalid variable name '{fileName}', should match regex '{VariableNameRegex}' in '{filePath}'. Skipped");
+                    continue;
+                }
+
+                // Generic modules (entry points with <let> value parameters)
+                // keep their accessors: a Shader is the module's lazy handle —
+                // nothing compiles until one of its specializations is requested
+                // through the accessor methods or a material factory.
+
+                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                // Asset stems are kebab-case (slang convention); the generated
+                // identifier PascalCases each dashed word (fxaa → Fxaa).
+                string variableName = namePrefix + ToPascalIdentifier(fileName);
+
+                if (!VariableNameRegex.IsMatch(variableName))
+                {
+                    Console.WriteLine($"Warning: Invalid variable name '{variableName}' in '{filePath}'. Skipped");
                     continue;
                 }
 
@@ -68,7 +86,10 @@ public partial class BuiltInAssets
                 }
 
                 _duplicateCheck.Add(variableName, filePath);
-                code.AppendLine(string.Format(statement, variableName, localPath));
+                string value = Path.GetExtension(filePath) == ".slang"
+                    ? fileName.Replace('_', '-')
+                    : localPath;
+                code.AppendLine(string.Format(statement, variableName, value));
                 code.AppendLine();
             }
         }
@@ -86,7 +107,7 @@ public partial class BuiltInAssets
                 statement = GenStatementFont;
                 namePrefix = PrefixFont;
                 return true;
-            case ".hlsl":
+            case ".slang":
                 statement = GenStatementShader;
                 namePrefix = PrefixShader;
                 return true;
@@ -95,11 +116,5 @@ public partial class BuiltInAssets
                 namePrefix = string.Empty;
                 return false;
         }
-    }
-
-    private string GetLocalPath(string filePath)
-    {
-        string relativePath = Path.GetRelativePath(_assetsPath, filePath);
-        return relativePath.Replace("\\", "/");
     }
 }

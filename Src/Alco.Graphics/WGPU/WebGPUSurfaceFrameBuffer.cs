@@ -431,7 +431,9 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
             _texture = WGPUTexture.Null;
         }
 
-        //return true if the texture is usable
+        /// <summary>
+        /// Returns true if the newly acquired texture is usable.
+        /// </summary>
         public unsafe bool GetNewOutputTexture(ref WGPUTextureView view, out bool shouldResize)
         {
             if (_texture != WGPUTexture.Null)
@@ -456,8 +458,7 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
                     // Skip this frame, and re-configure surface.
                     shouldResize = true;
                     return false;
-                case WGPUSurfaceGetCurrentTextureStatus.OutOfMemory:
-                case WGPUSurfaceGetCurrentTextureStatus.DeviceLost:
+                case WGPUSurfaceGetCurrentTextureStatus.Error:
                     // Fatal error
                     throw new GraphicsException($"{nameof(wgpuSurfaceGetCurrentTexture)} status = {surfaceTexture.status}");
             }
@@ -477,9 +478,12 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
         #endregion
     }
 
-    //on a reference to WGPUTextureView
-    //no control of the lifecycle of the wgpuTextureView
-    //only used by surface framebuffers to prevent new managed GPUTextureView object at render loop
+    /// <summary>
+    /// Holds only a reference to a WGPUTextureView and takes no control of the lifecycle of the wrapped native view.
+    /// </summary>
+    /// <remarks>
+    /// Only used by surface frame buffers to prevent creating new managed GPUTextureView objects during the render loop.
+    /// </remarks>
     internal sealed class WebGPUTextureViewWrapper : WebGPUTextureViewBase
     {
         private WebGPUTextureBase _texture;

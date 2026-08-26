@@ -39,19 +39,15 @@ internal static unsafe class PngEncoder
         int filteredRowSize = 1 + stride; // filter byte + pixel bytes
         int filteredSize = height * filteredRowSize;
 
-        // Allocate buffers
         byte[] filtered = ArrayPool<byte>.Shared.Rent(filteredSize);
         byte[] tempRow = ArrayPool<byte>.Shared.Rent(stride);
 
         try
         {
-            // Step 1: Apply adaptive row filtering
             PngFilter.FilterAdaptive(rgba, width, height, filtered.AsSpan(0, filteredSize), tempRow.AsSpan(0, stride));
 
-            // Step 2: Compress with zlib
             byte[] compressed = CompressZlib(filtered.AsSpan(0, filteredSize));
 
-            // Step 3: Assemble PNG file
             return AssemblePng(width, height, compressed);
         }
         finally
@@ -107,27 +103,26 @@ internal static unsafe class PngEncoder
     /// </summary>
     private static byte[] AssemblePng(int width, int height, byte[] compressedData)
     {
-        // Calculate total size: signature + IHDR + IDAT + IEND
+        // PNG file layout: an 8-byte signature followed by three chunks — IHDR
+        // (13-byte data), IDAT (the compressed scanlines), IEND (no data).
+        // Each chunk frames its payload with a 4-byte big-endian length,
+        // a 4-byte type and a 4-byte CRC32.
         int pngSize =
-            8 +                             // PNG signature
-            (12 + 13) +                     // IHDR chunk: 4(len) + 4(type) + 13(data) + 4(crc)
-            (12 + compressedData.Length) +  // IDAT chunk: 4(len) + 4(type) + N(data) + 4(crc)
-            12;                             // IEND chunk: 4(len) + 4(type) + 0(data) + 4(crc)
+            8 +
+            (12 + 13) +
+            (12 + compressedData.Length) +
+            12;
 
         byte[] png = new byte[pngSize];
         int pos = 0;
 
-        // PNG signature
         PngSignature.CopyTo(png.AsSpan(pos, 8));
         pos += 8;
 
-        // IHDR chunk
         pos = WriteChunk(png, pos, IhdrType, WriteIHDR(width, height));
 
-        // IDAT chunk
         pos = WriteChunk(png, pos, IdatType, compressedData);
 
-        // IEND chunk
         WriteChunk(png, pos, IendType, ReadOnlySpan<byte>.Empty);
 
         return png;
@@ -154,19 +149,15 @@ internal static unsafe class PngEncoder
     /// </summary>
     private static int WriteChunk(byte[] output, int offset, ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
     {
-        // Length (big-endian)
         WriteBigEndianInt32(output, offset, data.Length);
         offset += 4;
 
-        // Chunk type
         type.CopyTo(output.AsSpan(offset, 4));
         offset += 4;
 
-        // Chunk data
         data.CopyTo(output.AsSpan(offset, data.Length));
         offset += data.Length;
 
-        // CRC32 over type + data
         uint crc = PngCrc32.Compute(type, data);
         WriteBigEndianUInt32(output, offset, crc);
         offset += 4;

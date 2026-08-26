@@ -18,16 +18,19 @@ public class Game : GameEngine
         Wall
     }
 
-    private readonly RenderContext _renderer;
-    private readonly Camera2D _camera;
-    private readonly Material _blitMaterial;
+    private readonly RenderPipeline _mainPipeline;
 
-    private readonly Material _surfaceMaterial;
-    private readonly Material _cliffMaterial;
-    private readonly Material _waterMaterial;
+    private readonly Camera2D _camera;
+    private readonly GraphicsMaterial _blitMaterial;
+
+    public RenderPipeline MainPipeline => _mainPipeline;
+
+    private readonly GraphicsMaterial _surfaceMaterial;
+    private readonly GraphicsMaterial _cliffMaterial;
+    private readonly GraphicsMaterial _waterMaterial;
     private TileSet _surfaceTileSet;
 
-    private Material _wallMaterial;
+    private GraphicsMaterial _wallMaterial;
     private readonly TileRenderer _surfaceBlock;
 
     private readonly LightingManager _lightingManager;
@@ -44,12 +47,12 @@ public class Game : GameEngine
 
     private float _hight = 0.2f;
     private float _brushSize = 0.3f;
-    private Material _brushMaterial;
+    private GraphicsMaterial _brushMaterial;
     private Transform3D _brushTransform;
     private SpriteConstant _brushConstant;
     private List<int2> _brushCells = [];
 
-    private readonly Material _materialLightOverlay;
+    private readonly GraphicsMaterial _materialLightOverlay;
     private SpriteConstant _lightOverlayConstant;
 
     private Color32 _waterColor = new Color32(128, 161, 168, 100);
@@ -58,6 +61,48 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
+        AddSystem(new ImGUISystem(this));
+
+        var fxaaNode = new RGNode_FXAA(
+            RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
+            new RGNode_FXAA.Descriptor
+            {
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+                FxaaShader = RenderingSystem.ShaderSystem.GetShader("FXAA"),
+            });
+        MainPipeline.Use(fxaaNode);
+
+        var tonemapNode = new RGNode_Tonemap(
+            RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
+        MainPipeline.Use(tonemapNode);
+
         int width = 64;
         int height = 64;
 
@@ -73,9 +118,7 @@ public class Game : GameEngine
        
         RenderingSystem.MainCamera = _camera;
 
-        _blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
-
-        _renderer = RenderingSystem.CreateRenderContext();
+        _blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
 
         _lightingManager = new LightingManager(this, width, height);
         _wallManager = new WallManager(this, _lightingManager, width, height);
@@ -85,32 +128,36 @@ public class Game : GameEngine
         _lightingManager.SetLightMapDirty();
         _lightingManager.SetOpacityMapDirty();
 
-        _surfaceMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        // Facade/bombing are value specializations: VertexMain<let IsFacade> / PixelMain<let Bombing>;
+        // each material binds one combination.
+        _surfaceMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_surface", false, false);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
 
-        _cliffMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileInstanced);
+        _cliffMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_cliff", true, false);
         _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _cliffMaterial.DepthStencilState = DepthStencilState.Write;
-        _cliffMaterial.SetDefines("IS_FACADE");
 
-        _waterMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_TileWaterInstanced);
+        _waterMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_TileWaterInstanced);
         _waterMaterial.BlendState = BlendState.AlphaBlend;
         _waterMaterial.DepthStencilState = DepthStencilState.Read;
 
         _surfaceTileSet = BuildSurfaceTileSet();
-        _surfaceBlock = RenderingSystem.CreateTileRenderer(_renderer, _surfaceTileSet, width, height, "surface_block");
+        _surfaceBlock = RenderingSystem.CreateTileRenderer(_mainPipeline.Graph.RenderContext, _surfaceTileSet, width, height, "surface_block");
         _surfaceBlock.SetAllTiles(1);
 
 
 
-        _brushMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        _brushMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
         _brushMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         _brushMaterial.BlendState = BlendState.NonPremultipliedAlpha;
 
         Texture2D textureWall = AssetSystem.Load<Texture2D>("Textures/Wall.png");
 
-        _wallMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("Shaders/TileConnectable"));
+        _wallMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("tile-connectable"));
         _wallMaterial.BlendState = BlendState.Opaque;
         _wallMaterial.DepthStencilState = DepthStencilState.Write;
         _wallMaterial.SetTexture(ShaderResourceId.Texture, textureWall);
@@ -127,7 +174,7 @@ public class Game : GameEngine
 
         GridUtility.FillCellsInRadius(_brushCells, _brushSize);
 
-        _materialLightOverlay = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        _materialLightOverlay = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", "false");
         _materialLightOverlay.SetRenderTexture(ShaderResourceId.Texture, _lightingManager.LightMap);
         _materialLightOverlay.BlendState = BlendState.Multiply;
 
@@ -151,13 +198,12 @@ public class Game : GameEngine
             yield return fileSource;
         }
         yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), AssetSystem);
+        yield return new DirectoryWatcherFileSource(Utils.GetRenderingAssetsPath(), AssetSystem);
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
     protected override void OnUpdate(float delta)
     {
-        DebugStats.Text(FrameRate);
-
         ImGui.Begin("Edit", ref _isEditWindowOpen);
         if (ImGui.SliderFloat("Brush Size", ref _brushSize, 0.1f, 5f))
         {
@@ -215,13 +261,6 @@ public class Game : GameEngine
         // Render lighting using internal command buffer
         _lightingManager.Render();
 
-        _renderer.Begin(MainRenderTarget.FrameBuffer);
-        _surfaceBlock.Render();
-        _wallManager.Render(_renderer);
-
-        _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialLightOverlay, _lightOverlayConstant);
-
-
         ImGuiIOPtr io = ImGui.GetIO();
 
         if (TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
@@ -237,12 +276,6 @@ public class Game : GameEngine
                 }
                 int2 pos = _brushCells[i] + tilePosition;
 
-                _brushTransform.Position = new Vector3(pos.X, pos.Y, 0);
-                Transform3D tmp = math.transform(_surfaceBlock.Transform, _brushTransform);
-                _brushConstant.Model = tmp.Matrix;
-                _renderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _brushMaterial, _brushConstant);
-
-
                 if (Input.IsMousePressing(Mouse.Left))
                 {
                     if (_editMode == EditMode.Surface)
@@ -257,23 +290,25 @@ public class Game : GameEngine
 
             }
         }
-        _renderer.End();
 
-        if (TryGetSystem<FXAASystem>(out var fxaaSystem))
+        if (MainPipeline.Get<RGNode_FXAA>() is { } fxaaNode)
         {
-            bool isFXAAEnabled = fxaaSystem.IsEnabled;
+            bool isFXAAEnabled = fxaaNode.IsEnabled;
             if (ImGui.Checkbox("FXAA", ref isFXAAEnabled))
             {
-                fxaaSystem.IsEnabled = isFXAAEnabled;
+                fxaaNode.IsEnabled = isFXAAEnabled;
             }
         }
 
 
         ImGui.End();
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
+        _mainPipeline?.Dispose();
         _lightingManager?.Dispose();
     }
 
@@ -339,21 +374,21 @@ public class Game : GameEngine
 
         List<TileItem> items = new();
 
-        Material gridMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial gridMaterial = _surfaceMaterial.CreateInstance();
         gridMaterial.SetTexture(ShaderResourceId.Texture, grid.Result);
         var item1 = new TileItem("grid", gridMaterial, 0, null);
 
-        Material grassMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial grassMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_grass", false, true);
         grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
-        grassMaterial.SetDefines("TEXTURE_BOMBING");
         var item2 = new TileItem("grass", grassMaterial, 1, null);
 
-        Material sandMaterial = _surfaceMaterial.CreateInstance();
+        GraphicsMaterial sandMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_sand", false, true);
         sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
-        sandMaterial.SetDefines("TEXTURE_BOMBING");
         var item3 = new TileItem("sand", sandMaterial, 2, null);
 
-        Material waterMaterial = _waterMaterial.CreateInstance();
+        GraphicsMaterial waterMaterial = _waterMaterial.CreateInstance();
         waterMaterial.SetTexture(ShaderResourceId.Texture, RenderingSystem.TextureWhite);
         var item4 = new TileItem("water", waterMaterial, 1, null);
         item4.Color = new ColorFloat(0.15f, 0.54f, 0.67f, 0.8f);
@@ -365,5 +400,47 @@ public class Game : GameEngine
         items.Add(item4);
 
         return new TileSet(items.ToArray());
+    }
+
+    private sealed class SceneNode : RGNode_SceneContent
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        {
+            _game = game;
+        }
+
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                _game._surfaceBlock.Render();
+                _game._wallManager.Render(pass);
+
+                pass.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._materialLightOverlay, _game._lightOverlayConstant);
+
+                Ray3D cameraRay = CameraMathUtility.ScreenPointToRay2D(_game.MainView.MousePosition, _game.MainView.Size, _game._camera.ViewProjectionMatrix, -100, 100);
+
+                ImGuiIOPtr io = ImGui.GetIO();
+
+                if (_game.TryGetTilePositionByRay(cameraRay, out int2 tilePosition))
+                {
+                    for (int i = 0; i < _game._brushCells.Count; i++)
+                    {
+                        if (io.WantCaptureMouse)
+                        {
+                            continue;
+                        }
+                        int2 pos = _game._brushCells[i] + tilePosition;
+
+                        _game._brushTransform.Position = new Vector3(pos.X, pos.Y, 0);
+                        Transform3D tmp = math.transform(_game._surfaceBlock.Transform, _game._brushTransform);
+                        _game._brushConstant.Model = tmp.Matrix;
+                        pass.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._brushMaterial, _game._brushConstant);
+                    }
+                }
+            }
+        }
     }
 }

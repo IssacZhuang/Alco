@@ -180,8 +180,6 @@ public class UIInputBox : UIText, ITextInput
             cursorTransform.Scale = new Vector2(FontSize) * CursorScale;
             canvas.DrawQuad(math.transform(WorldTransform, cursorTransform).Matrix, CursorColor);
         }
-
-        //DebugShowLineBreak();
     }
 
     private int GetCursorPosition(Vector2 mousePosition)
@@ -756,14 +754,6 @@ public class UIInputBox : UIText, ITextInput
     }
 
     #endregion
-
-    private void DebugShowLineBreak()
-    {
-        for (int i = 0; i < _lines.Count; i++)
-        {
-            DebugStats.Text($"Line {i}: start: {_lines[i].start}, count: {_lines[i].count}");
-        }
-    }
 
 
 }

@@ -11,12 +11,21 @@ public partial class GameEngine
         return _platform.CreateView(_graphicsDevice, setting);
     }
 
-    public ViewRenderTarget CreateViewRenderTarget(View view, GPUAttachmentLayout attachmentLayout, Shader blitShader)
+    /// <summary>
+    /// Creates a presenter for an additional view. The caller drives it manually
+    /// (<see cref="ViewPresenter.BeginFrame"/>/<see cref="ViewPresenter.EndFrame"/>) and pairs
+    /// it with a <see cref="RenderPipeline"/> that resolves into the presenter's frame buffer.
+    /// </summary>
+    public ViewPresenter CreateViewPresenter(View view)
     {
-        return new ViewRenderTarget(this, view, attachmentLayout, blitShader);
+        return new ViewPresenter(view);
     }
 
-    public virtual IShaderCache? CreateShaderCache(GraphicsSetting setting)
+    /// <summary>
+    /// Resolves the slang module system's on-disk cache directory, or null when
+    /// the setting disables shader caching.
+    /// </summary>
+    public virtual string? CreateShaderCacheDirectory(GraphicsSetting setting)
     {
         if (setting.IsShaderCacheEnabled)
         {
@@ -26,7 +35,7 @@ public partial class GameEngine
                 return null;
             }
             Log.Info("Shader cache is enabled, path: ", setting.ShaderCachePath);
-            return new ShaderCache(setting.ShaderCachePath);
+            return setting.ShaderCachePath;
         }
         return null;
     }

@@ -34,7 +34,7 @@ public class BenchmarkRenderer
         RenderingSystem renderingSystem = _engine.RenderingSystem;
         GraphicsBuffer camera = renderingSystem.CreateCamera2D(Vector2.One, 100, "camera");
         Shader shader = _engine.BuiltInAssets.Shader_Sprite;
-        Material material = renderingSystem.CreateMaterial(shader);
+        GraphicsMaterial material = renderingSystem.CreateGraphicsMaterial(shader);
         material.SetBuffer(ShaderResourceId.Camera, camera);
         _context = renderingSystem.CreateRenderContext();
         _renderer1 = new OldSpriteRenderer(renderingSystem, renderingSystem.MeshCenteredSprite, camera, shader);
@@ -46,7 +46,7 @@ public class BenchmarkRenderer
     [Benchmark]
     public void OldSpriteRenderer()
     {
-        _renderer1.Begin(_engine.MainFrameBuffer);
+        _renderer1.Begin(_target.FrameBuffer);
         for (int i = 0; i < count; i++)
         {
             _renderer1.Draw(_texture, Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);
@@ -57,11 +57,13 @@ public class BenchmarkRenderer
     [Benchmark]
     public void NewSpriteRenderer()
     {
-        _context.Begin(_engine.MainFrameBuffer);
-        for (int i = 0; i < count; i++)
+        using (RenderFrameScope frame = _context.BeginFrame())
+        using (RenderPassScope pass = _context.BeginPass(_target.FrameBuffer))
         {
-            _renderer2.Draw(_texture, Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);
+            for (int i = 0; i < count; i++)
+            {
+                _renderer2.Draw(_texture, Vector3.Zero, Quaternion.Identity, Vector3.One, Vector4.One);
+            }
         }
-        _context.End();
     }
 }

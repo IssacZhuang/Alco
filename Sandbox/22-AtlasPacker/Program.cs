@@ -1,4 +1,4 @@
-﻿using Alco;
+using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 
@@ -10,10 +10,7 @@ GameEngineSetting setting = new GameEngineSetting
     {
         Backend = GraphicsBackend.Vulkan
     },
-}.
-With<PluginDefaultAssets>();
-// With<PluginHDR>().
-// With<PluginBloom>().
+};
 
 using (Game game = new Game(setting))
 {

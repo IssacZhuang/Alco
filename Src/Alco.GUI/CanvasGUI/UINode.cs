@@ -430,7 +430,7 @@ public class UINode : IEnumerable<UINode>
             Parent = parent;
         }
 
-        // Collection initializer support
+        /// <summary>Adds a child node; enables collection initializer support.</summary>
         public void Add(UINode node)
         {
             Parent.Add(node);
@@ -959,6 +959,16 @@ public class UINode : IEnumerable<UINode>
     {
         return _anchor.max - _anchor.min;
     }
+
+    /// <summary>
+    /// Assigned by the owning canvas each tick (pre-order, matching the render order): a larger
+    /// value means the node draws on top.
+    /// </summary>
+    /// <remarks>
+    /// Used to pick the topmost node among overlapping click receivers; a node disabled for a
+    /// tick keeps a stale value but cannot be hit that tick.
+    /// </remarks>
+    internal int TickOrder;
 
     internal void Tick(Canvas canvas, float delta)
     {

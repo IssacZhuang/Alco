@@ -193,12 +193,12 @@ public unsafe class BenchmarkImageEncode
     [GlobalSetup]
     public void Setup()
     {
-        // Decode PNG test files to RGBA8 pixel data
+        // Decoded once; reused read-only across iterations.
         (_pixelsSmall, _wSmall, _hSmall) = DecodeToPixels("Files/Image/png-small.png");
         (_pixelsLarge, _wLarge, _hLarge) = DecodeToPixels("Files/Image/png-large.png");
         (_pixelsWall, _wWall, _hWall) = DecodeToPixels("Files/Image/wall.png");
 
-        // Pin pixel arrays for pointer-based benchmarks
+        // Pinned once; addresses stay valid across all iterations.
         _pinSmall = GCHandle.Alloc(_pixelsSmall, GCHandleType.Pinned);
         _pinLarge = GCHandle.Alloc(_pixelsLarge, GCHandleType.Pinned);
         _pinWall = GCHandle.Alloc(_pixelsWall, GCHandleType.Pinned);

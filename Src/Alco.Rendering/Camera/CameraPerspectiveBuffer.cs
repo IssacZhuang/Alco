@@ -69,5 +69,20 @@ namespace Alco.Rendering
                 _dirty = true;
             }
         }
+
+        /// <summary>
+        /// Gets or sets whether the camera uses a reversed infinite-far projection
+        /// (see <see cref="CameraDataPerspective.ReverseInfiniteDepth"/>). The far
+        /// plane moves to infinity: <see cref="Far"/> no longer clips geometry.
+        /// </summary>
+        public bool ReverseInfiniteDepth
+        {
+            get => _data.ReverseInfiniteDepth;
+            set
+            {
+                _data.ReverseInfiniteDepth = value;
+                _dirty = true;
+            }
+        }
     }
 }

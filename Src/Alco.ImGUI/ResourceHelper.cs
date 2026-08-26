@@ -12,13 +12,16 @@ public static class ImGUIResourceHelper
 {
     public static Shader GetImGUIShader(RenderingSystem renderingSystem)
     {
-        string shaderCode = GetEmbeddedResourceString("ImGui.hlsl");
-        return renderingSystem.CreateShader(shaderCode, "ImGui_Embedded", [
+        // Compiles through the shared slang module system: source registered
+        // under "ImGUI" with ImGui's packed vertex layout.
+        string source = GetEmbeddedResourceString("ImGUI.slang");
+        return renderingSystem.ShaderSystem.GetShaderFromModule("ImGUI", "ImGUI.slang", source,
+        [
             new(){
                 Elements = new VertexElement[] {
                     new(0, 0, VertexFormat.Float32x2, "POSITION"),
                     new(1, 8, VertexFormat.Float32x2, "TEXCOORD0"),
-                    new(2, 16, VertexFormat.Unorm8x4, "COLOR"),//the imgui vertex use uint as color
+                    new(2, 16, VertexFormat.Unorm8x4, "COLOR"),//the ImGUI vertex use uint as color
                 },
                 Stride = 20,
                 StepMode = VertexStepMode.Vertex,
@@ -28,7 +31,7 @@ public static class ImGUIResourceHelper
     /// <summary>
     /// Gets the embedded resource content as string
     /// </summary>
-    /// <param name="resourceName">Resource name (e.g. "ImGui.hlsl")</param>
+    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang")</param>
     /// <returns>Content of the resource as string</returns>
     public static string GetEmbeddedResourceString(string resourceName)
     {
@@ -48,7 +51,7 @@ public static class ImGUIResourceHelper
     /// <summary>
     /// Gets the embedded resource content as byte array
     /// </summary>
-    /// <param name="resourceName">Resource name (e.g. "ImGui.hlsl")</param>
+    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang")</param>
     /// <returns>Content of the resource as byte array</returns>
     public static byte[] GetEmbeddedResourceBytes(string resourceName)
     {

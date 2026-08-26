@@ -108,19 +108,41 @@ internal static partial class WebGPUUtility
         return wgpuInstanceCreateSurface(instance, &descriptor);
     }
 
-    public unsafe static WGPUShaderModule CreateShaderModule(this WGPUDevice device, in ShaderModule source)
+    public unsafe static WGPUShaderModule CreateShaderModule(this WebGPUDevice device, in ShaderModule source)
     {
+        WGPUDevice nativeDevice = device.Native;
         WGPUShaderModuleDescriptor shaderDesc = new()
         {
             label = WGPUStringView.Empty
         };
 
-        
+
         if (source.Language == ShaderLanguage.SPIRV)
         {
+            if ((source.Source.Length & (sizeof(uint) - 1)) != 0)
+            {
+                throw new GraphicsException("SPIR-V shader bytecode length must be a multiple of four bytes.");
+            }
+
             fixed (byte* ptr = source.Source.Span)
             {
-                WGPUShaderSourceSPIRV descriptor = new WGPUShaderSourceSPIRV()
+                if (device.ShaderPassthroughEnabled)
+                {
+                    // Slang reflection builds the pipeline layout and the
+                    // compiler tests validate every emitted module with the
+                    // pinned SPIR-V profile. Keep the Vulkan bytecode intact
+                    // instead of importing and re-emitting it through Naga.
+                    WGPUShaderModuleDescriptorSpirV passthroughDescriptor = new()
+                    {
+                        label = WGPUStringView.Empty,
+                        sourceSize = (uint)source.Source.Length / sizeof(uint),
+                        source = (uint*)ptr,
+                    };
+
+                    return wgpuDeviceCreateShaderModuleSpirV(nativeDevice, &passthroughDescriptor);
+                }
+
+                WGPUShaderSourceSPIRV descriptor = new()
                 {
                     codeSize = (uint)source.Source.Length / sizeof(uint),
                     code = (uint*)ptr,
@@ -133,7 +155,72 @@ internal static partial class WebGPUUtility
 
                 shaderDesc.nextInChain = &descriptor.chain;
 
-                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
+                return wgpuDeviceCreateShaderModule(nativeDevice, &shaderDesc);
+            }
+        }
+        else if (source.Language == ShaderLanguage.DXIL)
+        {
+            RequirePassthrough(device, source, "DXIL");
+
+            fixed (byte* ptr = source.Source.Span)
+            {
+                // One DXBC container per entry point; D3D12 consumes the blob as
+                // precompiled bytecode, so the baked entry name is authoritative.
+                WGPUShaderModuleDescriptorDxil descriptor = new()
+                {
+                    label = WGPUStringView.Empty,
+                    codeSize = (uint)source.Source.Length,
+                    code = ptr,
+                    workgroupSizeX = source.WorkgroupSize.X,
+                    workgroupSizeY = source.WorkgroupSize.Y,
+                    workgroupSizeZ = source.WorkgroupSize.Z,
+                };
+
+                return wgpuDeviceCreateShaderModuleDxil(nativeDevice, &descriptor);
+            }
+        }
+        else if (source.Language == ShaderLanguage.MSL)
+        {
+            RequirePassthrough(device, source, "MSL");
+
+            ReadOnlySpan<byte> code = source.Source.Span;
+            fixed (byte* ptr = code)
+            {
+                // wgpu compiles the MSL source into a Metal library; pipelines
+                // then resolve entry points by their declared function names.
+                WGPUShaderModuleDescriptorMsl descriptor = new()
+                {
+                    label = WGPUStringView.Empty,
+                    code = new WGPUStringView(ptr, code.Length),
+                    workgroupSizeX = source.WorkgroupSize.X,
+                    workgroupSizeY = source.WorkgroupSize.Y,
+                    workgroupSizeZ = source.WorkgroupSize.Z,
+                };
+
+                return wgpuDeviceCreateShaderModuleMsl(nativeDevice, &descriptor);
+            }
+        }
+        else if (source.Language == ShaderLanguage.MetalLib)
+        {
+            RequirePassthrough(device, source, "MetalLib");
+
+            ReadOnlySpan<byte> code = source.Source.Span;
+            fixed (byte* ptr = code)
+            {
+                // A precompiled .metallib container: wgpu loads it with
+                // newLibraryWithData instead of compiling source at runtime;
+                // entry points keep their declared function names.
+                WGPUShaderModuleDescriptorMetalLib descriptor = new()
+                {
+                    label = WGPUStringView.Empty,
+                    codeSize = (uint)code.Length,
+                    code = ptr,
+                    workgroupSizeX = source.WorkgroupSize.X,
+                    workgroupSizeY = source.WorkgroupSize.Y,
+                    workgroupSizeZ = source.WorkgroupSize.Z,
+                };
+
+                return wgpuDeviceCreateShaderModuleMetalLib(nativeDevice, &descriptor);
             }
         }
         else if (source.Language == ShaderLanguage.WGSL)
@@ -153,11 +240,26 @@ internal static partial class WebGPUUtility
 
                 shaderDesc.nextInChain = &descriptor.chain;
 
-                return wgpuDeviceCreateShaderModule(device, &shaderDesc);
+                return wgpuDeviceCreateShaderModule(nativeDevice, &shaderDesc);
             }
         }
 
-        throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV and WGSL are supported. Try compiling your shader to SPIRV if you are using HLSL or GLSL.");
+        throw new GraphicsException($"Unsupported shader language {source.Language}, only SPIRV, DXIL, MSL, MetalLib and WGSL are supported.");
+    }
+
+    /// <summary>
+    /// DXIL/MSL/MetalLib have no Naga fallback — wgpu can only take them through passthrough, so
+    /// a device without the PassthroughShaders feature (or an unpatched wgpu-native build) fails
+    /// here with the actionable reason instead of an entry-point lookup error.
+    /// </summary>
+    private static void RequirePassthrough(WebGPUDevice device, in ShaderModule source, string targetName)
+    {
+        if (!device.ShaderPassthroughEnabled)
+        {
+            throw new GraphicsException(
+                $"{targetName} shaders require wgpu's PassthroughShaders feature, which the active device does not expose. " +
+                $"Build wgpu-native with the Alco passthrough patch (see the alco-wgpu-native overlay repository).");
+        }
     }
 
     public static WGPUVertexAttribute ConvertToWebGPU(this VertexElement attribute)
@@ -225,6 +327,14 @@ internal static partial class WebGPUUtility
             result.sampler = new WGPUSamplerBindingLayout
             {
                 type = WGPUSamplerBindingType.Filtering,
+            };
+        }
+
+        if (binding.Type == BindingType.SamplerComparison)
+        {
+            result.sampler = new WGPUSamplerBindingLayout
+            {
+                type = WGPUSamplerBindingType.Comparison,
             };
         }
 

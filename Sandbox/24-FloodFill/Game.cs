@@ -12,11 +12,11 @@ public class Game : GameEngine
 {
 
     private readonly uint2 _size = new uint2(65, 65);
-    private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly FloodFillLightMap _tileLightMap;
     private readonly GPUCommandBuffer _command;
+    private readonly RenderPipeline _mainPipeline;
 
 
     private float _intensity = 1;
@@ -25,10 +25,38 @@ public class Game : GameEngine
     public Game(GameEngineSetting setting) : base(setting)
 
     {
-        Material blitMaterial = RenderingSystem.CreateMaterial(AssetSystem.Load<Shader>("InverserGamma.hlsl"));
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
+
+        var tonemapNode = new RGNode_Tonemap(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
+        GraphicsMaterial blitMaterial = RenderingSystem.CreateGraphicsMaterial(
+            RenderingSystem.ShaderSystem.GetShader("inverser-gamma"));
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
-        _materialRenderer = RenderingSystem.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
         _material.SetBuffer(ShaderResourceId.Camera, _camera);
 
@@ -40,6 +68,7 @@ public class Game : GameEngine
         _material.SetRenderTexture(ShaderResourceId.Texture, _tileLightMap.Texture);
 
         _command = GraphicsDevice.CreateCommandBuffer();
+        AddSystem(new ImGUISystem(this));
     }
 
     public override IEnumerable<IFileSource> CreateDefaultFileSources()
@@ -49,6 +78,7 @@ public class Game : GameEngine
             yield return fileSource;
         }
         yield return new DirectoryWatcherFileSource(Utils.GetBuiltInAssetsPath(), AssetSystem);
+        yield return new DirectoryWatcherFileSource(Utils.GetRenderingAssetsPath(), AssetSystem);
         yield return new DirectoryWatcherFileSource(Utils.GetProjectAssetsPath(), AssetSystem);
     }
 
@@ -58,8 +88,6 @@ public class Game : GameEngine
         {
             Stop();
         }
-
-        DebugStats.Text(FrameRate);
 
         // ImGUI Controls
         ImGui.Begin("Flood Fill Controls");
@@ -97,18 +125,6 @@ public class Game : GameEngine
         _camera.ViewSize = MainView.Size;
         _camera.UpdateMatrixToGPU();
 
-        Transform2D transform = Transform2D.Identity;
-        float scale = MainView.Width / _tileLightMap.Width;
-        scale = math.min(scale, MainView.Height / _tileLightMap.Height);
-        transform.Scale = new Vector2(_tileLightMap.Width * scale, _tileLightMap.Height * scale);
-
-        SpriteConstant constant = new SpriteConstant
-        {
-            Model = transform.Matrix,
-            Color = new ColorFloat(1, 1, 1, 1),
-            UvRect = new Rect(0, 0, 1, 1)
-        };
-
         _tileLightMap.SetLight((int)_size.X / 2, (int)_size.Y / 2, new Half4(_intensity, _intensity, _intensity, 1));
         _tileLightMap.SetDirty();
 
@@ -120,14 +136,43 @@ public class Game : GameEngine
         _command.End();
         GraphicsDevice.Submit(_command);
 
-        //draw atlas texture
-        _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
-        _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
-        _materialRenderer.End();
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 
     protected override void OnStop()
     {
         _tileLightMap.Dispose();
+        _mainPipeline.Dispose();
+    }
+
+    private sealed class SceneNode : RGNode_SceneContent
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        {
+            _game = game;
+        }
+
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            Transform2D transform = Transform2D.Identity;
+            float scale = _game.MainView.Width / _game._tileLightMap.Width;
+            scale = math.min(scale, _game.MainView.Height / _game._tileLightMap.Height);
+            transform.Scale = new Vector2(_game._tileLightMap.Width * scale, _game._tileLightMap.Height * scale);
+
+            SpriteConstant constant = new SpriteConstant
+            {
+                Model = transform.Matrix,
+                Color = new ColorFloat(1, 1, 1, 1),
+                UvRect = new Rect(0, 0, 1, 1)
+            };
+
+            //draw atlas texture
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                pass.DrawWithConstant(_game.RenderingSystem.MeshCenteredSprite, _game._material, constant);
+            }
+        }
     }
 }

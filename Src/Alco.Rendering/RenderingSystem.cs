@@ -4,7 +4,9 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Alco.Graphics;
+using Alco.ShaderCompiler;
 
 /// <summary>
 /// The facility to manage global rendering resource and provide the factory to create rendering resource.
@@ -14,29 +16,40 @@ public partial class RenderingSystem
 
     private readonly GPUDevice _device;
     private readonly IRenderingSystemHost _host;
+    private readonly SharedSamplers _samplerLibrary;
 
     //preferred
-    private readonly GPUAttachmentLayout _preferredSDRPass;
     private readonly GPUAttachmentLayout _preferredHDRPass;
-    private readonly GPUAttachmentLayout _preferredSDRPassWithoutDepth;
-    private readonly GPUAttachmentLayout _preferredHDRPassWithoutDepth;
     private readonly GPUAttachmentLayout _preferredRGBATexturePass;
     private readonly GPUAttachmentLayout _preferredRTexturePass;
     private readonly GPUAttachmentLayout _preferredLightMapPass;
 
-    private readonly PixelFormat _preferredSDRFormat;
     private readonly PixelFormat _preferredHDRFormat;
     private readonly PixelFormat _preferredDepthStencilFormat;
 
     private readonly GraphicsValueBuffer<GlobalRenderData> _globalRenderData;
     private readonly GraphicsValueBuffer<Matrix4x4> _viewProjectionMatrix;
 
-    private readonly ConcurrentGraphicsBufferPool _bufferPool;
-
     public GPUDevice GraphicsDevice
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _device;
+    }
+
+    /// <summary>
+    /// The engine's shared sampler bank: the samplers every shader samples through
+    /// (the <c>samplers</c> block of <c>AlcoRendering_Core.slang</c>) plus the
+    /// name table resolving shader member names to GPUSampler instances. Owned by
+    /// the rendering system, not the GPU device — the device only creates raw
+    /// samplers. The bank is immutable engine-wide state served as shared sampler
+    /// bind groups; custom samplers are module-declared entries bound per material
+    /// through <see cref="ShaderParameterSet.SetSampler"/>; textures never carry
+    /// samplers.
+    /// </summary>
+    public SharedSamplers Samplers
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _samplerLibrary;
     }
 
     public GraphicsValueBuffer<GlobalRenderData> GlobalRenderDataBuffer
@@ -51,73 +64,73 @@ public partial class RenderingSystem
         get => _viewProjectionMatrix;
     }
 
-    public PixelFormat PreferredSDRFormat
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSDRFormat;
-    }
-
+    /// <summary>
+    /// The pixel format of the pipeline's main HDR scene target (set via
+    /// <c>GraphicsSetting.PreferredHDRFormat</c>).
+    /// </summary>
     public PixelFormat PreferredHDRFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredHDRFormat;
     }
 
+    /// <summary>
+    /// The depth-stencil format of <see cref="PreferredHDRPass"/> (set via
+    /// <c>GraphicsSetting.PreferredDepthStencilFormat</c>). The deferred pipeline's
+    /// own targets always use Depth32Float regardless of this value.
+    /// </summary>
     public PixelFormat PreferredDepthStencilFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredDepthStencilFormat;
     }
 
-    public GPUAttachmentLayout PreferredSDRPass
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSDRPass;
-    }
-
-    public GPUAttachmentLayout PreferredSDRPassWithoutDepth
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredSDRPassWithoutDepth;
-    }
-
+    /// <summary>
+    /// The canonical layout of a forward-style HDR scene target (HDR color +
+    /// depth-stencil). Pass it to <see cref="RenderPipeline"/> when composing a
+    /// custom pipeline whose scene texture needs its own depth attachment.
+    /// </summary>
     public GPUAttachmentLayout PreferredHDRPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredHDRPass;
     }
 
-    public GPUAttachmentLayout PreferredHDRPassWithoutDepth
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _preferredHDRPassWithoutDepth;
-    }
-
+    /// <summary>
+    /// The canonical layout of a general-purpose 8-bit offscreen texture
+    /// (RGBA8Unorm, no depth) — snapshots, atlases, encoders.
+    /// </summary>
     public GPUAttachmentLayout PreferredRGBATexturePass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredRGBATexturePass;
     }
 
+    /// <summary>
+    /// The canonical layout of a single-channel 8-bit offscreen texture
+    /// (R8Unorm, no depth) — font SDF generation.
+    /// </summary>
     public GPUAttachmentLayout PreferredRTexturePass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredRTexturePass;
     }
 
+    /// <summary>
+    /// The canonical layout of a filterable HDR compute texture (RGBA16Float,
+    /// no depth) — GI/AO/SSR intermediates, light maps, post-process pyramids.
+    /// </summary>
     public GPUAttachmentLayout PreferredLightMapPass
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _preferredLightMapPass;
     }
 
-    public ConcurrentGraphicsBufferPool GraphicsBufferPool
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _bufferPool;
-    }
-
-    public IShaderCache? ShaderCache { get; }
+    /// <summary>
+    /// The slang module system's disk-cache directory (`.slang-module` IR blobs and
+    /// linked programs), or null when caching is disabled.
+    /// </summary>
+    public string? SlangCacheDirectory { get; }
 
     private WeakReference<ICamera>? _mainCameraWeakRef;
 
@@ -158,62 +171,27 @@ public partial class RenderingSystem
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
-        PixelFormat preferredSDRFormat, 
         PixelFormat preferredHDRFormat,
         PixelFormat preferredDepthStencilFormat,
-        IShaderCache? shaderCache = null
+        SlangFileResolver? moduleResolver = null,
+        string? slangCacheDirectory = null
     )
     {
         _device = device;
         _host = host;
+        _samplerLibrary = new SharedSamplers(device);
 
-        _preferredSDRFormat = preferredSDRFormat;
         _preferredHDRFormat = preferredHDRFormat;
         _preferredDepthStencilFormat = preferredDepthStencilFormat;
 
         _globalRenderData = CreateGraphicsValueBuffer<GlobalRenderData>();
         _viewProjectionMatrix = CreateGraphicsValueBuffer<Matrix4x4>();
 
-        //2kb, 4kb, 8kb, 16kb, 32kb, 64kb, 128kb, 256kb, 512kb
-        _bufferPool = new ConcurrentGraphicsBufferPool(
-            this,
-            2 * 1024,
-            4 * 1024,
-            8 * 1024,
-            16 * 1024,
-            32 * 1024,
-            64 * 1024,
-            128 * 1024,
-            256 * 1024,
-            512 * 1024
-            );
-
-        _preferredSDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
-        (
-            [new(_preferredSDRFormat)],
-            new(_preferredDepthStencilFormat),
-            "sdr_pass"
-        ));
-
         _preferredHDRPass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
         (
             [new(_preferredHDRFormat)],
             new(_preferredDepthStencilFormat),
             "hdr_pass"
-        ));
-
-        _preferredSDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
-        (
-            [new(_preferredSDRFormat)],
-            null,
-            "sdr_pass_no_depth"
-        ));
-
-        _preferredHDRPassWithoutDepth = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
-        (
-            [new(_preferredHDRFormat)],
-            null,
-            "hdr_pass_no_depth"
         ));
 
         _preferredRGBATexturePass = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor
@@ -237,16 +215,27 @@ public partial class RenderingSystem
             "light_map_pass"
         ));
 
-        ShaderCache = shaderCache;
+        SlangCacheDirectory = slangCacheDirectory;
+
+        // RAII like every other subsystem: the module shader factory is created
+        // eagerly with its resolver (compilation itself stays lazy).
+        _shaderSystem = CreateShaderSystem(moduleResolver, slangCacheDirectory ?? ".cache/shader-slang");
 
         _host.OnUpdate += OnUpdate;
         _host.OnDispose += OnDispose;
 
     }
 
+    /// <summary>
+    /// Test hook: the total number of command buffers submitted through
+    /// <see cref="ScheduleCommandBuffer(GPUCommandBuffer)"/>.
+    /// </summary>
+    internal int ScheduledSubmissionCount;
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
+        ScheduledSubmissionCount++;
         _device.Submit(commandBuffer);
     }
 
@@ -272,7 +261,13 @@ public partial class RenderingSystem
     {
         _host.OnUpdate -= OnUpdate;
         _host.OnDispose -= OnDispose;
+        _samplerLibrary.Dispose();
         _globalRenderData.Dispose();
-        _bufferPool.Dispose();
+        _viewProjectionMatrix.Dispose();
+        _preferredHDRPass.Dispose();
+        _preferredRGBATexturePass.Dispose();
+        _preferredRTexturePass.Dispose();
+        _preferredLightMapPass.Dispose();
+        _shaderSystem.Dispose();
     }
 }

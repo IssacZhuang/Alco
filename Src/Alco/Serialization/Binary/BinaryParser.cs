@@ -9,6 +9,8 @@ namespace Alco
     /// <summary>
     /// Provides functionality for serializing and deserializing objects to and from binary format.
     /// Handles conversion between C# objects, binary tables, and raw bytes (as ReadOnlyMemory/ReadOnlySpan).
+    /// The wire format is little-endian: length prefixes and scalar values are written via
+    /// little-endian primitives; composite unmanaged values are host-layout blits (see BinaryUtility).
     /// </summary>
     public class BinaryParser
     {

@@ -275,7 +275,7 @@ public class ParallelToolExecutionTests
         Assert.That(((ToolCallCompletedEvent)toolEvents[3]).CallId, Is.EqualTo("call2"));
     }
 
-    // AC9: timeout now applies to a single agent-thread tool on the serial path (fixed bug).
+    // AC9: timeout applies to a single agent-thread tool on the serial path.
     [Test]
     public async Task ChatEventsAsync_SingleAgentThreadToolTimeout_YieldsFailedEvent()
     {

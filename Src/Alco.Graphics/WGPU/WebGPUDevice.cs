@@ -14,7 +14,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
-    // public readonly WGPUSurface Surface;
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
@@ -43,6 +42,24 @@ internal sealed partial class WebGPUDevice : GPUDevice
     private GCHandle _thisHandle;
 
     public bool IsDebug { get; }
+
+    /// <summary>
+    /// Whether the device was created with wgpu's PassthroughShaders feature: slang's
+    /// SPIR-V (Vulkan), DXIL (D3D12) and MSL/metallib (Metal) reach the backend as-is.
+    /// Required for DXIL/MSL/MetalLib (no translation fallback exists); SPIR-V falls
+    /// back to Naga import.
+    /// </summary>
+    internal bool ShaderPassthroughEnabled { get; }
+
+    /// <summary>
+    /// Whether the loaded wgpu-native exports wgpuDeviceCreateShaderModuleMetalLib.
+    /// Probed once per device; the shader factory keeps the
+    /// MSL target when this is false so an older library still runs.
+    /// </summary>
+    private bool MetalLibPassthrough { get; set; }
+
+    /// <summary>The backend the adapter actually selected (Auto resolves per platform).</summary>
+    public override GraphicsBackend Backend { get; }
 
     #endregion
 
@@ -89,16 +106,25 @@ internal sealed partial class WebGPUDevice : GPUDevice
     }
 
 
-    //default bind groups
+    /// <summary>
+    /// The default bind group shared across the entire device.
+    /// </summary>
     public override GPUBindGroup BindGroupUniformBuffer { get; }
     public override GPUBindGroup BindGroupStorageBuffer { get; }
     public override GPUBindGroup BindGroupStorageBufferWithCounter { get; }
-    public override GPUBindGroup BindGroupTexture2DSampled { get; }
-    public override GPUBindGroup BindGroupTextureDepthRead { get; }
     public override GPUBindGroup BindGroupTexture2DRead { get; }
     public override GPUBindGroup BindGroupTexture2DStorage { get; }
+    public override GPUBindGroup BindGroupTexture3DRead { get; }
 
     public override bool TextureCompressBC3Supported { get; }
+
+    public override bool TimestampQuerySupported { get; }
+
+    public override bool MetalLibPassthroughSupported => MetalLibPassthrough;
+
+    public override bool TimestampQueryInsidePassesSupported { get; }
+
+    public override float TimestampPeriodNanoseconds { get; }
 
     /// <summary>
     /// The maximum number of bind groups supported by the WebGPU adapter.
@@ -110,7 +136,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
     }
 
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
-
     {
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).TakeBuffer();
         wgpuQueueSubmit(Queue, 1, &buffer);//add reference count
@@ -136,18 +161,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
         DestroyEvicted();
 
         //dispose default resources
-        SamplerNearestRepeat.Destroy();
-        SamplerLinearRepeat.Destroy();
-        SamplerNearestClamp.Destroy();
-        SamplerLinearClamp.Destroy();
-        SamplerNearestMirrorRepeat.Destroy();
-        SamplerLinearMirrorRepeat.Destroy();
-
         BindGroupUniformBuffer.Destroy();
         BindGroupStorageBuffer.Destroy();
         BindGroupStorageBufferWithCounter.Destroy();
-        BindGroupTexture2DSampled.Destroy();
-        BindGroupTextureDepthRead.Destroy();
         BindGroupTexture2DRead.Destroy();
         BindGroupTexture2DStorage.Destroy();
 
@@ -164,6 +180,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
     {
         return new WebGPUBuffer(this, descriptor);
+    }
+
+    protected override GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name)
+    {
+        return new WebGPUTimestampQuerySet(this, count, name);
     }
 
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
@@ -189,6 +210,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
     protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
     {
         return new WebGPUFrameBuffer(this, descriptor);
+    }
+
+    protected override GPUFrameBuffer CreateExternalFrameBufferCore(in ExternalFrameBufferDescriptor descriptor)
+    {
+        return new WebGPUExternalFrameBuffer(this, descriptor);
     }
 
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
@@ -245,7 +271,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
             WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
 
-            wgpuQueueSubmit(Queue, 1, &commandBuffer);
+            ulong submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
 
             wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size,
                 new WGPUBufferMapCallbackInfo()
@@ -255,7 +281,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                     userdata1 = null,
                     userdata2 = null,
                 });
-            wgpuDevicePoll(Device, WGPUBool.True, null);
+            wgpuDevicePoll(Device, WGPUBool.True, &submissionIndex);
             wasMapped = true;
 
             void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, size);
@@ -285,7 +311,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
     {
-        //todo: get pixel size by format
         WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
 
         WGPUTexelCopyTextureInfo copyTextureInfo = new WGPUTexelCopyTextureInfo
@@ -301,12 +326,16 @@ internal sealed partial class WebGPUDevice : GPUDevice
             aspect = WGPUTextureAspect.All,
         };
 
-        WGPUTexelCopyBufferLayout textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, texture.Width, texture.Height);
+        // The write covers exactly the given mip level's extent, not the level-0 size.
+        uint mipWidth = Math.Max(1u, texture.Width >> (int)mipLevel);
+        uint mipHeight = Math.Max(1u, texture.Height >> (int)mipLevel);
+
+        WGPUTexelCopyBufferLayout textureDataLayout = WebGPUUtility.GetTextureDataLayout(texture.PixelFormat, mipWidth, mipHeight);
 
         WGPUExtent3D writeSize = new WGPUExtent3D
         {
-            width = texture.Width,
-            height = texture.Height,
+            width = mipWidth,
+            height = mipHeight,
             depthOrArrayLayers = texture.Depth,
         };
 
@@ -350,7 +379,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &layout.CopySize);
 
             commandBuffer = wgpuCommandEncoderFinish(encoder, null);
-            wgpuQueueSubmit(Queue, 1, &commandBuffer);
+            ulong submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
 
             wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)layout.StagingDataSize,
                 new WGPUBufferMapCallbackInfo()
@@ -360,7 +389,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
                     userdata1 = null,
                     userdata2 = null,
             });
-            wgpuDevicePoll(Device, WGPUBool.True, null);
+            wgpuDevicePoll(Device, WGPUBool.True, &submissionIndex);
 
             wasMapped = true;
             void* pointer = wgpuBufferGetConstMappedRange(tmpBuffer, 0, (nuint)layout.StagingDataSize);
@@ -846,7 +875,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             states[i] = new TextureReadbackCallbackState
             {
                 IsInUse = 1,
-                Status = WGPUMapAsyncStatus.Unknown,
+                Status = WGPUMapAsyncStatus.None,
             };
             return i;
         }
@@ -952,6 +981,14 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         WGPUAdapterInfo info = default;
         wgpuAdapterGetInfo(adapter, &info);
+        WGPUBackendType backendType = info.backendType;
+        Backend = backendType switch
+        {
+            WGPUBackendType.Vulkan => GraphicsBackend.Vulkan,
+            WGPUBackendType.D3D12 => GraphicsBackend.D3D12,
+            WGPUBackendType.Metal => GraphicsBackend.Metal,
+            _ => GraphicsBackend.WebGPU,
+        };
         _host.LogSuccess($"Adapter name: {info.device}");
         _host.LogSuccess($"Graphics backend: {info.backendType}");
 
@@ -963,9 +1000,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
             (WGPUFeatureName)WGPUNativeFeature.VertexWritableStorage
         };
 
-        if (!IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.PushConstants, supportedFeatures))
+        if (!IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.Immediates, supportedFeatures))
         {
-            throw new GraphicsException("Push constants are not supported which is required");
+            throw new GraphicsException("Push constants (immediates) are not supported which is required");
         }
 
         if(IsFeatureSupported(WGPUFeatureName.TextureCompressionBC, supportedFeatures))
@@ -975,8 +1012,70 @@ internal sealed partial class WebGPUDevice : GPUDevice
             _host.LogSuccess("Texture compression BC is supported");
         }
 
+        if (IsFeatureSupported(WGPUFeatureName.TimestampQuery, supportedFeatures))
+        {
+            TimestampQuerySupported = true;
+            featuresList.Add(WGPUFeatureName.TimestampQuery);
+            _host.LogSuccess("GPU timestamp queries are supported");
+        }
 
-        featuresList.Add((WGPUFeatureName)WGPUNativeFeature.PushConstants);
+        if (TimestampQuerySupported
+            && IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses, supportedFeatures))
+        {
+            TimestampQueryInsidePassesSupported = true;
+            featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses);
+            _host.LogSuccess("GPU timestamp queries inside passes are supported");
+        }
+
+        if (backendType == WGPUBackendType.Vulkan)
+        {
+            WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
+            if (IsFeatureSupported(passthroughShaders, supportedFeatures))
+            {
+                ShaderPassthroughEnabled = true;
+                featuresList.Add(passthroughShaders);
+                _host.LogSuccess("Native Vulkan SPIR-V shader passthrough is enabled");
+            }
+            else
+            {
+                _host.LogWarning(
+                    "Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
+            }
+        }
+        else if (backendType == WGPUBackendType.D3D12 || backendType == WGPUBackendType.Metal)
+        {
+            // Slang emits DXIL for D3D12 and MSL (or precompiled metallib) for
+            // Metal; wgpu can only consume them through passthrough, so the
+            // feature is required, not optional.
+            WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
+            if (!IsFeatureSupported(passthroughShaders, supportedFeatures))
+            {
+                throw new GraphicsException(
+                    $"{backendType} requires wgpu's PassthroughShaders feature for slang DXIL/MSL shaders, " +
+                    "but the adapter or wgpu-native build does not expose it. " +
+                    "Use a wgpu-native build with the Alco passthrough patch (see the alco-wgpu-native overlay repository).");
+            }
+            ShaderPassthroughEnabled = true;
+            featuresList.Add(passthroughShaders);
+            _host.LogSuccess($"Native {backendType} shader passthrough is enabled");
+
+            if (backendType == WGPUBackendType.Metal)
+            {
+                // wgpuGetProcAddress is an unimplemented stub upstream (it
+                // panics), so probe the loaded library's export table instead —
+                // an older build keeps the MSL source path. The path-aware
+                // load also returns the already-loaded DllImport handle.
+                MetalLibPassthrough = WGPUNativeLibrary.TryLoad(out nint library)
+                    && NativeLibrary.TryGetExport(library, "wgpuDeviceCreateShaderModuleMetalLib", out _);
+                if (MetalLibPassthrough)
+                {
+                    _host.LogSuccess("Precompiled metallib shader passthrough is enabled");
+                }
+            }
+        }
+
+
+        featuresList.Add((WGPUFeatureName)WGPUNativeFeature.Immediates);
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TextureAdapterSpecificFormatFeatures);
 
         WGPUFeatureName* features = stackalloc WGPUFeatureName[featuresList.Count];
@@ -992,24 +1091,16 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
 
             WGPULimits limits = default;
-            
+
             WGPUStatus status = wgpuAdapterGetLimits(Adapter, &limits);
             if(status != WGPUStatus.Success)
             {
                 throw new GraphicsException("Could not get WebGPU adapter limits");
             }
             _maxBindGroups = (int)limits.maxBindGroups;
-        
-            WGPUNativeLimits nativeLimits = new WGPUNativeLimits()
-            {
-                chain = new WGPUChainedStructOut()
-                {
-                    sType = (WGPUSType)WGPUNativeSType.NativeLimits,
-                },
-                maxPushConstantSize = descriptor.PushConstantsSize
-            };
 
-            limits.nextInChain = (WGPUChainedStructOut*)&nativeLimits;
+            // wgpu v29: push constants became immediates, a single block sized via the standard limits.
+            limits.maxImmediateSize = descriptor.PushConstantsSize;
 
             WGPUDeviceDescriptor deviceDescriptor = new WGPUDeviceDescriptor()
             {
@@ -1046,6 +1137,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         //get queue
         Queue = wgpuDeviceGetQueue(Device);
+        TimestampPeriodNanoseconds = TimestampQuerySupported ? wgpuQueueGetTimestampPeriod(Queue) : 0.0f;
         
         //create default bind groups
         BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
@@ -1076,22 +1168,12 @@ internal sealed partial class WebGPUDevice : GPUDevice
             },
         });
 
-        BindGroupTexture2DSampled = CreateBindGroup(new BindGroupDescriptor
+        BindGroupTexture3DRead = CreateBindGroup(new BindGroupDescriptor
         {
-            Name = "default_bind_group_texture",
+            Name = "default_bind_group_texture_3d_read",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
-            },
-        });
-
-        BindGroupTextureDepthRead = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_texture_depth_sampled",
-            Bindings = new BindGroupEntry[]
-            {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.UnfilterableFloat)),
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
             },
         });
 
@@ -1213,7 +1295,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
     }
 
 
-    //for wgpu object usage only
+    /// <summary>
+    /// Logging channel reserved for internal wgpu object usage.
+    /// </summary>
     internal void LogInfo(ReadOnlySpan<char> message){
         _host.LogInfo(message);
     }

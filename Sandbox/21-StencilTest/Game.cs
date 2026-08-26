@@ -27,14 +27,57 @@ public class Game : GameEngine
     private readonly Cube _cubeStencilTest1;
     private readonly Cube _cubeStencilTest2;
 
-    private readonly GPUCommandBuffer _commandClearScreen;
+    private readonly RenderPipeline _mainPipeline;
 
     private Vector3 _rotationAngles = Vector3.Zero;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+        _mainPipeline.ClearColor = new ColorFloat(0.2f, 0.2f, 0.2f, 1);
 
-        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        // The node chain: scene content first, then bloom, then tone mapping.
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
+
+        _mainPipeline.Use(new RGNode_Bloom(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Bloom.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_BloomBlit,
+                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
+                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
+                TargetDownsampleHeight = 11,
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+            }));
+
+        _mainPipeline.Use(new RGNode_Tonemap(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            }));
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
+        _shader = BuiltInAssets.Shader_Unlit;
 
         // _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
         // _camaraChild.position.Z = -10;
@@ -45,8 +88,8 @@ public class Game : GameEngine
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
 
         _renderer = RenderingSystem.CreateRenderContext();
-        _materialStencilWrite = RenderingSystem.CreateMaterial(_shader, "Unlit");
-        _materialStencilWrite.SetBuffer("_camera", _camera);
+        _materialStencilWrite = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
+        _materialStencilWrite.SetBuffer("camera", _camera);
         _materialStencilWrite.DepthStencilState = new DepthStencilState
         {
             DepthWriteEnabled = false,
@@ -57,8 +100,8 @@ public class Game : GameEngine
             StencilWriteMask = 0xFF,
         };
 
-        _materialStencilTest = RenderingSystem.CreateMaterial(_shader, "Unlit");
-        _materialStencilTest.SetBuffer("_camera", _camera);
+        _materialStencilTest = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
+        _materialStencilTest.SetBuffer("camera", _camera);
         _materialStencilTest.DepthStencilState = new DepthStencilState
         {
             DepthWriteEnabled = false,
@@ -82,8 +125,6 @@ public class Game : GameEngine
         _cubeStencilTest2.Color = Color3;
         _cubeStencilTest2.transform.Position = new Vector3(1, -2f, 1);
 
-        _commandClearScreen = GraphicsDevice.CreateCommandBuffer();
-
         MainView.OnResize += OnMainWindowResize;
     }
 
@@ -94,25 +135,7 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugStats.Text("Hold mouse middle button to rotate camera");
-
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
-
-        _commandClearScreen.Begin();
-        using (var renderPass = _commandClearScreen.BeginRender(MainFrameBuffer, new ColorFloat(0.2f, 0.2f, 0.2f, 1)))
-        {
-            // Clear color is handled by BeginRender parameter
-        }
-        _commandClearScreen.End();
-        RenderingSystem.ScheduleCommandBuffer(_commandClearScreen);
-
-
-        _renderer.Begin(MainFrameBuffer);
-        _renderer.SetStencilReference(250);
-        _cubeStencilWrite.OnDraw(_renderer);
-        _cubeStencilTest1.OnDraw(_renderer);
-        _cubeStencilTest2.OnDraw(_renderer);
-        _renderer.End();
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
@@ -123,9 +146,9 @@ public class Game : GameEngine
 
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
         _camera.UpdateMatrixToGPU();
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
-
-
 
     protected void OnMainWindowResize(uint2 size)
     {
@@ -134,7 +157,30 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-
+        _mainPipeline.Dispose();
     }
 
+    /// <summary>
+    /// Content node drawing the stencil test cubes into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : RGNode_SceneContent
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        {
+            _game = game;
+        }
+
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                pass.SetStencilReference(250);
+                _game._cubeStencilWrite.OnDraw(pass);
+                _game._cubeStencilTest1.OnDraw(pass);
+                _game._cubeStencilTest2.OnDraw(pass);
+            }
+        }
+    }
 }

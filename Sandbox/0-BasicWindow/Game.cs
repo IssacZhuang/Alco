@@ -17,9 +17,10 @@ public class Game : GameEngine
         }
 
 
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
 
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer, new Vector4(0.2f, 0.2f, 0.4f, 1.0f), 1, 0))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer, new Vector4(0.2f, 0.2f, 0.4f, 1.0f), 1, 0))
         {
         }
 

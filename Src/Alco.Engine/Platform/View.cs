@@ -74,6 +74,12 @@ public unsafe abstract class View : AutoDisposable
     public abstract int2 Position { get; set; }
 
     /// <summary>
+    /// Gets whether the view currently has input focus.
+    /// Views embedded in a UI framework are always treated as focused.
+    /// </summary>
+    public virtual bool IsFocused => true;
+
+    /// <summary>
     /// Gets the mouse position in the view. This is the local position of the mouse. Use <see cref="Input.MousePosition"/> for global position.
     /// </summary>
     public abstract Vector2 MousePosition { get; }
@@ -95,7 +101,7 @@ public unsafe abstract class View : AutoDisposable
     public abstract GPUSwapchain? Swapchain { get; }
 
     /// <summary>
-    /// The view resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="ViewRenderTarget.OnResize"/> for safe deletion.
+    /// The view resize event, it can be called anytime. It is unsafe to delete the GPU resources in the event. Use <see cref="ViewPresenter.OnResize"/> for safe deletion.
     /// </summary>
     public event Action<uint2> OnResize
     {

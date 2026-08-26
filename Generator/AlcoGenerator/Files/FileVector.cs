@@ -18,7 +18,7 @@ public class FileVector
     public string GenerateContent()
     {
         StringBuilder builder = new StringBuilder();
-        //namespace
+        // Emits the complete C# source of a vector struct: fields, constants, constructors, operators and conversions.
         builder.AppendLine("//auto-generated");
         builder.AppendLine("using System;");
         builder.AppendLine("using System.Numerics;");
@@ -27,21 +27,17 @@ public class FileVector
         builder.AppendLine("namespace Alco");
         builder.AppendLine("{");
 
-        //class
         builder.AppendLine($"    public struct {_vectorType}{_vectorSize} : IEquatable<{_vectorType}{_vectorSize}>");
         builder.AppendLine("    {");
 
-        //fields
         for (int i = 0; i < _vectorSize; i++)
         {
             builder.AppendLine($"        public {_vectorType} {FieldsUpperCase[i]};");
         }
         builder.AppendLine();
 
-        //static constants
         AppendStaticConstants(builder);
 
-        //constructor single typed
         builder.AppendLine($"        public {_vectorType}{_vectorSize}({_vectorType} value)");
         builder.AppendLine("        {");
         for (int i = 0; i < _vectorSize; i++)
@@ -55,7 +51,6 @@ public class FileVector
         AppendConstructorSingle(builder, "uint");
         AppendConstructorSingle(builder, "float");
 
-        //constructor full typed
         builder.Append($"        public {_vectorType}{_vectorSize}(");
         for (int i = 0; i < _vectorSize; i++)
         {
@@ -81,9 +76,6 @@ public class FileVector
         AppendConstructorFull(builder, "uint");
         AppendConstructorFull(builder, "float");
 
-        //constructor lower sized vector
-        //like: public Vector4(Vector3 value, float w);
-        //or: public Vector4(Vector2 value, float z, float w);
         if (_vectorSize >= 3)
         {
             for (int i = 3; i <= _vectorSize; i++)
@@ -118,7 +110,6 @@ public class FileVector
             }
         }
 
-        //operator +
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static {_vectorType}{_vectorSize} operator +({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
@@ -137,7 +128,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //operator -
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static {_vectorType}{_vectorSize} operator -({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
@@ -156,7 +146,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //operator - (unary)
         if (_isSigned)
         {
             builder.AppendLine($"        /// <summary>");
@@ -183,7 +172,6 @@ public class FileVector
             builder.AppendLine("        }");
         }
 
-        //operator *
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static {_vectorType}{_vectorSize} operator *({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
@@ -202,7 +190,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //operator /
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static {_vectorType}{_vectorSize} operator /({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
@@ -221,7 +208,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //operator ==
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static bool operator ==({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
@@ -240,14 +226,12 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //operator !=
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static bool operator !=({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
         builder.AppendLine("            return !(a == b);");
         builder.AppendLine("        }");
 
-        //to vector
         builder.AppendLine();
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static implicit operator Vector{_vectorSize}({_vectorType}{_vectorSize} a)");
@@ -267,7 +251,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //to type
         builder.AppendLine();
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static implicit operator {_vectorType}{_vectorSize}(Vector{_vectorSize} a)");
@@ -287,7 +270,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //equals
         builder.AppendLine();
         builder.AppendLine("        public override bool Equals(object? obj)");
         builder.AppendLine("        {");
@@ -316,7 +298,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //to string
         builder.AppendLine();
         builder.AppendLine("        public override string ToString()");
         builder.AppendLine("        {");
@@ -335,7 +316,6 @@ public class FileVector
         }
         builder.AppendLine("        }");
 
-        //end class
         builder.AppendLine("    }");
         builder.AppendLine("}");
 
@@ -385,7 +365,6 @@ public class FileVector
 
     private void AppendStaticConstants(StringBuilder builder)
     {
-        // Zero constant - all components are 0
         builder.AppendLine("        /// <summary>");
         builder.AppendLine($"        /// A {_vectorType}{_vectorSize} with all components set to zero.");
         builder.AppendLine("        /// </summary>");
@@ -402,7 +381,6 @@ public class FileVector
         builder.AppendLine(");");
         builder.AppendLine();
 
-        // One constant - all components are 1
         builder.AppendLine("        /// <summary>");
         builder.AppendLine($"        /// A {_vectorType}{_vectorSize} with all components set to one.");
         builder.AppendLine("        /// </summary>");
@@ -419,7 +397,6 @@ public class FileVector
         builder.AppendLine(");");
         builder.AppendLine();
 
-        // Unit vectors
         for (int unitIndex = 0; unitIndex < _vectorSize; unitIndex++)
         {
             string unitName = GetUnitName(unitIndex);
@@ -480,96 +457,3 @@ public class FileVector
         };
     }
 }
-
-//template
-
-// using System;
-// using System.Numerics;
-// using System.Runtime.CompilerServices;
-
-// namespace Alco
-// {
-//     public struct int2
-//     {
-//         public int x;
-//         public int y;
-
-//         public int2(int value)
-//         {
-//             this.x = value;
-//             this.y = value;
-//         }
-
-//         public int2(int x, int y)
-//         {
-//             this.x = x;
-//             this.y = y;
-//         }
-
-//         public static int2 operator +(int2 a, int2 b)
-//         {
-//             return new int2(a.x + b.x, a.y + b.y);
-//         }
-
-//         public static int2 operator -(int2 a, int2 b)
-//         {
-//             return new int2(a.x - b.x, a.y - b.y);
-//         }
-
-//         public static int2 operator *(int2 a, int2 b)
-//         {
-//             return new int2(a.x * b.x, a.y * b.y);
-//         }
-
-//         public static int2 operator /(int2 a, int2 b)
-//         {
-//             return new int2(a.x / b.x, a.y / b.y);
-//         }
-
-//         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//         public static bool operator ==(int2 a, int2 b)
-//         {
-//             return a.x == b.x && a.y == b.y;
-//         }
-
-//         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//         public static bool operator !=(int2 a, int2 b)
-//         {
-//             return !(a == b);
-//         }
-
-//         public override bool Equals(object obj)
-//         {
-//             return obj is int2 other && this == other;
-//         }
-
-//         public bool Equals(int2 other)
-//         {
-//             return this == other;
-//         }
-
-//         public override int GetHashCode()
-//         {
-//             return HashCode.Combine(x, y);
-//         }
-
-//         //to vector2
-
-//         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//         public static implicit operator Vector2(int2 a)
-//         {
-//             return new System.Numerics.Vector2(a.x, a.y);
-//         }
-
-//         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-//         public static implicit operator int2(Vector2 a)
-//         {
-//             return new int2((int)a.X, (int)a.Y);
-//         }
-
-//         public override string ToString()
-//         {
-//             return $"({x}, {y})";
-//         }
-//     }
-// }

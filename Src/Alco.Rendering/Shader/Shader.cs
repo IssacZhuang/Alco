@@ -1,8 +1,5 @@
 using System.Collections.Concurrent;
-using System.Collections.Frozen;
-using System.Runtime.CompilerServices;
 using Alco.Graphics;
-using System.Text.RegularExpressions;
 
 namespace Alco.Rendering;
 
@@ -12,7 +9,18 @@ namespace Alco.Rendering;
 public sealed class Shader : AutoDisposable
 {
     private readonly RenderingSystem _renderingSystem;
-    private readonly ConcurrentDictionary<int, ShaderModulesInfo> _modulesCache = new ConcurrentDictionary<int, ShaderModulesInfo>();
+
+    // A Shader is one module's handle; variant axes are expressed via the
+    // specialization arguments of the accessor methods below. The module
+    // compiles lazily, once per specialization, and the compiled modules
+    // are cached inside this object.
+    private readonly Func<string[], ShaderModulesInfo> _compileModules;
+    // Thread safety: ConcurrentDictionary keeps the lock-free read path safe
+    // while another thread compiles a new specialization (materials may be
+    // created on any number of threads); the create lock below keeps one
+    // compile per key.
+    private readonly ConcurrentDictionary<string, ShaderModulesInfo> _modulesInfos = new(StringComparer.Ordinal);
+
     private readonly ConcurrentDictionary<long, GPUPipeline> _graphicsPipelineCache = new ConcurrentDictionary<long, GPUPipeline>();
     private readonly ConcurrentDictionary<ShaderModulesInfo, GPUPipeline> _computePipelineCache = new ConcurrentDictionary<ShaderModulesInfo, GPUPipeline>();
 
@@ -21,9 +29,7 @@ public sealed class Shader : AutoDisposable
     private readonly Lock _lockCreateModules = new Lock();
 
     private readonly IReadOnlyList<VertexInputLayout>? _customVertexLayouts;
-    private readonly IReadOnlyList<BindGroupLayout>? _customBindGroups;
 
-    private string _shaderText;
     //for hot reload
     private uint _version = 0;
 
@@ -33,39 +39,71 @@ public sealed class Shader : AutoDisposable
     public string Name { get; }
 
     /// <summary>
-    /// Whether the shader is a compute shader
-    /// </summary>
-    public bool IsComputeShader { get; }
-
-    /// <summary>
-    /// Create a new shader
+    /// Create a new shader handle whose modules are compiled through the slang
+    /// module system: the compiler is called once per specialization, on demand.
+    /// Nothing compiles at construction — a module with generic entry points
+    /// (e.g. <c>MainPS&lt;let Quality : int&gt;</c>) links only when one of its
+    /// specializations is first requested.
     /// </summary>
     /// <param name="renderingSystem">The rendering system</param>
-    /// <param name="shaderText">The shader text</param>
     /// <param name="name">The name of the shader</param>
-    internal Shader(RenderingSystem renderingSystem, string shaderText, string name, IReadOnlyList<VertexInputLayout>? customVertexLayouts = null, IReadOnlyList<BindGroupLayout>? customBindGroups = null)
+    /// <param name="compileModules">Produces the compiled modules of one specialization.</param>
+    /// <param name="customVertexLayouts">Optional vertex layout override (e.g. ImGui's packed Unorm8x4 color).</param>
+    internal Shader(RenderingSystem renderingSystem, string name, Func<string[], ShaderModulesInfo> compileModules,
+        IReadOnlyList<VertexInputLayout>? customVertexLayouts = null)
     {
         _renderingSystem = renderingSystem;
-        _shaderText = shaderText;
         Name = name;
-
-        //default permutation
-        ShaderModulesInfo modulesInfo = GetShaderModules(ReadOnlySpan<string>.Empty);
-        IsComputeShader = modulesInfo.IsComputeShader;
-
+        _compileModules = compileModules;
         _customVertexLayouts = customVertexLayouts;
-        _customBindGroups = customBindGroups;
     }
 
     /// <summary>
-    /// Gets a graphics pipeline with the specified parameters and shader defines
+    /// Gets the compiled shader modules of one specialization (cached per
+    /// specialization; the default, empty arguments link the module unspecialized).
+    /// </summary>
+    /// <param name="specializations">The specialization arguments — C# values
+    /// (<c>false</c>, <c>3</c>) or slang expressions (type names) mapped to the
+    /// entry points' generic parameters in definition order; they are normalized
+    /// to the canonical slang literal strings internally.</param>
+    public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<object> specializations)
+        => GetShaderModules(NormalizeSpecializations(specializations));
+
+    /// <summary>
+    /// Canonical-string core the internal pipeline uses: materials and pipeline
+    /// contexts already hold normalized specialization strings.
+    /// </summary>
+    internal ShaderModulesInfo GetShaderModules(string[] specializations)
+    {
+        string key = SpecializationKey(specializations);
+        if (_modulesInfos.TryGetValue(key, out ShaderModulesInfo? cached))
+        {
+            return cached;
+        }
+
+        using (_lockCreateModules.EnterScope())
+        {
+            if (_modulesInfos.TryGetValue(key, out ShaderModulesInfo? cached2))
+            {
+                return cached2;
+            }
+            // The module system owns its own disk caches (module IR + linked
+            // programs); the shader keeps only the in-memory modules reference.
+            ShaderModulesInfo modulesInfo = _compileModules(specializations);
+            _modulesInfos[key] = modulesInfo;
+            return modulesInfo;
+        }
+    }
+
+    /// <summary>
+    /// Gets a graphics pipeline with the specified parameters
     /// </summary>
     /// <param name="attachmentLayout">The attachment layout configuration</param>
     /// <param name="depthStencil">The depth stencil state</param>
     /// <param name="blend">The blend state</param>
     /// <param name="rasterizer">The rasterizer state</param>
     /// <param name="primitiveTopology">The primitive topology</param>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <param name="specializations">The specialization arguments of the variant to build.</param>
     /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
@@ -73,10 +111,11 @@ public sealed class Shader : AutoDisposable
         BlendState blend,
         RasterizerState rasterizer,
         PrimitiveTopology primitiveTopology,
-        params ReadOnlySpan<string> defines
+        params ReadOnlySpan<object> specializations
         )
     {
-        ShaderModulesInfo modulesInfo = GetShaderModules(defines);
+        string[] spec = NormalizeSpecializations(specializations);
+        ShaderModulesInfo modulesInfo = GetShaderModules(spec);
         GPUPipeline pipeline = GetGraphicsPipeline(attachmentLayout, modulesInfo, depthStencil, blend, rasterizer, primitiveTopology);
         return new GraphicsPipelineContext
         {
@@ -87,23 +126,18 @@ public sealed class Shader : AutoDisposable
             BlendState = blend,
             Rasterizer = rasterizer,
             PrimitiveTopology = primitiveTopology,
-            Defines = defines.ToArray()
+            Specializations = spec,
         };
     }
 
     /// <summary>
     /// Gets a graphics pipeline with default rasterizer state and triangle list topology
     /// </summary>
-    /// <param name="attachmentLayout">The attachment layout configuration</param>
-    /// <param name="depthStencil">The depth stencil state</param>
-    /// <param name="blend">The blend state</param>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
         DepthStencilState depthStencil,
         BlendState blend,
-        params ReadOnlySpan<string> defines
+        params ReadOnlySpan<object> specializations
         )
     {
         return GetGraphicsPipeline(
@@ -112,19 +146,16 @@ public sealed class Shader : AutoDisposable
             blend,
             RasterizerState.CullNone,
             PrimitiveTopology.TriangleList,
-            defines
+            specializations
             );
     }
 
     /// <summary>
     /// Gets a graphics pipeline with default states for depth, blend, rasterizer and topology
     /// </summary>
-    /// <param name="attachmentLayout">The attachment layout configuration</param>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    /// <returns>A graphics pipeline context containing the configured pipeline and reflection info</returns>
     public GraphicsPipelineContext GetGraphicsPipeline(
         GPUAttachmentLayout attachmentLayout,
-        params ReadOnlySpan<string> defines
+        params ReadOnlySpan<object> specializations
         )
     {
         return GetGraphicsPipeline(
@@ -133,12 +164,16 @@ public sealed class Shader : AutoDisposable
             BlendState.Opaque,
             RasterizerState.CullNone,
             PrimitiveTopology.TriangleList,
-            defines
+            specializations
             );
     }
 
     /// <summary>
-    /// Attempts to update an existing pipeline context with a new attachment layout
+    /// Attempts to update an existing pipeline context with a new attachment layout.
+    /// The context keeps the specialization it was built for (set by the
+    /// <see cref="GetGraphicsPipeline(GPUAttachmentLayout, DepthStencilState, BlendState, RasterizerState, PrimitiveTopology, ReadOnlySpan{object})"/>
+    /// call that created it) — switching variants means building a fresh context
+    /// with different specialization arguments.
     /// </summary>
     /// <param name="pipelineInfo">The pipeline context to update</param>
     /// <param name="attachmentLayout">The new attachment layout configuration</param>
@@ -151,7 +186,7 @@ public sealed class Shader : AutoDisposable
             return false;
         }
 
-        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Defines);
+        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Specializations ?? []);
 
         GPUPipeline pipeline = GetGraphicsPipeline(
             attachmentLayout,
@@ -178,7 +213,7 @@ public sealed class Shader : AutoDisposable
             return false;
         }
 
-        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Defines);
+        ShaderModulesInfo modulesInfo = GetShaderModules(pipelineInfo.Specializations ?? []);
         GPUPipeline pipeline = GetComputePipeline(modulesInfo);
         pipelineInfo.Pipeline = pipeline;
         pipelineInfo.ReflectionInfo = modulesInfo.ReflectionInfo;
@@ -187,102 +222,66 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Gets a compute pipeline with the specified shader defines
+    /// Gets a compute pipeline context for one specialization.
     /// </summary>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
+    /// <param name="specializations">The specialization arguments of the variant to build.</param>
     /// <returns>A compute pipeline context containing the configured pipeline and reflection info</returns>
-    public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<string> defines)
+    public ComputePipelineContext GetComputePipelineInfo(params ReadOnlySpan<object> specializations)
     {
-        ShaderModulesInfo modulesInfo = GetShaderModules(defines);
+        string[] spec = NormalizeSpecializations(specializations);
+        ShaderModulesInfo modulesInfo = GetShaderModules(spec);
         GPUPipeline pipeline = GetComputePipeline(modulesInfo);
         return new ComputePipelineContext
         {
             Pipeline = pipeline,
-            ReflectionInfo = modulesInfo.ReflectionInfo
+            ReflectionInfo = modulesInfo.ReflectionInfo,
+            Specializations = spec,
         };
     }
 
-    /// <summary>
-    /// Gets the compiled shader modules for the specified defines
-    /// </summary>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    /// <returns>The compiled shader modules information</returns>
-    public ShaderModulesInfo GetShaderModules(params ReadOnlySpan<string> defines)
-    {
-        int hash = GetDefinesHash(defines);
-
-        if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo))
-        {
-            return modulesInfo;
-        }
-
-        //throw new Exception($"ShaderModulesInfo not found for defines: {string.Join(", ", defines)}");
-
-        
-        using (_lockCreateModules.EnterScope())
-        {
-            if (_modulesCache.TryGetValue(hash, out ShaderModulesInfo? modulesInfo2))
-            {
-                return modulesInfo2;
-            }
-            
-            IShaderCache? shaderCache = _renderingSystem.ShaderCache;
-            if (shaderCache != null)
-            {
-                //load shader cache from disk
-                if (shaderCache.TryGetModules(Name, _shaderText, defines, out modulesInfo))
-                {
-                    //save shader cache into memory
-                    _modulesCache[hash] = modulesInfo;
-                    return modulesInfo;
-                }
-            }
-
-            modulesInfo = ShaderUtility.CompileHLSL(_shaderText, Name, defines, _renderingSystem.GraphicsDevice.MaxBindGroups);
-            _modulesCache[hash] = modulesInfo;
-
-            //save shader cache into disk
-            _ = shaderCache?.AddOrUpdateAsync(Name, _shaderText, defines, modulesInfo);
-
-            return modulesInfo;
-        }
-    }
+    private static string SpecializationKey(string[] specializations)
+        => string.Join("|", specializations);
 
     /// <summary>
-    /// Precompiles the shader with the specified defines
+    /// Normalizes object-typed specialization arguments into the canonical slang
+    /// expression strings used as cache keys and handed to the compiler: bool
+    /// takes the lowercase slang literals (C# <c>ToString()</c> casing is
+    /// rejected by slang's expression parser), the integer types invariant
+    /// digits, strings pass through (identifiers, type names). Slang value axes
+    /// are integer/enum only (error E30624), so floating-point arguments are
+    /// rejected here with a clear message instead of failing inside the compiler.
     /// </summary>
-    /// <param name="defines">Optional shader defines to customize compilation</param>
-    public void Precompile(params ReadOnlySpan<string> defines)
+    internal static string[] NormalizeSpecializations(ReadOnlySpan<object> specializations)
     {
-        _ = GetShaderModules(defines);
-    }
-
-    private int GetDefinesHash(ReadOnlySpan<string> defines)
-    {
-        int length = defines.Length + 4;//reserve space for |
-        for (int i = 0; i < defines.Length; i++)
+        if (specializations.IsEmpty)
         {
-            string? define = defines[i];
-            if (define != null)
-            {
-                length += define.Length;
-            }
+            return [];
         }
 
-        Span<char> buffer = stackalloc char[length];
-        int index = 0;
-        for (int i = 0; i < defines.Length; i++)
+        string[] normalized = new string[specializations.Length];
+        for (int i = 0; i < specializations.Length; i++)
         {
-            buffer[index++] = '|';
-            string? define = defines[i];
-            if (define != null)
+            normalized[i] = specializations[i] switch
             {
-                define.CopyTo(buffer.Slice(index));
-                index += define.Length;
-            }
+                bool b => b ? "true" : "false",
+                int v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                uint v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                long v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ulong v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                short v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ushort v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                sbyte v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                byte v => v.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                string s => s,
+                null => throw new ArgumentException(
+                    "Specialization arguments cannot be null; pass bool, an integer type or a string.", nameof(specializations)),
+                _ => throw new ArgumentException(
+                    $"Unsupported specialization argument type '{specializations[i].GetType().Name}': " +
+                    "pass bool, an integer type or a string — slang value axes are integer/enum only " +
+                    "(E30624), so floating-point values cannot be specialized.", nameof(specializations)),
+            };
         }
-
-        return string.GetHashCode(buffer.Slice(0, index));
+        return normalized;
     }
 
     private unsafe GPUPipeline GetGraphicsPipeline(
@@ -294,6 +293,7 @@ public sealed class Shader : AutoDisposable
         PrimitiveTopology primitiveTopology
         )
     {
+
         long hash = default;
         //fist 32 bits are the attachment layout hash
         int hash1= attachmentLayout.GetHashCode();
@@ -329,10 +329,10 @@ public sealed class Shader : AutoDisposable
                 throw new InvalidOperationException("Trying to create a graphics pipeline from a non-graphics shader modules.");
             }
 
-            ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+            ShaderReflection reflectionInfo = modulesInfo.ReflectionInfo;
             GPUDevice device = _renderingSystem.GraphicsDevice;
 
-            IReadOnlyList<BindGroupLayout> bindGroupLayouts = _customBindGroups ?? reflectionInfo.BindGroups;
+            IReadOnlyList<BindGroupLayout> bindGroupLayouts = reflectionInfo.BindGroups;
 
             GPUBindGroup[] bindGroups = new GPUBindGroup[bindGroupLayouts.Count];
             for (int i = 0; i < bindGroupLayouts.Count; i++)
@@ -365,8 +365,11 @@ public sealed class Shader : AutoDisposable
                 primitiveTopology,
                 colors,
                 depthStencilFormat,
-                reflectionInfo.PushConstantsRanges.ToArray(),
-                Name);
+                (uint)reflectionInfo.PushConstantsSize,
+                Name)
+            {
+                FragmentOutputCount = reflectionInfo.FragmentOutputCount,
+            };
 
 
             pipelineNew = device.CreateGraphicsPipeline(descriptor);
@@ -403,7 +406,7 @@ public sealed class Shader : AutoDisposable
                 throw new InvalidOperationException("Trying to create a compute pipeline from a non-compute shader modules.");
             }
 
-            ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+            ShaderReflection reflectionInfo = modulesInfo.ReflectionInfo;
             GPUDevice device = _renderingSystem.GraphicsDevice;
 
             GPUBindGroup[] bindGroups = new GPUBindGroup[reflectionInfo.BindGroups.Count];
@@ -415,7 +418,7 @@ public sealed class Shader : AutoDisposable
             ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
                 modulesInfo.ComputeShader!.Value,
                 bindGroups,
-                reflectionInfo.PushConstantsRanges.ToArray(),
+                (uint)reflectionInfo.PushConstantsSize,
                 Name);
 
             GPUPipeline pipelineNew = device.CreateComputePipeline(descriptor);
@@ -434,33 +437,28 @@ public sealed class Shader : AutoDisposable
     /// Create a new material that uses this shader
     /// </summary>
     /// <returns>The new material</returns>
-    public GraphicsMaterial CreateMaterial(string name = "unamed_material")
+    public GraphicsMaterial CreateGraphicsMaterial(string name = "unamed_material")
     {
-        return _renderingSystem.CreateMaterial(this, name);
+        return _renderingSystem.CreateGraphicsMaterial(this, name);
     }
 
     /// <summary>
-    /// Unsafe hot reload the shader. It might break the material that uses this shader.
-    /// So make sure the new shader has the same shader resource at the same slot.
+    /// Module-based hot reload: the ShaderSystem invalidated this shader's
+    /// module; drop the compiled modules of every specialization and every cached
+    /// pipeline so the next use recompiles from the module system's current sources.
+    /// The version bump drives lazy pipeline rebuilds through the existing
+    /// TryUpdatePipelineContext mechanism.
     /// </summary>
-    /// <param name="shaderText">The new shader text</param>
-    public void UnsafeHotReload(string shaderText)
+    internal void UnsafeModuleReload()
     {
-        //it might throw exception if the shader code is not valid
-        ShaderModulesInfo shaderModule = ShaderUtility.CompileHLSL(shaderText, Name, ReadOnlySpan<string>.Empty, _renderingSystem.GraphicsDevice.MaxBindGroups);
-        
-        _shaderText = shaderText;
-
-        //clear cache
         _graphicsPipelineCache.Clear();
         _computePipelineCache.Clear();
-        _modulesCache.Clear();
-
-        //recompile
-        int hash = GetDefinesHash(ReadOnlySpan<string>.Empty);
-        _modulesCache[hash] = shaderModule;
+        _modulesInfos.Clear();
         Interlocked.Increment(ref _version);
     }
+
+    /// <summary>Monotonic version bumped on every reload; consumers use it to rebuild pipelines lazily.</summary>
+    public uint Version => _version;
 
 
     protected override void Dispose(bool disposing)
@@ -472,92 +470,7 @@ public sealed class Shader : AutoDisposable
                 pipeline.Dispose();
             }
             _graphicsPipelineCache.Clear();
-            _modulesCache.Clear();
+            _modulesInfos.Clear();
         }
     }
-
-    /// <summary>
-    /// Tests all combinations of preprocessor defines found in the shader source
-    /// by compiling each combination and creating GPU pipelines.
-    /// </summary>
-    /// <param name="onError">Callback invoked when a combination fails to compile.</param>
-    /// <param name="onSuccess">Callback invoked when a combination compiles successfully.</param>
-    public void TestAllDefines(Action<string, string[], Exception> onError, Action<string, string[]> onSuccess)
-    {
-        //get defines from the shader text
-        //like #if defined(TEST)
-        var defineRegex = new Regex(@"#if\s+defined\s*\(\s*(\w+)\s*\)", RegexOptions.Compiled);
-        var matches = defineRegex.Matches(_shaderText);
-
-        // Extract unique define names
-        HashSet<string> defines = new HashSet<string>();
-        foreach (Match match in matches)
-        {
-            defines.Add(match.Groups[1].Value);
-        }
-
-        if (defines.Count == 0)
-        {
-            return; // No defines to test
-        }
-
-        // Convert defines to array for permutations
-        string[] definesArray = defines.ToArray();
-
-        // Test empty combination first
-        try
-        {
-            GetShaderModules(Array.Empty<string>());
-        }
-        catch (Exception ex)
-        {
-            onError(Name, Array.Empty<string>(), ex);
-        }
-
-        //default attachment layout
-        GPUAttachmentLayout attachmentLayout = _renderingSystem.PreferredHDRPass;
-
-        // Generate and test all non-empty combinations
-        for (int length = 1; length <= definesArray.Length; length++)
-        {
-            // Create array of first 'length' defines to generate permutations
-            string[] subset = new string[length];
-            Array.Copy(definesArray, subset, length);
-
-            // Get all permutations of the current subset
-            string[][] combinations = CollectionUtility.GetCombinations(subset);
-
-            // Test each permutation
-            foreach (string[] combination in combinations)
-            {
-                try
-                {
-                    var modulesInfo = GetShaderModules(combination);
-                    if (modulesInfo.IsGraphicsShader)
-                    {
-                        var pipeline = GetGraphicsPipeline(
-                        attachmentLayout,
-                            DepthStencilState.Default,
-                            BlendState.Opaque,
-                            RasterizerState.CullNone,
-                            PrimitiveTopology.TriangleList,
-                            combination);
-                    }
-                    else
-                    {
-                        var pipeline = GetComputePipeline(modulesInfo);
-                    }
-
-
-
-                }
-                catch (Exception ex)
-                {
-                    onError(Name, combination, ex);
-                }
-                onSuccess(Name, combination);
-            }
-        }
-    }
-
 }

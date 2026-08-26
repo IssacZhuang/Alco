@@ -155,7 +155,6 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
             colorAttachmentCount = (uint)attachmentLayout.Colors.Length,
         };
 
-        _colorAttachments = Alloc<WGPURenderPassColorAttachment>(attachmentLayout.Colors.Length);
         for (int i = 0; i < attachmentLayout.WebGPUColorInfos.Length; i++)
         {
             WGPUColorAttachmentInfo colorInfo = attachmentLayout.WebGPUColorInfos[i];
@@ -165,18 +164,9 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 );
 
             _colorViews[i] = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_colorTextures[i]));
-
-
-
-            _colorAttachments[i] = new WGPURenderPassColorAttachment
-            {
-                view = _colorViews[i].Native,
-                loadOp = WGPULoadOp.Load,
-                storeOp = WGPUStoreOp.Store,
-                clearValue = colorInfo.clearColor,
-                depthSlice = WGPU_DEPTH_SLICE_UNDEFINED,
-            };
         }
+
+        _colorAttachments = AllocColorAttachments(_colorViews, attachmentLayout.WebGPUColorInfos);
 
         if (attachmentLayout.WebGPUDepthInfo.HasValue)
         {
@@ -194,28 +184,13 @@ internal unsafe sealed class WebGPUFrameBuffer : WebGPUFrameBufferBase
                 _stencilView = (WebGPUTextureView)device.CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
             }
 
-            _depthAttachment = Alloc<WGPURenderPassDepthStencilAttachment>(1);
-
-            *_depthAttachment = new WGPURenderPassDepthStencilAttachment
-            {
-                view = _depthStencilView.Native,
-                depthLoadOp = WGPULoadOp.Load,
-                depthStoreOp = WGPUStoreOp.Store,
-                depthClearValue = depthInfo.clearDepth,
-                stencilLoadOp = WGPULoadOp.Load,
-                stencilStoreOp = WGPUStoreOp.Store,
-                stencilClearValue = depthInfo.clearStencil,
-            };
+            _depthAttachment = AllocDepthAttachment(_depthStencilView, depthInfo);
         }
 
         _descriptor.colorAttachments = _colorAttachments;
         _descriptor.depthStencilAttachment = _depthAttachment;
 
-        _colors = new WGPUTextureFormat[attachmentLayout.WebGPUColorInfos.Length];
-        for (int i = 0; i < attachmentLayout.WebGPUColorInfos.Length; i++)
-        {
-            _colors[i] = attachmentLayout.WebGPUColorInfos[i].format;
-        }
+        _colors = GetNativeColorFormats(attachmentLayout);
 
         if (attachmentLayout.WebGPUDepthInfo.HasValue)
         {

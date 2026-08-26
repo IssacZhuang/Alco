@@ -9,19 +9,11 @@ namespace Alco.Engine
     /// </summary>
     public class GameEngineSetting
     {
-        private readonly PriorityList<IEnginePlugin> _plugins = new PriorityList<IEnginePlugin>((x, y) => x.Order.CompareTo(y.Order));
-
-        /// <summary>
-        /// Gets the engine plugins ordered by initialization priority.
-        /// </summary>
-        public IReadOnlyList<IEnginePlugin> Plugins => _plugins;
-
         /// <summary>
         /// Initializes engine settings with the default view, graphics, audio, and asset configuration.
         /// </summary>
         public GameEngineSetting()
         {
-            GametTickRate = 60;
             View = ViewSetting.Default;
             Graphics = GraphicsSetting.Default;
             Audio = AudioSetting.Default;
@@ -45,11 +37,6 @@ namespace Alco.Engine
         }
 
         /// <summary>
-        /// The rate of game logic tick
-        /// </summary>
-        public int GametTickRate;
-
-        /// <summary>
         /// Gets or sets the main-loop frame-rate limit. A value less than or equal to zero disables frame limiting.
         /// </summary>
         public int TargetFrameRate { get; set; }
@@ -61,7 +48,7 @@ namespace Alco.Engine
 
         /// <summary>
         /// The engine will run once, then stop. Which mean the game will not loop.
-        /// </summary> 
+        /// </summary>
         public bool RunOnce;
 
         /// <summary>
@@ -75,7 +62,7 @@ namespace Alco.Engine
         public ViewSetting View;
 
         /// <summary>
-        /// The graphics setting 
+        /// The graphics setting
         /// </summary>
         public GraphicsSetting Graphics;
 
@@ -95,30 +82,6 @@ namespace Alco.Engine
         public Platform? Platform;
 
         /// <summary>
-        /// Creates the default standard-dynamic-range engine configuration.
-        /// </summary>
-        /// <returns>A configured engine setting.</returns>
-        public static GameEngineSetting CreateDefaultSDR()
-        {
-            GameEngineSetting setting = new GameEngineSetting();
-            setting.With<PluginDefaultAssets>().
-            With<PluginHDR>();
-            return setting;
-        }
-
-        /// <summary>
-        /// Creates the default high-dynamic-range engine configuration.
-        /// </summary>
-        /// <returns>A configured engine setting.</returns>
-        public static GameEngineSetting CreateDefaultHDR()
-        {
-            GameEngineSetting setting = new GameEngineSetting();
-            setting.With<PluginDefaultAssets>().
-            With<PluginHDR>();
-            return setting;
-        }
-
-        /// <summary>
         /// Creates an engine configuration without graphics or audio devices.
         /// </summary>
         /// <returns>A configured engine setting.</returns>
@@ -126,12 +89,11 @@ namespace Alco.Engine
         {
             return new GameEngineSetting
             {
-                GametTickRate = 60,
                 Graphics = GraphicsSetting.NoGPU,
                 Audio = AudioSetting.NoAudio,
                 Assets = AssetsSetting.Default,
                 Platform = new ConsolePlatform()
-            }.With<PluginDefaultAssets>();
+            };
         }
 
         /// <summary>
@@ -142,34 +104,10 @@ namespace Alco.Engine
         {
             return new GameEngineSetting
             {
-                GametTickRate = 60,
                 Graphics = GraphicsSetting.Default,
                 Assets = AssetsSetting.Default,
                 Platform = new ConsolePlatform()
-            }.With<PluginDefaultAssets>();
-        }
-
-
-        /// <summary>
-        /// Adds a plugin to this configuration.
-        /// </summary>
-        /// <param name="plugin">Plugin instance to add.</param>
-        /// <returns>This setting for fluent configuration.</returns>
-        public GameEngineSetting With(IEnginePlugin plugin)
-        {
-            _plugins.Add(plugin);
-            return this;
-        }
-
-        /// <summary>
-        /// Creates and adds a plugin to this configuration.
-        /// </summary>
-        /// <typeparam name="T">Plugin type with a public parameterless constructor.</typeparam>
-        /// <returns>This setting for fluent configuration.</returns>
-        public GameEngineSetting With<T>() where T : IEnginePlugin, new()
-        {
-            _plugins.Add(new T());
-            return this;
+            };
         }
     }
 }

@@ -47,11 +47,12 @@ public class TestAttachmentLayout
         Assert.IsFalse(pass1.Equals(pass4));
 
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
+        // The sprite module is generic (MainPS<let Repeated>): pin the default.
 
-        GPUPipeline pipeline1 = shader.GetGraphicsPipeline(pass1).Pipeline;
-        GPUPipeline pipeline2 = shader.GetGraphicsPipeline(pass2).Pipeline;
-        GPUPipeline pipeline3 = shader.GetGraphicsPipeline(pass3).Pipeline;
-        GPUPipeline pipeline4 = shader.GetGraphicsPipeline(pass4).Pipeline;
+        GPUPipeline pipeline1 = shader.GetGraphicsPipeline(pass1, false).Pipeline;
+        GPUPipeline pipeline2 = shader.GetGraphicsPipeline(pass2, false).Pipeline;
+        GPUPipeline pipeline3 = shader.GetGraphicsPipeline(pass3, false).Pipeline;
+        GPUPipeline pipeline4 = shader.GetGraphicsPipeline(pass4, false).Pipeline;
 
         Assert.IsTrue(pipeline1.GetHashCode() == pipeline2.GetHashCode());
         Assert.IsTrue(pipeline1 == pipeline2);

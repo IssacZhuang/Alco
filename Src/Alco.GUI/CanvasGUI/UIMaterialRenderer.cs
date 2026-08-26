@@ -5,20 +5,20 @@ using Alco.Rendering;
 namespace Alco.GUI;
 
 /// <summary>
-/// A UI node that renders using a custom Material instead of a simple Texture.
+/// A UI node that renders using a custom GraphicsMaterial instead of a simple Texture.
 /// The material's shader must use SpriteConstant layout for push constants.
 /// </summary>
 public class UIMaterialRenderer : UINode
 {
-    private Material? _material;
-    private MaterialInstance? _materialInstance;
+    private GraphicsMaterial? _material;
+    private GraphicsMaterialInstance? _materialInstance;
     private bool _isMaterialDirty = true;
 
     /// <summary>
     /// Gets or sets the material used for rendering.
     /// The material's shader must accept SpriteConstant as push constant layout.
     /// </summary>
-    public Material? Material
+    public GraphicsMaterial? Material
     {
         get => _material;
         set

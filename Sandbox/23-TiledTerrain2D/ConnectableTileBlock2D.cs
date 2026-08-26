@@ -70,8 +70,8 @@ public class ConnectableTileBlock2D : AutoDisposable
     /// <summary>
     /// Renders the tile block.
     /// </summary>
-    /// <param name="renderer">The render context to use for rendering.</param>
-    public void OnRender(RenderContext renderer)
+    /// <param name="renderer">The live pass scope to render with.</param>
+    public void OnRender(RenderPassScope renderer)
     {
         if (_isRenderDataDirty)
         {
@@ -197,44 +197,44 @@ public class ConnectableTileBlock2D : AutoDisposable
 
     private void BuildRenderCommand(GPUAttachmentLayout attachmentLayout)
     {
-        _subRenderContext.Begin(attachmentLayout);
-       Matrix4x4 matrix = Transform.Matrix;
-        var tiles = _tileData.Infos;
-
-        float halfWidth = (_size.X - 1) * 0.5f;
-        float halfHeight = (_size.Y - 1) * 0.5f;
-        for (int i = 0; i < tiles.Count; i++)
+        using (RenderPassScope pass = _subRenderContext.BeginPass(attachmentLayout))
         {
-            try
+            Matrix4x4 matrix = Transform.Matrix;
+            var tiles = _tileData.Infos;
+
+            float halfWidth = (_size.X - 1) * 0.5f;
+            float halfHeight = (_size.Y - 1) * 0.5f;
+            for (int i = 0; i < tiles.Count; i++)
             {
-                Grid2DCollection<IConnectableTile>.Info info = tiles[i];
-                int direction = _connectDirections[info.Y * _size.X + info.X];
-                IConnectableTile tile = info.Data;
-                Rect uvRect = tile.GetConnectUVRect(direction);
-                ConntectableTileConstant constant = new()
+                try
                 {
-                    Model = matrix,
-                    Color = Vector4.One,
-                    UvRect = uvRect,
-                    Size = tile.Size,
-                    Offset = new Vector2(info.X, info.Y) + tile.Offset
-                };
-                _subRenderContext.DrawWithConstant(_mesh, tile.Material, constant);
-            }
-            catch (Exception e)
-            {
-                if (OnRenderError != null)
-                {
-                    OnRenderError(e);
+                    Grid2DCollection<IConnectableTile>.Info info = tiles[i];
+                    int direction = _connectDirections[info.Y * _size.X + info.X];
+                    IConnectableTile tile = info.Data;
+                    Rect uvRect = tile.GetConnectUVRect(direction);
+                    ConntectableTileConstant constant = new()
+                    {
+                        Model = matrix,
+                        Color = Vector4.One,
+                        UvRect = uvRect,
+                        Size = tile.Size,
+                        Offset = new Vector2(info.X, info.Y) + tile.Offset
+                    };
+                    pass.DrawWithConstant(_mesh, tile.Material, constant);
                 }
-                else
+                catch (Exception e)
                 {
-                    Log.Error(e);
+                    if (OnRenderError != null)
+                    {
+                        OnRenderError(e);
+                    }
+                    else
+                    {
+                        Log.Error(e);
+                    }
                 }
             }
         }
-
-        _subRenderContext.End();
     }
 
     private void UpdateConnectDirection(int x, int y)

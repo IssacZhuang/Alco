@@ -45,6 +45,8 @@
     <Project Path="Sandbox/31-FilePicker/31-FilePicker.csproj" />
     <Project Path="Sandbox/32-Gamepad/32-Gamepad.csproj" />
     <Project Path="Sandbox/33-LLM/33-LLM.csproj" />
+    <Project Path="Sandbox/34-PBRDeferred/34-PBRDeferred.csproj" />
+    <Project Path="Sandbox/35-ShaderSystem/35-ShaderSystem.csproj" />
     <Project Path="Sandbox/4-ComputeShader/4-ComputeShader.csproj" />
     <Project Path="Sandbox/5-Transform2D/5-Transform2D.csproj" />
     <Project Path="Sandbox/6-PushConstants/6-PushConstants.csproj" />
@@ -63,6 +65,7 @@
     <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
     <Project Path="Src/Alco.Profiler/Alco.Profiler.csproj" />
     <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
+    <Project Path="Src/Alco.World3D/Alco.World3D.csproj" />
     <Project Path="Src/Alco.ShaderCompiler/Alco.ShaderCompiler.csproj" />
     <Project Path="Src/Alco/Alco.csproj" />
   </Folder>
@@ -76,6 +79,7 @@
     <Project Path="Test/Alco.ImGUI.Test/Alco.ImGUI.Test.csproj" />
     <Project Path="Test/Alco.IO.Test/Alco.IO.Test.csproj" />
     <Project Path="Test/Alco.Rendering.Test/Alco.Rendering.Test.csproj" />
+    <Project Path="Test/Alco.World3D.Test/Alco.World3D.Test.csproj" />
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
     <Project Path="Test/TestFramework/TestFramework.csproj" />
     <Project Path="Test/Alco.ShaderCompiler.Test/Alco.ShaderCompiler.Test.csproj" />

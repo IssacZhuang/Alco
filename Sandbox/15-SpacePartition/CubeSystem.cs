@@ -20,7 +20,7 @@ public class CubeSystem : IDisposable
 
     private FastRandom _random = new FastRandom(123);
 
-    public CubeSystem(RenderingSystem rendering, Material material, Texture2D texCube)
+    public CubeSystem(RenderingSystem rendering, GraphicsMaterial material, Texture2D texCube)
     {
         _texture = texCube;
         _renderContext = rendering.CreateRenderContext();
@@ -95,15 +95,17 @@ public class CubeSystem : IDisposable
         }
     }
 
-    public void OnUpdate(GPUFrameBuffer frame, float delta)
+    public void OnRender(GPUFrameBuffer frame)
     {
-        _renderContext.Begin(frame);
-        for (int i = 0; i < _activeList.Count; i++)
+        using (RenderFrameScope frameScope = _renderContext.BeginFrame())
+        using (RenderPassScope pass = _renderContext.BeginPass(frame))
         {
-            Cube entity = _activeList[i];
-            _spriteRenderer.Draw(_texture, entity.Transform, entity.Color);
+            for (int i = 0; i < _activeList.Count; i++)
+            {
+                Cube entity = _activeList[i];
+                _spriteRenderer.Draw(_texture, entity.Transform, entity.Color);
+            }
         }
-        _renderContext.End();
 
     }
 

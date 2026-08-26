@@ -94,6 +94,10 @@ internal static partial class WebGPUUtility
         {
             result |= WGPUBufferUsage.Indirect;
         }
+        if ((usage & BufferUsage.QueryResolve) != 0)
+        {
+            result |= WGPUBufferUsage.QueryResolve;
+        }
         return result;
     }
 

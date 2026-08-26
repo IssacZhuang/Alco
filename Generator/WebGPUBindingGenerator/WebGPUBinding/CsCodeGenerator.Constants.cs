@@ -12,6 +12,9 @@ partial class CsCodeGenerator
             foreach (CppMacro cppMacro in compilation.Macros)
             {
                 if (string.IsNullOrEmpty(cppMacro.Value)
+                    // Skip internal C-only helper macros and anything that expands to them (e.g. the *_INIT struct initializers)
+                    || cppMacro.Name.StartsWith("_wgpu_", StringComparison.Ordinal)
+                    || cppMacro.Value.Contains("_wgpu_", StringComparison.Ordinal)
                     || _options.ExcludeConstants.Contains(cppMacro.Name)
                     || cppMacro.Name.EndsWith("_H_", StringComparison.OrdinalIgnoreCase)
                     || cppMacro.Name.Equals("WGPU_EXPORT", StringComparison.OrdinalIgnoreCase)
@@ -26,13 +29,22 @@ partial class CsCodeGenerator
                     continue;
                 }
 
-                //string csName = GetPrettyEnumName(cppMacro.Name, "VK_");
-
                 string modifier = "const";
                 string macroValue = NormalizeEnumValue(cppMacro.Value, out string csDataType);
 
                 switch (cppMacro.Name)
                 {
+                    case "WGPU_TRUE":
+                        macroValue = "1u";
+                        break;
+                    case "WGPU_FALSE":
+                        macroValue = "0u";
+                        break;
+                    case "WGPU_DEPTH_CLEAR_VALUE_UNDEFINED":
+                        modifier = "static readonly";
+                        csDataType = "float";
+                        macroValue = "float.NaN";
+                        break;
                     case "WGPU_WHOLE_MAP_SIZE":
                         modifier = "static readonly";
                         csDataType = "nuint";

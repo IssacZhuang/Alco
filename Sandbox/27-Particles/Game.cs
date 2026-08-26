@@ -9,7 +9,7 @@ using Alco.ImGUI;
 public class Game : GameEngine
 {
     private readonly Camera2DBuffer _camera;
-    private readonly Material _materialParticle;
+    private readonly GraphicsMaterial _materialParticle;
     private readonly ParticleEmitterBox2D _emitter;
     private readonly ParticleSimulatorColorLerp2D _simulator;
     private readonly ParticleSystem2DCPU _particleSystem;
@@ -29,11 +29,13 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+
         // Create camera
         _camera = RenderingSystem.CreateCamera2D(64, 36, 100);
 
         // Create material for particles
-        _materialParticle = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Particle2D);
+        _materialParticle = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
         _materialParticle.BlendState = BlendState.Additive;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 
@@ -47,7 +49,7 @@ public class Game : GameEngine
 
         _mesh = RenderingSystem.MeshCenteredSprite;
 
-        _renderer = RenderingSystem.CreateInstanceRenderer<ParticleData2D>(_subRenderContext, _materialParticle, "_particles", 512 * 1024, "ParticleRenderer");
+        _renderer = RenderingSystem.CreateInstanceRenderer<ParticleData2D>(_subRenderContext, _materialParticle, "particles", 512 * 1024, "ParticleRenderer");
 
         // Create particle emitter
         _emitter = new ParticleEmitterBox2D(Vector2.Zero, new Vector2(0, 0));
@@ -75,9 +77,10 @@ public class Game : GameEngine
     {
         // Simulate particles
         _particleSystem.Simulate(delta);
-        _subRenderContext.Begin(MainFrameBuffer.AttachmentLayout);
-        _renderer.Draw(_mesh, _particleSystem.Particles);
-        _subRenderContext.End();
+        using (RenderPassScope pass = _subRenderContext.BeginPass(MainPresenter.AttachmentLayout!))
+        {
+            _renderer.Draw(_mesh, _particleSystem.Particles);
+        }
     }
 
     protected override void OnUpdate(float delta)
@@ -90,13 +93,15 @@ public class Game : GameEngine
         Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _imGuizmoOperation, GizmoMode.Local, ref _particleSystem.Transform);
 
         // Draw particles
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         if (_subRenderContext.HasBuffer)
         {
-            _renderContext.Begin(MainFrameBuffer);
-            _renderContext.ExecuteSubContext(_subRenderContext);
-            _renderContext.End();
+            using (RenderFrameScope frame = _renderContext.BeginFrame())
+            using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
+            {
+                pass.ExecuteSubContext(_subRenderContext);
+            }
         }
-
 
         // Show particle controls
         ImGui.Begin("Particle Control");

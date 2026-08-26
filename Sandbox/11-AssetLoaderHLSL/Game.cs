@@ -57,9 +57,9 @@ public class Game : GameEngine
             Usage = BufferUsage.Uniform | BufferUsage.CopyDst
         });
 
-        _shader = AssetSystem.Load<Shader>("Shader.hlsl");
+        _shader = RenderingSystem.ShaderSystem.GetShader("sandbox11-shader");
         _pipelineInfo = _shader.GetGraphicsPipeline(
-            RenderingSystem.PreferredSDRPass,
+            RenderingSystem.PreferredHDRPass,
             DepthStencilState.Default,
             BlendState.Additive
             );
@@ -84,16 +84,17 @@ public class Game : GameEngine
 
         _timer += delta;
 
-        _shader.TryUpdatePipelineContext(ref _pipelineInfo, MainFrameBuffer.AttachmentLayout);
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+        _shader.TryUpdatePipelineContext(ref _pipelineInfo, frameBuffer.AttachmentLayout);
 
         _commandBuffer.Begin();
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_pipelineInfo);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _resourceGroupBuffer);
-            renderPass.SetResources(1, _selected.EntrySample);
+            renderPass.SetResources(1, _selected.EntryReadonly);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
         _commandBuffer.End();

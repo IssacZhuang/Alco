@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace Alco.Graphics;
@@ -20,16 +19,9 @@ public abstract class GPUDevice
             this.delay = delay;
         }
     }
-    private readonly ConcurrentDictionary<int, GPUSampler> _samplers = new();
     private readonly UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
     private readonly Lock _lock = new();
 
-    private GPUSampler? _samplerNearestRepeat;
-    private GPUSampler? _samplerLinearRepeat;
-    private GPUSampler? _samplerNearestClamp;
-    private GPUSampler? _samplerLinearClamp;
-    private GPUSampler? _samplerNearestMirrorRepeat;
-    private GPUSampler? _samplerLinearMirrorRepeat;
 
     protected readonly IGPUDeviceHost _host;
 
@@ -39,9 +31,37 @@ public abstract class GPUDevice
     public abstract bool TextureCompressBC3Supported { get; }
 
     /// <summary>
+    /// The backend the active adapter selected (an <c>Auto</c> request resolves per
+    /// platform). Shader compilation keys off this: Vulkan consumes slang SPIR-V,
+    /// D3D12 DXIL and Metal MSL.
+    /// </summary>
+    public abstract GraphicsBackend Backend { get; }
+
+    /// <summary>
     /// The maximum number of bind groups (descriptor sets / <c>@group</c>) supported by this device.
     /// </summary>
     public abstract int MaxBindGroups { get; }
+
+    /// <summary>Gets whether the active adapter supports GPU timestamp queries.</summary>
+    public abstract bool TimestampQuerySupported { get; }
+
+    /// <summary>
+    /// Gets whether the active device can consume precompiled Metal libraries:
+    /// wgpu-native was built with the metallib passthrough entry and the
+    /// backend is Metal. The shader factory picks the slang
+    /// metallib target only when this is true; everything else stays on MSL.
+    /// </summary>
+    public abstract bool MetalLibPassthroughSupported { get; }
+
+    /// <summary>
+    /// Gets whether timestamp writes are allowed inside an open compute pass
+    /// (wgpu-native <c>TimestampQueryInsidePasses</c>). When false, timestamps
+    /// can only be written at pass boundaries.
+    /// </summary>
+    public abstract bool TimestampQueryInsidePassesSupported { get; }
+
+    /// <summary>Gets nanoseconds represented by one timestamp tick.</summary>
+    public abstract float TimestampPeriodNanoseconds { get; }
 
     public GPUDevice(in DeviceDescriptor descriptor)
     {
@@ -51,75 +71,6 @@ public abstract class GPUDevice
         _host = host;
         host.OnEndFrame += OnEndFrame;
         host.OnDispose += Dispose;
-    }
-
-    // Default samplers, those are the most common samplers used in the graphics pipeline.
-    // user can also create their own samplers by using the CreateSampler method.
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the nearest filtering with repeat mode.
-    /// </summary> 
-    public GPUSampler SamplerNearestRepeat
-    {
-        get
-        {
-            _samplerNearestRepeat ??= GetSampler(FilterMode.Nearest, AddressMode.Repeat);
-            return _samplerNearestRepeat;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the linear filtering with repeat mode.
-    /// </summary>
-    public GPUSampler SamplerLinearRepeat
-    {
-        get
-        {
-            _samplerLinearRepeat ??= GetSampler(FilterMode.Linear, AddressMode.Repeat);
-            return _samplerLinearRepeat;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the nearest filtering with clamp mode.
-    /// </summary>
-    public GPUSampler SamplerNearestClamp
-    {
-        get
-        {
-            _samplerNearestClamp ??= GetSampler(FilterMode.Nearest, AddressMode.ClampToEdge);
-            return _samplerNearestClamp;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the linear filtering with clamp mode.
-    /// </summary>
-    public GPUSampler SamplerLinearClamp
-    {
-        get
-        {
-            _samplerLinearClamp ??= GetSampler(FilterMode.Linear, AddressMode.ClampToEdge);
-            return _samplerLinearClamp;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the nearest filtering with mirror repeat mode.
-    /// </summary>
-    public GPUSampler SamplerNearestMirrorRepeat
-    {
-        get
-        {
-            _samplerNearestMirrorRepeat ??= GetSampler(FilterMode.Nearest, AddressMode.MirrorRepeat);
-            return _samplerNearestMirrorRepeat;
-        }
-    }
-    /// <summary>
-    /// The <see cref="GPUSampler"/> of the linear filtering with mirror repeat mode.
-    /// </summary>
-    public GPUSampler SamplerLinearMirrorRepeat
-    {
-        get
-        {
-            _samplerLinearMirrorRepeat ??= GetSampler(FilterMode.Linear, AddressMode.MirrorRepeat);
-            return _samplerLinearMirrorRepeat;
-        }
     }
 
     // Default bind groups, those are the most common bind groups used in the graphics pipeline.
@@ -138,16 +89,6 @@ public abstract class GPUDevice
     public abstract GPUBindGroup BindGroupStorageBufferWithCounter { get; }
 
     /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the sampled 2D texture, which contains a texture view and a sampler.
-    /// </summary> 
-    public abstract GPUBindGroup BindGroupTexture2DSampled { get; }
-
-    /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the sampled depth 2D texture, which contains a texture view and a sampler.
-    /// </summary>
-    public abstract GPUBindGroup BindGroupTextureDepthRead { get; }
-
-    /// <summary>
     /// The <see cref="GPUBindGroup"/> for the read-only 2D texture, which contains a texture view. Can only be used in the compute shader.
     /// </summary>
     public abstract GPUBindGroup BindGroupTexture2DRead { get; }
@@ -155,6 +96,11 @@ public abstract class GPUDevice
     /// The <see cref="GPUBindGroup"/> for the write-only 2D texture, which contains a texture view. Can only be used in the compute shader.
     /// </summary>
     public abstract GPUBindGroup BindGroupTexture2DStorage { get; }
+
+    /// <summary>
+    /// The <see cref="GPUBindGroup"/> for the read-only 3D texture, which contains a texture view. Can only be used in the compute shader.
+    /// </summary>
+    public abstract GPUBindGroup BindGroupTexture3DRead { get; }
 
     /// <summary>
     /// Creates a GPU buffer with the descriptor.
@@ -227,6 +173,24 @@ public abstract class GPUDevice
         return CreateCommandBufferCore(new CommandBufferDescriptor(name));
     }
 
+    /// <summary>Creates a fixed-size GPU timestamp query set.</summary>
+    /// <param name="count">The number of timestamp slots.</param>
+    /// <param name="name">The diagnostic resource name.</param>
+    /// <returns>The created timestamp query set.</returns>
+    /// <exception cref="NotSupportedException">The active adapter does not support timestamp queries.</exception>
+    public GPUTimestampQuerySet CreateTimestampQuerySet(uint count, string name)
+    {
+        if (!TimestampQuerySupported)
+        {
+            throw new NotSupportedException("GPU timestamp queries are not supported by the active adapter.");
+        }
+        if (count == 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(count));
+        }
+        return CreateTimestampQuerySetCore(count, name);
+    }
+
 
     /// <summary>
     /// Creates a GPU resuable render buffer with the descriptor.
@@ -258,6 +222,21 @@ public abstract class GPUDevice
     public GPUFrameBuffer CreateFrameBuffer(in FrameBufferDescriptor descriptor)
     {
         return CreateFrameBufferCore(descriptor);
+    }
+
+
+    /// <summary>
+    /// Creates a GPU frame buffer composed of externally owned textures and views.
+    /// The frame buffer does not take ownership of the textures and views;
+    /// the caller is responsible for keeping them alive and disposing them.
+    /// </summary>
+    /// <param name="descriptor">The descriptor for the external GPU frame buffer.</param>
+    /// <returns>The created GPU frame buffer.</returns>
+    /// <exception cref="GraphicsException">The textures or views do not match the attachment layout or the frame buffer size.</exception>
+    public GPUFrameBuffer CreateExternalFrameBuffer(in ExternalFrameBufferDescriptor descriptor)
+    {
+        descriptor.Validate();
+        return CreateExternalFrameBufferCore(descriptor);
     }
 
 
@@ -334,41 +313,6 @@ public abstract class GPUDevice
     public GPUSwapchain CreateSwapchain(in SwapchainDescriptor descriptor)
     {
         return CreateSwapchainCore(descriptor);
-    }
-
-    public GPUSampler GetSampler(
-        FilterMode filter,
-        AddressMode addressMode
-    )
-    {
-        return GetSampler(filter, filter, filter, addressMode, addressMode, addressMode);
-    }
-
-    public GPUSampler GetSampler(
-        FilterMode minFilter,
-        FilterMode magFilter,
-        FilterMode mipFilter,
-        AddressMode addressModeU,
-        AddressMode addressModeV,
-        AddressMode addressModeW
-    )
-    {
-        int hash = 17;
-        hash = hash * 23 + minFilter.GetHashCode();
-        hash = hash * 23 + magFilter.GetHashCode();
-        hash = hash * 23 + mipFilter.GetHashCode();
-        hash = hash * 23 + addressModeU.GetHashCode();
-        hash = hash * 23 + addressModeV.GetHashCode();
-        hash = hash * 23 + addressModeW.GetHashCode();
-
-        if (_samplers.TryGetValue(hash, out var sampler))
-        {
-            return sampler;
-        }
-
-        sampler = CreateSampler(new SamplerDescriptor(minFilter, magFilter, mipFilter,
-            addressModeU, addressModeV, addressModeW));
-        return _samplers.TryAdd(hash, sampler) ? sampler : _samplers[hash];
     }
 
     /// <summary>
@@ -655,6 +599,9 @@ public abstract class GPUDevice
     protected abstract GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null);
 
     /// <exclude />
+    protected abstract GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name);
+
+    /// <exclude />
     protected abstract GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor);
 
     /// <exclude />
@@ -662,6 +609,9 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor);
+
+    /// <exclude />
+    protected abstract GPUFrameBuffer CreateExternalFrameBufferCore(in ExternalFrameBufferDescriptor descriptor);
 
     /// <exclude />
     protected abstract GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor);
@@ -740,10 +690,6 @@ public abstract class GPUDevice
     private void Dispose()
     {
         OnEndFrame();
-        foreach (var sampler in _samplers)
-        {
-            sampler.Value.Destroy();
-        }
         DisposeCore();
 
         _host.LogInfo("GPU device closed");

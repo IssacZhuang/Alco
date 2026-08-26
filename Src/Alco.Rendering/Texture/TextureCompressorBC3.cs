@@ -9,9 +9,6 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class TextureCompressorBC3 : AutoDisposable
 {
-    public const string ShaderDefine_IS_SRGB = "IS_SRGB";
-
-    private readonly ComputeMaterial _material;
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
     private readonly GPUCommandBuffer _commandCompress;
@@ -19,7 +16,11 @@ public sealed class TextureCompressorBC3 : AutoDisposable
 
     private GraphicsArrayBuffer<uint4> _blocks;//resizeable
 
-    private readonly List<string> _defines = new();
+    // Linear/sRGB are construction-time specializations of MainCS<let IsSRGB>.
+    private readonly Shader _shader;
+    private ComputeMaterial _linearMaterial = null!;
+    private ComputeMaterial _srgbMaterial = null!;
+    private ComputeMaterial _material = null!;
     private bool _isSRGB;
 
     public bool IsSRGB
@@ -27,8 +28,11 @@ public sealed class TextureCompressorBC3 : AutoDisposable
         get => _isSRGB;
         set
         {
-            _isSRGB = value;
-            UpdateDefines();
+            if (_isSRGB != value)
+            {
+                _isSRGB = value;
+                _material = _isSRGB ? _srgbMaterial : _linearMaterial;
+            }
         }
     }
 
@@ -37,19 +41,27 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// Initializes a new instance of the <see cref="TextureCompressorBC3"/> class.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance.</param>
-    /// <param name="material">The compute material containing the BC3 compression shader.</param>
-    internal TextureCompressorBC3(RenderingSystem renderingSystem, ComputeMaterial material, int defaultBufferSize = 256 * 256)
+    /// <param name="shader">The texture-compress-bc3 shader (MainCS&lt;let IsSRGB&gt;;
+    /// the linear/sRGB dispatchers are its specializations).</param>
+    /// <param name="defaultBufferSize">Initial capacity of the block staging buffer.</param>
+    internal TextureCompressorBC3(RenderingSystem renderingSystem, Shader shader,
+        int defaultBufferSize = 256 * 256)
     {
         _renderingSystem = renderingSystem;
-        _material = material.CreateInstance();
         _device = renderingSystem.GraphicsDevice;
+        _shader = shader;
         _commandCompress = _device.CreateCommandBuffer("texture_compressor_command_buffer");
         _commandCopy = _device.CreateCommandBuffer("texture_compressor_copy_command_buffer");
-      
+
         _blocks = renderingSystem.CreateGraphicsArrayBuffer<uint4>(defaultBufferSize);
         _blocks.UpdateBuffer();
 
-        _material.TrySetBuffer(ShaderResourceId.Output, _blocks);
+        _linearMaterial = renderingSystem.CreateComputeMaterial(shader, false);
+        _linearMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
+        _srgbMaterial = renderingSystem.CreateComputeMaterial(shader, true);
+        _srgbMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
+
+        _material = _linearMaterial;
     }
 
     /// <summary>
@@ -106,7 +118,7 @@ public sealed class TextureCompressorBC3 : AutoDisposable
             throw new InvalidOperationException("Texture width and height must be divisible by 4");
         }
 
-        var texture = _renderingSystem.CreateTexture2D(source.Width, source.Height, source.Sampler, ImageLoadOption.Default with
+        var texture = _renderingSystem.CreateTexture2D(source.Width, source.Height, ImageLoadOption.Default with
         {
             Format = PixelFormat.BC3RGBAUnorm
         });
@@ -161,17 +173,10 @@ public sealed class TextureCompressorBC3 : AutoDisposable
             }
 
             _blocks = _renderingSystem.CreateGraphicsArrayBuffer<uint4>((int)newSize);
+            // The staging buffer was replaced: rebind it on both dispatchers.
+            _linearMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
+            _srgbMaterial.TrySetBuffer(ShaderResourceId.Output, _blocks);
         }
-    }
-
-    private void UpdateDefines()
-    {
-        _defines.Clear();
-        if (_isSRGB)
-        {
-            _defines.Add(ShaderDefine_IS_SRGB);
-        }
-        _material.SetDefines(_defines.ToArray());
     }
 
     /// <summary>

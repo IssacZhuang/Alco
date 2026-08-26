@@ -11,10 +11,16 @@ namespace WebGPU;
 
 internal static partial class WebGPU
 {
+	/// <unmanaged>WGPU_TRUE</unmanaged>
+	public const uint WGPU_TRUE = 1u;
+	/// <unmanaged>WGPU_FALSE</unmanaged>
+	public const uint WGPU_FALSE = 0u;
 	/// <unmanaged>WGPU_ARRAY_LAYER_COUNT_UNDEFINED</unmanaged>
 	public const uint WGPU_ARRAY_LAYER_COUNT_UNDEFINED = 0xffffffffu;
 	/// <unmanaged>WGPU_COPY_STRIDE_UNDEFINED</unmanaged>
 	public const uint WGPU_COPY_STRIDE_UNDEFINED = 0xffffffffu;
+	/// <unmanaged>WGPU_DEPTH_CLEAR_VALUE_UNDEFINED</unmanaged>
+	public static readonly float WGPU_DEPTH_CLEAR_VALUE_UNDEFINED = float.NaN;
 	/// <unmanaged>WGPU_DEPTH_SLICE_UNDEFINED</unmanaged>
 	public const uint WGPU_DEPTH_SLICE_UNDEFINED = 0xffffffffu;
 	/// <unmanaged>WGPU_LIMIT_U32_UNDEFINED</unmanaged>

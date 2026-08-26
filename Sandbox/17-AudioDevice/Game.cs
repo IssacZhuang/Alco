@@ -4,10 +4,12 @@ using Alco.Audio;
 using Alco;
 using Alco.GUI;
 using Alco.ImGUI;
+using Alco.Rendering;
 
 
 public class Game : GameEngine
 {
+    private readonly RenderPipeline _mainPipeline;
     private readonly AudioSource _source;
 
     private float _gain = 1f;
@@ -19,7 +21,33 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
 
+        var tonemapNode = new RGNode_Tonemap(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
+        AddSystem(new ImGUISystem(this));
 
         _source = AudioDevice.CreateAudioSource();
         _source.Gain = 1.5f;
@@ -170,6 +198,8 @@ public class Game : GameEngine
         }
 
         ImGui.End();
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
 
     private async void LoadAudioClipAsync(string filename)
@@ -181,7 +211,7 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-        
+        _mainPipeline.Dispose();
     }
 
     private static byte[] LoadFile(string path)

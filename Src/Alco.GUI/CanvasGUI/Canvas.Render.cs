@@ -22,7 +22,7 @@ public partial class Canvas : AutoDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawSprite(Texture2D? texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
     {
-        _renderContext.SetStencilReference(_mask);
+        _renderContext.Pass.SetStencilReference(_mask);
         _spriteRenderer.Draw(texture?? _renderingSystem.TextureWhite, matrix, uvRect, color);
     }
 
@@ -44,7 +44,7 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        _renderContext.SetStencilReference(_mask);
+        _renderContext.Pass.SetStencilReference(_mask);
         _spriteMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
 
         _dynamicMeshRenderer.DrawWithConstant(vertices, indices, _spriteMaterial, constant);
@@ -54,7 +54,7 @@ public partial class Canvas : AutoDisposable
     public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
     {
         font ??= DefaultFont;
-        _renderContext.SetStencilReference(_mask);
+        _renderContext.Pass.SetStencilReference(_mask);
         return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing);
     }
 
@@ -74,7 +74,7 @@ public partial class Canvas : AutoDisposable
     public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing)
     {
         font ??= DefaultFont;
-        _renderContext.SetStencilReference(_mask);
+        _renderContext.Pass.SetStencilReference(_mask);
         return _textRenderer.DrawText(font, str, matrix, pivot, color, slices, lineSpacing);
     }
 
@@ -87,10 +87,10 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        _renderContext.SetStencilReference(_mask);
+        _renderContext.Pass.SetStencilReference(_mask);
         _mask = (_mask + 1) % 0xFF;
         _stencilIncreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
-        _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilIncreaseMaterial, constant);
+        _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilIncreaseMaterial, constant);
     }
 
     protected void DecreaseMask(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
@@ -102,7 +102,7 @@ public partial class Canvas : AutoDisposable
             UvRect = uvRect
         };
 
-        _renderContext.SetStencilReference(_mask);
+        _renderContext.Pass.SetStencilReference(_mask);
 
         if (_mask == 0)
         {
@@ -113,14 +113,14 @@ public partial class Canvas : AutoDisposable
             _mask--;
         }
         _stencilDecreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
-        _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilDecreaseMaterial, constant);
+        _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilDecreaseMaterial, constant);
     }
 
     /// <summary>
     /// Binds the canvas camera buffer to the material.
     /// </summary>
     /// <param name="material">The material to bind the camera to.</param>
-    public void BindCameraToMaterial(Material material)
+    public void BindCameraToMaterial(GraphicsMaterial material)
     {
         material.TrySetBuffer(ShaderResourceId.Camera, _camera);
     }
@@ -130,9 +130,9 @@ public partial class Canvas : AutoDisposable
     /// </summary>
     /// <param name="material">The material to use for rendering.</param>
     /// <param name="constant">The sprite constant data containing model matrix, color, and UV rect.</param>
-    public void DrawMaterial(Material material, in SpriteConstant constant)
+    public void DrawMaterial(GraphicsMaterial material, in SpriteConstant constant)
     {
-        _renderContext.SetStencilReference(_mask);
-        _renderContext.DrawWithConstant(_renderingSystem.MeshCenteredSprite, material, constant);
+        _renderContext.Pass.SetStencilReference(_mask);
+        _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, material, constant);
     }
 }

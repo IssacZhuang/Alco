@@ -65,7 +65,7 @@ internal class NoRenderBundle : GPURenderBundle
         
     }
 
-    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
 
     }

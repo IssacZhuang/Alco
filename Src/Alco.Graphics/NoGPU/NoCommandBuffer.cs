@@ -17,19 +17,51 @@ internal class NoCommandBuffer : GPUCommandBuffer
         _hasBuffer = false;
     }
 
-    protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
+    protected override void BeginRenderCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps)
     {
-        
+
+    }
+
+    protected override void BeginRenderTimestampCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps)
+    {
     }
 
     protected override void EndRenderCore()
     {
-        
+
     }
 
     protected override void BeginComputeCore()
     {
-        
+
+    }
+
+    protected override void BeginComputeTimestampCore(
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex)
+    {
+    }
+
+    protected override void WriteTimestampInsidePassCore(
+        GPUTimestampQuerySet querySet,
+        uint queryIndex)
+    {
     }
 
     protected override void EndComputeCore()
@@ -82,7 +114,7 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
-    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         
     }
@@ -148,5 +180,18 @@ internal class NoCommandBuffer : GPUCommandBuffer
 
     {
         
+    }
+
+    protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
+    {
+    }
+
+    protected override void ResolveTimestampsCore(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset)
+    {
     }
 }

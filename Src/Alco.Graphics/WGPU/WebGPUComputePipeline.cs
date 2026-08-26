@@ -47,9 +47,9 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
         fixed (byte* ptrEntry = entryPoint)
         fixed (byte* ptrName = name)
         {
-            WGPUShaderModule module = nativeDevice.CreateShaderModule(descriptor.Source);
+            WGPUShaderModule module = device.CreateShaderModule(descriptor.Source);
 
-            WGPUProgrammableStageDescriptor stageDescriptor = new WGPUProgrammableStageDescriptor()
+            WGPUComputeState stageDescriptor = new WGPUComputeState()
             {
                 module = module,
                 entryPoint = new WGPUStringView(ptrEntry, entryPoint.Length),
@@ -71,35 +71,8 @@ internal sealed class WebGPUComputePipeline : GPUPipeline
                 label = new WGPUStringView(ptrName, name.Length),
                 bindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
                 bindGroupLayouts = bindGroupLayouts,
+                immediateSize = descriptor.PushConstantsSize,
             };
-
-            if (descriptor.PushConstantsRanges != null)
-            {
-                WGPUPushConstantRange* pushConstants = stackalloc WGPUPushConstantRange[descriptor.PushConstantsRanges.Length];
-                for (int i = 0; i < descriptor.PushConstantsRanges.Length; i++)
-                {
-                    PushConstantsRange range = descriptor.PushConstantsRanges[i];
-                    pushConstants[i] = new WGPUPushConstantRange
-                    {
-
-                        stages = WebGPUUtility.ConvertShaderStage(range.Stage),
-                        start = range.Start,
-                        end = range.End
-                    };
-                }
-                WGPUPipelineLayoutExtras extras = new WGPUPipelineLayoutExtras
-                {
-                    chain = new WGPUChainedStruct
-                    {
-                        sType = (WGPUSType)WGPUNativeSType.PipelineLayoutExtras,
-                        next = null,
-                    },
-                    pushConstantRangeCount = (uint)descriptor.PushConstantsRanges.Length,
-                    pushConstantRanges = pushConstants,
-                };
-
-                pipelineLayoutDescriptor.nextInChain = &extras.chain;
-            }
 
             WGPUPipelineLayout pipelineLayout = wgpuDeviceCreatePipelineLayout(nativeDevice, &pipelineLayoutDescriptor);
 

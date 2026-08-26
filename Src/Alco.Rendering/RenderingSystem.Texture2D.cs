@@ -4,6 +4,7 @@ using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using StbImageSharp;
 using StbImageWriteSharp;
+using Alco;
 using Alco.Graphics;
 
 using static Alco.MemoryUtility;
@@ -33,6 +34,11 @@ public partial class RenderingSystem
         {
             stream.ReadExactly(new Span<byte>(nativeBuffer, (int)length));
 
+            if (DdsDecoder.IsDds(new ReadOnlySpan<byte>(nativeBuffer, (int)length)))
+            {
+                return CreateTexture2DFromDds(new ReadOnlySpan<byte>(nativeBuffer, (int)length), option);
+            }
+
             byte* pixels = ImageDecodeUtility.DecodeAuto(
                 new ReadOnlySpan<byte>(nativeBuffer, (int)length),
                 out int w, out int h);
@@ -56,6 +62,8 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a Texture2D from file bytes.
+    /// DDS files (BC1-BC7) upload their blocks and mip chain verbatim; other formats
+    /// (PNG/JPEG) decode to RGBA8 first.
     /// </summary>
     /// <param name="fileBytes">The file bytes containing image data.</param>
     /// <param name="option">Image load options.</param>
@@ -65,6 +73,11 @@ public partial class RenderingSystem
         ImageLoadOption? option = null
     )
     {
+        if (DdsDecoder.IsDds(fileBytes))
+        {
+            return CreateTexture2DFromDds(fileBytes, option);
+        }
+
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
 
         byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
@@ -78,6 +91,264 @@ public partial class RenderingSystem
         finally
         {
             NativeMemory.Free(pixels);
+        }
+    }
+
+    /// <summary>
+    /// Creates a Texture2D from a DDS file holding block-compressed data (BC1-BC7).
+    /// No pixel decoding happens; the mip chain stored in the file is uploaded as-is,
+    /// overriding <see cref="ImageLoadOption.MipLevels"/>. The sRGB-ness of the BC format
+    /// follows <see cref="ImageLoadOption.Format"/>.
+    /// </summary>
+    /// <param name="fileBytes">The complete DDS file bytes.</param>
+    /// <param name="option">Image load options.</param>
+    /// <returns>A new Texture2D instance.</returns>
+    /// <exception cref="ImageDecodeException">Invalid, uncompressed or unsupported DDS data.</exception>
+    public unsafe Texture2D CreateTexture2DFromDds(
+        ReadOnlySpan<byte> fileBytes,
+        ImageLoadOption? option = null
+    )
+    {
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
+        bool srgb = PixelFormatUtility.IsSrgbFormat(optionReal.Format);
+        DdsDecoder.Decode(fileBytes, srgb, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+
+        if (!PixelFormatUtility.TryGetCompressedBlockSize(format, out uint blockBytes))
+        {
+            throw new ImageDecodeException($"DDS pixel format {format} is not block-compressed.");
+        }
+
+        TextureDescriptor textureDescriptor = new TextureDescriptor(
+            TextureDimension.Texture2D,
+            format,
+            (uint)width,
+            (uint)height,
+            1,
+            (uint)mipLevels,
+            optionReal.Usage,
+            1,
+            optionReal.Name
+        );
+        GPUTexture texture = _device.CreateTexture(textureDescriptor);
+
+        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
+            texture,
+            TextureViewDimension.Texture2D,
+            mipLevelCount: (uint)mipLevels
+        );
+        GPUTextureView textureView = _device.CreateTextureView(textureViewDescriptor);
+
+        fixed (byte* basePointer = fileBytes)
+        {
+            byte* pointer = basePointer + dataOffset;
+            for (int level = 0; level < mipLevels; level++)
+            {
+                uint byteCount = DdsDecoder.GetMipByteCount(width, height, level, blockBytes);
+                _device.WriteTexture(texture, pointer, byteCount, (uint)level);
+                pointer += byteCount;
+            }
+        }
+
+        return new Texture2D(
+            _device,
+            texture,
+            textureView,
+            optionReal.SlicePadding
+        );
+    }
+
+    /// <summary>
+    /// Creates an empty Texture2D at the specification dictated by an image file's
+    /// header (see <see cref="ImageDecodeUtility.GetImageFileInfo"/>), for streaming
+    /// loads: the texture's identity and specification are final from creation, and its
+    /// content is uploaded in place later via <see cref="UploadTexture2DContent"/>.
+    /// The backend zero-initializes the content, so until the upload arrives sampling
+    /// yields transparent black.
+    /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
+    /// public creation path.
+    /// </summary>
+    /// <param name="info">The probed file header.</param>
+    /// <param name="option">Image load options. For block-compressed files the format
+    /// and mip count come from <paramref name="info"/> instead (the same rule as
+    /// <see cref="CreateTexture2DFromDds"/>).</param>
+    /// <returns>A new Texture2D instance with zero-initialized content.</returns>
+    internal Texture2D CreateTexture2DFromHeader(in ImageFileInfo info, ImageLoadOption? option = null)
+    {
+        if (!info.IsBlockCompressed)
+        {
+            return CreateTexture2D((uint)info.Width, (uint)info.Height, option);
+        }
+
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
+
+        TextureDescriptor textureDescriptor = new TextureDescriptor(
+            TextureDimension.Texture2D,
+            info.Format,
+            (uint)info.Width,
+            (uint)info.Height,
+            1,
+            (uint)info.MipLevels,
+            optionReal.Usage,
+            1,
+            optionReal.Name
+        );
+        GPUTexture texture = _device.CreateTexture(textureDescriptor);
+
+        TextureViewDescriptor textureViewDescriptor = new TextureViewDescriptor(
+            texture,
+            TextureViewDimension.Texture2D,
+            mipLevelCount: (uint)info.MipLevels
+        );
+        GPUTextureView textureView = _device.CreateTextureView(textureViewDescriptor);
+
+        return new Texture2D(
+            _device,
+            texture,
+            textureView,
+            optionReal.SlicePadding
+        );
+    }
+
+    /// <summary>
+    /// Decodes image file bytes and uploads them into an existing texture in place,
+    /// preserving its identity: the native texture, its views and every bind group
+    /// built from them stay valid. Pair with <see cref="CreateTexture2DFromHeader"/>
+    /// for streaming loads. DDS files (BC1-BC7) upload their blocks and mip chain
+    /// verbatim; other formats (PNG/JPEG) decode to RGBA8 and upload mip 0.
+    /// <br/>There is no thread constraint: the upload may run on any thread.
+    /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
+    /// public upload path.
+    /// </summary>
+    /// <param name="texture">The target texture, previously created at the file's
+    /// specification.</param>
+    /// <param name="fileBytes">The complete image file bytes.</param>
+    /// <param name="option">Image load options (premultiply, sRGB-ness of DDS formats).
+    /// Should match the options the texture was created with.</param>
+    /// <exception cref="InvalidOperationException">The texture is not writable.</exception>
+    /// <exception cref="ImageDecodeException">The file is invalid, or its specification
+    /// differs from the texture's (the texture is left untouched).</exception>
+    internal unsafe void UploadTexture2DContent(Texture2D texture, ReadOnlySpan<byte> fileBytes, ImageLoadOption? option = null)
+    {
+        if (!texture.IsWriteable)
+        {
+            throw new InvalidOperationException("The texture is not writeable");
+        }
+
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
+        bool srgb = PixelFormatUtility.IsSrgbFormat(optionReal.Format);
+
+        if (DdsDecoder.IsDds(fileBytes))
+        {
+            // Full validation, including the mip chain length.
+            DdsDecoder.Decode(fileBytes, srgb, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+
+            if (width != (int)texture.Width || height != (int)texture.Height
+                || format != texture.NativeTexture.PixelFormat || mipLevels != (int)texture.MipLevels)
+            {
+                throw new ImageDecodeException(
+                    $"DDS specification {width}x{height} {format} x{mipLevels} does not match the target texture " +
+                    $"{texture.Width}x{texture.Height} {texture.NativeTexture.PixelFormat} x{texture.MipLevels}.");
+            }
+
+            if (!PixelFormatUtility.TryGetCompressedBlockSize(format, out uint blockBytes))
+            {
+                throw new ImageDecodeException($"DDS pixel format {format} is not block-compressed.");
+            }
+
+            fixed (byte* basePointer = fileBytes)
+            {
+                byte* pointer = basePointer + dataOffset;
+                for (int level = 0; level < mipLevels; level++)
+                {
+                    uint byteCount = DdsDecoder.GetMipByteCount(width, height, level, blockBytes);
+                    _device.WriteTexture(texture.NativeTexture, pointer, byteCount, (uint)level);
+                    pointer += byteCount;
+                }
+            }
+            return;
+        }
+
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(fileBytes);
+        if (info.Width != (int)texture.Width || info.Height != (int)texture.Height)
+        {
+            throw new ImageDecodeException(
+                $"Image specification {info.Width}x{info.Height} does not match the target texture {texture.Width}x{texture.Height}.");
+        }
+
+        byte* pixels = ImageDecodeUtility.DecodeAuto(fileBytes, out int w, out int h);
+        try
+        {
+            if (optionReal.PremultiplyAlpha)
+                PremultiplyAlpha(pixels, w * h);
+
+            _device.WriteTexture(texture.NativeTexture, pixels, (uint)(w * h * 4));
+        }
+        finally
+        {
+            NativeMemory.Free(pixels);
+        }
+    }
+
+    /// <summary>
+    /// Creates a Texture2D whose content streams in asynchronously: the header is probed
+    /// from the stream (reading only the bytes each format's header needs, see
+    /// <see cref="ImageDecodeUtility.GetImageFileInfo(Stream, bool)"/>), the texture is
+    /// created at its final specification, and the file content is then read and uploaded
+    /// in place on a thread-pool thread. The texture's identity never changes; a failed
+    /// upload leaves the zero-initialized content and logs a warning.
+    /// <br/>On success the stream's ownership transfers to the streaming task, which
+    /// disposes it on completion; when probing fails (an <see cref="ImageDecodeException"/>
+    /// escapes this call) the caller keeps ownership of the stream.
+    /// </summary>
+    /// <param name="stream">A seekable stream over the image file, positioned at the start.</param>
+    /// <param name="option">Image load options.</param>
+    /// <returns>A new Texture2D instance with zero-initialized content.</returns>
+    /// <exception cref="ImageDecodeException">Unrecognized, truncated or corrupt header.</exception>
+    public Texture2D CreateTexture2DStreaming(Stream stream, ImageLoadOption? option = null)
+    {
+        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
+        bool srgb = PixelFormatUtility.IsSrgbFormat(optionReal.Format);
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(stream, srgb);
+        try
+        {
+            Texture2D texture = CreateTexture2DFromHeader(info, optionReal);
+            // Fire-and-forget: the task captures everything it needs, observes its own
+            // failures, and is referenced by nothing once it completes.
+            _ = StreamTexture2DContentAsync(texture, stream, optionReal);
+            return texture;
+        }
+        catch
+        {
+            stream.Dispose();
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Read the whole file and upload its content in place off-thread; the stream is
+    /// disposed when done. The file bytes are held in native memory so a multi-MB
+    /// texture never lands on the LOH; the few header bytes consumed by the probe are
+    /// re-read, which is negligible next to the full-file sequential read.
+    /// </summary>
+    private async Task StreamTexture2DContentAsync(Texture2D texture, Stream stream, ImageLoadOption option)
+    {
+        try
+        {
+            await Task.Run(() =>
+            {
+                using (stream)
+                {
+                    using var fileData = new SafeMemoryHandle(stream.Length);
+                    stream.Position = 0;
+                    stream.ReadExactly(fileData.AsSpan());
+                    UploadTexture2DContent(texture, fileData.AsReadOnlySpan(), option);
+                }
+            }).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            // Includes a disposed texture when its owner was disposed mid-upload.
+            Log.Warning($"Failed to stream texture '{texture.Name}': {ex.Message}");
         }
     }
 
@@ -155,7 +426,6 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode);
 
         CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
@@ -169,44 +439,6 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler,
-            optionReal.SlicePadding
-        );
-    }
-
-    /// <summary>
-    /// Creates a Texture2D from raw data pointer with a custom sampler.
-    /// </summary>
-    /// <param name="data">Pointer to the raw image data.</param>
-    /// <param name="size">Size of the data in bytes.</param>
-    /// <param name="width">The width of the texture.</param>
-    /// <param name="height">The height of the texture.</param>
-    /// <param name="sampler">Custom GPU sampler to use.</param>
-    /// <param name="option">Image load options.</param>
-    /// <returns>A new Texture2D instance.</returns>
-    public unsafe Texture2D CreateTexture2D(
-        byte* data,
-        uint size,
-        uint width,
-        uint height,
-        GPUSampler sampler,
-        ImageLoadOption? option = null
-    )
-    {
-        CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
-
-        _device.WriteTexture(
-            texture,
-            data,
-            size
-        );
-
-        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        return new Texture2D(
-            _device,
-            texture,
-            textureView,
-            sampler,
             optionReal.SlicePadding
         );
     }
@@ -225,7 +457,6 @@ public partial class RenderingSystem
     )
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        GPUSampler sampler = _device.GetSampler(optionReal.FilterMode, optionReal.AddressMode);
 
         CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
 
@@ -233,57 +464,36 @@ public partial class RenderingSystem
             _device,
             texture,
             textureView,
-            sampler,
-            optionReal.SlicePadding
-        );
-    }
-
-    /// <summary>
-    /// Creates an empty Texture2D with a custom sampler.
-    /// </summary>
-    /// <param name="width">The width of the texture.</param>
-    /// <param name="height">The height of the texture.</param>
-    /// <param name="sampler">Custom GPU sampler to use.</param>
-    /// <param name="option">Image load options.</param>
-    /// <returns>A new Texture2D instance.</returns>
-    public unsafe Texture2D CreateTexture2D(
-        uint width,
-        uint height,
-        GPUSampler sampler,
-        ImageLoadOption? option = null
-    )
-    {
-        CreateTextureCore(width, height, option, out GPUTexture texture, out GPUTextureView textureView);
-
-        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        return new Texture2D(
-            _device,
-            texture,
-            textureView,
-            sampler,
             optionReal.SlicePadding
         );
     }
 
     /// <summary>
     /// Creates a Texture2D from existing GPU resources.
+    /// <br/>By default the wrapper does NOT take ownership of
+    /// <paramref name="texture"/> and <paramref name="textureView"/>: being created
+    /// outside, their lifetime is managed by the caller (e.g. the frame buffer whose
+    /// attachments they are). Pass <paramref name="ownsResources"/> to transfer
+    /// ownership to the wrapper instead (its disposal then releases the texture and
+    /// view).
     /// </summary>
     /// <param name="texture">The GPU texture.</param>
     /// <param name="textureView">The GPU texture view.</param>
-    /// <param name="sampler">The GPU sampler.</param>
+    /// <param name="ownsResources">Whether the wrapper owns (and disposes) the
+    /// texture and view.</param>
     /// <returns>A new Texture2D instance.</returns>
     public Texture2D CreateTexture2D(
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler  
+        bool ownsResources = false
     )
     {
         return new Texture2D(
             _device,
             texture,
             textureView,
-            sampler,
-            null
+            null,
+            ownsResources
         );
     }
 
@@ -321,13 +531,15 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a BC3 texture compressor.
+    /// Creates a BC3 texture compressor from the texture-compress-bc3 shader
+    /// (MainCS&lt;let IsSRGB&gt;): the linear (false) and sRGB (true) compression
+    /// dispatchers are the shader's specializations, construction-bound per variant.
     /// </summary>
-    /// <param name="material">The compute material to use for compression.</param>
+    /// <param name="shader">The texture-compress-bc3 shader.</param>
     /// <returns>A new TextureCompressorBC3 instance.</returns>
-    public TextureCompressorBC3 CreateTextureCompressorBC3(ComputeMaterial material)
+    public TextureCompressorBC3 CreateTextureCompressorBC3(Shader shader)
     {
-        return new TextureCompressorBC3(this, material);
+        return new TextureCompressorBC3(this, shader);
     }
 
     /// <summary>

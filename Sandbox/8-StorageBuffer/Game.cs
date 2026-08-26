@@ -100,6 +100,7 @@ public class Game : GameEngine
         //     _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
         // }
 
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
 
         using (var computePass = _commandBuffer.BeginCompute())
@@ -110,15 +111,15 @@ public class Game : GameEngine
             computePass.DispatchCompute((500 / 8) + 1, 1, 1);
         }
 
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_graphicsPipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
-            renderPass.SetResources(1, _texWhite.EntrySample);
+            renderPass.SetResources(1, _texWhite.EntryReadonly);
             renderPass.SetResources(2, _positionsBuffer.EntryReadonly);
-            renderPass.PushConstants(ShaderStage.Vertex, _transform1.Matrix);
+            renderPass.PushConstants(_transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
         }
 
@@ -134,12 +135,12 @@ public class Game : GameEngine
 
     private unsafe GPUPipeline CreateGraphicsPipeline()
     {
-        //dxc hlsl
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("Shader.hlsl"));
-        ShaderModule vertSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Vertex, "MainVS", "Shader.hlsl");
-        ShaderModule fragSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Fragment, "MainPS", "Shader.hlsl");
+        // slang module program: every [shader(...)] entry point compiled to SPIR-V
+        SlangProgram program = CompileProgram("sandbox8_shader", "shader.slang");
+        ShaderModule vertSource = StageModule(program, "MainVS");
+        ShaderModule fragSource = StageModule(program, "MainPS");
 
-        ShaderReflectionInfo info = ShaderReflectionUtility.GetSpirvReflection(vertSource.Source, fragSource.Source, true);
+        ShaderReflection info = program.Reflection;
 
         Log.Info(info);
 
@@ -156,7 +157,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
 
         GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
             bindGroups,
@@ -167,7 +168,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { attachmentLayout.Colors[0].Format },
             attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
-            info.PushConstantsRanges.ToArray(),
+            (uint)info.PushConstantsSize,
             "quad_pipline"
         );
 
@@ -176,10 +177,10 @@ public class Game : GameEngine
 
     private GPUPipeline CreateComputePipeline()
     {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("ComputePosition.hlsl"));
-        ShaderModule computeSource = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Compute, "MainCS", "ComputePosition.hlsl");
+        SlangProgram program = CompileProgram("sandbox8_compute_position", "compute-position.slang");
+        ShaderModule computeSource = StageModule(program, "MainCS");
 
-        ShaderReflectionInfo info = ShaderReflectionUtility.GetSpirvReflection(computeSource.Source, true);
+        ShaderReflection info = program.Reflection;
 
         Log.Info(info);
 
@@ -194,11 +195,35 @@ public class Game : GameEngine
         ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
             computeSource,
             bindGroups,
-            null,
+            0,
             "compute_pipline"
         );
 
         return GraphicsDevice.CreateComputePipeline(descriptor);
+    }
+
+    private SlangProgram CompileProgram(string moduleName, string fileName)
+    {
+        string path = Path.Combine("Assets", fileName);
+        SlangModuleSystem modules = RenderingSystem.ShaderSystem.Modules;
+        modules.GetOrLoadModule(moduleName, path, File.ReadAllText(path));
+        return modules.GetProgramAllEntries(moduleName, []);
+    }
+
+    private static ShaderModule StageModule(SlangProgram program, string entryName)
+    {
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            if (program.EntryPoints[i].Name == entryName)
+            {
+                return new ShaderModule(
+                    SlangCompileSession.SlangStageToEngine(program.EntryPoints[i].Stage),
+                    ShaderLanguage.SPIRV,
+                    program.EntryCode[i],
+                    "main");
+            }
+        }
+        throw new ArgumentException($"Entry point '{entryName}' not found in module '{program.ModuleName}'.");
     }
 
     private static byte[] LoadFile(string path)

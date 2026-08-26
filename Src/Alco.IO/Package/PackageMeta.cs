@@ -13,7 +13,10 @@ public sealed class PackageEntry : ISerializable
     public long Start => _start;
     public long Size => _size;
 
-    //empty constructor for serialization
+    /// <summary>
+    /// Serialization-only parameterless constructor, filled by the serializer when loading a
+    /// package entry. Do not call manually.
+    /// </summary>
     public PackageEntry(){
 
     }
@@ -51,10 +54,18 @@ public abstract class PackageMetaBase : ISerializable
     private readonly List<PackageEntry> _entries = new();
 
     /// <summary>Gets the package name (free-form label).</summary>
-    public string Name => _name;
+    public string Name
+    {
+        get => _name;
+        init => _name = value;
+    }
 
     /// <summary>Gets the format version string.</summary>
-    public string Version => _version;
+    public string Version
+    {
+        get => _version;
+        init => _version = value;
+    }
 
     /// <summary>Gets the directory of named entries with content-relative offsets.</summary>
     public IReadOnlyList<PackageEntry> Entries => _entries;

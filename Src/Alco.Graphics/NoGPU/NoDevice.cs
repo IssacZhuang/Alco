@@ -40,7 +40,6 @@ internal class NoDevice : GPUDevice
     }
     public static readonly NoDevice noDevice = new NoDevice();
 
-    // The representative bind-group limit reported in NoGPU mode (no real adapter is available).
     private const int NoGpuMaxBindGroups = 8;
 
     public override GPUBindGroup BindGroupUniformBuffer {get;}
@@ -49,17 +48,27 @@ internal class NoDevice : GPUDevice
 
     public override GPUBindGroup BindGroupStorageBufferWithCounter {get;}
 
-    public override GPUBindGroup BindGroupTexture2DSampled {get;}
-
-    public override GPUBindGroup BindGroupTextureDepthRead { get; }
 
     public override GPUBindGroup BindGroupTexture2DRead {get;}
 
     public override GPUBindGroup BindGroupTexture2DStorage {get;}
 
+
+    public override GPUBindGroup BindGroupTexture3DRead {get;}
+
     public override PixelFormat PreferredSurfaceFormat {get;}
 
+    public override GraphicsBackend Backend => GraphicsBackend.None;
+
     public override bool TextureCompressBC3Supported => false;
+
+    public override bool TimestampQuerySupported => false;
+
+    public override bool MetalLibPassthroughSupported => false;
+
+    public override bool TimestampQueryInsidePassesSupported => false;
+
+    public override float TimestampPeriodNanoseconds => 0.0f;
 
     /// <summary>
     /// The maximum number of bind groups reported in NoGPU mode.
@@ -103,24 +112,12 @@ internal class NoDevice : GPUDevice
             },
         });
 
-        BindGroupTexture2DSampled = CreateBindGroup(new BindGroupDescriptor
+        BindGroupTexture3DRead = CreateBindGroup(new BindGroupDescriptor
         {
-            Name = "default_bind_group_texture",
+            Name = "default_bind_group_texture_3d_read",
             Bindings = new BindGroupEntry[]
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
-            },
-        });
-
-        BindGroupTextureDepthRead = CreateBindGroup(new BindGroupDescriptor
-
-        {
-            Name = "default_bind_group_texture_depth_sampled",
-            Bindings = new BindGroupEntry[]
-            {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D, TextureSampleType.Depth)),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+                new BindGroupEntry(0, ShaderStage.Compute, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
             },
         });
 
@@ -158,12 +155,22 @@ internal class NoDevice : GPUDevice
         return new NoCommandBuffer(descriptor);
     }
 
+    protected override GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name)
+    {
+        return new NoTimestampQuerySet(count, name);
+    }
+
     protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)
     {
         return new NoPipeline(descriptor);
     }
 
     protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
+    {
+        return new NoFrameBuffer(descriptor);
+    }
+
+    protected override GPUFrameBuffer CreateExternalFrameBufferCore(in ExternalFrameBufferDescriptor descriptor)
     {
         return new NoFrameBuffer(descriptor);
     }

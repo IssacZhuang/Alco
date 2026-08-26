@@ -10,8 +10,12 @@ using Alco.ImGUI;
 /// </summary>
 public class Game : GameEngine
 {
+    private readonly GPUCommandBuffer _commandBuffer;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
     }
 
     /// <summary>
@@ -53,6 +57,16 @@ public class Game : GameEngine
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
+        }
+
+        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        {
+            _commandBuffer.Begin();
+            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            {
+            }
+            _commandBuffer.End();
+            GraphicsDevice.Submit(_commandBuffer);
         }
 
         RenderImGUI();

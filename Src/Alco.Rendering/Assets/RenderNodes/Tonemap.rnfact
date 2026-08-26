@@ -1,0 +1,14 @@
+// HDR tone-mapping chain-transform node. The default operator is Reinhard;
+// the node switches operators at runtime.
+{
+    "$type": "Alco.Rendering.RGNodeFactory_Tonemap",
+    "descriptor": {
+        "blitShader": "Blit",
+        "reinhardShader": "ReinhardLuminanceTonemap",
+        "uncharted2Shader": "Uncharted2Tonemap",
+        "filmicShader": "FilmicTonemap",
+        "acesShader": "AcesTonemap",
+        "neutralShader": "NeutralTonemap",
+        "agxShader": "AgxTonemap"
+    }
+}

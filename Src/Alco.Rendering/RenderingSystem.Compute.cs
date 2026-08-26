@@ -1,23 +1,16 @@
-using System.Numerics;
-
 namespace Alco.Rendering;
 
 // compute material factory
 
 public partial class RenderingSystem
 {
-    public ComputeMaterial CreateComputeMaterial(Shader shader)
+    /// <summary>
+    /// Creates a compute dispatcher construction-bound to (shader, specialization):
+    /// it pins one variant for its lifetime — runtime variant switching means
+    /// constructing another dispatcher.
+    /// </summary>
+    public ComputeMaterial CreateComputeMaterial(Shader shader, params ReadOnlySpan<object> specializations)
     {
-        return new ComputeMaterial(this, shader);
+        return new ComputeMaterial(this, shader, Shader.NormalizeSpecializations(specializations));
     }
-
-    public ComputeMaterial CreateComputeMaterial(Shader shader, ReadOnlySpan<string> defines)
-    {
-        return new ComputeMaterial(this, shader, defines);
-    }
-
-
-
-    
-
 }

@@ -1,0 +1,18 @@
+// Bloom chain-transform node. Shaders reference slang modules by name; they
+// resolve (and validate) through the shared shader system at load time.
+{
+    "$type": "Alco.Rendering.RGNodeFactory_Bloom",
+    "descriptor": {
+        "blitShader": "BloomBlit",
+        "clampShader": "BloomClamp",
+        "downsampleShader": "BloomDownsample",
+        "upsampleShader": "BloomUpsample",
+        "sceneCopyShader": "Blit",
+        "targetDownsampleHeight": 11,
+        "threshold": 1.0,
+        "intensity": 0.35,
+        "spread": 1.0,
+        "gamma": 2.2
+    },
+    "enabled": true
+}

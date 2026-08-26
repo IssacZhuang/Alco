@@ -25,5 +25,9 @@ public enum BindingType
     /// <summary>
     /// The texture for random access
     /// </summary>
-    StorageTexture = 5,  
+    StorageTexture = 5,
+    /// <summary>
+    /// The comparison sampler for depth comparison sampling (e.g. shadow map PCF)
+    /// </summary>
+    SamplerComparison = 6,
 }

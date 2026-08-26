@@ -18,6 +18,8 @@ public class Game : GameEngine
     private Transform3D _camaraParent = Transform3D.Identity;
     private Transform3D _camaraChild = Transform3D.Identity;
 
+    private readonly RenderPipeline _mainPipeline;
+
     private readonly Shader _shader;
     private readonly RenderContext _renderer;
     private readonly CameraPerspectiveBuffer _camera;
@@ -25,16 +27,60 @@ public class Game : GameEngine
 
     private readonly Cube _cube;
 
-    private readonly GPUCommandBuffer _commandClearScreen;
-
     private GizmoOperation _currentOperationEnum = GizmoOperation.Translate;
 
     private Vector3 _rotationAngles = Vector3.Zero;
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _mainPipeline = new RenderPipeline(
+            RenderingSystem,
+            RenderingSystem.PreferredHDRPass,
+            BuiltInAssets.Shader_Blit,
+            MainView.Size.X,
+            MainView.Size.Y);
+        _mainPipeline.ClearColor = new ColorFloat(0.2f, 0.2f, 0.2f, 1);
 
-        _shader = AssetSystem.Load<Shader>(BuiltInAssetsPath.Shader_Unlit);
+        // The node chain: scene content first, then bloom, then tone mapping.
+        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
+
+        _mainPipeline.Use(new RGNode_Bloom(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Bloom.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_BloomBlit,
+                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
+                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
+                TargetDownsampleHeight = 11,
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+            }));
+
+        var tonemapNode = new RGNode_Tonemap(
+            RenderingSystem,
+            _mainPipeline.Graph,
+            _mainPipeline.Chain,
+            _mainPipeline.PostProcessLayout,
+            new RGNode_Tonemap.Descriptor
+            {
+                BlitShader = BuiltInAssets.Shader_Blit,
+                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
+                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
+                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
+                AcesShader = BuiltInAssets.Shader_AcesTonemap,
+                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
+                AgxShader = BuiltInAssets.Shader_AgxTonemap,
+            });
+        _mainPipeline.Use(tonemapNode);
+
+        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
+
+        AddSystem(new ImGUISystem(this));
+
+        _shader = BuiltInAssets.Shader_Unlit;
 
         // _camera = new CameraDataPerspective(1.03f, 0.1f, 1000, 16f / 9);
         // _camaraChild.position.Z = -10;
@@ -46,14 +92,12 @@ public class Game : GameEngine
 
         _renderer = RenderingSystem.CreateRenderContext();
 
-        _material = RenderingSystem.CreateMaterial(_shader, "Unlit");
-        _material.SetBuffer("_camera", _camera);
+        _material = RenderingSystem.CreateGraphicsMaterial(_shader, "Unlit");
+        _material.SetBuffer("camera", _camera);
 
         _cube = new Cube(RenderingSystem.MeshCube, _material);
         _cube.Color = Color2;
         _cube.transform.Position = new Vector3(0, 0, 0);
-
-        _commandClearScreen = GraphicsDevice.CreateCommandBuffer();
 
         MainView.OnResize += OnMainWindowResize;
     }
@@ -66,19 +110,6 @@ public class Game : GameEngine
         }
 
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
-
-        _commandClearScreen.Begin();
-        using (var renderPass = _commandClearScreen.BeginRender(MainFrameBuffer, new ColorFloat(0.2f, 0.2f, 0.2f, 1)))
-        {
-            // Clear color is handled by BeginRender parameter
-        }
-        _commandClearScreen.End();
-        RenderingSystem.ScheduleCommandBuffer(_commandClearScreen);
-
-
-        _renderer.Begin(MainFrameBuffer);
-        _cube.OnDraw(_renderer);
-        _renderer.End();
 
         if (Input.IsMousePressing(Mouse.Middle))
         {
@@ -106,9 +137,9 @@ public class Game : GameEngine
         ImGui.End();
 
         Gizmo.Manipulate(_camera.Data.ViewMatrix, _camera.Data.ProjectionMatrix, _currentOperationEnum, GizmoMode.Local, ref _cube.transform);
+
+        _mainPipeline.Render(MainPresenter.FrameBuffer);
     }
-
-
 
     protected void OnMainWindowResize(uint2 size)
     {
@@ -117,7 +148,27 @@ public class Game : GameEngine
 
     protected override void OnStop()
     {
-
+        _mainPipeline.Dispose();
     }
 
+    /// <summary>
+    /// Content node drawing the cube into the pipeline-assigned target.
+    /// </summary>
+    private sealed class SceneNode : RGNode_SceneContent
+    {
+        private readonly Game _game;
+
+        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        {
+            _game = game;
+        }
+
+        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        {
+            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            {
+                _game._cube.OnDraw(pass);
+            }
+        }
+    }
 }

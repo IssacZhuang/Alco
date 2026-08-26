@@ -3,11 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Alco.IO;
+using Alco.Rendering;
 
 namespace Alco.Engine;
 
 /// <summary>
-/// Represents an asset loader for shader meta files.
+/// Represents an asset loader for asset meta files.
 /// </summary>
 public class AssetLoaderMeta : IAssetLoader
 {

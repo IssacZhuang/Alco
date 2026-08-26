@@ -23,6 +23,6 @@ public abstract class SerializeReadNode : SerializeNode
     }
 
     public abstract T GetValue<T>(string key, T @default = default) where T : unmanaged;
-    public abstract T GetEnum<T>(string key, T @default = default) where T : struct, Enum;
+    public abstract T GetEnum<T>(string key, T @default = default) where T : unmanaged, Enum;
     public abstract string GetString(string key, string @default = "");
 }

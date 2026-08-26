@@ -88,10 +88,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushConstants(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+        public unsafe void PushConstants(uint bufferOffset, byte* data, uint size)
         {
             AssetUtility.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while PushConstants, try start recording by calling GPUCommandBuffer.BeginRender()");
-            _commandBuffer.PushGraphicsConstantsCore(stage, bufferOffset, data, size);
+            _commandBuffer.PushGraphicsConstantsCore(bufferOffset, data, size);
         }
 
         // polymorphism overloads
@@ -108,15 +108,15 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushConstants<T>(ShaderStage stage, uint bufferOffset, T data) where T : unmanaged
+        public unsafe void PushConstants<T>(uint bufferOffset, T data) where T : unmanaged
         {
-            PushConstants(stage, bufferOffset, (byte*)&data, (uint)sizeof(T));
+            PushConstants(bufferOffset, (byte*)&data, (uint)sizeof(T));
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public unsafe void PushConstants<T>(ShaderStage stage, T data) where T : unmanaged
+        public unsafe void PushConstants<T>(T data) where T : unmanaged
         {
-            PushConstants(stage, 0, data);
+            PushConstants(0, data);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -131,6 +131,29 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         {
             AssetUtility.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while ExecuteBundle, try start recording by calling GPUCommandBuffer.BeginRender()");
             _commandBuffer.ExecuteBundleCore(bundles);
+        }
+
+        /// <summary>
+        /// Writes a timestamp inside this open render pass. If the device does not
+        /// support <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>, this
+        /// method is a no-op (the timing is silently disabled) so callers can use it
+        /// unconditionally for maximum device compatibility.
+        /// </summary>
+        /// <param name="querySet">The destination timestamp query set.</param>
+        /// <param name="queryIndex">The slot to write.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteTimestamp(GPUTimestampQuerySet querySet, uint queryIndex)
+        {
+            AssetUtility.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while WriteTimestamp, try start recording by calling GPUCommandBuffer.BeginRender()");
+            if (!_commandBuffer.Device.TimestampQueryInsidePassesSupported)
+            {
+                return;
+            }
+            if (queryIndex >= querySet.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(queryIndex));
+            }
+            _commandBuffer.WriteTimestampInsidePassCore(querySet, queryIndex);
         }
 
         public void Dispose()
@@ -197,6 +220,29 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             PushConstants(0, data);
         }
 
+        /// <summary>
+        /// Writes a timestamp inside this open compute pass. If the device does not
+        /// support <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>, this
+        /// method is a no-op (the timing is silently disabled) so callers can use it
+        /// unconditionally for maximum device compatibility.
+        /// </summary>
+        /// <param name="querySet">The destination timestamp query set.</param>
+        /// <param name="queryIndex">The slot to write.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void WriteTimestamp(GPUTimestampQuerySet querySet, uint queryIndex)
+        {
+            AssetUtility.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while WriteTimestamp, try start recording by calling GPUCommandBuffer.BeginCompute()");
+            if (!_commandBuffer.Device.TimestampQueryInsidePassesSupported)
+            {
+                return;
+            }
+            if (queryIndex >= querySet.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(queryIndex));
+            }
+            _commandBuffer.WriteTimestampInsidePassCore(querySet, queryIndex);
+        }
+
         public void Dispose()
         {
             _commandBuffer.EndComputeCore();
@@ -206,11 +252,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     protected bool _isRecording = false;
 
-    //new api
     protected bool _isRecordingRender = false;
     protected bool _isRecordingCompute = false;
 
-    //API
     public abstract bool HasBuffer { get; }
 
     public bool IsRecording
@@ -241,7 +285,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
         float? clearDepth = null,
-        uint? clearStencil = null
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null
         )
     {
         if (_isRecordingRender)
@@ -254,7 +300,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             throw new InvalidOperationException("Compute pass is already recording, try end current Compute pass before starting a new one");
         }
 
-        BeginRenderCore(frameBuffer, clearColors, clearDepth, clearStencil);
+        BeginRenderCore(frameBuffer, clearColors, clearDepth, clearStencil, colorOps, depthOps);
         _isRecordingRender = true;
         return new RenderPass(this);
     }
@@ -263,7 +309,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         GPUFrameBuffer frameBuffer,
         Vector4 clearColor,
         float? clearDepth = null,
-        uint? clearStencil = null
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null
         )
     {
         if (_isRecordingRender)
@@ -277,7 +325,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         ReadOnlySpan<ClearColorData> clearColorsSpan = stackalloc ClearColorData[1] { new ClearColorData(0, clearColor) };
-        BeginRenderCore(frameBuffer, clearColorsSpan, clearDepth, clearStencil);
+        BeginRenderCore(frameBuffer, clearColorsSpan, clearDepth, clearStencil, colorOps, depthOps);
         _isRecordingRender = true;
         return new RenderPass(this);
     }
@@ -287,6 +335,55 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         )
     {
         return BeginRender(frameBuffer, ReadOnlySpan<ClearColorData>.Empty, null, null);
+    }
+
+    /// <summary>
+    /// Begins a render pass and writes timestamps at its beginning and/or end.
+    /// A null index skips the corresponding write, which allows bracketing a span
+    /// of consecutive passes with one timestamp pair (begin on the first pass,
+    /// end on the last).
+    /// </summary>
+    /// <param name="frameBuffer">The target framebuffer.</param>
+    /// <param name="clearColors">Attachment clear values.</param>
+    /// <param name="querySet">The destination timestamp query set.</param>
+    /// <param name="beginningQueryIndex">The slot written when the pass begins, or null to skip.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends, or null to skip.</param>
+    /// <param name="clearDepth">Optional depth clear value.</param>
+    /// <param name="clearStencil">Optional stencil clear value.</param>
+    /// <param name="colorOps">Optional per-color-attachment load/store ops, indexed by attachment. A clear specified through <paramref name="clearColors"/> takes precedence over the load op.</param>
+    /// <param name="depthOps">Optional depth/stencil load/store ops. <paramref name="clearDepth"/> and <paramref name="clearStencil"/> take precedence over the corresponding load/store ops.</param>
+    /// <returns>An RAII render-pass scope.</returns>
+    public RenderPass BeginRender(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
+        float? clearDepth = null,
+        uint? clearStencil = null,
+        ReadOnlySpan<AttachmentOps> colorOps = default,
+        AttachmentOps? depthOps = null)
+    {
+        if (_isRecordingRender)
+        {
+            throw new InvalidOperationException("Render pass is already recording, try end current Render pass before starting a new one");
+        }
+        if (_isRecordingCompute)
+        {
+            throw new InvalidOperationException("Compute pass is already recording, try end current pass before starting a new one");
+        }
+        if (beginningQueryIndex == null && endQueryIndex == null)
+        {
+            throw new ArgumentException("At least one of the timestamp query indices must be non-null.");
+        }
+        if (beginningQueryIndex >= querySet.Count || endQueryIndex >= querySet.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(beginningQueryIndex));
+        }
+
+        BeginRenderTimestampCore(frameBuffer, clearColors, querySet, beginningQueryIndex, endQueryIndex, clearDepth, clearStencil, colorOps, depthOps);
+        _isRecordingRender = true;
+        return new RenderPass(this);
     }
 
     public ComputePass BeginCompute()
@@ -304,6 +401,64 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         BeginComputeCore();
         _isRecordingCompute = true;
         return new ComputePass(this);
+    }
+
+    /// <summary>
+    /// Begins a compute pass and writes timestamps at its beginning and/or end.
+    /// A null index skips the corresponding write (see
+    /// <see cref="BeginRender(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, GPUTimestampQuerySet, uint?, uint?, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>).
+    /// </summary>
+    /// <param name="querySet">The destination timestamp query set.</param>
+    /// <param name="beginningQueryIndex">The slot written when the pass begins, or null to skip.</param>
+    /// <param name="endQueryIndex">The slot written when the pass ends, or null to skip.</param>
+    /// <returns>An RAII compute-pass scope.</returns>
+    public ComputePass BeginCompute(
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex)
+    {
+        if (_isRecordingRender || _isRecordingCompute)
+        {
+            throw new InvalidOperationException("Another GPU pass is already recording.");
+        }
+        if (beginningQueryIndex == null && endQueryIndex == null)
+        {
+            throw new ArgumentException("At least one of the timestamp query indices must be non-null.");
+        }
+        if (beginningQueryIndex >= querySet.Count || endQueryIndex >= querySet.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(beginningQueryIndex));
+        }
+
+        BeginComputeTimestampCore(querySet, beginningQueryIndex, endQueryIndex);
+        _isRecordingCompute = true;
+        return new ComputePass(this);
+    }
+
+    /// <summary>Resolves timestamp query values into a query-resolve buffer.</summary>
+    /// <param name="querySet">The source query set.</param>
+    /// <param name="firstQuery">The first source query slot.</param>
+    /// <param name="queryCount">The number of slots to resolve.</param>
+    /// <param name="destination">A buffer created with <see cref="BufferUsage.QueryResolve"/>.</param>
+    /// <param name="destinationOffset">The destination byte offset.</param>
+    public void ResolveTimestamps(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset = 0)
+    {
+        AssetUtility.IsTrue(_isRecording, "Command buffer must be recording while resolving timestamps.");
+        AssetUtility.IsFalse(_isRecordingRender || _isRecordingCompute, "End the active pass before resolving timestamps.");
+        if (queryCount == 0 || firstQuery + queryCount > querySet.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(queryCount));
+        }
+        if ((destination.Usage & BufferUsage.QueryResolve) == 0)
+        {
+            throw new ArgumentException("The destination buffer does not support query resolve.", nameof(destination));
+        }
+        ResolveTimestampsCore(querySet, firstQuery, queryCount, destination, destinationOffset);
     }
 
 
@@ -332,16 +487,56 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         CopyBufferToTextureCore(src, dst, mipLevel, offset, aspect);
     }
 
+    /// <summary>
+    /// Copy a region of one texture to another. Both textures must have a compatible
+    /// pixel format and the copy must be recorded outside any render/compute pass.
+    /// The source texture must have <see cref="TextureUsage.Read"/> (CopySrc) and the
+    /// destination must have <see cref="TextureUsage.Write"/> (CopyDst).
+    /// </summary>
+    /// <param name="src">The source texture.</param>
+    /// <param name="dst">The destination texture.</param>
+    /// <param name="srcMipLevel">The source mip level.</param>
+    /// <param name="dstMipLevel">The destination mip level.</param>
+    /// <param name="aspect">The texture aspect to copy (All / DepthOnly / StencilOnly).</param>
+    public void CopyTexture(GPUTexture src, GPUTexture dst, uint srcMipLevel = 0, uint dstMipLevel = 0, TextureAspect aspect = TextureAspect.All)
+    {
+        AssetUtility.IsTrue(_isRecording, "Command buffer is not recording while CopyTexture, try start recording by calling GPUCommandBuffer.Begin()");
+        CopyTextureCore(src, dst, srcMipLevel, dstMipLevel, aspect);
+    }
 
 
-    // need to be implemented for each backend
+
+    /// <summary>Backend-specific implementation.</summary>
     protected abstract void BeginCore();
     protected abstract void EndCore();
 
-    protected abstract void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil);
+    protected abstract void BeginRenderCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps);
+    protected abstract void BeginRenderTimestampCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps);
     protected abstract void EndRenderCore();
 
     protected abstract void BeginComputeCore();
+    protected abstract void BeginComputeTimestampCore(
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex);
+    protected abstract void WriteTimestampInsidePassCore(
+        GPUTimestampQuerySet querySet,
+        uint queryIndex);
     protected abstract void EndComputeCore();
 
     protected abstract void SetScissorRectCore(uint x, uint y, uint width, uint height);
@@ -358,7 +553,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup);
     protected abstract void DispatchComputeCore(uint x, uint y, uint z);
     protected abstract void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset);
-    protected abstract unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size);
+    protected abstract unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size);
     protected abstract unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size);
 
     protected abstract void ExecuteBundleCore(GPURenderBundle bundle);
@@ -366,4 +561,11 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     protected abstract void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size);
     protected abstract void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect);
+    protected abstract void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect);
+    protected abstract void ResolveTimestampsCore(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset);
 }

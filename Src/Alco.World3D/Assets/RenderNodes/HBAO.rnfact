@@ -1,0 +1,9 @@
+// HBAO+ render plugin node. Wiring into a deferred composition (lighting node,
+// G-buffer, environment) happens in code through RGNode_HBAO.Attach.
+{
+    "$type": "Alco.World3D.RGNodeFactory_HBAO",
+    "descriptor": {
+        "hbaoShader": "HBAO",
+        "blurShader": "HBAOBlur"
+    }
+}

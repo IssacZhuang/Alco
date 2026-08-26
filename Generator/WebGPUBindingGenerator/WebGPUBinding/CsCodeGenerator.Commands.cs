@@ -70,9 +70,6 @@ partial class CsCodeGenerator
 
             CppFunctionType functionType = (CppFunctionType)pointerType.ElementType;
 
-            //string functionPointerSignature = GetFunctionPointerSignature(functionType);
-            //AddCsMapping(typedef.Name, functionPointerSignature);
-
             string returnCsName = GetCsTypeName(functionType.ReturnType);
             string argumentsString = GetParameterSignature(functionType, false);
 
@@ -220,19 +217,6 @@ partial class CsCodeGenerator
             }
 
             string paramCsName = GetParameterName(cppParameter.Name);
-
-            //if (cppParameter.Name.EndsWith("Count"))
-            //{
-            //    if (functionName.StartsWith("vkEnumerate") ||
-            //        functionName.StartsWith("vkGet"))
-            //    {
-            //        paramCsTypeName = "int*";
-            //    }
-            //    else
-            //    {
-            //        paramCsTypeName = "int";
-            //    }
-            //}
 
             if (paramCsName == "sbyte*" && unsafeStrings == false)
             {

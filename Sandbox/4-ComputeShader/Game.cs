@@ -40,7 +40,9 @@ public class Game : GameEngine
     private GPUBuffer _colorBuffer;
     private GPUPipeline _graphicsPipeline;
     private GPUPipeline _computePipeline;
+    private GPUBindGroup _textureGroup;
     private GPUResourceGroup _resourceGroupBuffer;
+    private GPUResourceGroup _resourceGroupTexture;
 
     // resources for copmute shader
     private GraphicsValueBuffer<int> _iterationBuffer;
@@ -65,12 +67,26 @@ public class Game : GameEngine
 
         UpdateColor(new Vector3(1, 1, 1));
 
-        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, GraphicsDevice.BindGroupTexture2DSampled);
+        // The rasterizer shader declares group 1 as {texture, sampler}
+        // (DrawTexture.wgsl); the sampler comes from the rendering system's
+        // shared bank (linear filtering with repeat addressing).
+        _textureGroup = GraphicsDevice.CreateBindGroup(new BindGroupDescriptor
+        {
+            Name = "texture_sampler_group",
+            Bindings = new BindGroupEntry[]
+            {
+                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                new BindGroupEntry(1, ShaderStage.Standard, BindingType.Sampler),
+            },
+        });
+
+        _graphicsPipeline = CreatePipeline(GraphicsDevice.BindGroupUniformBuffer, _textureGroup);
         _computePipeline = CreateComputePipeline();
         _resourceGroupBuffer = CreateResourceGroup(GraphicsDevice.BindGroupUniformBuffer, _colorBuffer);
 
         _image = LaodTexture();
         _renderTarget = CreateRenderTarget(_image.Width, _image.Height);
+        _resourceGroupTexture = CreateTextureResourceGroup(_renderTarget);
         //_iterationBuffer = RenderingService.CreateTypedVRamBuffer<int>(8);
         _iterationBuffer = RenderingSystem.CreateGraphicsValueBuffer<int>(8, "iteration_buffer");
 
@@ -93,6 +109,7 @@ public class Game : GameEngine
 
 
         //_iterationBuffer.Value = 16;
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
         _commandBuffer.Begin();
 
         using (var computePass = _commandBuffer.BeginCompute())
@@ -104,13 +121,13 @@ public class Game : GameEngine
             computePass.DispatchCompute(_image.Width / 8, _image.Height / 8, 1);
         }
 
-        using (var renderPass = _commandBuffer.BeginRender(MainFrameBuffer))
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
         {
             renderPass.SetPipeline(_graphicsPipeline);
             renderPass.SetVertexBuffer(0, _vertexBuffer);
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _resourceGroupBuffer);
-            renderPass.SetResources(1, _renderTarget.EntrySample);
+            renderPass.SetResources(1, _resourceGroupTexture);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
 
@@ -125,6 +142,8 @@ public class Game : GameEngine
         _colorBuffer.Dispose();
         _graphicsPipeline.Dispose();
         _resourceGroupBuffer.Dispose();
+        _resourceGroupTexture.Dispose();
+        _textureGroup.Dispose();
         _image.Dispose();
         _renderTarget.Dispose();
         _iterationBuffer.Dispose();
@@ -172,7 +191,7 @@ public class Game : GameEngine
         BlendState blend = BlendState.NonPremultipliedAlpha;
         DepthStencilState depthStencil = DepthStencilState.Default;
 
-        GPUAttachmentLayout attachmentLayout = MainRenderTarget.FrameBuffer.AttachmentLayout;
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
 
         GraphicsPipelineDescriptor pipelineDescriptor = new GraphicsPipelineDescriptor(
             new GPUBindGroup[] { bindGroupBuffer, bindGroupTexture },
@@ -183,8 +202,7 @@ public class Game : GameEngine
             depthStencil,
             new PixelFormat[] { attachmentLayout.Colors[0].Format },
              attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
-            null,
-            "Quad Pipeline"
+            name: "Quad Pipeline"
         );
 
         return GraphicsDevice.CreateGraphicsPipeline(pipelineDescriptor);
@@ -192,32 +210,18 @@ public class Game : GameEngine
 
     private GPUPipeline CreateComputePipeline()
     {
-        string shaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.hlsl"));
+        // slang module program: every [shader(...)] entry point compiled to SPIR-V
+        SlangProgram program = CompileProgram("sandbox4_box_blur", "box-blur.slang");
+        ShaderModule computeShader = StageModule(program, "MainCS");
 
-        //dxc
-        ShaderModule computeShader = ShaderCompilerDxc.CrearteSpirvShaderModule(shaderCode, ShaderStage.Compute, "MainCS", "BoxBlur.hlsl");
+        DebugSaveFile("box-blur.spv", computeShader.Source);
+        Log.Info(program.Reflection);
 
-        //shaderc hlsl
-        //ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromHlsl(shaderCode, ShaderStage.Compute, "MainCS", "BoxBlur.hlsl");
-
-        //shaderc glsl
-        // string ShaderCode = Encoding.UTF8.GetString(LoadFile("BoxBlur.glsl"));
-        // ShaderStageSource computeShader = ShaderCompilerShaderc.CrearteSpirvSourceFromGlsl(ShaderCode, ShaderStage.Compute, "main", "BoxBlur.glsl");
-
-
-        // byte[] ShaderCode = LoadFile("BoxBlur.wgsl");
-        // ShaderStageSource computeShader = new ShaderStageSource(ShaderStage.Compute, ShaderLanguage.WGSL, ShaderCode, "MainCS");
-
-        DebugSaveFile("BoxBlur.spv", computeShader.Source);
-        ShaderReflectionInfo reflectionInfo = ShaderReflectionUtility.GetSpirvReflection(computeShader.Source);
-        Log.Info(reflectionInfo);
-        
 
         ComputePipelineDescriptor pipelineDescriptor = new ComputePipelineDescriptor(
             computeShader,
             new GPUBindGroup[] { GraphicsDevice.BindGroupTexture2DRead, GraphicsDevice.BindGroupTexture2DStorage, GraphicsDevice.BindGroupUniformBuffer },
-            null,
-            "box_blur_pipeline"
+            name: "box_blur_pipeline"
         );
 
         return GraphicsDevice.CreateComputePipeline(pipelineDescriptor);
@@ -233,6 +237,18 @@ public class Game : GameEngine
                 new ResourceBindingEntry(0, buffer),
             }
         });
+    }
+
+    private GPUResourceGroup CreateTextureResourceGroup(Texture2D texture)
+    {
+        return GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor(
+            _textureGroup,
+            new ResourceBindingEntry[]
+            {
+                new ResourceBindingEntry(0, texture.View),
+                new ResourceBindingEntry(1, RenderingSystem.Samplers.LinearRepeat),
+            },
+            "texture_sampler_resources"));
     }
 
     private Texture2D LaodTexture()
@@ -256,6 +272,30 @@ public class Game : GameEngine
     private void UpdateColor(Vector3 color)
     {
         GraphicsDevice.WriteBuffer(_colorBuffer, 0, color);
+    }
+
+    private SlangProgram CompileProgram(string moduleName, string fileName)
+    {
+        string path = Path.Combine("Assets", fileName);
+        SlangModuleSystem modules = RenderingSystem.ShaderSystem.Modules;
+        modules.GetOrLoadModule(moduleName, path, File.ReadAllText(path));
+        return modules.GetProgramAllEntries(moduleName, []);
+    }
+
+    private static ShaderModule StageModule(SlangProgram program, string entryName)
+    {
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            if (program.EntryPoints[i].Name == entryName)
+            {
+                return new ShaderModule(
+                    SlangCompileSession.SlangStageToEngine(program.EntryPoints[i].Stage),
+                    ShaderLanguage.SPIRV,
+                    program.EntryCode[i],
+                    "main");
+            }
+        }
+        throw new ArgumentException($"Entry point '{entryName}' not found in module '{program.ModuleName}'.");
     }
 
     private static byte[] LoadFile(string path)

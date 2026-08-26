@@ -16,7 +16,7 @@ public class FileMathUint
     public string GenerateContent()
     {
         StringBuilder builder = new StringBuilder();
-        //namespace
+        // Emits an Alco.math helper set (min, max, select) for a uint vector type.
         builder.AppendLine("//auto-generated");
         builder.AppendLine("using System;");
         builder.AppendLine("using System.Numerics;");
@@ -25,11 +25,9 @@ public class FileMathUint
         builder.AppendLine("namespace Alco");
         builder.AppendLine("{");
 
-        //class
         builder.AppendLine($"    public static partial class math");
         builder.AppendLine("    {");
 
-        //min
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static {_vectorType}{_vectorSize} min({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
@@ -48,8 +46,6 @@ public class FileMathUint
         }
         builder.AppendLine("        }");
         builder.AppendLine();
-        
-        //max
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static {_vectorType}{_vectorSize} max({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b)");
         builder.AppendLine("        {");
@@ -69,17 +65,14 @@ public class FileMathUint
         builder.AppendLine("        }");
         builder.AppendLine();
 
-        //select
         builder.AppendLine($"        [MethodImpl(MethodImplOptions.AggressiveInlining)]");
         builder.AppendLine($"        public static {_vectorType}{_vectorSize} select({_vectorType}{_vectorSize} a, {_vectorType}{_vectorSize} b, bool test)");
         builder.AppendLine("        {");
         builder.AppendLine($"            return test ? b : a;");
         builder.AppendLine("        }");
 
-        //end class
         builder.AppendLine("    }");
 
-        //end namespace
         builder.AppendLine("}");
 
         return builder.ToString();

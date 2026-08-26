@@ -13,7 +13,7 @@ internal static partial class WebGPUUtility
         new(GraphicsBackend.Auto, WGPUInstanceBackend.Primary),
         new(GraphicsBackend.WebGPU, WGPUInstanceBackend.BrowserWebGPU),
         new(GraphicsBackend.Vulkan, WGPUInstanceBackend.Vulkan),
-        new(GraphicsBackend.D3D11, WGPUInstanceBackend.DX11),
+        // wgpu v29 removed the D3D11 backend; GraphicsBackend.D3D11 is intentionally unmapped.
         new(GraphicsBackend.D3D12, WGPUInstanceBackend.DX12),
         new(GraphicsBackend.Metal, WGPUInstanceBackend.Metal),
         new(GraphicsBackend.OpenGL, WGPUInstanceBackend.GL),

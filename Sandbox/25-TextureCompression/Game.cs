@@ -14,28 +14,28 @@ public class Game : GameEngine
 
     private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
-    private readonly Material _material;
-    private readonly Material _materialCompressed;
+    private readonly GraphicsMaterial _material;
+    private readonly GraphicsMaterial _materialCompressed;
     private readonly Texture2D _texture;
     private readonly Texture2D _compressedTexture;
-    private readonly ComputeMaterial _compressMaterial;
     private readonly TextureCompressorBC3 _compressor;
     private bool _isShowCompressed = false;
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+
         _texture = AssetSystem.Load<Texture2D>("test.jpg");
 
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _materialRenderer = RenderingSystem.CreateRenderContext();
-        _material = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        _material = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", false);
         _material.DepthStencilState = DepthStencilState.Default;
         _material.BlendState = BlendState.AlphaBlend;
         
         
        
-        _compressMaterial = RenderingSystem.CreateComputeMaterial(BuiltInAssets.Shader_TextureCompressBC3);
-        //_compressMaterial.SetDefines("IS_SRGB");
-        _compressor = RenderingSystem.CreateTextureCompressorBC3(_compressMaterial);
+        _compressor = RenderingSystem.CreateTextureCompressorBC3(
+            RenderingSystem.ShaderSystem.GetShader("texture-compress-bc3"));
         _compressor.IsSRGB = false;
         _compressedTexture = _compressor.Compress(_texture);
 
@@ -47,7 +47,6 @@ public class Game : GameEngine
         _materialCompressed.SetTexture(ShaderResourceId.Texture, _compressedTexture);
     }
 
-
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -55,12 +54,11 @@ public class Game : GameEngine
             Stop();
         }
 
-        DebugStats.Text(FrameRate);
-
         ImGui.Begin("Texture Compression");
         ImGui.Checkbox("Show Compressed", ref _isShowCompressed);
         ImGui.End();
 
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
 
         Transform2D transform = Transform2D.Identity;
         transform.Scale = new Vector2(_texture.Width, _texture.Height);
@@ -74,17 +72,18 @@ public class Game : GameEngine
         };
 
         //draw atlas texture
-        _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
-        if (_isShowCompressed)
+        using (RenderFrameScope frame = _materialRenderer.BeginFrame())
+        using (RenderPassScope pass = _materialRenderer.BeginPass(frameBuffer, ColorFloat.Black))
         {
-            _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);
+            if (_isShowCompressed)
+            {
+                pass.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _materialCompressed, constant);
+            }
+            else
+            {
+                pass.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
+            }
         }
-        else
-        {
-            _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
-        }
-        _materialRenderer.End();
-
     }
 
     protected override void OnStop()

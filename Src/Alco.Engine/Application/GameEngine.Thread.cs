@@ -28,6 +28,16 @@ public partial class GameEngine
     }
 
     /// <summary>
+    /// Processes all pending main-thread callbacks. Called at exit (before game unload)
+    /// so queued async continuations — which may capture Game-owned objects through closures —
+    /// get a chance to run and release their captures before the final GC.
+    /// </summary>
+    public void ProcessPendingMainThreadCallbacks()
+    {
+        _synchronizationContext.ProcessCallbacks();
+    }
+
+    /// <summary>
     /// Posts an action to be executed on the main thread asynchronously.
     /// <br/><strong>Warning:</strong> Do not call this method from the main thread as it may cause deadlocks.
     /// Use <see cref="IsMainThread"/> to check if you're on the main thread.

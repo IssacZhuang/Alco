@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json.Serialization;
 using Alco.Rendering;
 using Alco.IO;
@@ -13,14 +12,16 @@ public partial class GameEngine
         var jsonConverters = CreateDefaultJsonConverters();
         var jsonConvertersList = jsonConverters.ToList();
 
-        // shader
-        yield return new AssetLoaderShaderHLSLInclude();
-        yield return new AssetLoaderShaderHLSL(RenderingSystem);
+        // material
+        yield return new AssetLoaderMaterialAsset(AssetSystem, RenderingSystem.ShaderSystem);
+
+        // render node factories (shader bindings for render nodes)
+        yield return new AssetLoaderRenderNodeFactory(RenderingSystem.ShaderSystem);
 
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
-            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSDF, generateSdf: false);
+            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSdf, generateSdf: false);
             yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem);
         }
         else
@@ -47,15 +48,6 @@ public partial class GameEngine
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
     {
-        yield return new AssetHotReloaderShaderHLSL((string includeName) =>
-        {
-            if (AssetSystem.TryLoadRaw(includeName, out SafeMemoryHandle data))
-            {
-                return Encoding.UTF8.GetString(data.AsReadOnlySpan());
-            }
-            throw new Exception($"Can not find the include file: {includeName}");
-        });
-
         yield return new AssetHotReloaderTexture2D(RenderingSystem);
 
         if (Setting.HasAudio)
@@ -87,7 +79,6 @@ public partial class GameEngine
         yield return new JsonConverterQuaternion();
         yield return new JsonConverterColor32();
         yield return new JsonConverterColorFloat();
-        yield return new JsonConverterShader(AssetSystem);
         yield return new JsonConverterTexture2D(AssetSystem);
         yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterDepthStencilState();

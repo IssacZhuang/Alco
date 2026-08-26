@@ -52,7 +52,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         InteropUtility.Free(_nativeName);
     }
 
-    // begin the encoder
+    /// <summary>Begins the native render bundle encoder.</summary>
     protected unsafe override void BeginCore(GPUAttachmentLayout attachmentLayout)
     {
         ReleaseRenderBundleEncoder();
@@ -73,11 +73,15 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
             colorFormats = colors,
             depthStencilFormat = nativeAttachmentLayout.WebGPUDepthInfo?.format ?? WGPUTextureFormat.Undefined,
             sampleCount = 1,
+            // Must match the read-only state of the passes this bundle is executed
+            // into (webgpu bundle/pass attachment compatibility).
+            depthReadOnly = nativeAttachmentLayout.WebGPUDepthInfo?.isDepthReadOnly ?? false,
+            stencilReadOnly = nativeAttachmentLayout.WebGPUDepthInfo?.isStencilReadOnly ?? false,
         };
         _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, &descriptor);
     }
 
-    // end the encoder
+    /// <summary>Ends the render bundle encoder and finishes the encoded bundle.</summary>
     protected unsafe override void EndCore()
     {
         ReleaseRenderBundle();
@@ -152,12 +156,11 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         wgpuRenderBundleEncoderDrawIndexedIndirect(_renderBundleEncoder, nativeBuffer.Native, offset);
     }
 
-    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         ValidateGraphicsPipeline();
 
-        WGPUShaderStage shaderStage = WebGPUUtility.ConvertShaderStage(stage);
-        wgpuRenderBundleEncoderSetPushConstants(_renderBundleEncoder, shaderStage, bufferOffset, size, data);
+        wgpuRenderBundleEncoderSetImmediates(_renderBundleEncoder, bufferOffset, data, size);
     }
 
 

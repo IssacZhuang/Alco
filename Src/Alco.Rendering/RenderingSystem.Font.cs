@@ -2,7 +2,7 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-// font factory
+// Font factory: creates fonts and their atlas textures on the rendering system.
 public partial class RenderingSystem
 {
     public Font CreateFontByFile(ReadOnlySpan<byte> fileBytes, string name = "font")

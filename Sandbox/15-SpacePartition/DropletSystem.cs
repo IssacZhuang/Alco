@@ -26,13 +26,13 @@ public class DropletSystem : IDisposable
         private readonly InstanceRenderer<SpriteConstant>[] _renderers;
         private readonly RenderRange[] _renderRanges;
         private readonly UnorderedList<Droplet> _activeList;
-        private readonly ViewRenderTarget _renderTarget;
         private readonly Mesh _mesh;
 
+        public GPUAttachmentLayout Layout = null!;
 
-        public JobParallelRender(ViewRenderTarget renderTarget, SubRenderContext[] renderContext, InstanceRenderer<SpriteConstant>[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Mesh mesh)
+
+        public JobParallelRender(SubRenderContext[] renderContext, InstanceRenderer<SpriteConstant>[] renderers, RenderRange[] renderRanges, UnorderedList<Droplet> activeList, Mesh mesh)
         {
-            _renderTarget = renderTarget;
             _renderContext = renderContext;
             _renderers = renderers;
             _renderRanges = renderRanges;
@@ -42,23 +42,24 @@ public class DropletSystem : IDisposable
 
         protected override void ExecuteCore(int index)
         {
-            _renderContext[index].Begin(_renderTarget.FrameBuffer.AttachmentLayout);
-            RenderRange range = _renderRanges[index];
-            int i = 0;
-            Span<SpriteConstant> instances = stackalloc SpriteConstant[range.end - range.start];
-            for (int j = range.start; j < range.end; j++)
+            using (_renderContext[index].BeginPass(Layout))
             {
-                var droplet = _activeList[j];
-                instances[i++] = new SpriteConstant
+                RenderRange range = _renderRanges[index];
+                int i = 0;
+                Span<SpriteConstant> instances = stackalloc SpriteConstant[range.end - range.start];
+                for (int j = range.start; j < range.end; j++)
                 {
-                    Model = droplet.transform.Matrix,
-                    Color = ColorFloat.White,
-                    UvRect = Rect.One
-                };
-            }
+                    var droplet = _activeList[j];
+                    instances[i++] = new SpriteConstant
+                    {
+                        Model = droplet.transform.Matrix,
+                        Color = ColorFloat.White,
+                        UvRect = Rect.One
+                    };
+                }
 
-            _renderers[index].Draw(_mesh, instances);
-            _renderContext[index].End();
+                _renderers[index].Draw(_mesh, instances);
+            }
         }
     }
 
@@ -69,7 +70,6 @@ public class DropletSystem : IDisposable
     private readonly RenderRange[] _renderRanges;
     private readonly UnorderedList<Droplet> _activeList = new UnorderedList<Droplet>();
     private readonly Pool<Droplet> _pool = new Pool<Droplet>(200000, () => new Droplet());
-    private readonly ViewRenderTarget _renderTarget;
     private readonly JobParallelRender _jobParallelRender;
     private int _spawnRate = 100;
     private int _spawnHeight = 280;
@@ -79,12 +79,12 @@ public class DropletSystem : IDisposable
 
     private FastRandom _random = new FastRandom(123);
 
-    public DropletSystem(ViewRenderTarget windowRenderTarget, RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
+    public DropletSystem(RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         _renderContext = system.CreateRenderContext();
         _subRenderContexts = new SubRenderContext[RenderThreadCount];
         _renderers = new InstanceRenderer<SpriteConstant>[RenderThreadCount];
-        Material material = system.CreateMaterial(shader, "Sprite");
+        GraphicsMaterial material = system.CreateGraphicsMaterial(shader, "Sprite");
         material.SetTexture(ShaderResourceId.Texture, texDroplet);
         material.BlendState = BlendState.AlphaBlend;
         material.SetBuffer(ShaderResourceId.Camera, camera);
@@ -96,9 +96,8 @@ public class DropletSystem : IDisposable
         }
 
         _renderRanges = new RenderRange[RenderThreadCount];
-        _renderTarget = windowRenderTarget;
 
-        _jobParallelRender = new JobParallelRender(_renderTarget, _subRenderContexts, _renderers, _renderRanges, _activeList, system.MeshCenteredSprite);
+        _jobParallelRender = new JobParallelRender(_subRenderContexts, _renderers, _renderRanges, _activeList, system.MeshCenteredSprite);
     }
 
     public void OnTick(float delta)
@@ -147,25 +146,6 @@ public class DropletSystem : IDisposable
 
     public void OnUpdate(float delta)
     {
-        for (int i = 0; i < RenderThreadCount; i++)
-        {
-            _renderRanges[i].start = i * _activeList.Count / RenderThreadCount;
-            _renderRanges[i].end = (i + 1) * _activeList.Count / RenderThreadCount;
-            //if last
-            if (i == RenderThreadCount - 1)
-            {
-                _renderRanges[i].end = _activeList.Count;
-            }
-        }
-
-        _jobParallelRender.RunParallel(RenderThreadCount);
-        _renderContext.Begin(_renderTarget.FrameBuffer);
-        for (int i = 0; i < RenderThreadCount; i++)
-        {
-            _renderContext.ExecuteSubContext(_subRenderContexts[i]);
-        }
-        _renderContext.End();
-
         // ImGUI Controls
         ImGui.Begin("Droplet System Controls");
 
@@ -182,6 +162,30 @@ public class DropletSystem : IDisposable
         ImGui.SliderInt("Speed", ref _speed, 0, 600);
 
         ImGui.End();
+    }
+
+    public void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
+    {
+        for (int i = 0; i < RenderThreadCount; i++)
+        {
+            _renderRanges[i].start = i * _activeList.Count / RenderThreadCount;
+            _renderRanges[i].end = (i + 1) * _activeList.Count / RenderThreadCount;
+            if (i == RenderThreadCount - 1)
+            {
+                _renderRanges[i].end = _activeList.Count;
+            }
+        }
+
+        _jobParallelRender.Layout = layout;
+        _jobParallelRender.RunParallel(RenderThreadCount);
+        using (RenderFrameScope frame = _renderContext.BeginFrame())
+        using (RenderPassScope pass = _renderContext.BeginPass(target))
+        {
+            for (int i = 0; i < RenderThreadCount; i++)
+            {
+                pass.ExecuteSubContext(_subRenderContexts[i]);
+            }
+        }
     }
 
     public void Render(int i)

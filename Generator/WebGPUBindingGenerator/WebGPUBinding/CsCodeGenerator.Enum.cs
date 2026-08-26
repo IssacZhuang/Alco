@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using CppAst;
 
 
@@ -26,6 +26,7 @@ partial class CsCodeGenerator
                 typeName == "WGPUMapMode" ||
                 typeName == "WGPUInstanceBackend" ||
                 typeName == "WGPUInstanceFlags" ||
+                typeName == "WGPUShaderRuntimeChecks" ||
                 typeName.EndsWith("Flag") ||
                 typeName.EndsWith("Flags");
 
@@ -110,11 +111,6 @@ partial class CsCodeGenerator
                         continue;
                     }
 
-                    //if (enumItemName != "Count" && _options.EnumWriteUnmanagedTag)
-                    //{
-                    //    writer.WriteLine($"/// <unmanaged>{enumItem.Name}</unmanaged>");
-                    //}
-
                     if (enumItem.ValueExpression is CppRawExpression rawExpression)
                     {
                         string enumValueName = GetEnumItemName(rawExpression.Text);
@@ -139,7 +135,7 @@ partial class CsCodeGenerator
 
             writer.WriteLine();
 
-            // Map missing flags with typedefs to VkFlags
+            // Map *Flags typedefs that did not get their own enum
             foreach (CppTypedef typedef in compilation.Typedefs)
             {
                 if (typedef.Name.EndsWith("Flags", StringComparison.OrdinalIgnoreCase) == false

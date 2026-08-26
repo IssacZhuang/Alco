@@ -6,7 +6,13 @@ public abstract class BaseGPUObject : IDisposable
 {
     public string Name { get; }
     private volatile uint _disposed;
-    //used for deffered disposal
+    // Tracks whether the native resource has been released. Separate from _disposed because
+    // Dispose() only schedules a deferred native release; Destroy() can also be reached from
+    // multiple paths (deferred queue, device shutdown, finalizer) and must release exactly once.
+    private volatile uint _destroyed;
+    /// <summary>
+    /// The device used for deferred disposal of this object.
+    /// </summary>
     protected abstract GPUDevice Device { get; }
 
     public bool IsDisposed => _disposed != 0;
@@ -24,10 +30,6 @@ public abstract class BaseGPUObject : IDisposable
 #if LOG_GPU_GC
             LogGC();
 #endif
-            //Device.Destroy(this);
-            //Device.Destroy will add this to a queue and dispose it at the end of the frame
-            //it will cause memory leak
-            //so it should be disposed immediately
 
 
             try
@@ -53,6 +55,12 @@ public abstract class BaseGPUObject : IDisposable
 
     internal void Destroy()
     {
+        if (Interlocked.Exchange(ref _destroyed, 1) != 0)
+        {
+            return;
+        }
+        _disposed = 1;
+        GC.SuppressFinalize(this);
         Dispose(true);
     }
     protected abstract void Dispose(bool disposing);

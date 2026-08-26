@@ -181,8 +181,12 @@ internal static class GizmoMath
         float mox = ((mousePos.X - viewport.Origin.X) / viewport.Size.X) * 2f - 1f;
         float moy = (1f - (mousePos.Y - viewport.Origin.Y) / viewport.Size.Y) * 2f - 1f;
 
+        // zFar stays a hair above 0 for reversed depth: an infinite-far reversed
+        // projection maps NDC z = 0 exactly to a point at infinity (homogeneous
+        // w = 0), which would poison the direction with inf/inf = NaN. Epsilon
+        // unprojects to a finite far point (~near / Epsilon) on the same ray.
         float zNear = reversed ? 1f - Epsilon : 0f;
-        float zFar = reversed ? 0f : 1f - Epsilon;
+        float zFar = reversed ? Epsilon : 1f - Epsilon;
 
         Vector4 origin = Vector4.Transform(new Vector4(mox, moy, zNear, 1f), viewProjInverse);
         origin /= origin.W;

@@ -11,31 +11,21 @@ public sealed class Texture2D : Texture
     private readonly Sprite _defaultSprite;
     private readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
 
-    // bind group include texture and sampeler
-    private GPUResourceGroup? _resourcesSample;
-
-    // bind gorup only include texture
+    // bind group only include texture
     private GPUResourceGroup? _resourcesRead;
 
     private GPUBindGroup? _bindGroupStorage;
-    private GPUResourceGroup? _resourcesStorage;//todo: make it shared
+    private readonly GPUResourceGroup?[] _resourcesStorage;
+    private readonly GPUResourceGroup?[] _resourcesReadMip;
+    private readonly GPUTextureView?[] _mipViews;
+
+    /// <summary>
+    /// The number of mip levels of the texture.
+    /// </summary>
+    public uint MipLevels { get; }
 
 
-    public GPUResourceGroup EntrySample
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_resourcesSample == null)
-            {
-                _resourcesSample = CreateResourcesSample();
-            }
-
-            return _resourcesSample;
-        }
-    }
-
-    public GPUResourceGroup EntryReadonly
+    public override GPUResourceGroup EntryReadonly
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
@@ -49,21 +39,14 @@ public sealed class Texture2D : Texture
         }
     }
 
-    public GPUResourceGroup EntryWriteable
+    public override GPUResourceGroup EntryWriteable
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
-            if (_resourcesStorage == null)
-            {
-                _resourcesStorage = CreateResourceGroupStorage();
-            }
-
-            return _resourcesStorage;
+            return EntryStorage(0);
         }
     }
-
-    public GPUSampler Sampler => _sampler;
 
     public Padding SlicePadding { get; }
 
@@ -71,10 +54,10 @@ public sealed class Texture2D : Texture
         GPUDevice device,
         GPUTexture texture,
         GPUTextureView textureView,
-        GPUSampler sampler,
-        Padding? slicePadding = null
+        Padding? slicePadding = null,
+        bool ownsResources = true
         ) :
-        base(device, texture, textureView, sampler)
+        base(device, texture, textureView, ownsResources)
     {
         if (slicePadding.HasValue)
         {
@@ -85,7 +68,105 @@ public sealed class Texture2D : Texture
             SlicePadding = Padding.Zero;
         }
 
+        MipLevels = texture.MipLevelCount;
+        _resourcesStorage = new GPUResourceGroup?[MipLevels];
+        _resourcesReadMip = new GPUResourceGroup?[MipLevels];
+        _mipViews = new GPUTextureView?[MipLevels];
         _defaultSprite = new Sprite("default", this, Rect.One);
+    }
+
+    /// <summary>
+    /// The read-only resource group bound to the single-mip view of the given mip level.
+    /// Inside the view the mip is rebased to mip 0, so shaders load it with mip index 0.
+    /// <br/>Use this instead of <see cref="EntryReadonly"/> when the same dispatch also writes
+    /// another mip of the texture: the non-overlapping subresource ranges of the two views
+    /// avoid the usage scope conflict of the underlying graphics API.
+    /// </summary>
+    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
+    /// <returns>The read-only resource group for the mip level.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The mip level is out of range.</exception>
+    public GPUResourceGroup EntryReadonlyMip(uint mipLevel)
+    {
+        CheckMipLevel(mipLevel);
+
+        if (_resourcesReadMip[mipLevel] == null)
+        {
+            ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+                _device.BindGroupTexture2DRead,
+                new ResourceBindingEntry[]{
+                    new ResourceBindingEntry(0, GetMipView(mipLevel)),
+                }
+            );
+
+            _resourcesReadMip[mipLevel] = _device.CreateResourceGroup(descriptor);
+        }
+
+        return _resourcesReadMip[mipLevel]!;
+    }
+
+    /// <summary>
+    /// The storage resource group bound to the single-mip view of the given mip
+    /// level, for compute passes that write that mip.
+    /// </summary>
+    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
+    /// <returns>The storage resource group for the mip level.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">The mip level is out of range.</exception>
+    public GPUResourceGroup EntryStorage(uint mipLevel)
+    {
+        CheckMipLevel(mipLevel);
+
+        if (_bindGroupStorage == null)
+        {
+            _bindGroupStorage = _device.CreateBindGroup(new BindGroupDescriptor
+            {
+                Name = $"{Name}_bind_group_storage_texture",
+                Bindings = new BindGroupEntry[]{
+                    new BindGroupEntry(
+                        0,
+                        ShaderStage.Standard,
+                        BindingType.StorageTexture,
+                        null,
+                        new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D, _texture.PixelFormat)),
+                }
+            });
+        }
+
+        if (_resourcesStorage[mipLevel] == null)
+        {
+            ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
+                _bindGroupStorage,
+                new ResourceBindingEntry[]{
+                    new ResourceBindingEntry(0, GetMipView(mipLevel)),
+                }
+            );
+
+            _resourcesStorage[mipLevel] = _device.CreateResourceGroup(descriptor);
+        }
+
+        return _resourcesStorage[mipLevel]!;
+    }
+
+    internal GPUTextureView GetMipView(uint mipLevel)
+    {
+        if (_mipViews[mipLevel] == null)
+        {
+            _mipViews[mipLevel] = _device.CreateTextureView(new TextureViewDescriptor(
+                _texture,
+                TextureViewDimension.Texture2D,
+                mipLevel,
+                1,
+                name: $"{Name}_mip_view_{mipLevel}"));
+        }
+
+        return _mipViews[mipLevel]!;
+    }
+
+    private void CheckMipLevel(uint mipLevel)
+    {
+        if (mipLevel >= MipLevels)
+        {
+            throw new ArgumentOutOfRangeException(nameof(mipLevel), mipLevel, "The mip level is out of range.");
+        }
     }
 
     public void ClearSprites()
@@ -144,30 +225,16 @@ public sealed class Texture2D : Texture
         _textureView = textureView;
 
         //just let them collect by GC
-        _resourcesSample = null;
         _resourcesRead = null;
-        _resourcesStorage = null;
-    }
+        _bindGroupStorage = null;
+        for (int i = 0; i < _resourcesStorage.Length; i++)
+        {
+            _resourcesStorage[i] = null;
+            _resourcesReadMip[i] = null;
+            _mipViews[i] = null;
+        }
 
-    public override void SetSampler(GPUSampler sampler)
-    {
-        base.SetSampler(sampler);
-        _resourcesSample = null;
-        _resourcesRead = null;
-        _resourcesStorage = null;
-    }
-
-    private GPUResourceGroup CreateResourcesSample()
-    {
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DSampled,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
-                new ResourceBindingEntry(1, _sampler)
-            }
-        );
-
-        return _device.CreateResourceGroup(descriptor);
+        DiscardLayoutResourceGroups();
     }
 
     private GPUResourceGroup CreateResourceGroupRead()
@@ -182,43 +249,20 @@ public sealed class Texture2D : Texture
         return _device.CreateResourceGroup(descriptor);
     }
 
-    private GPUResourceGroup CreateResourceGroupStorage()
-    {
-        _bindGroupStorage = _device.CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = $"{Name}_bind_group_storage_texture",
-            Bindings = new BindGroupEntry[]{
-                    new BindGroupEntry(
-                        0,
-                        ShaderStage.Standard,
-                        BindingType.StorageTexture,
-                        null,
-                        new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D,_texture.PixelFormat)),
-                }
-        });
-
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _bindGroupStorage,
-            new ResourceBindingEntry[]{
-
-                new ResourceBindingEntry(0, _textureView),
-            }
-        );
-
-
-        return _device.CreateResourceGroup(descriptor);
-    }
-
     protected override void Dispose(bool disposing)
     {
         base.Dispose(disposing);
         if (disposing)
         {
             //dispose non-private managed resources
-            _resourcesSample?.Dispose();
             _resourcesRead?.Dispose();
             _bindGroupStorage?.Dispose();
-            _resourcesStorage?.Dispose();
+            for (int i = 0; i < _resourcesStorage.Length; i++)
+            {
+                _resourcesStorage[i]?.Dispose();
+                _resourcesReadMip[i]?.Dispose();
+                _mipViews[i]?.Dispose();
+            }
         }
 
     }

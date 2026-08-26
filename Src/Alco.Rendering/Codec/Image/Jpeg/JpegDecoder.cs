@@ -186,6 +186,105 @@ internal static unsafe class JpegDecoder
         throw new ImageDecodeException("No SOF marker found in JPEG.");
     }
 
+    /// <summary>
+    /// Read JPEG dimensions from a stream positioned right after the SOI marker (FF D8),
+    /// walking segment headers until the SOF marker. Only marker headers are read from
+    /// the stream; segment payloads are skipped by seeking (or by draining when the
+    /// stream is not seekable), so the bytes read stay minimal regardless of file size.
+    /// </summary>
+    /// <param name="stream">The stream positioned after SOI.</param>
+    /// <returns>Image width and height in pixels.</returns>
+    /// <exception cref="ImageDecodeException">Truncated or corrupt header, or no
+    /// supported SOF marker before the scan data.</exception>
+    public static (int Width, int Height) GetInfo(Stream stream)
+    {
+        Span<byte> buffer = stackalloc byte[8];
+        try
+        {
+            while (true)
+            {
+                // Find the marker prefix.
+                int value = stream.ReadByte();
+                if (value < 0)
+                {
+                    break;
+                }
+                if (value != 0xFF)
+                {
+                    continue;
+                }
+
+                // Skip padding FF bytes.
+                do
+                {
+                    value = stream.ReadByte();
+                } while (value == 0xFF);
+                if (value < 0)
+                {
+                    break;
+                }
+
+                int marker = 0xFF00 | value;
+                if (marker == SOF0 || marker == SOF2)
+                {
+                    // length(2) + precision(1) + height(2) + width(2)
+                    stream.ReadExactly(buffer[..7]);
+                    int prec = buffer[2];
+                    int h = (buffer[3] << 8) | buffer[4];
+                    int w = (buffer[5] << 8) | buffer[6];
+                    if (prec != 8)
+                        throw new ImageDecodeException($"Unsupported JPEG precision: {prec}.");
+                    if (w <= 0 || h <= 0)
+                        throw new ImageDecodeException($"Invalid JPEG dimensions: {w}x{h}.");
+                    return (w, h);
+                }
+
+                if (marker == SOS)
+                {
+                    throw new ImageDecodeException("SOS marker encountered before SOF.");
+                }
+
+                if (HasMarkerData(marker))
+                {
+                    stream.ReadExactly(buffer[..2]);
+                    int length = (buffer[0] << 8) | buffer[1];
+                    if (length < 2)
+                    {
+                        throw new ImageDecodeException($"Invalid JPEG marker segment length: {length}.");
+                    }
+                    SkipBytes(stream, length - 2);
+                }
+            }
+        }
+        catch (EndOfStreamException)
+        {
+            // fall through to the no-SOF error below
+        }
+
+        throw new ImageDecodeException("No SOF marker found in JPEG.");
+    }
+
+    /// <summary>Skip count bytes in a stream, seeking when possible and draining otherwise.</summary>
+    private static void SkipBytes(Stream stream, int count)
+    {
+        if (stream.CanSeek)
+        {
+            stream.Seek(count, SeekOrigin.Current);
+            return;
+        }
+
+        byte[] drain = new byte[Math.Min(count, 4096)];
+        while (count > 0)
+        {
+            int read = stream.Read(drain, 0, Math.Min(count, drain.Length));
+            if (read <= 0)
+            {
+                throw new EndOfStreamException();
+            }
+            count -= read;
+        }
+    }
+
     #region Marker Parsing
 
     /// <summary>

@@ -13,20 +13,19 @@ IAudioDeviceHost
 {
     #region Host Interface
     private event Action? EventOnEndFrame;
-    private event Action? EventOnHandleAssetLoaded;
     private event Action? EventOnDispose;
     private event Action<float>? EventOnUpdate;
-
-    event Action IGPUDeviceHost.OnEndFrame
-    {
-        add => EventOnEndFrame += value;
-        remove => EventOnEndFrame -= value;
-    }
 
     event Action IAssetSystemHost.OnDispose
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;
+    }
+
+    event Action IGPUDeviceHost.OnEndFrame
+    {
+        add => EventOnEndFrame += value;
+        remove => EventOnEndFrame -= value;
     }
 
     event Action IGPUDeviceHost.OnDispose

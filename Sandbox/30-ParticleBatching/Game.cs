@@ -11,7 +11,7 @@ using Alco.ImGUI;
 public class Game : GameEngine
 {
     private readonly Camera2DBuffer _camera;
-    private readonly Material _materialParticle;
+    private readonly GraphicsMaterial _materialParticle;
     private readonly List<ParticleSystem2DCPU> _particleSystems;
     private readonly List<ParticleEmitterBox2D> _emitters;
     private readonly List<ParticleSimulatorColorLerp2D> _simulators;
@@ -59,11 +59,13 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+
         // Create camera with larger view for multiple systems
         _camera = RenderingSystem.CreateCamera2D(128, 72, 100);
 
         // Create material for particles
-        _materialParticle = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Particle2D);
+        _materialParticle = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Particle2D);
         _materialParticle.BlendState = BlendState.Additive;
         _materialParticle.SetBuffer(ShaderResourceId.Camera, _camera);
 
@@ -81,7 +83,7 @@ public class Game : GameEngine
         _renderer = RenderingSystem.CreateInstanceRenderer<ParticleData2D>(
             _subRenderContext, 
             _materialParticle, 
-            "_particles", 
+            "particles", 
             256 * 1024, // 2MB buffer for better batching
             "ParticleBatchingRenderer"
         );
@@ -149,20 +151,18 @@ public class Game : GameEngine
     {
         // Simulate all particle systems
         // Batch render all particles using EnqueueInstances
-        _subRenderContext.Begin(MainFrameBuffer.AttachmentLayout);
-        
-        // Enqueue particles from each system - the InstanceRenderer will batch them automatically
-        foreach (var system in _particleSystems)
+        using (RenderPassScope pass = _subRenderContext.BeginPass(MainPresenter.AttachmentLayout!))
         {
-            system.Simulate(delta);
-            _renderer.EnqueueInstances(system.Particles);
+            // Enqueue particles from each system - the InstanceRenderer will batch them automatically
+            foreach (var system in _particleSystems)
+            {
+                system.Simulate(delta);
+                _renderer.EnqueueInstances(system.Particles);
+            }
+
+
+            _renderer.Draw(_mesh);
         }
-
-
-        _renderer.Draw(_mesh);
-        
-
-        _subRenderContext.End();
     }
 
     protected override void OnUpdate(float delta)
@@ -173,11 +173,15 @@ public class Game : GameEngine
         }
 
         // Render particles
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+
         if (_subRenderContext.HasBuffer)
         {
-            _renderContext.Begin(MainFrameBuffer);
-            _renderContext.ExecuteSubContext(_subRenderContext);
-            _renderContext.End();
+            using (RenderFrameScope frame = _renderContext.BeginFrame())
+            using (RenderPassScope pass = _renderContext.BeginPass(frameBuffer, ColorFloat.Black))
+            {
+                pass.ExecuteSubContext(_subRenderContext);
+            }
         }
 
         // Show performance and controls

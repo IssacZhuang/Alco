@@ -9,6 +9,8 @@ using Alco.IO;
 
 public class Game : GameEngine
 {
+    private readonly GPUCommandBuffer _commandBuffer;
+
     private bool showDemoWindow = true;
     private bool showCustomWindow = true;
     private float sliderValue = 0.5f;
@@ -21,6 +23,9 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
+
         _texture = AssetSystem.Load<Texture2D>("Textures/Grid.png");
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
@@ -37,6 +42,16 @@ public class Game : GameEngine
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();
+        }
+
+        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        {
+            _commandBuffer.Begin();
+            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            {
+            }
+            _commandBuffer.End();
+            GraphicsDevice.Submit(_commandBuffer);
         }
 
         RenderImGUIContent();

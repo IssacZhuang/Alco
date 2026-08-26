@@ -4,20 +4,31 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The state cache for the GPu pipeline.
+/// The state cache for the GPU pipeline.
 /// Must be used with <see cref="Shader.TryUpdatePipelineContext"/> to set the pipeline. Otherwise, the pipeline will be null.
 /// </summary>
 public struct GraphicsPipelineContext
 {
     public GPUPipeline? Pipeline;
     public GPUAttachmentLayout? AttachmentLayout;
-    public ShaderReflectionInfo? ReflectionInfo;
+    public ShaderReflection? ReflectionInfo;
     public DepthStencilState DepthStencil;
     public BlendState BlendState;
     public RasterizerState Rasterizer;
     public PrimitiveTopology PrimitiveTopology;
-    public string[] Defines;
     public uint Version;
+
+    /// <summary>
+    /// The specialization arguments the context was built for (set by the
+    /// Shader.GetGraphicsPipeline call; TryUpdatePipelineContext keeps them) —
+    /// the variant identity of the cached pipeline.
+    /// </summary>
+    public string[]? Specializations;
+
+    /// <summary>
+    /// The size in bytes of the push constants block, or 0 when the pipeline is not set.
+    /// </summary>
+    public readonly int PushConstantsSize => ReflectionInfo?.PushConstantsSize ?? 0;
 
     public static readonly GraphicsPipelineContext Default = new GraphicsPipelineContext();
 
@@ -30,17 +41,15 @@ public struct GraphicsPipelineContext
         BlendState = BlendState.Opaque;
         Rasterizer = RasterizerState.CullNone;
         PrimitiveTopology = PrimitiveTopology.TriangleList;
-        Defines = Array.Empty<string>();
         Version = 0;
     }
 
     public GraphicsPipelineContext(
-        ShaderReflectionInfo? reflectionInfo,
+        ShaderReflection? reflectionInfo,
         DepthStencilState depthStencil,
         BlendState blendState,
         RasterizerState rasterizer,
-        PrimitiveTopology primitiveTopology,
-        string[] defines)
+        PrimitiveTopology primitiveTopology)
 
     {
         ReflectionInfo = reflectionInfo;
@@ -48,7 +57,6 @@ public struct GraphicsPipelineContext
         BlendState = blendState;
         Rasterizer = rasterizer;
         PrimitiveTopology = primitiveTopology;
-        Defines = defines;
         Version = 0;
     }
 
@@ -62,7 +70,6 @@ public struct GraphicsPipelineContext
         BlendState = blendState;
         Rasterizer = rasterizer;
         PrimitiveTopology = primitiveTopology;
-        Defines = Array.Empty<string>();
         Version = 0;
     }
 

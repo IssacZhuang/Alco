@@ -11,7 +11,7 @@ public class Cube
         public ColorFloat color;
     }
 
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
     private readonly Mesh _mesh;
     private RenderDataPerObject _renderData;
     public Transform3D transform;
@@ -27,7 +27,7 @@ public class Cube
         set => _renderData.color = value;
     }
 
-    public Cube(Mesh mesh, Material material)
+    public Cube(Mesh mesh, GraphicsMaterial material)
     {
         _mesh = mesh;
         _material = material;
@@ -36,7 +36,7 @@ public class Cube
 
 
 
-    public void OnDraw(RenderContext renderer)
+    public void OnDraw(IRenderContext renderer)
     {
         _renderData.matrix = transform.Matrix;
         // renderer already began

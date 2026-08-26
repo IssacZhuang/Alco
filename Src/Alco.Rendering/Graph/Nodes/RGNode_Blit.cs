@@ -1,0 +1,82 @@
+using Alco.Graphics;
+
+namespace Alco.Rendering;
+
+/// <summary>
+/// The final node of a graph: copies the chain's current content into the frame's
+/// destination with a full-screen draw. Register it last (or keep it last with
+/// <see cref="RenderGraph.InsertBefore"/> when adding chain nodes). Disabled on
+/// headless frames (null destination); otherwise it is the graph's culling root
+/// (<see cref="RenderGraphBuilder.ProducesOutput"/>).
+/// </summary>
+public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
+{
+    private readonly RenderGraph _graph;
+    private readonly RenderChain _chain;
+    private readonly Mesh _fullScreenMesh;
+    private readonly GraphicsMaterial _blitMaterial;
+
+    // The resource to blit, captured during Setup (it is the chain tail by the time
+    // this node — registered last — runs its Setup).
+    private RenderGraphTexture? _input;
+
+    /// <summary>
+    /// The node's construction data: the shader of the plain copy. Service-type
+    /// dependencies (the rendering system, graph, chain) are explicit constructor
+    /// parameters instead — a descriptor is pure data.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The shader used for the plain copy.</summary>
+        public required Shader BlitShader { get; init; }
+    }
+
+    /// <summary>
+    /// Creates the blit node, including its blit material.
+    /// </summary>
+    /// <param name="rendering">The rendering system, for GPU resources.</param>
+    /// <param name="graph">The graph the node is (or will be) registered in.</param>
+    /// <param name="chain">The content chain whose tail is blitted.</param>
+    /// <param name="descriptor">The node's construction data.</param>
+    public RGNode_Blit(RenderingSystem rendering, RenderGraph graph, RenderChain chain, in Descriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(rendering);
+        ArgumentNullException.ThrowIfNull(graph);
+        ArgumentNullException.ThrowIfNull(chain);
+        ArgumentNullException.ThrowIfNull(descriptor.BlitShader);
+        _graph = graph;
+        _chain = chain;
+        _fullScreenMesh = rendering.MeshFullScreen;
+        _blitMaterial = rendering.CreateGraphicsMaterial(descriptor.BlitShader);
+    }
+
+    /// <inheritdoc />
+    public bool IsEnabled => _graph.HasDestinationThisFrame;
+
+    /// <inheritdoc />
+    public void Setup(RenderGraphBuilder builder)
+    {
+        _input = _chain.Current!;
+        builder.Read(_input);
+        builder.ProducesOutput();
+    }
+
+    /// <inheritdoc />
+    public void Execute(in RenderGraphContext context)
+    {
+        _blitMaterial.SetRenderTexture(ShaderResourceId.Texture, _input!.Texture);
+        using (RenderPassScope pass = context.RenderContext.BeginPass(context.Destination!))
+        {
+            pass.Draw(_fullScreenMesh, _blitMaterial);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _blitMaterial.Dispose();
+        }
+    }
+}

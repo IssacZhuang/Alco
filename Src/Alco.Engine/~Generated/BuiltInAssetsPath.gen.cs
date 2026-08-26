@@ -9,65 +9,67 @@ public static partial class BuiltInAssetsPath
     
    public const string Font_Default = "Fonts/Default.ttf";
 
-   public const string Shader_ClearTexture = "Shaders/Pipelines/Compute/ClearTexture.hlsl";
+   public const string Shader_Blit = "Blit";
 
-   public const string Shader_FloodFillLighting = "Shaders/Pipelines/Compute/FloodFillLighting.hlsl";
+   public const string Shader_BlitDepth = "BlitDepth";
 
-   public const string Shader_GaussianBlurRGBA16F = "Shaders/Pipelines/Compute/GaussianBlurRGBA16F.hlsl";
+   public const string Shader_BlitRegion = "BlitRegion";
 
-   public const string Shader_GaussianBlurRGBA32F = "Shaders/Pipelines/Compute/GaussianBlurRGBA32F.hlsl";
+   public const string Shader_BlitWithColor = "BlitWithColor";
 
-   public const string Shader_GaussianBlurRGBA8 = "Shaders/Pipelines/Compute/GaussianBlurRGBA8.hlsl";
+   public const string Shader_ClearTexture = "ClearTexture";
 
-   public const string Shader_TextSDF = "Shaders/Pipelines/Compute/TextSDF.hlsl";
+   public const string Shader_TextureCompressBc3 = "TextureCompressBc3";
 
-   public const string Shader_ColorGrading = "Shaders/Pipelines/PostProcess/ColorGrading.hlsl";
+   public const string Shader_FloodFillLighting = "FloodFillLighting";
 
-   public const string Shader_FXAA = "Shaders/Pipelines/PostProcess/FXAA.hlsl";
+   public const string Shader_GaussianBlurRgba16f = "GaussianBlurRgba16f";
 
-   public const string Shader_Blit = "Shaders/Pipelines/Utils/Blit.hlsl";
+   public const string Shader_GaussianBlurRgba32f = "GaussianBlurRgba32f";
 
-   public const string Shader_BlitDepth = "Shaders/Pipelines/Utils/BlitDepth.hlsl";
+   public const string Shader_GaussianBlurRgba8 = "GaussianBlurRgba8";
 
-   public const string Shader_BlitRegion = "Shaders/Pipelines/Utils/BlitRegion.hlsl";
+   public const string Shader_TextSdf = "TextSdf";
 
-   public const string Shader_BlitWithColor = "Shaders/Pipelines/Utils/BlitWithColor.hlsl";
+   public const string Shader_BloomBlit = "BloomBlit";
 
-   public const string Shader_TextureCompressBC3 = "Shaders/Pipelines/Compute/Compress/TextureCompressBC3.hlsl";
+   public const string Shader_BloomClamp = "BloomClamp";
 
-   public const string Shader_BloomBlit = "Shaders/Pipelines/PostProcess/Bloom/BloomBlit.hlsl";
+   public const string Shader_BloomDownsample = "BloomDownsample";
 
-   public const string Shader_BloomClamp = "Shaders/Pipelines/PostProcess/Bloom/BloomClamp.hlsl";
+   public const string Shader_BloomUpsample = "BloomUpsample";
 
-   public const string Shader_BloomDownSample = "Shaders/Pipelines/PostProcess/Bloom/BloomDownSample.hlsl";
+   public const string Shader_ColorGrading = "ColorGrading";
 
-   public const string Shader_BloomUpSample = "Shaders/Pipelines/PostProcess/Bloom/BloomUpSample.hlsl";
+   public const string Shader_FXAA = "FXAA";
 
-   public const string Shader_ACESTonemap = "Shaders/Pipelines/PostProcess/Tonemap/ACESTonemap.hlsl";
+   public const string Shader_AcesTonemap = "AcesTonemap";
 
-   public const string Shader_FilmicTonemap = "Shaders/Pipelines/PostProcess/Tonemap/FilmicTonemap.hlsl";
+   public const string Shader_AgxTonemap = "AgxTonemap";
 
-   public const string Shader_NeutralTonemap = "Shaders/Pipelines/PostProcess/Tonemap/NeutralTonemap.hlsl";
+   public const string Shader_FilmicTonemap = "FilmicTonemap";
 
-   public const string Shader_ReinhardLuminanceTonemap = "Shaders/Pipelines/PostProcess/Tonemap/ReinhardLuminanceTonemap.hlsl";
+   public const string Shader_NeutralTonemap = "NeutralTonemap";
 
-   public const string Shader_Uncharted2Tonemap = "Shaders/Pipelines/PostProcess/Tonemap/Uncharted2Tonemap.hlsl";
+   public const string Shader_ReinhardLuminanceTonemap = "ReinhardLuminanceTonemap";
 
-   public const string Shader_Unlit = "Shaders/Pipelines/Rendering/Basic/Unlit.hlsl";
+   public const string Shader_Uncharted2Tonemap = "Uncharted2Tonemap";
 
-   public const string Shader_Particle2D = "Shaders/Pipelines/Rendering/Particle/Particle2D.hlsl";
+   public const string Shader_Particle2D = "Particle2D";
 
-   public const string Shader_Particle2DAnimated = "Shaders/Pipelines/Rendering/Particle/Particle2DAnimated.hlsl";
+   public const string Shader_Particle2DAnimated = "Particle2DAnimated";
 
-   public const string Shader_Sprite = "Shaders/Pipelines/Rendering/Sprite/Sprite.hlsl";
+   public const string Shader_Sprite = "Sprite";
 
-   public const string Shader_SpriteInstanced = "Shaders/Pipelines/Rendering/Sprite/SpriteInstanced.hlsl";
+   public const string Shader_SpriteInstanced = "SpriteInstanced";
 
-   public const string Shader_Text = "Shaders/Pipelines/Rendering/Text/Text.hlsl";
+   public const string Shader_Text = "Text";
 
-   public const string Shader_TileInstanced = "Shaders/Pipelines/Rendering/TileMap/TileInstanced.hlsl";
+   public const string Shader_TileInstanced = "TileInstanced";
 
-   public const string Shader_TileWaterInstanced = "Shaders/Pipelines/Rendering/TileMap/TileWaterInstanced.hlsl";
+   public const string Shader_TileWaterInstanced = "TileWaterInstanced";
+
+   public const string Shader_Unlit = "Unlit";
 
 
 }

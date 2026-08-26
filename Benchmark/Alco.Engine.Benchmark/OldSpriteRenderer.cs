@@ -6,11 +6,14 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Benchmark;
 
-// the old sprite renderer, use less command for better performance, but not flexible
+/// <summary>
+/// The old sprite rendering path, retained as a benchmark baseline: it issues fewer GPU
+/// commands for better performance, but is less flexible than the current renderer.
+/// </summary>
 internal sealed class OldSpriteRenderer : AutoDisposable
 {
-    public const string ShaderId_camera = "_camera";
-    public const string ShaderId_texture = "_texture";
+    public const string ShaderId_camera = "camera";
+    public const string ShaderId_texture = "texture";
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Constant
@@ -44,7 +47,7 @@ internal sealed class OldSpriteRenderer : AutoDisposable
         _mesh = mesh;
 
         _pipelineInfo = shader.GetGraphicsPipeline(
-            renderingSystem.PreferredSDRPass,
+            renderingSystem.PreferredHDRPass,
             DepthStencilState.Read,
             BlendState.AlphaBlend
         );
@@ -165,8 +168,8 @@ internal sealed class OldSpriteRenderer : AutoDisposable
             UvRect = uvRect
         };
 
-        _renderPass.SetResources(_shaderId_texture, texture.EntrySample);
-        _renderPass.PushConstants(ShaderStage.Vertex | ShaderStage.Fragment, constant);
+        _renderPass.SetResources(_shaderId_texture, texture.EntryReadonly);
+        _renderPass.PushConstants(constant);
         _renderPass.DrawIndexed(_indexCount, 1, 0, 0, 0);
     }
 

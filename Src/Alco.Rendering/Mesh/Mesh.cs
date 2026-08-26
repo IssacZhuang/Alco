@@ -68,13 +68,15 @@ public abstract class Mesh : AutoDisposable
         _vertexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = vertexBufferSize,
-            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+            // CopySrc lets the voxel GI pipeline copy vertex data into its own
+            // storage buffers for compute voxelization.
+            Usage = BufferUsage.Vertex | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
 
         _indexBuffer = device.CreateBuffer(new BufferDescriptor
         {
             Size = indexBufferSize,
-            Usage = BufferUsage.Index | BufferUsage.CopyDst,
+            Usage = BufferUsage.Index | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
 
     }
@@ -131,7 +133,7 @@ public abstract class Mesh : AutoDisposable
         _vertexBuffer = _device.CreateBuffer(new BufferDescriptor
         {
             Size = size,
-            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+            Usage = BufferUsage.Vertex | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
         IncrementVersion();
     }
@@ -167,7 +169,7 @@ public abstract class Mesh : AutoDisposable
         _indexBuffer = _device.CreateBuffer(new BufferDescriptor
         {
             Size = size,
-            Usage = BufferUsage.Index | BufferUsage.CopyDst,
+            Usage = BufferUsage.Index | BufferUsage.CopyDst | BufferUsage.CopySrc,
         });
         IncrementVersion();
     }
@@ -182,6 +184,42 @@ public abstract class Mesh : AutoDisposable
         if (size > _indexBuffer.Size)
         {
             ResizeIndexBuffer(size);
+        }
+    }
+
+    /// <summary>
+    /// Write index payload bytes handling the 4-byte alignment requirement of queue writes:
+    /// the aligned bulk is written directly, a 1-3 byte remainder is padded to 4 bytes
+    /// (the index buffer reserves that padding, see <see cref="ResizeIndexBuffer"/>).
+    /// </summary>
+    /// <param name="data">The payload source pointer.</param>
+    /// <param name="size">The number of payload bytes.</param>
+    /// <param name="offset">Byte offset inside the index buffer.</param>
+    protected unsafe void WriteIndexDataAligned(void* data, uint size, uint offset)
+    {
+        if (offset + size > IndexBuffer.Size)
+        {
+            throw new InvalidOperationException(
+                $"Index upload out of range. offset: {offset}, size: {size}, buffer size: {IndexBuffer.Size}");
+        }
+
+        uint alignedSize = size & ~3u;
+        if (alignedSize > 0)
+        {
+            _device.WriteBuffer(IndexBuffer, offset, (byte*)data, alignedSize);
+        }
+
+        uint remainder = size - alignedSize;
+        if (remainder > 0)
+        {
+            byte* alignedData = (byte*)data + alignedSize;
+            byte* temp = stackalloc byte[4];
+            for (int i = 0; i < remainder; i++)
+            {
+                temp[i] = alignedData[i];
+            }
+
+            _device.WriteBuffer(IndexBuffer, offset + alignedSize, temp, 4);
         }
     }
 

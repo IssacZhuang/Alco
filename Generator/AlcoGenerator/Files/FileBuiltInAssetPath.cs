@@ -24,14 +24,12 @@ public static partial class BuiltInAssetsPath
 
     private static readonly string GenStatementVariable = @"   public const string {0} = ""{1}"";";
 
-    private readonly List<FileInfo> _files;
+    private readonly List<(FileInfo File, string RelativePath)> _files;
     private readonly Dictionary<string, string> _duplicateCheck = new Dictionary<string, string>();
-    private readonly string _assetsPath;
 
-    public FileBuiltInAssetPath(List<FileInfo> files, string assetsPath)
+    public FileBuiltInAssetPath(List<(FileInfo File, string RelativePath)> files)
     {
         _files = files;
-        _assetsPath = assetsPath;
     }
 
     public string GenerateContent()
@@ -39,19 +37,27 @@ public static partial class BuiltInAssetsPath
         StringBuilder builder = new StringBuilder();
         builder.AppendLine(GenFileContentBegin);
 
-        foreach (var file in _files)
+        foreach (var (file, localPath) in _files)
         {
             string filePath = file.FullName;
-            string localPath = GetLocalPath(filePath);
 
             if (ShouldGenerate(filePath, out string namePrefix))
             {
-                string fileName = Path.GetFileNameWithoutExtension(filePath);
-                string variableName = namePrefix + fileName;
-
-                if (!VariableNameRegex.IsMatch(fileName))
+                // Import-only shader libraries own no entry points; loading them
+                // as shaders would fail to link, so no accessors are generated.
+                if (Path.GetExtension(filePath) == ".slang" && localPath.Contains("Shaders/Libs/"))
                 {
-                    Console.WriteLine($"Warning: Invalid variable name '{fileName}', should match regex '{VariableNameRegex}' in '{filePath}'. Skipped");
+                    continue;
+                }
+
+                string fileName = Path.GetFileNameWithoutExtension(filePath);
+                // Asset stems are kebab-case (slang convention); the generated
+                // identifier PascalCases each dashed word (fxaa → Fxaa).
+                string variableName = namePrefix + FileBuiltInAsset.ToPascalIdentifier(fileName);
+
+                if (!VariableNameRegex.IsMatch(variableName))
+                {
+                    Console.WriteLine($"Warning: Invalid variable name '{variableName}' in '{filePath}'. Skipped");
                     continue;
                 }
 
@@ -62,7 +68,10 @@ public static partial class BuiltInAssetsPath
                 }
 
                 _duplicateCheck.Add(variableName, filePath);
-                builder.AppendLine(string.Format(GenStatementVariable, variableName, localPath));
+                string value = Path.GetExtension(filePath) == ".slang"
+                    ? fileName.Replace('_', '-')
+                    : localPath;
+                builder.AppendLine(string.Format(GenStatementVariable, variableName, value));
                 builder.AppendLine();
             }
         }
@@ -79,18 +88,12 @@ public static partial class BuiltInAssetsPath
             case ".ttf":
                 namePrefix = PrefixFont;
                 return true;
-            case ".hlsl":
+            case ".slang":
                 namePrefix = PrefixShader;
                 return true;
             default:
                 namePrefix = string.Empty;
                 return false;
         }
-    }
-
-    private string GetLocalPath(string filePath)
-    {
-        string relativePath = Path.GetRelativePath(_assetsPath, filePath);
-        return relativePath.Replace("\\", "/");
     }
 }

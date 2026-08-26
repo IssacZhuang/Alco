@@ -2,6 +2,7 @@ using System.Numerics;
 using Alco.Engine;
 using Alco.Rendering;
 using Alco;
+using Alco.IO;
 
 using FastRandom = Alco.FastRandom;
 using Alco.Graphics;
@@ -12,7 +13,8 @@ public class Game : GameEngine
     private readonly TextureAtlas _atlas;
     private readonly RenderContext _materialRenderer;
     private readonly Camera2DBuffer _camera;
-    private readonly Material _material;
+    private readonly GraphicsMaterial _material;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         FastRandom random = new FastRandom(123456789);
@@ -32,7 +34,7 @@ public class Game : GameEngine
             textures.Add(texture);
         }
 
-        Material blitMaterial = RenderingSystem.CreateMaterial(BuiltInAssets.Shader_Sprite);
+        GraphicsMaterial blitMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", false);
         TextureAtlasPacker packer = RenderingSystem.CreateTextureAtlasPacker(blitMaterial);
         for (int i = 0; i < spriteCount; i++)
         {
@@ -43,8 +45,33 @@ public class Game : GameEngine
         _camera = RenderingSystem.CreateCamera2D(MainView.Size, 1000);
         _materialRenderer = RenderingSystem.CreateRenderContext();
         _material = blitMaterial.CreateInstance();
-        _material.SetBuffer("_camera", _camera);
-        _material.SetRenderTexture("_texture", _atlas.RenderTexture);
+        _material.SetBuffer("camera", _camera);
+        _material.SetRenderTexture("texture", _atlas.RenderTexture);
+    }
+
+    /// <summary>
+    /// Serves engine modules (the built-in shaders resolved through the AssetSystem)
+    /// on top of the sandbox's own tree — the same sources every sandbox exposing
+    /// engine shaders registers.
+    /// </summary>
+    public override IEnumerable<IFileSource> CreateDefaultFileSources()
+    {
+        foreach (var fileSource in base.CreateDefaultFileSources())
+        {
+            yield return fileSource;
+        }
+        yield return new DirectoryWatcherFileSource(GetSolutionAssetPath("Alco.Engine"), AssetSystem);
+        yield return new DirectoryWatcherFileSource(GetSolutionAssetPath("Alco.Rendering"), AssetSystem);
+    }
+
+    private static string GetSolutionAssetPath(string project)
+    {
+        string? current = AppContext.BaseDirectory;
+        while (current != null && Directory.GetFiles(current, "*.slnx").Length == 0)
+        {
+            current = Path.GetDirectoryName(current);
+        }
+        return Path.Combine(current ?? ".", "Src", project, "Assets");
     }
 
     protected override void OnUpdate(float delta)
@@ -54,6 +81,7 @@ public class Game : GameEngine
             Stop();
         }
 
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
 
         Transform2D transform = Transform2D.Identity;
         transform.Scale = new Vector2(_atlas.RenderTexture.Width, _atlas.RenderTexture.Height);
@@ -66,9 +94,10 @@ public class Game : GameEngine
         };
 
         //draw atlas texture
-        _materialRenderer.Begin(MainRenderTarget.FrameBuffer);
-        _materialRenderer.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
-        _materialRenderer.End();
-
+        using (RenderFrameScope frame = _materialRenderer.BeginFrame())
+        using (RenderPassScope pass = _materialRenderer.BeginPass(frameBuffer, ColorFloat.Black))
+        {
+            pass.DrawWithConstant(RenderingSystem.MeshCenteredSprite, _material, constant);
+        }
     }
 }

@@ -1,23 +1,36 @@
 using System.Numerics;
 using System.Threading.Tasks;
 using Alco.Engine;
-using Alco.Rendering;
 using Alco;
 using Alco.Graphics;
 using Alco.ImGUI;
 
 public class Game : GameEngine
 {
+    private readonly GPUCommandBuffer _commandBuffer;
+
     private bool showWindow = true;
     private bool isPicking;
     private string lastPickStatus = "";
 
     public Game(GameEngineSetting setting) : base(setting)
     {
+        AddSystem(new ImGUISystem(this));
+        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
     }
 
     protected override void OnUpdate(float delta)
     {
+        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        {
+            _commandBuffer.Begin();
+            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            {
+            }
+            _commandBuffer.End();
+            GraphicsDevice.Submit(_commandBuffer);
+        }
+
         if (Input.IsKeyDown(KeyCode.Escape))
         {
             Stop();

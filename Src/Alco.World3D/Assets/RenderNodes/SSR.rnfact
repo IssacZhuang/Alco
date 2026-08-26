@@ -1,0 +1,15 @@
+// Screen-space reflections render plugin node. The deferred inputs (G-buffer,
+// scene color, voxel GI node, camera, environment, post chain) are registered
+// on the factory context services by the composing code; graph insertion
+// happens in code through RGNode_SSR.Attach.
+{
+    "$type": "Alco.World3D.RGNodeFactory_SSR",
+    "descriptor": {
+        "traceShader": "SSRTrace",
+        "resolveShader": "SSRResolve",
+        "compositeShader": "SSRComposite",
+        "blitShader": "Blit",
+        "blueNoiseShader": "SSRBlueNoise",
+        "traceResolutionScale": 0.5
+    }
+}

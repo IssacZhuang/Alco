@@ -23,13 +23,15 @@ internal static partial class WebGPUUtility
         //compressed formats
         if (PixelFormatUtility.TryGetCompressedBlockSize(pixelFormat, out var blockSize))
         {
-            // BC formats use 4x4 pixel blocks
+            // BC formats use 4x4 pixel blocks; bytesPerRow covers one block row, while
+            // rowsPerImage stays in texel rows and must be a multiple of the block height.
             uint blocksPerRow = (width + 3) / 4;
+            uint blockRowsPerImage = (height + 3) / 4;
             return new WGPUTexelCopyBufferLayout
             {
                 offset = 0,
                 bytesPerRow = blocksPerRow * blockSize,
-                rowsPerImage = height/4
+                rowsPerImage = blockRowsPerImage * 4
             };
         }
 

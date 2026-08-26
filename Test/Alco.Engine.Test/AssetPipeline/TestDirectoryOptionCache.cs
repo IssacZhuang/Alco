@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using Alco.IO;
+using Alco.Rendering;
 using NUnit.Framework;
 
 namespace Alco.Engine.Test;

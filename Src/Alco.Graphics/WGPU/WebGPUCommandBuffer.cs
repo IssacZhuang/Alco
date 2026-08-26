@@ -65,7 +65,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         _colorAttachmentsCache.Dispose();
     }
 
-    // begin the encoder
+    /// <summary>Begins the native command encoder used for recording.</summary>
     protected unsafe override void BeginCore()
     {
         WGPUCommandEncoderDescriptor descriptor = new WGPUCommandEncoderDescriptor
@@ -83,7 +83,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    // end the encoder
+    /// <summary>Ends the native command encoder and finishes the command buffer.</summary>
     protected unsafe override void EndCore()
     {
         TryFinishCurrentComputePass();
@@ -106,7 +106,45 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         _encoder = WGPUCommandEncoder.Null;
     }
 
-    protected override void BeginRenderCore(GPUFrameBuffer frameBuffer, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth, uint? clearStencil)
+    protected override void BeginRenderCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps)
+    {
+        BeginRenderInternal(frameBuffer, clearColors, clearDepth, clearStencil, colorOps, depthOps, timestampWrites: null);
+    }
+
+    protected override void BeginRenderTimestampCore(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps)
+    {
+        WGPUPassTimestampWrites timestampWrites = new()
+        {
+            querySet = ((WebGPUTimestampQuerySet)querySet).Native,
+            beginningOfPassWriteIndex = ToTimestampIndex(beginningQueryIndex),
+            endOfPassWriteIndex = ToTimestampIndex(endQueryIndex),
+        };
+        BeginRenderInternal(frameBuffer, clearColors, clearDepth, clearStencil, colorOps, depthOps, &timestampWrites);
+    }
+
+    private void BeginRenderInternal(
+        GPUFrameBuffer frameBuffer,
+        ReadOnlySpan<ClearColorData> clearColors,
+        float? clearDepth,
+        uint? clearStencil,
+        ReadOnlySpan<AttachmentOps> colorOps,
+        AttachmentOps? depthOps,
+        WGPUPassTimestampWrites* timestampWrites)
     {
         WebGPUFrameBufferBase nativeFrameBuffer = (WebGPUFrameBufferBase)frameBuffer;
 
@@ -122,6 +160,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
             _colorAttachmentsCache[i] = tmpDescriptor.colorAttachments[i];
         }
 
+        uint clearedColorMask = 0;
         for (int i = 0; i < clearColors.Length; i++)
         {
             ClearColorData clearColor = clearColors[i];
@@ -131,6 +170,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
                 continue;
             }
 
+            clearedColorMask |= 1u << (int)index;
             _colorAttachmentsCache[index].loadOp = WGPULoadOp.Clear;
             _colorAttachmentsCache[index].storeOp = WGPUStoreOp.Store;
             _colorAttachmentsCache[index].clearValue = new WGPUColor
@@ -142,10 +182,36 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
             };
         }
 
+        // Apply explicit load/store ops after the clear handling: a clear specified through
+        // clearColors implies LoadOp.Clear and takes precedence over the load op.
+        int colorOpsCount = Math.Min(colorOps.Length, (int)tmpDescriptor.colorAttachmentCount);
+        for (int i = 0; i < colorOpsCount; i++)
+        {
+            AttachmentOps ops = colorOps[i];
+            _colorAttachmentsCache[i].storeOp = ToWebGPU(ops.StoreOp);
+            if ((clearedColorMask & (1u << i)) == 0)
+            {
+                _colorAttachmentsCache[i].loadOp = ToWebGPU(ops.LoadOp);
+            }
+        }
+
         // Setup depth stencil attachment with clear values
         if (tmpDescriptor.depthStencilAttachment != null)
         {
             WGPURenderPassDepthStencilAttachment attachment = *tmpDescriptor.depthStencilAttachment;
+
+            if (attachment.depthReadOnly && (clearDepth.HasValue || depthOps.HasValue))
+            {
+                throw new InvalidOperationException(
+                    "The pass's depth attachment is read-only (the attachment layout declares " +
+                    "DepthAttachment.ReadOnly): it cannot be cleared or have explicit load/store ops.");
+            }
+            if (attachment.stencilReadOnly && (clearStencil.HasValue || depthOps.HasValue))
+            {
+                throw new InvalidOperationException(
+                    "The pass's stencil attachment is read-only (the attachment layout declares " +
+                    "DepthAttachment.ReadOnly): it cannot be cleared or have explicit load/store ops.");
+            }
 
             if (clearDepth.HasValue)
             {
@@ -153,12 +219,22 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
                 attachment.depthStoreOp = WGPUStoreOp.Store;
                 attachment.depthClearValue = clearDepth.Value;
             }
+            else if (depthOps.HasValue)
+            {
+                attachment.depthLoadOp = ToWebGPU(depthOps.Value.LoadOp);
+                attachment.depthStoreOp = ToWebGPU(depthOps.Value.StoreOp);
+            }
 
             if (clearStencil.HasValue)
             {
                 attachment.stencilLoadOp = WGPULoadOp.Clear;
                 attachment.stencilStoreOp = WGPUStoreOp.Store;
                 attachment.stencilClearValue = clearStencil.Value;
+            }
+            else if (depthOps.HasValue)
+            {
+                attachment.stencilLoadOp = ToWebGPU(depthOps.Value.LoadOp);
+                attachment.stencilStoreOp = ToWebGPU(depthOps.Value.StoreOp);
             }
 
             _depthStencilAttachmentCache = attachment;
@@ -173,6 +249,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         {
             colorAttachmentCount = nativeFrameBuffer.Native.colorAttachmentCount,
             colorAttachments = _colorAttachmentsCache.Ptr,
+            timestampWrites = timestampWrites,
         };
 
         if (_depthStencilAttachmentCache.HasValue)
@@ -202,6 +279,34 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         _computePass = wgpuCommandEncoderBeginComputePass(_encoder, null);
     }
 
+    protected override void BeginComputeTimestampCore(
+        GPUTimestampQuerySet querySet,
+        uint? beginningQueryIndex,
+        uint? endQueryIndex)
+    {
+        TryFinishCurrentRenderPass();
+        TryFinishCurrentComputePass();
+
+        WGPUPassTimestampWrites timestampWrites = new()
+        {
+            querySet = ((WebGPUTimestampQuerySet)querySet).Native,
+            beginningOfPassWriteIndex = ToTimestampIndex(beginningQueryIndex),
+            endOfPassWriteIndex = ToTimestampIndex(endQueryIndex),
+        };
+        WGPUComputePassDescriptor descriptor = new()
+        {
+            timestampWrites = &timestampWrites,
+        };
+        _computePass = wgpuCommandEncoderBeginComputePass(_encoder, &descriptor);
+    }
+
+    // wgpu-native marks an absent timestamp write with the all-ones sentinel
+    // (WGPU_QUERY_SET_INDEX_UNDEFINED) instead of a null index.
+    private static uint ToTimestampIndex(uint? queryIndex)
+    {
+        return queryIndex ?? WGPU_QUERY_SET_INDEX_UNDEFINED;
+    }
+
     protected override void EndComputeCore()
     {
         if (_computePass != WGPUComputePassEncoder.Null)
@@ -212,10 +317,46 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
+    protected override void WriteTimestampInsidePassCore(
+        GPUTimestampQuerySet querySet,
+        uint queryIndex)
+    {
+        if (_computePass != WGPUComputePassEncoder.Null)
+        {
+            wgpuComputePassEncoderWriteTimestamp(
+                _computePass,
+                ((WebGPUTimestampQuerySet)querySet).Native,
+                queryIndex);
+        }
+        else if (_renderPass != WGPURenderPassEncoder.Null)
+        {
+            wgpuRenderPassEncoderWriteTimestamp(
+                _renderPass,
+                ((WebGPUTimestampQuerySet)querySet).Native,
+                queryIndex);
+        }
+    }
+
+    protected override void ResolveTimestampsCore(
+        GPUTimestampQuerySet querySet,
+        uint firstQuery,
+        uint queryCount,
+        GPUBuffer destination,
+        ulong destinationOffset)
+    {
+        WGPUQuerySet nativeQuerySet = ((WebGPUTimestampQuerySet)querySet).Native;
+        WGPUBuffer nativeDestination = ((WebGPUBuffer)destination).Native;
+        wgpuCommandEncoderResolveQuerySet(
+            _encoder,
+            nativeQuerySet,
+            firstQuery,
+            queryCount,
+            nativeDestination,
+            destinationOffset);
+    }
+
     protected override void SetScissorRectCore(uint x, uint y, uint width, uint height)
     {
-        ValidateGraphicsPipeline();
-
         wgpuRenderPassEncoderSetScissorRect(_renderPass, x, y, width, height);
     }
 
@@ -286,15 +427,14 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
 
 
-    protected override unsafe void PushGraphicsConstantsCore(ShaderStage stage, uint bufferOffset, byte* data, uint size)
+    protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
-        WGPUShaderStage shaderStage = WebGPUUtility.ConvertShaderStage(stage);
-        wgpuRenderPassEncoderSetPushConstants(_renderPass, shaderStage, bufferOffset, size, data);
+        wgpuRenderPassEncoderSetImmediates(_renderPass, bufferOffset, data, size);
     }
 
     protected override unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size)
     {
-        wgpuComputePassEncoderSetPushConstants(_computePass, bufferOffset, size, data);
+        wgpuComputePassEncoderSetImmediates(_computePass, bufferOffset, data, size);
     }
 
     protected unsafe override void SetComputePipelineCore(GPUPipeline pipeline)
@@ -373,6 +513,41 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
 
     }
 
+    protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
+    {
+        WebGPUTexture nativeSrc = (WebGPUTexture)src;
+        WebGPUTexture nativeDst = (WebGPUTexture)dst;
+        WGPUTextureAspect wgpuAspect = WebGPUUtility.TextureAspectToWebGPU(aspect);
+
+        WGPUTexelCopyTextureInfo source = new WGPUTexelCopyTextureInfo
+        {
+            texture = nativeSrc.Native,
+            mipLevel = srcMipLevel,
+            origin = new WGPUOrigin3D { x = 0, y = 0, z = 0 },
+            aspect = wgpuAspect
+        };
+
+        WGPUTexelCopyTextureInfo destination = new WGPUTexelCopyTextureInfo
+        {
+            texture = nativeDst.Native,
+            mipLevel = dstMipLevel,
+            origin = new WGPUOrigin3D { x = 0, y = 0, z = 0 },
+            aspect = wgpuAspect
+        };
+
+        // Copy the full mip extent (adjusted for the source mip level).
+        uint mipWidth = nativeSrc.GetMipWidth(srcMipLevel);
+        uint mipHeight = nativeSrc.GetMipHeight(srcMipLevel);
+        WGPUExtent3D copySize = new WGPUExtent3D
+        {
+            width = mipWidth,
+            height = mipHeight,
+            depthOrArrayLayers = 1
+        };
+
+        wgpuCommandEncoderCopyTextureToTexture(_encoder, &source, &destination, &copySize);
+    }
+
     protected override void ExecuteBundleCore(GPURenderBundle bundle)
     {
         WebGPURenderBundle nativeBundle = (WebGPURenderBundle)bundle;
@@ -398,6 +573,28 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
     #endregion
 
     #region WebGPU Implementation
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static WGPULoadOp ToWebGPU(AttachmentLoadOp loadOp)
+    {
+        return loadOp switch
+        {
+            AttachmentLoadOp.Load => WGPULoadOp.Load,
+            AttachmentLoadOp.Clear => WGPULoadOp.Clear,
+            _ => WGPULoadOp.Load,
+        };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static WGPUStoreOp ToWebGPU(AttachmentStoreOp storeOp)
+    {
+        return storeOp switch
+        {
+            AttachmentStoreOp.Store => WGPUStoreOp.Store,
+            AttachmentStoreOp.Discard => WGPUStoreOp.Discard,
+            _ => WGPUStoreOp.Store,
+        };
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public WGPUCommandBuffer TakeBuffer()
