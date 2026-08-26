@@ -28,6 +28,12 @@ namespace Alco.Rendering;
 /// </summary>
 public class MaterialAsset : IJsonOnDeserialized
 {
+    private ShaderLibrary? _surface;
+    private IReadOnlyList<string> _defines = [];
+    private IReadOnlyDictionary<string, ShaderValue> _parameters = new Dictionary<string, ShaderValue>();
+    private IReadOnlyDictionary<string, GraphicsBuffer>? _parameterBuffers;
+    private ShaderLibrary? _parameterBuffersSurface;
+
     /// <summary>Format version of the material asset files this runtime consumes.</summary>
     public const string FormatVersion = "1.0";
 
@@ -41,14 +47,32 @@ public class MaterialAsset : IJsonOnDeserialized
     /// The surface library the material evaluates; null selects the default surface of
     /// the compiling <see cref="MaterialCompiler"/>. Pass templates specialize their
     /// generic entry points with the library's public surface implementation.
+    /// Setting it drops the shared parameter buffers (see <see cref="ParameterBuffers"/>).
     /// </summary>
-    public ShaderLibrary? Surface { get; set; }
+    public ShaderLibrary? Surface
+    {
+        get => _surface;
+        set
+        {
+            _surface = value;
+            _parameterBuffers = null;
+        }
+    }
 
     /// <summary>
     /// Specialization defines of the surface, baked into the compiled shader permutations
-    /// (e.g. feature toggles of the surface's own code).
+    /// (e.g. feature toggles of the surface's own code). Setting them drops the shared
+    /// parameter buffers (see <see cref="ParameterBuffers"/>).
     /// </summary>
-    public IReadOnlyList<string> Defines { get; set; } = [];
+    public IReadOnlyList<string> Defines
+    {
+        get => _defines;
+        set
+        {
+            _defines = value;
+            _parameterBuffers = null;
+        }
+    }
 
     /// <summary>
     /// The texture slots of the material: material slot name → the bound texture. A slot
@@ -65,10 +89,43 @@ public class MaterialAsset : IJsonOnDeserialized
     /// <c>[MaterialParams]</c>-marked blocks (any block names, any number of blocks).
     /// Values author in their natural shapes — floats, colors, integers, booleans,
     /// arrays — and marshal to each member's reflected type at the offsets the
-    /// shader compiler reflects (see <see cref="ShaderValue"/>).
+    /// shader compiler reflects (see <see cref="ShaderValue"/>). Setting the table
+    /// drops the shared parameter buffers (see <see cref="ParameterBuffers"/>).
     /// </summary>
-    public IReadOnlyDictionary<string, ShaderValue> Parameters { get; set; } =
-        new Dictionary<string, ShaderValue>();
+    public IReadOnlyDictionary<string, ShaderValue> Parameters
+    {
+        get => _parameters;
+        set
+        {
+            _parameters = value;
+            _parameterBuffers = null;
+        }
+    }
+
+    /// <summary>
+    /// The packed parameter buffers of the surface's <c>[MaterialParams]</c> blocks —
+    /// one shared buffer per block, packed once by the first material compile and
+    /// reused by every pass the asset compiles into: the values are the asset's own
+    /// and never differ per pass, so per-pass copies would be identical bytes.
+    /// Exposed as the base <see cref="GraphicsBuffer"/> on purpose — nothing outside
+    /// the packing step can rewrite the shared bytes. Setting <see cref="Surface"/>,
+    /// <see cref="Defines"/> or <see cref="Parameters"/> drops the cache; the dropped
+    /// buffers finalize themselves once the last material referencing them dies, as
+    /// the engine's escapable-binding rule prescribes. Null until the first compile
+    /// (and when the surface declares no parameter blocks).
+    /// </summary>
+    public IReadOnlyDictionary<string, GraphicsBuffer>? ParameterBuffers => _parameterBuffers;
+
+    /// <summary>Whether the shared buffers were packed against this surface (the compiler's default counts too).</summary>
+    internal bool HasParameterBuffers(ShaderLibrary surface)
+        => _parameterBuffers != null && _parameterBuffersSurface == surface;
+
+    /// <summary>Caches the packed buffers, shared by the passes compiling this asset.</summary>
+    internal void SetParameterBuffers(ShaderLibrary surface, IReadOnlyDictionary<string, GraphicsBuffer> buffers)
+    {
+        _parameterBuffersSurface = surface;
+        _parameterBuffers = buffers;
+    }
 
     /// <summary>
     /// The fallback texture policy of one surface texture slot, consulted when the slot

@@ -255,12 +255,18 @@ public sealed class MaterialCompiler : AutoDisposable
     /// The parameter buffers of an asset: every block of its surface marked
     /// <c>[MaterialParams]</c> (free names, any number), packed from
     /// <see cref="MaterialAsset.Parameters"/> by member name at the offsets slang
-    /// reflected. Packed fresh per compile; the buffers live as bound slot values
-    /// and are reclaimed by their finalizer like any other escapable binding.
+    /// reflected. Packed once per (asset, surface) and cached on the asset — every
+    /// pass compiles the same bytes, so the passes share the buffers (see
+    /// <see cref="MaterialAsset.ParameterBuffers"/>); re-setting the asset's
+    /// surface/defines/parameters drops the cache for a fresh pack.
     /// </summary>
     private IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(MaterialAsset asset)
     {
         ShaderLibrary surface = SurfaceOf(asset);
+        if (asset.HasParameterBuffers(surface))
+        {
+            return asset.ParameterBuffers!;
+        }
         IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
             Composer.GetParamsLayouts(surface, defines: asset.Defines);
         if (layouts.Count == 0)
@@ -273,7 +279,10 @@ public sealed class MaterialCompiler : AutoDisposable
             }
             return new Dictionary<string, GraphicsBuffer>();
         }
-        return Composer.PackParamsBuffers(layouts, asset.Parameters, asset.Name);
+        IReadOnlyDictionary<string, GraphicsBuffer> buffers =
+            Composer.PackParamsBuffers(layouts, asset.Parameters, asset.Name);
+        asset.SetParameterBuffers(surface, buffers);
+        return buffers;
     }
 
     /// <summary>The surface library an asset composes with: its own, or the compiler's default.</summary>

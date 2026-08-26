@@ -203,7 +203,7 @@ public class FXAA : TextureProcessor
         using (RenderPassScope renderPass = timestamps != null
             ? context.BeginPass(_intermediateTexture!.FrameBuffer, ReadOnlySpan<ClearColorData>.Empty,
                 timestamps.QuerySet, (uint)TimestampBaseSlot, null)
-            : context.BeginPass(_intermediateTexture.FrameBuffer))
+            : context.BeginPass(_intermediateTexture!.FrameBuffer))
         {
             renderPass.Draw(fullScreenMesh, _fxaaMaterial);
         }

@@ -137,7 +137,7 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
     // One element of T must be exactly one reflected element of the member and
     // carry the same scalar kind — same-width blits across kinds (int → float)
     // are silent garbage, so they fail loudly with the fix spelled out.
-    private void ValidateElement<T>(string name)
+    private void ValidateElement<T>(string name) where T : unmanaged
     {
         ShaderUniformMember member = Resolve(name);
         int elementBytes = member.ComponentCount * 4;
