@@ -161,7 +161,7 @@ public class Game : GameEngine
         ShaderModule vertSource = StageModule(program, "MainVS");
         ShaderModule fragSource = StageModule(program, "MainPS");
 
-        ShaderReflectionInfo info = program.Reflection;
+        ShaderReflection info = program.Reflection;
 
         Log.Info(info);
 

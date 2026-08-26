@@ -397,7 +397,7 @@ public class TestMaterialCompiler
             // and the shared GI data buffer are all present, surface textures absent.
             Shader voxelFeed = compiler.ComposeSurfaceComputeShader(
                 minimal, engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize"));
-            ShaderReflectionInfo feedReflection = voxelFeed.GetShaderModules().ReflectionInfo;
+            ShaderReflection feedReflection = voxelFeed.GetShaderModules().ReflectionInfo;
             Assert.Multiple(() =>
             {
                 foreach (string name in new[] { "_data", "_vertices", "_indices", "_attrOut", "_pageTable" })

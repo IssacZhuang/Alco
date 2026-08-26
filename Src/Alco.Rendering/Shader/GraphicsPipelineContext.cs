@@ -11,7 +11,7 @@ public struct GraphicsPipelineContext
 {
     public GPUPipeline? Pipeline;
     public GPUAttachmentLayout? AttachmentLayout;
-    public ShaderReflectionInfo? ReflectionInfo;
+    public ShaderReflection? ReflectionInfo;
     public DepthStencilState DepthStencil;
     public BlendState BlendState;
     public RasterizerState Rasterizer;
@@ -45,7 +45,7 @@ public struct GraphicsPipelineContext
     }
 
     public GraphicsPipelineContext(
-        ShaderReflectionInfo? reflectionInfo,
+        ShaderReflection? reflectionInfo,
         DepthStencilState depthStencil,
         BlendState blendState,
         RasterizerState rasterizer,

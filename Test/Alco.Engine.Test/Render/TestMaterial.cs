@@ -113,7 +113,7 @@ public class TestMaterial
 
         GPUResourceGroup? BankGroup(GraphicsMaterial material)
         {
-            ShaderReflectionInfo reflection = material.ReflectionInfo;
+            ShaderReflection reflection = material.ReflectionInfo;
             for (int g = 0; g < reflection.BindGroups.Count; g++)
             {
                 IReadOnlyList<BindGroupEntryInfo> bindings = reflection.BindGroups[g].Bindings;
@@ -175,7 +175,7 @@ public class TestMaterial
 
         static GPUResourceGroup? FindBankGroup(RenderingSystem renderingSystem, GraphicsMaterial material)
         {
-            ShaderReflectionInfo reflection = material.ReflectionInfo;
+            ShaderReflection reflection = material.ReflectionInfo;
             for (int g = 0; g < reflection.BindGroups.Count; g++)
             {
                 IReadOnlyList<BindGroupEntryInfo> bindings = reflection.BindGroups[g].Bindings;

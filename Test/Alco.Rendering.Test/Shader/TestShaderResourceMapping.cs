@@ -6,7 +6,7 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// Tests for the dense resource mapping of <see cref="ShaderReflectionInfo"/> on the
+/// Tests for the dense resource mapping of <see cref="ShaderReflection"/> on the
 /// slang module path: one resource id per settable shader variable (buffer or
 /// texture), with sampler companion entries excluded, exercised through a real
 /// slang compilation.
@@ -56,7 +56,7 @@ public class TestShaderResourceMapping
         using ShaderSystem shaderSystem = new(
             host.RenderingSystem, new SlangCompilerOptions { Resolver = _ => null }, cacheDirectory: null);
         Shader shader = shaderSystem.GetShaderFromModule("packed_shader", "packed_shader.slang", PackedShader);
-        ShaderReflectionInfo info = shader.GetShaderModules().ReflectionInfo;
+        ShaderReflection info = shader.GetShaderModules().ReflectionInfo;
 
         Assert.That(info.BindGroups.Count, Is.EqualTo(4));
         Assert.That(info.ResourceCount, Is.EqualTo(4));
@@ -71,7 +71,7 @@ public class TestShaderResourceMapping
         AssertResource(info, 3, "_storage", 3, 0, BindingType.StorageTexture);
     }
 
-    private static void AssertResource(ShaderReflectionInfo info, uint id, string name, int group, uint binding, BindingType type)
+    private static void AssertResource(ShaderReflection info, uint id, string name, int group, uint binding, BindingType type)
     {
         Assert.IsTrue(info.TryGetResourceId(name, out uint actualId), name);
         Assert.That(actualId, Is.EqualTo(id), name);

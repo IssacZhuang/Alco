@@ -53,8 +53,6 @@ public sealed class MaterialComposer : IDisposable
     private readonly ShaderSystem _shaderSystem;
     private readonly Lock _lock = new();
     private readonly Dictionary<CompositionKey, Shader> _shaders = new();
-    private readonly Dictionary<(string Module, string Defines), Dictionary<string, IReadOnlyList<SlangUniformMember>>> _paramLayouts = new();
-    private readonly Dictionary<(string Module, string Defines), IReadOnlyList<string>> _textureSlots = new();
     private readonly List<SlangProgram> _pinnedPrograms = [];
     private bool _disposed;
 
@@ -109,33 +107,40 @@ public sealed class MaterialComposer : IDisposable
         => Compose(template, surface, valueSpecArgs, surfaceType, compute: true, defines);
 
     /// <summary>
-    /// The material-parameter blocks of a surface library — every cbuffer marked
-    /// <c>[<see cref="ParamsMarkerAttribute"/>]</c>, with its scalar/vector float
-    /// members — from slang's module-level reflection (no entry points, no link).
-    /// Cached per (module, defines); empty means the module marks no parameter
-    /// blocks. Engine data blocks a surface re-declares (e.g. the per-frame
-    /// render data) carry no marker and are never reported.
+    /// The material-parameter blocks of a surface library — every uniform block
+    /// marked <c>[<see cref="ParamsMarkerAttribute"/>]</c>, with its scalar/vector
+    /// float members — from the library's own reflection (no entry points, no
+    /// link; cached by the module system). The material domain's view of
+    /// <see cref="ShaderSystem.GetLibraryReflection"/>: blocks are found by the
+    /// marker, and a marked block the float view cannot fully represent fails
+    /// here (the parameter system writes floats only). Empty means the module
+    /// marks no parameter blocks.
     /// </summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> GetParamsLayouts(
+    public IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> GetParamsLayouts(
         ShaderLibrary surface, IReadOnlyList<string>? defines = null)
     {
-        string definesKey = defines == null ? "" : string.Join("|", defines);
-        lock (_lock)
+        Dictionary<string, IReadOnlyList<ShaderUniformMember>> lookup = new(StringComparer.Ordinal);
+        foreach (ShaderUniformBlock block in surface.GetReflection(defines).UniformBlocks)
         {
-            if (_paramLayouts.TryGetValue((surface.Name, definesKey),
-                    out Dictionary<string, IReadOnlyList<SlangUniformMember>>? cached))
+            if (!block.Attributes.Contains(ParamsMarkerAttribute))
             {
-                return cached;
+                continue;
             }
-            Dictionary<string, IReadOnlyList<SlangUniformMember>> lookup = new(StringComparer.Ordinal);
-            foreach ((string blockName, List<SlangUniformMember> members) in
-                     _shaderSystem.Modules.GetModuleMarkedUniformBlocks(surface.Name, ParamsMarkerAttribute, defines))
+            if (block.UnsupportedMemberReason != null)
             {
-                lookup.Add(blockName, members);
+                throw new NotSupportedException(
+                    $"Parameter block '{block.Name}' of '{surface.Name}' is marked [{ParamsMarkerAttribute}] " +
+                    $"but {block.UnsupportedMemberReason}");
             }
-            _paramLayouts.Add((surface.Name, definesKey), lookup);
-            return lookup;
+            if (block.Members.Count == 0)
+            {
+                throw new NotSupportedException(
+                    $"Parameter block '{block.Name}' of '{surface.Name}' is marked [{ParamsMarkerAttribute}] " +
+                    "but declares no scalar/vector members; unmark it or add the members it should carry.");
+            }
+            lookup.Add(block.Name, block.Members);
         }
+        return lookup;
     }
 
     /// <summary>
@@ -149,7 +154,7 @@ public sealed class MaterialComposer : IDisposable
     /// <param name="values">The values by member name.</param>
     /// <param name="name">The owner name (error context and buffer label).</param>
     public GraphicsBuffer PackParamsBuffer(
-        IReadOnlyList<SlangUniformMember> layout,
+        IReadOnlyList<ShaderUniformMember> layout,
         IReadOnlyDictionary<string, Vector4> values,
         string name)
     {
@@ -163,14 +168,14 @@ public sealed class MaterialComposer : IDisposable
         }
 
         uint sizeBytes = 0;
-        foreach (SlangUniformMember member in layout)
+        foreach (ShaderUniformMember member in layout)
         {
             sizeBytes = Math.Max(sizeBytes, member.OffsetBytes + member.SizeBytes);
         }
         sizeBytes = (sizeBytes + 15u) & ~15u;
 
         float[] data = new float[sizeBytes / sizeof(float)];
-        foreach (SlangUniformMember member in layout)
+        foreach (ShaderUniformMember member in layout)
         {
             if (!values.TryGetValue(member.Name, out Vector4 value))
             {
@@ -202,14 +207,14 @@ public sealed class MaterialComposer : IDisposable
     /// </summary>
     /// <returns>The packed buffer of each block, keyed by block name.</returns>
     public IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(
-        IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts,
+        IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts,
         IReadOnlyDictionary<string, Vector4> values,
         string name)
     {
         List<string> allMembers = [];
-        foreach (KeyValuePair<string, IReadOnlyList<SlangUniformMember>> block in layouts)
+        foreach (KeyValuePair<string, IReadOnlyList<ShaderUniformMember>> block in layouts)
         {
-            foreach (SlangUniformMember member in block.Value)
+            foreach (ShaderUniformMember member in block.Value)
             {
                 allMembers.Add(member.Name);
             }
@@ -232,10 +237,10 @@ public sealed class MaterialComposer : IDisposable
         Dictionary<string, GraphicsBuffer> buffers = new(StringComparer.Ordinal);
         try
         {
-            foreach (KeyValuePair<string, IReadOnlyList<SlangUniformMember>> block in layouts)
+            foreach (KeyValuePair<string, IReadOnlyList<ShaderUniformMember>> block in layouts)
             {
                 Dictionary<string, Vector4> blockValues = new(StringComparer.Ordinal);
-                foreach (SlangUniformMember member in block.Value)
+                foreach (ShaderUniformMember member in block.Value)
                 {
                     if (values.TryGetValue(member.Name, out Vector4 value))
                     {
@@ -257,29 +262,16 @@ public sealed class MaterialComposer : IDisposable
     }
 
     /// <summary>
-    /// The texture slots of a surface library — what the binding side fills from
+    /// The texture slot names of a surface library — what the binding side fills from
     /// the material's texture table, with the asset's fallback policy for
-    /// unbound slots. Discovery is the surface module's own block declarations
-    /// (name-keyed, no set number): a ParameterBlock's set is compiler-assigned
-    /// declaration order, nothing the engine pins or reads.
+    /// unbound slots. The name projection of the library's texture slots (which
+    /// also carry each slot's required dimension and sample type); discovery
+    /// stays name-keyed, no set number — a ParameterBlock's set is
+    /// compiler-assigned declaration order, nothing the engine pins or reads.
     /// </summary>
     public IReadOnlyList<string> EnumerateTextureSlots(
         ShaderLibrary surface, IReadOnlyList<string>? defines = null)
-    {
-        string definesKey = defines == null ? "" : string.Join("|", defines);
-        lock (_lock)
-        {
-            if (_textureSlots.TryGetValue((surface.Name, definesKey), out IReadOnlyList<string>? cached))
-            {
-                return cached;
-            }
-
-            IReadOnlyList<string> slots =
-                [.. _shaderSystem.Modules.GetModuleTextureSlots(surface.Name, defines)];
-            _textureSlots.Add((surface.Name, definesKey), slots);
-            return slots;
-        }
-    }
+        => [.. surface.GetReflection(defines).TextureSlots.Select(slot => slot.Name)];
 
     private Shader Compose(
         ShaderLibrary template, ShaderLibrary surface,
@@ -346,15 +338,8 @@ public sealed class MaterialComposer : IDisposable
         lock (_lock)
         {
             // Stale programs die with the session rebuild; pins are refreshed lazily.
+            // Library reflection caches ride the module system's session rebuild.
             _pinnedPrograms.Clear();
-            // A changed surface module may have changed its parameter block layout.
-            foreach ((string module, string defines) in _paramLayouts.Keys.ToArray())
-            {
-                if (affectedModules.Contains(module))
-                {
-                    _paramLayouts.Remove((module, defines));
-                }
-            }
             affectedShaders =
             [
                 .. _shaders.Where(pair =>
@@ -386,7 +371,6 @@ public sealed class MaterialComposer : IDisposable
             }
             _shaders.Clear();
             _pinnedPrograms.Clear();
-            _paramLayouts.Clear();
         }
     }
 }

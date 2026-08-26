@@ -95,7 +95,7 @@ public sealed class MaterialCompiler : AutoDisposable
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         Shader shader = ComposeSurfaceShader(asset, template, valueSpecArgs);
-        ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
+        ShaderReflection reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
         // declare is a typo in the asset — fail here, at compile time. Slot
@@ -196,7 +196,7 @@ public sealed class MaterialCompiler : AutoDisposable
         ArgumentNullException.ThrowIfNull(asset);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         Shader shader = ComposeSurfaceComputeShader(asset, template, valueSpecArgs);
-        ShaderReflectionInfo reflection = shader.GetShaderModules().ReflectionInfo;
+        ShaderReflection reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation, the same rule as the graphics passes: a
         // texture slot the surface does not declare is a typo in the asset.
@@ -261,7 +261,7 @@ public sealed class MaterialCompiler : AutoDisposable
     private IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(MaterialAsset asset)
     {
         ShaderLibrary surface = SurfaceOf(asset);
-        IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+        IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
             Composer.GetParamsLayouts(surface, defines: asset.Defines);
         if (layouts.Count == 0)
         {

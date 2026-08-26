@@ -105,7 +105,7 @@ public static class SlangBlockBindingTest
     public static void UniformMembers_SkipResourceFields()
     {
         using SlangProgram program = Compile("block_mixed", MixedBlocks);
-        List<SlangUniformMember> members = program.GetUniformMembers("_frame");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_frame");
 
         Assert.That(members.Select(m => m.Name), Is.EqualTo(new[] { "viewProjection", "time" }));
         Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
@@ -235,7 +235,7 @@ public static class SlangBlockBindingTest
             ("albedoSampler", 2u, BindingType.Sampler),
             ("instances", 3u, BindingType.StorageBuffer),
         }));
-        List<SlangUniformMember> members = program.GetUniformMembers("_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_materialParams");
         Assert.That(members.Select(m => m.Name), Is.EqualTo(new[] { "pulseSpeed", "pulseColor" }));
     }
 

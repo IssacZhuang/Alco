@@ -8,7 +8,7 @@ The material system currently maps **one shader "slot" to exactly one wgpu bind 
   `[[vk::binding(bind, set)]]`; every `DEFINE_*` macro sends its first argument to the
   SPIR-V **set** index and fixes the binding to 0 (plus binding 1 for the paired sampler).
 - On the C# side this assumption is baked into three places:
-  - `ShaderReflectionInfo.BuildResourceIndex` (`Src/Alco.Graphics/Compiler/ShaderReflectionInfo.cs:133`)
+  - `ShaderReflection.BuildResourceIndex` (`Src/Alco.Graphics/Compiler/ShaderReflection.cs:133`)
     maps only `Bindings[0].Entry.Name` of each group to a resource id == group index.
   - `MaterialUtility` (`Src/Alco.Rendering/Material/MaterialUtility.cs`) recognizes only six
     group shapes of 1–2 bindings.
@@ -138,7 +138,7 @@ above (`WGPULimits` defaults in `Src/Alco.Graphics/WGPU/Bindings/WGPULimits.cs`)
 `-fspv-preserve-bindings` flag means **unused-but-declared resources still count toward the
 budget**, so declarations must not be padded.
 
-### 3.5 Reflection layer (`ShaderReflectionInfo`)
+### 3.5 Reflection layer (`ShaderReflection`)
 
 Replace the "first binding name per group" index with a full resource map:
 
@@ -190,7 +190,7 @@ assembled bind group per reflection group":
   Then `GPUDevice.CreateResourceGroup(new ResourceGroupDescriptor { Layout = groupBindGroup,
   Resources = entries })`. The group's `GPUBindGroup` layout comes from
   `BindGroupLayout.ToDescriptor()` → `GPUDevice.CreateBindGroup`, **cached per
-  ShaderReflectionInfo** (shared by all materials using the same shader).
+  ShaderReflection** (shared by all materials using the same shader).
 - Public API — **unchanged signatures, unchanged behavior from the caller's view**:
   - `SetBuffer/SetTexture/SetRenderTexture/SetRenderTextureDepth/SetTexture3DStorage/
     SetTexture3DRead` (+ `Try*` variants, name and id overloads) resolve name→location (or
@@ -249,7 +249,7 @@ The numeric-id setters stay, with id redefined as an opaque dense resource ordin
   `GetResourceId(name)`/`TryGetResourceId` and cached (`_shaderId_texture`, ...), or
   well-known **name** constants (`ShaderResourceId.Camera = "_camera"`, etc.) are passed to
   the string overloads. No call site hardcodes a numeric group index.
-- Keeping the id overloads costs one extra array (id → location) in `ShaderReflectionInfo`.
+- Keeping the id overloads costs one extra array (id → location) in `ShaderReflection`.
 - The XML docs on the id overloads must be updated to say "resource id obtained from
   `GetResourceId`", removing the "bind group index" wording.
 
@@ -387,7 +387,7 @@ Two findings landed during game verification that the plan did not anticipate:
   the `<name>_counter` suffix, so the counter leaked into the dense resource ids as a
   never-set resource and its bind group could never assemble (this broke
   `GaussianBlurWithColorGrading.hlsl` in the game). Fixed by `CounterPrefix` +
-  `ShaderReflectionInfo.IsCounterCompanion`, with owner pairing always by name first —
+  `ShaderReflection.IsCounterCompanion`, with owner pairing always by name first —
   the binding-position fallback is unreliable for counters.
 - **Fallback resolution is by resource name, not slot index.** A material instance and
   its parent may hold reflections compiled with different defines (different dense

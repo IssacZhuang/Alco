@@ -55,7 +55,7 @@ public class ComputeMaterial : AutoDisposable
         get => _shader;
     }
 
-    public ShaderReflectionInfo ReflectionInfo
+    public ShaderReflection ReflectionInfo
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _parameterSet.ReflectionInfo;

@@ -3,7 +3,7 @@
 The runtime shader contract is name-based. Slang reflection produces each
 resource's descriptor set, binding, kind, visibility, texture sample type and
 storage format; C# resolves the resource by name through
-`ShaderReflectionInfo`. Callers must never treat a binding number as a public
+`ShaderReflection`. Callers must never treat a binding number as a public
 resource identifier.
 
 Shader sources declare only **which set they own**; Slang assigns member

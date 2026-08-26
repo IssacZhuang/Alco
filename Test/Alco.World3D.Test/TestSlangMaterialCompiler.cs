@@ -70,7 +70,7 @@ public class TestSlangMaterialCompiler
 
         Shader shader = compiler.ComposeSurfaceShader(null, Library(engine, "gbuffer"));
         ShaderModulesInfo modules = shader.GetShaderModules();
-        ShaderReflectionInfo info = modules.ReflectionInfo;
+        ShaderReflection info = modules.ReflectionInfo;
 
         Assert.Multiple(() =>
         {
@@ -106,7 +106,7 @@ public class TestSlangMaterialCompiler
         // shared sampler bank 4.
         MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
         Shader shader = compiler.ComposeSurfaceShader(asset, Library(engine, "gbuffer"));
-        ShaderReflectionInfo info = shader.GetShaderModules().ReflectionInfo;
+        ShaderReflection info = shader.GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>
         {
@@ -143,10 +143,10 @@ public class TestSlangMaterialCompiler
             // module-level reflection — no entry points, no link, no probe compile
             // of a pass template. The unmarked _globalRenderData block is engine
             // data and stays out.
-            IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+            IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
                 compiler.Composer.GetParamsLayouts(Library(engine, ParameterizedSurfaceModule));
             Assert.That(layouts.Keys, Is.EqualTo(new[] { "PulseParams" }));
-            IReadOnlyList<SlangUniformMember> members = layouts["PulseParams"];
+            IReadOnlyList<ShaderUniformMember> members = layouts["PulseParams"];
             Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.FloatComponentCount)),
                 Is.EqualTo(new[]
                 {
@@ -266,7 +266,7 @@ public class TestSlangMaterialCompiler
     }
 
     private static void AssertResource(
-        ShaderReflectionInfo info,
+        ShaderReflection info,
         string name,
         int group,
         uint binding,
@@ -278,7 +278,7 @@ public class TestSlangMaterialCompiler
         Assert.That(location.Type, Is.EqualTo(type), $"{name} binding type");
     }
 
-    private static ShaderResourceLocation GetResource(ShaderReflectionInfo info, string name)
+    private static ShaderResourceLocation GetResource(ShaderReflection info, string name)
     {
         Assert.That(info.TryGetResourceLocation(name, out ShaderResourceLocation location),
             Is.True, $"Missing reflected resource {name}");
@@ -286,7 +286,7 @@ public class TestSlangMaterialCompiler
     }
 
     private static void AssertLayoutEntry(
-        ShaderReflectionInfo info, string name, int group, uint binding, BindingType type)
+        ShaderReflection info, string name, int group, uint binding, BindingType type)
     {
         (int GroupIndex, BindGroupEntry Entry)? found = null;
         for (int groupIndex = 0; groupIndex < info.BindGroups.Count; groupIndex++)

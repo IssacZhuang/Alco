@@ -191,7 +191,7 @@ public static class SlangSamplerStructSpikeTest
     {
         using SlangProgram program = Compile("test_mixed_params", MixedParams);
 
-        List<SlangUniformMember> members = program.GetUniformMembers("_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_materialParams");
         Assert.That(members.Select(m => m.Name), Is.EqualTo(new[] { "pulseSpeed", "pulseColor" }));
         Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
     }

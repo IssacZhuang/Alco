@@ -108,7 +108,7 @@ public sealed class ShaderParameterSet
     // module-declared sampler entries; shared sampler bank members are immutable
     // engine constants resolved from the library and are never bound here.
     private readonly Dictionary<string, GPUSampler> _customSamplers = new();
-    private ShaderReflectionInfo _reflectionInfo;
+    private ShaderReflection _reflectionInfo;
     private Slot[] _slots;
     private GroupState[] _groups;
     private GPUResourceGroup?[] _resourceGroups;
@@ -122,7 +122,7 @@ public sealed class ShaderParameterSet
     /// <summary>
     /// Get the reflection information of the shader.
     /// </summary>
-    public ShaderReflectionInfo ReflectionInfo => _reflectionInfo;
+    public ShaderReflection ReflectionInfo => _reflectionInfo;
 
     /// <summary>
     /// The parameter set used to resolve values for slots that have no value of their
@@ -160,7 +160,7 @@ public sealed class ShaderParameterSet
     /// <param name="device">The GPU device used to assemble the bind groups.</param>
     /// <param name="samplers">The rendering system's sampler library, resolving sampler entries by name.</param>
     /// <param name="reflectionInfo">The reflection information of the shader.</param>
-    internal ShaderParameterSet(GPUDevice device, SharedSamplers samplers, ShaderReflectionInfo reflectionInfo)
+    internal ShaderParameterSet(GPUDevice device, SharedSamplers samplers, ShaderReflection reflectionInfo)
     {
         _device = device;
         _samplers = samplers;
@@ -178,8 +178,8 @@ public sealed class ShaderParameterSet
     /// </summary>
     /// <param name="reflectionInfo">The reflection information of the shader.</param>
     /// <param name="resetResources">Whether to reset the resources.</param>
-    public void SetReflectionInfo(ShaderReflectionInfo reflectionInfo, bool resetResources = false)    {
-        ShaderReflectionInfo oldReflection = _reflectionInfo;
+    public void SetReflectionInfo(ShaderReflection reflectionInfo, bool resetResources = false)    {
+        ShaderReflection oldReflection = _reflectionInfo;
         Slot[] oldSlots = _slots;
 
         _reflectionInfo = reflectionInfo;
@@ -1486,7 +1486,7 @@ public sealed class ShaderParameterSet
 
     private void BuildSlotsAndGroups()
     {
-        ShaderReflectionInfo reflection = _reflectionInfo;
+        ShaderReflection reflection = _reflectionInfo;
         int groupCount = reflection.BindGroups.Count;
 
         for (int i = 0; i < _groups.Length; i++)

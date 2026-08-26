@@ -391,7 +391,7 @@ public class MaterialComposerTest
         using MaterialComposer composer = CreateComposer(host, out ShaderSystem shaderSystem);
         using (shaderSystem)
         {
-            IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+            IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
                 composer.GetParamsLayouts(shaderSystem.GetLibrary("test_surface"));
 
             Assert.Multiple(() =>
@@ -399,7 +399,7 @@ public class MaterialComposerTest
                 // Only the [MaterialParams]-marked block is reported — the unmarked
                 // resource block above it is not a parameter block.
                 Assert.That(layouts.Keys, Is.EqualTo(new[] { "_surfaceParams" }));
-                IReadOnlyList<SlangUniformMember> members = layouts["_surfaceParams"];
+                IReadOnlyList<ShaderUniformMember> members = layouts["_surfaceParams"];
                 Assert.That(members.Select(member => member.Name),
                     Is.EqualTo(new[] { "pulseSpeed", "pulseColor", "bandFrequency" }));
                 Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
@@ -418,7 +418,7 @@ public class MaterialComposerTest
         using MaterialComposer composer = CreateComposer(host, out ShaderSystem shaderSystem);
         using (shaderSystem)
         {
-            IReadOnlyList<SlangUniformMember> layout =
+            IReadOnlyList<ShaderUniformMember> layout =
                 composer.GetParamsLayouts(shaderSystem.GetLibrary("test_surface"))["_surfaceParams"];
 
             Assert.Multiple(() =>
@@ -450,7 +450,7 @@ public class MaterialComposerTest
         {
             // A surface may split its parameters across several marked blocks;
             // discovery reports each one.
-            IReadOnlyDictionary<string, IReadOnlyList<SlangUniformMember>> layouts =
+            IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
                 composer.GetParamsLayouts(shaderSystem.GetLibrary("test_surface_multiblock"));
             Assert.That(layouts.Keys, Is.EqualTo(new[] { "_pulse", "_bands" }));
 

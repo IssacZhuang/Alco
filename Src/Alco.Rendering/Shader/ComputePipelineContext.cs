@@ -6,7 +6,7 @@ namespace Alco.Rendering;
 public struct ComputePipelineContext
 {
     public GPUPipeline? Pipeline;
-    public ShaderReflectionInfo? ReflectionInfo;
+    public ShaderReflection? ReflectionInfo;
     public uint Version;
 
     /// <summary>
@@ -23,7 +23,7 @@ public struct ComputePipelineContext
         Version = 0;
     }
 
-    public ComputePipelineContext(ShaderReflectionInfo reflectionInfo)
+    public ComputePipelineContext(ShaderReflection reflectionInfo)
     {
         ReflectionInfo = reflectionInfo;
         Version = 0;

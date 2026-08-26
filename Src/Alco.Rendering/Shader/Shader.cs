@@ -331,7 +331,7 @@ public sealed class Shader : AutoDisposable
                 throw new InvalidOperationException("Trying to create a graphics pipeline from a non-graphics shader modules.");
             }
 
-            ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+            ShaderReflection reflectionInfo = modulesInfo.ReflectionInfo;
             GPUDevice device = _renderingSystem.GraphicsDevice;
 
             IReadOnlyList<BindGroupLayout> bindGroupLayouts = reflectionInfo.BindGroups;
@@ -408,7 +408,7 @@ public sealed class Shader : AutoDisposable
                 throw new InvalidOperationException("Trying to create a compute pipeline from a non-compute shader modules.");
             }
 
-            ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+            ShaderReflection reflectionInfo = modulesInfo.ReflectionInfo;
             GPUDevice device = _renderingSystem.GraphicsDevice;
 
             GPUBindGroup[] bindGroups = new GPUBindGroup[reflectionInfo.BindGroups.Count];

@@ -1,3 +1,4 @@
+using Alco.Graphics;
 using NUnit.Framework;
 
 namespace Alco.ShaderCompiler;
@@ -281,7 +282,7 @@ public class SlangCompositionSpikeTest
     {
         using SlangModuleSystem system = new(OptionsFor(SpikeFiles()), null);
 
-        List<SlangUniformMember> members = system.GetModuleUniformMembers("test_surface", "_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = system.GetModuleUniformMembers("test_surface", "_materialParams");
 
         Assert.Multiple(() =>
         {

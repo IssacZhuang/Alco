@@ -9,7 +9,7 @@ namespace Alco.Graphics;
 /// </summary>
 public readonly struct ShaderResourceLocation
 {
-    /// <summary>The index of the bind group inside <see cref="ShaderReflectionInfo.BindGroups"/>.</summary>
+    /// <summary>The index of the bind group inside <see cref="ShaderReflection.BindGroups"/>.</summary>
     public int GroupIndex { get; init; }
     /// <summary>The index of the primary entry inside the bind group's bindings.</summary>
     public int EntryIndex { get; init; }

@@ -4,10 +4,11 @@ namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Linked-program disk cache payload (plan §4.2 layer b): per-entry SPIR-V plus
-// the materialized ShaderReflectionInfo and uniform-member tables, so a cached
-// program restores without invoking the slang front end at all. The cache key
-// (module IR hash, entry set, specialization, slang build tag) is computed by
-// SlangModuleSystem; this type is only the value.
+// the materialized ShaderReflection (pipeline interface AND its uniform blocks
+// in the shared ShaderUniformBlock vocabulary), so a cached program restores
+// without invoking the slang front end at all. The cache key (module IR hash,
+// entry set, specialization, slang build tag) is computed by SlangModuleSystem;
+// this type is only the value.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>A fully linked program in serializable form.</summary>
@@ -15,15 +16,12 @@ public sealed record SlangCachedProgram
 {
     public required byte[][] EntryCode { get; init; }
     public required (string Name, int Stage)[] EntryPoints { get; init; }
-    public required ShaderReflectionInfo Reflection { get; init; }
-
-    /// <summary>Uniform members per constant-buffer block name (material parameter packing).</summary>
-    public required IReadOnlyDictionary<string, List<SlangUniformMember>> UniformMembers { get; init; }
+    public required ShaderReflection Reflection { get; init; }
 }
 
 internal static class SlangProgramCacheCodec
 {
-    private const int FormatVersion = 1;
+    private const int FormatVersion = 2;
 
     public static void Encode(System.IO.BinaryWriter writer, SlangCachedProgram program)
     {
@@ -40,20 +38,6 @@ internal static class SlangProgramCacheCodec
         }
 
         EncodeReflection(writer, program.Reflection);
-
-        writer.Write(program.UniformMembers.Count);
-        foreach (KeyValuePair<string, List<SlangUniformMember>> block in program.UniformMembers)
-        {
-            writer.Write(block.Key);
-            writer.Write(block.Value.Count);
-            foreach (SlangUniformMember member in block.Value)
-            {
-                writer.Write(member.Name);
-                writer.Write(member.OffsetBytes);
-                writer.Write(member.SizeBytes);
-                writer.Write(member.FloatComponentCount);
-            }
-        }
     }
 
     public static SlangCachedProgram Decode(System.IO.BinaryReader reader)
@@ -74,33 +58,15 @@ internal static class SlangProgramCacheCodec
             entryCode[i] = reader.ReadBytes(length);
         }
 
-        ShaderReflectionInfo reflection = DecodeReflection(reader);
-
-        int blockCount = reader.ReadInt32();
-        Dictionary<string, List<SlangUniformMember>> members = new(blockCount);
-        for (int i = 0; i < blockCount; i++)
-        {
-            string blockName = reader.ReadString();
-            int memberCount = reader.ReadInt32();
-            List<SlangUniformMember> block = new(memberCount);
-            for (int j = 0; j < memberCount; j++)
-            {
-                block.Add(new SlangUniformMember(
-                    reader.ReadString(), reader.ReadUInt32(), reader.ReadUInt32(), reader.ReadInt32()));
-            }
-            members[blockName] = block;
-        }
-
         return new SlangCachedProgram
         {
             EntryCode = entryCode,
             EntryPoints = entryPoints,
-            Reflection = reflection,
-            UniformMembers = members,
+            Reflection = DecodeReflection(reader),
         };
     }
 
-    private static void EncodeReflection(System.IO.BinaryWriter writer, ShaderReflectionInfo info)
+    private static void EncodeReflection(System.IO.BinaryWriter writer, ShaderReflection info)
     {
         writer.Write(info.VertexLayouts.Count);
         foreach (VertexInputLayout layout in info.VertexLayouts)
@@ -148,9 +114,29 @@ internal static class SlangProgramCacheCodec
         writer.Write(info.Size.Y);
         writer.Write(info.Size.Z);
         writer.Write(info.FragmentOutputCount);
+
+        writer.Write(info.UniformBlocks.Count);
+        foreach (ShaderUniformBlock block in info.UniformBlocks)
+        {
+            writer.Write(block.Name);
+            writer.Write(block.Attributes.Count);
+            foreach (string attribute in block.Attributes)
+            {
+                writer.Write(attribute);
+            }
+            writer.Write(block.Members.Count);
+            foreach (ShaderUniformMember member in block.Members)
+            {
+                writer.Write(member.Name);
+                writer.Write(member.OffsetBytes);
+                writer.Write(member.SizeBytes);
+                writer.Write(member.FloatComponentCount);
+            }
+            writer.Write(block.UnsupportedMemberReason ?? "");
+        }
     }
 
-    private static ShaderReflectionInfo DecodeReflection(System.IO.BinaryReader reader)
+    private static ShaderReflection DecodeReflection(System.IO.BinaryReader reader)
     {
         int layoutCount = reader.ReadInt32();
         VertexInputLayout[] layouts = new VertexInputLayout[layoutCount];
@@ -209,6 +195,30 @@ internal static class SlangProgramCacheCodec
         var threadGroupSize = new ThreadGroupSize(reader.ReadUInt32(), reader.ReadUInt32(), reader.ReadUInt32());
         int fragmentOutputCount = reader.ReadInt32();
 
-        return new ShaderReflectionInfo(layouts, groups, ranges, threadGroupSize, fragmentOutputCount);
+        int blockCount = reader.ReadInt32();
+        ShaderUniformBlock[] blocks = new ShaderUniformBlock[blockCount];
+        for (int i = 0; i < blockCount; i++)
+        {
+            string blockName = reader.ReadString();
+            int attributeCount = reader.ReadInt32();
+            string[] attributes = new string[attributeCount];
+            for (int j = 0; j < attributeCount; j++)
+            {
+                attributes[j] = reader.ReadString();
+            }
+            int memberCount = reader.ReadInt32();
+            ShaderUniformMember[] members = new ShaderUniformMember[memberCount];
+            for (int j = 0; j < memberCount; j++)
+            {
+                members[j] = new ShaderUniformMember(
+                    reader.ReadString(), reader.ReadUInt32(), reader.ReadUInt32(), reader.ReadInt32());
+            }
+            string reason = reader.ReadString();
+            blocks[i] = new ShaderUniformBlock(
+                blockName, attributes, members, reason.Length == 0 ? null : reason);
+        }
+
+        return new ShaderReflection(
+            layouts, groups, ranges, threadGroupSize, fragmentOutputCount, blocks);
     }
 }

@@ -37,7 +37,7 @@ public class GraphicsMaterial : AutoDisposable
     /// <summary>
     /// The reflection info of the shader.
     /// </summary>
-    public ShaderReflectionInfo ReflectionInfo
+    public ShaderReflection ReflectionInfo
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _pipelineContext.ReflectionInfo!;
@@ -176,7 +176,7 @@ public class GraphicsMaterial : AutoDisposable
             throw new InvalidOperationException("The shader required for material must be a graphics shader");
         }
 
-        ShaderReflectionInfo reflectionInfo = modulesInfo.ReflectionInfo;
+        ShaderReflection reflectionInfo = modulesInfo.ReflectionInfo;
         _parameters = new ShaderParameterSet(system.GraphicsDevice, system.Samplers, reflectionInfo);
         UpdateSlotResources(reflectionInfo);
 
@@ -492,7 +492,7 @@ public class GraphicsMaterial : AutoDisposable
     /// into an own slot would shadow the parent value.
     /// </summary>
     /// <param name="reflectionInfo">The reflection info of the shader.</param>
-    protected virtual void UpdateSlotResources(ShaderReflectionInfo reflectionInfo)
+    protected virtual void UpdateSlotResources(ShaderReflection reflectionInfo)
     {
         for (uint i = 0; i < reflectionInfo.ResourceCount; i++)
         {

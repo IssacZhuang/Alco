@@ -29,7 +29,7 @@ public sealed class ShaderModulesInfo
     /// <summary>
     /// The reflection information for the shader.
     /// </summary>
-    public ShaderReflectionInfo ReflectionInfo { get; }
+    public ShaderReflection ReflectionInfo { get; }
 
     public bool IsGraphicsShader => VertexShader.HasValue && FragmentShader.HasValue;
     public bool IsComputeShader => ComputeShader.HasValue;
@@ -46,7 +46,7 @@ public sealed class ShaderModulesInfo
         ShaderModule? vertex,
         ShaderModule? fragment,
         ShaderModule? compute,
-        ShaderReflectionInfo reflectionInfo)
+        ShaderReflection reflectionInfo)
     {
         Name = name;
         VertexShader = vertex;
@@ -66,7 +66,7 @@ public sealed class ShaderModulesInfo
         string name,
         ShaderModule vertexShader,
         ShaderModule fragmentShader,
-        ShaderReflectionInfo reflectionInfo)
+        ShaderReflection reflectionInfo)
     {
         return new ShaderModulesInfo(name, vertexShader, fragmentShader, null, reflectionInfo);
     }
@@ -80,7 +80,7 @@ public sealed class ShaderModulesInfo
     public static ShaderModulesInfo CreateCompute(
         string name,
         ShaderModule computeShader,
-        ShaderReflectionInfo reflectionInfo)
+        ShaderReflection reflectionInfo)
     {
         return new ShaderModulesInfo(name, null, null, computeShader, reflectionInfo);
     }

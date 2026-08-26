@@ -13,7 +13,7 @@ public static class ShaderReflectionUtility
     /// <exception cref="ShaderReflectionException">
     /// Thrown when the bind group count exceeds the limit or the indices are not contiguous from 0.
     /// </exception>
-    public static void ValidateBindGroupLayouts(ShaderReflectionInfo info, int maxBindGroups, string? shaderName = null)
+    public static void ValidateBindGroupLayouts(ShaderReflection info, int maxBindGroups, string? shaderName = null)
     {
         IReadOnlyList<BindGroupLayout> bindGroups = info.BindGroups;
         int count = bindGroups.Count;

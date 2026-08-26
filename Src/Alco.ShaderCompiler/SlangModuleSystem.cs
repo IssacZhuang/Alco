@@ -314,7 +314,6 @@ public sealed partial class SlangModuleSystem : IDisposable
             long linkStart = Stopwatch.GetTimestamp();
             SlangProgram program = _session.CompileComposed(
                 template, companion, companionTypeName, valueSpecializationArgs);
-            HarvestUniformMembers(program);
             program.Owner = this;
             TrackProgramLocked(program);
             _programs[key] = program;
@@ -328,40 +327,33 @@ public sealed partial class SlangModuleSystem : IDisposable
     }
 
     /// <summary>
-    /// The members of a module's named uniform block, read from the module's own layout —
-    /// no entry points, no link: the material-parameter probe. Empty when the module
-    /// declares no such block.
+    /// The members of a module's named uniform block, read from the module's own
+    /// library reflection — no entry points, no link: the material-parameter
+    /// probe. Empty when the module declares no such block; throws when the
+    /// block's members do not fit the float view.
     /// </summary>
-    public List<SlangUniformMember> GetModuleUniformMembers(
+    public IReadOnlyList<ShaderUniformMember> GetModuleUniformMembers(
         string moduleName, string cbufferName, IReadOnlyList<string>? defines = null)
-    {
-        SlangModuleHandle module = GetOrLoadModule(moduleName, defines);
-        return _session.GetModuleUniformMembers(module, cbufferName);
-    }
+        => GetModuleReflection(moduleName, defines).UniformBlocks
+            .FirstOrDefault(block => block.Name == cbufferName)?.Members ?? [];
 
     /// <summary>
-    /// Every uniform block of a module carrying the given user-defined attribute (e.g.
-    /// <c>[MaterialParams]</c>), read from the module's own layout — no entry points,
-    /// no link. The material-parameter discovery probe: blocks are found by the marker,
-    /// not by a fixed name, so a surface names and split its parameter blocks freely.
+    /// The library reflection of a module (see <see cref="ShaderLibraryReflection"/>):
+    /// every uniform/parameter block it declares — with user-defined attributes and
+    /// float-shaped members — plus every sampled-texture slot, read from the module's
+    /// own layout without entry points or a link. Domain-neutral: attribute markers
+    /// (e.g. MaterialParams) are filtered by the caller. Cached per module entry;
+    /// invalidated together with the module on session rebuilds.
     /// </summary>
-    public List<(string BlockName, List<SlangUniformMember> Members)> GetModuleMarkedUniformBlocks(
-        string moduleName, string attributeName, IReadOnlyList<string>? defines = null)
+    public ShaderLibraryReflection GetModuleReflection(string moduleName, IReadOnlyList<string>? defines = null)
     {
-        SlangModuleHandle module = GetOrLoadModule(moduleName, defines);
-        return _session.GetModuleMarkedUniformBlocks(module, attributeName);
-    }
-
-    /// <summary>
-    /// The texture slots of a surface module — every Texture2D member of every
-    /// uniform/parameter block the module declares, in declaration order, by bare
-    /// field name. Descriptor-set independent: a ParameterBlock's set is
-    /// compiler-assigned declaration order, nothing the engine pins or reads.
-    /// </summary>
-    public List<string> GetModuleTextureSlots(string moduleName, IReadOnlyList<string>? defines = null)
-    {
-        SlangModuleHandle module = GetOrLoadModule(moduleName, defines);
-        return _session.GetModuleTextureSlots(module);
+        // Loads outside the module lock (same pattern as GetComposedProgram).
+        GetOrLoadModule(moduleName, defines);
+        lock (_lock)
+        {
+            ModuleEntry entry = _modules[ModuleKey(moduleName, defines)];
+            return entry.LibraryReflection ??= _session.GetModuleReflection(entry.Module);
+        }
     }
 
     private SlangProgram GetProgramLocked(
@@ -388,7 +380,6 @@ public sealed partial class SlangModuleSystem : IDisposable
 
         long linkStart = Stopwatch.GetTimestamp();
         SlangProgram program = compile(specializationArgs);
-        HarvestUniformMembers(program);
         program.Owner = this;
         TrackProgramLocked(program);
         _programs[key] = program;
@@ -686,7 +677,6 @@ public sealed partial class SlangModuleSystem : IDisposable
     {
         try
         {
-            Dictionary<string, List<SlangUniformMember>> members = new(program.UniformMembers);
             using FileStream stream = File.Create(ProgramCachePath(key));
             using var writer = new System.IO.BinaryWriter(stream);
             SlangProgramCacheCodec.Encode(writer, new SlangCachedProgram
@@ -694,7 +684,6 @@ public sealed partial class SlangModuleSystem : IDisposable
                 EntryCode = program.EntryCode,
                 EntryPoints = [.. program.EntryPoints],
                 Reflection = program.Reflection,
-                UniformMembers = members,
             });
         }
         catch
@@ -704,34 +693,6 @@ public sealed partial class SlangModuleSystem : IDisposable
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
-
-    private void HarvestUniformMembers(SlangProgram program)
-    {
-        // Best-effort pre-harvest for the disk cache: only material-parameter
-        // blocks fit the float-only contract. Engine-managed buffers (uint
-        // frame counters, nested camera/data structs) are skipped here; a
-        // material block with non-float members still throws when the caller
-        // requests it by name through the lazy path.
-        Dictionary<string, List<SlangUniformMember>> members = new();
-        foreach (BindGroupLayout group in program.Reflection.BindGroups)
-        {
-            foreach (BindGroupEntryInfo binding in group.Bindings)
-            {
-                if (binding.Entry.Type == BindingType.UniformBuffer)
-                {
-                    try
-                    {
-                        members[binding.Entry.Name] = program.GetUniformMembers(binding.Entry.Name);
-                    }
-                    catch (NotSupportedException)
-                    {
-                        // Not a material parameter block — leave uncached.
-                    }
-                }
-            }
-        }
-        program.UniformMembers = members;
-    }
 
     /// <summary>
     /// The probed source of a module name (the same probing GetOrLoadModule
@@ -822,6 +783,13 @@ public sealed partial class SlangModuleSystem : IDisposable
         public byte[]? SerializedIR { get; init; }
         public string IrHash { get; init; } = "";
         public bool LoadedFromIR { get; init; }
+
+        /// <summary>
+        /// Cached module-level reflection (see <see cref="GetModuleReflection"/>); dies with
+        /// the entry on session rebuilds — modules are immutable, so it never goes stale
+        /// while the entry lives.
+        /// </summary>
+        public ShaderLibraryReflection? LibraryReflection { get; set; }
     }
 
     [GeneratedRegex(@"(^|\n)[ \t]*module[ \t]+([A-Za-z_][A-Za-z0-9_.]*)[ \t]*;")]

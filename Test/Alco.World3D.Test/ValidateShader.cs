@@ -84,12 +84,12 @@ public class ValidateShader
         // material resources set 2, then the shared sampler bank block — and
         // compiler-assigned bindings inside each block, resolved by name.
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-        ShaderReflectionInfo gbuffer = compiler.ComposeSurfaceShader(null,
+        ShaderReflection gbuffer = compiler.ComposeSurfaceShader(null,
                 engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"))
             .GetShaderModules().ReflectionInfo;
         // The HBAO module name is factory-asset data now (Assets/RenderNodes/
         // HBAO.rnfact); the test pins it by its literal module name.
-        ShaderReflectionInfo hbao = engine.RenderingSystem.ShaderSystem.GetShader("hbao")
+        ShaderReflection hbao = engine.RenderingSystem.ShaderSystem.GetShader("hbao")
             .GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>
@@ -121,7 +121,7 @@ public class ValidateShader
     }
 
     private static void AssertResource(
-        ShaderReflectionInfo info,
+        ShaderReflection info,
         string name,
         int group,
         uint binding,
@@ -133,7 +133,7 @@ public class ValidateShader
         Assert.That(location.Type, Is.EqualTo(type), $"{name} binding type");
     }
 
-    private static ShaderResourceLocation GetResource(ShaderReflectionInfo info, string name)
+    private static ShaderResourceLocation GetResource(ShaderReflection info, string name)
     {
         Assert.That(info.TryGetResourceLocation(name, out ShaderResourceLocation location),
             Is.True, $"Missing reflected resource {name}");

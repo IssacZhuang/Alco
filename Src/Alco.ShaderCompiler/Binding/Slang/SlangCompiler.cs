@@ -14,7 +14,7 @@ namespace Alco.ShaderCompiler;
 // link → ProgramLayout + per-entry target code (SPIR-V / DXIL / MSL, one
 // format per session, selected by the runtime backend for wgpu's shader
 // passthrough). Reflection is materialized into the engine's
-// ShaderReflectionInfo by SlangReflectionReader; no target-code
+// ShaderReflection by SlangReflectionReader; no target-code
 // post-processing happens here.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -78,15 +78,8 @@ public sealed class SlangProgram : IDisposable
 {
     public required string ModuleName { get; init; }
     public required byte[][] EntryCode { get; init; }
-    public required ShaderReflectionInfo Reflection { get; init; }
+    public required ShaderReflection Reflection { get; init; }
     public required IReadOnlyList<(string Name, int Stage)> EntryPoints { get; init; }
-
-    /// <summary>Uniform members by block name; filled by the compiler or restored from the disk cache.</summary>
-    public IReadOnlyDictionary<string, List<SlangUniformMember>> UniformMembers { get; internal set; }
-        = new Dictionary<string, List<SlangUniformMember>>();
-
-    /// <summary>The native ProgramLayout; valid only while this program is alive.</summary>
-    internal IntPtr NativeLayout { get; init; }
 
     internal SlangComponentType? Linked { get; set; }
 
@@ -101,16 +94,16 @@ public sealed class SlangProgram : IDisposable
             EntryCode = cached.EntryCode,
             Reflection = cached.Reflection,
             EntryPoints = cached.EntryPoints,
-            UniformMembers = cached.UniformMembers,
         };
 
-    /// <summary>The uniform members of a named block, from the program layout.</summary>
-    public List<SlangUniformMember> GetUniformMembers(string cbufferName)
-    {
-        if (UniformMembers.TryGetValue(cbufferName, out List<SlangUniformMember>? members))
-            return members;
-        return NativeLayout == IntPtr.Zero ? [] : SlangReflectionReader.GetUniformMembers(NativeLayout, cbufferName);
-    }
+    /// <summary>
+    /// The members of the named uniform block at their post-link offsets —
+    /// delegates to <see cref="ShaderReflection"/>, the single owner of the
+    /// block vocabulary (empty for an unknown block; throws when the block's
+    /// members do not fit the float view).
+    /// </summary>
+    public IReadOnlyList<ShaderUniformMember> GetUniformMembers(string cbufferName)
+        => Reflection.GetUniformMembers(cbufferName);
 
     public void Dispose()
     {
@@ -401,11 +394,14 @@ public sealed class SlangCompileSession : IDisposable
     }
 
     /// <summary>
-    /// The members of a module's named uniform block, read from the module's own layout —
-    /// no entry points, no link (the material-parameter probe). Empty when the module
-    /// declares no such block.
+    /// The module-level library reflection of a module — every uniform/parameter
+    /// block it declares (with user-defined attributes and float-shaped members)
+    /// and every sampled-texture slot — read from the module's own layout, no
+    /// entry points, no link. Domain-neutral: attribute markers are filtered by
+    /// the caller, and blocks whose members do not all fit the float view are
+    /// reported, not rejected.
     /// </summary>
-    public List<SlangUniformMember> GetModuleUniformMembers(SlangModuleHandle module, string cbufferName)
+    public ShaderLibraryReflection GetModuleReflection(SlangModuleHandle module)
     {
         lock (_lock)
         {
@@ -413,44 +409,7 @@ public sealed class SlangCompileSession : IDisposable
             if (layout == IntPtr.Zero)
                 throw new ShaderCompilationException(
                     $"slang getLayout failed for module '{module.Name}': {diagnostics}");
-            return SlangReflectionReader.GetUniformMembers(layout, cbufferName);
-        }
-    }
-
-    /// <summary>
-    /// Every uniform block of a module carrying the given user-defined attribute (e.g.
-    /// <c>[MaterialParams]</c>), read from the module's own layout — no entry points,
-    /// no link. The material-parameter discovery probe: blocks are found by the marker,
-    /// not by a fixed name, so a surface names and splits its parameter blocks freely.
-    /// </summary>
-    public List<(string BlockName, List<SlangUniformMember> Members)> GetModuleMarkedUniformBlocks(
-        SlangModuleHandle module, string attributeName)
-    {
-        lock (_lock)
-        {
-            IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
-            if (layout == IntPtr.Zero)
-                throw new ShaderCompilationException(
-                    $"slang getLayout failed for module '{module.Name}': {diagnostics}");
-            return SlangReflectionReader.GetMarkedUniformBlocks(layout, attributeName);
-        }
-    }
-
-    /// <summary>
-    /// The texture slots of a surface module — every Texture2D member of every
-    /// uniform/parameter block the module declares, in declaration order, by bare
-    /// field name. Descriptor-set independent: a ParameterBlock's set is
-    /// compiler-assigned declaration order, nothing the engine pins or reads.
-    /// </summary>
-    public List<string> GetModuleTextureSlots(SlangModuleHandle module)
-    {
-        lock (_lock)
-        {
-            IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
-            if (layout == IntPtr.Zero)
-                throw new ShaderCompilationException(
-                    $"slang getLayout failed for module '{module.Name}': {diagnostics}");
-            return SlangReflectionReader.GetModuleTextureSlots(layout);
+            return SlangReflectionReader.BuildLibraryReflection(layout);
         }
     }
 
@@ -533,7 +492,7 @@ public sealed class SlangCompileSession : IDisposable
                     for (int i = 0; i < entryCount; i++)
                         code[i] = linked.GetEntryPointCode(i, out _);
 
-                    ShaderReflectionInfo reflection = SlangReflectionReader.BuildReflectionInfo(layout);
+                    ShaderReflection reflection = SlangReflectionReader.BuildReflectionInfo(layout);
                     List<(string, int)> entries = SlangReflectionReader.GetEntryPoints(layout);
 
                     SlangProgram program = new()
@@ -542,7 +501,6 @@ public sealed class SlangCompileSession : IDisposable
                         EntryCode = code,
                         Reflection = reflection,
                         EntryPoints = entries,
-                        NativeLayout = layout,
                         Linked = linked,
                     };
                     linked = null; // ownership transferred to the program

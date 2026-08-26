@@ -31,5 +31,5 @@ public sealed class GraphicsMaterialInstance : GraphicsMaterial
     // Slot values are inherited through the parameter set fallback chain. Binding
     // the white-texture defaults here would write them into own slots, which
     // resolve before the fallback and so shadow the parent-bound textures.
-    protected override void UpdateSlotResources(ShaderReflectionInfo reflectionInfo) { }
+    protected override void UpdateSlotResources(ShaderReflection reflectionInfo) { }
 }

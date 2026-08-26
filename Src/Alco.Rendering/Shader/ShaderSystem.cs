@@ -67,11 +67,25 @@ public sealed class ShaderSystem : IDisposable
                     $"Shader library '{moduleName}' resolves to no module source; check the module name " +
                     "(it must match the source file's module declaration, e.g. 'pbr_standard').");
             }
-            ShaderLibrary library = new(moduleName);
+            ShaderLibrary library = new(moduleName, this);
             _libraries.Add(moduleName, library);
             return library;
         }
     }
+
+    /// <summary>
+    /// The library reflection of a module (uniform blocks with their attributes and
+    /// members, texture and sampler slots) — the library-domain counterpart of a
+    /// shader's <see cref="ShaderReflection"/>. Underlying route behind
+    /// <see cref="ShaderLibrary.GetReflection"/>; reads through the module
+    /// system's per-module cache, and hot reload invalidation rides the session
+    /// rebuild.
+    /// </summary>
+    /// <param name="library">The library reference (its module resolves by name).</param>
+    /// <param name="defines">Optional preprocessor permutation of the module.</param>
+    public ShaderLibraryReflection GetLibraryReflection(
+        ShaderLibrary library, IReadOnlyList<string>? defines = null)
+        => _modules.GetModuleReflection(library.Name, defines);
 
     /// <summary>
     /// Gets (or creates) the shader handle of one module: the module's entry

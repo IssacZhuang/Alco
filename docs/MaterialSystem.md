@@ -159,7 +159,7 @@ public sealed class GBufferRenderer : ...
 - surface 里的 `Texture2D _albedoTexture` → 槽名 **`albedoTexture`**（去前导下划线，大小写敏感）。
 - 资产的 `Textures` 在加载期即解析成 `Texture2D`，资产到此完整，**不认识流式**。glTF 场景加载同理：loader 在场景返回前实现所有纹理（外部文件内容原位异步上传），由适配器直接填进资产描述符的 `Textures`；图像缺失或解码失败的槽留空，走资产兜底策略。
 - 未绑的槽走**资产自己的兜底策略**:`MaterialAsset.GetTextureFallback(slot)` 返回 `White/Black/FlatNormal`，编译器映射到 `RenderingSystem.TextureWhite/TextureBlack/TextureFlatNormal`。基类恒白；`PbrMaterialAsset` 按槽名前缀给 `normal*` → flat normal、`emissive*` → 黑。不同材质家族可以有不同的兜底策略，不需要编译器知道任何槽名约定。
-- surface 资源声明在自己的 `ParameterBlock` 里（块名自由）；纹理槽从 surface 模块自身的反射枚举（`GetModuleTextureSlots`），不读任何 set 号——set 是组合产物，不是输入。
+- surface 资源声明在自己的 `ParameterBlock` 里（块名自由）；纹理槽从 surface 库自身的反射枚举（`library.GetReflection()` → `TextureSlots`），不读任何 set 号——set 是组合产物，不是输入。
 
 ## 共享 sampler 规则
 
@@ -195,7 +195,7 @@ float4 c = _albedoTexture.Sample(_samplers._linearRepeat, uv);
   ParameterBlock<PulseParamsData> PulseParams;
   ```
 
-- 发现靠标记不靠名字：`GetParamsLayouts` 枚举模块里所有带标记的块，从反射读每个成员的类型和字节偏移；`PackParamsBuffers` 把 `Parameters` 按成员名跨块分发、逐块打包成 GPU buffer，按块名绑定。参数值是 `Vector4`，每个成员读取自己宽度的前导分量（标量读 x,float3 读 xyz)，多余分量忽略。
+- 发现靠标记不靠名字：库反射（`ShaderLibraryReflection`，经 `library.GetReflection()` 取得，编译器中立、按模块缓存）列出全部块及其 user attribute；`GetParamsLayouts` 在材质域按 `[MaterialParams]` 过滤出参数块，从反射读每个成员的类型和字节偏移；`PackParamsBuffers` 把 `Parameters` 按成员名跨块分发、逐块打包成 GPU buffer，按块名绑定。参数值是 `Vector4`，每个成员读取自己宽度的前导分量（标量读 x,float3 读 xyz)，多余分量忽略。
 - 未标记的块天然排除——surface 重声明的引擎数据块（如 `_globalRenderData`）不需要进排除名单。
 - 块里可以混声明纹理/sampler 成员（自描述资源块），只有标量/向量 float 成员参与参数打包；标记块一个 float 成员都没有 → `NotSupportedException`。
 - 快速失败：参数名对不上任何块的成员 → `InvalidDataException`（列出有效成员）；同一成员名出现在两个块 → 跨块歧义报错；传了 `Parameters` 但 surface 没标记任何参数块 → `InvalidDataException`。

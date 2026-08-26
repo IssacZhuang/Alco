@@ -186,7 +186,7 @@ public class SlangNativeApiTest
             new SlangEntryPointRequest("MainPS", ShaderStage.Fragment),
         ]);
 
-        ShaderReflectionInfo reflection = program.Reflection;
+        ShaderReflection reflection = program.Reflection;
         Assert.Multiple(() =>
         {
             // space0: _frame (uniform); space1: _albedo (texture) + _albedoSampler (sampler)
@@ -328,7 +328,7 @@ public class SlangNativeApiTest
     public void ModuleIR_RoundTripsThroughSerializeAndLoadFromIRBlob()
     {
         using SlangCompiler compiler = SlangCompiler.Create();
-        ShaderReflectionInfo fromSource;
+        ShaderReflection fromSource;
         byte[] ir;
         using (SlangCompileSession session = compiler.CreateSession(SlangCompilerOptions.Default))
         {
@@ -393,7 +393,7 @@ public class SlangNativeApiTest
         SlangModuleHandle module = session.LoadModuleFromSource("alco_test_params", "alco_test_params.slang", shader);
         using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainPS", ShaderStage.Fragment)]);
 
-        List<SlangUniformMember> members = program.GetUniformMembers("_materialParams");
+        IReadOnlyList<ShaderUniformMember> members = program.GetUniformMembers("_materialParams");
         Assert.Multiple(() =>
         {
             Assert.That(members.Count, Is.EqualTo(3));

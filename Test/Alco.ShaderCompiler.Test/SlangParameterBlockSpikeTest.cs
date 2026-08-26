@@ -715,7 +715,7 @@ public class SlangParameterBlockSpikeTest
         SlangModuleHandle module = session.LoadModuleFromSource("test_pb_entry", "test_pb_entry.slang", EntryModule);
         using SlangProgram program = session.Compile(module, [new SlangEntryPointRequest("MainPS", Alco.Graphics.ShaderStage.Fragment)]);
 
-        Alco.Graphics.ShaderReflectionInfo reflection = program.Reflection;
+        Alco.Graphics.ShaderReflection reflection = program.Reflection;
         Assert.That(reflection.BindGroups.Count, Is.EqualTo(2));
 
         Alco.Graphics.BindGroupLayout pass = reflection.BindGroups[0];

@@ -140,7 +140,7 @@ public class Game : GameEngine
         ShaderModule vertSource = StageModule(program, "MainVS");
         ShaderModule fragSource = StageModule(program, "MainPS");
 
-        ShaderReflectionInfo info = program.Reflection;
+        ShaderReflection info = program.Reflection;
 
         Log.Info(info);
 
@@ -180,7 +180,7 @@ public class Game : GameEngine
         SlangProgram program = CompileProgram("sandbox8_compute_position", "compute-position.slang");
         ShaderModule computeSource = StageModule(program, "MainCS");
 
-        ShaderReflectionInfo info = program.Reflection;
+        ShaderReflection info = program.Reflection;
 
         Log.Info(info);
 

@@ -4,7 +4,7 @@ namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Translates a slang ProgramLayout (SlangReflection*) into the engine's
-// ShaderReflectionInfo, keeping its shape unchanged (plan D4): only the
+// ShaderReflection, keeping its shape unchanged (plan D4): only the
 // producer changes. This is a port of the proven World3D beachhead reader
 // with the two SPIR-V fact lookups replaced by first-class slang reflection:
 //   - compute thread group size: spReflectionEntryPoint_getComputeThreadGroupSize
@@ -12,14 +12,9 @@ namespace Alco.ShaderCompiler;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// One member of a slang uniform block: name, byte offset, size and float
-/// component count (1-4 for scalar/vector float members), read from slang's
-/// own reflection. Replaces the regex-parsed float4-only material parameter
-/// layout of the HLSL surface contract: a block may mix scalar and vector
-/// types freely and the C# side writes parameters at the reflected offsets.
+/// One member of a slang uniform block is <see cref="ShaderUniformMember"/> in
+/// Alco.Graphics — the engine-shaped reflection vocabulary this reader fills in.
 /// </summary>
-public readonly record struct SlangUniformMember(string Name, uint OffsetBytes, uint SizeBytes, int FloatComponentCount);
-
 public static class SlangReflectionReader
 {
     /// <summary>
@@ -28,10 +23,11 @@ public static class SlangReflectionReader
     /// program layout. One slang program contains all entry points, so a
     /// single layout covers the whole shader.
     /// </summary>
-    public static unsafe ShaderReflectionInfo BuildReflectionInfo(IntPtr reflection)
+    public static unsafe ShaderReflection BuildReflectionInfo(IntPtr reflection)
     {
         List<(uint Space, BindGroupEntryInfo Entry)> entries = [];
         List<PushConstantsRange> pushConstants = [];
+        List<ShaderUniformBlock> uniformBlocks = [];
         Dictionary<string, PixelFormat> imageFormats = CollectImageFormats(reflection);
 
         // Every binding gets the engine's Standard (V|F|C) visibility — the
@@ -119,6 +115,7 @@ public static class SlangReflectionReader
                             name: name),
                         Size = uniformSize,
                     }));
+                    AddUniformBlock(parameter, typeLayout, uniformBlocks);
                 }
 
                 AddBlockResourceMembers(parameter, typeLayout, entries, imageFormats, visibility);
@@ -151,6 +148,7 @@ public static class SlangReflectionReader
                             name: name),
                         Size = uniformSize,
                     }));
+                    AddUniformBlock(parameter, typeLayout, uniformBlocks);
                 }
 
                 AddResourceFields(elementLayout, blockSet, bindingBase: 0, prefix: null, entries, imageFormats, visibility);
@@ -162,15 +160,12 @@ public static class SlangReflectionReader
                 // SamplerComparisonState is a distinct slang type (SPIR-V carries no
                 // comparison marker — naga derives it from Dref usage), so the
                 // declared type name is the reflection fact.
-                IntPtr samplerType = SlangNative.spReflectionTypeLayout_GetType(typeLayout);
-                bool comparison = SlangNative.StringFromPtr(
-                    SlangNative.spReflectionType_GetName(samplerType)) == "SamplerComparisonState";
                 entries.Add((SlangNative.spReflectionParameter_GetBindingSpace(parameter), new BindGroupEntryInfo
                 {
                     Entry = new BindGroupEntry(
                         SlangNative.spReflectionParameter_GetBindingIndex(parameter),
                         visibility,
-                        comparison ? BindingType.SamplerComparison : BindingType.Sampler,
+                        IsComparisonSampler(typeLayout) ? BindingType.SamplerComparison : BindingType.Sampler,
                         name: name),
                 }));
                 continue;
@@ -210,17 +205,40 @@ public static class SlangReflectionReader
         IReadOnlyList<VertexInputLayout> vertexLayouts = BuildVertexLayouts(reflection);
         int fragmentOutputCount = CountFragmentOutputs(reflection);
 
-        return new ShaderReflectionInfo(
-            vertexLayouts, bindGroups, pushConstants, threadGroupSize, fragmentOutputCount);
+        return new ShaderReflection(
+            vertexLayouts, bindGroups, pushConstants, threadGroupSize, fragmentOutputCount, uniformBlocks);
     }
 
     /// <summary>
-    /// The members of a named uniform block (e.g. a surface's
-    /// parameter block), in declaration order, from slang reflection.
-    /// Empty when the program declares no such block. Non-float members make
-    /// the method throw — the material parameter system writes floats only.
+    /// Collects one uniform/parameter block into the shared block vocabulary:
+    /// the parameter's user-defined attributes, the float-shaped members at
+    /// their reflected offsets, and why any member the float view cannot
+    /// represent is missing. The same helper feeds the library view
+    /// (<see cref="BuildLibraryReflection"/>) and the linked view
+    /// (<see cref="BuildReflectionInfo"/>).
     /// </summary>
-    public static unsafe List<SlangUniformMember> GetUniformMembers(IntPtr reflection, string cbufferName)
+    private static unsafe void AddUniformBlock(
+        IntPtr parameter, IntPtr typeLayout, List<ShaderUniformBlock> blocks)
+    {
+        string? name = VariableLayoutName(parameter);
+        if (name == null)
+        {
+            return;
+        }
+        List<ShaderUniformMember> members = ReadUniformMembers(typeLayout, out string? unsupportedReason);
+        IntPtr variable = SlangNative.spReflectionVariableLayout_GetVariable(parameter);
+        blocks.Add(new ShaderUniformBlock(
+            name, GetUserAttributeNames(variable), members, unsupportedReason));
+    }
+
+    /// <summary>
+    /// The members of the named uniform block of a LINKED program, at their
+    /// post-link offsets — the strict wrapper over the block view collected by
+    /// <see cref="BuildReflectionInfo"/>. Empty when the program declares no
+    /// such block. Non-float members make the method throw — the material
+    /// parameter system writes floats only.
+    /// </summary>
+    public static unsafe List<ShaderUniformMember> GetUniformMembers(IntPtr reflection, string cbufferName)
     {
         uint parameterCount = SlangNative.spReflection_GetParameterCount(reflection);
         for (uint i = 0; i < parameterCount; i++)
@@ -245,22 +263,26 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// Every uniform block carrying the given user-defined attribute (e.g.
-    /// <c>[MaterialParams]</c>), with its scalar/vector float members, from slang
-    /// reflection. Blocks are discovered by the marker, not by name — a surface
-    /// names and splits its parameter blocks freely (and may mix texture/sampler
-    /// members in, as before). A marked block whose uniform members are all
-    /// non-float, or that declares no uniform members at all, throws: the
-    /// material parameter system writes floats only.
+    /// Builds the module-level library reflection — every uniform/parameter
+    /// block the layout declares, with its user-defined attributes and
+    /// float-shaped members, plus every sampled-texture slot — from a slang
+    /// module layout (no entry points, no link). Domain-neutral: attribute
+    /// markers (e.g. MaterialParams) are filtered by the caller, and a block
+    /// whose members do not all fit the float view is reported through the
+    /// block, not rejected here.
     /// </summary>
-    public static unsafe List<(string BlockName, List<SlangUniformMember> Members)> GetMarkedUniformBlocks(
-        IntPtr reflection, string attributeName)
+    public static unsafe ShaderLibraryReflection BuildLibraryReflection(IntPtr layout)
     {
-        List<(string, List<SlangUniformMember>)> blocks = [];
-        uint parameterCount = SlangNative.spReflection_GetParameterCount(reflection);
+        List<ShaderUniformBlock> blocks = [];
+        List<ShaderTextureSlot> textureSlots = [];
+        List<ShaderSamplerSlot> samplerSlots = [];
+        // Sample-type refinement needs the same declared image formats the
+        // linked path consults (e.g. an r32uint storage-typed texture reads Uint).
+        Dictionary<string, PixelFormat> imageFormats = CollectImageFormats(layout);
+        uint parameterCount = SlangNative.spReflection_GetParameterCount(layout);
         for (uint i = 0; i < parameterCount; i++)
         {
-            IntPtr parameter = SlangNative.spReflection_GetParameterByIndex(reflection, i);
+            IntPtr parameter = SlangNative.spReflection_GetParameterByIndex(layout, i);
             if (parameter == IntPtr.Zero)
             {
                 continue;
@@ -274,63 +296,24 @@ public static class SlangReflectionReader
                 continue;
             }
 
-            IntPtr variable = SlangNative.spReflectionVariableLayout_GetVariable(parameter);
-            if (!HasUserAttribute(variable, attributeName))
-            {
-                continue;
-            }
+            // Module level: every declared block counts, uniform data or not
+            // (a resource-only block still contributes its texture slots).
+            AddUniformBlock(parameter, typeLayout, blocks);
 
-            string? name = VariableLayoutName(parameter);
-            List<SlangUniformMember> members = ReadUniformMembers(typeLayout);
-            if (members.Count == 0)
-            {
-                throw new NotSupportedException(
-                    $"Parameter block '{name}' is marked [{attributeName}] but declares no scalar/vector members; " +
-                    "unmark it or add the members it should carry.");
-            }
-            blocks.Add((name!, members));
+            IntPtr elementLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
+            CollectTextureSlots(elementLayout, textureSlots, imageFormats);
+            CollectSamplerSlots(elementLayout, samplerSlots);
         }
-        return blocks;
+        return new ShaderLibraryReflection(blocks, textureSlots, samplerSlots);
     }
 
     /// <summary>
-    /// The texture slots of a surface module — every Texture2D member of every
-    /// uniform/parameter block it declares, in declaration order, by bare field
-    /// name. Depth textures and storage images are not material slots. Read from
-    /// the module's own layout, so no entry point or link is required.
+    /// The sampler members of a block's element struct, in declaration order,
+    /// with the comparison flag — the custom samplers a material may bind by
+    /// name (<c>SetSampler</c>). The engine's shared sampler bank members are
+    /// engine-owned state, never bindable material slots.
     /// </summary>
-    public static unsafe List<string> GetModuleTextureSlots(IntPtr reflection)
-    {
-        List<string> slots = [];
-        uint parameterCount = SlangNative.spReflection_GetParameterCount(reflection);
-        for (uint i = 0; i < parameterCount; i++)
-        {
-            IntPtr parameter = SlangNative.spReflection_GetParameterByIndex(reflection, i);
-            if (parameter == IntPtr.Zero)
-            {
-                continue;
-            }
-
-            IntPtr typeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(parameter);
-            int kind = SlangNative.spReflectionTypeLayout_getKind(typeLayout);
-            if (kind != SlangNative.SLANG_TYPE_KIND_CONSTANT_BUFFER
-                && kind != SlangNative.SLANG_TYPE_KIND_PARAMETER_BLOCK)
-            {
-                continue;
-            }
-
-            CollectTextureFieldNames(
-                SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout), slots);
-        }
-        return slots;
-    }
-
-    /// <summary>
-    /// The sampled-texture field names of a block's element struct, in
-    /// declaration order. Storage images and depth textures are excluded —
-    /// they are pass bindings, not material texture slots.
-    /// </summary>
-    private static unsafe void CollectTextureFieldNames(IntPtr structLayout, List<string> names)
+    private static unsafe void CollectSamplerSlots(IntPtr structLayout, List<ShaderSamplerSlot> slots)
     {
         uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(structLayout);
         for (uint field = 0; field < fieldCount; field++)
@@ -340,7 +323,42 @@ public static class SlangReflectionReader
             int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldTypeLayout);
             if (fieldKind == SlangNative.SLANG_TYPE_KIND_STRUCT)
             {
-                CollectTextureFieldNames(fieldTypeLayout, names);
+                CollectSamplerSlots(fieldTypeLayout, slots);
+                continue;
+            }
+            if (fieldKind != SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE)
+            {
+                continue;
+            }
+
+            string? fieldName = VariableLayoutName(fieldLayout);
+            if (fieldName != null)
+            {
+                slots.Add(new ShaderSamplerSlot(fieldName, IsComparisonSampler(fieldTypeLayout)));
+            }
+        }
+    }
+
+    /// <summary>
+    /// The sampled-texture slots of a block's element struct, in declaration
+    /// order, with the shape each declaration requires (the same shape facts
+    /// the linked view reports on its bind-group entries). Storage images and
+    /// depth textures are excluded — they are pass bindings, not material
+    /// texture slots.
+    /// </summary>
+    private static unsafe void CollectTextureSlots(
+        IntPtr structLayout, List<ShaderTextureSlot> slots,
+        IReadOnlyDictionary<string, PixelFormat> imageFormats)
+    {
+        uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(structLayout);
+        for (uint field = 0; field < fieldCount; field++)
+        {
+            IntPtr fieldLayout = SlangNative.spReflectionTypeLayout_GetFieldByIndex(structLayout, field);
+            IntPtr fieldTypeLayout = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
+            int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldTypeLayout);
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_STRUCT)
+            {
+                CollectTextureSlots(fieldTypeLayout, slots, imageFormats);
                 continue;
             }
             if (fieldKind != SlangNative.SLANG_TYPE_KIND_RESOURCE)
@@ -351,52 +369,82 @@ public static class SlangReflectionReader
             // Storage images are pass outputs, not sampled material slots;
             // depth textures are framebuffer attachments, not material slots.
             IntPtr resourceType = SlangNative.spReflectionTypeLayout_GetType(fieldTypeLayout);
+            int shape = SlangNative.spReflectionType_GetResourceShape(resourceType);
             if (SlangNative.spReflectionType_GetResourceAccess(resourceType)
                     != SlangNative.SLANG_RESOURCE_ACCESS_READ
-                || (SlangNative.spReflectionType_GetResourceShape(resourceType)
-                        & SlangNative.SLANG_TEXTURE_SHADOW_FLAG) != 0)
+                || (shape & SlangNative.SLANG_TEXTURE_SHADOW_FLAG) != 0)
             {
                 continue;
             }
 
             string? fieldName = VariableLayoutName(fieldLayout);
-            if (fieldName != null)
+            if (fieldName == null)
             {
-                names.Add(fieldName);
+                continue;
             }
+            TextureViewDimension dimension = GetViewDimension(shape, fieldName);
+            slots.Add(new ShaderTextureSlot(fieldName, dimension,
+                GetSampleType(resourceType, fieldName, imageFormats)));
         }
     }
-
-    /// <summary>Whether a slang variable carries the named user-defined attribute.</summary>
-    private static unsafe bool HasUserAttribute(IntPtr variable, string attributeName)
+    /// <summary>Every user-defined attribute name of a slang variable, in declaration order.</summary>
+    private static unsafe List<string> GetUserAttributeNames(IntPtr variable)
     {
+        List<string> names = [];
         if (variable == IntPtr.Zero)
         {
-            return false;
+            return names;
         }
         uint count = SlangNative.spReflectionVariable_GetUserAttributeCount(variable);
         for (uint i = 0; i < count; i++)
         {
             IntPtr attribute = SlangNative.spReflectionVariable_GetUserAttribute(variable, i);
-            if (attribute != IntPtr.Zero
-                && SlangNative.StringFromPtr(SlangNative.spReflectionUserAttribute_GetName(attribute)) == attributeName)
+            if (attribute == IntPtr.Zero)
             {
-                return true;
+                continue;
+            }
+            string? name = SlangNative.StringFromPtr(
+                SlangNative.spReflectionUserAttribute_GetName(attribute));
+            if (name != null)
+            {
+                names.Add(name);
             }
         }
-        return false;
+        return names;
     }
 
     /// <summary>
     /// The scalar/vector float members of a constant-buffer type layout, in
     /// declaration order. Resource members (textures, samplers, storage
     /// buffers) are binding entries, not uniform members, and are skipped;
-    /// other non-float members throw.
+    /// other non-float members make the method throw.
     /// </summary>
-    private static unsafe List<SlangUniformMember> ReadUniformMembers(IntPtr typeLayout)
+    private static unsafe List<ShaderUniformMember> ReadUniformMembers(IntPtr typeLayout)
+    {
+        List<ShaderUniformMember> members = ReadUniformMembers(typeLayout, out string? unsupportedReason);
+        if (unsupportedReason != null)
+        {
+            throw new NotSupportedException(unsupportedReason);
+        }
+        return members;
+    }
+
+    /// <summary>
+    /// The lenient member walk behind <see cref="ReadUniformMembers(IntPtr)"/>:
+    /// the float-shaped members in declaration order plus, through
+    /// <paramref name="unsupportedMemberReason"/>, why the first member that
+    /// does not fit the float view (non-float scalar, other kind, a struct
+    /// with uniform data) is missing — null when the listing is complete.
+    /// Resource members (textures, samplers, storage buffers, and structs that
+    /// only group them) are binding entries, not uniform data, and never count
+    /// as unsupported.
+    /// </summary>
+    private static unsafe List<ShaderUniformMember> ReadUniformMembers(
+        IntPtr typeLayout, out string? unsupportedMemberReason)
     {
         IntPtr structLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(typeLayout);
-        List<SlangUniformMember> members = [];
+        List<ShaderUniformMember> members = [];
+        unsupportedMemberReason = null;
         uint fieldCount = SlangNative.spReflectionTypeLayout_GetFieldCount(structLayout);
         for (uint field = 0; field < fieldCount; field++)
         {
@@ -430,16 +478,21 @@ public static class SlangReflectionReader
                     continue;
                 }
 
-                throw new NotSupportedException(
-                    "GraphicsMaterial parameter blocks support float members only; a nested struct with uniform data is not a valid parameter.");
+                unsupportedMemberReason ??=
+                    "GraphicsMaterial parameter blocks support float members only; a nested struct with uniform data is not a valid parameter.";
+                continue;
             }
 
+            IntPtr fieldType = SlangNative.spReflectionTypeLayout_GetType(fieldLayoutType);
+            if (!TryGetFloatComponents(fieldType, out int components, out string? reason))
+            {
+                unsupportedMemberReason ??= reason;
+                continue;
+            }
             uint offset = (uint)SlangNative.spReflectionVariableLayout_GetOffset(
                 fieldLayout, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
-            IntPtr fieldType = SlangNative.spReflectionTypeLayout_GetType(fieldLayoutType);
-            int components = FloatComponents(fieldType);
             uint size = (uint)(components * sizeof(float));
-            members.Add(new SlangUniformMember(fieldName, offset, size, components));
+            members.Add(new ShaderUniformMember(fieldName, offset, size, components));
         }
         return members;
     }
@@ -621,15 +674,12 @@ public static class SlangReflectionReader
             if (fieldKind == SlangNative.SLANG_TYPE_KIND_SAMPLER_STATE)
             {
                 // Same comparison-type fact as a top-level sampler declaration.
-                IntPtr samplerType = SlangNative.spReflectionTypeLayout_GetType(fieldTypeLayout);
-                bool comparison = SlangNative.StringFromPtr(
-                    SlangNative.spReflectionType_GetName(samplerType)) == "SamplerComparisonState";
                 entries.Add((blockSpace, new BindGroupEntryInfo
                 {
                     Entry = new BindGroupEntry(
                         bindingBase + SlangNative.spReflectionParameter_GetBindingIndex(fieldLayout),
                         visibility,
-                        comparison ? BindingType.SamplerComparison : BindingType.Sampler,
+                        IsComparisonSampler(fieldTypeLayout) ? BindingType.SamplerComparison : BindingType.Sampler,
                         name: qualifiedName),
                 }));
                 continue;
@@ -698,14 +748,7 @@ public static class SlangReflectionReader
         // OpTypeImage — the sample type must match for wgpu's layout check.
         bool isDepthTexture = (shape & SlangNative.SLANG_TEXTURE_SHADOW_FLAG) != 0;
 
-        TextureViewDimension dimension = baseShape switch
-        {
-            SlangNative.SLANG_TEXTURE_1D => TextureViewDimension.Texture1D,
-            SlangNative.SLANG_TEXTURE_2D => TextureViewDimension.Texture2D,
-            SlangNative.SLANG_TEXTURE_3D => TextureViewDimension.Texture3D,
-            SlangNative.SLANG_TEXTURE_CUBE => TextureViewDimension.Cube,
-            _ => throw new NotSupportedException($"Slang parameter '{name}' has unsupported resource shape {baseShape}."),
-        };
+        TextureViewDimension dimension = GetViewDimension(shape, name);
 
         if (access == SlangNative.SLANG_RESOURCE_ACCESS_READ_WRITE ||
             access == SlangNative.SLANG_RESOURCE_ACCESS_WRITE)
@@ -742,6 +785,34 @@ public static class SlangReflectionReader
                 name: name),
         }));
     }
+
+    /// <summary>
+    /// Whether a sampler type layout is a <c>SamplerComparisonState</c> (depth
+    /// comparison) rather than a plain <c>SamplerState</c> — SPIR-V carries no
+    /// comparison marker, so the declared type name is the reflection fact.
+    /// The one detection shared by the linked path and the library path.
+    /// </summary>
+    private static bool IsComparisonSampler(IntPtr samplerTypeLayout)
+    {
+        IntPtr samplerType = SlangNative.spReflectionTypeLayout_GetType(samplerTypeLayout);
+        return SlangNative.StringFromPtr(
+            SlangNative.spReflectionType_GetName(samplerType)) == "SamplerComparisonState";
+    }
+
+    /// <summary>
+    /// The view dimension of a slang resource shape (1D/2D/3D/cube), the one
+    /// mapping both the linked path and the library path use — the shadow and
+    /// array flags are stripped by the caller.
+    /// </summary>
+    private static TextureViewDimension GetViewDimension(int shape, string name)
+        => (shape & 0x0F) switch
+        {
+            SlangNative.SLANG_TEXTURE_1D => TextureViewDimension.Texture1D,
+            SlangNative.SLANG_TEXTURE_2D => TextureViewDimension.Texture2D,
+            SlangNative.SLANG_TEXTURE_3D => TextureViewDimension.Texture3D,
+            SlangNative.SLANG_TEXTURE_CUBE => TextureViewDimension.Cube,
+            _ => throw new NotSupportedException($"Slang parameter '{name}' has unsupported resource shape {shape & 0x0F}."),
+        };
 
     private static TextureSampleType GetSampleType(
         IntPtr resourceType,
@@ -977,24 +1048,40 @@ public static class SlangReflectionReader
     /// total float count (e.g. float4x4 → 16) so uniform harvesting over general
     /// constant buffers (camera matrices) tolerates them.
     /// </summary>
-    private static int FloatComponents(IntPtr type)
+    /// <summary>
+    /// The float component count (1 scalar, N vector, rows×columns matrix) of a
+    /// reflection type; false leaves the reason the type does not fit the float
+    /// member view (non-float scalar type, or not a scalar/vector/matrix kind).
+    /// </summary>
+    private static bool TryGetFloatComponents(IntPtr type, out int components, out string? reason)
     {
+        components = 0;
         int kind = SlangNative.spReflectionType_GetKind(type);
         int scalar = SlangNative.spReflectionType_GetScalarType(type);
         if (scalar != SlangNative.SLANG_SCALAR_TYPE_FLOAT32)
         {
-            throw new NotSupportedException(
-                "GraphicsMaterial parameter blocks support float members only (float, float2, float3, float4).");
+            reason = "GraphicsMaterial parameter blocks support float members only (float, float2, float3, float4).";
+            return false;
         }
-        return kind switch
+        switch (kind)
         {
-            SlangNative.SLANG_TYPE_KIND_SCALAR => 1,
-            SlangNative.SLANG_TYPE_KIND_VECTOR => (int)SlangNative.spReflectionType_GetColumnCount(type),
-            SlangNative.SLANG_TYPE_KIND_MATRIX => (int)(SlangNative.spReflectionType_GetRowCount(type)
-                                                       * SlangNative.spReflectionType_GetColumnCount(type)),
-            _ => throw new NotSupportedException(
-                $"GraphicsMaterial parameter blocks support scalar/vector members only (member kind {kind})."),
-        };
+            case SlangNative.SLANG_TYPE_KIND_SCALAR:
+                components = 1;
+                reason = null;
+                return true;
+            case SlangNative.SLANG_TYPE_KIND_VECTOR:
+                components = (int)SlangNative.spReflectionType_GetColumnCount(type);
+                reason = null;
+                return true;
+            case SlangNative.SLANG_TYPE_KIND_MATRIX:
+                components = (int)(SlangNative.spReflectionType_GetRowCount(type)
+                                   * SlangNative.spReflectionType_GetColumnCount(type));
+                reason = null;
+                return true;
+            default:
+                reason = $"GraphicsMaterial parameter blocks support scalar/vector members only (member kind {kind}).";
+                return false;
+        }
     }
 
     private static unsafe string? VariableLayoutName(IntPtr variableLayout)
