@@ -242,9 +242,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     {
         public required MeshGeometry Geometry;
         /// <summary>
-        /// The compiled voxelize material of the registration's asset (template ×
-        /// surface), with the asset's textures and parameter blocks bound once at
-        /// creation; shared by all registrations of the same asset.
+        /// A per-registration instance of the asset's compiled voxelize material
+        /// (template × surface). The instance binds this registration's geometry
+        /// buffers into the <c>_geometry</c> block once, here; everything else
+        /// (textures, parameter blocks, the shared <c>_data</c> buffer) resolves
+        /// through the fallback chain from the per-asset parent material.
         /// </summary>
         public required ComputeMaterial Material;
     }
@@ -282,12 +284,14 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     // dispatches record into the graph's shared command buffer instead.
     private readonly GPUCommandBuffer _commandBuffer;
     private readonly ComputeMaterial _clearMaterial;
-    // The voxelize material compiles per material asset surface (see RegisterMesh);
-    // the built-in surface's material is keyed by the shared PbrMaterialAsset.Default.
-    // These materials are derived per-asset state, so the table holds them weakly:
-    // a material's lifetime follows its asset's (the engine's ownership rule) instead
-    // of being pinned by this long-lived node, and live registrations keep their
-    // materials alive on their own.
+    // The voxelize parent material compiles per material asset surface (see
+    // GetVoxelizeMaterial); the built-in surface's material is keyed by the shared
+    // PbrMaterialAsset.Default. These parents are derived per-asset state, so the
+    // table holds them weakly: a material's lifetime follows its asset's (the
+    // engine's ownership rule) instead of being pinned by this long-lived node.
+    // Each registration derives its own ComputeMaterialInstance from the parent
+    // (binding that registration's geometry buffers once) and keeps it alive on
+    // its own, which in turn pins the parent through the instance's fallback.
     private readonly ConditionalWeakTable<MaterialAsset, ComputeMaterial> _voxelizeMaterials = new();
     private readonly ComputeMaterial _injectMaterial;
     private readonly ComputeMaterial _mipMaterial;
@@ -1055,21 +1059,30 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _geometries.Add(geometry);
         }
 
+        // The instance pins this registration's geometry into the _geometry
+        // block once; dispatches only rebind the per-dispatch attribute-pool
+        // buffers (each a single-member block cached on the buffer itself).
+        ComputeMaterial voxelize = GetVoxelizeMaterial(material).CreateInstance();
+        voxelize.SetBuffer("_vertices", geometry.Vertices);
+        voxelize.SetBuffer("_indices", geometry.Indices);
+
         _meshes.Add(new MeshRegistration
         {
             Geometry = geometry,
-            Material = GetVoxelizeMaterial(material),
+            Material = voxelize,
         });
         return _meshes.Count - 1;
     }
 
     /// <summary>
-    /// The compiled voxelize material of one material asset, cached per asset and held
-    /// weakly — the material is derived per-asset state whose lifetime follows the
-    /// asset's (live registrations keep their own references). Compilation goes through
-    /// <see cref="MaterialCompiler.CompileCompute"/>: the surface's texture slots and
-    /// parameter blocks bind from the asset once, here; only the shared per-frame
-    /// <c>_data</c> buffer binds on top.
+    /// The compiled voxelize parent material of one material asset, cached per
+    /// asset and held weakly — the material is derived per-asset state whose
+    /// lifetime follows the asset's (live registrations keep their own
+    /// references). Compilation goes through <see cref="MaterialCompiler.CompileCompute"/>:
+    /// the surface's texture slots and parameter blocks bind from the asset once,
+    /// here; the shared per-frame <c>_data</c> buffer binds on top. Each mesh
+    /// registration derives a <see cref="ComputeMaterialInstance"/> from this
+    /// parent to pin its geometry buffers (see <see cref="RegisterMesh"/>).
     /// </summary>
     private ComputeMaterial GetVoxelizeMaterial(MaterialAsset? asset)
     {
@@ -2229,8 +2242,10 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         ComputeMaterial material = registration.Material;
-        material.SetBuffer("_vertices", geometry.Vertices);
-        material.SetBuffer("_indices", geometry.Indices);
+        // _vertices/_indices are bound once per registration (see RegisterMesh).
+        // The two pool buffers cycle per dispatch; each lives in its own
+        // single-member block, so its bind group is cached on the buffer itself
+        // and switching pools/levels allocates nothing.
         material.SetBuffer("_attrOut", attrOut);
         material.SetBuffer("_pageTable", pageTable);
         material.DispatchBySizeWithConstant(computePass, geometry.TriangleCount, 8, 1, new VoxelizeConstants

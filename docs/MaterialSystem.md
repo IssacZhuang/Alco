@@ -213,7 +213,7 @@ public MainPOut MainPS<T : ISurface>(MainVOut v) where let AlphaTest : bool { ..
 
 ## GI 体素化（compute feed)
 
-`RGNode_VoxelGI` 不是单一手写 shader:`RegisterMesh(mesh, stride, bounds, materialAsset)` 按材质编译 `voxelize` 模板（compute,`IVoxelFeedSurface`)——走 `MaterialCompiler.CompileCompute`，纹理槽/参数块规则与 graphics pass 完全一致（同一份实现）：槽位校验 fail-fast、纹理从 `asset.Textures` 一次绑定、缺槽经 `ResolveFallbackTexture` 按资产策略兜底、参数块打包绑定。同材质的多 mesh 共享一份编译产物；产物是 per-asset 派生状态，缓存表（`ConditionalWeakTable`）弱持有——寿命跟随资产，不被这个长寿命节点钉住，存活的注册项自己持有自己的材质。每次 dispatch 只绑真正逐次不同的数据：几何 buffer、输出 buffer 和 push constants。
+`RGNode_VoxelGI` 不是单一手写 shader:`RegisterMesh(mesh, stride, bounds, materialAsset)` 按材质编译 `voxelize` 模板（compute,`IVoxelFeedSurface`)——走 `MaterialCompiler.CompileCompute`，纹理槽/参数块规则与 graphics pass 完全一致（同一份实现）：槽位校验 fail-fast、纹理从 `asset.Textures` 一次绑定、缺槽经 `ResolveFallbackTexture` 按资产策略兜底、参数块打包绑定。同材质的多 mesh 共享一份编译产物；产物是 per-asset 派生状态，缓存表（`ConditionalWeakTable`）弱持有——寿命跟随资产，不被这个长寿命节点钉住，存活的注册项自己持有自己的材质。每个注册项从 per-asset 材质派生一个 `ComputeMaterialInstance`，把该注册项的几何 buffer（`_vertices/_indices`）在注册时绑一次，其余绑定经 fallback 链继承；`_attrOut/_pageTable` 各自独立成单成员 ParameterBlock，绑定组按资源本体缓存，dispatch 间切换零分配。每次 dispatch 只绑真正逐次不同的数据：输出 buffer 和 push constants。
 
 ## 接入一个新管线家族（2D / Game / 游戏自定义）
 
