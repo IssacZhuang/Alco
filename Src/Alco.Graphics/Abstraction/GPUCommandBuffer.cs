@@ -252,11 +252,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
     protected bool _isRecording = false;
 
-    //new api
     protected bool _isRecordingRender = false;
     protected bool _isRecordingCompute = false;
 
-    //API
     public abstract bool HasBuffer { get; }
 
     public bool IsRecording
@@ -508,7 +506,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
 
 
-    // need to be implemented for each backend
+    /// <summary>Backend-specific implementation.</summary>
     protected abstract void BeginCore();
     protected abstract void EndCore();
 

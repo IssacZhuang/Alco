@@ -23,8 +23,12 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class GpuTimestampSampler : AutoDisposable
 {
-    // Backends align query-resolve destination offsets (256 bytes on Vulkan);
-    // one stride covers the strictest backend. See ResolvePair.
+    /// <summary>
+    /// The stride of a slot pair in the padded-pair resolve layout: query-resolve
+    /// destination offsets are aligned per backend (256 bytes on Vulkan), so this
+    /// stride covers the strictest known backend.
+    /// See <see cref="ResolvePair(RenderPassScope, int)"/>.
+    /// </summary>
     public const int PairStrideBytes = 256;
 
     private readonly GPUDevice _device;

@@ -16,10 +16,12 @@ public class GraphicsMaterial : AutoDisposable
     protected bool _isPipelineDirty = true;
     protected GraphicsPipelineContext _pipelineContext;
 
-    // Construction-bound (immutable for the material's lifetime): the shader
-    // handle. The specialization starts at construction and can be swapped
-    // later through SetSpecializations; the swap rebuilds the pipeline lazily
-    // and carries the resource bindings over by name.
+    /// <summary>The shader handle, bound at construction and immutable for the material's lifetime.</summary>
+    /// <remarks>
+    /// The specialization starts at construction and can be swapped later through
+    /// <see cref="SetSpecializations"/>; the swap rebuilds the pipeline lazily and
+    /// carries the resource bindings over by name.
+    /// </remarks>
     protected readonly Shader _shader;
     private string[] _specializations;
 

@@ -65,7 +65,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         _colorAttachmentsCache.Dispose();
     }
 
-    // begin the encoder
+    /// <summary>Begins the native command encoder used for recording.</summary>
     protected unsafe override void BeginCore()
     {
         WGPUCommandEncoderDescriptor descriptor = new WGPUCommandEncoderDescriptor
@@ -83,7 +83,7 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         }
     }
 
-    // end the encoder
+    /// <summary>Ends the native command encoder and finishes the command buffer.</summary>
     protected unsafe override void EndCore()
     {
         TryFinishCurrentComputePass();

@@ -12,7 +12,6 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
     private List<BaseGPUObject> _recordedResources = new();
     private List<BaseGPUObject> _recordingResources = new();
 
-    //API
     public abstract bool HasBuffer { get; }
     public virtual bool IsRecording
     {
@@ -138,7 +137,7 @@ public unsafe abstract class GPURenderBundle : BaseGPUObject
         SetIndexBuffer(buffer, format, 0, buffer.Size);
     }
 
-    // need to be implemented for each backend
+    /// <summary>Backend-specific implementation.</summary>
     protected abstract void BeginCore(GPUAttachmentLayout attachmentLayout);
     protected abstract void EndCore();
     protected abstract void SetGraphicsPipelineCore(GPUPipeline pipeline);

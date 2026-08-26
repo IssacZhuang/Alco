@@ -28,7 +28,10 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
         }
     }
 
-    // Bind-group assembly reads through this property, so the pending matrix upload flushes here.
+    /// <summary>
+    /// Bind-group assembly reads through this property, so the pending matrix
+    /// upload flushes here.
+    /// </summary>
     public override GPUBuffer NativeBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

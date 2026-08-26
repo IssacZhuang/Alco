@@ -102,12 +102,14 @@ internal struct SlangSpecializationArg
 }
 
 /// <summary>ISlangBlob wrapper (layout-compatible with IDxcBlob).</summary>
+/// <remarks>
+/// Vtable slot mapping: 0-2 IUnknown, 3 getBufferPointer, 4 getBufferSize.
+/// </remarks>
 internal sealed class SlangBlob
 {
     public IntPtr NativePointer { get; }
     public SlangBlob(IntPtr nativePointer) => NativePointer = nativePointer;
 
-    // ISlangBlob: 0-2 IUnknown, 3 getBufferPointer, 4 getBufferSize
     public unsafe IntPtr GetBufferPointer() =>
         ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr>)Com.Vcall(NativePointer, 3))(NativePointer);
 
@@ -142,6 +144,10 @@ internal sealed class SlangBlob
 /// IGlobalSession wrapper. Created once per process via slang_createGlobalSession
 /// (SlangCompiler holds it for the process lifetime); owns the slang core module.
 /// </summary>
+/// <remarks>
+/// Vtable slot mapping: 0-2 IUnknown, 3 createSession, 4 findProfile, 8 getBuildTagString,
+/// 17 checkCompileTargetSupport, 22 findCapability.
+/// </remarks>
 internal sealed class SlangGlobalSession
 {
     public IntPtr NativePointer { get; }
@@ -156,8 +162,6 @@ internal sealed class SlangGlobalSession
         return new SlangGlobalSession(ptr);
     }
 
-    // IGlobalSession: 0-2 IUnknown, 3 createSession, 4 findProfile, 8 getBuildTagString,
-    // 17 checkCompileTargetSupport, 22 findCapability
     public unsafe SlangSession CreateSession(in SlangSessionDesc desc)
     {
         SlangSessionDesc local = desc;

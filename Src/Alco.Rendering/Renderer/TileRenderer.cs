@@ -288,7 +288,9 @@ public sealed class TileRenderer : AutoDisposable
     private RectInt _viewport;
     private bool _hasViewport;
 
-    //The global transform of the tile renderer
+    /// <summary>
+    /// The global transform of the tile renderer.
+    /// </summary>
     public Transform3D Transform;
 
     public string Name { get; }

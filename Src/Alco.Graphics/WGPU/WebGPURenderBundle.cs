@@ -52,7 +52,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         InteropUtility.Free(_nativeName);
     }
 
-    // begin the encoder
+    /// <summary>Begins the native render bundle encoder.</summary>
     protected unsafe override void BeginCore(GPUAttachmentLayout attachmentLayout)
     {
         ReleaseRenderBundleEncoder();
@@ -81,7 +81,7 @@ internal unsafe sealed class WebGPURenderBundle : GPURenderBundle
         _renderBundleEncoder = wgpuDeviceCreateRenderBundleEncoder(_nativeDevice, &descriptor);
     }
 
-    // end the encoder
+    /// <summary>Ends the render bundle encoder and finishes the encoded bundle.</summary>
     protected unsafe override void EndCore()
     {
         ReleaseRenderBundle();

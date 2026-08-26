@@ -45,8 +45,10 @@ internal abstract  class WebGPUFrameBufferBase : GPUFrameBuffer
         );
     }
 
-    // bakes the pre-filled native render pass attachments shared by the frame buffer implementations,
-    // the returned native memory is owned by the caller and must be freed manually
+    /// <summary>
+    /// Allocates and bakes the pre-filled native render pass color attachments shared by the frame buffer implementations.
+    /// </summary>
+    /// <returns>The pointer to native memory owned by the caller and must be freed manually.</returns>
     protected static unsafe WGPURenderPassColorAttachment* AllocColorAttachments(
         ReadOnlySpan<GPUTextureView> colorViews,
         ReadOnlySpan<WGPUColorAttachmentInfo> colorInfos)

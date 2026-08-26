@@ -226,7 +226,10 @@ public partial class RenderingSystem
 
     }
 
-    // Test hook: total number of command buffers submitted through ScheduleCommandBuffer.
+    /// <summary>
+    /// Test hook: the total number of command buffers submitted through
+    /// <see cref="ScheduleCommandBuffer(GPUCommandBuffer)"/>.
+    /// </summary>
     internal int ScheduledSubmissionCount;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

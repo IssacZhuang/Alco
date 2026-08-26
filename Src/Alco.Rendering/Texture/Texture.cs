@@ -12,7 +12,6 @@ namespace Alco.Rendering;
 public abstract class Texture : AutoDisposable
 {
     protected readonly GPUDevice _device;
-    // internal
     protected GPUTexture _texture;
     protected GPUTextureView _textureView;
 

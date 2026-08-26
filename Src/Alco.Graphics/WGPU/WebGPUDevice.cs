@@ -14,7 +14,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     public readonly WGPUInstance Instance;
     public readonly WGPUAdapter Adapter;
-    // public readonly WGPUSurface Surface;
     public readonly WGPUDevice Device;
     public readonly WGPUQueue Queue;
 
@@ -107,7 +106,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
     }
 
 
-    //default bind groups
+    /// <summary>
+    /// The default bind group shared across the entire device.
+    /// </summary>
     public override GPUBindGroup BindGroupUniformBuffer { get; }
     public override GPUBindGroup BindGroupStorageBuffer { get; }
     public override GPUBindGroup BindGroupStorageBufferWithCounter { get; }
@@ -1294,7 +1295,9 @@ internal sealed partial class WebGPUDevice : GPUDevice
     }
 
 
-    //for wgpu object usage only
+    /// <summary>
+    /// Logging channel reserved for internal wgpu object usage.
+    /// </summary>
     internal void LogInfo(ReadOnlySpan<char> message){
         _host.LogInfo(message);
     }

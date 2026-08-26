@@ -19,7 +19,9 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
 
     private WGPUSurfaceConfiguration _config;
     private bool _isVSyncEnabled;
-    //for custom swapchain
+    /// <summary>
+    /// Creates a custom swapchain from the supplied descriptor.
+    /// </summary>
     internal WebGPUSwapchain(WebGPUDevice device, in SwapchainDescriptor descriptor): base(descriptor)
     {
         _device = device;

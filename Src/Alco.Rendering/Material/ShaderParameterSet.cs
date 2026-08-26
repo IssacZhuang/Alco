@@ -46,9 +46,12 @@ public sealed class ShaderParameterSet
         public int renderTextureIndex;
         public uint mipLevel;
         public bool mipView;
-        // The RenderTexture.Version recorded when the slot value was written (or when a
-        // version drift was last detected), used by FlushResourceGroups to rebuild groups
-        // whose render texture recreated its GPU resources in place.
+        /// <summary>
+        /// The <see cref="RenderTexture.Version"/> recorded when the slot value was
+        /// written (or when a version drift was last detected), used by
+        /// <see cref="FlushResourceGroups"/> to rebuild groups whose render texture
+        /// recreated its GPU resources in place.
+        /// </summary>
         public uint renderTextureVersion;
     }
 
@@ -69,7 +72,7 @@ public sealed class ShaderParameterSet
         public BindingType entryType;
         public EntryKind kind;
         public int slotIndex;
-        // The shader-side name of a SharedSampler entry; null for Resource.
+        /// <summary>The shader-side name of a SharedSampler entry; null for Resource entries.</summary>
         public string? sharedName;
     }
 
@@ -78,14 +81,23 @@ public sealed class ShaderParameterSet
         public GPUBindGroup? layout;
         public EntryPlan[] plans = [];
         public bool dirty = true;
-        // Whether any slot of this group is a texture slot; groups without one skip the
-        // render texture version validation in FlushResourceGroups entirely.
+        /// <summary>
+        /// Whether any slot of this group is a texture slot; groups without one skip
+        /// the render texture version validation in <see cref="FlushResourceGroups"/>
+        /// entirely.
+        /// </summary>
         public bool hasTextureSlots;
-        // A sampler-only group of bank members: the whole group is engine-wide
-        // immutable state served by the sampler library's shared resource group —
-        // no assembly, per-material cache or dirty tracking ever applies.
+        /// <summary>A sampler-only group of shared sampler bank members.</summary>
+        /// <remarks>
+        /// The whole group is engine-wide immutable state served by the sampler
+        /// library's shared resource group — no assembly, per-material cache or dirty
+        /// tracking ever applies.
+        /// </remarks>
         public bool isBank;
-        // The fallback chain version at the time this group was last assembled.
+        /// <summary>
+        /// The snapshot of the fallback chain version taken when this group was last
+        /// assembled, used to detect fallback value changes.
+        /// </summary>
         public int fallbackVersion;
         public GPUResourceGroup? current;
         public readonly Dictionary<ulong, GPUResourceGroup> cache = new();

@@ -8,31 +8,43 @@ namespace Alco.Rendering;
 public struct ColorGradingData
 {
     // Basic adjustments
+
+    /// <summary>The additive brightness adjustment.</summary>
     public float Brightness;
     public float Contrast;
     public float Saturation;
     public float HueShift;
 
     // Color temperature
+
+    /// <summary>The warm-cool color temperature shift.</summary>
     public float Temperature;
     public float Tint;
 
     // Color wheels - Lift (shadows offset)
+
+    /// <summary>The red component of the lift color wheel (the additive shadows offset).</summary>
     public float LiftR;
     public float LiftG;
     public float LiftB;
 
     // Color wheels - Gamma (midtones power)
+
+    /// <summary>The red component of the gamma color wheel (the midtones power).</summary>
     public float GammaR;
     public float GammaG;
     public float GammaB;
 
     // Color wheels - Gain (highlights multiplier)
+
+    /// <summary>The red component of the gain color wheel (the highlights multiplier).</summary>
     public float GainR;
     public float GainG;
     public float GainB;
 
     // Split toning
+
+    /// <summary>The red component of the split-toning shadow color.</summary>
     public float ShadowR;
     public float ShadowG;
     public float ShadowB;

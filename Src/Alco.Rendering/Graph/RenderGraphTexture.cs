@@ -67,10 +67,13 @@ public sealed class RenderGraphTexture
     /// <summary>The resolved (current frame) height in pixels.</summary>
     internal uint ResolvedHeight { get; set; }
 
-    // Current pool assignment (transient only). The composed frame buffer and facade
-    // stay valid between frames (materials may keep referencing them); the underlying
-    // pooled textures are only guaranteed inside the resource's computed lifetime —
-    // outside it they may alias another transient.
+    /// <summary>The current pool assignment of the color attachments (transient only).</summary>
+    /// <remarks>
+    /// The composed frame buffer and facade stay valid between frames (materials may
+    /// keep referencing them); the underlying pooled textures are only guaranteed
+    /// inside the resource's computed lifetime — outside it they may alias another
+    /// transient.
+    /// </remarks>
     internal PooledAttachment[]? ColorAttachments;
     internal PooledAttachment? DepthAttachment;
     internal GPUFrameBuffer? ComposedFrameBuffer;
