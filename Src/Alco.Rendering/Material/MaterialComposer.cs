@@ -145,17 +145,19 @@ public sealed class MaterialComposer : IDisposable
 
     /// <summary>
     /// Packs a uniform buffer from a parameter-block layout and named values: members
-    /// the value table leaves out read zero; a value reads as many leading components
-    /// as the member takes; an unknown name is a typo and fails listing the valid
-    /// members. The buffer is laid out at the offsets slang reflected (scalars and
-    /// vectors may mix), 16-byte aligned.
+    /// the value table leaves out read zero; each value marshals to its member's
+    /// reflected scalar kind (float components, int/uint/bool images, arrays,
+    /// matrices); an unknown name is a typo and fails listing the valid members.
+    /// The buffer is a <see cref="UniformGraphicsBuffer"/> laid out at the offsets
+    /// slang reflected, written once and flushed — the compile-time material path
+    /// of the per-frame uniform buffers the render nodes use.
     /// </summary>
     /// <param name="layout">The block members (<see cref="GetParamsLayouts"/>).</param>
     /// <param name="values">The values by member name.</param>
     /// <param name="name">The owner name (error context and buffer label).</param>
-    public GraphicsBuffer PackParamsBuffer(
+    public UniformGraphicsBuffer PackParamsBuffer(
         IReadOnlyList<ShaderUniformMember> layout,
-        IReadOnlyDictionary<string, Vector4> values,
+        IReadOnlyDictionary<string, ShaderValue> values,
         string name)
     {
         foreach (string key in values.Keys)
@@ -167,50 +169,194 @@ public sealed class MaterialComposer : IDisposable
             }
         }
 
-        uint sizeBytes = 0;
-        foreach (ShaderUniformMember member in layout)
+        UniformGraphicsBuffer buffer = _rendering.CreateUniformGraphicsBuffer(
+            new ShaderUniformBlock($"{name}_params", [], layout), $"{name}_params");
+        try
         {
-            sizeBytes = Math.Max(sizeBytes, member.OffsetBytes + member.SizeBytes);
-        }
-        sizeBytes = (sizeBytes + 15u) & ~15u;
-
-        float[] data = new float[sizeBytes / sizeof(float)];
-        foreach (ShaderUniformMember member in layout)
-        {
-            if (!values.TryGetValue(member.Name, out Vector4 value))
+            foreach (ShaderUniformMember member in layout)
             {
-                continue;
-            }
-            if (member.ElementCount > 1)
-            {
-                throw new InvalidDataException(
-                    $"Parameter '{member.Name}' of '{name}' is an array; the Vector4 material-parameter table cannot fill it.");
-            }
-            if (member.ComponentCount > 4)
-            {
-                throw new InvalidDataException(
-                    $"Parameter '{member.Name}' of '{name}' takes {member.ComponentCount} components; material parameters support at most 4.");
-            }
-            // Integer/bool members take the bitwise image of the float bits the
-            // Vector4 table carries (the material asset's float-encoded form).
-            if (member.ScalarType != ShaderUniformScalarType.Float32)
-            {
-                for (int i = 0; i < member.ComponentCount; i++)
+                if (values.TryGetValue(member.Name, out ShaderValue value))
                 {
-                    data[member.OffsetBytes / sizeof(float) + i] = value[i];
+                    WriteMember(buffer, member, value, name);
                 }
-                continue;
             }
-            for (int i = 0; i < member.ComponentCount; i++)
-            {
-                data[member.OffsetBytes / sizeof(float) + i] = value[i];
-            }
+            buffer.Flush();
         }
-
-        GraphicsArrayBuffer<float> buffer =
-            _rendering.CreateGraphicsArrayBuffer<float>(data.Length, $"{name}_params");
-        buffer.UpdateBuffer(data.AsSpan());
+        catch
+        {
+            buffer.Dispose();
+            throw;
+        }
         return buffer;
+    }
+
+    // One authored value lands on one reflected member, kind-checked: a float
+    // value takes the member's leading components (a lone integer lands on a
+    // float member as its exact scalar); int/uint/bool values marshal their
+    // 32-bit images; arrays fill the whole span element by element.
+    private static void WriteMember(
+        UniformGraphicsBuffer buffer, ShaderUniformMember member, ShaderValue value, string ownerName)
+    {
+        string context = $"Parameter '{member.Name}' of '{ownerName}'";
+        if (member.ScalarType == ShaderUniformScalarType.Float32)
+        {
+            WriteFloatMember(buffer, member, value, context);
+            return;
+        }
+        // int/uint/bool members: array elements sit at the reflected stride.
+        uint stride = member.SizeBytes / member.ElementCount;
+        if (member.ElementCount > 1)
+        {
+            if (value.ElementCount != member.ElementCount)
+            {
+                throw new InvalidDataException(
+                    $"{context} is an array of {member.ElementCount} elements; the value has {value.ElementCount}.");
+            }
+            for (int element = 0; element < member.ElementCount; element++)
+            {
+                WriteElement(buffer, member, member.OffsetBytes + (uint)element * stride, value, element, context);
+            }
+            return;
+        }
+        WriteElement(buffer, member, member.OffsetBytes, value, 0, context);
+    }
+
+    // Float members marshal from the value's flat scalar list: a plain member
+    // takes its leading components (the rest reads zero), an array member
+    // takes exactly its whole component span — element-shaped values (three
+    // float4s) and flat lists (twelve numbers) both fit.
+    private static void WriteFloatMember(
+        UniformGraphicsBuffer buffer, ShaderUniformMember member, ShaderValue value, string context)
+    {
+        if (value.Kind is not (ShaderValueKind.Float32 or ShaderValueKind.Int32 or ShaderValueKind.UInt32))
+        {
+            throw new InvalidDataException(
+                $"{context} is a float member; the authored value is {value} (write a number or a color).");
+        }
+        // An authored integer ("speed": 2) writes into a float member as its
+        // exact scalar.
+        ReadOnlySpan<float> flat = value.Kind == ShaderValueKind.Float32
+            ? value.AsFloatList()
+            : [value.GetInt()];
+        if (member.ComponentCount is < 1 or > 16)
+        {
+            throw new InvalidDataException(
+                $"{context} takes {member.ComponentCount} components; material parameters support at most 16 (a matrix).");
+        }
+        if (member.ComponentCount == 16 && flat.Length != 16)
+        {
+            throw new InvalidDataException($"{context} is a matrix member; author it as a matrix.");
+        }
+        if (member.ElementCount > 1)
+        {
+            int components = member.ComponentCount;
+            if (flat.Length != components * (int)member.ElementCount)
+            {
+                throw new InvalidDataException(
+                    $"{context} is an array of {member.ElementCount} × {components} components; the value has {flat.Length} scalars.");
+            }
+            uint stride = member.SizeBytes / member.ElementCount;
+            for (int element = 0; element < member.ElementCount; element++)
+            {
+                WriteFloatImage(buffer, member.OffsetBytes + (uint)element * stride,
+                    flat.Slice(element * components, components));
+            }
+            return;
+        }
+        Span<float> image = stackalloc float[member.ComponentCount];
+        image.Clear();
+        // Leading components land (a Vector4 authored onto a float member reads
+        // its first component); the rest of the member reads zero.
+        flat[..Math.Min(flat.Length, image.Length)].CopyTo(image);
+        WriteFloatImage(buffer, member.OffsetBytes, image);
+    }
+
+    private static void WriteElement(
+        UniformGraphicsBuffer buffer, ShaderUniformMember member, uint offset,
+        ShaderValue value, int element, string context)
+    {
+        switch (member.ScalarType)
+        {
+            case ShaderUniformScalarType.Int32:
+            {
+                if (value.Kind is not (ShaderValueKind.Int32 or ShaderValueKind.UInt32))
+                {
+                    throw new InvalidDataException(
+                        $"{context} is an int member; the authored value is {value} (write an integer without a fraction).");
+                }
+                Span<int> image = stackalloc int[member.ComponentCount];
+                image.Fill(value.GetInt(element));
+                WriteIntImage(buffer, offset, image);
+                break;
+            }
+            case ShaderUniformScalarType.UInt32:
+            {
+                if (value.Kind is not (ShaderValueKind.Int32 or ShaderValueKind.UInt32))
+                {
+                    throw new InvalidDataException(
+                        $"{context} is a uint member; the authored value is {value} (write a non-negative integer).");
+                }
+                Span<uint> image = stackalloc uint[member.ComponentCount];
+                image.Fill(unchecked((uint)value.GetInt(element)));
+                WriteUintImage(buffer, offset, image);
+                break;
+            }
+            case ShaderUniformScalarType.Bool32:
+            {
+                if (value.Kind != ShaderValueKind.Bool32)
+                {
+                    throw new InvalidDataException(
+                        $"{context} is a bool member; the authored value is {value} (write true or false).");
+                }
+                if (member.ComponentCount == 1)
+                {
+                    Span<uint> image = [(uint)(value.GetInt(element) != 0 ? 1 : 0)];
+                    WriteUintImage(buffer, offset, image);
+                }
+                else
+                {
+                    // No bool-vector vocabulary exists; marshal as uint components.
+                    Span<uint> image = stackalloc uint[member.ComponentCount];
+                    image.Clear();
+                    image[0] = (uint)(value.GetInt(element) != 0 ? 1 : 0);
+                    WriteUintImage(buffer, offset, image);
+                }
+                break;
+            }
+            default:
+                throw new InvalidDataException($"{context} has unsupported scalar type {member.ScalarType}.");
+        }
+    }
+
+    // Raw images write at the resolved (element) offset: the staging layout
+    // matches the member's reflected component packing.
+    private static unsafe void WriteFloatImage(
+        UniformGraphicsBuffer buffer, uint offset, ReadOnlySpan<float> image)
+    {
+        fixed (float* ptr = image)
+        {
+            buffer.WriteRaw(offset, new ReadOnlySpan<byte>(ptr, image.Length * sizeof(float)));
+        }
+    }
+
+    // Integer images of vectors (int2/uint3/...) write through a same-width
+    // blit: the staging layout matches the member's reflected component packing.
+    private static unsafe void WriteIntImage(
+        UniformGraphicsBuffer buffer, uint offset, ReadOnlySpan<int> image)
+    {
+        fixed (int* ptr = image)
+        {
+            buffer.WriteRaw(offset, new ReadOnlySpan<byte>(ptr, image.Length * sizeof(int)));
+        }
+    }
+
+    private static unsafe void WriteUintImage(
+        UniformGraphicsBuffer buffer, uint offset, ReadOnlySpan<uint> image)
+    {
+        fixed (uint* ptr = image)
+        {
+            buffer.WriteRaw(offset, new ReadOnlySpan<byte>(ptr, image.Length * sizeof(uint)));
+        }
     }
 
     /// <summary>
@@ -223,7 +369,7 @@ public sealed class MaterialComposer : IDisposable
     /// <returns>The packed buffer of each block, keyed by block name.</returns>
     public IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(
         IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts,
-        IReadOnlyDictionary<string, Vector4> values,
+        IReadOnlyDictionary<string, ShaderValue> values,
         string name)
     {
         List<string> allMembers = [];
@@ -254,10 +400,10 @@ public sealed class MaterialComposer : IDisposable
         {
             foreach (KeyValuePair<string, IReadOnlyList<ShaderUniformMember>> block in layouts)
             {
-                Dictionary<string, Vector4> blockValues = new(StringComparer.Ordinal);
+                Dictionary<string, ShaderValue> blockValues = new(StringComparer.Ordinal);
                 foreach (ShaderUniformMember member in block.Value)
                 {
-                    if (values.TryGetValue(member.Name, out Vector4 value))
+                    if (values.TryGetValue(member.Name, out ShaderValue value))
                     {
                         blockValues[member.Name] = value;
                     }

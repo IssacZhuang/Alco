@@ -218,12 +218,12 @@ public class TestSlangMaterialCompiler
         {
             Name = "parameterized",
             Surface = Library(engine, ParameterizedSurfaceModule),
-            Parameters = new Dictionary<string, Vector4>
+            Parameters = new Dictionary<string, ShaderValue>
             {
-                ["pulseSpeed"] = new(1.5f, 0.0f, 0.0f, 0.0f),
-                ["pulseIntensity"] = new(2.0f, 0.0f, 0.0f, 0.0f),
-                ["pulseColor"] = new(1.0f, 0.6f, 0.2f, 0.0f),
-                ["bandFrequency"] = new(4.0f, 0.0f, 0.0f, 0.0f),
+                ["pulseSpeed"] = new Vector4(1.5f, 0.0f, 0.0f, 0.0f),
+                ["pulseIntensity"] = new Vector4(2.0f, 0.0f, 0.0f, 0.0f),
+                ["pulseColor"] = new Vector4(1.0f, 0.6f, 0.2f, 0.0f),
+                ["bandFrequency"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f),
             },
         };
         GraphicsMaterial material = gbuffer.GetMaterial(parameterized);
@@ -247,7 +247,7 @@ public class TestSlangMaterialCompiler
         {
             Name = "typo",
             Surface = Library(engine, ParameterizedSurfaceModule),
-            Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(1.0f, 0.0f, 0.0f, 0.0f) },
+            Parameters = new Dictionary<string, ShaderValue> { ["nonsense"] = new Vector4(1.0f, 0.0f, 0.0f, 0.0f) },
         };
         Assert.That(() => gbuffer.GetMaterial(typo), Throws.TypeOf<InvalidDataException>());
 

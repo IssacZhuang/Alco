@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using NUnit.Framework;
 using Alco.Engine;
+using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
 
@@ -12,8 +13,9 @@ namespace Alco.World3D.Test;
 /// Parsing and loading of World3D material asset files (.amat): the <c>$type</c> CLR-name
 /// discriminator selects the derived asset type (no registration — assembly scan), resource
 /// references resolve typed at load (textures load through the asset system, the surface
-/// resolves into a validated <see cref="ShaderLibrary"/>), vector values read as numbers,
-/// component objects or hex colors, and the loader round trips through the asset system.
+/// resolves into a validated <see cref="ShaderLibrary"/>), parameter values read as
+/// typed <see cref="ShaderValue"/>s — numbers, integers, booleans, component objects,
+/// hex colors or arrays — and the loader round trips through the asset system.
 /// Uses a NoGPU engine (textures are 1x1 dummies there; the PbrStandard surface module
 /// resolves from the module's shipped assets).
 /// </summary>
@@ -101,12 +103,46 @@ public class TestMaterialAsset
                 Is.SameAs(engine.RenderingSystem.ShaderSystem.GetLibrary("pbr_standard")));
             // Defines trim to uniqueness; empty entries drop.
             Assert.That(material.Defines, Is.EqualTo(new[] { "MOSS_ANIMATE" }));
-            // Parameters are Vector4s: component objects read rgba/xyzw (missing
-            // components zero), a number broadcasts, a hex color reads as authored.
-            Assert.That(material.Parameters["tint"], Is.EqualTo(new Vector4(1f, 0.5f, 0.25f, 1f)));
-            Assert.That(material.Parameters["speed"], Is.EqualTo(new Vector4(2f)));
-            Assert.That(material.Parameters["glow"],
-                Is.EqualTo(new Vector4(1f, 128f / 255f, 64f / 255f, 1f)).Within(0.0001f));
+            // Parameters are typed ShaderValues: component objects read
+            // rgba/xyzw (missing components zero), an integer reads as int, a
+            // hex color reads as authored float4.
+            Assert.That(material.Parameters["tint"].GetFloats().ToArray(),
+                Is.EqualTo(new[] { 1f, 0.5f, 0.25f, 1f }));
+            Assert.That(material.Parameters["speed"].Kind, Is.EqualTo(ShaderValueKind.Int32));
+            Assert.That(material.Parameters["speed"].GetInt(), Is.EqualTo(2));
+            Assert.That(material.Parameters["glow"].GetFloats().ToArray(),
+                Is.EqualTo(new[] { 1f, 128f / 255f, 64f / 255f, 1f }).Within(0.0001f));
+        });
+    }
+
+    [Test]
+    public void ParseReadsTypedParameterKinds()
+    {
+        using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
+        const string json = """
+        {
+            "version": "1.0",
+            "parameters": {
+                "level": 3,
+                "enabled": true,
+                "weights": [1, 2, 3, 4]
+            }
+        }
+        """;
+
+        MaterialAsset material = Parse(engine, json);
+
+        Assert.Multiple(() =>
+        {
+            // A JSON integer without a fraction reads as int (not a broadcast float).
+            Assert.That(material.Parameters["level"].Kind, Is.EqualTo(ShaderValueKind.Int32));
+            Assert.That(material.Parameters["level"].GetInt(), Is.EqualTo(3));
+            Assert.That(material.Parameters["enabled"].Kind, Is.EqualTo(ShaderValueKind.Bool32));
+            Assert.That(material.Parameters["enabled"].GetInt(), Is.EqualTo(1));
+            // An array reads as one float per element.
+            Assert.That(material.Parameters["weights"].Kind, Is.EqualTo(ShaderValueKind.Float32));
+            Assert.That(material.Parameters["weights"].ElementCount, Is.EqualTo(4));
+            Assert.That(material.Parameters["weights"].GetFloats(3)[0], Is.EqualTo(4f));
         });
     }
 

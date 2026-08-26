@@ -202,6 +202,24 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
     internal unsafe float ReadStagingFloat(uint offset)
         => BitConverter.ToSingle(_staging, (int)offset);
 
+    /// <summary>
+    /// Writes raw bytes at a reflected offset — the offset-keyed escape hatch for
+    /// marshallers that already resolved a member (element-wise array writes,
+    /// integer vector images). Same staging discipline as the name-keyed writes.
+    /// </summary>
+    /// <param name="offsetBytes">The reflected member/element offset.</param>
+    /// <param name="bytes">The raw image; must not overrun the block.</param>
+    internal unsafe void WriteRaw(uint offsetBytes, ReadOnlySpan<byte> bytes)
+    {
+        if (offsetBytes + (uint)bytes.Length > Size)
+        {
+            throw new ArgumentException(
+                $"A {bytes.Length}-byte write at offset {offsetBytes} overruns uniform buffer '{Name}' ({Size} bytes).");
+        }
+        bytes.CopyTo(_staging.AsSpan((int)offsetBytes));
+        _dirty = true;
+    }
+
     private void SetSpan(string name, ReadOnlySpan<byte> bytes)
     {
         ShaderUniformMember member = Resolve(name);

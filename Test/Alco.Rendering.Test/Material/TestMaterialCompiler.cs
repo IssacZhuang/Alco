@@ -198,7 +198,7 @@ public class TestMaterialCompiler
             Name = "valid",
             Surface = surface,
             Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = host.RenderingSystem.TextureWhite },
-            Parameters = new Dictionary<string, Vector4> { ["pulseSpeed"] = new Vector4(2.0f, 0.0f, 0.0f, 0.0f) },
+            Parameters = new Dictionary<string, ShaderValue> { ["pulseSpeed"] = new Vector4(2.0f, 0.0f, 0.0f, 0.0f) },
         };
         Assert.That(() => Compile(compiler, host.RenderingSystem, valid), Throws.Nothing);
 
@@ -214,7 +214,7 @@ public class TestMaterialCompiler
         {
             Name = "typoParam",
             Surface = surface,
-            Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new Vector4(1.0f, 0.0f, 0.0f, 0.0f) },
+            Parameters = new Dictionary<string, ShaderValue> { ["nonsense"] = new Vector4(1.0f, 0.0f, 0.0f, 0.0f) },
         };
         Assert.Multiple(() =>
         {

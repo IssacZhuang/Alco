@@ -164,7 +164,7 @@ public class TestMaterialCompiler
             {
                 Name = "scaled",
                 Surface = surface,
-                Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
+                Parameters = new Dictionary<string, ShaderValue> { ["scale"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             ComputeMaterial material = compiler.CompileCompute(scaled, voxelize);
             Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
@@ -175,7 +175,7 @@ public class TestMaterialCompiler
             {
                 Name = "typo",
                 Surface = surface,
-                Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
+                Parameters = new Dictionary<string, ShaderValue> { ["nonsense"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             Assert.That(() => compiler.CompileCompute(typo, voxelize), Throws.TypeOf<InvalidDataException>());
         }
@@ -314,7 +314,7 @@ public class TestMaterialCompiler
             {
                 Name = "scaled",
                 Surface = surface,
-                Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
+                Parameters = new Dictionary<string, ShaderValue> { ["scale"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             GraphicsMaterial material = gbuffer.GetMaterial(scaled);
             Assert.That(material.TryGetResourceId("_surfaceParams", out _), Is.True,
@@ -325,7 +325,7 @@ public class TestMaterialCompiler
             {
                 Name = "typo",
                 Surface = surface,
-                Parameters = new Dictionary<string, Vector4> { ["nonsense"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
+                Parameters = new Dictionary<string, ShaderValue> { ["nonsense"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             Assert.That(() => gbuffer.GetMaterial(typo), Throws.TypeOf<InvalidDataException>());
 
@@ -334,7 +334,7 @@ public class TestMaterialCompiler
             PbrMaterialAsset builtinParams = new()
             {
                 Name = "builtin",
-                Parameters = new Dictionary<string, Vector4> { ["scale"] = new(4.0f, 0.0f, 0.0f, 0.0f) },
+                Parameters = new Dictionary<string, ShaderValue> { ["scale"] = new Vector4(4.0f, 0.0f, 0.0f, 0.0f) },
             };
             Assert.That(() => gbuffer.GetMaterial(builtinParams), Throws.TypeOf<InvalidDataException>());
         }

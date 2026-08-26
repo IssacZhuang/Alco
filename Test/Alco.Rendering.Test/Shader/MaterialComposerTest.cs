@@ -239,6 +239,31 @@ public class MaterialComposerTest
         }
         """;
 
+    private const string TypedSurface = """
+        #language slang 2025
+        module test_surface_typed;
+
+        import test_contract;
+
+        [MaterialParams]
+        cbuffer _typedParams : register(b1, space2)
+        {
+            float pulseSpeed;
+            int levelIndex;
+            uint flags;
+            bool enabled;
+            float4 weights[3];
+        }
+
+        public struct Surface : ISurface
+        {
+            public override float4 GetBaseColor(SurfaceInput input)
+            {
+                return input.tint * pulseSpeed;
+            }
+        }
+        """;
+
     private static readonly Dictionary<string, string> Files = new()
     {
         ["test-contract.slang"] = Contract,
@@ -248,6 +273,7 @@ public class MaterialComposerTest
         ["test-surface.slang"] = Surface,
         ["test-surface-minimal.slang"] = MinimalSurface,
         ["test-surface-multiblock.slang"] = MultiBlockSurface,
+        ["test-surface-typed.slang"] = TypedSurface,
     };
 
     private static MaterialComposer CreateComposer(DummyRenderingSystemHost host, out ShaderSystem shaderSystem)
@@ -424,19 +450,77 @@ public class MaterialComposerTest
             Assert.Multiple(() =>
             {
                 Assert.Throws<InvalidDataException>(() => composer.PackParamsBuffer(
-                    layout, new Dictionary<string, Vector4> { ["typo"] = new(1f, 0f, 0f, 0f) }, "mat"),
+                    layout, new Dictionary<string, ShaderValue> { ["typo"] = new Vector4(1f, 0f, 0f, 0f) }, "mat"),
                     "an unknown parameter name must fail");
                 Assert.DoesNotThrow(() =>
                 {
                     // A Vector4 value reads as many leading components as the
                     // member takes; the unmentioned member reads zero.
                     using GraphicsBuffer buffer = composer.PackParamsBuffer(layout,
-                        new Dictionary<string, Vector4>
+                        new Dictionary<string, ShaderValue>
                         {
-                            ["pulseSpeed"] = new(2f, 0f, 0f, 0f),
-                            ["pulseColor"] = new(1f, 0.5f, 0.25f, 0f),
+                            ["pulseSpeed"] = new Vector4(2f, 0f, 0f, 0f),
+                            ["pulseColor"] = new Vector4(1f, 0.5f, 0.25f, 0f),
                         }, "mat");
                 });
+            });
+        }
+    }
+
+    [Test]
+    public void PackParamsBuffer_MarshalsTypedMemberKinds()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using MaterialComposer composer = CreateComposer(host, out ShaderSystem shaderSystem);
+        using (shaderSystem)
+        {
+            IReadOnlyList<ShaderUniformMember> layout =
+                composer.GetParamsLayouts(shaderSystem.GetLibrary("test_surface_typed"))["_typedParams"];
+
+            // Every authored kind lands on its member: an int onto a float member
+            // reads as its exact scalar; int/uint/bool marshal their 32-bit
+            // images; a flat float list fills an array member's whole span.
+            using UniformGraphicsBuffer buffer = composer.PackParamsBuffer(layout,
+                new Dictionary<string, ShaderValue>
+                {
+                    ["pulseSpeed"] = 2,
+                    ["levelIndex"] = 7,
+                    ["flags"] = 0x1234u,
+                    ["enabled"] = true,
+                    ["weights"] = ShaderValue.Floats(
+                        [1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f, 9f, 10f, 11f, 12f]),
+                }, "mat");
+
+            ShaderUniformMember level = layout.First(member => member.Name == "levelIndex");
+            ShaderUniformMember flags = layout.First(member => member.Name == "flags");
+            ShaderUniformMember enabled = layout.First(member => member.Name == "enabled");
+            ShaderUniformMember weights = layout.First(member => member.Name == "weights");
+            Assert.Multiple(() =>
+            {
+                Assert.That(buffer.ReadStagingFloat(0), Is.EqualTo(2f),
+                    "an authored integer lands on a float member as its exact scalar");
+                Assert.That(BitConverter.SingleToInt32Bits(buffer.ReadStagingFloat(level.OffsetBytes)),
+                    Is.EqualTo(7), "int blits as its 32-bit image");
+                Assert.That(unchecked((uint)BitConverter.SingleToInt32Bits(buffer.ReadStagingFloat(flags.OffsetBytes))),
+                    Is.EqualTo(0x1234u), "uint blits as its 32-bit image");
+                Assert.That(BitConverter.SingleToInt32Bits(buffer.ReadStagingFloat(enabled.OffsetBytes)),
+                    Is.EqualTo(1), "bool marshals to the GPU's 4-byte 1");
+                Assert.That(buffer.ReadStagingFloat(weights.OffsetBytes + 4 * sizeof(float) * 2),
+                    Is.EqualTo(9f), "a flat list fills array elements at the reflected stride");
+            });
+
+            // Kind mismatches stay loud in every direction.
+            Assert.Multiple(() =>
+            {
+                Assert.Throws<InvalidDataException>(() => composer.PackParamsBuffer(layout,
+                    new Dictionary<string, ShaderValue> { ["levelIndex"] = 1.5f }, "mat"),
+                    "a float value against an int member reinterprets silently otherwise");
+                Assert.Throws<InvalidDataException>(() => composer.PackParamsBuffer(layout,
+                    new Dictionary<string, ShaderValue> { ["enabled"] = 1 }, "mat"),
+                    "an int value against a bool member reinterprets silently otherwise");
+                Assert.Throws<InvalidDataException>(() => composer.PackParamsBuffer(layout,
+                    new Dictionary<string, ShaderValue> { ["pulseSpeed"] = true }, "mat"),
+                    "a bool value against a float member reinterprets silently otherwise");
             });
         }
     }
@@ -458,11 +542,11 @@ public class MaterialComposerTest
             // its own buffer. An unknown name fails against the union of members.
             IReadOnlyDictionary<string, GraphicsBuffer> buffers = composer.PackParamsBuffers(
                 layouts,
-                new Dictionary<string, Vector4>
+                new Dictionary<string, ShaderValue>
                 {
-                    ["pulseSpeed"] = new(2f, 0f, 0f, 0f),
-                    ["pulseColor"] = new(1f, 0.5f, 0.25f, 0f),
-                    ["bandFrequency"] = new(4f, 0f, 0f, 0f),
+                    ["pulseSpeed"] = new Vector4(2f, 0f, 0f, 0f),
+                    ["pulseColor"] = new Vector4(1f, 0.5f, 0.25f, 0f),
+                    ["bandFrequency"] = new Vector4(4f, 0f, 0f, 0f),
                 }, "mat");
             using (buffers["_pulse"])
             using (buffers["_bands"])
@@ -471,7 +555,7 @@ public class MaterialComposerTest
                 {
                     Assert.That(buffers.Keys, Is.EquivalentTo(layouts.Keys));
                     Assert.Throws<InvalidDataException>(() => composer.PackParamsBuffers(
-                        layouts, new Dictionary<string, Vector4> { ["typo"] = new(1f, 0f, 0f, 0f) }, "mat"));
+                        layouts, new Dictionary<string, ShaderValue> { ["typo"] = new Vector4(1f, 0f, 0f, 0f) }, "mat"));
                 });
             }
         }

@@ -48,6 +48,7 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
         };
         options.Converters.Add(new JsonConverterMaterialVector3());
         options.Converters.Add(new JsonConverterMaterialVector4());
+        options.Converters.Add(new JsonConverterShaderValue());
         options.Converters.Add(new JsonConverterMaterialTexture(assetSystem));
         options.Converters.Add(new JsonConverterShaderLibrary(shaderSystem));
         options.Converters.Add(new JsonStringEnumConverter());

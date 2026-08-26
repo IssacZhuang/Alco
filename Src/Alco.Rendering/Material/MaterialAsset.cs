@@ -1,5 +1,5 @@
-using System.Numerics;
 using System.Text.Json.Serialization;
+using Alco.Graphics;
 
 namespace Alco.Rendering;
 
@@ -10,9 +10,9 @@ namespace Alco.Rendering;
 /// pipeline-family assets like World3D's PBR asset are discovered by assembly scan),
 /// and resource references land typed — texture slots hold <see cref="Texture2D"/>s
 /// resolved by the loader, the surface is a validated <see cref="ShaderLibrary"/>, and
-/// parameter values are <see cref="Vector4"/>s (authored as numbers, component objects
-/// or colors). The asset itself touches no asset system and no GPU beyond holding those
-/// objects.
+/// parameter values are <see cref="ShaderValue"/>s (authored as numbers, integers,
+/// booleans, component objects, colors or arrays). The asset itself touches no asset
+/// system and no GPU beyond holding those objects.
 /// <br/>The asset carries only pipeline-agnostic concepts: which surface module to
 /// evaluate, its specialization defines, its texture slots and its parameter values.
 /// Pipeline-family data (the PBR factors and alpha routing of World3D's materials, ...)
@@ -62,12 +62,13 @@ public class MaterialAsset : IJsonOnDeserialized
 
     /// <summary>
     /// Surface parameter values by member name of the surface's
-    /// <c>[MaterialParams]</c>-marked blocks (any block names, any number of blocks);
-    /// packed at the member offsets the shader compiler reflects, reading as many
-    /// leading components as each member takes.
+    /// <c>[MaterialParams]</c>-marked blocks (any block names, any number of blocks).
+    /// Values author in their natural shapes — floats, colors, integers, booleans,
+    /// arrays — and marshal to each member's reflected type at the offsets the
+    /// shader compiler reflects (see <see cref="ShaderValue"/>).
     /// </summary>
-    public IReadOnlyDictionary<string, Vector4> Parameters { get; set; } =
-        new Dictionary<string, Vector4>();
+    public IReadOnlyDictionary<string, ShaderValue> Parameters { get; set; } =
+        new Dictionary<string, ShaderValue>();
 
     /// <summary>
     /// The fallback texture policy of one surface texture slot, consulted when the slot
@@ -127,11 +128,11 @@ public class MaterialAsset : IJsonOnDeserialized
     }
 
     /// <summary>Parameters: trimmed member names; empty names are rejected.</summary>
-    private static IReadOnlyDictionary<string, Vector4> NormalizeParameters(
-        IReadOnlyDictionary<string, Vector4> parameters)
+    private static IReadOnlyDictionary<string, ShaderValue> NormalizeParameters(
+        IReadOnlyDictionary<string, ShaderValue> parameters)
     {
-        Dictionary<string, Vector4> result = new(StringComparer.Ordinal);
-        foreach (KeyValuePair<string, Vector4> pair in parameters)
+        Dictionary<string, ShaderValue> result = new(StringComparer.Ordinal);
+        foreach (KeyValuePair<string, ShaderValue> pair in parameters)
         {
             string name = pair.Key.Trim();
             if (name.Length == 0)
