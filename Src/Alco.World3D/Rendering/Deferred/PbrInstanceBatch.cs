@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 using Alco.Rendering;
@@ -47,7 +48,7 @@ internal sealed class PbrInstanceBatch : AutoDisposable
 {
     // Lower bound for recreated buffers so tiny scenes do not recreate the
     // buffer (and invalidate recorded bundles) on every small change.
-    private static readonly uint MinCapacityBytes = 64 * (uint)sizeof(PbrInstanceData);
+    private static readonly uint MinCapacityBytes = 64 * (uint)Unsafe.SizeOf<PbrInstanceData>();
 
     private readonly ArrayBuffer<PbrInstanceData> _data = new();
     private readonly List<PbrInstanceSegment> _segments = new();
@@ -115,7 +116,7 @@ internal sealed class PbrInstanceBatch : AutoDisposable
             return;
         }
 
-        uint requiredBytes = (uint)(_data.Length * sizeof(PbrInstanceData));
+        uint requiredBytes = (uint)(_data.Length * Unsafe.SizeOf<PbrInstanceData>());
         if (_buffer == null || _buffer.Size < requiredBytes)
         {
             _buffer?.Dispose();
