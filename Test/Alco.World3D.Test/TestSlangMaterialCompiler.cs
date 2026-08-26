@@ -144,7 +144,7 @@ public class TestSlangMaterialCompiler
             // of a pass template. The unmarked _globalRenderData block is engine
             // data and stays out.
             IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> layouts =
-                compiler.Composer.GetParamsLayouts(Library(engine, ParameterizedSurfaceModule));
+                compiler.GetParamsLayouts(Library(engine, ParameterizedSurfaceModule));
             Assert.That(layouts.Keys, Is.EqualTo(new[] { "PulseParams" }));
             IReadOnlyList<ShaderUniformMember> members = layouts["PulseParams"];
             Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.ComponentCount)),

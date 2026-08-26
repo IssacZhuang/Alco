@@ -2,16 +2,19 @@
 //
 // The surface contract between material modules (user-owned code) and pass
 // templates (rendering facilities: G-buffer, shadow depth, RSM, forward glass,
-// voxel GI). A material module exports `public struct Surface : ISurface` and
-// overrides ONLY the attributes it customizes - every interface method has a
-// default implementation, the equivalent of an unconnected material pin. Slang
-// requires the `override` keyword when replacing a defaulted interface method.
+// voxel GI). A material module exports exactly one public struct implementing
+// ISurface - the type name is free - and overrides ONLY the attributes it
+// customizes: every interface method has a default implementation, the
+// equivalent of an unconnected material pin. Slang requires the `override`
+// keyword when replacing a defaulted interface method.
 //
 // The material compiler composes a pass template with a surface module through
 // slang's component system (composite + link-time specialization, no generated
 // code): the template's generic entry points ([shader] MainVS/MainPS/MainCS)
-// take the surface type as their first specialization argument, so slang
-// type-checks every surface against the contract at compile time.
+// take the surface type as their first specialization argument - the conforming
+// struct is discovered from the surface module by the compiler (exactly one, or
+// the composition fails), so slang type-checks it against the contract at
+// compile time and no type name is ever configured.
 //
 // Built-in pass consumption:
 //   gbuffer      : IVertexSurface + IAlbedoSurface + INormalSurface +

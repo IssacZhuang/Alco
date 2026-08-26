@@ -5,8 +5,9 @@
 // A pass template is a self-describing module: it owns the [shader] entry
 // points, generic over the surface type; the material compiler composes this
 // module with a material's surface module (composite + link-time
-// specialization with the surface's `Surface` type) - no generated wrapper
-// code. Slang type-checks the surface against ISurface at instantiation.
+// specialization with the surface's conforming type, discovered by the
+// compiler - no type names, no generated wrapper code). Slang type-checks the
+// surface against ISurface at instantiation.
 //
 // Renders semi-transparent glass objects after deferred lighting, blending
 // onto the lit HDR scene: hardware depth testing against the opaque scene

@@ -1,9 +1,8 @@
 # Material System
 
-Alco 的材质系统是引擎基础设施，由三层组成：
+Alco 的材质系统是引擎基础设施，由两层组成：
 
-- **`MaterialComposer`(Alco.Rendering)** — 引擎级 slang 组合基础设施，与具体渲染管线无关。
-- **`MaterialCompiler` + `MaterialAsset`(Alco.Rendering)** — 管线无关的材质编译器：数据资产 + 纯工厂（渲染设施把自己的模板与材质工厂直接交给 `Compile`/`CompileCompute`，产物由调用方持有）。
+- **`MaterialCompiler` + `MaterialAsset`(Alco.Rendering)** — 管线无关的材质设施：**发现式** slang 组合（模板入口声明的契约接口 × surface 模块的唯一实现者，零配置类型名）+ 数据资产 + 纯工厂（渲染设施把自己的模板与材质工厂直接交给 `Compile`/`CompileCompute`，产物由调用方持有）。
 - **管线家族(World3D / 未来的 2D / 游戏自己的管线）** — 派生资产类型 + surface 契约 + 渲染设施（各 pass 的材质由设施自持，`.amat` 的 `$type` 判别靠程序集扫描自动发现，无注册）。
 
 目标：游戏侧不修改引擎就能定义新材质（surface）和新 pass（渲染设施），双方各自独立演进，由 slang 的泛型特化在编译期组合。2D 还是 3D、G-buffer 里有哪些元素，都是管线家族自己的事，基础设施不耦合其中任何一个。
@@ -12,12 +11,12 @@ Alco 的材质系统是引擎基础设施，由三层组成：
 
 ```
 游戏侧 surface（Materials/pbr-standard.slang 或游戏自己的 .slang）
-        │  public struct Surface : ISurface { override ... }
+        │  public struct 任意名 : ISurface { override ... }  —— 每模块恰好一个实现者
         ▼
 MaterialCompiler, Alco.Rendering（(asset, 模板, 工厂) 纯工厂 + 纹理槽/参数块打包）
         │  Compile(asset, template, specArgs, factory)   —— 调用方直接传模板与工厂
         ▼
-MaterialComposer.ComposeGraphics / ComposeCompute（slang 泛型特化 + 链接 + 反射）
+MaterialCompiler.ComposeGraphics / ComposeCompute（发现式组合：模板契约 × surface 实现者 → slang 泛型特化 + 链接 + 反射）
         ▼
 渲染设施（GBufferRenderer / ShadowRenderer / RGNode_Forward / RGNode_VoxelGI / 游戏自定义）
 ```
@@ -76,7 +75,7 @@ jsonc 直接反序列化成 `MaterialAsset`：加载器 `AssetLoaderMaterialAsse
 
 ## Surface 契约（`Libs/alco-world3d-surface.slang`,module `alco_world3d_surface`)
 
-材质是一个实现 `ISurface` 的 struct。`ISurface` 聚合六个细粒度接口，**全部默认实现**——新 surface 可以从空 struct 开始，只重写自己关心的部分：
+材质模块导出**恰好一个**实现 `ISurface` 的公开 struct——类型名自由。组合时编译器从模板泛型入口的约束里读出契约接口，用 slang 的子类型反射（decl 树枚举 + `isSubType`）在 surface 模块里发现实现者：0 个实现者（模块没实现契约）或多个（歧义）都在组合期报错并指名模块与候选——没有任何外部传入、可能配错的类型名。`ISurface` 聚合六个细粒度接口，**全部默认实现**——新 surface 可以从空 struct 开始，只重写自己关心的部分：
 
 | 接口 | 方法 | 默认行为 |
 | --- | --- | --- |
@@ -93,7 +92,7 @@ jsonc 直接反序列化成 `MaterialAsset`：加载器 `AssetLoaderMaterialAsse
 
 surface 声明的资源是它的**自描述数据需求**：模块全局作用域的一个 `ParameterBlock<T>`（struct + 块变量，编译器自动分配 set），引擎按成员名绑定，未绑的走**资产自己的兜底策略**(`GetTextureFallback`)。内置示例是 `Materials/pbr-standard.slang` 的 `Surface`(glTF metallic-roughness 四纹理槽 + 因子相乘）。
 
-> 契约是管线家族自己的：World3D 的 `ISurface` 住在这里；2D 管线可以定义完全不同的 surface 契约（比如只有 `GetSpriteColor`),`MaterialCompiler`/`MaterialComposer` 不依赖契约的具体形状——它们只按 `ShaderLibrary` 组合、按反射读槽位和参数块。
+> 契约是管线家族自己的：World3D 的 `ISurface` 住在这里；2D 管线可以定义完全不同的 surface 契约（比如只有 `GetSpriteColor`),`MaterialCompiler` 不依赖契约的具体形状——它按 `ShaderLibrary` 组合（契约从模板入口的约束反射读出）、按反射读槽位和参数块。
 
 ## Pass 模板约定（`Pipelines/*.slang`)
 
@@ -104,7 +103,7 @@ surface 声明的资源是它的**自描述数据需求**：模块全局作用�
 [shader("fragment")] public MainPOut MainPS<T : ISurface>(MainVOut v) { ... }
 ```
 
-组合 = composite + link-time specialization(`specialize(entryPoint, surfaceType)`)，没有字符串拼接的 wrapper shader。World3D 的内置 pass:
+组合 = composite + link-time specialization——surface 类型由发现得到（模板入口的契约接口 × surface 模块的唯一实现者），没有字符串拼接的 wrapper shader，也没有任何配置的类型名。World3D 的内置 pass:
 
 | pass id | 模板 module | 入口 | 消费的 surface 接口 | 引擎资源 |
 | --- | --- | --- | --- | --- |
@@ -145,12 +144,12 @@ public sealed class GBufferRenderer : ...
 
 ## 编译产物的所有权与生命周期
 
-`MaterialCompiler` 是无状态的纯工厂：每次 `Compile(asset, template, specArgs, factory)` 新编一份材质，**调用方持有**——引擎资源原则（不好控制生命周期就 GC 自动回收，能确保安全就手动 dispose）在这里的落法：
+`MaterialCompiler` 编译材质时是无状态的纯工厂：每次 `Compile(asset, template, specArgs, factory)` 新编一份材质，**调用方持有**——引擎资源原则（不好控制生命周期就 GC 自动回收，能确保安全就手动 dispose）在这里的落法：
 
-- **共享靠消费设施的 per-asset 缓存**：渲染设施（GBufferRenderer/ShadowRenderer/RGNode_Forward/RGNode_VoxelGI）各自用 `ConditionalWeakTable` 把同资产的材质缓存为一份、分发给各 renderable；renderable 只携带 `MaterialAsset`。编译器本身没有中央缓存。
+- **共享靠消费设施的 per-asset 缓存**：渲染设施（GBufferRenderer/ShadowRenderer/RGNode_Forward/RGNode_VoxelGI）各自用 `ConditionalWeakTable` 把同资产的材质缓存为一份、分发给各 renderable；renderable 只携带 `MaterialAsset`。材质没有中央缓存；编译器持有的唯一缓存是组合 shader（per (模板, surface, 值特化)）。
 - **回收靠 GC**：缓存表弱持有 per-asset 状态；场景卸载 = 弃掉 renderable 注册表 = 资产、编译产物、参数 buffer 全链路由 GC 回收（`AssetSystem` 弱句柄 + `BaseGPUObject`/`AutoDisposable` finalizer)。手动 `Dispose` 只适用于能证明独占的部分：材质自身（其参数集不逃逸）由拥有它的设施 teardown 释放；绑进槽位的值（纹理、参数 buffer）可被外部经参数集访问器（`TryGetBuffer` 等）取得，是生命周期不确定的共享引用——一律不随材质显式释放，由 finalizer 在真正无引用时回收。
 - **流式不改变绑定**：纹理流式是"按 header 预创建 + 内容原位上传"(`RenderingSystem.CreateTexture2DStreaming`)，纹理对象身份从创建即终态、从不替换，所以材质与管线不需要任何流式适配——加载方在资产完成前拿到纹理对象，直接填进 `Textures` 表。
-- **热重载 = 新资产实例**：旧实例的编译产物随旧实例被 GC，消费方用新实例重新编译；编译器没有 Invalidate。shader 模块热重载则是**原地重载**（`UnsafeModuleReload`），已编译材质持有的 `Shader` 引用自动拿到新管线，设施只需重录 static bundle（订阅 `Composer.ShaderInvalidated`）。
+- **热重载 = 新资产实例**：旧实例的编译产物随旧实例被 GC，消费方用新实例重新编译；编译器没有 Invalidate。shader 模块热重载则是**原地重载**（`UnsafeModuleReload`），已编译材质持有的 `Shader` 引用自动拿到新管线，设施只需重录 static bundle（订阅 `MaterialCompiler.ShaderInvalidated`）。
 
 ## 纹理槽规则
 
@@ -226,7 +225,7 @@ public MainPOut MainPS<T : ISurface>(MainVOut v) where let AlphaTest : bool { ..
 
 新增一个材质效果：
 
-1. 写一个 .slang:`import alco_world3d_surface; public struct Surface : ISurface { override ... }`（文件名 kebab-case,module 名下划线）。
+1. 写一个 .slang:`import alco_world3d_surface; public struct 任意名 : ISurface { override ... }`（文件名 kebab-case,module 名下划线；struct 名字自由——组合按契约发现实现者，不看名字，但每个模块恰好一个）。
 2. 在模块作用域声明需要的纹理/参数块（ParameterBlock，自描述；参数块记得 `import alco_rendering_core;`)。
 3. `.amat` 里 `"surface": "my_shader"`（模块名），或代码里 `PbrMaterialAsset { Surface = shaderSystem.GetLibrary("my_shader") }`;pass 自动可用，纹理槽按名绑。
 

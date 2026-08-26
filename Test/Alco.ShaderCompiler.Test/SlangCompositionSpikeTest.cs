@@ -202,7 +202,7 @@ public class SlangCompositionSpikeTest
         // The companion type name fills every entry's leading type parameter;
         // the lit template's entries take no value parameters.
         using SlangProgram program = system.GetComposedProgram(
-            "test_lit_template", "test_surface", "Surface", []);
+            "test_lit_template", "test_surface", []);
 
         Assert.Multiple(() =>
         {
@@ -225,7 +225,7 @@ public class SlangCompositionSpikeTest
         });
 
         using SlangProgram again = system.GetComposedProgram(
-            "test_lit_template", "test_surface", "Surface", []);
+            "test_lit_template", "test_surface", []);
         Assert.That(again, Is.SameAs(program), "same composition must return the cached program");
     }
 
@@ -237,7 +237,7 @@ public class SlangCompositionSpikeTest
         // The minimal surface implements nothing — every attribute rides the
         // interface defaults while the lit template consumes all of them.
         using SlangProgram program = system.GetComposedProgram(
-            "test_lit_template", "test_surface_minimal", "Surface", []);
+            "test_lit_template", "test_surface_minimal", []);
 
         Assert.Multiple(() =>
         {
@@ -257,9 +257,9 @@ public class SlangCompositionSpikeTest
         // MainVS<T>, MainPS<T, let AlphaTest : bool>: the shadow pass's alpha-test
         // axis is one value argument on the fragment entry.
         using SlangProgram opaque = system.GetComposedProgram(
-            "test_shadow_template", "test_surface", "Surface", ["false"]);
+            "test_shadow_template", "test_surface", ["false"]);
         using SlangProgram cutout = system.GetComposedProgram(
-            "test_shadow_template", "test_surface", "Surface", ["true"]);
+            "test_shadow_template", "test_surface", ["true"]);
 
         Assert.Multiple(() =>
         {
@@ -309,14 +309,14 @@ public class SlangCompositionSpikeTest
             using (SlangModuleSystem system = new(OptionsFor(SpikeFiles()), cache))
             {
                 using SlangProgram program = system.GetComposedProgram(
-                    "test_lit_template", "test_surface", "Surface", []);
+                    "test_lit_template", "test_surface", []);
                 first = [.. program.EntryCode.Select(code => code.ToArray())];
             }
 
             using (SlangModuleSystem system = new(OptionsFor(SpikeFiles()), cache))
             {
                 using SlangProgram program = system.GetComposedProgram(
-                    "test_lit_template", "test_surface", "Surface", []);
+                    "test_lit_template", "test_surface", []);
                 Assert.Multiple(() =>
                 {
                     Assert.That(program.EntryCode[0], Is.EqualTo(first[0]),

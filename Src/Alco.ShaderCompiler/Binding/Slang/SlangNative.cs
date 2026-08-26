@@ -370,6 +370,67 @@ internal static class SlangNative
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern int spReflectionType_GetScalarType(IntPtr type);
 
+    // ── slang::SlangDeclKind (module declaration tree) ──
+    public const int SLANG_DECL_KIND_UNSUPPORTED = 0;
+    public const int SLANG_DECL_KIND_STRUCT = 1;
+    public const int SLANG_DECL_KIND_FUNC = 2;
+    public const int SLANG_DECL_KIND_MODULE = 3;
+    public const int SLANG_DECL_KIND_GENERIC = 4;
+    public const int SLANG_DECL_KIND_VARIABLE = 5;
+    public const int SLANG_DECL_KIND_NAMESPACE = 6;
+    public const int SLANG_DECL_KIND_ENUM = 7;
+
+    // ── reflection: module declaration tree (type discovery) ──
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionDecl_getChildrenCount(IntPtr parentDecl);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionDecl_getChild(IntPtr parentDecl, uint index);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionDecl_getName(IntPtr decl);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern int spReflectionDecl_getKind(IntPtr decl);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionDecl_castToGeneric(IntPtr decl);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflection_getTypeFromDecl(IntPtr decl);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflection_FindTypeByName(IntPtr reflection, IntPtr name);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.I1)]
+    public static extern bool spReflection_isSubType(IntPtr reflection, IntPtr subType, IntPtr superType);
+
+    // specializeType(genericType, args...) → TypeReflection* of the applied
+    // generic — type-level composition without a wrapper module.
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static unsafe extern IntPtr spReflection_specializeType(
+        IntPtr reflection, IntPtr type, nint specializationArgCount,
+        IntPtr* specializationArgs, IntPtr* outDiagnostics);
+
+    // ── reflection: generic containers (entry-point generic parameters) ──
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionGeneric_GetTypeParameterCount(IntPtr generic);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionGeneric_GetTypeParameter(IntPtr generic, uint index);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionGeneric_GetTypeParameterConstraintCount(IntPtr generic, IntPtr typeParam);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionGeneric_GetTypeParameterConstraintType(IntPtr generic, IntPtr typeParam, uint index);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionGeneric_GetInnerDecl(IntPtr generic);
+
     // ── reflection: entry points ──
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]

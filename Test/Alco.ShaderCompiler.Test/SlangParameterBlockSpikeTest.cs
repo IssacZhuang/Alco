@@ -503,7 +503,7 @@ public class SlangParameterBlockSpikeTest
 
     // The material-path shape: a pass template (two blocks + generic entry
     // points) composed with a surface module (one block) through slang's
-    // component system — the path GetComposedProgram/MaterialComposer use.
+    // component system — the path GetComposedProgram/MaterialCompiler uses.
     private const string TemplateModule = """
         #language slang 2025
         module test_pb_template;
@@ -546,7 +546,7 @@ public class SlangParameterBlockSpikeTest
     [Test]
     public void ComposedProgram_EntryBlocksFirstThenCompanion()
     {
-        // Composition mirrors MaterialComposer: components[0] = the template
+        // Composition mirrors the composed-program path: components[0] = the template
         // module, components[1] = the companion (surface) module, then the
         // template's entry points.
         Dictionary<string, string> files = new()

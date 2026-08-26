@@ -489,6 +489,14 @@ internal sealed class SlangModule
     public unsafe int DependencyFileCount =>
         (int)((delegate* unmanaged[Stdcall]<IntPtr, int>)Com.Vcall(NativePointer, 26))(NativePointer);
 
+    /// <summary>
+    /// The module's declaration tree (a <c>DeclReflection*</c>, slot 28): its child
+    /// declarations — structs, functions, generic containers — the entry point of
+    /// module-scope type discovery. Valid for the session's lifetime (like the module).
+    /// </summary>
+    public unsafe IntPtr GetModuleReflectionDecl()
+        => ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr>)Com.Vcall(NativePointer, 28))(NativePointer);
+
     public unsafe string? GetDependencyFilePath(int index) =>
         SlangNative.StringFromPtr(((delegate* unmanaged[Stdcall]<IntPtr, int, IntPtr>)Com.Vcall(NativePointer, 27))(NativePointer, index));
 

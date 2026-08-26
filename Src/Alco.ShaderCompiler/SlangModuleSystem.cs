@@ -249,16 +249,18 @@ public sealed class SlangModuleSystem : IDisposable
     /// <summary>
     /// Links (or restores) a composed program: the template module owns the (generic)
     /// [shader(...)] entry points, the companion (surface) module contributes the
-    /// specialization type — the material-composition path, which needs no generated
-    /// wrapper module. Both modules load through <see cref="GetOrLoadModule(string)"/>.
-    /// Every generic entry point takes <paramref name="companionTypeName"/> as its
-    /// first specialization argument; <paramref name="valueSpecializationArgs"/> feed
-    /// the entries' value parameters in entry order (e.g. the shadow template's
+    /// surface type — the material-composition path, which needs no generated
+    /// wrapper module. The surface type is discovered from the modules themselves
+    /// (see <see cref="SlangCompileSession.CompileComposed"/>): the template's entry
+    /// points declare the contract, the companion must export exactly one conforming
+    /// type — no type name is passed or configured. Both modules load through
+    /// <see cref="GetOrLoadModule(string)"/>. Value specialization arguments feed the
+    /// entries' value parameters in entry order (e.g. the shadow template's
     /// AlphaTest flag).
     /// </summary>
     public SlangProgram GetComposedProgram(
         string templateModuleName, string companionModuleName,
-        string companionTypeName, IReadOnlyList<string> valueSpecializationArgs)
+        IReadOnlyList<string> valueSpecializationArgs)
     {
         SlangModuleHandle template = GetOrLoadModule(templateModuleName);
         SlangModuleHandle companion = GetOrLoadModule(companionModuleName);
@@ -268,10 +270,13 @@ public sealed class SlangModuleSystem : IDisposable
             ModuleEntry companionEntry = _modules[companionModuleName];
 
             string logicalName = $"{templateEntry.LogicalName}+{companionEntry.LogicalName}";
+            // The surface type is a pure function of the two modules' contents
+            // (contract × conformer), which the IR hashes pin — the key needs no
+            // type name.
             string key = ComposedProgramCacheKey(
                 templateModuleName, templateEntry.IrHash,
                 companionModuleName, companionEntry.IrHash,
-                companionTypeName, valueSpecializationArgs);
+                valueSpecializationArgs);
             if (_programs.TryGetValue(key, out SlangProgram? cached))
                 return cached;
 
@@ -291,7 +296,7 @@ public sealed class SlangModuleSystem : IDisposable
 
             long linkStart = Stopwatch.GetTimestamp();
             SlangProgram program = _session.CompileComposed(
-                template, companion, companionTypeName, valueSpecializationArgs);
+                template, companion, valueSpecializationArgs);
             program.Owner = this;
             TrackProgramLocked(program);
             _programs[key] = program;
@@ -607,7 +612,7 @@ public sealed class SlangModuleSystem : IDisposable
     // distinct program.
     private string ComposedProgramCacheKey(
         string templateKey, string templateIrHash, string companionKey, string companionIrHash,
-        string companionTypeName, IReadOnlyList<string> valueSpecArgs)
+        IReadOnlyList<string> valueSpecArgs)
     {
         using MemoryStream stream = new();
         using var writer = new System.IO.BinaryWriter(stream);
@@ -621,8 +626,7 @@ public sealed class SlangModuleSystem : IDisposable
         writer.Write(templateIrHash);
         writer.Write(companionKey);
         writer.Write(companionIrHash);
-        writer.Write("all");
-        writer.Write(companionTypeName);
+        writer.Write("discovered");
         writer.Write(valueSpecArgs.Count);
         foreach (string arg in valueSpecArgs)
             writer.Write(arg);

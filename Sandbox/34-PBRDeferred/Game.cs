@@ -717,7 +717,7 @@ public class Game : GameEngine
         MainPresenter.OnResize += OnMainWindowResize;
 
         AssetSystem.OnHotReload += OnShaderHotReload;
-        _materialCompiler.Composer.ShaderInvalidated += OnComposedShaderInvalidated;
+        _materialCompiler.ShaderInvalidated += OnComposedShaderInvalidated;
     }
 
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
@@ -820,7 +820,7 @@ public class Game : GameEngine
         AssetSystem.OnHotReload -= OnShaderHotReload;
         if (_materialCompiler != null)
         {
-            _materialCompiler.Composer.ShaderInvalidated -= OnComposedShaderInvalidated;
+            _materialCompiler.ShaderInvalidated -= OnComposedShaderInvalidated;
         }
         // Pass content providers are not owned by the graph (see the Content
         // ownership note on RGNode_GeometryPass/RGNode_ShadowPass): dispose them here.

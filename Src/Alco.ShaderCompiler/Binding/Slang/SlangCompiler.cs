@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Alco.Graphics;
 
 namespace Alco.ShaderCompiler;
@@ -326,13 +327,23 @@ public sealed class SlangCompileSession : IDisposable
     /// Compiles every [shader(...)] entry point of <paramref name="entryModule"/> into a
     /// program composed with <paramref name="companionModule"/> — the material-composition
     /// path: the template module owns the (generic) entry points, the companion (surface)
-    /// module contributes the specialization type. Convention: every generic entry point
-    /// declares the surface type as its FIRST generic parameter; any value parameters
-    /// follow it and consume <paramref name="valueSpecializationArgs"/> in entry order.
+    /// module contributes the surface type. The surface type is <b>discovered, never
+    /// named</b>: the template's generic entry points declare the surface contract as the
+    /// constraint of their first type parameter, and the companion module must export
+    /// exactly one public struct implementing that interface — checked with slang's own
+    /// subtype reflection, so a renamed or mismatched implementation cannot slip through.
+    /// Every generic entry point specializes with the discovered type; its value
+    /// parameters (e.g. the shadow template's AlphaTest flag) consume
+    /// <paramref name="valueSpecializationArgs"/> in entry order.
     /// </summary>
+    /// <exception cref="ShaderCompilationException">
+    /// The companion module exports no type implementing the contract, or more than one
+    /// (list the candidates), or a generic entry point does not declare the contract on
+    /// its first type parameter.
+    /// </exception>
     public SlangProgram CompileComposed(
         SlangModuleHandle entryModule, SlangModuleHandle companionModule,
-        string companionTypeName, IReadOnlyList<string> valueSpecializationArgs)
+        IReadOnlyList<string> valueSpecializationArgs)
     {
         lock (_lock)
         {
@@ -340,10 +351,21 @@ public sealed class SlangCompileSession : IDisposable
             if (count == 0)
                 throw new ShaderCompilationException(
                     $"slang module '{entryModule.Name}' defines no [shader(...)] entry points.");
+
+            // Discovery (fail-fast, before any linking): the contract interface from
+            // the template's own generic declarations, the conforming type from the
+            // companion's declaration tree. Both live in the session's AST for its
+            // lifetime, so the pointers stay valid through Specialize below.
+            IntPtr contract = DiscoverSurfaceContract(entryModule, out string contractName);
+            IntPtr surfaceType = contract == IntPtr.Zero
+                ? IntPtr.Zero
+                : DiscoverSurfaceConformer(companionModule, contract, contractName).Type;
+
             SlangComponentType[] components = new SlangComponentType[count + 2];
             components[0] = entryModule.Native.AsComponentType();
             components[1] = companionModule.Native.AsComponentType();
-            List<string> args = [];
+            List<SlangPinnedUtf8> pins = [];
+            List<SlangSpecializationArg> args = [];
             int valueIndex = 0;
             try
             {
@@ -358,13 +380,18 @@ public sealed class SlangCompileSession : IDisposable
                     int paramCount = (int)ep.AsComponentType().SpecializationParamCount;
                     if (paramCount > 0)
                     {
-                        args.Add(companionTypeName);
+                        // Every generic entry point's first specialization parameter is
+                        // the surface type (DiscoverSurfaceContract enforced the
+                        // constraint); the value parameters follow it.
+                        args.Add(SlangSpecializationArg.FromType(surfaceType));
                         for (int j = 1; j < paramCount; j++)
                         {
                             if (valueIndex >= valueSpecializationArgs.Count)
                                 throw new ShaderCompilationException(
                                     $"slang module '{entryModule.Name}': entry point {i} expects more value specialization arguments than provided.");
-                            args.Add(valueSpecializationArgs[valueIndex++]);
+                            pins.Add(new SlangPinnedUtf8(valueSpecializationArgs[valueIndex]));
+                            args.Add(SlangSpecializationArg.FromExpr(pins[^1].Pointer));
+                            valueIndex++;
                         }
                     }
                 }
@@ -372,14 +399,147 @@ public sealed class SlangCompileSession : IDisposable
                     throw new ShaderCompilationException(
                         $"slang module '{entryModule.Name}': {valueSpecializationArgs.Count} value specialization arguments provided, but the entry points consume {valueIndex}.");
                 return CompileComponentsLocked(
-                    $"{entryModule.Name}+{companionModule.Name}", components, count, args);
+                    $"{entryModule.Name}+{companionModule.Name}", components, count,
+                    CollectionsMarshal.AsSpan(args));
             }
             finally
             {
                 for (int i = 2; i < components.Length; i++)
                     components[i]?.Release();
+                foreach (SlangPinnedUtf8 pinned in pins)
+                    pinned.Dispose();
             }
         }
+    }
+
+    /// <summary>
+    /// The surface contract of a template: the constraint of the first type parameter
+    /// of its generic entry points (a generic function declaration in the module's
+    /// declaration tree — generic helper types are skipped). All generic entry points
+    /// must agree on one contract; a template without generic entry points links
+    /// without a type argument (IntPtr.Zero).
+    /// </summary>
+    private static unsafe IntPtr DiscoverSurfaceContract(SlangModuleHandle template, out string contractName)
+    {
+        contractName = string.Empty;
+        IntPtr contract = IntPtr.Zero;
+        IntPtr moduleDecl = template.Native.GetModuleReflectionDecl();
+        uint childCount = SlangNative.spReflectionDecl_getChildrenCount(moduleDecl);
+        for (uint i = 0; i < childCount; i++)
+        {
+            IntPtr child = SlangNative.spReflectionDecl_getChild(moduleDecl, i);
+            if (SlangNative.spReflectionDecl_getKind(child) != SlangNative.SLANG_DECL_KIND_GENERIC)
+            {
+                continue;
+            }
+            IntPtr generic = SlangNative.spReflectionDecl_castToGeneric(child);
+            if (generic == IntPtr.Zero)
+            {
+                continue;
+            }
+            // Generic entry points are generic *functions*; a generic struct (e.g. a
+            // Stack&lt;A, B&gt; aggregation helper) is not an entry and carries no contract.
+            IntPtr inner = SlangNative.spReflectionGeneric_GetInnerDecl(generic);
+            if (inner == IntPtr.Zero ||
+                SlangNative.spReflectionDecl_getKind(inner) != SlangNative.SLANG_DECL_KIND_FUNC)
+            {
+                continue;
+            }
+
+            uint typeParamCount = SlangNative.spReflectionGeneric_GetTypeParameterCount(generic);
+            if (typeParamCount == 0)
+            {
+                throw new ShaderCompilationException(
+                    $"slang module '{template.Name}': a generic entry point declares no type parameter; " +
+                    "the surface type must be the first generic parameter, constrained by the pass contract interface.");
+            }
+            IntPtr typeParam = SlangNative.spReflectionGeneric_GetTypeParameter(generic, 0);
+            string paramName = SlangNative.StringFromPtr(SlangNative.spReflectionVariable_GetName(typeParam)) ?? "?";
+            if (SlangNative.spReflectionGeneric_GetTypeParameterConstraintCount(generic, typeParam) == 0)
+            {
+                throw new ShaderCompilationException(
+                    $"slang module '{template.Name}': type parameter '{paramName}' of a generic entry point carries no " +
+                    "constraint; the first type parameter must be constrained by the pass contract interface.");
+            }
+            IntPtr candidate = SlangNative.spReflectionGeneric_GetTypeParameterConstraintType(generic, typeParam, 0);
+            if (candidate == IntPtr.Zero ||
+                SlangNative.spReflectionType_GetKind(candidate) != SlangNative.SLANG_TYPE_KIND_INTERFACE)
+            {
+                throw new ShaderCompilationException(
+                    $"slang module '{template.Name}': the first constraint of type parameter '{paramName}' " +
+                    "is not an interface; the pass contract must be an interface type.");
+            }
+            if (contract == IntPtr.Zero)
+            {
+                contract = candidate;
+                contractName = SlangNative.StringFromPtr(SlangNative.spReflectionType_GetName(contract)) ?? "?";
+            }
+            else if (candidate != contract)
+            {
+                string other = SlangNative.StringFromPtr(SlangNative.spReflectionType_GetName(candidate)) ?? "?";
+                throw new ShaderCompilationException(
+                    $"slang module '{template.Name}': generic entry points declare different surface contracts " +
+                    $"('{contractName}' and '{other}'); a pass template must have exactly one.");
+            }
+        }
+        return contract;
+    }
+
+    /// <summary>
+    /// The companion module's one type implementing the contract: its struct
+    /// declarations checked with subtype reflection on the module's own layout.
+    /// Zero or multiple conformers are errors — the discovery has one answer or
+    /// the module is not a valid surface for this template.
+    /// </summary>
+    private static unsafe (string Name, IntPtr Type) DiscoverSurfaceConformer(
+        SlangModuleHandle companion, IntPtr contract, string contractName)
+    {
+        IntPtr layout = companion.Native.AsComponentType().GetLayout(out string? layoutDiagnostics);
+        if (layout == IntPtr.Zero)
+            throw new ShaderCompilationException(
+                $"slang getLayout failed for surface module '{companion.Name}': {layoutDiagnostics}");
+
+        List<string> candidates = [];
+        (string Name, IntPtr Type) found = (string.Empty, IntPtr.Zero);
+        IntPtr moduleDecl = companion.Native.GetModuleReflectionDecl();
+        uint childCount = SlangNative.spReflectionDecl_getChildrenCount(moduleDecl);
+        for (uint i = 0; i < childCount; i++)
+        {
+            IntPtr child = SlangNative.spReflectionDecl_getChild(moduleDecl, i);
+            if (SlangNative.spReflectionDecl_getKind(child) != SlangNative.SLANG_DECL_KIND_STRUCT)
+            {
+                continue;
+            }
+            string? name = SlangNative.StringFromPtr(SlangNative.spReflectionDecl_getName(child));
+            // Slang synthesizes parameter-group structs (SLANG_ParameterGroup_...)
+            // for cbuffer declarations — not authored surface types.
+            if (string.IsNullOrEmpty(name) || name.StartsWith("SLANG_", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            IntPtr type = SlangNative.spReflection_getTypeFromDecl(child);
+            if (type == IntPtr.Zero)
+            {
+                continue;
+            }
+            if (SlangNative.spReflection_isSubType(layout, type, contract))
+            {
+                candidates.Add(name);
+                found = (name, type);
+            }
+        }
+
+        return candidates.Count switch
+        {
+            1 => found,
+            0 => throw new ShaderCompilationException(
+                $"surface module '{companion.Name}' declares no type implementing the pass contract " +
+                $"'{contractName}'; a surface module must export exactly one public struct implementing it."),
+            _ => throw new ShaderCompilationException(
+                $"surface module '{companion.Name}' declares {candidates.Count} types implementing the pass " +
+                $"contract '{contractName}' ({string.Join(", ", candidates)}); a surface module must export " +
+                "exactly one — split the variants into separate modules or remove the unused one."),
+        };
     }
 
     /// <summary>
@@ -437,7 +597,31 @@ public sealed class SlangCompileSession : IDisposable
     }
 
     private unsafe SlangProgram CompileComponentsLocked(
-        string moduleName, SlangComponentType[] components, int entryCount, IReadOnlyList<string> specializationArgs)
+        string moduleName, SlangComponentType[] components, int entryCount,
+        IReadOnlyList<string> specializationArgs)
+    {
+        // Expression arguments pin their UTF-8 text for the Specialize call below.
+        SlangPinnedUtf8[] pins = new SlangPinnedUtf8[specializationArgs.Count];
+        SlangSpecializationArg[] args = new SlangSpecializationArg[specializationArgs.Count];
+        for (int i = 0; i < specializationArgs.Count; i++)
+        {
+            pins[i] = new SlangPinnedUtf8(specializationArgs[i]);
+            args[i] = SlangSpecializationArg.FromExpr(pins[i].Pointer);
+        }
+        try
+        {
+            return CompileComponentsLocked(moduleName, components, entryCount, args);
+        }
+        finally
+        {
+            foreach (SlangPinnedUtf8 pinned in pins)
+                pinned.Dispose();
+        }
+    }
+
+    private unsafe SlangProgram CompileComponentsLocked(
+        string moduleName, SlangComponentType[] components, int entryCount,
+        ReadOnlySpan<SlangSpecializationArg> specializationArgs)
     {
         {
             SlangComponentType composite = _session.CreateCompositeComponentType(components, out string? compositeDiagnostics);
@@ -445,24 +629,9 @@ public sealed class SlangCompileSession : IDisposable
             try
             {
                 SlangComponentType current = composite;
-                if (specializationArgs.Count > 0)
+                if (specializationArgs.Length > 0)
                 {
-                    SlangPinnedUtf8[] pinnedArgs = new SlangPinnedUtf8[specializationArgs.Count];
-                    SlangSpecializationArg[] args = new SlangSpecializationArg[specializationArgs.Count];
-                    for (int i = 0; i < specializationArgs.Count; i++)
-                    {
-                        pinnedArgs[i] = new SlangPinnedUtf8(specializationArgs[i]);
-                        args[i] = SlangSpecializationArg.FromExpr(pinnedArgs[i].Pointer);
-                    }
-                    try
-                    {
-                        specialized = SlangSession.Specialize(current, args, out string? specDiagnostics);
-                    }
-                    finally
-                    {
-                        foreach (SlangPinnedUtf8 pinned in pinnedArgs)
-                            pinned.Dispose();
-                    }
+                    specialized = SlangSession.Specialize(current, specializationArgs, out string? specDiagnostics);
                     current = specialized;
                 }
 
@@ -607,6 +776,12 @@ public sealed class SlangModuleHandle
 
     /// <summary>The module's serialized IR blob, or null when serialization fails.</summary>
     public byte[]? Serialize() => Native.Serialize();
+
+    /// <summary>
+    /// The module's declaration tree (a <c>DeclReflection*</c>) — the root for module-scope
+    /// type discovery (walk children, take struct decls, <c>spReflection_getTypeFromDecl</c>).
+    /// </summary>
+    internal IntPtr GetModuleDecl() => Native.GetModuleReflectionDecl();
 
     internal SlangModuleHandle(SlangModule module) => Native = module;
 }

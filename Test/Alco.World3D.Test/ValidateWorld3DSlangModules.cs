@@ -193,7 +193,7 @@ public class ValidateWorld3DSlangModules
             foreach (string[] valueArgs in valueArgSets)
             {
                 using SlangProgram program = system.GetComposedProgram(
-                    template, "pbr_standard", "Surface", valueArgs);
+                    template, "pbr_standard", valueArgs);
                 string caseName = valueArgs.Length == 0
                     ? template
                     : $"{template}<{string.Join(",", valueArgs)}>";

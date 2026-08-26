@@ -13,7 +13,7 @@ namespace Alco.Rendering.Test;
 // compilation, texture-slot/parameter validation against the composed
 // reflection, the default-surface rule and the asset-driven fallback texture
 // policy. Runs on the NoGPU device with in-memory slang modules, mirroring
-// MaterialComposerTest.
+// MaterialCompilerComposeTest.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class TestMaterialCompiler
