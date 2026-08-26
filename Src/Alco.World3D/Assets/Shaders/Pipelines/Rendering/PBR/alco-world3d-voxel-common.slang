@@ -47,13 +47,37 @@ public struct VoxelData
     public float4 skyZenithColor;
     public float4 cascadeSplits;          // radial end distance of each shadow cascade
     public float4 cascadeTexelSizes;      // world units per shadow texel of each cascade
-    public float4 clipmapParams;          // x=resolution y=levelCount z=mipCount w=voxelSpecularEnabled
-    public float4 lightingParams;         // x=shadowEnabled y=numPointLights z=shadowMapSize w=rsmCascadeIndex
-    public float4 giParams;               // x=emissiveScale y=traceMaxDistance z=traceWidth w=traceHeight
-    public float4 giParams2;              // x=debugView y=gbufferWidth z=gbufferHeight w=giSkyIntensity
-    public float4 giFrameParams;          // x=frameIndex y=giDiffuseBias z=historyValid w=diffuseSpreading
-    public float4 rsmParams;              // x=intensity(0=off) y=maxDistance z=cascade depth range (world->NDC-z scale) w=minAlbedo
-    public float4 rsmParams2;             // xy=rsm resolution z=rsm texel world size
+    // Clipmap shape. Named members (not a packed float4) — the C# side writes
+    // each through the reflection-driven uniform buffer by name.
+    public uint   voxelResolution;        // voxels per axis of each clipmap level
+    public uint   levelCount;             // number of clipmap levels
+    public uint   mipCount;               // radiance volume mip levels
+    public bool   voxelSpecularEnabled;   // 0 disables the specular cone trace
+    // Lighting state.
+    public bool   shadowEnabled;          // sun shadow map bound and sampled
+    public uint   numPointLights;         // point lights in the light buffer
+    public float  shadowMapSize;          // sun shadow map texels per axis
+    public uint   rsmCascadeIndex;        // cascade the RSM pass renders into
+    // GI tunables and frame state.
+    public float  emissiveScale;          // emissive material multiplier
+    public float  traceMaxDistance;       // world units a GI cone may march
+    public uint   traceWidth;             // trace atlas width in pixels
+    public uint   traceHeight;            // trace atlas height in pixels
+    public int    debugView;              // DebugView enum passthrough
+    public uint   gbufferWidth;           // G-buffer width in pixels
+    public uint   gbufferHeight;          // G-buffer height in pixels
+    public float  giSkyIntensity;         // sky light multiplier for voxel GI
+    public uint   frameIndex;             // frame counter for temporal patterns
+    public float  giDiffuseBias;          // constant diffuse floor added at injection
+    public bool   historyValid;           // temporal history may be reprojected
+    public float  diffuseSpreading;       // dual-kernel opacity bias
+    // RSM sun bounce.
+    public float  rsmIntensity;           // 0 disables RSM injection
+    public float  rsmMaxDistance;         // world units an RSM sample may inject
+    public float  rsmDepthRange;          // world->NDC-z scale of the RSM cascade
+    public float  rsmMinAlbedo;           // minimum bounce albedo
+    public uint   rsmResolution;          // RSM map texels per axis
+    public float  rsmTexelWorldSize;      // world size of one RSM texel
 };
 
 public ParameterBlock<VoxelData> _data;
@@ -106,7 +130,7 @@ public void UnpackVoxelAttr(uint4 attr, out float3 albedo, out float3 normal, ou
 
 public uint VoxelResolution()
 {
-    return (uint)_data.clipmapParams.x;
+    return (uint)_data.voxelResolution;
 }
 
 public static const uint VOXEL_BRICK_SIZE = 8u;
@@ -151,7 +175,7 @@ public float3 VoxelWorldToUVW(float3 position, int level, float mip)
     float4 originAndSize = _data.levelOrigins[level];
 
     // Position normalized to the level cube (mip independent).
-    float extent = originAndSize.w * _data.clipmapParams.x;
+    float extent = originAndSize.w * _data.voxelResolution;
     float3 p = (position - originAndSize.xyz) / extent;
 
     uint sizeMip = max(resolution >> (uint)ceil(mip), 1u);
@@ -167,14 +191,14 @@ public bool VoxelLevelContains(float3 position, int level)
 {
     float4 originAndSize = _data.levelOrigins[level];
     float3 relative = position - originAndSize.xyz;
-    float extent = originAndSize.w * _data.clipmapParams.x;
+    float extent = originAndSize.w * _data.voxelResolution;
     return all(relative >= 0.0) && all(relative < extent);
 }
 
 // The finest (smallest voxel) level covering the position; -1 when outside all.
 public int VoxelFindLevel(float3 position)
 {
-    int levelCount = (int)_data.clipmapParams.y;
+    int levelCount = (int)_data.levelCount;
     for (int i = 0; i < levelCount; i++)
     {
         if (VoxelLevelContains(position, i))
@@ -191,7 +215,7 @@ public int VoxelFindLevel(float3 position)
 public float VoxelLevelTransitionWeight(float3 position, int level)
 {
     float4 originAndSize = _data.levelOrigins[level];
-    float extent = originAndSize.w * _data.clipmapParams.x;
+    float extent = originAndSize.w * _data.voxelResolution;
     float3 relative = (position - originAndSize.xyz) / extent;
     float3 distanceFromCenter = abs(relative - 0.5);
     float maximumDistance = max(distanceFromCenter.x, max(distanceFromCenter.y, distanceFromCenter.z));
@@ -201,7 +225,7 @@ public float VoxelLevelTransitionWeight(float3 position, int level)
 
 public float VoxelEffectiveVoxelSize(float3 position, int level)
 {
-    int levelCount = (int)_data.clipmapParams.y;
+    int levelCount = (int)_data.levelCount;
     float voxelSize = _data.levelOrigins[level].w;
     if (level + 1 >= levelCount)
     {
@@ -217,5 +241,5 @@ public float VoxelEffectiveVoxelSize(float3 position, int level)
 public float3 VoxelSkyColor(float3 direction)
 {
     float zenithWeight = pow(saturate(direction.z), 0.6);
-    return lerp(_data.skyHorizonColor.rgb, _data.skyZenithColor.rgb, zenithWeight) * _data.giParams2.w;
+    return lerp(_data.skyHorizonColor.rgb, _data.skyZenithColor.rgb, zenithWeight) * _data.giSkyIntensity;
 }

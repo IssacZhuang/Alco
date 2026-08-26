@@ -147,7 +147,7 @@ float ReconstructLinearDepth(float2 uv, float depth)
 // surfaces respect the same shadow cascades as the lit scene.
 float SampleSunShadowScreen(float3 worldPosition, float3 N)
 {
-    if (_data.lightingParams.x < 0.5)
+    if (!_data.shadowEnabled)
     {
         return 1.0;
     }
@@ -187,7 +187,7 @@ float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3 worldP
     float shadow = SampleSunShadowScreen(worldPosition, normal);
     float3 direct = _data.sunColorAndIntensity.rgb * _data.sunColorAndIntensity.w * sunAmount * shadow;
 
-    uint lightCount = (uint)_data.lightingParams.y;
+    uint lightCount = (uint)_data.numPointLights;
     [loop]
     for (uint i = 0; i < lightCount; i++)
     {
@@ -228,7 +228,7 @@ float4 GatherScreenSpaceNearField(
     float3 worldPosition,
     float3 normal)
 {
-    uint2 resolution = uint2(_data.giParams2.y, _data.giParams2.z);
+    uint2 resolution = uint2(_data.gbufferWidth, _data.gbufferHeight);
     float rotation = frac(sin(dot(float2(centerPixel), float2(12.9898, 78.233))) * 43758.5453) * TAU;
     float3 gathered = 0.0;
     float totalWeight = 0.0;
@@ -311,7 +311,7 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
     float4 radSample = SampleRadiance(position, level, mip);
     float4 opaSample = SampleOpacity(position, level, mip);
 
-    int levelCount = (int)_data.clipmapParams.y;
+    int levelCount = (int)_data.levelCount;
     if (level + 1 < levelCount)
     {
         float boundaryWeight = VoxelLevelTransitionWeight(position, level);
@@ -320,7 +320,7 @@ float4 SampleRadianceBlended(float3 position, int level, float mip, float3 absDi
             float nextVoxelSize = _data.levelOrigins[level + 1].w;
             float curVoxelSize = _data.levelOrigins[level].w;
             // Convert the mip to the coarser level's mip space.
-            float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, _data.clipmapParams.z - 1.0);
+            float nextMip = clamp(mip + log2(curVoxelSize / nextVoxelSize), 0.0, _data.mipCount - 1.0);
 
             float4 nextRad = _pass._radiance.SampleLevel(
                 _samplers._linearClamp,
@@ -358,7 +358,7 @@ float4 TraceCone(
     float marchJitter,
     bool injectRsmSun)
 {
-    float mipCount = _data.clipmapParams.z;
+    float mipCount = _data.mipCount;
     float fineVoxelSize = _data.levelOrigins[0].w;
     float3 color = 0.0;
     float alpha = 0.0;
@@ -425,9 +425,9 @@ float4 TraceCone(
         // first surface along its sun ray, so shadowed receivers project onto
         // a different depth and get nothing). On-surface steps are excluded by
         // the epsilon: their direct sun already lives in the voxel radiance.
-        if (injectRsmSun && _data.rsmParams.x > 0.0 && t < _data.rsmParams.y)
+        if (injectRsmSun && _data.rsmIntensity > 0.0 && t < _data.rsmMaxDistance)
         {
-            uint rsmCascade = (uint)(_data.lightingParams.w + 0.5);
+            uint rsmCascade = (uint)(_data.rsmCascadeIndex + 0.5);
             float4 rsmClip = mul(_data.sunViewProjection[rsmCascade], float4(position, 1.0));
             float3 rsmNdc = rsmClip.xyz / rsmClip.w;
             if (all(abs(rsmNdc.xy) <= 1.0) && rsmNdc.z >= 0.0 && rsmNdc.z <= 1.0)
@@ -435,7 +435,7 @@ float4 TraceCone(
                 // The RSM renders the whole cascade view (no atlas quadrant),
                 // so unlike SampleSunShadowScreen the UV is not folded.
                 float2 rsmUv = float2(rsmNdc.x * 0.5 + 0.5, 0.5 - rsmNdc.y * 0.5);
-                int2 rsmTexel = int2(rsmUv * _data.rsmParams2.xy);
+                int2 rsmTexel = int2(rsmUv * float2(_data.rsmResolution, _data.rsmResolution));
                 // Bilinear albedo: neighbouring march points and neighbouring
                 // receivers must see a continuous bounce colour, not per-texel
                 // snaps. Cleared texels are (0,0,0,0), so filtering drives
@@ -454,14 +454,14 @@ float4 TraceCone(
                     // instead of a uniform bounce — the shell scaling with the
                     // current step is what keeps every crossing sampled. CE5
                     // scales the tolerance with the current node size
-                    // ((8/nodeSize)*450) for the same reason. _data.rsmParams.z is
+                    // ((8/nodeSize)*450) for the same reason. _data.rsmDepthRange is
                     // the cascade depth range (world->NDC-z scale),
-                    // _data.rsmParams2.z the RSM texel world size.
+                    // _data.rsmTexelWorldSize the RSM texel world size.
                     float rsmShellWorld = max(
                         marchDistance * 1.5,
-                        max(fineVoxelSize, _data.rsmParams2.z) * 1.5);
+                        max(fineVoxelSize, _data.rsmTexelWorldSize) * 1.5);
                     float fRsm = saturate(
-                        1.0 - abs(rsmDepth - rsmNdc.z) * _data.rsmParams.z / rsmShellWorld);
+                        1.0 - abs(rsmDepth - rsmNdc.z) * _data.rsmDepthRange / rsmShellWorld);
                     // Strictly in front of the sunlit surface only.
                     if (fRsm > 0.0 && rsmDepth > rsmNdc.z + 0.0007)
                     {
@@ -470,7 +470,7 @@ float4 TraceCone(
                             min(rsmAlbedoSample.rgb / max(rsmCoverage, 0.5), 1.0));
                         // Minimum reflectance so deeply dark texels still
                         // bounce a visible amount of sun.
-                        bounceAlbedo += saturate(_data.rsmParams.w - dot(bounceAlbedo, 0.333));
+                        bounceAlbedo += saturate(_data.rsmMinAlbedo - dot(bounceAlbedo, 0.333));
                         // CE5 rejects only surfaces significantly facing away
                         // from the receiver (dot(N, dir) < 0.7) and applies no
                         // NdotL: the texel's sun visibility is already implied
@@ -481,7 +481,7 @@ float4 TraceCone(
                             facingReceiver * fRsm * rsmCoverage;
                         // CE5 applies no 1/pi: the term is radiance modulated by
                         // the user intensity, not a Lambertian irradiance.
-                        color += (1.0 - alpha) * rsmLight * bounceAlbedo * _data.rsmParams.x * nearFade;
+                        color += (1.0 - alpha) * rsmLight * bounceAlbedo * _data.rsmIntensity * nearFade;
                     }
                 }
             }
@@ -526,7 +526,7 @@ float4 TraceDiffuseCones(
 {
     float3x3 tbn = GetTangentBasis(normal);
     uint tileIndex = (tracePixel.x & 7u) + ((tracePixel.y & 7u) << 3u);
-    uint frameIndex = uint(_data.giFrameParams.x);
+    uint frameIndex = uint(_data.frameIndex);
     uint sequenceIndex = DIFFUSE_DIRECTION_TILE[tileIndex];
     // Visit the complete 64-direction kernel at every pixel. Multiplication by
     // an odd number permutes all six-bit frame phases, and XOR applies that
@@ -562,7 +562,7 @@ float4 TraceDiffuseCones(
     // resolves to the opacity direction. With DiffuseSpreading=0 the direction
     // is unchanged (identity).
     float3 opacityDirection = kernelDirection;
-    opacityDirection.z -= _data.giFrameParams.w;
+    opacityDirection.z -= _data.diffuseSpreading;
     kernelDirection = normalize(opacityDirection);
 
     float3 worldDir = normalize(mul(kernelDirection, tbn));
@@ -577,14 +577,14 @@ float4 TraceDiffuseCones(
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
     uint2 tracePixel = dispatchId.xy;
-    uint2 traceResolution = uint2(_data.giParams.z, _data.giParams.w);
+    uint2 traceResolution = uint2(_data.traceWidth, _data.traceHeight);
     if (any(tracePixel >= traceResolution))
     {
         return;
     }
 
     float2 uv = (float2(tracePixel) + 0.5) / float2(traceResolution);
-    uint2 gbufferResolution = uint2(_data.giParams2.y, _data.giParams2.z);
+    uint2 gbufferResolution = uint2(_data.gbufferWidth, _data.gbufferHeight);
     int2 gbufferPixel = int2(uv * float2(gbufferResolution));
     gbufferPixel = clamp(gbufferPixel, int2(0, 0), int2(gbufferResolution) - 1);
     float depth = GetPixelDepth2D(_pass._gbufferDepth, gbufferPixel);
@@ -610,7 +610,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float3 geometryNormal = DecodeGeometryNormal(float2(packedNormal.a, packedGeometryY));
     float roughness = packedAlbedo.a;
     float3 V = normalize(_data.cameraPosition.xyz - worldPosition);
-    float maxDistance = _data.giParams.y;
+    float maxDistance = _data.traceMaxDistance;
 
     // Trace with a 2x2 depth-weighted averaged geometry normal instead of the
     // raw per-pixel normal. The relative depth test keeps normals from the
@@ -673,11 +673,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // the B channel advances every frame so voxel-grid phases converge.
     uint2 noisePixel = tracePixel % BLUE_NOISE_TILE;
     float4 blueNoise = _pass._blueNoise.Load(int3(int2(noisePixel), 0));
-    uint diffuseCycle = uint(_data.giFrameParams.x) >> 6u;
+    uint diffuseCycle = uint(_data.frameIndex) >> 6u;
     float kernelRotation = frac(
         blueNoise.r + float(diffuseCycle) * 0.6180339887) * TAU;
     float blueNoiseMarch = blueNoise.b;
-    float marchJitter = frac(blueNoiseMarch + float(uint(_data.giFrameParams.x)) * 0.6180339887);
+    float marchJitter = frac(blueNoiseMarch + float(uint(_data.frameIndex)) * 0.6180339887);
 
     // Diffuse RGB contains visible directional sky and bounced surface
     // radiance. Alpha is retained only as a diagnostic visibility output.
@@ -692,7 +692,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // where it can sample the actual completed HDR scene color.
     float3 reflectDirection = reflect(-V, detailNormal);
     float3 specular = 0.0;
-    bool voxelSpecularEnabled = _data.clipmapParams.w > 0.5;
+    bool voxelSpecularEnabled = _data.voxelSpecularEnabled > 0.5;
 
     if (voxelSpecularEnabled)
     {
@@ -725,7 +725,7 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     float4 previousDiffuse = 0.0;
     float4 previousAld = 0.0;
 
-    if (_data.giFrameParams.z > 0.5)
+    if (_data.historyValid)
     {
         float4 previousClip = mul(
             _data.viewProjectionPrev, float4(worldPosition, 1.0));

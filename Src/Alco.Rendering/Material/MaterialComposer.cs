@@ -181,12 +181,27 @@ public sealed class MaterialComposer : IDisposable
             {
                 continue;
             }
-            if (member.FloatComponentCount > 4)
+            if (member.ElementCount > 1)
             {
                 throw new InvalidDataException(
-                    $"Parameter '{member.Name}' of '{name}' takes {member.FloatComponentCount} components; material parameters support at most 4.");
+                    $"Parameter '{member.Name}' of '{name}' is an array; the Vector4 material-parameter table cannot fill it.");
             }
-            for (int i = 0; i < member.FloatComponentCount; i++)
+            if (member.ComponentCount > 4)
+            {
+                throw new InvalidDataException(
+                    $"Parameter '{member.Name}' of '{name}' takes {member.ComponentCount} components; material parameters support at most 4.");
+            }
+            // Integer/bool members take the bitwise image of the float bits the
+            // Vector4 table carries (the material asset's float-encoded form).
+            if (member.ScalarType != ShaderUniformScalarType.Float32)
+            {
+                for (int i = 0; i < member.ComponentCount; i++)
+                {
+                    data[member.OffsetBytes / sizeof(float) + i] = value[i];
+                }
+                continue;
+            }
+            for (int i = 0; i < member.ComponentCount; i++)
             {
                 data[member.OffsetBytes / sizeof(float) + i] = value[i];
             }

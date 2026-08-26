@@ -26,7 +26,6 @@ public struct DataParams
     public float4x4 invViewProjection;
     public float4 params; // xy = G-buffer size in pixels, z = 1/traceWidth (= 5/atlasWidth), w = 1/traceHeight
 };
-
 public ParameterBlock<DataParams> _data;
 
 

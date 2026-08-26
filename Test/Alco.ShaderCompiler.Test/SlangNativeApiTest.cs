@@ -398,11 +398,11 @@ public class SlangNativeApiTest
         {
             Assert.That(members.Count, Is.EqualTo(3));
             Assert.That(members[0].Name, Is.EqualTo("baseColor"));
-            Assert.That(members[0].FloatComponentCount, Is.EqualTo(1));
+            Assert.That(members[0].ComponentCount, Is.EqualTo(1));
             Assert.That(members[1].Name, Is.EqualTo("tiling"));
-            Assert.That(members[1].FloatComponentCount, Is.EqualTo(2));
+            Assert.That(members[1].ComponentCount, Is.EqualTo(2));
             Assert.That(members[2].Name, Is.EqualTo("tint"));
-            Assert.That(members[2].FloatComponentCount, Is.EqualTo(4));
+            Assert.That(members[2].ComponentCount, Is.EqualTo(4));
         });
     }
 }

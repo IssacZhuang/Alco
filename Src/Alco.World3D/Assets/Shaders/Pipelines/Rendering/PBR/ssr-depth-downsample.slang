@@ -44,8 +44,8 @@ public ParameterBlock<PassParams> _pass;
 [numthreads(8, 8, 1)]
 void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 {
-    int gbufferW = (int)_data.giParams2.y;
-    int gbufferH = (int)_data.giParams2.z;
+    int gbufferW = (int)_data.gbufferWidth;
+    int gbufferH = (int)_data.gbufferHeight;
     uint srcMip = (uint)constants.params.x;
     bool isFirst = constants.params.y > 0.5;
 

@@ -199,6 +199,7 @@ float4 c = _albedoTexture.Sample(_samplers._linearRepeat, uv);
 - 未标记的块天然排除——surface 重声明的引擎数据块（如 `_globalRenderData`）不需要进排除名单。
 - 块里可以混声明纹理/sampler 成员（自描述资源块），只有标量/向量 float 成员参与参数打包；标记块一个 float 成员都没有 → `NotSupportedException`。
 - 快速失败：参数名对不上任何块的成员 → `InvalidDataException`（列出有效成员）；同一成员名出现在两个块 → 跨块歧义报错；传了 `Parameters` 但 surface 没标记任何参数块 → `InvalidDataException`。
+- 引擎侧（渲染节点等）不再手写 CPU 孪生结构体做对齐：`rendering.CreateUniformGraphicsBuffer(block, name)` 从反射出的 `ShaderUniformBlock` 建一个按名写入的 uniform buffer——`SetValue<T>(name, value)`（`float3` ↔ `Vector3`，`int/uint/bool` 同宽直传）与 `SetValues<T>(name, span)`（数组成员，按元素数校验），写进 CPU staging，首次绑定时整块上传（uniform 块小，整写优于 span 跟踪）。成员类型身份由反射提供（`ShaderUniformScalarType`/`ComponentCount`/`ElementCount`），块含不可表示成员（嵌套 struct、多维数组、非 32 位标量）时构造即抛。
 
 ## 值特化优先于 define
 

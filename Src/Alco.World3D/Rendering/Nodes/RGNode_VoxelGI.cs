@@ -212,85 +212,6 @@ public readonly struct VoxelGiDescriptor
 public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
-    /// Per-frame data uploaded to every voxel GI shader. Layout must match the
-    /// <c>_data</c> cbuffer in alco-world3d-voxel-common.slang exactly. Assembled internally by
-    /// the renderer from pipeline data and user-tunable properties.
-    /// </summary>
-    private struct VoxelGiData
-    {
-        /// <summary>Inverse of the camera view-projection matrix.</summary>
-        public Matrix4x4 InvViewProjection;
-        /// <summary>Previous frame view-projection for temporal reprojection (filled by the renderer).</summary>
-        public Matrix4x4 ViewProjectionPrev;
-        /// <summary>Camera view-projection matrix (filled by the renderer).</summary>
-        public Matrix4x4 ViewProjection;
-        /// <summary>Sun light view-projection matrix of shadow cascade 0 (nearest).</summary>
-        public Matrix4x4 SunViewProjection0;
-        /// <summary>Sun light view-projection matrix of shadow cascade 1.</summary>
-        public Matrix4x4 SunViewProjection1;
-        /// <summary>Sun light view-projection matrix of shadow cascade 2.</summary>
-        public Matrix4x4 SunViewProjection2;
-        /// <summary>Sun light view-projection matrix of shadow cascade 3 (farthest).</summary>
-        public Matrix4x4 SunViewProjection3;
-        /// <summary>Clipmap level 0 origin: xyz = min corner in world space, w = voxel size (filled by the renderer).</summary>
-        public Vector4 LevelOrigin0;
-        /// <summary>Clipmap level 1 origin (filled by the renderer).</summary>
-        public Vector4 LevelOrigin1;
-        /// <summary>Clipmap level 2 origin (filled by the renderer).</summary>
-        public Vector4 LevelOrigin2;
-        /// <summary>Clipmap level 3 origin (filled by the renderer).</summary>
-        public Vector4 LevelOrigin3;
-        /// <summary>Clipmap level 0 toroidal storage offset in voxels (filled by the renderer).</summary>
-        public Vector4 LevelRingOffset0;
-        /// <summary>Clipmap level 1 toroidal storage offset in voxels (filled by the renderer).</summary>
-        public Vector4 LevelRingOffset1;
-        /// <summary>Clipmap level 2 toroidal storage offset in voxels (filled by the renderer).</summary>
-        public Vector4 LevelRingOffset2;
-        /// <summary>Clipmap level 3 toroidal storage offset in voxels (filled by the renderer).</summary>
-        public Vector4 LevelRingOffset3;
-        /// <summary>Camera position in world space (w unused).</summary>
-        public Vector4 CameraPosition;
-        /// <summary>Normalized direction the sun light travels (w unused).</summary>
-        public Vector4 SunDirection;
-        /// <summary>Sun linear color (rgb) and intensity (w).</summary>
-        public Vector4 SunColorAndIntensity;
-        /// <summary>Azimuthally filtered physical-sky radiance at the horizon.</summary>
-        public Vector4 SkyHorizonColor;
-        /// <summary>Physical-sky radiance at the zenith.</summary>
-        public Vector4 SkyZenithColor;
-        /// <summary>View-distance end boundary of each shadow cascade.</summary>
-        public Vector4 CascadeSplits;
-        /// <summary>World units per shadow texel of each cascade.</summary>
-        public Vector4 CascadeTexelSizes;
-        /// <summary>x=level resolution y=level count z=mip count w=voxel specular enabled (filled by the renderer).</summary>
-        public Vector4 ClipmapParams;
-        /// <summary>x=shadowEnabled y=numPointLights z=shadowMapSize w=unused.</summary>
-        public Vector4 LightingParams;
-        /// <summary>x=emissiveScale y=traceMaxDistance zw=trace resolution in pixels (filled by the renderer).</summary>
-        public Vector4 GiParams;
-        /// <summary>x=debugView yz=G-buffer resolution in pixels (filled by the renderer) w=giSkyIntensity (sky light multiplier for voxel GI).</summary>
-        public Vector4 GiParams2;
-        /// <summary>x=frame index, y=GI diffuse bias, z=history-valid flag (filled by the renderer), w=diffuse spreading (dual-kernel opacity bias).</summary>
-        public Vector4 GiFrameParams;
-        /// <summary>RSM sun bounce: x=intensity (0 disables), y=max injection distance in world units, z=NDC depth tolerance scale, w=minimum bounce albedo.</summary>
-        public Vector4 RsmParams;
-        /// <summary>RSM sun bounce: xy=RSM resolution in texels (zw unused).</summary>
-        public Vector4 RsmParams2;
-    }
-
-    /// <summary>
-    /// Per-frame data uploaded to the VoxelGiUpsample compute pass. Layout must
-    /// match the <c>_data</c> cbuffer in voxel-gi-upsample.slang exactly.
-    /// </summary>
-    public struct VoxelGiUpsampleData
-    {
-        /// <summary>Inverse of the camera view-projection matrix for linear-depth reconstruction.</summary>
-        public Matrix4x4 InvViewProjection;
-        /// <summary>xy = G-buffer size in pixels, z = 1/traceWidth (= 5/atlasWidth), w = 1/traceHeight.</summary>
-        public Vector4 Params;
-    }
-
-    /// <summary>
     /// Push constant payload for one voxelize dispatch. Layout must match the
     /// <c>VoxelizeConstants</c> struct in voxelize.slang exactly (128 bytes, the
     /// device push-constant limit — the dirty-brick range is bit-packed into
@@ -384,8 +305,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly RenderTexture _blueNoiseTexture;
     private bool _blueNoiseBaked;
     private ComputeMaterial? _upsampleMaterial;
-    private GraphicsValueBuffer<VoxelGiUpsampleData>? _upsampleDataBuffer;
-    private readonly GraphicsValueBuffer<VoxelGiData> _dataBuffer;
+    private UniformGraphicsBuffer? _upsampleDataBuffer;
+    private readonly UniformGraphicsBuffer _dataBuffer;
     private readonly GpuTimestampSampler? _gpuTimestamps;
 
     /// <summary>
@@ -807,7 +728,13 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _propagateMaterial = rendering.CreateComputeMaterial(descriptor.Propagate);
         _traceMaterial = rendering.CreateComputeMaterial(descriptor.Trace);
         _demosaicMaterial = rendering.CreateComputeMaterial(descriptor.Demosaic);
-        _dataBuffer = rendering.CreateGraphicsValueBuffer<VoxelGiData>("voxel_gi_data");
+        // Reflection-driven uniform buffer: no hand-written CPU twin of
+        // VoxelData — members are written by name at their reflected offsets.
+        // The linked trace shader's reflection carries the shared _data block
+        // every voxel pass binds.
+        _dataBuffer = rendering.CreateUniformGraphicsBuffer(
+            descriptor.Trace.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_data"),
+            "voxel_gi_data");
 
         // Persistent blue-noise lookup for the cone-march jitter (the same
         // tile the SSR trace samples): baked once on the first rendered frame
@@ -933,7 +860,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private void InitUpsample(Shader upsampleShader)
     {
         _upsampleMaterial = _rendering.CreateComputeMaterial(upsampleShader);
-        _upsampleDataBuffer = _rendering.CreateGraphicsValueBuffer<VoxelGiUpsampleData>("voxel_gi_upsample_data");
+        // Reflection-driven uniform buffer over the upsample _data block —
+        // no CPU twin of DataParams.
+        _upsampleDataBuffer = _rendering.CreateUniformGraphicsBuffer(
+            upsampleShader.GetShaderModules().ReflectionInfo.UniformBlocks.First(block => block.Name == "_data"),
+            "voxel_gi_upsample_data");
         _upsampleMaterial.SetBuffer("_data", _upsampleDataBuffer);
         _upsampleMaterial.SetRenderTexture("_indirectGI", _indirectAtlas);
         // _giDiffuseOut/_giSpecularOut are bound by Attach once the graph
@@ -1407,30 +1338,26 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         // ── Assemble the GPU constant buffer internally ──
-        VoxelGiData data = new()
-        {
-            InvViewProjection = invViewProjection,
-            CameraPosition = new Vector4(cameraTransform.Position, 0.0f),
-        };
+        // Members land by name at their reflected offsets; no CPU twin struct
+        // to keep aligned with VoxelData on the shader side.
+        UniformGraphicsBuffer data = _dataBuffer;
+        data.SetValue("invViewProjection", invViewProjection);
+        data.SetValue("cameraPosition", new Vector4(cameraTransform.Position, 0.0f));
 
         // Copy lighting/shadow/sky data from the scene environment.
         DeferredLightingData ld = lightingData;
-        data.SunViewProjection0 = ld.SunViewProjection0;
-        data.SunViewProjection1 = ld.SunViewProjection1;
-        data.SunViewProjection2 = ld.SunViewProjection2;
-        data.SunViewProjection3 = ld.SunViewProjection3;
-        data.SunDirection = ld.SunDirection;
-        data.SunColorAndIntensity = ld.SunColorAndIntensity;
-        data.SkyHorizonColor = ld.SkyHorizonColor;
-        data.SkyZenithColor = ld.SkyZenithColor;
-        data.CascadeSplits = ld.CascadeSplits;
-        data.CascadeTexelSizes = ld.CascadeTexelSizes;
-        // x=shadowEnabled y=numPointLights z=shadowMapSize w=rsmCascadeIndex
-        data.LightingParams = new Vector4(
-            ld.Params.X,
-            ld.Params.Y,
-            ld.Params.Z,
-            RsmCascadeIndex);
+        data.SetValues("sunViewProjection",
+            [ld.SunViewProjection0, ld.SunViewProjection1, ld.SunViewProjection2, ld.SunViewProjection3]);
+        data.SetValue("sunDirection", ld.SunDirection);
+        data.SetValue("sunColorAndIntensity", ld.SunColorAndIntensity);
+        data.SetValue("skyHorizonColor", ld.SkyHorizonColor);
+        data.SetValue("skyZenithColor", ld.SkyZenithColor);
+        data.SetValue("cascadeSplits", ld.CascadeSplits);
+        data.SetValue("cascadeTexelSizes", ld.CascadeTexelSizes);
+        data.SetValue("shadowEnabled", ld.Params.X > 0.5f);
+        data.SetValue("numPointLights", (uint)ld.Params.Y);
+        data.SetValue("shadowMapSize", ld.Params.Z);
+        data.SetValue("rsmCascadeIndex", (uint)RsmCascadeIndex);
 
         // Bind the point-light buffer once (the buffer is stable across frames).
         if (pointLightBuffer != null && !ReferenceEquals(_boundPointLightBuffer, pointLightBuffer))
@@ -1441,25 +1368,37 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         // User-tunable GI parameters.
-        if (!Matrix4x4.Invert(data.InvViewProjection, out data.ViewProjection))
-        {
-            data.ViewProjection = Matrix4x4.Identity;
-        }
-        data.ViewProjectionPrev = _viewProjectionPrev;
+        Matrix4x4.Invert(invViewProjection, out Matrix4x4 viewProjection);
+        data.SetValue("viewProjection", viewProjection);
+        data.SetValue("viewProjectionPrev", _viewProjectionPrev);
 
-        data.LevelOrigin0 = _clipmap.GetOriginAndVoxelSize(0);
-        data.LevelOrigin1 = _clipmap.GetOriginAndVoxelSize(1);
-        data.LevelOrigin2 = _clipmap.GetOriginAndVoxelSize(2);
-        data.LevelOrigin3 = _clipmap.GetOriginAndVoxelSize(3);
-        data.LevelRingOffset0 = _clipmap.GetRingOffset(0);
-        data.LevelRingOffset1 = _clipmap.GetRingOffset(1);
-        data.LevelRingOffset2 = _clipmap.GetRingOffset(2);
-        data.LevelRingOffset3 = _clipmap.GetRingOffset(3);
-        data.ClipmapParams = new Vector4(_resolution, LevelCount, _mipCount, SsrOnly ? 0.0f : 1.0f);
+        data.SetValues("levelOrigins",
+        [
+            _clipmap.GetOriginAndVoxelSize(0), _clipmap.GetOriginAndVoxelSize(1),
+            _clipmap.GetOriginAndVoxelSize(2), _clipmap.GetOriginAndVoxelSize(3),
+        ]);
+        data.SetValues("levelRingOffsets",
+        [
+            _clipmap.GetRingOffset(0), _clipmap.GetRingOffset(1),
+            _clipmap.GetRingOffset(2), _clipmap.GetRingOffset(3),
+        ]);
+        data.SetValue("voxelResolution", (uint)_resolution);
+        data.SetValue("levelCount", (uint)LevelCount);
+        data.SetValue("mipCount", (uint)_mipCount);
+        data.SetValue("voxelSpecularEnabled", !SsrOnly);
         uint traceWidth = Math.Max(_traceRaw.Width / 3, 1);
-        data.GiParams = new Vector4(EmissiveScale, TraceMaxDistance, traceWidth, _traceRaw.Height);
-        data.GiParams2 = new Vector4((int)DebugView, gbuffer.Width, gbuffer.Height, SkyIntensity);
-        data.GiFrameParams = new Vector4(_frameIndex, 0.05f, _historyValid ? 1.0f : 0.0f, DiffuseSpreading);
+        data.SetValue("emissiveScale", EmissiveScale);
+        data.SetValue("traceMaxDistance", TraceMaxDistance);
+        data.SetValue("traceWidth", traceWidth);
+        data.SetValue("traceHeight", (uint)_traceRaw.Height);
+        data.SetValue("debugView", (int)DebugView);
+        data.SetValue("gbufferWidth", (uint)gbuffer.Width);
+        data.SetValue("gbufferHeight", (uint)gbuffer.Height);
+        data.SetValue("giSkyIntensity", SkyIntensity);
+        data.SetValue("frameIndex", _frameIndex);
+        data.SetValue("giDiffuseBias", 0.05f);
+        data.SetValue("historyValid", _historyValid);
+        data.SetValue("diffuseSpreading", DiffuseSpreading);
 
         // RSM sun bounce. The injection intensity is forced off when no map is
         // bound (detached / RSM pass never attached) even if the property says
@@ -1473,9 +1412,13 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         // texel's world size.
         float rsmTexelWorld = ld.CascadeTexelSizes[RsmCascadeIndex] * ld.Params.Z / MathF.Max(RsmResolution, 1);
         float rsmDepthRange = MathF.Max(environment.CascadeDepthRanges[RsmCascadeIndex], 1e-3f);
-        data.RsmParams = new Vector4(rsmIntensity, RsmMaxDistance, rsmDepthRange, RsmMinAlbedo);
-        data.RsmParams2 = new Vector4(RsmResolution, RsmResolution, rsmTexelWorld, 0.0f);
-        _dataBuffer.UpdateBuffer(data);
+        data.SetValue("rsmIntensity", rsmIntensity);
+        data.SetValue("rsmMaxDistance", RsmMaxDistance);
+        data.SetValue("rsmDepthRange", rsmDepthRange);
+        data.SetValue("rsmMinAlbedo", RsmMinAlbedo);
+        data.SetValue("rsmResolution", (uint)RsmResolution);
+        data.SetValue("rsmTexelWorldSize", rsmTexelWorld);
+        data.Flush();
 
         // The G-buffer and shadow map render textures are stable across frames
         // (recreated on resize); avoid rebinding every frame.
@@ -1634,12 +1577,12 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             using GPUCommandBuffer.ComputePass upsamplePass = measureGpu
                 ? commandBuffer.BeginCompute(_gpuTimestamps!.QuerySet, 8, 9)
                 : commandBuffer.BeginCompute();
-            _upsampleDataBuffer.Value.InvViewProjection = data.InvViewProjection;
-            _upsampleDataBuffer.Value.Params = new Vector4(
+            _upsampleDataBuffer.SetValue("invViewProjection", invViewProjection);
+            _upsampleDataBuffer.SetValue("params", new Vector4(
                 _gbufferWidth, _gbufferHeight,
                 5.0f / _indirectAtlas.Width,
-                1.0f / _indirectAtlas.Height);
-            _upsampleDataBuffer.UpdateBuffer();
+                1.0f / _indirectAtlas.Height));
+            _upsampleDataBuffer.Flush();
             _upsampleMaterial.DispatchBySize(upsamplePass, _gbufferWidth, _gbufferHeight, 1);
         }
         if (measureGpu)
@@ -1649,7 +1592,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         _instances.Clear();
-        _viewProjectionPrev = data.ViewProjection;
+        _viewProjectionPrev = viewProjection;
         _historyReadIndex = 1 - _historyReadIndex;
         (_traceRaw, _traceHistory) = (_traceHistory, _traceRaw);
         _historyValid = true;

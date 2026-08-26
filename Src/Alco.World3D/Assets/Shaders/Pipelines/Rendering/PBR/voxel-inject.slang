@@ -84,7 +84,7 @@ float TraceVoxelSunCone(float3 worldPosition, float3 sunDir, float voxelSize,
     float extent = originAndSize.w * resolution;
     float alpha = 0.0;
     float t = voxelSize * 2.0;
-    float maxDistance = min(63.0, _data.giParams.y);
+    float maxDistance = min(63.0, _data.traceMaxDistance);
 
     [loop]
     for (int step = 0; step < 24 && t <= maxDistance && alpha < 0.99; step++)
@@ -134,8 +134,8 @@ float SampleSunShadowVoxel(float3 worldPosition, float3 N, float voxelSize,
 
     float2 quadrantOffset = float2((cascade % 2) * 0.5, (cascade / 2) * 0.5);
     float2 shadowUV = float2(ndc.x * 0.5 + 0.5, 0.5 - ndc.y * 0.5) * 0.5 + quadrantOffset;
-    float2 quadrantMin = quadrantOffset + 0.25 / _data.lightingParams.z;
-    float2 quadrantMax = quadrantOffset + 0.5 - 0.25 / _data.lightingParams.z;
+    float2 quadrantMin = quadrantOffset + 0.25 / _data.shadowMapSize;
+    float2 quadrantMax = quadrantOffset + 0.5 - 0.25 / _data.shadowMapSize;
     shadowUV = clamp(shadowUV, quadrantMin, quadrantMax);
 
     float NdotL = saturate(dot(N, normalize(-_data.sunDirection.xyz)));
@@ -231,12 +231,12 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
     // Sun (with CSM shadow). The 1/PI matches the direct pass's diffuse BRDF.
     float3 L = normalize(-_data.sunDirection.xyz);
     float NdotL = max(dot(normal, L), 0.0);
-    float shadow = _data.lightingParams.x > 0.5 ? SampleSunShadowVoxel(worldPosition, normal, voxelSize, originAndSize, resolution, level) : 1.0;
+    float shadow = _data.shadowEnabled ? SampleSunShadowVoxel(worldPosition, normal, voxelSize, originAndSize, resolution, level) : 1.0;
     direct += _data.sunColorAndIntensity.rgb * _data.sunColorAndIntensity.w * (NdotL / PI) * shadow;
 
     // Point lights (unshadowed, StructuredBuffer with per-light range).
     {
-        uint lightCount = (uint)_data.lightingParams.y;
+        uint lightCount = (uint)_data.numPointLights;
         [loop]
         for (uint i = 0; i < lightCount; i++)
         {
@@ -265,11 +265,11 @@ void MainCS(uint3 dispatchId : SV_DispatchThreadID)
 
     // DiffuseBias injection: bake a minimum sky ambient into every occupied
     // voxel so shadowed surfaces still have non-zero radiance.
-    // _data.giFrameParams.y = DiffuseBias (default 0.05).
-    direct += _data.giFrameParams.y * _data.skyZenithColor.rgb * _data.giParams2.w;
+    // _data.giDiffuseBias = DiffuseBias (default 0.05).
+    direct += _data.giDiffuseBias * _data.skyZenithColor.rgb * _data.giSkyIntensity;
 
     // Emissive: albedo-tinted, intensity recovered from the quantized value.
-    float3 emissive = albedo * emissiveQ * 8.0 * _data.giParams.x;
+    float3 emissive = albedo * emissiveQ * 8.0 * _data.emissiveScale;
 
     // Store exiting surface radiance = albedo × (direct irradiance) + emissive.
     float3 radiance = albedo * direct + emissive;

@@ -147,7 +147,7 @@ public class TestSlangMaterialCompiler
                 compiler.Composer.GetParamsLayouts(Library(engine, ParameterizedSurfaceModule));
             Assert.That(layouts.Keys, Is.EqualTo(new[] { "PulseParams" }));
             IReadOnlyList<ShaderUniformMember> members = layouts["PulseParams"];
-            Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.FloatComponentCount)),
+            Assert.That(members.Select(member => (member.Name, member.OffsetBytes, member.ComponentCount)),
                 Is.EqualTo(new[]
                 {
                     ("pulseSpeed", 0u, 1),

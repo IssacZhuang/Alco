@@ -47,7 +47,7 @@ public float3 ApproximateScreenSurfaceRadiance(int2 pixel, float3 normal, float3
 //   - Bindings: _gbufferDepth, _normal, _ssrHistory, _depthPyramid,
 //     _ssrHistoryOut
 //   - Functions: ReconstructWorldPosition, ApproximateScreenSurfaceRadiance
-// The shared cbuffer _data (viewProjection, giParams2, giFrameParams, …) comes
+// The shared cbuffer _data (viewProjection, gbufferWidth, frameIndex, ...) comes
 // from VoxelCommon.hlsli.
 
 
@@ -268,7 +268,7 @@ public float4 TraceScreenSpaceReflection(
     float roughness,
     float2 uv)
 {
-    float2 screenSize = float2(_data.giParams2.y, _data.giParams2.z);
+    float2 screenSize = float2(_data.gbufferWidth, _data.gbufferHeight);
 
     float3 screenOrigin = SsrProjectPosition(worldPosition, _data.viewProjection);
     float3 screenDir = SsrProjectDirection(worldPosition, reflectDirection, screenOrigin, _data.viewProjection);

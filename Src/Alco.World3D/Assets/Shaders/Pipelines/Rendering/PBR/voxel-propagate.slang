@@ -92,7 +92,7 @@ float4 SamplePropagationBlended(float3 position, int level, float mip, float3 ab
     float4 opacity = _pass._opacity.SampleLevel(_samplers._linearClamp, uvw, mip);
     if (enableBlend)
     {
-        int levelCount = (int)_data.clipmapParams.y;
+        int levelCount = (int)_data.levelCount;
         if (level + 1 < levelCount)
         {
             float transitionWeight = VoxelLevelTransitionWeight(position, level);
@@ -101,7 +101,7 @@ float4 SamplePropagationBlended(float3 position, int level, float mip, float3 ab
                 float nextMip = clamp(
                     mip + log2(_data.levelOrigins[level].w / _data.levelOrigins[level + 1].w),
                     0.0,
-                    _data.clipmapParams.z - 1.0);
+                    _data.mipCount - 1.0);
                 float3 nextUVW = VoxelWorldToUVW(position, level + 1, nextMip);
                 float4 nextRadiance = _pass._radiance.SampleLevel(_samplers._linearClamp, nextUVW, nextMip);
                 float4 nextOpacity = _pass._opacity.SampleLevel(_samplers._linearClamp, nextUVW, nextMip);
@@ -125,7 +125,7 @@ float4 SamplePropagationBlended(float3 position, int level, float mip, float3 ab
 float3 TracePropagationCone(float3 startPosition, float3 direction,
     float apertureTan, float maxDistance, bool allowSky)
 {
-    float mipCount = _data.clipmapParams.z;
+    float mipCount = _data.mipCount;
     float fineVoxelSize = _data.levelOrigins[0].w;
     float3 color = 0.0;
     float alpha = 0.0;

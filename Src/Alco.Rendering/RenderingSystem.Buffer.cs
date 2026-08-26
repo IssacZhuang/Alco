@@ -1,3 +1,5 @@
+using Alco.Graphics;
+
 namespace Alco.Rendering;
 
 // gpu buffer factory
@@ -74,5 +76,19 @@ public partial class RenderingSystem
     public unsafe GraphicsArrayBuffer<T> CreateGraphicsArrayBuffer<T>(IReadOnlyList<T> initialData, string name = "unnamed_graphics_array_buffer") where T : unmanaged
     {
         return new GraphicsArrayBuffer<T>(this, initialData, name);
+    }
+
+    /// <summary>
+    /// Create a reflection-driven uniform buffer mirroring one uniform block:
+    /// members are written by name (SetValue/SetValues) at their reflected
+    /// offsets and flushed to the GPU lazily on first bind — no hand-written
+    /// CPU twin struct, no manual Vector4 packing.
+    /// </summary>
+    /// <param name="block">The block whose reflected layout the buffer mirrors.</param>
+    /// <param name="name">The name of the buffer.</param>
+    /// <returns> The created uniform graphics buffer. </returns>
+    public UniformGraphicsBuffer CreateUniformGraphicsBuffer(ShaderUniformBlock block, string name = "unnamed_uniform_buffer")
+    {
+        return new UniformGraphicsBuffer(this, block, name);
     }
 }

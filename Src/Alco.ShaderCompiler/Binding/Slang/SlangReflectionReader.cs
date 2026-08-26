@@ -431,13 +431,14 @@ public static class SlangReflectionReader
 
     /// <summary>
     /// The lenient member walk behind <see cref="ReadUniformMembers(IntPtr)"/>:
-    /// the float-shaped members in declaration order plus, through
+    /// the representable members in declaration order plus, through
     /// <paramref name="unsupportedMemberReason"/>, why the first member that
-    /// does not fit the float view (non-float scalar, other kind, a struct
-    /// with uniform data) is missing — null when the listing is complete.
-    /// Resource members (textures, samplers, storage buffers, and structs that
-    /// only group them) are binding entries, not uniform data, and never count
-    /// as unsupported.
+    /// does not fit the uniform view (unsupported scalar width, other kind, a
+    /// struct with uniform data, a nested array) is missing — null when the
+    /// listing is complete. Resource members (textures, samplers, storage
+    /// buffers, and structs that only group them) are binding entries, not
+    /// uniform data, and never count as unsupported. Arrays unwrap to one
+    /// member with the element's type and the array's element count.
     /// </summary>
     private static unsafe List<ShaderUniformMember> ReadUniformMembers(
         IntPtr typeLayout, out string? unsupportedMemberReason)
@@ -460,7 +461,7 @@ public static class SlangReflectionReader
             // that carries only resources (e.g. a texture+sampler pair type)
             // is binding entries all the way down — it contributes no uniform
             // data. A struct that DOES carry uniform data stays unsupported:
-            // the params contract admits plain float members only.
+            // flat members only.
             IntPtr fieldLayoutType = SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout);
             int fieldKind = SlangNative.spReflectionTypeLayout_getKind(fieldLayoutType);
             if (fieldKind == SlangNative.SLANG_TYPE_KIND_RESOURCE ||
@@ -479,20 +480,52 @@ public static class SlangReflectionReader
                 }
 
                 unsupportedMemberReason ??=
-                    "GraphicsMaterial parameter blocks support float members only; a nested struct with uniform data is not a valid parameter.";
+                    $"member '{fieldName}' is a nested struct with uniform data; the uniform view admits flat members only.";
                 continue;
             }
 
-            IntPtr fieldType = SlangNative.spReflectionTypeLayout_GetType(fieldLayoutType);
-            if (!TryGetFloatComponents(fieldType, out int components, out string? reason))
+            uint offset = (uint)SlangNative.spReflectionVariableLayout_GetOffset(
+                fieldLayout, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
+
+            // An array member unwraps to one entry: the element's type facts
+            // plus the array's element count. SizeBytes is the member's full
+            // span (stride × count), so SetValues writes the whole array.
+            uint elementCount = 1;
+            IntPtr elementType = fieldLayoutType;
+            if (fieldKind == SlangNative.SLANG_TYPE_KIND_ARRAY)
+            {
+                IntPtr elementLayout = SlangNative.spReflectionTypeLayout_GetElementTypeLayout(fieldLayoutType);
+                if (SlangNative.spReflectionTypeLayout_getKind(elementLayout)
+                        == SlangNative.SLANG_TYPE_KIND_ARRAY)
+                {
+                    unsupportedMemberReason ??=
+                        $"member '{fieldName}' is a nested array; the uniform view admits one array level only.";
+                    continue;
+                }
+                elementCount = (uint)SlangNative.spReflectionType_GetElementCount(
+                    SlangNative.spReflectionTypeLayout_GetType(fieldLayoutType));
+                elementType = elementLayout;
+            }
+
+            IntPtr elementTypeRoot = SlangNative.spReflectionTypeLayout_GetType(elementType);
+            if (!TryGetMemberType(elementTypeRoot, out int components, out var scalar, out string? reason))
             {
                 unsupportedMemberReason ??= reason;
                 continue;
             }
-            uint offset = (uint)SlangNative.spReflectionVariableLayout_GetOffset(
-                fieldLayout, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM);
-            uint size = (uint)(components * sizeof(float));
-            members.Add(new ShaderUniformMember(fieldName, offset, size, components));
+
+            uint size;
+            if (elementCount > 1)
+            {
+                size = (uint)SlangNative.spReflectionTypeLayout_getStride(
+                           fieldLayoutType, SlangNative.SLANG_PARAMETER_CATEGORY_UNIFORM)
+                       * elementCount;
+            }
+            else
+            {
+                size = (uint)(components * sizeof(float));
+            }
+            members.Add(new ShaderUniformMember(fieldName, offset, size, components, scalar, elementCount));
         }
         return members;
     }
@@ -1049,19 +1082,35 @@ public static class SlangReflectionReader
     /// constant buffers (camera matrices) tolerates them.
     /// </summary>
     /// <summary>
-    /// The float component count (1 scalar, N vector, rows×columns matrix) of a
-    /// reflection type; false leaves the reason the type does not fit the float
-    /// member view (non-float scalar type, or not a scalar/vector/matrix kind).
+    /// The member type facts of a reflection type: the component count (1
+    /// scalar, N vector, rows×columns matrix) and the 32-bit scalar type the
+    /// CPU marshals by; false leaves the reason the type does not fit the
+    /// uniform view (unsupported scalar width, or not a scalar/vector/matrix
+    /// kind).
     /// </summary>
-    private static bool TryGetFloatComponents(IntPtr type, out int components, out string? reason)
+    private static bool TryGetMemberType(
+        IntPtr type, out int components, out ShaderUniformScalarType scalar, out string? reason)
     {
         components = 0;
+        scalar = ShaderUniformScalarType.Float32;
         int kind = SlangNative.spReflectionType_GetKind(type);
-        int scalar = SlangNative.spReflectionType_GetScalarType(type);
-        if (scalar != SlangNative.SLANG_SCALAR_TYPE_FLOAT32)
+        switch (SlangNative.spReflectionType_GetScalarType(type))
         {
-            reason = "GraphicsMaterial parameter blocks support float members only (float, float2, float3, float4).";
-            return false;
+            case SlangNative.SLANG_SCALAR_TYPE_FLOAT32:
+                scalar = ShaderUniformScalarType.Float32;
+                break;
+            case SlangNative.SLANG_SCALAR_TYPE_INT32:
+                scalar = ShaderUniformScalarType.Int32;
+                break;
+            case SlangNative.SLANG_SCALAR_TYPE_UINT32:
+                scalar = ShaderUniformScalarType.UInt32;
+                break;
+            case SlangNative.SLANG_SCALAR_TYPE_BOOL:
+                scalar = ShaderUniformScalarType.Bool32;
+                break;
+            default:
+                reason = $"a member of unsupported scalar type (the uniform view admits float/int/uint/bool, 32-bit).";
+                return false;
         }
         switch (kind)
         {
@@ -1079,7 +1128,7 @@ public static class SlangReflectionReader
                 reason = null;
                 return true;
             default:
-                reason = $"GraphicsMaterial parameter blocks support scalar/vector members only (member kind {kind}).";
+                reason = "a member that is not a scalar/vector/matrix (flat members only).";
                 return false;
         }
     }

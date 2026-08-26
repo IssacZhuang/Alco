@@ -174,9 +174,9 @@ void MainCS(
     uint3 groupThreadId : SV_GroupThreadID,
     uint groupIndex : SV_GroupIndex)
 {
-    uint2 traceResolution = uint2(_data.giParams.z, _data.giParams.w);
-    uint2 gbufferRes = uint2(_data.giParams2.y, _data.giParams2.z);
-    int halfWidth = (int)_data.giParams.z;
+    uint2 traceResolution = uint2(_data.traceWidth, _data.traceHeight);
+    uint2 gbufferRes = uint2(_data.gbufferWidth, _data.gbufferHeight);
+    int halfWidth = (int)_data.traceWidth;
     bool validDispatch = all(dispatchId.xy < traceResolution);
     int2 traceMax = int2(traceResolution) - 1;
     int2 gbufferMax = int2(gbufferRes) - 1;
@@ -328,7 +328,7 @@ void MainCS(
     // Developer view: expose the cone-trace atlas before spatial/temporal
     // reconstruction. This makes it possible to distinguish a tracing issue
     // from a resolve issue at an exactly reproduced camera position.
-    if (_data.giParams2.x > 3.5 && _data.giParams2.x < 4.5)
+    if (_data.debugView == 4)
     {
         _pass._indirectGI[tracePixel] = float4(centerDiffuse.rgb, currentLinearDepth);
         _pass._indirectGI[tracePixel + int2(halfWidth, 0)] =
@@ -574,7 +574,7 @@ void MainCS(
     float4 resultSpecular = specularCurrent;
     float4 resultAldMin = layerAldMin;
     float4 resultAldMax = layerAldMax;
-    bool historyAvailable = _data.giFrameParams.z > 0.5;
+    bool historyAvailable = _data.historyValid;
 
     if (historyAvailable)
     {

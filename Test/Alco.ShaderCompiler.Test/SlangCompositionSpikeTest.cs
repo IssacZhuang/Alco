@@ -289,9 +289,9 @@ public class SlangCompositionSpikeTest
             Assert.That(members.Select(member => member.Name),
                 Is.EqualTo(new[] { "pulseSpeed", "pulseColor", "bandFrequency" }));
             Assert.That(members[0].OffsetBytes, Is.EqualTo(0u));
-            Assert.That(members[0].FloatComponentCount, Is.EqualTo(1));
+            Assert.That(members[0].ComponentCount, Is.EqualTo(1));
             Assert.That(members[1].OffsetBytes, Is.EqualTo(16u));
-            Assert.That(members[1].FloatComponentCount, Is.EqualTo(3));
+            Assert.That(members[1].ComponentCount, Is.EqualTo(3));
             Assert.That(members[2].OffsetBytes, Is.EqualTo(28u));
         });
 

@@ -306,6 +306,12 @@ internal static class SlangNative
     public static extern IntPtr spReflectionTypeLayout_GetElementTypeLayout(IntPtr typeLayout);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern nuint spReflectionType_GetElementCount(IntPtr type);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl, EntryPoint = "spReflectionTypeLayout_GetElementStride")]
+    public static extern nuint spReflectionTypeLayout_getStride(IntPtr typeLayout, int category);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint spReflectionTypeLayout_GetFieldCount(IntPtr typeLayout);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]

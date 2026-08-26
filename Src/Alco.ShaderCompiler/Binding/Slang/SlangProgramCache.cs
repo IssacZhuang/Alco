@@ -21,7 +21,7 @@ public sealed record SlangCachedProgram
 
 internal static class SlangProgramCacheCodec
 {
-    private const int FormatVersion = 2;
+    private const int FormatVersion = 3;
 
     public static void Encode(System.IO.BinaryWriter writer, SlangCachedProgram program)
     {
@@ -130,7 +130,9 @@ internal static class SlangProgramCacheCodec
                 writer.Write(member.Name);
                 writer.Write(member.OffsetBytes);
                 writer.Write(member.SizeBytes);
-                writer.Write(member.FloatComponentCount);
+                writer.Write(member.ComponentCount);
+                writer.Write((int)member.ScalarType);
+                writer.Write(member.ElementCount);
             }
             writer.Write(block.UnsupportedMemberReason ?? "");
         }
@@ -211,7 +213,8 @@ internal static class SlangProgramCacheCodec
             for (int j = 0; j < memberCount; j++)
             {
                 members[j] = new ShaderUniformMember(
-                    reader.ReadString(), reader.ReadUInt32(), reader.ReadUInt32(), reader.ReadInt32());
+                    reader.ReadString(), reader.ReadUInt32(), reader.ReadUInt32(), reader.ReadInt32(),
+                    (ShaderUniformScalarType)reader.ReadInt32(), reader.ReadUInt32());
             }
             string reason = reader.ReadString();
             blocks[i] = new ShaderUniformBlock(
