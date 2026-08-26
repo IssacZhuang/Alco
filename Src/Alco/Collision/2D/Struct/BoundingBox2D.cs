@@ -34,7 +34,7 @@ namespace Alco
             this.Max = max;
         }
 
-        public bool Intersects(BoundingBox2D other)
+        public bool Intersects(in BoundingBox2D other)
         {
             Vector2 minMax = Vector2.Max(Min, other.Min);
             Vector2 maxMin = Vector2.Min(Max, other.Max);
@@ -44,7 +44,7 @@ namespace Alco
             //        min.Y <= other.max.Y && max.Y >= other.min.Y;
         }
 
-        public bool Contains(Vector2 point)
+        public bool Contains(in Vector2 point)
         {
             return Min.X <= point.X && Max.X >= point.X &&
                    Min.Y <= point.Y && Max.Y >= point.Y;
@@ -55,7 +55,7 @@ namespace Alco
             return $"Box: {Min} {Max}";
         }
 
-        public static BoundingBox2D Merge(BoundingBox2D a, BoundingBox2D b)
+        public static BoundingBox2D Merge(in BoundingBox2D a, in BoundingBox2D b)
         {
             return new BoundingBox2D
             {
@@ -64,7 +64,7 @@ namespace Alco
             };
         }
 
-        public static BoundingBox2D GetIntersection(BoundingBox2D a, BoundingBox2D b)
+        public static BoundingBox2D GetIntersection(in BoundingBox2D a, in BoundingBox2D b)
         {
             return new BoundingBox2D
             {

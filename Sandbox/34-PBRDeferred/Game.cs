@@ -1304,7 +1304,7 @@ public class Game : GameEngine
                 int meshHandle = _voxelGI.RegisterMesh(
                     item.Mesh,
                     (uint)VertexPBR.SizeInBytes,
-                    new VoxelGiBounds(item.LocalBoundsMin, item.LocalBoundsMax),
+                    new BoundingBox3D(item.LocalBoundsMin, item.LocalBoundsMax),
                     asset);
                 _voxelGI.AddStaticInstance(
                     meshHandle,
@@ -2117,17 +2117,17 @@ public class Game : GameEngine
             new ImageLoadOption(format: PixelFormat.RGBA8UnormSrgb, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "checker_albedo"));
     }
 
-    private VoxelGiBounds GetProceduralBounds(PrimitiveMesh mesh)
+    private BoundingBox3D GetProceduralBounds(PrimitiveMesh mesh)
     {
         if (mesh == _cubeMesh)
         {
-            return new VoxelGiBounds(new Vector3(-0.5f), new Vector3(0.5f));
+            return new BoundingBox3D(new Vector3(-0.5f), new Vector3(0.5f));
         }
         if (mesh == _sphereMesh)
         {
-            return new VoxelGiBounds(new Vector3(-1.0f), new Vector3(1.0f));
+            return new BoundingBox3D(new Vector3(-1.0f), new Vector3(1.0f));
         }
-        return new VoxelGiBounds(new Vector3(-20.0f, -20.0f, 0.0f), new Vector3(20.0f, 20.0f, 0.0f));
+        return new BoundingBox3D(new Vector3(-20.0f, -20.0f, 0.0f), new Vector3(20.0f, 20.0f, 0.0f));
     }
 
     private PrimitiveMesh CreateCubeMesh()

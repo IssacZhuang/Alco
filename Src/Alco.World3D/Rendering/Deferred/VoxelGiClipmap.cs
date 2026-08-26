@@ -2,60 +2,6 @@ using System.Numerics;
 
 namespace Alco.World3D;
 
-/// <summary>
-/// An axis-aligned world or local-space bounding box used by voxel global illumination.
-/// </summary>
-public readonly struct VoxelGiBounds
-{
-    /// <summary>Gets the minimum corner.</summary>
-    public Vector3 Min { get; }
-
-    /// <summary>Gets the maximum corner.</summary>
-    public Vector3 Max { get; }
-
-    /// <summary>Creates an axis-aligned bounding box.</summary>
-    /// <param name="min">The minimum corner.</param>
-    /// <param name="max">The maximum corner.</param>
-    public VoxelGiBounds(in Vector3 min, in Vector3 max)
-    {
-        Min = min;
-        Max = max;
-    }
-
-    /// <summary>Transforms the box and returns the axis-aligned bounds of the result.</summary>
-    /// <param name="transform">The local-to-world transform.</param>
-    /// <returns>The transformed axis-aligned bounds.</returns>
-    public VoxelGiBounds Transform(in Matrix4x4 transform)
-    {
-        Vector3 center = (Min + Max) * 0.5f;
-        Vector3 extents = (Max - Min) * 0.5f;
-        Vector3 transformedCenter = Vector3.Transform(center, transform);
-        Vector3 transformedExtents = new(
-            MathF.Abs(transform.M11) * extents.X + MathF.Abs(transform.M21) * extents.Y + MathF.Abs(transform.M31) * extents.Z,
-            MathF.Abs(transform.M12) * extents.X + MathF.Abs(transform.M22) * extents.Y + MathF.Abs(transform.M32) * extents.Z,
-            MathF.Abs(transform.M13) * extents.X + MathF.Abs(transform.M23) * extents.Y + MathF.Abs(transform.M33) * extents.Z);
-        return new VoxelGiBounds(transformedCenter - transformedExtents, transformedCenter + transformedExtents);
-    }
-
-    /// <summary>Returns whether this box overlaps another box.</summary>
-    /// <param name="other">The other box.</param>
-    /// <returns><see langword="true"/> when the boxes overlap.</returns>
-    public bool Intersects(in VoxelGiBounds other)
-    {
-        return Max.X >= other.Min.X && Min.X <= other.Max.X
-            && Max.Y >= other.Min.Y && Min.Y <= other.Max.Y
-            && Max.Z >= other.Min.Z && Min.Z <= other.Max.Z;
-    }
-
-    /// <summary>Returns a box containing this box and another box.</summary>
-    /// <param name="other">The other box.</param>
-    /// <returns>The union of both boxes.</returns>
-    public VoxelGiBounds Union(in VoxelGiBounds other)
-    {
-        return new VoxelGiBounds(Vector3.Min(Min, other.Min), Vector3.Max(Max, other.Max));
-    }
-}
-
 internal readonly struct VoxelGiDirtyBrick
 {
     public uint X { get; }
@@ -150,24 +96,24 @@ internal sealed class VoxelGiClipmap
         return new Vector4(state.RingOffsetX, state.RingOffsetY, state.RingOffsetZ, 0.0f);
     }
 
-    public VoxelGiBounds GetLevelBounds(int level)
+    public BoundingBox3D GetLevelBounds(int level)
     {
         Vector4 originAndSize = GetOriginAndVoxelSize(level);
         Vector3 min = new(originAndSize.X, originAndSize.Y, originAndSize.Z);
         Vector3 max = min + new Vector3(originAndSize.W * _resolution);
-        return new VoxelGiBounds(min, max);
+        return new BoundingBox3D(min, max);
     }
 
-    public VoxelGiBounds GetBrickBounds(int level, in VoxelGiDirtyBrick brick)
+    public BoundingBox3D GetBrickBounds(int level, in VoxelGiDirtyBrick brick)
     {
         Vector4 originAndSize = GetOriginAndVoxelSize(level);
         float brickWorldSize = originAndSize.W * _brickSize;
         Vector3 levelOrigin = new(originAndSize.X, originAndSize.Y, originAndSize.Z);
         Vector3 min = levelOrigin + new Vector3(brick.X, brick.Y, brick.Z) * brickWorldSize;
-        return new VoxelGiBounds(min, min + new Vector3(brickWorldSize));
+        return new BoundingBox3D(min, min + new Vector3(brickWorldSize));
     }
 
-    public void Invalidate(in VoxelGiBounds worldBounds, bool highPriority = true)
+    public void Invalidate(in BoundingBox3D worldBounds, bool highPriority = true)
     {
         for (int level = 0; level < _levels.Length; level++)
         {
@@ -175,7 +121,7 @@ internal sealed class VoxelGiClipmap
         }
     }
 
-    public void AppendIntersectingBricks(int level, in VoxelGiBounds worldBounds, List<VoxelGiDirtyBrick> output)
+    public void AppendIntersectingBricks(int level, in BoundingBox3D worldBounds, List<VoxelGiDirtyBrick> output)
     {
         LevelState state = _levels[level];
         if (!state.Initialized)
@@ -352,7 +298,7 @@ internal sealed class VoxelGiClipmap
         }
     }
 
-    private void InvalidateLevel(int level, in VoxelGiBounds worldBounds, bool highPriority)
+    private void InvalidateLevel(int level, in BoundingBox3D worldBounds, bool highPriority)
     {
         LevelState state = _levels[level];
         if (!state.Initialized)

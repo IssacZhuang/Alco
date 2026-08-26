@@ -35,7 +35,7 @@ namespace Alco
             this.Max = max;
         }
 
-        public bool Intersects(BoundingBox3D other)
+        public bool Intersects(in BoundingBox3D other)
         {
             Vector3 minMax = Vector3.Max(Min, other.Min);
             Vector3 maxMin = Vector3.Min(Max, other.Max);
@@ -58,7 +58,7 @@ namespace Alco
             return $"Box: {Min} {Max}";
         }
 
-        public static BoundingBox3D Merge(BoundingBox3D a, BoundingBox3D b)
+        public static BoundingBox3D Merge(in BoundingBox3D a, in BoundingBox3D b)
         {
             return new BoundingBox3D
             {
@@ -67,13 +67,28 @@ namespace Alco
             };
         }
 
-        public static BoundingBox3D GetIntersection(BoundingBox3D a, BoundingBox3D b)
+        public static BoundingBox3D GetIntersection(in BoundingBox3D a, in BoundingBox3D b)
         {
             return new BoundingBox3D
             {
                 Min = math.max(a.Min, b.Min),
                 Max = math.min(a.Max, b.Max),
             };
+        }
+
+        /// <summary>
+        /// Transforms the box and returns the axis-aligned bounds of the result.
+        /// </summary>
+        public BoundingBox3D Transform(in Matrix4x4 transform)
+        {
+            Vector3 center = Center;
+            Vector3 extents = Size * 0.5f;
+            Vector3 transformedCenter = Vector3.Transform(center, transform);
+            Vector3 transformedExtents = new(
+                MathF.Abs(transform.M11) * extents.X + MathF.Abs(transform.M21) * extents.Y + MathF.Abs(transform.M31) * extents.Z,
+                MathF.Abs(transform.M12) * extents.X + MathF.Abs(transform.M22) * extents.Y + MathF.Abs(transform.M32) * extents.Z,
+                MathF.Abs(transform.M13) * extents.X + MathF.Abs(transform.M23) * extents.Y + MathF.Abs(transform.M33) * extents.Z);
+            return new BoundingBox3D(transformedCenter - transformedExtents, transformedCenter + transformedExtents);
         }
 
     }

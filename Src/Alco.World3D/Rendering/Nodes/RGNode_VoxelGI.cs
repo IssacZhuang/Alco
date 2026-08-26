@@ -231,7 +231,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     {
         public required GraphicsBuffer Vertices;
         public required GraphicsBuffer Indices;
-        public required VoxelGiBounds LocalBounds;
+        public required BoundingBox3D LocalBounds;
         public uint TriangleCount;
         public uint VertexStrideUints;
         public bool Index16Bit;
@@ -259,7 +259,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         public Vector4 BaseColor;
         public Vector3 Emissive;
         public float AlphaCutoff;
-        public VoxelGiBounds WorldBounds;
+        public BoundingBox3D WorldBounds;
         public bool Active;
     }
 
@@ -271,7 +271,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         public Vector4 BaseColor;
         public Vector3 Emissive;
         public float AlphaCutoff;
-        public VoxelGiBounds WorldBounds;
+        public BoundingBox3D WorldBounds;
     }
 
     private readonly RenderingSystem _rendering;
@@ -1049,7 +1049,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     public int RegisterMesh(
         Mesh mesh,
         uint vertexStrideBytes,
-        in VoxelGiBounds localBounds,
+        in BoundingBox3D localBounds,
         MaterialAsset? material = null)
     {
         if (!_geometryByMesh.TryGetValue((mesh, vertexStrideBytes), out MeshGeometry? geometry))
@@ -1110,7 +1110,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         float alphaCutoff)
     {
         MeshRegistration registration = _meshes[meshHandle];
-        VoxelGiBounds worldBounds = registration.Geometry.LocalBounds.Transform(world);
+        BoundingBox3D worldBounds = registration.Geometry.LocalBounds.Transform(world);
         var instance = new StaticInstance
         {
             Registration = registration,
@@ -1152,7 +1152,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         float alphaCutoff)
     {
         StaticInstance instance = GetStaticInstance(instanceHandle);
-        VoxelGiBounds previousBounds = instance.WorldBounds;
+        BoundingBox3D previousBounds = instance.WorldBounds;
         instance.World = world;
         instance.BaseColor = baseColor;
         instance.Emissive = emissiveFactor;
@@ -1225,7 +1225,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     /// <summary>Invalidates structural voxel data overlapping world bounds.</summary>
     /// <param name="worldBounds">The edited or destroyed world-space region.</param>
-    public void InvalidateStatic(in VoxelGiBounds worldBounds)
+    public void InvalidateStatic(in BoundingBox3D worldBounds)
     {
         _clipmap.Invalidate(worldBounds);
     }
@@ -1717,9 +1717,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
                 level,
                 dirtyBrickCount);
 
-            VoxelGiBounds dirtyBounds = GetDirtyBounds(level, _dirtyBricks);
+            BoundingBox3D dirtyBounds = GetDirtyBounds(level, _dirtyBricks);
             (uint dirtyRangeLo, uint dirtyRangeHi) = PackDirtyVoxelRange(_dirtyBricks);
-            VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+            BoundingBox3D levelBounds = _clipmap.GetLevelBounds(level);
             _staticBvhResults.Clear();
             _staticBvh.OverlapAabb(new BoundingBox3D(dirtyBounds.Min, dirtyBounds.Max), _staticBvhResults);
             for (int ri = 0; ri < _staticBvhResults.Count; ri++)
@@ -1754,8 +1754,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _dynamicBvhBounds.Clear();
         for (int i = 0; i < _instances.Count; i++)
         {
-            VoxelGiBounds wb = _instances[i].WorldBounds;
-            _dynamicBvhBounds.Add(new BoundingBox3D(wb.Min, wb.Max));
+            _dynamicBvhBounds.Add(_instances[i].WorldBounds);
         }
         _dynamicBvh.Build(CollectionsMarshal.AsSpan(_dynamicBvhBounds));
 
@@ -1801,9 +1800,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
                 // instance scan is skipped entirely instead of dispatching full
                 // triangle counts that can write nowhere.
                 (uint dirtyRangeLo, uint dirtyRangeHi) = PackDirtyVoxelRange(_dirtyBricks);
-                VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+                BoundingBox3D levelBounds = _clipmap.GetLevelBounds(level);
                 _dynamicBvhResults.Clear();
-                _dynamicBvh.OverlapAabb(new BoundingBox3D(levelBounds.Min, levelBounds.Max), _dynamicBvhResults);
+                _dynamicBvh.OverlapAabb(levelBounds, _dynamicBvhResults);
                 for (int ri = 0; ri < _dynamicBvhResults.Count; ri++)
                 {
                     DynamicInstance instance = _instances[_dynamicBvhResults[ri]];
@@ -2021,7 +2020,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         for (int brickIndex = 0; brickIndex < bricks.Count; brickIndex++)
         {
             VoxelGiDirtyBrick brick = bricks[brickIndex];
-            VoxelGiBounds brickBounds = _clipmap.GetBrickBounds(level, brick);
+            BoundingBox3D brickBounds = _clipmap.GetBrickBounds(level, brick);
             bool resident = HasStaticGeometry(brickBounds);
             if (!_staticPagePool.TrySetResident(level, brick, ringOffset, resident))
             {
@@ -2032,7 +2031,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         return droppedBricks;
     }
 
-    private bool HasStaticGeometry(in VoxelGiBounds bounds)
+    private bool HasStaticGeometry(in BoundingBox3D bounds)
     {
         _staticBvhResults.Clear();
         _staticBvh.OverlapAabb(new BoundingBox3D(bounds.Min, bounds.Max), _staticBvhResults);
@@ -2043,7 +2042,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     {
         _dirtyBricks.Clear();
         _brickKeys.Clear();
-        VoxelGiBounds levelBounds = _clipmap.GetLevelBounds(level);
+        BoundingBox3D levelBounds = _clipmap.GetLevelBounds(level);
         _dynamicBvhResults.Clear();
         _dynamicBvh.OverlapAabb(new BoundingBox3D(levelBounds.Min, levelBounds.Max), _dynamicBvhResults);
         for (int ri = 0; ri < _dynamicBvhResults.Count; ri++)
@@ -2262,7 +2261,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         });
     }
 
-    private MeshGeometry CreateGeometry(Mesh mesh, uint vertexStrideBytes, in VoxelGiBounds localBounds)
+    private MeshGeometry CreateGeometry(Mesh mesh, uint vertexStrideBytes, in BoundingBox3D localBounds)
     {
         SubMeshData subMesh = mesh.GetSubMesh(0);
         uint vertexBytes = mesh.VertexBuffer.Size;
@@ -2300,12 +2299,12 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         return instance;
     }
 
-    private VoxelGiBounds GetDirtyBounds(int level, List<VoxelGiDirtyBrick> bricks)
+    private BoundingBox3D GetDirtyBounds(int level, List<VoxelGiDirtyBrick> bricks)
     {
-        VoxelGiBounds bounds = _clipmap.GetBrickBounds(level, bricks[0]);
+        BoundingBox3D bounds = _clipmap.GetBrickBounds(level, bricks[0]);
         for (int i = 1; i < bricks.Count; i++)
         {
-            bounds = bounds.Union(_clipmap.GetBrickBounds(level, bricks[i]));
+            bounds = BoundingBox3D.Merge(bounds, _clipmap.GetBrickBounds(level, bricks[i]));
         }
         return bounds;
     }

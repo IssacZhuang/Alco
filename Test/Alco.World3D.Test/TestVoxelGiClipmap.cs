@@ -52,7 +52,7 @@ public class TestVoxelGiClipmap
 
         Vector4 origin = clipmap.GetOriginAndVoxelSize(0);
         Vector3 editPosition = new(origin.X + 0.4f, origin.Y + 0.4f, origin.Z + 0.4f);
-        clipmap.Invalidate(new VoxelGiBounds(editPosition, editPosition));
+        clipmap.Invalidate(new BoundingBox3D(editPosition, editPosition));
         clipmap.DrainDirtyBricks(0, 1, dirty);
 
         Assert.That(dirty, Has.Count.EqualTo(1));
@@ -80,12 +80,12 @@ public class TestVoxelGiClipmap
     [Test]
     public void BoundsTransformIncludesRotationScaleAndTranslation()
     {
-        var bounds = new VoxelGiBounds(new Vector3(-1.0f, -2.0f, -0.5f), new Vector3(1.0f, 2.0f, 0.5f));
+        var bounds = new BoundingBox3D(new Vector3(-1.0f, -2.0f, -0.5f), new Vector3(1.0f, 2.0f, 0.5f));
         Matrix4x4 transform = Matrix4x4.CreateScale(2.0f, 3.0f, 4.0f)
             * Matrix4x4.CreateRotationZ(MathF.PI * 0.5f)
             * Matrix4x4.CreateTranslation(10.0f, 20.0f, 30.0f);
 
-        VoxelGiBounds transformed = bounds.Transform(transform);
+        BoundingBox3D transformed = bounds.Transform(transform);
 
         Assert.That(transformed.Min.X, Is.EqualTo(4.0f).Within(0.0001f));
         Assert.That(transformed.Max.X, Is.EqualTo(16.0f).Within(0.0001f));
