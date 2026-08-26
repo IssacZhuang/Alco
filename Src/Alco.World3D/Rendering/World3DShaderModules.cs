@@ -14,5 +14,5 @@ namespace Alco.World3D;
 public static class World3DShaderModules
 {
     /// <summary>The asset folder the module's shader files live under (used by tests to enumerate them).</summary>
-    public const string Folder = "Shaders/Pipelines/Rendering/PBR/";
+    public const string Folder = "Shaders/Passes/";
 }

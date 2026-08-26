@@ -2,7 +2,7 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Parameters for the procedural color grading shader.
-/// Field order must exactly match the Slang uniform buffer in color-grading.slang.
+/// Field order must exactly match the Slang uniform buffer in ColorGrading.slang.
 /// All defaults produce identity (no-op) transformation.
 /// </summary>
 public struct ColorGradingData

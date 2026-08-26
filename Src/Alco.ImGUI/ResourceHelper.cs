@@ -13,16 +13,16 @@ public static class ImGUIResourceHelper
     public static Shader GetImGUIShader(RenderingSystem renderingSystem)
     {
         // The embedded module compiles through the shared slang module system
-        // (plan Phase 2): source-registered under 'imgui' with the custom
+        // (plan Phase 2): source-registered under "ImGUI" with the custom
         // vertex layout ImGui's packed vertices require.
-        string source = GetEmbeddedResourceString("imgui.slang");
-        return renderingSystem.ShaderSystem.GetShaderFromModule("imgui", "imgui.slang", source,
+        string source = GetEmbeddedResourceString("ImGUI.slang");
+        return renderingSystem.ShaderSystem.GetShaderFromModule("ImGUI", "ImGUI.slang", source,
         [
             new(){
                 Elements = new VertexElement[] {
                     new(0, 0, VertexFormat.Float32x2, "POSITION"),
                     new(1, 8, VertexFormat.Float32x2, "TEXCOORD0"),
-                    new(2, 16, VertexFormat.Unorm8x4, "COLOR"),//the imgui vertex use uint as color
+                    new(2, 16, VertexFormat.Unorm8x4, "COLOR"),//the ImGUI vertex use uint as color
                 },
                 Stride = 20,
                 StepMode = VertexStepMode.Vertex,
@@ -32,7 +32,7 @@ public static class ImGUIResourceHelper
     /// <summary>
     /// Gets the embedded resource content as string
     /// </summary>
-    /// <param name="resourceName">Resource name (e.g. "imgui.slang")</param>
+    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang")</param>
     /// <returns>Content of the resource as string</returns>
     public static string GetEmbeddedResourceString(string resourceName)
     {
@@ -52,7 +52,7 @@ public static class ImGUIResourceHelper
     /// <summary>
     /// Gets the embedded resource content as byte array
     /// </summary>
-    /// <param name="resourceName">Resource name (e.g. "imgui.slang")</param>
+    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang")</param>
     /// <returns>Content of the resource as byte array</returns>
     public static byte[] GetEmbeddedResourceBytes(string resourceName)
     {

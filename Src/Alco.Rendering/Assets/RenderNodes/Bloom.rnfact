@@ -3,11 +3,11 @@
 {
     "$type": "Alco.Rendering.RGNodeFactory_Bloom",
     "descriptor": {
-        "blitShader": "bloom-blit",
-        "clampShader": "bloom-clamp",
-        "downsampleShader": "bloom-downsample",
-        "upsampleShader": "bloom-upsample",
-        "sceneCopyShader": "blit",
+        "blitShader": "BloomBlit",
+        "clampShader": "BloomClamp",
+        "downsampleShader": "BloomDownsample",
+        "upsampleShader": "BloomUpsample",
+        "sceneCopyShader": "Blit",
         "targetDownsampleHeight": 11,
         "threshold": 1.0,
         "intensity": 0.35,

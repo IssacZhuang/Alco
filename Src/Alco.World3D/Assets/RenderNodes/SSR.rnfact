@@ -5,11 +5,11 @@
 {
     "$type": "Alco.World3D.RGNodeFactory_SSR",
     "descriptor": {
-        "traceShader": "screen-space-reflection-trace",
-        "resolveShader": "screen-space-reflection-resolve",
-        "compositeShader": "screen-space-reflection-composite",
-        "blitShader": "blit",
-        "blueNoiseShader": "screen-space-reflection-blue-noise",
+        "traceShader": "SSRTrace",
+        "resolveShader": "SSRResolve",
+        "compositeShader": "SSRComposite",
+        "blitShader": "Blit",
+        "blueNoiseShader": "SSRBlueNoise",
         "traceResolutionScale": 0.5
     }
 }

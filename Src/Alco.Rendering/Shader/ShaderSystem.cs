@@ -54,7 +54,7 @@ public sealed class ShaderSystem : IDisposable
     /// modules registered from explicit source (<see cref="GetShaderFromModule"/>)
     /// are not addressable this way.
     /// </summary>
-    /// <param name="moduleName">The module name (e.g. <c>pbr_standard</c>).</param>
+    /// <param name="moduleName">The module name (e.g. <c>PbrStandard</c>).</param>
     /// <exception cref="InvalidDataException">The name resolves to no module source.</exception>
     /// <exception cref="ShaderCompilationException">The module source failed to parse.</exception>
     public ShaderLibrary GetLibrary(string moduleName)
@@ -74,7 +74,7 @@ public sealed class ShaderSystem : IDisposable
             {
                 throw new InvalidDataException(
                     $"Shader library '{moduleName}' resolves to no module source; check the module name " +
-                    "(it must match the source file's module declaration, e.g. 'pbr_standard').");
+                    "(it must match the source file's module declaration, e.g. 'PbrStandard').");
             }
             _modules.GetOrLoadModule(moduleName);
             ShaderLibrary library = new(moduleName, _modules.GetModuleReflection(moduleName));

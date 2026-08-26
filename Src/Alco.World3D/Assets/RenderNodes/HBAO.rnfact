@@ -3,7 +3,7 @@
 {
     "$type": "Alco.World3D.RGNodeFactory_HBAO",
     "descriptor": {
-        "hbaoShader": "hbao",
-        "blurShader": "hbao-blur"
+        "hbaoShader": "HBAO",
+        "blurShader": "HBAOBlur"
     }
 }

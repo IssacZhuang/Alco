@@ -11,7 +11,7 @@ namespace Alco.World3D.Test;
 // tree must load through SlangModuleSystem headlessly and link every
 // [shader(...)] entry point to non-empty SPIR-V. The file-tree resolver spans
 // BOTH the Alco.Rendering and Alco.World3D Shaders roots (World3D modules
-// import alco_rendering_core) and mirrors the engine resolver's dashed
+// import AlcoRendering_Core) and mirrors the engine resolver's
 // module-name matching conventions.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,15 +27,16 @@ public class ValidateWorld3DSlangModules
     // they own no entry points but must still load cleanly.
     private static readonly string[] LibModules =
     [
-        "alco_world3d_atmosphere",
-        "alco_world3d_clouds",
-        "alco_world3d_geometry_normal",
-        "alco_world3d_hbao_common",
-        "alco_world3d_pbr_common",
-        "alco_world3d_reversed_depth",
-        "alco_world3d_ssr_common",
-        "alco_world3d_ssr_post_common",
-        "alco_world3d_voxel_common",
+        "AlcoWorld3D_Atmosphere",
+        "AlcoWorld3D_Clouds",
+        "AlcoWorld3D_GeometryNormal",
+        "AlcoWorld3D_HBAOCommon",
+        "AlcoWorld3D_PbrInstance",
+        "AlcoWorld3D_PBRCommon",
+        "AlcoWorld3D_ReversedDepth",
+        "AlcoWorld3D_SSR",
+        "AlcoWorld3D_Surface",
+        "AlcoWorld3D_VoxelCommon",
     ];
 
     private static string RepoRoot()
@@ -65,8 +66,8 @@ public class ValidateWorld3DSlangModules
     /// <summary>
     /// Resolves a slang module/import probe against both Shaders trees:
     /// exact relative path first, then dashed EndsWith matching (the engine's
-    /// ShaderModuleResolver convention — 'alco_rendering_core' answers to
-    /// 'Libs/alco-rendering-core.slang' wherever it sits in the tree).
+    /// ShaderModuleResolver convention — 'AlcoRendering_Core' answers to
+    /// 'Libs/AlcoRendering_Core.slang' wherever it sits in the tree).
     /// </summary>
     private static Alco.ShaderCompiler.SlangFileResolver CreateResolver()
     {
@@ -108,21 +109,19 @@ public class ValidateWorld3DSlangModules
             string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
             string fileName = Path.GetFileName(relative);
 
-            // Import-only trees: the beachhead surface/material modules and
-            // pass templates (surface-generic — the material compiler
-            // instantiates them with a concrete surface type) and the Phase-2
-            // lib modules converted from .slang. voxelize is a compute pass
-            // template over IVoxelFeedSurface, same treatment.
+            // Import-only trees: the Libs/ modules, the Materials/ surfaces
+            // and the surface-generic pass templates (the material compiler
+            // instantiates them with a concrete surface type). Voxelize is a
+            // compute pass template over IVoxelFeedSurface, same treatment.
             if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase) ||
                 relative.StartsWith("Materials/", StringComparison.OrdinalIgnoreCase) ||
-                fileName.StartsWith("alco-world3d-", StringComparison.OrdinalIgnoreCase) ||
-                fileName is "gbuffer.slang" or "rsm.slang" or "shadow-depth.slang" or "glass.slang"
-                    or "voxelize.slang")
+                fileName is "GBuffer.slang" or "Rsm.slang" or "ShadowDepth.slang" or "Glass.slang"
+                    or "Voxelize.slang")
             {
                 continue;
             }
 
-            string moduleName = Path.GetFileNameWithoutExtension(file).Replace('_', '-');
+            string moduleName = Path.GetFileNameWithoutExtension(file);
             yield return new TestCaseData(moduleName, file).SetName($"{{m}}({moduleName})");
         }
     }
@@ -138,8 +137,8 @@ public class ValidateWorld3DSlangModules
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
         new Dictionary<string, string[][]>
         {
-            ["deferred-lighting"] = [["0"]],
-            ["volumetric-cloud-noise"] = [["false"], ["true"]],
+            ["DeferredLighting"] = [["0"]],
+            ["VolumetricCloudNoise"] = [["false"], ["true"]],
         };
 
     [Test]
@@ -173,11 +172,11 @@ public class ValidateWorld3DSlangModules
     // argument sets (shadow-depth's fragment entry takes <let AlphaTest : bool>).
     private static readonly (string Template, string[][] ValueArgSets)[] PassTemplates =
     [
-        ("gbuffer", [[]]),
-        ("rsm", [[]]),
-        ("glass", [[]]),
-        ("shadow_depth", [["false"], ["true"]]),
-        ("voxelize", [[]]),
+        ("GBuffer", [[]]),
+        ("Rsm", [[]]),
+        ("Glass", [[]]),
+        ("ShadowDepth", [["false"], ["true"]]),
+        ("Voxelize", [[]]),
     ];
 
     [Test]
@@ -193,7 +192,7 @@ public class ValidateWorld3DSlangModules
             foreach (string[] valueArgs in valueArgSets)
             {
                 using SlangProgram program = system.GetComposedProgram(
-                    template, "pbr_standard", valueArgs);
+                    template, "PbrStandard", valueArgs);
                 string caseName = valueArgs.Length == 0
                     ? template
                     : $"{template}<{string.Join(",", valueArgs)}>";

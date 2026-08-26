@@ -81,7 +81,7 @@ public class TestMaterialAsset
         {
             "version": "1.0",
             "name": "mossy_rock",
-            "surface": "pbr_standard",
+            "surface": "PbrStandard",
             "parameters": {
                 "tint": { "r": 1, "g": 0.5, "b": 0.25, "a": 1 },
                 "speed": 2,
@@ -98,7 +98,7 @@ public class TestMaterialAsset
             Assert.That(material, Is.TypeOf<MaterialAsset>());
             // The surface resolves (and validates) into the shared library reference.
             Assert.That(material.Surface,
-                Is.SameAs(engine.RenderingSystem.ShaderSystem.GetLibrary("pbr_standard")));
+                Is.SameAs(engine.RenderingSystem.ShaderSystem.GetLibrary("PbrStandard")));
             // Parameters are typed ShaderValues: component objects read
             // rgba/xyzw (missing components zero), an integer reads as int, a
             // hex color reads as authored float4.
@@ -273,7 +273,7 @@ public class TestMaterialAsset
                     "$type": "Alco.World3D.PbrMaterialAsset",
                     "version": "1.0",
                     "name": "pulse",
-                    "surface": "parameterized_surface"
+                    "surface": "ParameterizedSurface"
                 }
                 """);
 
@@ -287,7 +287,7 @@ public class TestMaterialAsset
             // reference resolves to the shared library (the test surface flows
             // from this fixture's own assets).
             Assert.That(material.Surface,
-                Is.SameAs(engine.RenderingSystem.ShaderSystem.GetLibrary("parameterized_surface")));
+                Is.SameAs(engine.RenderingSystem.ShaderSystem.GetLibrary("ParameterizedSurface")));
         }
         finally
         {

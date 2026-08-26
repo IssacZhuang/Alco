@@ -443,12 +443,12 @@ public class Game : GameEngine
         // modules directly (only the engine forbids hardcoded module names).
         _preset = RenderPipelines.CreatePBRDeferred(
             RenderingSystem,
-            RenderingSystem.ShaderSystem.GetShader("deferred-lighting"),
+            RenderingSystem.ShaderSystem.GetShader("DeferredLighting"),
             BuiltInAssets.Shader_Blit,
             shadowMapSize: 2048,
             width: (uint)MainView.Size.X,
             height: (uint)MainView.Size.Y,
-            volumetricLightShader: RenderingSystem.ShaderSystem.GetShader("volumetric-light"));
+            volumetricLightShader: RenderingSystem.ShaderSystem.GetShader("VolumetricLight"));
         _environment = _preset.Environment;
         _environment.VolumetricLightEnabled = true;
 
@@ -464,13 +464,13 @@ public class Game : GameEngine
         var nodeFactoryContext = new RenderNodeFactoryContext(RenderingSystem, _preset.Graph, nodeServices);
 
         _gbufferRenderer = new GBufferRenderer(
-            RenderingSystem, _materialCompiler, RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
+            RenderingSystem, _materialCompiler, RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
 
         _shadowRenderer = new ShadowRenderer(
             RenderingSystem,
             _materialCompiler,
-            RenderingSystem.ShaderSystem.GetLibrary("shadow_depth"),
-            RenderingSystem.ShaderSystem.GetLibrary("rsm"),
+            RenderingSystem.ShaderSystem.GetLibrary("ShadowDepth"),
+            RenderingSystem.ShaderSystem.GetLibrary("Rsm"),
             _preset.ShadowLayout,
             _environment.ShadowDataBuffer);
 
@@ -518,7 +518,7 @@ public class Game : GameEngine
             _preset.Graph,
             _preset.PostChain,
             _materialCompiler,
-            RenderingSystem.ShaderSystem.GetLibrary("glass"),
+            RenderingSystem.ShaderSystem.GetLibrary("Glass"),
             _environment.LightingDataBuffer,
             _environment.PointLightBuffer,
             _preset.ShadowMap);

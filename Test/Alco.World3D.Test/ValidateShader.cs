@@ -85,11 +85,11 @@ public class ValidateShader
         // compiler-assigned bindings inside each block, resolved by name.
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         ShaderReflection gbuffer = compiler.ComposeSurfaceShader(null,
-                engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"))
+                engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"))
             .GetShaderModules().ReflectionInfo;
         // The HBAO module name is factory-asset data now (Assets/RenderNodes/
         // HBAO.rnfact); the test pins it by its literal module name.
-        ShaderReflection hbao = engine.RenderingSystem.ShaderSystem.GetShader("hbao")
+        ShaderReflection hbao = engine.RenderingSystem.ShaderSystem.GetShader("HBAO")
             .GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>

@@ -16,7 +16,7 @@ namespace Alco.Rendering.Test;
 public class ShaderSystemTest
 {
     private const string QuadModule = """
-        import alco.rendering.core;
+        import AlcoRendering_Core;
 
         cbuffer camera : register(b0, space0)
         {
@@ -69,7 +69,7 @@ public class ShaderSystemTest
     private static SlangCompilerOptions OptionsWithQuadModule()
     {
         string corePath = Path.Combine(
-            RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders", "Libs", "alco-rendering-core.slang");
+            RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders", "Libs", "AlcoRendering_Core.slang");
         string core = File.ReadAllText(corePath);
         return new SlangCompilerOptions
         {
@@ -78,7 +78,7 @@ public class ShaderSystemTest
                 // Imports probe several module-name→file forms ('a/b.slang',
                 // 'a-b.slang', …); match on the dashed form.
                 string key = SlangPathUtility.NormalizePath(path).Replace('/', '-');
-                if (key.EndsWith("alco-rendering-core.slang", StringComparison.OrdinalIgnoreCase))
+                if (key.EndsWith("AlcoRendering_Core.slang", StringComparison.OrdinalIgnoreCase))
                     return core;
                 if (key.EndsWith("alco-sandbox-quad.slang", StringComparison.OrdinalIgnoreCase))
                     return QuadModule;
@@ -109,7 +109,7 @@ public class ShaderSystemTest
             Assert.That(modules.ReflectionInfo.VertexLayouts.Count, Is.EqualTo(1));
             // The core module is part of the dependency graph.
             Assert.That(shaderSystem.Modules.GetModuleDependencies("alco-sandbox-quad"),
-                Has.Some.Contains("core.slang"));
+                Has.Some.Contains("AlcoRendering_Core.slang"));
         });
     }
 
@@ -136,7 +136,7 @@ public class ShaderSystemTest
         shaderSystem.ShaderInvalidated += invalidated.Add;
 
         string coreDep = shaderSystem.Modules.GetModuleDependencies("alco-sandbox-quad")
-            .First(dep => dep.Contains("core.slang"));
+            .First(dep => dep.Contains("AlcoRendering_Core.slang"));
         IReadOnlyList<string> affected = shaderSystem.InvalidateModulesContaining(coreDep);
 
         Assert.Multiple(() =>

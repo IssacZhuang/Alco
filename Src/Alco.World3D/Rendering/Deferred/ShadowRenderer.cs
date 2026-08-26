@@ -130,7 +130,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="compiler">The material compiler the per-asset materials compile through.</param>
     /// <param name="template">The shadow depth pass template library (shadow_depth.slang), composed per material asset.</param>
-    /// <param name="rsmTemplate">The RSM pass template library (rsm.slang), compiled per asset once RSM is enabled.</param>
+    /// <param name="rsmTemplate">The RSM pass template library (Rsm.slang), compiled per asset once RSM is enabled.</param>
     /// <param name="shadowLayout">The shadow pass attachment layout (owned by the composition, e.g. <see cref="PBRDeferredPreset.ShadowLayout"/>).</param>
     /// <param name="shadowDataBuffer">The cascade VP data buffer (owned by the scene environment, see <see cref="PBRSceneEnvironment.ShadowDataBuffer"/>).</param>
     public ShadowRenderer(
@@ -327,7 +327,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     /// <summary>
     /// Enable the RSM pass support: stores the attachment layout and creates the
     /// RSM render bundles. After this call <see cref="GetRsmMaterial"/> compiles
-    /// (the <c>rsm.slang</c> template composed per material asset) and the renderer
+    /// (the <c>Rsm.slang</c> template composed per material asset) and the renderer
     /// can be registered as an <see cref="IRsmPassContent"/> on an
     /// <see cref="RGNode_RsmPass"/>.
     /// </summary>

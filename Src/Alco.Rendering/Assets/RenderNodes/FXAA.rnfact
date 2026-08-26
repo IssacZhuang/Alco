@@ -4,8 +4,8 @@
 {
     "$type": "Alco.Rendering.RGNodeFactory_FXAA",
     "descriptor": {
-        "sceneCopyShader": "blit",
-        "fxaaShader": "fxaa",
+        "sceneCopyShader": "Blit",
+        "fxaaShader": "FXAA",
         "quality": "Medium",
         "threshold": 0.125
     }

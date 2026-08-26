@@ -147,19 +147,19 @@ public readonly struct VoxelGiDescriptor
     public required Shader MipChain { get; init; }
     /// <summary>The multi-bounce propagation shader (voxel-propagate.slang).</summary>
     public required Shader Propagate { get; init; }
-    /// <summary>The cone tracing shader (voxel-trace.slang).</summary>
+    /// <summary>The cone tracing shader (VoxelTrace.slang).</summary>
     public required Shader Trace { get; init; }
-    /// <summary>The temporal demosaic shader (voxel-demosaic.slang).</summary>
+    /// <summary>The temporal demosaic shader (VoxelDemosaic.slang).</summary>
     public required Shader Demosaic { get; init; }
     /// <summary>
-    /// The blue-noise tile bake shader (screen-space-reflection-blue-noise.slang),
+    /// The blue-noise tile bake shader (SSRBlueNoise.slang),
     /// shared with the SSR trace. The baked tile jitters the cone march.
     /// </summary>
     public required Shader BlueNoise { get; init; }
     /// <summary>The full-resolution upsample shader (voxel-gi-upsample.slang), or null when not used as a plugin.</summary>
     public Shader? Upsample { get; init; }
     /// <summary>
-    /// The voxelize feed template (voxelize.slang), composed per material
+    /// The voxelize feed template (Voxelize.slang), composed per material
     /// surface through the <see cref="MaterialCompiler"/>.
     /// </summary>
     public required ShaderLibrary VoxelizeTemplate { get; init; }
@@ -213,7 +213,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
     /// Push constant payload for one voxelize dispatch. Layout must match the
-    /// <c>VoxelizeConstants</c> struct in voxelize.slang exactly (128 bytes, the
+    /// <c>VoxelizeConstants</c> struct in Voxelize.slang exactly (128 bytes, the
     /// device push-constant limit — the dirty-brick range is bit-packed into
     /// Params2 to keep the payload at that size).
     /// </summary>
@@ -300,7 +300,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly ComputeMaterial _traceMaterial;
     private readonly ComputeMaterial _demosaicMaterial;
     // The blue-noise tile is baked once with a graphics pass, then sampled by
-    // the compute trace. Must match BLUE_NOISE_TILE in voxel-trace.slang and
+    // the compute trace. Must match BLUE_NOISE_TILE in VoxelTrace.slang and
     // SSR_BLUE_NOISE_SIZE in the bake shader.
     private const uint BlueNoiseTextureSize = 128;
     private readonly Mesh _fullScreenMesh;
@@ -514,7 +514,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// static scenes but collapses to single-cone noise wherever its own
     /// reprojection rejects history (camera motion across depth edges), so the
     /// demosaic stage keeps a second, neighbourhood-clamped accumulation. The
-    /// effective hysteresis halves under camera motion (see voxel-demosaic.slang)
+    /// effective hysteresis halves under camera motion (see VoxelDemosaic.slang)
     /// to stay responsive to the scrolling voxel field; zero disables it.
     /// </summary>
     public float DiffuseTemporalHysteresis { get; set; } = 0.85f;
@@ -1409,7 +1409,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         // Bake the blue-noise lookup once (procedural neighborhood-rank
-        // construction, see screen-space-reflection-blue-noise.slang); every frame
+        // construction, see SSRBlueNoise.slang); every frame
         // afterwards the cone-trace march samples the persistent tile.
         if (!_blueNoiseBaked)
         {

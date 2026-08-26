@@ -296,7 +296,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
         // the sprite module (MainPS<let Repeated : bool>) — the REPEATED
         // preprocessor permutation's successor, requested at construction.
         _spriteMaterial = system.CreateGraphicsMaterial(
-            system.ShaderSystem.GetShader("sprite"), "true");
+            system.ShaderSystem.GetShader("Sprite"), "true");
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
         _spriteMaterial.DepthStencilState = DepthStencilState.Default with
         {

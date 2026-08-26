@@ -38,8 +38,8 @@ public class TestMaterialCompiler
         File.WriteAllText(Path.Combine(directory, "test-surface.slang"), """
             module test_surface;
 
-            import alco_world3d_surface;
-            import alco_rendering_core;
+            import AlcoWorld3D_Surface;
+            import AlcoRendering_Core;
 
             cbuffer globalRenderData : register(b0, space2)
             {
@@ -84,7 +84,7 @@ public class TestMaterialCompiler
         // per asset (shared by every item using it).
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         using GBufferRenderer gbuffer = new(
-            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
+            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
 
         PbrMaterialAsset opaque = new() { Name = "opaque" };
         PbrMaterialAsset doubled = new() { Name = "doubled", DoubleSided = true };
@@ -97,7 +97,7 @@ public class TestMaterialCompiler
             // factory beneath it compiles fresh materials per call.
             Assert.That(gbuffer.GetMaterial(opaque), Is.SameAs(material));
             Assert.That(compiler.Compile(opaque,
-                engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"), valueSpecArgs: null,
+                engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"), valueSpecArgs: null,
                 (a, shader) => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{a.Name}_gbuffer")),
                 Is.Not.SameAs(material),
                 "The stateless factory compiles a fresh material per call; the renderer's cache shares per asset.");
@@ -121,7 +121,7 @@ public class TestMaterialCompiler
     {
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-        ShaderLibrary voxelize = engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize");
+        ShaderLibrary voxelize = engine.RenderingSystem.ShaderSystem.GetLibrary("Voxelize");
 
         // The compute counterpart of Compile: the asset's textures bind once at
         // creation; slots the asset leaves out take its fallback policy.
@@ -155,7 +155,7 @@ public class TestMaterialCompiler
         try
         {
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
-            ShaderLibrary voxelize = engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize");
+            ShaderLibrary voxelize = engine.RenderingSystem.ShaderSystem.GetLibrary("Voxelize");
             ShaderLibrary surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule);
 
             // The surface's [MaterialParams] block binds in the compute feed by the
@@ -193,7 +193,7 @@ public class TestMaterialCompiler
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The glass template participates only for blend materials — the routing
         // that replaces game-side alpha-mode special cases.
-        ShaderLibrary glass = engine.RenderingSystem.ShaderSystem.GetLibrary("glass");
+        ShaderLibrary glass = engine.RenderingSystem.ShaderSystem.GetLibrary("Glass");
         GraphicsMaterial CompileGlass(MaterialAsset asset, Shader shader)
             => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{asset.Name}_glass");
 
@@ -211,7 +211,7 @@ public class TestMaterialCompiler
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         // The shadow template's alpha test is its <let AlphaTest : bool> value
         // specialization parameter, fed from the asset's alpha mode — not a define.
-        ShaderLibrary shadow = engine.RenderingSystem.ShaderSystem.GetLibrary("shadow_depth");
+        ShaderLibrary shadow = engine.RenderingSystem.ShaderSystem.GetLibrary("ShadowDepth");
         GraphicsMaterial CompileShadow(MaterialAsset asset, Shader shader)
             => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{asset.Name}_shadow");
 
@@ -237,7 +237,7 @@ public class TestMaterialCompiler
 
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
         using GBufferRenderer gbuffer = new(
-            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
+            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
 
         // A declared slot of the built-in surface passes validation.
         PbrMaterialAsset textured = new()
@@ -268,7 +268,7 @@ public class TestMaterialCompiler
         {
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(
-                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
+                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
 
             // A procedural surface: composed into the G-buffer template, declaring no
             // texture slots at all (nothing to stream).
@@ -304,7 +304,7 @@ public class TestMaterialCompiler
         {
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(
-                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
+                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
             ShaderLibrary surface = engine.RenderingSystem.ShaderSystem.GetLibrary(surfaceModule);
 
             // The test surface declares one [MaterialParams] block member; the
@@ -357,7 +357,7 @@ public class TestMaterialCompiler
         File.WriteAllText(Path.Combine(directory, "minimal-surface.slang"), """
             module minimal_surface;
 
-            import alco_world3d_surface;
+            import AlcoWorld3D_Surface;
 
             public struct Surface : ISurface {}
             """);
@@ -374,7 +374,7 @@ public class TestMaterialCompiler
         {
             using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
             using GBufferRenderer gbuffer = new(
-                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
+                engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
 
             // The zero-override surface composes into the G-buffer template like any
             // other: the pass bindings come from the template, and the surface
@@ -396,7 +396,7 @@ public class TestMaterialCompiler
             // The compute feed composes too: the voxelize template's pass resources
             // and the shared GI data buffer are all present, surface textures absent.
             Shader voxelFeed = compiler.ComposeSurfaceComputeShader(
-                minimal, engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize"));
+                minimal, engine.RenderingSystem.ShaderSystem.GetLibrary("Voxelize"));
             ShaderReflection feedReflection = voxelFeed.GetShaderModules().ReflectionInfo;
             Assert.Multiple(() =>
             {
@@ -411,7 +411,7 @@ public class TestMaterialCompiler
             // The built-in surface's explicit bindings stay visible across the fold
             // (specialization folds code, not bindings).
             Shader builtinFeed = compiler.ComposeSurfaceComputeShader(
-                null, engine.RenderingSystem.ShaderSystem.GetLibrary("voxelize"));
+                null, engine.RenderingSystem.ShaderSystem.GetLibrary("Voxelize"));
             Assert.That(builtinFeed.GetShaderModules().ReflectionInfo
                 .TryGetResourceLocation("albedoTexture", out _), Is.True);
         }

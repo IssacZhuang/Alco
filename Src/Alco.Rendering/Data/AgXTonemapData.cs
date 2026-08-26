@@ -1,7 +1,7 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// Parameters for the AgX tone mapping operator used by <c>agx-tonemap.slang</c>.
+/// Parameters for the AgX tone mapping operator used by <c>AgxTonemap.slang</c>.
 /// Field order must match the Slang uniform buffer: Exposure, Gamma, Look.
 /// Based on the minimal AgX implementation by Benjamin Wrensch (Iolite Engine).
 /// </summary>

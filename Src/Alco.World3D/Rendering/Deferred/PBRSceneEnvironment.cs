@@ -156,7 +156,7 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
 
     private UniformGraphicsBuffer CreateLightingDataBuffer()
         => _rendering.CreateUniformGraphicsBuffer(
-            _rendering.ShaderSystem.GetLibrary("alco_world3d_pbr_common").Reflection.UniformBlocks.First(block => block.Name == "data"),
+            _rendering.ShaderSystem.GetLibrary("AlcoWorld3D_PBRCommon").Reflection.UniformBlocks.First(block => block.Name == "data"),
             "pbr_lighting_data");
 
     /// <summary>

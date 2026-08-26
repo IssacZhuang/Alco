@@ -24,7 +24,7 @@ namespace Alco.ShaderCompiler;
 public class SlangCompositionSpikeTest
 {
     // The surface contract: granular capability interfaces with defaults,
-    // aggregated by ISurface — mirrors Shaders/Libs/alco-world3d-surface.slang.
+    // aggregated by ISurface — mirrors Shaders/Libs/AlcoWorld3D_Surface.slang.
     private const string Contract = """
         #language slang 2025
         module test_contract;

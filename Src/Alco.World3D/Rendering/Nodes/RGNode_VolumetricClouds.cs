@@ -9,7 +9,7 @@ namespace Alco.World3D;
 /// <summary>
 /// Volumetric clouds renderer for deferred PBR compositions: a half-resolution
 /// ray-marched cloud slab (Perlin-Worley base + Worley-detail erosion, Nubis
-/// style — see <c>Shaders/Pipelines/Rendering/PBR/volumetric-clouds.slang</c>)
+/// style — see <c>Shaders/Passes/Volumetrics/VolumetricClouds.slang</c>)
 /// composited over the HDR scene color with a depth-aware bilateral upsample,
 /// plus a small cloud-shadow coverage bake the deferred lighting pass uses to
 /// dim the direct sun, so cloud shadows drift across the terrain.
@@ -186,7 +186,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     /// </summary>
     public readonly struct Descriptor
     {
-        /// <summary>The cloud march shader (volumetric-clouds.slang).</summary>
+        /// <summary>The cloud march shader (VolumetricClouds.slang).</summary>
         public required Shader MarchShader { get; init; }
         /// <summary>The composite shader (volumetric-clouds-composite.slang).</summary>
         public required Shader CompositeShader { get; init; }

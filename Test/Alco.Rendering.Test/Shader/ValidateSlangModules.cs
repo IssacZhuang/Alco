@@ -9,7 +9,7 @@ namespace Alco.Rendering.Test;
 // Slang-mode ValidateShader (plan §7): every engine .slang module under
 // Alco.Rendering's Shaders tree must load through the module system and
 // link every [shader(...)] entry point headlessly. File-tree resolver mirrors
-// the engine's asset resolver conventions (dashed module-name matching).
+// the engine's asset resolver conventions (module-name matching).
 // ─────────────────────────────────────────────────────────────────────────────
 
 public class ValidateSlangModules
@@ -29,14 +29,14 @@ public class ValidateSlangModules
         string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders");
         foreach (string file in Directory.GetFiles(root, "*.slang", SearchOption.AllDirectories))
         {
-            // Libs are imported, not entry modules — only pipeline modules own
+            // Libs are imported, not entry modules — only pass modules own
             // entry points; their file base name is the module identity.
             string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
             if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
-            string moduleName = Path.GetFileNameWithoutExtension(file).Replace('_', '-');
+            string moduleName = Path.GetFileNameWithoutExtension(file);
             yield return new TestCaseData(moduleName, file).SetName($"{{m}}({moduleName})");
         }
     }
@@ -51,17 +51,17 @@ public class ValidateSlangModules
     // only differ in how already-validated IR constant-folds. What the single
     // link proves is the stages after the front-end: specialization argument
     // matching (arity/type), linking, layout validation and target codegen.
-    //   fxaa: <let Quality : int>, sprite: <let Repeated : bool>,
-    //   texture-compress-bc3: <let IsSRGB : bool>,
-    //   tile-instanced: VertexMain<let IsFacade : bool>, PixelMain<let Bombing :
+    //   FXAA: <let Quality : int>, Sprite: <let Repeated : bool>,
+    //   TextureCompressBc3: <let IsSRGB : bool>,
+    //   TileInstanced: VertexMain<let IsFacade : bool>, PixelMain<let Bombing :
     //   bool> — args map to entry points in definition order.
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
         new Dictionary<string, string[][]>
         {
-            ["fxaa"] = [["1"]],
-            ["sprite"] = [["false"]],
-            ["texture-compress-bc3"] = [["false"]],
-            ["tile-instanced"] = [["false", "false"]],
+            ["FXAA"] = [["1"]],
+            ["Sprite"] = [["false"]],
+            ["TextureCompressBc3"] = [["false"]],
+            ["TileInstanced"] = [["false", "false"]],
         };
 
     [Test]

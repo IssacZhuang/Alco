@@ -30,6 +30,24 @@ public partial class SlangSourceConventionTest
         }
     }
 
+    /// <summary>
+    /// The engine shader trees (Sandbox samples keep their own module identity
+    /// and are exempt from the naming pairing). Returns (relativePath, stem).
+    /// </summary>
+    private static IEnumerable<(string Relative, string Stem)> EngineShaderFiles()
+    {
+        string root = RepoRoot();
+        foreach (string file in ShaderFiles())
+        {
+            string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
+            if (relative.StartsWith("Sandbox"))
+            {
+                continue;
+            }
+            yield return (relative, Path.GetFileNameWithoutExtension(file));
+        }
+    }
+
     [Test]
     public void EverySlangSourcePinsLanguageAndDeclaresOneModule()
     {
@@ -108,53 +126,72 @@ public partial class SlangSourceConventionTest
 
                 // The preprocessor cannot carry qualified member names across a
                 // ParameterBlock boundary (name##Sampler concatenation), and
-                // the sampling helpers of alco_rendering_core replace the old
+                // the sampling helpers of AlcoRendering_Core replace the old
                 // macro layer outright.
                 Assert.That(SamplingMacroRegex().IsMatch(source), Is.False,
-                    $"{relative}: SAMPLE_TEX*/GET_PIXEL*/LOAD_TEX* macros are retired; sample with qualified members or alco_rendering_core helpers");
+                    $"{relative}: SAMPLE_TEX*/GET_PIXEL*/LOAD_TEX* macros are retired; sample with qualified members or AlcoRendering_Core helpers");
             }
         });
     }
 
     [Test]
-    public void FileNamesAreKebabCaseAndModulesMatchStems()
+    public void FileNamesArePascalCaseAndModulesMatchStems()
     {
-        string root = RepoRoot();
         Assert.Multiple(() =>
         {
-            foreach (string file in ShaderFiles())
+            foreach ((string relative, string stem) in EngineShaderFiles())
             {
-                string relative = Path.GetRelativePath(root, file);
-                string stem = Path.GetFileNameWithoutExtension(file);
-                Match module = ModuleNameRegex().Match(File.ReadAllText(file));
+                string source = File.ReadAllText(Path.Combine(RepoRoot(), relative));
 
-                // Lowercase kebab-case files survive case-sensitive asset
-                // systems (Linux/Android targets) and mirror Slang's own
-                // file-name rule.
-                Assert.That(stem, Does.Match("^[a-z0-9]+(-[a-z0-9]+)*$"),
-                    $"{relative}: file name must be lowercase kebab-case");
+                // PascalCase, matching the C# identifiers of the same concept
+                // (acronyms intact: FXAA, HBAO, SSR, VoxelGI, ImGUI). Library
+                // modules carry an assembly prefix and exactly one underscore
+                // (AlcoRendering_Core); pass/material modules are bare.
+                Assert.That(stem, Does.Match("^[A-Z][A-Za-z0-9]*(_[A-Z][A-Za-z0-9]*)?$"),
+                    $"{relative}: file name must be PascalCase (lib modules: Prefix_Concept, exactly one underscore)");
 
+                Match module = ModuleNameRegex().Match(source);
                 if (module.Success)
                 {
-                    string moduleName = module.Groups[1].Value;
-
-                    // Acronyms stay intact: 'fxaa', never 'f_x_a_a'.
-                    Assert.That(moduleName, Does.Match("^[a-z0-9]+(_[a-z0-9]+)*$"),
-                        $"{relative}: module name must be lowercase snake_case");
-
-                    // Sandbox samples carry their own module identity (e.g.
-                    // 'sandbox1_shader' inside 'shader.slang'); engine and test
-                    // modules must pair stem and module exactly ('gaussian-blur-…'
-                    // file, 'gaussian_blur_…' module) so import probes resolve.
-                    if (!relative.StartsWith("Sandbox"))
-                    {
-                        Assert.That(moduleName, Is.EqualTo(stem.Replace('-', '_')),
-                            $"{relative}: module name must be the file stem in snake_case");
-                    }
+                    // Engine and test modules pair stem and module exactly, so
+                    // an import probe resolves to this file and this file only.
+                    Assert.That(module.Groups[1].Value, Is.EqualTo(stem),
+                        $"{relative}: module name must equal the file stem");
                 }
             }
         });
     }
+
+    [Test]
+    public void ImportsResolveExactlyAgainstEngineModuleStems()
+    {
+        // The engine resolver answers import probes case-insensitively, so a
+        // mistyped 'alcorendering_core' import would silently resolve on every
+        // platform. Imports in the engine trees must match a real module stem
+        // case-exactly - the typo then fails loudly at compile time.
+        HashSet<string> stems = EngineShaderFiles().Select(pair => pair.Stem)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.Multiple(() =>
+        {
+            foreach ((string relative, _) in EngineShaderFiles())
+            {
+                string source = File.ReadAllText(Path.Combine(RepoRoot(), relative));
+                foreach (Match import in ImportRegex().Matches(source))
+                {
+                    string name = import.Groups[1].Value;
+
+                    // Standard-library imports (not module files) resolve
+                    // through the compiler's own search paths.
+                    Assert.That(stems.Contains(name) || IsKnownNonFileModule(name), Is.True,
+                        $"{relative}: import '{name}' does not case-match any engine module stem");
+                }
+            }
+        });
+    }
+
+    private static bool IsKnownNonFileModule(string name) =>
+        name is "glsl" or "hlsl" or "metal" or "cuda" or "cpp" or "spirv";
 
     [GeneratedRegex(@"(?m)^#language[ \t]+slang[ \t]+2025[ \t]*$")]
     private static partial Regex LanguageDirectiveRegex();
@@ -171,6 +208,9 @@ public partial class SlangSourceConventionTest
     [GeneratedRegex(@"\bregister[ \t]*\(([^)]*)\)")]
     private static partial Regex RegisterRegex();
 
-    [GeneratedRegex(@"^[ 	]*#define[ 	]+(SAMPLE_TEX2D|SAMPLE_TEX2D_LEVEL|SAMPLE_TEX3D_LEVEL|SAMPLE_TEX2D_DEPTH_CMP|GET_PIXEL_TEX2D|LOAD_TEX3D)", RegexOptions.Multiline)]
+    [GeneratedRegex(@"(?m)^[ \t]*import[ \t]+([A-Za-z0-9_]+)[ \t]*;")]
+    private static partial Regex ImportRegex();
+
+    [GeneratedRegex(@"^[ 	]*#define[ 	]+(SAMPLE_TEX2D|SAMPLE_TEX2D_LEVEL|SAMPLE_TEX3D_LEVEL|SAMPLE_TEX2D_DEPTH_CMP|GET_PIXEL_TEX2D|LOAD_TEX3D)")]
     private static partial Regex SamplingMacroRegex();
 }

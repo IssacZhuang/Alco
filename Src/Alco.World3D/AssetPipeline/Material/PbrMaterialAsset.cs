@@ -18,10 +18,10 @@ namespace Alco.World3D;
 public sealed class PbrMaterialAsset : MaterialAsset
 {
     /// <summary>The module name of the built-in surface every World3D pass composes with when the asset names none.</summary>
-    public const string DefaultSurfaceModule = "pbr_standard";
+    public const string DefaultSurfaceModule = "PbrStandard";
 
     /// <summary>The shared asset selecting the built-in PbrStandard surface, for pipeline-level defaults.</summary>
-    public static PbrMaterialAsset Default { get; } = new() { Name = "pbr_standard" };
+    public static PbrMaterialAsset Default { get; } = new() { Name = "PbrStandard" };
 
     /// <summary>Linear base color factor, multiplied with the albedo texture.</summary>
     public Vector4 BaseColorFactor { get; set; } = Vector4.One;

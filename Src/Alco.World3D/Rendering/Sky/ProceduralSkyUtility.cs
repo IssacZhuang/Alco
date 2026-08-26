@@ -6,7 +6,7 @@ namespace Alco.World3D;
 
 /// <summary>
 /// Helpers for the engine's physically-based procedural sky (see
-/// <c>Shaders/Libs/Atmosphere.slang</c>): a parametric sun orbit driven by the
+/// <c>Shaders/Libs/AlcoWorld3D_Atmosphere.slang</c>): a parametric sun orbit driven by the
 /// time of day, plus the sun's atmosphere-transmittance tint evaluated on the
 /// CPU so scene lighting matches the sky (white sun at noon, red at sunset,
 /// fading out through twilight).

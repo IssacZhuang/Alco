@@ -4,10 +4,10 @@ namespace Alco.Rendering;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Module-name → asset-path resolution (plan D1/D5): slang probes a module name
-// ('alco.rendering.core') as several file forms ('alco/rendering/core.slang',
-// 'alco-rendering-core.slang', 'alco_rendering_core.slang'). The engine resolver
+// ('AlcoRendering_Core') as several file forms ('AlcoRendering/Core.slang',
+// 'AlcoRendering-Core.slang', 'AlcoRendering_Core.slang'). The engine resolver
 // answers those probes against the asset system by comparing dashed forms, so a
-// module's file can live anywhere under Assets/ (Libs/, Pipelines/…) without
+// module's file can live anywhere under Assets/ (Libs/, Passes/…) without
 // its directory position being load-bearing.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -38,10 +38,10 @@ public static class ShaderModuleResolver
                 }
             }
 
-            // 2) dashed probe matching: 'Libs/alco-rendering-core.slang' answers
-            //    'alco/rendering/core.slang', 'alco-rendering-core.slang', …
-            //    Relative import probes ('Shaders/Materials/surface.slang' for
-            //    'import surface;' from a module in that folder) retry on the probe's
+            // 2) dashed probe matching: 'Libs/AlcoRendering_Core.slang' answers
+            //    'AlcoRendering/Core.slang', 'AlcoRendering-Core.slang', …
+            //    Relative import probes ('Shaders/Materials/Surface.slang' for
+            //    'import Surface;' from a module in that folder) retry on the probe's
             //    base name: module names are global, so a module's directory
             //    position is never load-bearing (plan D5).
             string? match = ProbeDashed(key, listNames, openStream);

@@ -62,7 +62,7 @@ public class TestRenderNodeFactory
     /// <summary>An FXAA descriptor's quality-shader reference as JSON text: the
     /// single module — each preset resolves as its own specialization.</summary>
     private const string FxaaModuleJson = """
-        "fxaaShader": "fxaa"
+        "fxaaShader": "FXAA"
         """;
 
     [Test]
@@ -87,7 +87,7 @@ public class TestRenderNodeFactory
             Assert.That(fxaa.Descriptor.SceneCopyShader, Is.Not.Null);
             Assert.That(fxaa.Descriptor.SceneCopyShader.Name, Is.EqualTo("test_fxaa"),
                 "The reference resolves through the shader system at load time.");
-            Assert.That(fxaa.Descriptor.FxaaShader.Name, Is.EqualTo("fxaa"),
+            Assert.That(fxaa.Descriptor.FxaaShader.Name, Is.EqualTo("FXAA"),
                 "The shader reference resolves typed at load time.");
             Assert.That(fxaa.Descriptor.Quality, Is.EqualTo(FXAAQuality.High));
         });
@@ -100,13 +100,13 @@ public class TestRenderNodeFactory
         // A shader reference is the module name — variants are specialization
         // arguments requested where the shader is used, never part of the
         // reference (the retired defines position, now specialization-shaped).
-        Shader handle = engine.RenderingSystem.ShaderSystem.GetShader("fxaa");
+        Shader handle = engine.RenderingSystem.ShaderSystem.GetShader("FXAA");
 
         RenderNodeFactory factory = Parse(engine, """
         {
             "$type": "Alco.World3D.RGNodeFactory_HBAO",
             "descriptor": {
-                "hbaoShader": "fxaa",
+                "hbaoShader": "FXAA",
                 "blurShader": "test_fxaa"
             }
         }
@@ -130,7 +130,7 @@ public class TestRenderNodeFactory
                 "$type": "Alco.Rendering.RGNodeFactory_FXAA",
                 "descriptor": {
                     "sceneCopyShader": "no_such_module",
-                    "fxaaShader": "fxaa"
+                    "fxaaShader": "FXAA"
                 }
             }
             """),
@@ -154,7 +154,7 @@ public class TestRenderNodeFactory
                 "trace": "test_fxaa",
                 "demosaic": "test_fxaa",
                 "blueNoise": "test_fxaa",
-                "voxelizeTemplate": "voxelize",
+                "voxelizeTemplate": "Voxelize",
                 "resolution": 64,
                 "traceResolutionScale": 0.75
             }
@@ -165,7 +165,7 @@ public class TestRenderNodeFactory
         Assert.Multiple(() =>
         {
             Assert.That(gi.Descriptor.Clear.Name, Is.EqualTo("test_fxaa"));
-            Assert.That(gi.Descriptor.VoxelizeTemplate.Name, Is.EqualTo("voxelize"),
+            Assert.That(gi.Descriptor.VoxelizeTemplate.Name, Is.EqualTo("Voxelize"),
                 "The feed template is a factory-data shader library reference now.");
             Assert.That(gi.Descriptor.Upsample, Is.Null, "An omitted optional shader slot stays null.");
             Assert.That(gi.Descriptor.Resolution, Is.EqualTo(64));

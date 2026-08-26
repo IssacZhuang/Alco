@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// (<see cref="GPUDevice.CreateSampler"/>); which samplers exist and how they
 /// map to shader member names is a rendering-layer policy.
 /// <br/>The shader-side counterpart is the <c>samplers</c> ParameterBlock of
-/// <c>alco-rendering-core.slang</c>; every shader importing the core module gets
+/// <c>AlcoRendering_Core.slang</c>; every shader importing the core module gets
 /// the block reflected into one of its bind groups. The bank is immutable
 /// engine-wide state and is never overridable: the bank serves a whole
 /// sampler-only bind group as one shared <see cref="GPUResourceGroup"/>

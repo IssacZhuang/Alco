@@ -21,7 +21,7 @@ The overlay repo's GitHub Actions build every RID on tag push
 (`v29.0.1.1-alco.N`). Fetch the release asset and stage it:
 
 ```powershell
-gh release download v29.0.1.1-alco.3 -R IssacZhuang/alco-wgpu-native -O dist.zip
+gh release download v29.0.1.1-alco.4 -R IssacZhuang/alco-wgpu-native -O dist.zip
 powershell -ExecutionPolicy Bypass -File <overlay-repo>/scripts/Copy-To-Alco.ps1 `
   -PackagePath dist.zip -AlcoRoot <alco-root>
 ```

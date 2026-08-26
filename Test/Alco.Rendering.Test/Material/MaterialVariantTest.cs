@@ -21,7 +21,7 @@ public class MaterialVariantTest
     // A graphics module with one <let Flag> axis: both specializations share the
     // same binding surface, so materials of either variant bind the same slots.
     private const string QuadModule = """
-        import alco.rendering.core;
+        import AlcoRendering_Core;
 
         cbuffer camera : register(b0, space0)
         {
@@ -67,7 +67,7 @@ public class MaterialVariantTest
 
     // A compute module with the same <let Flag> axis for the compute side.
     private const string ComputeModule = """
-        import alco.rendering.core;
+        import AlcoRendering_Core;
 
         cbuffer pass : register(b0, space0)
         {
@@ -102,14 +102,14 @@ public class MaterialVariantTest
     private static SlangCompilerOptions Options()
     {
         string corePath = Path.Combine(
-            RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders", "Libs", "alco-rendering-core.slang");
+            RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders", "Libs", "AlcoRendering_Core.slang");
         string core = File.ReadAllText(corePath);
         return new SlangCompilerOptions
         {
             Resolver = path =>
             {
                 string key = SlangPathUtility.NormalizePath(path).Replace('/', '-');
-                if (key.EndsWith("alco-rendering-core.slang", StringComparison.OrdinalIgnoreCase))
+                if (key.EndsWith("AlcoRendering_Core.slang", StringComparison.OrdinalIgnoreCase))
                     return core;
                 if (key.EndsWith("test-variant-quad.slang", StringComparison.OrdinalIgnoreCase))
                     return QuadModule;

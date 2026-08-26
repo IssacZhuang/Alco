@@ -44,7 +44,7 @@ public interface IGBufferRenderable
 /// <summary>
 /// A G-buffer content provider of the deferred PBR pipeline. Compiles its per-asset
 /// G-buffer materials through the <see cref="MaterialCompiler"/> (the renderer is
-/// itself the pass strategy: the <c>gbuffer.slang</c> template composed per material
+/// itself the pass strategy: the <c>GBuffer.slang</c> template composed per material
 /// asset — see <see cref="GetMaterial"/>) and holds a registry of
 /// <see cref="IGBufferRenderable"/> objects. Static objects are
 /// baked into an internal render bundle; dynamic objects are drawn immediately
@@ -94,7 +94,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="compiler">The material compiler the per-asset materials compile through.</param>
-    /// <param name="template">The G-buffer pass template library (gbuffer.slang), composed per material asset.</param>
+    /// <param name="template">The G-buffer pass template library (GBuffer.slang), composed per material asset.</param>
     public GBufferRenderer(RenderingSystem rendering, MaterialCompiler compiler, ShaderLibrary template)
     {
         _rendering = rendering;

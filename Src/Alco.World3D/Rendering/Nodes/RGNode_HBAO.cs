@@ -8,8 +8,8 @@ namespace Alco.World3D;
 /// <summary>
 /// HBAO+ (horizon-based ambient occlusion) renderer for deferred PBR compositions.
 /// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
-/// horizon rays in a compute pass (hbao.slang) and filters the noisy result with a
-/// depth/normal-aware bilateral blur (hbao-blur.slang). The blur pass writes the
+/// horizon rays in a compute pass (HBAO.slang) and filters the noisy result with a
+/// depth/normal-aware bilateral blur (HBAOBlur.slang). The blur pass writes the
 /// filtered AO to a full-resolution texture (<see cref="AOResult"/>),
 /// which the deferred lighting material samples through its _aoTexture slot.
 /// <br/>Attach the renderer to a deferred composition via <see cref="Attach"/>: it
@@ -94,9 +94,9 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     /// </summary>
     public readonly struct Descriptor
     {
-        /// <summary>The raw AO shader (hbao.slang).</summary>
+        /// <summary>The raw AO shader (HBAO.slang).</summary>
         public required Shader HbaoShader { get; init; }
-        /// <summary>The bilateral blur shader (hbao-blur.slang).</summary>
+        /// <summary>The bilateral blur shader (HBAOBlur.slang).</summary>
         public required Shader BlurShader { get; init; }
     }
 

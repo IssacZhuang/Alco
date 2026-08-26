@@ -48,7 +48,7 @@ public interface IForwardRenderable
 /// A scene content node drawing the transparency pass of the deferred PBR
 /// pipeline. Compiles its per-asset glass materials through the
 /// <see cref="MaterialCompiler"/> (the node is itself the pass strategy: the
-/// <c>glass.slang</c> template composed per material asset, participating only
+/// <c>Glass.slang</c> template composed per material asset, participating only
 /// for blend materials — see <see cref="GetMaterial"/>) and holds a registry of
 /// <see cref="IForwardRenderable"/> objects. Static objects are baked into an
 /// internal render bundle; dynamic objects are drawn immediately each frame. The
@@ -129,7 +129,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     /// <param name="graph">The render graph the node is registered in.</param>
     /// <param name="chain">The pipeline's content chain (the node draws into its current target).</param>
     /// <param name="compiler">The material compiler the per-asset materials compile through.</param>
-    /// <param name="template">The forward glass pass template library (glass.slang), composed per material asset.</param>
+    /// <param name="template">The forward glass pass template library (Glass.slang), composed per material asset.</param>
     /// <param name="lightingDataBuffer">The deferred lighting data buffer (shared with the pipeline).</param>
     /// <param name="pointLightBuffer">The point light buffer (shared with the pipeline).</param>
     /// <param name="shadowRT">The shadow map render texture (for shadow comparison sampling).</param>

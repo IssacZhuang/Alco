@@ -23,7 +23,7 @@ namespace Alco.World3D.Test;
 public class TestSlangMaterialCompiler
 {
     /// <summary>The module name of this fixture's test surface (Files/Assets/Shaders/Materials/parameterized-surface.slang).</summary>
-    private const string ParameterizedSurfaceModule = "parameterized_surface";
+    private const string ParameterizedSurfaceModule = "ParameterizedSurface";
 
     /// <summary>The interned library reference of one module, as assets and passes hold it.</summary>
     private static ShaderLibrary Library(GameEngine engine, string moduleName)
@@ -68,7 +68,7 @@ public class TestSlangMaterialCompiler
         using GameEngine engine = new(GameEngineSetting.CreateNoGPU());
         using MaterialCompiler compiler = World3DAssetPipeline.CreateMaterialCompiler(engine.RenderingSystem);
 
-        Shader shader = compiler.ComposeSurfaceShader(null, Library(engine, "gbuffer"));
+        Shader shader = compiler.ComposeSurfaceShader(null, Library(engine, "GBuffer"));
         ShaderModulesInfo modules = shader.GetShaderModules();
         ShaderReflection info = modules.ReflectionInfo;
 
@@ -105,7 +105,7 @@ public class TestSlangMaterialCompiler
         // the textures flattened after it — no companion samplers), and the
         // shared sampler bank 4.
         MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
-        Shader shader = compiler.ComposeSurfaceShader(asset, Library(engine, "gbuffer"));
+        Shader shader = compiler.ComposeSurfaceShader(asset, Library(engine, "GBuffer"));
         ShaderReflection info = shader.GetShaderModules().ReflectionInfo;
 
         Assert.Multiple(() =>
@@ -168,8 +168,8 @@ public class TestSlangMaterialCompiler
         // its fragment entry (<let AlphaTest : bool>) — the SHADOW_CUTOUT define's
         // replacement. Distinct values are distinct composed shaders.
         MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
-        Shader opaque = compiler.ComposeSurfaceShader(asset, Library(engine, "shadow_depth"), ["false"]);
-        Shader cutout = compiler.ComposeSurfaceShader(asset, Library(engine, "shadow_depth"), ["true"]);
+        Shader opaque = compiler.ComposeSurfaceShader(asset, Library(engine, "ShadowDepth"), ["false"]);
+        Shader cutout = compiler.ComposeSurfaceShader(asset, Library(engine, "ShadowDepth"), ["true"]);
         ShaderModulesInfo plain = opaque.GetShaderModules();
         ShaderModulesInfo alphaTested = cutout.GetShaderModules();
 
@@ -210,7 +210,7 @@ public class TestSlangMaterialCompiler
         // applies the pass state); the stateless factory beneath compiles fresh
         // materials per call.
         using GBufferRenderer gbuffer = new(
-            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("gbuffer"));
+            engine.RenderingSystem, compiler, engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
 
         // The test surface with all four mixed-type parameters set (a Vector4 reads
         // as many leading components as the reflected member takes).
@@ -259,7 +259,7 @@ public class TestSlangMaterialCompiler
             Surface = Library(engine, ParameterizedSurfaceModule),
         };
         GraphicsMaterial glassMaterial = compiler.Compile(glassAsset,
-            Library(engine, "glass"), valueSpecArgs: null,
+            Library(engine, "Glass"), valueSpecArgs: null,
             (a, shader) => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{a.Name}_glass"));
         Assert.That(glassMaterial.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
             "The glass template declares the camera binding.");

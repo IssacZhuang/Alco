@@ -38,7 +38,7 @@ public partial class RenderingSystem
 
     /// <summary>
     /// The engine's shared sampler bank: the samplers every shader samples through
-    /// (the <c>samplers</c> block of <c>alco-rendering-core.slang</c>) plus the
+    /// (the <c>samplers</c> block of <c>AlcoRendering_Core.slang</c>) plus the
     /// name table resolving shader member names to GPUSampler instances. Owned by
     /// the rendering system, not the GPU device — the device only creates raw
     /// samplers. The bank is immutable engine-wide state served as shared sampler

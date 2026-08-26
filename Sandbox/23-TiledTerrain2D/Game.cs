@@ -82,7 +82,7 @@ public class Game : GameEngine
             new RGNode_FXAA.Descriptor
             {
                 SceneCopyShader = BuiltInAssets.Shader_Blit,
-                FxaaShader = RenderingSystem.ShaderSystem.GetShader("fxaa"),
+                FxaaShader = RenderingSystem.ShaderSystem.GetShader("FXAA"),
             });
         MainPipeline.Use(fxaaNode);
 
@@ -132,12 +132,12 @@ public class Game : GameEngine
         // tile-instanced declares VertexMain<let IsFacade> / PixelMain<let Bombing>;
         // each material is construction-bound to one specialization combination.
         _surfaceMaterial = RenderingSystem.CreateGraphicsMaterial(
-            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "tile_surface", false, false);
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_surface", false, false);
         _surfaceMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _surfaceMaterial.DepthStencilState = DepthStencilState.Write;
 
         _cliffMaterial = RenderingSystem.CreateGraphicsMaterial(
-            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "tile_cliff", true, false);
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_cliff", true, false);
         _cliffMaterial.BlendState = BlendState.NonPremultipliedAlpha;
         _cliffMaterial.DepthStencilState = DepthStencilState.Write;
 
@@ -380,12 +380,12 @@ public class Game : GameEngine
         var item1 = new TileItem("grid", gridMaterial, 0, null);
 
         GraphicsMaterial grassMaterial = RenderingSystem.CreateGraphicsMaterial(
-            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "tile_grass", false, true);
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_grass", false, true);
         grassMaterial.SetTexture(ShaderResourceId.Texture, grass.Result);
         var item2 = new TileItem("grass", grassMaterial, 1, null);
 
         GraphicsMaterial sandMaterial = RenderingSystem.CreateGraphicsMaterial(
-            RenderingSystem.ShaderSystem.GetShader("tile-instanced"), "tile_sand", false, true);
+            RenderingSystem.ShaderSystem.GetShader("TileInstanced"), "tile_sand", false, true);
         sandMaterial.SetTexture(ShaderResourceId.Texture, sand.Result);
         var item3 = new TileItem("sand", sandMaterial, 2, null);
 
