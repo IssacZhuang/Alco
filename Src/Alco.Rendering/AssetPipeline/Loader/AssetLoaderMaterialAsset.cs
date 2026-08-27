@@ -27,6 +27,18 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
     public override IReadOnlyList<string> FileExtensions => [FileExt.Material];
 
     /// <summary>
+    /// Material files are polymorphic: the concrete family type is picked by the file's
+    /// <c>$type</c> discriminator, so any type assignable to <see cref="MaterialAsset"/>
+    /// is a valid load request, not just the base type itself.
+    /// </summary>
+    /// <param name="type">The type of the asset.</param>
+    /// <returns>True if the type is <see cref="MaterialAsset"/> or one of its family types.</returns>
+    public override bool CanHandleType(Type type)
+    {
+        return type.IsAssignableTo(typeof(MaterialAsset));
+    }
+
+    /// <summary>
     /// The serializer options material asset files parse with: author-friendly (camelCase,
     /// comments and trailing commas tolerated), strict about unmapped members, polymorphic
     /// over <see cref="MaterialAsset"/>, with the material converters (textures, shader
@@ -68,6 +80,13 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
         }
 
         AssetJson.ValidateVersion(asset.Version, MaterialAsset.FormatVersion, "Material asset", context.Filename);
+
+        if (!context.AssetType.IsInstanceOfType(asset))
+        {
+            throw new InvalidDataException(
+                $"Material asset '{context.Filename}' is a {asset.GetType().Name} and cannot be loaded as {context.AssetType.Name}.");
+        }
+
         asset.Name = string.IsNullOrWhiteSpace(asset.Name)
             ? Path.GetFileNameWithoutExtension(context.Filename)
             : asset.Name.Trim();
