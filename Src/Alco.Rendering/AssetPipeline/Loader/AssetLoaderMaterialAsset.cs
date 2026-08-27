@@ -59,6 +59,8 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
         options.Converters.Add(new JsonConverterShaderValue());
         options.Converters.Add(new JsonConverterMaterialTexture(assetSystem));
         options.Converters.Add(new JsonConverterShaderLibrary(shaderSystem));
+        options.Converters.Add(new JsonConverterBlendState());
+        options.Converters.Add(new JsonConverterDepthStencilState());
         options.Converters.Add(new JsonStringEnumConverter());
         options.MakeReadOnly();
         return options;

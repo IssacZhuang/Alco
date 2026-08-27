@@ -395,6 +395,11 @@ public sealed class SlangCompileSession : IDisposable
     /// Every generic entry point specializes with the discovered type; its value
     /// parameters (e.g. the shadow template's AlphaTest flag) consume
     /// <paramref name="valueSpecializationArgs"/> in entry order.
+    /// <br/>A template whose generic entry points carry only value parameters (no surface
+    /// type — e.g. a particle pass's facade/fade flags), or no generic parameters at all,
+    /// links without a type argument: every specialization parameter consumes a value
+    /// argument. The companion still links in, contributing its parameter blocks and
+    /// texture slots — for parameter-only effects the template is its own surface.
     /// </summary>
     /// <exception cref="ShaderCompilationException">
     /// The companion module exports no type implementing the contract, or more than one
@@ -417,14 +422,26 @@ public sealed class SlangCompileSession : IDisposable
             // the template's own generic declarations, the conforming type from the
             // companion's declaration tree. Both live in the session's AST for its
             // lifetime, so the pointers stay valid through Specialize below.
+            // A template without generic entries — or whose entries are value-only
+            // generics (no type parameter, e.g. a particle pass's fade flags) — has
+            // no surface contract and links without a type argument.
             IntPtr contract = DiscoverSurfaceContract(entryModule, out string contractName);
             IntPtr surfaceType = contract == IntPtr.Zero
                 ? IntPtr.Zero
                 : DiscoverSurfaceConformer(companionModule, contract, contractName).Type;
 
-            SlangComponentType[] components = new SlangComponentType[count + 2];
+            // A self-composed module (the template is its own surface — parameter-only
+            // effects) must not enter the composition twice: slang's composite creation
+            // crashes on the same module as two components. Its component list is then
+            // exactly the plain compile path's — the module plus its entry points.
+            bool selfComposed = entryModule.Native.NativePointer == companionModule.Native.NativePointer;
+            int firstEntryPoint = selfComposed ? 1 : 2;
+            SlangComponentType[] components = new SlangComponentType[count + firstEntryPoint];
             components[0] = entryModule.Native.AsComponentType();
-            components[1] = companionModule.Native.AsComponentType();
+            if (!selfComposed)
+            {
+                components[1] = companionModule.Native.AsComponentType();
+            }
             List<SlangPinnedUtf8> pins = [];
             List<SlangSpecializationArg> args = [];
             int valueIndex = 0;
@@ -436,16 +453,26 @@ public sealed class SlangCompileSession : IDisposable
                     if (ep == null)
                         throw new ShaderCompilationException(
                             $"slang module '{entryModule.Name}' failed to provide entry point {i}.");
-                    components[i + 2] = ep.AsComponentType();
+                    components[firstEntryPoint + i] = ep.AsComponentType();
 
                     int paramCount = (int)ep.AsComponentType().SpecializationParamCount;
                     if (paramCount > 0)
                     {
-                        // Every generic entry point's first specialization parameter is
-                        // the surface type (DiscoverSurfaceContract enforced the
-                        // constraint); the value parameters follow it.
-                        args.Add(SlangSpecializationArg.FromType(surfaceType));
-                        for (int j = 1; j < paramCount; j++)
+                        // With a surface contract, every generic entry point's first
+                        // specialization parameter is the surface type (DiscoverSurfaceContract
+                        // enforced the constraint); the value parameters follow it. Without
+                        // one (non-generic or value-only entries), all parameters are
+                        // value parameters.
+                        int firstValueParam = 1;
+                        if (contract != IntPtr.Zero)
+                        {
+                            args.Add(SlangSpecializationArg.FromType(surfaceType));
+                        }
+                        else
+                        {
+                            firstValueParam = 0;
+                        }
+                        for (int j = firstValueParam; j < paramCount; j++)
                         {
                             if (valueIndex >= valueSpecializationArgs.Count)
                                 throw new ShaderCompilationException(
@@ -465,7 +492,7 @@ public sealed class SlangCompileSession : IDisposable
             }
             finally
             {
-                for (int i = 2; i < components.Length; i++)
+                for (int i = firstEntryPoint; i < components.Length; i++)
                     components[i]?.Release();
                 foreach (SlangPinnedUtf8 pinned in pins)
                     pinned.Dispose();
@@ -476,14 +503,18 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>
     /// The surface contract of a template: the constraint of the first type parameter
     /// of its generic entry points (a generic function declaration in the module's
-    /// declaration tree — generic helper types are skipped). All generic entry points
-    /// must agree on one contract; a template without generic entry points links
-    /// without a type argument (IntPtr.Zero).
+    /// declaration tree — generic helper types are skipped). All type-generic entry
+    /// points must agree on one contract; an entry point without generic parameters
+    /// links without a type argument (IntPtr.Zero), and so does one whose generics
+    /// carry only value parameters (e.g. a particle pass's fade flags). A module
+    /// mixing type-generic and value-only entries is rejected — its parameters could
+    /// not be mapped consistently.
     /// </summary>
     private static unsafe IntPtr DiscoverSurfaceContract(SlangModuleHandle template, out string contractName)
     {
         contractName = string.Empty;
         IntPtr contract = IntPtr.Zero;
+        bool hasValueOnlyEntry = false;
         IntPtr moduleDecl = template.Native.GetModuleReflectionDecl();
         uint childCount = SlangNative.spReflectionDecl_getChildrenCount(moduleDecl);
         for (uint i = 0; i < childCount; i++)
@@ -510,9 +541,10 @@ public sealed class SlangCompileSession : IDisposable
             uint typeParamCount = SlangNative.spReflectionGeneric_GetTypeParameterCount(generic);
             if (typeParamCount == 0)
             {
-                throw new ShaderCompilationException(
-                    $"slang module '{template.Name}': a generic entry point declares no type parameter; " +
-                    "the surface type must be the first generic parameter, constrained by the pass contract interface.");
+                // A value-only generic entry point (no surface type parameter) — it
+                // contributes no contract and consumes only value arguments.
+                hasValueOnlyEntry = true;
+                continue;
             }
             IntPtr typeParam = SlangNative.spReflectionGeneric_GetTypeParameter(generic, 0);
             string paramName = SlangNative.StringFromPtr(SlangNative.spReflectionVariable_GetName(typeParam)) ?? "?";
@@ -542,6 +574,13 @@ public sealed class SlangCompileSession : IDisposable
                     $"slang module '{template.Name}': generic entry points declare different surface contracts " +
                     $"('{contractName}' and '{other}'); a pass template must have exactly one.");
             }
+        }
+
+        if (contract != IntPtr.Zero && hasValueOnlyEntry)
+        {
+            throw new ShaderCompilationException(
+                $"slang module '{template.Name}' mixes type-generic and value-only generic entry points; " +
+                "a pass template must be one or the other.");
         }
         return contract;
     }
