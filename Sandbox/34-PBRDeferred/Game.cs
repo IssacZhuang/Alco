@@ -36,7 +36,7 @@ using SandboxUtils;
 public class Game : GameEngine
 {
     /// <summary>A PBR scene object: mesh, transform and surface parameters.</summary>
-    private sealed class SceneObject : IGBufferRenderable, IShadowRenderable
+    private sealed class SceneObject : IGBufferRenderable, IShadowRenderable, IVoxelGIRenderable
     {
         public required PrimitiveMesh Mesh;
         public Transform3D Transform = Transform3D.Identity;
@@ -48,10 +48,8 @@ public class Game : GameEngine
         public float SpinSpeed;
         public float FloatSpeed;
         public float FloatPhase;
-        /// <summary>The shared voxel mesh-material handle.</summary>
-        public int VoxelMeshHandle = -1;
-        /// <summary>The persistent structural voxel instance handle.</summary>
-        public int VoxelStaticInstanceHandle = -1;
+        /// <summary>The mesh-local bounds consumed by the voxel GI registration.</summary>
+        public BoundingBox3D VoxelLocalBounds { get; set; }
 
         // ── IGBufferRenderable (GBuffer renderer reads these) ──
         public PbrMaterialAsset Material { get; set; } = PbrMaterialAsset.Default;
@@ -72,13 +70,25 @@ public class Game : GameEngine
         float IShadowRenderable.AlphaCutoff => 0.0f;
         float IShadowRenderable.BaseColorAlpha => 1.0f;
         Vector4 IShadowRenderable.RsmBaseColor => new(BaseColor, 1.0f);
+
+        // ── IVoxelGIRenderable (VoxelGI node reads these) ──
+        bool IVoxelGIRenderable.IsStatic => SpinSpeed == 0 && FloatSpeed == 0;
+        Mesh IVoxelGIRenderable.Mesh => Mesh;
+        uint IVoxelGIRenderable.VertexStrideBytes => (uint)VertexPBR.SizeInBytes;
+        BoundingBox3D IVoxelGIRenderable.LocalBounds => VoxelLocalBounds;
+        MaterialAsset? IVoxelGIRenderable.Material => Material;
+        Matrix4x4 IVoxelGIRenderable.WorldMatrix => Transform.Matrix;
+        Vector4 IVoxelGIRenderable.BaseColor => new(BaseColor, 1.0f);
+        Vector3 IVoxelGIRenderable.EmissiveFactor => Vector3.Zero;
+        float IVoxelGIRenderable.AlphaCutoff => 0.0f;
     }
 
     /// <summary>
     /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its material asset as an
-    /// <see cref="IGBufferRenderable"/> for the GBufferRenderer registry.
+    /// <see cref="IGBufferRenderable"/> and an <see cref="IVoxelGIRenderable"/> for the
+    /// GBufferRenderer and voxel GI registries.
     /// </summary>
-    private sealed class ModelRenderable : IGBufferRenderable
+    private sealed class ModelRenderable : IGBufferRenderable, IVoxelGIRenderable
     {
         private readonly ModelDrawItem _item;
         private readonly PbrMaterialAsset _asset;
@@ -100,6 +110,18 @@ public class Game : GameEngine
         Vector4 IGBufferRenderable.MetallicRoughnessAO => new(_asset.MetallicFactor, _asset.RoughnessFactor, 1.0f, 0.0f);
         Vector3 IGBufferRenderable.EmissiveFactor => _getEmissiveFactor();
         float IGBufferRenderable.AlphaCutoff => ModelMaterialAdapter.ResolveAlphaCutoff(_asset);
+
+        // ── IVoxelGIRenderable (VoxelGI node reads these) ──
+        Mesh IVoxelGIRenderable.Mesh => _item.Mesh;
+        uint IVoxelGIRenderable.VertexStrideBytes => (uint)VertexPBR.SizeInBytes;
+        BoundingBox3D IVoxelGIRenderable.LocalBounds => new(_item.LocalBoundsMin, _item.LocalBoundsMax);
+        MaterialAsset? IVoxelGIRenderable.Material => _asset;
+        Matrix4x4 IVoxelGIRenderable.WorldMatrix => _item.World;
+        Vector4 IVoxelGIRenderable.BaseColor => _asset.BaseColorFactor;
+        // The GI registration stays unboosted: the boost is a runtime cbuffer
+        // scale at injection time (the G-buffer adapter reads the boosted value).
+        Vector3 IVoxelGIRenderable.EmissiveFactor => _asset.EmissiveFactor;
+        float IVoxelGIRenderable.AlphaCutoff => ModelMaterialAdapter.ResolveAlphaCutoff(_asset);
     }
 
     /// <summary>
@@ -166,6 +188,10 @@ public class Game : GameEngine
     private readonly Texture2D _checkerTexture;
 
     private readonly List<SceneObject> _objects = new();
+
+    // The glTF scene's GI registrations: the ModelRenderable adapters registered
+    // into both the G-buffer renderer and the voxel GI node.
+    private readonly List<ModelRenderable> _voxelRenderables = new();
 
     // The procedural scene's single material asset (built-in surface + checker albedo).
     private MaterialAsset? _proceduralAsset;
@@ -572,7 +598,6 @@ public class Game : GameEngine
         // Render() drives the full frame internally.
         _preset.AfterGBuffer += () =>
         {
-            SubmitDynamicInstances();
             SyncHbaoParams();
         };
 
@@ -609,8 +634,10 @@ public class Game : GameEngine
                         // The emissive boost is resolved at bundle record time so
                         // the Point Lights toggle / Emissive Boost slider take
                         // effect on the next re-record (MarkStaticBundleDirty).
-                        _gbufferRenderer.Add(new ModelRenderable(item, asset,
-                            () => asset.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
+                        var renderable = new ModelRenderable(item, asset,
+                            () => asset.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f));
+                        _gbufferRenderer.Add(renderable);
+                        _voxelRenderables.Add(renderable);
                         _shadowRenderer.Add(new ModelShadowRenderable(item, asset));
                     }
                 }
@@ -688,7 +715,7 @@ public class Game : GameEngine
         }
 
         // Bloom is a chain transform node on the pipeline's post chain;
-        // registered before FXAA and tonemap, so boosted emissive surfaces get
+        // registered before tonemap, so boosted emissive surfaces get
         // a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
@@ -704,14 +731,16 @@ public class Game : GameEngine
         _bloom.Intensity = bloomIntensity;
         _preset.Pipeline.Use(_bloom);
 
-        // FXAA anti-aliasing node (registered between bloom and tonemap).
-        var fxaaFactory = LoadRenderNodeFactory<RGNodeFactory_FXAA>("RenderNodes/FXAA.rnfact");
-        _preset.Pipeline.Use(fxaaFactory.CreateNode<RGNode_FXAA>(nodeFactoryContext));
-
-        // HDR tone mapping node (registered last, after bloom and FXAA).
+        // HDR tone mapping node (registered after bloom).
         var tonemapFactory = LoadRenderNodeFactory<RGNodeFactory_Tonemap>("RenderNodes/Tonemap.rnfact");
         _tonemapStage = tonemapFactory.CreateNode<RGNode_Tonemap>(nodeFactoryContext);
         _preset.Pipeline.Use(_tonemapStage);
+
+        // FXAA anti-aliasing node (registered after tonemap: FXAA 3.11's luma-based
+        // edge detection assumes tone-mapped input — on linear HDR the bright regions
+        // dominate the luma range and edges in the darks get missed or over-blurred).
+        var fxaaFactory = LoadRenderNodeFactory<RGNodeFactory_FXAA>("RenderNodes/FXAA.rnfact");
+        _preset.Pipeline.Use(fxaaFactory.CreateNode<RGNode_FXAA>(nodeFactoryContext));
 
         MainPresenter.OnResize += OnMainWindowResize;
 
@@ -909,6 +938,12 @@ public class Game : GameEngine
         return new Vector3(x, y, z);
     }
 
+    // Raw relative mouse deltas are device counts (mickeys), not pixels: a typical
+    // 800-1600 DPI mouse on a 96 DPI display emits ~10 counts per cursor pixel.
+    // Dividing by half that (~5) doubles the camera speed relative to the old
+    // pixel-tuned feel.
+    private const float RawMouseCountScale = 5f;
+
     private void UpdateCamera(float delta)
     {
         // Fixed camera from CLI args (--pos / --look) bypasses orbiting.
@@ -938,15 +973,23 @@ public class Game : GameEngine
             return;
         }
 
-        Input.IsCursorVisible = true;
-
         // Do not orbit/zoom while the mouse is over an ImGui window: dragging a
         // slider or scrolling the panel must not move the camera.
         bool mouseOverImGui = ImGUIInputHandler.IsCapturingMouse;
 
-        if (!mouseOverImGui && Input.IsMousePressing(Mouse.Left))
+        // Orbiting uses relative (raw) mouse input while the left button is held:
+        // the cursor hides during the drag and is restored where the drag started
+        // when the button is released.
+        bool orbiting = MainView.IsFocused && !mouseOverImGui && Input.IsMousePressing(Mouse.Left);
+        Input.IsMouseRelativeMode = orbiting;
+        if (!orbiting)
         {
-            Vector2 mouseDelta = Input.MouseDelta;
+            Input.IsCursorVisible = true;
+        }
+
+        if (orbiting)
+        {
+            Vector2 mouseDelta = Input.MouseDelta / RawMouseCountScale;
             _yaw -= mouseDelta.X * 0.008f;
             _pitch -= mouseDelta.Y * 0.008f;
         }
@@ -970,31 +1013,28 @@ public class Game : GameEngine
         _camera.UpdateMatrixToGPU();
     }
 
-    /// <summary>Free-fly camera: hold the right mouse button to look around
-    /// (the cursor hides and pins to the window center while held, release it
-    /// to free the cursor for ImGui interaction), WASD moves along the view,
+    /// <summary>Free-fly camera: hold the right mouse button to look around with
+    /// relative (raw) input (the cursor hides while held and is restored where it
+    /// was when the button is released), WASD moves along the view,
     /// E/Q or Space/Ctrl moves vertically, Shift speeds up, the wheel tunes
     /// the fly speed while looking.</summary>
     private void UpdateFlyCamera(float delta)
     {
-        // Looking only happens while the right mouse button is held; otherwise
-        // the cursor stays visible and free so ImGui can be operated normally.
+        // Looking only happens while the right mouse button is held; relative
+        // input reports unaccelerated device motion and never hits the screen
+        // edge, otherwise the cursor stays visible and free for ImGui interaction.
         bool looking = MainView.IsFocused && Input.IsMousePressing(Mouse.Right);
-        Input.IsCursorVisible = !looking;
+        Input.IsMouseRelativeMode = looking;
+        if (!looking)
+        {
+            Input.IsCursorVisible = true;
+        }
 
         if (looking)
         {
-            Vector2 mouseDelta = Input.MouseDelta;
+            Vector2 mouseDelta = Input.MouseDelta / RawMouseCountScale;
             _yaw += mouseDelta.X * 0.008f;
             _pitch = Math.Clamp(_pitch - mouseDelta.Y * 0.008f, -1.55f, 1.55f);
-
-            // Keep the OS cursor pinned at the window center so looking never hits
-            // the screen edge; the input system keeps MouseDelta accurate across warps.
-            int2 windowPosition = MainView.Position;
-            uint2 windowSize = MainView.Size;
-            Input.WarpMousePreservingDelta(new Vector2(
-                windowPosition.X + windowSize.X * 0.5f,
-                windowPosition.Y + windowSize.Y * 0.5f));
         }
 
         if (looking && Input.IsMouseScrolling(out Vector2 wheel))
@@ -1281,7 +1321,7 @@ public class Game : GameEngine
         return sceneObject.SpinSpeed == 0 && sceneObject.FloatSpeed == 0;
     }
 
-    /// <summary>Register the scene geometry into the voxel GI clipmap.</summary>
+    /// <summary>Register the scene objects into the voxel GI registry.</summary>
     private void RegisterVoxelMeshes()
     {
         if (_voxelGI == null)
@@ -1291,91 +1331,18 @@ public class Game : GameEngine
 
         if (_modelScene != null)
         {
-            IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
-            for (int i = 0; i < drawItems.Count; i++)
+            for (int i = 0; i < _voxelRenderables.Count; i++)
             {
-                ModelDrawItem item = drawItems[i];
-                PbrMaterialAsset asset = _modelAssets![item.MaterialIndex];
-                // The surface feeds the voxelization (the asset already carries the
-                // material's textures); the emissive factor is registered unboosted
-                // (the boost is a runtime cbuffer scale at injection time).
-                int meshHandle = _voxelGI.RegisterMesh(
-                    item.Mesh,
-                    (uint)VertexPBR.SizeInBytes,
-                    new BoundingBox3D(item.LocalBoundsMin, item.LocalBoundsMax),
-                    asset);
-                _voxelGI.AddStaticInstance(
-                    meshHandle,
-                    item.World,
-                    asset.BaseColorFactor,
-                    asset.EmissiveFactor,
-                    ModelMaterialAdapter.ResolveAlphaCutoff(asset));
+                _voxelGI.Add(_voxelRenderables[i]);
             }
             return;
         }
 
-        int sphereHandle = -1;
-        int cubeHandle = -1;
-        int groundHandle = -1;
         for (int i = 0; i < _objects.Count; i++)
         {
             SceneObject sceneObject = _objects[i];
-            int meshHandle;
-            if (sceneObject.Mesh == _sphereMesh)
-            {
-                sphereHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, sphereHandle);
-                meshHandle = sphereHandle;
-            }
-            else if (sceneObject.Mesh == _cubeMesh)
-            {
-                cubeHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, cubeHandle);
-                meshHandle = cubeHandle;
-            }
-            else
-            {
-                groundHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, groundHandle);
-                meshHandle = groundHandle;
-            }
-            sceneObject.VoxelMeshHandle = meshHandle;
-
-            if (IsStatic(sceneObject))
-            {
-                sceneObject.VoxelStaticInstanceHandle = _voxelGI.AddStaticInstance(
-                    meshHandle,
-                    sceneObject.WorldMatrix,
-                    new Vector4(sceneObject.BaseColor, 1.0f),
-                    Vector3.Zero,
-                    0.0f);
-            }
-        }
-
-        int RegisterProceduralMeshOnce(PrimitiveMesh mesh, int existingHandle)
-        {
-            return existingHandle >= 0
-                ? existingHandle
-                : _voxelGI.RegisterMesh(
-                    mesh,
-                    (uint)VertexPBR.SizeInBytes,
-                    GetProceduralBounds(mesh),
-                    _proceduralAsset);
-        }
-    }
-
-    /// <summary>Submit dynamic object instances to the voxel GI before plugin execution.</summary>
-    private void SubmitDynamicInstances()
-    {
-        if (!_giEnabled || _voxelGI == null)
-        {
-            return;
-        }
-        for (int i = 0; i < _objects.Count; i++)
-        {
-            SceneObject sceneObject = _objects[i];
-            if (!IsStatic(sceneObject) && sceneObject.VoxelMeshHandle >= 0)
-            {
-                _voxelGI.SubmitDynamicInstance(sceneObject.VoxelMeshHandle, sceneObject.WorldMatrix,
-                    new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f);
-            }
+            sceneObject.VoxelLocalBounds = GetProceduralBounds(sceneObject.Mesh);
+            _voxelGI.Add(sceneObject);
         }
     }
 
@@ -1604,6 +1571,9 @@ public class Game : GameEngine
 
         if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))
         {
+            // Copy to a local while provably non-null: the ref-based ImGui
+            // state mutations below break nullable flow tracking for the field.
+            RGNode_VoxelGI voxelGiNode = _voxelGI;
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             float giDiffuseStrength = _environment.GiDiffuseStrength;
             if (ImGui.SliderFloat("GI Diffuse Strength", ref giDiffuseStrength, 0.0f, 4.0f))
@@ -1654,18 +1624,18 @@ public class Game : GameEngine
                 }
                 ImGui.Text(_textBuilder.Clear().Append("SSR trace resolution: ").Append(_ssrRenderer.TraceWidth).Append('x').Append(_ssrRenderer.TraceHeight).AsReadOnlySpan());
             }
-            float giSkyIntensity = _voxelGI.SkyIntensity;
+            float giSkyIntensity = voxelGiNode.SkyIntensity;
             if (ImGui.SliderFloat("GI Sky Intensity", ref giSkyIntensity, 0.0f, 10.0f))
-                _voxelGI.SkyIntensity = giSkyIntensity;
-            float giMaxTraceDistance = _voxelGI.TraceMaxDistance;
+                voxelGiNode.SkyIntensity = giSkyIntensity;
+            float giMaxTraceDistance = voxelGiNode.TraceMaxDistance;
             // 256m matches the coarsest voxel clipmap level (base voxel 0.25m,
             // 128^3 per level, 4 levels: 32/64/128/256m) — tracing farther has
             // no voxels left to sample.
             if (ImGui.SliderFloat("GI Max Trace Distance", ref giMaxTraceDistance, 1.0f, 256.0f))
-                _voxelGI.TraceMaxDistance = giMaxTraceDistance;
-            float giDiffuseSpreading = _voxelGI.DiffuseSpreading;
+                voxelGiNode.TraceMaxDistance = giMaxTraceDistance;
+            float giDiffuseSpreading = voxelGiNode.DiffuseSpreading;
             if (ImGui.SliderFloat("GI Diffuse Spreading", ref giDiffuseSpreading, 0.0f, 0.5f, "%.3f"))
-                _voxelGI.DiffuseSpreading = giDiffuseSpreading;
+                voxelGiNode.DiffuseSpreading = giDiffuseSpreading;
             ImGui.SameLine();
             ImGui.TextDisabled("(?)");
             if (ImGui.IsItemHovered())
@@ -1678,22 +1648,22 @@ public class Game : GameEngine
                 GiTraceResolutionModes,
                 GiTraceResolutionModes.Length))
             {
-                _voxelGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
+                voxelGiNode.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
             }
-            ImGui.Text(_textBuilder.Clear().Append("GI trace resolution: ").Append(_voxelGI.IndirectTexture.Width / 3).Append('x').Append(_voxelGI.IndirectTexture.Height).AsReadOnlySpan());
-            int giDebugInt = (int)_voxelGI.DebugView;
+            ImGui.Text(_textBuilder.Clear().Append("GI trace resolution: ").Append(voxelGiNode.IndirectTexture.Width / 3).Append('x').Append(voxelGiNode.IndirectTexture.Height).AsReadOnlySpan());
+            int giDebugInt = (int)voxelGiNode.DebugView;
             if (ImGui.Combo("GI Debug", ref giDebugInt, GiDebugModes, GiDebugModes.Length))
             {
-                _voxelGI.DebugView = (VoxelGiDebugMode)giDebugInt;
+                voxelGiNode.DebugView = (VoxelGiDebugMode)giDebugInt;
             }
-            float giRefreshRate = _voxelGI.VolumeRefreshRate;
+            float giRefreshRate = voxelGiNode.VolumeRefreshRate;
             if (ImGui.SliderFloat("GI Refresh Rate", ref giRefreshRate, 0.0f, 240.0f, "%.0f Hz (0 = every frame)"))
             {
-                _voxelGI.VolumeRefreshRate = giRefreshRate;
+                voxelGiNode.VolumeRefreshRate = giRefreshRate;
             }
             for (int giLevel = 0; giLevel < 4; giLevel++)
             {
-                int giStaticBrickBudget = _voxelGI.GetStaticBrickBudget(giLevel);
+                int giStaticBrickBudget = voxelGiNode.GetStaticBrickBudget(giLevel);
                 ReadOnlySpan<char> budgetLabel;
                 if (giLevel == 0)
                     budgetLabel = "GI Brick Budget L0 (finest)";
@@ -1703,7 +1673,7 @@ public class Game : GameEngine
                     budgetLabel = _textBuilder.Clear().Append("GI Brick Budget L").Append(giLevel).AsReadOnlySpan();
                 if (ImGui.SliderInt(budgetLabel, ref giStaticBrickBudget, 0, 256))
                 {
-                    _voxelGI.SetStaticBrickBudget(giLevel, giStaticBrickBudget);
+                    voxelGiNode.SetStaticBrickBudget(giLevel, giStaticBrickBudget);
                 }
             }
             ImGui.SameLine();
@@ -1719,7 +1689,7 @@ public class Game : GameEngine
                     "usually want a smaller budget than the fine levels.\n" +
                     "0 pauses structural voxelization for that level (its queue keeps growing).");
             }
-            VoxelGiStatistics statistics = _voxelGI.Statistics;
+            VoxelGiStatistics statistics = voxelGiNode.Statistics;
             ImGui.Text(_textBuilder.Clear()
                 .Append("Static bricks: ").Append(statistics.StaticResidentBricks).Append('/')
                 .Append(statistics.StaticCapacityBricks).Append(" (")
@@ -1868,6 +1838,11 @@ public class Game : GameEngine
             {
                 fxaaStage.Threshold = fxaaThreshold;
             }
+            float fxaaSubpix = fxaaStage.Subpix;
+            if (ImGui.SliderFloat("Subpix", ref fxaaSubpix, 0.0f, 1.0f))
+            {
+                fxaaStage.Subpix = fxaaSubpix;
+            }
         }
 
         if (_modelScene != null)
@@ -1911,19 +1886,11 @@ public class Game : GameEngine
                 bakedChanged |= ImGui.SliderFloat("AO", ref sceneObject.AmbientOcclusion, 0.0f, 1.0f);
                 bakedChanged |= ImGui.Checkbox("Cast Shadow", ref sceneObject.CastsShadow);
                 // Static objects are baked into the render bundles: schedule a re-record.
+                // The voxel GI picks the edit up automatically through its frame sync.
                 if (bakedChanged && IsStatic(sceneObject))
                 {
                     _staticShadowBundlesDirty = true;
                     _gbufferRenderer.MarkStaticBundleDirty();
-                    if (sceneObject.VoxelStaticInstanceHandle >= 0)
-                    {
-                        _voxelGI?.UpdateStaticInstance(
-                            sceneObject.VoxelStaticInstanceHandle,
-                            sceneObject.WorldMatrix,
-                            new Vector4(sceneObject.BaseColor, 1.0f),
-                            Vector3.Zero,
-                            0.0f);
-                    }
                 }
             }
 

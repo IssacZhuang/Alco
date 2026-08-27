@@ -218,7 +218,8 @@ public class MaterialVariantTest
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         using ShaderSystem shaderSystem = new(host.RenderingSystem, Options(), cacheDirectory: null);
 
-        Assert.That(shaderSystem.GetShader("test-variant-quad"),
+        Shader shader = shaderSystem.GetShader("test-variant-quad");
+        Assert.That(shader,
             Is.SameAs(shaderSystem.GetShader("test-variant-quad")),
             "one handle per module — variants live inside it, cached per specialization");
     }

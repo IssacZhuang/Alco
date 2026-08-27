@@ -30,6 +30,13 @@ internal static class Utility
 /// </summary>
 internal sealed class TestAssetHost : IAssetSystemHost, IDisposable
 {
+    public TestAssetHost()
+    {
+        // Log methods are no-ops by design and nothing here listens for dispose,
+        // but the interface-required event must still be initialized.
+        OnDispose += () => { };
+    }
+
     public event Action OnDispose;
 
     public void PostToMainThread(Action action) => action();

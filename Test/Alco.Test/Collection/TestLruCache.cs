@@ -33,7 +33,7 @@ namespace Alco.Test
             Assert.That(cache["key3"], Is.EqualTo("value3"), "Should retrieve correct value for key3");
 
             // Test TryGetValue
-            string result;
+            string? result;
             Assert.IsTrue(cache.TryGetValue("key1", out result), "TryGetValue should return true for existing key");
             Assert.That(result, Is.EqualTo("value1"), "TryGetValue should return correct value");
 

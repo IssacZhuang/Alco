@@ -388,10 +388,10 @@ namespace Alco.Test
                     }
                 }
                 RayCastResult3D result = bvh.CastRayClosestHit(ray);
-                Assert.AreEqual(expectedHit, result.Hit, $"closest hit/miss mismatch at ray {i} ({origin} -> +{direction})");
+                Assert.That(result.Hit, Is.EqualTo(expectedHit), $"closest hit/miss mismatch at ray {i} ({origin} -> +{direction})");
                 if (expectedHit)
                 {
-                    Assert.AreEqual(expectedFraction, result.HitInfo.Fraction, 1e-4f, $"closest fraction mismatch at ray {i}: expected {expectedFraction}, got {result.HitInfo.Fraction}");
+                    Assert.That(result.HitInfo.Fraction, Is.EqualTo(expectedFraction).Within(1e-4f), $"closest fraction mismatch at ray {i}: expected {expectedFraction}, got {result.HitInfo.Fraction}");
                     Assert.IsTrue(result.Collider.IntersectRay(ray, out RaycastHit3D own) && MathF.Abs(own.Fraction - expectedFraction) < 1e-3f,
                         $"closest returned a collider that is not a closest hit at ray {i}");
                 }
@@ -415,7 +415,7 @@ namespace Alco.Test
                     Assert.IsTrue(actual.Add((long)rayHits[j].Collider.UnsafePointer),
                         $"ray collector reported a collider twice at ray {i}");
                 }
-                Assert.AreEqual(expected.Count, actual.Count, $"ray all-hits set mismatch at ray {i}: expected {expected.Count}, got {actual.Count}");
+                Assert.That(actual.Count, Is.EqualTo(expected.Count), $"ray all-hits set mismatch at ray {i}: expected {expected.Count}, got {actual.Count}");
             }
 
             for (int i = 0; i < queryCount; i++)
@@ -440,7 +440,7 @@ namespace Alco.Test
                     Assert.IsTrue(actual.Add((long)castHits[j].Collider.UnsafePointer),
                         $"box cast reported a collider twice at query {i}");
                 }
-                Assert.AreEqual(expected.Count, actual.Count, $"box cast set mismatch at query {i}: expected {expected.Count}, got {actual.Count}");
+                Assert.That(actual.Count, Is.EqualTo(expected.Count), $"box cast set mismatch at query {i}: expected {expected.Count}, got {actual.Count}");
 
                 // sphere cast
                 ShapeSphere3D sphereShape = new ShapeSphere3D(random.NextVector3(-110, 110), random.NextFloat(0.5f, 10f));
@@ -462,7 +462,7 @@ namespace Alco.Test
                     Assert.IsTrue(actual.Add((long)castHits[j].Collider.UnsafePointer),
                         $"sphere cast reported a collider twice at query {i}");
                 }
-                Assert.AreEqual(expected.Count, actual.Count, $"sphere cast set mismatch at query {i}: expected {expected.Count}, got {actual.Count}");
+                Assert.That(actual.Count, Is.EqualTo(expected.Count), $"sphere cast set mismatch at query {i}: expected {expected.Count}, got {actual.Count}");
 
                 // point cast; half the queries target a collider center to guarantee hits
                 BoundingBox3D target = colliders[random.NextInt(0, count)].GetBoundingBox();
@@ -486,7 +486,7 @@ namespace Alco.Test
                     Assert.IsTrue(actual.Add((long)castHits[j].Collider.UnsafePointer),
                         $"point cast reported a collider twice at query {i}");
                 }
-                Assert.AreEqual(expected.Count, actual.Count, $"point cast set mismatch at point {point}: expected {expected.Count}, got {actual.Count}");
+                Assert.That(actual.Count, Is.EqualTo(expected.Count), $"point cast set mismatch at point {point}: expected {expected.Count}, got {actual.Count}");
             }
 
             rayHits.Dispose();
@@ -528,10 +528,10 @@ namespace Alco.Test
                 Ray3D ray = new Ray3D(random.NextVector3(-130, 130), random.NextVector3(-8, 8));
                 RayCastResult3D a = withDefault.CastRayClosestHit(ray);
                 RayCastResult3D b = withExplicit.CastRayClosestHit(ray);
-                Assert.AreEqual(a.Hit, b.Hit);
+                Assert.That(b.Hit, Is.EqualTo(a.Hit));
                 if (a.Hit)
                 {
-                    Assert.AreEqual(a.HitInfo.Fraction, b.HitInfo.Fraction, 1e-6f);
+                    Assert.That(b.HitInfo.Fraction, Is.EqualTo(a.HitInfo.Fraction).Within(1e-6f));
                     Assert.IsTrue(a.Collider.UnsafePointer == b.Collider.UnsafePointer);
                 }
             }
@@ -631,16 +631,16 @@ namespace Alco.Test
             NativeArrayList<ColliderCastResult3D> hits = new NativeArrayList<ColliderCastResult3D>(300);
             NativeListCollector3D collector = new NativeListCollector3D(&hits);
             bvh.CastPoint(new Vector3(1, 2, 3), ref collector);
-            Assert.AreEqual(300, hits.Length);
+            Assert.That(hits.Length, Is.EqualTo(300));
 
             hits.Clear();
             collector = new NativeListCollector3D(&hits);
             bvh.CastSphere(new ShapeSphere3D(new Vector3(1, 2, 3), 0.1f), ref collector);
-            Assert.AreEqual(300, hits.Length);
+            Assert.That(hits.Length, Is.EqualTo(300));
 
             RayCastResult3D closest = bvh.CastRayClosestHit(new Ray3D(new Vector3(-10, 2, 3), new Vector3(20, 0, 0)));
             Assert.IsTrue(closest.Hit);
-            Assert.AreEqual(0.475f, closest.HitInfo.Fraction, 1e-4f); // x=-0.5 plane: (-0.5 - -10) / 20
+            Assert.That(closest.HitInfo.Fraction, Is.EqualTo(0.475f).Within(1e-4f)); // x=-0.5 plane: (-0.5 - -10) / 20
 
             spheres.Dispose();
             colliders.Dispose();
@@ -654,9 +654,9 @@ namespace Alco.Test
             NativeBvh3D bvh = new NativeBvh3D();
             bvh.BuildTree(Span<ColliderRef3D>.Empty);
 
-            Assert.AreEqual(0, bvh.NodeCount);
-            Assert.AreEqual(0, bvh.LeafCount);
-            Assert.AreEqual(0, bvh.TreeDepth);
+            Assert.That(bvh.NodeCount, Is.EqualTo(0));
+            Assert.That(bvh.LeafCount, Is.EqualTo(0));
+            Assert.That(bvh.TreeDepth, Is.EqualTo(0));
             Assert.IsFalse(bvh.CastRayClosestHit(new Ray3D(Vector3.Zero, Vector3.One)).Hit);
 
             NativeArrayList<RayCastResult3D> rayHits = new NativeArrayList<RayCastResult3D>(8);
@@ -667,7 +667,7 @@ namespace Alco.Test
             bvh.CastBox(new ShapeBox3D(Vector3.Zero, Vector3.One, Quaternion.Identity), ref castCollector);
             bvh.CastSphere(new ShapeSphere3D(Vector3.Zero, 1f), ref castCollector);
             bvh.CastPoint(Vector3.Zero, ref castCollector);
-            Assert.AreEqual(0, rayHits.Length + castHits.Length);
+            Assert.That(rayHits.Length + castHits.Length, Is.EqualTo(0));
 
             rayHits.Dispose();
             castHits.Dispose();

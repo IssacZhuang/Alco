@@ -27,7 +27,7 @@ public class TestJsonPreprocessor
             _files[filename] = Encoding.UTF8.GetBytes(content);
         }
 
-        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string failureReason)
+        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
         {
             if (_files.TryGetValue(path, out var bytes))
             {
@@ -41,7 +41,7 @@ public class TestJsonPreprocessor
             return false;
         }
 
-        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream stream, [NotNullWhen(false)] out string failureReason)
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
         {
             if (_files.TryGetValue(path, out var bytes))
             {
@@ -95,8 +95,8 @@ public class TestJsonPreprocessor
         Assert.That(preprocessor.TryGetJsonDocument("test1", out var doc1), Is.True);
         Assert.That(preprocessor.TryGetJsonDocument("test2", out var doc2), Is.True);
 
-        Assert.That(doc1.RootElement.GetProperty("name").GetString(), Is.EqualTo("Test Object 1"));
-        Assert.That(doc2.RootElement.GetProperty("name").GetString(), Is.EqualTo("Test Object 2"));
+        Assert.That(doc1!.RootElement.GetProperty("name").GetString(), Is.EqualTo("Test Object 1"));
+        Assert.That(doc2!.RootElement.GetProperty("name").GetString(), Is.EqualTo("Test Object 2"));
     }
 
     [Test]
@@ -118,7 +118,7 @@ public class TestJsonPreprocessor
         Assert.That(errors, Is.Empty, "Should have no errors");
         Assert.That(preprocessor.TryGetJsonDocument("concrete1", out var doc), Is.True);
 
-        var rootElement = doc.RootElement;
+        var rootElement = doc!.RootElement;
         Assert.That(rootElement.GetProperty("name").GetString(), Is.EqualTo("Concrete Object"));
         Assert.That(rootElement.GetProperty("baseValue").GetInt32(), Is.EqualTo(100));
 
@@ -146,7 +146,7 @@ public class TestJsonPreprocessor
         Assert.That(errors, Is.Empty, "Should have no errors");
         Assert.That(preprocessor.TryGetJsonDocument("final", out var doc), Is.True);
 
-        var rootElement = doc.RootElement;
+        var rootElement = doc!.RootElement;
         Assert.That(rootElement.GetProperty("value1").GetInt32(), Is.EqualTo(1), "Should inherit from base");
         Assert.That(rootElement.GetProperty("value2").GetInt32(), Is.EqualTo(20), "Should inherit from middle");
         Assert.That(rootElement.GetProperty("value3").GetInt32(), Is.EqualTo(30), "Should override from final");
@@ -172,7 +172,7 @@ public class TestJsonPreprocessor
         Assert.That(errors, Is.Empty, "Should have no errors");
         Assert.That(preprocessor.TryGetJsonDocument("child", out var doc), Is.True);
 
-        var items = doc.RootElement.GetProperty("items").EnumerateArray().ToArray();
+        var items = doc!.RootElement.GetProperty("items").EnumerateArray().ToArray();
         Assert.That(items.Length, Is.EqualTo(4));
         Assert.That(items[0].GetString(), Is.EqualTo("a"));
         Assert.That(items[1].GetString(), Is.EqualTo("b"));
@@ -199,7 +199,7 @@ public class TestJsonPreprocessor
         Assert.That(errors, Is.Empty, "Should have no errors");
         Assert.That(preprocessor.TryGetJsonDocument("child", out var doc), Is.True);
 
-        var data = doc.RootElement.GetProperty("data");
+        var data = doc!.RootElement.GetProperty("data");
         Assert.That(data.TryGetProperty("a", out _), Is.False, "Should not inherit 'a'");
         Assert.That(data.TryGetProperty("b", out _), Is.False, "Should not inherit 'b'");
         Assert.That(data.GetProperty("c").GetInt32(), Is.EqualTo(3), "Should have 'c'");
@@ -333,13 +333,13 @@ public class TestJsonPreprocessor
         Assert.That(errors, Is.Empty, "Should have no errors");
         Assert.That(preprocessor.TryGetJsonDocument("child", out var doc), Is.True);
 
-        var rootElement = doc.RootElement;
+        var rootElement = doc!.RootElement;
         Assert.That(rootElement.GetProperty("baseValue").GetInt32(), Is.EqualTo(100));
         Assert.That(rootElement.GetProperty("childValue").GetInt32(), Is.EqualTo(200));
 
         // Parent should still be accessible since it's not abstract
         Assert.That(preprocessor.TryGetJsonDocument("parent", out var parentDoc), Is.True);
-        Assert.That(parentDoc.RootElement.GetProperty("baseValue").GetInt32(), Is.EqualTo(100));
+        Assert.That(parentDoc!.RootElement.GetProperty("baseValue").GetInt32(), Is.EqualTo(100));
     }
 
     [Test]
@@ -414,7 +414,7 @@ public class TestJsonPreprocessor
         Assert.That(errors, Is.Empty, "Should have no errors");
         Assert.That(preprocessor.TryGetJsonDocument("paladin", out var doc), Is.True);
 
-        var rootElement = doc.RootElement;
+        var rootElement = doc!.RootElement;
 
         // Check properties inheritance and overriding
         var properties = rootElement.GetProperty("properties");
@@ -459,7 +459,7 @@ public class TestJsonPreprocessor
 
         // Verify child document
         Assert.That(preprocessor.TryGetJsonDocument("child", out var childDoc), Is.True);
-        var childRoot = childDoc.RootElement;
+        var childRoot = childDoc!.RootElement;
         Assert.That(childRoot.TryGetProperty("$abstract", out _), Is.False, "Should remove $abstract");
         Assert.That(childRoot.TryGetProperty("$parent", out _), Is.False, "Should remove $parent");
 

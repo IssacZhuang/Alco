@@ -57,6 +57,9 @@ public unsafe class Sdl3Platform : Platform
     {
         Sdl3Window window = new Sdl3Window(device, setting);
         _windows.Add(window.WindowId, window);
+        // The first created view is the main window: bind it as the target for
+        // relative (raw) mouse input.
+        _input.RelativeMouseWindow ??= window;
         return window;
     }
 
@@ -65,6 +68,7 @@ public unsafe class Sdl3Platform : Platform
     {
         if (window is Sdl3Window sdl3Window)
         {
+            _input.ReleaseRelativeMouseWindow(sdl3Window);
             sdl3Window.Dispose();
             _windows.Remove(sdl3Window.WindowId);
             return;

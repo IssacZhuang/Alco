@@ -116,7 +116,7 @@ public class TestScheduler
     [Test]
     public void TestErrorHandling()
     {
-        Exception caughtException = null;
+        Exception? caughtException = null;
         _scheduler.OnError += e => caughtException = e;
 
         _scheduler.Schedule(1, () => throw new InvalidOperationException("Test exception"));

@@ -44,8 +44,10 @@ public class TestMaterial
 
         // Unchanged contents are served from the content cache: repeated access
         // returns the same group object instead of rebuilding it.
-        Assert.AreSame(instance2[0], instance2[0]);
-        Assert.AreSame(instance3[1], instance3[1]);
+        var cachedGroup2 = instance2[0];
+        Assert.That(instance2[0], Is.SameAs(cachedGroup2));
+        var cachedGroup3 = instance3[1];
+        Assert.That(instance3[1], Is.SameAs(cachedGroup3));
     }
 
     [Test]
@@ -93,10 +95,10 @@ public class TestMaterial
         material.SetBuffer(0, renderingSystem.CreateCamera2D(1280, 720, 100));
         GPUResourceGroup? after = instance[0];
         Assert.IsTrue(after != null);
-        Assert.AreNotSame(before, after);
+        Assert.That(before, Is.Not.SameAs(after));
 
         // Steady state: no change, no reassembly.
-        Assert.AreSame(after, instance[0]);
+        Assert.That(instance[0], Is.SameAs(after));
     }
 
     [Test]
@@ -284,7 +286,7 @@ public class TestMaterial
         }
         long after = System.GC.GetAllocatedBytesForCurrentThread();
         TestContext.WriteLine($"chunk1: {mid - before} B, chunk2: {after - mid} B");
-        Assert.AreEqual(0, after - mid);
+        Assert.That(after - mid, Is.EqualTo(0));
     }
 
     private static bool IsDirty(Camera2DBuffer camera)

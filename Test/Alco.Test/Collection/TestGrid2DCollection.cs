@@ -61,7 +61,7 @@ public class TestGrid2DCollection
         Assert.That(grid.Infos.Count, Is.EqualTo(1));
 
         // Verify the data was updated
-        bool result = grid.TryGet(1, 1, out string data);
+        bool result = grid.TryGet(1, 1, out string? data);
         Assert.That(result, Is.True);
         Assert.That(data, Is.EqualTo("updated"));
 
@@ -79,7 +79,7 @@ public class TestGrid2DCollection
         grid.AddOrUpdate(1, 1, "center");
 
         // Test valid get
-        bool result = grid.TryGet(1, 1, out string data);
+        bool result = grid.TryGet(1, 1, out string? data);
         Assert.That(result, Is.True);
         Assert.That(data, Is.EqualTo("center"));
 
@@ -113,7 +113,7 @@ public class TestGrid2DCollection
         grid.AddOrUpdate(1, 1, "center");
 
         // Test valid remove
-        bool result = grid.TryRemove(1, 1, out string data);
+        bool result = grid.TryRemove(1, 1, out string? data);
         Assert.That(result, Is.True);
         Assert.That(data, Is.EqualTo("center"));
         Assert.That(grid.Infos.Count, Is.EqualTo(0));
@@ -155,7 +155,7 @@ public class TestGrid2DCollection
         Assert.That(grid.Infos.Count, Is.EqualTo(0));
 
         // Verify cells are empty
-        bool result = grid.TryGet(0, 0, out string data);
+        bool result = grid.TryGet(0, 0, out string? data);
         Assert.That(result, Is.False);
         Assert.That(data, Is.Null);
 

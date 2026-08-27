@@ -49,18 +49,24 @@ public class TestAttachmentLayout
         Shader shader = engine.BuiltInAssets.Shader_Sprite;
         // The sprite module is generic (MainPS<let Repeated>): pin the default.
 
-        GPUPipeline pipeline1 = shader.GetGraphicsPipeline(pass1, false).Pipeline;
-        GPUPipeline pipeline2 = shader.GetGraphicsPipeline(pass2, false).Pipeline;
-        GPUPipeline pipeline3 = shader.GetGraphicsPipeline(pass3, false).Pipeline;
-        GPUPipeline pipeline4 = shader.GetGraphicsPipeline(pass4, false).Pipeline;
+        GPUPipeline? pipeline1 = shader.GetGraphicsPipeline(pass1, false).Pipeline;
+        GPUPipeline? pipeline2 = shader.GetGraphicsPipeline(pass2, false).Pipeline;
+        GPUPipeline? pipeline3 = shader.GetGraphicsPipeline(pass3, false).Pipeline;
+        GPUPipeline? pipeline4 = shader.GetGraphicsPipeline(pass4, false).Pipeline;
 
-        Assert.IsTrue(pipeline1.GetHashCode() == pipeline2.GetHashCode());
+        // Every layout must yield a usable pipeline.
+        Assert.That(pipeline1, Is.Not.Null);
+        Assert.That(pipeline2, Is.Not.Null);
+        Assert.That(pipeline3, Is.Not.Null);
+        Assert.That(pipeline4, Is.Not.Null);
+
+        Assert.IsTrue(pipeline1!.GetHashCode() == pipeline2!.GetHashCode());
         Assert.IsTrue(pipeline1 == pipeline2);
 
-        Assert.IsFalse(pipeline1.GetHashCode() == pipeline3.GetHashCode());
+        Assert.IsFalse(pipeline1.GetHashCode() == pipeline3!.GetHashCode());
         Assert.IsFalse(pipeline1 == pipeline3);
 
-        Assert.IsFalse(pipeline1.GetHashCode() == pipeline4.GetHashCode());
+        Assert.IsFalse(pipeline1.GetHashCode() == pipeline4!.GetHashCode());
         Assert.IsFalse(pipeline1 == pipeline4);
     }
 }

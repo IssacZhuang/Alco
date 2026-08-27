@@ -146,15 +146,15 @@ public class TestModelAsset
                 Assert.That(model.Mesh.LodCount, Is.EqualTo(1));
 
                 // Explicit binding, case-insensitive slot lookup.
-                Assert.That(model.TryGetMaterial("wall", out MaterialAsset wall), Is.True);
+                Assert.That(model.TryGetMaterial("wall", out MaterialAsset? wall), Is.True);
                 Assert.That(wall, Is.SameAs(assets.Load<MaterialAsset>("wall.amat")));
 
                 // Unbound mesh slots ("roof" has no binding) fall back to the default material.
-                Assert.That(model.TryGetMaterial("roof", out MaterialAsset roofDefault), Is.True);
+                Assert.That(model.TryGetMaterial("roof", out MaterialAsset? roofDefault), Is.True);
                 Assert.That(roofDefault, Is.SameAs(model.DefaultMaterial));
 
                 // Bindings targeting slot names the mesh does not carry stay inert.
-                Assert.That(model.TryGetMaterial("does-not-exist", out MaterialAsset fallback), Is.True);
+                Assert.That(model.TryGetMaterial("does-not-exist", out MaterialAsset? fallback), Is.True);
                 Assert.That(fallback, Is.SameAs(model.DefaultMaterial));
 
                 Assert.That(model.GetUnboundSlotNames(), Is.EqualTo(new[] { "roof" }));
@@ -215,14 +215,14 @@ public class TestModelAsset
             Assert.Multiple(() =>
             {
                 // Two slots sharing one material file share the cached instance...
-                Assert.That(a.TryGetMaterial("wall", out MaterialAsset aw), Is.True);
-                Assert.That(a.TryGetMaterial("roof", out MaterialAsset ar), Is.True);
+                Assert.That(a.TryGetMaterial("wall", out MaterialAsset? aw), Is.True);
+                Assert.That(a.TryGetMaterial("roof", out MaterialAsset? ar), Is.True);
                 Assert.That(aw, Is.SameAs(ar));
                 // ...and so do different models referencing the same file.
-                Assert.That(b.TryGetMaterial("wall", out MaterialAsset bw), Is.True);
+                Assert.That(b.TryGetMaterial("wall", out MaterialAsset? bw), Is.True);
                 Assert.That(bw, Is.SameAs(aw));
                 // Without a default material, an unbound slot resolves to nothing.
-                Assert.That(a.TryGetMaterial("missing", out MaterialAsset none), Is.False);
+                Assert.That(a.TryGetMaterial("missing", out MaterialAsset? none), Is.False);
                 Assert.That(none, Is.Null);
             });
         });

@@ -195,11 +195,11 @@ public unsafe class TestCollisionWorld2D
 
         // Ray from left to right along x-axis at y=0; should hit the box with id 0 first
         Ray2D ray1 = new Ray2D(new Vector2(-10, 0), new Vector2(100, 0));
-        bool hit1 = world.TryCastRayClosestHit<TestBoxTarget>(ray1, out TestBoxTarget hitObject1, out RaycastHit2D hitInfo1);
+        bool hit1 = world.TryCastRayClosestHit<TestBoxTarget>(ray1, out TestBoxTarget? hitObject1, out RaycastHit2D hitInfo1);
 
         // Ray above boxes at y=5, no hit expected
         Ray2D ray2 = new Ray2D(new Vector2(-10, 5), new Vector2(100, 0));
-        bool hit2 = world.TryCastRayClosestHit<TestBoxTarget>(ray2, out TestBoxTarget hitObject2, out RaycastHit2D hitInfo2);
+        bool hit2 = world.TryCastRayClosestHit<TestBoxTarget>(ray2, out TestBoxTarget? hitObject2, out RaycastHit2D hitInfo2);
 
         Assert.That(hit1, Is.True);
         Assert.That(hitObject1, Is.Not.Null);

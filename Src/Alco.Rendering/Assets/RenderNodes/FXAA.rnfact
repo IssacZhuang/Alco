@@ -7,6 +7,7 @@
         "sceneCopyShader": "Blit",
         "fxaaShader": "FXAA",
         "quality": "Medium",
-        "threshold": 0.125
+        "threshold": 0.125,
+        "subpix": 0.75
     }
 }

@@ -18,7 +18,7 @@ namespace Alco.Test
         [Test(Description = "WeakReference")]
         public void TestWeakReference()
         {
-            TestObject obj = new TestObject(){
+            TestObject? obj = new TestObject(){
                 Value = 123
             };
             WeakReference reference = new WeakReference(obj);

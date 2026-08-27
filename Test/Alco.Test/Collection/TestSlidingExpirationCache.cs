@@ -121,7 +121,7 @@ namespace Alco.Test
             var cache = new SlidingExpirationCache<string>(TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(250));
 
             // Add a null value
-            string value = cache.GetOrAdd<string>("key1", k => null);
+            string? value = cache.GetOrAdd<string?>("key1", k => null);
             Assert.That(value, Is.Null, "Should allow storing null values");
 
             // Retrieve the null value

@@ -20,6 +20,12 @@ public class TestDirectoryOptionCache
     /// </summary>
     private class LifeCycleProvider : IAssetSystemHost, IDisposable
     {
+        public LifeCycleProvider()
+        {
+            // The fake ignores host callbacks; subscribing keeps the event non-null.
+            OnDispose += () => { };
+        }
+
         public event Action OnDispose;
         public void Dispose() { OnDispose?.Invoke(); }
         public void LogError(ReadOnlySpan<char> message) { }
@@ -45,7 +51,7 @@ public class TestDirectoryOptionCache
         public void RemoveFile(string filename) => _files.Remove(filename);
         public void Clear() => _files.Clear();
 
-        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string failureReason)
+        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
         {
             if (_files.TryGetValue(path, out var bytes))
             {
@@ -58,7 +64,7 @@ public class TestDirectoryOptionCache
             return false;
         }
 
-        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream stream, [NotNullWhen(false)] out string failureReason)
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
         {
             if (_files.TryGetValue(path, out var bytes))
             {
@@ -147,8 +153,9 @@ public class TestDirectoryOptionCache
         bool result = cache.TryGetOption("Textures/Weapons", out var option);
 
         Assert.IsTrue(result, "Should return true when an option file exists.");
-        Assert.AreEqual("Sword", option.Name);
-        Assert.AreEqual(42, option.Value);
+        Assert.That(option, Is.Not.Null);
+        Assert.That(option!.Name, Is.EqualTo("Sword"));
+        Assert.That(option.Value, Is.EqualTo(42));
     }
 
     /// <summary>
@@ -168,8 +175,9 @@ public class TestDirectoryOptionCache
         bool result = cache.TryGetOption("Textures/Weapons", out var option);
 
         Assert.IsTrue(result);
-        Assert.AreEqual("A", option.Name, "Child should inherit parent Name when child Name is null.");
-        Assert.AreEqual(10, option.Value, "Child Value should override parent (null) Value.");
+        Assert.That(option, Is.Not.Null);
+        Assert.That(option!.Name, Is.EqualTo("A"), "Child should inherit parent Name when child Name is null.");
+        Assert.That(option.Value, Is.EqualTo(10), "Child Value should override parent (null) Value.");
     }
 
     /// <summary>
@@ -189,8 +197,9 @@ public class TestDirectoryOptionCache
         bool result = cache.TryGetOption("Textures/Weapons", out var option);
 
         Assert.IsTrue(result);
-        Assert.AreEqual("B", option.Name, "Child Name should override parent Name.");
-        Assert.AreEqual(5, option.Value, "Child should inherit parent Value when child Value is null.");
+        Assert.That(option, Is.Not.Null);
+        Assert.That(option!.Name, Is.EqualTo("B"), "Child Name should override parent Name.");
+        Assert.That(option.Value, Is.EqualTo(5), "Child should inherit parent Value when child Value is null.");
     }
 
     /// <summary>
@@ -212,8 +221,9 @@ public class TestDirectoryOptionCache
         bool result = cache.TryGetOption("Textures/Weapons/Swords", out var option);
 
         Assert.IsTrue(result);
-        Assert.AreEqual("leaf", option.Name, "Leaf Name should override root Name.");
-        Assert.AreEqual(10, option.Value, "Leaf should inherit Value from mid level.");
+        Assert.That(option, Is.Not.Null);
+        Assert.That(option!.Name, Is.EqualTo("leaf"), "Leaf Name should override root Name.");
+        Assert.That(option.Value, Is.EqualTo(10), "Leaf should inherit Value from mid level.");
     }
 
     /// <summary>
@@ -239,8 +249,9 @@ public class TestDirectoryOptionCache
 
         bool result2 = cache.TryGetOption("Textures/Weapons", out var option2);
         Assert.IsTrue(result2, "Should return true after MarkEntriesDirty triggers auto-invalidation.");
-        Assert.AreEqual("Fresh", option2.Name);
-        Assert.AreEqual(99, option2.Value);
+        Assert.That(option2, Is.Not.Null);
+        Assert.That(option2!.Name, Is.EqualTo("Fresh"));
+        Assert.That(option2.Value, Is.EqualTo(99));
 
         // Manual Invalidate also works — clears cache so next query re-discovers.
         cache.Invalidate();
@@ -272,8 +283,9 @@ public class TestDirectoryOptionCache
         // Child has a valid file — should still load correctly.
         bool childResult = cache.TryGetOption("Textures/Weapons", out var childOption);
         Assert.IsTrue(childResult, "Valid child option should still be discovered.");
-        Assert.AreEqual("Valid", childOption.Name);
-        Assert.AreEqual(7, childOption.Value);
+        Assert.That(childOption, Is.Not.Null);
+        Assert.That(childOption!.Name, Is.EqualTo("Valid"));
+        Assert.That(childOption.Value, Is.EqualTo(7));
     }
 
     /// <summary>
@@ -302,8 +314,9 @@ public class TestDirectoryOptionCache
         // Cache should auto-invalidate via version check
         bool result2 = cache.TryGetOption("Textures/Weapons", out var option2);
         Assert.IsTrue(result2, "Should return true after file source added.");
-        Assert.AreEqual("Fresh", option2.Name);
-        Assert.AreEqual(99, option2.Value);
+        Assert.That(option2, Is.Not.Null);
+        Assert.That(option2!.Name, Is.EqualTo("Fresh"));
+        Assert.That(option2.Value, Is.EqualTo(99));
 
         newSource.Dispose();
     }
@@ -321,7 +334,8 @@ public class TestDirectoryOptionCache
         var cache = new TestOptionCache(_assetSystem);
         bool result1 = cache.TryGetOption("Textures/Weapons", out var option1);
         Assert.IsTrue(result1);
-        Assert.AreEqual("Sword", option1.Name);
+        Assert.That(option1, Is.Not.Null);
+        Assert.That(option1!.Name, Is.EqualTo("Sword"));
 
         int versionBefore = _assetSystem.Version;
 
@@ -376,7 +390,7 @@ public class TestDirectoryOptionCache
             try
             {
                 bool result = cache.TryGetOption("Root/Child", out var option);
-                if (result)
+                if (result && option != null)
                 {
                     // Thread-safe read of first result
                     if (firstResult)
@@ -397,8 +411,8 @@ public class TestDirectoryOptionCache
 
         // Verify the first result was correct
         Assert.IsFalse(firstResult, "Should have found an option.");
-        Assert.AreEqual("Root", lastName, "All concurrent reads should get same merged Name.");
-        Assert.AreEqual(2, lastValue, "All concurrent reads should get same merged Value.");
+        Assert.That(lastName, Is.EqualTo("Root"), "All concurrent reads should get same merged Name.");
+        Assert.That(lastValue, Is.EqualTo(2), "All concurrent reads should get same merged Value.");
     }
 
     /// <summary>

@@ -32,6 +32,9 @@ public enum FXAAQuality
 /// <summary>
 /// Fast Approximate Anti-Aliasing (FXAA) post-processing effect.
 /// Provides screen-space anti-aliasing with minimal performance cost.
+/// FXAA 3.11's luma-based edge detection assumes tone-mapped input: register
+/// the node after the tonemap node — on linear HDR the bright regions dominate
+/// the luma range and edges in the darks get missed or over-blurred.
 /// </summary>
 public class FXAA : TextureProcessor
 {
@@ -54,6 +57,8 @@ public class FXAA : TextureProcessor
 
     // Threshold mirrored on the CPU: the uniform buffer is write-only by name.
     private float _threshold = 0.125f;
+    // Subpixel AA amount, likewise mirrored (see Threshold).
+    private float _subpix = 0.75f;
     // Reflection-driven uniform buffer over the shader's fxaaData block — no
     // hand-written CPU twin (the alignment padding lives in the reflected layout).
     private readonly UniformGraphicsBuffer _fxaaShaderData;
@@ -95,6 +100,22 @@ public class FXAA : TextureProcessor
     }
 
     /// <summary>
+    /// Gets or sets the subpixel aliasing removal amount.
+    /// Higher values remove more subpixel aliasing but blur more detail.
+    /// Valid range: 0 - 1, Default: 0.75
+    /// </summary>
+    public float Subpix
+    {
+        get => _subpix;
+        set
+        {
+            _subpix = Math.Clamp(value, 0.0f, 1.0f);
+            _fxaaShaderData.SetValue("subpix", _subpix);
+            _fxaaShaderData.Flush();
+        }
+    }
+
+    /// <summary>
     /// Initializes a new instance of the FXAA post-processing effect.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance</param>
@@ -120,6 +141,7 @@ public class FXAA : TextureProcessor
             "fxaa_data");
         _fxaaShaderData.SetValue("invFrameSize", Vector2.One);
         _fxaaShaderData.SetValue("threshold", _threshold);
+        _fxaaShaderData.SetValue("subpix", _subpix);
         _fxaaShaderData.Flush();
         _fxaaMaterial.SetBuffer(ShaderId_fxaaData, _fxaaShaderData);
     }
@@ -128,9 +150,10 @@ public class FXAA : TextureProcessor
     // recreating or resizing it lazily when either changed since the last blit.
     private void EnsureIntermediate(RenderTexture input)
     {
-        // The intermediate texture must keep the input's pixel format: rendering through
-        // an 8-bit SDR target here would quantize the linear HDR image before tone
-        // mapping and produce severe banding in dark areas.
+        // The intermediate texture must keep the input's pixel format: rendering
+        // through a lower-precision target here would quantize the input's range
+        // (e.g. severe banding in dark areas when the node sits on a linear HDR
+        // chain before tone mapping).
         PixelFormat inputFormat = input.AttachmentLayout.Colors[0].Format;
         if (_intermediateTexture != null && _intermediateLayout!.Colors[0].Format == inputFormat)
         {

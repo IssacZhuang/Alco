@@ -12,9 +12,9 @@ public class TestMemberAccessor
         public string PublicField;
 
         // Array fields and properties for testing
-        public int[] ValueTypeArray { get; set; }
+        public int[]? ValueTypeArray { get; set; }
         public string[] ObjectTypeArray;
-        public object[] MixedObjectArray { get; set; }
+        public object?[] MixedObjectArray { get; set; }
 
         private int _privateProperty { get; set; }
         private string _privateField;
@@ -42,7 +42,7 @@ public class TestMemberAccessor
             // Initialize arrays with default values
             ValueTypeArray = new int[] { 0 };
             ObjectTypeArray = new string[] { string.Empty };
-            MixedObjectArray = new object[] { null };
+            MixedObjectArray = new object?[] { null };
         }
     }
 
@@ -125,8 +125,8 @@ public class TestMemberAccessor
         var reflectionCtor = _reflectionAccessor.CreateParameterizedConstructor<TestClass, int, string, object, object>(classCtor!);
         var reflectionEmitCtor = _reflectionEmitAccessor.CreateParameterizedConstructor<TestClass, int, string, object, object>(classCtor!);
 
-        var reflectionInstance = reflectionCtor(100, "Test", null, null);
-        var reflectionEmitInstance = reflectionEmitCtor(100, "Test", null, null);
+        var reflectionInstance = reflectionCtor!(100, "Test", null, null);
+        var reflectionEmitInstance = reflectionEmitCtor!(100, "Test", null, null);
 
         Assert.That(reflectionInstance.PublicProperty, Is.EqualTo(100));
         Assert.That(reflectionInstance.PublicField, Is.EqualTo("Test"));
@@ -277,10 +277,10 @@ public class TestMemberAccessor
         var classType = typeof(TestClass);
         var propertyInfo = classType.GetProperty(nameof(TestClass.MixedObjectArray))!;
 
-        var reflectionGetter = _reflectionAccessor.CreatePropertyGetter<object[]>(propertyInfo);
-        var reflectionEmitGetter = _reflectionEmitAccessor.CreatePropertyGetter<object[]>(propertyInfo);
-        var reflectionSetter = _reflectionAccessor.CreatePropertySetter<object[]>(propertyInfo);
-        var reflectionEmitSetter = _reflectionEmitAccessor.CreatePropertySetter<object[]>(propertyInfo);
+        var reflectionGetter = _reflectionAccessor.CreatePropertyGetter<object?[]>(propertyInfo);
+        var reflectionEmitGetter = _reflectionEmitAccessor.CreatePropertyGetter<object?[]>(propertyInfo);
+        var reflectionSetter = _reflectionAccessor.CreatePropertySetter<object?[]>(propertyInfo);
+        var reflectionEmitSetter = _reflectionEmitAccessor.CreatePropertySetter<object?[]>(propertyInfo);
 
         var instance = new TestClass();
 
@@ -302,7 +302,7 @@ public class TestMemberAccessor
         reflectionSetter(instance, newArray);
         Assert.That(instance.MixedObjectArray, Is.EqualTo(newArray));
 
-        var anotherArray = new object[] { 99, "Test", null, 2.5 };
+        var anotherArray = new object?[] { 99, "Test", null, 2.5 };
         reflectionEmitSetter(instance, anotherArray);
         Assert.That(instance.MixedObjectArray, Is.EqualTo(anotherArray));
     }
@@ -313,8 +313,8 @@ public class TestMemberAccessor
         var classType = typeof(TestClass);
         var propertyInfo = classType.GetProperty(nameof(TestClass.ValueTypeArray))!;
 
-        var reflectionSetter = _reflectionAccessor.CreatePropertySetter<int[]>(propertyInfo);
-        var reflectionEmitSetter = _reflectionEmitAccessor.CreatePropertySetter<int[]>(propertyInfo);
+        var reflectionSetter = _reflectionAccessor.CreatePropertySetter<int[]?>(propertyInfo);
+        var reflectionEmitSetter = _reflectionEmitAccessor.CreatePropertySetter<int[]?>(propertyInfo);
         var reflectionGetter = _reflectionAccessor.CreatePropertyGetter<int[]>(propertyInfo);
         var reflectionEmitGetter = _reflectionEmitAccessor.CreatePropertyGetter<int[]>(propertyInfo);
 

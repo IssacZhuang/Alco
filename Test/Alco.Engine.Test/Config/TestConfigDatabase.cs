@@ -55,7 +55,7 @@ namespace Alco.Engine.Test
                 _files.Clear();
             }
 
-            public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string failureReason)
+            public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
             {
                 if (_files.TryGetValue(path, out var bytes))
                 {
@@ -69,7 +69,7 @@ namespace Alco.Engine.Test
                 return false;
             }
 
-            public bool TryGetStream(string path, [NotNullWhen(true)] out Stream stream, [NotNullWhen(false)] out string failureReason)
+            public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
             {
                 if (_files.TryGetValue(path, out var bytes))
                 {
@@ -224,7 +224,7 @@ namespace Alco.Engine.Test
             // Assert
             Assert.That(config, Is.Not.Null);
             Assert.That(config, Is.InstanceOf<TestConfig>());
-            var testConfig = (TestConfig)config;
+            var testConfig = (TestConfig)config!;
             Assert.That(testConfig.Id, Is.EqualTo("test-config-1"));
             Assert.That(testConfig.Name, Is.EqualTo("Test Config"));
             Assert.That(testConfig.Value, Is.EqualTo(42));
@@ -289,7 +289,7 @@ namespace Alco.Engine.Test
             Assert.That(result, Is.True);
             Assert.That(config, Is.Not.Null);
             Assert.That(config, Is.InstanceOf<TestConfig>());
-            var testConfig = (TestConfig)config;
+            var testConfig = (TestConfig)config!;
             Assert.That(testConfig.Id, Is.EqualTo("test-config-1"));
             Assert.That(testConfig.Name, Is.EqualTo("Test Config"));
             Assert.That(testConfig.Value, Is.EqualTo(42));
@@ -465,8 +465,8 @@ namespace Alco.Engine.Test
             Assert.That(result1, Is.True);
             Assert.That(result2, Is.True);
 
-            var testConfig1 = (TestConfig)config1;
-            var testConfig2 = (TestConfig)config2;
+            var testConfig1 = (TestConfig)config1!;
+            var testConfig2 = (TestConfig)config2!;
 
             Assert.That(testConfig1.Value, Is.EqualTo(10));
             Assert.That(testConfig2.Value, Is.EqualTo(20));
@@ -728,8 +728,8 @@ namespace Alco.Engine.Test
             Assert.That(config2, Is.InstanceOf<AnotherDerivedConfig>());
 
             // Verify base properties are accessible
-            var derivedConfig = (DerivedConfig)config1;
-            var anotherDerivedConfig = (AnotherDerivedConfig)config2;
+            var derivedConfig = (DerivedConfig)config1!;
+            var anotherDerivedConfig = (AnotherDerivedConfig)config2!;
 
             Assert.That(derivedConfig.BaseProperty, Is.EqualTo("Base Value"));
             Assert.That(derivedConfig.BaseValue, Is.EqualTo(100));
@@ -1019,7 +1019,7 @@ namespace Alco.Engine.Test
             Assert.That(config, Is.Not.Null);
             Assert.That(config, Is.InstanceOf<TestConfig>());
 
-            var testConfig = (TestConfig)config;
+            var testConfig = (TestConfig)config!;
             Assert.That(testConfig.Id, Is.EqualTo("jsonc-test-config"));
             Assert.That(testConfig.Name, Is.EqualTo("JSONC Test Config"));
             Assert.That(testConfig.Value, Is.EqualTo(42));
@@ -1063,8 +1063,8 @@ namespace Alco.Engine.Test
             Assert.That(configA, Is.InstanceOf<CrossReferenceConfig>());
             Assert.That(configB, Is.InstanceOf<CrossReferenceConfig>());
 
-            var crossConfigA = (CrossReferenceConfig)configA;
-            var crossConfigB = (CrossReferenceConfig)configB;
+            var crossConfigA = (CrossReferenceConfig)configA!;
+            var crossConfigB = (CrossReferenceConfig)configB!;
 
             // Verify names
             Assert.That(crossConfigA.Name, Is.EqualTo("Config A"));
@@ -1102,7 +1102,7 @@ namespace Alco.Engine.Test
             Assert.That(result, Is.True);
             Assert.That(config, Is.InstanceOf<CrossReferenceConfig>());
 
-            var crossConfig = (CrossReferenceConfig)config;
+            var crossConfig = (CrossReferenceConfig)config!;
             Assert.That(crossConfig.Name, Is.EqualTo("Self Reference Config"));
 
             // Verify self-reference resolves correctly
@@ -1132,7 +1132,7 @@ namespace Alco.Engine.Test
             Assert.That(result, Is.True);
             Assert.That(config, Is.InstanceOf<CrossReferenceConfig>());
 
-            var crossConfig = (CrossReferenceConfig)config;
+            var crossConfig = (CrossReferenceConfig)config!;
             Assert.That(crossConfig.Name, Is.EqualTo("Invalid Reference Config"));
 
             // Act & Assert - Accessing the invalid reference should throw
@@ -1197,7 +1197,7 @@ namespace Alco.Engine.Test
             Assert.That(result, Is.True);
             Assert.That(config, Is.InstanceOf<ListReferenceConfig>());
 
-            var listConfig = (ListReferenceConfig)config;
+            var listConfig = (ListReferenceConfig)config!;
             Assert.That(listConfig.Name, Is.EqualTo("List Reference Config"));
 
             // Verify required references
@@ -1230,7 +1230,7 @@ namespace Alco.Engine.Test
             Assert.That(result, Is.True);
             Assert.That(config, Is.InstanceOf<ListReferenceConfig>());
 
-            var listConfig = (ListReferenceConfig)config;
+            var listConfig = (ListReferenceConfig)config!;
 
             // Act & Assert - Accessing invalid required reference should throw
             var exception = Assert.Throws<Exception>(() =>
@@ -1294,7 +1294,7 @@ namespace Alco.Engine.Test
             Assert.That(result, Is.True);
             Assert.That(config, Is.InstanceOf<HashSetReferenceConfig>());
 
-            var hashSetConfig = (HashSetReferenceConfig)config;
+            var hashSetConfig = (HashSetReferenceConfig)config!;
             Assert.That(hashSetConfig.Name, Is.EqualTo("HashSet Reference Config"));
 
             // Verify required references
@@ -1338,7 +1338,7 @@ namespace Alco.Engine.Test
             Assert.That(result, Is.True);
             Assert.That(config, Is.InstanceOf<HashSetReferenceConfig>());
 
-            var hashSetConfig = (HashSetReferenceConfig)config;
+            var hashSetConfig = (HashSetReferenceConfig)config!;
             Assert.That(hashSetConfig.Name, Is.EqualTo("HashSet With Duplicates"));
 
             // HashSet should deduplicate based on reference equality (same Id)
@@ -1393,8 +1393,8 @@ namespace Alco.Engine.Test
             Assert.That(result1, Is.True);
             Assert.That(result2, Is.True);
 
-            var hashSetConfig1 = (HashSetReferenceConfig)config1;
-            var hashSetConfig2 = (HashSetReferenceConfig)config2;
+            var hashSetConfig1 = (HashSetReferenceConfig)config1!;
+            var hashSetConfig2 = (HashSetReferenceConfig)config2!;
 
             // Verify the references are equal (same Id) but point to different reference objects
             var ref1 = hashSetConfig1.RequiredRefs.First();
