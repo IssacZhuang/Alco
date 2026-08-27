@@ -938,6 +938,12 @@ public class Game : GameEngine
         return new Vector3(x, y, z);
     }
 
+    // Raw relative mouse deltas are device counts (mickeys), not pixels: a typical
+    // 800-1600 DPI mouse on a 96 DPI display emits ~10 counts per cursor pixel.
+    // Dividing by half that (~5) doubles the camera speed relative to the old
+    // pixel-tuned feel.
+    private const float RawMouseCountScale = 5f;
+
     private void UpdateCamera(float delta)
     {
         // Fixed camera from CLI args (--pos / --look) bypasses orbiting.
@@ -967,15 +973,23 @@ public class Game : GameEngine
             return;
         }
 
-        Input.IsCursorVisible = true;
-
         // Do not orbit/zoom while the mouse is over an ImGui window: dragging a
         // slider or scrolling the panel must not move the camera.
         bool mouseOverImGui = ImGUIInputHandler.IsCapturingMouse;
 
-        if (!mouseOverImGui && Input.IsMousePressing(Mouse.Left))
+        // Orbiting uses relative (raw) mouse input while the left button is held:
+        // the cursor hides during the drag and is restored where the drag started
+        // when the button is released.
+        bool orbiting = MainView.IsFocused && !mouseOverImGui && Input.IsMousePressing(Mouse.Left);
+        Input.IsMouseRelativeMode = orbiting;
+        if (!orbiting)
         {
-            Vector2 mouseDelta = Input.MouseDelta;
+            Input.IsCursorVisible = true;
+        }
+
+        if (orbiting)
+        {
+            Vector2 mouseDelta = Input.MouseDelta / RawMouseCountScale;
             _yaw -= mouseDelta.X * 0.008f;
             _pitch -= mouseDelta.Y * 0.008f;
         }
@@ -999,31 +1013,28 @@ public class Game : GameEngine
         _camera.UpdateMatrixToGPU();
     }
 
-    /// <summary>Free-fly camera: hold the right mouse button to look around
-    /// (the cursor hides and pins to the window center while held, release it
-    /// to free the cursor for ImGui interaction), WASD moves along the view,
+    /// <summary>Free-fly camera: hold the right mouse button to look around with
+    /// relative (raw) input (the cursor hides while held and is restored where it
+    /// was when the button is released), WASD moves along the view,
     /// E/Q or Space/Ctrl moves vertically, Shift speeds up, the wheel tunes
     /// the fly speed while looking.</summary>
     private void UpdateFlyCamera(float delta)
     {
-        // Looking only happens while the right mouse button is held; otherwise
-        // the cursor stays visible and free so ImGui can be operated normally.
+        // Looking only happens while the right mouse button is held; relative
+        // input reports unaccelerated device motion and never hits the screen
+        // edge, otherwise the cursor stays visible and free for ImGui interaction.
         bool looking = MainView.IsFocused && Input.IsMousePressing(Mouse.Right);
-        Input.IsCursorVisible = !looking;
+        Input.IsMouseRelativeMode = looking;
+        if (!looking)
+        {
+            Input.IsCursorVisible = true;
+        }
 
         if (looking)
         {
-            Vector2 mouseDelta = Input.MouseDelta;
+            Vector2 mouseDelta = Input.MouseDelta / RawMouseCountScale;
             _yaw += mouseDelta.X * 0.008f;
             _pitch = Math.Clamp(_pitch - mouseDelta.Y * 0.008f, -1.55f, 1.55f);
-
-            // Keep the OS cursor pinned at the window center so looking never hits
-            // the screen edge; the input system keeps MouseDelta accurate across warps.
-            int2 windowPosition = MainView.Position;
-            uint2 windowSize = MainView.Size;
-            Input.WarpMousePreservingDelta(new Vector2(
-                windowPosition.X + windowSize.X * 0.5f,
-                windowPosition.Y + windowSize.Y * 0.5f));
         }
 
         if (looking && Input.IsMouseScrolling(out Vector2 wheel))

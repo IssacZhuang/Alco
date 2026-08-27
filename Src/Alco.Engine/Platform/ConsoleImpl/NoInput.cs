@@ -16,6 +16,9 @@ public class NoInput : Input
     public override bool IsCursorVisible {get; set; } = true;
 
     /// <inheritdoc />
+    public override bool IsMouseRelativeMode { get; set; }
+
+    /// <inheritdoc />
     public override Vector2 MouseDelta { get; }
 
     public override Vector2 MouseWheelDelta { get; }

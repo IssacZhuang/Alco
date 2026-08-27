@@ -59,6 +59,12 @@ public class Game : GameEngine
 
     private bool _isEditWindowOpen = true;
 
+    // Raw relative mouse deltas are device counts (mickeys), not pixels: a typical
+    // 800-1600 DPI mouse on a 96 DPI display emits ~10 counts per cursor pixel.
+    // Dividing by half that (~5) doubles the camera speed relative to the old
+    // pixel-tuned feel.
+    private const float RawMouseCountScale = 5f;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(
@@ -242,10 +248,15 @@ public class Game : GameEngine
             Stop();
         }
 
-        if (Input.IsMousePressing(Mouse.Middle))
+        // Pan with relative (raw) mouse input while the middle button is held:
+        // the cursor hides during the drag and is restored where the drag started.
+        bool panning = MainView.IsFocused && Input.IsMousePressing(Mouse.Middle);
+        Input.IsMouseRelativeMode = panning;
+        if (panning)
         {
             float speed = _zoom / MainView.Height;
-            _camera.Transform.Position += new Vector2(-Input.MouseDelta.X * speed, Input.MouseDelta.Y * speed);
+            Vector2 mouseDelta = Input.MouseDelta / RawMouseCountScale;
+            _camera.Transform.Position += new Vector2(-mouseDelta.X * speed, mouseDelta.Y * speed);
         }
 
         float wheelDelta = Input.MouseWheelDelta.Y;

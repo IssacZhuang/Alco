@@ -91,7 +91,28 @@ public abstract class Input
     public abstract bool IsCursorVisible { get; set; }
 
     /// <summary>
+    /// Gets or sets whether the mouse uses relative (raw) input for the main view.
+    /// <br/>
+    /// While enabled the cursor is hidden and confined to the window, and
+    /// <see cref="MouseDelta"/> reports raw relative device motion accumulated by the OS
+    /// (Raw Input on Windows): unaffected by OS pointer acceleration ("enhance pointer
+    /// precision"), screen edges, or per-pixel rounding. When the mode is disabled the
+    /// cursor is restored to where it was when the mode was enabled.
+    /// <br/>
+    /// [Attention] Units differ between modes: <see cref="MouseDelta"/> is measured in
+    /// screen pixels while this mode is off, but in raw device counts ("mickeys") while
+    /// it is on. A typical mouse (800-1600 DPI) on a 96 DPI display emits roughly 8-16
+    /// counts per cursor pixel, so consumers that were tuned for pixels (e.g. camera
+    /// sensitivity) need their own scale factor in relative mode. This should be
+    /// accessed on the main thread.
+    /// </summary>
+    public abstract bool IsMouseRelativeMode { get; set; }
+
+    /// <summary>
     /// Gets the delta movement of the mouse.
+    /// <br/>
+    /// In relative mode (see <see cref="IsMouseRelativeMode"/>) this is raw device
+    /// motion in mickeys; otherwise it is cursor motion in screen pixels.
     /// </summary>
     public abstract Vector2 MouseDelta { get; }
 

@@ -29,6 +29,10 @@ public unsafe class Sdl3Input : Input
     private Vector2 _mouseDelta;
     private Vector2 _mouseWheelDelta;
     private Vector2 _warpDelta;
+    private Sdl3Window? _relativeMouseWindow;
+    private bool _isRelativeMode;
+    private bool _relativeTogglePending;
+    private Vector2 _preRelativeMousePosition;
 
     private List<Sdl3Gamepad> _gamepadsRead = new();
     private List<Sdl3Gamepad> _gamepadsWrite = new();
@@ -84,6 +88,82 @@ public unsafe class Sdl3Input : Input
         }
     }
 
+    /// <summary>
+    /// The window relative mouse mode is applied to (the first created view).
+    /// Set by the platform when the main window is created or closed.
+    /// </summary>
+    internal Sdl3Window? RelativeMouseWindow
+    {
+        get => _relativeMouseWindow;
+        set => _relativeMouseWindow = value;
+    }
+
+    /// <inheritdoc />
+    public override bool IsMouseRelativeMode
+    {
+        get => _isRelativeMode;
+        set
+        {
+            if (_isRelativeMode == value)
+            {
+                return;
+            }
+
+            if (_relativeMouseWindow is null)
+            {
+                // No window has been created yet; nothing to lock the mouse to.
+                _isRelativeMode = false;
+                return;
+            }
+
+            if (value)
+            {
+                // Remember where the cursor is so it can be restored on exit.
+                Vector2 global = default;
+                SDL_GetGlobalMouseState(&global.X, &global.Y);
+                _preRelativeMousePosition = global;
+                _ = SDL_SetWindowRelativeMouseMode(_relativeMouseWindow.NativeWindow, true);
+            }
+            else
+            {
+                _ = SDL_SetWindowRelativeMouseMode(_relativeMouseWindow.NativeWindow, false);
+                // Warp after disabling: while relative mode is active a warp may be
+                // routed into the relative stream instead of moving the OS cursor.
+                _ = SDL_WarpMouseGlobal(_preRelativeMousePosition.X, _preRelativeMousePosition.Y);
+            }
+
+            _isRelativeMode = value;
+            _relativeTogglePending = true;
+
+            // SDL flushes pending motion on mode switches; drain the relative
+            // accumulator and resync the pixel-delta baseline so the frame after
+            // the toggle reports exactly zero instead of a jump.
+            Vector2 drained = default;
+            _ = SDL_GetRelativeMouseState(&drained.X, &drained.Y);
+            Vector2 resync = default;
+            SDL_GetGlobalMouseState(&resync.X, &resync.Y);
+            _mousePosition = resync;
+            _lastMousePosition = resync;
+            _warpDelta = Vector2.Zero;
+        }
+    }
+
+    /// <summary>
+    /// Detaches <paramref name="window"/> as the relative-mouse target if it currently
+    /// holds that role, restoring the cursor first so it does not stay hidden.
+    /// </summary>
+    /// <param name="window">The window about to be closed.</param>
+    internal void ReleaseRelativeMouseWindow(Sdl3Window window)
+    {
+        if (!ReferenceEquals(_relativeMouseWindow, window))
+        {
+            return;
+        }
+
+        IsMouseRelativeMode = false;
+        _relativeMouseWindow = null;
+    }
+
     public override Vector2 MouseDelta
     {
         get
@@ -121,12 +201,35 @@ public unsafe class Sdl3Input : Input
 
     internal void Update()
     {
-        Vector2 tmp = default;
-        SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
-        _mousePosition = tmp;
-        _mouseDelta = _mousePosition - _lastMousePosition - _warpDelta;
-        _warpDelta = Vector2.Zero;
-        _lastMousePosition = _mousePosition;
+        if (_relativeTogglePending)
+        {
+            // The mode switched since the last update: report a clean zero so the
+            // transition never leaks a jump into MouseDelta.
+            _relativeTogglePending = false;
+            _mouseDelta = Vector2.Zero;
+        }
+        else if (_isRelativeMode)
+        {
+            // Relative mode: SDL reports accumulated raw device motion (mickeys),
+            // unaffected by pointer acceleration, screen edges, or pixel rounding.
+            Vector2 relative = default;
+            _ = SDL_GetRelativeMouseState(&relative.X, &relative.Y);
+            _mouseDelta = relative;
+
+            // Keep the (hidden, confined) OS position fresh for GUI consumers.
+            Vector2 global = default;
+            _ = SDL_GetGlobalMouseState(&global.X, &global.Y);
+            _mousePosition = global;
+        }
+        else
+        {
+            Vector2 tmp = default;
+            SDL_GetGlobalMouseState(&tmp.X, &tmp.Y);
+            _mousePosition = tmp;
+            _mouseDelta = _mousePosition - _lastMousePosition - _warpDelta;
+            _warpDelta = Vector2.Zero;
+            _lastMousePosition = _mousePosition;
+        }
         Reset();
 
         // reset per-frame gamepad transient states

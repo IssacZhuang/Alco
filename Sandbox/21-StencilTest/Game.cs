@@ -31,6 +31,12 @@ public class Game : GameEngine
 
     private Vector3 _rotationAngles = Vector3.Zero;
 
+    // Raw relative mouse deltas are device counts (mickeys), not pixels: a typical
+    // 800-1600 DPI mouse on a 96 DPI display emits ~10 counts per cursor pixel.
+    // Dividing by half that (~5) doubles the camera speed relative to the old
+    // pixel-tuned feel.
+    private const float RawMouseCountScale = 5f;
+
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(
@@ -137,11 +143,14 @@ public class Game : GameEngine
 
         _camaraParent.Rotation = math.quaternion(_rotationAngles);
 
-        if (Input.IsMousePressing(Mouse.Middle))
+        // Rotate with relative (raw) mouse input while the middle button is held:
+        // the cursor hides during the drag and is restored where the drag started.
+        bool rotating = MainView.IsFocused && Input.IsMousePressing(Mouse.Middle);
+        Input.IsMouseRelativeMode = rotating;
+        if (rotating)
         {
-            //_camaraParent.Rotate(Vector3.UnitY, Input.MouseDelta.Y * 0.01f);
-            // _camaraParent.Rotate(Vector3.UnitZ, Input.MouseDelta.X * 0.01f);
-            _rotationAngles += new Vector3(0, -Input.MouseDelta.Y , Input.MouseDelta.X );
+            Vector2 mouseDelta = Input.MouseDelta / RawMouseCountScale;
+            _rotationAngles += new Vector3(0, -mouseDelta.Y, mouseDelta.X);
         }
 
         _camera.Transform = math.transform(_camaraParent, _camaraChild);
