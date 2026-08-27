@@ -186,9 +186,12 @@ public readonly struct VoxelGiDescriptor
 /// voxelization, direct-light injection, deterministic rotation-balanced
 /// diffuse cone tracing and the off-screen voxel-cone reflection fallback used
 /// by the post-lighting screen-space reflection renderer.
-/// <br/>Mesh geometry is registered once through <see cref="RegisterMesh"/> and
-/// shared by persistent structural instances and per-frame movable instances.
-/// Structural bricks are rebuilt incrementally after edits or camera scrolling.
+/// <br/>Scene objects register once through <see cref="Add"/> as
+/// <see cref="IVoxelGIRenderable"/>s: static ones are baked into the persistent
+/// structural clipmap (their live properties are synced every frame, re-voxelizing
+/// changed bricks), dynamic ones are pulled and re-voxelized on each volume-update
+/// frame. Shared source meshes are uploaded once. Structural bricks are rebuilt
+/// incrementally after edits or camera scrolling.
 /// <br/>Known limitation: registered textures may still be streaming their content
 /// in place (see <see cref="RenderingSystem.CreateTexture2DStreaming"/>). The binding
 /// needs no accommodation — the bound texture object is never replaced, so every
@@ -209,6 +212,55 @@ public readonly struct VoxelGiDescriptor
 /// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
 /// cone-traced with hardware trilinear filtering.
 /// </summary>
+/// <summary>
+/// A renderable object whose surface feeds the <see cref="RGNode_VoxelGI"/> clipmap.
+/// The node registers the object with <see cref="RGNode_VoxelGI.Add"/> once and then
+/// pulls these properties itself: dynamic objects (IsStatic = false) are re-read and
+/// voxelized every volume-update frame; static objects are baked into the persistent
+/// clipmap, with property changes detected automatically at the next frame sync —
+/// treat IsStatic as a promise that properties mutate at low frequency.
+/// </summary>
+public interface IVoxelGIRenderable
+{
+    /// <summary>
+    /// Whether this object belongs to the persistent structural clipmap. Static
+    /// objects must change their transform / surface parameters infrequently:
+    /// each detected change invalidates the previously voxelized bricks.
+    /// High-frequency motion should report false instead.
+    /// </summary>
+    bool IsStatic { get; }
+
+    /// <summary>The single-submesh source mesh.</summary>
+    Mesh Mesh { get; }
+
+    /// <summary>
+    /// The vertex stride in bytes; position, normal and UV must be the first
+    /// attributes of the vertex layout.
+    /// </summary>
+    uint VertexStrideBytes { get; }
+
+    /// <summary>The mesh bounds before the instance transform (assumed constant).</summary>
+    BoundingBox3D LocalBounds { get; }
+
+    /// <summary>
+    /// The material asset whose surface feeds the voxelization; null selects the
+    /// built-in PbrStandard surface.
+    /// </summary>
+    MaterialAsset? Material { get; }
+
+    /// <summary>The world transform of the object (read live every frame).</summary>
+    Matrix4x4 WorldMatrix { get; }
+
+    /// <summary>Linear base color, multiplied with the albedo texture.</summary>
+    Vector4 BaseColor { get; }
+
+    /// <summary>Linear emissive factor, multiplied with the emissive texture.</summary>
+    Vector3 EmissiveFactor { get; }
+
+    /// <summary>Alpha test threshold; 0 disables alpha testing.</summary>
+    float AlphaCutoff { get; }
+}
+
 public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
@@ -251,19 +303,29 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         public required ComputeMaterial Material;
     }
 
-    /// <summary>A persistent structural instance stored in the static clipmap.</summary>
-    private sealed class StaticInstance
+    /// <summary>
+    /// A registered renderable plus its last-seen snapshot. Structural instances
+    /// cache the snapshot so the frame sync can detect property changes; identity
+    /// fields pin which shared geometry + voxelize material was built, letting a
+    /// changed mesh/material on the renderable be detected as a re-registration.
+    /// </summary>
+    private sealed class StaticEntry
     {
+        public required IVoxelGIRenderable Renderable;
         public required MeshRegistration Registration;
+        // Geometry-identity sources the current Registration was built from.
+        public required Mesh SourceMesh;
+        public required uint SourceVertexStride;
+        public required MaterialAsset? SourceMaterial;
+        // Last-seen instance properties (the live values sit on Renderable).
         public Matrix4x4 World;
         public Vector4 BaseColor;
         public Vector3 Emissive;
         public float AlphaCutoff;
         public BoundingBox3D WorldBounds;
-        public bool Active;
     }
 
-    /// <summary>A dynamic mesh instance submitted for one frame.</summary>
+    /// <summary>A dynamic mesh instance pulled from a registered renderable for one frame.</summary>
     private struct DynamicInstance
     {
         public MeshRegistration Registration;
@@ -373,12 +435,14 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     private readonly Dictionary<(Mesh Mesh, uint VertexStrideBytes), MeshGeometry> _geometryByMesh = new();
     private readonly List<MeshGeometry> _geometries = new();
-    private readonly List<MeshRegistration> _meshes = new();
-    private readonly List<StaticInstance?> _staticInstances = new();
-    private readonly Stack<int> _freeStaticInstanceHandles = new();
+    // Registered static / dynamic renderables keyed by reference. Static entries
+    // live permanently in the structural clipmap; dynamic registrations only pin
+    // the per-renderable voxelize material so the frame pull can build instances.
+    private readonly Dictionary<IVoxelGIRenderable, StaticEntry> _staticEntries = new();
+    private readonly Dictionary<IVoxelGIRenderable, MeshRegistration> _dynamicRegistrations = new();
     private readonly BvhAabb3D _staticBvh = new();
     private readonly List<BoundingBox3D> _staticBvhBounds = new();
-    private readonly List<StaticInstance> _staticBvhInstances = new();
+    private readonly List<StaticEntry> _staticBvhEntries = new();
     private readonly List<int> _staticBvhResults = new();
     private bool _staticBvhDirty = true;
     private readonly BvhAabb3D _dynamicBvh = new();
@@ -1035,22 +1099,83 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Registers a mesh and its GI material. Vertex and index data are copied once per
-    /// source mesh and shared by all material registrations and instances.
+    /// Registers a renderable into the voxel clipmap. Static objects (see
+    /// <see cref="IVoxelGIRenderable.IsStatic"/>) are baked into the persistent
+    /// structural clipmap; dynamic ones are re-read and re-voxelized on every
+    /// volume-update frame. Registering the same object reference twice is a
+    /// no-op. Shared source meshes are uploaded once and reused by every
+    /// registration that references them.
     /// </summary>
-    /// <param name="mesh">The single-submesh source mesh.</param>
-    /// <param name="vertexStrideBytes">The vertex stride; position, normal and UV must be the first attributes.</param>
-    /// <param name="localBounds">The mesh bounds before the instance transform.</param>
-    /// <param name="material">The material asset whose surface feeds the voxelization;
-    /// null selects the built-in PbrStandard surface. The asset's texture bindings
-    /// (<see cref="MaterialAsset.Textures"/>) and fallback policy bind the surface's
-    /// texture slots once, when the voxelize material of the asset is compiled.</param>
-    /// <returns>A mesh-material handle accepted by static and dynamic instance methods.</returns>
-    public int RegisterMesh(
+    public void Add(IVoxelGIRenderable renderable)
+    {
+        // Registration is idempotent per reference; the containment checks run
+        // first because building an entry / registration has side effects.
+        if (renderable.IsStatic)
+        {
+            if (_staticEntries.ContainsKey(renderable))
+            {
+                return;
+            }
+            _staticEntries.Add(renderable, CreateStaticEntry(renderable));
+        }
+        else
+        {
+            if (_dynamicRegistrations.ContainsKey(renderable))
+            {
+                return;
+            }
+            _dynamicRegistrations.Add(renderable, CreateRegistration(
+                renderable.Mesh, renderable.VertexStrideBytes, renderable.LocalBounds, renderable.Material));
+        }
+    }
+
+    /// <summary>
+    /// Removes a registered renderable. A static removal schedules its occupied
+    /// bricks for repair; a dynamic one merely drops the per-renderable voxelize
+    /// material. Removing an unregistered reference is a no-op.
+    /// </summary>
+    public void Remove(IVoxelGIRenderable renderable)
+    {
+        if (_staticEntries.Remove(renderable, out StaticEntry? entry))
+        {
+            InvalidateStatic(entry.WorldBounds);
+            _staticBvhDirty = true;
+        }
+        _dynamicRegistrations.Remove(renderable);
+    }
+
+    private StaticEntry CreateStaticEntry(IVoxelGIRenderable renderable)
+    {
+        BoundingBox3D worldBounds = renderable.LocalBounds.Transform(renderable.WorldMatrix);
+        InvalidateStatic(worldBounds);
+        _staticBvhDirty = true;
+        return new StaticEntry
+        {
+            Renderable = renderable,
+            Registration = CreateRegistration(
+                renderable.Mesh, renderable.VertexStrideBytes, renderable.LocalBounds, renderable.Material),
+            SourceMesh = renderable.Mesh,
+            SourceVertexStride = renderable.VertexStrideBytes,
+            SourceMaterial = renderable.Material,
+            World = renderable.WorldMatrix,
+            BaseColor = renderable.BaseColor,
+            Emissive = renderable.EmissiveFactor,
+            AlphaCutoff = renderable.AlphaCutoff,
+            WorldBounds = worldBounds,
+        };
+    }
+
+    /// <summary>
+    /// Builds a voxelize material registration: vertex and index data are copied
+    /// once per (mesh, stride) and shared by all registrations and instances;
+    /// each registration gets its own instance of the asset's compiled voxelize
+    /// material binding those buffers.
+    /// </summary>
+    private MeshRegistration CreateRegistration(
         Mesh mesh,
         uint vertexStrideBytes,
         in BoundingBox3D localBounds,
-        MaterialAsset? material = null)
+        MaterialAsset? material)
     {
         if (!_geometryByMesh.TryGetValue((mesh, vertexStrideBytes), out MeshGeometry? geometry))
         {
@@ -1066,12 +1191,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         voxelize.SetBuffer("vertices", geometry.Vertices);
         voxelize.SetBuffer("indices", geometry.Indices);
 
-        _meshes.Add(new MeshRegistration
+        return new MeshRegistration
         {
             Geometry = geometry,
             Material = voxelize,
-        });
-        return _meshes.Count - 1;
+        };
     }
 
     /// <summary>
@@ -1082,7 +1206,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// the surface's texture slots and parameter blocks bind from the asset once,
     /// here; the shared per-frame <c>_data</c> buffer binds on top. Each mesh
     /// registration derives a <see cref="ComputeMaterialInstance"/> from this
-    /// parent to pin its geometry buffers (see <see cref="RegisterMesh"/>).
+    /// parent to pin its geometry buffers (see <see cref="Add"/>).
     /// </summary>
     private ComputeMaterial GetVoxelizeMaterial(MaterialAsset? asset)
     {
@@ -1095,120 +1219,78 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         });
     }
 
-    /// <summary>Adds persistent structural geometry to the incrementally updated clipmap.</summary>
-    /// <param name="meshHandle">The handle returned by <see cref="RegisterMesh"/>.</param>
-    /// <param name="world">The local-to-world transform.</param>
-    /// <param name="baseColor">The linear base color.</param>
-    /// <param name="emissiveFactor">The linear emissive factor.</param>
-    /// <param name="alphaCutoff">The alpha-test threshold; zero disables alpha testing.</param>
-    /// <returns>A persistent instance handle.</returns>
-    public int AddStaticInstance(
-        int meshHandle,
-        in Matrix4x4 world,
-        in Vector4 baseColor,
-        in Vector3 emissiveFactor,
-        float alphaCutoff)
-    {
-        MeshRegistration registration = _meshes[meshHandle];
-        BoundingBox3D worldBounds = registration.Geometry.LocalBounds.Transform(world);
-        var instance = new StaticInstance
-        {
-            Registration = registration,
-            World = world,
-            BaseColor = baseColor,
-            Emissive = emissiveFactor,
-            AlphaCutoff = alphaCutoff,
-            WorldBounds = worldBounds,
-            Active = true,
-        };
-
-        int handle;
-        if (_freeStaticInstanceHandles.TryPop(out int freeHandle))
-        {
-            handle = freeHandle;
-            _staticInstances[handle] = instance;
-        }
-        else
-        {
-            handle = _staticInstances.Count;
-            _staticInstances.Add(instance);
-        }
-        InvalidateStatic(worldBounds);
-        _staticBvhDirty = true;
-        return handle;
-    }
-
-    /// <summary>Updates one structural instance and invalidates only its previous and new bounds.</summary>
-    /// <param name="instanceHandle">The handle returned by <see cref="AddStaticInstance"/>.</param>
-    /// <param name="world">The new local-to-world transform.</param>
-    /// <param name="baseColor">The new linear base color.</param>
-    /// <param name="emissiveFactor">The new linear emissive factor.</param>
-    /// <param name="alphaCutoff">The new alpha-test threshold.</param>
-    public void UpdateStaticInstance(
-        int instanceHandle,
-        in Matrix4x4 world,
-        in Vector4 baseColor,
-        in Vector3 emissiveFactor,
-        float alphaCutoff)
-    {
-        StaticInstance instance = GetStaticInstance(instanceHandle);
-        BoundingBox3D previousBounds = instance.WorldBounds;
-        instance.World = world;
-        instance.BaseColor = baseColor;
-        instance.Emissive = emissiveFactor;
-        instance.AlphaCutoff = alphaCutoff;
-        instance.WorldBounds = instance.Registration.Geometry.LocalBounds.Transform(world);
-        InvalidateStatic(previousBounds);
-        InvalidateStatic(instance.WorldBounds);
-        _staticBvhDirty = true;
-    }
-
-    /// <summary>Removes one structural instance and schedules its occupied bricks for repair.</summary>
-    /// <param name="instanceHandle">The handle returned by <see cref="AddStaticInstance"/>.</param>
-    public void RemoveStaticInstance(int instanceHandle)
-    {
-        StaticInstance instance = GetStaticInstance(instanceHandle);
-        InvalidateStatic(instance.WorldBounds);
-        instance.Active = false;
-        _staticInstances[instanceHandle] = null;
-        _freeStaticInstanceHandles.Push(instanceHandle);
-        _staticBvhDirty = true;
-    }
-
     /// <summary>
-    /// Submit one instance of a registered dynamic mesh for voxelization this
-    /// frame. The instance list is consumed by <see cref="Render"/>.
+    /// Detects static entries whose live properties changed since the last frame:
+    /// any change refreshes the snapshot and invalidates the affected world bounds
+    /// (baked attribute pages are only rewritten when their bricks are invalidated,
+    /// so even pure surface edits require a re-voxelization); a swapped mesh /
+    /// material / stride additionally rebuilds the entry's registration. Runs
+    /// before the frame's structural voxelization.
     /// </summary>
-    /// <param name="meshHandle">The handle returned by <see cref="RegisterMesh"/>.</param>
-    /// <param name="world">The world transform of the instance.</param>
-    /// <param name="baseColor">The linear base color, multiplied with the albedo texture.</param>
-    /// <param name="emissiveFactor">The linear emissive factor, multiplied with the emissive texture.</param>
-    /// <param name="alphaCutoff">Alpha test threshold; 0 disables alpha testing.</param>
-    public void SubmitDynamicInstance(int meshHandle, in Matrix4x4 world, in Vector4 baseColor, in Vector3 emissiveFactor, float alphaCutoff)
+    private void SyncStaticEntries()
     {
-        MeshRegistration registration = _meshes[meshHandle];
-        _instances.Add(new DynamicInstance
+        foreach ((_, StaticEntry entry) in _staticEntries)
         {
-            Registration = registration,
-            World = world,
-            BaseColor = baseColor,
-            Emissive = emissiveFactor,
-            AlphaCutoff = alphaCutoff,
-            WorldBounds = registration.Geometry.LocalBounds.Transform(world),
-        });
+            IVoxelGIRenderable renderable = entry.Renderable;
+            MeshGeometry geometry = entry.Registration.Geometry;
+
+            // Geometry identity change: rebuild the shared-geometry + material
+            // registration while keeping the snapshot mostly intact below.
+            if (!ReferenceEquals(entry.SourceMesh, renderable.Mesh)
+                || entry.SourceVertexStride != renderable.VertexStrideBytes
+                || !ReferenceEquals(entry.SourceMaterial, renderable.Material))
+            {
+                InvalidateStatic(entry.WorldBounds);
+                entry.Registration = CreateRegistration(
+                    renderable.Mesh, renderable.VertexStrideBytes, renderable.LocalBounds, renderable.Material);
+                entry.SourceMesh = renderable.Mesh;
+                entry.SourceVertexStride = renderable.VertexStrideBytes;
+                entry.SourceMaterial = renderable.Material;
+                geometry = entry.Registration.Geometry;
+                entry.WorldBounds = geometry.LocalBounds.Transform(entry.World);
+                InvalidateStatic(entry.WorldBounds);
+                _staticBvhDirty = true;
+            }
+
+            // Live property diff against the last-seen snapshot.
+            bool worldChanged = entry.World != renderable.WorldMatrix;
+            if (!worldChanged
+                && entry.BaseColor == renderable.BaseColor
+                && entry.Emissive == renderable.EmissiveFactor
+                && entry.AlphaCutoff == renderable.AlphaCutoff)
+            {
+                continue;
+            }
+            if (worldChanged)
+            {
+                InvalidateStatic(geometry.LocalBounds.Transform(entry.World));
+                entry.World = renderable.WorldMatrix;
+            }
+            entry.BaseColor = renderable.BaseColor;
+            entry.Emissive = renderable.EmissiveFactor;
+            entry.AlphaCutoff = renderable.AlphaCutoff;
+            entry.WorldBounds = geometry.LocalBounds.Transform(entry.World);
+            InvalidateStatic(entry.WorldBounds);
+            _staticBvhDirty = true;
+        }
     }
 
-    /// <summary>Removes every persistent structural instance while retaining shared mesh registrations.</summary>
-    public void ClearStaticInstances()
+    /// <summary>Fills the per-frame dynamic-instance list from registered renderables.</summary>
+    private void AppendDynamicInstances()
     {
-        _staticInstances.Clear();
-        _freeStaticInstanceHandles.Clear();
-        _staticBvhDirty = true;
-        for (int level = 0; level < LevelCount; level++)
+        _instances.Clear();
+        foreach ((IVoxelGIRenderable renderable, MeshRegistration registration) in _dynamicRegistrations)
         {
-            _staticNeedsFullClear[level] = true;
+            _instances.Add(new DynamicInstance
+            {
+                Registration = registration,
+                World = renderable.WorldMatrix,
+                BaseColor = renderable.BaseColor,
+                Emissive = renderable.EmissiveFactor,
+                AlphaCutoff = renderable.AlphaCutoff,
+                WorldBounds = registration.Geometry.LocalBounds.Transform(renderable.WorldMatrix),
+            });
         }
-        _clipmap.InvalidateAll();
     }
 
     /// <summary>Schedule a static re-voxelization of every clipmap level. Also the remedy
@@ -1302,10 +1384,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Run the hybrid GI passes: voxelize (static on dirty, dynamic every frame),
-    /// inject direct lighting, rebuild radiance mips and gather diffuse/reflections
-    /// from the G-buffer. Must be called after the G-buffer pass and before the
-    /// lighting pass; dynamic instances are consumed (cleared) by the call.
+    /// Run the hybrid GI passes: voxelize (static on dirty, dynamic every update
+    /// frame), inject direct lighting, rebuild radiance mips and gather
+    /// diffuse/reflections from the G-buffer. Must be called after the G-buffer
+    /// pass and before the lighting pass. Static renderables' live properties are
+    /// synced (and their bricks re-voxelized on change) at the start of the call.
     /// </summary>
     /// <param name="context">The render graph context providing the frame delta time.</param>
     private void Render(in RenderGraphContext context)
@@ -1534,7 +1617,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _gpuTimestamps.EndSample();
         }
 
-        _instances.Clear();
         Matrix4x4.Invert(invViewProjection, out Matrix4x4 viewProjection);
         _viewProjectionPrev = viewProjection;
         _historyReadIndex = 1 - _historyReadIndex;
@@ -1546,14 +1628,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         {
             pendingStaticBricks += _clipmap.GetPendingBrickCount(level);
         }
-        int activeStaticInstances = 0;
-        for (int i = 0; i < _staticInstances.Count; i++)
-        {
-            if (_staticInstances[i] is { Active: true })
-            {
-                activeStaticInstances++;
-            }
-        }
+        int activeStaticInstances = _staticEntries.Count;
         // Sum sparse dispatch statistics.
         int sparseBrickTotal = 0;
         int bricksPerLevel = _clipmap.BricksPerAxis * _clipmap.BricksPerAxis * _clipmap.BricksPerAxis;
@@ -1644,10 +1719,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 
     /// <summary>
     /// Rebuilds the static-instance BVH when instances have been added, removed
-    /// or updated since the last build. Compacts the sparse <see cref="_staticInstances"/>
-    /// list (which has null slots for recycled handles) into a contiguous array of
-    /// active bounds + references so <see cref="BvhAabb3D"/> leaf indices map
-    /// directly to <see cref="_staticBvhInstances"/>.
+    /// or updated since the last build. Compacts the static-entry registry into a
+    /// contiguous array of active bounds + references so <see cref="BvhAabb3D"/>
+    /// leaf indices map directly to <see cref="_staticBvhEntries"/>.
     /// </summary>
     private void RebuildStaticBvhIfNeeded()
     {
@@ -1655,14 +1729,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             return;
         _staticBvhDirty = false;
         _staticBvhBounds.Clear();
-        _staticBvhInstances.Clear();
-        for (int i = 0; i < _staticInstances.Count; i++)
+        _staticBvhEntries.Clear();
+        foreach ((_, StaticEntry entry) in _staticEntries)
         {
-            StaticInstance? instance = _staticInstances[i];
-            if (instance == null || !instance.Active)
-                continue;
-            _staticBvhBounds.Add(new BoundingBox3D(instance.WorldBounds.Min, instance.WorldBounds.Max));
-            _staticBvhInstances.Add(instance);
+            _staticBvhBounds.Add(new BoundingBox3D(entry.WorldBounds.Min, entry.WorldBounds.Max));
+            _staticBvhEntries.Add(entry);
         }
         _staticBvh.Build(CollectionsMarshal.AsSpan(_staticBvhBounds));
     }
@@ -1681,6 +1752,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         ref int staticBricksUpdated,
         ref int droppedBricks)
     {
+        // Pull the registered static renderables' live state first so the sync
+        // results are what this frame's BVH + voxelize dispatches consume.
+        SyncStaticEntries();
         RebuildStaticBvhIfNeeded();
         for (int level = 0; level < LevelCount; level++)
         {
@@ -1724,11 +1798,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
             _staticBvh.OverlapAabb(new BoundingBox3D(dirtyBounds.Min, dirtyBounds.Max), _staticBvhResults);
             for (int ri = 0; ri < _staticBvhResults.Count; ri++)
             {
-                StaticInstance instance = _staticBvhInstances[_staticBvhResults[ri]];
-                if (!instance.WorldBounds.Intersects(levelBounds))
+                StaticEntry entry = _staticBvhEntries[_staticBvhResults[ri]];
+                if (!entry.WorldBounds.Intersects(levelBounds))
                     continue;
-                DispatchVoxelize(computePass, instance.Registration, _attrStatic, _pageTableStatic[level], level,
-                    instance.World, instance.BaseColor, instance.Emissive, instance.AlphaCutoff,
+                DispatchVoxelize(computePass, entry.Registration, _attrStatic, _pageTableStatic[level], level,
+                    entry.World, entry.BaseColor, entry.Emissive, entry.AlphaCutoff,
                     dirtyRangeLo, dirtyRangeHi);
             }
         }
@@ -1748,9 +1822,11 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         ref int dynamicBricksUpdated,
         ref int droppedBricks)
     {
-        // Build the dynamic-instance BVH once per frame; all per-level queries
-        // (CollectDynamicBricks and voxelize dispatch) share this tree. Morton
-        // LBVH rebuild is sub-millisecond for typical instance counts.
+        // Pull the registered dynamic renderables' live state and build the
+        // dynamic-instance BVH once per volume-update frame; all per-level
+        // queries (CollectDynamicBricks and voxelize dispatch) share this tree.
+        // Morton LBVH rebuild is sub-millisecond for typical instance counts.
+        AppendDynamicInstances();
         _dynamicBvhBounds.Clear();
         for (int i = 0; i < _instances.Count; i++)
         {
@@ -2241,7 +2317,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         }
 
         ComputeMaterial material = registration.Material;
-        // _vertices/_indices are bound once per registration (see RegisterMesh).
+        // _vertices/_indices are bound once per registration (see CreateRegistration).
         // The two pool buffers cycle per dispatch; each lives in its own
         // single-member block, so its bind group is cached on the buffer itself
         // and switching pools/levels allocates nothing.
@@ -2286,17 +2362,6 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
         _device.Submit(_commandBuffer);
 
         return geometry;
-    }
-
-    private StaticInstance GetStaticInstance(int handle)
-    {
-        if ((uint)handle >= (uint)_staticInstances.Count
-            || _staticInstances[handle] is not StaticInstance instance
-            || !instance.Active)
-        {
-            throw new ArgumentOutOfRangeException(nameof(handle), "The static GI instance handle is not active.");
-        }
-        return instance;
     }
 
     private BoundingBox3D GetDirtyBounds(int level, List<VoxelGiDirtyBrick> bricks)

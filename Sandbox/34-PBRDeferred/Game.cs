@@ -36,7 +36,7 @@ using SandboxUtils;
 public class Game : GameEngine
 {
     /// <summary>A PBR scene object: mesh, transform and surface parameters.</summary>
-    private sealed class SceneObject : IGBufferRenderable, IShadowRenderable
+    private sealed class SceneObject : IGBufferRenderable, IShadowRenderable, IVoxelGIRenderable
     {
         public required PrimitiveMesh Mesh;
         public Transform3D Transform = Transform3D.Identity;
@@ -48,10 +48,8 @@ public class Game : GameEngine
         public float SpinSpeed;
         public float FloatSpeed;
         public float FloatPhase;
-        /// <summary>The shared voxel mesh-material handle.</summary>
-        public int VoxelMeshHandle = -1;
-        /// <summary>The persistent structural voxel instance handle.</summary>
-        public int VoxelStaticInstanceHandle = -1;
+        /// <summary>The mesh-local bounds consumed by the voxel GI registration.</summary>
+        public BoundingBox3D VoxelLocalBounds { get; set; }
 
         // ── IGBufferRenderable (GBuffer renderer reads these) ──
         public PbrMaterialAsset Material { get; set; } = PbrMaterialAsset.Default;
@@ -72,13 +70,25 @@ public class Game : GameEngine
         float IShadowRenderable.AlphaCutoff => 0.0f;
         float IShadowRenderable.BaseColorAlpha => 1.0f;
         Vector4 IShadowRenderable.RsmBaseColor => new(BaseColor, 1.0f);
+
+        // ── IVoxelGIRenderable (VoxelGI node reads these) ──
+        bool IVoxelGIRenderable.IsStatic => SpinSpeed == 0 && FloatSpeed == 0;
+        Mesh IVoxelGIRenderable.Mesh => Mesh;
+        uint IVoxelGIRenderable.VertexStrideBytes => (uint)VertexPBR.SizeInBytes;
+        BoundingBox3D IVoxelGIRenderable.LocalBounds => VoxelLocalBounds;
+        MaterialAsset? IVoxelGIRenderable.Material => Material;
+        Matrix4x4 IVoxelGIRenderable.WorldMatrix => Transform.Matrix;
+        Vector4 IVoxelGIRenderable.BaseColor => new(BaseColor, 1.0f);
+        Vector3 IVoxelGIRenderable.EmissiveFactor => Vector3.Zero;
+        float IVoxelGIRenderable.AlphaCutoff => 0.0f;
     }
 
     /// <summary>
     /// Adapter that wraps a glTF <see cref="ModelDrawItem"/> + its material asset as an
-    /// <see cref="IGBufferRenderable"/> for the GBufferRenderer registry.
+    /// <see cref="IGBufferRenderable"/> and an <see cref="IVoxelGIRenderable"/> for the
+    /// GBufferRenderer and voxel GI registries.
     /// </summary>
-    private sealed class ModelRenderable : IGBufferRenderable
+    private sealed class ModelRenderable : IGBufferRenderable, IVoxelGIRenderable
     {
         private readonly ModelDrawItem _item;
         private readonly PbrMaterialAsset _asset;
@@ -100,6 +110,18 @@ public class Game : GameEngine
         Vector4 IGBufferRenderable.MetallicRoughnessAO => new(_asset.MetallicFactor, _asset.RoughnessFactor, 1.0f, 0.0f);
         Vector3 IGBufferRenderable.EmissiveFactor => _getEmissiveFactor();
         float IGBufferRenderable.AlphaCutoff => ModelMaterialAdapter.ResolveAlphaCutoff(_asset);
+
+        // ── IVoxelGIRenderable (VoxelGI node reads these) ──
+        Mesh IVoxelGIRenderable.Mesh => _item.Mesh;
+        uint IVoxelGIRenderable.VertexStrideBytes => (uint)VertexPBR.SizeInBytes;
+        BoundingBox3D IVoxelGIRenderable.LocalBounds => new(_item.LocalBoundsMin, _item.LocalBoundsMax);
+        MaterialAsset? IVoxelGIRenderable.Material => _asset;
+        Matrix4x4 IVoxelGIRenderable.WorldMatrix => _item.World;
+        Vector4 IVoxelGIRenderable.BaseColor => _asset.BaseColorFactor;
+        // The GI registration stays unboosted: the boost is a runtime cbuffer
+        // scale at injection time (the G-buffer adapter reads the boosted value).
+        Vector3 IVoxelGIRenderable.EmissiveFactor => _asset.EmissiveFactor;
+        float IVoxelGIRenderable.AlphaCutoff => ModelMaterialAdapter.ResolveAlphaCutoff(_asset);
     }
 
     /// <summary>
@@ -166,6 +188,10 @@ public class Game : GameEngine
     private readonly Texture2D _checkerTexture;
 
     private readonly List<SceneObject> _objects = new();
+
+    // The glTF scene's GI registrations: the ModelRenderable adapters registered
+    // into both the G-buffer renderer and the voxel GI node.
+    private readonly List<ModelRenderable> _voxelRenderables = new();
 
     // The procedural scene's single material asset (built-in surface + checker albedo).
     private MaterialAsset? _proceduralAsset;
@@ -572,7 +598,6 @@ public class Game : GameEngine
         // Render() drives the full frame internally.
         _preset.AfterGBuffer += () =>
         {
-            SubmitDynamicInstances();
             SyncHbaoParams();
         };
 
@@ -609,8 +634,10 @@ public class Game : GameEngine
                         // The emissive boost is resolved at bundle record time so
                         // the Point Lights toggle / Emissive Boost slider take
                         // effect on the next re-record (MarkStaticBundleDirty).
-                        _gbufferRenderer.Add(new ModelRenderable(item, asset,
-                            () => asset.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f)));
+                        var renderable = new ModelRenderable(item, asset,
+                            () => asset.EmissiveFactor * (_pointLightsEnabled ? _emissiveBoost : 0.0f));
+                        _gbufferRenderer.Add(renderable);
+                        _voxelRenderables.Add(renderable);
                         _shadowRenderer.Add(new ModelShadowRenderable(item, asset));
                     }
                 }
@@ -1281,7 +1308,7 @@ public class Game : GameEngine
         return sceneObject.SpinSpeed == 0 && sceneObject.FloatSpeed == 0;
     }
 
-    /// <summary>Register the scene geometry into the voxel GI clipmap.</summary>
+    /// <summary>Register the scene objects into the voxel GI registry.</summary>
     private void RegisterVoxelMeshes()
     {
         if (_voxelGI == null)
@@ -1291,91 +1318,18 @@ public class Game : GameEngine
 
         if (_modelScene != null)
         {
-            IReadOnlyList<ModelDrawItem> drawItems = _modelScene.DrawItems;
-            for (int i = 0; i < drawItems.Count; i++)
+            for (int i = 0; i < _voxelRenderables.Count; i++)
             {
-                ModelDrawItem item = drawItems[i];
-                PbrMaterialAsset asset = _modelAssets![item.MaterialIndex];
-                // The surface feeds the voxelization (the asset already carries the
-                // material's textures); the emissive factor is registered unboosted
-                // (the boost is a runtime cbuffer scale at injection time).
-                int meshHandle = _voxelGI.RegisterMesh(
-                    item.Mesh,
-                    (uint)VertexPBR.SizeInBytes,
-                    new BoundingBox3D(item.LocalBoundsMin, item.LocalBoundsMax),
-                    asset);
-                _voxelGI.AddStaticInstance(
-                    meshHandle,
-                    item.World,
-                    asset.BaseColorFactor,
-                    asset.EmissiveFactor,
-                    ModelMaterialAdapter.ResolveAlphaCutoff(asset));
+                _voxelGI.Add(_voxelRenderables[i]);
             }
             return;
         }
 
-        int sphereHandle = -1;
-        int cubeHandle = -1;
-        int groundHandle = -1;
         for (int i = 0; i < _objects.Count; i++)
         {
             SceneObject sceneObject = _objects[i];
-            int meshHandle;
-            if (sceneObject.Mesh == _sphereMesh)
-            {
-                sphereHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, sphereHandle);
-                meshHandle = sphereHandle;
-            }
-            else if (sceneObject.Mesh == _cubeMesh)
-            {
-                cubeHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, cubeHandle);
-                meshHandle = cubeHandle;
-            }
-            else
-            {
-                groundHandle = RegisterProceduralMeshOnce(sceneObject.Mesh, groundHandle);
-                meshHandle = groundHandle;
-            }
-            sceneObject.VoxelMeshHandle = meshHandle;
-
-            if (IsStatic(sceneObject))
-            {
-                sceneObject.VoxelStaticInstanceHandle = _voxelGI.AddStaticInstance(
-                    meshHandle,
-                    sceneObject.WorldMatrix,
-                    new Vector4(sceneObject.BaseColor, 1.0f),
-                    Vector3.Zero,
-                    0.0f);
-            }
-        }
-
-        int RegisterProceduralMeshOnce(PrimitiveMesh mesh, int existingHandle)
-        {
-            return existingHandle >= 0
-                ? existingHandle
-                : _voxelGI.RegisterMesh(
-                    mesh,
-                    (uint)VertexPBR.SizeInBytes,
-                    GetProceduralBounds(mesh),
-                    _proceduralAsset);
-        }
-    }
-
-    /// <summary>Submit dynamic object instances to the voxel GI before plugin execution.</summary>
-    private void SubmitDynamicInstances()
-    {
-        if (!_giEnabled || _voxelGI == null)
-        {
-            return;
-        }
-        for (int i = 0; i < _objects.Count; i++)
-        {
-            SceneObject sceneObject = _objects[i];
-            if (!IsStatic(sceneObject) && sceneObject.VoxelMeshHandle >= 0)
-            {
-                _voxelGI.SubmitDynamicInstance(sceneObject.VoxelMeshHandle, sceneObject.WorldMatrix,
-                    new Vector4(sceneObject.BaseColor, 1.0f), Vector3.Zero, 0.0f);
-            }
+            sceneObject.VoxelLocalBounds = GetProceduralBounds(sceneObject.Mesh);
+            _voxelGI.Add(sceneObject);
         }
     }
 
@@ -1914,19 +1868,11 @@ public class Game : GameEngine
                 bakedChanged |= ImGui.SliderFloat("AO", ref sceneObject.AmbientOcclusion, 0.0f, 1.0f);
                 bakedChanged |= ImGui.Checkbox("Cast Shadow", ref sceneObject.CastsShadow);
                 // Static objects are baked into the render bundles: schedule a re-record.
+                // The voxel GI picks the edit up automatically through its frame sync.
                 if (bakedChanged && IsStatic(sceneObject))
                 {
                     _staticShadowBundlesDirty = true;
                     _gbufferRenderer.MarkStaticBundleDirty();
-                    if (sceneObject.VoxelStaticInstanceHandle >= 0)
-                    {
-                        _voxelGI?.UpdateStaticInstance(
-                            sceneObject.VoxelStaticInstanceHandle,
-                            sceneObject.WorldMatrix,
-                            new Vector4(sceneObject.BaseColor, 1.0f),
-                            Vector3.Zero,
-                            0.0f);
-                    }
                 }
             }
 
