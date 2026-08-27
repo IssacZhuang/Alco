@@ -20,6 +20,7 @@ public struct FxaaData
 {
     public float2 invFrameSize; // 1.0 / FrameSize
     public float threshold;     // Edge detection threshold (0.063-0.333)
+    public float subpix;        // Subpixel aliasing removal amount (0-1)
 };
 
 public ParameterBlock<FxaaData> fxaaData;
@@ -148,7 +149,7 @@ float4 fxaaPixelShader<let quality : int>(float2 pos,     // Pixel position
                                           float2 rcpFrame // 1.0 / screen size
 ) {
   // FXAA algorithm parameters
-  float fxaaQualitySubpix = 0.75; // Subpixel aliasing removal amount (standard value)
+  float fxaaQualitySubpix = fxaaData.subpix; // Subpixel aliasing removal amount
   float fxaaQualityEdgeThreshold = fxaaData.threshold; // Edge detection threshold
   float fxaaQualityEdgeThresholdMin = 0.0625; // Minimum threshold
 

@@ -74,18 +74,6 @@ public class Game : GameEngine
 
         AddSystem(new ImGUISystem(this));
 
-        var fxaaNode = new RGNode_FXAA(
-            RenderingSystem,
-            MainPipeline.Graph,
-            MainPipeline.Chain,
-            MainPipeline.PostProcessLayout,
-            new RGNode_FXAA.Descriptor
-            {
-                SceneCopyShader = BuiltInAssets.Shader_Blit,
-                FxaaShader = RenderingSystem.ShaderSystem.GetShader("FXAA"),
-            });
-        MainPipeline.Use(fxaaNode);
-
         var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
             MainPipeline.Graph,
@@ -102,6 +90,20 @@ public class Game : GameEngine
                 AgxShader = BuiltInAssets.Shader_AgxTonemap,
             });
         MainPipeline.Use(tonemapNode);
+
+        // FXAA runs after tone mapping: its luma-based edge detection assumes
+        // tone-mapped input.
+        var fxaaNode = new RGNode_FXAA(
+            RenderingSystem,
+            MainPipeline.Graph,
+            MainPipeline.Chain,
+            MainPipeline.PostProcessLayout,
+            new RGNode_FXAA.Descriptor
+            {
+                SceneCopyShader = BuiltInAssets.Shader_Blit,
+                FxaaShader = RenderingSystem.ShaderSystem.GetShader("FXAA"),
+            });
+        MainPipeline.Use(fxaaNode);
 
         int width = 64;
         int height = 64;

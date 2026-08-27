@@ -715,7 +715,7 @@ public class Game : GameEngine
         }
 
         // Bloom is a chain transform node on the pipeline's post chain;
-        // registered before FXAA and tonemap, so boosted emissive surfaces get
+        // registered before tonemap, so boosted emissive surfaces get
         // a natural glow.
         float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
             ? parsedBloomThreshold
@@ -731,14 +731,16 @@ public class Game : GameEngine
         _bloom.Intensity = bloomIntensity;
         _preset.Pipeline.Use(_bloom);
 
-        // FXAA anti-aliasing node (registered between bloom and tonemap).
-        var fxaaFactory = LoadRenderNodeFactory<RGNodeFactory_FXAA>("RenderNodes/FXAA.rnfact");
-        _preset.Pipeline.Use(fxaaFactory.CreateNode<RGNode_FXAA>(nodeFactoryContext));
-
-        // HDR tone mapping node (registered last, after bloom and FXAA).
+        // HDR tone mapping node (registered after bloom).
         var tonemapFactory = LoadRenderNodeFactory<RGNodeFactory_Tonemap>("RenderNodes/Tonemap.rnfact");
         _tonemapStage = tonemapFactory.CreateNode<RGNode_Tonemap>(nodeFactoryContext);
         _preset.Pipeline.Use(_tonemapStage);
+
+        // FXAA anti-aliasing node (registered after tonemap: FXAA 3.11's luma-based
+        // edge detection assumes tone-mapped input — on linear HDR the bright regions
+        // dominate the luma range and edges in the darks get missed or over-blurred).
+        var fxaaFactory = LoadRenderNodeFactory<RGNodeFactory_FXAA>("RenderNodes/FXAA.rnfact");
+        _preset.Pipeline.Use(fxaaFactory.CreateNode<RGNode_FXAA>(nodeFactoryContext));
 
         MainPresenter.OnResize += OnMainWindowResize;
 
@@ -1824,6 +1826,11 @@ public class Game : GameEngine
             if (ImGui.SliderFloat("Edge Threshold", ref fxaaThreshold, 0.063f, 0.333f))
             {
                 fxaaStage.Threshold = fxaaThreshold;
+            }
+            float fxaaSubpix = fxaaStage.Subpix;
+            if (ImGui.SliderFloat("Subpix", ref fxaaSubpix, 0.0f, 1.0f))
+            {
+                fxaaStage.Subpix = fxaaSubpix;
             }
         }
 

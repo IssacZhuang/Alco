@@ -30,6 +30,16 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     }
 
     /// <summary>
+    /// The subpixel aliasing removal amount. Higher values remove more subpixel
+    /// aliasing but blur more detail. Valid range: 0 - 1, default: 0.75.
+    /// </summary>
+    public float Subpix
+    {
+        get => _fxaa.Subpix;
+        set => _fxaa.Subpix = value;
+    }
+
+    /// <summary>
     /// The node's construction data: the scene-copy shader, the fxaa shader and
     /// the effect's tunables. The quality axis is a generic value specialization
     /// of the module's MainPS&lt;let Quality : int&gt; entry — the node requests each
@@ -49,6 +59,8 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
         public FXAAQuality Quality { get; init; } = FXAAQuality.Medium;
         /// <summary>The edge detection threshold (0.063 - 0.333).</summary>
         public float Threshold { get; init; } = 0.125f;
+        /// <summary>The subpixel aliasing removal amount (0 - 1).</summary>
+        public float Subpix { get; init; } = 0.75f;
 
         /// <summary>Required so the property initializers run (C# struct rule).</summary>
         public Descriptor() { }
@@ -72,6 +84,7 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
         {
             Quality = descriptor.Quality,
             Threshold = descriptor.Threshold,
+            Subpix = descriptor.Subpix,
         };
     }
 
