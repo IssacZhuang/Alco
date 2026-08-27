@@ -21,7 +21,7 @@ public partial class GameEngine
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
-            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSdf, generateSdf: false);
+            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSdf, generateSdf: false, cacheDirectory: CreateFontCacheDirectory(Setting.Graphics));
             yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem);
         }
         else

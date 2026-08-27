@@ -7,67 +7,97 @@ using System.Numerics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The loader for true type font file with SDF (Signed Distance Field) generation
+/// The loader for true type font file with SDF (Signed Distance Field) generation. <br/>
+/// Baked atlases are persisted through a <see cref="FontAtlasCache"/> so repeated loads
+/// of the same font skip glyph rasterization entirely.
 /// </summary>
 public class AssetLoaderFontTTF : BaseAssetLoader<Font>
 {
+    private const int AtlasWidth = 8192;
+    private const int AtlasHeight = 8192;
+    private const int FontSize = 32;
+
     private static readonly string[] Extensions = [FileExt.FontTrueType];
+
+    // Part of the bake inputs: any change here invalidates the font atlas cache.
+    private static readonly int2[] UnicodeRanges =
+    [
+        UnicodeUtility.RangeBasicLatin,
+        UnicodeUtility.RangeLatin1Supplement,
+        UnicodeUtility.RangeLatinExtendedA,
+        UnicodeUtility.RangeCyrillic,
+        UnicodeUtility.RangeGreek,
+        //japanese
+        UnicodeUtility.RangeHiragana,
+        UnicodeUtility.RangeKatakana,
+        //chinese
+        UnicodeUtility.RangeCjkUnifiedIdeographs,
+        UnicodeUtility.RangeCjkUnifiedIdeographsExtensionA,
+        UnicodeUtility.RangeCjkSymbolsAndPunctuation,
+        UnicodeUtility.RangeHalfwidthAndFullwidthForms, // Essential for Chinese punctuation (：；，。？！etc.)
+        UnicodeUtility.RangeCjkCompatibilityForms,
+        UnicodeUtility.RangeVerticalForms,
+        //korean
+        UnicodeUtility.RangeHangulSyllables,
+        UnicodeUtility.RangeHangulCompatibilityJamo,
+        //symbols
+        UnicodeUtility.RangeMiscellaneousSymbols,
+        UnicodeUtility.RangeGeneralPunctuation,
+    ];
+
     private readonly RenderingSystem _renderingSystem;
     private readonly Shader? _textSdfShader;
     private readonly bool _generateSdf;
+    private readonly FontAtlasCache? _fontAtlasCache;
 
     public override string Name => "AssetLoader.Font.TTF";
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
-    public AssetLoaderFontTTF(RenderingSystem renderingSystem, Shader? textSdfShader = null, bool generateSdf = false)
+    public AssetLoaderFontTTF(RenderingSystem renderingSystem, Shader? textSdfShader = null, bool generateSdf = false, string? cacheDirectory = null)
     {
         _renderingSystem = renderingSystem;
         _textSdfShader = textSdfShader;
         _generateSdf = generateSdf && textSdfShader != null;
+        _fontAtlasCache = cacheDirectory != null ? new FontAtlasCache(cacheDirectory) : null;
     }
 
     public override object CreateAsset(in AssetLoadContext context)
     {
+        ReadOnlySpan<byte> ttf = context.GetData();
         int padding = _generateSdf ? 6 : 1; // Use padding for SDF, minimal for regular
+
+        FontAtlasCacheEntry? cached = _fontAtlasCache?.TryLoad(ttf, FontSize, padding, AtlasWidth, AtlasHeight, _generateSdf, UnicodeRanges);
+        if (cached != null)
+        {
+            return CreateFontFromAtlas(cached.Bitmap, cached.Glyphs, cached.Width, cached.Height, context.Filename);
+        }
+
         using FontAtlasPacker packer = new FontAtlasPacker(
-            width: 8192,
-            height: 8192,
+            width: AtlasWidth,
+            height: AtlasHeight,
             padding: padding
         );
 
-        packer.Add(context.GetData(), 32, new int2[]{
-                UnicodeUtility.RangeBasicLatin,
-                UnicodeUtility.RangeLatin1Supplement,
-                UnicodeUtility.RangeLatinExtendedA,
-                UnicodeUtility.RangeCyrillic,
-                UnicodeUtility.RangeGreek,
-                //japanese
-                UnicodeUtility.RangeHiragana,
-                UnicodeUtility.RangeKatakana,
-                //chinese
-                UnicodeUtility.RangeCjkUnifiedIdeographs,
-                UnicodeUtility.RangeCjkUnifiedIdeographsExtensionA,
-                UnicodeUtility.RangeCjkSymbolsAndPunctuation,
-                UnicodeUtility.RangeHalfwidthAndFullwidthForms, // Essential for Chinese punctuation (：；，。？！etc.)
-                UnicodeUtility.RangeCjkCompatibilityForms,
-                UnicodeUtility.RangeVerticalForms,
-                //korean
-                UnicodeUtility.RangeHangulSyllables,
-                UnicodeUtility.RangeHangulCompatibilityJamo,
-                //symbols
-                UnicodeUtility.RangeMiscellaneousSymbols,
-                UnicodeUtility.RangeGeneralPunctuation,
-            });
+        packer.Add(ttf, FontSize, UnicodeRanges);
 
         ReadOnlySpan<byte> bitmap = packer.Bitmap;
         int width = packer.Width;
         int height = packer.Height;
         GlyphInfo[] glyphs = packer.Glyphs;
 
+        // Store the raw (pre-SDF-adjustment) atlas asynchronously; StoreAsync captures
+        // its own copies before returning, so disposing the packer below is safe.
+        _ = _fontAtlasCache?.StoreAsync(ttf, FontSize, padding, AtlasWidth, AtlasHeight, _generateSdf, UnicodeRanges, bitmap, glyphs);
+
+        return CreateFontFromAtlas(bitmap, glyphs, width, height, context.Filename);
+    }
+
+    private Font CreateFontFromAtlas(ReadOnlySpan<byte> bitmap, GlyphInfo[] glyphs, int width, int height, string name)
+    {
         if (_generateSdf)
         {
             // Adjust GlyphInfo for SDF padding - expand UV coordinates to include padding area
-            AdjustGlyphInfoForSdf(glyphs, width, height, padding, 32.0f);
+            AdjustGlyphInfoForSdf(glyphs, width, height, 6, FontSize);
 
             var inputTexture = _renderingSystem.CreateRenderTexture(
                 _renderingSystem.PreferredRTexturePass, (uint)width, (uint)height, "font_atlas_input"
@@ -102,7 +132,7 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
         }
         else
         {
-            return _renderingSystem.CreateFont(bitmap, width, height, glyphs);
+            return _renderingSystem.CreateFont(bitmap, width, height, glyphs, name);
         }
     }
 

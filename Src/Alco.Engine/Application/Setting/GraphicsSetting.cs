@@ -49,6 +49,17 @@ public struct GraphicsSetting
     public string? ShaderCachePath { get; set; }
 
     /// <summary>
+    /// Whether to enable the persistent font atlas cache. Cached atlases skip glyph
+    /// rasterization on startup; the cache is written asynchronously after the first load.
+    /// </summary>
+    public bool IsFontCacheEnabled { get; set; }
+
+    /// <summary>
+    /// The path to the font atlas cache
+    /// </summary>
+    public string? FontCachePath { get; set; }
+
+    /// <summary>
     /// The default graphics setting
     /// </summary>
     public static readonly GraphicsSetting Default = new GraphicsSetting
@@ -60,6 +71,8 @@ public struct GraphicsSetting
         DebugInfo = false,
         IsShaderCacheEnabled = true,
         ShaderCachePath = ".cache/shader",
+        IsFontCacheEnabled = true,
+        FontCachePath = ".cache/font",
     };
 
     /// <summary>
@@ -74,6 +87,8 @@ public struct GraphicsSetting
         DebugInfo = true,
         IsShaderCacheEnabled = true,
         ShaderCachePath = ".cache/shader",
+        IsFontCacheEnabled = true,
+        FontCachePath = ".cache/font",
     };
 
 
@@ -89,5 +104,7 @@ public struct GraphicsSetting
         DebugInfo = false,
         IsShaderCacheEnabled = false,
         ShaderCachePath = null,
+        IsFontCacheEnabled = false,
+        FontCachePath = null,
     };
 }
