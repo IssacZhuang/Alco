@@ -155,7 +155,8 @@ public class TestJsonConverters
         Assert.That(json, Is.EqualTo("[{\"x\":1.5,\"y\":2.5,\"z\":3.5},{\"x\":4.5,\"y\":5.5,\"z\":6.5},{\"x\":7.5,\"y\":8.5,\"z\":9.5}]"));
 
         var deserialized = JsonSerializer.Deserialize<List<Vector3>>(json, _options);
-        Assert.That(deserialized.Count, Is.EqualTo(original.Count));
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.That(deserialized!.Count, Is.EqualTo(original.Count));
 
         for (int i = 0; i < original.Count; i++)
         {
@@ -183,7 +184,8 @@ public class TestJsonConverters
         Assert.That(json, Is.EqualTo("{\"position1\":{\"x\":1.5,\"y\":2.5,\"z\":3.5},\"position2\":{\"x\":4.5,\"y\":5.5,\"z\":6.5},\"position3\":{\"x\":7.5,\"y\":8.5,\"z\":9.5}}"));
 
         var deserialized = JsonSerializer.Deserialize<Dictionary<string, Vector3>>(json, _options);
-        Assert.That(deserialized.Count, Is.EqualTo(original.Count));
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.That(deserialized!.Count, Is.EqualTo(original.Count));
 
         foreach (var kvp in original)
         {
@@ -212,10 +214,11 @@ public class TestJsonConverters
         TestContext.WriteLine($"Complex Object JSON: {json}");
 
         var deserialized = JsonSerializer.Deserialize<TestObject>(json, _options);
+        Assert.That(deserialized, Is.Not.Null);
         Assert.Multiple(() =>
         {
             // Check Position2D
-            Assert.That(deserialized.Position2D.X, Is.EqualTo(original.Position2D.X));
+            Assert.That(deserialized!.Position2D.X, Is.EqualTo(original.Position2D.X));
             Assert.That(deserialized.Position2D.Y, Is.EqualTo(original.Position2D.Y));
 
             // Check Position3D
@@ -239,8 +242,9 @@ public class TestJsonConverters
 
     private class TestTypeObject
     {
-        public Type SystemType { get; set; }
-        public Type CustomType { get; set; }
+        // Both properties carry null when the JSON explicitly stores a null type.
+        public Type? SystemType { get; set; }
+        public Type? CustomType { get; set; }
     }
 
     [Test(Description = "Test Type JSON conversion")]
@@ -260,10 +264,11 @@ public class TestJsonConverters
         string json = JsonSerializer.Serialize(original, options);
         TestContext.WriteLine($"Type Object JSON: {json}");
         var deserialized = JsonSerializer.Deserialize<TestTypeObject>(json, options);
+        Assert.That(deserialized, Is.Not.Null);
 
         Assert.Multiple(() =>
         {
-            Assert.That(deserialized.SystemType, Is.EqualTo(typeof(int)));
+            Assert.That(deserialized!.SystemType, Is.EqualTo(typeof(int)));
             Assert.That(deserialized.CustomType, Is.EqualTo(typeof(TestTypeObject)));
         });
     }
@@ -285,10 +290,11 @@ public class TestJsonConverters
         string json = JsonSerializer.Serialize(original, options);
         TestContext.WriteLine($"Null Type Object JSON: {json}");
         var deserialized = JsonSerializer.Deserialize<TestTypeObject>(json, options);
+        Assert.That(deserialized, Is.Not.Null);
 
         Assert.Multiple(() =>
         {
-            Assert.That(deserialized.SystemType, Is.Null);
+            Assert.That(deserialized!.SystemType, Is.Null);
             Assert.That(deserialized.CustomType, Is.Null);
         });
     }
@@ -388,8 +394,8 @@ public class TestJsonConverters
             TypeInfoResolver = typeResolver
         };
 
-        Configable original = null;
-        string json = JsonSerializer.Serialize<Configable>(original, options);
+        Configable? original = null;
+        string json = JsonSerializer.Serialize<Configable?>(original, options);
         TestContext.WriteLine($"Null Config JSON: {json}");
 
         var deserialized = JsonSerializer.Deserialize<Configable>(json, options);

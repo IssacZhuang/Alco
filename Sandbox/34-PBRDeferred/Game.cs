@@ -1604,6 +1604,9 @@ public class Game : GameEngine
 
         if (_voxelGI != null && ImGui.CollapsingHeader("Global Illumination (Sparse Voxel Cone Tracing)"))
         {
+            // Copy to a local while provably non-null: the ref-based ImGui
+            // state mutations below break nullable flow tracking for the field.
+            RGNode_VoxelGI voxelGiNode = _voxelGI;
             ImGui.Checkbox("GI Enabled", ref _giEnabled);
             float giDiffuseStrength = _environment.GiDiffuseStrength;
             if (ImGui.SliderFloat("GI Diffuse Strength", ref giDiffuseStrength, 0.0f, 4.0f))
@@ -1654,18 +1657,18 @@ public class Game : GameEngine
                 }
                 ImGui.Text(_textBuilder.Clear().Append("SSR trace resolution: ").Append(_ssrRenderer.TraceWidth).Append('x').Append(_ssrRenderer.TraceHeight).AsReadOnlySpan());
             }
-            float giSkyIntensity = _voxelGI.SkyIntensity;
+            float giSkyIntensity = voxelGiNode.SkyIntensity;
             if (ImGui.SliderFloat("GI Sky Intensity", ref giSkyIntensity, 0.0f, 10.0f))
-                _voxelGI.SkyIntensity = giSkyIntensity;
-            float giMaxTraceDistance = _voxelGI.TraceMaxDistance;
+                voxelGiNode.SkyIntensity = giSkyIntensity;
+            float giMaxTraceDistance = voxelGiNode.TraceMaxDistance;
             // 256m matches the coarsest voxel clipmap level (base voxel 0.25m,
             // 128^3 per level, 4 levels: 32/64/128/256m) — tracing farther has
             // no voxels left to sample.
             if (ImGui.SliderFloat("GI Max Trace Distance", ref giMaxTraceDistance, 1.0f, 256.0f))
-                _voxelGI.TraceMaxDistance = giMaxTraceDistance;
-            float giDiffuseSpreading = _voxelGI.DiffuseSpreading;
+                voxelGiNode.TraceMaxDistance = giMaxTraceDistance;
+            float giDiffuseSpreading = voxelGiNode.DiffuseSpreading;
             if (ImGui.SliderFloat("GI Diffuse Spreading", ref giDiffuseSpreading, 0.0f, 0.5f, "%.3f"))
-                _voxelGI.DiffuseSpreading = giDiffuseSpreading;
+                voxelGiNode.DiffuseSpreading = giDiffuseSpreading;
             ImGui.SameLine();
             ImGui.TextDisabled("(?)");
             if (ImGui.IsItemHovered())
@@ -1678,22 +1681,22 @@ public class Game : GameEngine
                 GiTraceResolutionModes,
                 GiTraceResolutionModes.Length))
             {
-                _voxelGI.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
+                voxelGiNode.TraceResolutionScale = GiTraceResolutionScales[_giResolutionPreset];
             }
-            ImGui.Text(_textBuilder.Clear().Append("GI trace resolution: ").Append(_voxelGI.IndirectTexture.Width / 3).Append('x').Append(_voxelGI.IndirectTexture.Height).AsReadOnlySpan());
-            int giDebugInt = (int)_voxelGI.DebugView;
+            ImGui.Text(_textBuilder.Clear().Append("GI trace resolution: ").Append(voxelGiNode.IndirectTexture.Width / 3).Append('x').Append(voxelGiNode.IndirectTexture.Height).AsReadOnlySpan());
+            int giDebugInt = (int)voxelGiNode.DebugView;
             if (ImGui.Combo("GI Debug", ref giDebugInt, GiDebugModes, GiDebugModes.Length))
             {
-                _voxelGI.DebugView = (VoxelGiDebugMode)giDebugInt;
+                voxelGiNode.DebugView = (VoxelGiDebugMode)giDebugInt;
             }
-            float giRefreshRate = _voxelGI.VolumeRefreshRate;
+            float giRefreshRate = voxelGiNode.VolumeRefreshRate;
             if (ImGui.SliderFloat("GI Refresh Rate", ref giRefreshRate, 0.0f, 240.0f, "%.0f Hz (0 = every frame)"))
             {
-                _voxelGI.VolumeRefreshRate = giRefreshRate;
+                voxelGiNode.VolumeRefreshRate = giRefreshRate;
             }
             for (int giLevel = 0; giLevel < 4; giLevel++)
             {
-                int giStaticBrickBudget = _voxelGI.GetStaticBrickBudget(giLevel);
+                int giStaticBrickBudget = voxelGiNode.GetStaticBrickBudget(giLevel);
                 ReadOnlySpan<char> budgetLabel;
                 if (giLevel == 0)
                     budgetLabel = "GI Brick Budget L0 (finest)";
@@ -1703,7 +1706,7 @@ public class Game : GameEngine
                     budgetLabel = _textBuilder.Clear().Append("GI Brick Budget L").Append(giLevel).AsReadOnlySpan();
                 if (ImGui.SliderInt(budgetLabel, ref giStaticBrickBudget, 0, 256))
                 {
-                    _voxelGI.SetStaticBrickBudget(giLevel, giStaticBrickBudget);
+                    voxelGiNode.SetStaticBrickBudget(giLevel, giStaticBrickBudget);
                 }
             }
             ImGui.SameLine();
@@ -1719,7 +1722,7 @@ public class Game : GameEngine
                     "usually want a smaller budget than the fine levels.\n" +
                     "0 pauses structural voxelization for that level (its queue keeps growing).");
             }
-            VoxelGiStatistics statistics = _voxelGI.Statistics;
+            VoxelGiStatistics statistics = voxelGiNode.Statistics;
             ImGui.Text(_textBuilder.Clear()
                 .Append("Static bricks: ").Append(statistics.StaticResidentBricks).Append('/')
                 .Append(statistics.StaticCapacityBricks).Append(" (")

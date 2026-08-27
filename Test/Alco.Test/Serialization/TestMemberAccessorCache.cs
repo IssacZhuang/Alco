@@ -57,7 +57,7 @@ public class TestMemberAccessorCache
             CallCount = 0;
         }
 
-        public override Action<TCollection, object> CreateAddMethodDelegate<TCollection>()
+        public override Action<TCollection, object?> CreateAddMethodDelegate<TCollection>()
         {
             CallCount++;
             return _innerAccessor.CreateAddMethodDelegate<TCollection>();
@@ -93,13 +93,13 @@ public class TestMemberAccessorCache
             return _innerAccessor.CreateParameterizedConstructor<T>(constructor);
         }
 
-        public override ParameterizedConstructorDelegate<T, TArg0, TArg1, TArg2, TArg3> CreateParameterizedConstructor<T, TArg0, TArg1, TArg2, TArg3>(ConstructorInfo constructor)
+        public override ParameterizedConstructorDelegate<T, TArg0, TArg1, TArg2, TArg3>? CreateParameterizedConstructor<T, TArg0, TArg1, TArg2, TArg3>(ConstructorInfo constructor)
         {
             CallCount++;
             return _innerAccessor.CreateParameterizedConstructor<T, TArg0, TArg1, TArg2, TArg3>(constructor);
         }
 
-        public override Func<object> CreateParameterlessConstructor(Type type, ConstructorInfo constructorInfo)
+        public override Func<object>? CreateParameterlessConstructor(Type type, ConstructorInfo? constructorInfo)
         {
             CallCount++;
             return _innerAccessor.CreateParameterlessConstructor(type, constructorInfo);
@@ -287,7 +287,7 @@ public class TestMemberAccessorCache
 
         var propertyGetterResults = new Func<object, int>[10];
         var fieldGetterResults = new Func<object, string>[10];
-        var ctorResults = new Func<object>[10];
+        var ctorResults = new Func<object?>?[10];
 
         Parallel.For(0, 10, index =>
         {

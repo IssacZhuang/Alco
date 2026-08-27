@@ -2,14 +2,25 @@ using Alco.Rendering;
 
 namespace Alco.World3D.Test;
 
-#pragma warning disable CS0067
-
 public class DummyRenderingSystemHost : IRenderingSystemHost, IDisposable
 {
-    public event Action<float> OnUpdate;
+    // The fake ignores host callbacks: update subscriptions are dropped rather
+    // than stored, so the event declares its own empty accessors.
+    public event Action<float> OnUpdate
+    {
+        add { }
+        remove { }
+    }
+
     public event Action OnDispose;
 
-    public RenderingSystem RenderingSystem { get; set; }
+    // Never read before CreateRenderingSystem assigns it right after construction.
+    public RenderingSystem RenderingSystem { get; set; } = null!;
+
+    public DummyRenderingSystemHost()
+    {
+        OnDispose += () => { };
+    }
 
     public void Dispose()
     {

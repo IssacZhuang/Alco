@@ -35,7 +35,7 @@ namespace Alco.Test
             Assert.That(cache["key3"], Is.EqualTo("value3"), "Should retrieve correct value for key3");
 
             // Test TryGetValue
-            string result;
+            string? result;
             Assert.IsTrue(cache.TryGetValue("key1", out result), "TryGetValue should return true for existing key");
             Assert.That(result, Is.EqualTo("value1"), "TryGetValue should return correct value");
 
@@ -134,7 +134,7 @@ namespace Alco.Test
             using var countdownEvent = new CountdownEvent(totalOperations);
 
             // Track any exceptions that occur during parallel execution
-            Exception capturedEx = null;
+            Exception? capturedEx = null;
             object lockObj = new object();
 
             // Run operations in parallel
@@ -158,7 +158,7 @@ namespace Alco.Test
                         switch (operation)
                         {
                             case 0: // Get
-                                string value;
+                                string? value;
                                 if (cache.TryGetValue(key, out value))
                                 {
                                     // Item exists
@@ -295,22 +295,22 @@ namespace Alco.Test
             var cache = new ConcurrentLruCache<string, string>(5);
 
             // Test null key
-            Assert.Throws<ArgumentNullException>(() => cache.Set(null, "value"));
-            Assert.Throws<ArgumentNullException>(() => cache.TryGetValue(null, out _));
-            Assert.Throws<ArgumentNullException>(() => cache.Remove(null));
-            Assert.Throws<ArgumentNullException>(() => cache.GetOrAdd(null, k => "value"));
-            Assert.Throws<ArgumentNullException>(() => { var x = cache[null]; });
-            Assert.Throws<ArgumentNullException>(() => cache[null] = "value");
+            Assert.Throws<ArgumentNullException>(() => cache.Set(null!, "value"));
+            Assert.Throws<ArgumentNullException>(() => cache.TryGetValue(null!, out _));
+            Assert.Throws<ArgumentNullException>(() => cache.Remove(null!));
+            Assert.Throws<ArgumentNullException>(() => cache.GetOrAdd(null!, k => "value"));
+            Assert.Throws<ArgumentNullException>(() => { var x = cache[null!]; });
+            Assert.Throws<ArgumentNullException>(() => cache[null!] = "value");
 
             // Test null value
-            Assert.Throws<ArgumentNullException>(() => cache.Set("key", null));
-            Assert.Throws<ArgumentNullException>(() => cache["key"] = null);
+            Assert.Throws<ArgumentNullException>(() => cache.Set("key", null!));
+            Assert.Throws<ArgumentNullException>(() => cache["key"] = null!);
 
             // Test null factory function
-            Assert.Throws<ArgumentNullException>(() => cache.GetOrAdd("key", null));
+            Assert.Throws<ArgumentNullException>(() => cache.GetOrAdd("key", null!));
 
             // Test factory function returning null
-            Assert.Throws<ArgumentNullException>(() => cache.GetOrAdd("key2", k => null));
+            Assert.Throws<ArgumentNullException>(() => cache.GetOrAdd("key2", k => null!));
 
             // Test invalid capacity
             Assert.Throws<ArgumentException>(() => new ConcurrentLruCache<string, string>(0));
@@ -383,7 +383,7 @@ namespace Alco.Test
                 cache.Set(i, $"value{i}");
             }
 
-            Exception caughtException = null;
+            Exception? caughtException = null;
             object lockObj = new object();
 
             // Run concurrent operations: half threads do Get, half do Remove
@@ -435,7 +435,7 @@ namespace Alco.Test
                 cache.Set(i, $"initial{i}");
             }
 
-            Exception caughtException = null;
+            Exception? caughtException = null;
             object lockObj = new object();
 
             // Run concurrent operations
@@ -494,7 +494,7 @@ namespace Alco.Test
             var cache = new ConcurrentLruCache<int, string>(100);
             int numKeys = 200; // More keys than capacity to force eviction
 
-            Exception caughtException = null;
+            Exception? caughtException = null;
             object lockObj = new object();
 
             // Run concurrent operations that will cause frequent evictions
@@ -548,7 +548,7 @@ namespace Alco.Test
             var cache = new ConcurrentLruCache<int, string>(1000);
             int iterations = 10000;
 
-            Exception caughtException = null;
+            Exception? caughtException = null;
             object lockObj = new object();
 
             // High-intensity parallel operations

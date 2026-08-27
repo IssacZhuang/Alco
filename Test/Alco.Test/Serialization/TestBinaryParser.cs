@@ -11,7 +11,7 @@ namespace Alco.Test
         {
             public bool Loaded;
             public bool PostLoaded;
-            public SerializableForPostLoad Child;
+            public SerializableForPostLoad? Child;
 
             public void OnSerialize(SerializeNode node, SerializeMode mode)
             {
@@ -31,7 +31,7 @@ namespace Alco.Test
 
         public static BinaryArray NoiseArray()
         {
-            string[] data = new string[5]{
+            string?[] data = new string?[5]{
                 "value1",
                 "value2",
                 null,
@@ -59,13 +59,13 @@ namespace Alco.Test
         {
 
             // some random data
-            KeyValuePair<string, string>[] data = new KeyValuePair<string, string>[6]{
-                new KeyValuePair<string, string>("ke\ty1", "value1"),
-                new KeyValuePair<string, string>("key2", "valu````~~e2"),
-                new KeyValuePair<string, string>("key3", "val     ue3"),
-                new KeyValuePair<string, string>("key4", null),
-                new KeyValuePair<string, string>("ke\ny5", "valu......e5"),
-                new KeyValuePair<string, string>("key6", "val^^&&ue6"),
+            KeyValuePair<string, string?>[] data = new KeyValuePair<string, string?>[6]{
+                new KeyValuePair<string, string?>("ke\ty1", "value1"),
+                new KeyValuePair<string, string?>("key2", "valu````~~e2"),
+                new KeyValuePair<string, string?>("key3", "val     ue3"),
+                new KeyValuePair<string, string?>("key4", null),
+                new KeyValuePair<string, string?>("ke\ny5", "valu......e5"),
+                new KeyValuePair<string, string?>("key6", "val^^&&ue6"),
             };
 
             KeyValuePair<string, string>[] subData = new KeyValuePair<string, string>[3]{
@@ -81,6 +81,11 @@ namespace Alco.Test
 
             foreach (var item in data)
             {
+                if (item.Value == null)
+                {
+                    table[item.Key] = new BinaryValue();
+                    continue;
+                }
                 table[item.Key] = item.Value;
             }
 
@@ -98,7 +103,7 @@ namespace Alco.Test
 
             foreach (var item in data)
             {
-                if (table2.TryGetString(item.Key, out string value))
+                if (table2.TryGetString(item.Key, out string? value))
                 {
                     if (item.Value == null)
                     {
@@ -111,13 +116,13 @@ namespace Alco.Test
                 }
             }
 
-            BinaryTable subTable2 = table2[keySubData] as BinaryTable;
+            BinaryTable subTable2 = (table2[keySubData] as BinaryTable) ?? throw new InvalidOperationException("unexpected null");
             foreach (var item in subData)
             {
                 // byte[] value = subTable2[item.Key].Bytes;
                 // string str = Encoding.UTF8.GetString(value);
                 // Assert.IsFalse(str != item.Value);
-                if (subTable2.TryGetString(item.Key, out string value))
+                if (subTable2.TryGetString(item.Key, out string?value))
                 {
                     // Assert.IsFalse(value != item.Value);
                     if (item.Value == null)
@@ -136,7 +141,7 @@ namespace Alco.Test
         public void TestParseList()
         {
             // some random data
-            string[] data = new string[5]{
+            string?[] data = new string?[5]{
                 "value1",
                 "value2",
                 null, // equals to Array.Empty<byte>() or string.Empty
@@ -148,6 +153,11 @@ namespace Alco.Test
 
             foreach (var item in data)
             {
+                if (item == null)
+                {
+                    binArray.Add(new BinaryValue());
+                    continue;
+                }
                 binArray.Add(item);
             }
 
@@ -158,14 +168,14 @@ namespace Alco.Test
             ReadOnlyMemory<byte> raw = BinaryParser.EncodeTable(binObject);
 
             BinaryTable binObject2 = BinaryParser.DecodeTable(raw.Span);
-            BinaryArray binArray2 = binObject2["list"] as BinaryArray;
+            BinaryArray binArray2 = (binObject2["list"] as BinaryArray) ?? throw new InvalidOperationException("unexpected null");
 
             for (int i = 0; i < data.Length; i++)
             {
                 // byte[] value = binArray2[i].Bytes;
                 // string str = Encoding.UTF8.GetString(value);
                 // Assert.IsFalse(str != data[i]);
-                if (binArray2.TryGetString(i, out string value))
+                if (binArray2.TryGetString(i, out string? value))
                 {
                     if (data[i] == null)
                     {
@@ -194,13 +204,13 @@ namespace Alco.Test
 
             BinaryTable table2 = BinaryParser.DecodeTable(raw);
 
-            Assert.IsTrue(table2.TryGetString("key1", out string value1));
+            Assert.IsTrue(table2.TryGetString("key1", out string?value1));
             Assert.IsTrue(value1 == "value1");
-            Assert.IsTrue(table2.TryGetString("key2", out string value2));
+            Assert.IsTrue(table2.TryGetString("key2", out string?value2));
             Assert.IsTrue(value2 == "value2");
-            Assert.IsTrue(table2.TryGetString("key3", out string value3));
+            Assert.IsTrue(table2.TryGetString("key3", out string?value3));
             Assert.IsTrue(value3 == "");
-            Assert.IsTrue(table2.TryGetString("key4", out string value4));
+            Assert.IsTrue(table2.TryGetString("key4", out string?value4));
             Assert.IsTrue(value4 == "value4");
         }
 
@@ -242,7 +252,7 @@ namespace Alco.Test
             BinaryTable decodedTable = BinaryParser.DecodeTable(bytesSpan);
 
             // Verify the decoded table matches the original
-            Assert.IsTrue(decodedTable.TryGetString("string", out string stringValue));
+            Assert.IsTrue(decodedTable.TryGetString("string", out string?stringValue));
             Assert.IsTrue(stringValue == "test string value");
 
             Assert.IsTrue(decodedTable.TryGetValue<int>("integer", out int intValue));
@@ -254,17 +264,17 @@ namespace Alco.Test
             Assert.IsTrue(decodedTable.TryGetValue<bool>("boolean", out bool boolValue));
             Assert.IsTrue(boolValue);
 
-            Assert.IsTrue(decodedTable.TryGetString("null", out string nullValue));
+            Assert.IsTrue(decodedTable.TryGetString("null", out string?nullValue));
             Assert.IsTrue(nullValue == "");
 
             // Verify nested array
             Assert.IsTrue(decodedTable["array"] is BinaryArray);
-            BinaryArray decodedArray = decodedTable["array"] as BinaryArray;
+            BinaryArray decodedArray = (decodedTable["array"] as BinaryArray) ?? throw new InvalidOperationException("unexpected null");
 
-            Assert.IsTrue(decodedArray.TryGetString(0, out string arrayItem1));
+            Assert.IsTrue(decodedArray.TryGetString(0, out string?arrayItem1));
             Assert.IsTrue(arrayItem1 == "item1");
 
-            Assert.IsTrue(decodedArray.TryGetString(1, out string arrayItem2));
+            Assert.IsTrue(decodedArray.TryGetString(1, out string?arrayItem2));
             Assert.IsTrue(arrayItem2 == "item2");
 
             Assert.IsTrue(decodedArray.TryGetValue<int>(2, out int arrayItem3));
@@ -272,9 +282,9 @@ namespace Alco.Test
 
             // Verify nested table
             Assert.IsTrue(decodedTable["table"] is BinaryTable);
-            BinaryTable decodedNestedTable = decodedTable["table"] as BinaryTable;
+            BinaryTable decodedNestedTable = (decodedTable["table"] as BinaryTable) ?? throw new InvalidOperationException("unexpected null");
 
-            Assert.IsTrue(decodedNestedTable.TryGetString("nestedKey", out string nestedStringValue));
+            Assert.IsTrue(decodedNestedTable.TryGetString("nestedKey", out string?nestedStringValue));
             Assert.IsTrue(nestedStringValue == "nested value");
 
             Assert.IsTrue(decodedNestedTable.TryGetValue<int>("nestedNumber", out int nestedIntValue));

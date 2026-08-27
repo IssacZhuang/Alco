@@ -167,17 +167,17 @@ namespace Alco.Test
                 BruteClosest(boxes, origin, direction, out expectedHit, out expectedT);
                 bool actualHit = bvh.RayCastClosest(origin, direction, out int actualIndex, out float actualT);
 
-                Assert.AreEqual(expectedHit, actualHit, $"closest hit/miss mismatch at ray {i} ({origin} -> +{direction})");
+                Assert.That(actualHit, Is.EqualTo(expectedHit), $"closest hit/miss mismatch at ray {i} ({origin} -> +{direction})");
                 if (expectedHit)
                 {
-                    Assert.AreEqual(expectedT, actualT, 1e-3, $"closest entry t mismatch at ray {i}: expected {expectedT}, got {actualT}");
+                    Assert.That(actualT, Is.EqualTo(expectedT).Within(1e-3), $"closest entry t mismatch at ray {i}: expected {expectedT}, got {actualT}");
                     // the returned box must itself be a valid segment hit at the reported t
                     double ownEntry = BoxEntry(boxes[actualIndex], origin, direction);
                     Assert.IsFalse(double.IsNaN(ownEntry), $"closest returned a box the segment misses at ray {i}");
-                    Assert.AreEqual(ownEntry, actualT, 1e-3, $"closest returned index {actualIndex} whose entry disagrees with the reported t at ray {i}");
+                    Assert.That(actualT, Is.EqualTo(ownEntry).Within(1e-3), $"closest returned index {actualIndex} whose entry disagrees with the reported t at ray {i}");
                 }
 
-                Assert.AreEqual(BruteAny(boxes, origin, direction), bvh.RayCastAny(origin, direction), $"any-hit mismatch at ray {i}");
+                Assert.That(bvh.RayCastAny(origin, direction), Is.EqualTo(BruteAny(boxes, origin, direction)), $"any-hit mismatch at ray {i}");
             }
 
             for (int i = 0; i < queryCount; i++)
@@ -191,10 +191,10 @@ namespace Alco.Test
                 BruteOverlap(boxes, query, expected);
                 bvh.OverlapAabb(query, actual);
                 actual.Sort();
-                Assert.AreEqual(expected.Count, actual.Count, $"overlap count mismatch at query {i}");
+                Assert.That(actual.Count, Is.EqualTo(expected.Count), $"overlap count mismatch at query {i}");
                 for (int j = 0; j < expected.Count; j++)
                 {
-                    Assert.AreEqual(expected[j], actual[j], $"overlap set mismatch at query {i}");
+                    Assert.That(actual[j], Is.EqualTo(expected[j]), $"overlap set mismatch at query {i}");
                 }
 
                 // half of the point queries target a box center, guaranteeing hits
@@ -206,10 +206,10 @@ namespace Alco.Test
                 BrutePoint(boxes, point, expected);
                 bvh.QueryPoint(point, actual);
                 actual.Sort();
-                Assert.AreEqual(expected.Count, actual.Count, $"point count mismatch at point {point}");
+                Assert.That(actual.Count, Is.EqualTo(expected.Count), $"point count mismatch at point {point}");
                 for (int j = 0; j < expected.Count; j++)
                 {
-                    Assert.AreEqual(expected[j], actual[j], $"point set mismatch at point {point}");
+                    Assert.That(actual[j], Is.EqualTo(expected[j]), $"point set mismatch at point {point}");
                 }
             }
         }
@@ -244,16 +244,16 @@ namespace Alco.Test
             using BvhAabb2D bvh = new();
             bvh.Build(Span<BoundingBox2D>.Empty);
 
-            Assert.AreEqual(0, bvh.NodeCount);
-            Assert.AreEqual(0, bvh.TreeDepth);
+            Assert.That(bvh.NodeCount, Is.EqualTo(0));
+            Assert.That(bvh.TreeDepth, Is.EqualTo(0));
             Assert.IsFalse(bvh.RayCastClosest(Vector2.Zero, Vector2.One, out int index, out float t));
-            Assert.AreEqual(-1, index);
+            Assert.That(index, Is.EqualTo(-1));
             Assert.IsFalse(bvh.RayCastAny(Vector2.Zero, Vector2.One));
 
             List<int> results = new();
             bvh.OverlapAabb(new BoundingBox2D(Vector2.One * -100, Vector2.One * 100), results);
             bvh.QueryPoint(Vector2.Zero, results);
-            Assert.AreEqual(0, results.Count);
+            Assert.That(results.Count, Is.EqualTo(0));
         }
 
         [Test(Description = "BVH AABB 2D: item counts around the 4-item leaf-block boundary stay correct")]
@@ -281,15 +281,15 @@ namespace Alco.Test
             // a query covering the scene must return every item exactly once
             List<int> results = new();
             bvh.OverlapAabb(new BoundingBox2D(Vector2.One * -2, Vector2.One * 2), results);
-            Assert.AreEqual(300, results.Count);
+            Assert.That(results.Count, Is.EqualTo(300));
 
             results.Clear();
             bvh.QueryPoint(Vector2.Zero, results);
-            Assert.AreEqual(300, results.Count);
+            Assert.That(results.Count, Is.EqualTo(300));
 
             Assert.IsTrue(bvh.RayCastAny(new Vector2(-5, 0), new Vector2(10, 0)));
             Assert.IsTrue(bvh.RayCastClosest(new Vector2(-5, 0), new Vector2(10, 0), out int index, out float t));
-            Assert.AreEqual(0.4f, t, 1e-4); // x=-1 plane: (-1 - -5) / 10
+            Assert.That(t, Is.EqualTo(0.4f).Within(1e-4)); // x=-1 plane: (-1 - -5) / 10
             Assert.IsTrue(index >= 0 && index < 300);
 
             // starting inside all of them: the raw entry must be negative
@@ -350,9 +350,9 @@ namespace Alco.Test
                 Vector2 direction = random.NextVector2(-8, 8);
                 bool hitA = first.RayCastClosest(origin, direction, out int indexA, out float tA);
                 bool hitB = second.RayCastClosest(origin, direction, out int indexB, out float tB);
-                Assert.AreEqual(hitA, hitB);
-                Assert.AreEqual(indexA, indexB);
-                Assert.AreEqual(tA, tB);
+                Assert.That(hitB, Is.EqualTo(hitA));
+                Assert.That(indexB, Is.EqualTo(indexA));
+                Assert.That(tB, Is.EqualTo(tA));
             }
         }
     }

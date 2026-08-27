@@ -253,7 +253,7 @@ public class SlangParameterBlockSpikeTest
         TestContext.Progress.WriteLine(dump);
 
         // Pinned-layout caveat, as described at the top of this file.
-        List<(uint Set, uint Binding, string Name)> rows = Rows(code[0]);
+        List<(uint Set, uint Binding, string? Name)> rows = Rows(code[0]);
         Assert.That(rows, Does.Contain((1u, 0u, "pass")));
         Assert.That(rows, Does.Contain((1u, 1u, "pass.sceneColor")));
         Assert.That(rows, Does.Contain((1u, 3u, "pass.output")));
@@ -283,7 +283,7 @@ public class SlangParameterBlockSpikeTest
     /// compiled SPIR-V — what wgpu's pipeline layout must match, regardless
     /// of how the reflection API phrases the block hierarchy.
     /// </summary>
-    private static List<(uint Set, uint Binding, string Name)> Rows(byte[] spirv)
+    private static List<(uint Set, uint Binding, string? Name)> Rows(byte[] spirv)
     {
         uint[] words = new uint[spirv.Length / 4];
         Buffer.BlockCopy(spirv, 0, words, 0, words.Length * 4);
@@ -328,7 +328,7 @@ public class SlangParameterBlockSpikeTest
             i += (int)wordCount;
         }
 
-        List<(uint Set, uint Binding, string Name)> rows = [];
+        List<(uint Set, uint Binding, string? Name)> rows = [];
         foreach (KeyValuePair<uint, (uint? Set, uint? Binding)> pair in decorations)
         {
             if (pair.Value.Set is uint set && pair.Value.Binding is uint binding)
@@ -574,7 +574,7 @@ public class SlangParameterBlockSpikeTest
                 Assert.That(layout, Is.Not.EqualTo(IntPtr.Zero), $"getLayout failed: {layoutDiagnostics}");
                 byte[] code = linked.GetEntryPointCode(0, out _);
 
-                List<(uint Set, uint Binding, string Name)> rows = Rows(code);
+                List<(uint Set, uint Binding, string? Name)> rows = Rows(code);
                 TestContext.Progress.WriteLine(string.Join("\n", rows.Select(r => $"  set={r.Set} binding={r.Binding}  '{r.Name}'")));
 
                 // Reader-derivation truth: block binding index = absolute set,

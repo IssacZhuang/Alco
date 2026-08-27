@@ -14,8 +14,10 @@ public class TestSynchronizationContext
             Assert.That(SynchronizationContext.Current is GameSynchronizationContext, Is.False);
         }
 
-        private Task _taskInvokeByMainThread;
-        private Task _taskInvokeByTaskRun;
+        // Both tasks are created in OnStart, which always runs before the engine
+        // loop calls OnUpdate, so they are non-null at every read site.
+        private Task _taskInvokeByMainThread = null!;
+        private Task _taskInvokeByTaskRun = null!;
 
         private int _mainThreadId;
 

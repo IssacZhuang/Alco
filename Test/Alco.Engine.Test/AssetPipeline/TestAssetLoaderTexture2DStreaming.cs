@@ -22,14 +22,34 @@ public class TestAssetLoaderTexture2DStreaming
     /// <summary>Minimal <see cref="IRenderingSystemHost"/> for a headless rendering system.</summary>
     private class RenderingHost : IRenderingSystemHost
     {
-        public event Action<float> OnUpdate;
+        // This fake ignores per-frame host updates: subscribers are dropped, so the
+        // event intentionally has no backing field to initialize.
+        public event Action<float> OnUpdate
+        {
+            add { }
+            remove { }
+        }
+
+        // Field-like event: raised by Dispose below, initialized in the constructor.
         public event Action OnDispose;
+
+        public RenderingHost()
+        {
+            OnDispose += () => { };
+        }
+
         public void Dispose() { OnDispose?.Invoke(); }
     }
 
     /// <summary>Minimal <see cref="IAssetSystemHost"/> satisfying the constructor contract.</summary>
     private class LifeCycleProvider : IAssetSystemHost, IDisposable
     {
+        public LifeCycleProvider()
+        {
+            // The fake ignores host callbacks; subscribing keeps the event non-null.
+            OnDispose += () => { };
+        }
+
         public event Action OnDispose;
         public void Dispose() { OnDispose?.Invoke(); }
         public void LogError(ReadOnlySpan<char> message) { }
@@ -67,7 +87,7 @@ public class TestAssetLoaderTexture2DStreaming
         public void AddFile(string filename, byte[] content)
             => _files[filename] = content;
 
-        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, out string failureReason)
+        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
         {
             if (_files.TryGetValue(path, out var bytes))
             {
@@ -80,7 +100,7 @@ public class TestAssetLoaderTexture2DStreaming
             return false;
         }
 
-        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream stream, [NotNullWhen(false)] out string failureReason)
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
         {
             if (_files.TryGetValue(path, out var bytes))
             {

@@ -7,8 +7,6 @@ using System.Text;
 
 namespace Alco.IO.Test;
 
-#pragma warning disable CS0067
-
 public class TestAssetSystem
 {
     private class TestFastAsset
@@ -34,6 +32,12 @@ public class TestAssetSystem
     private class LifeCycleProvider : IAssetSystemHost, IDisposable
     {
         public event Action OnDispose;
+
+        public LifeCycleProvider()
+        {
+            // The fake ignores host callbacks; subscribing keeps the interface-required event non-null.
+            OnDispose += () => { };
+        }
 
         public void Dispose()
         {
@@ -171,7 +175,7 @@ public class TestAssetSystem
                     failedReason = string.Empty;
                     return true;
                 default:
-                    data = default;
+                    data = SafeMemoryHandle.Empty;
                     failedReason = string.Empty;
                     return false;
             }
@@ -259,7 +263,7 @@ public class TestAssetSystem
         double msFast = Math.Round(elapsedFast * (1000.0 / Stopwatch.Frequency), 3);
         TestContext.WriteLine($"Concurrent Load Time for fast asset: {msFast}");
 
-        TestFastAsset check = null;
+        TestFastAsset? check = null;
         //all assets in the array should be the same
         foreach (var asset in fastAssets)
         {
@@ -283,7 +287,7 @@ public class TestAssetSystem
         double msSlow = Math.Round(elapsedSlow * (1000.0 / Stopwatch.Frequency), 3);
         TestContext.WriteLine($"Concurrent Load Time for slow asset: {msSlow}");
 
-        TestSlowAsset checkSlow = null;
+        TestSlowAsset? checkSlow = null;
         //all assets in the array should be the same
         foreach (var asset in slowAssets)
         {
@@ -411,7 +415,7 @@ public class TestAssetSystem
                 failureReason = string.Empty;
                 return true;
             }
-            data = default;
+            data = SafeMemoryHandle.Empty;
             failureReason = "File not found";
             return false;
         }

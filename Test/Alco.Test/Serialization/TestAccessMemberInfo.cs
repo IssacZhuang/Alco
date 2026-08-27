@@ -40,7 +40,7 @@ public class TestAccessMemberInfo
     public void TestCreatePropertyInfo()
     {
         // Arrange
-        var propertyInfo = typeof(TestClass).GetProperty("IntProperty");
+        var propertyInfo = typeof(TestClass).GetProperty("IntProperty")!;
 
         // Act
         var accessMemberInfo = AccessMemberInfo.Create(propertyInfo, _memberAccessor);
@@ -57,7 +57,7 @@ public class TestAccessMemberInfo
     public void TestCreateFieldInfo()
     {
         // Arrange
-        var fieldInfo = typeof(TestClass).GetField("FloatField");
+        var fieldInfo = typeof(TestClass).GetField("FloatField")!;
 
         // Act
         var accessMemberInfo = AccessMemberInfo.Create(fieldInfo, _memberAccessor);
@@ -75,7 +75,7 @@ public class TestAccessMemberInfo
     {
         // Arrange
         var instance = new TestClass();
-        var propertyInfo = typeof(TestClass).GetProperty("IntProperty");
+        var propertyInfo = typeof(TestClass).GetProperty("IntProperty")!;
         var accessMemberInfo = AccessMemberInfo.Create(propertyInfo, _memberAccessor);
 
         // Act
@@ -90,7 +90,7 @@ public class TestAccessMemberInfo
     {
         // Arrange
         var instance = new TestClass();
-        var propertyInfo = typeof(TestClass).GetProperty("StringProperty");
+        var propertyInfo = typeof(TestClass).GetProperty("StringProperty")!;
         var accessMemberInfo = AccessMemberInfo.Create(propertyInfo, _memberAccessor);
 
         // Act
@@ -105,7 +105,7 @@ public class TestAccessMemberInfo
     {
         // Arrange
         var instance = new TestClass();
-        var fieldInfo = typeof(TestClass).GetField("FloatField");
+        var fieldInfo = typeof(TestClass).GetField("FloatField")!;
         var accessMemberInfo = AccessMemberInfo.Create(fieldInfo, _memberAccessor);
 
         // Act
@@ -120,7 +120,7 @@ public class TestAccessMemberInfo
     {
         // Arrange
         var instance = new TestClass();
-        var propertyInfo = typeof(TestClass).GetProperty("IntProperty");
+        var propertyInfo = typeof(TestClass).GetProperty("IntProperty")!;
         var accessMemberInfo = AccessMemberInfo.Create(propertyInfo, _memberAccessor);
 
         // Act
@@ -135,7 +135,7 @@ public class TestAccessMemberInfo
     {
         // Arrange
         var instance = new TestClass();
-        var fieldInfo = typeof(TestClass).GetField("FloatField");
+        var fieldInfo = typeof(TestClass).GetField("FloatField")!;
         var accessMemberInfo = AccessMemberInfo.Create(fieldInfo, _memberAccessor);
 
         // Act
@@ -150,7 +150,7 @@ public class TestAccessMemberInfo
     {
         // Arrange
         var instance = new TestClass();
-        var propertyInfo = typeof(TestClass).GetProperty("BoolProperty");
+        var propertyInfo = typeof(TestClass).GetProperty("BoolProperty")!;
         var accessMemberInfo = AccessMemberInfo.Create(propertyInfo, _memberAccessor);
 
         // Act & Assert
@@ -174,7 +174,7 @@ public class TestAccessMemberInfo
     {
         // Arrange
         var instance = new TestClass();
-        var propertyInfo = typeof(TestClass).GetProperty("IntProperty");
+        var propertyInfo = typeof(TestClass).GetProperty("IntProperty")!;
         var accessMemberInfo = AccessMemberInfo.Create(propertyInfo, _memberAccessor);
 
         // Act & Assert

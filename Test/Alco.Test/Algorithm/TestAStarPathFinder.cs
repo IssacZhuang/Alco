@@ -15,7 +15,7 @@ public class TestAStarPathFinder
         private readonly HashSet<int2> blocked;
         private readonly Dictionary<int2, float> cellCost;
 
-        public GridPathFinder(int width, int height, IEnumerable<int2> blocked = null, Dictionary<int2, float> cellCost = null)
+        public GridPathFinder(int width, int height, IEnumerable<int2>? blocked = null, Dictionary<int2, float>? cellCost = null)
         {
             this.width = width;
             this.height = height;

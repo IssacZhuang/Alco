@@ -27,8 +27,8 @@ public sealed class TestRenderGraph
         public RenderGraphTexture[] Writes = Array.Empty<RenderGraphTexture>();
         public RenderGraphTexture[] ReadWrites = Array.Empty<RenderGraphTexture>();
         public int ExecuteCount;
-        public List<string> Log;
-        public Action<RenderGraphContext> OnExecute;
+        public List<string>? Log;
+        public Action<RenderGraphContext>? OnExecute;
 
         public FakeNode(string name)
         {
@@ -105,7 +105,7 @@ public sealed class TestRenderGraph
         string name,
         uint width = 0,
         uint height = 0,
-        RenderGraphTexture depthSource = null)
+        RenderGraphTexture? depthSource = null)
     {
         return new RenderGraphTextureDescriptor(
             layout, width, height, 1.0f, depthSource, FilterMode.Linear, name);
@@ -300,8 +300,10 @@ public sealed class TestRenderGraph
 
         graph.Execute(null);
 
+        var colorA = a.ColorAttachments ?? throw new InvalidOperationException("unexpected null");
+        var colorB = b.ColorAttachments ?? throw new InvalidOperationException("unexpected null");
         Assert.That(
-            ReferenceEquals(a.ColorAttachments[0], b.ColorAttachments[0]),
+            ReferenceEquals(colorA[0], colorB[0]),
             Is.True,
             "A's lifetime ends before B's starts: B must be assigned the pooled attachment A released.");
 
@@ -310,7 +312,7 @@ public sealed class TestRenderGraph
         uint versionA = a.Texture.Version;
         uint versionB = b.Texture.Version;
         graph.Execute(null);
-        Assert.That(ReferenceEquals(a.ColorAttachments[0], b.ColorAttachments[0]), Is.True);
+        Assert.That(ReferenceEquals(colorA[0], colorB[0]), Is.True);
         Assert.That(a.Texture.Version, Is.EqualTo(versionA), "Steady state must not rebind A.");
         Assert.That(b.Texture.Version, Is.EqualTo(versionB), "Steady state must not rebind B.");
     }
@@ -336,8 +338,10 @@ public sealed class TestRenderGraph
         uint versionB2 = b.Texture.Version;
         graph.Execute(null);
 
+        var colorA = a.ColorAttachments ?? throw new InvalidOperationException("unexpected null");
+        var colorB = b.ColorAttachments ?? throw new InvalidOperationException("unexpected null");
         Assert.That(
-            ReferenceEquals(a.ColorAttachments[0], b.ColorAttachments[0]),
+            ReferenceEquals(colorA[0], colorB[0]),
             Is.False,
             "Nested lifetimes overlap and must keep dedicated pooled attachments.");
         Assert.That(versionA2, Is.EqualTo(versionA1), "Frame 2 must not rebind A.");
