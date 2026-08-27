@@ -638,6 +638,7 @@ public static class SlangReflectionReader
             SlangNative.SLANG_IMAGE_FORMAT_rgba16f => PixelFormat.RGBA16Float,
             SlangNative.SLANG_IMAGE_FORMAT_rgba32f => PixelFormat.RGBA32Float,
             SlangNative.SLANG_IMAGE_FORMAT_r32f => PixelFormat.R32Float,
+            SlangNative.SLANG_IMAGE_FORMAT_r16f => PixelFormat.R16Float,
             SlangNative.SLANG_IMAGE_FORMAT_rg16f => PixelFormat.RG16Float,
             SlangNative.SLANG_IMAGE_FORMAT_r8 => PixelFormat.R8Unorm,
             SlangNative.SLANG_IMAGE_FORMAT_rg8 => PixelFormat.RG8Unorm,

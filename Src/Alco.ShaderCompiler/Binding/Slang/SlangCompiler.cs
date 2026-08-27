@@ -197,6 +197,12 @@ public sealed class SlangCompileSession : IDisposable
     private readonly SlangSession _session;
     private readonly SlangFileSystemExt? _fileSystem;
     private readonly Lock _lock = new();
+    private bool _disposed;
+
+    // The native session is freed on Dispose; a caller that outlives its owner
+    // (e.g. a background continuation whose engine was already torn down) must
+    // hit a managed exception instead of a use-after-free in native slang.
+    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
 
     internal SlangSession Native => _session;
 
@@ -279,6 +285,7 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
+            ThrowIfDisposed();
             SlangModule? module = _session.LoadModule(moduleName, out string? diagnostics);
             if (module == null)
                 throw new ShaderCompilationException($"slang failed to load module '{moduleName}': {diagnostics}");
@@ -293,7 +300,8 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
-        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(source);
+            ThrowIfDisposed();
+            byte[] bytes = System.Text.Encoding.UTF8.GetBytes(source);
             SlangModule? module = _session.LoadModuleFromSource(moduleName, path, bytes, out string? diagnostics);
             if (module == null)
                 throw new ShaderCompilationException($"slang failed to parse module '{moduleName}' ({path}): {diagnostics}");
@@ -308,6 +316,7 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
+            ThrowIfDisposed();
             SlangModule? module = _session.LoadModuleFromIRBlob(moduleName, path, ir, out string? diagnostics);
             if (module == null)
                 throw new ShaderCompilationException($"slang failed to load IR module '{moduleName}' ({path}): {diagnostics}");
@@ -323,13 +332,20 @@ public sealed class SlangCompileSession : IDisposable
     /// through the session's file system the blob is accepted without validation.
     /// </summary>
     public bool IsBinaryModuleUpToDate(string path, byte[] serializedModule)
-        => _session.IsBinaryModuleUpToDate(path, serializedModule);
+    {
+        lock (_lock)
+        {
+            ThrowIfDisposed();
+            return _session.IsBinaryModuleUpToDate(path, serializedModule);
+        }
+    }
 
     /// <summary>Compiles one module's requested entry points into a linked program.</summary>
     public SlangProgram Compile(SlangModuleHandle module, IReadOnlyList<SlangEntryPointRequest> entryPoints)
     {
         lock (_lock)
         {
+            ThrowIfDisposed();
             return Compile(module, entryPoints, []);
         }
     }
@@ -339,6 +355,7 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
+            ThrowIfDisposed();
             // [module, ep0, ep1, ...] — the module first keeps global parameter
             // order equal to the single-module layout; entry-point code indices
             // then follow the request order.
@@ -390,6 +407,7 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
+            ThrowIfDisposed();
             int count = entryModule.Native.DefinedEntryPointCount;
             if (count == 0)
                 throw new ShaderCompilationException(
@@ -597,6 +615,7 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
+            ThrowIfDisposed();
             IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
             if (layout == IntPtr.Zero)
                 throw new ShaderCompilationException(
@@ -613,6 +632,7 @@ public sealed class SlangCompileSession : IDisposable
     {
         lock (_lock)
         {
+            ThrowIfDisposed();
             int count = module.Native.DefinedEntryPointCount;
             if (count == 0)
                 throw new ShaderCompilationException(
@@ -769,8 +789,16 @@ public sealed class SlangCompileSession : IDisposable
 
     public void Dispose()
     {
-        _session.Release();
-        _fileSystem?.Dispose();
+        lock (_lock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
+            _session.Release();
+            _fileSystem?.Dispose();
+        }
     }
 }
 

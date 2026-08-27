@@ -35,7 +35,7 @@ namespace Alco.ShaderCompiler;
 /// <summary>Owns slang modules, their dependency graph and the shader disk caches.</summary>
 public sealed class SlangModuleSystem : IDisposable
 {
-    private const int MetaVersion = 3;
+    private const int MetaVersion = 4;
     private const int ProgramCacheKeyVersion = 4;
 
     private readonly SlangCompilerOptions _options;
@@ -523,6 +523,12 @@ public sealed class SlangModuleSystem : IDisposable
             // round-trip.
             if (reader.ReadString() != HashContent(source))
                 return false;
+            // Blob integrity: the native IR parser is not robust against a torn
+            // or truncated blob (a kill or a concurrent writer mid-overwrite)
+            // and dies with a process-fatal access violation, so the blob's hash
+            // must match before it is handed to slang.
+            if (reader.ReadString() != Convert.ToHexString(XxHash3.Hash(ir)))
+                return false;
             int depCount = reader.ReadInt32();
             List<string> dependencies = new(depCount + 1);
             for (int i = 0; i < depCount; i++)
@@ -573,19 +579,27 @@ public sealed class SlangModuleSystem : IDisposable
             List<string> fileDeps = entry.Dependencies.Where(dep => dep != ownPath).ToList();
             string blobPath = ModuleCachePath(key, "slang-module");
             string metaPath = ModuleCachePath(key, "meta");
-            File.WriteAllBytes(blobPath, entry.SerializedIR);
-            using FileStream stream = File.Create(metaPath);
-            using var writer = new System.IO.BinaryWriter(stream);
-            writer.Write(MetaVersion);
-            writer.Write(BuildTag);
-            writer.Write((int)_options.Target);
-            writer.Write(HashContent(source));
-            writer.Write(fileDeps.Count);
-            foreach (string dep in fileDeps)
+            // Both writes go through a temp file + rename so a killed or
+            // concurrent writer can never leave a torn blob behind; the meta
+            // (with the blob's hash) commits last.
+            WriteAllBytesAtomic(blobPath, entry.SerializedIR);
+            string tempMetaPath = metaPath + ".tmp";
+            using (FileStream stream = File.Create(tempMetaPath))
             {
-                writer.Write(dep);
-                writer.Write(HashContent(ResolveDependency(dep) ?? ""));
+                using var writer = new System.IO.BinaryWriter(stream);
+                writer.Write(MetaVersion);
+                writer.Write(BuildTag);
+                writer.Write((int)_options.Target);
+                writer.Write(HashContent(source));
+                writer.Write(Convert.ToHexString(XxHash3.Hash(entry.SerializedIR)));
+                writer.Write(fileDeps.Count);
+                foreach (string dep in fileDeps)
+                {
+                    writer.Write(dep);
+                    writer.Write(HashContent(ResolveDependency(dep) ?? ""));
+                }
             }
+            File.Move(tempMetaPath, metaPath, overwrite: true);
         }
         catch
         {
@@ -684,6 +698,13 @@ public sealed class SlangModuleSystem : IDisposable
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private static void WriteAllBytesAtomic(string path, byte[] bytes)
+    {
+        string tempPath = path + ".tmp";
+        File.WriteAllBytes(tempPath, bytes);
+        File.Move(tempPath, path, overwrite: true);
+    }
 
     /// <summary>
     /// The probed source of a module name (the same probing GetOrLoadModule
