@@ -99,8 +99,13 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             _device.QueueNativeDestroy(_inFlightFence);
             _inFlightFence = default;
         }
-        // the native command buffer belongs to the device pool and is freed with it
-        _commandBuffer = default;
+        if (_commandBuffer.Handle != 0)
+        {
+            // the buffer may still be executing on the GPU; the deferred free
+            // waits out frames in flight before returning it to the pool
+            _device.QueueSecondaryCommandBufferFree(_commandBuffer);
+            _commandBuffer = default;
+        }
     }
 
     // ===== render passes =====
@@ -364,6 +369,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     protected override void BeginComputeCore()
     {
         _currentComputePipeline = null;
+        _tracker.BeginComputeScope();
     }
 
     protected override void BeginComputeTimestampCore(
@@ -396,6 +402,10 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
     protected override void EndComputeCore()
     {
+        // close the scope first: the pass-end flush below already makes every
+        // touched resource's current state visible, so pending flips are redundant
+        _tracker.EndComputeScope();
+
         if (_pendingEndTimestamp.HasValue)
         {
             (VulkanTimestampQuerySet set, uint index) = _pendingEndTimestamp.Value;
@@ -521,6 +531,9 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
     protected override void DispatchComputeCore(uint x, uint y, uint z)
     {
+        // make the previous dispatch's writes visible to this one (bind-time
+        // state flips queue their barriers here; no-op when nothing flipped)
+        _tracker.FlushDispatchBarriers(_commandBuffer);
         vkCmdDispatch(_commandBuffer, x, y, z);
     }
 
@@ -528,6 +541,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     {
         VulkanBuffer buffer = (VulkanBuffer)indirectBuffer;
         MarkBufferUse(buffer, VulkanResourceState.IndirectRead);
+        _tracker.FlushDispatchBarriers(_commandBuffer);
         vkCmdDispatchIndirect(_commandBuffer, buffer.Native, offset);
     }
 
@@ -552,6 +566,11 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         if (!bundleImpl.HasBuffer)
         {
             throw new GraphicsException($"Render bundle '{bundleImpl.Name}' was never recorded; call Begin/End before executing it.");
+        }
+        if (bundleImpl.IsEmpty)
+        {
+            // a finished empty bundle executes as a no-op (WebGPU semantics)
+            return;
         }
 
         // replay through a cached secondary command buffer: one driver call per

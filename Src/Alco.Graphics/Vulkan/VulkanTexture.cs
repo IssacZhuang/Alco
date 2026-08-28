@@ -179,6 +179,9 @@ internal sealed unsafe class VulkanTexture : GPUTexture
         {
             Device.QueueNativeDestroy(Image, Allocation);
         }
+        // drop the tracked state so the device tracker does not keep growing
+        // (and never hazards a destroyed image again)
+        Device.Tracker.Remove(this);
         Image = default;
         Allocation = default;
     }

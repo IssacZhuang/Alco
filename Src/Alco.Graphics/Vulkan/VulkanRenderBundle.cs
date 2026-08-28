@@ -57,6 +57,11 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
     private VkPipelineStageFlags2 _recordedScopeStage = VkPipelineStageFlags2.TopOfPipe;
     private VkAccessFlags2 _recordedScopeAccess = VkAccessFlags2.None;
 
+    // whether End() ever finished a recording. Matches WebGPU's HasBuffer: a
+    // finished empty bundle is valid and executes as a no-op; only a bundle
+    // that was never recorded rejects execution.
+    private bool _hasRecorded;
+
     // cached replay through secondary command buffers, keyed by executing
     // primary: a secondary without SIMULTANEOUS_USE may pend in only one
     // primary and must not be reset while pending. Keying by the primary
@@ -84,7 +89,11 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
         get => _device;
     }
 
-    public override bool HasBuffer => _recordedCommands.Count > 0;
+    public override bool HasBuffer => _hasRecorded;
+
+    /// <summary>Whether the recorded content is empty (a finished empty bundle
+    /// executes as a no-op; execution is skipped entirely).</summary>
+    internal bool IsEmpty => _recordedCommands.Count == 0;
 
     public VulkanRenderBundle(VulkanDevice device, in RenderBundleDescriptor? descriptor)
         : base(descriptor)
@@ -114,6 +123,9 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
 
     protected override void EndCore()
     {
+        // the recording is now valid content even when empty
+        _hasRecorded = true;
+
         // swap: the recording list becomes the recorded list and the previous
         // recorded list is recycled as the next recording buffer
         List<BundleCommand> previousCommands = _recordedCommands;

@@ -114,6 +114,15 @@ internal sealed unsafe class VulkanResourceTracker
     private VkPipelineStageFlags2 _bundleSrcStage;
     private VkAccessFlags2 _bundleSrcAccess;
 
+    // compute passes have no native pass object in Vulkan, so barriers ARE
+    // legal between their dispatches (rendering scopes are the only ones that
+    // forbid them). Inside a compute pass a resource may flip between states
+    // across dispatches (flood-fill ping-pong, blur reading what fill wrote);
+    // each flip is recorded here and flushed as one barrier right before the
+    // next dispatch — the same point wgpu flushes its pending bind barriers.
+    private readonly List<(object Resource, VulkanResourceState OldState, VulkanResourceState NewState)> _pendingDispatchBarriers = new();
+    private bool _inComputePass;
+
     // the device tracker is genuinely shared (seed reads from recording threads
     // race submit-time mutations) and keeps a monitor; recording trackers are
     // single-owner under the wgpu handoff contract (a command buffer moves
@@ -398,14 +407,21 @@ internal sealed unsafe class VulkanResourceTracker
     /// <summary>
     /// Records a new state for a resource used inside a pass WITHOUT emitting a
     /// barrier (illegal inside a rendering scope). Correct because wgpu semantics
-    /// give a resource a single usage per pass, and the previous pass flushed its
-    /// writes when it ended.
+    /// give a resource a single usage per render pass, and the previous pass
+    /// flushed its writes when it ended. Inside a compute pass the state flip is
+    /// queued instead: dispatches may re-use a resource with a different usage,
+    /// and <see cref="FlushDispatchBarriers"/> makes each flip visible before
+    /// the next dispatch runs.
     /// </summary>
     public void MarkTexture(VulkanTexture texture, VulkanResourceState target)
     {
         using var __ = Lock();
         {
-            _ = GetTextureStateUnlocked(texture); // seed first use if needed
+            VulkanResourceState source = GetTextureStateUnlocked(texture);
+            if (_inComputePass && source != target)
+            {
+                _pendingDispatchBarriers.Add((texture, source, target));
+            }
             _imageStates[texture] = target;
         }
     }
@@ -414,8 +430,118 @@ internal sealed unsafe class VulkanResourceTracker
     {
         using var __ = Lock();
         {
-            _ = GetBufferStateUnlocked(buffer); // seed first use if needed
+            VulkanResourceState source = GetBufferStateUnlocked(buffer);
+            if (_inComputePass && source != target)
+            {
+                _pendingDispatchBarriers.Add((buffer, source, target));
+            }
             _bufferStates[buffer] = target;
+        }
+    }
+
+    /// <summary>Opens a compute-pass scope: state flips at bind time are queued
+    /// and flushed before each dispatch (Vulkan allows barriers there).</summary>
+    public void BeginComputeScope()
+    {
+        using var __ = Lock();
+        {
+            _inComputePass = true;
+            _pendingDispatchBarriers.Clear();
+        }
+    }
+
+    /// <summary>Closes the compute-pass scope. Leftover pending flips are
+    /// dropped: the pass-end flush barrier already covers every touched
+    /// resource's current state, making them redundant.</summary>
+    public void EndComputeScope()
+    {
+        using var __ = Lock();
+        {
+            _inComputePass = false;
+            _pendingDispatchBarriers.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Emits ONE barrier covering every state flip recorded since the last
+    /// dispatch, making the previous dispatch's writes visible to the next.
+    /// Buffers and layout-unchanged images fold into a single global memory
+    /// barrier; images whose layout changes get per-image barriers in the same
+    /// vkCmdPipelineBarrier2 call. Legal only outside a rendering scope.
+    /// </summary>
+    public void FlushDispatchBarriers(VkCommandBuffer commandBuffer)
+    {
+        using var __ = Lock();
+        {
+            if (_pendingDispatchBarriers.Count == 0)
+            {
+                return;
+            }
+
+            int imageCount = 0;
+            foreach ((object resource, VulkanResourceState oldState, VulkanResourceState newState) in _pendingDispatchBarriers)
+            {
+                if (resource is VulkanTexture texture
+                    && LayoutForState(texture, oldState) != LayoutForState(texture, newState))
+                {
+                    imageCount++;
+                }
+            }
+
+            VkPipelineStageFlags2 srcStage = VkPipelineStageFlags2.TopOfPipe;
+            VkAccessFlags2 srcAccess = VkAccessFlags2.None;
+            VkPipelineStageFlags2 dstStage = VkPipelineStageFlags2.TopOfPipe;
+            VkAccessFlags2 dstAccess = VkAccessFlags2.None;
+
+            // zero-length stackalloc is legal; the pointer is unused when count is 0
+            VkImageMemoryBarrier2* imageBarriers = stackalloc VkImageMemoryBarrier2[imageCount];
+            int imageIndex = 0;
+
+            foreach ((object resource, VulkanResourceState oldState, VulkanResourceState newState) in _pendingDispatchBarriers)
+            {
+                if (resource is VulkanTexture texture)
+                {
+                    (VkPipelineStageFlags2 s, VkAccessFlags2 a) = ImageScope(oldState);
+                    (VkPipelineStageFlags2 ds, VkAccessFlags2 da) = ImageScope(newState);
+                    srcStage |= s;
+                    srcAccess |= a;
+                    dstStage |= ds;
+                    dstAccess |= da;
+                    if (LayoutForState(texture, oldState) != LayoutForState(texture, newState))
+                    {
+                        // layout change needs a real image barrier (the rare
+                        // case in compute; bindable images usually sit in GENERAL)
+                        imageBarriers[imageIndex++] = BuildImageBarrier(texture, oldState, newState, s, a, ds, da);
+                    }
+                }
+                else if (resource is VulkanBuffer buffer)
+                {
+                    (VkPipelineStageFlags2 s, VkAccessFlags2 a) = BufferScope(oldState);
+                    (VkPipelineStageFlags2 ds, VkAccessFlags2 da) = BufferScope(newState);
+                    srcStage |= s;
+                    srcAccess |= a;
+                    dstStage |= ds;
+                    dstAccess |= da;
+                }
+            }
+            _pendingDispatchBarriers.Clear();
+
+            VkMemoryBarrier2 memoryBarrier = new()
+            {
+                srcStageMask = srcStage,
+                srcAccessMask = srcAccess,
+                dstStageMask = dstStage,
+                dstAccessMask = dstAccess,
+            };
+
+            VkDependencyInfo dependency = new()
+            {
+                memoryBarrierCount = 1,
+                pMemoryBarriers = &memoryBarrier,
+                imageMemoryBarrierCount = (uint)imageIndex,
+                pImageMemoryBarriers = imageBarriers,
+            };
+            vkCmdPipelineBarrier2(commandBuffer, &dependency);
         }
     }
 
@@ -650,6 +776,8 @@ internal sealed unsafe class VulkanResourceTracker
             _bufferStates.Clear();
             _firstUses.Clear();
             _passTouched.Clear();
+            _pendingDispatchBarriers.Clear();
+            _inComputePass = false;
             _bundleSrcStage = VkPipelineStageFlags2.TopOfPipe;
             _bundleSrcAccess = VkAccessFlags2.None;
             _serial = _parent?.CurrentSerial ?? 0;

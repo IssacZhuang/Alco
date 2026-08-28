@@ -74,6 +74,8 @@ internal sealed unsafe class VulkanBuffer : GPUBuffer
         }
 
         Device.QueueNativeDestroy(Native, Allocation, IsHostVisible ? MappedPointer : null);
+        // drop the tracked state so the device tracker does not keep growing
+        Device.Tracker.Remove(this);
         Native = default;
         Allocation = default;
     }
