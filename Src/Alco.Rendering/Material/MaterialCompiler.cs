@@ -26,7 +26,6 @@ public sealed class MaterialCompiler : AutoDisposable
     private readonly record struct CompositionKey(
         ShaderLibrary Template,
         ShaderLibrary Surface,
-        string Specialization,
         bool Compute);
 
     private readonly RenderingSystem _rendering;
@@ -65,27 +64,24 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <summary>
     /// The composed graphics (vertex+fragment) shader of one (template, surface) pair;
     /// created on first request, then cached. The compiler owns the returned shader.
+    /// The handle serves every specialization of the pair: variants link lazily per
+    /// positional argument list through <see cref="Shader.GetShaderModules(string[])"/>,
+    /// an empty list selecting every axis's default — the same variant model a module
+    /// shader has. <see cref="BuildSpecializationLiterals"/> translates an asset's
+    /// named table into that positional form.
     /// </summary>
     /// <param name="template">The pass-template library (owns the generic entry points).</param>
     /// <param name="surface">The surface library (exports the contract's single conforming type).</param>
-    /// <param name="specializations">
-    /// Named specialization values for the template's generic value parameters (see
-    /// <see cref="BuildSpecializationLiterals"/>); null selects every axis's default.
-    /// </param>
-    public Shader ComposeGraphics(
-        ShaderLibrary template, ShaderLibrary surface,
-        IReadOnlyDictionary<string, ShaderValue>? specializations = null)
-        => Compose(template, surface, specializations, compute: false);
+    public Shader ComposeGraphics(ShaderLibrary template, ShaderLibrary surface)
+        => Compose(template, surface, compute: false);
 
     /// <summary>
     /// The composed compute shader of one (template, surface) pair — e.g. the voxel-GI
     /// feed whose template owns a single surface-generic [shader("compute")] entry.
     /// </summary>
     /// <inheritdoc cref="ComposeGraphics"/>
-    public Shader ComposeCompute(
-        ShaderLibrary template, ShaderLibrary surface,
-        IReadOnlyDictionary<string, ShaderValue>? specializations = null)
-        => Compose(template, surface, specializations, compute: true);
+    public Shader ComposeCompute(ShaderLibrary template, ShaderLibrary surface)
+        => Compose(template, surface, compute: true);
 
     /// <summary>
     /// The link-time specialization literals of one (template, named values) pair: each
@@ -202,8 +198,9 @@ public sealed class MaterialCompiler : AutoDisposable
         ArgumentNullException.ThrowIfNull(createMaterial);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        Shader shader = Compose(template, SurfaceOf(asset), specializations, compute: false);
-        ShaderReflection reflection = shader.GetShaderModules().ReflectionInfo;
+        Shader shader = Compose(template, SurfaceOf(asset), compute: false);
+        string[] specLiterals = BuildSpecializationLiterals(template, specializations);
+        ShaderReflection reflection = shader.GetShaderModules(specLiterals).ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
         // declare is a typo in the asset — fail here, at compile time.
@@ -222,6 +219,12 @@ public sealed class MaterialCompiler : AutoDisposable
         GraphicsMaterial material = createMaterial(asset, shader);
         try
         {
+            // The variant is the material's own state, not the shader's identity:
+            // the factory path constructs at the pair's default and switches to
+            // the table's variant here — and SetSpecializations may switch it
+            // again at runtime, linking the new variant lazily.
+            material.SetSpecializations(specLiterals);
+
             // The parameter blocks, packed from the asset's values; each block is
             // bound where the pass's reflection keeps it (a pass that never samples
             // the block's consumers strips it from its layout). Like every bound
@@ -256,23 +259,22 @@ public sealed class MaterialCompiler : AutoDisposable
 
     /// <summary>
     /// The shader of one pass template composed with an asset's surface (the compiler's
-    /// default surface when <paramref name="asset"/> is null or names none), specialized
-    /// by the asset's <see cref="MaterialAsset.Specializations"/> — the composition step
-    /// of <see cref="Compile"/>, on its own for inspection and tests.
+    /// default surface when <paramref name="asset"/> is null or names none) — the
+    /// composition step of <see cref="Compile"/>, on its own for inspection and tests.
+    /// The handle serves every specialization of the pair; select the asset's variant
+    /// with the positional literals of <see cref="BuildSpecializationLiterals"/>.
     /// </summary>
     /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
     /// <param name="template">The pass-template library.</param>
     public Shader ComposeSurfaceShader(MaterialAsset? asset, ShaderLibrary template)
-        => ComposeGraphics(template, SurfaceOf(asset), asset?.Specializations);
+        => ComposeGraphics(template, SurfaceOf(asset));
 
     /// <summary>
     /// The compute counterpart of <see cref="ComposeSurfaceShader"/>, for facilities
     /// whose surface feed is a compute pass (e.g. a voxel GI's voxelization).
     /// </summary>
-    /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
-    /// <param name="template">The pass-template library.</param>
     public Shader ComposeSurfaceComputeShader(MaterialAsset? asset, ShaderLibrary template)
-        => ComposeCompute(template, SurfaceOf(asset), asset?.Specializations);
+        => ComposeCompute(template, SurfaceOf(asset));
 
     /// <summary>
     /// The compute counterpart of <see cref="Compile"/>: the material of an asset for a
@@ -293,7 +295,8 @@ public sealed class MaterialCompiler : AutoDisposable
         ArgumentNullException.ThrowIfNull(asset);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         Shader shader = ComposeSurfaceComputeShader(asset, template);
-        ShaderReflection reflection = shader.GetShaderModules().ReflectionInfo;
+        string[] specLiterals = BuildSpecializationLiterals(template, asset.Specializations);
+        ShaderReflection reflection = shader.GetShaderModules(specLiterals).ReflectionInfo;
 
         // Compile-time slot validation, the same rule as the graphics passes: a
         // texture slot the surface does not declare is a typo in the asset.
@@ -308,7 +311,7 @@ public sealed class MaterialCompiler : AutoDisposable
             }
         }
 
-        ComputeMaterial material = _rendering.CreateComputeMaterial(shader);
+        ComputeMaterial material = _rendering.CreateComputeMaterial(shader, specLiterals);
         foreach (KeyValuePair<string, GraphicsBuffer> block in PackParamsBuffers(asset))
         {
             if (reflection.TryGetResourceId(block.Key, out _))
@@ -654,14 +657,10 @@ public sealed class MaterialCompiler : AutoDisposable
     public IReadOnlyList<string> EnumerateTextureSlots(ShaderLibrary surface)
         => [.. surface.Reflection.TextureSlots.Select(slot => slot.Name)];
 
-    private Shader Compose(
-        ShaderLibrary template, ShaderLibrary surface,
-        IReadOnlyDictionary<string, ShaderValue>? specializations, bool compute)
+    private Shader Compose(ShaderLibrary template, ShaderLibrary surface, bool compute)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        string[] specArgs = BuildSpecializationLiterals(template, specializations);
-        string specKey = string.Join("|", specArgs);
-        CompositionKey key = new(template, surface, specKey, compute);
+        CompositionKey key = new(template, surface, compute);
         lock (_lock)
         {
             if (_shaders.TryGetValue(key, out Shader? cached))
@@ -669,28 +668,44 @@ public sealed class MaterialCompiler : AutoDisposable
                 return cached;
             }
 
-            string shaderName = specArgs.Length == 0
-                ? $"{template.Name}+{surface.Name}"
-                : $"{template.Name}+{surface.Name}[{specKey}]";
-            // A composed shader has no open specialization axis of its own — the
-            // variant was fixed by the composition — so the handle ignores the
-            // accessor-level specialization arguments.
+            string shaderName = $"{template.Name}+{surface.Name}";
+            // The handle is the pair's every-variant servant, exactly like a
+            // module shader: each requested specialization links on demand and
+            // caches inside the shader — the specialization is the material's
+            // state, never the handle's identity.
             Shader shader = _rendering.CreateShader(
                 shaderName,
-                _ => CompilePermutation(key, specArgs, shaderName));
+                specializations => CompilePermutation(key, specializations, shaderName));
             _shaders.Add(key, shader);
             return shader;
         }
     }
 
-    private ShaderModulesInfo CompilePermutation(CompositionKey key, string[] specArgs, string shaderName)
+    private ShaderModulesInfo CompilePermutation(CompositionKey key, string[] specializations, string shaderName)
     {
+        // The pair's positional protocol: one literal per reflected axis, in
+        // reflection order. An empty list selects every axis's default — the
+        // material domain's "unspecialized" (e.g. a UI draw of a world-route
+        // template) — and a non-empty list of the wrong length is a positional
+        // misuse of the protocol.
+        IReadOnlyList<ShaderSpecializationAxis> axes = key.Template.Reflection.SpecializationAxes;
+        if (specializations.Length == 0)
+        {
+            specializations = BuildSpecializationLiterals(key.Template, null);
+        }
+        else if (specializations.Length != axes.Count)
+        {
+            throw new InvalidDataException(
+                $"Composed shader '{shaderName}' declares {(axes.Count == 0 ? "no specialization axis" : $"{axes.Count} specialization axes ({string.Join(", ", axes.Select(axis => axis.Name))})")} " +
+                $"but {specializations.Length} argument(s) were given.");
+        }
+
         SlangModuleSystem modules = _shaderSystem.Modules;
         // The surface type is discovered inside (contract from the template's
         // generic entry points, the companion's single conformer by subtype
         // reflection) — no type name crosses this boundary.
         SlangProgram program = modules.GetComposedProgram(
-            key.Template.Name, key.Surface.Name, specArgs);
+            key.Template.Name, key.Surface.Name, specializations);
 
         // Programs stay pinned: ShaderModule structs reference the code arrays.
         lock (_lock)

@@ -125,19 +125,27 @@ public class GraphicsMaterial : AutoDisposable
     /// variant — C# values (<c>false</c>, <c>3</c>) or slang expressions,
     /// normalized internally.</param>
     public void SetSpecializations(params ReadOnlySpan<object> specializations)
+        => SetSpecializations(Shader.NormalizeSpecializations(specializations));
+
+    /// <summary>
+    /// Canonical-string core the compile paths use: the positional literals
+    /// <see cref="MaterialCompiler.BuildSpecializationLiterals"/> produces are
+    /// already normalized, so they land here without the object-typed wrapper.
+    /// </summary>
+    internal void SetSpecializations(string[] specializations)
     {
-        string[] spec = Shader.NormalizeSpecializations(specializations);
-        if (spec.AsSpan().SequenceEqual(_specializations))
+        ArgumentNullException.ThrowIfNull(specializations);
+        if (specializations.AsSpan().SequenceEqual(_specializations))
         {
             return;
         }
 
-        _specializations = spec;
+        _specializations = specializations;
         // The next GetPipelineContext sees the dirty flag, compiles the variant's
         // modules through the shader handle and rebuilds the pipeline; the
         // parameter set re-resolves its slots from the new reflection info,
         // carrying bound values over by name.
-        _pipelineContext.Specializations = spec;
+        _pipelineContext.Specializations = specializations;
         _isPipelineDirty = true;
     }
 

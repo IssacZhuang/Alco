@@ -411,7 +411,7 @@ public class MaterialCompilerComposeTest
     }
 
     [Test]
-    public void ComposeGraphics_ValueSpecializations_AreDistinctShaders()
+    public void ComposeGraphics_ValueSpecializations_AreDistinctVariants()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         using MaterialCompiler compiler = CreateCompiler(host, out ShaderSystem shaderSystem);
@@ -419,21 +419,65 @@ public class MaterialCompilerComposeTest
         {
             ShaderLibrary shadow = shaderSystem.GetLibrary("test_shadow_template");
             ShaderLibrary surface = shaderSystem.GetLibrary("test_surface");
-            Shader opaque = compiler.ComposeGraphics(shadow, surface,
-                new Dictionary<string, ShaderValue> { ["AlphaTest"] = false });
-            Shader cutout = compiler.ComposeGraphics(shadow, surface,
-                new Dictionary<string, ShaderValue> { ["AlphaTest"] = true });
+            Shader shader = compiler.ComposeGraphics(shadow, surface);
+
+            ShaderModulesInfo opaque = shader.GetShaderModules("false");
+            ShaderModulesInfo cutout = shader.GetShaderModules("true");
 
             Assert.Multiple(() =>
             {
-                Assert.That(cutout, Is.Not.SameAs(opaque));
-                Assert.That(opaque.Name, Is.EqualTo("test_shadow_template+test_surface[false]"));
-                Assert.That(cutout.Name, Is.EqualTo("test_shadow_template+test_surface[true]"));
+                Assert.That(shader.Name, Is.EqualTo("test_shadow_template+test_surface"));
+                Assert.That(shader.GetShaderModules("false"), Is.SameAs(opaque),
+                    "the pair's variants cache inside the one shared handle");
+                Assert.That(cutout, Is.Not.SameAs(opaque),
+                    "each specialization is its own compiled variant");
                 // The specialization fold is real: the opaque PS carries no sample.
                 Assert.That(
-                    cutout.GetShaderModules().FragmentShader!.Value.Source.Length,
-                    Is.GreaterThan(opaque.GetShaderModules().FragmentShader!.Value.Source.Length));
+                    cutout.FragmentShader!.Value.Source.Length,
+                    Is.GreaterThan(opaque.FragmentShader!.Value.Source.Length));
             });
+        }
+    }
+
+    [Test]
+    public void ComposedShader_ServesRuntimeVariantSwitches()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using MaterialCompiler compiler = CreateCompiler(host, out ShaderSystem shaderSystem);
+        using (shaderSystem)
+        {
+            ShaderLibrary shadow = shaderSystem.GetLibrary("test_shadow_template");
+            ShaderLibrary surface = shaderSystem.GetLibrary("test_surface");
+            Shader shader = compiler.ComposeGraphics(shadow, surface);
+
+            // An empty argument list selects every axis's default — the composed
+            // pair cannot link unspecialized, and the material factories start
+            // exactly here before any switch.
+            ShaderModulesInfo @default = shader.GetShaderModules();
+            ShaderModulesInfo opaque = shader.GetShaderModules("false");
+            ShaderModulesInfo cutout = shader.GetShaderModules("true");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(@default.IsGraphicsShader, Is.True);
+                Assert.That(@default.FragmentShader!.Value.Source.Length,
+                    Is.EqualTo(opaque.FragmentShader!.Value.Source.Length),
+                    "the empty list is the default variant, not another fold");
+                Assert.That(cutout.FragmentShader!.Value.Source.Length,
+                    Is.Not.EqualTo(@default.FragmentShader!.Value.Source.Length),
+                    "the handle serves the requested variant, never a fixed one");
+
+                // The material's variant is its own state and switches at runtime.
+                using GraphicsMaterial material =
+                    host.RenderingSystem.CreateGraphicsMaterial(shader, "switching_material");
+                Assert.That(material.Specializations, Is.Empty);
+                material.SetSpecializations("true");
+                Assert.That(material.Specializations, Is.EqualTo(new[] { "true" }));
+            });
+
+            // The pair's positional protocol: one literal per reflected axis —
+            // a wrong-length list is a misuse and fails at the variant compile.
+            Assert.Throws<InvalidDataException>(() => _ = shader.GetShaderModules("true", "false"));
         }
     }
 

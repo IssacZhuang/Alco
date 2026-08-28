@@ -5,12 +5,14 @@ namespace Alco.Rendering;
 public partial class RenderingSystem
 {
     /// <summary>
-    /// Creates a compute dispatcher construction-bound to (shader, specialization):
-    /// it pins one variant for its lifetime — runtime variant switching means
-    /// constructing another dispatcher.
+    /// Creates a new compute dispatcher whose variant starts at the given
+    /// specialization — <see cref="ComputeMaterial.SetSpecializations"/> may
+    /// switch it later.
     /// </summary>
     public ComputeMaterial CreateComputeMaterial(Shader shader, params ReadOnlySpan<object> specializations)
-    {
-        return new ComputeMaterial(this, shader, Shader.NormalizeSpecializations(specializations));
-    }
+        => CreateComputeMaterial(shader, Shader.NormalizeSpecializations(specializations));
+
+    /// <summary>Canonical-string core the compile paths use.</summary>
+    internal ComputeMaterial CreateComputeMaterial(Shader shader, string[] specializations)
+        => new(this, shader, specializations);
 }

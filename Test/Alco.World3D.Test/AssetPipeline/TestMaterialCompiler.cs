@@ -223,10 +223,11 @@ public class TestMaterialCompiler
 
         Assert.Multiple(() =>
         {
-            Assert.That(opaque.Shader, Is.Not.SameAs(mask.Shader),
-                "Distinct specializations compile distinct shaders.");
-            Assert.That(opaque.Shader.Name, Does.Contain("[false]"));
-            Assert.That(mask.Shader.Name, Does.Contain("[true]"));
+            Assert.That(opaque.Shader, Is.SameAs(mask.Shader),
+                "The pair's variants live in one composed handle, not one shader per value.");
+            Assert.That(opaque.Specializations, Is.EqualTo(new[] { "false" }));
+            Assert.That(mask.Specializations, Is.EqualTo(new[] { "true" }),
+                "The variant is the material's state, selected by the compile's table.");
         });
     }
 

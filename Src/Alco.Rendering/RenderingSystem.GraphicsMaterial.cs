@@ -9,8 +9,8 @@ public partial class RenderingSystem
 {
     /// <summary>
     /// Creates a new graphics material with the specified shader and automatically sets up default properties.
-    /// The material is construction-bound to (shader, specialization): it pins one variant
-    /// for its lifetime — runtime variant switching means constructing another material.
+    /// The material's variant starts at the given specialization — <see cref="GraphicsMaterial.SetSpecializations"/>
+    /// may switch it later.
     /// </summary>
     /// <param name="shader">The shader to use for the material. Cannot be null.</param>
     /// <param name="name">The name of the material for debugging purposes. Defaults to "unamed_material".</param>

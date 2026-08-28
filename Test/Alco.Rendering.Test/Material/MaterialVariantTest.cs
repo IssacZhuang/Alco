@@ -147,7 +147,7 @@ public class MaterialVariantTest
         Shader shader = shaderSystem.GetShader("test-variant-quad");
         ShaderModulesInfo variant1 = shader.GetShaderModules(1);
 
-        // The variant pins at construction: no runtime switching surface exists.
+        // The variant starts at construction; SetSpecializations may switch it later.
         using GraphicsMaterial material = host.RenderingSystem.CreateGraphicsMaterial(shader, "variant_material", 1);
 
         Assert.Multiple(() =>
@@ -161,6 +161,28 @@ public class MaterialVariantTest
         // A second material of the other variant shares the handle, not the modules.
         using GraphicsMaterial other = host.RenderingSystem.CreateGraphicsMaterial(shader, "other_material", 0);
         Assert.That(other.Specializations, Is.EqualTo(new[] { "0" }));
+    }
+
+    [Test]
+    public void Graphics_Material_SwitchesSpecializationsAtRuntime()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using ShaderSystem shaderSystem = new(host.RenderingSystem, Options(), cacheDirectory: null);
+
+        using GraphicsMaterial material = host.RenderingSystem.CreateGraphicsMaterial(
+            shaderSystem.GetShader("test-variant-quad"), "variant_material", 0);
+        material.SetSpecializations(1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(material.Specializations, Is.EqualTo(new[] { "1" }));
+            Assert.That(material.Version, Is.GreaterThan(0u), "the switch dirties the material");
+        });
+
+        // Re-setting the same arguments is a no-op.
+        uint version = material.Version;
+        material.SetSpecializations(1);
+        Assert.That(material.Version, Is.EqualTo(version));
     }
 
     [Test]
