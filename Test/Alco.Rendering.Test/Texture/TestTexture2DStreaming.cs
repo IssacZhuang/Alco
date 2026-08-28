@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO;
 using Alco.Graphics;
 using NUnit.Framework;
 
@@ -132,9 +133,10 @@ public class TestTexture2DStreaming
     }
 
     /// <summary>
+    /// <summary>
     /// A read-only stream over bytes that records disposal — the streaming contract
-    /// disposes the stream when the upload task finishes, which is how tests observe
-    /// completion without any state on the texture.
+    /// disposes the stream when the upload task finishes, which cross-checks the
+    /// texture's own ContentArrival completion signal.
     /// </summary>
     private sealed class TrackingStream : MemoryStream
     {
@@ -182,5 +184,51 @@ public class TestTexture2DStreaming
         // Probe failure left the stream ownership with the caller.
         Assert.That(stream.Disposed, Is.False);
         Assert.DoesNotThrow(() => stream.Dispose());
+    }
+
+    [Test]
+    public void CreateFromHeader_Png_ContentNotLoadedUntilUpload()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+
+        byte[] data = LoadTestFile("Png", "basn6a08.png");
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
+        using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+
+        // Header-created textures await their content; no upload task is attached,
+        // so ContentArrival is already completed and carries no information.
+        Assert.That(texture.IsContentLoaded, Is.False);
+        Assert.That(texture.ContentArrival.IsCompleted, Is.True);
+
+        rendering.UploadTexture2DContent(texture, data);
+        Assert.That(texture.IsContentLoaded, Is.True);
+    }
+
+    [Test]
+    public void CreateFromColor_ReportsContentLoadedByDefault()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+
+        using Texture2D texture = rendering.CreateTexture2D(4, 4, Color32.White);
+
+        // Textures created with their content are loaded from the start.
+        Assert.That(texture.IsContentLoaded, Is.True);
+        Assert.That(texture.ContentArrival.IsCompleted, Is.True);
+    }
+
+    [Test]
+    public void CreateStreaming_Png_ContentArrivalCompletesAndMarksContentLoaded()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+
+        byte[] data = LoadTestFile("Png", "basn6a08.png");
+        using Texture2D texture = rendering.CreateTexture2DStreaming(new MemoryStream(data));
+
+        Assert.That(texture.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        Assert.That(texture.ContentArrival.IsCompletedSuccessfully, Is.True);
+        Assert.That(texture.IsContentLoaded, Is.True);
     }
 }

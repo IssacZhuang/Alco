@@ -19,6 +19,9 @@ public sealed class Texture2D : Texture
     private readonly GPUResourceGroup?[] _resourcesReadMip;
     private readonly GPUTextureView?[] _mipViews;
 
+    private volatile Task? _contentUpload;
+    private volatile int _contentPresent = 1;
+
     /// <summary>
     /// The number of mip levels of the texture.
     /// </summary>
@@ -49,6 +52,48 @@ public sealed class Texture2D : Texture
     }
 
     public Padding SlicePadding { get; }
+
+    /// <summary>
+    /// A task that completes when streamed content has been issued to the GPU queue,
+    /// or is already completed for textures created with their content. It completes
+    /// even when the upload failed — check <see cref="IsContentLoaded"/> to distinguish —
+    /// and never faults. Completion covers the CPU-side queue write only: backends
+    /// order queue operations, so work submitted afterwards observes the content.
+    /// </summary>
+    public Task ContentArrival => _contentUpload ?? Task.CompletedTask;
+
+    /// <summary>
+    /// Whether the texture's content is present on the GPU. False only between a
+    /// streaming load's creation and its successful in-place upload; sampling the
+    /// texture meanwhile yields transparent black.
+    /// </summary>
+    public bool IsContentLoaded => _contentPresent != 0;
+
+    /// <summary>
+    /// Marks the texture as awaiting streamed content: <see cref="IsContentLoaded"/>
+    /// stays false until <see cref="MarkContentLoaded"/> follows a successful upload.
+    /// </summary>
+    internal void MarkContentPending()
+    {
+        _contentPresent = 0;
+    }
+
+    /// <summary>
+    /// Attaches the streaming upload task exposed through <see cref="ContentArrival"/>.
+    /// </summary>
+    /// <param name="upload">The upload task; it must never fault.</param>
+    internal void SetContentUpload(Task upload)
+    {
+        _contentUpload = upload;
+    }
+
+    /// <summary>
+    /// Marks the texture's content as present after a successful full upload.
+    /// </summary>
+    internal void MarkContentLoaded()
+    {
+        _contentPresent = 1;
+    }
 
     internal Texture2D(
         GPUDevice device,
@@ -216,7 +261,8 @@ public sealed class Texture2D : Texture
             throw new ArgumentException("The size of the bitmap does not match the size of the texture");
         }
 
-        _device.WriteTexture(_texture, bitmap); ;
+        _device.WriteTexture(_texture, bitmap);
+        MarkContentLoaded();
     }
 
     public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)

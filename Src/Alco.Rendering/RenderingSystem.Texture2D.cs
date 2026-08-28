@@ -163,7 +163,8 @@ public partial class RenderingSystem
     /// loads: the texture's identity and specification are final from creation, and its
     /// content is uploaded in place later via <see cref="UploadTexture2DContent"/>.
     /// The backend zero-initializes the content, so until the upload arrives sampling
-    /// yields transparent black.
+    /// yields transparent black, and <see cref="Texture2D.IsContentLoaded"/> reports
+    /// false until the upload succeeds.
     /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
     /// public creation path.
     /// </summary>
@@ -176,7 +177,9 @@ public partial class RenderingSystem
     {
         if (!info.IsBlockCompressed)
         {
-            return CreateTexture2D((uint)info.Width, (uint)info.Height, option);
+            Texture2D plain = CreateTexture2D((uint)info.Width, (uint)info.Height, option);
+            plain.MarkContentPending();
+            return plain;
         }
 
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
@@ -201,12 +204,14 @@ public partial class RenderingSystem
         );
         GPUTextureView textureView = _device.CreateTextureView(textureViewDescriptor);
 
-        return new Texture2D(
+        Texture2D result = new Texture2D(
             _device,
             texture,
             textureView,
             optionReal.SlicePadding
         );
+        result.MarkContentPending();
+        return result;
     }
 
     /// <summary>
@@ -215,6 +220,7 @@ public partial class RenderingSystem
     /// built from them stay valid. Pair with <see cref="CreateTexture2DFromHeader"/>
     /// for streaming loads. DDS files (BC1-BC7) upload their blocks and mip chain
     /// verbatim; other formats (PNG/JPEG) decode to RGBA8 and upload mip 0.
+    /// On success <see cref="Texture2D.IsContentLoaded"/> turns true.
     /// <br/>There is no thread constraint: the upload may run on any thread.
     /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
     /// public upload path.
@@ -265,6 +271,7 @@ public partial class RenderingSystem
                     pointer += byteCount;
                 }
             }
+            texture.MarkContentLoaded();
             return;
         }
 
@@ -287,6 +294,8 @@ public partial class RenderingSystem
         {
             NativeMemory.Free(pixels);
         }
+
+        texture.MarkContentLoaded();
     }
 
     /// <summary>
@@ -312,9 +321,9 @@ public partial class RenderingSystem
         try
         {
             Texture2D texture = CreateTexture2DFromHeader(info, optionReal);
-            // Fire-and-forget: the task captures everything it needs, observes its own
-            // failures, and is referenced by nothing once it completes.
-            _ = StreamTexture2DContentAsync(texture, stream, optionReal);
+            // Fire-and-forget: the task captures everything it needs and observes its
+            // own failures; the texture is its only reference, via ContentArrival.
+            texture.SetContentUpload(StreamTexture2DContentAsync(texture, stream, optionReal));
             return texture;
         }
         catch
@@ -573,6 +582,8 @@ public partial class RenderingSystem
                 _device.WriteTexture(texture, pixels, (uint)(w * h * 4));
                 texture2D.UnsafeHotReload(texture, textureView);
             }
+
+            texture2D.MarkContentLoaded();
         }
         finally
         {

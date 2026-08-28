@@ -12,9 +12,9 @@ namespace Alco.Engine.Test;
 // Texture2D asset streaming: the loader probes the header with minimal
 // per-format reads, pre-creates the texture at its final specification and streams
 // the content in asynchronously, uploading in place so the texture's identity never
-// changes. The texture holds no streaming state; tests observe completion through the
-// disposal of the asset stream, which the upload task owns. Runs on the NoGPU device
-// with an in-memory file source.
+// changes. Completion is observable through the texture's ContentArrival task
+// (cross-checked by the disposal of the asset stream, which the upload task owns).
+// Runs on the NoGPU device with an in-memory file source.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class TestAssetLoaderTexture2DStreaming
@@ -192,6 +192,8 @@ public class TestAssetLoaderTexture2DStreaming
 
         // Content arrived in place: the identity never changed.
         Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(texture.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        Assert.That(texture.IsContentLoaded, Is.True);
     }
 
     [Test]
