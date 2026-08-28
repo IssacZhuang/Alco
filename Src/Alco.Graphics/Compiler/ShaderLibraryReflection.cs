@@ -58,6 +58,34 @@ public sealed class ShaderSamplerSlot
 }
 
 /// <summary>
+/// The scalar kinds a generic value parameter may carry for the material
+/// specialization domain — the set the literal formatter can emit (slang
+/// itself rejects floating-point value parameters, so integer and bool are
+/// the whole universe).
+/// </summary>
+public enum ShaderSpecScalarType
+{
+    /// <summary>A <c>bool</c> value parameter; literals are <c>true</c>/<c>false</c>.</summary>
+    Bool,
+
+    /// <summary>An <c>int</c> value parameter; literals are decimal.</summary>
+    Int32,
+
+    /// <summary>A <c>uint</c> value parameter; literals are decimal.</summary>
+    UInt32,
+}
+
+/// <summary>
+/// One generic value parameter of a shader module's entry points: the axis a
+/// material specializes by name (e.g. <c>&lt;let isFacade : bool&gt;</c>).
+/// Axes enumerate in specialization argument order — entry definition order,
+/// each entry's value parameters in declaration order — the same order link-time
+/// specialization consumes them, so a positional argument list is a projection
+/// of this list.
+/// </summary>
+public sealed record ShaderSpecializationAxis(string Name, ShaderSpecScalarType ScalarType);
+
+/// <summary>
 /// Declarations view of one shader module before any composition or link:
 /// its uniform blocks and texture/sampler slots, keyed by bare field names
 /// with no set numbers. Cached per module by the module system and
@@ -69,14 +97,17 @@ public sealed class ShaderLibraryReflection
     /// <param name="uniformBlocks">Every uniform/parameter block the module declares, in declaration order.</param>
     /// <param name="textureSlots">Every sampled-texture member of every block, in declaration order.</param>
     /// <param name="samplerSlots">Every sampler member of every block, in declaration order.</param>
+    /// <param name="specializationAxes">Every generic value parameter of the module's entry points, in specialization argument order.</param>
     public ShaderLibraryReflection(
         IReadOnlyList<ShaderUniformBlock> uniformBlocks,
         IReadOnlyList<ShaderTextureSlot> textureSlots,
-        IReadOnlyList<ShaderSamplerSlot> samplerSlots)
+        IReadOnlyList<ShaderSamplerSlot> samplerSlots,
+        IReadOnlyList<ShaderSpecializationAxis> specializationAxes)
     {
         UniformBlocks = uniformBlocks;
         TextureSlots = textureSlots;
         SamplerSlots = samplerSlots;
+        SpecializationAxes = specializationAxes;
     }
 
     /// <summary>Every uniform/parameter block the module declares, in declaration order.</summary>
@@ -95,4 +126,15 @@ public sealed class ShaderLibraryReflection
     /// state and never appears here.
     /// </summary>
     public IReadOnlyList<ShaderSamplerSlot> SamplerSlots { get; }
+
+    /// <summary>
+    /// Every generic value parameter of the module's generic entry points, in
+    /// specialization argument order (entry definition order, each entry's
+    /// value parameters in declaration order) — the named axes a material's
+    /// specialization table binds by. A repeated name (the vertex and fragment
+    /// entries both declaring <c>fadeInOut</c>) appears once per position; one
+    /// named value feeds every position of that name. Modules whose entries
+    /// take no value parameters have an empty list.
+    /// </summary>
+    public IReadOnlyList<ShaderSpecializationAxis> SpecializationAxes { get; }
 }

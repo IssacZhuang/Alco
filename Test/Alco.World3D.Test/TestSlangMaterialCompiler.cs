@@ -167,8 +167,11 @@ public class TestSlangMaterialCompiler
         // its fragment entry (<let AlphaTest : bool>) — the SHADOW_CUTOUT define's
         // replacement. Distinct values are distinct composed shaders.
         MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
-        Shader opaque = compiler.ComposeSurfaceShader(asset, Library(engine, "ShadowDepth"), ["false"]);
-        Shader cutout = compiler.ComposeSurfaceShader(asset, Library(engine, "ShadowDepth"), ["true"]);
+        ShaderLibrary shadowTemplate = Library(engine, "ShadowDepth");
+        Shader opaque = compiler.ComposeGraphics(shadowTemplate, asset.Surface!,
+            new Dictionary<string, ShaderValue> { ["AlphaTest"] = false });
+        Shader cutout = compiler.ComposeGraphics(shadowTemplate, asset.Surface!,
+            new Dictionary<string, ShaderValue> { ["AlphaTest"] = true });
         ShaderModulesInfo plain = opaque.GetShaderModules();
         ShaderModulesInfo alphaTested = cutout.GetShaderModules();
 
@@ -258,7 +261,7 @@ public class TestSlangMaterialCompiler
             Surface = Library(engine, ParameterizedSurfaceModule),
         };
         GraphicsMaterial glassMaterial = compiler.Compile(glassAsset,
-            Library(engine, "Glass"), valueSpecArgs: null,
+            Library(engine, "Glass"),
             (a, shader) => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{a.Name}_glass"));
         Assert.That(glassMaterial.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
             "The glass template declares the camera binding.");

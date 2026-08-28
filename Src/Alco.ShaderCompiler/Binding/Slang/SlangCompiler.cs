@@ -659,7 +659,8 @@ public sealed class SlangCompileSession : IDisposable
             if (layout == IntPtr.Zero)
                 throw new ShaderCompilationException(
                     $"slang getLayout failed for module '{module.Name}': {diagnostics}");
-            return SlangReflectionReader.BuildLibraryReflection(layout);
+            return SlangReflectionReader.BuildLibraryReflection(
+                layout, module.Native.GetModuleReflectionDecl(), module.Name);
         }
     }
 

@@ -16,6 +16,7 @@ public class MaterialAsset : IJsonOnDeserialized
 {
     private ShaderLibrary? _surface;
     private IReadOnlyDictionary<string, ShaderValue> _parameters = new Dictionary<string, ShaderValue>();
+    private IReadOnlyDictionary<string, ShaderValue> _specializations = new Dictionary<string, ShaderValue>();
     private IReadOnlyDictionary<string, GraphicsBuffer>? _parameterBuffers;
     private ShaderLibrary? _parameterBuffersSurface;
 
@@ -73,6 +74,20 @@ public class MaterialAsset : IJsonOnDeserialized
     }
 
     /// <summary>
+    /// The material's value-specialization table: pass-template generic value
+    /// parameters by their declaration names (e.g. <c>isFacade</c>, <c>maxLights</c>),
+    /// authored like <see cref="Parameters"/> — booleans as <c>true</c>/<c>false</c>,
+    /// integers as numbers. Axes the table leaves out take their type's default
+    /// (<see langword="false"/> / <c>0</c>); an unknown axis name fails the
+    /// material compile listing the axes the template reflects.
+    /// </summary>
+    public IReadOnlyDictionary<string, ShaderValue> Specializations
+    {
+        get => _specializations;
+        set => _specializations = value;
+    }
+
+    /// <summary>
     /// The packed parameter buffers of the surface's <c>[MaterialParams]</c> blocks —
     /// one shared buffer per block, packed once by the first material compile and
     /// reused by every pass the asset compiles into: the values are the asset's own
@@ -111,7 +126,8 @@ public class MaterialAsset : IJsonOnDeserialized
     void IJsonOnDeserialized.OnDeserialized()
     {
         Textures = NormalizeSlots(Textures);
-        Parameters = NormalizeParameters(Parameters);
+        Parameters = NormalizeNames(Parameters);
+        Specializations = NormalizeNames(Specializations);
     }
 
     /// <summary>Texture slots: trimmed slot names; empty slot names and unset (null) entries drop.</summary>
@@ -130,12 +146,12 @@ public class MaterialAsset : IJsonOnDeserialized
         return result;
     }
 
-    /// <summary>Parameters: trimmed member names; empty names are rejected.</summary>
-    private static IReadOnlyDictionary<string, ShaderValue> NormalizeParameters(
-        IReadOnlyDictionary<string, ShaderValue> parameters)
+    /// <summary>Value tables (parameters, specializations): trimmed member names; empty names are rejected.</summary>
+    private static IReadOnlyDictionary<string, ShaderValue> NormalizeNames(
+        IReadOnlyDictionary<string, ShaderValue> values)
     {
         Dictionary<string, ShaderValue> result = new(StringComparer.Ordinal);
-        foreach (KeyValuePair<string, ShaderValue> pair in parameters)
+        foreach (KeyValuePair<string, ShaderValue> pair in values)
         {
             string name = pair.Key.Trim();
             if (name.Length == 0)

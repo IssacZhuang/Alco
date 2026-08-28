@@ -1,3 +1,4 @@
+using System.Globalization;
 using Alco.Graphics;
 using Alco.ShaderCompiler;
 
@@ -67,11 +68,14 @@ public sealed class MaterialCompiler : AutoDisposable
     /// </summary>
     /// <param name="template">The pass-template library (owns the generic entry points).</param>
     /// <param name="surface">The surface library (exports the contract's single conforming type).</param>
-    /// <param name="valueSpecArgs">Value specialization arguments in entry order (e.g. ["true"] for the shadow template's AlphaTest).</param>
+    /// <param name="specializations">
+    /// Named specialization values for the template's generic value parameters (see
+    /// <see cref="BuildSpecializationLiterals"/>); null selects every axis's default.
+    /// </param>
     public Shader ComposeGraphics(
         ShaderLibrary template, ShaderLibrary surface,
-        IReadOnlyList<string>? valueSpecArgs = null)
-        => Compose(template, surface, valueSpecArgs, compute: false);
+        IReadOnlyDictionary<string, ShaderValue>? specializations = null)
+        => Compose(template, surface, specializations, compute: false);
 
     /// <summary>
     /// The composed compute shader of one (template, surface) pair — e.g. the voxel-GI
@@ -80,27 +84,117 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <inheritdoc cref="ComposeGraphics"/>
     public Shader ComposeCompute(
         ShaderLibrary template, ShaderLibrary surface,
-        IReadOnlyList<string>? valueSpecArgs = null)
-        => Compose(template, surface, valueSpecArgs, compute: true);
+        IReadOnlyDictionary<string, ShaderValue>? specializations = null)
+        => Compose(template, surface, specializations, compute: true);
+
+    /// <summary>
+    /// The link-time specialization literals of one (template, named values) pair: each
+    /// axis the template's reflection declares, in specialization argument order, takes
+    /// the value the table assigns to its name — formatted per the axis's reflected
+    /// scalar kind — and its type's default when the table omits it. This is the single
+    /// translation between the material domain's named values and the positional
+    /// argument lists the slang compile paths consume.
+    /// </summary>
+    /// <param name="template">The pass-template library whose axes the values feed.</param>
+    /// <param name="specializations">The named values (an asset's <see cref="MaterialAsset.Specializations"/>); null or empty selects every axis's default.</param>
+    /// <returns>The specialization literals in argument order.</returns>
+    /// <exception cref="InvalidDataException">The table names an axis the template does not declare, or a value's kind or shape does not fit the axis's scalar type.</exception>
+    public static string[] BuildSpecializationLiterals(
+        ShaderLibrary template, IReadOnlyDictionary<string, ShaderValue>? specializations)
+    {
+        IReadOnlyList<ShaderSpecializationAxis> axes = template.Reflection.SpecializationAxes;
+        if (specializations is { Count: > 0 })
+        {
+            foreach (string key in specializations.Keys)
+            {
+                if (axes.All(axis => axis.Name != key))
+                {
+                    throw new InvalidDataException(
+                        $"Specialization '{key}' matches no generic value parameter of template '{template.Name}'; expected one of: " +
+                        (axes.Count == 0 ? "none" : string.Join(", ", axes.Select(axis => axis.Name))) + ".");
+                }
+            }
+        }
+
+        string[] literals = new string[axes.Count];
+        for (int i = 0; i < axes.Count; i++)
+        {
+            literals[i] = specializations != null
+                && specializations.TryGetValue(axes[i].Name, out ShaderValue value)
+                ? FormatSpecializationLiteral(axes[i], value, template.Name)
+                : axes[i].ScalarType == ShaderSpecScalarType.Bool ? "false" : "0";
+        }
+        return literals;
+    }
+
+    // One authored value formats as one slang literal, kind-checked against the
+    // axis's reflected scalar type — the parameter packing's strictness, applied
+    // to the specialization domain (an int token accepts a uint axis because JSON
+    // cannot author a distinct unsigned value).
+    private static string FormatSpecializationLiteral(
+        ShaderSpecializationAxis axis, ShaderValue value, string templateName)
+    {
+        if (value.ComponentCount != 1 || value.ElementCount != 1)
+        {
+            throw new InvalidDataException(
+                $"Specialization '{axis.Name}' of template '{templateName}' is a scalar {axis.ScalarType} axis; the authored value {value} must be a single scalar.");
+        }
+        return axis.ScalarType switch
+        {
+            ShaderSpecScalarType.Bool => value.Kind == ShaderValueKind.Bool32
+                ? value.GetInt() != 0 ? "true" : "false"
+                : throw InvalidSpecKind(axis, value, templateName, "true or false"),
+            ShaderSpecScalarType.Int32 => value.Kind == ShaderValueKind.Int32
+                ? value.GetInt().ToString(CultureInfo.InvariantCulture)
+                : throw InvalidSpecKind(axis, value, templateName, "an integer"),
+            _ => value.Kind is ShaderValueKind.Int32 or ShaderValueKind.UInt32
+                ? value.GetInt() >= 0
+                    ? ((uint)value.GetInt()).ToString(CultureInfo.InvariantCulture)
+                    : throw new InvalidDataException(
+                        $"Specialization '{axis.Name}' of template '{templateName}' is a uint axis; {value.GetInt()} is negative.")
+                : throw InvalidSpecKind(axis, value, templateName, "a non-negative integer"),
+        };
+    }
+
+    private static InvalidDataException InvalidSpecKind(
+        ShaderSpecializationAxis axis, ShaderValue value, string templateName, string expected)
+        => new($"Specialization '{axis.Name}' of template '{templateName}' is a {axis.ScalarType} axis; the authored value {value} is not {expected}.");
 
     /// <summary>
     /// Compile the material of an asset for one graphics pass: the pass template
-    /// composes with the asset's surface, and the caller's factory creates the
-    /// GPU material applying the pass-mandated state (depth/blend/rasterizer,
+    /// composes with the asset's surface, specialized by the asset's named
+    /// <see cref="MaterialAsset.Specializations"/> table, and the caller's factory
+    /// creates the GPU material applying the pass-mandated state (depth/blend/rasterizer,
     /// internal buffer bindings). Every call compiles a fresh material — the
     /// caller owns it: share it across the meshes using the asset, dispose it
     /// with the owning scene/renderer, or drop it for the GC.
     /// </summary>
     /// <param name="asset">The material asset.</param>
     /// <param name="template">The pass-template library, composed with the asset's surface.</param>
-    /// <param name="valueSpecArgs">Value specialization arguments of the template's entries, in entry order; null when it takes none.</param>
     /// <param name="createMaterial">The caller's factory: turns the composed shader into the pass's GPU material.</param>
     /// <returns>The caller-owned material of the (asset, template) pair.</returns>
-    /// <exception cref="InvalidDataException">A texture slot or parameter of the asset matches nothing on the surface.</exception>
+    /// <exception cref="InvalidDataException">A texture slot or parameter of the asset matches nothing on the surface, or a specialization matches no axis of the template.</exception>
     public GraphicsMaterial Compile(
         MaterialAsset asset,
         ShaderLibrary template,
-        IReadOnlyList<string>? valueSpecArgs,
+        Func<MaterialAsset, Shader, GraphicsMaterial> createMaterial)
+        => Compile(asset, template, asset.Specializations, createMaterial);
+
+    /// <summary>
+    /// Compile with a facility-provided specialization table — the compile of
+    /// <see cref="Compile(MaterialAsset, ShaderLibrary, Func{MaterialAsset, Shader, GraphicsMaterial})"/>
+    /// for facilities that derive a template's variant from their own logic instead of
+    /// the asset's authored table (e.g. the shadow pass specializing its AlphaTest axis
+    /// from the material's alpha mode), or that deliberately take the unspecialized
+    /// variant of a template with no axes of its own (e.g. the UI draw of an entity
+    /// material, whose world-route axes do not apply).
+    /// </summary>
+    /// <param name="specializations">The named specialization values; null compiles the unspecialized variant (every axis of the template defaults).</param>
+    /// <inheritdoc cref="Compile(MaterialAsset, ShaderLibrary, Func{MaterialAsset, Shader, GraphicsMaterial})"/>
+    public GraphicsMaterial Compile(
+        MaterialAsset asset,
+        ShaderLibrary template,
+        IReadOnlyDictionary<string, ShaderValue>? specializations,
         Func<MaterialAsset, Shader, GraphicsMaterial> createMaterial)
     {
         ArgumentNullException.ThrowIfNull(asset);
@@ -108,7 +202,7 @@ public sealed class MaterialCompiler : AutoDisposable
         ArgumentNullException.ThrowIfNull(createMaterial);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        Shader shader = ComposeSurfaceShader(asset, template, valueSpecArgs);
+        Shader shader = Compose(template, SurfaceOf(asset), specializations, compute: false);
         ShaderReflection reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
@@ -162,15 +256,14 @@ public sealed class MaterialCompiler : AutoDisposable
 
     /// <summary>
     /// The shader of one pass template composed with an asset's surface (the compiler's
-    /// default surface when <paramref name="asset"/> is null or names none) — the
-    /// composition step of <see cref="Compile"/>, on its own for inspection and tests.
+    /// default surface when <paramref name="asset"/> is null or names none), specialized
+    /// by the asset's <see cref="MaterialAsset.Specializations"/> — the composition step
+    /// of <see cref="Compile"/>, on its own for inspection and tests.
     /// </summary>
     /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
     /// <param name="template">The pass-template library.</param>
-    /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
-    public Shader ComposeSurfaceShader(
-        MaterialAsset? asset, ShaderLibrary template, IReadOnlyList<string>? valueSpecArgs = null)
-        => ComposeGraphics(template, SurfaceOf(asset), valueSpecArgs);
+    public Shader ComposeSurfaceShader(MaterialAsset? asset, ShaderLibrary template)
+        => ComposeGraphics(template, SurfaceOf(asset), asset?.Specializations);
 
     /// <summary>
     /// The compute counterpart of <see cref="ComposeSurfaceShader"/>, for facilities
@@ -178,10 +271,8 @@ public sealed class MaterialCompiler : AutoDisposable
     /// </summary>
     /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
     /// <param name="template">The pass-template library.</param>
-    /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
-    public Shader ComposeSurfaceComputeShader(
-        MaterialAsset? asset, ShaderLibrary template, IReadOnlyList<string>? valueSpecArgs = null)
-        => ComposeCompute(template, SurfaceOf(asset), valueSpecArgs);
+    public Shader ComposeSurfaceComputeShader(MaterialAsset? asset, ShaderLibrary template)
+        => ComposeCompute(template, SurfaceOf(asset), asset?.Specializations);
 
     /// <summary>
     /// The compute counterpart of <see cref="Compile"/>: the material of an asset for a
@@ -195,15 +286,13 @@ public sealed class MaterialCompiler : AutoDisposable
     /// </summary>
     /// <param name="asset">The material asset; its fallback policy covers unbound slots.</param>
     /// <param name="template">The pass-template library.</param>
-    /// <param name="valueSpecArgs">Value specialization arguments in entry order.</param>
     /// <returns>The caller-owned compute material, fully bound except facility data.</returns>
-    /// <exception cref="InvalidDataException">A texture slot or parameter of the asset matches nothing on the surface.</exception>
-    public ComputeMaterial CompileCompute(
-        MaterialAsset asset, ShaderLibrary template, IReadOnlyList<string>? valueSpecArgs = null)
+    /// <exception cref="InvalidDataException">A texture slot or parameter of the asset matches nothing on the surface, or a specialization matches no axis of the template.</exception>
+    public ComputeMaterial CompileCompute(MaterialAsset asset, ShaderLibrary template)
     {
         ArgumentNullException.ThrowIfNull(asset);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        Shader shader = ComposeSurfaceComputeShader(asset, template, valueSpecArgs);
+        Shader shader = ComposeSurfaceComputeShader(asset, template);
         ShaderReflection reflection = shader.GetShaderModules().ReflectionInfo;
 
         // Compile-time slot validation, the same rule as the graphics passes: a
@@ -567,10 +656,10 @@ public sealed class MaterialCompiler : AutoDisposable
 
     private Shader Compose(
         ShaderLibrary template, ShaderLibrary surface,
-        IReadOnlyList<string>? valueSpecArgs, bool compute)
+        IReadOnlyDictionary<string, ShaderValue>? specializations, bool compute)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        string[] specArgs = valueSpecArgs == null ? [] : [.. valueSpecArgs];
+        string[] specArgs = BuildSpecializationLiterals(template, specializations);
         string specKey = string.Join("|", specArgs);
         CompositionKey key = new(template, surface, specKey, compute);
         lock (_lock)

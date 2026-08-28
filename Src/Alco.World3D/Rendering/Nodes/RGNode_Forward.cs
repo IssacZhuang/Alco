@@ -178,7 +178,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
                 $"Material '{asset.Name}' is not a blend material; the forward transparency pass draws glass only.");
         }
         return _materials.GetValue(asset, a => _materialCompiler.Compile(
-            a, _template, valueSpecArgs: null, (_, shader)
+            a, _template, (_, shader)
                 => CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass")));
     }
 

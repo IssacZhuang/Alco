@@ -43,7 +43,7 @@ public class TestMaterialCompiler
     /// <summary>The tests' compile entry point.</summary>
     private static GraphicsMaterial Compile(MaterialCompiler compiler, RenderingSystem rendering, MaterialAsset asset)
         => compiler.Compile(asset, rendering.ShaderSystem.GetLibrary("test_lit_template"),
-            valueSpecArgs: null, (a, shader) => CreateMaterial(rendering, a, shader));
+            (a, shader) => CreateMaterial(rendering, a, shader));
 
     private const string Contract = """
         #language slang 2025

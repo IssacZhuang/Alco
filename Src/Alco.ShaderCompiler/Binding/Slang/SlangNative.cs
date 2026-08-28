@@ -415,6 +415,9 @@ internal static class SlangNative
         IntPtr reflection, IntPtr type, nint specializationArgCount,
         IntPtr* specializationArgs, IntPtr* outDiagnostics);
 
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionVariable_GetType(IntPtr variable);
+
     // ── reflection: generic containers (entry-point generic parameters) ──
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
@@ -428,6 +431,12 @@ internal static class SlangNative
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr spReflectionGeneric_GetTypeParameterConstraintType(IntPtr generic, IntPtr typeParam, uint index);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern uint spReflectionGeneric_GetValueParameterCount(IntPtr generic);
+
+    [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
+    public static extern IntPtr spReflectionGeneric_GetValueParameter(IntPtr generic, uint index);
 
     [DllImport(Slang, CallingConvention = CallingConvention.Cdecl)]
     public static extern IntPtr spReflectionGeneric_GetInnerDecl(IntPtr generic);

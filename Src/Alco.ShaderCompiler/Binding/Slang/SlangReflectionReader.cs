@@ -264,12 +264,17 @@ public static class SlangReflectionReader
     /// Builds the module-level library reflection — every uniform/parameter
     /// block the layout declares, with its user-defined attributes and
     /// float-shaped members, plus every sampled-texture slot — from a slang
-    /// module layout (no entry points, no link). Domain-neutral: attribute
-    /// markers (e.g. MaterialParams) are filtered by the caller, and a block
-    /// whose members do not all fit the float view is reported through the
-    /// block, not rejected here.
+    /// module layout (no entry points, no link), and the module's
+    /// specialization axes from its declaration tree. Domain-neutral:
+    /// attribute markers (e.g. MaterialParams) are filtered by the caller, and
+    /// a block whose members do not all fit the float view is reported through
+    /// the block, not rejected here.
     /// </summary>
-    public static unsafe ShaderLibraryReflection BuildLibraryReflection(IntPtr layout)
+    /// <param name="layout">The module's own layout (blocks and slots).</param>
+    /// <param name="moduleDecl">The module's declaration tree root (specialization axes).</param>
+    /// <param name="moduleName">The module's name, for error context.</param>
+    public static unsafe ShaderLibraryReflection BuildLibraryReflection(
+        IntPtr layout, IntPtr moduleDecl, string moduleName)
     {
         List<ShaderUniformBlock> blocks = [];
         List<ShaderTextureSlot> textureSlots = [];
@@ -302,7 +307,71 @@ public static class SlangReflectionReader
             CollectTextureSlots(elementLayout, textureSlots, imageFormats);
             CollectSamplerSlots(elementLayout, samplerSlots);
         }
-        return new ShaderLibraryReflection(blocks, textureSlots, samplerSlots);
+        return new ShaderLibraryReflection(
+            blocks, textureSlots, samplerSlots, BuildSpecializationAxes(moduleDecl, moduleName));
+    }
+
+    /// <summary>
+    /// The specialization axes of a module's generic entry points: every
+    /// <c>let</c> value parameter of every module-scope generic function (the
+    /// entry-point shape — a generic struct is not an entry), in declaration
+    /// order. This is the same order the compile paths consume specialization
+    /// arguments in, so a positional argument list is a projection of this one.
+    /// A value parameter of a scalar kind the material domain cannot bind is
+    /// an error here — the contract stays "every reflected axis is bindable".
+    /// </summary>
+    /// <param name="moduleDecl">The module's declaration tree root.</param>
+    /// <param name="moduleName">The module's name, for error context.</param>
+    private static List<ShaderSpecializationAxis> BuildSpecializationAxes(IntPtr moduleDecl, string moduleName)
+    {
+        List<ShaderSpecializationAxis> axes = [];
+        uint childCount = SlangNative.spReflectionDecl_getChildrenCount(moduleDecl);
+        for (uint i = 0; i < childCount; i++)
+        {
+            IntPtr child = SlangNative.spReflectionDecl_getChild(moduleDecl, i);
+            if (SlangNative.spReflectionDecl_getKind(child) != SlangNative.SLANG_DECL_KIND_GENERIC)
+            {
+                continue;
+            }
+            IntPtr generic = SlangNative.spReflectionDecl_castToGeneric(child);
+            if (generic == IntPtr.Zero)
+            {
+                continue;
+            }
+            // Generic entry points are generic functions; a generic struct
+            // (e.g. an aggregation helper) is not an entry and carries no axes.
+            IntPtr inner = SlangNative.spReflectionGeneric_GetInnerDecl(generic);
+            if (inner == IntPtr.Zero ||
+                SlangNative.spReflectionDecl_getKind(inner) != SlangNative.SLANG_DECL_KIND_FUNC)
+            {
+                continue;
+            }
+
+            uint valueCount = SlangNative.spReflectionGeneric_GetValueParameterCount(generic);
+            for (uint v = 0; v < valueCount; v++)
+            {
+                IntPtr parameter = SlangNative.spReflectionGeneric_GetValueParameter(generic, v);
+                if (parameter == IntPtr.Zero)
+                {
+                    continue;
+                }
+                string name = SlangNative.StringFromPtr(SlangNative.spReflectionVariable_GetName(parameter)) ?? "?";
+                IntPtr type = SlangNative.spReflectionVariable_GetType(parameter);
+                int scalar = type == IntPtr.Zero
+                    ? SlangNative.SLANG_SCALAR_TYPE_NONE
+                    : SlangNative.spReflectionType_GetScalarType(type);
+                axes.Add(new ShaderSpecializationAxis(name, scalar switch
+                {
+                    SlangNative.SLANG_SCALAR_TYPE_BOOL => ShaderSpecScalarType.Bool,
+                    SlangNative.SLANG_SCALAR_TYPE_INT32 => ShaderSpecScalarType.Int32,
+                    SlangNative.SLANG_SCALAR_TYPE_UINT32 => ShaderSpecScalarType.UInt32,
+                    _ => throw new ShaderCompilationException(
+                        $"slang module '{moduleName}': generic entry point value parameter '{name}' has scalar kind " +
+                        $"{scalar}; the material specialization domain supports bool, int and uint value parameters."),
+                }));
+            }
+        }
+        return axes;
     }
 
     /// <summary>

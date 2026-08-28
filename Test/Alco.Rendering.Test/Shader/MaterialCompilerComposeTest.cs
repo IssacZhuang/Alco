@@ -380,6 +380,37 @@ public class MaterialCompilerComposeTest
     }
 
     [Test]
+    public void ComposeGraphics_ConsumesNamedSpecializations_AndValidatesAgainstReflection()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using MaterialCompiler compiler = CreateCompiler(host, out ShaderSystem shaderSystem);
+        using (shaderSystem)
+        {
+            ShaderLibrary shadow = shaderSystem.GetLibrary("test_shadow_template");
+
+            // The reflected axis drives everything: value by name, default when
+            // omitted, unknown names and mistyped values rejected (a table that
+            // names sibling templates' axes compiles through those templates,
+            // or explicitly with null for the unspecialized variant).
+            Assert.That(shadow.Reflection.SpecializationAxes,
+                Is.EqualTo(new[] { new ShaderSpecializationAxis("AlphaTest", ShaderSpecScalarType.Bool) }));
+            Assert.That(MaterialCompiler.BuildSpecializationLiterals(shadow, null), Is.EqualTo(new[] { "false" }));
+            Assert.That(
+                MaterialCompiler.BuildSpecializationLiterals(shadow,
+                    new Dictionary<string, ShaderValue> { ["AlphaTest"] = true }),
+                Is.EqualTo(new[] { "true" }));
+            Assert.Throws<InvalidDataException>(() =>
+                MaterialCompiler.BuildSpecializationLiterals(shadow,
+                    new Dictionary<string, ShaderValue> { ["unrelated"] = true }),
+                "a key the template does not declare is rejected");
+            Assert.Throws<InvalidDataException>(() =>
+                MaterialCompiler.BuildSpecializationLiterals(shadow,
+                    new Dictionary<string, ShaderValue> { ["AlphaTest"] = 3 }),
+                "an int value must not feed a bool axis");
+        }
+    }
+
+    [Test]
     public void ComposeGraphics_ValueSpecializations_AreDistinctShaders()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
@@ -388,8 +419,10 @@ public class MaterialCompilerComposeTest
         {
             ShaderLibrary shadow = shaderSystem.GetLibrary("test_shadow_template");
             ShaderLibrary surface = shaderSystem.GetLibrary("test_surface");
-            Shader opaque = compiler.ComposeGraphics(shadow, surface, ["false"]);
-            Shader cutout = compiler.ComposeGraphics(shadow, surface, ["true"]);
+            Shader opaque = compiler.ComposeGraphics(shadow, surface,
+                new Dictionary<string, ShaderValue> { ["AlphaTest"] = false });
+            Shader cutout = compiler.ComposeGraphics(shadow, surface,
+                new Dictionary<string, ShaderValue> { ["AlphaTest"] = true });
 
             Assert.Multiple(() =>
             {
