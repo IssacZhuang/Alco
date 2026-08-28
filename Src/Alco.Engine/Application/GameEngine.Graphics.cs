@@ -77,6 +77,16 @@ public partial class GameEngine
             Name = "graphics_device"
         };
 
+        if (setting.Backend == GraphicsBackend.Vulkan)
+        {
+#if USE_VULKAN
+            return GraphicsDeviceFactory.CreateVulkanDevice(deviceDescriptor);
+#else
+            throw new PlatformNotSupportedException(
+                "The Vulkan backend was requested but is not compiled in. Build with -p:UseVulkan=true.");
+#endif
+        }
+
         return GraphicsDeviceFactory.CreateWebGPUDevice(deviceDescriptor);
     }
 
