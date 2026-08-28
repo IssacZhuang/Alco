@@ -11,6 +11,8 @@ namespace Alco.Rendering;
 
 public class PolymorphicJsonTypeResolver : DefaultJsonTypeInfoResolver
 {
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<Type, Type[]> s_derivedTypesCache = new();
+
     private readonly FrozenSet<Type> _typeNeedDerived;
 
     public PolymorphicJsonTypeResolver()
@@ -43,23 +45,26 @@ public class PolymorphicJsonTypeResolver : DefaultJsonTypeInfoResolver
 
     private static void SetAllDerivedType(JsonTypeInfo typeInfo)
     {
-        //todo: performance optimization
-        var derivedTypes = AppDomain.CurrentDomain.GetAssemblies()
-            .SelectMany(a =>
-            {
-                try
+        // Concrete types assignable to a base type never change within a process,
+        // so the assembly-wide scan runs once per base type instead of once per
+        // JsonSerializerOptions instance (each ConfigDatabase builds its own options).
+        var derivedTypes = s_derivedTypesCache.GetOrAdd(typeInfo.Type, static baseType =>
+            AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a =>
                 {
-                    return a.GetTypes();
-                }
-                catch
-                {
-                    return Array.Empty<Type>();
-                }
-            })
-            .Where(t => typeInfo.Type.IsAssignableFrom(t) &&
-                       !t.IsInterface &&
-                       !t.IsAbstract)
-            .ToArray();
+                    try
+                    {
+                        return a.GetTypes();
+                    }
+                    catch
+                    {
+                        return Array.Empty<Type>();
+                    }
+                })
+                .Where(t => baseType.IsAssignableFrom(t) &&
+                           !t.IsInterface &&
+                           !t.IsAbstract)
+                .ToArray());
 
         if (derivedTypes.Length > 0)
         {
