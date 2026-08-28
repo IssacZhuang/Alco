@@ -31,11 +31,11 @@ public partial class RenderingSystem
         bool metalLib = MetalLibTargetEnabled(GraphicsDevice.Backend, GraphicsDevice.IsFeatureSupported(GPUFeatures.MetalLibPassthrough));
         SlangCodeTarget target = GraphicsDevice.Backend switch
         {
-            GraphicsBackend.D3D12 => SlangCodeTarget.Dxil,
-            GraphicsBackend.Metal => metalLib ? SlangCodeTarget.MetalLib : SlangCodeTarget.Msl,
+            GraphicsBackend.WGPUDx12 => SlangCodeTarget.Dxil,
+            GraphicsBackend.WGPUMetal => metalLib ? SlangCodeTarget.MetalLib : SlangCodeTarget.Msl,
             _ => SlangCodeTarget.Spirv,
         };
-        if (GraphicsDevice.Backend == GraphicsBackend.Metal)
+        if (GraphicsDevice.Backend == GraphicsBackend.WGPUMetal)
         {
             Log.Info(metalLib
                 ? "Metal shaders compile to precompiled metallib (Apple toolchain + wgpu metallib passthrough present)"
@@ -65,7 +65,7 @@ public partial class RenderingSystem
     /// </summary>
     internal static bool MetalLibTargetEnabled(GraphicsBackend backend, bool metalLibPassthrough)
     {
-        if (backend != GraphicsBackend.Metal || !metalLibPassthrough)
+        if (backend != GraphicsBackend.WGPUMetal || !metalLibPassthrough)
         {
             return false;
         }

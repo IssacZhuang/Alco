@@ -11,13 +11,9 @@ internal static partial class WebGPUUtility
     {
         new(GraphicsBackend.None, WGPUInstanceBackend.All),
         new(GraphicsBackend.Auto, WGPUInstanceBackend.Primary),
-        new(GraphicsBackend.WebGPU, WGPUInstanceBackend.BrowserWebGPU),
-        new(GraphicsBackend.Vulkan, WGPUInstanceBackend.Vulkan),
-        // wgpu v29 removed the D3D11 backend; GraphicsBackend.D3D11 is intentionally unmapped.
-        new(GraphicsBackend.D3D12, WGPUInstanceBackend.DX12),
-        new(GraphicsBackend.Metal, WGPUInstanceBackend.Metal),
-        new(GraphicsBackend.OpenGL, WGPUInstanceBackend.GL),
-        new(GraphicsBackend.OpenGLES, WGPUInstanceBackend.GL),
+        new(GraphicsBackend.WGPUVulkan, WGPUInstanceBackend.Vulkan),
+        new(GraphicsBackend.WGPUDx12, WGPUInstanceBackend.DX12),
+        new(GraphicsBackend.WGPUMetal, WGPUInstanceBackend.Metal),
     };
 
     public static readonly Func<GraphicsBackend, WGPUInstanceBackend> BackendToWebGPU;
@@ -27,13 +23,9 @@ internal static partial class WebGPUUtility
     {
         new(GraphicsBackend.None, WGPUBackendType.Null),
         new(GraphicsBackend.Auto, WGPUBackendType.Undefined),
-        new(GraphicsBackend.WebGPU, WGPUBackendType.WebGPU),
-        new(GraphicsBackend.Vulkan, WGPUBackendType.Vulkan),
-        new(GraphicsBackend.D3D11, WGPUBackendType.D3D11),
-        new(GraphicsBackend.D3D12, WGPUBackendType.D3D12),
-        new(GraphicsBackend.Metal, WGPUBackendType.Metal),
-        new(GraphicsBackend.OpenGL, WGPUBackendType.OpenGL),
-        new(GraphicsBackend.OpenGLES, WGPUBackendType.OpenGLES),
+        new(GraphicsBackend.WGPUVulkan, WGPUBackendType.Vulkan),
+        new(GraphicsBackend.WGPUDx12, WGPUBackendType.D3D12),
+        new(GraphicsBackend.WGPUMetal, WGPUBackendType.Metal),
     };
 
     public static readonly Func<GraphicsBackend, WGPUBackendType> BackendTypeToWebGPU;

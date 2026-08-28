@@ -1,12 +1,10 @@
 using Alco.Graphics.NoGPU;
 
-#if USE_VULKAN
-using Alco.Graphics.Vulkan;
-#endif
-
 #if USE_WEBGPU
 using Alco.Graphics.WebGPU;
 #endif
+
+using Alco.Graphics.Vulkan;
 
 namespace Alco.Graphics;
 
@@ -22,11 +20,7 @@ public static class GraphicsDeviceFactory
 
     public static GPUDevice CreateVulkanDevice(DeviceDescriptor descriptor)
     {
-#if USE_VULKAN
         return new VulkanDevice(descriptor);
-#else
-        throw new PlatformNotSupportedException("Vulkan is not supported");
-#endif
     }
 
     public static GPUDevice CreateWebGPUDevice(DeviceDescriptor descriptor)

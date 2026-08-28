@@ -13,10 +13,6 @@
     <DefineConstants>DIAGHUB_ENABLE_TRACE_SYSTEM</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <DefineConstants Condition="'$(UseVulkan)' == 'true'">$(DefineConstants);USE_VULKAN</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\Alco.Profiler\Alco.Profiler.csproj" />
     <ProjectReference Include="..\Alco\Alco.csproj" />

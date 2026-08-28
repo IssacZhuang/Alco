@@ -1,14 +1,23 @@
 namespace Alco.Graphics;
 
+/// <summary>The graphics backend a device should run on.</summary>
 public enum GraphicsBackend
 {
+    /// <summary>No GPU: the virtual device for logic development without real graphics.</summary>
     None = 0,
+
+    /// <summary>wgpu with its own backend choice for the current platform.</summary>
     Auto = 1,
-    WebGPU = 2,
-    Vulkan = 3,
-    D3D11 = 4,
-    D3D12 = 5,
-    Metal = 6,
-    OpenGL = 7,
-    OpenGLES = 8,
+
+    /// <summary>wgpu running on Vulkan.</summary>
+    WGPUVulkan = 2,
+
+    /// <summary>wgpu running on Direct3D 12.</summary>
+    WGPUDx12 = 3,
+
+    /// <summary>wgpu running on Metal.</summary>
+    WGPUMetal = 4,
+
+    /// <summary>The engine's native Vulkan backend (Alco.Graphics.Vulkan).</summary>
+    NativeVulkan = 5,
 }

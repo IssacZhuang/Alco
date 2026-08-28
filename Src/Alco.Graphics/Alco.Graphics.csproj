@@ -4,21 +4,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <UseVulkan>false</UseVulkan>
     <UseWebGPU>true</UseWebGPU>
 
-    <DefineConstants Condition="'$(UseVulkan)' == 'true'">$(DefineConstants);USE_VULKAN</DefineConstants>
     <DefineConstants Condition="'$(UseWebGPU)' == 'true'">$(DefineConstants);USE_WEBGPU</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Vulkan\**\*" Condition="'$(UseVulkan)' != 'true'" />
     <Compile Remove="WGPU\**\*" Condition="'$(UseWebGPU)' != 'true'" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.Vulkan" Version="1.8.5" />
-    <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.VulkanMemoryAllocator" Version="1.4.3" />
+    <PackageReference Include="Vortice.Vulkan" Version="1.8.5" />
+    <PackageReference Include="Vortice.VulkanMemoryAllocator" Version="1.4.3" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseWebGPU)' == 'true'">

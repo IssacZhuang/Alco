@@ -1,4 +1,4 @@
-using Alco;
+﻿using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
@@ -9,7 +9,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(640, 360, "ImGUI"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.Vulkan
+        Backend = GraphicsBackend.WGPUVulkan
     },
 };
 

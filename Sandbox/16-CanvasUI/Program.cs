@@ -1,4 +1,4 @@
-using Alco;
+﻿using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 
@@ -7,7 +7,7 @@ GameEngineSetting setting = new GameEngineSetting
     StopWhenError = true,
     View = new ViewSetting(800, 450, "Canvas UI"),
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.Vulkan,
+        Backend = GraphicsBackend.WGPUVulkan,
     }
 };
 

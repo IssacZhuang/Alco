@@ -971,10 +971,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
         WGPUBackendType backendType = info.backendType;
         Backend = backendType switch
         {
-            WGPUBackendType.Vulkan => GraphicsBackend.Vulkan,
-            WGPUBackendType.D3D12 => GraphicsBackend.D3D12,
-            WGPUBackendType.Metal => GraphicsBackend.Metal,
-            _ => GraphicsBackend.WebGPU,
+            WGPUBackendType.Vulkan => GraphicsBackend.WGPUVulkan,
+            WGPUBackendType.D3D12 => GraphicsBackend.WGPUDx12,
+            WGPUBackendType.Metal => GraphicsBackend.WGPUMetal,
+            _ => GraphicsBackend.Auto,
         };
         _host.LogSuccess($"Adapter name: {info.device}");
         _host.LogSuccess($"Graphics backend: {info.backendType}");
