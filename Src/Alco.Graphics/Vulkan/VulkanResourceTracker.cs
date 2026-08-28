@@ -116,11 +116,15 @@ internal sealed unsafe class VulkanResourceTracker
 
     // compute passes have no native pass object in Vulkan, so barriers ARE
     // legal between their dispatches (rendering scopes are the only ones that
-    // forbid them). Inside a compute pass a resource may flip between states
-    // across dispatches (flood-fill ping-pong, blur reading what fill wrote);
-    // each flip is recorded here and flushed as one barrier right before the
-    // next dispatch — the same point wgpu flushes its pending bind barriers.
-    private readonly List<(object Resource, VulkanResourceState OldState, VulkanResourceState NewState)> _pendingDispatchBarriers = new();
+    // forbid them). WebGPU gives every dispatch its own usage scope, so the
+    // resources bound since the last dispatch are collected here and flushed
+    // as one barrier right before the next dispatch (flood-fill ping-pong,
+    // blur reading what fill wrote). _dispatchBinds holds the currently bound
+    // resources and their states; _dispatchScopes holds the states the last
+    // flushed barrier left them in (undefined = not touched by any dispatch
+    // in this pass yet).
+    private readonly Dictionary<object, VulkanResourceState> _dispatchBinds = new();
+    private readonly Dictionary<object, VulkanResourceState> _dispatchScopes = new();
     private bool _inComputePass;
 
     // the device tracker is genuinely shared (seed reads from recording threads
@@ -408,21 +412,22 @@ internal sealed unsafe class VulkanResourceTracker
     /// Records a new state for a resource used inside a pass WITHOUT emitting a
     /// barrier (illegal inside a rendering scope). Correct because wgpu semantics
     /// give a resource a single usage per render pass, and the previous pass
-    /// flushed its writes when it ended. Inside a compute pass the state flip is
-    /// queued instead: dispatches may re-use a resource with a different usage,
-    /// and <see cref="FlushDispatchBarriers"/> makes each flip visible before
-    /// the next dispatch runs.
+    /// flushed its writes when it ended. Inside a compute pass the binding is
+    /// also collected into the current dispatch scope: every dispatch is its
+    /// own usage scope, so consecutive dispatches re-using a resource need a
+    /// barrier between them even with an unchanged tracked state (see
+    /// <see cref="FlushDispatchBarriers"/>).
     /// </summary>
     public void MarkTexture(VulkanTexture texture, VulkanResourceState target)
     {
         using var __ = Lock();
         {
-            VulkanResourceState source = GetTextureStateUnlocked(texture);
-            if (_inComputePass && source != target)
-            {
-                _pendingDispatchBarriers.Add((texture, source, target));
-            }
+            _ = GetTextureStateUnlocked(texture); // seed first use if needed
             _imageStates[texture] = target;
+            if (_inComputePass)
+            {
+                _dispatchBinds[texture] = target;
+            }
         }
     }
 
@@ -430,62 +435,60 @@ internal sealed unsafe class VulkanResourceTracker
     {
         using var __ = Lock();
         {
-            VulkanResourceState source = GetBufferStateUnlocked(buffer);
-            if (_inComputePass && source != target)
-            {
-                _pendingDispatchBarriers.Add((buffer, source, target));
-            }
+            _ = GetBufferStateUnlocked(buffer); // seed first use if needed
             _bufferStates[buffer] = target;
+            if (_inComputePass)
+            {
+                _dispatchBinds[buffer] = target;
+            }
         }
     }
 
-    /// <summary>Opens a compute-pass scope: state flips at bind time are queued
-    /// and flushed before each dispatch (Vulkan allows barriers there).</summary>
+    /// <summary>Opens a compute-pass scope: bindings accumulate into the current
+    /// dispatch scope and flush before each dispatch (Vulkan allows barriers
+    /// between dispatches; rendering scopes are the only ones that forbid them).</summary>
     public void BeginComputeScope()
     {
         using var __ = Lock();
         {
             _inComputePass = true;
-            _pendingDispatchBarriers.Clear();
+            _dispatchBinds.Clear();
+            _dispatchScopes.Clear();
         }
     }
 
-    /// <summary>Closes the compute-pass scope. Leftover pending flips are
-    /// dropped: the pass-end flush barrier already covers every touched
-    /// resource's current state, making them redundant.</summary>
+    /// <summary>Closes the compute-pass scope. Leftover scopes are dropped: the
+    /// pass-end flush barrier already covers every touched resource's current
+    /// state, making them redundant.</summary>
     public void EndComputeScope()
     {
         using var __ = Lock();
         {
             _inComputePass = false;
-            _pendingDispatchBarriers.Clear();
+            _dispatchBinds.Clear();
+            _dispatchScopes.Clear();
         }
     }
 
     /// <summary>
-    /// Emits ONE barrier covering every state flip recorded since the last
-    /// dispatch, making the previous dispatch's writes visible to the next.
-    /// Buffers and layout-unchanged images fold into a single global memory
-    /// barrier; images whose layout changes get per-image barriers in the same
-    /// vkCmdPipelineBarrier2 call. Legal only outside a rendering scope.
+    /// Emits ONE barrier making the previous dispatch's accesses on the bound
+    /// resources visible to the next one - the wgpu per-dispatch usage-scope
+    /// model. A resource needs the barrier when its usage changed OR when
+    /// either side of the two dispatches is a write (read-after-write,
+    /// write-after-read and write-after-write all need it; a Vulkan read-write
+    /// storage binding stays in the same state across dispatches yet still
+    /// needs the sync). Pure read-after-read with unchanged usage is skipped.
+    /// Resources seen for the first time in the pass have no prior dispatch to
+    /// synchronize with and are skipped as well. Legal only outside a
+    /// rendering scope.
     /// </summary>
     public void FlushDispatchBarriers(VkCommandBuffer commandBuffer)
     {
         using var __ = Lock();
         {
-            if (_pendingDispatchBarriers.Count == 0)
+            if (!_inComputePass || _dispatchBinds.Count == 0)
             {
                 return;
-            }
-
-            int imageCount = 0;
-            foreach ((object resource, VulkanResourceState oldState, VulkanResourceState newState) in _pendingDispatchBarriers)
-            {
-                if (resource is VulkanTexture texture
-                    && LayoutForState(texture, oldState) != LayoutForState(texture, newState))
-                {
-                    imageCount++;
-                }
             }
 
             VkPipelineStageFlags2 srcStage = VkPipelineStageFlags2.TopOfPipe;
@@ -493,28 +496,35 @@ internal sealed unsafe class VulkanResourceTracker
             VkPipelineStageFlags2 dstStage = VkPipelineStageFlags2.TopOfPipe;
             VkAccessFlags2 dstAccess = VkAccessFlags2.None;
 
-            // zero-length stackalloc is legal; the pointer is unused when count is 0
-            VkImageMemoryBarrier2* imageBarriers = stackalloc VkImageMemoryBarrier2[imageCount];
-            int imageIndex = 0;
-
-            foreach ((object resource, VulkanResourceState oldState, VulkanResourceState newState) in _pendingDispatchBarriers)
+            foreach (KeyValuePair<object, VulkanResourceState> bind in _dispatchBinds)
             {
-                if (resource is VulkanTexture texture)
+                if (!_dispatchScopes.TryGetValue(bind.Key, out VulkanResourceState oldState))
                 {
+                    // no previous dispatch touched it inside this pass; its
+                    // cross-pass/cross-submission hazards are handled by the
+                    // regular entry barriers
+                    continue;
+                }
+
+                VulkanResourceState newState = bind.Value;
+                if (oldState == newState && !IsWriteState(oldState) && !IsWriteState(newState))
+                {
+                    // read-after-read with identical usage: no hazard
+                    continue;
+                }
+
+                if (bind.Key is VulkanTexture)
+                {
+                    // storage/sampled states all live in GENERAL, so the memory
+                    // barrier covers the image; layouts never change here
                     (VkPipelineStageFlags2 s, VkAccessFlags2 a) = ImageScope(oldState);
                     (VkPipelineStageFlags2 ds, VkAccessFlags2 da) = ImageScope(newState);
                     srcStage |= s;
                     srcAccess |= a;
                     dstStage |= ds;
                     dstAccess |= da;
-                    if (LayoutForState(texture, oldState) != LayoutForState(texture, newState))
-                    {
-                        // layout change needs a real image barrier (the rare
-                        // case in compute; bindable images usually sit in GENERAL)
-                        imageBarriers[imageIndex++] = BuildImageBarrier(texture, oldState, newState, s, a, ds, da);
-                    }
                 }
-                else if (resource is VulkanBuffer buffer)
+                else
                 {
                     (VkPipelineStageFlags2 s, VkAccessFlags2 a) = BufferScope(oldState);
                     (VkPipelineStageFlags2 ds, VkAccessFlags2 da) = BufferScope(newState);
@@ -524,7 +534,20 @@ internal sealed unsafe class VulkanResourceTracker
                     dstAccess |= da;
                 }
             }
-            _pendingDispatchBarriers.Clear();
+
+            // the next dispatch runs with the scope this barrier established;
+            // bindings stay live so dispatches that skip rebinding (unchanged
+            // bind groups) keep being synchronized against this scope
+            _dispatchScopes.Clear();
+            foreach (KeyValuePair<object, VulkanResourceState> bind in _dispatchBinds)
+            {
+                _dispatchScopes[bind.Key] = bind.Value;
+            }
+
+            if (srcStage == VkPipelineStageFlags2.TopOfPipe)
+            {
+                return;
+            }
 
             VkMemoryBarrier2 memoryBarrier = new()
             {
@@ -538,11 +561,24 @@ internal sealed unsafe class VulkanResourceTracker
             {
                 memoryBarrierCount = 1,
                 pMemoryBarriers = &memoryBarrier,
-                imageMemoryBarrierCount = (uint)imageIndex,
-                pImageMemoryBarriers = imageBarriers,
             };
             vkCmdPipelineBarrier2(commandBuffer, &dependency);
         }
+    }
+
+    /// <summary>Whether a state writes the resource (a dispatch pair involving
+    /// any write needs a barrier between them).</summary>
+    private static bool IsWriteState(VulkanResourceState state)
+    {
+        return state switch
+        {
+            VulkanResourceState.ShaderWrite
+            or VulkanResourceState.ShaderReadWrite
+            or VulkanResourceState.CopyDst
+            or VulkanResourceState.ColorAttachment
+            or VulkanResourceState.DepthWrite => true,
+            _ => false,
+        };
     }
 
     /// <summary>Combined (stage, access) source scope of a bound resource state —
@@ -776,7 +812,8 @@ internal sealed unsafe class VulkanResourceTracker
             _bufferStates.Clear();
             _firstUses.Clear();
             _passTouched.Clear();
-            _pendingDispatchBarriers.Clear();
+            _dispatchBinds.Clear();
+            _dispatchScopes.Clear();
             _inComputePass = false;
             _bundleSrcStage = VkPipelineStageFlags2.TopOfPipe;
             _bundleSrcAccess = VkAccessFlags2.None;
