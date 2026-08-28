@@ -210,7 +210,7 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
         string displayName = ToDisplayName(_name);
         GPUDevice device = context.Rendering.GraphicsDevice;
         _autoProfiler = profiler;
-        _autoGpuSampler = device.TimestampQuerySupported
+        _autoGpuSampler = device.IsFeatureSupported(GPUFeatures.TimestampQuery)
             ? new GpuTimestampSampler(device, 2, "chain_" + _name)
             : null;
         if (_autoGpuSampler != null)

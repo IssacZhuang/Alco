@@ -76,7 +76,7 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// </remarks>
     public bool TryCompress(Texture2D source, [NotNullWhen(true)] out Texture2D? texture)
     {
-        if (!_device.TextureCompressBC3Supported)
+        if (!_device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
         {
             texture = null;
             return false;
@@ -103,12 +103,12 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// <remarks>
     /// This method performs BC3 compression using a compute shader.
     /// The resulting texture will have the same dimensions as the source but will use the BC3RGBAUnorm format.
-    /// An exception will be thrown if BC3 compression is not supported by the device. Use <see cref="GPUDevice.TextureCompressBC3Supported"/> to check for support
+    /// An exception will be thrown if BC3 compression is not supported by the device. Use <see cref="GPUDevice.IsFeatureSupported"/> with <see cref="GPUFeatures.TextureCompressionBC"/> to check for support
     /// or use <see cref="TryCompress"/> method to avoid exceptions.
     /// </remarks>
     public Texture2D Compress(Texture2D source)
     {
-        if (!_device.TextureCompressBC3Supported)
+        if (!_device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
         {
             throw new InvalidOperationException("Texture compression BC3 is not supported");
         }

@@ -60,13 +60,7 @@ internal class NoDevice : GPUDevice
 
     public override GraphicsBackend Backend => GraphicsBackend.None;
 
-    public override bool TextureCompressBC3Supported => false;
-
-    public override bool TimestampQuerySupported => false;
-
-    public override bool MetalLibPassthroughSupported => false;
-
-    public override bool TimestampQueryInsidePassesSupported => false;
+    public override GPUFeatures SupportedFeatures => GPUFeatures.None;
 
     public override float TimestampPeriodNanoseconds => 0.0f;
 

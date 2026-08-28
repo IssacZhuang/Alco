@@ -28,7 +28,7 @@ public partial class RenderingSystem
     /// <param name="slangCacheDirectory">Disk-cache root for slang modules/programs; null disables caching.</param>
     private ShaderSystem CreateShaderSystem(SlangFileResolver? moduleResolver, string? slangCacheDirectory)
     {
-        bool metalLib = MetalLibTargetEnabled(GraphicsDevice.Backend, GraphicsDevice.MetalLibPassthroughSupported);
+        bool metalLib = MetalLibTargetEnabled(GraphicsDevice.Backend, GraphicsDevice.IsFeatureSupported(GPUFeatures.MetalLibPassthrough));
         SlangCodeTarget target = GraphicsDevice.Backend switch
         {
             GraphicsBackend.D3D12 => SlangCodeTarget.Dxil,

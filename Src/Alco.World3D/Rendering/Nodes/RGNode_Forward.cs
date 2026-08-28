@@ -153,7 +153,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         _staticBundle = rendering.CreateSubRenderContext("pbr_forward_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_forward_dynamic");
 
-        if (rendering.GraphicsDevice.TimestampQuerySupported)
+        if (rendering.GraphicsDevice.IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             _gpuTimestamps = new GpuTimestampSampler(rendering.GraphicsDevice, 2, "forward_pass");
         }

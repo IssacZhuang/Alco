@@ -272,7 +272,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
         _compositeMaterial.BlendState = BlendState.PremultipliedAlpha;
         _compositeMaterial.SetBuffer("cloudData", _dataBuffer);
 
-        if (_device.TimestampQuerySupported)
+        if (_device.IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "volumetric_clouds");
         }

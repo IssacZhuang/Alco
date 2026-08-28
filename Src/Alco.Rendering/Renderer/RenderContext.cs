@@ -133,7 +133,7 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     /// A null index skips the corresponding write, which allows bracketing a span
     /// of consecutive passes with one timestamp pair (begin on the first pass,
     /// end on the last). Only call this when
-    /// <see cref="GPUDevice.TimestampQuerySupported"/> is true.
+    /// <see cref="GPUDevice.IsFeatureSupported"/>(<see cref="GPUFeatures.TimestampQuery"/>) is true.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
     /// <param name="clearColors">Attachment clear values.</param>

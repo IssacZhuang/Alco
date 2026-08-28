@@ -816,7 +816,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
                 "voxel_gi_blue_noise_pass"));
         _blueNoiseTexture = rendering.CreateRenderTexture(
             _blueNoiseLayout, BlueNoiseTextureSize, BlueNoiseTextureSize, "voxel_gi_blue_noise");
-        if (_device.TimestampQuerySupported)
+        if (_device.IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "voxel_gi");
         }
@@ -1994,7 +1994,7 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     /// timestamps (~0 ms) for the update stages. Slots 0–7 bracket the main
     /// compute pass (0=begin, 7=end), slots 8–9 bracket the upsample pass.
     /// In-pass slots 1–6 are no-ops (read as 0) when the device lacks
-    /// <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>.
+    /// <see cref="GPUFeatures.TimestampQueryInsidePasses"/>.
     /// </summary>
     private void AccumulateGpuDurations(ulong[] timestamps)
     {

@@ -119,7 +119,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         _hbaoMaterial.SetBuffer("data", _dataBuffer);
         _blurMaterial.SetBuffer("data", _dataBuffer);
 
-        if (_device.TimestampQuerySupported)
+        if (_device.IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             _gpuTimestamps = new GpuTimestampSampler(_device, TimestampSlotCount, "hbao");
         }

@@ -51,13 +51,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
     /// </summary>
     internal bool ShaderPassthroughEnabled { get; }
 
-    /// <summary>
-    /// Whether the loaded wgpu-native exports wgpuDeviceCreateShaderModuleMetalLib.
-    /// Probed once per device; the shader factory keeps the
-    /// MSL target when this is false so an older library still runs.
-    /// </summary>
-    private bool MetalLibPassthrough { get; set; }
-
     /// <summary>The backend the adapter actually selected (Auto resolves per platform).</summary>
     public override GraphicsBackend Backend { get; }
 
@@ -116,13 +109,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
     public override GPUBindGroup BindGroupTexture2DStorage { get; }
     public override GPUBindGroup BindGroupTexture3DRead { get; }
 
-    public override bool TextureCompressBC3Supported { get; }
-
-    public override bool TimestampQuerySupported { get; }
-
-    public override bool MetalLibPassthroughSupported => MetalLibPassthrough;
-
-    public override bool TimestampQueryInsidePassesSupported { get; }
+    public override GPUFeatures SupportedFeatures { get; }
 
     public override float TimestampPeriodNanoseconds { get; }
 
@@ -996,33 +983,35 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         ReadOnlySpan<WGPUFeatureName> supportedFeatures = wgpuAdapterEnumerateFeatures(Adapter);
 
+        GPUFeatures gpuFeatures = GPUFeatures.None;
+
         List<WGPUFeatureName> featuresList = new List<WGPUFeatureName>(){
             (WGPUFeatureName)WGPUNativeFeature.VertexWritableStorage
         };
 
-        if (!IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.Immediates, supportedFeatures))
+        if (!ContainsFeature((WGPUFeatureName)WGPUNativeFeature.Immediates, supportedFeatures))
         {
             throw new GraphicsException("Push constants (immediates) are not supported which is required");
         }
 
-        if(IsFeatureSupported(WGPUFeatureName.TextureCompressionBC, supportedFeatures))
+        if(ContainsFeature(WGPUFeatureName.TextureCompressionBC, supportedFeatures))
         {
-            TextureCompressBC3Supported = true;
+            gpuFeatures |= GPUFeatures.TextureCompressionBC;
             featuresList.Add(WGPUFeatureName.TextureCompressionBC);
             _host.LogSuccess("Texture compression BC is supported");
         }
 
-        if (IsFeatureSupported(WGPUFeatureName.TimestampQuery, supportedFeatures))
+        if (ContainsFeature(WGPUFeatureName.TimestampQuery, supportedFeatures))
         {
-            TimestampQuerySupported = true;
+            gpuFeatures |= GPUFeatures.TimestampQuery;
             featuresList.Add(WGPUFeatureName.TimestampQuery);
             _host.LogSuccess("GPU timestamp queries are supported");
         }
 
-        if (TimestampQuerySupported
-            && IsFeatureSupported((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses, supportedFeatures))
+        if (gpuFeatures.HasFlag(GPUFeatures.TimestampQuery)
+            && ContainsFeature((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses, supportedFeatures))
         {
-            TimestampQueryInsidePassesSupported = true;
+            gpuFeatures |= GPUFeatures.TimestampQueryInsidePasses;
             featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses);
             _host.LogSuccess("GPU timestamp queries inside passes are supported");
         }
@@ -1030,7 +1019,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         if (backendType == WGPUBackendType.Vulkan)
         {
             WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
-            if (IsFeatureSupported(passthroughShaders, supportedFeatures))
+            if (ContainsFeature(passthroughShaders, supportedFeatures))
             {
                 ShaderPassthroughEnabled = true;
                 featuresList.Add(passthroughShaders);
@@ -1048,7 +1037,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
             // Metal; wgpu can only consume them through passthrough, so the
             // feature is required, not optional.
             WGPUFeatureName passthroughShaders = (WGPUFeatureName)WGPUNativeFeature.PassthroughShaders;
-            if (!IsFeatureSupported(passthroughShaders, supportedFeatures))
+            if (!ContainsFeature(passthroughShaders, supportedFeatures))
             {
                 throw new GraphicsException(
                     $"{backendType} requires wgpu's PassthroughShaders feature for slang DXIL/MSL shaders, " +
@@ -1065,15 +1054,17 @@ internal sealed partial class WebGPUDevice : GPUDevice
                 // panics), so probe the loaded library's export table instead —
                 // an older build keeps the MSL source path. The path-aware
                 // load also returns the already-loaded DllImport handle.
-                MetalLibPassthrough = WGPUNativeLibrary.TryLoad(out nint library)
-                    && NativeLibrary.TryGetExport(library, "wgpuDeviceCreateShaderModuleMetalLib", out _);
-                if (MetalLibPassthrough)
+                if (WGPUNativeLibrary.TryLoad(out nint library)
+                    && NativeLibrary.TryGetExport(library, "wgpuDeviceCreateShaderModuleMetalLib", out _))
                 {
+                    gpuFeatures |= GPUFeatures.MetalLibPassthrough;
                     _host.LogSuccess("Precompiled metallib shader passthrough is enabled");
                 }
             }
         }
 
+
+        SupportedFeatures = gpuFeatures;
 
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.Immediates);
         featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TextureAdapterSpecificFormatFeatures);
@@ -1137,7 +1128,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
         //get queue
         Queue = wgpuDeviceGetQueue(Device);
-        TimestampPeriodNanoseconds = TimestampQuerySupported ? wgpuQueueGetTimestampPeriod(Queue) : 0.0f;
+        TimestampPeriodNanoseconds = IsFeatureSupported(GPUFeatures.TimestampQuery) ? wgpuQueueGetTimestampPeriod(Queue) : 0.0f;
         
         //create default bind groups
         BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
@@ -1282,7 +1273,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
     }
 
-    private unsafe static bool IsFeatureSupported(WGPUFeatureName feature, ReadOnlySpan<WGPUFeatureName> supportedFeatures)
+    private unsafe static bool ContainsFeature(WGPUFeatureName feature, ReadOnlySpan<WGPUFeatureName> supportedFeatures)
     {
         for (int i = 0; i < supportedFeatures.Length; i++)
         {

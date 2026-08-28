@@ -57,7 +57,7 @@ public sealed class GpuTimestampSampler : AutoDisposable
     public bool UsesPaddedPairs => _pairStrideBytes > 0;
 
     /// <summary>Whether the device supports in-pass timestamp writes.</summary>
-    public bool SupportsInPassTimestamps => _device.TimestampQueryInsidePassesSupported;
+    public bool SupportsInPassTimestamps => _device.IsFeatureSupported(GPUFeatures.TimestampQueryInsidePasses);
 
     /// <summary>
     /// True when this frame is a sample frame (the interval has elapsed). Once

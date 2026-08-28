@@ -135,7 +135,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
         /// <summary>
         /// Writes a timestamp inside this open render pass. If the device does not
-        /// support <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>, this
+        /// support <see cref="GPUFeatures.TimestampQueryInsidePasses"/>, this
         /// method is a no-op (the timing is silently disabled) so callers can use it
         /// unconditionally for maximum device compatibility.
         /// </summary>
@@ -145,7 +145,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         public void WriteTimestamp(GPUTimestampQuerySet querySet, uint queryIndex)
         {
             AssetUtility.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while WriteTimestamp, try start recording by calling GPUCommandBuffer.BeginRender()");
-            if (!_commandBuffer.Device.TimestampQueryInsidePassesSupported)
+            if (!_commandBuffer.Device.IsFeatureSupported(GPUFeatures.TimestampQueryInsidePasses))
             {
                 return;
             }
@@ -222,7 +222,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
 
         /// <summary>
         /// Writes a timestamp inside this open compute pass. If the device does not
-        /// support <see cref="GPUDevice.TimestampQueryInsidePassesSupported"/>, this
+        /// support <see cref="GPUFeatures.TimestampQueryInsidePasses"/>, this
         /// method is a no-op (the timing is silently disabled) so callers can use it
         /// unconditionally for maximum device compatibility.
         /// </summary>
@@ -232,7 +232,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         public void WriteTimestamp(GPUTimestampQuerySet querySet, uint queryIndex)
         {
             AssetUtility.IsTrue(_commandBuffer._isRecordingCompute, "Compute pass is not recording while WriteTimestamp, try start recording by calling GPUCommandBuffer.BeginCompute()");
-            if (!_commandBuffer.Device.TimestampQueryInsidePassesSupported)
+            if (!_commandBuffer.Device.IsFeatureSupported(GPUFeatures.TimestampQueryInsidePasses))
             {
                 return;
             }

@@ -133,7 +133,7 @@ public static class RenderPipelines
         // keep their previous sample and no resolve ever touches unwritten slots.
         // Per-node CPU timing needs no wiring: the graph measures every node
         // automatically (see RenderGraph.Profiler).
-        GpuTimestampSampler? gpuTimestamps = device.TimestampQuerySupported
+        GpuTimestampSampler? gpuTimestamps = device.IsFeatureSupported(GPUFeatures.TimestampQuery)
             ? new GpuTimestampSampler(device, TimestampSlotCount, "pbr_pipeline", GpuTimestampSampler.PairStrideBytes)
             : null;
 

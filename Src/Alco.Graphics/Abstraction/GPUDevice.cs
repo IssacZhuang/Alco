@@ -28,7 +28,6 @@ public abstract class GPUDevice
     private readonly uint _disposeDelay = 1;
 
     public abstract PixelFormat PreferredSurfaceFormat { get; }
-    public abstract bool TextureCompressBC3Supported { get; }
 
     /// <summary>
     /// The backend the active adapter selected (an <c>Auto</c> request resolves per
@@ -42,23 +41,21 @@ public abstract class GPUDevice
     /// </summary>
     public abstract int MaxBindGroups { get; }
 
-    /// <summary>Gets whether the active adapter supports GPU timestamp queries.</summary>
-    public abstract bool TimestampQuerySupported { get; }
+    /// <summary>
+    /// The optional GPU features supported by the active adapter.
+    /// </summary>
+    public abstract GPUFeatures SupportedFeatures { get; }
 
     /// <summary>
-    /// Gets whether the active device can consume precompiled Metal libraries:
-    /// wgpu-native was built with the metallib passthrough entry and the
-    /// backend is Metal. The shader factory picks the slang
-    /// metallib target only when this is true; everything else stays on MSL.
+    /// Checks whether the active adapter supports the optional GPU feature.
+    /// A combination of features matches when at least one of them is supported.
     /// </summary>
-    public abstract bool MetalLibPassthroughSupported { get; }
-
-    /// <summary>
-    /// Gets whether timestamp writes are allowed inside an open compute pass
-    /// (wgpu-native <c>TimestampQueryInsidePasses</c>). When false, timestamps
-    /// can only be written at pass boundaries.
-    /// </summary>
-    public abstract bool TimestampQueryInsidePassesSupported { get; }
+    /// <param name="feature">The feature or feature combination to check.</param>
+    /// <returns>Whether the feature is supported.</returns>
+    public bool IsFeatureSupported(GPUFeatures feature)
+    {
+        return (SupportedFeatures & feature) != 0;
+    }
 
     /// <summary>Gets nanoseconds represented by one timestamp tick.</summary>
     public abstract float TimestampPeriodNanoseconds { get; }
@@ -180,7 +177,7 @@ public abstract class GPUDevice
     /// <exception cref="NotSupportedException">The active adapter does not support timestamp queries.</exception>
     public GPUTimestampQuerySet CreateTimestampQuerySet(uint count, string name)
     {
-        if (!TimestampQuerySupported)
+        if (!IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             throw new NotSupportedException("GPU timestamp queries are not supported by the active adapter.");
         }

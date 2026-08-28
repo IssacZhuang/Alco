@@ -277,7 +277,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         _lastSsrOnly = voxelGi.SsrOnly;
         BindPersistentResources();
 
-        if (rendering.GraphicsDevice.TimestampQuerySupported)
+        if (rendering.GraphicsDevice.IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             _gpuTimestamps = new GpuTimestampSampler(rendering.GraphicsDevice, TimestampSlotCount, "ssr");
         }
