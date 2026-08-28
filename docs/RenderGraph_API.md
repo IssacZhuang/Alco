@@ -75,7 +75,7 @@ chain.Reset(scene);
 graph.Execute(destination);
 ```
 
-最小前向管线也可以一行壳搞定:`new RenderPipeline(rendering, sceneLayout, blitShader, w, h)` 自带 clear + blit,之后 `Use(...)` 加内容/后处理节点。
+最小前向管线也可以一行壳搞定:`new RenderPipeline(rendering, new RenderPipeline.Descriptor { SceneLayout = ..., BlitShader = ..., Width = w, Height = h })` 自带 clear + blit,之后 `Use(...)` 加内容/后处理节点。
 
 ### 3.2 给现有管线加后处理
 

@@ -46,12 +46,13 @@ public class Game : GameEngine
     {
         _gpuCommandBufferPool = new ConcurrentPool<GPUCommandBuffer>(CreateGPUCommandBuffer);
 
-        _mainPipeline = new RenderPipeline(
-            RenderingSystem,
-            RenderingSystem.PreferredHDRPass,
-            BuiltInAssets.Shader_Blit,
-            MainView.Size.X,
-            MainView.Size.Y);
+        _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
+        {
+            SceneLayout = RenderingSystem.PreferredHDRPass,
+            BlitShader = BuiltInAssets.Shader_Blit,
+            Width = MainView.Size.X,
+            Height = MainView.Size.Y,
+        });
 
         var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,

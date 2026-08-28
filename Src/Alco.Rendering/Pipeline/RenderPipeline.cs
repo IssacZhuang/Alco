@@ -34,27 +34,65 @@ public sealed class RenderPipeline : AutoDisposable
     private readonly RGNode_Blit _blitNode;
 
     /// <summary>
+    /// The pipeline's construction data. Service-type dependencies (the rendering
+    /// system) are explicit constructor parameters instead — a descriptor is pure
+    /// data.
+    /// </summary>
+    public readonly struct Descriptor
+    {
+        /// <summary>The attachment layout of the scene render texture (e.g.
+        /// <see cref="RenderingSystem.PreferredHDRPass"/> for an HDR forward scene
+        /// with its own depth attachment). Stays owned by the caller.</summary>
+        public required GPUAttachmentLayout SceneLayout { get; init; }
+
+        /// <summary>The shader the final blit uses for the plain copy.</summary>
+        public required Shader BlitShader { get; init; }
+
+        /// <summary>The initial scene texture width in pixels.</summary>
+        public required uint Width { get; init; }
+
+        /// <summary>The initial scene texture height in pixels.</summary>
+        public required uint Height { get; init; }
+
+        /// <summary>A diagnostic name prefix for the graph and its resources.</summary>
+        public string Name { get; init; } = "render_pipeline";
+
+        /// <summary>An externally owned render context the graph executes with, so
+        /// consumers bound to one context (e.g. a shared canvas) work across several
+        /// pipelines. The pipelines sharing it must alternate frames; the caller
+        /// keeps ownership of the context.</summary>
+        public RenderContext? SharedRenderContext { get; init; }
+
+        /// <summary>The stencil clear value of the clear node, or null to not clear
+        /// stencil. Set it (typically 0) when the scene texture carries a stencil
+        /// attachment that later nodes (e.g. canvas masking) rely on.</summary>
+        public uint? ClearStencil { get; init; }
+
+        /// <summary>Required so the property initializers run (C# struct rule).</summary>
+        public Descriptor() { }
+    }
+
+    /// <summary>
     /// Creates a minimal pipeline: a graph, a scene render texture, a clear node
     /// and the final blit. Content, overlay and post-process nodes are added by
     /// the owner via <see cref="Use"/>.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
-    /// <param name="sceneLayout">The attachment layout of the scene render texture
-    /// (e.g. <see cref="RenderingSystem.PreferredHDRPass"/> for an HDR forward
-    /// scene with its own depth attachment).
-    /// Stays owned by the caller.</param>
-    /// <param name="blitShader">The shader the final blit uses for the plain copy.</param>
-    /// <param name="width">The initial scene texture width in pixels.</param>
-    /// <param name="height">The initial scene texture height in pixels.</param>
-    /// <param name="name">A diagnostic name prefix for the graph and its resources.</param>
-    public RenderPipeline(RenderingSystem rendering, GPUAttachmentLayout sceneLayout, Shader blitShader, uint width, uint height, string name = "render_pipeline")
+    /// <param name="descriptor">The pipeline's construction data.</param>
+    public RenderPipeline(RenderingSystem rendering, in Descriptor descriptor)
     {
+        ArgumentNullException.ThrowIfNull(rendering);
+        ArgumentNullException.ThrowIfNull(descriptor.SceneLayout);
+        ArgumentNullException.ThrowIfNull(descriptor.BlitShader);
+
+        GPUAttachmentLayout sceneLayout = descriptor.SceneLayout;
+        string name = descriptor.Name;
         _sceneLayout = sceneLayout;
 
         // Color-only sibling of the scene layout for chain transform outputs.
         _postProcessLayout = CreatePostProcessLayout(rendering, sceneLayout);
 
-        _graph = new RenderGraph(rendering, width, height, name);
+        _graph = new RenderGraph(rendering, descriptor.Width, descriptor.Height, name, descriptor.SharedRenderContext);
         _chain = new RenderChain();
         _sceneResource = _graph.CreateTransient(new RenderGraphTextureDescriptor(
             sceneLayout, name: name + "_scene"));
@@ -69,8 +107,8 @@ public sealed class RenderPipeline : AutoDisposable
             clearColors[i] = new ClearColorData((uint)i, ColorFloat.Transparent);
         }
 
-        _clearNode = new RGNode_Clear(_sceneResource, clearColors, clearDepth: 1.0f);
-        _blitNode = new RGNode_Blit(rendering, _graph, _chain, new RGNode_Blit.Descriptor { BlitShader = blitShader });
+        _clearNode = new RGNode_Clear(_sceneResource, clearColors, clearDepth: 1.0f, clearStencil: descriptor.ClearStencil);
+        _blitNode = new RGNode_Blit(rendering, _graph, _chain, new RGNode_Blit.Descriptor { BlitShader = descriptor.BlitShader });
 
         _graph.Use(_clearNode);
         _graph.Use(_blitNode);
@@ -150,7 +188,8 @@ public sealed class RenderPipeline : AutoDisposable
 
     /// <summary>
     /// The color the scene texture is cleared to at the start of <see cref="Render"/>.
-    /// Depth and stencil are always cleared to 1 and 0.
+    /// Depth is always cleared to 1; stencil only when the pipeline was created with
+    /// a stencil clear value.
     /// </summary>
     /// <exception cref="InvalidOperationException">The pipeline was composed without a
     /// clear node (e.g. by a preset whose passes clear their own targets).</exception>

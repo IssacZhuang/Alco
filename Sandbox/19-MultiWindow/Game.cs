@@ -33,7 +33,13 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new RenderPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, MainView.Size.X, MainView.Size.Y);
+        _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
+        {
+            SceneLayout = RenderingSystem.PreferredHDRPass,
+            BlitShader = BuiltInAssets.Shader_Blit,
+            Width = MainView.Size.X,
+            Height = MainView.Size.Y,
+        });
         MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
 
         _shader = BuiltInAssets.Shader_Sprite;
@@ -49,7 +55,13 @@ public class Game : GameEngine
 
 
         _presenter2 = CreateViewPresenter(_window2);
-        _pipeline2 = new RenderPipeline(RenderingSystem, RenderingSystem.PreferredHDRPass, BuiltInAssets.Shader_Blit, _window2.Size.X, _window2.Size.Y);
+        _pipeline2 = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
+        {
+            SceneLayout = RenderingSystem.PreferredHDRPass,
+            BlitShader = BuiltInAssets.Shader_Blit,
+            Width = _window2.Size.X,
+            Height = _window2.Size.Y,
+        });
         _presenter2.OnResize += size => _pipeline2.Resize(size.X, size.Y);
 
         _windowCamera1 = RenderingSystem.CreateCamera2D(720, 405, 100);

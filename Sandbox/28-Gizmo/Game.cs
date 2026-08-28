@@ -39,12 +39,13 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new RenderPipeline(
-            RenderingSystem,
-            RenderingSystem.PreferredHDRPass,
-            BuiltInAssets.Shader_Blit,
-            MainView.Size.X,
-            MainView.Size.Y);
+        _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
+        {
+            SceneLayout = RenderingSystem.PreferredHDRPass,
+            BlitShader = BuiltInAssets.Shader_Blit,
+            Width = MainView.Size.X,
+            Height = MainView.Size.Y,
+        });
         _mainPipeline.ClearColor = new ColorFloat(0.2f, 0.2f, 0.2f, 1);
 
         // The node chain: scene content first, then bloom, then tone mapping.

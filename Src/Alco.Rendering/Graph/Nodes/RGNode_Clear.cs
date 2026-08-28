@@ -12,6 +12,7 @@ public sealed class RGNode_Clear : AutoDisposable, IRenderGraphNode
     private readonly RenderGraphTexture _target;
     private readonly ClearColorData[] _clearColors;
     private readonly float? _clearDepth;
+    private readonly uint? _clearStencil;
 
     /// <summary>
     /// Creates the clear node.
@@ -20,13 +21,15 @@ public sealed class RGNode_Clear : AutoDisposable, IRenderGraphNode
     /// <param name="clearColors">The per-attachment clear colors, or null to not clear
     /// any color attachment.</param>
     /// <param name="clearDepth">The depth clear value, or null to not clear depth.</param>
+    /// <param name="clearStencil">The stencil clear value, or null to not clear stencil.</param>
     public RGNode_Clear(RenderGraphTexture target,
-        ClearColorData[]? clearColors = null, float? clearDepth = 1.0f)
+        ClearColorData[]? clearColors = null, float? clearDepth = 1.0f, uint? clearStencil = null)
     {
         ArgumentNullException.ThrowIfNull(target);
         _target = target;
         _clearColors = clearColors ?? [];
         _clearDepth = clearDepth;
+        _clearStencil = clearStencil;
     }
 
     /// <inheritdoc />
@@ -58,7 +61,7 @@ public sealed class RGNode_Clear : AutoDisposable, IRenderGraphNode
     /// <inheritdoc />
     public void Execute(in RenderGraphContext context)
     {
-        using (context.RenderContext.BeginPass(_target.Texture.FrameBuffer, _clearColors, _clearDepth))
+        using (context.RenderContext.BeginPass(_target.Texture.FrameBuffer, _clearColors, _clearDepth, _clearStencil))
         {
         }
     }
