@@ -21,6 +21,11 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     private VkCommandBuffer _commandBuffer;
     private VkFence _inFlightFence;
 
+    // private recording tracker: states evolve in record order (== execution
+    // order inside this buffer), seeded from the device tracker at each
+    // resource's first use; reconciled with the device tracker at Submit time
+    private readonly VulkanResourceTracker _tracker;
+
     private VulkanFrameBufferBase? _currentFrameBuffer;
     private VulkanPipeline? _currentGraphicsPipeline;
     private VulkanPipeline? _currentComputePipeline;
@@ -42,11 +47,16 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         get => _commandBuffer;
     }
 
+    /// <summary>The per-recording resource tracker; reconciled with the device
+    /// tracker at submit time (see <see cref="VulkanResourceTracker"/>).</summary>
+    internal VulkanResourceTracker Tracker => _tracker;
+
     public VulkanCommandBuffer(VulkanDevice device, in CommandBufferDescriptor? descriptor)
         : base(descriptor)
     {
         _device = device;
         _commandBuffer = device.AllocateCommandBuffer();
+        _tracker = new VulkanResourceTracker(device.Tracker);
         _inFlightFence = device.CreateFenceNative(signaled: true); // so the first Begin() does not wait on a never-submitted fence
     }
 
@@ -67,6 +77,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             _commandBuffer = _device.AllocateCommandBuffer();
         }
         _device.PrepareCommandBuffer(this);
+        _tracker.Reset();
 
         VkCommandBufferBeginInfo beginInfo = new()
         {
@@ -143,7 +154,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         }
 
         // make every write of the pass visible to any later use
-        _device.Tracker.FlushPass(_commandBuffer);
+        _tracker.FlushPass(_commandBuffer);
         _currentFrameBuffer = null;
         _currentGraphicsPipeline = null;
     }
@@ -174,7 +185,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         {
             VulkanTexture texture = (VulkanTexture)colors[i];
             transitions[transitionIndex++] = new VulkanResourceTracker.BatchTransition(texture, VulkanResourceState.ColorAttachment);
-            _device.Tracker.TouchInPass(texture);
+            _tracker.TouchInPass(texture);
         }
 
         bool hasDepth = frameBufferImpl.DepthStencil != null;
@@ -187,10 +198,10 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             transitions[transitionIndex++] = new VulkanResourceTracker.BatchTransition(
                 depthTexture,
                 depthReadOnly ? VulkanResourceState.DepthRead : VulkanResourceState.DepthWrite);
-            _device.Tracker.TouchInPass(depthTexture);
-            depthLayout = _device.Tracker.LayoutForTexture(depthTexture, depthReadOnly ? VulkanResourceState.DepthRead : VulkanResourceState.DepthWrite);
+            _tracker.TouchInPass(depthTexture);
+            depthLayout = _tracker.LayoutForTexture(depthTexture, depthReadOnly ? VulkanResourceState.DepthRead : VulkanResourceState.DepthWrite);
         }
-        _device.Tracker.TransitionBatch(_commandBuffer, transitions);
+        _tracker.TransitionBatch(_commandBuffer, transitions);
 
         // ===== attachment infos =====
         int colorCount = colors.Length;
@@ -220,7 +231,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             colorAttachments[i] = new VkRenderingAttachmentInfo
             {
                 imageView = ((VulkanTextureView)colorViews[i]).Native,
-                imageLayout = _device.Tracker.LayoutForTexture((VulkanTexture)colors[i], VulkanResourceState.ColorAttachment),
+                imageLayout = _tracker.LayoutForTexture((VulkanTexture)colors[i], VulkanResourceState.ColorAttachment),
                 loadOp = LoadOpToVulkan(loadOp),
                 storeOp = StoreOpToVulkan(storeOp),
                 clearValue = clearValue,
@@ -391,7 +402,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             vkCmdWriteTimestamp2(_commandBuffer, VkPipelineStageFlags2.BottomOfPipe, set.Native, index);
             _pendingEndTimestamp = null;
         }
-        _device.Tracker.FlushPass(_commandBuffer);
+        _tracker.FlushPass(_commandBuffer);
         _currentComputePipeline = null;
     }
 
@@ -421,9 +432,8 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     {
         VulkanPipeline pipelineImpl = (VulkanPipeline)pipeline;
         vkCmdBindPipeline(_commandBuffer, VkPipelineBindPoint.Graphics, pipelineImpl.Native);
-        // stencil reference is dynamic; reset it with the pipeline
-        vkCmdSetStencilReference(_commandBuffer, VkStencilFaceFlags.FrontAndBack, 0);
-        _currentStencilReference = 0;
+        // stencil reference is pass state in the wgpu model: it persists across
+        // pipeline binds until SetStencilReference changes it (matching WebGPU)
         _currentGraphicsPipeline = pipelineImpl;
     }
 
@@ -437,7 +447,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     {
         VulkanPipeline pipeline = _currentGraphicsPipeline
             ?? throw new GraphicsException("SetResources requires a bound graphics pipeline.");
-        BindGraphicsResourcesNative(_commandBuffer, pipeline, _device, slot, (VulkanResourceGroup)resourceGroup);
+        BindGraphicsResourcesNative(_commandBuffer, pipeline, _tracker, slot, (VulkanResourceGroup)resourceGroup);
     }
 
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
@@ -455,8 +465,6 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         vkCmdBindIndexBuffer(_commandBuffer, bufferImpl.Native, offset, VulkanUtility.IndexFormatToVulkan(format));
         MarkBufferUse(bufferImpl, VulkanResourceState.IndexRead);
     }
-
-    internal static long TraceSubmits;
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
@@ -508,7 +516,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     {
         VulkanPipeline pipeline = _currentComputePipeline
             ?? throw new GraphicsException("SetResources requires a bound compute pipeline.");
-        BindComputeResourcesNative(_commandBuffer, pipeline, _device, slot, (VulkanResourceGroup)resourceGroup);
+        BindComputeResourcesNative(_commandBuffer, pipeline, _tracker, slot, (VulkanResourceGroup)resourceGroup);
     }
 
     protected override void DispatchComputeCore(uint x, uint y, uint z)
@@ -552,7 +560,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         VkCommandBuffer secondary = bundleImpl.GetOrRecordSecondary(
             _device, this, _currentFrameBuffer!, _currentViewport, _currentScissor, _currentStencilReference);
         vkCmdExecuteCommands(_commandBuffer, 1, &secondary);
-        bundleImpl.ApplyTrackerMarks(_device);
+        bundleImpl.ApplyTrackerMarks(_tracker);
     }
 
     protected override void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundles)
@@ -567,7 +575,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     internal static void BindGraphicsResourcesNative(
         VkCommandBuffer commandBuffer,
         VulkanPipeline pipeline,
-        VulkanDevice device,
+        VulkanResourceTracker tracker,
         uint slot,
         VulkanResourceGroup group)
     {
@@ -588,16 +596,16 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         IReadOnlyList<VulkanResourceState> bufferStates = group.BoundBufferStates;
         for (int i = 0; i < buffers.Count; i++)
         {
-            device.Tracker.MarkBuffer(buffers[i], bufferStates[i]);
-            device.Tracker.TouchInPass(buffers[i]);
+            tracker.MarkBuffer(buffers[i], bufferStates[i]);
+            tracker.TouchInPass(buffers[i]);
         }
 
         IReadOnlyList<VulkanTextureView> views = group.BoundViews;
         IReadOnlyList<VulkanResourceState> viewStates = group.BoundViewStates;
         for (int i = 0; i < views.Count; i++)
         {
-            device.Tracker.MarkTexture(views[i].TextureRef, viewStates[i]);
-            device.Tracker.TouchInPass(views[i].TextureRef);
+            tracker.MarkTexture(views[i].TextureRef, viewStates[i]);
+            tracker.TouchInPass(views[i].TextureRef);
         }
     }
 
@@ -605,7 +613,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     internal static void BindComputeResourcesNative(
         VkCommandBuffer commandBuffer,
         VulkanPipeline pipeline,
-        VulkanDevice device,
+        VulkanResourceTracker tracker,
         uint slot,
         VulkanResourceGroup group)
     {
@@ -624,23 +632,23 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         IReadOnlyList<VulkanResourceState> bufferStates = group.BoundBufferStates;
         for (int i = 0; i < buffers.Count; i++)
         {
-            device.Tracker.MarkBuffer(buffers[i], bufferStates[i]);
-            device.Tracker.TouchInPass(buffers[i]);
+            tracker.MarkBuffer(buffers[i], bufferStates[i]);
+            tracker.TouchInPass(buffers[i]);
         }
 
         IReadOnlyList<VulkanTextureView> views = group.BoundViews;
         IReadOnlyList<VulkanResourceState> viewStates = group.BoundViewStates;
         for (int i = 0; i < views.Count; i++)
         {
-            device.Tracker.MarkTexture(views[i].TextureRef, viewStates[i]);
-            device.Tracker.TouchInPass(views[i].TextureRef);
+            tracker.MarkTexture(views[i].TextureRef, viewStates[i]);
+            tracker.TouchInPass(views[i].TextureRef);
         }
     }
 
     private void MarkBufferUse(VulkanBuffer buffer, VulkanResourceState state)
     {
-        _device.Tracker.MarkBuffer(buffer, state);
-        _device.Tracker.TouchInPass(buffer);
+        _tracker.MarkBuffer(buffer, state);
+        _tracker.TouchInPass(buffer);
     }
 
     // ===== out-of-pass copies =====
@@ -650,8 +658,8 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         VulkanBuffer srcImpl = (VulkanBuffer)src;
         VulkanBuffer dstImpl = (VulkanBuffer)dst;
 
-        _device.Tracker.TransitionBuffer(_commandBuffer, srcImpl, VulkanResourceState.CopySrc);
-        _device.Tracker.TransitionBuffer(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
+        _tracker.TransitionBuffer(_commandBuffer, srcImpl, VulkanResourceState.CopySrc);
+        _tracker.TransitionBuffer(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
 
         VkBufferCopy copy = new()
         {
@@ -662,7 +670,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         vkCmdCopyBuffer(_commandBuffer, srcImpl.Native, dstImpl.Native, 1, &copy);
 
         // writes are visible to any later command in any submission
-        _device.Tracker.MakeWritesVisible(_commandBuffer, VulkanResourceState.CopyDst);
+        _tracker.MakeWritesVisible(_commandBuffer, VulkanResourceState.CopyDst);
     }
 
     protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect)
@@ -670,19 +678,19 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         VulkanBuffer srcImpl = (VulkanBuffer)src;
         VulkanTexture dstImpl = (VulkanTexture)dst;
 
-        _device.Tracker.TransitionBuffer(_commandBuffer, srcImpl, VulkanResourceState.CopySrc);
-        _device.Tracker.TransitionTexture(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
+        _tracker.TransitionBuffer(_commandBuffer, srcImpl, VulkanResourceState.CopySrc);
+        _tracker.TransitionTexture(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
 
         VkImageAspectFlags imageAspect = VulkanUtility.AspectToVulkan(aspect, dstImpl.VkFormat);
         (uint width, uint height, uint depthOrLayers, ulong layerStride) = MipTransferLayout(dstImpl, mipLevel, imageAspect);
 
         // the buffer holds the mip tightly packed; all array layers in sequence
         VkBufferImageCopy copy = VulkanUtility.GetBufferImageCopy(
-            mipLevel, width, height, depthOrLayers, imageAspect, offset);
+            mipLevel, width, height, depthOrLayers, imageAspect, offset, dstImpl.Is3D);
         vkCmdCopyBufferToImage(_commandBuffer, srcImpl.Native, dstImpl.Image,
-            _device.Tracker.LayoutForTexture(dstImpl, VulkanResourceState.CopyDst), 1, &copy);
+            _tracker.LayoutForTexture(dstImpl, VulkanResourceState.CopyDst), 1, &copy);
 
-        _device.Tracker.RestoreImageToIdle(_commandBuffer, dstImpl);
+        _tracker.RestoreImageToIdle(_commandBuffer, dstImpl);
     }
 
     protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
@@ -690,8 +698,8 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         VulkanTexture srcImpl = (VulkanTexture)src;
         VulkanTexture dstImpl = (VulkanTexture)dst;
 
-        _device.Tracker.TransitionTexture(_commandBuffer, srcImpl, VulkanResourceState.CopySrc);
-        _device.Tracker.TransitionTexture(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
+        _tracker.TransitionTexture(_commandBuffer, srcImpl, VulkanResourceState.CopySrc);
+        _tracker.TransitionTexture(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
 
         VkImageAspectFlags imageAspect = VulkanUtility.AspectToVulkan(aspect, srcImpl.VkFormat);
 
@@ -717,15 +725,17 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             {
                 width = uint.Min(srcImpl.MipWidth(srcMipLevel), dstImpl.MipWidth(dstMipLevel)),
                 height = uint.Min(srcImpl.MipHeight(srcMipLevel), dstImpl.MipHeight(dstMipLevel)),
-                depth = 1,
+                // 3D images carry the slice count in extent.depth; everything else
+                // covers slices through the subresource layer count
+                depth = srcImpl.Is3D ? uint.Min(srcImpl.MipDepth(srcMipLevel), dstImpl.MipDepth(dstMipLevel)) : 1,
             },
         };
         vkCmdCopyImage(_commandBuffer,
-            srcImpl.Image, _device.Tracker.LayoutForTexture(srcImpl, VulkanResourceState.CopySrc),
-            dstImpl.Image, _device.Tracker.LayoutForTexture(dstImpl, VulkanResourceState.CopyDst), 1, &copy);
+            srcImpl.Image, _tracker.LayoutForTexture(srcImpl, VulkanResourceState.CopySrc),
+            dstImpl.Image, _tracker.LayoutForTexture(dstImpl, VulkanResourceState.CopyDst), 1, &copy);
 
-        _device.Tracker.RestoreImageToIdle(_commandBuffer, srcImpl);
-        _device.Tracker.RestoreImageToIdle(_commandBuffer, dstImpl);
+        _tracker.RestoreImageToIdle(_commandBuffer, srcImpl);
+        _tracker.RestoreImageToIdle(_commandBuffer, dstImpl);
     }
 
     protected override void ResolveTimestampsCore(
@@ -736,7 +746,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         ulong destinationOffset)
     {
         VulkanBuffer dstImpl = (VulkanBuffer)destination;
-        _device.Tracker.TransitionBuffer(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
+        _tracker.TransitionBuffer(_commandBuffer, dstImpl, VulkanResourceState.CopyDst);
 
         vkCmdCopyQueryPoolResults(
             _commandBuffer,
@@ -748,7 +758,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             sizeof(ulong),
             VkQueryResultFlags.Bit64);
 
-        _device.Tracker.MakeWritesVisible(_commandBuffer, VulkanResourceState.CopyDst);
+        _tracker.MakeWritesVisible(_commandBuffer, VulkanResourceState.CopyDst);
 
         // queries must be reset between uses; do it right after the copy so the
         // pool is ready for the next frame's writes

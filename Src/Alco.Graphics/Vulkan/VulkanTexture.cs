@@ -90,10 +90,12 @@ internal sealed unsafe class VulkanTexture : GPUTexture
         };
 
         VkImageUsageFlags usage = VulkanUtility.ConvertTextureUsage(descriptor.Usage);
-        if (PixelFormatUtility.IsDepthFormat(descriptor.Format))
+        if (VulkanUtility.IsDepthFormat(VkFormat))
         {
-            // callers request attachment usage generically; depth formats reject
-            // COLOR_ATTACHMENT in vkGetPhysicalDeviceImageFormatProperties2
+            // callers request attachment usage generically; depth-stencil formats
+            // (including stencil-only, which still uses the DEPTH_STENCIL usage
+            // bit in Vulkan) reject COLOR_ATTACHMENT in
+            // vkGetPhysicalDeviceImageFormatProperties2
             usage &= ~VkImageUsageFlags.ColorAttachment;
             usage |= VkImageUsageFlags.DepthStencilAttachment;
         }
@@ -101,13 +103,13 @@ internal sealed unsafe class VulkanTexture : GPUTexture
         // declared usage to keep the automatic copy paths working.
         usage |= VkImageUsageFlags.TransferSrc | VkImageUsageFlags.TransferDst;
 
-        if ((usage & VkImageUsageFlags.Sampled) != 0 && PixelFormatUtility.IsSrgbFormat(descriptor.Format))
-        {
-            usage |= VkImageUsageFlags.Sampled;
-        }
+        // wgpu sets CUBE_COMPATIBLE for any 2D image with at least six layers so
+        // cube views stay valid; the flag is harmless for plain arrays
+        bool cubeCompatible = ImageType == VkImageType.Image2D && ArrayLayers >= 6;
 
         VkImageCreateInfo imageInfo = new()
         {
+            flags = cubeCompatible ? VkImageCreateFlags.CubeCompatible : VkImageCreateFlags.None,
             imageType = ImageType,
             format = VkFormat,
             extent = Extent,

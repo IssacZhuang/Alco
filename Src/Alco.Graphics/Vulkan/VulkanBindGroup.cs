@@ -23,6 +23,10 @@ internal sealed unsafe class VulkanBindGroup : GPUBindGroup
     private int _allocatedFromCurrentPool;
     private readonly VulkanDevice _device;
 
+    // resource groups are created from worker threads too (thread-safe creation
+    // contract), so pool state mutated during allocation needs a gate
+    private readonly object _gate = new();
+
     // cached pool size request for this layout
     private VkDescriptorPoolSize[] _poolSizes;
 
@@ -87,8 +91,8 @@ internal sealed unsafe class VulkanBindGroup : GPUBindGroup
 
         VkDescriptorSetLayout nativeLayout = default;
         VkResult result = vkCreateDescriptorSetLayout(_device.NativeDevice, &layoutInfo, null, &nativeLayout);
-        _layout = nativeLayout;
         VulkanException.ThrowIfFailed(result, $"Failed to create bind group layout '{descriptor.Name}'");
+        _layout = nativeLayout;
 
         _device.SetDebugName(VkObjectType.DescriptorSetLayout, _layout.Handle, descriptor.Name);
     }
@@ -96,39 +100,62 @@ internal sealed unsafe class VulkanBindGroup : GPUBindGroup
     /// <summary>Allocates (or recycles) a descriptor set compatible with this layout.</summary>
     public VkDescriptorSet AllocateSet()
     {
-        if (_freeSets.Count > 0)
+        lock (_gate)
         {
-            VkDescriptorSet recycled = _freeSets[^1];
-            _freeSets.RemoveAt(_freeSets.Count - 1);
-            return recycled;
+            if (_layout.Handle == 0)
+            {
+                throw new GraphicsException($"Bind group layout '{Name}' is disposed.");
+            }
+
+            if (_freeSets.Count > 0)
+            {
+                VkDescriptorSet recycled = _freeSets[^1];
+                _freeSets.RemoveAt(_freeSets.Count - 1);
+                return recycled;
+            }
+
+            if (_pools.Count == 0 || _allocatedFromCurrentPool >= SetsPerPool)
+            {
+                CreatePool();
+            }
+
+            VkDescriptorSetLayout layout = _layout;
+            VkDescriptorSetAllocateInfo allocateInfo = new()
+            {
+                descriptorPool = _pools[^1],
+                descriptorSetCount = 1,
+                pSetLayouts = &layout,
+            };
+
+            VkDescriptorSet set = default;
+            VkResult result = vkAllocateDescriptorSets(_device.NativeDevice, &allocateInfo, &set);
+            VulkanException.ThrowIfFailed(result, "Failed to allocate descriptor set");
+            _allocatedFromCurrentPool++;
+            return set;
         }
-
-        if (_pools.Count == 0 || _allocatedFromCurrentPool >= SetsPerPool)
-        {
-            CreatePool();
-        }
-
-        VkDescriptorSetLayout layout = _layout;
-        VkDescriptorSetAllocateInfo allocateInfo = new()
-        {
-            descriptorPool = _pools[^1],
-            descriptorSetCount = 1,
-            pSetLayouts = &layout,
-        };
-
-        VkDescriptorSet set = default;
-        VkResult result = vkAllocateDescriptorSets(_device.NativeDevice, &allocateInfo, &set);
-        VulkanException.ThrowIfFailed(result, "Failed to allocate descriptor set");
-        _allocatedFromCurrentPool++;
-        return set;
     }
 
-    /// <summary>Returns a descriptor set to the layout's free list.</summary>
-    public void FreeSet(VkDescriptorSet set)
+    /// <summary>Retires a descriptor set returned by a destroyed resource group.
+    /// The set may still be referenced by in-flight command buffers, so it only
+    /// becomes recyclable after the device's frame-delayed retirement.</summary>
+    public void RetireSet(VkDescriptorSet set)
     {
         if (set.Handle != 0)
         {
-            _freeSets.Add(set);
+            _device.QueueDescriptorSetRetirement(this, set);
+        }
+    }
+
+    /// <summary>Returns a retired set to the free list; called by the device once
+    /// the frame delay guarantees no command buffer still references it.</summary>
+    internal void RecycleSet(VkDescriptorSet set)
+    {
+        lock (_gate)
+        {
+            if (_layout.Handle != 0 && set.Handle != 0)
+            {
+                _freeSets.Add(set);
+            }
         }
     }
 
@@ -156,20 +183,26 @@ internal sealed unsafe class VulkanBindGroup : GPUBindGroup
 
     protected override void Dispose(bool disposing)
     {
-        if (_layout.Handle == 0)
+        lock (_gate)
         {
-            return;
-        }
+            if (_layout.Handle == 0)
+            {
+                return;
+            }
 
-        VkDevice nativeDevice = _device.NativeDevice;
-        vkDestroyDescriptorSetLayout(nativeDevice, _layout, null);
+            VkDescriptorSetLayout layout = _layout;
+            _layout = default;
 
-        foreach (VkDescriptorPool pool in _pools)
-        {
-            vkDestroyDescriptorPool(nativeDevice, pool, null);
+            // pools and the layout are queued for deferred destruction: sets
+            // still referenced by in-flight command buffers must stay valid,
+            // and destroying a pool implicitly frees every set it owns
+            foreach (VkDescriptorPool pool in _pools)
+            {
+                _device.QueueNativeDestroy(pool);
+            }
+            _pools.Clear();
+            _freeSets.Clear();
+            _device.QueueNativeDestroy(layout);
         }
-        _pools.Clear();
-        _freeSets.Clear();
-        _layout = default;
     }
 }

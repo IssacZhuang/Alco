@@ -76,10 +76,12 @@ internal sealed unsafe class VulkanPipeline : GPUPipeline
         DescriptorUtility.GetVertexAndPixelModules(descriptor.ShaderModules, out ShaderModule vertex, out ShaderModule pixel);
 
         VkShaderModule vertexModule = CreateShaderModule(device, vertex, Name);
-        VkShaderModule fragmentModule = CreateShaderModule(device, pixel, Name);
-
+        VkShaderModule fragmentModule = default;
+        sbyte* vertexEntryPtr = null;
+        sbyte* fragmentEntryPtr = null;
         try
         {
+            fragmentModule = CreateShaderModule(device, pixel, Name);
             CreatePipelineLayout(device, descriptor.BindGroups);
 
             // ===== vertex input =====
@@ -168,10 +170,11 @@ internal sealed unsafe class VulkanPipeline : GPUPipeline
             // ===== depth stencil =====
             DepthStencilState depthStencilState = descriptor.DepthStencilState;
             bool hasDepth = descriptor.DepthStencilFormat.HasValue;
+            bool depthTestEnable = hasDepth && depthStencilState.DepthCompare != CompareFunction.Undefined;
             VkPipelineDepthStencilStateCreateInfo depthStencil = new()
             {
-                depthTestEnable = hasDepth && depthStencilState.DepthCompare != CompareFunction.Undefined,
-                depthWriteEnable = hasDepth && depthStencilState.DepthWriteEnabled,
+                depthTestEnable = depthTestEnable,
+                depthWriteEnable = depthTestEnable && depthStencilState.DepthWriteEnabled,
                 depthCompareOp = VulkanUtility.CompareFunctionToVulkan(depthStencilState.DepthCompare),
                 depthBoundsTestEnable = hasDepth && depthStencilState.DepthBoundsTestEnabled && device.Features.DepthBounds,
                 stencilTestEnable = hasDepth && (UsesStencil(depthStencilState.FrontFace) || UsesStencil(depthStencilState.BackFace)),
@@ -183,30 +186,34 @@ internal sealed unsafe class VulkanPipeline : GPUPipeline
 
             // ===== color blend (one state for every target, WebGPU style) =====
             BlendState blendState = descriptor.BlendState;
-            VkPipelineColorBlendAttachmentState blendAttachment = new()
-            {
-                blendEnable = !IsOpaqueBlend(blendState),
-                srcColorBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Color.SrcFactor),
-                dstColorBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Color.DstFactor),
-                colorBlendOp = VulkanUtility.BlendOperationToVulkan(blendState.Color.Operation),
-                srcAlphaBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Alpha.SrcFactor),
-                dstAlphaBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Alpha.DstFactor),
-                alphaBlendOp = VulkanUtility.BlendOperationToVulkan(blendState.Alpha.Operation),
-                colorWriteMask = VkColorComponentFlags.R | VkColorComponentFlags.G | VkColorComponentFlags.B | VkColorComponentFlags.A,
-            };
-
             int colorCount = descriptor.ColorFormats?.Length ?? 0;
+            VkPipelineColorBlendAttachmentState* blendAttachments = stackalloc VkPipelineColorBlendAttachmentState[Math.Max(1, colorCount)];
+            for (int i = 0; i < colorCount; i++)
+            {
+                // targets beyond the fragment shader's output count are masked
+                // out instead of failing (e.g. a MRT position buffer the shader
+                // does not write), mirroring the WebGPU backend
+                bool writesTarget = i < descriptor.FragmentOutputCount;
+                blendAttachments[i] = new VkPipelineColorBlendAttachmentState
+                {
+                    blendEnable = writesTarget && !IsOpaqueBlend(blendState),
+                    srcColorBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Color.SrcFactor),
+                    dstColorBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Color.DstFactor),
+                    colorBlendOp = VulkanUtility.BlendOperationToVulkan(blendState.Color.Operation),
+                    srcAlphaBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Alpha.SrcFactor),
+                    dstAlphaBlendFactor = VulkanUtility.BlendFactorToVulkan(blendState.Alpha.DstFactor),
+                    alphaBlendOp = VulkanUtility.BlendOperationToVulkan(blendState.Alpha.Operation),
+                    colorWriteMask = writesTarget
+                        ? VkColorComponentFlags.R | VkColorComponentFlags.G | VkColorComponentFlags.B | VkColorComponentFlags.A
+                        : VkColorComponentFlags.None,
+                };
+            }
             VkPipelineColorBlendStateCreateInfo colorBlend = new()
             {
                 attachmentCount = (uint)colorCount,
                 logicOpEnable = false,
+                pAttachments = blendAttachments,
             };
-            VkPipelineColorBlendAttachmentState* blendAttachments = stackalloc VkPipelineColorBlendAttachmentState[Math.Max(1, colorCount)];
-            for (int i = 0; i < colorCount; i++)
-            {
-                blendAttachments[i] = blendAttachment;
-            }
-            colorBlend.pAttachments = blendAttachments;
 
             // ===== multisample =====
             VkPipelineMultisampleStateCreateInfo multisample = new()
@@ -219,8 +226,8 @@ internal sealed unsafe class VulkanPipeline : GPUPipeline
             };
 
             // ===== stages =====
-            sbyte* vertexEntryPtr = AllocEntryPoint(vertex.EntryPoint);
-            sbyte* fragmentEntryPtr = AllocEntryPoint(pixel.EntryPoint);
+            vertexEntryPtr = AllocEntryPoint(vertex.EntryPoint);
+            fragmentEntryPtr = AllocEntryPoint(pixel.EntryPoint);
             VkPipelineShaderStageCreateInfo* stages = stackalloc VkPipelineShaderStageCreateInfo[2];
             stages[0] = new VkPipelineShaderStageCreateInfo
             {
@@ -288,26 +295,42 @@ internal sealed unsafe class VulkanPipeline : GPUPipeline
             VulkanException.ThrowIfFailed(result, $"Failed to create graphics pipeline '{descriptor.Name}'");
             _pipeline = newPipeline;
 
-            NativeMemory.Free(vertexEntryPtr);
-            NativeMemory.Free(fragmentEntryPtr);
-
             device.SetDebugName(VkObjectType.Pipeline, _pipeline.Handle, descriptor.Name);
         }
         finally
         {
+            if (vertexEntryPtr != null)
+            {
+                NativeMemory.Free(vertexEntryPtr);
+            }
+            if (fragmentEntryPtr != null)
+            {
+                NativeMemory.Free(fragmentEntryPtr);
+            }
+            if (fragmentModule.Handle != 0)
+            {
+                vkDestroyShaderModule(device.NativeDevice, fragmentModule, null);
+            }
             vkDestroyShaderModule(device.NativeDevice, vertexModule, null);
-            vkDestroyShaderModule(device.NativeDevice, fragmentModule, null);
+            if (_pipeline.Handle == 0 && _layout.Handle != 0)
+            {
+                // creation failed after the pipeline layout existed — release it
+                // now instead of relying on the finalizer
+                device.QueueNativeDestroy(_layout);
+                _layout = default;
+            }
         }
     }
 
     private void CreateComputeNative(VulkanDevice device, in ComputePipelineDescriptor descriptor)
     {
         VkShaderModule computeModule = CreateShaderModule(device, descriptor.Source, Name);
+        sbyte* entryPtr = null;
         try
         {
             CreatePipelineLayout(device, descriptor.BindGroups);
 
-            sbyte* entryPtr = AllocEntryPoint(descriptor.Source.EntryPoint);
+            entryPtr = AllocEntryPoint(descriptor.Source.EntryPoint);
             VkPipelineShaderStageCreateInfo stage = new()
             {
                 stage = VkShaderStageFlags.Compute,
@@ -326,12 +349,22 @@ internal sealed unsafe class VulkanPipeline : GPUPipeline
             VulkanException.ThrowIfFailed(result, $"Failed to create compute pipeline '{descriptor.Name}'");
             _pipeline = newPipeline;
 
-            NativeMemory.Free(entryPtr);
             device.SetDebugName(VkObjectType.Pipeline, _pipeline.Handle, descriptor.Name);
         }
         finally
         {
+            if (entryPtr != null)
+            {
+                NativeMemory.Free(entryPtr);
+            }
             vkDestroyShaderModule(device.NativeDevice, computeModule, null);
+            if (_pipeline.Handle == 0 && _layout.Handle != 0)
+            {
+                // creation failed after the pipeline layout existed — release it
+                // now instead of relying on the finalizer
+                device.QueueNativeDestroy(_layout);
+                _layout = default;
+            }
         }
     }
 

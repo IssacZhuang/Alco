@@ -13,7 +13,9 @@ internal sealed unsafe class VulkanSampler : GPUSampler
     {
         Device = device;
 
-        float maxAnisotropy = descriptor.MaxAnisotropy;
+        // clamp instead of disabling: partially supported anisotropy still beats
+        // silently falling back to isotropic filtering
+        float maxAnisotropy = Math.Clamp(descriptor.MaxAnisotropy, 1.0f, device.Features.MaxSamplerAnisotropy);
         if (maxAnisotropy > 1.0f && !device.Features.SamplerAnisotropy)
         {
             maxAnisotropy = 1.0f;
@@ -42,8 +44,8 @@ internal sealed unsafe class VulkanSampler : GPUSampler
 
         VkSampler nativeSampler = default;
         VkResult result = vkCreateSampler(device.NativeDevice, &createInfo, null, &nativeSampler);
-        Native = nativeSampler;
         VulkanException.ThrowIfFailed(result, $"Failed to create sampler '{descriptor.Name}'");
+        Native = nativeSampler;
 
         device.SetDebugName(VkObjectType.Sampler, Native.Handle, descriptor.Name);
     }

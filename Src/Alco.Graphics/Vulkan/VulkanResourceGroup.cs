@@ -54,14 +54,60 @@ internal sealed unsafe class VulkanResourceGroup : GPUResourceGroup
             _resources[i] = descriptor.Resources[i].Resource;
         }
 
-        _set = _layout.AllocateSet();
-
         // build a lookup from binding index to descriptor metadata
         Dictionary<uint, BindGroupEntry> bindingInfos = new();
         foreach (BindGroupEntry entry in _layout.Bindings)
         {
             bindingInfos[entry.Binding] = entry;
         }
+
+        // validate the full binding set BEFORE a descriptor set is taken from
+        // the layout's pool, so a malformed group cannot leak one; Vulkan has
+        // no equivalent of wgpu's CreateBindGroup validation, so mirror it here
+        HashSet<uint> boundBindings = new();
+        for (int i = 0; i < count; i++)
+        {
+            ResourceBindingEntry resourceEntry = descriptor.Resources[i];
+            if (!bindingInfos.TryGetValue(resourceEntry.Binding, out BindGroupEntry layoutEntry))
+            {
+                throw new GraphicsException(
+                    $"Resource group '{Name}' binds slot {resourceEntry.Binding} which is not part of the layout '{_layout.Name}'.");
+            }
+            if (!boundBindings.Add(resourceEntry.Binding))
+            {
+                throw new GraphicsException(
+                    $"Resource group '{Name}' binds slot {resourceEntry.Binding} more than once.");
+            }
+
+            bool typeMatches = resourceEntry.Resource.ResourceType switch
+            {
+                BindableResourceType.Buffer => layoutEntry.Type is BindingType.UniformBuffer or BindingType.StorageBuffer,
+                BindableResourceType.Sampler => layoutEntry.Type is BindingType.Sampler or BindingType.SamplerComparison,
+                BindableResourceType.TextureView => layoutEntry.Type is BindingType.Texture or BindingType.StorageTexture,
+                _ => false,
+            };
+            if (!typeMatches)
+            {
+                throw new GraphicsException(
+                    $"Resource group '{Name}' binds a {resourceEntry.Resource.ResourceType} to slot {resourceEntry.Binding} which the layout '{_layout.Name}' declares as {layoutEntry.Type}.");
+            }
+        }
+
+        if (boundBindings.Count != bindingInfos.Count)
+        {
+            List<uint> missing = new();
+            foreach (uint binding in bindingInfos.Keys)
+            {
+                if (!boundBindings.Contains(binding))
+                {
+                    missing.Add(binding);
+                }
+            }
+            throw new GraphicsException(
+                $"Resource group '{Name}' does not cover every slot of the layout '{_layout.Name}'; missing bindings: {string.Join(", ", missing)}.");
+        }
+
+        _set = _layout.AllocateSet();
 
         int writeCount = count;
         VkWriteDescriptorSet* writes = stackalloc VkWriteDescriptorSet[writeCount];
@@ -91,6 +137,11 @@ internal sealed unsafe class VulkanResourceGroup : GPUResourceGroup
                     if (range == 0)
                     {
                         range = buffer.Size - offset;
+                    }
+                    if (offset > buffer.Size || range > buffer.Size - offset)
+                    {
+                        throw new GraphicsException(
+                            $"Resource group '{Name}' binds buffer '{buffer.Name}' at slot {binding} with range [{offset}, {offset + range}) which exceeds its size ({buffer.Size}).");
                     }
 
                     bufferInfos[writeIndex] = new VkDescriptorBufferInfo
@@ -199,9 +250,10 @@ internal sealed unsafe class VulkanResourceGroup : GPUResourceGroup
             return;
         }
 
-        // the set returns to the owning layout's pool free list; the pool itself is
-        // destroyed with the layout
-        _layout.FreeSet(_set);
+        // the set may still be referenced by in-flight command buffers; retire
+        // it through the device so it recycles only after the frame delay, and
+        // the pool itself is destroyed with the layout
+        _layout.RetireSet(_set);
         _set = default;
     }
 }

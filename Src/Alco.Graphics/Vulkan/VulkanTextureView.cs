@@ -40,6 +40,15 @@ internal sealed unsafe class VulkanTextureView : GPUTextureView
             dimension = TextureRef.Is3D ? TextureViewDimension.Texture3D : TextureViewDimension.Texture2D;
         }
 
+        // wgpu validates the view dimension against the texture's; a mismatch
+        // is an error, not a silently invalid VkImageView (2D views of 3D
+        // images require flags we do not set)
+        if (TextureRef.Is3D != (dimension == TextureViewDimension.Texture3D))
+        {
+            throw new GraphicsException(
+                $"Texture view '{descriptor.Name}' requests dimension {dimension} on a {(TextureRef.Is3D ? "3D" : "non-3D")} texture '{TextureRef.Name}'.");
+        }
+
         VkImageViewType viewType = dimension switch
         {
             TextureViewDimension.Texture1D => VkImageViewType.Image1D,
@@ -68,8 +77,8 @@ internal sealed unsafe class VulkanTextureView : GPUTextureView
 
         VkImageView nativeView = default;
         VkResult result = vkCreateImageView(device.NativeDevice, &createInfo, null, &nativeView);
-        Native = nativeView;
         VulkanException.ThrowIfFailed(result, $"Failed to create texture view '{descriptor.Name}'");
+        Native = nativeView;
 
         device.SetDebugName(VkObjectType.ImageView, Native.Handle, descriptor.Name);
     }

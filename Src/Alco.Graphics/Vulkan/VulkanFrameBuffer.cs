@@ -165,18 +165,13 @@ internal sealed class VulkanFrameBuffer : VulkanFrameBufferBase
 
     protected override void Dispose(bool disposing)
     {
-        if (!disposing)
-        {
-            return;
-        }
-
         foreach (GPUTextureView view in _colorViews)
         {
-            view.Dispose();
+            view?.Dispose();
         }
         foreach (GPUTexture texture in _colorTextures)
         {
-            texture.Dispose();
+            texture?.Dispose();
         }
 
         _depthStencilView?.Dispose();

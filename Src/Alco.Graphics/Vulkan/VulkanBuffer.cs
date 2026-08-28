@@ -22,8 +22,6 @@ internal sealed unsafe class VulkanBuffer : GPUBuffer
         Device = device;
 
         VkBufferUsageFlags usage = VulkanUtility.ConvertBufferUsage(descriptor.Usage);
-        bool needsUpload = (descriptor.Usage & (BufferUsage.Uniform | BufferUsage.Storage | BufferUsage.Vertex | BufferUsage.Index | BufferUsage.Indirect)) != 0
-            || descriptor.Usage == BufferUsage.None;
         if (!descriptor.Usage.HasFlag(BufferUsage.MapWrite) && !descriptor.Usage.HasFlag(BufferUsage.MapRead))
         {
             // Device-side buffers are uploaded through staging copies even when the

@@ -499,20 +499,43 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
             pImageIndices = &imageIndex,
         };
 
-        VkResult result = vkQueuePresentKHR(_device.Queue, &presentInfo);
-        if (result == VkResult.ErrorOutOfDateKHR || result == VkResult.SuboptimalKHR)
+        VkResult result = _device.PresentLocked(&presentInfo);
+        bool semaphoresRecyclable;
+        if (result == VkResult.ErrorOutOfDateKHR)
         {
             _needsRecreate = true;
+            // an errored present never waited its semaphores; they stay in an
+            // indeterminate signaled state and cannot be recycled safely
+            semaphoresRecyclable = false;
         }
-        else if (result != VkResult.Success)
+        else
         {
-            VulkanException.ThrowIfFailed(result, "Failed to present swapchain image");
+            // SuboptimalKHR still presented the image, so the waits completed
+            semaphoresRecyclable = true;
+            if (result == VkResult.SuboptimalKHR)
+            {
+                _needsRecreate = true;
+            }
+            else if (result != VkResult.Success)
+            {
+                VulkanException.ThrowIfFailed(result, "Failed to present swapchain image");
+            }
         }
 
-        // the semaphores waited by this present return to the free list
-        foreach (VkSemaphore semaphore in waitSemaphores)
+        if (semaphoresRecyclable)
         {
-            _slotFreeSemaphores[slot].Add(semaphore);
+            // the semaphores waited by this present return to the free list
+            foreach (VkSemaphore semaphore in waitSemaphores)
+            {
+                _slotFreeSemaphores[slot].Add(semaphore);
+            }
+        }
+        else
+        {
+            foreach (VkSemaphore semaphore in waitSemaphores)
+            {
+                vkDestroySemaphore(_device.NativeDevice, semaphore, null);
+            }
         }
         waitSemaphores.Clear();
 
@@ -534,11 +557,27 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
     internal void RecreateSwapchain()
     {
         vkDeviceWaitIdle(_device.NativeDevice);
-        // after a wait idle every semaphore is fully waited; reset the slot
-        // bookkeeping so nothing is recycled in a signaled state
+        // after a wait idle every pending wait completed; signal semaphores that
+        // were never waited (submitted but the present was skipped) would stay
+        // signaled forever, so destroy them instead of clearing the list alone
         foreach (List<VkSemaphore> list in _slotSignalSemaphores)
         {
+            foreach (VkSemaphore semaphore in list)
+            {
+                vkDestroySemaphore(_device.NativeDevice, semaphore, null);
+            }
             list.Clear();
+        }
+        // an acquire semaphore may have been signaled but never waited (acquire
+        // without a following submit); binary semaphores cannot be reset on the
+        // host, so replace them with fresh ones
+        for (int i = 0; i < FlightSlots; i++)
+        {
+            if (_acquireSemaphores[i].Handle != 0)
+            {
+                vkDestroySemaphore(_device.NativeDevice, _acquireSemaphores[i], null);
+            }
+            _acquireSemaphores[i] = CreateSemaphore();
         }
         _acquireSemaphorePending = false;
         _imageAcquired = false;
@@ -706,10 +745,6 @@ internal sealed class VulkanSurfaceFrameBuffer : VulkanFrameBufferBase
 
     protected override void Dispose(bool disposing)
     {
-        if (!disposing)
-        {
-            return;
-        }
         _depthStencilTexture[0]?.Dispose();
         _depthStencilView[0]?.Dispose();
         _depthView[0]?.Dispose();

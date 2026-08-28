@@ -514,26 +514,42 @@ internal static unsafe class VulkanUtility
         uint height,
         uint depthOrLayers,
         VkImageAspectFlags aspect,
-        uint offset)
+        uint offset,
+        bool is3D = false,
+        ulong rowPitch = 0,
+        uint texelSize = 0)
     {
+        // 0 rowPitch means tightly packed rows (bufferRowLength 0 tells Vulkan
+        // to derive the stride from imageExtent); an aligned pitch must be
+        // declared in texels so the driver walks rows at the staged stride
+        uint rowLength = 0;
+        uint imageHeight = 0;
+        if (rowPitch != 0 && texelSize > 0)
+        {
+            rowLength = (uint)(rowPitch / texelSize);
+            imageHeight = height;
+        }
+
         return new VkBufferImageCopy
         {
             bufferOffset = offset,
-            bufferRowLength = 0, // tightly packed
-            bufferImageHeight = 0,
+            bufferRowLength = rowLength,
+            bufferImageHeight = imageHeight,
             imageSubresource = new VkImageSubresourceLayers
             {
                 aspectMask = aspect,
                 mipLevel = mipLevel,
                 baseArrayLayer = 0,
-                layerCount = depthOrLayers,
+                // 3D images have exactly one array layer; the slice count lives
+                // in imageExtent.depth
+                layerCount = is3D ? 1 : depthOrLayers,
             },
             imageOffset = default,
             imageExtent = new VkExtent3D
             {
                 width = width,
                 height = height,
-                depth = 1,
+                depth = is3D ? depthOrLayers : 1,
             },
         };
     }

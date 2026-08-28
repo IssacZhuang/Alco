@@ -191,9 +191,9 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
     /// <summary>Unions the recorded bundle's resource scope into the executing
     /// pass's flush barrier. Called at execute time; bundle-bound resources take
     /// part in automatic hazard tracking without per-resource tracker marks.</summary>
-    internal void ApplyTrackerMarks(VulkanDevice device)
+    internal void ApplyTrackerMarks(VulkanResourceTracker tracker)
     {
-        device.Tracker.UnionBundleScope(_recordedScopeStage, _recordedScopeAccess);
+        tracker.UnionBundleScope(_recordedScopeStage, _recordedScopeAccess);
     }
 
     /// <summary>Returns a cached secondary command buffer that replays this
@@ -259,7 +259,7 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
             _secondaries.Add(target);
         }
 
-        RecordSecondary(device, target, viewport, scissor, stencilReference);
+        RecordSecondary(device, primary.Tracker, target, viewport, scissor, stencilReference);
         target.Primary = primary;
         target.FrameStamp = frame;
         target.Width = width;
@@ -271,6 +271,7 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
 
     private unsafe void RecordSecondary(
         VulkanDevice device,
+        VulkanResourceTracker tracker,
         CachedSecondary cached,
         VkViewport viewport,
         VkRect2D scissor,
@@ -327,12 +328,13 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
         vkCmdSetViewport(cached.CommandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(cached.CommandBuffer, 0, 1, &scissor);
         vkCmdSetStencilReference(cached.CommandBuffer, VkStencilFaceFlags.FrontAndBack, stencilReference);
-        Replay(cached.CommandBuffer, device);
+        Replay(cached.CommandBuffer, tracker);
         vkEndCommandBuffer(cached.CommandBuffer).ThrowOnFailure();
     }
 
-    /// <summary>Replays the recorded commands into an open render pass.</summary>
-    internal void Replay(VkCommandBuffer commandBuffer, VulkanDevice device)
+    /// <summary>Replays the recorded commands into an open render pass; tracker
+    /// marks land in the executing primary's recording tracker.</summary>
+    internal void Replay(VkCommandBuffer commandBuffer, VulkanResourceTracker tracker)
     {
         VulkanPipeline? currentPipeline = null;
         List<byte[]> pushData = _recordedPushData;
@@ -348,7 +350,7 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
 
                 case CommandKind.Resources:
                     VulkanCommandBuffer.BindGraphicsResourcesNative(
-                        commandBuffer, currentPipeline!, device, command.Slot, command.Group!);
+                        commandBuffer, currentPipeline!, tracker, command.Slot, command.Group!);
                     break;
 
                 case CommandKind.VertexBuffer:
@@ -356,15 +358,15 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
                     VkBuffer buffer = command.Buffer!.Native;
                     ulong offset = command.Offset;
                     vkCmdBindVertexBuffers(commandBuffer, command.Slot, 1, &buffer, &offset);
-                    device.Tracker.MarkBuffer(command.Buffer, VulkanResourceState.VertexRead);
-                    device.Tracker.TouchInPass(command.Buffer);
+                    tracker.MarkBuffer(command.Buffer, VulkanResourceState.VertexRead);
+                    tracker.TouchInPass(command.Buffer);
                     break;
                 }
 
                 case CommandKind.IndexBuffer:
                 {
-                    device.Tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndexRead);
-                    device.Tracker.TouchInPass(command.Buffer);
+                    tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndexRead);
+                    tracker.TouchInPass(command.Buffer);
                     vkCmdBindIndexBuffer(
                         commandBuffer,
                         command.Buffer!.Native,
@@ -383,16 +385,16 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
 
                 case CommandKind.DrawIndirect:
                 {
-                    device.Tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndirectRead);
-                    device.Tracker.TouchInPass(command.Buffer);
+                    tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndirectRead);
+                    tracker.TouchInPass(command.Buffer);
                     vkCmdDrawIndirect(commandBuffer, command.Buffer!.Native, command.Offset, 1, (uint)sizeof(VkDrawIndirectCommand));
                     break;
                 }
 
                 case CommandKind.DrawIndexedIndirect:
                 {
-                    device.Tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndirectRead);
-                    device.Tracker.TouchInPass(command.Buffer);
+                    tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndirectRead);
+                    tracker.TouchInPass(command.Buffer);
                     vkCmdDrawIndexedIndirect(commandBuffer, command.Buffer!.Native, command.Offset, 1, (uint)sizeof(VkDrawIndexedIndirectCommand));
                     break;
                 }
@@ -429,6 +431,10 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
 
     protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
+        if (_recordingPipeline == null)
+        {
+            throw new GraphicsException("SetResources requires a bound graphics pipeline (render bundle recording).");
+        }
         _recordingCommands.Add(new BundleCommand
         {
             Kind = CommandKind.Resources,

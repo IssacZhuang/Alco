@@ -21,8 +21,8 @@ internal sealed unsafe class VulkanTimestampQuerySet : GPUTimestampQuerySet
 
         VkQueryPool nativePool = default;
         VkResult result = vkCreateQueryPool(device.NativeDevice, &createInfo, null, &nativePool);
-        Native = nativePool;
         VulkanException.ThrowIfFailed(result, $"Failed to create timestamp query set '{name}'");
+        Native = nativePool;
 
         device.SetDebugName(VkObjectType.QueryPool, Native.Handle, name);
         device.ResetQueryPoolInitial(Native, count);
