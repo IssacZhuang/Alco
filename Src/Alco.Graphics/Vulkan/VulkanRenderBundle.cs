@@ -47,6 +47,10 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
     private List<BundleCommand> _recordedCommands = new();
     private List<byte[]> _recordingPushData = new();
     private List<byte[]> _recordedPushData = new();
+    // recycled push-constant payloads: a bundle that re-records every frame
+    // (the debug overlay, dynamic UI content) would otherwise allocate one
+    // fresh byte[] per push constant on every recording
+    private readonly List<byte[]> _pushDataFree = new();
     private GPUAttachmentLayout? _bundleLayout;
 
     // resources the bundle binds (built at EndCore); their combined source
@@ -136,6 +140,10 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
         _recordedTouched = _recordingTouched;
         _recordingCommands = previousCommands;
         _recordingCommands.Clear();
+        // the retired recording's payloads are no longer referenced by any
+        // live list (secondaries baked their bytes at execute time), so they
+        // go back to the pool instead of the GC heap
+        _pushDataFree.AddRange(previousPushData);
         _recordingPushData = previousPushData;
         _recordingPushData.Clear();
         _recordingTouched = previousTouched;
@@ -532,7 +540,23 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
             throw new GraphicsException("PushGraphicsConstants requires a bound graphics pipeline.");
         }
 
-        byte[] copy = new byte[size];
+        // exact-size reuse only: Replay pushes data.Length bytes, so an
+        // oversized buffer would append garbage. Push sizes are per-pipeline
+        // constants, so exact hits are the norm after the first frame
+        byte[] copy = null!;
+        for (int i = 0; i < _pushDataFree.Count; i++)
+        {
+            if (_pushDataFree[i].Length == size)
+            {
+                copy = _pushDataFree[i];
+                _pushDataFree.RemoveAt(i);
+                break;
+            }
+        }
+        if (copy == null)
+        {
+            copy = new byte[size];
+        }
         fixed (byte* dst = copy)
         {
             Buffer.MemoryCopy(data, dst, size, size);

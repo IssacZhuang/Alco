@@ -25,6 +25,9 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     // order inside this buffer), seeded from the device tracker at each
     // resource's first use; reconciled with the device tracker at Submit time
     private readonly VulkanResourceTracker _tracker;
+    // per-pass attachment transition scratch, grown once then reused so the
+    // recording hot path never allocates
+    private VulkanResourceTracker.BatchTransition[] _transitionScratch = Array.Empty<VulkanResourceTracker.BatchTransition>();
 
     private VulkanFrameBufferBase? _currentFrameBuffer;
     private VulkanPipeline? _currentGraphicsPipeline;
@@ -183,8 +186,14 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
         // ===== attachment barriers (outside the pass: one batched command) =====
         int attachmentCount = colors.Length + (frameBufferImpl.DepthStencil != null ? 1 : 0);
-        VulkanResourceTracker.BatchTransition[] transitions
-            = new VulkanResourceTracker.BatchTransition[attachmentCount];
+        // a per-buffer scratch array (grown once, then reused) keeps the
+        // per-pass recording off the GC heap
+        if (_transitionScratch.Length < attachmentCount)
+        {
+            int capacity = Math.Max(attachmentCount, Math.Max(8, _transitionScratch.Length * 2));
+            _transitionScratch = new VulkanResourceTracker.BatchTransition[capacity];
+        }
+        VulkanResourceTracker.BatchTransition[] transitions = _transitionScratch;
         int transitionIndex = 0;
         for (int i = 0; i < colors.Length; i++)
         {
@@ -206,7 +215,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             _tracker.TouchInPass(depthTexture);
             depthLayout = _tracker.LayoutForTexture(depthTexture, depthReadOnly ? VulkanResourceState.DepthRead : VulkanResourceState.DepthWrite);
         }
-        _tracker.TransitionBatch(_commandBuffer, transitions);
+        _tracker.TransitionBatch(_commandBuffer, transitions.AsSpan(0, attachmentCount));
 
         // ===== attachment infos =====
         int colorCount = colors.Length;

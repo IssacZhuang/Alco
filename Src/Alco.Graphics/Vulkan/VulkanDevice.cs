@@ -81,8 +81,12 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     // uploads record on worker threads while the main thread records frames,
     // so one-shot buffers live in their own pool guarded by _queueLock
     private VkCommandPool _uploadPool;
-    // lock-free pool: pops under _queueLock, pushes from the frame pump
-    private readonly ConcurrentStack<VkCommandBuffer> _oneShotFree = new();
+    // zero-alloc handle pools: a ConcurrentStack allocates a fresh node on
+    // every push, which is measurable garbage in the per-frame retire cycle;
+    // pre-sized Stacks with an uncontended gate recycle without touching the
+    // GC heap
+    private readonly object _oneShotPoolLock = new();
+    private readonly Stack<VkCommandBuffer> _oneShotFree = new(16);
 
     // vkQueueSubmit requires external synchronization, and uploads can run on
     // threadpool threads concurrently with the render thread
@@ -91,9 +95,11 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     // allocate secondaries on worker threads) but is independent of the queue,
     // so it gets its own gate — pool allocation never waits on submits
     private readonly object _commandPoolLock = new();
-    private readonly ConcurrentStack<VkFence> _blockingFencePool = new();
+    private readonly object _blockingFenceLock = new();
+    private readonly Stack<VkFence> _blockingFencePool = new(4);
     // fences for fire-and-forget one-shots; pooled and recycled by ProcessUploads
-    private readonly ConcurrentStack<VkFence> _asyncFencePool = new();
+    private readonly object _asyncFenceLock = new();
+    private readonly Stack<VkFence> _asyncFencePool = new(4);
 
     // ===== asynchronous queue uploads (wgpu queue-write semantics: submit
     // without waiting, retire the staging buffer once the fence signals) =====
@@ -103,9 +109,12 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         public VkCommandBuffer CommandBuffer;
         public StagingBuffer Staging;
     }
-    // lock-free arrivals (submitters already hold _queueLock); the active list
-    // is main-thread only, so retirement never contends with arrivals
-    private readonly ConcurrentQueue<PendingUpload> _pendingUploads = new();
+    // arrivals guarded by _queueLock (submitters already hold it); the frame
+    // pump swaps the live queue out under the same lock, so a per-frame
+    // one-shot never churns ConcurrentQueue segments. The active list is
+    // main-thread only, so retirement never contends with arrivals
+    private Queue<PendingUpload> _uploadsLive = new(16);
+    private Queue<PendingUpload>? _uploadsDrain;
     private readonly List<PendingUpload> _activeUploads = new();
 
     // one-shot buffers submitted against an externally owned fence (present
@@ -160,8 +169,16 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     // burst cannot pin staging memory forever
     private const ulong FreeArenaChunkBudget = 64u * 1024 * 1024;
     // copy entries are published only after their memcpy finished, so a
-    // concurrent flush can never hand the GPU a half-written region
-    private readonly ConcurrentQueue<PendingBufferCopy> _pendingCopies = new();
+    // concurrent flush can never hand the GPU a half-written region.
+    // Pre-sized ping-pong queues instead of a ConcurrentQueue: a queue that
+    // drains to empty every frame would allocate a fresh 32-slot segment on
+    // each refill, so the hot path stays off the GC heap entirely
+    private readonly object _copiesLock = new();
+    private Queue<PendingBufferCopy> _copiesLive = new(256);
+    private Queue<PendingBufferCopy>? _copiesDrain;
+    // flush scratch, reused under _queueLock (clear-per-use keeps capacity)
+    private readonly List<PendingBufferCopy> _drainedCopies = new(256);
+    private readonly HashSet<VulkanBuffer> _transitionedBuffers = new();
     // guards only arena chunk reservation and slot rotation; the WriteBuffer
     // memcpy (hottest path in the engine) runs entirely outside this lock
     private readonly object _arenaLock = new();
@@ -229,14 +246,18 @@ internal sealed unsafe class VulkanDevice : GPUDevice
 
         // publish only after the bytes landed, so a concurrent flush can never
         // submit a half-written region to the GPU
-        _pendingCopies.Enqueue(new PendingBufferCopy
+        PendingBufferCopy copy = new()
         {
             Destination = buffer,
             DestinationOffset = bufferOffset,
             Source = chunk.Buffer,
             SourceOffset = sourceOffset,
             Size = size,
-        });
+        };
+        lock (_copiesLock)
+        {
+            _copiesLive.Enqueue(copy);
+        }
     }
 
     private unsafe ArenaChunk CreateArenaChunk(ulong size)
@@ -276,27 +297,34 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             }
         }
 
-        if (_pendingCopies.IsEmpty)
+        Queue<PendingBufferCopy> copies;
+        lock (_copiesLock)
         {
-            return;
+            if (_copiesLive.Count == 0)
+            {
+                return;
+            }
+            copies = _copiesLive;
+            _copiesLive = _copiesDrain ?? new Queue<PendingBufferCopy>(256);
+            _copiesDrain = null;
         }
 
-        List<PendingBufferCopy> copies = new();
-        while (_pendingCopies.TryDequeue(out PendingBufferCopy copy))
+        // reused scratch: flushes are serialized under _queueLock, so the
+        // per-frame flush never allocates; Clear keeps the capacity
+        List<PendingBufferCopy> drained = _drainedCopies;
+        HashSet<VulkanBuffer> transitioned = _transitionedBuffers;
+        drained.Clear();
+        transitioned.Clear();
+        while (copies.TryDequeue(out PendingBufferCopy copy))
         {
-            copies.Add(copy);
-        }
-
-        HashSet<VulkanBuffer> transitioned = new();
-        foreach (PendingBufferCopy copy in copies)
-        {
+            drained.Add(copy);
             if (transitioned.Add(copy.Destination))
             {
                 Tracker.TransitionBuffer(commandBuffer, copy.Destination, VulkanResourceState.CopyDst);
             }
         }
 
-        foreach (PendingBufferCopy copy in copies)
+        foreach (PendingBufferCopy copy in drained)
         {
             VkBuffer nativeSource = copy.Source;
             VkBuffer nativeDestination = copy.Destination.Native;
@@ -309,6 +337,9 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             vkCmdCopyBuffer(commandBuffer, nativeSource, nativeDestination, 1, &region);
         }
 
+        // the drained queue becomes the next swap target
+        _copiesDrain = copies;
+
         Tracker.MakeWritesVisible(commandBuffer, VulkanResourceState.CopyDst);
     }
 
@@ -320,7 +351,12 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     /// Caller must hold <see cref="_queueLock"/>.</summary>
     private void FlushDeferredWorkLocked()
     {
-        if (_pendingCopies.IsEmpty && _pendingTextureInits.IsEmpty)
+        bool hasCopies;
+        lock (_copiesLock)
+        {
+            hasCopies = _copiesLive.Count > 0;
+        }
+        if (!hasCopies && _pendingTextureInits.IsEmpty)
         {
             return;
         }
@@ -1114,9 +1150,17 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     /// <see cref="_queueLock"/> until the submission is enqueued.</summary>
     private VkCommandBuffer BeginOneShotLocked()
     {
-        if (!_oneShotFree.TryPop(out VkCommandBuffer commandBuffer))
+        VkCommandBuffer commandBuffer;
+        lock (_oneShotPoolLock)
         {
-            commandBuffer = AllocateUploadCommandBuffer();
+            if (_oneShotFree.Count == 0)
+            {
+                commandBuffer = AllocateUploadCommandBuffer();
+            }
+            else
+            {
+                commandBuffer = _oneShotFree.Pop();
+            }
         }
 
         _ = vkResetCommandBuffer(commandBuffer, VkCommandBufferResetFlags.None);
@@ -1154,9 +1198,16 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         vkEndCommandBuffer(commandBuffer).ThrowOnFailure();
 
         VkFence fence;
-        if (!_blockingFencePool.TryPop(out fence))
+        lock (_blockingFenceLock)
         {
-            fence = CreateFenceNative(signaled: false);
+            if (_blockingFencePool.Count == 0)
+            {
+                fence = CreateFenceNative(signaled: false);
+            }
+            else
+            {
+                fence = _blockingFencePool.Pop();
+            }
         }
 
         VkCommandBuffer native = commandBuffer;
@@ -1178,9 +1229,17 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     {
         vkEndCommandBuffer(commandBuffer).ThrowOnFailure();
 
-        if (!_asyncFencePool.TryPop(out VkFence fence))
+        VkFence fence;
+        lock (_asyncFenceLock)
         {
-            fence = CreateFenceNative(signaled: false);
+            if (_asyncFencePool.Count == 0)
+            {
+                fence = CreateFenceNative(signaled: false);
+            }
+            else
+            {
+                fence = _asyncFencePool.Pop();
+            }
         }
 
         VkCommandBuffer native = commandBuffer;
@@ -1194,7 +1253,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         VulkanException.ThrowIfFailed(result, "Failed to submit one-shot command buffer");
         Tracker.BumpSerial();
 
-        _pendingUploads.Enqueue(new PendingUpload
+        _uploadsLive.Enqueue(new PendingUpload
         {
             Fence = fence,
             CommandBuffer = commandBuffer,
@@ -1235,9 +1294,15 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         if (fence.Handle != 0)
         {
             _ = vkResetFences(NativeDevice, 1, &fence);
-            _blockingFencePool.Push(fence);
+            lock (_blockingFenceLock)
+            {
+                _blockingFencePool.Push(fence);
+            }
         }
-        _oneShotFree.Push(commandBuffer);
+        lock (_oneShotPoolLock)
+        {
+            _oneShotFree.Push(commandBuffer);
+        }
     }
 
 
@@ -1303,7 +1368,10 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         {
             if (FrameCounter - _pendingOneShots[i].FrameStamp >= VulkanSwapchain.FlightSlotCount)
             {
-                _oneShotFree.Push(_pendingOneShots[i].CommandBuffer);
+                lock (_oneShotPoolLock)
+                {
+                    _oneShotFree.Push(_pendingOneShots[i].CommandBuffer);
+                }
                 _pendingOneShots.RemoveAt(i);
             }
         }
@@ -1567,8 +1635,17 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             if (commandBufferImpl.Tracker.NeedsPrologue(Tracker))
             {
                 VkCommandBuffer prologue = BeginOneShotLocked();
-                commandBufferImpl.Tracker.RecordPrologue(prologue, Tracker);
-                SubmitOneShotAsyncLocked(prologue, default);
+                if (commandBufferImpl.Tracker.RecordPrologue(prologue, Tracker))
+                {
+                    SubmitOneShotAsyncLocked(prologue, default);
+                }
+                else
+                {
+                    // the serial drifted but every state still matches this
+                    // recording's assumptions: recycle the begun buffer
+                    // instead of submitting an empty one-shot
+                    RecycleOneShot(prologue, default);
+                }
             }
 
             VkSemaphore waitSemaphore = default;
@@ -1596,7 +1673,12 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             };
 
             VkResult result = vkQueueSubmit(Queue, 1, &submitInfo, commandBufferImpl.InFlightFence);
-            VulkanException.ThrowIfFailed(result, $"Failed to submit command buffer '{commandBuffer.Name}'");
+            if (result != VkResult.Success)
+            {
+                // interpolated only on failure: building it eagerly would
+                // allocate on every frame's submit
+                VulkanException.ThrowIfFailed(result, $"Failed to submit command buffer '{commandBuffer.Name}'");
+            }
 
             if (swapchain != null && waitSemaphore.Handle != 0)
             {
@@ -1979,12 +2061,24 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     /// must run on the main thread (OnEndFrameCore).</summary>
     private unsafe void ProcessUploads()
     {
-        // arrivals (submitters hold _queueLock) are lock-free; retiring runs on
-        // the frame pump only, and its slow work holds no lock at all
-        while (_pendingUploads.TryDequeue(out PendingUpload arrival))
+        // swap the live queue out under the submission lock, then drain and
+        // retire outside it (the pump is the only consumer)
+        Queue<PendingUpload> arrivals;
+        lock (_queueLock)
+        {
+            if (_uploadsLive.Count == 0)
+            {
+                return;
+            }
+            arrivals = _uploadsLive;
+            _uploadsLive = _uploadsDrain ?? new Queue<PendingUpload>(16);
+            _uploadsDrain = null;
+        }
+        while (arrivals.TryDequeue(out PendingUpload arrival))
         {
             _activeUploads.Add(arrival);
         }
+        _uploadsDrain = arrivals;
 
         for (int i = _activeUploads.Count - 1; i >= 0; i--)
         {
@@ -1996,9 +2090,15 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             _activeUploads.RemoveAt(i);
 
             upload.Staging.Destroy(this);
-            _oneShotFree.Push(upload.CommandBuffer);
+            lock (_oneShotPoolLock)
+            {
+                _oneShotFree.Push(upload.CommandBuffer);
+            }
             _ = vkResetFences(NativeDevice, 1, &upload.Fence);
-            _asyncFencePool.Push(upload.Fence);
+            lock (_asyncFenceLock)
+            {
+                _asyncFencePool.Push(upload.Fence);
+            }
         }
     }
 
@@ -2021,8 +2121,11 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         vkDeviceWaitIdle(NativeDevice);
         // the wait idle above completes every pending upload; release their
         // resources while the pools still exist
-        while (_pendingUploads.TryDequeue(out PendingUpload upload))
+        while (_uploadsLive.Count > 0 || _uploadsDrain is { Count: > 0 })
         {
+            PendingUpload upload = _uploadsLive.Count > 0
+                ? _uploadsLive.Dequeue()
+                : _uploadsDrain!.Dequeue();
             upload.Staging.Destroy(this);
             vkDestroyFence(NativeDevice, upload.Fence, null);
         }
@@ -2053,7 +2156,13 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                 vmaDestroyBuffer(Allocator, chunk.Buffer, chunk.Allocation);
             }
             _freeArenaChunks.Clear();
-            _pendingCopies.Clear();
+            lock (_copiesLock)
+            {
+                _copiesLive.Clear();
+                _copiesDrain?.Clear();
+            }
+            _drainedCopies.Clear();
+            _transitionedBuffers.Clear();
             _pendingTextureInits.Clear();
         }
 
@@ -2100,12 +2209,30 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             vkDestroyCommandPool(NativeDevice, _uploadPool, null);
             _uploadPool = default;
         }
-        while (_blockingFencePool.TryPop(out VkFence blockingFence))
+        while (true)
         {
+            VkFence blockingFence;
+            lock (_blockingFenceLock)
+            {
+                if (_blockingFencePool.Count == 0)
+                {
+                    break;
+                }
+                blockingFence = _blockingFencePool.Pop();
+            }
             vkDestroyFence(NativeDevice, blockingFence, null);
         }
-        while (_asyncFencePool.TryPop(out VkFence asyncFence))
+        while (true)
         {
+            VkFence asyncFence;
+            lock (_asyncFenceLock)
+            {
+                if (_asyncFencePool.Count == 0)
+                {
+                    break;
+                }
+                asyncFence = _asyncFencePool.Pop();
+            }
             vkDestroyFence(NativeDevice, asyncFence, null);
         }
 

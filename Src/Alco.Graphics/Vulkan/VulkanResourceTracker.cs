@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using Vortice.Vulkan;
 using static Vortice.Vulkan.Vulkan;
 
@@ -99,6 +100,9 @@ internal sealed unsafe class VulkanResourceTracker
 
     // first-use seeds of this recording context (buffers: empty on the device tracker)
     private readonly List<FirstUse> _firstUses = new();
+    // prologue barrier scratch, reused per call (recording-safe: one tracker
+    // per command buffer, recording is single-threaded per buffer)
+    private readonly List<VkImageMemoryBarrier2> _prologueBarriers = new();
 
     // resources touched by the pass currently being recorded (cleared at pass end)
     private readonly HashSet<object> _passTouched = new();
@@ -848,9 +852,12 @@ internal sealed unsafe class VulkanResourceTracker
     /// its device (true execution) state into the state this buffer's recorded
     /// barriers assume. Call under the device queue lock, immediately before
     /// submitting the recorded command buffer.</summary>
-    public void RecordPrologue(VkCommandBuffer commandBuffer, VulkanResourceTracker device)
+    public bool RecordPrologue(VkCommandBuffer commandBuffer, VulkanResourceTracker device)
     {
-        List<VkImageMemoryBarrier2> imageBarriers = new();
+        // reused barrier list: the prologue runs on every submission whose
+        // recording saw another submit in between, so it must not allocate
+        List<VkImageMemoryBarrier2> imageBarriers = _prologueBarriers;
+        imageBarriers.Clear();
         VkPipelineStageFlags2 srcStage = VkPipelineStageFlags2.TopOfPipe;
         VkAccessFlags2 srcAccess = VkAccessFlags2.None;
         VkPipelineStageFlags2 dstStage = VkPipelineStageFlags2.TopOfPipe;
@@ -894,7 +901,8 @@ internal sealed unsafe class VulkanResourceTracker
 
         if (imageBarriers.Count == 0 && srcStage == VkPipelineStageFlags2.TopOfPipe)
         {
-            return;
+            // nothing actually drifted past this recording's assumptions
+            return false;
         }
 
         VkMemoryBarrier2 memoryBarrier = new()
@@ -905,7 +913,7 @@ internal sealed unsafe class VulkanResourceTracker
             dstAccessMask = dstAccess,
         };
 
-        Span<VkImageMemoryBarrier2> barriers = imageBarriers.ToArray();
+        Span<VkImageMemoryBarrier2> barriers = CollectionsMarshal.AsSpan(imageBarriers);
         fixed (VkImageMemoryBarrier2* imagePtr = barriers)
         {
             VkDependencyInfo dependency = new()
@@ -917,6 +925,7 @@ internal sealed unsafe class VulkanResourceTracker
             };
             vkCmdPipelineBarrier2(commandBuffer, &dependency);
         }
+        return true;
     }
 
     /// <summary>Copies this recording's final states into the device tracker and
