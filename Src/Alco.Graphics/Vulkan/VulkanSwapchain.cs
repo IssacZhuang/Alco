@@ -6,8 +6,13 @@ namespace Alco.Graphics.Vulkan;
 
 /// <summary>
 /// Vulkan swapchain: owns the VkSurfaceKHR and VkSwapchainKHR, the per-image
-/// texture wrappers/views and the acquire/present semaphore ring. The swapchain
-/// framebuffer exposes the currently acquired image as the render target.
+/// texture wrappers/views, and the acquire/present synchronization. Follows the
+/// wgpu model: three swapchain images (frame latency two plus one), an acquire
+/// fence waited immediately after acquire returns (the Windows frame-pacing
+/// fix for DXGI-backed Vulkan drivers), and present-ordering semaphores keyed
+/// by image index that recycle only when their image is acquired again. The
+/// swapchain framebuffer exposes the currently acquired image as the render
+/// target.
 /// </summary>
 internal sealed unsafe class VulkanSwapchain : GPUSwapchain
 {
@@ -32,15 +37,26 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
     private uint _height;
     private bool _needsRecreate;
 
-    // frames-in-flight bookkeeping: two slots, each with an acquire semaphore
-    // and the signal semaphores of the frame's submissions; the slot's end
-    // timeline value throttles BeginFrame to two frames in flight
+    // frames-in-flight bookkeeping: two slots, each with an acquire semaphore;
+    // the slot's end timeline value throttles BeginFrame to two frames in flight
     private readonly VkSemaphore[] _acquireSemaphores = new VkSemaphore[FlightSlots];
-    private readonly List<VkSemaphore>[] _slotSignalSemaphores = new List<VkSemaphore>[FlightSlots];
-    private readonly List<VkSemaphore>[] _slotFreeSemaphores = new List<VkSemaphore>[FlightSlots];
     private readonly long[] _slotEndValues = new long[FlightSlots];
     private ulong _frameIndex;
     private bool _acquireSemaphorePending;
+
+    // present-ordering semaphores keyed by swapchain image (the wgpu model):
+    // every submission working on the acquired image signals one, present waits
+    // all of that image's signaled semaphores, and they recycle only when the
+    // same image is acquired again — the acquire fence wait proves the
+    // presentation engine consumed them by then
+    private List<VkSemaphore>[] _imageSignalSemaphores = Array.Empty<List<VkSemaphore>>();
+    private List<VkSemaphore>[] _imageFreeSemaphores = Array.Empty<List<VkSemaphore>>();
+    // signaled by vkAcquireNextImageKHR when the acquired image is ready; waited
+    // immediately after acquire returns (the wgpu Windows frame-pacing fix: the
+    // driver's DXGI-backed swapchain only releases images at acquire completion,
+    // and letting the GPU block on the acquire semaphore inside the submission
+    // instead makes frame pacing irregular)
+    private VkFence _acquireFence;
 
     private uint _currentImageIndex;
     private bool _imageAcquired;
@@ -113,8 +129,6 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
 
         for (int i = 0; i < FlightSlots; i++)
         {
-            _slotSignalSemaphores[i] = new List<VkSemaphore>();
-            _slotFreeSemaphores[i] = new List<VkSemaphore>();
             _acquireSemaphores[i] = CreateSemaphore();
         }
 
@@ -278,7 +292,11 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         _width = extent.width;
         _height = extent.height;
 
-        uint imageCount = Math.Max(2u, capabilities.minImageCount);
+        // three images (the wgpu model: desired_maximum_frame_latency 2 + 1).
+        // Two images leave the presentation engine no slack: acquire and the
+        // GPU front end serialize against present completion, so a slow frame
+        // turns into visible stutter; the third image decouples them
+        uint imageCount = Math.Max(capabilities.minImageCount, 3u);
         if (capabilities.maxImageCount > 0)
         {
             imageCount = Math.Min(imageCount, capabilities.maxImageCount);
@@ -307,6 +325,14 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         Swapchain = newSwapchain;
         VkSurfaceFormat = surfaceFormat.format;
 
+        if (_acquireFence.Handle == 0)
+        {
+            VkFenceCreateInfo fenceInfo = new();
+            VkFence fence = default;
+            vkCreateFence(_device.NativeDevice, &fenceInfo, null, &fence).ThrowOnFailure();
+            _acquireFence = fence;
+        }
+
         if (oldSwapchain.Handle != 0)
         {
             DestroyImageResources();
@@ -325,6 +351,8 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
 
         _imageViews = new VulkanTextureView[imageCount];
         _images = new VulkanTexture[imageCount];
+        _imageSignalSemaphores = new List<VkSemaphore>[imageCount];
+        _imageFreeSemaphores = new List<VkSemaphore>[imageCount];
 
         for (uint i = 0; i < imageCount; i++)
         {
@@ -347,6 +375,8 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
             VkImageView nativeView = default;
             vkCreateImageView(_device.NativeDevice, &viewInfo, null, &nativeView).ThrowOnFailure();
             _imageViews[i] = _device.Track(new VulkanTextureView(_device, _images[i], nativeView, $"swapchain_view_{i}"));
+            _imageSignalSemaphores[i] = new List<VkSemaphore>();
+            _imageFreeSemaphores[i] = new List<VkSemaphore>();
 
             // swapchain images come back from acquire with undefined contents
             _device.Tracker.InvalidateTexture(_images[i]);
@@ -365,13 +395,33 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         }
         _imageViews = Array.Empty<VulkanTextureView>();
         _images = Array.Empty<VulkanTexture>();
+
+        foreach (List<VkSemaphore> list in _imageSignalSemaphores)
+        {
+            DestroySemaphores(list);
+        }
+        foreach (List<VkSemaphore> list in _imageFreeSemaphores)
+        {
+            DestroySemaphores(list);
+        }
+        _imageSignalSemaphores = Array.Empty<List<VkSemaphore>>();
+        _imageFreeSemaphores = Array.Empty<List<VkSemaphore>>();
+    }
+
+    private void DestroySemaphores(List<VkSemaphore> semaphores)
+    {
+        foreach (VkSemaphore semaphore in semaphores)
+        {
+            vkDestroySemaphore(_device.NativeDevice, semaphore, null);
+        }
+        semaphores.Clear();
     }
 
     /// <summary>Called at the frame boundary: throttles to two frames in flight.
     /// Waits the device timeline value the previous cycle of this slot ended
     /// on — all of that frame's submissions (main buffers, riders and any
-    /// present barrier) have completed by then, so slot resources (acquire
-    /// semaphore, signal semaphore lists) are free to reuse.</summary>
+    /// present barrier) have completed by then, so the slot's acquire
+    /// semaphore is free to reuse.</summary>
     private void BeginFrame()
     {
         long endValue = _slotEndValues[Slot];
@@ -388,12 +438,17 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
 
     internal void ConsumeAcquireSemaphore() => _acquireSemaphorePending = false;
 
-    /// <summary>Takes a semaphore to signal at submit time; it returns to the free
-    /// list after present has waited on it.</summary>
+    /// <summary>Takes a semaphore to signal at submit time for the currently
+    /// acquired image; it waits recycling until that image is acquired again.</summary>
     internal VkSemaphore TakeSubmitSemaphore()
     {
-        int slot = Slot;
-        List<VkSemaphore> freeList = _slotFreeSemaphores[slot];
+        if (!_imageAcquired)
+        {
+            // submissions of a frame without an acquired surface never order a
+            // present; nothing needs to signal
+            return default;
+        }
+        List<VkSemaphore> freeList = _imageFreeSemaphores[_currentImageIndex];
         VkSemaphore semaphore;
         if (freeList.Count > 0)
         {
@@ -404,7 +459,7 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         {
             semaphore = CreateSemaphore();
         }
-        _slotSignalSemaphores[slot].Add(semaphore);
+        _imageSignalSemaphores[_currentImageIndex].Add(semaphore);
         return semaphore;
     }
 
@@ -436,13 +491,13 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         VkSemaphore acquireSemaphore = _acquireSemaphores[Slot];
         uint imageIndex = 0;
         VkResult result = vkAcquireNextImageKHR(
-            _device.NativeDevice, Swapchain, ulong.MaxValue, acquireSemaphore, VkFence.Null, &imageIndex);
+            _device.NativeDevice, Swapchain, ulong.MaxValue, acquireSemaphore, _acquireFence, &imageIndex);
 
         if (result == VkResult.ErrorOutOfDateKHR)
         {
             RecreateSwapchain();
             result = vkAcquireNextImageKHR(
-                _device.NativeDevice, Swapchain, ulong.MaxValue, acquireSemaphore, VkFence.Null, &imageIndex);
+                _device.NativeDevice, Swapchain, ulong.MaxValue, acquireSemaphore, _acquireFence, &imageIndex);
         }
 
         if (result != VkResult.Success && result != VkResult.SuboptimalKHR)
@@ -452,6 +507,26 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
                 return false;
             }
             VulkanException.ThrowIfFailed(result, "Failed to acquire swapchain image");
+        }
+
+        // the wgpu Windows frame-pacing fix: wait the acquire fence before any
+        // submission touches the image. The driver's DXGI-backed swapchain only
+        // releases an image at acquire completion; blocking the GPU on the
+        // acquire semaphore inside the submission instead makes pacing irregular.
+        // With the third swapchain image this wait is ~zero in steady state.
+        VkFence acquireFence = _acquireFence;
+        VkResult waitResult = vkWaitForFences(_device.NativeDevice, 1, &acquireFence, true, ulong.MaxValue);
+        VulkanException.ThrowIfFailed(waitResult, "Failed to wait for swapchain image acquire");
+        _ = vkResetFences(_device.NativeDevice, 1, &acquireFence);
+
+        // re-acquiring this image proves the presentation engine finished its
+        // previous present — the image's signaled semaphores were consumed and
+        // can be handed out again
+        List<VkSemaphore> signaled = _imageSignalSemaphores[imageIndex];
+        if (signaled.Count > 0)
+        {
+            _imageFreeSemaphores[imageIndex].AddRange(signaled);
+            signaled.Clear();
         }
 
         _currentImageIndex = imageIndex;
@@ -486,7 +561,7 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         // cycle of this slot waits before recycling its resources
         _slotEndValues[slot] = _device.CurrentTimelineValue;
 
-        List<VkSemaphore> waitSemaphores = _slotSignalSemaphores[slot];
+        List<VkSemaphore> waitSemaphores = _imageSignalSemaphores[_currentImageIndex];
 
         int waitCount = waitSemaphores.Count;
         if (waitCount == 0)
@@ -516,18 +591,15 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         };
 
         VkResult result = _device.PresentLocked(&presentInfo);
-        bool semaphoresRecyclable;
         if (result == VkResult.ErrorOutOfDateKHR)
         {
             _needsRecreate = true;
             // an errored present never waited its semaphores; they stay in an
             // indeterminate signaled state and cannot be recycled safely
-            semaphoresRecyclable = false;
+            DestroySemaphores(waitSemaphores);
         }
         else
         {
-            // SuboptimalKHR still presented the image, so the waits completed
-            semaphoresRecyclable = true;
             if (result == VkResult.SuboptimalKHR)
             {
                 _needsRecreate = true;
@@ -536,24 +608,10 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
             {
                 VulkanException.ThrowIfFailed(result, "Failed to present swapchain image");
             }
+            // SuboptimalKHR still presented the image, so the waits completed:
+            // the semaphores stay in the image's list and recycle when this
+            // image is acquired again (which proves their waits finished)
         }
-
-        if (semaphoresRecyclable)
-        {
-            // the semaphores waited by this present return to the free list
-            foreach (VkSemaphore semaphore in waitSemaphores)
-            {
-                _slotFreeSemaphores[slot].Add(semaphore);
-            }
-        }
-        else
-        {
-            foreach (VkSemaphore semaphore in waitSemaphores)
-            {
-                vkDestroySemaphore(_device.NativeDevice, semaphore, null);
-            }
-        }
-        waitSemaphores.Clear();
 
         _imageAcquired = false;
         _device.Tracker.InvalidateTexture(texture);
@@ -573,17 +631,11 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
     internal void RecreateSwapchain()
     {
         vkDeviceWaitIdle(_device.NativeDevice);
-        // after a wait idle every pending wait completed; signal semaphores that
-        // were never waited (submitted but the present was skipped) would stay
-        // signaled forever, so destroy them instead of clearing the list alone
-        foreach (List<VkSemaphore> list in _slotSignalSemaphores)
-        {
-            foreach (VkSemaphore semaphore in list)
-            {
-                vkDestroySemaphore(_device.NativeDevice, semaphore, null);
-            }
-            list.Clear();
-        }
+        // DestroyImageResources (via CreateSwapchainNative) tears down the
+        // per-image semaphore lists: after a wait idle every pending wait
+        // completed, but signal semaphores that were never waited (submitted
+        // yet the present was skipped) would stay signaled forever
+        //
         // an acquire semaphore may have been signaled but never waited (acquire
         // without a following submit); binary semaphores cannot be reset on the
         // host, so replace them with fresh ones
@@ -595,6 +647,13 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
             }
             _acquireSemaphores[i] = CreateSemaphore();
         }
+        // the acquire fence may be pending a signal from a failed acquire;
+        // replace it alongside the swapchain it belongs to
+        if (_acquireFence.Handle != 0)
+        {
+            vkDestroyFence(_device.NativeDevice, _acquireFence, null);
+        }
+        _acquireFence = default;
         _acquireSemaphorePending = false;
         _imageAcquired = false;
         _presentTrailRecorded = false;
@@ -624,16 +683,11 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
                 vkDestroySemaphore(_device.NativeDevice, _acquireSemaphores[i], null);
                 _acquireSemaphores[i] = default;
             }
-            foreach (VkSemaphore semaphore in _slotSignalSemaphores[i])
-            {
-                vkDestroySemaphore(_device.NativeDevice, semaphore, null);
-            }
-            _slotSignalSemaphores[i].Clear();
-            foreach (VkSemaphore semaphore in _slotFreeSemaphores[i])
-            {
-                vkDestroySemaphore(_device.NativeDevice, semaphore, null);
-            }
-            _slotFreeSemaphores[i].Clear();
+        }
+        if (_acquireFence.Handle != 0)
+        {
+            vkDestroyFence(_device.NativeDevice, _acquireFence, null);
+            _acquireFence = default;
         }
     }
 }
