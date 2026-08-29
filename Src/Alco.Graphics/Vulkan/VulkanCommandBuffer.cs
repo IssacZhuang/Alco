@@ -19,12 +19,20 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
 {
     private readonly VulkanDevice _device;
     private VkCommandBuffer _commandBuffer;
-    private VkFence _inFlightFence;
+
+    // the timeline value this buffer's last submission signaled; re-recording
+    // waits it before resetting (riders retire with the same wait)
+    internal long LastSubmitTimelineValue;
 
     // private recording tracker: states evolve in record order (== execution
     // order inside this buffer), seeded from the device tracker at each
     // resource's first use; reconciled with the device tracker at Submit time
     private readonly VulkanResourceTracker _tracker;
+    // rider one-shots folded into this buffer's last submission (deferred-work
+    // lead / present trail): their completion is covered by the same timeline
+    // value, so PrepareCommandBuffer recycles them after waiting it
+    internal VkCommandBuffer PendingLeadFlush;
+    internal VkCommandBuffer PendingTrailBarrier;
     // per-pass attachment transition scratch, grown once then reused so the
     // recording hot path never allocates
     private VulkanResourceTracker.BatchTransition[] _transitionScratch = Array.Empty<VulkanResourceTracker.BatchTransition>();
@@ -60,15 +68,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         _device = device;
         _commandBuffer = device.AllocateCommandBuffer();
         _tracker = new VulkanResourceTracker(device.Tracker);
-        _inFlightFence = device.CreateFenceNative(signaled: true); // so the first Begin() does not wait on a never-submitted fence
-    }
-
-    /// <summary>Fence signaled when the last submission of this buffer completes;
-    /// waiting on it before re-recording keeps frames-in-flight safe.</summary>
-    public VkFence InFlightFence
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get => _inFlightFence;
+        // LastSubmitTimelineValue stays 0: the first Begin() has nothing to wait
     }
 
     // ===== command buffer lifecycle =====
@@ -97,10 +97,18 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
     protected override void Dispose(bool disposing)
     {
-        if (_inFlightFence.Handle != 0)
+        // riders may still be executing; their timeline value dies with this
+        // wrapper (nothing will ever wait it), so retire them by frame
+        // distance like the wrapper's own buffer
+        if (PendingLeadFlush.Handle != 0)
         {
-            _device.QueueNativeDestroy(_inFlightFence);
-            _inFlightFence = default;
+            _device.RetireRiderOneShotByFrame(PendingLeadFlush);
+            PendingLeadFlush = default;
+        }
+        if (PendingTrailBarrier.Handle != 0)
+        {
+            _device.RetireRiderOneShotByFrame(PendingTrailBarrier);
+            PendingTrailBarrier = default;
         }
         if (_commandBuffer.Handle != 0)
         {

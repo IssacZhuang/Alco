@@ -184,6 +184,17 @@ internal sealed unsafe class VulkanResourceTracker
 
     // ===== state queries =====
 
+    /// <summary>Whether this recording ever touched <paramref name="texture"/>.
+    /// Unlike <see cref="GetTextureState"/> this never seeds state or records a
+    /// first use, so it is safe as a submit-time gate.</summary>
+    public bool RecordedTexture(VulkanTexture texture)
+    {
+        using var __ = Lock();
+        {
+            return _imageStates.ContainsKey(texture);
+        }
+    }
+
     public VulkanResourceState GetTextureState(VulkanTexture texture)
     {
         using var __ = Lock();

@@ -32,17 +32,24 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
     private uint _height;
     private bool _needsRecreate;
 
-    // frames-in-flight bookkeeping: two slots, each with an acquire semaphore,
-    // a submit fence and the signal semaphores of the frame's submissions
+    // frames-in-flight bookkeeping: two slots, each with an acquire semaphore
+    // and the signal semaphores of the frame's submissions; the slot's end
+    // timeline value throttles BeginFrame to two frames in flight
     private readonly VkSemaphore[] _acquireSemaphores = new VkSemaphore[FlightSlots];
-    private readonly VkFence[] _frameFences = new VkFence[FlightSlots];
     private readonly List<VkSemaphore>[] _slotSignalSemaphores = new List<VkSemaphore>[FlightSlots];
     private readonly List<VkSemaphore>[] _slotFreeSemaphores = new List<VkSemaphore>[FlightSlots];
+    private readonly long[] _slotEndValues = new long[FlightSlots];
     private ulong _frameIndex;
     private bool _acquireSemaphorePending;
 
     private uint _currentImageIndex;
     private bool _imageAcquired;
+
+    // set when a submission already appended the acquired image's
+    // present-layout transition to its command buffer array (trail); Present
+    // then skips the barrier submission entirely — wgpu does the same by
+    // baking the transition into the frame's single submit
+    private bool _presentTrailRecorded;
 
     private readonly VulkanSurfaceFrameBuffer _frameBuffer;
 
@@ -109,7 +116,6 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
             _slotSignalSemaphores[i] = new List<VkSemaphore>();
             _slotFreeSemaphores[i] = new List<VkSemaphore>();
             _acquireSemaphores[i] = CreateSemaphore();
-            _frameFences[i] = CreateFence(signaled: true);
         }
 
         CreateSwapchainNative();
@@ -126,17 +132,6 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         VkSemaphore semaphore = default;
         vkCreateSemaphore(_device.NativeDevice, &info, null, &semaphore).ThrowOnFailure();
         return semaphore;
-    }
-
-    private VkFence CreateFence(bool signaled)
-    {
-        VkFenceCreateInfo info = new()
-        {
-            flags = signaled ? VkFenceCreateFlags.Signaled : VkFenceCreateFlags.None,
-        };
-        VkFence fence = default;
-        vkCreateFence(_device.NativeDevice, &info, null, &fence).ThrowOnFailure();
-        return fence;
     }
 
     internal static VkSurfaceKHR CreateSurface(VulkanDevice device, SurfaceSource source)
@@ -372,16 +367,17 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         _images = Array.Empty<VulkanTexture>();
     }
 
-    /// <summary>Called at the frame boundary: throttles to two frames in flight and
-    /// begins a new slot.</summary>
+    /// <summary>Called at the frame boundary: throttles to two frames in flight.
+    /// Waits the device timeline value the previous cycle of this slot ended
+    /// on — all of that frame's submissions (main buffers, riders and any
+    /// present barrier) have completed by then, so slot resources (acquire
+    /// semaphore, signal semaphore lists) are free to reuse.</summary>
     private void BeginFrame()
     {
-        int slot = Slot;
-        VkFence[] fences = _frameFences;
-        fixed (VkFence* fencePtr = &fences[slot])
+        long endValue = _slotEndValues[Slot];
+        if (endValue > 0)
         {
-            vkWaitForFences(_device.NativeDevice, 1, fencePtr, true, ulong.MaxValue).ThrowOnFailure();
-            vkResetFences(_device.NativeDevice, 1, fencePtr).ThrowOnFailure();
+            _device.WaitTimeline(endValue);
         }
         _frameIndex++;
         _acquireSemaphorePending = false;
@@ -412,8 +408,12 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         return semaphore;
     }
 
-    /// <summary>The fence completed when all submissions of the current slot finished.</summary>
-    internal VkFence CurrentFrameFence => _frameFences[Slot];
+    /// <summary>The currently acquired swapchain image, or null when none is held.</summary>
+    internal VulkanTexture? AcquiredImageTexture => _imageAcquired ? _images[_currentImageIndex] : null;
+
+    /// <summary>Marks that a submission already recorded the present-layout
+    /// transition for the acquired image; Present() will skip its barrier.</summary>
+    internal void NotePresentTrailRecorded() => _presentTrailRecorded = true;
 
     private int Slot => (int)(_frameIndex % FlightSlots);
 
@@ -457,6 +457,8 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         _currentImageIndex = imageIndex;
         _imageAcquired = true;
         _acquireSemaphorePending = true;
+        // a fresh acquire: nothing has recorded a present trail for this image
+        _presentTrailRecorded = false;
         _frameBuffer.OnImageAcquired(imageIndex);
         return true;
     }
@@ -468,18 +470,29 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
             return;
         }
 
-        // transition the image to the present layout through an in-order submission;
-        // it consumes the acquire wait and signals a semaphore present waits on
         VulkanTexture texture = _images[_currentImageIndex];
-        _device.SubmitPresentBarrier(texture, this);
+
+        if (!_presentTrailRecorded)
+        {
+            // no submission this frame recorded the present transition (the
+            // image was never touched, or nothing was submitted at all): fall
+            // back to the standalone barrier submission, which consumes the
+            // acquire wait and signals a semaphore present waits on
+            _device.SubmitPresentBarrier(texture, this);
+        }
 
         int slot = Slot;
+        // the frame's queue work is done: record the timeline value the next
+        // cycle of this slot waits before recycling its resources
+        _slotEndValues[slot] = _device.CurrentTimelineValue;
+
         List<VkSemaphore> waitSemaphores = _slotSignalSemaphores[slot];
 
         int waitCount = waitSemaphores.Count;
         if (waitCount == 0)
         {
-            // nothing was submitted this frame; only the barrier submission ran
+            // nothing was submitted this frame and no barrier ran; the image
+            // cannot be presented, release it for the next acquire
             _imageAcquired = false;
             _device.Tracker.InvalidateTexture(texture);
             return;
@@ -584,6 +597,7 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         }
         _acquireSemaphorePending = false;
         _imageAcquired = false;
+        _presentTrailRecorded = false;
         CreateSwapchainNative();
     }
 
@@ -609,11 +623,6 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
             {
                 vkDestroySemaphore(_device.NativeDevice, _acquireSemaphores[i], null);
                 _acquireSemaphores[i] = default;
-            }
-            if (_frameFences[i].Handle != 0)
-            {
-                vkDestroyFence(_device.NativeDevice, _frameFences[i], null);
-                _frameFences[i] = default;
             }
             foreach (VkSemaphore semaphore in _slotSignalSemaphores[i])
             {

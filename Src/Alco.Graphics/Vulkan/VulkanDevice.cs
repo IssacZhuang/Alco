@@ -41,6 +41,13 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     public VkPhysicalDevice PhysicalDevice { get; private set; }
     public VkDevice NativeDevice { get; private set; }
     public VkQueue Queue { get; private set; }
+
+    // device-wide completion timeline (wgpu model): every queue submission
+    // signals the next rising value; waiting a value from any thread is a pure
+    // read of a monotonic counter, so command-buffer re-record waits and
+    // frame-slot throttle waits can coexist without fence reset races
+    private VkSemaphore _timelineSemaphore;
+    private long _timelineValue;
     public int QueueFamilyIndex { get; private set; }
     public VmaAllocator Allocator { get; private set; }
 
@@ -119,10 +126,13 @@ internal sealed unsafe class VulkanDevice : GPUDevice
 
     // one-shot buffers submitted against an externally owned fence (present
     // barriers signal the swapchain slot fence); retired by frame distance
-    // once the slot handshake guarantees the GPU finished them
+    // once the slot handshake guarantees the GPU finished them. Riders folded
+    // into a destroyed command buffer's submission retire at the disposal
+    // delay instead (their fence dies with the wrapper).
     private struct PendingOneShot
     {
         public long FrameStamp;
+        public int Delay;
         public VkCommandBuffer CommandBuffer;
     }
     private readonly List<PendingOneShot> _pendingOneShots = new();
@@ -283,10 +293,11 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     }
 
     /// <summary>Records pending texture layout initializations and buffer copies
-    /// into <paramref name="commandBuffer"/>. Called at the head of the next
-    /// submission so the work lands before anything submitted after it.</summary>
-    private void RecordDeferredWorkLocked(VkCommandBuffer commandBuffer)
+    /// into <paramref name="commandBuffer"/>. Returns whether anything was
+    /// recorded (an empty lead buffer must not ride a submission).</summary>
+    private bool RecordDeferredWorkLocked(VkCommandBuffer commandBuffer)
     {
+        bool recorded = false;
         while (_pendingTextureInits.TryDequeue(out VulkanTexture texture))
         {
             // a worker-thread upload may already have moved the state past
@@ -294,6 +305,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             if (Tracker.GetTextureState(texture) == VulkanResourceState.Undefined)
             {
                 Tracker.TransitionTexture(commandBuffer, texture, VulkanResourceState.Idle);
+                recorded = true;
             }
         }
 
@@ -302,7 +314,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         {
             if (_copiesLive.Count == 0)
             {
-                return;
+                return recorded;
             }
             copies = _copiesLive;
             _copiesLive = _copiesDrain ?? new Queue<PendingBufferCopy>(256);
@@ -341,29 +353,22 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         _copiesDrain = copies;
 
         Tracker.MakeWritesVisible(commandBuffer, VulkanResourceState.CopyDst);
+        return true;
     }
 
-    /// <summary>Submits the deferred texture initializations and buffer copies as
-    /// one one-shot command buffer so they execute before whatever is submitted
-    /// next (same queue, in-order). The command buffer is retired through the
-    /// pending-upload fence list — it must not return to the free pool while the
-    /// GPU may still be executing it.
-    /// Caller must hold <see cref="_queueLock"/>.</summary>
-    private void FlushDeferredWorkLocked()
+    /// <summary>Whether deferred texture initializations or buffer copies are
+    /// waiting for the next submission. Caller must hold
+    /// <see cref="_queueLock"/>.</summary>
+    private bool HasDeferredWorkLocked()
     {
-        bool hasCopies;
         lock (_copiesLock)
         {
-            hasCopies = _copiesLive.Count > 0;
+            if (_copiesLive.Count > 0)
+            {
+                return true;
+            }
         }
-        if (!hasCopies && _pendingTextureInits.IsEmpty)
-        {
-            return;
-        }
-
-        VkCommandBuffer commandBuffer = BeginOneShotLocked();
-        RecordDeferredWorkLocked(commandBuffer);
-        SubmitOneShotAsyncLocked(commandBuffer, default);
+        return !_pendingTextureInits.IsEmpty;
     }
 
     /// <summary>Rotates the upload arena: chunks that sat out the safety
@@ -546,6 +551,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         CreateAllocator();
         CreateCommandPool();
         CreateUploadPool();
+        CreateTimelineSemaphore();
 
         VkPhysicalDeviceProperties properties = default;
         vkGetPhysicalDeviceProperties(PhysicalDevice, &properties);
@@ -781,14 +787,23 @@ internal sealed unsafe class VulkanDevice : GPUDevice
 
         // query capabilities with the 1.3 chain, then request only what is needed;
         // must use new() — 'default' leaves the internal sType at 0
+        VkPhysicalDeviceVulkan12Features vulkan12Features = new()
+        {
+            // monotonic device-wide completion tracker: submissions signal a
+            // rising value, any thread can wait a value without resets (the
+            // wgpu model — fence pools cannot be waited concurrently with a
+            // reset without racing)
+            timelineSemaphore = VkBool32.True,
+        };
         VkPhysicalDeviceVulkan13Features vulkan13Features = new()
         {
             synchronization2 = VkBool32.True,
             dynamicRendering = VkBool32.True,
         };
+        vulkan12Features.pNext = &vulkan13Features;
         VkPhysicalDeviceFeatures2 queryFeatures2 = new()
         {
-            pNext = &vulkan13Features,
+            pNext = &vulkan12Features,
         };
         vkGetPhysicalDeviceFeatures2(PhysicalDevice, &queryFeatures2);
 
@@ -817,7 +832,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         };
         VkPhysicalDeviceFeatures2 features2 = new()
         {
-            pNext = &vulkan13Features,
+            pNext = &vulkan12Features,
             features = enabledFeatures,
         };
 
@@ -932,6 +947,52 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         VkResult result = vkCreateCommandPool(NativeDevice, &poolInfo, null, &pool);
         VulkanException.ThrowIfFailed(result, "Failed to create upload command pool");
         _uploadPool = pool;
+    }
+
+    private void CreateTimelineSemaphore()
+    {
+        VkSemaphoreTypeCreateInfo typeInfo = new()
+        {
+            semaphoreType = VkSemaphoreType.Timeline,
+            initialValue = 0,
+        };
+        VkSemaphoreCreateInfo createInfo = new()
+        {
+            pNext = &typeInfo,
+        };
+        VkSemaphore semaphore = default;
+        VkResult result = vkCreateSemaphore(NativeDevice, &createInfo, null, &semaphore);
+        VulkanException.ThrowIfFailed(result, "Failed to create timeline semaphore");
+        _timelineSemaphore = semaphore;
+        _timelineValue = 0;
+    }
+
+    /// <summary>The timeline value of the most recent submission; waiting any
+    /// value at or below it is guaranteed to complete. Thread-safe read.</summary>
+    internal long CurrentTimelineValue => Volatile.Read(ref _timelineValue);
+
+    /// <summary>Takes the next timeline signal value. Call under
+    /// <see cref="_queueLock"/> so values are handed out in submission order.</summary>
+    private long NextTimelineValueLocked() => ++_timelineValue;
+
+    /// <summary>Blocks until the device timeline reaches <paramref name="value"/>.
+    /// Safe from any thread and concurrent with other waits (no reset involved).</summary>
+    internal void WaitTimeline(long value)
+    {
+        if (value <= 0)
+        {
+            return; // nothing was ever submitted under this ticket
+        }
+        ulong v = (ulong)value;
+        VkSemaphore semaphore = _timelineSemaphore;
+        VkSemaphoreWaitInfo waitInfo = new()
+        {
+            semaphoreCount = 1,
+            pSemaphores = &semaphore,
+            pValues = &v,
+        };
+        VkResult result = vkWaitSemaphores(NativeDevice, &waitInfo, ulong.MaxValue);
+        VulkanException.ThrowIfFailed(result, "Failed to wait for timeline semaphore");
     }
 
     // ===== string helpers =====
@@ -1124,15 +1185,54 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         return commandBuffer;
     }
 
-    /// <summary>Waits for the command buffer's previous submission, resets the fence
-    /// and the command buffer so recording can start again.</summary>
+    /// <summary>Waits for the command buffer's previous submission (timeline
+    /// value, which covers the whole submission array — riders included) and
+    /// resets the command buffer so recording can start again. The rider
+    /// one-shots (deferred-work lead, present trail) finished too and return
+    /// to the free pool here.</summary>
     public void PrepareCommandBuffer(VulkanCommandBuffer commandBuffer)
     {
-        VkFence fence = commandBuffer.InFlightFence;
-        VkResult result = vkWaitForFences(NativeDevice, 1, &fence, true, ulong.MaxValue);
-        VulkanException.ThrowIfFailed(result, "Failed to wait for command buffer fence");
-        _ = vkResetFences(NativeDevice, 1, &fence);
+        WaitTimeline(commandBuffer.LastSubmitTimelineValue);
         _ = vkResetCommandBuffer(commandBuffer.NativeCommandBuffer, VkCommandBufferResetFlags.None);
+
+        if (commandBuffer.PendingLeadFlush.Handle != 0)
+        {
+            RetireRiderOneShotPool(commandBuffer.PendingLeadFlush);
+            commandBuffer.PendingLeadFlush = default;
+        }
+        if (commandBuffer.PendingTrailBarrier.Handle != 0)
+        {
+            RetireRiderOneShotPool(commandBuffer.PendingTrailBarrier);
+            commandBuffer.PendingTrailBarrier = default;
+        }
+    }
+
+    /// <summary>Returns a rider one-shot (whose completion was just fence-waited)
+    /// to the free pool.</summary>
+    private void RetireRiderOneShotPool(VkCommandBuffer commandBuffer)
+    {
+        lock (_oneShotPoolLock)
+        {
+            _oneShotFree.Push(commandBuffer);
+        }
+    }
+
+    /// <summary>Retires a rider one-shot of a DESTROYED command buffer: its only
+    /// completion fence died with the wrapper and may never be waited, so retire
+    /// by frame distance instead. The rider executed in the same submission as
+    /// the wrapper's own command buffer, whose deferred free relies on the exact
+    /// same delay — this is exactly as safe. May be called from any thread.</summary>
+    public void RetireRiderOneShotByFrame(VkCommandBuffer commandBuffer)
+    {
+        lock (_queueLock)
+        {
+            _pendingOneShots.Add(new PendingOneShot
+            {
+                FrameStamp = FrameCounter,
+                Delay = (int)DisposalDelayFrames,
+                CommandBuffer = commandBuffer,
+            });
+        }
     }
 
     public VkFence CreateFenceNative(bool signaled)
@@ -1310,8 +1410,8 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     /// <summary>Submits the present-layout transition for a swapchain image. The
     /// submission is ordered before present through the swapchain's semaphores;
     /// its one-shot command buffer is retired by frame distance through
-    /// <see cref="ProcessOneShots"/> (the slot fence it signals is reset by the
-    /// next BeginFrame, so its status cannot be polled for retirement).</summary>
+    /// <see cref="ProcessOneShots"/> (the timeline value it signals is waited by
+    /// the next-next BeginFrame, so its status cannot be polled for retirement).</summary>
     public void SubmitPresentBarrier(VulkanTexture texture, VulkanSwapchain swapchain)
     {
         lock (_queueLock)
@@ -1323,34 +1423,55 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             VkSemaphore waitSemaphore = swapchain.PendingAcquireSemaphore;
             VkSemaphore signalSemaphore = swapchain.TakeSubmitSemaphore();
             swapchain.ConsumeAcquireSemaphore();
-            VkFence fence = swapchain.CurrentFrameFence;
 
-            VkCommandBuffer native = commandBuffer;
-            VkSemaphore nativeWait = waitSemaphore;
-            VkSemaphore nativeSignal = signalSemaphore;
-            VkPipelineStageFlags waitStage = VkPipelineStageFlags.ColorAttachmentOutput;
-
-            VkSubmitInfo submitInfo = new()
+            long timelineValue = NextTimelineValueLocked();
+            VkCommandBufferSubmitInfo bufferInfo = new() { commandBuffer = commandBuffer };
+            VkSemaphoreSubmitInfo* signalInfos = stackalloc VkSemaphoreSubmitInfo[2];
+            uint signalCount = 0;
+            if (signalSemaphore.Handle != 0)
             {
-                commandBufferCount = 1,
-                pCommandBuffers = &native,
-                waitSemaphoreCount = waitSemaphore.Handle != 0 ? 1u : 0u,
-                pWaitSemaphores = &nativeWait,
-                pWaitDstStageMask = &waitStage,
-                signalSemaphoreCount = 1,
-                pSignalSemaphores = &nativeSignal,
+                signalInfos[signalCount++] = new VkSemaphoreSubmitInfo
+                {
+                    semaphore = signalSemaphore,
+                    value = 0, // binary semaphore: value ignored
+                    stageMask = VkPipelineStageFlags2.ColorAttachmentOutput,
+                };
+            }
+            signalInfos[signalCount++] = new VkSemaphoreSubmitInfo
+            {
+                semaphore = _timelineSemaphore,
+                value = (ulong)timelineValue,
+                stageMask = VkPipelineStageFlags2.AllCommands,
+            };
+            VkSemaphoreSubmitInfo waitInfo = new()
+            {
+                semaphore = waitSemaphore,
+                value = 0,
+                stageMask = VkPipelineStageFlags2.ColorAttachmentOutput,
             };
 
-            // the slot fence is waited+reset by BeginFrame each cycle; a stray
-            // signaled state (skipped acquire) would fail the submit
-            _ = vkResetFences(NativeDevice, 1, &fence);
-            VkResult result = vkQueueSubmit(Queue, 1, &submitInfo, fence);
+            VkSubmitInfo2 submitInfo = new()
+            {
+                commandBufferInfoCount = 1,
+                pCommandBufferInfos = &bufferInfo,
+                waitSemaphoreInfoCount = waitSemaphore.Handle != 0 ? 1u : 0u,
+                pWaitSemaphoreInfos = &waitInfo,
+                signalSemaphoreInfoCount = signalCount,
+                pSignalSemaphoreInfos = signalInfos,
+            };
+
+            VkResult result = vkQueueSubmit2(Queue, 1, &submitInfo, VkFence.Null);
             VulkanException.ThrowIfFailed(result, "Failed to submit present barrier");
 
-            // the fence belongs to the swapchain slot: the slot handshake (the
-            // next BeginFrame waits this fence before anything may reuse the
-            // buffer) makes it safely recyclable after the flight-slot distance
-            _pendingOneShots.Add(new PendingOneShot { FrameStamp = FrameCounter, CommandBuffer = commandBuffer });
+            // the swapchain captures this value as the frame's end: BeginFrame
+            // of the next slot cycle waits it before recycling slot resources,
+            // after which the buffer is safely recyclable
+            _pendingOneShots.Add(new PendingOneShot
+            {
+                FrameStamp = FrameCounter,
+                Delay = VulkanSwapchain.FlightSlotCount,
+                CommandBuffer = commandBuffer,
+            });
             Tracker.BumpSerial();
         }
     }
@@ -1361,18 +1482,22 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     /// reset by the next BeginFrame before this runs, so its status reads
     /// unsignaled forever. The slot handshake still guarantees completion —
     /// BeginFrame of the following cycle waits that same fence — so after the
-    /// flight-slot frame distance the buffer is no longer executing.</summary>
+    /// flight-slot frame distance the buffer is no longer executing. Rider
+    /// one-shots of destroyed command buffers retire at the disposal delay.</summary>
     private void ProcessOneShots()
     {
-        for (int i = _pendingOneShots.Count - 1; i >= 0; i--)
+        lock (_queueLock)
         {
-            if (FrameCounter - _pendingOneShots[i].FrameStamp >= VulkanSwapchain.FlightSlotCount)
+            for (int i = _pendingOneShots.Count - 1; i >= 0; i--)
             {
-                lock (_oneShotPoolLock)
+                if (FrameCounter - _pendingOneShots[i].FrameStamp >= _pendingOneShots[i].Delay)
                 {
-                    _oneShotFree.Push(_pendingOneShots[i].CommandBuffer);
+                    lock (_oneShotPoolLock)
+                    {
+                        _oneShotFree.Push(_pendingOneShots[i].CommandBuffer);
+                    }
+                    _pendingOneShots.RemoveAt(i);
                 }
-                _pendingOneShots.RemoveAt(i);
             }
         }
     }
@@ -1624,27 +1749,36 @@ internal sealed unsafe class VulkanDevice : GPUDevice
 
         lock (_queueLock)
         {
-            // deferred texture initializations and buffer copies ride ahead of
-            // this submission (queue order)
-            FlushDeferredWorkLocked();
-
-            // thread-model reconciliation: the recording tracker's seeds were
-            // captured at record time; if anything was submitted in between
-            // (another thread's command buffer), emit a prologue one-shot that
-            // moves drifted resources into the states this buffer assumed
-            if (commandBufferImpl.Tracker.NeedsPrologue(Tracker))
+            // lead: deferred texture initializations / buffer copies plus the
+            // drift reconciliation prologue ride the SAME submission as the
+            // recorded buffer (mirrors wgpu: one vkQueueSubmit per submit call).
+            // Order matters: deferred work first (its tracker updates must be
+            // visible to the prologue's state comparison), prologue second.
+            VkCommandBuffer lead = default;
+            bool hasDeferred = HasDeferredWorkLocked();
+            bool needsPrologue = commandBufferImpl.Tracker.NeedsPrologue(Tracker);
+            if (hasDeferred || needsPrologue)
             {
-                VkCommandBuffer prologue = BeginOneShotLocked();
-                if (commandBufferImpl.Tracker.RecordPrologue(prologue, Tracker))
+                VkCommandBuffer candidate = BeginOneShotLocked();
+                bool recorded = false;
+                if (hasDeferred)
                 {
-                    SubmitOneShotAsyncLocked(prologue, default);
+                    recorded |= RecordDeferredWorkLocked(candidate);
+                }
+                if (needsPrologue)
+                {
+                    recorded |= commandBufferImpl.Tracker.RecordPrologue(candidate, Tracker);
+                }
+                if (recorded)
+                {
+                    vkEndCommandBuffer(candidate).ThrowOnFailure();
+                    lead = candidate;
                 }
                 else
                 {
-                    // the serial drifted but every state still matches this
-                    // recording's assumptions: recycle the begun buffer
-                    // instead of submitting an empty one-shot
-                    RecycleOneShot(prologue, default);
+                    // nothing actually needed recording: recycle the begun
+                    // buffer instead of submitting an empty one
+                    RecycleOneShot(candidate, default);
                 }
             }
 
@@ -1656,23 +1790,83 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                 signalSemaphore = swapchain.TakeSubmitSemaphore();
             }
 
-            VkCommandBuffer native = commandBufferImpl.NativeCommandBuffer;
-            VkSemaphore nativeWait = waitSemaphore;
-            VkSemaphore nativeSignal = signalSemaphore;
-            VkPipelineStageFlags waitStage = VkPipelineStageFlags.ColorAttachmentOutput;
+            // the recording's final states become the device-resolved states
+            // BEFORE the trail below reads them (pure tracker bookkeeping; the
+            // submit has not happened yet but nothing between here and the
+            // vkQueueSubmit call observes the device tracker)
+            commandBufferImpl.Tracker.AbsorbInto(Tracker);
 
-            VkSubmitInfo submitInfo = new()
+            // trail: the acquired swapchain image's present-layout transition
+            // appended to the same submission, so Present() needs no extra
+            // vkQueueSubmit at all (wgpu bakes this into the submit too)
+            VkCommandBuffer trail = default;
+            if (swapchain != null
+                && swapchain.AcquiredImageTexture is { } presentImage
+                && commandBufferImpl.Tracker.RecordedTexture(presentImage)
+                && Tracker.GetTextureState(presentImage) != VulkanResourceState.Present)
             {
-                commandBufferCount = 1,
-                pCommandBuffers = &native,
-                waitSemaphoreCount = waitSemaphore.Handle != 0 ? 1u : 0u,
-                pWaitSemaphores = &nativeWait,
-                pWaitDstStageMask = &waitStage,
-                signalSemaphoreCount = signalSemaphore.Handle != 0 ? 1u : 0u,
-                pSignalSemaphores = &nativeSignal,
+                trail = BeginOneShotLocked();
+                Tracker.TransitionTexture(trail, presentImage, VulkanResourceState.Present);
+                vkEndCommandBuffer(trail);
+                swapchain.NotePresentTrailRecorded();
+            }
+
+            // submission: command buffers [lead?, main, trail?] plus signal
+            // infos — the present-wait semaphore (if presenting) and the
+            // device timeline with a fresh value (the wgpu shape); a single
+            // vkQueueSubmit2 carries the whole frame slice
+            long timelineValue = NextTimelineValueLocked();
+            VkCommandBufferSubmitInfo* bufferInfos = stackalloc VkCommandBufferSubmitInfo[3];
+            uint bufferCount = 0;
+            if (lead.Handle != 0)
+            {
+                bufferInfos[bufferCount++] = new VkCommandBufferSubmitInfo { commandBuffer = lead };
+            }
+            bufferInfos[bufferCount++] = new VkCommandBufferSubmitInfo
+            {
+                commandBuffer = commandBufferImpl.NativeCommandBuffer,
+            };
+            if (trail.Handle != 0)
+            {
+                bufferInfos[bufferCount++] = new VkCommandBufferSubmitInfo { commandBuffer = trail };
+            }
+
+            VkSemaphoreSubmitInfo* signalInfos = stackalloc VkSemaphoreSubmitInfo[2];
+            uint signalCount = 0;
+            if (signalSemaphore.Handle != 0)
+            {
+                signalInfos[signalCount++] = new VkSemaphoreSubmitInfo
+                {
+                    semaphore = signalSemaphore,
+                    value = 0, // binary semaphore: value ignored
+                    stageMask = VkPipelineStageFlags2.ColorAttachmentOutput,
+                };
+            }
+            signalInfos[signalCount++] = new VkSemaphoreSubmitInfo
+            {
+                semaphore = _timelineSemaphore,
+                value = (ulong)timelineValue,
+                stageMask = VkPipelineStageFlags2.AllCommands,
             };
 
-            VkResult result = vkQueueSubmit(Queue, 1, &submitInfo, commandBufferImpl.InFlightFence);
+            VkSemaphoreSubmitInfo waitInfo = new()
+            {
+                semaphore = waitSemaphore,
+                value = 0,
+                stageMask = VkPipelineStageFlags2.ColorAttachmentOutput,
+            };
+
+            VkSubmitInfo2 submitInfo = new()
+            {
+                commandBufferInfoCount = bufferCount,
+                pCommandBufferInfos = bufferInfos,
+                waitSemaphoreInfoCount = waitSemaphore.Handle != 0 ? 1u : 0u,
+                pWaitSemaphoreInfos = &waitInfo,
+                signalSemaphoreInfoCount = signalCount,
+                pSignalSemaphoreInfos = signalInfos,
+            };
+
+            VkResult result = vkQueueSubmit2(Queue, 1, &submitInfo, VkFence.Null);
             if (result != VkResult.Success)
             {
                 // interpolated only on failure: building it eagerly would
@@ -1685,9 +1879,15 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                 swapchain.ConsumeAcquireSemaphore();
             }
 
-            // the recording's final states become the device-resolved states
-            // for whatever submits next (submission order)
-            commandBufferImpl.Tracker.AbsorbInto(Tracker);
+            // re-record waits this timeline value (covers the whole array,
+            // riders included); the frame-slot throttle waits the value
+            // Present() captures (which is at least this one)
+            commandBufferImpl.LastSubmitTimelineValue = timelineValue;
+
+            // the riders' completion is covered by the same timeline value;
+            // PrepareCommandBuffer recycles them after waiting it
+            commandBufferImpl.PendingLeadFlush = lead;
+            commandBufferImpl.PendingTrailBarrier = trail;
         }
     }
 
@@ -2240,6 +2440,12 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         {
             vmaDestroyAllocator(Allocator);
             Allocator = default;
+        }
+
+        if (_timelineSemaphore.Handle != 0)
+        {
+            vkDestroySemaphore(NativeDevice, _timelineSemaphore, null);
+            _timelineSemaphore = default;
         }
 
         if (NativeDevice.Handle != 0)
