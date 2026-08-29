@@ -150,6 +150,15 @@ internal sealed unsafe class VulkanDevice : GPUDevice
 
     private const int ArenaSlotCount = 3; // ≥ frames in flight + 1
     private readonly List<ArenaChunk>[] _arenaSlots = new List<ArenaChunk>[ArenaSlotCount];
+    // retired chunks wait one full ring cycle here before re-entering the free
+    // pool: the same frame distance the old destroy path relied on (retire + 3
+    // disposal delay frames), so a chunk is never rewritten while the GPU may
+    // still be reading its previous contents
+    private readonly List<ArenaChunk>[] _retiredArenaChunks = new List<ArenaChunk>[ArenaSlotCount];
+    private readonly List<ArenaChunk> _freeArenaChunks = new();
+    // idle pool memory budget; chunks above it are released so an asset-load
+    // burst cannot pin staging memory forever
+    private const ulong FreeArenaChunkBudget = 64u * 1024 * 1024;
     // copy entries are published only after their memcpy finished, so a
     // concurrent flush can never hand the GPU a half-written region
     private readonly ConcurrentQueue<PendingBufferCopy> _pendingCopies = new();
@@ -188,8 +197,22 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             }
             if (index < 0)
             {
-                ulong chunkSize = Math.Max(8u * 1024 * 1024, VulkanUtility.AlignUp((ulong)size, 65536));
-                chunk = CreateArenaChunk(chunkSize);
+                // reuse a recycled chunk before growing the pool; steady-state
+                // frames hit this every time and never allocate at all
+                for (int i = 0; i < _freeArenaChunks.Count; i++)
+                {
+                    if (_freeArenaChunks[i].Size >= size)
+                    {
+                        chunk = _freeArenaChunks[i];
+                        _freeArenaChunks.RemoveAt(i);
+                        break;
+                    }
+                }
+                if (chunk.Buffer.Handle == 0)
+                {
+                    ulong chunkSize = Math.Max(8u * 1024 * 1024, VulkanUtility.AlignUp((ulong)size, 65536));
+                    chunk = CreateArenaChunk(chunkSize);
+                }
                 chunks.Add(chunk);
                 index = chunks.Count - 1;
             }
@@ -307,21 +330,56 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         SubmitOneShotAsyncLocked(commandBuffer, default);
     }
 
-    /// <summary>Releases the arena chunks of the slot the next frame will write
-    /// into. The chunk buffers go through the frame-delayed disposal queue: a
-    /// copy flushed late in the previous frame may still be executing when
-    /// rotation runs, and the disposal delay covers that window.</summary>
+    /// <summary>Rotates the upload arena: chunks that sat out the safety
+    /// distance in the retired ring re-enter the free pool for reuse, and the
+    /// chunks of the slot the next frame writes into are retired in their
+    /// place. Retiring plus a full ring cycle matches the frame distance the
+    /// old destroy path relied on, so the GPU is guaranteed done reading a
+    /// chunk's previous contents before it is rewritten. Free-pool memory
+    /// above the budget is released so a burst cannot pin staging memory
+    /// forever.</summary>
     private unsafe void RotateUploadArena()
     {
         lock (_arenaLock)
         {
             int slot = (int)((_uploadFrame + 1) % ArenaSlotCount);
-            List<ArenaChunk> chunks = ArenaSlot(slot);
-            foreach (ArenaChunk chunk in chunks)
+
+            // recycle chunks retired one full ring cycle ago: their last write
+            // is now the same distance away the old dispose-after-3-frames
+            // path guaranteed, so they are safe to hand out again
+            if (_retiredArenaChunks[slot] is { } recycled)
             {
+                foreach (ArenaChunk chunk in recycled)
+                {
+                    ArenaChunk reset = chunk;
+                    reset.Used = 0;
+                    _freeArenaChunks.Add(reset);
+                }
+                recycled.Clear();
+            }
+
+            // retire the slot the next frame owns; its chunks re-enter the
+            // free pool when this slot index comes up for rotation again
+            List<ArenaChunk> chunks = ArenaSlot(slot);
+            List<ArenaChunk> retired = _retiredArenaChunks[slot] ??= new List<ArenaChunk>();
+            retired.AddRange(chunks);
+            chunks.Clear();
+
+            // shrink from the tail: burst-sized chunks were recycled last, and
+            // steady-state 8MB chunks at the head get reused first
+            ulong freeBytes = 0;
+            foreach (ArenaChunk free in _freeArenaChunks)
+            {
+                freeBytes += free.Size;
+            }
+            for (int i = _freeArenaChunks.Count - 1; i >= 0 && freeBytes > FreeArenaChunkBudget; i--)
+            {
+                ArenaChunk chunk = _freeArenaChunks[i];
+                freeBytes -= chunk.Size;
+                _freeArenaChunks.RemoveAt(i);
                 QueueDisposal(DisposalKind.BufferWithAllocation, chunk.Buffer.Handle, chunk.Allocation, chunk.Mapped);
             }
-            chunks.Clear();
+
             _uploadFrame++;
         }
     }
@@ -1981,7 +2039,20 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                     vmaDestroyBuffer(Allocator, chunk.Buffer, chunk.Allocation);
                 }
                 ArenaSlot(slot).Clear();
+                if (_retiredArenaChunks[slot] is { } retired)
+                {
+                    foreach (ArenaChunk chunk in retired)
+                    {
+                        vmaDestroyBuffer(Allocator, chunk.Buffer, chunk.Allocation);
+                    }
+                    retired.Clear();
+                }
             }
+            foreach (ArenaChunk chunk in _freeArenaChunks)
+            {
+                vmaDestroyBuffer(Allocator, chunk.Buffer, chunk.Allocation);
+            }
+            _freeArenaChunks.Clear();
             _pendingCopies.Clear();
             _pendingTextureInits.Clear();
         }
