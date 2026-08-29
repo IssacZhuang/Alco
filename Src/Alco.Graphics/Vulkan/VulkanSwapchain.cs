@@ -12,6 +12,9 @@ namespace Alco.Graphics.Vulkan;
 internal sealed unsafe class VulkanSwapchain : GPUSwapchain
 {
     private const int FlightSlots = 2;
+    /// <summary>Swapchain frames in flight; the device's present-barrier one-shot
+    /// retirement delays by this many frames (see VulkanDevice.ProcessOneShots).</summary>
+    internal const int FlightSlotCount = FlightSlots;
 
     private readonly VulkanDevice _device;
     private readonly VulkanAttachmentLayout _attachmentLayout;

@@ -109,10 +109,11 @@ internal sealed unsafe class VulkanDevice : GPUDevice
     private readonly List<PendingUpload> _activeUploads = new();
 
     // one-shot buffers submitted against an externally owned fence (present
-    // barriers signal the swapchain slot fence); retired once the fence signals
+    // barriers signal the swapchain slot fence); retired by frame distance
+    // once the slot handshake guarantees the GPU finished them
     private struct PendingOneShot
     {
-        public VkFence Fence;
+        public long FrameStamp;
         public VkCommandBuffer CommandBuffer;
     }
     private readonly List<PendingOneShot> _pendingOneShots = new();
@@ -1185,8 +1186,9 @@ internal sealed unsafe class VulkanDevice : GPUDevice
 
     /// <summary>Submits the present-layout transition for a swapchain image. The
     /// submission is ordered before present through the swapchain's semaphores;
-    /// its one-shot command buffer is retired once the (externally owned) slot
-    /// fence signals, via <see cref="ProcessOneShots"/>.</summary>
+    /// its one-shot command buffer is retired by frame distance through
+    /// <see cref="ProcessOneShots"/> (the slot fence it signals is reset by the
+    /// next BeginFrame, so its status cannot be polled for retirement).</summary>
     public void SubmitPresentBarrier(VulkanTexture texture, VulkanSwapchain swapchain)
     {
         lock (_queueLock)
@@ -1222,26 +1224,29 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             VkResult result = vkQueueSubmit(Queue, 1, &submitInfo, fence);
             VulkanException.ThrowIfFailed(result, "Failed to submit present barrier");
 
-            // the fence belongs to the swapchain slot: retire without resetting it
-            _pendingOneShots.Add(new PendingOneShot { Fence = fence, CommandBuffer = commandBuffer });
+            // the fence belongs to the swapchain slot: the slot handshake (the
+            // next BeginFrame waits this fence before anything may reuse the
+            // buffer) makes it safely recyclable after the flight-slot distance
+            _pendingOneShots.Add(new PendingOneShot { FrameStamp = FrameCounter, CommandBuffer = commandBuffer });
             Tracker.BumpSerial();
         }
     }
 
-    /// <summary>Retires externally fenced one-shots (present barriers) whose
-    /// fence has signaled, returning the command buffers to the free pool. The
-    /// fence itself is never reset or destroyed here.</summary>
+    /// <summary>Retires externally fenced one-shots (present barriers) by frame
+    /// distance, returning the command buffers to the free pool. Fence polling
+    /// cannot work here: the swapchain slot fence a present barrier signals is
+    /// reset by the next BeginFrame before this runs, so its status reads
+    /// unsignaled forever. The slot handshake still guarantees completion —
+    /// BeginFrame of the following cycle waits that same fence — so after the
+    /// flight-slot frame distance the buffer is no longer executing.</summary>
     private void ProcessOneShots()
     {
-        lock (_queueLock)
+        for (int i = _pendingOneShots.Count - 1; i >= 0; i--)
         {
-            for (int i = _pendingOneShots.Count - 1; i >= 0; i--)
+            if (FrameCounter - _pendingOneShots[i].FrameStamp >= VulkanSwapchain.FlightSlotCount)
             {
-                if (vkGetFenceStatus(NativeDevice, _pendingOneShots[i].Fence) == VkResult.Success)
-                {
-                    _oneShotFree.Push(_pendingOneShots[i].CommandBuffer);
-                    _pendingOneShots.RemoveAt(i);
-                }
+                _oneShotFree.Push(_pendingOneShots[i].CommandBuffer);
+                _pendingOneShots.RemoveAt(i);
             }
         }
     }
