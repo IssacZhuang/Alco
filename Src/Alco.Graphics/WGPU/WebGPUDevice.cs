@@ -331,7 +331,8 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
-        WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
+        // WebGPUTextureBase, not WebGPUTexture: swapchain surface textures are readable too.
+        WGPUTexture nativeTexture = ((WebGPUTextureBase)texture).Native;
         TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
 
         WGPUBuffer tmpBuffer = WGPUBuffer.Null;
@@ -431,7 +432,7 @@ internal sealed partial class WebGPUDevice : GPUDevice
         GPUTextureReadbackRequest request,
         uint mipLevel = 0)
     {
-        WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
+        WGPUTexture nativeTexture = ((WebGPUTextureBase)texture).Native;
         TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
 
         WGPUBuffer tmpBuffer = WGPUBuffer.Null;

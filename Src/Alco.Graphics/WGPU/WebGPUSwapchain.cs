@@ -97,7 +97,9 @@ internal unsafe sealed class WebGPUSwapchain : GPUSwapchain
 
         _config.device = device.Native;
         _config.format = _attachmentLayout.WebGPUColorInfos[0].format;
-        _config.usage = WGPUTextureUsage.RenderAttachment;
+        // CopySrc lets frame-capture read back the presented surface (e.g. editor/agent
+        // screenshots); wgpu-native supports it on surface textures.
+        _config.usage = WGPUTextureUsage.RenderAttachment | WGPUTextureUsage.CopySrc;
         _config.presentMode = GetPresentMode(descriptor.IsVSyncEnabled);
         _isVSyncEnabled = descriptor.IsVSyncEnabled;
         _config.alphaMode = WGPUCompositeAlphaMode.Auto;
