@@ -186,6 +186,11 @@ public sealed class RenderPipeline : AutoDisposable
     /// <summary>The final node of the pipeline: blits the chain tail into the destination.</summary>
     public RGNode_Blit FinalBlit => _blitNode;
 
+    /// <summary>The plain-copy shader the final blit draws with. Graph-level capture
+    /// nodes (e.g. <c>RGNode_Capture</c>) are built from the same shader, so a
+    /// chain-tail capture matches the final blit's output.</summary>
+    public Shader BlitShader => _blitNode.BlitShader;
+
     /// <summary>
     /// The color the scene texture is cleared to at the start of <see cref="Render"/>.
     /// Depth is always cleared to 1; stencil only when the pipeline was created with
