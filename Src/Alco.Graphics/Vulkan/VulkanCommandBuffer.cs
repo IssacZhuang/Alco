@@ -20,19 +20,55 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
     private readonly VulkanDevice _device;
     private VkCommandBuffer _commandBuffer;
 
-    // the timeline value this buffer's last submission signaled; re-recording
-    // waits it before resetting (riders retire with the same wait)
-    internal long LastSubmitTimelineValue;
+    // Recording slot ring (wgpu-style per-frame command buffers): every Begin()
+    // rotates to the next native buffer, so re-recording waits a submission from
+    // RecordingSlotCount Begin cycles back instead of the previous frame's. With
+    // the swapchain's two-flight throttle that submission is always complete
+    // already, so CPU recording overlaps GPU execution instead of lock-stepping.
+    private const int RecordingSlotCount = VulkanSwapchain.FlightSlotCount + 1;
+
+    private struct RecordingSlot
+    {
+        // the native buffer, allocated lazily on the slot's first use
+        public VkCommandBuffer Buffer;
+        // the timeline value this slot's last submission signaled; re-recording
+        // waits it before resetting (riders retire with the same wait)
+        public long LastSubmitTimelineValue;
+        // rider one-shots folded into this slot's last submission (deferred-work
+        // lead / present trail): their completion is covered by the same timeline
+        // value, so PrepareCommandBuffer recycles them after waiting it
+        public VkCommandBuffer PendingLeadFlush;
+        public VkCommandBuffer PendingTrailBarrier;
+    }
+
+    private readonly RecordingSlot[] _slots = new RecordingSlot[RecordingSlotCount];
+    private int _activeSlot;
+    private int _nextSlot;
+
+    // the timeline value the active slot's last submission signaled
+    internal long LastSubmitTimelineValue
+    {
+        get => _slots[_activeSlot].LastSubmitTimelineValue;
+        set => _slots[_activeSlot].LastSubmitTimelineValue = value;
+    }
+
+    // rider one-shots folded into the active slot's last submission
+    internal VkCommandBuffer PendingLeadFlush
+    {
+        get => _slots[_activeSlot].PendingLeadFlush;
+        set => _slots[_activeSlot].PendingLeadFlush = value;
+    }
+
+    internal VkCommandBuffer PendingTrailBarrier
+    {
+        get => _slots[_activeSlot].PendingTrailBarrier;
+        set => _slots[_activeSlot].PendingTrailBarrier = value;
+    }
 
     // private recording tracker: states evolve in record order (== execution
     // order inside this buffer), seeded from the device tracker at each
     // resource's first use; reconciled with the device tracker at Submit time
     private readonly VulkanResourceTracker _tracker;
-    // rider one-shots folded into this buffer's last submission (deferred-work
-    // lead / present trail): their completion is covered by the same timeline
-    // value, so PrepareCommandBuffer recycles them after waiting it
-    internal VkCommandBuffer PendingLeadFlush;
-    internal VkCommandBuffer PendingTrailBarrier;
     // per-pass attachment transition scratch, grown once then reused so the
     // recording hot path never allocates
     private VulkanResourceTracker.BatchTransition[] _transitionScratch = Array.Empty<VulkanResourceTracker.BatchTransition>();
@@ -66,19 +102,27 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         : base(descriptor)
     {
         _device = device;
-        _commandBuffer = device.AllocateCommandBuffer();
         _tracker = new VulkanResourceTracker(device.Tracker);
-        // LastSubmitTimelineValue stays 0: the first Begin() has nothing to wait
+        // slots allocate lazily and stay at timeline value 0: the first Begin()
+        // of each slot has nothing to wait
     }
 
     // ===== command buffer lifecycle =====
 
     protected override void BeginCore()
     {
-        if (_commandBuffer.Handle == 0)
+        // rotate to the next slot: with one submission per frame per context the
+        // slot being reused was last submitted RecordingSlotCount frames ago,
+        // so the re-record wait below is satisfied by the swapchain's
+        // frames-in-flight throttle and never actually blocks
+        _activeSlot = _nextSlot;
+        _nextSlot = (_nextSlot + 1) % RecordingSlotCount;
+        ref RecordingSlot slot = ref _slots[_activeSlot];
+        if (slot.Buffer.Handle == 0)
         {
-            _commandBuffer = _device.AllocateCommandBuffer();
+            slot.Buffer = _device.AllocateCommandBuffer();
         }
+        _commandBuffer = slot.Buffer;
         _device.PrepareCommandBuffer(this);
         _tracker.Reset();
 
@@ -97,26 +141,31 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
     protected override void Dispose(bool disposing)
     {
-        // riders may still be executing; their timeline value dies with this
-        // wrapper (nothing will ever wait it), so retire them by frame
-        // distance like the wrapper's own buffer
-        if (PendingLeadFlush.Handle != 0)
+        for (int i = 0; i < _slots.Length; i++)
         {
-            _device.RetireRiderOneShotByFrame(PendingLeadFlush);
-            PendingLeadFlush = default;
+            ref RecordingSlot slot = ref _slots[i];
+            // riders may still be executing; their timeline value dies with this
+            // wrapper (nothing will ever wait it), so retire them by frame
+            // distance like the wrapper's own buffers
+            if (slot.PendingLeadFlush.Handle != 0)
+            {
+                _device.RetireRiderOneShotByFrame(slot.PendingLeadFlush);
+                slot.PendingLeadFlush = default;
+            }
+            if (slot.PendingTrailBarrier.Handle != 0)
+            {
+                _device.RetireRiderOneShotByFrame(slot.PendingTrailBarrier);
+                slot.PendingTrailBarrier = default;
+            }
+            if (slot.Buffer.Handle != 0)
+            {
+                // the buffer may still be executing on the GPU; the deferred free
+                // waits out frames in flight before returning it to the pool
+                _device.QueueSecondaryCommandBufferFree(slot.Buffer);
+                slot.Buffer = default;
+            }
         }
-        if (PendingTrailBarrier.Handle != 0)
-        {
-            _device.RetireRiderOneShotByFrame(PendingTrailBarrier);
-            PendingTrailBarrier = default;
-        }
-        if (_commandBuffer.Handle != 0)
-        {
-            // the buffer may still be executing on the GPU; the deferred free
-            // waits out frames in flight before returning it to the pool
-            _device.QueueSecondaryCommandBufferFree(_commandBuffer);
-            _commandBuffer = default;
-        }
+        _commandBuffer = default;
     }
 
     // ===== render passes =====
@@ -169,14 +218,17 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             _pendingEndTimestamp = null;
         }
 
-        // make every write of the pass visible to any later use
-        _tracker.FlushPass(_commandBuffer);
+        // backstop: flush bind-time transitions queued after the last draw
+        // (usually empty — every draw flushes). Writes stay in their end state;
+        // the next usage point emits its own precise edge.
+        _tracker.FlushPendingBarriers(_commandBuffer);
+        _tracker.EndPassScope();
         _currentFrameBuffer = null;
         _currentGraphicsPipeline = null;
     }
 
-    /// <summary>Enters attachment states (precise barriers + touching) and starts
-    /// dynamic rendering with the assembled load/store ops and clear values.</summary>
+    /// <summary>Enters attachment states (precise barriers) and starts dynamic
+    /// rendering with the assembled load/store ops and clear values.</summary>
     private void BeginRenderNative(
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
@@ -207,7 +259,6 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         {
             VulkanTexture texture = (VulkanTexture)colors[i];
             transitions[transitionIndex++] = new VulkanResourceTracker.BatchTransition(texture, VulkanResourceState.ColorAttachment);
-            _tracker.TouchInPass(texture);
         }
 
         bool hasDepth = frameBufferImpl.DepthStencil != null;
@@ -220,7 +271,6 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             transitions[transitionIndex++] = new VulkanResourceTracker.BatchTransition(
                 depthTexture,
                 depthReadOnly ? VulkanResourceState.DepthRead : VulkanResourceState.DepthWrite);
-            _tracker.TouchInPass(depthTexture);
             depthLayout = _tracker.LayoutForTexture(depthTexture, depthReadOnly ? VulkanResourceState.DepthRead : VulkanResourceState.DepthWrite);
         }
         _tracker.TransitionBatch(_commandBuffer, transitions.AsSpan(0, attachmentCount));
@@ -419,8 +469,9 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
 
     protected override void EndComputeCore()
     {
-        // close the scope first: the pass-end flush below already makes every
-        // touched resource's current state visible, so pending flips are redundant
+        // close the dispatch scope: barriers queued by the last binds flushed
+        // before the last dispatch; leftover dispatch scopes die with the pass
+        // (the next usage point emits its own precise edge)
         _tracker.EndComputeScope();
 
         if (_pendingEndTimestamp.HasValue)
@@ -429,7 +480,8 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             vkCmdWriteTimestamp2(_commandBuffer, VkPipelineStageFlags2.BottomOfPipe, set.Native, index);
             _pendingEndTimestamp = null;
         }
-        _tracker.FlushPass(_commandBuffer);
+        // backstop for anything queued after the last dispatch
+        _tracker.FlushPendingBarriers(_commandBuffer);
         _currentComputePipeline = null;
     }
 
@@ -483,37 +535,41 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         VkBuffer nativeBuffer = bufferImpl.Native;
         ulong deviceOffset = offset;
         vkCmdBindVertexBuffers(_commandBuffer, slot, 1, &nativeBuffer, &deviceOffset);
-        MarkBufferUse(bufferImpl, VulkanResourceState.VertexRead);
+        _tracker.MarkBuffer(bufferImpl, VulkanResourceState.VertexRead);
     }
 
     protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         VulkanBuffer bufferImpl = (VulkanBuffer)buffer;
         vkCmdBindIndexBuffer(_commandBuffer, bufferImpl.Native, offset, VulkanUtility.IndexFormatToVulkan(format));
-        MarkBufferUse(bufferImpl, VulkanResourceState.IndexRead);
+        _tracker.MarkBuffer(bufferImpl, VulkanResourceState.IndexRead);
     }
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
+        _tracker.FlushPendingBarriers(_commandBuffer);
         vkCmdDraw(_commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
     protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
+        _tracker.FlushPendingBarriers(_commandBuffer);
         vkCmdDrawIndexed(_commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         VulkanBuffer buffer = (VulkanBuffer)indirectBuffer;
-        MarkBufferUse(buffer, VulkanResourceState.IndirectRead);
+        _tracker.MarkBuffer(buffer, VulkanResourceState.IndirectRead);
+        _tracker.FlushPendingBarriers(_commandBuffer);
         vkCmdDrawIndirect(_commandBuffer, buffer.Native, offset, 1, (uint)sizeof(VkDrawIndirectCommand));
     }
 
     protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         VulkanBuffer buffer = (VulkanBuffer)indirectBuffer;
-        MarkBufferUse(buffer, VulkanResourceState.IndirectRead);
+        _tracker.MarkBuffer(buffer, VulkanResourceState.IndirectRead);
+        _tracker.FlushPendingBarriers(_commandBuffer);
         vkCmdDrawIndexedIndirect(_commandBuffer, buffer.Native, offset, 1, (uint)sizeof(VkDrawIndexedIndirectCommand));
     }
 
@@ -551,14 +607,16 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         // make the previous dispatch's writes visible to this one (bind-time
         // state flips queue their barriers here; no-op when nothing flipped)
         _tracker.FlushDispatchBarriers(_commandBuffer);
+        _tracker.FlushPendingBarriers(_commandBuffer);
         vkCmdDispatch(_commandBuffer, x, y, z);
     }
 
     protected override void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         VulkanBuffer buffer = (VulkanBuffer)indirectBuffer;
-        MarkBufferUse(buffer, VulkanResourceState.IndirectRead);
+        _tracker.MarkBuffer(buffer, VulkanResourceState.IndirectRead);
         _tracker.FlushDispatchBarriers(_commandBuffer);
+        _tracker.FlushPendingBarriers(_commandBuffer);
         vkCmdDispatchIndirect(_commandBuffer, buffer.Native, offset);
     }
 
@@ -594,9 +652,19 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         // bundle instead of re-recording every command from C# each execute
         // (mirrors wgpu's native render bundle execution)
         VkCommandBuffer secondary = bundleImpl.GetOrRecordSecondary(
-            _device, this, _currentFrameBuffer!, _currentViewport, _currentScissor, _currentStencilReference);
+            _device, this, _currentFrameBuffer!, _currentViewport, _currentScissor, _currentStencilReference,
+            out bool reRecorded);
+        if (!reRecorded)
+        {
+            // a cached replay recorded no marks this time; apply them now so
+            // bundle-bound resources get the same hazard edges direct calls record
+            bundleImpl.ApplyTrackerMarks(_tracker);
+        }
+        // barriers belong in the primary: the secondary runs inside the open
+        // rendering scope, so every transition the bundle's binds queued flushes
+        // here, before the execute
+        _tracker.FlushPendingBarriers(_commandBuffer);
         vkCmdExecuteCommands(_commandBuffer, 1, &secondary);
-        bundleImpl.ApplyTrackerMarks(_tracker);
     }
 
     protected override void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundles)
@@ -626,14 +694,13 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             0,
             null);
 
-        // bind-time state updates without barriers: a resource has a single usage
-        // per pass (wgpu usage-scope semantics) and the previous pass flushed
+        // bind-time hazard edges queue as precise barriers and flush before the
+        // next draw (see VulkanResourceTracker.MarkBuffer/MarkTexture)
         IReadOnlyList<VulkanBuffer> buffers = group.BoundBuffers;
         IReadOnlyList<VulkanResourceState> bufferStates = group.BoundBufferStates;
         for (int i = 0; i < buffers.Count; i++)
         {
             tracker.MarkBuffer(buffers[i], bufferStates[i]);
-            tracker.TouchInPass(buffers[i]);
         }
 
         IReadOnlyList<VulkanTextureView> views = group.BoundViews;
@@ -641,7 +708,6 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         for (int i = 0; i < views.Count; i++)
         {
             tracker.MarkTexture(views[i].TextureRef, viewStates[i]);
-            tracker.TouchInPass(views[i].TextureRef);
         }
     }
 
@@ -669,7 +735,6 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         for (int i = 0; i < buffers.Count; i++)
         {
             tracker.MarkBuffer(buffers[i], bufferStates[i]);
-            tracker.TouchInPass(buffers[i]);
         }
 
         IReadOnlyList<VulkanTextureView> views = group.BoundViews;
@@ -677,14 +742,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         for (int i = 0; i < views.Count; i++)
         {
             tracker.MarkTexture(views[i].TextureRef, viewStates[i]);
-            tracker.TouchInPass(views[i].TextureRef);
         }
-    }
-
-    private void MarkBufferUse(VulkanBuffer buffer, VulkanResourceState state)
-    {
-        _tracker.MarkBuffer(buffer, state);
-        _tracker.TouchInPass(buffer);
     }
 
     // ===== out-of-pass copies =====
@@ -705,8 +763,8 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         };
         vkCmdCopyBuffer(_commandBuffer, srcImpl.Native, dstImpl.Native, 1, &copy);
 
-        // writes are visible to any later command in any submission
-        _tracker.MakeWritesVisible(_commandBuffer, VulkanResourceState.CopyDst);
+        // the destination stays in CopyDst; the next usage's transition makes
+        // the write visible (no eager drain)
     }
 
     protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect)
@@ -726,7 +784,8 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         vkCmdCopyBufferToImage(_commandBuffer, srcImpl.Native, dstImpl.Image,
             _tracker.LayoutForTexture(dstImpl, VulkanResourceState.CopyDst), 1, &copy);
 
-        _tracker.RestoreImageToIdle(_commandBuffer, dstImpl);
+        // the image stays in CopyDst (TRANSFER_DST layout); the next usage
+        // transitions it out with the precise edge
     }
 
     protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
@@ -770,8 +829,7 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             srcImpl.Image, _tracker.LayoutForTexture(srcImpl, VulkanResourceState.CopySrc),
             dstImpl.Image, _tracker.LayoutForTexture(dstImpl, VulkanResourceState.CopyDst), 1, &copy);
 
-        _tracker.RestoreImageToIdle(_commandBuffer, srcImpl);
-        _tracker.RestoreImageToIdle(_commandBuffer, dstImpl);
+        // both images stay in their transfer states; the next usage transitions
     }
 
     protected override void ResolveTimestampsCore(
@@ -794,7 +852,8 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
             sizeof(ulong),
             VkQueryResultFlags.Bit64);
 
-        _tracker.MakeWritesVisible(_commandBuffer, VulkanResourceState.CopyDst);
+        // the destination stays in CopyDst; the readback's CopySrc transition
+        // (or any later use) covers visibility of the resolve writes
 
         // queries must be reset between uses; do it right after the copy so the
         // pool is ready for the next frame's writes

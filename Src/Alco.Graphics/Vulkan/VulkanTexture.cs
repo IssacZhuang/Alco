@@ -10,6 +10,11 @@ internal sealed unsafe class VulkanTexture : GPUTexture
     public VkImage Image;
     public VmaAllocation Allocation;
 
+    /// <summary>Resource-tracker content version: bumped (interlocked) whenever any
+    /// tracker changes this texture's tracked state, so render-bundle executes can
+    /// skip re-marking entries whose state provably hasn't moved. Never reset.</summary>
+    internal long TrackVersion;
+
     public VkFormat VkFormat { get; }
     public VkImageType ImageType { get; }
     public VkExtent3D Extent { get; }

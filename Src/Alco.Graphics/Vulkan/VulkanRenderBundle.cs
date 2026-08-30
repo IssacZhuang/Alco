@@ -53,13 +53,36 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
     private readonly List<byte[]> _pushDataFree = new();
     private GPUAttachmentLayout? _bundleLayout;
 
-    // resources the bundle binds (built at EndCore); their combined source
-    // scope is unioned into the pass flush when the bundle executes so
-    // bundle-bound resources are hazard-covered without per-resource marks
+    // resources the bundle binds (built at EndCore); applied to the executing
+    // primary's tracker on cached executes so bundle-bound resources get the
+    // same hazard edges a direct call would record
     private List<(object Resource, VulkanResourceState State)> _recordedTouched = new();
     private List<(object Resource, VulkanResourceState State)> _recordingTouched = new();
-    private VkPipelineStageFlags2 _recordedScopeStage = VkPipelineStageFlags2.TopOfPipe;
-    private VkAccessFlags2 _recordedScopeAccess = VkAccessFlags2.None;
+
+    // _recordedTouched split by hazard kind (rebuilt at EndCore):
+    // - read-state entries carry a per-entry content-version stamp: an entry
+    //   whose version is unchanged since its mark last ran provably replays as
+    //   a no-op (marks only act on state changes, and every state change bumps
+    //   the resource's version), so cached executes skip it. This is what keeps
+    //   scene bundles with thousands of material resources cheap to execute.
+    // - write-state entries are always re-marked: their per-scope
+    //   write-after-write edges are not version-tracked.
+    private readonly List<(object Resource, VulkanResourceState State)> _recordedReads = new();
+    private readonly List<(object Resource, VulkanResourceState State)> _recordedWrites = new();
+    private readonly List<long> _readVersions = new();
+
+    // dirty-log fast path for cached executes (built at EndCore alongside the
+    // read split): instead of version-checking every read entry, intersect the
+    // tracker's dirty log (resources whose state changed since the cursor) with
+    // the read set — stable material textures then cost zero iterations.
+    // _readIndexByResource maps a resource to the HEAD of a _readNext chain:
+    // the same resource may hold several read entries (different states), and a
+    // dirty hit must re-mark all of them.
+    private readonly Dictionary<object, int> _readIndexByResource = new();
+    private readonly List<int> _readNext = new();
+    private readonly List<int> _dirtyHits = new();
+    private long _dirtyCursorFrame = -1;
+    private int _dirtyCursorIndex;
 
     // whether End() ever finished a recording. Matches WebGPU's HasBuffer: a
     // finished empty bundle is valid and executes as a no-op; only a bundle
@@ -155,8 +178,6 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
         // Deduped: shared per-frame buffers are bound by every segment, and the
         // tracker only needs one scope contribution per (resource, state).
         _recordedTouched.Clear();
-        _recordedScopeStage = VkPipelineStageFlags2.TopOfPipe;
-        _recordedScopeAccess = VkAccessFlags2.None;
         HashSet<(object Resource, VulkanResourceState State)> seen = new();
         foreach (BundleCommand command in _recordedCommands)
         {
@@ -191,6 +212,30 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
                 }
             }
         }
+
+        // split by hazard kind; fresh version stamps force one full mark pass
+        _recordedReads.Clear();
+        _recordedWrites.Clear();
+        _readVersions.Clear();
+        _readIndexByResource.Clear();
+        _readNext.Clear();
+        _dirtyCursorFrame = -1;
+        _dirtyCursorIndex = 0;
+        foreach ((object resource, VulkanResourceState state) in _recordedTouched)
+        {
+            if (VulkanResourceTracker.IsWriteState(state))
+            {
+                _recordedWrites.Add((resource, state));
+            }
+            else
+            {
+                int index = _recordedReads.Count;
+                _readNext.Add(_readIndexByResource.TryGetValue(resource, out int head) ? head : -1);
+                _readIndexByResource[resource] = index;
+                _recordedReads.Add((resource, state));
+                _readVersions.Add(-1); // never matches a real version
+            }
+        }
     }
 
     private void TryAddTouched(
@@ -201,32 +246,90 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
         if (seen.Add((resource, state)))
         {
             _recordedTouched.Add((resource, state));
-            (VkPipelineStageFlags2 stage, VkAccessFlags2 access) =
-                VulkanResourceTracker.ScopeOf(resource, state);
-            _recordedScopeStage |= stage;
-            _recordedScopeAccess |= access;
         }
     }
 
-    /// <summary>Unions the recorded bundle's resource scope into the executing
-    /// pass's flush barrier. Called at execute time; bundle-bound resources take
-    /// part in automatic hazard tracking without per-resource tracker marks.</summary>
+    /// <summary>Applies the recorded bundle's bind marks to the executing
+    /// primary's tracker so bundle-bound resources get the same hazard edges a
+    /// direct call would record. Skipped when the execute just re-recorded the
+    /// cached secondary (the replay already marked everything).</summary>
     internal void ApplyTrackerMarks(VulkanResourceTracker tracker)
     {
-        tracker.UnionBundleScope(_recordedScopeStage, _recordedScopeAccess);
+        List<(object Resource, VulkanResourceState State)> reads = _recordedReads;
+
+        // fast path: re-mark only the read entries whose resource the dirty log
+        // saw change since the last pass (the log scan collects hits under its
+        // lock; the marks run after, keeping lock order tracker -> dirty log)
+        List<int> hits = _dirtyHits;
+        hits.Clear();
+        long cursorFrame = _dirtyCursorFrame;
+        int cursorIndex = _dirtyCursorIndex;
+        if (VulkanResourceTracker.ScanDirtyLog(_readIndexByResource, hits, ref cursorFrame, ref cursorIndex))
+        {
+            _dirtyCursorFrame = cursorFrame;
+            _dirtyCursorIndex = cursorIndex;
+            foreach (int head in hits)
+            {
+                for (int i = head; i >= 0; i = _readNext[i])
+                {
+                    (object resource, VulkanResourceState state) = reads[i];
+                    MarkOne(tracker, resource, state);
+                    _readVersions[i] = VulkanResourceTracker.VersionOf(resource);
+                }
+            }
+        }
+        else
+        {
+            // fallback (first pass, or the cursor fell out of the ring):
+            // version-check every read entry — an entry whose version has not
+            // moved since its mark last ran provably replays as a no-op
+            for (int i = 0; i < reads.Count; i++)
+            {
+                (object resource, VulkanResourceState state) = reads[i];
+                if (VulkanResourceTracker.VersionOf(resource) == _readVersions[i])
+                {
+                    continue;
+                }
+                MarkOne(tracker, resource, state);
+                _readVersions[i] = VulkanResourceTracker.VersionOf(resource);
+            }
+            VulkanResourceTracker.DirtyLogCursor(out _dirtyCursorFrame, out _dirtyCursorIndex);
+        }
+
+        // write-state entries: per-scope WAW edges are not version-tracked
+        List<(object Resource, VulkanResourceState State)> writes = _recordedWrites;
+        for (int i = 0; i < writes.Count; i++)
+        {
+            MarkOne(tracker, writes[i].Resource, writes[i].State);
+        }
+    }
+
+    private static void MarkOne(VulkanResourceTracker tracker, object resource, VulkanResourceState state)
+    {
+        if (resource is VulkanTexture texture)
+        {
+            tracker.MarkTexture(texture, state);
+        }
+        else if (resource is VulkanBuffer buffer)
+        {
+            tracker.MarkBuffer(buffer, state);
+        }
     }
 
     /// <summary>Returns a cached secondary command buffer that replays this
     /// bundle, keyed by the executing primary (see <see cref="CachedSecondary"/>).
     /// Dynamic rendering secondaries start with undefined dynamic state, so the
-    /// viewport/scissor/stencil state is baked into the recording.</summary>
+    /// viewport/scissor/stencil state is baked into the recording.
+    /// <paramref name="reRecorded"/> reports whether the secondary was recorded
+    /// fresh this call (its replay already applied the tracker marks).</summary>
     internal VkCommandBuffer GetOrRecordSecondary(
         VulkanDevice device,
         VulkanCommandBuffer primary,
         VulkanFrameBufferBase frameBuffer,
         VkViewport viewport,
         VkRect2D scissor,
-        uint stencilReference)
+        uint stencilReference,
+        out bool reRecorded)
     {
         long frame = VulkanDevice.FrameCounter;
         uint width = (uint)scissor.extent.width;
@@ -242,6 +345,7 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
                 && cached.StencilReference == stencilReference)
             {
                 cached.FrameStamp = frame;
+                reRecorded = false;
                 return cached.CommandBuffer;
             }
         }
@@ -280,12 +384,23 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
         }
 
         RecordSecondary(device, primary.Tracker, target, viewport, scissor, stencilReference);
+        // the replay just applied every mark; stamp the dirty cursor first so
+        // bumps racing with the version stamps below land AFTER the cursor and
+        // are re-marked by the next execute's scan (never silently skipped)
+        VulkanResourceTracker.DirtyLogCursor(out _dirtyCursorFrame, out _dirtyCursorIndex);
+        // stamp the read versions so the next cached execute can skip the
+        // no-op ones
+        for (int i = 0; i < _recordedReads.Count; i++)
+        {
+            _readVersions[i] = VulkanResourceTracker.VersionOf(_recordedReads[i].Resource);
+        }
         target.Primary = primary;
         target.FrameStamp = frame;
         target.Width = width;
         target.Height = height;
         target.StencilReference = stencilReference;
         target.Recorded = true;
+        reRecorded = true;
         return target.CommandBuffer;
     }
 
@@ -379,14 +494,12 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
                     ulong offset = command.Offset;
                     vkCmdBindVertexBuffers(commandBuffer, command.Slot, 1, &buffer, &offset);
                     tracker.MarkBuffer(command.Buffer, VulkanResourceState.VertexRead);
-                    tracker.TouchInPass(command.Buffer);
                     break;
                 }
 
                 case CommandKind.IndexBuffer:
                 {
                     tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndexRead);
-                    tracker.TouchInPass(command.Buffer);
                     vkCmdBindIndexBuffer(
                         commandBuffer,
                         command.Buffer!.Native,
@@ -406,7 +519,6 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
                 case CommandKind.DrawIndirect:
                 {
                     tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndirectRead);
-                    tracker.TouchInPass(command.Buffer);
                     vkCmdDrawIndirect(commandBuffer, command.Buffer!.Native, command.Offset, 1, (uint)sizeof(VkDrawIndirectCommand));
                     break;
                 }
@@ -414,7 +526,6 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
                 case CommandKind.DrawIndexedIndirect:
                 {
                     tracker.MarkBuffer(command.Buffer!, VulkanResourceState.IndirectRead);
-                    tracker.TouchInPass(command.Buffer);
                     vkCmdDrawIndexedIndirect(commandBuffer, command.Buffer!.Native, command.Offset, 1, (uint)sizeof(VkDrawIndexedIndirectCommand));
                     break;
                 }
@@ -581,6 +692,12 @@ internal sealed unsafe class VulkanRenderBundle : GPURenderBundle
         _recordingPushData.Clear();
         _recordedTouched.Clear();
         _recordingTouched.Clear();
+        _recordedReads.Clear();
+        _recordedWrites.Clear();
+        _readVersions.Clear();
+        _readIndexByResource.Clear();
+        _readNext.Clear();
+        _dirtyHits.Clear();
 
         if (disposing)
         {

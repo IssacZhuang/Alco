@@ -352,7 +352,8 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         // the drained queue becomes the next swap target
         _copiesDrain = copies;
 
-        Tracker.MakeWritesVisible(commandBuffer, VulkanResourceState.CopyDst);
+        // destinations stay in CopyDst; each buffer's next usage transition
+        // emits the precise visibility edge (no eager drain)
         return true;
     }
 
@@ -1936,7 +1937,8 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                 size = size,
             };
             vkCmdCopyBuffer(commandBuffer, bufferImpl.Native, staging.Buffer, 1, &copy);
-            Tracker.MakeWritesVisible(commandBuffer, VulkanResourceState.CopySrc);
+            // the buffer stays in CopySrc; its next usage transition covers
+            // the WAR edge against this read
             fence = SubmitOneShotBlockingLocked(commandBuffer);
         }
 
@@ -2013,7 +2015,8 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                 mipLevel, width, height, depthOrLayers, aspect, 0,
                 textureImpl.Is3D, alignedRow, texelSize);
             vkCmdCopyBufferToImage(commandBuffer, staging.Buffer, textureImpl.Image, Tracker.LayoutForTexture(textureImpl, VulkanResourceState.CopyDst), 1, &copy);
-            Tracker.RestoreImageToIdle(commandBuffer, textureImpl);
+            // the image stays in CopyDst (TRANSFER_DST layout); the next usage
+            // transitions it out with the precise edge
             SubmitOneShotAsyncLocked(commandBuffer, staging);
         }
     }
@@ -2050,7 +2053,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                 mipLevel, width, height, depthOrLayers, aspect, 0,
                 textureImpl.Is3D, alignedRow, texelSize);
             vkCmdCopyImageToBuffer(commandBuffer, textureImpl.Image, Tracker.LayoutForTexture(textureImpl, VulkanResourceState.CopySrc), staging.Buffer, 1, &copy);
-            Tracker.RestoreImageToIdle(commandBuffer, textureImpl);
+            // the image stays in CopySrc; its next usage transitions it out
             fence = SubmitOneShotBlockingLocked(commandBuffer);
         }
 
@@ -2133,7 +2136,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
                 mipLevel, width, height, depthOrLayers, aspect, 0,
                 textureImpl.Is3D, alignedRow, texelSize);
             vkCmdCopyImageToBuffer(commandBuffer, textureImpl.Image, Tracker.LayoutForTexture(textureImpl, VulkanResourceState.CopySrc), staging.Buffer, 1, &copy);
-            Tracker.RestoreImageToIdle(commandBuffer, textureImpl);
+            // the image stays in CopySrc; its next usage transitions it out
             SubmitOneShotLocked(commandBuffer, fence);
         }
 

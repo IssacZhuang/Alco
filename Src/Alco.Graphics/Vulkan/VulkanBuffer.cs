@@ -10,6 +10,11 @@ internal sealed unsafe class VulkanBuffer : GPUBuffer
     public VkBuffer Native;
     public VmaAllocation Allocation;
 
+    /// <summary>Resource-tracker content version: bumped (interlocked) whenever any
+    /// tracker changes this buffer's tracked state, so render-bundle executes can
+    /// skip re-marking entries whose state provably hasn't moved. Never reset.</summary>
+    internal long TrackVersion;
+
     /// <summary>Persistent mapping, only valid when <see cref="IsHostVisible"/>.</summary>
     public void* MappedPointer;
 

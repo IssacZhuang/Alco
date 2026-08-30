@@ -63,17 +63,21 @@ internal enum VulkanResourceState : byte
 /// </para>
 /// <para>
 /// Layout policy (mirrors wgpu): attachment, transfer and present usages move the
-/// image into their optimal layouts — this is what keeps depth compression and
-/// present efficient. Sampling and storage usages keep the image in GENERAL:
-/// binds recorded inside a rendering scope cannot emit layout transitions, so
-/// every bindable texture must sit in GENERAL when a pass starts. <see cref="FlushPass"/>
-/// restores attachments that left GENERAL back into it, and copies restore via
-/// <see cref="RestoreImageToIdle"/>. Hazard handling:
-/// - precise barriers at usage points outside passes (attachments on pass begin, copies);
-/// - bind-time state updates inside passes without barriers (a resource has a single
-///   usage per pass, matching wgpu usage scopes);
-/// - one wide "pass flush" barrier per pass end, which makes all pass writes visible
-///   to any later use and restores attachment layouts.
+/// image into their optimal layouts and the image STAYS there until the next
+/// usage says otherwise — there is no pass-end restore, so depth/color
+/// compression survives across passes. Sampling and storage usages keep GENERAL:
+/// binds recorded inside a rendering scope cannot transition attachment layouts,
+/// so every bindable texture must reach GENERAL at bind time, which the queued
+/// bind-time transition guarantees. Hazard handling is fully edge-based (wgpu's
+/// usage-scope expansion):
+/// - every usage point derives the precise barrier from the resource's current
+///   state scope to its next state scope (read-after-read records nothing);
+/// - a resource carrying an unsynchronized write (see <see cref="_pendingWrites"/>)
+///   forces a barrier even when the state repeats (write-after-write), and
+///   first-use seeding imports that flag from the device tracker's state so
+///   cross-submission writes are covered the same way;
+/// - bind-time transitions batch into ONE barrier flushed before the next
+///   draw/dispatch; pass-entry attachments and copies transition eagerly.
 /// </para>
 /// </summary>
 internal sealed unsafe class VulkanResourceTracker
@@ -104,19 +108,36 @@ internal sealed unsafe class VulkanResourceTracker
     // per command buffer, recording is single-threaded per buffer)
     private readonly List<VkImageMemoryBarrier2> _prologueBarriers = new();
 
-    // resources touched by the pass currently being recorded (cleared at pass end)
-    private readonly HashSet<object> _passTouched = new();
+    // resources carrying a write no recorded barrier covers yet: a same-state
+    // reuse while listed here still needs a barrier (write-after-write edge,
+    // wgpu's usage-scope expansion). Recording trackers seed this from the
+    // device tracker's state at first use so cross-submission writes are
+    // covered the same way as in-buffer ones.
+    private readonly HashSet<object> _pendingWrites = new();
+
+    // write-state resources already synchronized into the currently open
+    // usage scope (pass): WebGPU gives one usage scope per resource per render
+    // pass, so rebinds of the same storage resource by later draws of the
+    // pass must NOT emit another edge — the scope's first bind covered it.
+    // Cleared when the pass closes.
+    private readonly HashSet<object> _passBinds = new();
+
+    // bind-time transitions queued since the last flush, emitted as ONE barrier
+    // command before the next consuming command (see FlushPendingBarriers).
+    // Only recording trackers ever queue; the device tracker's transitions are
+    // emitted eagerly. _hasPendingMemory guards the stage unions because
+    // TopOfPipe is a real stage bit and cannot double as "empty".
+    private readonly List<VkImageMemoryBarrier2> _pendingImageBarriers = new();
+    private VkPipelineStageFlags2 _pendingSrcStage = VkPipelineStageFlags2.TopOfPipe;
+    private VkAccessFlags2 _pendingSrcAccess = VkAccessFlags2.None;
+    private VkPipelineStageFlags2 _pendingDstStage = VkPipelineStageFlags2.TopOfPipe;
+    private VkAccessFlags2 _pendingDstAccess = VkAccessFlags2.None;
+    private bool _hasPendingMemory;
 
     // device tracker: bumped on every queue submission / invalidation so recording
     // contexts can skip the submit-time scan when nothing was submitted in between;
     // recording trackers: the device serial observed at Reset() time
     private long _serial;
-
-    // source scopes contributed by render-bundle executes since the last
-    // FlushPass; folded into the pass-flush union barrier so bundle-bound
-    // resources are hazard-covered without per-resource tracker marks
-    private VkPipelineStageFlags2 _bundleSrcStage;
-    private VkAccessFlags2 _bundleSrcAccess;
 
     // compute passes have no native pass object in Vulkan, so barriers ARE
     // legal between their dispatches (rendering scopes are the only ones that
@@ -235,6 +256,13 @@ internal sealed unsafe class VulkanResourceTracker
         if (_parent != null)
         {
             _firstUses.Add(new FirstUse(resource, seed));
+            // a seeded WRITE state carries an unsynchronized cross-submission
+            // hazard: the first same-state reuse in this buffer must still
+            // emit the WAW edge against the previous submission's commands
+            if (IsWriteState(seed))
+            {
+                _pendingWrites.Add(resource);
+            }
         }
     }
 
@@ -245,6 +273,8 @@ internal sealed unsafe class VulkanResourceTracker
         using var __ = Lock();
         {
             _imageStates[texture] = VulkanResourceState.Undefined;
+            _pendingWrites.Remove(texture);
+            MarkStateChanged(texture);
             _serial++;
         }
     }
@@ -254,6 +284,8 @@ internal sealed unsafe class VulkanResourceTracker
         using var __ = Lock();
         {
             _imageStates.Remove(texture);
+            _pendingWrites.Remove(texture);
+            MarkStateChanged(texture);
             _serial++;
         }
     }
@@ -263,6 +295,8 @@ internal sealed unsafe class VulkanResourceTracker
         using var __ = Lock();
         {
             _bufferStates.Remove(buffer);
+            _pendingWrites.Remove(buffer);
+            MarkStateChanged(buffer);
             _serial++;
         }
     }
@@ -282,14 +316,16 @@ internal sealed unsafe class VulkanResourceTracker
     /// <summary>
     /// Records a barrier transitioning <paramref name="texture"/> into
     /// <paramref name="target"/> and updates the tracked state. Only call from outside
-    /// a render/compute pass (attachment entry, copies, present).
+    /// a render/compute pass (attachment entry, copies, present). Repeating the
+    /// current state is a no-op unless the resource carries an unsynchronized
+    /// write — a same-state write-after-write edge still needs the barrier.
     /// </summary>
     public void TransitionTexture(VkCommandBuffer commandBuffer, VulkanTexture texture, VulkanResourceState target)
     {
         using var __ = Lock();
         {
             VulkanResourceState source = GetTextureStateUnlocked(texture);
-            if (source == target)
+            if (source == target && !(IsWriteState(target) && _pendingWrites.Contains(texture)))
             {
                 return;
             }
@@ -315,20 +351,30 @@ internal sealed unsafe class VulkanResourceTracker
             };
             vkCmdPipelineBarrier2(commandBuffer, &dependency);
 
+            _pendingWrites.Remove(texture);
             _imageStates[texture] = target;
+            if (source != target)
+            {
+                MarkStateChanged(texture);
+            }
+            if (IsWriteState(target))
+            {
+                _pendingWrites.Add(texture);
+            }
         }
     }
 
     /// <summary>
     /// Records a barrier transitioning <paramref name="buffer"/> into
-    /// <paramref name="target"/> and updates the tracked state.
+    /// <paramref name="target"/> and updates the tracked state. Repeating the
+    /// current state is a no-op unless the buffer carries an unsynchronized write.
     /// </summary>
     public void TransitionBuffer(VkCommandBuffer commandBuffer, VulkanBuffer buffer, VulkanResourceState target)
     {
         using var __ = Lock();
         {
             VulkanResourceState source = GetBufferStateUnlocked(buffer);
-            if (source == target)
+            if (source == target && !(IsWriteState(target) && _pendingWrites.Contains(buffer)))
             {
                 return;
             }
@@ -351,7 +397,16 @@ internal sealed unsafe class VulkanResourceTracker
             };
             vkCmdPipelineBarrier2(commandBuffer, &dependency);
 
+            _pendingWrites.Remove(buffer);
             _bufferStates[buffer] = target;
+            if (source != target)
+            {
+                MarkStateChanged(buffer);
+            }
+            if (IsWriteState(target))
+            {
+                _pendingWrites.Add(buffer);
+            }
         }
     }
 
@@ -370,8 +425,10 @@ internal sealed unsafe class VulkanResourceTracker
 
     /// <summary>
     /// Transitions a set of textures (the incoming pass attachments) in ONE barrier
-    /// command. Attachments leave the GENERAL idle layout, so every texture that
-    /// changes state needs a real per-image barrier; they all fold into a single
+    /// command. Every texture that changes state gets a real per-image barrier;
+    /// a texture that stays in a write state while carrying an unsynchronized
+    /// write (the same attachment rendered by two passes in a row) gets a
+    /// layout-preserving write-after-write edge. All fold into a single
     /// vkCmdPipelineBarrier2.
     /// </summary>
     public void TransitionBatch(VkCommandBuffer commandBuffer, ReadOnlySpan<BatchTransition> targets)
@@ -386,7 +443,8 @@ internal sealed unsafe class VulkanResourceTracker
             int changeCount = 0;
             foreach (BatchTransition t in targets)
             {
-                if (GetTextureStateUnlocked(t.Texture) != t.Target)
+                VulkanResourceState source = GetTextureStateUnlocked(t.Texture);
+                if (source != t.Target || (IsWriteState(t.Target) && _pendingWrites.Contains(t.Texture)))
                 {
                     changeCount++;
                 }
@@ -402,7 +460,7 @@ internal sealed unsafe class VulkanResourceTracker
             foreach (BatchTransition t in targets)
             {
                 VulkanResourceState source = GetTextureStateUnlocked(t.Texture);
-                if (source == t.Target)
+                if (source == t.Target && !(IsWriteState(t.Target) && _pendingWrites.Contains(t.Texture)))
                 {
                     continue;
                 }
@@ -411,7 +469,16 @@ internal sealed unsafe class VulkanResourceTracker
                 (VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess) = ImageScope(t.Target);
                 imageBarriers[imageIndex++] = BuildImageBarrier(t.Texture, source, t.Target, srcStage, srcAccess, dstStage, dstAccess);
 
+                _pendingWrites.Remove(t.Texture);
                 _imageStates[t.Texture] = t.Target;
+                if (source != t.Target)
+                {
+                    MarkStateChanged(t.Texture);
+                }
+                if (IsWriteState(t.Target))
+                {
+                    _pendingWrites.Add(t.Texture);
+                }
             }
 
             VkDependencyInfo dependency = new()
@@ -424,24 +491,71 @@ internal sealed unsafe class VulkanResourceTracker
     }
 
     /// <summary>
-    /// Records a new state for a resource used inside a pass WITHOUT emitting a
-    /// barrier (illegal inside a rendering scope). Correct because wgpu semantics
-    /// give a resource a single usage per render pass, and the previous pass
-    /// flushed its writes when it ended. Inside a compute pass the binding is
-    /// also collected into the current dispatch scope: every dispatch is its
-    /// own usage scope, so consecutive dispatches re-using a resource need a
-    /// barrier between them even with an unchanged tracked state (see
-    /// <see cref="FlushDispatchBarriers"/>).
+    /// Records a new state for a resource used inside a pass. The hazard edge from
+    /// the previous usage — a layout change, or an unsynchronized write the
+    /// resource still carries — is queued and flushed as one barrier right before
+    /// the next draw (<see cref="FlushPendingBarriers"/>). Bindable states never
+    /// leave the GENERAL layout, so bind-time barriers inside a rendering scope
+    /// are legal memory barriers that touch no attachment. Read-after-read with
+    /// unchanged usage records nothing (wgpu usage scopes). Inside a compute pass
+    /// the binding instead collects into the current dispatch scope: every
+    /// dispatch is its own usage scope, so consecutive dispatches re-using a
+    /// resource are synchronized by <see cref="FlushDispatchBarriers"/> instead.
     /// </summary>
     public void MarkTexture(VulkanTexture texture, VulkanResourceState target)
     {
         using var __ = Lock();
         {
-            _ = GetTextureStateUnlocked(texture); // seed first use if needed
-            _imageStates[texture] = target;
+            VulkanResourceState source = GetTextureStateUnlocked(texture); // seed first use if needed
             if (_inComputePass)
             {
+                if (source != target)
+                {
+                    _imageStates[texture] = target;
+                    MarkStateChanged(texture);
+                }
                 _dispatchBinds[texture] = target;
+                if (IsWriteState(target))
+                {
+                    _pendingWrites.Add(texture);
+                }
+                return;
+            }
+
+            if (source != target)
+            {
+                (VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess) = ImageScope(source);
+                (VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess) = ImageScope(target);
+                if (LayoutForState(texture, source) != LayoutForState(texture, target))
+                {
+                    _pendingImageBarriers.Add(BuildImageBarrier(texture, source, target, srcStage, srcAccess, dstStage, dstAccess));
+                }
+                else
+                {
+                    QueueMemoryEdge(srcStage, srcAccess, dstStage, dstAccess);
+                }
+            }
+            else if (IsWriteState(target) && _pendingWrites.Contains(texture) && !_passBinds.Contains(texture))
+            {
+                // same-state write-after-write, FIRST bind of this resource in
+                // the current usage scope: layouts stay GENERAL, so a pure
+                // execution/memory edge suffices. Rebinds by later draws of the
+                // same pass skip (WebGPU: one usage scope per resource per
+                // render pass); the scope re-opens at the next pass.
+                (VkPipelineStageFlags2 stage, VkAccessFlags2 access) = ImageScope(target);
+                QueueMemoryEdge(stage, access, stage, access);
+            }
+
+            _pendingWrites.Remove(texture);
+            if (source != target)
+            {
+                _imageStates[texture] = target;
+                MarkStateChanged(texture);
+            }
+            if (IsWriteState(target))
+            {
+                _pendingWrites.Add(texture);
+                _passBinds.Add(texture);
             }
         }
     }
@@ -450,12 +564,57 @@ internal sealed unsafe class VulkanResourceTracker
     {
         using var __ = Lock();
         {
-            _ = GetBufferStateUnlocked(buffer); // seed first use if needed
-            _bufferStates[buffer] = target;
+            VulkanResourceState source = GetBufferStateUnlocked(buffer); // seed first use if needed
             if (_inComputePass)
             {
+                if (source != target)
+                {
+                    _bufferStates[buffer] = target;
+                    MarkStateChanged(buffer);
+                }
                 _dispatchBinds[buffer] = target;
+                if (IsWriteState(target))
+                {
+                    _pendingWrites.Add(buffer);
+                }
+                return;
             }
+
+            if (source != target)
+            {
+                (VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess) = BufferScope(source);
+                (VkPipelineStageFlags2 dstStage, VkAccessFlags2 dstAccess) = BufferScope(target);
+                QueueMemoryEdge(srcStage, srcAccess, dstStage, dstAccess);
+            }
+            else if (IsWriteState(target) && _pendingWrites.Contains(buffer) && !_passBinds.Contains(buffer))
+            {
+                // same-state write-after-write edge, once per usage scope
+                (VkPipelineStageFlags2 stage, VkAccessFlags2 access) = BufferScope(target);
+                QueueMemoryEdge(stage, access, stage, access);
+            }
+
+            _pendingWrites.Remove(buffer);
+            if (source != target)
+            {
+                _bufferStates[buffer] = target;
+                MarkStateChanged(buffer);
+            }
+            if (IsWriteState(target))
+            {
+                _pendingWrites.Add(buffer);
+                _passBinds.Add(buffer);
+            }
+        }
+    }
+
+    /// <summary>Closes the current usage scope (pass end): rebinds in the NEXT
+    /// pass must re-evaluate their write-after-write edges. Compute passes use
+    /// the dispatch-scope machinery instead and need no call.</summary>
+    public void EndPassScope()
+    {
+        using var __ = Lock();
+        {
+            _passBinds.Clear();
         }
     }
 
@@ -472,9 +631,9 @@ internal sealed unsafe class VulkanResourceTracker
         }
     }
 
-    /// <summary>Closes the compute-pass scope. Leftover scopes are dropped: the
-    /// pass-end flush barrier already covers every touched resource's current
-    /// state, making them redundant.</summary>
+    /// <summary>Closes the compute-pass scope. Leftover dispatch scopes die with
+    /// the pass: the next usage point emits its own precise edge from whatever
+    /// state the resource ended in.</summary>
     public void EndComputeScope()
     {
         using var __ = Lock();
@@ -581,9 +740,9 @@ internal sealed unsafe class VulkanResourceTracker
         }
     }
 
-    /// <summary>Whether a state writes the resource (a dispatch pair involving
-    /// any write needs a barrier between them).</summary>
-    private static bool IsWriteState(VulkanResourceState state)
+    /// <summary>Whether a state writes the resource (a usage pair involving any
+    /// write needs a barrier between the two usages).</summary>
+    internal static bool IsWriteState(VulkanResourceState state)
     {
         return state switch
         {
@@ -596,223 +755,191 @@ internal sealed unsafe class VulkanResourceTracker
         };
     }
 
-    /// <summary>Combined (stage, access) source scope of a bound resource state —
-    /// pure mapping, no tracker state involved.</summary>
-    internal static (VkPipelineStageFlags2 Stage, VkAccessFlags2 Access) ScopeOf(
-        object resource, VulkanResourceState state)
-        => resource is VulkanTexture ? ImageScope(state) : BufferScope(state);
-
-    // ===== bundle scopes / pass scopes =====
-
-    /// <summary>Accumulates the source scope of one render-bundle execute into the
-    /// current pass's flush union (one call per execute, no per-resource work).</summary>
-    public void UnionBundleScope(VkPipelineStageFlags2 stage, VkAccessFlags2 access)
+    /// <summary>The resource's content version (see <see cref="VulkanTexture.TrackVersion"/>).</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static long VersionOf(object resource)
     {
-        using var __ = Lock();
-        {
-            _bundleSrcStage |= stage;
-            _bundleSrcAccess |= access;
-        }
+        return resource is VulkanTexture texture
+            ? Volatile.Read(ref texture.TrackVersion)
+            : Volatile.Read(ref ((VulkanBuffer)resource).TrackVersion);
     }
 
-    /// <summary>Registers a resource touched by the currently open pass so its writes
-    /// are flushed when the pass ends.</summary>
-    public void TouchInPass(object resource)
+    /// <summary>Bumps the resource's content version; call on every tracked
+    /// state VALUE change (any tracker). Interlocked: recording trackers on
+    /// different threads may change the same resource's state concurrently.
+    /// Also appends the resource to the dirty log so render bundles can re-mark
+    /// only changed entries instead of scanning their whole read set.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static void MarkStateChanged(object resource)
     {
-        using var __ = Lock();
+        if (resource is VulkanTexture texture)
         {
-            _passTouched.Add(resource);
+            _ = Interlocked.Increment(ref texture.TrackVersion);
         }
-    }
-
-    /// <summary>
-    /// Ends a usage scope: emits one wide barrier covering everything the pass
-    /// touched so all of its writes (shader writes, attachment writes) are visible
-    /// to any later command, and restores every attachment that left the GENERAL
-    /// idle layout back into it (in-pass binds assume GENERAL). Call right after
-    /// the native pass ended, outside the pass.
-    /// </summary>
-    public void FlushPass(VkCommandBuffer commandBuffer)
-    {
-        using var __ = Lock();
+        else
         {
-            // render-bundle executes since the last flush contribute their read
-            // scopes here; one union barrier covers them with the direct binds
-            VkPipelineStageFlags2 bundleStage = _bundleSrcStage;
-            VkAccessFlags2 bundleAccess = _bundleSrcAccess;
-            _bundleSrcStage = VkPipelineStageFlags2.TopOfPipe;
-            _bundleSrcAccess = VkAccessFlags2.None;
+            _ = Interlocked.Increment(ref ((VulkanBuffer)resource).TrackVersion);
+        }
 
-            if (_passTouched.Count == 0 && bundleStage == VkPipelineStageFlags2.TopOfPipe)
+        lock (s_dirtyLock)
+        {
+            long frame = VulkanDevice.FrameCounter;
+            int slot = (int)(frame % DirtyRingSize);
+            List<object> list = s_dirtyRing[slot];
+            if (list == null || s_dirtyRingFrames[slot] != frame)
             {
-                return;
+                list ??= new List<object>(64);
+                list.Clear();
+                s_dirtyRing[slot] = list;
+                s_dirtyRingFrames[slot] = frame;
+            }
+            list.Add(resource);
+        }
+    }
+
+    // ===== cross-tracker dirty log (bundle re-mark fast path) =====
+    // Every state-value change lands in the current frame's ring slot. A render
+    // bundle keeps a (frame, index) cursor into this log and, on execute,
+    // intersects the new entries with its read set — stable entries (the vast
+    // majority: thousands of material textures that never leave ShaderRead)
+    // cost zero iterations. Lock order: tracker lock -> s_dirtyLock, never the
+    // reverse; ScanDirtyLog callers collect hits under s_dirtyLock and mark
+    // after releasing it.
+    private const int DirtyRingSize = 8;
+    private static readonly List<object>[] s_dirtyRing = new List<object>[DirtyRingSize];
+    private static readonly long[] s_dirtyRingFrames = new long[DirtyRingSize];
+    private static readonly object s_dirtyLock = new();
+
+    /// <summary>Collects the read-set indices whose resource appears in the dirty
+    /// log after the cursor, and advances the cursor to the log tail. Returns
+    /// false when the cursor fell out of the ring (or was never set): the caller
+    /// must run a full mark pass and then re-stamp with <see cref="DirtyLogCursor"/>.</summary>
+    internal static bool ScanDirtyLog(
+        Dictionary<object, int> readIndex,
+        List<int> hits,
+        ref long cursorFrame,
+        ref int cursorIndex)
+    {
+        lock (s_dirtyLock)
+        {
+            long frame = VulkanDevice.FrameCounter;
+            if (cursorFrame < 0 || frame - cursorFrame >= DirtyRingSize)
+            {
+                return false;
             }
 
-            int restoreCount = 0;
-            foreach (object resource in _passTouched)
+            for (long f = cursorFrame; f <= frame; f++)
             {
-                if (resource is VulkanTexture texture
-                    && LayoutForState(texture, GetTextureStateUnlocked(texture)) != VkImageLayout.General)
+                int slot = (int)(f % DirtyRingSize);
+                if (s_dirtyRingFrames[slot] != f)
                 {
-                    restoreCount++;
+                    // slot overwritten or never written: history lost
+                    return false;
                 }
-            }
-
-            // zero-length stackalloc is legal; the pointer is unused when count is 0
-            VkImageMemoryBarrier2* imageBarriers = stackalloc VkImageMemoryBarrier2[restoreCount];
-            int imageIndex = 0;
-
-            // fold every touched resource's write scope into ONE barrier
-            VkPipelineStageFlags2 srcStage = bundleStage;
-            VkAccessFlags2 srcAccess = bundleAccess;
-            foreach (object resource in _passTouched)
-            {
-                if (resource is VulkanTexture texture)
+                List<object> list = s_dirtyRing[slot];
+                if (list == null)
                 {
-                    VulkanResourceState state = GetTextureStateUnlocked(texture);
-                    (VkPipelineStageFlags2 s, VkAccessFlags2 a) = ImageScope(state);
-                    srcStage |= s;
-                    srcAccess |= a;
-
-                    if (LayoutForState(texture, state) != VkImageLayout.General)
+                    continue; // stamped frame with nothing logged yet
+                }
+                int start = f == cursorFrame ? cursorIndex : 0;
+                for (int i = start; i < list.Count; i++)
+                {
+                    if (readIndex.TryGetValue(list[i], out int readIdx))
                     {
-                        imageBarriers[imageIndex++] = new VkImageMemoryBarrier2
-                        {
-                            srcStageMask = s,
-                            srcAccessMask = a,
-                            dstStageMask = VkPipelineStageFlags2.AllCommands,
-                            dstAccessMask = VkAccessFlags2.MemoryRead | VkAccessFlags2.MemoryWrite,
-                            oldLayout = LayoutForState(texture, state),
-                            newLayout = VkImageLayout.General,
-                            srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                            dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                            image = texture.Image,
-                            subresourceRange = new VkImageSubresourceRange
-                            {
-                                aspectMask = VulkanUtility.AspectToVulkan(TextureAspect.All, texture.VkFormat),
-                                baseMipLevel = 0,
-                                levelCount = texture.MipLevelCount,
-                                baseArrayLayer = 0,
-                                layerCount = texture.ArrayLayers,
-                            },
-                        };
-                        _imageStates[texture] = VulkanResourceState.Idle;
+                        hits.Add(readIdx);
                     }
                 }
-                else if (resource is VulkanBuffer buffer)
-                {
-                    (VkPipelineStageFlags2 s, VkAccessFlags2 a) = BufferScope(GetBufferStateUnlocked(buffer));
-                    srcStage |= s;
-                    srcAccess |= a;
-                }
             }
 
+            cursorFrame = frame;
+            cursorIndex = s_dirtyRing[(int)(frame % DirtyRingSize)]?.Count ?? 0;
+            return true;
+        }
+    }
+
+    /// <summary>Stamps a dirty-log cursor at the current tail; call after a full
+    /// mark pass (recording replay or a fallback scan) so later scans start here.</summary>
+    internal static void DirtyLogCursor(out long cursorFrame, out int cursorIndex)
+    {
+        lock (s_dirtyLock)
+        {
+            long frame = VulkanDevice.FrameCounter;
+            cursorFrame = frame;
+            cursorIndex = s_dirtyRing[(int)(frame % DirtyRingSize)]?.Count ?? 0;
+        }
+    }
+
+    // ===== queued bind-time barriers =====
+
+    private void QueueMemoryEdge(
+        VkPipelineStageFlags2 srcStage,
+        VkAccessFlags2 srcAccess,
+        VkPipelineStageFlags2 dstStage,
+        VkAccessFlags2 dstAccess)
+    {
+        if (!_hasPendingMemory)
+        {
+            _pendingSrcStage = srcStage;
+            _pendingSrcAccess = srcAccess;
+            _pendingDstStage = dstStage;
+            _pendingDstAccess = dstAccess;
+            _hasPendingMemory = true;
+            return;
+        }
+        _pendingSrcStage |= srcStage;
+        _pendingSrcAccess |= srcAccess;
+        _pendingDstStage |= dstStage;
+        _pendingDstAccess |= dstAccess;
+    }
+
+    /// <summary>
+    /// Emits every queued bind-time transition as ONE barrier command. Called
+    /// right before the next consuming command (draw, dispatch, bundle execute)
+    /// and as a backstop when a pass ends. <see cref="_pendingWrites"/> is NOT
+    /// cleared: the barrier synchronizes the past, and the commands that follow
+    /// still write. The fast path (nothing queued) is a pair of field reads —
+    /// recording trackers carry no lock.
+    /// </summary>
+    public void FlushPendingBarriers(VkCommandBuffer commandBuffer)
+    {
+        if (!_hasPendingMemory && _pendingImageBarriers.Count == 0)
+        {
+            return;
+        }
+
+        using var __ = Lock();
+        {
             VkMemoryBarrier2 memoryBarrier = new()
             {
-                srcStageMask = srcStage,
-                srcAccessMask = srcAccess,
-                dstStageMask = VkPipelineStageFlags2.AllCommands,
-                dstAccessMask = VkAccessFlags2.MemoryRead | VkAccessFlags2.MemoryWrite,
+                srcStageMask = _pendingSrcStage,
+                srcAccessMask = _pendingSrcAccess,
+                dstStageMask = _pendingDstStage,
+                dstAccessMask = _pendingDstAccess,
             };
 
-            VkDependencyInfo dependency = new()
+            Span<VkImageMemoryBarrier2> imageBarriers = CollectionsMarshal.AsSpan(_pendingImageBarriers);
+            fixed (VkImageMemoryBarrier2* imagePtr = imageBarriers)
             {
-                memoryBarrierCount = 1,
-                pMemoryBarriers = &memoryBarrier,
-                imageMemoryBarrierCount = (uint)imageIndex,
-                pImageMemoryBarriers = imageBarriers,
-            };
-            vkCmdPipelineBarrier2(commandBuffer, &dependency);
-            _passTouched.Clear();
-        }
-    }
-
-    /// <summary>
-    /// After an out-of-pass image copy, restores the image to the GENERAL idle
-    /// layout and makes the transfer scope visible to any later command (in-pass
-    /// binds and descriptor layouts assume GENERAL).
-    /// </summary>
-    public void RestoreImageToIdle(VkCommandBuffer commandBuffer, VulkanTexture texture)
-    {
-        using var __ = Lock();
-        {
-            VulkanResourceState state = GetTextureStateUnlocked(texture);
-            (VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess) = ImageScope(state);
-            VkImageLayout oldLayout = LayoutForState(texture, state);
-
-            VkImageMemoryBarrier2 barrier = new()
-            {
-                srcStageMask = srcStage,
-                srcAccessMask = srcAccess,
-                dstStageMask = VkPipelineStageFlags2.AllCommands,
-                dstAccessMask = VkAccessFlags2.MemoryRead | VkAccessFlags2.MemoryWrite,
-                oldLayout = oldLayout,
-                newLayout = VkImageLayout.General,
-                srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                image = texture.Image,
-                subresourceRange = new VkImageSubresourceRange
+                VkDependencyInfo dependency = new()
                 {
-                    aspectMask = VulkanUtility.AspectToVulkan(TextureAspect.All, texture.VkFormat),
-                    baseMipLevel = 0,
-                    levelCount = texture.MipLevelCount,
-                    baseArrayLayer = 0,
-                    layerCount = texture.ArrayLayers,
-                },
-            };
+                    imageMemoryBarrierCount = (uint)imageBarriers.Length,
+                    pImageMemoryBarriers = imagePtr,
+                };
+                if (_hasPendingMemory)
+                {
+                    dependency.memoryBarrierCount = 1;
+                    dependency.pMemoryBarriers = &memoryBarrier;
+                }
+                vkCmdPipelineBarrier2(commandBuffer, &dependency);
+            }
 
-            VkDependencyInfo dependency = new()
-            {
-                imageMemoryBarrierCount = 1,
-                pImageMemoryBarriers = &barrier,
-            };
-            vkCmdPipelineBarrier2(commandBuffer, &dependency);
-
-            _imageStates[texture] = VulkanResourceState.Idle;
+            _pendingImageBarriers.Clear();
+            _hasPendingMemory = false;
+            _pendingSrcStage = VkPipelineStageFlags2.TopOfPipe;
+            _pendingSrcAccess = VkAccessFlags2.None;
+            _pendingDstStage = VkPipelineStageFlags2.TopOfPipe;
+            _pendingDstAccess = VkAccessFlags2.None;
         }
-    }
-
-    /// <summary>Barriers everything the tracker touched without a pass context
-    /// (used after out-of-pass writes such as queue uploads).</summary>
-    public void ClearPassScope()
-    {
-        using var __ = Lock();
-        {
-            _passTouched.Clear();
-        }
-    }
-
-    /// <summary>
-    /// Emits a wide barrier making writes in <paramref name="writerState"/> scope
-    /// visible to any later command in any submission. Used after out-of-pass
-    /// BUFFER writes (copies, query resolves) so readers never need cross-submit
-    /// assumptions.
-    /// </summary>
-    public void MakeWritesVisible(VkCommandBuffer commandBuffer, VulkanResourceState writerState)
-    {
-        (VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess) = BufferScope(writerState);
-        using var __ = Lock();
-        {
-            RecordGlobalBarrier(commandBuffer, srcStage, srcAccess);
-        }
-    }
-
-    private static void RecordGlobalBarrier(VkCommandBuffer commandBuffer, VkPipelineStageFlags2 srcStage, VkAccessFlags2 srcAccess)
-    {
-        VkMemoryBarrier2 barrier = new()
-        {
-            srcStageMask = srcStage,
-            srcAccessMask = srcAccess,
-            dstStageMask = VkPipelineStageFlags2.AllCommands,
-            dstAccessMask = VkAccessFlags2.MemoryRead | VkAccessFlags2.MemoryWrite,
-        };
-
-        VkDependencyInfo dependency = new()
-        {
-            memoryBarrierCount = 1,
-            pMemoryBarriers = &barrier,
-        };
-        vkCmdPipelineBarrier2(commandBuffer, &dependency);
     }
 
     // ===== submit-time reconciliation (recording tracker -> device tracker) =====
@@ -826,12 +953,17 @@ internal sealed unsafe class VulkanResourceTracker
             _imageStates.Clear();
             _bufferStates.Clear();
             _firstUses.Clear();
-            _passTouched.Clear();
+            _pendingWrites.Clear();
+            _passBinds.Clear();
+            _pendingImageBarriers.Clear();
+            _hasPendingMemory = false;
+            _pendingSrcStage = VkPipelineStageFlags2.TopOfPipe;
+            _pendingSrcAccess = VkAccessFlags2.None;
+            _pendingDstStage = VkPipelineStageFlags2.TopOfPipe;
+            _pendingDstAccess = VkAccessFlags2.None;
             _dispatchBinds.Clear();
             _dispatchScopes.Clear();
             _inComputePass = false;
-            _bundleSrcStage = VkPipelineStageFlags2.TopOfPipe;
-            _bundleSrcAccess = VkAccessFlags2.None;
             _serial = _parent?.CurrentSerial ?? 0;
         }
     }
@@ -940,7 +1072,9 @@ internal sealed unsafe class VulkanResourceTracker
     }
 
     /// <summary>Copies this recording's final states into the device tracker and
-    /// bumps its serial. Call under the device queue lock right after submitting.</summary>
+    /// bumps its serial. Call under the device queue lock right after submitting.
+    /// Resource content versions bump only where the device value actually moves
+    /// (the recording's own marks already bumped them).</summary>
     public void AbsorbInto(VulkanResourceTracker device)
     {
         using var __ = Lock();
@@ -949,11 +1083,19 @@ internal sealed unsafe class VulkanResourceTracker
             {
                 foreach (KeyValuePair<VulkanTexture, VulkanResourceState> pair in _imageStates)
                 {
-                    device._imageStates[pair.Key] = pair.Value;
+                    if (!device._imageStates.TryGetValue(pair.Key, out VulkanResourceState old) || old != pair.Value)
+                    {
+                        device._imageStates[pair.Key] = pair.Value;
+                        MarkStateChanged(pair.Key);
+                    }
                 }
                 foreach (KeyValuePair<VulkanBuffer, VulkanResourceState> pair in _bufferStates)
                 {
-                    device._bufferStates[pair.Key] = pair.Value;
+                    if (!device._bufferStates.TryGetValue(pair.Key, out VulkanResourceState old) || old != pair.Value)
+                    {
+                        device._bufferStates[pair.Key] = pair.Value;
+                        MarkStateChanged(pair.Key);
+                    }
                 }
                 device._serial++;
             }
@@ -1006,13 +1148,14 @@ internal sealed unsafe class VulkanResourceTracker
     /// The actual VkImageLayout a state implies. Mirrors wgpu: attachments and
     /// transfer/present operations use their optimal layouts (this is what makes
     /// depth compression and present work efficiently); sampling and storage
-    /// usages stay in GENERAL because in-pass binds cannot record layout
-    /// transitions, so every bindable texture must be reachable in GENERAL at
-    /// bind time (FlushPass restores attachments to GENERAL when a pass ends).
-    /// Swapchain images (PreferGeneralLayout) stay in GENERAL for everything
-    /// except present: their attachment barriers are recorded in a command
-    /// buffer that interleaves with the main frame buffer, so optimal-layout
-    /// transitions could land in the wrong submission.
+    /// usages stay in GENERAL because binds inside a rendering scope cannot
+    /// transition attachment layouts, so every bindable texture must be in
+    /// GENERAL at bind time — which the queued bind-time transition
+    /// (MarkTexture + FlushPendingBarriers) establishes. Swapchain images
+    /// (PreferGeneralLayout) stay in GENERAL for everything except present:
+    /// their attachment barriers are recorded in a command buffer that
+    /// interleaves with the main frame buffer, so optimal-layout transitions
+    /// could land in the wrong submission.
     /// </summary>
     private static VkImageLayout LayoutForState(VulkanTexture texture, VulkanResourceState state)
     {
@@ -1085,8 +1228,8 @@ internal sealed unsafe class VulkanResourceTracker
             VulkanResourceState.Undefined => (VkPipelineStageFlags2.TopOfPipe, VkAccessFlags2.None),
             VulkanResourceState.Idle => (VkPipelineStageFlags2.TopOfPipe, VkAccessFlags2.None),
             VulkanResourceState.ColorAttachment => (VkPipelineStageFlags2.ColorAttachmentOutput, VkAccessFlags2.ColorAttachmentWrite | VkAccessFlags2.ColorAttachmentRead),
-            VulkanResourceState.DepthWrite => (VkPipelineStageFlags2.LateFragmentTests, VkAccessFlags2.DepthStencilAttachmentWrite | VkAccessFlags2.DepthStencilAttachmentRead),
-            VulkanResourceState.DepthRead => (VkPipelineStageFlags2.LateFragmentTests, VkAccessFlags2.DepthStencilAttachmentRead),
+            VulkanResourceState.DepthWrite => (VkPipelineStageFlags2.EarlyFragmentTests | VkPipelineStageFlags2.LateFragmentTests, VkAccessFlags2.DepthStencilAttachmentWrite | VkAccessFlags2.DepthStencilAttachmentRead),
+            VulkanResourceState.DepthRead => (VkPipelineStageFlags2.EarlyFragmentTests | VkPipelineStageFlags2.LateFragmentTests, VkAccessFlags2.DepthStencilAttachmentRead),
             VulkanResourceState.ShaderRead => (VkPipelineStageFlags2.VertexShader | VkPipelineStageFlags2.FragmentShader | VkPipelineStageFlags2.ComputeShader, VkAccessFlags2.ShaderSampledRead | VkAccessFlags2.ShaderRead),
             VulkanResourceState.ShaderWrite => (VkPipelineStageFlags2.FragmentShader | VkPipelineStageFlags2.ComputeShader, VkAccessFlags2.ShaderWrite),
             VulkanResourceState.ShaderReadWrite => (VkPipelineStageFlags2.VertexShader | VkPipelineStageFlags2.FragmentShader | VkPipelineStageFlags2.ComputeShader, VkAccessFlags2.ShaderRead | VkAccessFlags2.ShaderWrite),
