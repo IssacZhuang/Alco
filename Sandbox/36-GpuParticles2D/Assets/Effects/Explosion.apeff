@@ -1,0 +1,50 @@
+{
+    // A one-shot explosion: a radial spark burst plus a lingering smoke cloud.
+    // Non-looping — the instance deactivates itself once the particles die.
+    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Sparks",
+            "maxParticles": 2048,
+            "looping": false,
+            "duration": 0.1,
+            "emissionRate": 0,
+            "bursts": [ { "time": 0.0, "countMin": 300, "countMax": 400 } ],
+            "shape": { "type": "circle", "radius": 1.0 },
+            "directionMode": "radial",
+            "speed": { "min": 15, "max": 45 },
+            "lifetime": { "min": 0.4, "max": 1.1 },
+            "size": { "min": { "x": 0.5, "y": 0.5 }, "max": { "x": 1.2, "y": 1.2 } },
+            "alignRotationToVelocity": true,
+            "gravity": { "x": 0, "y": -25 },
+            "drag": 1.8,
+            "startColor": { "min": "#FFDD88FF", "max": "#FF7700FF" },
+            "endColor": "#33000000",
+            "fadeOut": 0.5,
+            "endScale": 0.2,
+            "material": { "texture": "Droplet", "blend": "Additive" }
+        },
+        {
+            "name": "Smoke",
+            "maxParticles": 512,
+            "looping": false,
+            "duration": 0.1,
+            "emissionRate": 0,
+            "bursts": [ { "time": 0.0, "countMin": 40, "countMax": 60 } ],
+            "shape": { "type": "circle", "radius": 2.0 },
+            "directionMode": "radial",
+            "speed": { "min": 2, "max": 8 },
+            "lifetime": { "min": 1.0, "max": 2.0 },
+            "size": { "min": { "x": 2, "y": 2 }, "max": { "x": 4, "y": 4 } },
+            "angularVelocity": { "min": -1.5, "max": 1.5 },
+            "drag": 1.2,
+            "startColor": { "min": "#44444460", "max": "#77777780" },
+            "endColor": "#22222200",
+            "fadeIn": 0.1,
+            "fadeOut": 0.6,
+            "endScale": 3.0,
+            "material": { "texture": "Glow", "blend": "AlphaBlend" }
+        }
+    ]
+}

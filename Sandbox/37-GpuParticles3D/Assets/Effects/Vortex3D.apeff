@@ -1,0 +1,28 @@
+{
+    // A 3D vortex driven by a custom simulation behavior (SbVortex3D.slang,
+    // linked into the emit/simulate templates through slang interface
+    // specialization). Local simulation space: the swirl follows the emitter.
+    "$type": "Alco.Particles.ParticleEffect3DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Swirl",
+            "maxParticles": 8192,
+            "looping": true,
+            "emissionRate": 800,
+            "shape": { "type": "sphere", "radius": 3.5, "innerRadius": 0.85 },
+            "directionMode": "radial",
+            "speed": { "min": 0.2, "max": 0.8 },
+            "lifetime": { "min": 2.0, "max": 3.5 },
+            "size": { "min": 0.08, "max": 0.2 },
+            "startColor": { "min": "#44EEFFFF", "max": "#8844FFFF" },
+            "endColor": "#22004400",
+            "fadeIn": 0.15,
+            "fadeOut": 0.4,
+            "endScale": 0.4,
+            "simulationSpace": "local",
+            "behavior": "SbVortex3D",
+            "material": { "texture": "Star", "blend": "Additive" }
+        }
+    ]
+}

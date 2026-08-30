@@ -1,0 +1,29 @@
+{
+    // A looping shockwave pulse: near-stationary particles playing a 4x4
+    // flipbook (Shockwave.png) over their lifetime, clamped to the last frame.
+    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Pulse",
+            "maxParticles": 512,
+            "looping": true,
+            "duration": 2.5,
+            "emissionRate": 12,
+            "bursts": [ { "time": 0.0, "countMin": 1, "countMax": 1 } ],
+            "shape": { "type": "circle", "radius": 1.5 },
+            "speed": { "min": 0.3, "max": 1.2 },
+            "directionMode": "radial",
+            "lifetime": { "min": 1.0, "max": 1.2 },
+            "size": { "min": { "x": 3, "y": 3 }, "max": { "x": 4.5, "y": 4.5 } },
+            "startColor": { "min": "#66CCFFFF", "max": "#3388FFFF" },
+            "endColor": "#11224400",
+            "fadeOut": 0.2,
+            "material": {
+                "texture": "Shockwave",
+                "blend": "Additive",
+                "flipbook": { "rows": 4, "cols": 4, "fps": 15, "loop": false }
+            }
+        }
+    ]
+}

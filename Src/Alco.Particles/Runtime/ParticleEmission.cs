@@ -1,0 +1,87 @@
+using Alco;
+
+namespace Alco.Particles;
+
+/// <summary>
+/// The CPU-side emission bookkeeping shared by the 2D and 3D particle systems:
+/// advances one emitter group's timeline and computes how many particles it
+/// spawns this frame (continuous rate + bursts). Deterministic per instance
+/// (seeded <see cref="FastRandom"/>), which keeps screenshot runs reproducible.
+/// </summary>
+internal static class ParticleEmission
+{
+    /// <summary>
+    /// Advances the emission timeline by one frame.
+    /// </summary>
+    /// <param name="time">The unwrapped timeline position in seconds (never wraps; the shader-side emitter time wraps by modulo).</param>
+    /// <param name="accumulator">The fractional-particle accumulator of the continuous rate.</param>
+    /// <param name="deltaTime">The frame's delta time in seconds.</param>
+    /// <param name="rate">The continuous emission rate in particles per second.</param>
+    /// <param name="duration">The timeline length in seconds; 0 = infinite.</param>
+    /// <param name="looping">Whether the timeline wraps at <paramref name="duration"/>.</param>
+    /// <param name="bursts">The burst table.</param>
+    /// <param name="random">The instance's RNG (burst counts only).</param>
+    /// <param name="capacity">The emitter slice capacity; the spawn count clamps to it (ring overwrite).</param>
+    /// <returns>The number of particles to spawn this frame.</returns>
+    public static uint Advance(
+        ref float time,
+        ref float accumulator,
+        float deltaTime,
+        float rate,
+        float duration,
+        bool looping,
+        IReadOnlyList<ParticleBurst> bursts,
+        ref FastRandom random,
+        uint capacity)
+    {
+        float previousTime = time;
+        time += deltaTime;
+
+        bool emitting = duration <= 0f || looping || time < duration;
+        uint spawn = 0;
+        if (emitting && rate > 0f)
+        {
+            // The clamp bounds the catch-up burst after a hitch to ~1 s of emission.
+            accumulator = Math.Min(accumulator + rate * deltaTime, Math.Max(rate, 1f));
+            uint count = (uint)accumulator;
+            accumulator -= count;
+            spawn += count;
+        }
+
+        // Bursts fire at burst.Time + k * duration on the unwrapped timeline;
+        // the half-open window [previous, now) fires each exactly once per cycle.
+        for (int i = 0; i < bursts.Count; i++)
+        {
+            ParticleBurst burst = bursts[i];
+            if (burst.Time < 0f || burst.CountMax <= 0)
+            {
+                continue;
+            }
+            if (duration > 0f && looping)
+            {
+                if (burst.Time >= duration)
+                {
+                    continue;
+                }
+                int cycleNow = (int)(time / duration);
+                int cyclePrev = (int)(previousTime / duration);
+                for (int cycle = cyclePrev; cycle <= cycleNow; cycle++)
+                {
+                    float fireTime = burst.Time + cycle * duration;
+                    if (fireTime >= previousTime && fireTime < time)
+                    {
+                        spawn += (uint)random.NextInt(burst.CountMin, burst.CountMax + 1);
+                    }
+                }
+            }
+            else
+            {
+                if (burst.Time >= previousTime && burst.Time < time && (duration <= 0f || burst.Time <= duration))
+                {
+                    spawn += (uint)random.NextInt(burst.CountMin, burst.CountMax + 1);
+                }
+            }
+        }
+        return Math.Min(spawn, capacity);
+    }
+}

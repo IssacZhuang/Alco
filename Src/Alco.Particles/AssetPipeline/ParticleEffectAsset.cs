@@ -1,0 +1,247 @@
+using System.Text.Json.Serialization;
+using Alco.Rendering;
+
+namespace Alco.Particles;
+
+/// <summary>
+/// A particle effect asset (<c>.apeff</c>) — the data-only, serializable description
+/// of a whole particle effect: a list of <em>groups</em>, where each group is one
+/// emitter with its own emission/motion parameters, an optional slang behavior
+/// module defining the simulation (<see cref="ParticleGroupAsset.Behavior"/>) and a
+/// material configuration defining the visuals (<see cref="ParticleGroupAsset.Material"/>).
+/// <br/>2D and 3D effects are separate types (<see cref="ParticleEffect2DAsset"/> /
+/// <see cref="ParticleEffect3DAsset"/>); their data structures never mix — 2D effects
+/// simulate the cheaper <c>Transform2D</c>-style particle layout.
+/// </summary>
+public abstract class ParticleEffectAsset : IJsonOnDeserialized
+{
+    /// <summary>Format version of the particle effect files this runtime consumes.</summary>
+    public const string FormatVersion = "1.0";
+
+    /// <summary>The format version the file declares; null when constructed in code.</summary>
+    public string? Version { get; set; }
+
+    /// <summary>The effect name; the loader defaults it to the source file name when omitted.</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Normalize the deserialized content (trimmed name, no null entries).</summary>
+    public virtual void OnDeserialized()
+    {
+        Name = Name.Trim();
+    }
+}
+
+/// <summary>A 2D particle effect: a list of 2D emitter groups.</summary>
+public sealed class ParticleEffect2DAsset : ParticleEffectAsset
+{
+    private List<ParticleGroup2DAsset> _groups = [];
+
+    /// <summary>The emitter groups of the effect; rendered in list order.</summary>
+    public List<ParticleGroup2DAsset> Groups
+    {
+        get => _groups;
+        set => _groups = value ?? [];
+    }
+
+    /// <inheritdoc />
+    public override void OnDeserialized()
+    {
+        base.OnDeserialized();
+        _groups.RemoveAll(group => group == null!);
+    }
+}
+
+/// <summary>A 3D particle effect: a list of 3D emitter groups.</summary>
+public sealed class ParticleEffect3DAsset : ParticleEffectAsset
+{
+    private List<ParticleGroup3DAsset> _groups = [];
+
+    /// <summary>The emitter groups of the effect; rendered in list order.</summary>
+    public List<ParticleGroup3DAsset> Groups
+    {
+        get => _groups;
+        set => _groups = value ?? [];
+    }
+
+    /// <inheritdoc />
+    public override void OnDeserialized()
+    {
+        base.OnDeserialized();
+        _groups.RemoveAll(group => group == null!);
+    }
+}
+
+/// <summary>
+/// One emitter of a particle effect: emission rate and bursts, lifetime, size,
+/// rotation, color and drag ranges, the simulation space, the optional slang
+/// behavior module and the material configuration. Dimension-specific shape and
+/// direction parameters live on the derived 2D/3D types.
+/// </summary>
+public abstract class ParticleGroupAsset
+{
+    /// <summary>The group name (diagnostics only).</summary>
+    public string Name { get; set; } = "Group";
+
+    /// <summary>
+    /// The maximum number of particles alive at once in this group. The pool slice
+    /// of the group is allocated at this capacity; excess spawns overwrite the
+    /// oldest particles (ring buffer semantics).
+    /// </summary>
+    public int MaxParticles { get; set; } = 4096;
+
+    /// <summary>
+    /// The length of the emission timeline in seconds; 0 means the emitter never
+    /// stops emitting on its own (infinite duration).
+    /// </summary>
+    public float Duration { get; set; }
+
+    /// <summary>Whether the timeline wraps (and bursts re-fire) when reaching <see cref="Duration"/>.</summary>
+    public bool Looping { get; set; } = true;
+
+    /// <summary>The continuous emission rate in particles per second.</summary>
+    public float EmissionRate { get; set; } = 100f;
+
+    /// <summary>One-shot bursts fired at points of the emission timeline.</summary>
+    public List<ParticleBurst> Bursts { get; set; } = [];
+
+    /// <summary>The particle lifetime range in seconds.</summary>
+    public ParticleRange Lifetime { get; set; } = new(1f, 2f);
+
+    /// <summary>The initial speed range in world units per second.</summary>
+    public ParticleRange Speed { get; set; } = new(10f, 20f);
+
+    /// <summary>
+    /// The per-particle color at spawn, sampled component-wise between min (xyzw)
+    /// and max. Alpha is the opacity (1 = opaque).
+    /// </summary>
+    public ParticleVector4Range StartColor { get; set; } = new(System.Numerics.Vector4.One);
+
+    /// <summary>The color the particle lerps to at the end of its life.</summary>
+    public System.Numerics.Vector4 EndColor { get; set; } = System.Numerics.Vector4.UnitW * 0f;
+
+    /// <summary>
+    /// The normalized lifetime fraction over which the particle fades in
+    /// (multiplies alpha by a smooth ramp), e.g. 0.1 = first 10% of the life.
+    /// </summary>
+    public float FadeIn { get; set; }
+
+    /// <summary>
+    /// The normalized lifetime fraction at the end over which the particle fades
+    /// out, e.g. 0.5 = the alpha ramps to the end color's alpha over the last half
+    /// of the life.
+    /// </summary>
+    public float FadeOut { get; set; } = 0.5f;
+
+    /// <summary>The scale multiplier the particle lerps to at the end of its life (1 = constant size).</summary>
+    public float EndScale { get; set; } = 1f;
+
+    /// <summary>
+    /// The linear drag coefficient: velocity decays as <c>v *= exp(-drag * dt)</c>.
+    /// </summary>
+    public float Drag { get; set; }
+
+    /// <summary>The space the group's particles simulate in.</summary>
+    public ParticleSimulationSpace SimulationSpace { get; set; } = ParticleSimulationSpace.World;
+
+    /// <summary>
+    /// The slang shader library module defining this group's simulation behavior:
+    /// a module exporting exactly one struct implementing <c>IParticleBehavior2D</c>
+    /// (2D effects) or <c>IParticleBehavior3D</c> (3D effects). Null selects the
+    /// built-in default behavior (shape emission, gravity, drag, color/size over
+    /// life, fade in/out).
+    /// </summary>
+    public ShaderLibrary? Behavior { get; set; }
+
+    /// <summary>The render appearance of the group.</summary>
+    public ParticleMaterialConfig Material { get; set; } = new();
+}
+
+/// <summary>A 2D emitter group; adds 2D shape, direction, rotation and size parameters.</summary>
+public sealed class ParticleGroup2DAsset : ParticleGroupAsset
+{
+    /// <summary>The emission shape.</summary>
+    public ParticleShape2D Shape { get; set; } = new();
+
+    /// <summary>The base emission direction (used by <see cref="ParticleDirectionMode.Constant"/>).</summary>
+    public System.Numerics.Vector2 Direction { get; set; } = new(0f, 1f);
+
+    /// <summary>
+    /// How the initial direction is chosen; <see cref="ParticleDirectionMode.Radial"/>
+    /// emits outward through the spawn position (e.g. explosions).
+    /// </summary>
+    public ParticleDirectionMode DirectionMode { get; set; } = ParticleDirectionMode.Constant;
+
+    /// <summary>
+    /// The direction randomization half-angle in radians: the base direction is
+    /// rotated by a uniform sample in [-spread, +spread].
+    /// </summary>
+    public float SpreadAngle { get; set; }
+
+    /// <summary>The initial rotation range in radians.</summary>
+    public ParticleRange StartRotation { get; set; }
+
+    /// <summary>The angular velocity range in radians per second.</summary>
+    public ParticleRange AngularVelocity { get; set; }
+
+    /// <summary>Whether the initial rotation aligns to the velocity direction (e.g. sparks).</summary>
+    public bool AlignRotationToVelocity { get; set; }
+
+    /// <summary>The initial size (quad extents) range in world units.</summary>
+    public ParticleVector2Range Size { get; set; } = new(new System.Numerics.Vector2(2f));
+
+    /// <summary>The constant gravity acceleration in world units per second squared.</summary>
+    public System.Numerics.Vector2 Gravity { get; set; }
+}
+
+/// <summary>A 3D emitter group; adds 3D shape, direction, billboard roll and size parameters.</summary>
+public sealed class ParticleGroup3DAsset : ParticleGroupAsset
+{
+    /// <summary>The emission shape.</summary>
+    public ParticleShape3D Shape { get; set; } = new();
+
+    /// <summary>The base emission direction (used by <see cref="ParticleDirectionMode.Constant"/>).</summary>
+    public System.Numerics.Vector3 Direction { get; set; } = new(0f, 0f, 1f);
+
+    /// <summary>How the initial direction is chosen.</summary>
+    public ParticleDirectionMode DirectionMode { get; set; } = ParticleDirectionMode.Constant;
+
+    /// <summary>
+    /// The cone half-angle in radians the base direction is randomized within
+    /// (<see cref="ParticleDirectionMode.Constant"/>).
+    /// </summary>
+    public float SpreadAngle { get; set; }
+
+    /// <summary>The initial billboard roll (screen-space rotation) range in radians.</summary>
+    public ParticleRange StartRotation { get; set; }
+
+    /// <summary>The billboard roll velocity range in radians per second.</summary>
+    public ParticleRange AngularVelocity { get; set; }
+
+    /// <summary>The initial uniform size range in world units.</summary>
+    public ParticleRange Size { get; set; } = new(0.5f, 1f);
+
+    /// <summary>The constant gravity acceleration in world units per second squared.</summary>
+    public System.Numerics.Vector3 Gravity { get; set; }
+}
+
+/// <summary>
+/// A <see cref="System.Numerics.Vector4"/> range sampled component-wise at spawn
+/// time (on the GPU); used for spawn colors. Serialized as
+/// <c>{ "min": "#RRGGBBAA", "max": {...} }</c> — each bound accepts every shape
+/// the material vector4 converter accepts (number, hex color, component object).
+/// </summary>
+public struct ParticleVector4Range
+{
+    /// <summary>The inclusive lower bound of the sampled range.</summary>
+    public System.Numerics.Vector4 Min { get; set; }
+
+    /// <summary>The inclusive upper bound of the sampled range.</summary>
+    public System.Numerics.Vector4 Max { get; set; }
+
+    /// <summary>Creates a range that always samples <paramref name="value"/>.</summary>
+    public ParticleVector4Range(System.Numerics.Vector4 value)
+    {
+        Min = value;
+        Max = value;
+    }
+}

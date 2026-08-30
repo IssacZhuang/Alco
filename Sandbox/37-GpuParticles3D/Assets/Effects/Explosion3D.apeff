@@ -1,0 +1,50 @@
+{
+    // A one-shot 3D explosion: a radial spark shell plus a lingering smoke ball.
+    // Non-looping — the instance deactivates itself once the particles die.
+    "$type": "Alco.Particles.ParticleEffect3DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Sparks",
+            "maxParticles": 4096,
+            "looping": false,
+            "duration": 0.1,
+            "emissionRate": 0,
+            "bursts": [ { "time": 0.0, "countMin": 500, "countMax": 700 } ],
+            "shape": { "type": "sphere", "radius": 0.5 },
+            "directionMode": "radial",
+            "speed": { "min": 4, "max": 10 },
+            "lifetime": { "min": 0.6, "max": 1.4 },
+            "size": { "min": 0.12, "max": 0.3 },
+            "gravity": { "x": 0, "y": 0, "z": -4 },
+            "drag": 1.6,
+            "startColor": { "min": "#FFDD88FF", "max": "#FF5500FF" },
+            "endColor": "#33000000",
+            "fadeOut": 0.5,
+            "endScale": 0.3,
+            "material": { "texture": "Glow", "blend": "Additive" }
+        },
+        {
+            "name": "Smoke",
+            "maxParticles": 1024,
+            "looping": false,
+            "duration": 0.1,
+            "emissionRate": 0,
+            "bursts": [ { "time": 0.0, "countMin": 60, "countMax": 90 } ],
+            "shape": { "type": "sphere", "radius": 1.0 },
+            "directionMode": "radial",
+            "speed": { "min": 0.5, "max": 2.5 },
+            "lifetime": { "min": 1.5, "max": 2.8 },
+            "size": { "min": 0.6, "max": 1.2 },
+            "angularVelocity": { "min": -1, "max": 1 },
+            "gravity": { "x": 0, "y": 0, "z": 1.5 },
+            "drag": 1.2,
+            "startColor": { "min": "#33333370", "max": "#66666690" },
+            "endColor": "#1A1A1A00",
+            "fadeIn": 0.1,
+            "fadeOut": 0.6,
+            "endScale": 3.5,
+            "material": { "texture": "Glow", "blend": "AlphaBlend" }
+        }
+    ]
+}

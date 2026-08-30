@@ -1,0 +1,401 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
+using Alco.Graphics;
+using Alco.Rendering;
+
+namespace Alco.Particles;
+
+/// <summary>
+/// The 3D GPU particle system: simulates and renders <see cref="ParticleEffect3DAsset"/>
+/// instances entirely on the GPU; the 3D counterpart of
+/// <see cref="GpuParticleSystem2D"/> (see its remarks for the architecture). Renders
+/// camera-facing billboards with depth testing (tested, not written) — draw it into
+/// the scene's forward/transparent pass.
+/// </summary>
+public sealed class GpuParticleSystem3D : IDisposable
+{
+    private readonly RenderingSystem _rendering;
+    private readonly ParticleBufferPool<GpuParticle3D, EmitterParams3D> _pool;
+    private readonly MaterialCompiler _materialCompiler;
+    private readonly ShaderLibrary _emitTemplate;
+    private readonly ShaderLibrary _simulateTemplate;
+    private readonly ShaderLibrary _defaultBehavior;
+    private readonly ComputeMaterial _initMaterial;
+    private readonly Dictionary<ShaderLibrary, (ComputeMaterial Emit, ComputeMaterial Simulate)> _behaviorMaterials = [];
+    private readonly Dictionary<ParticleGroup3DAsset, GraphicsMaterial> _materials = [];
+    private readonly List<ParticleEffectInstance3D> _instances = [];
+    private CameraPerspectiveBuffer? _camera;
+    private DepthStencilState _depthStencilState = DepthStencilState.ReadReverseZ;
+    private bool _disposed;
+
+    /// <summary>
+    /// Creates the system with its shared pool's initial capacities.
+    /// </summary>
+    /// <param name="rendering">The rendering system.</param>
+    /// <param name="particleCapacity">The initial particle pool size (grows geometrically when exhausted).</param>
+    /// <param name="emitterSlots">The initial emitter-slot count (one per emitter group instance).</param>
+    public GpuParticleSystem3D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256)
+    {
+        ArgumentNullException.ThrowIfNull(rendering);
+        _rendering = rendering;
+        _pool = new ParticleBufferPool<GpuParticle3D, EmitterParams3D>(rendering, particleCapacity, emitterSlots, "particles3d");
+        _pool.Reallocated += OnPoolReallocated;
+        _materialCompiler = new MaterialCompiler(rendering);
+        ShaderSystem shaderSystem = rendering.ShaderSystem;
+        _emitTemplate = shaderSystem.GetLibrary("GpuParticleEmit3D");
+        _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate3D");
+        _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior3D);
+        _initMaterial = rendering.CreateComputeMaterial(shaderSystem.GetShader("GpuParticleInit3D"));
+        QuadMesh = rendering.MeshCenteredSprite;
+    }
+
+    /// <summary>
+    /// The perspective camera the groups render with: its view-projection is bound
+    /// to every group's material and its orientation provides the billboard basis.
+    /// Must be set before <see cref="Render"/> is called.
+    /// </summary>
+    public CameraPerspectiveBuffer? Camera
+    {
+        get => _camera;
+        set
+        {
+            _camera = value;
+            foreach (GraphicsMaterial material in _materials.Values)
+            {
+                if (value != null)
+                {
+                    material.SetBuffer(ShaderResourceId.Camera, value);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The depth state of the groups' materials; must match the pipeline's depth
+    /// convention (the default <see cref="DepthStencilState.ReadReverseZ"/> fits the
+    /// World3D deferred preset). Applies to materials created afterwards and all
+    /// cached ones.
+    /// </summary>
+    public DepthStencilState DepthStencilState
+    {
+        get => _depthStencilState;
+        set
+        {
+            _depthStencilState = value;
+            foreach (GraphicsMaterial material in _materials.Values)
+            {
+                material.DepthStencilState = value;
+            }
+        }
+    }
+
+    /// <summary>The quad mesh the particles draw with (centered, position.xy in [-0.5, 0.5]).</summary>
+    public Mesh QuadMesh { get; set; }
+
+    /// <summary>The live effect instances.</summary>
+    public IReadOnlyList<ParticleEffectInstance3D> Instances => _instances;
+
+    /// <summary>The shared buffer pool (diagnostics).</summary>
+    internal ParticleBufferPool<GpuParticle3D, EmitterParams3D> Pool => _pool;
+
+    /// <summary>
+    /// Creates an effect instance that starts playing immediately.
+    /// </summary>
+    /// <param name="effect">The effect asset.</param>
+    /// <param name="transform">The emitter transform.</param>
+    /// <param name="seed">The deterministic RNG seed of the instance; 0 seeds from the environment tick.</param>
+    /// <returns>The new instance; dispose it to destroy the effect.</returns>
+    public ParticleEffectInstance3D CreateInstance(ParticleEffect3DAsset effect, in Transform3D transform, int seed = 0)
+    {
+        ArgumentNullException.ThrowIfNull(effect);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (effect.Groups.Count == 0)
+        {
+            throw new InvalidDataException($"Particle effect '{effect.Name}' has no groups.");
+        }
+
+        uint indexCount = QuadMesh.GetSubMesh(0).IndexCount;
+        var groups = new ParticleEffectInstance3D.GroupState[effect.Groups.Count];
+        for (int i = 0; i < groups.Length; i++)
+        {
+            ParticleGroup3DAsset groupAsset = effect.Groups[i];
+            uint slot = _pool.AllocateSlot();
+            ParticleSlice slice = _pool.AllocateSlice(Math.Max(groupAsset.MaxParticles, 1));
+            EmitterParams3D parameters = EmitterParams3D.FromAsset(groupAsset, indexCount);
+            parameters.Capacity = slice.Capacity;
+            parameters.SliceOffset = slice.Offset;
+            _pool.Params[(int)slot] = parameters;
+            groups[i] = new ParticleEffectInstance3D.GroupState
+            {
+                Asset = groupAsset,
+                Slot = slot,
+                Slice = slice,
+                Material = GetOrCreateMaterial(groupAsset),
+            };
+        }
+        _pool.Params.UpdateBuffer();
+        var instance = new ParticleEffectInstance3D(this, effect, transform, seed, groups);
+        _instances.Add(instance);
+        return instance;
+    }
+
+    /// <summary>
+    /// Records the simulation of all active instances into the frame's command
+    /// buffer (see <see cref="GpuParticleSystem2D.RecordSimulation"/>).
+    /// </summary>
+    /// <param name="context">The render graph context.</param>
+    public void RecordSimulation(in RenderGraphContext context)
+    {
+        _pool.RecordMigration(context.RenderContext.CommandBuffer);
+
+        float deltaTime = context.DeltaTime;
+        uint dirtyMin = uint.MaxValue;
+        uint dirtyMax = 0;
+        for (int i = 0; i < _instances.Count; i++)
+        {
+            _instances[i].AdvanceFrame(deltaTime, ref dirtyMin, ref dirtyMax);
+        }
+        if (dirtyMin <= dirtyMax)
+        {
+            _pool.Params.UpdateBufferRanged(dirtyMin, dirtyMax - dirtyMin + 1);
+        }
+
+        IReadOnlyList<(uint Offset, uint Count)> kills = _pool.PendingKills;
+        bool anyActive = AnyActiveGroups();
+        if (kills.Count == 0 && !anyActive)
+        {
+            return;
+        }
+
+        using (GPUCommandBuffer.ComputePass computePass = context.RenderContext.CommandBuffer.BeginCompute())
+        {
+            for (int i = 0; i < kills.Count; i++)
+            {
+                (uint offset, uint count) = kills[i];
+                _initMaterial.DispatchByGroupWithConstant(
+                    computePass, (count + 63) / 64, 1, 1,
+                    new GpuParticleInitConstant { SliceOffset = offset, Count = count });
+            }
+            _pool.ClearPendingKills();
+
+            if (!anyActive)
+            {
+                return;
+            }
+            for (int i = 0; i < _instances.Count; i++)
+            {
+                ParticleEffectInstance3D instance = _instances[i];
+                if (!instance.IsActive)
+                {
+                    continue;
+                }
+                foreach (ParticleEffectInstance3D.GroupState group in instance.Groups)
+                {
+                    if (!group.Active)
+                    {
+                        continue;
+                    }
+                    (ComputeMaterial emit, ComputeMaterial simulate) = GetBehaviorMaterials(group.Asset.Behavior);
+                    emit.DispatchByGroupWithConstant(
+                        computePass, Math.Max((group.SpawnCount + 63) / 64, 1), 1, 1,
+                        new GpuParticleSlotConstant { EmitterSlot = group.Slot });
+                    simulate.DispatchByGroupWithConstant(
+                        computePass, (group.Slice.Capacity + 63) / 64, 1, 1,
+                        new GpuParticleSlotConstant { EmitterSlot = group.Slot });
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Records the indexed-indirect billboard draws of all active instances into the
+    /// current pass (see <see cref="GpuParticleSystem2D.Render"/>).
+    /// </summary>
+    /// <param name="pass">The render pass scope of the scene pass.</param>
+    public void Render(RenderPassScope pass)
+    {
+        ArgumentNullException.ThrowIfNull(pass);
+        if (_camera == null)
+        {
+            throw new InvalidOperationException($"The {nameof(Camera)} of the particle system was not set.");
+        }
+        Quaternion cameraRotation = _camera.Data.Transform.Rotation;
+        Vector4 cameraRight = new(Vector3.Transform(Vector3.UnitY, cameraRotation), 0f);
+        Vector4 cameraUp = new(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0f);
+        for (int i = 0; i < _instances.Count; i++)
+        {
+            ParticleEffectInstance3D instance = _instances[i];
+            if (!instance.IsActive)
+            {
+                continue;
+            }
+            foreach (ParticleEffectInstance3D.GroupState group in instance.Groups)
+            {
+                if (!group.Active)
+                {
+                    continue;
+                }
+                Transform3D transform = instance.Transform;
+                Matrix4x4 model = group.Asset.SimulationSpace == ParticleSimulationSpace.World
+                    ? Matrix4x4.Identity
+                    : Matrix4x4.CreateScale(transform.Scale)
+                        * Matrix4x4.CreateFromQuaternion(transform.Rotation)
+                        * Matrix4x4.CreateTranslation(transform.Position);
+                pass.DrawIndexedIndirect(
+                    QuadMesh,
+                    group.Material,
+                    _pool.DrawArgs,
+                    group.Slot * 20,
+                    new GpuParticleDraw3DConstant
+                    {
+                        Model = model,
+                        CameraRight = cameraRight,
+                        CameraUp = cameraUp,
+                        EmitterSlot = group.Slot,
+                    });
+            }
+        }
+    }
+
+    internal ref EmitterParams3D ParamsRef(uint slot) => ref _pool.Params.AsSpan()[(int)slot];
+
+    internal void ReleaseInstance(ParticleEffectInstance3D instance)
+    {
+        foreach (ParticleEffectInstance3D.GroupState group in instance.Groups)
+        {
+            _pool.FreeSlice(group.Slice);
+            _pool.FreeSlot(group.Slot);
+        }
+        _instances.Remove(instance);
+    }
+
+    private bool AnyActiveGroups()
+    {
+        for (int i = 0; i < _instances.Count; i++)
+        {
+            if (_instances[i].IsActive)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private (ComputeMaterial Emit, ComputeMaterial Simulate) GetBehaviorMaterials(ShaderLibrary? behavior)
+    {
+        behavior ??= _defaultBehavior;
+        if (!_behaviorMaterials.TryGetValue(behavior, out (ComputeMaterial, ComputeMaterial) materials))
+        {
+            ComputeMaterial emit = _rendering.CreateComputeMaterial(_materialCompiler.ComposeCompute(_emitTemplate, behavior));
+            ComputeMaterial simulate = _rendering.CreateComputeMaterial(_materialCompiler.ComposeCompute(_simulateTemplate, behavior));
+            BindPool(emit);
+            BindPool(simulate);
+            materials = (emit, simulate);
+            _behaviorMaterials[behavior] = materials;
+        }
+        return materials;
+    }
+
+    private GraphicsMaterial GetOrCreateMaterial(ParticleGroup3DAsset group)
+    {
+        if (!_materials.TryGetValue(group, out GraphicsMaterial? material))
+        {
+            Shader shader = group.Material.Shader ?? _rendering.ShaderSystem.GetShader(ParticleAssetPipeline.RenderModule3D);
+            material = _rendering.CreateGraphicsMaterial(shader, $"particles3d:{group.Name}");
+            material.BlendState = group.Material.Blend ?? BlendState.AlphaBlend;
+            material.DepthStencilState = _depthStencilState;
+            if (group.Material.Texture != null)
+            {
+                material.SetTexture(ShaderResourceId.Texture, group.Material.Texture);
+            }
+            if (_camera != null)
+            {
+                material.SetBuffer(ShaderResourceId.Camera, _camera);
+            }
+            BindPool(material);
+            _materials[group] = material;
+        }
+        return material;
+    }
+
+    private void BindPool(ComputeMaterial material)
+    {
+        material.TrySetBuffer("particles", _pool.Particles);
+        material.TrySetBuffer("emitters", _pool.Params);
+        material.TrySetBuffer("renderList", _pool.RenderList);
+        material.TrySetBuffer("drawArgs", _pool.DrawArgs);
+    }
+
+    private void BindPool(GraphicsMaterial material)
+    {
+        material.TrySetBuffer("particles", _pool.Particles);
+        material.TrySetBuffer("emitters", _pool.Params);
+        material.TrySetBuffer("renderList", _pool.RenderList);
+    }
+
+    private void OnPoolReallocated()
+    {
+        foreach ((ComputeMaterial emit, ComputeMaterial simulate) in _behaviorMaterials.Values)
+        {
+            BindPool(emit);
+            BindPool(simulate);
+        }
+        _initMaterial.TrySetBuffer("particles", _pool.Particles);
+        foreach (GraphicsMaterial material in _materials.Values)
+        {
+            BindPool(material);
+        }
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
+        for (int i = _instances.Count - 1; i >= 0; i--)
+        {
+            _instances[i].Dispose();
+        }
+        foreach ((ComputeMaterial emit, ComputeMaterial simulate) in _behaviorMaterials.Values)
+        {
+            emit.Dispose();
+            simulate.Dispose();
+        }
+        foreach (GraphicsMaterial material in _materials.Values)
+        {
+            material.Dispose();
+        }
+        _initMaterial.Dispose();
+        _pool.Reallocated -= OnPoolReallocated;
+        _pool.Dispose();
+    }
+}
+
+/// <summary>The push constant of the 3D particle billboard draw (112 bytes).</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct GpuParticleDraw3DConstant
+{
+    /// <summary>The emitter transform (local space) or identity (world space).</summary>
+    public Matrix4x4 Model;
+
+    /// <summary>The world-space camera right vector (xyz).</summary>
+    public Vector4 CameraRight;
+
+    /// <summary>The world-space camera up vector (xyz).</summary>
+    public Vector4 CameraUp;
+
+    /// <summary>The emitter slot of the draw.</summary>
+    public uint EmitterSlot;
+
+    /// <summary>Reserved.</summary>
+    public uint Pad0;
+
+    /// <summary>Reserved.</summary>
+    public uint Pad1;
+
+    /// <summary>Reserved.</summary>
+    public uint Pad2;
+}

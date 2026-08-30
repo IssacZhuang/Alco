@@ -1,0 +1,30 @@
+{
+    // A looping 3D flame jet: continuous cone emission straight up (+Z), light
+    // gravity, additive glow billboards.
+    "$type": "Alco.Particles.ParticleEffect3DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Jet",
+            "maxParticles": 8192,
+            "looping": true,
+            "emissionRate": 1200,
+            "shape": { "type": "sphere", "radius": 0.4 },
+            "direction": { "x": 0, "y": 0, "z": 1 },
+            "spreadAngle": 0.22,
+            "speed": { "min": 5, "max": 9 },
+            "lifetime": { "min": 1.2, "max": 2.2 },
+            "size": { "min": 0.15, "max": 0.35 },
+            "startRotation": { "min": -3.14, "max": 3.14 },
+            "angularVelocity": { "min": -2, "max": 2 },
+            "gravity": { "x": 0, "y": 0, "z": -1.5 },
+            "drag": 0.4,
+            "startColor": { "min": "#FFBB44FF", "max": "#FF4400FF" },
+            "endColor": "#55110000",
+            "fadeIn": 0.05,
+            "fadeOut": 0.5,
+            "endScale": 0.3,
+            "material": { "texture": "Glow", "blend": "Additive" }
+        }
+    ]
+}

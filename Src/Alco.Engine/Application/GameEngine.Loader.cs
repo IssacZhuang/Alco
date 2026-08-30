@@ -59,6 +59,37 @@ public partial class GameEngine
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()
     {
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
+        // Deployed engine built-ins (shaders, fonts, render nodes) sit next to the
+        // executable: serve them as a low-priority fallback so name resolution still
+        // works when the working directory differs from the output directory
+        // (dotnet run, IDE default debug CWD). Same-named assets in the primary
+        // asset root shadow the fallback.
+        yield return new DeployedAssetFileSource();
+    }
+
+    /// <summary>Read-only source over the executable-adjacent built-in assets directory.</summary>
+    private sealed class DeployedAssetFileSource : DirectoryFileSource
+    {
+        public DeployedAssetFileSource()
+            : base(Path.Combine(AppContext.BaseDirectory, "Assets"))
+        {
+        }
+
+        /// <summary>Below the primary asset root (5): fills gaps, never shadows it.</summary>
+        public override int Priority => 1;
+
+        /// <summary>Empty when the directory is absent — a fallback must not throw.</summary>
+        public override IEnumerable<string> AllFileNames
+        {
+            get
+            {
+                if (!Directory.Exists(DirectoryPath))
+                {
+                    return [];
+                }
+                return base.AllFileNames;
+            }
+        }
     }
 
     public virtual IEnumerable<JsonConverter> CreateDefaultJsonConverters()

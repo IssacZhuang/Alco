@@ -1,0 +1,28 @@
+{
+    // A vortex driven by a custom simulation behavior (SbVortex2D.slang, linked
+    // into the emit/simulate templates through slang interface specialization).
+    // Local simulation space: the whole swirl follows the emitter transform.
+    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Swirl",
+            "maxParticles": 4096,
+            "looping": true,
+            "emissionRate": 500,
+            "shape": { "type": "circle", "radius": 7.0, "innerRadius": 0.85 },
+            "directionMode": "radial",
+            "speed": { "min": 1, "max": 3 },
+            "lifetime": { "min": 1.5, "max": 2.5 },
+            "size": { "min": { "x": 0.4, "y": 0.4 }, "max": { "x": 0.9, "y": 0.9 } },
+            "startColor": { "min": "#44EEFFFF", "max": "#8844FFFF" },
+            "endColor": "#22004400",
+            "fadeIn": 0.15,
+            "fadeOut": 0.4,
+            "endScale": 0.3,
+            "simulationSpace": "local",
+            "behavior": "SbVortex2D",
+            "material": { "texture": "Star", "blend": "Additive" }
+        }
+    ]
+}
