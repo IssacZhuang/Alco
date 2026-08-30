@@ -170,7 +170,7 @@ public sealed class EditorBaseTools
     }
 
     [AgentFunction]
-    [Description("Restores the editor's default dock layout (asset browser left, documents center).")]
+    [Description("Restores the editor's default panel split (asset browser left, documents right).")]
     public string ResetLayout()
     {
         _editor.RequestResetLayout();

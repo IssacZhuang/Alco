@@ -5,8 +5,8 @@ using Alco.Rendering;
 namespace Alco.Editor;
 
 /// <summary>
-/// Services shared by editor panels and asset documents: the engine, the open project,
-/// and the central dock node that new document windows dock into.
+/// Services shared by editor panels and asset documents: the engine and the open
+/// project.
 /// </summary>
 public sealed class EditorContext
 {
@@ -28,10 +28,4 @@ public sealed class EditorContext
 
     /// <summary>Shortcut for <see cref="GameEngine.RenderingSystem"/>.</summary>
     public RenderingSystem RenderingSystem => Engine.RenderingSystem;
-
-    /// <summary>
-    /// The central dock node id that document windows dock into on first use
-    /// (0 before the default layout exists / when documents should open floating).
-    /// </summary>
-    public uint CentralDockId { get; set; }
 }

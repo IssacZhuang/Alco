@@ -3,16 +3,13 @@ using Alco.ImGUI;
 namespace Alco.Editor;
 
 /// <summary>
-/// Base class of an open asset editor tab. One document owns one ImGui window that
-/// docks into the central node on first use; the window label stays stable
-/// (<c>name###doc:path</c>) so dock layouts persist across sessions. Documents over
+/// Base class of an open asset editor tab. One document owns one tab in the document
+/// area's tab bar; the tab label stays stable (<c>name###doc:path</c>). Documents over
 /// referenced (non-owned) assets are read-only: controls must be disabled and
 /// <see cref="Save"/> refuses to write.
 /// </summary>
 public abstract class AssetDocument : AutoDisposable
 {
-    private bool _firstUse = true;
-
     /// <summary>Creates the document for the given asset-system-relative path.</summary>
     protected AssetDocument(EditorContext context, string assetPath)
     {
@@ -28,7 +25,7 @@ public abstract class AssetDocument : AutoDisposable
     /// <summary>The asset-system-relative path this document edits.</summary>
     public string AssetPath { get; }
 
-    /// <summary>The stable ImGui window name (dock layouts key on it).</summary>
+    /// <summary>The stable ImGui tab label.</summary>
     public string WindowName { get; }
 
     /// <summary>Whether the asset belongs to a referenced (read-only) entry.</summary>
@@ -37,23 +34,27 @@ public abstract class AssetDocument : AutoDisposable
     /// <summary>Whether the document holds unsaved modifications.</summary>
     public bool IsDirty { get; protected set; }
 
-    /// <summary>Whether the tab is still open; cleared by the window close button.</summary>
+    /// <summary>Whether the tab is still open; cleared by the tab close button.</summary>
     public bool IsOpen { get; private set; } = true;
 
-    /// <summary>Draws the document window. Called once per frame by the document manager.</summary>
-    public void DrawWindow()
+    /// <summary>
+    /// Draws the document as one tab inside the manager's tab bar. Called once per
+    /// frame by the document manager, between <c>BeginTabBar</c>/<c>EndTabBar</c>.
+    /// </summary>
+    public void DrawTabItem(bool setSelected)
     {
-        if (_firstUse)
+        bool open = IsOpen;
+        ImGuiTabItemFlags flags = ImGuiTabItemFlags.None;
+        if (IsDirty)
         {
-            _firstUse = false;
-            if (Context.CentralDockId != 0)
-            {
-                ImGui.SetNextWindowDockID(Context.CentralDockId, ImGuiCond.FirstUseEver);
-            }
+            flags |= ImGuiTabItemFlags.UnsavedDocument;
+        }
+        if (setSelected)
+        {
+            flags |= ImGuiTabItemFlags.SetSelected;
         }
 
-        bool open = IsOpen;
-        bool visible = ImGui.Begin(WindowName, ref open);
+        bool visible = ImGui.BeginTabItem(WindowName, ref open, flags);
         IsOpen = open;
         if (visible)
         {
@@ -63,11 +64,11 @@ public abstract class AssetDocument : AutoDisposable
                 ImGui.Separator();
             }
             DrawContent();
+            ImGui.EndTabItem();
         }
-        ImGui.End();
     }
 
-    /// <summary>Draws the document's content inside its window.</summary>
+    /// <summary>Draws the document's content inside its tab.</summary>
     protected abstract void DrawContent();
 
     /// <summary>

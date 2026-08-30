@@ -6,15 +6,15 @@ namespace Alco.Editor;
 /// <summary>
 /// Owns the open asset documents: opens assets by path, dispatches to the document
 /// type registered for the file extension (mirroring how <see cref="AssetSystem"/>
-/// routes loaders by extension), focuses already-open tabs, and closes/disposes
-/// documents whose window was closed.
+/// routes loaders by extension), selects already-open tabs, and closes/disposes
+/// documents whose tab was closed.
 /// </summary>
 public sealed class DocumentManager
 {
     private readonly EditorContext _context;
     private readonly List<AssetDocument> _documents = new();
     private readonly Dictionary<string, Func<string, AssetDocument>> _factories = new(StringComparer.OrdinalIgnoreCase);
-    private string? _windowToFocus;
+    private AssetDocument? _documentToSelect;
 
     /// <summary>Creates the manager and registers the built-in document factories.</summary>
     public DocumentManager(EditorContext context)
@@ -95,7 +95,7 @@ public sealed class DocumentManager
     }
 
     /// <summary>
-    /// Opens an asset as a document tab, or focuses the existing tab when the asset is
+    /// Opens an asset as a document tab, or selects the existing tab when the asset is
     /// already open. Extensions without a registered editor fall back to
     /// <see cref="InfoDocument"/>; load failures fall back to it as well (logged).
     /// </summary>
@@ -104,7 +104,7 @@ public sealed class DocumentManager
         AssetDocument? existing = FindOpen(assetPath);
         if (existing != null)
         {
-            _windowToFocus = existing.WindowName;
+            _documentToSelect = existing;
             return;
         }
 
@@ -123,38 +123,42 @@ public sealed class DocumentManager
         }
 
         _documents.Add(document);
-        _windowToFocus = document.WindowName;
+        _documentToSelect = document;
         DocumentOpened?.Invoke(document);
     }
 
-    /// <summary>Draws all open document windows and disposes the ones that were closed.</summary>
+    /// <summary>
+    /// Draws the document-area tab bar with one tab per open document and disposes the
+    /// ones that were closed.
+    /// </summary>
     public void DrawDocuments()
     {
-        for (int i = _documents.Count - 1; i >= 0; i--)
+        if (_documents.Count == 0)
         {
-            AssetDocument document = _documents[i];
-            document.DrawWindow();
-            if (!document.IsOpen)
+            ImGui.TextDisabled("Double-click an asset in the browser to open it.");
+            return;
+        }
+
+        if (ImGui.BeginTabBar("##document_tabs", ImGuiTabBarFlags.Reorderable))
+        {
+            for (int i = _documents.Count - 1; i >= 0; i--)
             {
-                _documents.RemoveAt(i);
-                document.Dispose();
-                DocumentClosed?.Invoke(document);
+                AssetDocument document = _documents[i];
+                document.DrawTabItem(document == _documentToSelect);
+                if (!document.IsOpen)
+                {
+                    _documents.RemoveAt(i);
+                    if (_documentToSelect == document)
+                    {
+                        _documentToSelect = null;
+                    }
+                    document.Dispose();
+                    DocumentClosed?.Invoke(document);
+                }
             }
+            ImGui.EndTabBar();
         }
 
-        if (_windowToFocus != null)
-        {
-            ImGui.SetWindowFocus(_windowToFocus);
-            _windowToFocus = null;
-        }
-    }
-
-    /// <summary>Docks every open document into the given node (used by the default layout).</summary>
-    public void DockAllDocuments(uint dockId)
-    {
-        foreach (AssetDocument document in _documents)
-        {
-            ImGuiDockBuilder.DockWindow(document.WindowName, dockId);
-        }
+        _documentToSelect = null;
     }
 }

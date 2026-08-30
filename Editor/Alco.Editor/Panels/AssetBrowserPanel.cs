@@ -4,17 +4,14 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// The asset browser panel (left dock): a directory tree over every file the asset
-/// system serves (owned roots and referenced entries merged), with read-only markers
-/// for referenced assets. Double-clicking a file opens it as a document tab.
+/// The asset browser panel (fixed left pane): a directory tree over every file the
+/// asset system serves (owned roots and referenced entries merged), with read-only
+/// markers for referenced assets. Double-clicking a file opens it as a document tab.
 /// The tree rebuilds whenever <see cref="AssetSystem.Version"/> changes (hot reload,
 /// mount changes) or on demand via the refresh button.
 /// </summary>
 public sealed class AssetBrowserPanel
 {
-    /// <summary>The ImGui window name; stable because dock layouts key on it.</summary>
-    public const string WindowName = "Asset Browser";
-
     private readonly EditorContext _context;
     private readonly DocumentManager _documents;
 
@@ -30,41 +27,32 @@ public sealed class AssetBrowserPanel
         _documents = documents;
     }
 
-    /// <summary>Draws the panel window; the window close button drives <paramref name="open"/>.</summary>
-    public void Draw(ref bool open)
+    /// <summary>Draws the panel content inside the left pane's child region.</summary>
+    public void DrawContent()
     {
-        if (!open)
-        {
-            return;
-        }
+        DrawToolbar();
+        ImGui.Separator();
 
-        if (ImGui.Begin(WindowName, ref open))
+        if (ImGui.BeginChild("##asset_tree"))
         {
-            DrawToolbar();
-            ImGui.Separator();
-
-            if (ImGui.BeginChild("##asset_tree"))
+            if (_filter.Length > 0)
             {
-                if (_filter.Length > 0)
+                DrawFilteredList();
+            }
+            else
+            {
+                EnsureTree();
+                foreach (KeyValuePair<string, Node> child in _root.Directories)
                 {
-                    DrawFilteredList();
+                    DrawNode(child.Value, depth: 0);
                 }
-                else
+                foreach (string file in _root.Files)
                 {
-                    EnsureTree();
-                    foreach (KeyValuePair<string, Node> child in _root.Directories)
-                    {
-                        DrawNode(child.Value, depth: 0);
-                    }
-                    foreach (string file in _root.Files)
-                    {
-                        DrawFile(file);
-                    }
+                    DrawFile(file);
                 }
             }
-            ImGui.EndChild();
         }
-        ImGui.End();
+        ImGui.EndChild();
     }
 
     private void DrawToolbar()

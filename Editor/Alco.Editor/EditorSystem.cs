@@ -7,9 +7,10 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// The editor shell: main menu bar, full-viewport dockspace, the default dock layout
-/// (asset browser left, document area center/right), the asset browser panel and the
-/// document manager that owns the open asset editors.
+/// The editor shell: main menu bar and a strict two-pane layout — the asset browser on
+/// the left, the document area (a tab bar with one tab per open asset) on the right,
+/// separated by a draggable splitter. The layout is fixed; only the split position and
+/// the browser's visibility can change.
 /// <para/>
 /// ImGui content is emitted from <see cref="DoUI"/>, which must be called between
 /// <see cref="ImGUISystem"/>'s frame begin and render — that is, from the game update
@@ -18,13 +19,17 @@ namespace Alco.Editor;
 /// </summary>
 public sealed class EditorSystem : BaseEngineSystem
 {
+    private const float DefaultLeftPanelWidth = 280f;
+    private const float MinLeftPanelWidth = 160f;
+    private const float MinDocumentAreaWidth = 240f;
+    private const float SplitterThickness = 6f;
+
     private readonly GameEngine _engine;
     private readonly EditorContext _context;
     private readonly AssetBrowserPanel _assetBrowser;
     private readonly DocumentManager _documents;
 
-    private uint _dockspaceId;
-    private bool _layoutPending = true;
+    private float _leftPanelWidth = DefaultLeftPanelWidth;
     private bool _assetBrowserOpen = true;
 
     /// <summary>
@@ -38,8 +43,6 @@ public sealed class EditorSystem : BaseEngineSystem
         _engine = engine;
         _context = new EditorContext(engine, project);
 
-        ImGuiIOPtr io = ImGui.GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         if (!project.IsUntitled)
         {
             SetIniFilename(Path.Combine(project.ProjectDirectory, "imgui.ini"));
@@ -57,14 +60,14 @@ public sealed class EditorSystem : BaseEngineSystem
     /// <summary>The project open in the editor.</summary>
     public AlcoProject Project => _context.Project;
 
-    /// <summary>Shared editor services (project, engine, dock state).</summary>
+    /// <summary>Shared editor services (project, engine).</summary>
     public EditorContext Context => _context;
 
     /// <summary>The manager owning the open asset documents.</summary>
     public DocumentManager Documents => _documents;
 
-    /// <summary>Rebuilds the default dock layout on the next frame (Window &gt; Reset Layout).</summary>
-    public void RequestResetLayout() => _layoutPending = true;
+    /// <summary>Restores the default panel split (Window &gt; Reset Layout).</summary>
+    public void RequestResetLayout() => _leftPanelWidth = DefaultLeftPanelWidth;
 
     /// <summary>
     /// Emits all editor ImGui content for the current frame. Call from the game update
@@ -74,15 +77,60 @@ public sealed class EditorSystem : BaseEngineSystem
     {
         DrawMainMenuBar();
 
-        _dockspaceId = ImGui.DockSpaceOverViewport();
-        if (_layoutPending)
-        {
-            _layoutPending = false;
-            BuildDefaultLayout();
-        }
+        ImGuiViewportPtr viewport = ImGui.GetMainViewport();
+        ImGui.SetNextWindowPos(viewport.WorkPos, ImGuiCond.Always);
+        ImGui.SetNextWindowSize(viewport.WorkSize, ImGuiCond.Always);
 
-        _assetBrowser.Draw(ref _assetBrowserOpen);
-        _documents.DrawDocuments();
+        // Borderless host pinned to the work area; all editor UI lives inside it so no
+        // window can be moved, resized or torn off.
+        const ImGuiWindowFlags hostFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize
+            | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBringToFrontOnFocus
+            | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoDocking;
+
+        bool hostOpen = true;
+        if (ImGui.Begin("##editor_host", ref hostOpen, hostFlags))
+        {
+            if (_assetBrowserOpen)
+            {
+                if (ImGui.BeginChild("##asset_browser", new Vector2(_leftPanelWidth, 0f), ImGuiChildFlags.Borders))
+                {
+                    _assetBrowser.DrawContent();
+                }
+                ImGui.EndChild();
+
+                ImGui.SameLine(0f, 0f);
+                DrawSplitter();
+                ImGui.SameLine(0f, 0f);
+            }
+
+            if (ImGui.BeginChild("##document_area"))
+            {
+                _documents.DrawDocuments();
+            }
+            ImGui.EndChild();
+        }
+        ImGui.End();
+    }
+
+    /// <summary>Draws the draggable divider between the two panes.</summary>
+    private void DrawSplitter()
+    {
+        ImGui.InvisibleButton("##layout_splitter", new Vector2(SplitterThickness, -1f));
+        if (ImGui.IsItemActive())
+        {
+            // Left + splitter + remaining = full width; cap the left pane so the
+            // document area always keeps its minimum width.
+            float remaining = ImGui.GetContentRegionAvail().X;
+            float maxLeft = _leftPanelWidth + SplitterThickness + remaining - MinDocumentAreaWidth;
+            _leftPanelWidth = Math.Clamp(
+                _leftPanelWidth + ImGui.GetIO().MouseDelta.X,
+                MinLeftPanelWidth,
+                Math.Max(MinLeftPanelWidth, maxLeft));
+        }
+        if (ImGui.IsItemHovered() || ImGui.IsItemActive())
+        {
+            ImGui.SetMouseCursor(ImGuiMouseCursor.ResizeEW);
+        }
     }
 
     private void DrawMainMenuBar()
@@ -109,38 +157,12 @@ public sealed class EditorSystem : BaseEngineSystem
             }
             if (ImGui.MenuItem("Reset Layout"))
             {
-                _layoutPending = true;
+                RequestResetLayout();
             }
             ImGui.EndMenu();
         }
 
         ImGui.EndMainMenuBar();
-    }
-
-    /// <summary>
-    /// Rebuilds the default layout: asset browser docked left, all open documents in the
-    /// remaining central node. Runs on first frame and on Window &gt; Reset Layout; user
-    /// rearrangements persist through ImGui's ini file afterwards.
-    /// </summary>
-    private void BuildDefaultLayout()
-    {
-        if (!ImGuiDockBuilder.NodeExists(_dockspaceId))
-        {
-            return;
-        }
-
-        ImGuiViewportPtr viewport = ImGui.GetMainViewport();
-        ImGuiDockBuilder.RemoveNode(_dockspaceId);
-        ImGuiDockBuilder.AddNode(_dockspaceId, ImGuiDockNodeFlags.None);
-        ImGuiDockBuilder.SetNodePos(_dockspaceId, viewport.WorkPos);
-        ImGuiDockBuilder.SetNodeSize(_dockspaceId, viewport.WorkSize);
-
-        ImGuiDockBuilder.SplitNode(_dockspaceId, ImGuiDir.Left, 0.22f, out uint leftId, out uint centralId);
-        ImGuiDockBuilder.DockWindow(AssetBrowserPanel.WindowName, leftId);
-        _documents.DockAllDocuments(centralId);
-        ImGuiDockBuilder.Finish(_dockspaceId);
-
-        _context.CentralDockId = centralId;
     }
 
     /// <summary>
