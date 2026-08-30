@@ -98,10 +98,38 @@ public sealed class PngReadbackPipeline
         }
 
         GPUTexture nativeTexture = sourceTexture.NativeTexture;
-        if (nativeTexture.PixelFormat != PixelFormat.RGBA8Unorm)
+        return TryBeginRead(nativeTexture, out failure);
+    }
+
+    /// <summary>
+    /// Starts the asynchronous readback of any RGBA8 GPU texture. Sources of another
+    /// format must be converted first — blit them into an RGBA8 staging texture on the
+    /// GPU (see <see cref="SwapchainCaptureSystem"/>), which is both faster than CPU
+    /// pixel processing and format-generic.
+    /// </summary>
+    /// <param name="source">The texture to read. Must be RGBA8 with a valid size and copy-source usage.</param>
+    /// <param name="failure">The failure result when the read could not start; null on success.</param>
+    /// <returns>True when the readback was submitted; false with <paramref name="failure"/> set.</returns>
+    /// <exception cref="InvalidOperationException">A readback is already in flight.</exception>
+    public unsafe bool TryBeginRead(GPUTexture source, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out RenderCaptureResult? failure)
+    {
+        if (_readbackInFlight || _encodeTask != null)
+        {
+            throw new InvalidOperationException("The PNG readback pipeline already has a capture in flight.");
+        }
+
+        uint width = source.Width;
+        uint height = source.Height;
+        if (width == 0 || height == 0)
+        {
+            failure = RenderCaptureResult.CreateFailure("Capture texture has an invalid size.", nameof(InvalidOperationException));
+            return false;
+        }
+
+        if (source.PixelFormat != PixelFormat.RGBA8Unorm)
         {
             failure = RenderCaptureResult.CreateFailure(
-                $"Unsupported capture pixel format '{nativeTexture.PixelFormat}'. Expected {PixelFormat.RGBA8Unorm}.",
+                $"Unsupported capture pixel format '{source.PixelFormat}'. Expected {PixelFormat.RGBA8Unorm}; convert on the GPU first.",
                 nameof(NotSupportedException));
             return false;
         }
@@ -114,7 +142,7 @@ public sealed class PngReadbackPipeline
         _height = height;
         _capturedAtUtc = DateTimeOffset.UtcNow;
         _readbackStartTimestamp = Stopwatch.GetTimestamp();
-        _device.BeginReadTexture(nativeTexture, _readbackBuffer.UnsafePointer, (uint)byteLength, _readbackRequest);
+        _device.BeginReadTexture(source, _readbackBuffer.UnsafePointer, (uint)byteLength, _readbackRequest);
         _readbackInFlight = true;
         failure = null;
         return true;

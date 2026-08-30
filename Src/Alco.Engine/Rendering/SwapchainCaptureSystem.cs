@@ -1,4 +1,5 @@
 using Alco.Graphics;
+using Alco.Rendering;
 
 namespace Alco.Engine;
 
@@ -9,17 +10,22 @@ namespace Alco.Engine;
 /// <see cref="RenderCaptureSystem"/>, whose render-graph captures stop before the ImGui
 /// pass; screenshots meant for debugging editor/ImGui UI must come from here.
 /// <br/>Requests are serialized (one capture in flight). A dispatched request arms a
-/// one-shot read of the presenter's current surface in the post-ImGui / pre-present
-/// window (<see cref="IGPUDeviceHost.OnEndFrame"/>), then the shared
-/// <see cref="PngReadbackPipeline"/> performs the asynchronous GPU readback and a
-/// thread-pool PNG encode, completing the request a couple of frames later.
+/// one-shot conversion in the post-ImGui / pre-present window
+/// (<see cref="IGPUDeviceHost.OnEndFrame"/>): the surface is blitted into an RGBA8
+/// staging texture with a full-screen GPU draw (any surface format is converted by the
+/// blit — no CPU-side pixel processing), then the shared <see cref="PngReadbackPipeline"/>
+/// performs the asynchronous GPU readback and a thread-pool PNG encode, completing the
+/// request a couple of frames later.
 /// </summary>
 public sealed class SwapchainCaptureSystem : BaseEngineSystem
 {
     private readonly GameEngine _engine;
     private readonly PngReadbackPipeline _readback;
+    private readonly RenderContext? _renderContext;
+    private readonly GraphicsMaterial? _blitMaterial;
     private readonly List<PendingCaptureRequest> _pendingRequests = new();
     private PendingCaptureRequest? _activeRequest;
+    private RenderTexture? _staging;
     private bool _readArmed;
 
     /// <summary>
@@ -31,6 +37,13 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         ArgumentNullException.ThrowIfNull(engine);
         _engine = engine;
         _readback = new PngReadbackPipeline(engine.GraphicsDevice);
+
+        if (engine.Setting.Graphics.Backend != GraphicsBackend.None)
+        {
+            _renderContext = engine.RenderingSystem.CreateRenderContext("swapchain_capture_context");
+            _blitMaterial = engine.RenderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_Blit, "swapchain_capture_blit");
+        }
+
         ((IGPUDeviceHost)engine).OnEndFrame += OnEndFrame;
     }
 
@@ -82,7 +95,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
             return;
         }
 
-        // Arm the one-shot surface read: it fires in this frame's post-ImGui /
+        // Arm the one-shot conversion: it fires in this frame's post-ImGui /
         // pre-present window, when the swapchain texture holds the final pixels.
         _activeRequest = request;
         _readArmed = true;
@@ -106,7 +119,10 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         _readArmed = false;
         try
         {
-            if (_readback.TryBeginRead(frameBuffer.Colors[0], out RenderCaptureResult? failure))
+            EnsureStaging(frameBuffer.Width, frameBuffer.Height);
+            BlitSurface(frameBuffer);
+
+            if (_readback.TryBeginRead(_staging!, out RenderCaptureResult? failure))
             {
                 return;
             }
@@ -118,6 +134,44 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
             CompleteActiveRequest(RenderCaptureResult.CreateFailure(
                 $"Swapchain capture failed: {ex.Message}",
                 ex.GetType().Name));
+        }
+    }
+
+    /// <summary>Keeps the RGBA8 staging texture at the surface's current size.</summary>
+    private void EnsureStaging(uint width, uint height)
+    {
+        if (_staging == null)
+        {
+            _staging = _engine.RenderingSystem.CreateRenderTexture(
+                _engine.RenderingSystem.PreferredRGBATexturePass, width, height, "swapchain_capture_staging");
+        }
+        else
+        {
+            _staging.Resize(width, height);
+        }
+    }
+
+    /// <summary>
+    /// Converts the surface's first color attachment into the RGBA8 staging texture
+    /// with a full-screen blit and submits it, ordered before the frame's present.
+    /// </summary>
+    private void BlitSurface(GPUFrameBuffer frameBuffer)
+    {
+        Texture2D source = _engine.RenderingSystem.CreateTexture2D(frameBuffer.Colors[0], frameBuffer.ColorViews[0]);
+        try
+        {
+            _blitMaterial!.SetTexture(ShaderResourceId.Texture, source);
+            using (RenderFrameScope frame = _renderContext!.BeginFrame())
+            {
+                using (RenderPassScope pass = _renderContext.BeginPass(_staging!.FrameBuffer))
+                {
+                    pass.Draw(_engine.RenderingSystem.MeshFullScreen, _blitMaterial);
+                }
+            }
+        }
+        finally
+        {
+            source.Dispose();
         }
     }
 
@@ -146,6 +200,9 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         CompleteActiveRequest(disposedResult);
 
         _readback.Dispose();
+        _staging?.Dispose();
+        _blitMaterial?.Dispose();
+        _renderContext?.Dispose();
     }
 
     /// <summary>A queued capture request and how its result is delivered.</summary>

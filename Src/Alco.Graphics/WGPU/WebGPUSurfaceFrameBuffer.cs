@@ -240,6 +240,14 @@ internal unsafe sealed class WebGPUSurfaceFrameBuffer : WebGPUFrameBufferBase
     {
         bool isTextureUsable = _colorTextures[0].GetNewOutputTexture(ref (*_colorAttachments).view, out bool shouldResize);
 
+        if (isTextureUsable)
+        {
+            // Keep the managed color-view wrapper pointing at this frame's view: the
+            // surface texture (and its default view) is recreated per frame, so without
+            // this the wrapper keeps the first frame's (long-released) view.
+            _colorViewsWrapper[0].UpdateTextureAndView(_colorTextures[0], _colorTextures[0].DefaultView);
+        }
+
         // Some GPU drivers (e.g. Intel Vulkan) may return SuccessOptimal
         // with a surface texture at the old resolution after a window resize.
         // Detect this mismatch and force a surface reconfigure.
