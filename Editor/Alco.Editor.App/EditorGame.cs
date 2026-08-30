@@ -21,7 +21,9 @@ public sealed class EditorGame : GameEngine
     /// </summary>
     /// <param name="setting">Engine settings.</param>
     /// <param name="project">The project to open in the editor.</param>
-    public EditorGame(GameEngineSetting setting, AlcoProject project)
+    /// <param name="apiPort">The localhost port of the agent API (screenshot, open/close/save, ...).</param>
+    /// <param name="enableApi">Whether to host the agent API server.</param>
+    public EditorGame(GameEngineSetting setting, AlcoProject project, int apiPort = 52200, bool enableApi = true)
         : base(setting)
     {
         // Serve the project's owned asset roots (hot-reloaded) and referenced
@@ -34,11 +36,21 @@ public sealed class EditorGame : GameEngine
         _editorSystem = new EditorSystem(this, project);
         AddSystem(_editorSystem);
 
+        if (enableApi)
+        {
+            // The capture system must come after ImGUISystem: screenshots arm in the
+            // post-ImGui / pre-present window. The API host drains its tool queue on tick.
+            SwapchainCaptureSystem capture = new(this);
+            AddSystem(capture);
+            AddSystem(new EditorApiHost(this, _editorSystem, capture, apiPort));
+        }
+
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();
 
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
             var span = data.AsSpan();
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Basic);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Chinese);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Japanese);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Korean);

@@ -7,7 +7,7 @@ namespace Alco.Editor.App;
 /// <summary>
 /// Entry point of the Alco editor. Project resolution order:
 /// <list type="number">
-/// <item>The path given as the first command line argument (a <c>.alco</c> file).</item>
+/// <item>The path given as the positional command line argument (a <c>.alco</c> file).</item>
 /// <item>The first <c>*.alco</c> file found walking up from the current directory
 /// (the engine is usually embedded as a submodule next to the game project's
 /// <c>.alco</c> file).</item>
@@ -19,10 +19,15 @@ internal static class Program
 {
     internal static int Main(string[] args)
     {
+        if (!TryParseArguments(args, out string? projectArg, out int apiPort, out bool enableApi))
+        {
+            return 1;
+        }
+
         AlcoProject project;
         try
         {
-            project = ResolveProject(args);
+            project = ResolveProject(projectArg);
         }
         catch (Exception exception)
         {
@@ -42,7 +47,7 @@ internal static class Program
             },
         };
 
-        using (EditorGame game = new(setting, project))
+        using (EditorGame game = new(setting, project, apiPort, enableApi))
         {
             game.Run();
         }
@@ -53,12 +58,51 @@ internal static class Program
         return 0;
     }
 
-    /// <summary>Resolves the project to open, following the documented search order.</summary>
-    private static AlcoProject ResolveProject(string[] args)
+    /// <summary>
+    /// Parses the command line: an optional positional <c>.alco</c> project path,
+    /// <c>--api-port=N</c> (agent API port, default 52200) and <c>--no-api</c>
+    /// (disable the agent API server).
+    /// </summary>
+    private static bool TryParseArguments(string[] args, out string? projectArg, out int apiPort, out bool enableApi)
     {
-        if (args.Length > 0)
+        projectArg = null;
+        apiPort = 52200;
+        enableApi = true;
+
+        foreach (string arg in args)
         {
-            return AlcoProject.Load(args[0]);
+            if (arg.Equals("--no-api", StringComparison.OrdinalIgnoreCase))
+            {
+                enableApi = false;
+            }
+            else if (arg.StartsWith("--api-port=", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!int.TryParse(arg["--api-port=".Length..], out apiPort) || apiPort <= 0 || apiPort > 65535)
+                {
+                    Log.Error($"Invalid --api-port value: {arg}");
+                    return false;
+                }
+            }
+            else if (projectArg == null)
+            {
+                projectArg = arg;
+            }
+            else
+            {
+                Log.Error($"Unexpected argument: {arg}");
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /// <summary>Resolves the project to open, following the documented search order.</summary>
+    private static AlcoProject ResolveProject(string? projectArg)
+    {
+        if (projectArg != null)
+        {
+            return AlcoProject.Load(projectArg);
         }
 
         string? fromDisk = FindProjectFileUpwards(Directory.GetCurrentDirectory(), "*.alco");

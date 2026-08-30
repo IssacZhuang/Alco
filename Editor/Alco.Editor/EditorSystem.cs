@@ -44,7 +44,7 @@ public sealed class EditorSystem : BaseEngineSystem
         {
             SetIniFilename(Path.Combine(project.ProjectDirectory, "imgui.ini"));
         }
-        BuiltInImGUIStyle.ApplyVisualStudio2026Style();
+        BuiltInImGUIStyle.ApplyAlcoStyle();
 
         // Meta saves from asset documents trigger watcher hot reloads; without a
         // reloader for meta types the asset system would throw on an async-void path.
@@ -56,6 +56,15 @@ public sealed class EditorSystem : BaseEngineSystem
 
     /// <summary>The project open in the editor.</summary>
     public AlcoProject Project => _context.Project;
+
+    /// <summary>Shared editor services (project, engine, dock state).</summary>
+    public EditorContext Context => _context;
+
+    /// <summary>The manager owning the open asset documents.</summary>
+    public DocumentManager Documents => _documents;
+
+    /// <summary>Rebuilds the default dock layout on the next frame (Window &gt; Reset Layout).</summary>
+    public void RequestResetLayout() => _layoutPending = true;
 
     /// <summary>
     /// Emits all editor ImGui content for the current frame. Call from the game update

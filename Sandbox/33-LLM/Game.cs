@@ -58,6 +58,7 @@ public class Game : GameEngine
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
             var span = data.AsSpan();
+            ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Basic);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Chinese);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Japanese);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Korean);

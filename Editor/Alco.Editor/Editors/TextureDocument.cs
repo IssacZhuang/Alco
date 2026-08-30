@@ -31,7 +31,7 @@ public sealed class TextureDocument : AssetDocument
         Converters = { new JsonStringEnumConverter(), new JsonConverterPadding() },
     };
 
-    private readonly string _absolutePath;
+    private readonly string? _absolutePath;
     private readonly byte[] _fileBytes;
     private Texture2D? _previewTexture;
     private float _zoom = 1f;
@@ -42,15 +42,28 @@ public sealed class TextureDocument : AssetDocument
     /// <summary>Creates the document; throws when the file cannot be resolved or decoded.</summary>
     public TextureDocument(EditorContext context, string assetPath) : base(context, assetPath)
     {
-        if (!Context.Project.TryGetOwnedAbsolutePath(assetPath, out string? owned)
-            && !Context.Project.TryGetReferencedAbsolutePath(assetPath, out owned))
+        if (Context.Project.TryGetOwnedAbsolutePath(assetPath, out string? absolute)
+            || Context.Project.TryGetReferencedAbsolutePath(assetPath, out absolute))
+        {
+            _absolutePath = absolute;
+            _fileBytes = File.ReadAllBytes(absolute);
+            _meta = LoadMeta(MetaPath);
+        }
+        else if (Context.AssetSystem.TryLoadRaw(assetPath, out Alco.SafeMemoryHandle data))
+        {
+            // Engine built-in or packaged asset: no on-disk path to resolve. Read the
+            // bytes and meta through the asset system instead; such assets are never
+            // owned, so the document stays read-only and Save refuses to write.
+            _fileBytes = data.AsSpan().ToArray();
+            _meta = Context.AssetSystem.TryLoad(assetPath + FileExt_Meta, out Texture2DMeta? loaded, out _)
+                ? loaded
+                : new Texture2DMeta();
+        }
+        else
         {
             throw new FileNotFoundException($"Cannot resolve {assetPath} to a mounted file.");
         }
-        _absolutePath = owned;
-        _fileBytes = File.ReadAllBytes(_absolutePath);
 
-        _meta = LoadMeta(MetaPath);
         foreach (KeyValuePair<string, Texture2DMeta.Rect> pair in _meta.Sprites)
         {
             _sprites.Add(new SpriteRow(pair.Key, pair.Value));
@@ -59,7 +72,9 @@ public sealed class TextureDocument : AssetDocument
         RebuildPreview();
     }
 
-    private string MetaPath => _absolutePath + FileExt_Meta;
+    // Only reached for project-resolvable files (ctor above; Save is read-only-guarded,
+    // and non-read-only implies the owned branch resolved an absolute path).
+    private string MetaPath => _absolutePath! + FileExt_Meta;
 
     private const string FileExt_Meta = ".meta";
 

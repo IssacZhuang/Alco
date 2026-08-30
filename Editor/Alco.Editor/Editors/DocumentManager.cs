@@ -34,10 +34,64 @@ public sealed class DocumentManager
     /// <summary>The currently open documents.</summary>
     public IReadOnlyList<AssetDocument> Documents => _documents;
 
+    /// <summary>Raised after a document was opened (not when an existing tab was focused).</summary>
+    public event Action<AssetDocument>? DocumentOpened;
+
+    /// <summary>Raised after a document was closed and disposed.</summary>
+    public event Action<AssetDocument>? DocumentClosed;
+
     /// <summary>Registers the document factory for a file extension (e.g. <c>.amat</c>).</summary>
     public void RegisterFactory(string extension, Func<string, AssetDocument> factory)
     {
         _factories[extension] = factory;
+    }
+
+    /// <summary>Returns the open document for <paramref name="assetPath"/>, or null.</summary>
+    public AssetDocument? FindOpen(string assetPath)
+    {
+        for (int i = 0; i < _documents.Count; i++)
+        {
+            if (string.Equals(_documents[i].AssetPath, assetPath, StringComparison.OrdinalIgnoreCase))
+            {
+                return _documents[i];
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Saves the document open for <paramref name="assetPath"/>. Returns false when no
+    /// such document is open or it edits a referenced (read-only) asset.
+    /// </summary>
+    public bool Save(string assetPath)
+    {
+        AssetDocument? document = FindOpen(assetPath);
+        if (document == null || document.IsReadOnly)
+        {
+            return false;
+        }
+
+        document.Save();
+        return true;
+    }
+
+    /// <summary>
+    /// Closes and disposes the document open for <paramref name="assetPath"/>.
+    /// Returns false when no such document is open.
+    /// </summary>
+    public bool Close(string assetPath)
+    {
+        AssetDocument? document = FindOpen(assetPath);
+        if (document == null)
+        {
+            return false;
+        }
+
+        _documents.Remove(document);
+        document.Dispose();
+        DocumentClosed?.Invoke(document);
+        return true;
     }
 
     /// <summary>
@@ -47,15 +101,7 @@ public sealed class DocumentManager
     /// </summary>
     public void Open(string assetPath)
     {
-        AssetDocument? existing = null;
-        for (int i = 0; i < _documents.Count; i++)
-        {
-            if (string.Equals(_documents[i].AssetPath, assetPath, StringComparison.OrdinalIgnoreCase))
-            {
-                existing = _documents[i];
-                break;
-            }
-        }
+        AssetDocument? existing = FindOpen(assetPath);
         if (existing != null)
         {
             _windowToFocus = existing.WindowName;
@@ -78,6 +124,7 @@ public sealed class DocumentManager
 
         _documents.Add(document);
         _windowToFocus = document.WindowName;
+        DocumentOpened?.Invoke(document);
     }
 
     /// <summary>Draws all open document windows and disposes the ones that were closed.</summary>
@@ -91,6 +138,7 @@ public sealed class DocumentManager
             {
                 _documents.RemoveAt(i);
                 document.Dispose();
+                DocumentClosed?.Invoke(document);
             }
         }
 

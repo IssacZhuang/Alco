@@ -81,6 +81,17 @@ public abstract class AssetDocument : AutoDisposable
     /// <summary>Marks the document as modified.</summary>
     protected void MarkDirty() => IsDirty = true;
 
+    /// <summary>
+    /// Agent tools contributed by this document while it is open. Each returned
+    /// instance's <c>[AgentFunction]</c> methods are registered into the editor's agent
+    /// API when the document opens and unregistered when it closes. Method names should
+    /// carry an asset-type prefix (e.g. <c>Material_SetBaseColor</c>) so they cannot
+    /// collide with the editor's base tools. The base implementation contributes none:
+    /// text-format assets are better edited by writing the file directly and letting
+    /// hot reload update the preview.
+    /// </summary>
+    public virtual IEnumerable<object> CreateAgentTools() => Enumerable.Empty<object>();
+
     /// <inheritdoc/>
     protected override void Dispose(bool disposing)
     {
