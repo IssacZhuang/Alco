@@ -22,7 +22,8 @@
             "endScale": 0.4,
             "simulationSpace": "local",
             "behavior": "SbVortex3D",
-            "material": { "texture": "Star", "blend": "Additive" }
+            "texture": "Star",
+            "blend": "Additive"
         }
     ]
 }

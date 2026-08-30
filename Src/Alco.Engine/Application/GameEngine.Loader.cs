@@ -114,6 +114,7 @@ public partial class GameEngine
         yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterShader(RenderingSystem.ShaderSystem);
         yield return new JsonConverterShaderLibrary(RenderingSystem.ShaderSystem);
+        yield return new JsonConverterMaterialAsset(AssetSystem);
         yield return new JsonConverterDepthStencilState();
         yield return new JsonConverterBlendState();
         yield return new JsonConverterPivot();

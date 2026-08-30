@@ -1,0 +1,11 @@
+{
+    // The dissolve material: the custom surface module (SbDissolve2D) plus the
+    // resources every dissolve group shares — the noise texture and the uniform
+    // edge parameters. A group referencing this material still brings its own
+    // sprite through the "texture" slot override.
+    "$type": "Alco.Rendering.MaterialAsset",
+    "version": "1.0",
+    "surface": "SbDissolve2D",
+    "textures": { "noiseTexture": "Noise" },
+    "parameters": { "noiseScale": 2.0, "edgeWidth": 0.18, "edgeColor": "#FF7700" }
+}

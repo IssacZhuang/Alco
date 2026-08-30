@@ -62,6 +62,7 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffectAsset>
         options.Converters.Add(new JsonConverterParticleVector2());
         options.Converters.Add(new JsonConverterParticleRange());
         options.Converters.Add(new JsonConverterTexture2D(assetSystem));
+        options.Converters.Add(new JsonConverterMaterialAsset(assetSystem));
         options.Converters.Add(new JsonConverterShader(shaderSystem));
         options.Converters.Add(new JsonConverterShaderLibrary(shaderSystem));
         options.Converters.Add(new JsonConverterBlendState());

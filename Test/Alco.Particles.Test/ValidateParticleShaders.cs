@@ -48,8 +48,9 @@ public class ValidateParticleShaders
                     .GetOrLoadModule(moduleName).GetEntryPointInfo();
                 if (entryCount > 0 && !anyGeneric)
                 {
-                    // Non-generic entry modules (the init passes and the render
-                    // passes) additionally link unspecialized.
+                    // Non-generic entry modules (the init passes) additionally
+                    // link unspecialized; the generic render pass templates link
+                    // through the composition test below.
                     _ = engine.RenderingSystem.ShaderSystem.GetShader(moduleName).GetShaderModules();
                 }
             }
@@ -96,15 +97,22 @@ public class ValidateParticleShaders
         }
     }
 
-    [Test(Description = "Validate the render pass modules' resource contract")]
+    [Test(Description = "Compose the render pass templates with the default and a custom surface")]
     public void ValidateRenderPassReflection()
     {
         using ShaderValidator engine = new(Setting);
         ShaderSystem shaderSystem = engine.RenderingSystem.ShaderSystem;
+        using var compiler = new MaterialCompiler(
+            engine.RenderingSystem, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
 
+        // The render passes are generic pass templates now: the resource contract
+        // shows in the composed (template × surface) reflection, not in a plain
+        // module link. The default surface covers the "texture" slot; the custom
+        // fixture surface (TestParticleSurface) covers the .amat surface path.
         foreach (string module in new[] { ParticleAssetPipeline.RenderModule2D, ParticleAssetPipeline.RenderModule3D })
         {
-            ShaderReflection reflection = shaderSystem.GetShader(module).GetShaderModules().ReflectionInfo;
+            ShaderReflection reflection = compiler.ComposeSurfaceShader(null, shaderSystem.GetLibrary(module))
+                .GetShaderModules().ReflectionInfo;
             Assert.Multiple(() =>
             {
                 Assert.That(reflection.TryGetResourceLocation("camera", out _), Is.True, $"{module}: missing 'camera'");
@@ -114,5 +122,16 @@ public class ValidateParticleShaders
                 Assert.That(reflection.TryGetResourceLocation("texture", out _), Is.True, $"{module}: missing 'texture'");
             });
         }
+
+        ShaderReflection customReflection = compiler.ComposeGraphics(
+                shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D),
+                shaderSystem.GetLibrary("TestParticleSurface"))
+            .GetShaderModules().ReflectionInfo;
+        Assert.Multiple(() =>
+        {
+            Assert.That(customReflection.TryGetResourceLocation("texture", out _), Is.True, "custom surface: missing 'texture'");
+            Assert.That(customReflection.TryGetResourceLocation("noiseTexture", out _), Is.True, "custom surface: missing 'noiseTexture'");
+            Assert.That(customReflection.TryGetResourceLocation("dissolveParams", out _), Is.True, "custom surface: missing 'dissolveParams'");
+        });
     }
 }

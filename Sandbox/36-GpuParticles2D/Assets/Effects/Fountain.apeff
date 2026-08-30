@@ -23,7 +23,8 @@
             "endColor": "#11335500",
             "fadeOut": 0.35,
             "endScale": 0.6,
-            "material": { "texture": "Glow", "blend": "Additive" }
+            "texture": "Glow",
+            "blend": "Additive"
         }
     ]
 }

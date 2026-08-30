@@ -22,7 +22,8 @@
             "fadeIn": 0.05,
             "fadeOut": 0.55,
             "endScale": 0.25,
-            "material": { "texture": "Glow", "blend": "Additive" }
+            "texture": "Glow",
+            "blend": "Additive"
         },
         {
             // A second emitter of the same effect: sparse bright embers.
@@ -41,7 +42,8 @@
             "startColor": { "min": "#FFEEAAFF", "max": "#FFAA33FF" },
             "endColor": "#44110000",
             "fadeOut": 0.4,
-            "material": { "texture": "Star", "blend": "Additive" }
+            "texture": "Star",
+            "blend": "Additive"
         }
     ]
 }

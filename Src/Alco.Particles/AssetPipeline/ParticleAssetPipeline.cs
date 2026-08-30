@@ -15,11 +15,18 @@ public static class ParticleAssetPipeline
     /// <summary>The file extension of particle effect assets.</summary>
     public const string EffectExtension = ".apeff";
 
-    /// <summary>The module name of the built-in 2D particle render pass shader.</summary>
+    /// <summary>The module name of the built-in 2D particle render pass template.</summary>
     public const string RenderModule2D = "GpuParticle2D";
 
-    /// <summary>The module name of the built-in 3D particle render pass shader.</summary>
+    /// <summary>The module name of the built-in 3D particle render pass template.</summary>
     public const string RenderModule3D = "GpuParticle3D";
+
+    /// <summary>
+    /// The module name of the default particle surface (texture × particle color),
+    /// composed with the render pass templates for groups whose material names no
+    /// surface module of its own.
+    /// </summary>
+    public const string DefaultSurface = "AlcoParticles-SurfaceDefault";
 
     /// <summary>
     /// The module name of the default 2D simulation behavior (used by 2D groups

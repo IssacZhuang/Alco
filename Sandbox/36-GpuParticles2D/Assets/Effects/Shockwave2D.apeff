@@ -19,11 +19,9 @@
             "startColor": { "min": "#66CCFFFF", "max": "#3388FFFF" },
             "endColor": "#11224400",
             "fadeOut": 0.2,
-            "material": {
-                "texture": "Shockwave",
-                "blend": "Additive",
-                "flipbook": { "rows": 4, "cols": 4, "fps": 15, "loop": false }
-            }
+            "texture": "Shockwave",
+            "blend": "Additive",
+            "flipbook": { "rows": 4, "cols": 4, "fps": 15, "loop": false }
         }
     ]
 }

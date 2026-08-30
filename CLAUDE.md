@@ -13,7 +13,7 @@
 - **Alco.Graphics/** - Graphics abstraction layer
 - **Alco.Rendering/** - Rendering pipeline (render graph, render pipeline framework, shared GPU resource facades) and its built-in shaders (Assets/Shaders)
 - **Alco.World3D/** - 3D PBR rendering module (deferred render nodes, scene environment, preset factory, PBR shaders); references only Alco.Rendering and is consumed on demand — neither Alco.Engine nor Alco.Rendering references it
-- **Alco.Particles/** - GPU particle system (particle effect assets with emitter groups, slang behavior modules composed through interface specialization, shared buffer pools, indirect-instanced rendering); references only Alco.Rendering and Alco.IO, consumed on demand (sandboxes 36/37)
+- **Alco.Particles/** - GPU particle system (particle effect assets with emitter groups, slang behavior modules composed through interface specialization, visuals from .amat material assets whose slang surface composes into the render pass templates — groups derive their own texture over the material's "texture" slot, shared buffer pools, indirect-instanced rendering); references only Alco.Rendering and Alco.IO, consumed on demand (sandboxes 36/37)
 - **Alco.Audio/** - Audio system
 - **Alco.GUI/** - GUI framework
 - **Alco.IO/** - Input/Output handling

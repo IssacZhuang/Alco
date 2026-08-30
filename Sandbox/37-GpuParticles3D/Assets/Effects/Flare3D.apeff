@@ -24,7 +24,8 @@
             "fadeIn": 0.05,
             "fadeOut": 0.5,
             "endScale": 0.3,
-            "material": { "texture": "Glow", "blend": "Additive" }
+            "material": "Materials/Flare3D.amat",
+            "blend": "Additive"
         }
     ]
 }

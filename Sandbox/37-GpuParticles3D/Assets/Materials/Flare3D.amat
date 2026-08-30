@@ -1,0 +1,8 @@
+{
+    // The flare material: the engine's default particle surface (no "surface"
+    // field) with the sprite texture carried by the material asset itself —
+    // the group references the .amat and sets no texture of its own.
+    "$type": "Alco.Rendering.MaterialAsset",
+    "version": "1.0",
+    "textures": { "texture": "Glow" }
+}

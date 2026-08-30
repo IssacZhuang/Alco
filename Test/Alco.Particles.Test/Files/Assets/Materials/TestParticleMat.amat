@@ -1,0 +1,9 @@
+{
+    // Test fixture of the particle .amat path: the dissolve surface module, a
+    // shared noise texture and the uniform parameter values.
+    "$type": "Alco.Rendering.MaterialAsset",
+    "version": "1.0",
+    "surface": "TestParticleSurface",
+    "textures": { "noiseTexture": "TestNoise" },
+    "parameters": { "edgeWidth": 0.25, "edgeColor": "#FF8800", "noiseScale": 3.0 }
+}

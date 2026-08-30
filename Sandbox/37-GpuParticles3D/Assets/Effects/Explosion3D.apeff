@@ -22,7 +22,8 @@
             "endColor": "#33000000",
             "fadeOut": 0.5,
             "endScale": 0.3,
-            "material": { "texture": "Glow", "blend": "Additive" }
+            "texture": "Glow",
+            "blend": "Additive"
         },
         {
             "name": "Smoke",
@@ -44,7 +45,8 @@
             "fadeIn": 0.1,
             "fadeOut": 0.6,
             "endScale": 3.5,
-            "material": { "texture": "Glow", "blend": "AlphaBlend" }
+            "texture": "Glow",
+            "blend": "AlphaBlend"
         }
     ]
 }

@@ -17,6 +17,7 @@ public sealed class GpuParticleSystem3D : IDisposable
     private readonly RenderingSystem _rendering;
     private readonly ParticleBufferPool<GpuParticle3D, EmitterParams3D> _pool;
     private readonly MaterialCompiler _materialCompiler;
+    private readonly ShaderLibrary _renderTemplate;
     private readonly ShaderLibrary _emitTemplate;
     private readonly ShaderLibrary _simulateTemplate;
     private readonly ShaderLibrary _defaultBehavior;
@@ -24,6 +25,7 @@ public sealed class GpuParticleSystem3D : IDisposable
     private readonly Dictionary<ShaderLibrary, (ComputeMaterial Emit, ComputeMaterial Simulate)> _behaviorMaterials = [];
     private readonly Dictionary<ParticleGroup3DAsset, GraphicsMaterial> _materials = [];
     private readonly List<ParticleEffectInstance3D> _instances = [];
+    private readonly MaterialAsset _defaultAsset = new() { Name = "particles3d-default" };
     private CameraPerspectiveBuffer? _camera;
     private DepthStencilState _depthStencilState = DepthStencilState.ReadReverseZ;
     private bool _disposed;
@@ -40,8 +42,9 @@ public sealed class GpuParticleSystem3D : IDisposable
         _rendering = rendering;
         _pool = new ParticleBufferPool<GpuParticle3D, EmitterParams3D>(rendering, particleCapacity, emitterSlots, "particles3d");
         _pool.Reallocated += OnPoolReallocated;
-        _materialCompiler = new MaterialCompiler(rendering);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
+        _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
+        _renderTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule3D);
         _emitTemplate = shaderSystem.GetLibrary("GpuParticleEmit3D");
         _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate3D");
         _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior3D);
@@ -300,13 +303,21 @@ public sealed class GpuParticleSystem3D : IDisposable
     {
         if (!_materials.TryGetValue(group, out GraphicsMaterial? material))
         {
-            Shader shader = group.Material.Shader ?? _rendering.ShaderSystem.GetShader(ParticleAssetPipeline.RenderModule3D);
-            material = _rendering.CreateGraphicsMaterial(shader, $"particles3d:{group.Name}");
-            material.BlendState = group.Material.Blend ?? BlendState.AlphaBlend;
+            // See GpuParticleSystem2D.GetOrCreateMaterial: the .amat compiles
+            // against the 3D pass template, the group's texture derives over the
+            // surface's "texture" slot.
+            MaterialAsset asset = group.Material ?? _defaultAsset;
+            material = _materialCompiler.Compile(
+                asset,
+                _renderTemplate,
+                (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles3d:{group.Name}"));
+            material.BlendState = group.Blend ?? BlendState.AlphaBlend;
             material.DepthStencilState = _depthStencilState;
-            if (group.Material.Texture != null)
+            if (group.Texture != null && !material.TrySetTexture("texture", group.Texture))
             {
-                material.SetTexture(ShaderResourceId.Texture, group.Material.Texture);
+                throw new InvalidDataException(
+                    $"Particle group '{group.Name}' sets a texture, but the surface of material '{asset.Name}' " +
+                    "declares no 'texture' slot to override.");
             }
             if (_camera != null)
             {
@@ -368,6 +379,7 @@ public sealed class GpuParticleSystem3D : IDisposable
         {
             material.Dispose();
         }
+        _materialCompiler.Dispose();
         _initMaterial.Dispose();
         _pool.Reallocated -= OnPoolReallocated;
         _pool.Dispose();

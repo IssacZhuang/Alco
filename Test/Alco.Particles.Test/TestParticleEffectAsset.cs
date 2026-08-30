@@ -46,7 +46,8 @@ public class TestParticleEffectAsset
                     "fadeOut": 0.4,
                     "endScale": 0.1,
                     "simulationSpace": "world",
-                    "material": { "blend": "Additive", "tint": { "x": 1, "y": 1, "z": 1, "w": 1 } }
+                    "blend": "Additive",
+                    "tint": { "x": 1, "y": 1, "z": 1, "w": 1 }
                 },
                 {
                     "name": "Smoke",
@@ -90,19 +91,67 @@ public class TestParticleEffectAsset
             Assert.That(sparks.StartColor.Max.Y, Is.EqualTo(0x50 / 255f).Within(1e-6));
             Assert.That(sparks.EndColor.W, Is.EqualTo(0f));
             Assert.That(sparks.SimulationSpace, Is.EqualTo(ParticleSimulationSpace.World));
-            Assert.That(sparks.Material.Blend, Is.Not.Null);
+            Assert.That(sparks.Blend, Is.Not.Null);
+            Assert.That(sparks.Material, Is.Null);
             Assert.That(sparks.Behavior, Is.Null);
 
             // The second group takes every default.
             ParticleGroup2DAsset smoke = effect.Groups[1];
             Assert.That(smoke.Shape.Type, Is.EqualTo(ParticleShape2DType.Point));
             Assert.That(smoke.SimulationSpace, Is.EqualTo(ParticleSimulationSpace.World));
-            Assert.That(smoke.Material.Tint, Is.EqualTo(System.Numerics.Vector4.One));
+            Assert.That(smoke.Tint, Is.EqualTo(System.Numerics.Vector4.One));
         });
 
         // Strict members: an unknown field fails the parse.
         string bad = Effect2DJson.Replace("\"emissionRate\"", "\"emissionRateTypo\"");
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffectAsset>(bad, options));
+    }
+
+    [Test]
+    public void GroupMaterialLoadsAnAmatAssetWithSharedResources()
+    {
+        using EngineHost engine = new(GameEngineSetting.CreateNoGPU());
+        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
+            engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
+
+        // The group's material is an .amat reference (surface module + shared
+        // textures + uniform parameters); the group derives its own texture over
+        // the surface's "texture" slot.
+        const string json = """
+            {
+                "$type": "Alco.Particles.ParticleEffect2DAsset",
+                "version": "1.0",
+                "groups": [
+                    {
+                        "name": "Dissolve",
+                        "material": "Materials/TestParticleMat.amat",
+                        "texture": "TestNoise",
+                        "blend": "Additive",
+                        "flipbook": { "rows": 2, "cols": 2, "fps": 12 }
+                    }
+                ]
+            }
+            """;
+
+        ParticleEffectAsset asset = JsonSerializer.Deserialize<ParticleEffectAsset>(json, options)
+            ?? throw new InvalidDataException("empty");
+        ParticleEffect2DAsset effect = asset as ParticleEffect2DAsset
+            ?? throw new AssertionException("not a 2D effect");
+        ParticleGroup2DAsset group = effect.Groups[0];
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(group.Material, Is.Not.Null);
+            Assert.That(group.Material!.Surface, Is.Not.Null);
+            Assert.That(group.Material.Surface!.Name, Is.EqualTo("TestParticleSurface"));
+            Assert.That(group.Material.Textures.ContainsKey("noiseTexture"), Is.True);
+            Assert.That(group.Material.Parameters.ContainsKey("edgeWidth"), Is.True);
+            Assert.That(group.Material.Parameters.ContainsKey("edgeColor"), Is.True);
+            Assert.That(group.Texture, Is.Not.Null);
+            Assert.That(group.Blend, Is.Not.Null);
+            Assert.That(group.Flipbook, Is.Not.Null);
+            Assert.That(group.Flipbook!.Cols, Is.EqualTo(2));
+        });
     }
 
     [Test]

@@ -22,6 +22,7 @@ public sealed class GpuParticleSystem2D : IDisposable
     private readonly RenderingSystem _rendering;
     private readonly ParticleBufferPool<GpuParticle2D, EmitterParams2D> _pool;
     private readonly MaterialCompiler _materialCompiler;
+    private readonly ShaderLibrary _renderTemplate;
     private readonly ShaderLibrary _emitTemplate;
     private readonly ShaderLibrary _simulateTemplate;
     private readonly ShaderLibrary _defaultBehavior;
@@ -29,6 +30,7 @@ public sealed class GpuParticleSystem2D : IDisposable
     private readonly Dictionary<ShaderLibrary, (ComputeMaterial Emit, ComputeMaterial Simulate)> _behaviorMaterials = [];
     private readonly Dictionary<ParticleGroup2DAsset, GraphicsMaterial> _materials = [];
     private readonly List<ParticleEffectInstance2D> _instances = [];
+    private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
     private Camera2DBuffer? _camera;
     private bool _disposed;
 
@@ -44,8 +46,9 @@ public sealed class GpuParticleSystem2D : IDisposable
         _rendering = rendering;
         _pool = new ParticleBufferPool<GpuParticle2D, EmitterParams2D>(rendering, particleCapacity, emitterSlots, "particles2d");
         _pool.Reallocated += OnPoolReallocated;
-        _materialCompiler = new MaterialCompiler(rendering);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
+        _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
+        _renderTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D);
         _emitTemplate = shaderSystem.GetLibrary("GpuParticleEmit2D");
         _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate2D");
         _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior2D);
@@ -278,12 +281,21 @@ public sealed class GpuParticleSystem2D : IDisposable
     {
         if (!_materials.TryGetValue(group, out GraphicsMaterial? material))
         {
-            Shader shader = group.Material.Shader ?? _rendering.ShaderSystem.GetShader(ParticleAssetPipeline.RenderModule2D);
-            material = _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}");
-            material.BlendState = group.Material.Blend ?? BlendState.AlphaBlend;
-            if (group.Material.Texture != null)
+            // The group's material instance: the .amat compiles against the 2D
+            // pass template (its surface shades the fragments, its textures and
+            // [MaterialParams] values bind), then the group's own texture derives
+            // over the surface's "texture" slot.
+            MaterialAsset asset = group.Material ?? _defaultAsset;
+            material = _materialCompiler.Compile(
+                asset,
+                _renderTemplate,
+                (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
+            material.BlendState = group.Blend ?? BlendState.AlphaBlend;
+            if (group.Texture != null && !material.TrySetTexture("texture", group.Texture))
             {
-                material.SetTexture(ShaderResourceId.Texture, group.Material.Texture);
+                throw new InvalidDataException(
+                    $"Particle group '{group.Name}' sets a texture, but the surface of material '{asset.Name}' " +
+                    "declares no 'texture' slot to override.");
             }
             if (_camera != null)
             {
@@ -345,6 +357,7 @@ public sealed class GpuParticleSystem2D : IDisposable
         {
             material.Dispose();
         }
+        _materialCompiler.Dispose();
         _initMaterial.Dispose();
         _pool.Reallocated -= OnPoolReallocated;
         _pool.Dispose();

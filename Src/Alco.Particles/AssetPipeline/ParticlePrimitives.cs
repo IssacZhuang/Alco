@@ -1,8 +1,6 @@
 using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Alco.Graphics;
-using Alco.Rendering;
 
 namespace Alco.Particles;
 
@@ -244,7 +242,7 @@ public class ParticleShape3D
     public Vector3 Extents { get; set; } = new Vector3(0.5f);
 }
 
-/// <summary>Flipbook (sprite-sheet) animation parameters of a particle group's material.</summary>
+/// <summary>Flipbook (sprite-sheet) animation parameters of a particle group.</summary>
 public class ParticleFlipbook
 {
     /// <summary>The number of rows in the sprite sheet.</summary>
@@ -258,35 +256,4 @@ public class ParticleFlipbook
 
     /// <summary>Whether the animation loops instead of clamping to the last frame.</summary>
     public bool Loop { get; set; } = true;
-}
-
-/// <summary>
-/// The render appearance of a particle group: which texture to draw the particle
-/// quads with, how to blend them, and an optional custom render shader module
-/// replacing the built-in particle pass shader for full visual customization.
-/// </summary>
-public class ParticleMaterialConfig
-{
-    /// <summary>The particle texture; null binds the white fallback texture.</summary>
-    public Texture2D? Texture { get; set; }
-
-    /// <summary>
-    /// The blend state preset name (<c>"AlphaBlend"</c>, <c>"Additive"</c>, …);
-    /// null defaults to <see cref="BlendState.AlphaBlend"/>. Additive blending is
-    /// order-independent and recommended for unsorted GPU particles.
-    /// </summary>
-    public BlendState? Blend { get; set; }
-
-    /// <summary>
-    /// A custom render shader module (e.g. <c>"MyParticleShader"</c>) replacing the
-    /// built-in <c>GpuParticle2D</c>/<c>GpuParticle3D</c> pass; the module must
-    /// follow the same resource contract (see the built-in modules).
-    /// </summary>
-    public Shader? Shader { get; set; }
-
-    /// <summary>A global color multiplier applied on top of the per-particle color.</summary>
-    public Vector4 Tint { get; set; } = Vector4.One;
-
-    /// <summary>Flipbook animation of the particle texture; null disables it.</summary>
-    public ParticleFlipbook? Flipbook { get; set; }
 }

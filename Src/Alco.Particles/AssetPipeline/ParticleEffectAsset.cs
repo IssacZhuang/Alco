@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Alco.Graphics;
 using Alco.Rendering;
 
 namespace Alco.Particles;
@@ -152,8 +153,36 @@ public abstract class ParticleGroupAsset
     /// </summary>
     public ShaderLibrary? Behavior { get; set; }
 
-    /// <summary>The render appearance of the group.</summary>
-    public ParticleMaterialConfig Material { get; set; } = new();
+    /// <summary>
+    /// The material asset (<c>.amat</c>) defining the group's visuals: its surface
+    /// module shades the particle fragments (implementing <c>IParticleSurface</c>;
+    /// the built-in default shades texture × particle color), and it carries the
+    /// shared resources — textures (e.g. noise maps) and uniform shader parameters
+    /// (the surface's <c>[MaterialParams]</c> blocks). Null compiles the engine's
+    /// default particle surface with its fallback textures.
+    /// </summary>
+    public MaterialAsset? Material { get; set; }
+
+    /// <summary>
+    /// The particle texture: overrides the material's <c>texture</c> slot on the
+    /// group's own material instance (the .amat provides the shared resources, this
+    /// provides the per-group sprite — material-instance derivation). Null keeps the
+    /// material's own binding (or its fallback).
+    /// </summary>
+    public Texture2D? Texture { get; set; }
+
+    /// <summary>
+    /// The blend state preset name (<c>"AlphaBlend"</c>, <c>"Additive"</c>, …);
+    /// null defaults to <see cref="BlendState.AlphaBlend"/>. Additive blending is
+    /// order-independent and recommended for unsorted GPU particles.
+    /// </summary>
+    public BlendState? Blend { get; set; }
+
+    /// <summary>A global color multiplier applied on top of the per-particle color.</summary>
+    public System.Numerics.Vector4 Tint { get; set; } = System.Numerics.Vector4.One;
+
+    /// <summary>Flipbook animation of the particle texture; null disables it.</summary>
+    public ParticleFlipbook? Flipbook { get; set; }
 }
 
 /// <summary>A 2D emitter group; adds 2D shape, direction, rotation and size parameters.</summary>

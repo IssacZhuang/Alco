@@ -1,0 +1,31 @@
+{
+    // A looping dissolve: glowing motes burn away over their life. The visuals
+    // come from the Dissolve2D material asset (custom surface + shared noise +
+    // edge parameters); this group derives only its sprite ("texture") and keeps
+    // its alpha high — the dissolve, not a fade, makes the particles disappear.
+    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Dissolve",
+            "maxParticles": 1024,
+            "looping": true,
+            "emissionRate": 60,
+            "shape": { "type": "circle", "radius": 2.5 },
+            "direction": { "x": 0, "y": 1 },
+            "spreadAngle": 0.4,
+            "speed": { "min": 1.5, "max": 3.5 },
+            "lifetime": { "min": 1.6, "max": 2.4 },
+            "size": { "min": { "x": 2.2, "y": 2.2 }, "max": { "x": 3.2, "y": 3.2 } },
+            "gravity": { "x": 0, "y": 1.5 },
+            "drag": 0.4,
+            "startColor": { "min": "#FFCCAAFF", "max": "#FF9955FF" },
+            "endColor": "#FF5522FF",
+            "fadeIn": 0.05,
+            "fadeOut": 0.05,
+            "material": "Materials/Dissolve2D.amat",
+            "texture": "Glow",
+            "blend": "AlphaBlend"
+        }
+    ]
+}

@@ -131,8 +131,8 @@ public struct EmitterParams3D
         parameters.ColorMin = group.StartColor.Min;
         parameters.ColorMax = group.StartColor.Max;
         parameters.ColorEnd = group.EndColor;
-        parameters.Tint = group.Material.Tint;
-        ParticleFlipbook? flipbook = group.Material.Flipbook;
+        parameters.Tint = group.Tint;
+        ParticleFlipbook? flipbook = group.Flipbook;
         parameters.Flipbook = flipbook != null
             ? new Vector4(flipbook.Rows, flipbook.Cols, flipbook.Fps, flipbook.Loop ? 1f : 0f)
             : new Vector4(1f, 1f, 0f, 0f);

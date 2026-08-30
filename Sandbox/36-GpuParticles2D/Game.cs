@@ -12,10 +12,13 @@ using SandboxUtils;
 /// Sandbox demonstrating the 2D GPU particle system (Alco.Particles): particle
 /// effects are assets (<c>.apeff</c>) with one or more emitter groups, simulated
 /// and rendered entirely on the GPU (two compute dispatches + one indexed-indirect
-/// instanced draw per group per frame). The scene shows four effects — a one-shot
+/// instanced draw per group per frame). The scene shows five effects — a one-shot
 /// explosion (two groups: sparks + smoke), a looping flame (two groups), a looping
-/// fountain with a periodic burst, and a vortex whose simulation comes from a
-/// custom slang behavior module (SbVortex2D, local simulation space).
+/// fountain with a periodic burst, a vortex whose simulation comes from a custom
+/// slang behavior module (SbVortex2D, local simulation space), and a dissolve
+/// whose visuals come from a material asset (Materials/Dissolve2D.amat: a custom
+/// slang surface with a shared noise texture and uniform parameters; the group
+/// derives only its sprite over the material's "texture" slot).
 /// <br/>The auto-spawner exercises the frequent create/destroy path: explosions
 /// spawn at random positions and finished instances dispose themselves, returning
 /// their pool slices.
@@ -110,12 +113,14 @@ public class Game : GameEngine
         _effects["Fountain"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Fountain.apeff");
         _effects["Vortex"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Vortex.apeff");
         _effects["Shockwave"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Shockwave2D.apeff");
+        _effects["Dissolve"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Dissolve2D.apeff");
 
         // The static scene (deterministic seeds keep screenshot mode reproducible).
         _flameInstance = Spawn("Flame", new Vector2(-18, -10), 101);
         Spawn("Fountain", new Vector2(18, -15), 102);
         Spawn("Vortex", new Vector2(0, 5), 103);
         Spawn("Shockwave", new Vector2(24, 8), 104);
+        Spawn("Dissolve", new Vector2(-26, 8), 105);
 
         // Stress mode: a grid of alternating flame/vortex instances (~2300/4100
         // pooled particles each) and rapid-fire explosions on top.
@@ -234,6 +239,7 @@ public class Game : GameEngine
         if (ImGui.Button("Spawn Flame")) SpawnRandom("Flame");
         if (ImGui.Button("Spawn Fountain")) SpawnRandom("Fountain");
         if (ImGui.Button("Spawn Vortex")) SpawnRandom("Vortex");
+        if (ImGui.Button("Spawn Dissolve")) SpawnRandom("Dissolve");
 
         if (ImGui.Button("Destroy Oldest") && _instances.Count > 0)
         {
