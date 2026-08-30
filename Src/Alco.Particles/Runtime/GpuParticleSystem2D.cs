@@ -17,7 +17,7 @@ namespace Alco.Particles;
 /// <see cref="RGNode_Callback"/> before the scene content node and call
 /// <see cref="Render"/> from the scene content (or an <see cref="IRenderPassContent"/>).
 /// </summary>
-public sealed class GpuParticleSystem2D : IDisposable
+public sealed class GpuParticleSystem2D : AutoDisposable
 {
     private readonly RenderingSystem _rendering;
     private readonly ParticleBufferPool<GpuParticle2D, EmitterParams2D> _pool;
@@ -32,7 +32,6 @@ public sealed class GpuParticleSystem2D : IDisposable
     private readonly List<ParticleEffectInstance2D> _instances = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
     private Camera2DBuffer? _camera;
-    private bool _disposed;
 
     /// <summary>
     /// Creates the system with its shared pool's initial capacities.
@@ -95,7 +94,7 @@ public sealed class GpuParticleSystem2D : IDisposable
     public ParticleEffectInstance2D CreateInstance(ParticleEffect2DAsset effect, in Transform2D transform, int seed = 0)
     {
         ArgumentNullException.ThrowIfNull(effect);
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
         if (effect.Groups.Count == 0)
         {
             throw new InvalidDataException($"Particle effect '{effect.Name}' has no groups.");
@@ -291,11 +290,11 @@ public sealed class GpuParticleSystem2D : IDisposable
                 _renderTemplate,
                 (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
             material.BlendState = group.Blend ?? BlendState.AlphaBlend;
-            if (group.Texture != null && !material.TrySetTexture("texture", group.Texture))
+            if (group.Texture != null && !material.TrySetTexture(ShaderResourceId.Texture, group.Texture))
             {
                 throw new InvalidDataException(
                     $"Particle group '{group.Name}' sets a texture, but the surface of material '{asset.Name}' " +
-                    "declares no 'texture' slot to override.");
+                    $"declares no '{ShaderResourceId.Texture}' slot to override.");
             }
             if (_camera != null)
             {
@@ -309,17 +308,17 @@ public sealed class GpuParticleSystem2D : IDisposable
 
     private void BindPool(ComputeMaterial material)
     {
-        material.TrySetBuffer("particles", _pool.Particles);
-        material.TrySetBuffer("emitters", _pool.Params);
-        material.TrySetBuffer("renderList", _pool.RenderList);
-        material.TrySetBuffer("drawArgs", _pool.DrawArgs);
+        material.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
+        material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
+        material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
+        material.TrySetBuffer(ParticleShaderKeys.DrawArgs, _pool.DrawArgs);
     }
 
     private void BindPool(GraphicsMaterial material)
     {
-        material.TrySetBuffer("particles", _pool.Particles);
-        material.TrySetBuffer("emitters", _pool.Params);
-        material.TrySetBuffer("renderList", _pool.RenderList);
+        material.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
+        material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
+        material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
     }
 
     private void OnPoolReallocated()
@@ -329,7 +328,7 @@ public sealed class GpuParticleSystem2D : IDisposable
             BindPool(emit);
             BindPool(simulate);
         }
-        _initMaterial.TrySetBuffer("particles", _pool.Particles);
+        _initMaterial.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
         foreach (GraphicsMaterial material in _materials.Values)
         {
             BindPool(material);
@@ -337,13 +336,12 @@ public sealed class GpuParticleSystem2D : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        if (_disposed)
+        if (!disposing)
         {
             return;
         }
-        _disposed = true;
         for (int i = _instances.Count - 1; i >= 0; i--)
         {
             _instances[i].Dispose();

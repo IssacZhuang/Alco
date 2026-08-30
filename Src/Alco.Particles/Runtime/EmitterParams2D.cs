@@ -67,16 +67,16 @@ public struct EmitterParams2D
     public Vector4 Motion;
 
     /// <summary>Spawn color range lower bound.</summary>
-    public Vector4 ColorMin;
+    public ColorFloat ColorMin;
 
     /// <summary>Spawn color range upper bound.</summary>
-    public Vector4 ColorMax;
+    public ColorFloat ColorMax;
 
     /// <summary>The color the particles lerp to at the end of their life.</summary>
-    public Vector4 ColorEnd;
+    public ColorFloat ColorEnd;
 
     /// <summary>The global color multiplier of the group's material.</summary>
-    public Vector4 Tint;
+    public ColorFloat Tint;
 
     /// <summary>Flipbook: x = rows, y = cols, z = fps, w = loop (0/1).</summary>
     public Vector4 Flipbook;

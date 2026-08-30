@@ -87,9 +87,9 @@ public class TestParticleEffectAsset
             Assert.That(sparks.Speed.Min, Is.EqualTo(100f));
             Assert.That(sparks.AlignRotationToVelocity, Is.True);
             Assert.That(sparks.Gravity.Y, Is.EqualTo(-300f));
-            Assert.That(sparks.StartColor.Max.X, Is.EqualTo(1f));
-            Assert.That(sparks.StartColor.Max.Y, Is.EqualTo(0x50 / 255f).Within(1e-6));
-            Assert.That(sparks.EndColor.W, Is.EqualTo(0f));
+            Assert.That(sparks.StartColor.Max.R, Is.EqualTo(1f));
+            Assert.That(sparks.StartColor.Max.G, Is.EqualTo(0x50 / 255f).Within(1e-6));
+            Assert.That(sparks.EndColor.A, Is.EqualTo(0f));
             Assert.That(sparks.SimulationSpace, Is.EqualTo(ParticleSimulationSpace.World));
             Assert.That(sparks.Blend, Is.Not.Null);
             Assert.That(sparks.Material, Is.Null);
@@ -99,7 +99,7 @@ public class TestParticleEffectAsset
             ParticleGroup2DAsset smoke = effect.Groups[1];
             Assert.That(smoke.Shape.Type, Is.EqualTo(ParticleShape2DType.Point));
             Assert.That(smoke.SimulationSpace, Is.EqualTo(ParticleSimulationSpace.World));
-            Assert.That(smoke.Tint, Is.EqualTo(System.Numerics.Vector4.One));
+            Assert.That(smoke.Tint, Is.EqualTo(ColorFloat.White));
         });
 
         // Strict members: an unknown field fails the parse.

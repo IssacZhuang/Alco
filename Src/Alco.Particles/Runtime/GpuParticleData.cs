@@ -18,10 +18,10 @@ public struct GpuParticle2D
     public Vector2 Scale;
 
     /// <summary>Current color (color-over-life and fades applied).</summary>
-    public Vector4 Color;
+    public ColorFloat Color;
 
     /// <summary>Spawn color, the lerp source of color-over-life.</summary>
-    public Vector4 StartColor;
+    public ColorFloat StartColor;
 
     /// <summary>Current velocity.</summary>
     public Vector2 Velocity;
@@ -57,10 +57,10 @@ public struct GpuParticle3D
     public float Size;
 
     /// <summary>Current color (color-over-life and fades applied).</summary>
-    public Vector4 Color;
+    public ColorFloat Color;
 
     /// <summary>Spawn color, the lerp source of color-over-life.</summary>
-    public Vector4 StartColor;
+    public ColorFloat StartColor;
 
     /// <summary>Current velocity.</summary>
     public Vector3 Velocity;

@@ -9,7 +9,7 @@ namespace Alco.Particles;
 /// <see cref="ParticleEffectInstance2D"/>. Created through
 /// <see cref="GpuParticleSystem3D.CreateInstance"/>.
 /// </summary>
-public sealed class ParticleEffectInstance3D : IDisposable
+public sealed class ParticleEffectInstance3D : AutoDisposable
 {
     /// <summary>The per-group runtime state of a 3D effect instance.</summary>
     internal sealed class GroupState
@@ -48,7 +48,6 @@ public sealed class ParticleEffectInstance3D : IDisposable
     private readonly GpuParticleSystem3D _system;
     private readonly GroupState[] _groups;
     private FastRandom _random;
-    private bool _disposed;
 
     internal ParticleEffectInstance3D(
         GpuParticleSystem3D system,
@@ -182,13 +181,11 @@ public sealed class ParticleEffectInstance3D : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        if (_disposed)
+        if (disposing)
         {
-            return;
+            _system.ReleaseInstance(this);
         }
-        _disposed = true;
-        _system.ReleaseInstance(this);
     }
 }

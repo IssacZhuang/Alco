@@ -10,7 +10,7 @@ namespace Alco.Particles;
 /// slices and slots to the shared pool — cheap enough for effects that spawn and
 /// despawn constantly.
 /// </summary>
-public sealed class ParticleEffectInstance2D : IDisposable
+public sealed class ParticleEffectInstance2D : AutoDisposable
 {
     /// <summary>The per-group runtime state of a 2D effect instance.</summary>
     internal sealed class GroupState
@@ -49,7 +49,6 @@ public sealed class ParticleEffectInstance2D : IDisposable
     private readonly GpuParticleSystem2D _system;
     private readonly GroupState[] _groups;
     private FastRandom _random;
-    private bool _disposed;
 
     internal ParticleEffectInstance2D(
         GpuParticleSystem2D system,
@@ -172,13 +171,11 @@ public sealed class ParticleEffectInstance2D : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        if (_disposed)
+        if (disposing)
         {
-            return;
+            _system.ReleaseInstance(this);
         }
-        _disposed = true;
-        _system.ReleaseInstance(this);
     }
 }

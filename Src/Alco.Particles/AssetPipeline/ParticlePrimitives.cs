@@ -140,6 +140,66 @@ public class JsonConverterParticleVector2 : JsonConverter<Vector2>
     }
 }
 
+/// <summary>
+/// JSON converter for <see cref="ColorFloat"/> in particle assets: a number
+/// (broadcast), a hex color string (<c>"#RRGGBB"</c> / <c>"#RRGGBBAA"</c>), or a
+/// component object (<c>{"r": 1, "g": 0.5, ...}</c>, vector-style names tolerated) —
+/// the same shapes the material vector converters accept.
+/// </summary>
+public class JsonConverterParticleColor : JsonConverter<ColorFloat>
+{
+    /// <inheritdoc />
+    public override ColorFloat Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        if (reader.TokenType == JsonTokenType.Number)
+        {
+            float value = reader.GetSingle();
+            return new ColorFloat(value, value, value, value);
+        }
+        if (reader.TokenType == JsonTokenType.String)
+        {
+            string? hex = reader.GetString();
+            if (hex != null && ColorFloat.TryParse(hex, out ColorFloat color))
+            {
+                return color;
+            }
+            throw new JsonException($"Invalid hex color string '{hex}' for a particle color value.");
+        }
+        if (reader.TokenType != JsonTokenType.StartObject)
+        {
+            throw new JsonException("Expected a number, a hex color string or a component object for a particle color value.");
+        }
+        ColorFloat result = default;
+        while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+        {
+            if (reader.TokenType != JsonTokenType.PropertyName)
+            {
+                throw new JsonException("Expected a component name when reading a particle color value.");
+            }
+            string name = reader.GetString() ?? string.Empty;
+            reader.Read();
+            float component = reader.GetSingle();
+            if (name.Equals("r", StringComparison.OrdinalIgnoreCase) || name.Equals("x", StringComparison.OrdinalIgnoreCase)) result.R = component;
+            else if (name.Equals("g", StringComparison.OrdinalIgnoreCase) || name.Equals("y", StringComparison.OrdinalIgnoreCase)) result.G = component;
+            else if (name.Equals("b", StringComparison.OrdinalIgnoreCase) || name.Equals("z", StringComparison.OrdinalIgnoreCase)) result.B = component;
+            else if (name.Equals("a", StringComparison.OrdinalIgnoreCase) || name.Equals("w", StringComparison.OrdinalIgnoreCase)) result.A = component;
+            else throw new JsonException($"Unknown component '{name}' of a particle color value.");
+        }
+        return result;
+    }
+
+    /// <inheritdoc />
+    public override void Write(Utf8JsonWriter writer, ColorFloat value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteNumber("r", value.R);
+        writer.WriteNumber("g", value.G);
+        writer.WriteNumber("b", value.B);
+        writer.WriteNumber("a", value.A);
+        writer.WriteEndObject();
+    }
+}
+
 /// <summary>The emission shape of a 2D particle group.</summary>
 public enum ParticleShape2DType
 {

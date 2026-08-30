@@ -112,13 +112,13 @@ public abstract class ParticleGroupAsset
     public ParticleRange Speed { get; set; } = new(10f, 20f);
 
     /// <summary>
-    /// The per-particle color at spawn, sampled component-wise between min (xyzw)
+    /// The per-particle color at spawn, sampled component-wise between min (rgba)
     /// and max. Alpha is the opacity (1 = opaque).
     /// </summary>
-    public ParticleVector4Range StartColor { get; set; } = new(System.Numerics.Vector4.One);
+    public ParticleColorRange StartColor { get; set; } = new(ColorFloat.White);
 
     /// <summary>The color the particle lerps to at the end of its life.</summary>
-    public System.Numerics.Vector4 EndColor { get; set; } = System.Numerics.Vector4.UnitW * 0f;
+    public ColorFloat EndColor { get; set; } = ColorFloat.Transparent;
 
     /// <summary>
     /// The normalized lifetime fraction over which the particle fades in
@@ -179,7 +179,7 @@ public abstract class ParticleGroupAsset
     public BlendState? Blend { get; set; }
 
     /// <summary>A global color multiplier applied on top of the per-particle color.</summary>
-    public System.Numerics.Vector4 Tint { get; set; } = System.Numerics.Vector4.One;
+    public ColorFloat Tint { get; set; } = ColorFloat.White;
 
     /// <summary>Flipbook animation of the particle texture; null disables it.</summary>
     public ParticleFlipbook? Flipbook { get; set; }
@@ -254,21 +254,21 @@ public sealed class ParticleGroup3DAsset : ParticleGroupAsset
 }
 
 /// <summary>
-/// A <see cref="System.Numerics.Vector4"/> range sampled component-wise at spawn
-/// time (on the GPU); used for spawn colors. Serialized as
+/// A <see cref="ColorFloat"/> range sampled component-wise at spawn time (on the
+/// GPU); used for spawn colors. Serialized as
 /// <c>{ "min": "#RRGGBBAA", "max": {...} }</c> — each bound accepts every shape
-/// the material vector4 converter accepts (number, hex color, component object).
+/// the particle color converter accepts (number, hex color, component object).
 /// </summary>
-public struct ParticleVector4Range
+public struct ParticleColorRange
 {
     /// <summary>The inclusive lower bound of the sampled range.</summary>
-    public System.Numerics.Vector4 Min { get; set; }
+    public ColorFloat Min { get; set; }
 
     /// <summary>The inclusive upper bound of the sampled range.</summary>
-    public System.Numerics.Vector4 Max { get; set; }
+    public ColorFloat Max { get; set; }
 
     /// <summary>Creates a range that always samples <paramref name="value"/>.</summary>
-    public ParticleVector4Range(System.Numerics.Vector4 value)
+    public ParticleColorRange(ColorFloat value)
     {
         Min = value;
         Max = value;

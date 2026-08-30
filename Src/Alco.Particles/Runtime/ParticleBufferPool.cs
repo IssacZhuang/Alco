@@ -33,7 +33,7 @@ internal readonly struct ParticleSlice
 /// </summary>
 /// <typeparam name="TParticle">The particle record type (GPU layout twin).</typeparam>
 /// <typeparam name="TParams">The per-emitter parameter record type (GPU layout twin).</typeparam>
-internal sealed class ParticleBufferPool<TParticle, TParams> : IDisposable
+internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     where TParticle : unmanaged
     where TParams : unmanaged
 {
@@ -263,8 +263,12 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : IDisposable
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    protected override void Dispose(bool disposing)
     {
+        if (!disposing)
+        {
+            return;
+        }
         _particles.Dispose();
         _renderList.Dispose();
         _drawArgs.Dispose();
