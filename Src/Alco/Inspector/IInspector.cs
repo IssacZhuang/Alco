@@ -25,8 +25,9 @@ namespace Alco;
 /// <item>Text parameters are spans (<see cref="ReadOnlySpan{T}"/>): labels are
 /// usually literals and must not be stored by implementations — widgets draw
 /// immediately.</item>
-/// <item>Scalar drag widgets are <c>Drag*</c>; multi-component vector editors
-/// are <c>Edit*</c>; drag bounds default to unbounded; sliders require a range.</item>
+/// <item>Drag widgets are <c>Edit*</c> (<c>EditFloat</c>, <c>EditInt</c> and their
+/// vector sizes); sliders are <c>Slider*</c>; drag bounds default to unbounded;
+/// sliders require a range.</item>
 /// </list>
 /// </para>
 /// </summary>
@@ -50,7 +51,7 @@ public interface IInspector
     /// <paramref name="min"/>/<paramref name="max"/> clamp the value when
     /// <paramref name="min"/> &lt; <paramref name="max"/> (the defaults are unbounded).
     /// </summary>
-    bool DragFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity);
+    bool EditFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity);
 
     /// <summary>
     /// Edits a <see cref="Vector2"/> value; <paramref name="min"/>/<paramref name="max"/>
@@ -75,7 +76,7 @@ public interface IInspector
     /// <paramref name="min"/>/<paramref name="max"/> clamp the value when
     /// <paramref name="min"/> &lt; <paramref name="max"/> (the defaults are unbounded).
     /// </summary>
-    bool DragInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue);
+    bool EditInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue);
 
     /// <summary>
     /// Edits an <see cref="int2"/> value; <paramref name="min"/>/<paramref name="max"/>
@@ -118,47 +119,13 @@ public interface IInspector
 
     /// <summary>
     /// Draws a combo box over an enum value; the entries are the enum member
-    /// names in declaration order (cached per enum type).
+    /// names in declaration order.
     /// </summary>
-    bool Combo<T>(ReadOnlySpan<char> label, ref T value) where T : struct, Enum
-    {
-        string[] names = EnumCache<T>.Names;
-        int index = -1;
-        string current = value.ToString();
-        for (int i = 0; i < names.Length; i++)
-        {
-            if (string.Equals(names[i], current, StringComparison.Ordinal))
-            {
-                index = i;
-                break;
-            }
-        }
-
-        if (index < 0 || !Combo(label, ref index, names))
-        {
-            return false;
-        }
-
-        value = EnumCache<T>.Values[index];
-        return true;
-    }
+    bool Combo<T>(ReadOnlySpan<char> label, ref T value) where T : struct, Enum;
 
     /// <summary>Draws an RGB color editor (alpha kept unchanged).</summary>
     bool ColorEdit3(ReadOnlySpan<char> label, ref Vector3 color);
 
     /// <summary>Draws an RGBA color editor; <paramref name="hdr"/> enables editing values above 1.</summary>
     bool ColorEdit4(ReadOnlySpan<char> label, ref Vector4 color, bool hdr = false);
-}
-
-/// <summary>
-/// Per-enum-type cached member names and values backing
-/// <see cref="IInspector.Combo{T}"/>.
-/// </summary>
-file sealed class EnumCache<T> where T : struct, Enum
-{
-    /// <summary>The enum member names in declaration order.</summary>
-    public static readonly string[] Names = Enum.GetNames<T>();
-
-    /// <summary>The enum member values in declaration order (aligned with <see cref="Names"/>).</summary>
-    public static readonly T[] Values = Enum.GetValues<T>();
 }

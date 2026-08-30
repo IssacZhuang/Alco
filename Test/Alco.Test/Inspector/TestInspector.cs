@@ -6,13 +6,13 @@ using Alco;
 namespace Alco.Test;
 
 /// <summary>
-/// Contract tests of <see cref="IInspector"/>: the default <see cref="IInspector.Combo{T}"/>
-/// enum helper, the no-op behavior of <see cref="NullInspector"/>, and the
-/// collapsing-header gating pattern.
+/// Contract tests of <see cref="IInspector"/>: the abstract enum
+/// <see cref="IInspector.Combo{T}"/> write-back, the no-op behavior of
+/// <see cref="NullInspector"/>, and the collapsing-header gating pattern.
 /// </summary>
 public class TestInspector
 {
-    /// <summary>A test enum; Combo{T} must surface these names in this order.</summary>
+    /// <summary>A test enum used through the abstract Combo{T}.</summary>
     private enum Quality
     {
         Low,
@@ -20,17 +20,17 @@ public class TestInspector
         High
     }
 
-    /// <summary>A minimal editable backend: selects a fixed combo index and opens headers.</summary>
+    /// <summary>
+    /// A minimal editable backend: headers report as expanded; a combo reports
+    /// "edited" and writes back only when <see cref="ComboResult"/> is set.
+    /// </summary>
     private sealed class EditingStub : IInspector
     {
-        /// <summary>The index every combo selects.</summary>
-        public int ComboIndex;
-
         /// <summary>Whether headers report as expanded.</summary>
         public bool HeaderOpen = true;
 
-        /// <summary>The item names of the last combo call.</summary>
-        public string[]? LastComboItems;
+        /// <summary>The value a scripted combo writes back; null reports no edit.</summary>
+        public object? ComboResult;
 
         /// <inheritdoc />
         public void Text(ReadOnlySpan<char> text)
@@ -46,7 +46,7 @@ public class TestInspector
         public bool CollapsingHeader(ReadOnlySpan<char> label) => HeaderOpen;
 
         /// <inheritdoc />
-        public bool DragFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
+        public bool EditFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
 
         /// <inheritdoc />
         public bool EditFloat2(ReadOnlySpan<char> label, ref Vector2 value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
@@ -58,7 +58,7 @@ public class TestInspector
         public bool EditFloat4(ReadOnlySpan<char> label, ref Vector4 value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
 
         /// <inheritdoc />
-        public bool DragInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue) => false;
+        public bool EditInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue) => false;
 
         /// <inheritdoc />
         public bool EditInt2(ReadOnlySpan<char> label, ref int2 value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue) => false;
@@ -82,11 +82,18 @@ public class TestInspector
         public bool InputText(ReadOnlySpan<char> label, ref string value, uint maxLength = 256) => false;
 
         /// <inheritdoc />
-        public bool Combo(ReadOnlySpan<char> label, ref int selectedIndex, ReadOnlySpan<string> items)
+        public bool Combo(ReadOnlySpan<char> label, ref int selectedIndex, ReadOnlySpan<string> items) => false;
+
+        /// <inheritdoc />
+        public bool Combo<T>(ReadOnlySpan<char> label, ref T value) where T : struct, Enum
         {
-            LastComboItems = items.ToArray();
-            selectedIndex = ComboIndex;
-            return true;
+            if (ComboResult is T typed)
+            {
+                value = typed;
+                return true;
+            }
+
+            return false;
         }
 
         /// <inheritdoc />
@@ -97,10 +104,9 @@ public class TestInspector
     }
 
     [Test]
-    public void DefaultEnumComboSurfacesEnumNamesAndWritesBack()
+    public void EnumComboWritesBackThroughTheContract()
     {
-        // Default interface methods dispatch only through the interface type.
-        IInspector inspector = new EditingStub { ComboIndex = 1 };
+        IInspector inspector = new EditingStub { ComboResult = Quality.Medium };
 
         Quality value = Quality.High;
         bool edited = inspector.Combo("Quality", ref value);
@@ -109,7 +115,6 @@ public class TestInspector
         {
             Assert.That(edited, Is.True);
             Assert.That(value, Is.EqualTo(Quality.Medium));
-            Assert.That(((EditingStub)inspector).LastComboItems, Is.EqualTo(new[] { "Low", "Medium", "High" }));
         });
     }
 
@@ -152,9 +157,9 @@ public class TestInspector
 
         Assert.Multiple(() =>
         {
-            Assert.That(inspector.DragFloat("f", ref f), Is.False);
+            Assert.That(inspector.EditFloat("f", ref f), Is.False);
             Assert.That(inspector.EditFloat3("v3", ref v3), Is.False);
-            Assert.That(inspector.DragInt("i", ref i), Is.False);
+            Assert.That(inspector.EditInt("i", ref i), Is.False);
             Assert.That(inspector.EditInt2("i2", ref i2), Is.False);
             Assert.That(inspector.Checkbox("b", ref b), Is.False);
             Assert.That(inspector.InputText("s", ref s), Is.False);

@@ -9,9 +9,8 @@ namespace TestFramework;
 /// (as <c>"Widget:label"</c> strings in <see cref="Calls"/>) and applies
 /// label-keyed scripted edits registered through <see cref="Edit"/> — the
 /// widget whose label matches reports "edited" once and writes the scripted
-/// value through its <c>ref</c> parameter. Combo scripting works on the
-/// positional index (the value an <see cref="IInspector.Combo{T}"/> passes
-/// down), not the enum itself.
+/// value through its <c>ref</c> parameter. Enum combos are scripted with the
+/// enum value itself.
 /// </summary>
 public sealed class InspectorRecorder : IInspector
 {
@@ -44,8 +43,8 @@ public sealed class InspectorRecorder : IInspector
     }
 
     /// <inheritdoc />
-    public bool DragFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
-        => Take("DragFloat", label, ref value);
+    public bool EditFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
+        => Take("EditFloat", label, ref value);
 
     /// <inheritdoc />
     public bool EditFloat2(ReadOnlySpan<char> label, ref Vector2 value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
@@ -60,8 +59,8 @@ public sealed class InspectorRecorder : IInspector
         => Take("EditFloat4", label, ref value);
 
     /// <inheritdoc />
-    public bool DragInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue)
-        => Take("DragInt", label, ref value);
+    public bool EditInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue)
+        => Take("EditInt", label, ref value);
 
     /// <inheritdoc />
     public bool EditInt2(ReadOnlySpan<char> label, ref int2 value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue)
@@ -121,6 +120,10 @@ public sealed class InspectorRecorder : IInspector
     /// <inheritdoc />
     public bool Combo(ReadOnlySpan<char> label, ref int selectedIndex, ReadOnlySpan<string> items)
         => Take("Combo", label, ref selectedIndex);
+
+    /// <inheritdoc />
+    public bool Combo<T>(ReadOnlySpan<char> label, ref T value) where T : struct, Enum
+        => Take("Combo", label, ref value);
 
     /// <inheritdoc />
     public bool ColorEdit3(ReadOnlySpan<char> label, ref Vector3 color)

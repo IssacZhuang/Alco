@@ -22,7 +22,7 @@ public sealed class ImGuiInspector : IInspector
     public bool CollapsingHeader(ReadOnlySpan<char> label) => ImGui.CollapsingHeader(label);
 
     /// <inheritdoc />
-    public bool DragFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
+    public bool EditFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity)
         => ImGui.DragFloat(label, ref value, speed, min, max);
 
     /// <inheritdoc />
@@ -38,7 +38,7 @@ public sealed class ImGuiInspector : IInspector
         => ImGui.DragFloat4(label, ref value, speed, min, max);
 
     /// <inheritdoc />
-    public bool DragInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue)
+    public bool EditInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue)
         => ImGui.DragInt(label, ref value, speed, min, max);
 
     /// <inheritdoc />
@@ -105,6 +105,10 @@ public sealed class ImGuiInspector : IInspector
         // allocating widget in this backend — combos are rare per frame).
         return ImGui.Combo(label, ref selectedIndex, items.ToArray(), items.Length);
     }
+
+    /// <inheritdoc />
+    public bool Combo<T>(ReadOnlySpan<char> label, ref T value) where T : struct, Enum
+        => ImGui.Combo(label, ref value);
 
     /// <inheritdoc />
     public bool ColorEdit3(ReadOnlySpan<char> label, ref Vector3 color)

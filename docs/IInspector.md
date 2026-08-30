@@ -26,10 +26,10 @@ place for it.
 
 | File | Content |
 |---|---|
-| `Src/Alco/Inspector/IInspector.cs` | The widget contract (+ default `Combo<T>` enum helper) |
+| `Src/Alco/Inspector/IInspector.cs` | The widget contract (pure abstract, no default bodies) |
 | `Src/Alco/Inspector/IInspectable.cs` | "This object exposes parameters" marker + `Inspect(IInspector)` |
 | `Src/Alco/Inspector/NullInspector.cs` | Shared no-op backend (headless tools, tests) |
-| `Src/Alco.ImGUI/ImGuiInspector.cs` | Reference ImGui backend |
+| `Src/Alco.ImGUI/ImGuiInspector.cs` | Reference ImGui backend (enum `Combo<T>` forwards to `ImGui.Enums.cs`) |
 | `Test/TestFramework/InspectorRecorder.cs` | Scripted recording backend for tests |
 
 ## Contract rules
@@ -44,29 +44,31 @@ place for it.
 4. **Text is span-based.** All text parameters are `ReadOnlySpan<char>` (combo items:
    `ReadOnlySpan<string>`). Labels are usually literals, so the per-frame path stays
    allocation-free; implementations must not store them — widgets draw immediately.
-5. **Naming.** Scalar drag widgets are `Drag*` (`DragFloat`, `DragInt`), sliders are
-   `Slider*`; multi-component vector editors are `Edit*` (`EditFloat2/3/4`,
-   `EditInt2/3/4`), matching the `EditTransform2D/3D` precedent of the ImGUI module.
+5. **Naming.** Drag widgets are `Edit*` (`EditFloat`, `EditInt` plus vector
+   sizes `EditFloat2/3/4`, `EditInt2/3/4`); sliders are `Slider*`; matches the
+   `EditTransform2D/3D` precedent of the ImGUI module.
 6. **Bounds.** Drag widgets default to unbounded (`±∞` for floats, `int.MinValue/MaxValue`
    for ints); a bound applies only when `min < max` and clamps every component of
    vector widgets. Sliders require a range.
-7. **Call through the interface.** Optional parameter defaults and the default
-   `Combo<T>` body live on the interface — they only apply when the static call type
-   is `IInspector` (which is also how default interface methods dispatch).
+7. **Pure abstract contract.** `IInspector` declares only abstract methods — including
+   the enum `Combo<T>`; there are no default bodies. Optional parameter defaults live
+   on the interface and apply when the static call type is `IInspector`. Each backend
+   implements every method on top of its own toolkit (the ImGui backend reuses the
+   zero-allocation `ImGui.Combo<T>` from `ImGui.Enums.cs`).
 
 ## API surface
 
 | Method | Value type | ImGui counterpart |
 |---|---|---|
 | `Text`, `Separator`, `CollapsingHeader` | layout | `Text`, `Separator`, `CollapsingHeader` |
-| `DragFloat`, `DragInt` | `float`, `int` (scalar drags) | `DragFloat`, `DragInt` |
+| `EditFloat`, `EditInt` | `float`, `int` (scalar drags) | `DragFloat`, `DragInt` |
 | `EditFloat2/3/4` | `Vector2/3/4` | `DragFloat2/3/4` |
 | `EditInt2/3/4` | `int2/3/4` | `DragInt2/3/4` |
 | `SliderFloat`, `SliderInt` | `float`, `int` | `SliderFloat`, `SliderInt` |
 | `Checkbox` | `bool` | `Checkbox` |
 | `InputText` | `string` (with `maxLength`) | `InputText` |
 | `Combo` | `int` index + `ReadOnlySpan<string>` items | `Combo` |
-| `Combo<T>` | any `T : struct, Enum` | (built on `Combo`) |
+| `Combo<T>` | any `T : struct, Enum` | `ImGui.Combo<T>` (ImGui.Enums.cs) |
 | `ColorEdit3` | `Vector3` | `ColorEdit3` |
 | `ColorEdit4(hdr)` | `Vector4` | `ColorEdit4` (+`ImGuiColorEditFlags.HDR`) |
 
@@ -76,9 +78,10 @@ Design notes:
   base module's `int2/3/4` — the binding's `DragInt2/3/4` take `ref int` (a pointer to
   N contiguous ints), which `ImGuiInspector` stages through a `stackalloc` span.
   The contract normalizes that quirk: engine code always passes a real vector type.
-- `Combo<T>` is a *default interface method*: it maps the enum to its declaration-order
-  names/values (cached per enum type) and routes through the abstract `Combo`. Every
-  backend gets enum support for free by implementing the int-based `Combo`.
+- The enum `Combo<T>` is a contract method; `ImGuiInspector` forwards it to the
+  existing `ImGui.Combo<T>` (`ImGui.Enums.cs`), which caches per-type names/values
+  and allocates nothing per frame. A backend without a native enum combo can
+  implement it over its int-based `Combo` instead.
 - The ImGui binding exposes `ReadOnlySpan<char>` overloads for every widget, so the
   reference backend forwards labels without allocating. One exception: the native
   combo consumes a `char*[]`, so `ImGuiInspector.Combo` materializes the item span
@@ -104,7 +107,7 @@ public sealed class BloomSettings : IInspectable
 
         // Properties: copy -> widget -> write back on edit.
         float threshold = Threshold;
-        if (inspector.DragFloat("Threshold", ref threshold, 0.01f, 0f, 4f))
+        if (inspector.EditFloat("Threshold", ref threshold, 0.01f, 0f, 4f))
         {
             Threshold = threshold;
         }
@@ -121,7 +124,7 @@ validation (and it is what keeps `Inspect` implementations trivially testable).
 ## Implementing a backend
 
 A backend implements `IInspector` and maps each widget onto its toolkit; see
-`Src/Alco.ImGUI/ImGuiInspector.cs` (~130 lines). Requirements:
+`Src/Alco.ImGUI/ImGuiInspector.cs` (~140 lines). Requirements:
 
 - honor the `bool` = edited semantics and the `ref` write-through,
 - treat the label as the widget id (stable from frame to frame) and draw immediately
@@ -136,11 +139,11 @@ changes: engine modules only ever see the interface.
 
 - `TestFramework.InspectorRecorder` records every call (`"Widget:label"`) and applies
   label-keyed scripted edits (`.Edit("Duration (s)", 2.5f)`), so `Inspect`
-  implementations can be tested without any UI. Combo scripting uses the positional
-  index (that is what the int-based `Combo` receives).
+  implementations can be tested without any UI. Enum combos are scripted with the
+  enum value itself.
 - `NullInspector` asserts the no-edit path leaves state untouched.
-- Contract tests: `Test/Alco.Test/Inspector/TestInspector.cs` (default `Combo<T>`,
-  `CollapsingHeader` gating, `NullInspector`).
+- Contract tests: `Test/Alco.Test/Inspector/TestInspector.cs` (the abstract
+  `Combo<T>` write-back, `CollapsingHeader` gating, `NullInspector`).
 
 ## Extending the contract
 

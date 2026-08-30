@@ -31,7 +31,7 @@ public sealed class NullInspector : IInspector
     public bool CollapsingHeader(ReadOnlySpan<char> label) => false;
 
     /// <inheritdoc />
-    public bool DragFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
+    public bool EditFloat(ReadOnlySpan<char> label, ref float value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
 
     /// <inheritdoc />
     public bool EditFloat2(ReadOnlySpan<char> label, ref Vector2 value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
@@ -43,7 +43,7 @@ public sealed class NullInspector : IInspector
     public bool EditFloat4(ReadOnlySpan<char> label, ref Vector4 value, float speed = 1f, float min = float.NegativeInfinity, float max = float.PositiveInfinity) => false;
 
     /// <inheritdoc />
-    public bool DragInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue) => false;
+    public bool EditInt(ReadOnlySpan<char> label, ref int value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue) => false;
 
     /// <inheritdoc />
     public bool EditInt2(ReadOnlySpan<char> label, ref int2 value, float speed = 1f, int min = int.MinValue, int max = int.MaxValue) => false;
@@ -68,6 +68,9 @@ public sealed class NullInspector : IInspector
 
     /// <inheritdoc />
     public bool Combo(ReadOnlySpan<char> label, ref int selectedIndex, ReadOnlySpan<string> items) => false;
+
+    /// <inheritdoc />
+    public bool Combo<T>(ReadOnlySpan<char> label, ref T value) where T : struct, Enum => false;
 
     /// <inheritdoc />
     public bool ColorEdit3(ReadOnlySpan<char> label, ref Vector3 color) => false;
