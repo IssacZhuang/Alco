@@ -278,5 +278,13 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
             buffer.Dispose();
         }
         _retired.Clear();
+        // Sources of growth copies that were never recorded (the pool died before
+        // the next RecordMigration) never moved to the retired list — dispose them
+        // here. The targets are the live fields above; disposal is idempotent.
+        foreach ((GraphicsBuffer source, _, _) in _pendingCopies)
+        {
+            source.Dispose();
+        }
+        _pendingCopies.Clear();
     }
 }

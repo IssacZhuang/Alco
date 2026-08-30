@@ -65,6 +65,29 @@ internal static class GizmoTestSupport
         return GizmoCore.Manipulate(ctx, view, projection, operation, mode, ref transform, snap);
     }
 
+    /// <summary>Pumps one frame of bounds manipulation on a world-space 3D box.</summary>
+    public static bool Frame(GizmoContext ctx, Vector2 mouse, bool down,
+        in Matrix4x4 view, in Matrix4x4 projection, ref BoundingBox3D bounds, Vector3? snap = null)
+    {
+        ctx.BeginFrame(Viewport, new GizmoInput(mouse, down, Vector2.Zero));
+        return GizmoCore.ManipulateBounds(ctx, view, projection, ref bounds, snap, 3);
+    }
+
+    /// <summary>
+    /// Pumps one frame of bounds manipulation on a 2D box, mirroring the facade's
+    /// conversion (X/Y resize only; Z is not written back).
+    /// </summary>
+    public static bool Frame(GizmoContext ctx, Vector2 mouse, bool down,
+        in Matrix4x4 view, in Matrix4x4 projection, ref BoundingBox2D bounds, Vector2? snap = null)
+    {
+        BoundingBox3D box = new BoundingBox3D(new Vector3(bounds.Min, 0f), new Vector3(bounds.Max, 0f));
+        Vector3? snap3 = snap.HasValue ? new Vector3(snap.Value.X, snap.Value.Y, 0f) : null;
+        ctx.BeginFrame(Viewport, new GizmoInput(mouse, down, Vector2.Zero));
+        bool manipulated = GizmoCore.ManipulateBounds(ctx, view, projection, ref box, snap3, 2);
+        bounds = new BoundingBox2D(new Vector2(box.Min.X, box.Min.Y), new Vector2(box.Max.X, box.Max.Y));
+        return manipulated;
+    }
+
     /// <summary>Projects a world point to screen pixels through view * projection.</summary>
     public static Vector2 ToScreen(Vector3 world, in Matrix4x4 view, in Matrix4x4 projection)
     {

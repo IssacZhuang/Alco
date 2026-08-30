@@ -98,8 +98,10 @@ public class MaterialAsset : IJsonOnDeserialized
     /// themselves once the last material referencing them dies, as the engine's
     /// escapable-binding rule prescribes. Null until the first compile (and when
     /// the surface declares no parameter blocks).
+    /// <br/>Compiler-private cache, not asset API: only <see cref="MaterialCompiler"/>
+    /// packs and reads it — the asset's public face stays data-only.
     /// </summary>
-    public IReadOnlyDictionary<string, GraphicsBuffer>? ParameterBuffers => _parameterBuffers;
+    internal IReadOnlyDictionary<string, GraphicsBuffer>? ParameterBuffers => _parameterBuffers;
 
     /// <summary>Whether the shared buffers were packed against this surface (the compiler's default counts too).</summary>
     internal bool HasParameterBuffers(ShaderLibrary surface)

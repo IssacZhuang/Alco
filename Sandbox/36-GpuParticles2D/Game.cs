@@ -30,7 +30,11 @@ using SandboxUtils;
 /// scene gizmo (translate in the view plane / rotate around the view axis) plus
 /// live per-group parameter editing (emission rate, lifetime, speed, size,
 /// gravity, tint, velocity stretch) through the instance's params override API.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N]
+/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--stress=N] [--particles=N [--particlesize=S]]
+/// <br/>--stress=N spawns a grid of N flame/vortex instances; --particles=N fills the
+/// pool to ~N live particles with saturating 8192-particle groups (8192-group fill,
+/// 1M scale, is opt-in — the demo defaults stay small), --particlesize=S overrides the
+/// fill quad size (default 2 world units; tiny values isolate simulation from fill rate).
 /// </summary>
 public class Game : GameEngine
 {
@@ -68,6 +72,18 @@ public class Game : GameEngine
     // explosions, with the frame rate logged to the console once per second.
     private readonly int _stressCount;
     private float _stressLogTimer;
+
+    // Fill mode (--particles=N [--particlesize=S]): spawns enough saturating
+    // 8192-particle groups to keep ~N particles live (opt-in stress scenario;
+    // the demo defaults stay untouched without the flag). Stats log once per
+    // second: fps, avg/max frame ms of the window, instance/group counts, live
+    // estimate, pooled/allocated capacity and the managed allocation rate.
+    private readonly int _particleTarget;
+    private readonly float _particleSize;
+    private double _statFrameMs;
+    private float _statFrameMsMax;
+    private int _statFrames;
+    private long _statAllocatedBytes;
 
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
@@ -163,6 +179,65 @@ public class Game : GameEngine
             }
             _autoSpawnInterval = 0.1f;
         }
+
+        // Fill mode: build the saturating fill effect in code and spawn enough of
+        // it to hold ~N particles live. The pool starts at its default 262k and
+        // grows geometrically to 1M on the way, exercising buffer migration and
+        // material rebinding. Auto-spawn defaults off for clean numbers (the
+        // panel can re-enable it).
+        _particleTarget = int.TryParse(GetArgValue(args, "--particles="), out int particleTarget) ? particleTarget : 0;
+        _particleSize = float.TryParse(GetArgValue(args, "--particlesize="), out float particleSize) ? particleSize : 2f;
+        if (_particleTarget > 0)
+        {
+            _effects["Fill"] = CreateFillEffect(_particleSize);
+            SpawnFill(_particleTarget);
+            _autoSpawn = false;
+        }
+    }
+
+    // The fill effect: one saturating group whose rate × mean lifetime equals its
+    // slice capacity, so the ring buffer stays exactly full (live == pooled)
+    // without overwrite churn. Particle size is a CLI knob: authored-like sizes
+    // stress the rasterizer, tiny quads isolate the simulation cost.
+    private ParticleEffect2DAsset CreateFillEffect(float size)
+    {
+        return new ParticleEffect2DAsset
+        {
+            Name = "Fill",
+            Groups =
+            [
+                new ParticleGroup2DAsset
+                {
+                    Name = "Fill",
+                    MaxParticles = 8192,
+                    Looping = true,
+                    EmissionRate = 4096,
+                    Lifetime = new ParticleRange(1.95f, 2.05f),
+                    Shape = new ParticleShape2D { Type = ParticleShape2DType.Circle, Radius = 0.8f },
+                    Speed = new ParticleRange(1f, 3f),
+                    Size = new ParticleVector2Range(new Vector2(size)),
+                    StartColor = new ParticleColorRange(new ColorFloat(1f, 0.7f, 0.3f, 1f)),
+                    EndColor = new ColorFloat(0.4f, 0.1f, 0.6f, 0f),
+                    FadeIn = 0.05f,
+                    FadeOut = 0.5f,
+                    Texture = AssetSystem.Load<Texture2D>("Glow"),
+                    Blend = BlendState.Additive,
+                },
+            ],
+        };
+    }
+
+    private void SpawnFill(int target)
+    {
+        const int groupSize = 8192;
+        int count = (target + groupSize - 1) / groupSize;
+        int columns = (int)Math.Ceiling(Math.Sqrt(count * 64.0 / 36.0)); // ~view aspect
+        for (int i = 0; i < count; i++)
+        {
+            float x = (i % columns - (columns - 1) * 0.5f) * 5.0f;
+            float y = (i / columns) * 3.2f - 16f;
+            Spawn("Fill", new Vector2(x, y), 2000 + i);
+        }
     }
 
     /// <summary>Registers the particle effect asset loader (.apeff) on top of the defaults.</summary>
@@ -236,21 +311,46 @@ public class Game : GameEngine
 
         DebugStats.Text(FrameRate);
 
-        if (_stressCount > 0)
+        if (_stressCount > 0 || _particleTarget > 0)
         {
+            float frameMs = delta * 1000f;
+            _statFrameMs += frameMs;
+            _statFrameMsMax = Math.Max(_statFrameMsMax, frameMs);
+            _statFrames++;
             _stressLogTimer += delta;
             if (_stressLogTimer >= 1.0f)
             {
                 _stressLogTimer = 0;
-                long particles = 0;
+                long live = 0;
+                long pooled = 0;
+                int groups = 0;
                 foreach (InstanceEntry entry in _instances)
                 {
                     foreach (ParticleGroup2DAsset group in entry.Instance.Asset.Groups)
                     {
-                        particles += group.MaxParticles;
+                        groups++;
+                        // The slice capacity (what the simulate pass touches) and the
+                        // steady-state live estimate: rate × mean lifetime, clamped to
+                        // the slice (ring overwrite keeps it full once saturated).
+                        long capacity = Math.Max(64, (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(group.MaxParticles, 1)));
+                        pooled += capacity;
+                        if (group.Looping || group.Duration <= 0f)
+                        {
+                            live += Math.Min(capacity, (long)(group.EmissionRate * (group.Lifetime.Min + group.Lifetime.Max) * 0.5f));
+                        }
                     }
                 }
-                Console.WriteLine($"[stress] fps={FrameRate} instances={_instances.Count} pooledParticles={particles}");
+                long allocatedNow = GC.GetTotalAllocatedBytes(false);
+                long allocatedDelta = allocatedNow - _statAllocatedBytes;
+                _statAllocatedBytes = allocatedNow;
+                double avgMs = _statFrameMs / Math.Max(_statFrames, 1);
+                Console.WriteLine(
+                    $"[stress] fps={FrameRate} avgMs={avgMs:F2} maxMs={_statFrameMsMax:F1} " +
+                    $"instances={_instances.Count} groups={groups} live~={live} pooled={pooled} " +
+                    $"poolCap={_particles.PoolParticleCapacity} slots={_particles.PoolEmitterSlotCapacity} allocKBs={allocatedDelta / 1024}");
+                _statFrameMs = 0;
+                _statFrameMsMax = 0;
+                _statFrames = 0;
             }
         }
 

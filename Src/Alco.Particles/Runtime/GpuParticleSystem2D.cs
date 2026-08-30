@@ -88,6 +88,12 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <summary>The shared buffer pool (diagnostics).</summary>
     internal ParticleBufferPool<GpuParticle2D, EmitterParams2D> Pool => _pool;
 
+    /// <summary>The shared pool's current particle capacity (grows geometrically when exhausted).</summary>
+    public int PoolParticleCapacity => _pool.ParticleCapacity;
+
+    /// <summary>The shared pool's current emitter-slot count.</summary>
+    public int PoolEmitterSlotCapacity => _pool.SlotCapacity;
+
     /// <summary>
     /// Creates an effect instance that starts playing immediately.
     /// </summary>
@@ -106,26 +112,53 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
         uint indexCount = QuadMesh.GetSubMesh(0).IndexCount;
         var groups = new ParticleEffectInstance2D.GroupState[effect.Groups.Count];
-        for (int i = 0; i < groups.Length; i++)
+        uint pendingSlot = 0;
+        ParticleSlice pendingSlice = default;
+        uint uploadMin = uint.MaxValue;
+        uint uploadMax = 0;
+        try
         {
-            ParticleGroup2DAsset groupAsset = effect.Groups[i];
-            uint slot = _pool.AllocateSlot();
-            ParticleSlice slice = _pool.AllocateSlice(Math.Max(groupAsset.MaxParticles, 1));
-            EmitterParams2D parameters = EmitterParams2D.FromAsset(groupAsset, indexCount);
-            parameters.Capacity = slice.Capacity;
-            parameters.SliceOffset = slice.Offset;
-            _pool.Params[(int)slot] = parameters;
-            groups[i] = new ParticleEffectInstance2D.GroupState
+            for (int i = 0; i < groups.Length; i++)
             {
-                Asset = groupAsset,
-                Slot = slot,
-                Slice = slice,
-                Material = GetOrCreateMaterial(groupAsset),
-                EmissionRate = groupAsset.EmissionRate,
-                Lifetime = groupAsset.Lifetime,
-            };
+                ParticleGroup2DAsset groupAsset = effect.Groups[i];
+                pendingSlot = _pool.AllocateSlot();
+                pendingSlice = _pool.AllocateSlice(Math.Max(groupAsset.MaxParticles, 1));
+                EmitterParams2D parameters = EmitterParams2D.FromAsset(groupAsset, indexCount);
+                parameters.Capacity = pendingSlice.Capacity;
+                parameters.SliceOffset = pendingSlice.Offset;
+                _pool.Params[(int)pendingSlot] = parameters;
+                uploadMin = Math.Min(uploadMin, pendingSlot);
+                uploadMax = Math.Max(uploadMax, pendingSlot);
+                groups[i] = new ParticleEffectInstance2D.GroupState
+                {
+                    Asset = groupAsset,
+                    Slot = pendingSlot,
+                    Slice = pendingSlice,
+                    Material = GetOrCreateMaterial(groupAsset),
+                    EmissionRate = groupAsset.EmissionRate,
+                    Lifetime = groupAsset.Lifetime,
+                };
+                pendingSlice = default; // ownership moved to the group state
+            }
         }
-        _pool.Params.UpdateBuffer();
+        catch
+        {
+            // A mid-construction failure (e.g. an invalid group material) must not
+            // leak pool resources: free the in-flight group's slot/slice plus every
+            // completed group's.
+            _pool.FreeSlice(pendingSlice);
+            if (pendingSlice.Capacity > 0)
+            {
+                _pool.FreeSlot(pendingSlot);
+            }
+            for (int i = 0; i < groups.Length && groups[i] != null; i++)
+            {
+                _pool.FreeSlice(groups[i].Slice);
+                _pool.FreeSlot(groups[i].Slot);
+            }
+            throw;
+        }
+        _pool.Params.UpdateBufferRanged(uploadMin, uploadMax - uploadMin + 1);
         var instance = new ParticleEffectInstance2D(this, effect, transform, seed, groups);
         _instances.Add(instance);
         return instance;
