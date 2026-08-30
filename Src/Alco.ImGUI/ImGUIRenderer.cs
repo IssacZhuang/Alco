@@ -28,6 +28,9 @@ public unsafe class ImGUIRenderer : AutoDisposable
     private bool _fontTextureDirty;
     private readonly HashSet<FontLanguage> _addedLanguages = new HashSet<FontLanguage>();
 
+    /// <summary>Unified UI font size in pixels for all ImGui text.</summary>
+    private const float FontSizePixels = 18f;
+
     private readonly List<Texture2D> _textures = new List<Texture2D>();
 
     public ImGUIRenderer(RenderingSystem renderingSystem, GraphicsMaterial material, string name)
@@ -54,6 +57,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
         io.ConfigErrorRecoveryEnableDebugLog = true;
         io.ConfigErrorRecoveryEnableTooltip = true;
 
+        // Embedded fallback font until the project font loads via AddFontForLanguage(Basic).
         io.Fonts.AddFontDefault();
         io.Fonts.Flags |= ImFontAtlasFlags.NoBakedLines;
 
@@ -235,8 +239,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
     }
 
     /// <summary>
-    /// Add a font from memory with a predefined language range. Pixel size is fixed to 16.
+    /// Add a font from memory with a predefined language range, all fonts at the
+    /// unified <see cref="FontSizePixels"/> size.
     /// Deduplicated by language to avoid adding the same language multiple times.
+    /// Call with <see cref="FontLanguage.Basic"/> first to load the default UI
+    /// font; later languages merge their glyphs into it.
     /// </summary>
     /// <param name="fontData">Font bytes.</param>
     /// <param name="language">Predefined language range.</param>
@@ -247,10 +254,21 @@ public unsafe class ImGUIRenderer : AutoDisposable
         {
             return;
         }
-        // Basic is already covered by AddFontDefault in constructor
+        // Replace the constructor's embedded fallback with the project font and
+        // make it the default UI font.
         if (language == FontLanguage.Basic)
         {
             _addedLanguages.Add(language);
+            ImFontConfigPtr cfg = new ImFontConfigPtr(ImGuiNative.ImFontConfig_ImFontConfig());
+            cfg.FontDataOwnedByAtlas = false;
+            IntPtr basicRanges = io.Fonts.GetGlyphRangesDefault();
+            fixed (byte* fontDataPtr = fontData)
+            {
+                ImFontPtr font = io.Fonts.AddFontFromMemoryTTF((IntPtr)fontDataPtr, fontData.Length, FontSizePixels, cfg, basicRanges);
+                io.NativePtr->FontDefault = font;
+            }
+            cfg.Destroy();
+            _fontTextureDirty = true;
             return;
         }
 
@@ -273,7 +291,7 @@ public unsafe class ImGUIRenderer : AutoDisposable
             ImFontConfigPtr cfg = new ImFontConfigPtr(ImGuiNative.ImFontConfig_ImFontConfig());
             cfg.MergeMode = true;
             cfg.FontDataOwnedByAtlas = false;
-            io.Fonts.AddFontFromMemoryTTF((IntPtr)fontDataPtr, fontData.Length, 16, cfg, ranges);
+            io.Fonts.AddFontFromMemoryTTF((IntPtr)fontDataPtr, fontData.Length, FontSizePixels, cfg, ranges);
             cfg.Destroy();
         }
         _addedLanguages.Add(language);
