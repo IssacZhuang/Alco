@@ -77,19 +77,6 @@ public partial class GameEngine
 
         /// <summary>Below the primary asset root (5): fills gaps, never shadows it.</summary>
         public override int Priority => 1;
-
-        /// <summary>Empty when the directory is absent — a fallback must not throw.</summary>
-        public override IEnumerable<string> AllFileNames
-        {
-            get
-            {
-                if (!Directory.Exists(DirectoryPath))
-                {
-                    return [];
-                }
-                return base.AllFileNames;
-            }
-        }
     }
 
     public virtual IEnumerable<JsonConverter> CreateDefaultJsonConverters()

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
+  </ItemGroup>
+
+</Project>

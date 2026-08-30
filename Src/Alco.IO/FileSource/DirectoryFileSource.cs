@@ -23,6 +23,13 @@ public class DirectoryFileSource : IFileSource
     {
         get
         {
+            //missing directories serve no files instead of throwing, so consumers can
+            //mount optional roots (e.g. a default relative "Assets" folder that may not exist)
+            if (!Directory.Exists(_directoryPath))
+            {
+                yield break;
+            }
+
             //list all files in directory or sub directory with relative path
             foreach (var file in Directory.EnumerateFiles(_directoryPath, "*", SearchOption.AllDirectories))
             {

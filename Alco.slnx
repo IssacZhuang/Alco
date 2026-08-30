@@ -7,6 +7,10 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Editor/">
+    <Project Path="Editor/Alco.Editor/Alco.Editor.csproj" />
+    <Project Path="Editor/Alco.Editor.App/Alco.Editor.App.csproj" />
+  </Folder>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Alco.Benchmark/Alco.Benchmark.csproj" />
     <Project Path="Benchmark/Alco.Engine.Benchmark/Alco.Engine.Benchmark.csproj" />
@@ -78,6 +82,7 @@
     <Project Path="Test/Alco.Profiler.BuildTool.Fixture/Alco.Profiler.BuildTool.Fixture.csproj" />
     <Project Path="Test/Alco.Profiler.BuildTool.Test/Alco.Profiler.BuildTool.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
+    <Project Path="Test/Alco.Editor.Test/Alco.Editor.Test.csproj" />
     <Project Path="Test/Alco.Graphics.Test/Alco.Graphics.Test.csproj" />
     <Project Path="Test/Alco.LLM.Test/Alco.LLM.Test.csproj" />
     <Project Path="Test/Alco.ImGUI.Test/Alco.ImGUI.Test.csproj" />
