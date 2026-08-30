@@ -73,6 +73,24 @@ public sealed class GizmoStyle
     /// <summary>Color of the drag info text shadow.</summary>
     public uint TextShadowColor { get; set; } = PackColor(0.000f, 0.000f, 0.000f, 1.000f);
 
+    /// <summary>Color of the dashed face edges of the bounds box.</summary>
+    public uint BoundsLineColor { get; set; } = PackColor(0.666f, 0.666f, 0.666f, 1.000f);
+
+    /// <summary>Thickness of the bounds face edge dashes in pixels.</summary>
+    public float BoundsLineThickness { get; set; } = 2.0f;
+
+    /// <summary>Spacing between the dashes along a bounds edge in pixels.</summary>
+    public float BoundsDashLength { get; set; } = 10.0f;
+
+    /// <summary>Radius of the bounds corner anchors (two-axis resize) in pixels.</summary>
+    public float BoundsAnchorBigRadius { get; set; } = 8.0f;
+
+    /// <summary>Radius of the bounds edge-midpoint anchors (single-axis resize) in pixels.</summary>
+    public float BoundsAnchorSmallRadius { get; set; } = 6.0f;
+
+    /// <summary>Base color of the bounds anchors.</summary>
+    public uint BoundsAnchorColor { get; set; } = PackColor(0.666f, 0.666f, 0.666f, 1.000f);
+
     /// <summary>
     /// Packs floating point RGBA components into an ImU32 color
     /// (R | G &lt;&lt; 8 | B &lt;&lt; 16 | A &lt;&lt; 24), matching ImGui's ColorConvertFloat4ToU32.

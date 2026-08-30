@@ -30,6 +30,17 @@ internal static class GizmoMath
         };
     }
 
+    /// <summary>Returns a copy of the vector with component <paramref name="index"/> replaced (0 = X, 1 = Y, 2 = Z).</summary>
+    public static Vector3 WithComponent(in Vector3 v, int index, float value)
+    {
+        return index switch
+        {
+            0 => new Vector3(value, v.Y, v.Z),
+            1 => new Vector3(v.X, value, v.Z),
+            _ => new Vector3(v.X, v.Y, value),
+        };
+    }
+
     /// <summary>Returns the axis row (right/up/dir for 0/1/2) of a row-major matrix as a 3D vector.</summary>
     public static Vector3 AxisRow(in Matrix4x4 m, int index)
     {

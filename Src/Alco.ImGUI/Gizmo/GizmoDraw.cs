@@ -31,6 +31,9 @@ internal static class GizmoDraw
     /// <summary>White, for inactive center handles.</summary>
     private const uint ColorWhite = 0xFFFFFFFF;
 
+    /// <summary>Black border ring behind each bounds anchor, matching the reference.</summary>
+    private const uint BoundsAnchorBorderColor = 0xFF000000;
+
     /// <summary>
     /// Draws all enabled gizmo handles for the current call state, clipped to the viewport.
     /// </summary>
@@ -454,6 +457,103 @@ internal static class GizmoDraw
             text.Append(" : ");
             text.Append(value, 2);
             DrawInfoText(drawList, ctx, destinationPosOnScreen, text);
+        }
+    }
+
+    /// <summary>
+    /// Draws the camera-facing faces of the solved bounds box as dashed edges with
+    /// corner (two-axis resize) and edge-midpoint (single-axis resize) anchors, plus
+    /// the live box size info text while dragging.
+    /// </summary>
+    /// <param name="ctx">The gizmo context with a valid per-call bounds working set.</param>
+    /// <param name="drawList">The draw list of the current ImGui window.</param>
+    public static void DrawBounds(GizmoContext ctx, ImDrawListPtr drawList)
+    {
+        if (!ctx.CallBoundsValid)
+        {
+            return;
+        }
+
+        drawList.PushClipRect(ctx.Viewport.Min, ctx.Viewport.Max, false);
+
+        GizmoStyle style = ctx.Style;
+        float bigRadius = style.BoundsAnchorBigRadius;
+        float smallRadius = style.BoundsAnchorSmallRadius;
+        float hoverRadiusSq = bigRadius * bigRadius;
+        Vector2 mouse = ctx.Input.MousePos;
+        Span<Vector2> corners = stackalloc Vector2[4];
+
+        for (int face = 0; face < ctx.BoundsCallFaceCount; face++)
+        {
+            int axis = ctx.BoundsCallFaceAxis[face];
+            bool faceMax = ctx.BoundsCallFaceMax[face];
+
+            for (int i = 0; i < 4; i++)
+            {
+                corners[i] = GizmoMath.WorldToScreen(
+                    GizmoCore.BoundsFaceCorner(ctx.BoundsCurrent, axis, faceMax, i), ctx.ViewProjection, ctx.Viewport);
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                Vector2 corner = corners[i];
+                Vector2 next = corners[(i + 1) % 4];
+                if (!ctx.Viewport.Contains(corner) || !ctx.Viewport.Contains(next))
+                {
+                    continue;
+                }
+
+                DrawDashedSegment(drawList, corner, next, style);
+
+                Vector2 midpoint = (corner + next) * 0.5f;
+                bool overCorner = (corner - mouse).LengthSquared() <= hoverRadiusSq;
+                bool overMidpoint = (midpoint - mouse).LengthSquared() <= hoverRadiusSq;
+                // Regular gizmo handles under the cursor take priority over the anchors.
+                if (!ctx.UsingBounds && ctx.FrameHoverType != GizmoMoveType.None)
+                {
+                    overCorner = false;
+                    overMidpoint = false;
+                }
+
+                drawList.AddCircleFilled(corner, bigRadius, BoundsAnchorBorderColor);
+                drawList.AddCircleFilled(corner, bigRadius - 1.2f, overCorner ? style.SelectionColor : style.BoundsAnchorColor);
+                drawList.AddCircleFilled(midpoint, smallRadius, BoundsAnchorBorderColor);
+                drawList.AddCircleFilled(midpoint, smallRadius - 1.2f, overMidpoint ? style.SelectionColor : style.BoundsAnchorColor);
+            }
+        }
+
+        if (ctx.UsingBounds)
+        {
+            Vector2 center = GizmoMath.WorldToScreen(ctx.BoundsCurrent.Center, ctx.ViewProjection, ctx.Viewport);
+            Vector3 size = ctx.BoundsCurrent.Size * ctx.InfoUnitScale;
+            FixedString64 text = new();
+            for (int i = 0; i < ctx.BoundsInfoComponentCount; i++)
+            {
+                if (i > 0)
+                {
+                    text.Append(' ');
+                }
+                text.Append("XYZ"[i]);
+                text.Append(" : ");
+                text.Append(GizmoMath.Component(size, i), 2);
+            }
+            DrawInfoText(drawList, ctx, center, text);
+        }
+
+        drawList.PopClipRect();
+    }
+
+    /// <summary>Draws a dashed segment, matching the reference bounds edge style.</summary>
+    private static void DrawDashedSegment(ImDrawListPtr drawList, Vector2 from, Vector2 to, GizmoStyle style)
+    {
+        float distance = (to - from).Length();
+        int stepCount = Math.Max(1, Math.Min((int)(distance / style.BoundsDashLength), 1000));
+        float stepLength = 1f / stepCount;
+        for (int i = 0; i < stepCount; i++)
+        {
+            float t1 = i * stepLength;
+            float t2 = t1 + stepLength * 0.5f;
+            drawList.AddLine(Vector2.Lerp(from, to, t1), Vector2.Lerp(from, to, t2), style.BoundsLineColor, style.BoundsLineThickness);
         }
     }
 

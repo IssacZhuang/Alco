@@ -218,8 +218,8 @@ public sealed class MaterialDocument : AssetDocument
             ImGui.SetNextItemWidth(100f);
             bool changed = ImGui.InputText("##slot", ref row.Slot, 64);
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(-60f);
-            changed |= ImGui.InputText("##path", ref row.Path, 256);
+            ImGui.SetNextItemWidth(-90f);
+            changed |= row.PathPicker.Draw(Context, "##path", ref row.Path, typeof(Texture2D));
             ImGui.SameLine();
             if (ImGui.SmallButton("X"))
             {
@@ -416,6 +416,9 @@ public sealed class MaterialDocument : AssetDocument
         public string Slot;
         public string Path;
         public Texture2D? Texture;
+
+        /// <summary>Pickers must be one instance per field so each keeps its own popup state.</summary>
+        public readonly AssetPicker PathPicker = new();
 
         public TextureSlotRow(string slot, Texture2D? texture)
         {

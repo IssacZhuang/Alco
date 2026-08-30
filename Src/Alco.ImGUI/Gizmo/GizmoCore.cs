@@ -104,6 +104,13 @@ internal static class GizmoCore
         ctx.CallValid = false;
         ctx.Operation = operation;
 
+        // A bounds drag owns the mouse: gizmo handles are neither solved nor drawn
+        // (same as the reference implementation).
+        if (ctx.UsingBounds)
+        {
+            return false;
+        }
+
         bool hasScaleOp = (operation & (GizmoOperation.Scale | GizmoOperation.ScaleUniform)) != 0;
         if (!ComputeContext(ctx, view, projection, matrix, hasScaleOp ? GizmoMode.Local : mode))
         {
@@ -731,6 +738,282 @@ internal static class GizmoCore
         }
 
         return modified;
+    }
+
+    /// <summary>
+    /// Runs one manipulation frame on a world-space axis-aligned box: selects the
+    /// camera-facing box faces, hit-tests the corner/edge anchors, solves the active
+    /// resize drag and writes the result back. Corner anchors resize two face axes at
+    /// once around the opposite corner, edge-midpoint anchors resize a single axis
+    /// around the opposite edge midpoint.
+    /// </summary>
+    /// <param name="ctx">The gizmo context holding frame input and drag state.</param>
+    /// <param name="view">The camera view matrix.</param>
+    /// <param name="projection">The camera projection matrix.</param>
+    /// <param name="bounds">The world-space box to manipulate.</param>
+    /// <param name="snap">Optional per-axis snap steps for the box size; components &lt;= 0 skip snapping.</param>
+    /// <param name="infoComponentCount">Component count (2 or 3) shown in the drag info text.</param>
+    /// <returns>True when the box actually changed this frame.</returns>
+    public static bool ManipulateBounds(GizmoContext ctx, in Matrix4x4 view, in Matrix4x4 projection,
+        ref BoundingBox3D bounds, Vector3? snap, int infoComponentCount)
+    {
+        ctx.CallBoundsValid = false;
+
+        // A gizmo drag owns the mouse: bounds are neither drawn nor interactive
+        // (same as the reference implementation).
+        if (ctx.Using)
+        {
+            return false;
+        }
+
+        BoundingBox3D origin = bounds;
+        if (!ComputeContext(ctx, view, projection, Matrix4x4.Identity, GizmoMode.World))
+        {
+            return false;
+        }
+
+        // The box center projects behind the camera: no drawing, no interaction.
+        // Raw clip-space Z (no perspective divide), same check as Manipulate.
+        Vector4 centerClip = Vector4.Transform(origin.Center, ctx.ViewProjection);
+        if (!ctx.IsOrthographic && centerClip.Z < 0.001f && !ctx.UsingBounds)
+        {
+            return false;
+        }
+
+        ctx.BoundsInfoComponentCount = infoComponentCount;
+        ctx.BoundsCurrent = origin;
+        ctx.CallBoundsValid = true;
+
+        if (ctx.UsingBounds)
+        {
+            // Only the face captured at activation stays drawn and solved while dragging.
+            ctx.BoundsCallFaceCount = 1;
+            ctx.BoundsCallFaceAxis[0] = ctx.BoundsBestAxis;
+            ctx.BoundsCallFaceMax[0] = ctx.BoundsFaceMax;
+
+            bool modified = SolveBoundsDrag(ctx, ref bounds, snap);
+            ctx.BoundsCurrent = bounds;
+            if (!ctx.Input.MouseDown)
+            {
+                ctx.UsingBounds = false;
+            }
+
+            return modified;
+        }
+
+        SelectBoundsFaces(ctx, origin);
+        TryActivateBoundsDrag(ctx, origin);
+        return false;
+    }
+
+    /// <summary>
+    /// Selects the box faces to draw: world axes whose direction is sufficiently
+    /// aligned with the box-to-camera direction (visible faces), best-aligned first,
+    /// each on the side of the box facing the camera. Falls back to the single
+    /// best-aligned face when the box is viewed edge-on.
+    /// </summary>
+    private static void SelectBoundsFaces(GizmoContext ctx, in BoundingBox3D bounds)
+    {
+        Vector3 toCamera = ctx.IsOrthographic
+            ? -ctx.CameraDir
+            : GizmoMath.NormalizeSafe(ctx.CameraEye - bounds.Center);
+
+        Span<int> candidates = stackalloc int[3];
+        int count = 0;
+        int bestAxis = 0;
+        float bestDot = -1f;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            float dot = MathF.Abs(Vector3.Dot(toCamera, GizmoMath.DirectionUnary[axis]));
+            if (dot > bestDot)
+            {
+                bestDot = dot;
+                bestAxis = axis;
+            }
+
+            if (dot >= 0.1f)
+            {
+                candidates[count++] = axis;
+            }
+        }
+
+        if (count == 0)
+        {
+            ctx.BoundsCallFaceCount = 1;
+            ctx.BoundsCallFaceAxis[0] = bestAxis;
+            ctx.BoundsCallFaceMax[0] = Vector3.Dot(toCamera, GizmoMath.DirectionUnary[bestAxis]) > 0f;
+            return;
+        }
+
+        // Draw the best-aligned face first, matching the reference draw order.
+        int bestIndex = 0;
+        for (int i = 0; i < count; i++)
+        {
+            if (candidates[i] == bestAxis)
+            {
+                bestIndex = i;
+                break;
+            }
+        }
+
+        (candidates[0], candidates[bestIndex]) = (candidates[bestIndex], candidates[0]);
+
+        ctx.BoundsCallFaceCount = count;
+        for (int i = 0; i < count; i++)
+        {
+            ctx.BoundsCallFaceAxis[i] = candidates[i];
+            ctx.BoundsCallFaceMax[i] = Vector3.Dot(toCamera, GizmoMath.DirectionUnary[candidates[i]]) > 0f;
+        }
+    }
+
+    /// <summary>
+    /// Hit-tests the corner (two-axis resize) and edge-midpoint (single-axis resize)
+    /// anchors of the drawn faces and starts a bounds drag on click.
+    /// </summary>
+    private static void TryActivateBoundsDrag(GizmoContext ctx, in BoundingBox3D bounds)
+    {
+        if (!CanActivate(ctx))
+        {
+            return;
+        }
+
+        Vector2 mouse = ctx.Input.MousePos;
+        float hoverRadiusSq = ctx.Style.BoundsAnchorBigRadius * ctx.Style.BoundsAnchorBigRadius;
+
+        for (int face = 0; face < ctx.BoundsCallFaceCount; face++)
+        {
+            int axis = ctx.BoundsCallFaceAxis[face];
+            bool faceMax = ctx.BoundsCallFaceMax[face];
+            int secondAxis = (axis + 1) % 3;
+            int thirdAxis = (axis + 2) % 3;
+
+            for (int corner = 0; corner < 4; corner++)
+            {
+                Vector3 cornerPos = BoundsFaceCorner(bounds, axis, faceMax, corner);
+                Vector3 nextCornerPos = BoundsFaceCorner(bounds, axis, faceMax, (corner + 1) % 4);
+                Vector2 cornerScreen = GizmoMath.WorldToScreen(cornerPos, ctx.ViewProjection, ctx.Viewport);
+                Vector2 nextCornerScreen = GizmoMath.WorldToScreen(nextCornerPos, ctx.ViewProjection, ctx.Viewport);
+                if (!ctx.Viewport.Contains(cornerScreen) || !ctx.Viewport.Contains(nextCornerScreen))
+                {
+                    continue;
+                }
+
+                bool overCorner = (cornerScreen - mouse).LengthSquared() <= hoverRadiusSq;
+                bool overMidpoint = ((cornerScreen + nextCornerScreen) * 0.5f - mouse).LengthSquared() <= hoverRadiusSq;
+                // Regular gizmo handles under the cursor take priority over the anchors.
+                if (ctx.FrameHoverType != GizmoMoveType.None)
+                {
+                    overCorner = false;
+                    overMidpoint = false;
+                }
+
+                if (overCorner)
+                {
+                    ctx.UsingBounds = true;
+                    ctx.BoundsBestAxis = axis;
+                    ctx.BoundsFaceMax = faceMax;
+                    ctx.BoundsOrigin = bounds;
+                    ctx.BoundsAnchor = cornerPos;
+                    ctx.BoundsPivot = BoundsFaceCorner(bounds, axis, faceMax, (corner + 2) % 4);
+                    ctx.BoundsPlan = GizmoMath.BuildPlan(cornerPos, GizmoMath.DirectionUnary[axis]);
+                    ctx.BoundsAxis0 = secondAxis;
+                    ctx.BoundsAxis1 = thirdAxis;
+                    return;
+                }
+
+                if (overMidpoint)
+                {
+                    // Grabbing an edge midpoint resizes the axis perpendicular to the edge.
+                    int resizedAxis = corner % 2 == 0 ? secondAxis : thirdAxis;
+                    Vector3 oppositeMidpoint = (BoundsFaceCorner(bounds, axis, faceMax, (corner + 2) % 4)
+                        + BoundsFaceCorner(bounds, axis, faceMax, (corner + 3) % 4)) * 0.5f;
+                    ctx.UsingBounds = true;
+                    ctx.BoundsBestAxis = axis;
+                    ctx.BoundsFaceMax = faceMax;
+                    ctx.BoundsOrigin = bounds;
+                    ctx.BoundsAnchor = (cornerPos + nextCornerPos) * 0.5f;
+                    ctx.BoundsPivot = oppositeMidpoint;
+                    ctx.BoundsPlan = GizmoMath.BuildPlan(ctx.BoundsAnchor, GizmoMath.DirectionUnary[axis]);
+                    ctx.BoundsAxis0 = resizedAxis;
+                    ctx.BoundsAxis1 = -1;
+                    return;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Solves the active bounds drag: projects the mouse on the captured solve plane,
+    /// converts the mouse offset into per-axis size ratios against the drag-start box
+    /// and rebuilds the box around the fixed pivot.
+    /// </summary>
+    private static bool SolveBoundsDrag(GizmoContext ctx, ref BoundingBox3D bounds, Vector3? snap)
+    {
+        float len = GizmoMath.IntersectRayPlane(ctx.RayOrigin, ctx.RayVector, ctx.BoundsPlan);
+        Vector3 newPos = ctx.RayOrigin + ctx.RayVector * len;
+
+        Vector3 deltaVector = Vector3.Abs(newPos - ctx.BoundsPivot);
+        Vector3 referenceVector = Vector3.Abs(ctx.BoundsAnchor - ctx.BoundsPivot);
+
+        BoundingBox3D solved = ctx.BoundsOrigin;
+        for (int i = 0; i < 2; i++)
+        {
+            int axis = i == 0 ? ctx.BoundsAxis0 : ctx.BoundsAxis1;
+            if (axis < 0)
+            {
+                continue;
+            }
+
+            Vector3 axisDir = GizmoMath.DirectionUnary[axis];
+            float referenceSize = Vector3.Dot(axisDir, referenceVector);
+            float ratio = referenceSize > GizmoMath.Epsilon
+                ? Vector3.Dot(axisDir, deltaVector) / referenceSize
+                : 1f;
+
+            float originSize = GizmoMath.Component(ctx.BoundsOrigin.Size, axis);
+            if (snap.HasValue && originSize > GizmoMath.Epsilon)
+            {
+                float length = originSize * ratio;
+                float snapped = GizmoMath.Component(snap.Value, axis);
+                GizmoMath.ComputeSnap(ref length, snapped);
+                ratio = length / originSize;
+            }
+
+            float pivotCoord = GizmoMath.Component(ctx.BoundsPivot, axis);
+            float anchorCoord = GizmoMath.Component(ctx.BoundsAnchor, axis);
+            float newCoord = pivotCoord + (anchorCoord - pivotCoord) * ratio;
+            Vector3 min = GizmoMath.WithComponent(solved.Min, axis, MathF.Min(pivotCoord, newCoord));
+            Vector3 max = GizmoMath.WithComponent(solved.Max, axis, MathF.Max(pivotCoord, newCoord));
+            solved = new BoundingBox3D(min, max);
+        }
+
+        bool modified = solved.Min != bounds.Min || solved.Max != bounds.Max;
+        bounds = solved;
+        return modified;
+    }
+
+    /// <summary>
+    /// Returns a world-space corner of one box face. <paramref name="cornerIndex"/>
+    /// follows the reference winding: along the face axes the coordinates are
+    /// (min, min), (min, max), (max, max), (max, min) for indices 0-3.
+    /// </summary>
+    public static Vector3 BoundsFaceCorner(in BoundingBox3D bounds, int axis, bool faceMax, int cornerIndex)
+    {
+        int secondAxis = (axis + 1) % 3;
+        int thirdAxis = (axis + 2) % 3;
+        float faceCoord = faceMax ? GizmoMath.Component(bounds.Max, axis) : GizmoMath.Component(bounds.Min, axis);
+        float secondCoord = (cornerIndex >> 1) == 0
+            ? GizmoMath.Component(bounds.Min, secondAxis)
+            : GizmoMath.Component(bounds.Max, secondAxis);
+        float thirdCoord = ((cornerIndex >> 1) ^ (cornerIndex & 1)) == 0
+            ? GizmoMath.Component(bounds.Min, thirdAxis)
+            : GizmoMath.Component(bounds.Max, thirdAxis);
+
+        Vector3 corner = Vector3.Zero;
+        corner = GizmoMath.WithComponent(corner, axis, faceCoord);
+        corner = GizmoMath.WithComponent(corner, secondAxis, secondCoord);
+        corner = GizmoMath.WithComponent(corner, thirdAxis, thirdCoord);
+        return corner;
     }
 
     /// <summary>Activates, solves and releases rotation drags.</summary>

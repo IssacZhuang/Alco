@@ -101,8 +101,9 @@ internal sealed class GizmoContext
     public bool OverGizmoHotspot;
 
     /// <summary>
-    /// Display-only multiplier applied to the translation drag info text, for editors whose
-    /// authoring unit differs from world units (e.g. texels). Reset to 1 by <see cref="BeginFrame"/>.
+    /// Display-only multiplier applied to the translation drag and bounds size info
+    /// text, for editors whose authoring unit differs from world units (e.g. texels).
+    /// Reset to 1 by <see cref="BeginFrame"/>.
     /// </summary>
     public float InfoUnitScale = 1f;
 
@@ -189,6 +190,26 @@ internal sealed class GizmoContext
     /// <summary>Whether the projection uses reversed depth.</summary>
     public bool Reversed;
 
+    // Per-call bounds working set, recomputed by every ManipulateBounds call.
+
+    /// <summary>Whether the last ManipulateBounds call produced a drawable/interactive bounds display.</summary>
+    public bool CallBoundsValid;
+
+    /// <summary>Box the bounds draw layer renders (the solved box while dragging).</summary>
+    public BoundingBox3D BoundsCurrent;
+
+    /// <summary>Component count (2 or 3) shown in the bounds drag info text.</summary>
+    public int BoundsInfoComponentCount;
+
+    /// <summary>Number of camera-facing box faces drawn this call (1 while dragging).</summary>
+    public int BoundsCallFaceCount;
+
+    /// <summary>Face normal axis per drawn face, indexed by face slot.</summary>
+    public readonly int[] BoundsCallFaceAxis = new int[3];
+
+    /// <summary>Whether each drawn face is the box's max face along its axis, indexed by face slot.</summary>
+    public readonly bool[] BoundsCallFaceMax = new bool[3];
+
     // Drag state, captured at activation and kept for the duration of the drag.
 
     /// <summary>Translation/rotation solve plane (xyz = normal, w = offset).</summary>
@@ -226,6 +247,35 @@ internal sealed class GizmoContext
 
     /// <summary>Grab offset between the gizmo origin and the plane hit point, in gizmo-sized units.</summary>
     public Vector3 RelativeOrigin;
+
+    // Bounds drag state (ManipulateBounds), captured at activation and kept for the duration of the drag.
+
+    /// <summary>Whether a bounds (box resize) drag is currently active.</summary>
+    public bool UsingBounds;
+
+    /// <summary>Box captured at bounds drag start; drag ratios are solved against it every frame.</summary>
+    public BoundingBox3D BoundsOrigin;
+
+    /// <summary>World-space pivot (opposite face corner or edge midpoint) kept fixed during a bounds drag.</summary>
+    public Vector3 BoundsPivot;
+
+    /// <summary>World-space anchor (grabbed face corner or edge midpoint) at bounds drag start.</summary>
+    public Vector3 BoundsAnchor;
+
+    /// <summary>Ray solve plane of the active bounds drag (xyz = normal, w = offset).</summary>
+    public Vector4 BoundsPlan;
+
+    /// <summary>Face normal axis of the active bounds drag (0 = X, 1 = Y, 2 = Z).</summary>
+    public int BoundsBestAxis;
+
+    /// <summary>Whether the active bounds drag grabs the box's max face along <see cref="BoundsBestAxis"/>.</summary>
+    public bool BoundsFaceMax;
+
+    /// <summary>First axis resized by the active bounds drag (-1 = none).</summary>
+    public int BoundsAxis0;
+
+    /// <summary>Second axis resized by the active bounds drag (-1 = single-axis edge drag).</summary>
+    public int BoundsAxis1;
 
     // Axis visibility state, frozen while dragging so handles do not flip mid-drag.
 

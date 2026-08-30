@@ -3,24 +3,24 @@ using System.Numerics;
 namespace Alco.ImGUI;
 
 /// <summary>
-/// Immediate-mode manipulation gizmo (translate/rotate/scale handles), a pure C#
-/// replacement for ImGuizmo built on the engine's math conventions: row-major
-/// left-handed matrices, Z+ up, 2D X+ right / Y+ up. All overloads draw into the
-/// current ImGui window's draw list and therefore must be called inside an
-/// ImGui window scope (<see cref="ImGui.Begin(string)"/> / <see cref="ImGui.End"/>).
+/// Immediate-mode manipulation gizmo (translate/rotate/scale handles and bounds box
+/// resize anchors), a pure C# replacement for ImGuizmo built on the engine's math
+/// conventions: row-major left-handed matrices, Z+ up, 2D X+ right / Y+ up. All
+/// overloads draw into the current ImGui window's draw list and therefore must be
+/// called inside an ImGui window scope (<see cref="ImGui.Begin(string)"/> / <see cref="ImGui.End"/>).
 /// </summary>
 public static class Gizmo
 {
     private static readonly GizmoContext _context = new GizmoContext();
 
     /// <summary>
-    /// Whether a gizmo handle is currently being dragged. Editors use this to
-    /// suppress other mouse logic (e.g. camera control) while manipulating.
+    /// Whether a gizmo handle or a bounds (box resize) drag is currently being dragged.
+    /// Editors use this to suppress other mouse logic (e.g. camera control) while manipulating.
     /// </summary>
-    public static bool IsUsing => _context.Using;
+    public static bool IsUsing => _context.Using || _context.UsingBounds;
 
-    /// <summary>Whether the mouse is over any gizmo handle, or a drag is active.</summary>
-    public static bool IsOver => _context.FrameHoverType != GizmoMoveType.None || _context.Using;
+    /// <summary>Whether the mouse is over any gizmo handle or bounds anchor, or a drag is active.</summary>
+    public static bool IsOver => _context.FrameHoverType != GizmoMoveType.None || _context.Using || _context.UsingBounds;
 
     /// <summary>
     /// Whether the camera is orthographic. Persistent property replacing the old
@@ -48,9 +48,10 @@ public static class Gizmo
     public static GizmoStyle Style => _context.Style;
 
     /// <summary>
-    /// Display-only multiplier applied to the translation drag info text, for editors whose
-    /// authoring unit differs from world units (e.g. the weapon attachment editor's texels).
-    /// Reset to 1 by <see cref="BeginFrame"/> every frame; set it per frame before Manipulate.
+    /// Display-only multiplier applied to the translation drag and bounds size info
+    /// text, for editors whose authoring unit differs from world units (e.g. the
+    /// weapon attachment editor's texels). Reset to 1 by <see cref="BeginFrame"/>
+    /// every frame; set it per frame before Manipulate.
     /// </summary>
     public static float InfoUnitScale
     {
@@ -153,6 +154,46 @@ public static class Gizmo
     }
 
     /// <summary>
+    /// Manipulates a world-space axis-aligned 3D box (cube) by dragging the anchors on
+    /// its camera-facing faces: corner anchors resize two face axes at once around the
+    /// opposite corner, edge-midpoint anchors resize a single axis around the opposite
+    /// edge midpoint. Dashed face edges and anchors are drawn for the visible faces.
+    /// </summary>
+    /// <param name="view">The camera view matrix.</param>
+    /// <param name="projection">The camera projection matrix.</param>
+    /// <param name="bounds">The world-space box to manipulate.</param>
+    /// <param name="snap">Optional per-axis snap steps for the box size; components &lt;= 0 skip snapping.</param>
+    /// <returns>True when the box actually changed this frame.</returns>
+    public static bool ManipulateBounds(in Matrix4x4 view, in Matrix4x4 projection,
+        ref BoundingBox3D bounds, Vector3? snap = null)
+    {
+        bool manipulated = GizmoCore.ManipulateBounds(_context, view, projection, ref bounds, snap, 3);
+        DrawCurrentBounds();
+        return manipulated;
+    }
+
+    /// <summary>
+    /// Manipulates a world-space 2D box (rectangle in the XY plane) by dragging the
+    /// anchors on its camera-facing face, resolving in X/Y only; behaves like the 3D
+    /// overload for the common orthographic frontal view.
+    /// </summary>
+    /// <param name="view">The camera view matrix.</param>
+    /// <param name="projection">The camera projection matrix.</param>
+    /// <param name="bounds">The world-space rectangle to manipulate.</param>
+    /// <param name="snap">Optional per-axis snap steps for the box size; components &lt;= 0 skip snapping.</param>
+    /// <returns>True when the rectangle actually changed this frame.</returns>
+    public static bool ManipulateBounds(in Matrix4x4 view, in Matrix4x4 projection,
+        ref BoundingBox2D bounds, Vector2? snap = null)
+    {
+        BoundingBox3D box = new BoundingBox3D(new Vector3(bounds.Min, 0f), new Vector3(bounds.Max, 0f));
+        Vector3? snap3 = snap.HasValue ? new Vector3(snap.Value.X, snap.Value.Y, 0f) : null;
+        bool manipulated = GizmoCore.ManipulateBounds(_context, view, projection, ref box, snap3, 2);
+        bounds = new BoundingBox2D(new Vector2(box.Min.X, box.Min.Y), new Vector2(box.Max.X, box.Max.Y));
+        DrawCurrentBounds();
+        return manipulated;
+    }
+
+    /// <summary>
     /// Draws a grid on the model-local XY plane (Z = 0, the Alco ground plane),
     /// clipped against the camera frustum. Must be called inside an ImGui window scope.
     /// </summary>
@@ -171,6 +212,15 @@ public static class Gizmo
         if (_context.CallValid)
         {
             GizmoDraw.Draw(_context, ImGui.GetWindowDrawList());
+        }
+    }
+
+    /// <summary>Draws the current call's bounds display when the last ManipulateBounds produced a valid display.</summary>
+    private static void DrawCurrentBounds()
+    {
+        if (_context.CallBoundsValid)
+        {
+            GizmoDraw.DrawBounds(_context, ImGui.GetWindowDrawList());
         }
     }
 }
