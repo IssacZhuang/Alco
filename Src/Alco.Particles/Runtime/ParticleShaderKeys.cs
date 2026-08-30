@@ -16,4 +16,10 @@ internal static class ParticleShaderKeys
 
     /// <summary>Per-emitter indirect draw-args records.</summary>
     public const string DrawArgs = "drawArgs";
+
+    /// <summary>The group's baked color-gradient lookup texture (render pass templates).</summary>
+    public const string ColorGradient = "colorGradient";
+
+    /// <summary>The group's baked size-curve lookup texture (render pass templates).</summary>
+    public const string SizeCurve = "sizeCurve";
 }

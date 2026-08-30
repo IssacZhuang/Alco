@@ -44,7 +44,8 @@ public struct EmitterParams2D
     public float deltaTime;
     public float emitterTime;      // seconds on the emitter timeline
     public uint frameSeed;         // per-frame RNG seed
-    public uint flags;             // bit0: world-space simulation
+    public uint flags;             // bit0: world-space simulation, bit1: color gradient lookup,
+                                   // bit2: size curve lookup, bit3: velocity-stretched quads
     // emitter transform (spawn only, world space)
     public float4x4 worldMatrix;
     // emission shape: x = type (0 point, 1 circle, 2 box), y = radius,
@@ -54,12 +55,12 @@ public struct EmitterParams2D
     // emission direction: xy = base direction, z = spread half-angle (rad),
     // w = direction mode (0 constant, 1 radial)
     public float4 emission;
-    public float4 speed;           // x = min, y = max, z = align rotation to velocity
+    public float4 speed;           // x = min, y = max, z = align rotation to velocity, w = stretch speed scale
     // life: x = lifetime min, y = lifetime max, z = fade-in fraction, w = fade-out fraction
     public float4 life;
     public float4 size;            // xy = min, zw = max (quad extents at spawn)
     public float4 rotation2;       // x = start rotation min, y = max, z = angular velocity min, w = max
-    public float4 overLife;        // x = end scale multiplier
+    public float4 overLife;        // x = end scale multiplier, y = stretch length scale
     public float4 motion;          // xy = gravity, z = drag
     public float4 colorMin;
     public float4 colorMax;

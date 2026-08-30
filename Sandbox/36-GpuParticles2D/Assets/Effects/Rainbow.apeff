@@ -1,0 +1,44 @@
+{
+    // A looping prism jet demonstrating the over-life lookup tables: the color
+    // gradient (replaces the start->end lerp: spawn color x gradient sample)
+    // walks red -> orange -> yellow -> green -> blue with the alpha fading at
+    // the end, and the size curve (replaces the endScale lerp) grows the
+    // particles over their life. Sparse emission keeps the additive blend from
+    // saturating, so the gradient colors stay readable.
+    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "version": "1.0",
+    "groups": [
+        {
+            "name": "Prism",
+            "maxParticles": 1024,
+            "looping": true,
+            "emissionRate": 60,
+            "shape": { "type": "circle", "radius": 0.8 },
+            "direction": { "x": 0, "y": 1 },
+            "spreadAngle": 0.45,
+            "speed": { "min": 8, "max": 14 },
+            "lifetime": { "min": 1.4, "max": 2.0 },
+            "size": { "min": { "x": 1.4, "y": 1.4 }, "max": { "x": 2.2, "y": 2.2 } },
+            "gravity": { "x": 0, "y": -6 },
+            "drag": 0.8,
+            "startColor": { "min": "#FFFFFFFF", "max": "#FFFFFFFF" },
+            "colorGradient": [
+                { "time": 0.0,  "color": "#FF2222C0" },
+                { "time": 0.2,  "color": "#FFAA00C0" },
+                { "time": 0.4,  "color": "#FFEE44C0" },
+                { "time": 0.6,  "color": "#33CC66C0" },
+                { "time": 0.8,  "color": "#3344FFA0" },
+                { "time": 1.0,  "color": "#3344FF00" }
+            ],
+            "sizeCurve": [
+                { "time": 0.0, "value": 0.35 },
+                { "time": 0.4, "value": 1.0 },
+                { "time": 1.0, "value": 1.8 }
+            ],
+            "fadeIn": 0.05,
+            "fadeOut": 0.0,
+            "texture": "Glow",
+            "blend": "Additive"
+        }
+    ]
+}

@@ -22,11 +22,22 @@ public sealed class ToolRegistry
 {
     private readonly Dictionary<string, ToolDescriptor> _tools = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<Action> _mainThreadQueue = new();
+    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly object _toolsLock = new();
 
     /// <summary>
-    /// Gets all registered tool descriptors.
+    /// Gets a snapshot of all registered tool descriptors.
     /// </summary>
-    public IReadOnlyDictionary<string, ToolDescriptor> Tools => _tools;
+    public IReadOnlyDictionary<string, ToolDescriptor> Tools
+    {
+        get
+        {
+            lock (_toolsLock)
+            {
+                return new Dictionary<string, ToolDescriptor>(_tools, StringComparer.OrdinalIgnoreCase);
+            }
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ToolRegistry"/> class.
@@ -40,6 +51,8 @@ public sealed class ToolRegistry
         IList<object>? toolInstances,
         JsonSerializerOptions jsonOptions)
     {
+        _jsonOptions = jsonOptions;
+
         for (int i = 0; i < toolTypes.Count; i++)
         {
             DiscoverMethods(toolTypes[i], target: null, jsonOptions);
@@ -56,14 +69,52 @@ public sealed class ToolRegistry
     }
 
     /// <summary>
+    /// Registers the <see cref="AgentFunctionAttribute"/> methods of a tool instance at
+    /// runtime (e.g. an asset document's tools, live while the document is open).
+    /// Later registrations replace same-named tools.
+    /// </summary>
+    /// <param name="instance">The instance whose marked methods are registered.</param>
+    public void RegisterInstance(object instance)
+    {
+        ArgumentNullException.ThrowIfNull(instance);
+        DiscoverMethods(instance.GetType(), target: instance, _jsonOptions);
+    }
+
+    /// <summary>
+    /// Removes the tools previously registered for <paramref name="instance"/>. Only
+    /// descriptors whose target is this exact instance are removed — a same-named tool
+    /// re-registered by someone else afterwards is left alone.
+    /// </summary>
+    /// <param name="instance">The instance to unregister.</param>
+    public void UnregisterInstance(object instance)
+    {
+        ArgumentNullException.ThrowIfNull(instance);
+        lock (_toolsLock)
+        {
+            var stale = _tools
+                .Where(pair => ReferenceEquals(pair.Value.Target, instance))
+                .Select(pair => pair.Key)
+                .ToList();
+
+            for (int i = 0; i < stale.Count; i++)
+            {
+                _tools.Remove(stale[i]);
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets a tool descriptor by name. Returns <c>null</c> if not found.
     /// </summary>
     /// <param name="name">The tool name (case-insensitive).</param>
     /// <returns>The tool descriptor, or <c>null</c>.</returns>
     public ToolDescriptor? GetTool(string name)
     {
-        _tools.TryGetValue(name, out var descriptor);
-        return descriptor;
+        lock (_toolsLock)
+        {
+            _tools.TryGetValue(name, out var descriptor);
+            return descriptor;
+        }
     }
 
     /// <summary>
@@ -168,7 +219,10 @@ public sealed class ToolRegistry
                 jsonOptions: jsonOptions,
                 awaitResultAsync: BuildResultExtractor(method.ReturnType));
 
-            _tools[method.Name] = descriptor;
+            lock (_toolsLock)
+            {
+                _tools[method.Name] = descriptor;
+            }
         }
     }
 

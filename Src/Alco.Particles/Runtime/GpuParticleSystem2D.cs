@@ -29,6 +29,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly ComputeMaterial _initMaterial;
     private readonly Dictionary<ShaderLibrary, (ComputeMaterial Emit, ComputeMaterial Simulate)> _behaviorMaterials = [];
     private readonly Dictionary<ParticleGroup2DAsset, GraphicsMaterial> _materials = [];
+    private readonly List<Texture2D> _overLifeTextures = [];
     private readonly List<ParticleEffectInstance2D> _instances = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
     private Camera2DBuffer? _camera;
@@ -52,6 +53,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate2D");
         _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior2D);
         _initMaterial = rendering.CreateComputeMaterial(shaderSystem.GetShader("GpuParticleInit2D"));
+        // Bind the pool up front: OnPoolReallocated refreshes this, but the first
+        // slice-recycle kill dispatch can precede any reallocation.
+        _initMaterial.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
         QuadMesh = rendering.MeshCenteredSprite;
     }
 
@@ -117,6 +121,8 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 Slot = slot,
                 Slice = slice,
                 Material = GetOrCreateMaterial(groupAsset),
+                EmissionRate = groupAsset.EmissionRate,
+                Lifetime = groupAsset.Lifetime,
             };
         }
         _pool.Params.UpdateBuffer();
@@ -296,6 +302,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                     $"Particle group '{group.Name}' sets a texture, but the surface of material '{asset.Name}' " +
                     $"declares no '{ShaderResourceId.Texture}' slot to override.");
             }
+            BindOverLifeTextures(group, material);
             if (_camera != null)
             {
                 material.SetBuffer(ShaderResourceId.Camera, _camera);
@@ -312,6 +319,43 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
         material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
         material.TrySetBuffer(ParticleShaderKeys.DrawArgs, _pool.DrawArgs);
+    }
+
+    // The group's over-life lookup textures: the authored gradient/curve bake
+    // into a 256x1 row each (see ParticleOverLifeBake); groups without them bind
+    // the shared 1x1 white texture (the identity sample) — the EmitterParams2D
+    // flag bits gate the fetch, so no shader permutation is needed. Baked
+    // textures are owned by the system and disposed with it.
+    private void BindOverLifeTextures(ParticleGroup2DAsset group, GraphicsMaterial material)
+    {
+        if (group.ColorGradient is { Count: > 0 } gradientKeys)
+        {
+            byte[] pixels = new byte[ParticleOverLifeBake.TextureWidth * 4];
+            ParticleOverLifeBake.BakeGradient(gradientKeys, pixels);
+            Texture2D texture = _rendering.CreateTexture2D(
+                pixels, ParticleOverLifeBake.TextureWidth, 1,
+                new ImageLoadOption(name: $"particles2d:{group.Name}:colorGradient"));
+            _overLifeTextures.Add(texture);
+            material.SetTexture(ParticleShaderKeys.ColorGradient, texture);
+        }
+        else
+        {
+            material.SetTexture(ParticleShaderKeys.ColorGradient, _rendering.TextureWhite);
+        }
+        if (group.SizeCurve is { Count: > 0 } curveKeys)
+        {
+            Half[] texels = new Half[ParticleOverLifeBake.TextureWidth];
+            ParticleOverLifeBake.BakeCurve(curveKeys, texels);
+            Texture2D texture = _rendering.CreateTexture2D(
+                MemoryMarshal.AsBytes<Half>(texels), ParticleOverLifeBake.TextureWidth, 1,
+                new ImageLoadOption(format: PixelFormat.R16Float, name: $"particles2d:{group.Name}:sizeCurve"));
+            _overLifeTextures.Add(texture);
+            material.SetTexture(ParticleShaderKeys.SizeCurve, texture);
+        }
+        else
+        {
+            material.SetTexture(ParticleShaderKeys.SizeCurve, _rendering.TextureWhite);
+        }
     }
 
     private void BindPool(GraphicsMaterial material)
@@ -354,6 +398,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         foreach (GraphicsMaterial material in _materials.Values)
         {
             material.Dispose();
+        }
+        foreach (Texture2D texture in _overLifeTextures)
+        {
+            texture.Dispose();
         }
         _materialCompiler.Dispose();
         _initMaterial.Dispose();

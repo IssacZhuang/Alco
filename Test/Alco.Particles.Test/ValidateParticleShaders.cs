@@ -120,6 +120,8 @@ public class ValidateParticleShaders
                 Assert.That(reflection.TryGetResourceLocation("emitters", out _), Is.True, $"{module}: missing 'emitters'");
                 Assert.That(reflection.TryGetResourceLocation("renderList", out _), Is.True, $"{module}: missing 'renderList'");
                 Assert.That(reflection.TryGetResourceLocation("texture", out _), Is.True, $"{module}: missing 'texture'");
+                Assert.That(reflection.TryGetResourceLocation("colorGradient", out _), Is.True, $"{module}: missing 'colorGradient'");
+                Assert.That(reflection.TryGetResourceLocation("sizeCurve", out _), Is.True, $"{module}: missing 'sizeCurve'");
             });
         }
 

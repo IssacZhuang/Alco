@@ -12,11 +12,19 @@ using SandboxUtils;
 /// Sandbox demonstrating the 3D GPU particle system (Alco.Particles): particle
 /// effect assets (<c>.apeff</c>, 3D flavor) simulated and rendered entirely on the
 /// GPU, drawn as camera-facing billboards with depth testing against the scene.
-/// The scene shows a looping flame jet, one-shot explosions (sparks + smoke groups)
-/// re-spawning constantly (the frequent create/destroy path) and a vortex whose
-/// simulation comes from a custom slang behavior module (SbVortex3D, local
-/// simulation space).
-/// <br/>Controls: hold the middle mouse button to orbit, ESC to exit.
+/// The scene shows a looping flame jet, one-shot explosions (velocity-stretched
+/// sparks plus a gradient-tinted, curve-grown smoke group) re-spawning constantly
+/// (the frequent create/destroy path) and a vortex whose simulation comes from a
+/// custom slang behavior module (SbVortex3D, local simulation space).
+/// <br/>The ImGui panel manages the live instances: a click-selectable instance
+/// list (dead instances are pruned automatically), per-effect spawn buttons
+/// (spawned at the orbit target), delete, and — for the selected instance — a
+/// scene gizmo (translate / rotate) plus live per-group parameter editing
+/// (emission rate, lifetime, speed, size, gravity, tint, velocity stretch)
+/// through the instance's params override API.
+/// <br/>Controls: hold the middle mouse button to orbit (suspended while the
+/// pointer is over the gizmo), drag the gizmo handles with the left button,
+/// ESC to exit.
 /// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N]
 /// </summary>
 public class Game : GameEngine
@@ -25,8 +33,16 @@ public class Game : GameEngine
     private readonly CameraPerspectiveBuffer _camera;
     private readonly GpuParticleSystem3D _particles;
     private readonly Dictionary<string, ParticleEffect3DAsset> _effects = new();
-    private readonly List<ParticleEffectInstance3D> _instances = new();
+    private readonly List<string> _effectNames = [];
+    private readonly List<InstanceEntry> _instances = [];
     private FastRandom _random = new(54321);
+
+    // The selected instance (panel selection + gizmo target); null when none.
+    private InstanceEntry? _selected;
+    private int _nextInstanceId = 1;
+
+    // The gizmo operation of the selected instance: translate / rotate.
+    private GizmoOperation _gizmoOperation = GizmoOperation.Translate;
 
     // Static scene: a ground slab and two pillars (depth-tested against particles).
     private readonly GraphicsMaterial _sceneMaterial;
@@ -45,18 +61,25 @@ public class Game : GameEngine
     private float _autoSpawnInterval = 1.0f;
     private float _autoSpawnTimer;
 
-    // Screenshot mode.
+    // Screenshot mode: the swapchain capture service reads the presented frame
+    // (ImGui overlay included — a render-graph capture stops before it by design),
+    // so the panel and the gizmo are part of the image.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
     private int _frameCount;
-    private RGNode_Capture? _screenshotCaptureNode;
-    private PngReadbackPipeline? _screenshotReadback;
-    private bool _screenshotArmed;
+    private SwapchainCaptureSystem? _swapchainCapture;
+    private Task<RenderCaptureResult>? _screenshotRequest;
+    private bool _screenshotSaved;
 
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 90;
+        if (_screenshotPath != null)
+        {
+            _swapchainCapture = new SwapchainCaptureSystem(this);
+            AddSystem(_swapchainCapture);
+        }
 
         AddSystem(new ImGUISystem(this));
 
@@ -133,9 +156,11 @@ public class Game : GameEngine
         _effects["Flare"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Flare3D.apeff");
         _effects["Explosion"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Explosion3D.apeff");
         _effects["Vortex"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Vortex3D.apeff");
+        _effectNames.AddRange(_effects.Keys);
 
         // The static scene (deterministic seeds keep screenshot mode reproducible).
-        Spawn("Flare", new Vector3(-6, -3, 0), 201);
+        // The flare starts selected: it doubles as the gizmo showcase.
+        _selected = Spawn("Flare", new Vector3(-6, -3, 0), 201);
         Spawn("Vortex", new Vector3(5, 3, 3), 202);
     }
 
@@ -149,16 +174,29 @@ public class Game : GameEngine
         yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.ShaderSystem);
     }
 
-    private ParticleEffectInstance3D Spawn(string effectName, Vector3 position, int seed)
+    private InstanceEntry Spawn(string effectName, Vector3 position, int seed)
     {
         Transform3D transform = Transform3D.Identity;
         transform.Position = position;
-        var instance = _particles.CreateInstance(_effects[effectName], transform, seed);
-        _instances.Add(instance);
-        return instance;
+        ParticleEffectInstance3D instance = _particles.CreateInstance(_effects[effectName], transform, seed);
+        var entry = new InstanceEntry(instance, _nextInstanceId++);
+        _instances.Add(entry);
+        return entry;
     }
 
-    private ParticleEffectInstance3D SpawnRandom(string effectName)
+    // Spawns around the camera's orbit target so the new effect is immediately
+    // visible — the manual spawn buttons use this, unlike the ambient
+    // auto-spawner which keeps scattering explosions randomly.
+    private InstanceEntry SpawnVisible(string effectName)
+    {
+        Vector3 position = _lookAt + new Vector3(
+            _random.NextFloat(-1.5f, 1.5f),
+            _random.NextFloat(-1.5f, 1.5f),
+            _random.NextFloat(-0.5f, 1.5f));
+        return Spawn(effectName, position, (int)_random.NextUint());
+    }
+
+    private InstanceEntry SpawnRandom(string effectName)
     {
         Vector3 position = new(
             _random.NextFloat(-4f, 12f),
@@ -189,31 +227,60 @@ public class Game : GameEngine
         // Destroy instances whose particles have all died (frequent create/destroy).
         for (int i = _instances.Count - 1; i >= 0; i--)
         {
-            if (!_instances[i].IsActive)
+            if (!_instances[i].Instance.IsActive)
             {
-                _instances[i].Dispose();
+                if (_instances[i] == _selected)
+                {
+                    _selected = null;
+                }
+                _instances[i].Instance.Dispose();
                 _instances.RemoveAt(i);
             }
         }
 
         DrawImGuiPanel();
+        DrawSelectionGizmo();
 
         DebugStats.Text(FrameRate);
 
         _frameCount++;
-        if (_screenshotPath != null && !_screenshotArmed && _frameCount >= _screenshotFrames)
+        if (_screenshotPath != null && _screenshotRequest == null && !_screenshotSaved && _frameCount >= _screenshotFrames)
         {
-            ArmScreenshot(_screenshotPath);
+            // The request completes a couple of frames later with the presented
+            // frame's PNG (scene, post processing and the ImGui overlay on top).
+            _screenshotRequest = _swapchainCapture!.RequestCaptureAsync();
         }
 
         _pipeline.Render(MainPresenter.FrameBuffer);
 
-        PollScreenshot();
+        if (_screenshotRequest is { IsCompletedSuccessfully: true })
+        {
+            RenderCaptureResult result = _screenshotRequest.Result;
+            if (result.Success && result.PngBytes != null)
+            {
+                File.WriteAllBytes(_screenshotPath!, result.PngBytes);
+                Console.WriteLine($"Screenshot saved to {_screenshotPath}");
+            }
+            else
+            {
+                Console.WriteLine($"Screenshot failed: {result.Error}");
+            }
+
+            _screenshotSaved = true;
+            Stop();
+        }
+        else if (_screenshotRequest is { IsFaulted: true })
+        {
+            Console.WriteLine($"Screenshot failed: {_screenshotRequest.Exception?.GetBaseException().Message}");
+            Stop();
+        }
     }
 
     private void UpdateCamera()
     {
-        bool rotating = MainView.IsFocused && Input.IsMousePressing(Mouse.Middle);
+        // The orbit yields to the gizmo: no camera rotation while the pointer is
+        // over a handle or a handle drag is active (IsOver includes both).
+        bool rotating = MainView.IsFocused && Input.IsMousePressing(Mouse.Middle) && !Gizmo.IsOver;
         Input.IsMouseRelativeMode = rotating;
         if (rotating)
         {
@@ -235,94 +302,251 @@ public class Game : GameEngine
 
     private void DrawImGuiPanel()
     {
+        // Two columns, the editor's BeginChild + SameLine idiom: the instance list
+        // with spawn/delete on the left, the selected instance's parameter editor
+        // on the right. 'Appearing' (not 'FirstUseEver') so a stale imgui.ini
+        // cannot shrink the window. The height stays modest so the window does not
+        // cover the gizmo of the pre-selected flare near the bottom of the view.
+        ImGui.SetNextWindowSize(new Vector2(680, 480), ImGuiCond.Appearing);
         ImGui.Begin("GPU Particles 3D");
 
-        ImGui.Text($"Instances: {_instances.Count}");
         int groups = 0;
-        foreach (ParticleEffectInstance3D instance in _instances)
+        foreach (InstanceEntry entry in _instances)
         {
-            groups += instance.Asset.Groups.Count;
+            groups += entry.Instance.Asset.Groups.Count;
         }
-        ImGui.Text($"Emitter groups: {groups}");
+        ImGui.Text($"Instances: {_instances.Count}   Emitter groups: {groups}");
 
-        if (ImGui.Button("Spawn Explosion")) SpawnRandom("Explosion");
-        if (ImGui.Button("Spawn Flare")) SpawnRandom("Flare");
-        if (ImGui.Button("Spawn Vortex")) SpawnRandom("Vortex");
-
-        if (ImGui.Button("Destroy Oldest") && _instances.Count > 0)
+        const float inspectorWidth = 340f;
+        if (ImGui.BeginChild("##instances", new Vector2(-inspectorWidth, -1)))
         {
-            _instances[0].Dispose();
-            _instances.RemoveAt(0);
-        }
-        if (ImGui.Button("Destroy All"))
-        {
-            foreach (ParticleEffectInstance3D instance in _instances)
+            // The live instances (click to select); dead ones are pruned in OnUpdate.
+            ImGui.SeparatorText("Instances");
+            foreach (InstanceEntry entry in _instances)
             {
-                instance.Dispose();
+                string state = entry.Instance.IsPlaying ? "playing" : "fading";
+                if (ImGui.Selectable($"{entry.Instance.Asset.Name} #{entry.Id} ({state})", entry == _selected))
+                {
+                    _selected = entry;
+                }
             }
-            _instances.Clear();
-        }
+            ImGui.BeginDisabled(_selected == null);
+            if (ImGui.Button("Delete Selected") && _selected != null)
+            {
+                _selected.Instance.Dispose();
+                _instances.Remove(_selected);
+                _selected = null;
+            }
+            ImGui.EndDisabled();
+            ImGui.SameLine();
+            if (ImGui.Button("Destroy All"))
+            {
+                foreach (InstanceEntry entry in _instances)
+                {
+                    entry.Instance.Dispose();
+                }
+                _instances.Clear();
+                _selected = null;
+            }
 
-        ImGui.Checkbox("Auto Spawn Explosions", ref _autoSpawn);
-        ImGui.SliderFloat("Spawn Interval", ref _autoSpawnInterval, 0.05f, 3.0f);
+            // Manual spawns land at the orbit target so they are immediately visible.
+            ImGui.SeparatorText("Spawn");
+            foreach (string effectName in _effectNames)
+            {
+                if (ImGui.Button(effectName))
+                {
+                    _selected = SpawnVisible(effectName);
+                }
+            }
+
+            ImGui.SeparatorText("Auto Spawn");
+            ImGui.Checkbox("Auto Spawn Explosions", ref _autoSpawn);
+            ImGui.SliderFloat("Spawn Interval", ref _autoSpawnInterval, 0.05f, 3.0f);
+        }
+        ImGui.EndChild();
+
+        ImGui.SameLine();
+
+        // The selected instance: gizmo mode, numeric transform fallback and the
+        // live per-group parameter overrides.
+        if (ImGui.BeginChild("##selected", new Vector2(0, -1)))
+        {
+            if (_selected != null)
+            {
+                ParticleEffectInstance3D instance = _selected.Instance;
+                ImGui.SeparatorText($"Selected: {instance.Asset.Name} #{_selected.Id}");
+
+                ImGui.Text("Gizmo:");
+                ImGui.SameLine();
+                if (ImGui.RadioButton("Translate", _gizmoOperation == GizmoOperation.Translate))
+                {
+                    _gizmoOperation = GizmoOperation.Translate;
+                }
+                ImGui.SameLine();
+                if (ImGui.RadioButton("Rotate", _gizmoOperation == GizmoOperation.Rotate))
+                {
+                    _gizmoOperation = GizmoOperation.Rotate;
+                }
+
+                Transform3D transform = instance.Transform;
+                if (ImGui.EditTransform3D(ref transform))
+                {
+                    instance.Transform = transform;
+                }
+
+                for (int i = 0; i < instance.GroupCount; i++)
+                {
+                    if (ImGui.CollapsingHeader($"{instance.GetGroupName(i)}##group{i}", ImGuiTreeNodeFlags.DefaultOpen))
+                    {
+                        DrawGroupEditor(instance, i);
+                    }
+                }
+            }
+            else
+            {
+                ImGui.TextDisabled("Select an instance to edit");
+            }
+        }
+        ImGui.EndChild();
 
         ImGui.End();
     }
 
-    /// <summary>Arms the chain-tail screenshot (see Sandbox 34-PBRDeferred).</summary>
-    private void ArmScreenshot(string path)
+    /// <summary>
+    /// The selection gizmo: standard translate / rotate on the instance's 3D
+    /// transform. Drawn outside the panel window so the handles are not clipped
+    /// to it (the pattern of the 14-Collision / 27-Particles / 28-Gizmo sandboxes);
+    /// the camera orbit yields to it (<see cref="UpdateCamera"/>).
+    /// </summary>
+    private void DrawSelectionGizmo()
     {
-        _screenshotArmed = true;
-        _screenshotCaptureNode = new RGNode_Capture(
-            RenderingSystem,
-            _pipeline.Graph,
-            _pipeline.Chain,
-            _pipeline.BlitShader);
-        _pipeline.Use(_screenshotCaptureNode);
-        _screenshotReadback = new PngReadbackPipeline(GraphicsDevice);
-        _screenshotCaptureNode.Submit();
-    }
-
-    /// <summary>Pumps the armed screenshot and stops the sandbox once saved.</summary>
-    private void PollScreenshot()
-    {
-        if (!_screenshotArmed)
+        if (_selected == null)
         {
             return;
         }
-
-        if (_screenshotCaptureNode!.TryTakeCompleted())
+        Transform3D transform = _selected.Instance.Transform;
+        if (Gizmo.Manipulate(
+            _camera.Data.ViewMatrix,
+            _camera.Data.ProjectionMatrix,
+            _gizmoOperation,
+            GizmoMode.Local,
+            ref transform))
         {
-            if (!_screenshotReadback!.TryBeginRead(_screenshotCaptureNode.CaptureTexture, out RenderCaptureResult? beginFailure))
+            _selected.Instance.Transform = transform;
+        }
+    }
+
+    /// <summary>
+    /// Live editing of one emitter group of the selected instance: the practical
+    /// scalar subset (emission rate, lifetime, speed, size, gravity, tint,
+    /// velocity stretch). Reads the group's current record every frame and writes
+    /// the edited one back through <see cref="ParticleEffectInstance3D.SetGroupParams"/>,
+    /// which applies to the running instance without respawning it.
+    /// </summary>
+    private static void DrawGroupEditor(ParticleEffectInstance3D instance, int groupIndex)
+    {
+        ImGui.PushID(groupIndex);
+        EmitterParams3D parameters = instance.GetGroupParams(groupIndex);
+        bool edited = false;
+
+        // CPU-side per-instance emission rate (future spawns).
+        float rate = instance.GetGroupEmissionRate(groupIndex);
+        if (ImGui.DragFloat("Emission Rate", ref rate, 1f, 0f, 5000f))
+        {
+            instance.SetGroupEmissionRate(groupIndex, rate);
+        }
+
+        Vector2 lifetime = new(parameters.Life.X, parameters.Life.Y);
+        if (ImGui.DragFloat2("Lifetime", ref lifetime, 0.05f, 0.05f, 60f))
+        {
+            lifetime = new Vector2(Math.Min(lifetime.X, lifetime.Y), Math.Max(lifetime.X, lifetime.Y));
+            parameters.Life = new Vector4(lifetime, parameters.Life.Z, parameters.Life.W);
+            edited = true;
+        }
+
+        Vector2 speed = new(parameters.Speed.X, parameters.Speed.Y);
+        if (ImGui.DragFloat2("Speed", ref speed, 0.1f, 0f, 200f))
+        {
+            speed = new Vector2(Math.Min(speed.X, speed.Y), Math.Max(speed.X, speed.Y));
+            parameters.Speed = new Vector4(speed, parameters.Speed.Z, parameters.Speed.W);
+            edited = true;
+        }
+
+        float sizeMin = parameters.Size.X;
+        float sizeMax = parameters.Size.Y;
+        if (ImGui.DragFloat("Size Min", ref sizeMin, 0.01f, 0.01f, 50f))
+        {
+            sizeMin = Math.Min(sizeMin, sizeMax);
+            edited = true;
+        }
+        if (ImGui.DragFloat("Size Max", ref sizeMax, 0.01f, 0.01f, 50f))
+        {
+            sizeMax = Math.Max(sizeMin, sizeMax);
+            edited = true;
+        }
+        parameters.Size = new Vector4(sizeMin, sizeMax, parameters.Size.Z, parameters.Size.W);
+
+        // Gravity as a scale of the authored value (keeps its direction); groups
+        // authored without gravity edit the vector directly.
+        Vector3 assetGravity = instance.Asset.Groups[groupIndex].Gravity;
+        Vector3 gravity = new(parameters.Motion.X, parameters.Motion.Y, parameters.Motion.Z);
+        if (assetGravity.LengthSquared() > 1e-10f)
+        {
+            float gravityScale = gravity.Length() / assetGravity.Length();
+            if (ImGui.DragFloat("Gravity Scale", ref gravityScale, 0.02f, -10f, 10f))
             {
-                Console.WriteLine($"Screenshot failed: {beginFailure!.Error}");
-                Stop();
-                return;
+                Vector3 scaled = assetGravity * gravityScale;
+                parameters.Motion = new Vector4(scaled, parameters.Motion.W);
+                edited = true;
+            }
+        }
+        else if (ImGui.DragFloat3("Gravity", ref gravity, 0.05f))
+        {
+            parameters.Motion = new Vector4(gravity, parameters.Motion.W);
+            edited = true;
+        }
+
+        ColorFloat tint = parameters.Tint;
+        if (ImGui.ColorEdit4("Tint", ref tint))
+        {
+            parameters.Tint = tint;
+            edited = true;
+        }
+
+        // Velocity stretch (3D billboards; no alignment prerequisite).
+        bool stretch = (parameters.Flags & EmitterParams3D.FlagVelocityStretch) != 0u;
+        if (ImGui.Checkbox("Velocity Stretch", ref stretch))
+        {
+            parameters.Flags = stretch
+                ? parameters.Flags | EmitterParams3D.FlagVelocityStretch
+                : parameters.Flags & ~EmitterParams3D.FlagVelocityStretch;
+            edited = true;
+        }
+        if (stretch)
+        {
+            float lengthScale = parameters.Size.W;
+            if (ImGui.DragFloat("Stretch Length Scale", ref lengthScale, 0.02f, 0f, 10f))
+            {
+                parameters.Size = new Vector4(parameters.Size.X, parameters.Size.Y, parameters.Size.Z, lengthScale);
+                edited = true;
+            }
+            float speedScale = parameters.Speed.W;
+            if (ImGui.DragFloat("Stretch Speed Scale", ref speedScale, 0.005f, 0f, 2f))
+            {
+                parameters.Speed = new Vector4(parameters.Speed.X, parameters.Speed.Y, parameters.Speed.Z, speedScale);
+                edited = true;
             }
         }
 
-        RenderCaptureResult? result = _screenshotReadback!.Poll();
-        if (result == null)
+        if (edited)
         {
-            return;
+            instance.SetGroupParams(groupIndex, parameters);
         }
-
-        if (result.Success && result.PngBytes != null)
-        {
-            File.WriteAllBytes(_screenshotPath!, result.PngBytes);
-            Console.WriteLine($"Screenshot saved to {_screenshotPath}");
-        }
-        else
-        {
-            Console.WriteLine($"Screenshot failed: {result.Error}");
-        }
-
-        Stop();
+        ImGui.PopID();
     }
 
     protected override void OnStop()
     {
-        _screenshotReadback?.Dispose();
         _particles.Dispose();
         _pipeline.Dispose();
     }
@@ -381,5 +605,15 @@ public class Game : GameEngine
     {
         public Matrix4x4 Matrix;
         public ColorFloat Color;
+    }
+
+    /// <summary>
+    /// A live instance plus its stable list id — the instance list prunes and
+    /// reorders, the id keeps the panel labels unique and recognizable.
+    /// </summary>
+    private sealed class InstanceEntry(ParticleEffectInstance3D instance, int id)
+    {
+        public readonly ParticleEffectInstance3D Instance = instance;
+        public readonly int Id = id;
     }
 }

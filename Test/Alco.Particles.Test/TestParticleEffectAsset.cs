@@ -42,6 +42,19 @@ public class TestParticleEffectAsset
                     "drag": 1.5,
                     "startColor": { "min": "#FFCC00FF", "max": "#FF5000FF" },
                     "endColor": "#00000000",
+                    "colorGradient": [
+                        { "time": 0.0, "color": "#FFFFFFFF" },
+                        { "time": 0.5, "color": "#FF8800FF" },
+                        { "time": 1.0, "color": "#00000000" }
+                    ],
+                    "sizeCurve": [
+                        { "time": 0.0, "value": 0.5 },
+                        { "time": 0.2, "value": 1.0 },
+                        { "time": 1.0, "value": 0.0 }
+                    ],
+                    "velocityStretch": true,
+                    "stretchLengthScale": 1.5,
+                    "stretchSpeedScale": 0.08,
                     "fadeIn": 0.05,
                     "fadeOut": 0.4,
                     "endScale": 0.1,
@@ -90,6 +103,15 @@ public class TestParticleEffectAsset
             Assert.That(sparks.StartColor.Max.R, Is.EqualTo(1f));
             Assert.That(sparks.StartColor.Max.G, Is.EqualTo(0x50 / 255f).Within(1e-6));
             Assert.That(sparks.EndColor.A, Is.EqualTo(0f));
+            Assert.That(sparks.ColorGradient, Has.Count.EqualTo(3));
+            Assert.That(sparks.ColorGradient![1].Time, Is.EqualTo(0.5f));
+            Assert.That(sparks.ColorGradient[1].Color.R, Is.EqualTo(1f));
+            Assert.That(sparks.ColorGradient[1].Color.G, Is.EqualTo(0x88 / 255f).Within(1e-6));
+            Assert.That(sparks.SizeCurve, Has.Count.EqualTo(3));
+            Assert.That(sparks.SizeCurve![2].Value, Is.EqualTo(0f));
+            Assert.That(sparks.VelocityStretch, Is.True);
+            Assert.That(sparks.StretchLengthScale, Is.EqualTo(1.5f));
+            Assert.That(sparks.StretchSpeedScale, Is.EqualTo(0.08f));
             Assert.That(sparks.SimulationSpace, Is.EqualTo(ParticleSimulationSpace.World));
             Assert.That(sparks.Blend, Is.Not.Null);
             Assert.That(sparks.Material, Is.Null);
@@ -100,6 +122,43 @@ public class TestParticleEffectAsset
             Assert.That(smoke.Shape.Type, Is.EqualTo(ParticleShape2DType.Point));
             Assert.That(smoke.SimulationSpace, Is.EqualTo(ParticleSimulationSpace.World));
             Assert.That(smoke.Tint, Is.EqualTo(ColorFloat.White));
+            Assert.That(smoke.ColorGradient, Is.Null);
+            Assert.That(smoke.SizeCurve, Is.Null);
+            Assert.That(smoke.VelocityStretch, Is.False);
+            Assert.That(smoke.StretchLengthScale, Is.EqualTo(1f));
+            Assert.That(smoke.StretchSpeedScale, Is.EqualTo(0.05f));
+        });
+
+        // The emitter params carry the over-life/stretch settings as flag bits
+        // and spare lanes (the struct layouts stay at 336/320 bytes).
+        EmitterParams2D parameters = EmitterParams2D.FromAsset(
+            (asset as ParticleEffect2DAsset)!.Groups[0], 6);
+        EmitterParams2D defaults = EmitterParams2D.FromAsset(
+            (asset as ParticleEffect2DAsset)!.Groups[1], 6);
+        Assert.Multiple(() =>
+        {
+            Assert.That(parameters.Flags & EmitterParams2D.FlagColorGradient, Is.Not.Zero);
+            Assert.That(parameters.Flags & EmitterParams2D.FlagSizeCurve, Is.Not.Zero);
+            Assert.That(parameters.Flags & EmitterParams2D.FlagVelocityStretch, Is.Not.Zero,
+                "stretch + alignRotationToVelocity sets the stretch bit");
+            Assert.That(parameters.Speed.W, Is.EqualTo(0.08f));
+            Assert.That(parameters.OverLife.Y, Is.EqualTo(1.5f));
+            Assert.That(defaults.Flags, Is.EqualTo(EmitterParams2D.FlagWorldSpace),
+                "a default group sets only the world-space bit");
+        });
+
+        // 2D stretch requires the velocity alignment; without it no bit is set.
+        var unaligned = new ParticleGroup2DAsset { VelocityStretch = true };
+        Assert.That(EmitterParams2D.FromAsset(unaligned, 6).Flags & EmitterParams2D.FlagVelocityStretch, Is.Zero);
+
+        // 3D stretch stands alone (billboards have no align-rotation mode).
+        var stretched3D = new ParticleGroup3DAsset { VelocityStretch = true, StretchSpeedScale = 0.2f };
+        EmitterParams3D parameters3D = EmitterParams3D.FromAsset(stretched3D, 6);
+        Assert.Multiple(() =>
+        {
+            Assert.That(parameters3D.Flags & EmitterParams3D.FlagVelocityStretch, Is.Not.Zero);
+            Assert.That(parameters3D.Speed.W, Is.EqualTo(0.2f));
+            Assert.That(parameters3D.Size.W, Is.EqualTo(1f));
         });
 
         // Strict members: an unknown field fails the parse.

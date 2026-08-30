@@ -46,7 +46,8 @@ public struct EmitterParams3D
     public float deltaTime;
     public float emitterTime;      // seconds on the emitter timeline
     public uint frameSeed;         // per-frame RNG seed
-    public uint flags;             // bit0: world-space simulation
+    public uint flags;             // bit0: world-space simulation, bit1: color gradient lookup,
+                                   // bit2: size curve lookup, bit3: velocity-stretched billboards
     // emitter transform (spawn only, world space)
     public float4x4 worldMatrix;
     // emission shape: x = type (0 point, 1 sphere, 2 hemisphere, 3 box),
@@ -55,10 +56,10 @@ public struct EmitterParams3D
     public float4 extents;         // xyz = box half extents
     // emission direction: xyz = base direction, w = cone spread half-angle (rad)
     public float4 emission;
-    public float4 speed;           // x = min, y = max, z = direction mode (0 constant, 1 radial)
+    public float4 speed;           // x = min, y = max, z = direction mode (0 constant, 1 radial), w = stretch speed scale
     // life: x = lifetime min, y = lifetime max, z = fade-in fraction, w = fade-out fraction
     public float4 life;
-    public float4 size;            // x = min, y = max, z = end scale multiplier
+    public float4 size;            // x = min, y = max, z = end scale multiplier, w = stretch length scale
     public float4 rotation;        // x = roll min, y = roll max, z = roll rate min, w = roll rate max
     public float4 motion;          // xyz = gravity, w = drag
     public float4 colorMin;

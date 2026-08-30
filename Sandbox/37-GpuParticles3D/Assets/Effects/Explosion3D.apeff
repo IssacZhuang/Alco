@@ -22,6 +22,10 @@
             "endColor": "#33000000",
             "fadeOut": 0.5,
             "endScale": 0.3,
+            // Velocity-stretched billboards: the sparks streak along their
+            // velocity; the streaks shorten as drag slows them.
+            "velocityStretch": true,
+            "stretchSpeedScale": 0.18,
             "texture": "Glow",
             "blend": "Additive"
         },
@@ -42,6 +46,18 @@
             "drag": 1.2,
             "startColor": { "min": "#33333370", "max": "#66666690" },
             "endColor": "#1A1A1A00",
+            // The gradient (firelit -> gray -> fading dark smoke) replaces the
+            // start->end lerp; the size curve replaces the endScale lerp.
+            "colorGradient": [
+                { "time": 0.0,  "color": "#FFCC88FF" },
+                { "time": 0.3,  "color": "#B0B0B0FF" },
+                { "time": 1.0,  "color": "#55555500" }
+            ],
+            "sizeCurve": [
+                { "time": 0.0,  "value": 0.5 },
+                { "time": 0.25, "value": 1.0 },
+                { "time": 1.0,  "value": 3.5 }
+            ],
             "fadeIn": 0.1,
             "fadeOut": 0.6,
             "endScale": 3.5,

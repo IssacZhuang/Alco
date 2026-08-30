@@ -137,6 +137,26 @@ public abstract class ParticleGroupAsset
     public float EndScale { get; set; } = 1f;
 
     /// <summary>
+    /// The color gradient over the particle's life: a list of { time, color } keys
+    /// (time = normalized age 0..1), baked into a 1D lookup texture at material
+    /// setup and sampled in the render vertex shader. When set (non-empty), it
+    /// <em>replaces</em> the <see cref="StartColor"/> → <see cref="EndColor"/> lerp:
+    /// the particle's color is its spawn color multiplied by the gradient sample;
+    /// <see cref="FadeIn"/>/<see cref="FadeOut"/> still apply on top. Null or empty
+    /// keeps the lerp behavior.
+    /// </summary>
+    public List<ParticleColorKey>? ColorGradient { get; set; }
+
+    /// <summary>
+    /// The size multiplier curve over the particle's life: a list of
+    /// { time, value } keys (time = normalized age 0..1), baked like
+    /// <see cref="ColorGradient"/>. When set (non-empty), it <em>replaces</em> the
+    /// <see cref="EndScale"/> lerp: the particle's size is its spawn size multiplied
+    /// by the curve sample. Null or empty keeps the lerp behavior.
+    /// </summary>
+    public List<ParticleScalarKey>? SizeCurve { get; set; }
+
+    /// <summary>
     /// The linear drag coefficient: velocity decays as <c>v *= exp(-drag * dt)</c>.
     /// </summary>
     public float Drag { get; set; }
@@ -215,6 +235,22 @@ public sealed class ParticleGroup2DAsset : ParticleGroupAsset
     /// <summary>Whether the initial rotation aligns to the velocity direction (e.g. sparks).</summary>
     public bool AlignRotationToVelocity { get; set; }
 
+    /// <summary>
+    /// Whether the quad stretches along its velocity (requires
+    /// <see cref="AlignRotationToVelocity"/>): the velocity-axis extent becomes
+    /// base size × <see cref="StretchLengthScale"/> + speed ×
+    /// <see cref="StretchSpeedScale"/>, evaluated per frame from the current
+    /// velocity in the vertex shader; the perpendicular extent stays the base
+    /// size. Speed ≈ 0 falls back to the aligned rotation.
+    /// </summary>
+    public bool VelocityStretch { get; set; }
+
+    /// <summary>The base-size multiplier along the velocity axis (<see cref="VelocityStretch"/>).</summary>
+    public float StretchLengthScale { get; set; } = 1f;
+
+    /// <summary>The extra length per unit of speed along the velocity axis (<see cref="VelocityStretch"/>).</summary>
+    public float StretchSpeedScale { get; set; } = 0.05f;
+
     /// <summary>The initial size (quad extents) range in world units.</summary>
     public ParticleVector2Range Size { get; set; } = new(new System.Numerics.Vector2(2f));
 
@@ -248,6 +284,23 @@ public sealed class ParticleGroup3DAsset : ParticleGroupAsset
 
     /// <summary>The initial uniform size range in world units.</summary>
     public ParticleRange Size { get; set; } = new(0.5f, 1f);
+
+    /// <summary>
+    /// Whether the billboard stretches along the screen-space projection of its
+    /// velocity (velocity-stretched billboard): the velocity-axis extent becomes
+    /// base size × <see cref="StretchLengthScale"/> + speed ×
+    /// <see cref="StretchSpeedScale"/>, evaluated per frame from the current
+    /// velocity in the vertex shader; the perpendicular extent stays the base
+    /// size and the billboard roll is ignored. Speed ≈ 0 (or velocity pointing
+    /// at the camera) falls back to the camera-facing orientation.
+    /// </summary>
+    public bool VelocityStretch { get; set; }
+
+    /// <summary>The base-size multiplier along the velocity axis (<see cref="VelocityStretch"/>).</summary>
+    public float StretchLengthScale { get; set; } = 1f;
+
+    /// <summary>The extra length per unit of speed along the velocity axis (<see cref="VelocityStretch"/>).</summary>
+    public float StretchSpeedScale { get; set; } = 0.05f;
 
     /// <summary>The constant gravity acceleration in world units per second squared.</summary>
     public System.Numerics.Vector3 Gravity { get; set; }

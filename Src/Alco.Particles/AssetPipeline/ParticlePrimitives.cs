@@ -302,6 +302,34 @@ public class ParticleShape3D
     public Vector3 Extents { get; set; } = new Vector3(0.5f);
 }
 
+/// <summary>
+/// One key of a color-over-life gradient (<see cref="ParticleGroupAsset.ColorGradient"/>):
+/// the color at a normalized particle age. Keys may be authored out of order and
+/// outside [0, 1]; the bake (<see cref="ParticleOverLifeBake"/>) sorts and clamps them.
+/// </summary>
+public class ParticleColorKey
+{
+    /// <summary>The normalized particle age of the key in [0, 1].</summary>
+    public float Time { get; set; }
+
+    /// <summary>The gradient color at <see cref="Time"/> (accepts every color shape).</summary>
+    public ColorFloat Color { get; set; } = ColorFloat.White;
+}
+
+/// <summary>
+/// One key of a scalar-over-life curve (<see cref="ParticleGroupAsset.SizeCurve"/>):
+/// the multiplier at a normalized particle age; see <see cref="ParticleColorKey"/>
+/// for the key ordering/clamping rules.
+/// </summary>
+public class ParticleScalarKey
+{
+    /// <summary>The normalized particle age of the key in [0, 1].</summary>
+    public float Time { get; set; }
+
+    /// <summary>The curve value at <see cref="Time"/>; may exceed 1 (e.g. growth).</summary>
+    public float Value { get; set; } = 1f;
+}
+
 /// <summary>Flipbook (sprite-sheet) animation parameters of a particle group.</summary>
 public class ParticleFlipbook
 {

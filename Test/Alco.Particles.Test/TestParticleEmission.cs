@@ -100,4 +100,89 @@ public class TestParticleEmission
         uint spawn = Advance(ref time, ref accumulator, 1f, 100000f, capacity: 64);
         Assert.That(spawn, Is.EqualTo(64u));
     }
+
+    private uint AdvanceLifecycle(ref float time, ref float accumulator, ref float idleTimer,
+        float dt, bool playing, float rate, float duration, bool looping, float maxLifetime, out bool active)
+        => ParticleEmission.AdvanceLifecycle(ref time, ref accumulator, ref idleTimer, dt, playing,
+            rate, duration, looping, [], ref _random, 4096, maxLifetime, out active);
+
+    [Test]
+    public void OneShotGroupDeactivatesAfterDurationPlusMaxLifetime()
+    {
+        // Regression: a finished one-shot (non-looping, duration reached) used to stay
+        // active forever because the per-frame gate only looked at the instance-wide
+        // playing flag — finished explosions were never destroyed.
+        // 1 s one-shot, max particle lifetime 0.5 s at 60 fps: emission ends around
+        // frame 60, the group must deactivate around frame 60 + 0.6 s * 60 ≈ 97.
+        float time = 0f, accumulator = 0f, idleTimer = 0f;
+        const float dt = 1f / 60f;
+        int deactivatedFrame = -1;
+        uint earlySpawns = 0, lateSpawns = 0;
+        for (int frame = 0; frame < 300; frame++)
+        {
+            uint spawn = AdvanceLifecycle(ref time, ref accumulator, ref idleTimer, dt,
+                playing: true, rate: 100f, duration: 1f, looping: false, maxLifetime: 0.5f, out bool active);
+            if (frame < 60)
+            {
+                earlySpawns += spawn;
+            }
+            else
+            {
+                lateSpawns += spawn;
+            }
+            if (!active && deactivatedFrame < 0)
+            {
+                deactivatedFrame = frame;
+            }
+        }
+        Assert.Multiple(() =>
+        {
+            Assert.That(earlySpawns, Is.GreaterThan(0u), "the one-shot must emit during its duration");
+            Assert.That(lateSpawns, Is.EqualTo(0u), "no spawns after the timeline ended");
+            Assert.That(deactivatedFrame, Is.InRange(90, 110), "deactivation ≈ duration + maxLifetime");
+            // Once emission ends the timeline stops advancing (EmitterTime stays stable).
+            Assert.That(time, Is.LessThan(1f + 3f * dt));
+        });
+    }
+
+    [Test]
+    public void LoopingGroupStaysActiveWhilePlaying()
+    {
+        // No deactivation regression for looping emitters: 5 s of a 1 s loop.
+        float time = 0f, accumulator = 0f, idleTimer = 0f;
+        uint total = 0;
+        for (int frame = 0; frame < 300; frame++)
+        {
+            total += AdvanceLifecycle(ref time, ref accumulator, ref idleTimer, 1f / 60f,
+                playing: true, rate: 50f, duration: 1f, looping: true, maxLifetime: 0.5f, out bool active);
+            Assert.That(active, Is.True, $"frame {frame}");
+        }
+        Assert.That(total, Is.EqualTo(250u).Within(4u));
+    }
+
+    [Test]
+    public void StoppedGroupIdlesOutAfterMaxLifetime()
+    {
+        // The pre-existing stop path is unchanged: an infinite emitter that stops
+        // playing deactivates once every particle had time to die (0.5 + 0.1 s).
+        float time = 0f, accumulator = 0f, idleTimer = 0f;
+        const float dt = 1f / 60f;
+        for (int frame = 0; frame < 30; frame++)
+        {
+            AdvanceLifecycle(ref time, ref accumulator, ref idleTimer, dt,
+                playing: true, rate: 100f, duration: 0f, looping: false, maxLifetime: 0.5f, out bool active);
+            Assert.That(active, Is.True, $"playing frame {frame}");
+        }
+        int deactivatedFrame = -1;
+        for (int frame = 30; frame < 120; frame++)
+        {
+            AdvanceLifecycle(ref time, ref accumulator, ref idleTimer, dt,
+                playing: false, rate: 100f, duration: 0f, looping: false, maxLifetime: 0.5f, out bool active);
+            if (!active && deactivatedFrame < 0)
+            {
+                deactivatedFrame = frame;
+            }
+        }
+        Assert.That(deactivatedFrame, Is.InRange(60, 80), "deactivation ≈ stop frame + maxLifetime + 0.1 s");
+    }
 }

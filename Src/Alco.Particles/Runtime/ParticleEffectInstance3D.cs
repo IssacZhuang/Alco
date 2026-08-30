@@ -43,6 +43,20 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
 
         /// <summary>The group's render material (shared per group asset).</summary>
         public required GraphicsMaterial Material;
+
+        /// <summary>
+        /// The live emission rate in particles per second (per-instance; initialized
+        /// from the asset, editable through <see cref="SetGroupEmissionRate"/>).
+        /// </summary>
+        public float EmissionRate;
+
+        /// <summary>
+        /// The live lifetime range in seconds (per-instance; initialized from the
+        /// asset, synchronized with the GPU record by <see cref="SetGroupParams"/>).
+        /// Drives the deactivation timeout once emission ends (stopped, or a
+        /// finished one-shot timeline).
+        /// </summary>
+        public ParticleRange Lifetime;
     }
 
     private readonly GpuParticleSystem3D _system;
@@ -81,6 +95,55 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
 
     /// <summary>The group states (diagnostics).</summary>
     internal GroupState[] Groups => _groups;
+
+    /// <summary>The number of emitter groups of the effect.</summary>
+    public int GroupCount => _groups.Length;
+
+    /// <summary>The name of one of the instance's emitter groups.</summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <returns>The asset name of the group.</returns>
+    public string GetGroupName(int groupIndex) => _groups[groupIndex].Asset.Name;
+
+    /// <summary>The live emission rate of a group, in particles per second.</summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <returns>The per-instance emission rate.</returns>
+    public float GetGroupEmissionRate(int groupIndex) => _groups[groupIndex].EmissionRate;
+
+    /// <summary>
+    /// Overrides the emission rate of a group for this instance (the asset is not
+    /// mutated); applies to future spawns.
+    /// </summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <param name="rate">The new rate in particles per second (clamped to &gt;= 0).</param>
+    public void SetGroupEmissionRate(int groupIndex, float rate)
+    {
+        _groups[groupIndex].EmissionRate = Math.Max(rate, 0f);
+    }
+
+    /// <summary>A copy of the group's live parameter record (static and per-frame fields).</summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <returns>The slot's current record.</returns>
+    public EmitterParams3D GetGroupParams(int groupIndex) => _system.ParamsRef(_groups[groupIndex].Slot);
+
+    /// <summary>
+    /// Replaces the static (asset-authored) parameter fields of a group — speed,
+    /// lifetime, size, gravity, tint, the stretch and lookup flags — for this
+    /// instance only, without respawning it; the slot-bound and per-frame fields
+    /// keep their live values (see <see cref="EmitterParams3D.MergeEdited"/>) and
+    /// the asset is not mutated. The group's CPU-side lifetime follows
+    /// <see cref="EmitterParams3D.Life"/>.X/Y, so a stopped group still deactivates
+    /// on time. The upload rides the regular dirty-range path: active groups upload
+    /// the same frame, dormant groups when they reactivate.
+    /// </summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <param name="parameters">The record carrying the edited static fields.</param>
+    public void SetGroupParams(int groupIndex, in EmitterParams3D parameters)
+    {
+        GroupState group = _groups[groupIndex];
+        EmitterParams3D merged = EmitterParams3D.MergeEdited(_system.ParamsRef(group.Slot), parameters);
+        _system.ParamsRef(group.Slot) = merged;
+        group.Lifetime = new ParticleRange(merged.Life.X, merged.Life.Y);
+    }
 
     /// <summary>Resumes emission.</summary>
     public void Play()
@@ -129,26 +192,24 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
         {
             GroupState group = _groups[i];
             ParticleGroup3DAsset asset = group.Asset;
-            group.SpawnCount = 0;
-            if (IsPlaying)
-            {
-                group.SpawnCount = ParticleEmission.Advance(
-                    ref group.Time,
-                    ref group.Accumulator,
-                    deltaTime,
-                    asset.EmissionRate,
-                    asset.Duration,
-                    asset.Looping,
-                    asset.Bursts,
-                    ref _random,
-                    group.Slice.Capacity);
-                group.IdleTimer = 0f;
-            }
-            else
-            {
-                group.IdleTimer += deltaTime;
-            }
-            group.Active = IsPlaying || group.IdleTimer <= asset.Lifetime.Max + 0.1f;
+            // The lifecycle step gates emission per group: a one-shot group whose
+            // timeline ran out idles and deactivates even while the instance still
+            // plays, so finished effects are destroyable (IsActive -> false).
+            group.SpawnCount = ParticleEmission.AdvanceLifecycle(
+                ref group.Time,
+                ref group.Accumulator,
+                ref group.IdleTimer,
+                deltaTime,
+                IsPlaying,
+                group.EmissionRate,
+                asset.Duration,
+                asset.Looping,
+                asset.Bursts,
+                ref _random,
+                group.Slice.Capacity,
+                group.Lifetime.Max,
+                out bool active);
+            group.Active = active;
             if (!group.Active)
             {
                 continue;

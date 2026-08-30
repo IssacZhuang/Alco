@@ -17,6 +17,10 @@
             "lifetime": { "min": 0.4, "max": 1.1 },
             "size": { "min": { "x": 0.5, "y": 0.5 }, "max": { "x": 1.2, "y": 1.2 } },
             "alignRotationToVelocity": true,
+            // Velocity stretch: the droplets stretch along their (curving)
+            // velocity — the streaks shorten as drag slows the sparks.
+            "velocityStretch": true,
+            "stretchSpeedScale": 0.15,
             "gravity": { "x": 0, "y": -25 },
             "drag": 1.8,
             "startColor": { "min": "#FFDD88FF", "max": "#FF7700FF" },

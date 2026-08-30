@@ -11,8 +11,9 @@
 //
 // The pass owns the resource contract the particle system binds: the "camera"
 // block (auto-bound view-projection), the "scene" block (bound by the particle
-// system) and the GpuParticleDraw2D push constant. The surface module owns the
-// material resources.
+// system), the "overLife" block (the group's baked color-gradient/size-curve
+// lookup textures) and the GpuParticleDraw2D push constant. The surface module
+// owns the material resources.
 
 #language slang 2025
 module GpuParticle2D;
@@ -52,6 +53,18 @@ public struct SceneParams
 
 public ParameterBlock<SceneParams> scene;
 
+public struct OverLifeResources
+{
+    // The group's baked over-life lookup textures (256x1): the color gradient
+    // (RGBA8) and the size curve (R16Float - curve values may exceed 1). Both
+    // bind a 1x1 identity texture when the group authors none; the
+    // EmitterParams2D flag bits (1/2) gate the fetch.
+    public Texture2D colorGradient;
+    public Texture2D<float> sizeCurve;
+};
+
+public ParameterBlock<OverLifeResources> overLife;
+
 public struct GpuParticleDraw2D
 {
     public float4x4 model;       // emitter transform (local space) or identity (world space)
@@ -71,13 +84,39 @@ public V2F MainVS(Vertex input)
     uint local = scene.renderList[emitter.sliceOffset + input.instanceID];
     ParticleData2D particle = scene.particles[emitter.sliceOffset + local];
 
-    float2 corner = input.position.xy * particle.scale;
-    corner = particleRotate(corner, particle.rotation);
+    float age = max(particle.duration - particle.lifetime, 0.0);
+    float age01 = particle.duration > 0.0 ? saturate(age / particle.duration) : 0.0;
+
+    // Size over life: the baked size curve (flag bit2) replaces the simulate
+    // pass's end-scale lerp; it multiplies the spawn scale.
+    float2 scale = particle.scale;
+    if ((emitter.flags & 4u) != 0u)
+    {
+        scale = particle.startScale * overLife.sizeCurve.Sample(samplers.linearClamp, float2(age01, 0.5));
+    }
+
+    // Velocity stretch (flag bit3, with align-rotation-to-velocity): the quad's
+    // local x axis follows the current velocity, lengthened by the speed; the
+    // perpendicular keeps the base size. Speed ~ 0 keeps the aligned rotation.
+    float2 corner;
+    if ((emitter.flags & 8u) != 0u)
+    {
+        float speed = length(particle.velocity);
+        float2 axis = speed > 1e-4
+            ? particle.velocity / speed
+            : float2(cos(particle.rotation), sin(particle.rotation));
+        float along = scale.x * emitter.overLife.y + speed * emitter.speed.w;
+        corner = axis * (input.position.x * along)
+            + float2(-axis.y, axis.x) * (input.position.y * scale.y);
+    }
+    else
+    {
+        corner = particleRotate(input.position.xy * scale, particle.rotation);
+    }
     float3 world = mul(pc.model, float4(particle.position + corner, 0.0, 1.0)).xyz;
     output.position = mul(camera.viewProjection, float4(world, 1.0));
 
     // Flipbook: the frame follows the particle's age.
-    float age = max(particle.duration - particle.lifetime, 0.0);
     float2 uv = input.uv;
     uint rows = uint(emitter.flipbook.x);
     uint cols = uint(emitter.flipbook.y);
@@ -90,8 +129,20 @@ public V2F MainVS(Vertex input)
         uv = (uv + cell) / float2(float(cols), float(rows));
     }
     output.uv = uv;
-    output.color = particle.color * emitter.tint;
-    output.age01 = particle.duration > 0.0 ? saturate(age / particle.duration) : 0.0;
+
+    // Color over life: the baked gradient (flag bit1) replaces the simulate
+    // pass's spawn->end lerp (spawn color x gradient sample); the fade ramps
+    // re-apply on top, unchanged.
+    float4 color = particle.color;
+    if ((emitter.flags & 2u) != 0u)
+    {
+        color = particle.startColor * overLife.colorGradient.Sample(samplers.linearClamp, float2(age01, 0.5));
+        float fadeIn = emitter.life.z > 1e-5 ? smoothstep(0.0, emitter.life.z, age01) : 1.0;
+        float fadeOut = emitter.life.w > 1e-5 ? 1.0 - smoothstep(1.0 - emitter.life.w, 1.0, age01) : 1.0;
+        color.a *= fadeIn * fadeOut;
+    }
+    output.color = color * emitter.tint;
+    output.age01 = age01;
     return output;
 }
 

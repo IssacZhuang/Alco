@@ -32,7 +32,11 @@ public struct EmitterParams3D
     /// <summary>The per-frame RNG seed of the spawn pass.</summary>
     public uint FrameSeed;
 
-    /// <summary>Bit flags; bit0: world-space simulation (spawn through <see cref="WorldMatrix"/>).</summary>
+    /// <summary>
+    /// Bit flags; bit0: world-space simulation (spawn through <see cref="WorldMatrix"/>),
+    /// bit1: color-gradient lookup bound, bit2: size-curve lookup bound,
+    /// bit3: velocity-stretched billboards.
+    /// </summary>
     public uint Flags;
 
     /// <summary>The emitter's transform matrix (used at spawn in world space, at draw in local space).</summary>
@@ -47,13 +51,13 @@ public struct EmitterParams3D
     /// <summary>Emission direction: xyz = base direction, w = cone spread half-angle (rad).</summary>
     public Vector4 Emission;
 
-    /// <summary>Speed: x = min, y = max, z = direction mode (0 constant, 1 radial).</summary>
+    /// <summary>Speed: x = min, y = max, z = direction mode (0 constant, 1 radial), w = velocity-stretch speed scale.</summary>
     public Vector4 Speed;
 
     /// <summary>Life: x = lifetime min, y = lifetime max, z = fade-in fraction, w = fade-out fraction.</summary>
     public Vector4 Life;
 
-    /// <summary>Size: x = min, y = max, z = end scale multiplier.</summary>
+    /// <summary>Size: x = min, y = max, z = end scale multiplier, w = velocity-stretch length scale.</summary>
     public Vector4 Size;
 
     /// <summary>Billboard roll: x = start roll min, y = max, z = roll rate min, w = max.</summary>
@@ -92,6 +96,42 @@ public struct EmitterParams3D
     /// <summary>The world-space-simulation flag bit of <see cref="Flags"/>.</summary>
     public const uint FlagWorldSpace = 1u;
 
+    /// <summary>The color-gradient-lookup flag bit of <see cref="Flags"/>.</summary>
+    public const uint FlagColorGradient = 2u;
+
+    /// <summary>The size-curve-lookup flag bit of <see cref="Flags"/>.</summary>
+    public const uint FlagSizeCurve = 4u;
+
+    /// <summary>The velocity-stretch flag bit of <see cref="Flags"/>.</summary>
+    public const uint FlagVelocityStretch = 8u;
+
+    /// <summary>
+    /// Merges an edited record into the live slot record of an emitter: the static
+    /// (asset-authored) fields come from <paramref name="edited"/> while the
+    /// slot-bound (<see cref="Capacity"/>, <see cref="SliceOffset"/>,
+    /// <see cref="IndexCount"/>) and per-frame (<see cref="SpawnCount"/>,
+    /// <see cref="EmitCursor"/>, <see cref="DeltaTime"/>, <see cref="EmitterTime"/>,
+    /// <see cref="FrameSeed"/>, <see cref="WorldMatrix"/>) fields keep their live
+    /// values. Backs <see cref="ParticleEffectInstance3D.SetGroupParams"/>.
+    /// </summary>
+    /// <param name="live">The current slot record.</param>
+    /// <param name="edited">The record carrying the edited static fields.</param>
+    /// <returns>The merged record to store back into the slot.</returns>
+    internal static EmitterParams3D MergeEdited(in EmitterParams3D live, in EmitterParams3D edited)
+    {
+        EmitterParams3D merged = edited;
+        merged.SpawnCount = live.SpawnCount;
+        merged.EmitCursor = live.EmitCursor;
+        merged.Capacity = live.Capacity;
+        merged.SliceOffset = live.SliceOffset;
+        merged.DeltaTime = live.DeltaTime;
+        merged.EmitterTime = live.EmitterTime;
+        merged.FrameSeed = live.FrameSeed;
+        merged.WorldMatrix = live.WorldMatrix;
+        merged.IndexCount = live.IndexCount;
+        return merged;
+    }
+
     /// <summary>
     /// Fills the static (asset-authored) fields of the record from a group asset;
     /// the per-frame fields (control, timing, matrix) are written by the instance.
@@ -115,13 +155,13 @@ public struct EmitterParams3D
             group.Speed.Min,
             group.Speed.Max,
             (float)group.DirectionMode,
-            0f);
+            group.StretchSpeedScale);
         parameters.Life = new Vector4(
             group.Lifetime.Min,
             group.Lifetime.Max,
             Math.Clamp(group.FadeIn, 0f, 1f),
             Math.Clamp(group.FadeOut, 0f, 1f));
-        parameters.Size = new Vector4(group.Size.Min, group.Size.Max, group.EndScale, 0f);
+        parameters.Size = new Vector4(group.Size.Min, group.Size.Max, group.EndScale, group.StretchLengthScale);
         parameters.Rotation = new Vector4(
             group.StartRotation.Min,
             group.StartRotation.Max,
@@ -138,6 +178,18 @@ public struct EmitterParams3D
             : new Vector4(1f, 1f, 0f, 0f);
         parameters.IndexCount = indexCount;
         parameters.Flags = group.SimulationSpace == ParticleSimulationSpace.World ? FlagWorldSpace : 0u;
+        if (group.ColorGradient is { Count: > 0 })
+        {
+            parameters.Flags |= FlagColorGradient;
+        }
+        if (group.SizeCurve is { Count: > 0 })
+        {
+            parameters.Flags |= FlagSizeCurve;
+        }
+        if (group.VelocityStretch)
+        {
+            parameters.Flags |= FlagVelocityStretch;
+        }
         return parameters;
     }
 }

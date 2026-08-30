@@ -33,7 +33,11 @@ public struct EmitterParams2D
     /// <summary>The per-frame RNG seed of the spawn pass.</summary>
     public uint FrameSeed;
 
-    /// <summary>Bit flags; bit0: world-space simulation (spawn through <see cref="WorldMatrix"/>).</summary>
+    /// <summary>
+    /// Bit flags; bit0: world-space simulation (spawn through <see cref="WorldMatrix"/>),
+    /// bit1: color-gradient lookup bound, bit2: size-curve lookup bound,
+    /// bit3: velocity-stretched quads (with align-rotation-to-velocity).
+    /// </summary>
     public uint Flags;
 
     /// <summary>The emitter's transform matrix (used at spawn in world space, at draw in local space).</summary>
@@ -48,7 +52,7 @@ public struct EmitterParams2D
     /// <summary>Emission direction: xy = base direction, z = spread half-angle (rad), w = direction mode (0 constant, 1 radial).</summary>
     public Vector4 Emission;
 
-    /// <summary>Speed: x = min, y = max, z = align rotation to velocity (0/1).</summary>
+    /// <summary>Speed: x = min, y = max, z = align rotation to velocity (0/1), w = velocity-stretch speed scale.</summary>
     public Vector4 Speed;
 
     /// <summary>Life: x = lifetime min, y = lifetime max, z = fade-in fraction, w = fade-out fraction.</summary>
@@ -60,7 +64,7 @@ public struct EmitterParams2D
     /// <summary>Rotation: x = start rotation min, y = max, z = angular velocity min, w = max.</summary>
     public Vector4 Rotation;
 
-    /// <summary>Over-life: x = end scale multiplier.</summary>
+    /// <summary>Over-life: x = end scale multiplier, y = velocity-stretch length scale.</summary>
     public Vector4 OverLife;
 
     /// <summary>Motion: xy = gravity, z = drag.</summary>
@@ -96,6 +100,42 @@ public struct EmitterParams2D
     /// <summary>The world-space-simulation flag bit of <see cref="Flags"/>.</summary>
     public const uint FlagWorldSpace = 1u;
 
+    /// <summary>The color-gradient-lookup flag bit of <see cref="Flags"/>.</summary>
+    public const uint FlagColorGradient = 2u;
+
+    /// <summary>The size-curve-lookup flag bit of <see cref="Flags"/>.</summary>
+    public const uint FlagSizeCurve = 4u;
+
+    /// <summary>The velocity-stretch flag bit of <see cref="Flags"/>.</summary>
+    public const uint FlagVelocityStretch = 8u;
+
+    /// <summary>
+    /// Merges an edited record into the live slot record of an emitter: the static
+    /// (asset-authored) fields come from <paramref name="edited"/> while the
+    /// slot-bound (<see cref="Capacity"/>, <see cref="SliceOffset"/>,
+    /// <see cref="IndexCount"/>) and per-frame (<see cref="SpawnCount"/>,
+    /// <see cref="EmitCursor"/>, <see cref="DeltaTime"/>, <see cref="EmitterTime"/>,
+    /// <see cref="FrameSeed"/>, <see cref="WorldMatrix"/>) fields keep their live
+    /// values. Backs <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
+    /// </summary>
+    /// <param name="live">The current slot record.</param>
+    /// <param name="edited">The record carrying the edited static fields.</param>
+    /// <returns>The merged record to store back into the slot.</returns>
+    internal static EmitterParams2D MergeEdited(in EmitterParams2D live, in EmitterParams2D edited)
+    {
+        EmitterParams2D merged = edited;
+        merged.SpawnCount = live.SpawnCount;
+        merged.EmitCursor = live.EmitCursor;
+        merged.Capacity = live.Capacity;
+        merged.SliceOffset = live.SliceOffset;
+        merged.DeltaTime = live.DeltaTime;
+        merged.EmitterTime = live.EmitterTime;
+        merged.FrameSeed = live.FrameSeed;
+        merged.WorldMatrix = live.WorldMatrix;
+        merged.IndexCount = live.IndexCount;
+        return merged;
+    }
+
     /// <summary>
     /// Fills the static (asset-authored) fields of the record from a group asset;
     /// the per-frame fields (control, timing, matrix) are written by the instance.
@@ -122,7 +162,7 @@ public struct EmitterParams2D
             group.Speed.Min,
             group.Speed.Max,
             group.AlignRotationToVelocity ? 1f : 0f,
-            0f);
+            group.StretchSpeedScale);
         parameters.Life = new Vector4(
             group.Lifetime.Min,
             group.Lifetime.Max,
@@ -134,7 +174,7 @@ public struct EmitterParams2D
             group.StartRotation.Max,
             group.AngularVelocity.Min,
             group.AngularVelocity.Max);
-        parameters.OverLife = new Vector4(group.EndScale, 0f, 0f, 0f);
+        parameters.OverLife = new Vector4(group.EndScale, group.StretchLengthScale, 0f, 0f);
         parameters.Motion = new Vector4(group.Gravity, group.Drag, 0f);
         parameters.ColorMin = group.StartColor.Min;
         parameters.ColorMax = group.StartColor.Max;
@@ -146,6 +186,18 @@ public struct EmitterParams2D
             : new Vector4(1f, 1f, 0f, 0f);
         parameters.IndexCount = indexCount;
         parameters.Flags = group.SimulationSpace == ParticleSimulationSpace.World ? FlagWorldSpace : 0u;
+        if (group.ColorGradient is { Count: > 0 })
+        {
+            parameters.Flags |= FlagColorGradient;
+        }
+        if (group.SizeCurve is { Count: > 0 })
+        {
+            parameters.Flags |= FlagSizeCurve;
+        }
+        if (group.VelocityStretch && group.AlignRotationToVelocity)
+        {
+            parameters.Flags |= FlagVelocityStretch;
+        }
         return parameters;
     }
 }
