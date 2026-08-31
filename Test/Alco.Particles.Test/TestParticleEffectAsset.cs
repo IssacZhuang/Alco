@@ -7,7 +7,7 @@ using Alco.Particles;
 namespace Alco.Particles.Test;
 
 /// <summary>
-/// Particle effect asset (<c>.apeff</c>) parsing tests and GPU-layout guards of
+/// Particle effect asset (<c>.afx</c>) parsing tests and GPU-layout guards of
 /// the C#/slang struct twins.
 /// </summary>
 public class TestParticleEffectAsset

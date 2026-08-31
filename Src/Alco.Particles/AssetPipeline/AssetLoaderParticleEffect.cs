@@ -6,7 +6,7 @@ using Alco.Rendering;
 namespace Alco.Particles;
 
 /// <summary>
-/// Loads particle effect asset files (<c>.apeff</c>) directly into
+/// Loads particle effect asset files (<c>.afx</c>) directly into
 /// <see cref="ParticleEffectAsset"/>s — no DTO layer: texture references load
 /// through the asset system, behavior module references resolve and validate into
 /// <see cref="ShaderLibrary"/>s at load time, so a bad reference (missing texture,
@@ -24,7 +24,7 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffectAsset>
     }
 
     /// <inheritdoc />
-    public override string Name => "ParticleEffect(.apeff)";
+    public override string Name => "ParticleEffect(.afx)";
 
     /// <inheritdoc />
     public override IReadOnlyList<string> FileExtensions => [ParticleAssetPipeline.EffectExtension];

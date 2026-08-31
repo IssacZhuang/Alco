@@ -10,7 +10,7 @@ using SandboxUtils;
 
 /// <summary>
 /// Sandbox demonstrating the 2D GPU particle system (Alco.Particles): particle
-/// effects are assets (<c>.apeff</c>) with one or more emitter groups, simulated
+/// effects are assets (<c>.afx</c>) with one or more emitter groups, simulated
 /// and rendered entirely on the GPU (two compute dispatches + one indexed-indirect
 /// instanced draw per group per frame). The scene shows six effects — a one-shot
 /// explosion (two groups: sparks + smoke, the sparks velocity-stretched), a looping
@@ -145,13 +145,13 @@ public class Game : GameEngine
         MainPresenter.OnResize += size => _pipeline.Resize(size.X, size.Y);
 
         // The effect assets.
-        _effects["Explosion"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Explosion.apeff");
-        _effects["Flame"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Flame.apeff");
-        _effects["Fountain"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Fountain.apeff");
-        _effects["Vortex"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Vortex.apeff");
-        _effects["Shockwave"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Shockwave2D.apeff");
-        _effects["Dissolve"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Dissolve2D.apeff");
-        _effects["Rainbow"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Rainbow.apeff");
+        _effects["Explosion"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Explosion.afx");
+        _effects["Flame"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Flame.afx");
+        _effects["Fountain"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Fountain.afx");
+        _effects["Vortex"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Vortex.afx");
+        _effects["Shockwave"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Shockwave2D.afx");
+        _effects["Dissolve"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Dissolve2D.afx");
+        _effects["Rainbow"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Rainbow.afx");
         _effectNames.AddRange(_effects.Keys);
 
         // The static scene (deterministic seeds keep screenshot mode reproducible).
@@ -240,7 +240,7 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Registers the particle effect asset loader (.apeff) on top of the defaults.</summary>
+    /// <summary>Registers the particle effect asset loader (.afx) on top of the defaults.</summary>
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         foreach (IAssetLoader loader in base.CreateDefaultAssetLoaders())

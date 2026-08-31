@@ -10,7 +10,7 @@ using SandboxUtils;
 
 /// <summary>
 /// Sandbox demonstrating the 3D GPU particle system (Alco.Particles): particle
-/// effect assets (<c>.apeff</c>, 3D flavor) simulated and rendered entirely on the
+/// effect assets (<c>.afx</c>, 3D flavor) simulated and rendered entirely on the
 /// GPU, drawn as camera-facing billboards with depth testing against the scene.
 /// The scene shows a looping flame jet, one-shot explosions (velocity-stretched
 /// sparks plus a gradient-tinted, curve-grown smoke group) re-spawning constantly
@@ -170,9 +170,9 @@ public class Game : GameEngine
         ];
 
         // The effect assets.
-        _effects["Flare"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Flare3D.apeff");
-        _effects["Explosion"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Explosion3D.apeff");
-        _effects["Vortex"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Vortex3D.apeff");
+        _effects["Flare"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Flare3D.afx");
+        _effects["Explosion"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Explosion3D.afx");
+        _effects["Vortex"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Vortex3D.afx");
         _effectNames.AddRange(_effects.Keys);
 
         // The static scene (deterministic seeds keep screenshot mode reproducible).
@@ -243,7 +243,7 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Registers the particle effect asset loader (.apeff) on top of the defaults.</summary>
+    /// <summary>Registers the particle effect asset loader (.afx) on top of the defaults.</summary>
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         foreach (IAssetLoader loader in base.CreateDefaultAssetLoaders())

@@ -5,7 +5,7 @@ namespace Alco.Particles;
 
 /// <summary>
 /// The module entry point of the Alco.Particles asset pipeline: registers the
-/// particle effect asset loader (<c>.apeff</c>) with an asset system. Shader
+/// particle effect asset loader (<c>.afx</c>) with an asset system. Shader
 /// modules of the module resolve by name once the module's <c>Assets</c> folder is
 /// reachable by the asset system (the module csproj ships it next to the
 /// consuming app; dev-time hot reload mounts it as a file source).
@@ -13,7 +13,7 @@ namespace Alco.Particles;
 public static class ParticleAssetPipeline
 {
     /// <summary>The file extension of particle effect assets.</summary>
-    public const string EffectExtension = ".apeff";
+    public const string EffectExtension = ".afx";
 
     /// <summary>The module name of the built-in 2D particle render pass template.</summary>
     public const string RenderModule2D = "GpuParticle2D";

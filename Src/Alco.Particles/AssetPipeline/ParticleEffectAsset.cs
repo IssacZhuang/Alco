@@ -5,7 +5,7 @@ using Alco.Rendering;
 namespace Alco.Particles;
 
 /// <summary>
-/// A particle effect asset (<c>.apeff</c>) — the data-only, serializable description
+/// A particle effect asset (<c>.afx</c>) — the data-only, serializable description
 /// of a whole particle effect: a list of <em>groups</em>, where each group is one
 /// emitter with its own emission/motion parameters, an optional slang behavior
 /// module defining the simulation (<see cref="ParticleGroupAsset.Behavior"/>) and a
