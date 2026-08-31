@@ -181,15 +181,17 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     }
 
     /// <summary>
-    /// Records the simulation of all active instances into the frame's command
-    /// buffer (see <see cref="GpuParticleSystem2D.RecordSimulation"/>).
+    /// Records the simulation of all active instances into
+    /// <paramref name="commandBuffer"/> (see
+    /// <see cref="GpuParticleSystem2D.RecordSimulation"/> for the recorded work and
+    /// the delta-time freeze semantics).
     /// </summary>
-    /// <param name="context">The render graph context.</param>
-    public void RecordSimulation(in RenderGraphContext context)
+    /// <param name="commandBuffer">The frame command buffer to record into.</param>
+    /// <param name="deltaTime">The simulation time step in seconds.</param>
+    public void RecordSimulation(GPUCommandBuffer commandBuffer, float deltaTime)
     {
-        _pool.RecordMigration(context.RenderContext.CommandBuffer);
+        _pool.RecordMigration(commandBuffer);
 
-        float deltaTime = context.DeltaTime;
         uint dirtyMin = uint.MaxValue;
         uint dirtyMax = 0;
         for (int i = 0; i < _instances.Count; i++)
@@ -208,7 +210,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             return;
         }
 
-        using (GPUCommandBuffer.ComputePass computePass = context.RenderContext.CommandBuffer.BeginCompute())
+        using (GPUCommandBuffer.ComputePass computePass = commandBuffer.BeginCompute())
         {
             for (int i = 0; i < kills.Count; i++)
             {

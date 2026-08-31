@@ -118,7 +118,7 @@ public class Game : GameEngine
             Name = "gpu_particles_3d",
         });
         _pipeline.ClearColor = new ColorFloat(0.06f, 0.07f, 0.09f, 1);
-        _pipeline.Use(new RGNode_Callback { Callback = context => _particles.RecordSimulation(in context) });
+        _pipeline.Use(new RGNode_Callback { Callback = context => _particles.RecordSimulation(context.RenderContext.CommandBuffer, context.DeltaTime) });
         _pipeline.Use(new SceneNode(this, _pipeline.Graph, _pipeline.Chain));
         var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,

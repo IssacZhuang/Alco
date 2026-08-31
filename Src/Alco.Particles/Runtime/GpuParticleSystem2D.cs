@@ -168,18 +168,20 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// Records the simulation of all active instances into the frame's command
-    /// buffer: pending pool migrations, the parameter upload, pending slice kills,
-    /// then per group the emit and simulate/compact dispatches. Call from a graph
-    /// node (e.g. <see cref="RGNode_Callback"/>) ordered before the scene pass the
-    /// particles draw into.
+    /// Records the simulation of all active instances into
+    /// <paramref name="commandBuffer"/>: pending pool migrations, the parameter
+    /// upload, pending slice kills, then per group the emit and simulate/compact
+    /// dispatches. The caller owns the ordering: record before the scene pass the
+    /// particles draw into (e.g. from an <see cref="RGNode_Callback"/>). Pass
+    /// <paramref name="deltaTime"/> = 0 to freeze the simulation while still
+    /// processing pool migrations and pending kills.
     /// </summary>
-    /// <param name="context">The render graph context.</param>
-    public void RecordSimulation(in RenderGraphContext context)
+    /// <param name="commandBuffer">The frame command buffer to record into.</param>
+    /// <param name="deltaTime">The simulation time step in seconds.</param>
+    public void RecordSimulation(GPUCommandBuffer commandBuffer, float deltaTime)
     {
-        _pool.RecordMigration(context.RenderContext.CommandBuffer);
+        _pool.RecordMigration(commandBuffer);
 
-        float deltaTime = context.DeltaTime;
         uint dirtyMin = uint.MaxValue;
         uint dirtyMax = 0;
         for (int i = 0; i < _instances.Count; i++)
@@ -198,7 +200,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             return;
         }
 
-        using (GPUCommandBuffer.ComputePass computePass = context.RenderContext.CommandBuffer.BeginCompute())
+        using (GPUCommandBuffer.ComputePass computePass = commandBuffer.BeginCompute())
         {
             for (int i = 0; i < kills.Count; i++)
             {

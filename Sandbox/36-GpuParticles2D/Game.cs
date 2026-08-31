@@ -118,7 +118,7 @@ public class Game : GameEngine
             Height = MainView.Size.Y,
             Name = "gpu_particles_2d",
         });
-        _pipeline.Use(new RGNode_Callback { Callback = context => _particles.RecordSimulation(in context) });
+        _pipeline.Use(new RGNode_Callback { Callback = context => _particles.RecordSimulation(context.RenderContext.CommandBuffer, context.DeltaTime) });
         _pipeline.Use(new SceneNode(_particles, _pipeline.Graph, _pipeline.Chain));
         var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,
