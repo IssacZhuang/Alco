@@ -21,8 +21,9 @@ internal readonly struct ParticleSlice
 
 /// <summary>
 /// The shared GPU buffers of one particle dimension (2D or 3D): the particle pool,
-/// the per-emitter render lists, the indirect draw-args records and the CPU-mirrored
-/// per-emitter parameter array. Effect instances allocate slices/slots from the pool
+/// the per-emitter render lists, the draw-args records and per-draw instance data
+/// of the material-batched indirect draws, and the CPU-mirrored per-emitter
+/// parameter array. Effect instances allocate slices/slots from the pool
 /// instead of owning GPU buffers, so creating and destroying effects is pure CPU
 /// bookkeeping plus a slice-kill dispatch — no GPU resource churn.
 /// <br/>Buffers grow geometrically when exhausted; growth copies the live contents
@@ -45,6 +46,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     private GraphicsBuffer _particles;
     private GraphicsBuffer _renderList;
     private GraphicsBuffer _drawArgs;
+    private GraphicsBuffer _instanceData;
     private GraphicsArrayBuffer<TParams> _params;
 
     private int _particleCapacity;
@@ -73,6 +75,12 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         _particleCapacity = particleCapacity;
         _particles = rendering.CreateGraphicsBuffer((uint)(particleCapacity * sizeof(TParticle)), $"{name}_pool");
         _renderList = rendering.CreateGraphicsBuffer((uint)(particleCapacity * sizeof(uint)), $"{name}_render_list");
+        // Per-draw instance records: the simulate pass writes them as storage, the
+        // render pass fetches them as the instance-step vertex buffer of batched
+        // indirect draws (see GpuParticleSystem2D.Render). One record per particle
+        // slot bounds the per-frame drawStart addressing.
+        _instanceData = rendering.CreateGraphicsBuffer(
+            (uint)(particleCapacity * sizeof(uint) * 2), BufferUsage.Storage | BufferUsage.Vertex, $"{name}_instance_data");
         _slotCapacity = emitterSlots;
         _drawArgs = rendering.CreateGraphicsBuffer((uint)(emitterSlots * 20), $"{name}_draw_args");
         _params = rendering.CreateGraphicsArrayBuffer<TParams>(emitterSlots, $"{name}_params");
@@ -88,7 +96,18 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     /// <summary>The shared render-list buffer (per-slice compacted particle indices).</summary>
     public GraphicsBuffer RenderList => _renderList;
 
-    /// <summary>The shared indirect draw-args buffer (one IndexedIndirectData record per emitter slot).</summary>
+    /// <summary>
+    /// The per-draw instance records (see <see cref="GpuParticleSystem2D"/>): the
+    /// simulate pass writes one record per live particle at its draw's
+    /// firstInstance-based offset; the render pass binds the buffer as the
+    /// instance-step vertex buffer of the batched indirect draws.
+    /// </summary>
+    public GraphicsBuffer InstanceData => _instanceData;
+
+    /// <summary>The per-frame draw-args buffer of the material-batched indirect
+    /// draws: one <see cref="IndexedIndirectData"/> record per visible group,
+    /// compacted per material in drawIndex order (the pool sizes it by the emitter
+    /// slot count, an upper bound of the per-frame draw count).</summary>
     public GraphicsBuffer DrawArgs => _drawArgs;
 
     /// <summary>The CPU-mirrored per-emitter parameter array.</summary>
@@ -227,6 +246,8 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         int newCapacity = (int)Math.Max((uint)_particleCapacity * 2, System.Numerics.BitOperations.RoundUpToPowerOf2(required));
         GraphicsBuffer newParticles = _rendering.CreateGraphicsBuffer((uint)(newCapacity * sizeof(TParticle)), $"{_name}_pool");
         GraphicsBuffer newRenderList = _rendering.CreateGraphicsBuffer((uint)(newCapacity * sizeof(uint)), $"{_name}_render_list");
+        GraphicsBuffer newInstanceData = _rendering.CreateGraphicsBuffer(
+            (uint)(newCapacity * sizeof(uint) * 2), BufferUsage.Storage | BufferUsage.Vertex, $"{_name}_instance_data");
         ulong particleBytes = (ulong)_highWater * (ulong)sizeof(TParticle);
         if (particleBytes > 0)
         {
@@ -238,8 +259,12 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
             _retired.Add((_particles, 2));
             _retired.Add((_renderList, 2));
         }
+        // The instance records are per-frame transient (every drawn group rewrites
+        // its whole run each simulate pass), so growth swaps without a copy.
+        _retired.Add((_instanceData, 2));
         _particles = newParticles;
         _renderList = newRenderList;
+        _instanceData = newInstanceData;
         _particleCapacity = newCapacity;
         Reallocated?.Invoke();
     }
@@ -272,6 +297,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         _particles.Dispose();
         _renderList.Dispose();
         _drawArgs.Dispose();
+        _instanceData.Dispose();
         _params.Dispose();
         foreach ((GraphicsBuffer buffer, _) in _retired)
         {

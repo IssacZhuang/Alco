@@ -7,13 +7,17 @@ namespace Alco.Particles;
 
 /// <summary>
 /// The 3D GPU particle system: simulates and renders <see cref="ParticleEffect3DAsset"/>
-/// instances entirely on the GPU; the 3D counterpart of
-/// <see cref="GpuParticleSystem2D"/> (see its remarks for the architecture). Renders
-/// camera-facing billboards with depth testing (tested, not written) — draw it into
-/// the scene's forward/transparent pass.
+/// instances entirely on the GPU — the 3D counterpart of
+/// <see cref="GpuParticleSystem2D"/> (see its remarks for the material-batched
+/// multi-draw architecture; the draw plan is built in RecordSimulation and replayed
+/// in Render the same way). Renders camera-facing billboards with depth testing
+/// (tested, not written) — draw it into the scene's forward/transparent pass.
 /// </summary>
 public sealed class GpuParticleSystem3D : AutoDisposable
 {
+    /// <summary>One material-homogeneous run of the per-frame draw plan.</summary>
+    private readonly record struct DrawBatch(GraphicsMaterial Material, uint First, uint Count);
+
     private readonly RenderingSystem _rendering;
     private readonly ParticleBufferPool<GpuParticle3D, EmitterParams3D> _pool;
     private readonly MaterialCompiler _materialCompiler;
@@ -26,6 +30,15 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     private readonly Dictionary<ParticleGroup3DAsset, GraphicsMaterial> _materials = [];
     private readonly List<Texture2D> _overLifeTextures = [];
     private readonly List<ParticleEffectInstance3D> _instances = [];
+    // The per-frame draw plan (rebuilt in RecordSimulation, replayed in Render):
+    // groups bucketed by material in first-seen order, flattened with their
+    // drawIndex/drawStart assignment, plus one batch record per material.
+    private readonly Dictionary<GraphicsMaterial, List<ParticleEffectInstance3D.GroupState>> _drawBuckets = [];
+    private readonly List<GraphicsMaterial> _drawMaterials = [];
+    private readonly List<ParticleEffectInstance3D.GroupState> _drawGroups = [];
+    private readonly List<uint> _drawIndices = [];
+    private readonly List<uint> _drawStarts = [];
+    private readonly List<DrawBatch> _drawBatches = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles3d-default" };
     private CameraPerspectiveBuffer? _camera;
     private DepthStencilState _depthStencilState = DepthStencilState.ReadReverseZ;
@@ -202,6 +215,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         {
             _pool.Params.UpdateBufferRanged(dirtyMin, dirtyMax - dirtyMin + 1);
         }
+        BuildDrawPlan();
 
         IReadOnlyList<(uint Offset, uint Count)> kills = _pool.PendingKills;
         bool anyActive = AnyActiveGroups();
@@ -225,34 +239,30 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             {
                 return;
             }
-            for (int i = 0; i < _instances.Count; i++)
+            for (int i = 0; i < _drawGroups.Count; i++)
             {
-                ParticleEffectInstance3D instance = _instances[i];
-                if (!instance.IsActive || !instance.IsVisible)
+                ParticleEffectInstance3D.GroupState group = _drawGroups[i];
+                (ComputeMaterial emit, ComputeMaterial simulate) = GetBehaviorMaterials(group.Asset.Behavior);
+                // The emit pass also resets the draw-args record, so it runs every
+                // frame the group is active — even with zero spawns.
+                var constant = new GpuParticleSlotConstant
                 {
-                    continue;
-                }
-                foreach (ParticleEffectInstance3D.GroupState group in instance.Groups)
-                {
-                    if (!group.Active)
-                    {
-                        continue;
-                    }
-                    (ComputeMaterial emit, ComputeMaterial simulate) = GetBehaviorMaterials(group.Asset.Behavior);
-                    emit.DispatchByGroupWithConstant(
-                        computePass, Math.Max((group.SpawnCount + 63) / 64, 1), 1, 1,
-                        new GpuParticleSlotConstant { EmitterSlot = group.Slot });
-                    simulate.DispatchByGroupWithConstant(
-                        computePass, (group.Slice.Capacity + 63) / 64, 1, 1,
-                        new GpuParticleSlotConstant { EmitterSlot = group.Slot });
-                }
+                    EmitterSlot = group.Slot,
+                    DrawIndex = _drawIndices[i],
+                    DrawStart = _drawStarts[i],
+                };
+                emit.DispatchByGroupWithConstant(
+                    computePass, Math.Max((group.SpawnCount + 63) / 64, 1), 1, 1, constant);
+                simulate.DispatchByGroupWithConstant(
+                    computePass, (group.Slice.Capacity + 63) / 64, 1, 1, constant);
             }
         }
     }
 
     /// <summary>
-    /// Records the indexed-indirect billboard draws of all active instances into the
-    /// current pass (see <see cref="GpuParticleSystem2D.Render"/>).
+    /// Records the batched indirect billboard draws of the frame's draw plan into
+    /// the current pass: one shared-billboard-basis multi-draw per material (see
+    /// <see cref="GpuParticleSystem2D.Render"/>).
     /// </summary>
     /// <param name="pass">The render pass scope of the scene pass.</param>
     public void Render(RenderPassScope pass)
@@ -262,9 +272,43 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         {
             throw new InvalidOperationException($"The {nameof(Camera)} of the particle system was not set.");
         }
+        // The billboard basis is shared by every group of the frame (one push
+        // constant per material batch); the per-draw identity travels through the
+        // instance-data records.
         Quaternion cameraRotation = _camera.Data.Transform.Rotation;
-        Vector4 cameraRight = new(Vector3.Transform(Vector3.UnitY, cameraRotation), 0f);
-        Vector4 cameraUp = new(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0f);
+        var constant = new GpuParticleDraw3DConstant
+        {
+            CameraRight = new Vector4(Vector3.Transform(Vector3.UnitY, cameraRotation), 0f),
+            CameraUp = new Vector4(Vector3.Transform(Vector3.UnitZ, cameraRotation), 0f),
+        };
+        for (int i = 0; i < _drawBatches.Count; i++)
+        {
+            DrawBatch batch = _drawBatches[i];
+            pass.MultiDrawIndexedIndirectWithConstant(
+                QuadMesh,
+                batch.Material,
+                _pool.DrawArgs,
+                batch.First * 20,
+                batch.Count,
+                _pool.InstanceData,
+                constant);
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds the per-frame draw plan (see <see cref="GpuParticleSystem2D.BuildDrawPlan"/>):
+    /// the visible active groups bucketed by material (first-seen order), each
+    /// assigned a drawIndex into the compacted draw-args array and a drawStart (the
+    /// draw's firstInstance and base into the instance-data buffer, spaced by the
+    /// group's slice capacity).
+    /// </summary>
+    private void BuildDrawPlan()
+    {
+        foreach (KeyValuePair<GraphicsMaterial, List<ParticleEffectInstance3D.GroupState>> bucket in _drawBuckets)
+        {
+            bucket.Value.Clear();
+        }
+        _drawMaterials.Clear();
         for (int i = 0; i < _instances.Count; i++)
         {
             ParticleEffectInstance3D instance = _instances[i];
@@ -278,25 +322,42 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                 {
                     continue;
                 }
-                Transform3D transform = instance.Transform;
-                Matrix4x4 model = group.Asset.SimulationSpace == ParticleSimulationSpace.World
-                    ? Matrix4x4.Identity
-                    : Matrix4x4.CreateScale(transform.Scale)
-                        * Matrix4x4.CreateFromQuaternion(transform.Rotation)
-                        * Matrix4x4.CreateTranslation(transform.Position);
-                pass.DrawIndexedIndirect(
-                    QuadMesh,
-                    group.Material,
-                    _pool.DrawArgs,
-                    group.Slot * 20,
-                    new GpuParticleDraw3DConstant
-                    {
-                        Model = model,
-                        CameraRight = cameraRight,
-                        CameraUp = cameraUp,
-                        EmitterSlot = group.Slot,
-                    });
+                if (!_drawBuckets.TryGetValue(group.Material, out List<ParticleEffectInstance3D.GroupState>? bucket))
+                {
+                    bucket = [];
+                    _drawBuckets[group.Material] = bucket;
+                }
+                else if (bucket.Count == 0)
+                {
+                    // The bucket survives across frames; an empty one means this is
+                    // the material's first group of the frame, so it (re)enters the
+                    // first-seen order.
+                    _drawMaterials.Add(group.Material);
+                }
+                bucket.Add(group);
             }
+        }
+
+        _drawGroups.Clear();
+        _drawIndices.Clear();
+        _drawStarts.Clear();
+        _drawBatches.Clear();
+        uint drawIndex = 0;
+        uint drawStart = 0;
+        for (int m = 0; m < _drawMaterials.Count; m++)
+        {
+            List<ParticleEffectInstance3D.GroupState> bucket = _drawBuckets[_drawMaterials[m]];
+            uint first = drawIndex;
+            for (int g = 0; g < bucket.Count; g++)
+            {
+                ParticleEffectInstance3D.GroupState group = bucket[g];
+                _drawGroups.Add(group);
+                _drawIndices.Add(drawIndex);
+                _drawStarts.Add(drawStart);
+                drawIndex++;
+                drawStart += group.Slice.Capacity;
+            }
+            _drawBatches.Add(new DrawBatch(_drawMaterials[m], first, (uint)bucket.Count));
         }
     }
 
@@ -376,6 +437,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
         material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
         material.TrySetBuffer(ParticleShaderKeys.DrawArgs, _pool.DrawArgs);
+        material.TrySetBuffer(ParticleShaderKeys.InstanceData, _pool.InstanceData);
     }
 
     // See GpuParticleSystem2D.BindOverLifeTextures: the authored gradient/curve
@@ -417,7 +479,6 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     {
         material.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
         material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
-        material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
     }
 
     private void OnPoolReallocated()
@@ -465,28 +526,16 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     }
 }
 
-/// <summary>The push constant of the 3D particle billboard draw (112 bytes).</summary>
+/// <summary>
+/// The push constant of the 3D particle billboard draws (32 bytes): the billboard
+/// basis shared by every draw of the frame's material batches.
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct GpuParticleDraw3DConstant
 {
-    /// <summary>The emitter transform (local space) or identity (world space).</summary>
-    public Matrix4x4 Model;
-
     /// <summary>The world-space camera right vector (xyz).</summary>
     public Vector4 CameraRight;
 
     /// <summary>The world-space camera up vector (xyz).</summary>
     public Vector4 CameraUp;
-
-    /// <summary>The emitter slot of the draw.</summary>
-    public uint EmitterSlot;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad0;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad1;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad2;
 }

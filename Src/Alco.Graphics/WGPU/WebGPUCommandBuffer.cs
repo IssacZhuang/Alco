@@ -425,6 +425,14 @@ internal sealed unsafe partial class WebGPUCommandBuffer : GPUCommandBuffer
         wgpuRenderPassEncoderDrawIndexedIndirect(_renderPass, nativeBuffer.Native, offset);
     }
 
+    protected override void MultiDrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount)
+    {
+        ValidateGraphicsPipeline();
+
+        WebGPUBuffer nativeBuffer = (WebGPUBuffer)indirectBuffer;
+        wgpuRenderPassEncoderMultiDrawIndexedIndirect(_renderPass, nativeBuffer.Native, offset, drawCount);
+    }
+
 
 
     protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)

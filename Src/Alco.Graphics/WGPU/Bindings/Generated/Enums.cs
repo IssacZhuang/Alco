@@ -798,6 +798,10 @@ internal enum WGPUNativeFeature
 	None = 0,
 	Immediates = 0x00030001,
 	TextureAdapterSpecificFormatFeatures = 0x00030002,
+	// Upstream wgpu-native value; the bundled fork defines no plain
+	// MultiDrawIndirect feature (its adapters report only MultiDrawIndirectCount,
+	// 0x00030004), so this bit never appears in enumerated features.
+	MultiDrawIndirect = 0x00030003,
 	MultiDrawIndirectCount = 0x00030004,
 	VertexWritableStorage = 0x00030005,
 	TextureBindingArray = 0x00030006,

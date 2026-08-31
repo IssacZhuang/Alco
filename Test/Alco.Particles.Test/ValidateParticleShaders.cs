@@ -89,6 +89,8 @@ public class ValidateParticleShaders
                     $"GpuParticleSimulate{dimension} × {behavior}: missing 'renderList'");
                 Assert.That(simulateReflection.TryGetResourceLocation("drawArgs", out _), Is.True,
                     $"GpuParticleSimulate{dimension} × {behavior}: missing 'drawArgs'");
+                Assert.That(simulateReflection.TryGetResourceLocation("instanceData", out _), Is.True,
+                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'instanceData'");
                 Assert.That(emitReflection.TryGetResourceLocation("particles", out _), Is.True,
                     $"GpuParticleEmit{dimension} × {behavior}: missing 'particles'");
                 Assert.That(emitReflection.TryGetResourceLocation("drawArgs", out _), Is.True,
@@ -118,11 +120,21 @@ public class ValidateParticleShaders
                 Assert.That(reflection.TryGetResourceLocation("camera", out _), Is.True, $"{module}: missing 'camera'");
                 Assert.That(reflection.TryGetResourceLocation("particles", out _), Is.True, $"{module}: missing 'particles'");
                 Assert.That(reflection.TryGetResourceLocation("emitters", out _), Is.True, $"{module}: missing 'emitters'");
-                Assert.That(reflection.TryGetResourceLocation("renderList", out _), Is.True, $"{module}: missing 'renderList'");
                 Assert.That(reflection.TryGetResourceLocation("texture", out _), Is.True, $"{module}: missing 'texture'");
                 Assert.That(reflection.TryGetResourceLocation("colorGradient", out _), Is.True, $"{module}: missing 'colorGradient'");
                 Assert.That(reflection.TryGetResourceLocation("sizeCurve", out _), Is.True, $"{module}: missing 'sizeCurve'");
             });
+            // The batching contract: the vertex input splits into the mesh buffer
+            // (vertex-step) and the simulate-written per-draw records — the
+            // instance-step "drawData" field, one GpuInstanceData record (8 bytes,
+            // two uints) per particle instance fetched through firstInstance.
+            Assert.That(reflection.VertexLayouts.Count, Is.EqualTo(2), $"{module}: vertex layout count");
+            Assert.That(reflection.VertexLayouts[0].StepMode, Is.EqualTo(VertexStepMode.Vertex), $"{module}: mesh layout must be vertex-step");
+            Assert.That(reflection.VertexLayouts[1].StepMode, Is.EqualTo(VertexStepMode.Instance), $"{module}: drawData layout must be instance-step");
+            Assert.That(reflection.VertexLayouts[1].Stride, Is.EqualTo(8u), $"{module}: drawData stride");
+            Assert.That(reflection.VertexLayouts[1].Elements.Length, Is.EqualTo(1), $"{module}: drawData element count");
+            Assert.That(reflection.VertexLayouts[1].Elements[0].Format, Is.EqualTo(VertexFormat.Uint32x2), $"{module}: drawData format");
+            Assert.That(reflection.VertexLayouts[1].Elements[0].Name, Is.EqualTo("drawData"), $"{module}: drawData element name");
         }
 
         ShaderReflection customReflection = compiler.ComposeGraphics(

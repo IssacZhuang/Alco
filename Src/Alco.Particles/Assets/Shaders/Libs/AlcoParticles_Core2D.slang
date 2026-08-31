@@ -94,6 +94,22 @@ public struct GpuDrawArgs
     public uint firstInstance;
 };
 
+// ── per-draw instance record (8 bytes, one per live particle per frame) ─────
+//
+// The simulate pass writes one record per surviving particle into the pool's
+// instance-data buffer at drawStart + the particle's compacted instance slot;
+// the render pass binds that buffer as the instance-step vertex buffer ("drawData"
+// vertex input) of the batched indirect draws, each record's firstInstance
+// addressing its draw's run. This routes the per-draw identity through vertex
+// fetch instead of the instance-id builtin, whose firstInstance semantics differ
+// between Vulkan (absolute) and D3D12 (per-draw).
+
+public struct GpuInstanceData
+{
+    public uint emitterSlot;    // the emitter slot the particle belongs to
+    public uint particleIndex;  // the particle's slot inside the emitter's slice
+};
+
 // ── hash RNG (PCG) ──────────────────────────────────────────────────────────
 
 public uint particleHash(uint seed, uint slot)

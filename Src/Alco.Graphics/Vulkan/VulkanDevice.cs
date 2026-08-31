@@ -15,6 +15,10 @@ internal sealed class VulkanDeviceFeatures
     public bool SamplerAnisotropy { get; init; }
     public bool DepthBounds { get; init; }
     public bool TextureCompressionBC { get; init; }
+    /// <summary>The device's <c>multiDrawIndirect</c> feature: gates
+    /// <c>vkCmdDrawIndexedIndirect</c> drawCount &gt; 1 (Vulkan spec: without it
+    /// drawCount must be 0 or 1).</summary>
+    public bool MultiDrawIndirect { get; init; }
     /// <summary>The device's <c>limits.maxSamplerAnisotropy</c> (only meaningful when
     /// <see cref="SamplerAnisotropy"/> is supported).</summary>
     public float MaxSamplerAnisotropy { get; init; }
@@ -814,6 +818,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             SamplerAnisotropy = queried.samplerAnisotropy == VkBool32.True,
             DepthBounds = queried.depthBounds == VkBool32.True,
             TextureCompressionBC = queried.textureCompressionBC == VkBool32.True,
+            MultiDrawIndirect = queried.multiDrawIndirect == VkBool32.True,
             MaxSamplerAnisotropy = requiredCheck.limits.maxSamplerAnisotropy,
         };
 
@@ -821,6 +826,14 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         if (Features.TextureCompressionBC)
         {
             _supportedFeatures |= GPUFeatures.TextureCompressionBC;
+        }
+        // A non-zero firstInstance is core Vulkan 1.0 behavior with no feature
+        // gate. drawCount > 1 of vkCmdDrawIndexedIndirect, however, requires the
+        // multiDrawIndirect feature to be enabled at device creation.
+        _supportedFeatures |= GPUFeatures.IndirectFirstInstance;
+        if (Features.MultiDrawIndirect)
+        {
+            _supportedFeatures |= GPUFeatures.MultiDrawIndirect;
         }
 
         // enable exactly the core features the backend uses (enabling everything
@@ -830,6 +843,7 @@ internal sealed unsafe class VulkanDevice : GPUDevice
             samplerAnisotropy = Features.SamplerAnisotropy ? VkBool32.True : VkBool32.False,
             depthBounds = Features.DepthBounds ? VkBool32.True : VkBool32.False,
             textureCompressionBC = Features.TextureCompressionBC ? VkBool32.True : VkBool32.False,
+            multiDrawIndirect = Features.MultiDrawIndirect ? VkBool32.True : VkBool32.False,
         };
         VkPhysicalDeviceFeatures2 features2 = new()
         {

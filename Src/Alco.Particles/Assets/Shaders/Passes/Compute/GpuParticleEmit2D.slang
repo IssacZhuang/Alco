@@ -24,9 +24,9 @@ public ParameterBlock<EmitResources> resources;
 public struct EmitConstant
 {
     public uint emitterSlot;
+    public uint drawIndex;   // the record's slot in this frame's draw-args array
+    public uint drawStart;   // the draw's firstInstance / instance-data base
     public uint pad0;
-    public uint pad1;
-    public uint pad2;
 };
 
 [[vk::push_constant]] EmitConstant pc;
@@ -38,13 +38,16 @@ public void mainCS<T : IParticleBehavior2D>(uint3 dispatchId : SV_DispatchThread
     EmitterParams2D emitter = resources.emitters[pc.emitterSlot];
     if (dispatchId.x == 0)
     {
+        // The args record lands at the CPU-assigned drawIndex of the material-
+        // batched array (contiguous per material for the multi-draw), and its
+        // firstInstance addresses the draw's run in the instance-data buffer.
         GpuDrawArgs args;
         args.indexCount = emitter.renderMisc.x;
         args.instanceCount = 0;
         args.firstIndex = 0;
         args.vertexOffset = 0;
-        args.firstInstance = 0;
-        resources.drawArgs[pc.emitterSlot] = args;
+        args.firstInstance = pc.drawStart;
+        resources.drawArgs[pc.drawIndex] = args;
     }
     if (dispatchId.x >= emitter.spawnCount)
     {

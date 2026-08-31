@@ -87,6 +87,37 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             _commandBuffer.DrawIndexedIndirectCore(indirectBuffer, offset);
         }
 
+        /// <summary>
+        /// Draws <paramref name="drawCount"/> meshes whose draw arguments (one
+        /// <see cref="IndexedIndirectData"/> record each, 20-byte stride) are read
+        /// consecutively from <paramref name="indirectBuffer"/> starting at
+        /// <paramref name="offset"/>. Requires <see cref="GPUFeatures.MultiDrawIndirect"/>;
+        /// backends without the feature fall back to one indirect draw per record.
+        /// </summary>
+        /// <param name="indirectBuffer">The buffer holding the indirect draw records.</param>
+        /// <param name="offset">The byte offset of the first record.</param>
+        /// <param name="drawCount">The number of consecutive records to draw.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void MultiDrawIndexedIndirect(GPUBuffer indirectBuffer, uint offset, uint drawCount)
+        {
+            AssetUtility.IsTrue(_commandBuffer._isRecordingRender, "Render pass is not recording while MultiDrawIndexedIndirect, try start recording by calling GPUCommandBuffer.BeginRender()");
+            if (drawCount == 0)
+            {
+                return;
+            }
+            if (_commandBuffer.Device.IsFeatureSupported(GPUFeatures.MultiDrawIndirect))
+            {
+                _commandBuffer.MultiDrawIndexedIndirectCore(indirectBuffer, offset, drawCount);
+            }
+            else
+            {
+                for (uint i = 0; i < drawCount; i++)
+                {
+                    _commandBuffer.DrawIndexedIndirectCore(indirectBuffer, offset + i * 20);
+                }
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe void PushConstants(uint bufferOffset, byte* data, uint size)
         {
@@ -548,6 +579,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     protected abstract void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
     protected abstract void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset);
     protected abstract void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset);
+    protected abstract void MultiDrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount);
     protected abstract void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup);
     protected abstract void SetComputePipelineCore(GPUPipeline pipeline);
     protected abstract void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup);

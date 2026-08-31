@@ -22,9 +22,9 @@ public ParameterBlock<EmitResources> resources;
 public struct EmitConstant
 {
     public uint emitterSlot;
+    public uint drawIndex;
+    public uint drawStart;
     public uint pad0;
-    public uint pad1;
-    public uint pad2;
 };
 
 [[vk::push_constant]] EmitConstant pc;
@@ -36,13 +36,16 @@ public void mainCS<T : IParticleBehavior3D>(uint3 dispatchId : SV_DispatchThread
     EmitterParams3D emitter = resources.emitters[pc.emitterSlot];
     if (dispatchId.x == 0)
     {
+        // See GpuParticleEmit2D: the record lands at the CPU-assigned drawIndex
+        // of the material-batched args array, firstInstance addressing the
+        // draw's run in the instance-data buffer.
         GpuDrawArgs args;
         args.indexCount = emitter.renderMisc.x;
         args.instanceCount = 0;
         args.firstIndex = 0;
         args.vertexOffset = 0;
-        args.firstInstance = 0;
-        resources.drawArgs[pc.emitterSlot] = args;
+        args.firstInstance = pc.drawStart;
+        resources.drawArgs[pc.drawIndex] = args;
     }
     if (dispatchId.x >= emitter.spawnCount)
     {

@@ -1008,7 +1008,6 @@ internal sealed partial class WebGPUDevice : GPUDevice
             featuresList.Add(WGPUFeatureName.TimestampQuery);
             _host.LogSuccess("GPU timestamp queries are supported");
         }
-
         if (gpuFeatures.HasFlag(GPUFeatures.TimestampQuery)
             && ContainsFeature((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses, supportedFeatures))
         {
@@ -1016,6 +1015,29 @@ internal sealed partial class WebGPUDevice : GPUDevice
             featuresList.Add((WGPUFeatureName)WGPUNativeFeature.TimestampQueryInsidePasses);
             _host.LogSuccess("GPU timestamp queries inside passes are supported");
         }
+
+        // Non-zero firstInstance in indirect records: required by batched indirect
+        // draws that address their per-draw data through firstInstance (see
+        // GpuParticleSystem2D). This is a real optional WebGPU feature and must be
+        // requested explicitly.
+        if (ContainsFeature(WGPUFeatureName.IndirectFirstInstance, supportedFeatures))
+        {
+            gpuFeatures |= GPUFeatures.IndirectFirstInstance;
+            featuresList.Add(WGPUFeatureName.IndirectFirstInstance);
+        }
+        else
+        {
+            _host.LogWarning(
+                "Non-zero indirect firstInstance is unavailable; batched indirect draws that address per-draw data through firstInstance will not render correctly.");
+        }
+
+        // Multi-draw indirect with a CPU-known count needs no feature: wgpu
+        // executes multi_draw_indirect natively where the hardware supports it
+        // and emulates it (batching single draws) elsewhere, so the multi-draw
+        // entry points are always callable. The MULTI_DRAW_INDIRECT_COUNT
+        // feature only marks the counted variants as non-emulated, which the
+        // batched draws do not use.
+        gpuFeatures |= GPUFeatures.MultiDrawIndirect;
 
         if (backendType == WGPUBackendType.Vulkan)
         {

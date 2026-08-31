@@ -573,6 +573,14 @@ internal sealed unsafe class VulkanCommandBuffer : GPUCommandBuffer
         vkCmdDrawIndexedIndirect(_commandBuffer, buffer.Native, offset, 1, (uint)sizeof(VkDrawIndexedIndirectCommand));
     }
 
+    protected override void MultiDrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount)
+    {
+        VulkanBuffer buffer = (VulkanBuffer)indirectBuffer;
+        _tracker.MarkBuffer(buffer, VulkanResourceState.IndirectRead);
+        _tracker.FlushPendingBarriers(_commandBuffer);
+        vkCmdDrawIndexedIndirect(_commandBuffer, buffer.Native, offset, drawCount, (uint)sizeof(VkDrawIndexedIndirectCommand));
+    }
+
     protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         VulkanPipeline pipeline = _currentGraphicsPipeline

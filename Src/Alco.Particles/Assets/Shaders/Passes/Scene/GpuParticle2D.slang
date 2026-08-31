@@ -1,21 +1,24 @@
 // file "GpuParticle2D.slang" - module "GpuParticle2D"
 //
 // The built-in 2D particle render pass TEMPLATE: draws the emitter's quad mesh
-// once per simulated particle (indexed-indirect, instance count written by the
-// simulate pass), expanding the quad in the vertex shader from the particle
-// record fetched through the emitter's render list. Both entries are generic
-// over the group's particle surface (IParticleSurface, AlcoParticles_Surface —
-// the dimension-neutral contract shared with the 3D pass): the material
-// compiler composes this module with the group's material surface
-// module, so the visual comes from the .amat — the built-in default surface
-// (AlcoParticles_SurfaceDefault) shades texture x particle color and leaves the
-// vertex stage untouched (the adjustWorldPosition hook's default).
+// once per simulated particle (batched indexed-indirect — all draws of one
+// material merge into a single multi-draw, the per-draw identity traveling
+// through the instance-step "drawData" record the simulate pass writes),
+// expanding the quad in the vertex shader from the particle record. Both
+// entries are generic over the group's particle surface (IParticleSurface,
+// AlcoParticles_Surface — the dimension-neutral contract shared with the 3D
+// pass): the material compiler composes this module with the group's material
+// surface module, so the visual comes from the .amat — the built-in default
+// surface (AlcoParticles_SurfaceDefault) shades texture x particle color and
+// leaves the vertex stage untouched (the adjustWorldPosition hook's default).
 //
 // The pass owns the resource contract the particle system binds: the "camera"
 // block (auto-bound view-projection), the "scene" block (bound by the particle
-// system), the "overLife" block (the group's baked color-gradient/size-curve
-// lookup textures) and the GpuParticleDraw2D push constant. The surface module
-// owns the material resources.
+// system) and the "overLife" block (the group's baked color-gradient/size-curve
+// lookup textures). The surface module owns the material resources. There is
+// no push constant: the emitter slot comes from the drawData record and the
+// emitter transform from the emitter parameters (worldMatrix; world-space
+// groups draw through identity).
 
 #language slang 2025
 module GpuParticle2D;
@@ -28,7 +31,12 @@ public struct Vertex
 {
     public float3 position : POSITION;
     public float2 uv : TEXCOORD0;
-    public uint instanceID : SV_VulkanInstanceID;
+    // The per-draw instance record (GpuInstanceData) the simulate pass wrote:
+    // x = emitter slot, y = the particle's slot inside the emitter's slice. The
+    // field name routes it to the instance-step vertex buffer (vertex slot 1),
+    // fetched through each indirect record's firstInstance — no instance-id
+    // builtin, whose firstInstance semantics differ between Vulkan and D3D12.
+    public uint2 drawData : TEXCOORD2;
 };
 
 public struct V2F
@@ -50,7 +58,6 @@ public struct SceneParams
 {
     public RWStructuredBuffer<ParticleData2D> particles;
     public RWStructuredBuffer<EmitterParams2D> emitters;
-    public RWStructuredBuffer<uint> renderList;
 };
 
 public ParameterBlock<SceneParams> scene;
@@ -67,24 +74,24 @@ public struct OverLifeResources
 
 public ParameterBlock<OverLifeResources> overLife;
 
-public struct GpuParticleDraw2D
-{
-    public float4x4 model;       // emitter transform (local space) or identity (world space)
-    public uint emitterSlot;
-    public uint pad0;
-    public uint pad1;
-    public uint pad2;
-};
-
-[[vk::push_constant]] GpuParticleDraw2D pc;
-
 [shader("vertex")]
 public V2F MainVS<T : IParticleSurface>(Vertex input)
 {
     V2F output = (V2F)0;
-    EmitterParams2D emitter = scene.emitters[pc.emitterSlot];
-    uint local = scene.renderList[emitter.sliceOffset + input.instanceID];
-    ParticleData2D particle = scene.particles[emitter.sliceOffset + local];
+    EmitterParams2D emitter = scene.emitters[input.drawData.x];
+    ParticleData2D particle = scene.particles[emitter.sliceOffset + input.drawData.y];
+
+    // The draw's emitter transform: local-space groups draw through the
+    // emitter's per-frame worldMatrix, world-space groups through identity.
+    float4x4 model = emitter.worldMatrix;
+    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u)
+    {
+        model = float4x4(
+            float4(1.0, 0.0, 0.0, 0.0),
+            float4(0.0, 1.0, 0.0, 0.0),
+            float4(0.0, 0.0, 1.0, 0.0),
+            float4(0.0, 0.0, 0.0, 1.0));
+    }
 
     float age = max(particle.duration - particle.lifetime, 0.0);
     float age01 = particle.duration > 0.0 ? saturate(age / particle.duration) : 0.0;
@@ -116,7 +123,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     {
         corner = particleRotate(input.position.xy * scale, particle.rotation);
     }
-    float3 world = mul(pc.model, float4(particle.position + corner, 0.0, 1.0)).xyz;
+    float3 world = mul(model, float4(particle.position + corner, 0.0, 1.0)).xyz;
 
     // The material's vertex-stage hook (e.g. facade depth), fed through the
     // dimension-neutral ParticleVertexInput: the default surface returns the
@@ -124,7 +131,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     T surface = T();
     ParticleVertexInput vertexInput;
     vertexInput.world = world;
-    vertexInput.particlePosition = mul(pc.model, float4(particle.position, 0.0, 1.0)).xyz;
+    vertexInput.particlePosition = mul(model, float4(particle.position, 0.0, 1.0)).xyz;
     vertexInput.age01 = age01;
     vertexInput.emitterWorldMatrix = emitter.worldMatrix;
     vertexInput.customData = asfloat(emitter.renderMisc.y);

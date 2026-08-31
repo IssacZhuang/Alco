@@ -1,13 +1,17 @@
 // file "GpuParticle3D.slang" - module "GpuParticle3D"
 //
 // The built-in 3D particle render pass TEMPLATE: camera-facing billboard quads,
-// drawn indexed-indirect through the emitter's render list (see GpuParticle2D
-// for the pass family contract - both entries are generic over the particle
-// surface (IParticleSurface, AlcoParticles_Surface — the dimension-neutral
-// contract shared with the 2D pass), composed with the group's material by the
-// material compiler). The billboard basis (camera right/up in world space)
-// arrives in the push constant; the particle's roll rotates the corner in
-// screen space.
+// drawn batched indexed-indirect through the per-draw instance records the
+// simulate pass writes (see GpuParticle2D for the pass family contract - both
+// entries are generic over the particle surface (IParticleSurface,
+// AlcoParticles_Surface — the dimension-neutral contract shared with the 2D
+// pass), composed with the group's material by the material compiler). The
+// billboard basis (camera right/up in world space) arrives in the push constant
+// — one shared constant per material batch, the per-draw identity (emitter slot,
+// particle) traveling through the instance-step "drawData" record; the
+// particle's roll rotates the corner in screen space. The emitter transform
+// comes from the emitter parameters (worldMatrix; world-space groups draw
+// through identity).
 // Groups flagged velocity-stretched instead stretch the billboard along the
 // screen-space projection of the particle's velocity. The "overLife" block
 // carries the group's baked color-gradient/size-curve lookup textures.
@@ -25,7 +29,9 @@ public struct Vertex
 {
     public float3 position : POSITION;
     public float2 uv : TEXCOORD0;
-    public uint instanceID : SV_VulkanInstanceID;
+    // The per-draw instance record (GpuInstanceData): x = emitter slot,
+    // y = the particle's slot inside the emitter's slice (see GpuParticle2D).
+    public uint2 drawData : TEXCOORD2;
 };
 
 public struct V2F
@@ -47,7 +53,6 @@ public struct SceneParams
 {
     public RWStructuredBuffer<ParticleData3D> particles;
     public RWStructuredBuffer<EmitterParams3D> emitters;
-    public RWStructuredBuffer<uint> renderList;
 };
 
 public ParameterBlock<SceneParams> scene;
@@ -66,13 +71,8 @@ public ParameterBlock<OverLifeResources> overLife;
 
 public struct GpuParticleDraw3D
 {
-    public float4x4 model;        // emitter transform (local space) or identity (world space)
     public float4 cameraRight;    // world-space camera right (xyz)
     public float4 cameraUp;       // world-space camera up (xyz)
-    public uint emitterSlot;
-    public uint pad0;
-    public uint pad1;
-    public uint pad2;
 };
 
 [[vk::push_constant]] GpuParticleDraw3D pc;
@@ -81,9 +81,20 @@ public struct GpuParticleDraw3D
 public V2F MainVS<T : IParticleSurface>(Vertex input)
 {
     V2F output = (V2F)0;
-    EmitterParams3D emitter = scene.emitters[pc.emitterSlot];
-    uint local = scene.renderList[emitter.sliceOffset + input.instanceID];
-    ParticleData3D particle = scene.particles[emitter.sliceOffset + local];
+    EmitterParams3D emitter = scene.emitters[input.drawData.x];
+    ParticleData3D particle = scene.particles[emitter.sliceOffset + input.drawData.y];
+
+    // The draw's emitter transform: local-space groups draw through the
+    // emitter's per-frame worldMatrix, world-space groups through identity.
+    float4x4 model = emitter.worldMatrix;
+    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u)
+    {
+        model = float4x4(
+            float4(1.0, 0.0, 0.0, 0.0),
+            float4(0.0, 1.0, 0.0, 0.0),
+            float4(0.0, 0.0, 1.0, 0.0),
+            float4(0.0, 0.0, 0.0, 1.0));
+    }
 
     float age = max(particle.duration - particle.lifetime, 0.0);
     float age01 = particle.duration > 0.0 ? saturate(age / particle.duration) : 0.0;
@@ -96,7 +107,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
         size = particle.startSize * overLife.sizeCurve.Sample(samplers.linearClamp, float2(age01, 0.5));
     }
 
-    float3 center = mul(pc.model, float4(particle.position, 1.0)).xyz;
+    float3 center = mul(model, float4(particle.position, 1.0)).xyz;
     float3 world;
     if ((emitter.flags & PARTICLE_FLAG_VELOCITY_STRETCH) != 0u)
     {
@@ -105,7 +116,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
         // length grows with the speed; the perpendicular keeps the base size.
         // Speed ~ 0 (or a velocity pointing at the camera) keeps the plain
         // camera-facing quad with its roll.
-        float3 worldVelocity = mul(pc.model, float4(particle.velocity, 0.0)).xyz;
+        float3 worldVelocity = mul(model, float4(particle.velocity, 0.0)).xyz;
         float2 planeVelocity = float2(
             dot(worldVelocity, pc.cameraRight.xyz),
             dot(worldVelocity, pc.cameraUp.xyz));

@@ -983,8 +983,14 @@ public static class SlangReflectionReader
             return [];
         }
 
+        // Fields split into two vertex buffers by name convention: a field named
+        // "drawData" feeds from the engine's per-draw instance-step buffer (bound
+        // at vertex slot 1, fetched with the indirect record's firstInstance as
+        // base), every other field feeds from the mesh (vertex slot 0).
         List<VertexElement> elements = [];
+        List<VertexElement> drawElements = [];
         uint byteOffset = 0;
+        uint drawByteOffset = 0;
         uint parameterCount = SlangNative.spReflectionEntryPoint_getParameterCount(vertexEntryPoint);
         for (uint i = 0; i < parameterCount; i++)
         {
@@ -1014,17 +1020,41 @@ public static class SlangReflectionReader
                 IntPtr fieldType = SlangNative.spReflectionTypeLayout_GetType(
                     SlangNative.spReflectionVariableLayout_GetTypeLayout(fieldLayout));
                 VertexFormat format = VertexFormatOf(fieldType);
-                elements.Add(new VertexElement(location, byteOffset, format, name));
-                byteOffset += FormatSize(format);
+                if (name == DrawDataFieldName)
+                {
+                    drawElements.Add(new VertexElement(location, drawByteOffset, format, name));
+                    drawByteOffset += FormatSize(format);
+                }
+                else
+                {
+                    elements.Add(new VertexElement(location, byteOffset, format, name));
+                    byteOffset += FormatSize(format);
+                }
             }
         }
 
-        if (elements.Count == 0)
+        if (elements.Count == 0 && drawElements.Count == 0)
         {
             return [];
         }
-        return [new VertexInputLayout([.. elements], byteOffset, VertexStepMode.Vertex)];
+        List<VertexInputLayout> layouts = [];
+        if (elements.Count > 0)
+        {
+            layouts.Add(new VertexInputLayout([.. elements], byteOffset, VertexStepMode.Vertex));
+        }
+        if (drawElements.Count > 0)
+        {
+            layouts.Add(new VertexInputLayout([.. drawElements], drawByteOffset, VertexStepMode.Instance));
+        }
+        return layouts;
     }
+
+    /// <summary>
+    /// The vertex-input field name convention that routes a field to the
+    /// instance-step vertex buffer (vertex slot 1) instead of the mesh buffer
+    /// (see <see cref="BuildVertexLayouts"/>).
+    /// </summary>
+    public const string DrawDataFieldName = "drawData";
 
     private static uint FormatSize(VertexFormat format)
     {
@@ -1051,6 +1081,10 @@ public static class SlangReflectionReader
             (2, SlangNative.SLANG_SCALAR_TYPE_FLOAT32) => VertexFormat.Float32x2,
             (3, SlangNative.SLANG_SCALAR_TYPE_FLOAT32) => VertexFormat.Float32x3,
             (4, SlangNative.SLANG_SCALAR_TYPE_FLOAT32) => VertexFormat.Float32x4,
+            (1, SlangNative.SLANG_SCALAR_TYPE_UINT32) => VertexFormat.Uint32,
+            (2, SlangNative.SLANG_SCALAR_TYPE_UINT32) => VertexFormat.Uint32x2,
+            (3, SlangNative.SLANG_SCALAR_TYPE_UINT32) => VertexFormat.Uint32x3,
+            (4, SlangNative.SLANG_SCALAR_TYPE_UINT32) => VertexFormat.Uint32x4,
             _ => throw new NotSupportedException(
                 $"Vertex attribute type kind {kind} with {columns} components is not supported."),
         };

@@ -9,16 +9,34 @@ namespace Alco.Particles;
 /// The 2D GPU particle system: simulates and renders any number of
 /// <see cref="ParticleEffect2DAsset"/> instances entirely on the GPU. Per emitter
 /// group and frame it records two compute dispatches (emit + simulate/compact)
-/// into the render graph and one indexed-indirect instanced draw into the scene
-/// pass — CPU work per frame is a small parameter update per active emitter.
+/// into the render graph and — batched per material — one indexed multi-draw
+/// indirect into the scene pass; CPU work per frame is a small parameter update
+/// per active emitter plus the per-frame draw-plan bookkeeping.
 /// <br/>All instances share one buffer pool (see <see cref="ParticleBufferPool{,}"/>),
 /// which makes creating/destroying effects cheap and keeps the draw state stable.
+/// <br/>Draw batching: per frame the CPU buckets the visible active groups by
+/// material and assigns each a drawIndex (its slot in the compacted draw-args
+/// array, contiguous per material for the multi-draw) and a drawStart (the
+/// firstInstance addressing its run in the instance-data buffer). The emit pass
+/// writes the args record at drawIndex, the simulate pass appends one
+/// GpuInstanceData record per surviving particle at drawStart; the render pass
+/// binds the instance-data buffer as the instance-step vertex buffer and issues
+/// one multi-draw per material, so draw calls scale with the material count, not
+/// the emitter count. The per-draw identity travels through vertex fetch on
+/// purpose: the instance-id builtin's firstInstance semantics differ between
+/// Vulkan (absolute) and D3D12 (per-draw).
+/// <br/>Note the batch list is recorded at simulation time; <c>Render</c> replays
+/// it, so a visibility flip between the two phases lands the next frame (the
+/// simulation itself already gates on the previous frame's visibility).
 /// <br/>Usage: insert the simulation into the pipeline with an
 /// <see cref="RGNode_Callback"/> before the scene content node and call
 /// <see cref="Render"/> from the scene content (or an <see cref="IRenderPassContent"/>).
 /// </summary>
 public sealed class GpuParticleSystem2D : AutoDisposable
 {
+    /// <summary>One material-homogeneous run of the per-frame draw plan.</summary>
+    private readonly record struct DrawBatch(GraphicsMaterial Material, uint First, uint Count);
+
     private readonly RenderingSystem _rendering;
     private readonly ParticleBufferPool<GpuParticle2D, EmitterParams2D> _pool;
     private readonly MaterialCompiler _materialCompiler;
@@ -31,6 +49,15 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly Dictionary<ParticleGroup2DAsset, GraphicsMaterial> _materials = [];
     private readonly List<Texture2D> _overLifeTextures = [];
     private readonly List<ParticleEffectInstance2D> _instances = [];
+    // The per-frame draw plan (rebuilt in RecordSimulation, replayed in Render):
+    // groups bucketed by material in first-seen order, flattened with their
+    // drawIndex/drawStart assignment, plus one batch record per material.
+    private readonly Dictionary<GraphicsMaterial, List<ParticleEffectInstance2D.GroupState>> _drawBuckets = [];
+    private readonly List<GraphicsMaterial> _drawMaterials = [];
+    private readonly List<ParticleEffectInstance2D.GroupState> _drawGroups = [];
+    private readonly List<uint> _drawIndices = [];
+    private readonly List<uint> _drawStarts = [];
+    private readonly List<DrawBatch> _drawBatches = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
     private GraphicsValueBuffer<Matrix4x4>? _camera;
 
@@ -170,9 +197,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <summary>
     /// Records the simulation of all active instances into
     /// <paramref name="commandBuffer"/>: pending pool migrations, the parameter
-    /// upload, pending slice kills, then per group the emit and simulate/compact
-    /// dispatches. The caller owns the ordering: record before the scene pass the
-    /// particles draw into (e.g. from an <see cref="RGNode_Callback"/>). Pass
+    /// upload, the per-frame draw plan, pending slice kills, then per group the
+    /// emit and simulate/compact dispatches. The caller owns the ordering: record
+    /// before the scene pass the particles draw into (e.g. from an
+    /// <see cref="RGNode_Callback"/>). Pass
     /// <paramref name="deltaTime"/> = 0 to freeze the simulation while still
     /// processing pool migrations and pending kills.
     /// </summary>
@@ -192,6 +220,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         {
             _pool.Params.UpdateBufferRanged(dirtyMin, dirtyMax - dirtyMin + 1);
         }
+        BuildDrawPlan();
 
         IReadOnlyList<(uint Offset, uint Count)> kills = _pool.PendingKills;
         bool anyActive = AnyActiveGroups();
@@ -215,37 +244,33 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             {
                 return;
             }
-            for (int i = 0; i < _instances.Count; i++)
+            for (int i = 0; i < _drawGroups.Count; i++)
             {
-                ParticleEffectInstance2D instance = _instances[i];
-                if (!instance.IsActive || !instance.IsVisible)
+                ParticleEffectInstance2D.GroupState group = _drawGroups[i];
+                (ComputeMaterial emit, ComputeMaterial simulate) = GetBehaviorMaterials(group.Asset.Behavior);
+                // The emit pass also resets the draw-args record, so it runs every
+                // frame the group is active — even with zero spawns.
+                var constant = new GpuParticleSlotConstant
                 {
-                    continue;
-                }
-                foreach (ParticleEffectInstance2D.GroupState group in instance.Groups)
-                {
-                    if (!group.Active)
-                    {
-                        continue;
-                    }
-                    (ComputeMaterial emit, ComputeMaterial simulate) = GetBehaviorMaterials(group.Asset.Behavior);
-                    // The emit pass also resets the draw-args record, so it runs
-                    // every frame the group is active — even with zero spawns.
-                    emit.DispatchByGroupWithConstant(
-                        computePass, Math.Max((group.SpawnCount + 63) / 64, 1), 1, 1,
-                        new GpuParticleSlotConstant { EmitterSlot = group.Slot });
-                    simulate.DispatchByGroupWithConstant(
-                        computePass, (group.Slice.Capacity + 63) / 64, 1, 1,
-                        new GpuParticleSlotConstant { EmitterSlot = group.Slot });
-                }
+                    EmitterSlot = group.Slot,
+                    DrawIndex = _drawIndices[i],
+                    DrawStart = _drawStarts[i],
+                };
+                emit.DispatchByGroupWithConstant(
+                    computePass, Math.Max((group.SpawnCount + 63) / 64, 1), 1, 1, constant);
+                simulate.DispatchByGroupWithConstant(
+                    computePass, (group.Slice.Capacity + 63) / 64, 1, 1, constant);
             }
         }
     }
 
     /// <summary>
-    /// Records the indexed-indirect draws of all active instances into the current
-    /// pass. Call from the scene content node (<see cref="RGNode_SceneContent"/> or
-    /// an <see cref="IRenderPassContent"/>).
+    /// Records the batched indirect draws of the frame's draw plan into the
+    /// current pass: one multi-draw per material (or, without multi-draw support,
+    /// one indexed-indirect draw per record — see
+    /// <see cref="RenderPassScope.MultiDrawIndexedIndirect"/>). Call from the
+    /// scene content node (<see cref="RGNode_SceneContent"/> or an
+    /// <see cref="IRenderPassContent"/>).
     /// </summary>
     /// <param name="pass">The render pass scope of the scene pass.</param>
     public void Render(RenderPassScope pass)
@@ -255,6 +280,32 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         {
             throw new InvalidOperationException($"The {nameof(Camera)} of the particle system was not set.");
         }
+        for (int i = 0; i < _drawBatches.Count; i++)
+        {
+            DrawBatch batch = _drawBatches[i];
+            pass.MultiDrawIndexedIndirect(
+                QuadMesh,
+                batch.Material,
+                _pool.DrawArgs,
+                batch.First * 20,
+                batch.Count,
+                _pool.InstanceData);
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds the per-frame draw plan: the visible active groups bucketed by
+    /// material (first-seen order), each assigned a drawIndex into the compacted
+    /// draw-args array and a drawStart (the draw's firstInstance and base into
+    /// the instance-data buffer, spaced by the group's slice capacity).
+    /// </summary>
+    private void BuildDrawPlan()
+    {
+        foreach (KeyValuePair<GraphicsMaterial, List<ParticleEffectInstance2D.GroupState>> bucket in _drawBuckets)
+        {
+            bucket.Value.Clear();
+        }
+        _drawMaterials.Clear();
         for (int i = 0; i < _instances.Count; i++)
         {
             ParticleEffectInstance2D instance = _instances[i];
@@ -268,16 +319,42 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 {
                     continue;
                 }
-                Matrix4x4 model = group.Asset.SimulationSpace == ParticleSimulationSpace.World
-                    ? Matrix4x4.Identity
-                    : instance.Transform.Matrix;
-                pass.DrawIndexedIndirect(
-                    QuadMesh,
-                    group.Material,
-                    _pool.DrawArgs,
-                    group.Slot * 20,
-                    new GpuParticleDraw2DConstant { Model = model, EmitterSlot = group.Slot });
+                if (!_drawBuckets.TryGetValue(group.Material, out List<ParticleEffectInstance2D.GroupState>? bucket))
+                {
+                    bucket = [];
+                    _drawBuckets[group.Material] = bucket;
+                }
+                else if (bucket.Count == 0)
+                {
+                    // The bucket survives across frames; an empty one means this is
+                    // the material's first group of the frame, so it (re)enters the
+                    // first-seen order.
+                    _drawMaterials.Add(group.Material);
+                }
+                bucket.Add(group);
             }
+        }
+
+        _drawGroups.Clear();
+        _drawIndices.Clear();
+        _drawStarts.Clear();
+        _drawBatches.Clear();
+        uint drawIndex = 0;
+        uint drawStart = 0;
+        for (int m = 0; m < _drawMaterials.Count; m++)
+        {
+            List<ParticleEffectInstance2D.GroupState> bucket = _drawBuckets[_drawMaterials[m]];
+            uint first = drawIndex;
+            for (int g = 0; g < bucket.Count; g++)
+            {
+                ParticleEffectInstance2D.GroupState group = bucket[g];
+                _drawGroups.Add(group);
+                _drawIndices.Add(drawIndex);
+                _drawStarts.Add(drawStart);
+                drawIndex++;
+                drawStart += group.Slice.Capacity;
+            }
+            _drawBatches.Add(new DrawBatch(_drawMaterials[m], first, (uint)bucket.Count));
         }
     }
 
@@ -363,6 +440,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
         material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
         material.TrySetBuffer(ParticleShaderKeys.DrawArgs, _pool.DrawArgs);
+        material.TrySetBuffer(ParticleShaderKeys.InstanceData, _pool.InstanceData);
     }
 
     // The group's over-life lookup textures: the authored gradient/curve bake
@@ -406,7 +484,6 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     {
         material.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
         material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
-        material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
     }
 
     private void OnPoolReallocated()
@@ -461,14 +538,14 @@ internal struct GpuParticleSlotConstant
     /// <summary>The emitter slot of the dispatch.</summary>
     public uint EmitterSlot;
 
+    /// <summary>The record's index in this frame's compacted draw-args array.</summary>
+    public uint DrawIndex;
+
+    /// <summary>The draw's firstInstance: its base into the instance-data buffer.</summary>
+    public uint DrawStart;
+
     /// <summary>Reserved.</summary>
     public uint Pad0;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad1;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad2;
 }
 
 /// <summary>The push constant of the slice-init compute pass (16 bytes).</summary>
@@ -486,24 +563,4 @@ internal struct GpuParticleInitConstant
 
     /// <summary>Reserved.</summary>
     public uint Pad1;
-}
-
-/// <summary>The push constant of the 2D particle draw (80 bytes).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct GpuParticleDraw2DConstant
-{
-    /// <summary>The emitter transform (local space) or identity (world space).</summary>
-    public Matrix4x4 Model;
-
-    /// <summary>The emitter slot of the draw.</summary>
-    public uint EmitterSlot;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad0;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad1;
-
-    /// <summary>Reserved.</summary>
-    public uint Pad2;
 }

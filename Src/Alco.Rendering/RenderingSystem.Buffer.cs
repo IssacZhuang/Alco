@@ -18,6 +18,20 @@ public partial class RenderingSystem
     }
 
     /// <summary>
+    /// Create a graphics buffer with an explicit usage mask, for buffers that live
+    /// outside the uniform/storage/indirect pattern (e.g. a vertex buffer written
+    /// by compute as storage).
+    /// </summary>
+    /// <param name="size">The size of the buffer.</param>
+    /// <param name="usage">The usage mask of the buffer.</param>
+    /// <param name="name">The name of the buffer.</param>
+    /// <returns>The created graphics buffer.</returns>
+    public GraphicsBuffer CreateGraphicsBuffer(uint size, BufferUsage usage, string name = "unnamed_graphics_buffer")
+    {
+        return new GraphicsBuffer(this, size, usage, name);
+    }
+
+    /// <summary>
     /// Create a graphics value buffer.
     /// </summary>
     /// <param name="name"> The name of the buffer. </param>
