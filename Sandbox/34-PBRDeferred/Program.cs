@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(1280, 720, "PBR Deferred"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.WGPUDx12
+        Backend = GraphicsBackend.WGPUVulkan
     },
 };
 
