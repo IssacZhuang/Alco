@@ -17,6 +17,9 @@ public class JsonConverterMaterialAsset : BaseJsonConverterAsset<MaterialAsset>
 
     public override void Write(Utf8JsonWriter writer, MaterialAsset value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.Name);
+        // Write the loadable asset path (stamped by the loader), not the display
+        // name: re-reading the reference must resolve through the asset system, and
+        // the bare name ("Water") matches no file entry or alias ("Materials/Water").
+        writer.WriteStringValue(value.SourceFile ?? value.Name);
     }
 }

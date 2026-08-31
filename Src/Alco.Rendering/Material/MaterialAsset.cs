@@ -30,6 +30,16 @@ public class MaterialAsset : IJsonOnDeserialized
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
+    /// The asset-system path the material loaded from, stamped by the loader after
+    /// parsing; null for materials constructed in code. Never serialized into
+    /// material files — <see cref="JsonConverterMaterialAsset"/> writes it instead,
+    /// so assets embedding a material reference roundtrip the loadable path (the
+    /// bare <see cref="Name"/> is a display default and does not resolve).
+    /// </summary>
+    [JsonIgnore]
+    public string? SourceFile { get; set; }
+
+    /// <summary>
     /// The surface library the material evaluates; null selects the default surface of
     /// the compiling <see cref="MaterialCompiler"/>. Pass templates specialize their
     /// generic entry points with the library's public surface implementation.

@@ -92,6 +92,9 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
         asset.Name = string.IsNullOrWhiteSpace(asset.Name)
             ? Path.GetFileNameWithoutExtension(context.Filename)
             : asset.Name.Trim();
+        // The roundtrippable reference path for assets embedding this material (see
+        // MaterialAsset.SourceFile): the resolved entry path, e.g. "Materials/Water.amat".
+        asset.SourceFile = context.Filename;
         return asset;
     }
 }
