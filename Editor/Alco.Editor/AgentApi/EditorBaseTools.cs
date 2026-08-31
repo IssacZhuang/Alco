@@ -8,7 +8,8 @@ namespace Alco.Editor;
 /// <summary>
 /// The editor's base agent tools, always available while the agent API runs:
 /// frame screenshots (ImGui overlay included, for UI debugging), document
-/// open/close/save, asset listing and layout control. Asset-type-specific tools are
+/// open/close/save, project switching, asset listing and layout control.
+/// Asset-type-specific tools are
 /// contributed by the open documents themselves (<see cref="AssetDocument.CreateAgentTools"/>).
 /// Tools run on the engine main thread unless marked otherwise.
 /// </summary>
@@ -175,6 +176,21 @@ public sealed class EditorBaseTools
     {
         _editor.RequestResetLayout();
         return "layout reset scheduled";
+    }
+
+    [AgentFunction]
+    [Description("Opens a different Alco project in the editor, replacing the currently open one: all open asset documents are closed, the project's asset roots are remounted, and ListAssets/GetProjectInfo afterwards reflect the new project.")]
+    public string OpenProject(
+        [Description("Path of the .alco project file (absolute, or relative to the editor process's working directory).")] string path,
+        [Description("When true, unsaved changes in open documents are discarded instead of failing the call.")] bool discardChanges = false)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return "error: path is empty.";
+        }
+        return _editor.TryOpenProject(path, discardChanges, out string error)
+            ? $"opened project: {path}"
+            : $"error: {error}";
     }
 
     [AgentFunction]

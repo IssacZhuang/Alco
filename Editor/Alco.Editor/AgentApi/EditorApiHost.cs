@@ -8,7 +8,8 @@ namespace Alco.Editor;
 
 /// <summary>
 /// Hosts the editor's agent API: a <see cref="GameApiServer"/> (HTTP/JSON on localhost)
-/// exposing the base editor tools (screenshot, open/close/save, asset listing, layout)
+/// exposing the base editor tools (screenshot, open/close/save, project switching,
+/// asset listing, layout)
 /// plus whatever tools the open asset documents contribute. Document tools are
 /// discovered from <see cref="AssetDocument.CreateAgentTools"/> and registered while
 /// the document is open — text-format assets usually contribute none, since agents

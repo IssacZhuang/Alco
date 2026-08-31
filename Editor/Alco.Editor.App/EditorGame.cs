@@ -27,13 +27,11 @@ public sealed class EditorGame : GameEngine
     public EditorGame(GameEngineSetting setting, AlcoProject project, int apiPort = 52200, bool enableApi = true)
         : base(setting)
     {
-        // Serve the project's owned asset roots (hot-reloaded) and referenced
-        // (read-only) entries to the runtime asset system, so asset editors can load
-        // project and referenced assets by name.
-        ProjectAssetMount.Mount(project, AssetSystem);
-
         AddSystem(new ImGUISystem(this));
 
+        // The editor system mounts the project's owned asset roots (hot-reloaded) and
+        // referenced (read-only) entries through its ProjectOpener, so asset editors
+        // can load project and referenced assets by name and switch projects later.
         _editorSystem = new EditorSystem(this, project);
         AddSystem(_editorSystem);
 

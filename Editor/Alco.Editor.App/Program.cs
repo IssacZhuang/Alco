@@ -40,7 +40,7 @@ internal static class Program
         GameEngineSetting setting = new()
         {
             StopWhenError = true,
-            View = new ViewSetting(1600, 900, $"Alco Editor - {project.Name}"),
+            View = new ViewSetting(1600, 900, string.Format(EditorSystem.WindowTitleFormat, project.Name)),
             Graphics = GraphicsSetting.Default with
             {
                 Backend = GraphicsBackend.WGPUVulkan,

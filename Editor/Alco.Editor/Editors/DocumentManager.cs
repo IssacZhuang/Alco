@@ -200,6 +200,27 @@ public sealed class DocumentManager
         DrawCloseConfirmPopup();
     }
 
+    /// <summary>
+    /// Closes every open document. With <paramref name="force"/> false, documents with
+    /// unsaved changes stay open and false is returned (clean documents are closed
+    /// anyway); with true, unsaved changes are discarded and everything closes.
+    /// </summary>
+    /// <param name="force">Whether to discard unsaved changes.</param>
+    /// <returns>True when no document remains open.</returns>
+    public bool CloseAll(bool force = false)
+    {
+        for (int i = _documents.Count - 1; i >= 0; i--)
+        {
+            AssetDocument document = _documents[i];
+            if (!force && document.IsDirty)
+            {
+                continue;
+            }
+            CloseDocument(document);
+        }
+        return _documents.Count == 0;
+    }
+
     /// <summary>Removes, disposes and notifies about a closed document.</summary>
     private void CloseDocument(AssetDocument document)
     {

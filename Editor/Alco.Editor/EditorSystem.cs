@@ -24,13 +24,21 @@ public sealed class EditorSystem : BaseEngineSystem
     private const float MinDocumentAreaWidth = 240f;
     private const float SplitterThickness = 6f;
 
+    /// <summary>Editor window title pattern; takes the project name ({0}).</summary>
+    public const string WindowTitleFormat = "Alco Editor - {0}";
+
     private readonly GameEngine _engine;
     private readonly EditorContext _context;
     private readonly AssetBrowserPanel _assetBrowser;
     private readonly DocumentManager _documents;
+    private readonly ProjectOpener _projectOpener;
 
     private float _leftPanelWidth = DefaultLeftPanelWidth;
     private bool _assetBrowserOpen = true;
+    private bool _openProjectDialogRequested;
+    private bool _openProjectConfirm;
+    private string _pendingProjectPath = string.Empty;
+    private string _projectOpenError = string.Empty;
 
     /// <summary>
     /// Creates the editor system. Requires <see cref="ImGUISystem"/> to be registered
@@ -55,6 +63,11 @@ public sealed class EditorSystem : BaseEngineSystem
 
         _documents = new DocumentManager(_context);
         _assetBrowser = new AssetBrowserPanel(_context, _documents);
+
+        // The opener performs the project's initial asset mount and owns the mounted
+        // sources for later project switches.
+        _context.ProjectChanged += OnProjectChanged;
+        _projectOpener = new ProjectOpener(_context, _documents);
     }
 
     /// <summary>The project open in the editor.</summary>
@@ -70,12 +83,53 @@ public sealed class EditorSystem : BaseEngineSystem
     public void RequestResetLayout() => _leftPanelWidth = DefaultLeftPanelWidth;
 
     /// <summary>
+    /// Opens another <c>.alco</c> project in this editor session: closes open
+    /// documents (kept open when they have unsaved changes and
+    /// <paramref name="discardUnsaved"/> is false), swaps the mounted asset sources
+    /// and retargets the UI. Used by both the File menu and the agent API.
+    /// </summary>
+    /// <param name="path">Path of the <c>.alco</c> project file.</param>
+    /// <param name="discardUnsaved">Whether to discard unsaved document changes.</param>
+    /// <param name="error">Failure description; empty on success.</param>
+    /// <returns>True when the requested project is now open.</returns>
+    public bool TryOpenProject(string path, bool discardUnsaved, out string error)
+    {
+        return _projectOpener.TryOpen(path, discardUnsaved, out error);
+    }
+
+    /// <summary>Schedules the platform file picker for choosing a project to open.</summary>
+    public void RequestOpenProjectDialog() => _openProjectDialogRequested = true;
+
+    /// <summary>
+    /// Reacts to a project switch: points ImGui's layout persistence at the new
+    /// project directory and updates the window title.
+    /// </summary>
+    private void OnProjectChanged(AlcoProject project)
+    {
+        if (!project.IsUntitled)
+        {
+            SetIniFilename(Path.Combine(project.ProjectDirectory, "imgui.ini"));
+        }
+        _engine.MainView.Title = string.Format(WindowTitleFormat, project.Name);
+    }
+
+    /// <summary>
     /// Emits all editor ImGui content for the current frame. Call from the game update
     /// phase only (see the class remarks).
     /// </summary>
     public void DoUI(float delta)
     {
         DrawMainMenuBar();
+
+        // The file picker continuation resumes on the main thread through the game
+        // synchronization context. Handle both outside the menu bar so the
+        // confirmation popup shares this ID stack level.
+        if (_openProjectDialogRequested)
+        {
+            _openProjectDialogRequested = false;
+            OpenProjectDialog();
+        }
+        DrawOpenProjectModal();
 
         ImGuiViewportPtr viewport = ImGui.GetMainViewport();
         ImGui.SetNextWindowPos(viewport.WorkPos, ImGuiCond.Always);
@@ -153,6 +207,11 @@ public sealed class EditorSystem : BaseEngineSystem
 
         if (ImGui.BeginMenu("File"))
         {
+            if (ImGui.MenuItem("Open Project...", string.Empty))
+            {
+                RequestOpenProjectDialog();
+            }
+            ImGui.Separator();
             if (ImGui.MenuItem("Save", "Ctrl+S", false, _documents.ActiveDocument is { IsDirty: true, IsReadOnly: false }))
             {
                 _documents.SaveActive();
@@ -191,5 +250,85 @@ public sealed class EditorSystem : BaseEngineSystem
         IntPtr ptr = Marshal.AllocHGlobal(utf8.Length);
         Marshal.Copy(utf8, 0, ptr, utf8.Length);
         ImGui.GetIO().NativePtr->IniFilename = (byte*)ptr;
+    }
+
+    /// <summary>
+    /// Shows the platform file picker and opens the chosen project. The awaiter captures
+    /// the game synchronization context, so the picker continuation resumes on the main
+    /// thread; a blocked switch (unsaved changes, load failure) is surfaced in
+    /// <see cref="DrawOpenProjectModal"/>.
+    /// </summary>
+    private async void OpenProjectDialog()
+    {
+        string[] files = await _engine.MainView.OpenFilePickerAsync(
+            _context.Project.ProjectDirectory,
+            allowMultiple: false,
+            new DialogFileFilter("Alco Project", "alco"));
+        if (files.Length == 0)
+        {
+            return;
+        }
+
+        if (TryOpenProject(files[0], discardUnsaved: false, out string error))
+        {
+            return;
+        }
+        _pendingProjectPath = files[0];
+        _projectOpenError = error;
+        _openProjectConfirm = true;
+    }
+
+    /// <summary>
+    /// Modal reporting a failed project open. While dirty documents block the switch,
+    /// it offers a discard-and-switch button; load failures just show the error.
+    /// </summary>
+    private void DrawOpenProjectModal()
+    {
+        if (_openProjectConfirm)
+        {
+            _openProjectConfirm = false;
+            ImGui.OpenPopup("Open Project");
+        }
+
+        bool open = true;
+        if (!ImGui.BeginPopupModal("Open Project", ref open, ImGuiWindowFlags.AlwaysAutoResize))
+        {
+            return;
+        }
+
+        ImGui.TextUnformatted(_projectOpenError);
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        bool hasDirty = HasDirtyDocuments();
+        if (hasDirty)
+        {
+            if (ImGui.Button("Discard and Switch", new Vector2(140f, 0f)))
+            {
+                TryOpenProject(_pendingProjectPath, discardUnsaved: true, out _);
+                _pendingProjectPath = string.Empty;
+                ImGui.CloseCurrentPopup();
+            }
+            ImGui.SameLine();
+        }
+        if (ImGui.Button(hasDirty ? "Cancel" : "OK", new Vector2(140f, 0f)))
+        {
+            _pendingProjectPath = string.Empty;
+            ImGui.CloseCurrentPopup();
+        }
+        ImGui.EndPopup();
+    }
+
+    private bool HasDirtyDocuments()
+    {
+        foreach (AssetDocument document in _documents.Documents)
+        {
+            if (document.IsDirty)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 }

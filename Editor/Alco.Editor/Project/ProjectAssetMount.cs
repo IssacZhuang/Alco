@@ -54,4 +54,19 @@ public static class ProjectAssetMount
 
         return mounted;
     }
+
+    /// <summary>
+    /// Removes and disposes sources previously returned by <see cref="Mount"/>,
+    /// stopping their file watchers. Used when the editor switches projects.
+    /// </summary>
+    /// <param name="mounted">The sources returned by <see cref="Mount"/>.</param>
+    /// <param name="assetSystem">The asset system the sources were mounted onto.</param>
+    public static void Unmount(IReadOnlyList<IFileSource> mounted, AssetSystem assetSystem)
+    {
+        for (int i = 0; i < mounted.Count; i++)
+        {
+            assetSystem.RemoveFileSource(mounted[i]);
+            (mounted[i] as IDisposable)?.Dispose();
+        }
+    }
 }
