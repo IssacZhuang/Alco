@@ -10,7 +10,10 @@ namespace Alco.Editor;
 /// Material asset document (<c>.amat</c>): a preview pane (the material's bound
 /// textures; a surface-accurate compiled preview is a planned follow-up) plus a
 /// parameters pane editing the name, texture slots and <see cref="ShaderValue"/>
-/// parameter table. Edits happen on a detached copy deserialized from the file, so
+/// parameter table. When the material names a surface, its texture slots and
+/// parameter rows come from the surface's shader reflection (fixed names and types —
+/// nothing to type in); materials without a surface keep free-form rows.
+/// Edits happen on a detached copy deserialized from the file, so
 /// the shared asset cache is never mutated; saving serializes through the material
 /// loader's own JSON options.
 /// </summary>
@@ -45,14 +48,194 @@ public sealed class MaterialDocument : AssetDocument
             ?? throw new InvalidDataException($"Material asset '{assetPath}' is empty.");
 
         _name = _material.Name;
+        if (_material.Surface is { } surface)
+        {
+            BuildReflectedRows(surface);
+        }
+        else
+        {
+            // No surface named (pipeline default, unknown to the editor): free-form rows.
+            foreach (KeyValuePair<string, Texture2D> pair in _material.Textures)
+            {
+                _textureSlots.Add(new TextureSlotRow(pair.Key, pair.Value));
+            }
+            foreach (KeyValuePair<string, ShaderValue> pair in _material.Parameters)
+            {
+                _parameters.Add(new ParameterRow(pair.Key, pair.Value));
+            }
+        }
+    }
+
+    /// <summary>
+    /// Builds the slot and parameter rows from the surface's reflection: one fixed row
+    /// per declared texture slot and per <c>[MaterialParams]</c> member, then the
+    /// asset's leftover bindings as removable orphan rows.
+    /// </summary>
+    private void BuildReflectedRows(ShaderLibrary surface)
+    {
+        ShaderLibraryReflection reflection = surface.Reflection;
+
+        var knownSlots = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ShaderTextureSlot slot in reflection.TextureSlots)
+        {
+            knownSlots.Add(slot.Name);
+            _material.Textures.TryGetValue(slot.Name, out Texture2D? texture);
+            _textureSlots.Add(new TextureSlotRow(slot.Name, texture) { IsReflected = true });
+        }
         foreach (KeyValuePair<string, Texture2D> pair in _material.Textures)
         {
-            _textureSlots.Add(new TextureSlotRow(pair.Key, pair.Value));
+            if (!knownSlots.Contains(pair.Key))
+            {
+                _textureSlots.Add(new TextureSlotRow(pair.Key, pair.Value));
+            }
+        }
+
+        var knownParams = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ShaderUniformBlock block in reflection.UniformBlocks)
+        {
+            if (!block.Attributes.Contains(MaterialCompiler.ParamsMarkerAttribute))
+            {
+                continue;
+            }
+            foreach (ShaderUniformMember member in block.Members)
+            {
+                knownParams.Add(member.Name);
+                bool hasExisting = _material.Parameters.TryGetValue(member.Name, out ShaderValue existing);
+                if (member.ComponentCount != 16 && member.ElementCount > 1 && member.ComponentCount > 1)
+                {
+                    // Vector arrays cannot be authored; keep an existing value as a
+                    // read-only row so saving preserves it, otherwise omit it entirely.
+                    if (hasExisting)
+                    {
+                        _parameters.Add(new ParameterRow(member.Name, existing)
+                        {
+                            IsReflected = true,
+                            Block = block.Name,
+                            TypeHint = Describe(member),
+                        });
+                    }
+                    continue;
+                }
+
+                ShaderValue value = hasExisting ? CoerceOrDefault(member, existing) : DefaultValue(member);
+                _parameters.Add(new ParameterRow(member.Name, value)
+                {
+                    IsReflected = true,
+                    Block = block.Name,
+                    TypeHint = Describe(member),
+                });
+            }
         }
         foreach (KeyValuePair<string, ShaderValue> pair in _material.Parameters)
         {
-            _parameters.Add(new ParameterRow(pair.Key, pair.Value));
+            if (!knownParams.Contains(pair.Key))
+            {
+                _parameters.Add(new ParameterRow(pair.Key, pair.Value));
+            }
         }
+    }
+
+    /// <summary>The default value of a reflected member (zero / identity).</summary>
+    private static ShaderValue DefaultValue(ShaderUniformMember member)
+    {
+        if (member.ComponentCount == 16)
+        {
+            return ShaderValue.Matrix(Matrix4x4.Identity);
+        }
+        if (member.ElementCount > 1)
+        {
+            int count = (int)member.ElementCount;
+            return member.ScalarType switch
+            {
+                ShaderUniformScalarType.Int32 or ShaderUniformScalarType.UInt32 => ShaderValue.Ints(new int[count]),
+                ShaderUniformScalarType.Bool32 => ShaderValue.Bools(new bool[count]),
+                _ => ShaderValue.Floats(new float[count]),
+            };
+        }
+        return member.ScalarType switch
+        {
+            ShaderUniformScalarType.Int32 => (ShaderValue)0,
+            ShaderUniformScalarType.UInt32 => (ShaderValue)0u,
+            ShaderUniformScalarType.Bool32 => (ShaderValue)false,
+            _ => member.ComponentCount switch
+            {
+                2 => (ShaderValue)Vector2.Zero,
+                3 => (ShaderValue)Vector3.Zero,
+                4 => (ShaderValue)Vector4.Zero,
+                _ => (ShaderValue)0f,
+            },
+        };
+    }
+
+    /// <summary>
+    /// Keeps an asset's existing value when the reflected member accepts it, mirroring
+    /// the compiler's marshal rules (<see cref="MaterialCompiler"/>): float members take
+    /// float/int/uint values by leading components (an authored <c>"#RRGGBB"</c> color
+    /// keeps its rgb on a float3 member), int/uint members take integer values of the
+    /// same element count. Anything else falls back to the member's default.
+    /// </summary>
+    private static ShaderValue CoerceOrDefault(ShaderUniformMember member, ShaderValue existing)
+    {
+        // Exact match keeps the value untouched.
+        if (existing.Kind == (ShaderValueKind)member.ScalarType
+            && existing.ComponentCount == member.ComponentCount
+            && existing.ElementCount == (int)member.ElementCount)
+        {
+            return existing;
+        }
+
+        if (member.ScalarType == ShaderUniformScalarType.Float32
+            && existing.Kind is ShaderValueKind.Float32 or ShaderValueKind.Int32 or ShaderValueKind.UInt32)
+        {
+            int components = member.ComponentCount;
+            int elements = (int)member.ElementCount;
+            if (components == 16)
+            {
+                // Matrix members admit exactly a matrix.
+                return existing.ComponentCount == 16 && existing.ElementCount == 1 ? existing : DefaultValue(member);
+            }
+            ReadOnlySpan<float> flat = existing.Kind == ShaderValueKind.Float32
+                ? existing.AsFloatList()
+                : [existing.GetInt()];
+            if (flat.Length == components * elements)
+            {
+                return existing; // exact flat fit (element-shaped or flat arrays)
+            }
+            if (elements == 1)
+            {
+                // Plain member: leading components land, the rest read zero.
+                float[] image = new float[components];
+                for (int i = 0; i < Math.Min(flat.Length, components); i++)
+                {
+                    image[i] = flat[i];
+                }
+                return ShaderValue.Floats(image, components);
+            }
+            return DefaultValue(member);
+        }
+
+        if (member.ScalarType is ShaderUniformScalarType.Int32 or ShaderUniformScalarType.UInt32
+            && existing.Kind is ShaderValueKind.Int32 or ShaderValueKind.UInt32
+            && existing.ElementCount == (int)member.ElementCount)
+        {
+            return existing;
+        }
+
+        return DefaultValue(member);
+    }
+
+    /// <summary>A member's type spelled the slang way (e.g. <c>float3</c>, <c>int[4]</c>).</summary>
+    private static string Describe(ShaderUniformMember member)
+    {
+        string type = member.ScalarType switch
+        {
+            ShaderUniformScalarType.Int32 => "int",
+            ShaderUniformScalarType.UInt32 => "uint",
+            ShaderUniformScalarType.Bool32 => "bool",
+            _ => member.ComponentCount == 16 ? "matrix"
+                : member.ComponentCount > 1 ? $"float{member.ComponentCount}" : "float",
+        };
+        return member.ElementCount > 1 ? $"{type}[{member.ElementCount}]" : type;
     }
 
     /// <inheritdoc/>
@@ -201,6 +384,10 @@ public sealed class MaterialDocument : AssetDocument
         string surface = _material.Surface?.Name ?? "(pipeline default)";
         ImGui.InputText("Surface", ref surface, 256);
         ImGui.EndDisabled();
+        if (_material.Surface == null)
+        {
+            ImGui.TextDisabled("No surface named — slots and parameters are free-form.");
+        }
 
         DrawTextureSlots();
         DrawParameters();
@@ -208,31 +395,64 @@ public sealed class MaterialDocument : AssetDocument
 
     private void DrawTextureSlots()
     {
+        bool reflected = _material.Surface != null;
         ImGui.SeparatorText("Texture Slots");
+        if (reflected && _textureSlots.Count == 0)
+        {
+            ImGui.TextDisabled("The surface declares no texture slots.");
+        }
 
-        for (int i = _textureSlots.Count - 1; i >= 0; i--)
+        int removeIndex = -1;
+        bool orphanHeaderShown = false;
+        for (int i = 0; i < _textureSlots.Count; i++)
         {
             TextureSlotRow row = _textureSlots[i];
-            ImGui.PushID(i);
-
-            ImGui.SetNextItemWidth(100f);
-            bool changed = ImGui.InputText("##slot", ref row.Slot, 64);
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(-90f);
-            changed |= row.PathPicker.Draw(Context, "##path", ref row.Path, typeof(Texture2D));
-            ImGui.SameLine();
-            if (ImGui.SmallButton("X"))
+            if (reflected && !row.IsReflected && !orphanHeaderShown)
             {
-                _textureSlots.RemoveAt(i);
-                changed = true;
+                ImGui.SeparatorText("Not In Surface");
+                orphanHeaderShown = true;
             }
 
-            // Validity hint under the row.
+            ImGui.PushID(i);
+
+            bool changed = false;
+            ImGui.SetNextItemWidth(110f);
+            if (row.IsReflected)
+            {
+                ImGui.BeginDisabled(true);
+                string slot = row.Slot;
+                ImGui.InputText("##slot", ref slot, 64);
+                ImGui.EndDisabled();
+            }
+            else
+            {
+                changed = ImGui.InputText("##slot", ref row.Slot, 64);
+            }
+            ImGui.SameLine();
+
+            ImGui.SetNextItemWidth(row.IsReflected ? -120f : -90f);
+            changed |= row.PathPicker.Draw(Context, "##path", ref row.Path, typeof(Texture2D));
+
+            if (!row.IsReflected)
+            {
+                ImGui.SameLine();
+                if (ImGui.SmallButton("X"))
+                {
+                    removeIndex = i;
+                }
+            }
+
+            // Validity / fallback hint after the row.
             string path = row.Path.Trim();
             if (path.Length > 0 && !Context.AssetSystem.IsFileExist(path))
             {
                 ImGui.SameLine();
                 ImGui.TextDisabled("(missing)");
+            }
+            else if (row.IsReflected && path.Length == 0)
+            {
+                ImGui.SameLine();
+                ImGui.TextDisabled("(fallback)");
             }
 
             if (changed)
@@ -243,7 +463,13 @@ public sealed class MaterialDocument : AssetDocument
             ImGui.PopID();
         }
 
-        if (ImGui.SmallButton("Add Slot"))
+        if (removeIndex >= 0)
+        {
+            _textureSlots.RemoveAt(removeIndex);
+            MarkDirty();
+        }
+
+        if (!reflected && ImGui.SmallButton("Add Slot"))
         {
             _textureSlots.Add(new TextureSlotRow("slot", null));
             MarkDirty();
@@ -252,25 +478,42 @@ public sealed class MaterialDocument : AssetDocument
 
     private void DrawParameters()
     {
-        ImGui.SeparatorText($"Parameters ({_parameters.Count})");
+        bool reflected = _material.Surface != null;
 
-        for (int i = _parameters.Count - 1; i >= 0; i--)
+        int removeIndex = -1;
+        string? lastHeader = null;
+        for (int i = 0; i < _parameters.Count; i++)
         {
             ParameterRow row = _parameters[i];
+            string header = row.IsReflected
+                ? $"Parameters ({row.Block})"
+                : reflected ? "Not In Surface" : $"Parameters ({_parameters.Count})";
+            if (header != lastHeader)
+            {
+                ImGui.SeparatorText(header);
+                lastHeader = header;
+            }
+
             ImGui.PushID(i);
 
             ImGui.SetNextItemWidth(120f);
             ImGui.BeginDisabled(true); // renaming keys is done via add/remove
             ImGui.InputText("##name", ref row.Name, 128);
             ImGui.EndDisabled();
+            if (row.IsReflected && row.TypeHint != null && ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(row.TypeHint);
+            }
             ImGui.SameLine();
 
             bool changed = DrawValueEditor(row);
-            ImGui.SameLine();
-            if (ImGui.SmallButton("X"))
+            if (!row.IsReflected)
             {
-                _parameters.RemoveAt(i);
-                changed = true;
+                ImGui.SameLine();
+                if (ImGui.SmallButton("X"))
+                {
+                    removeIndex = i;
+                }
             }
 
             if (changed)
@@ -278,6 +521,19 @@ public sealed class MaterialDocument : AssetDocument
                 MarkDirty();
             }
             ImGui.PopID();
+        }
+
+        if (removeIndex >= 0)
+        {
+            _parameters.RemoveAt(removeIndex);
+            MarkDirty();
+        }
+
+        // Free-form materials (no surface) add parameters by hand; reflected
+        // materials get one row per [MaterialParams] member automatically.
+        if (reflected)
+        {
+            return;
         }
 
         // New parameter row.
@@ -417,6 +673,9 @@ public sealed class MaterialDocument : AssetDocument
         public string Path;
         public Texture2D? Texture;
 
+        /// <summary>True when the row comes from surface reflection (fixed name, no delete).</summary>
+        public bool IsReflected;
+
         /// <summary>Pickers must be one instance per field so each keeps its own popup state.</summary>
         public readonly AssetPicker PathPicker = new();
 
@@ -451,6 +710,15 @@ public sealed class MaterialDocument : AssetDocument
     {
         public string Name;
         public ShaderValue Value;
+
+        /// <summary>True when the row comes from surface reflection (fixed name/type, no delete).</summary>
+        public bool IsReflected;
+
+        /// <summary>The owning <c>[MaterialParams]</c> block name (reflected rows only).</summary>
+        public string? Block;
+
+        /// <summary>The reflected slang type spelling, shown as a tooltip (reflected rows only).</summary>
+        public string? TypeHint;
 
         public ParameterRow(string name, ShaderValue value)
         {

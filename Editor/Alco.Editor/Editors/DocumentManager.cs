@@ -1,3 +1,4 @@
+using System.Numerics;
 using Alco.ImGUI;
 using Alco.IO;
 
@@ -11,10 +12,15 @@ namespace Alco.Editor;
 /// </summary>
 public sealed class DocumentManager
 {
+    private const string CloseConfirmPopupName = "Unsaved Changes";
+
     private readonly EditorContext _context;
     private readonly List<AssetDocument> _documents = new();
     private readonly Dictionary<string, Func<string, AssetDocument>> _factories = new(StringComparer.OrdinalIgnoreCase);
     private AssetDocument? _documentToSelect;
+    private AssetDocument? _activeDocument;
+    private AssetDocument? _pendingClose;
+    private bool _openCloseConfirm;
 
     /// <summary>Creates the manager and registers the built-in document factories.</summary>
     public DocumentManager(EditorContext context)
@@ -33,6 +39,9 @@ public sealed class DocumentManager
 
     /// <summary>The currently open documents.</summary>
     public IReadOnlyList<AssetDocument> Documents => _documents;
+
+    /// <summary>The document whose tab is currently selected, null when none is open.</summary>
+    public AssetDocument? ActiveDocument => _activeDocument;
 
     /// <summary>Raised after a document was opened (not when an existing tab was focused).</summary>
     public event Action<AssetDocument>? DocumentOpened;
@@ -88,9 +97,22 @@ public sealed class DocumentManager
             return false;
         }
 
-        _documents.Remove(document);
-        document.Dispose();
-        DocumentClosed?.Invoke(document);
+        CloseDocument(document);
+        return true;
+    }
+
+    /// <summary>
+    /// Saves the document of the currently selected tab (the Ctrl+S target).
+    /// Returns false when nothing is active, it is read-only, or it has no changes.
+    /// </summary>
+    public bool SaveActive()
+    {
+        if (_activeDocument is not { IsDirty: true, IsReadOnly: false } document)
+        {
+            return false;
+        }
+
+        document.Save();
         return true;
     }
 
@@ -129,36 +151,131 @@ public sealed class DocumentManager
 
     /// <summary>
     /// Draws the document-area tab bar with one tab per open document and disposes the
-    /// ones that were closed.
+    /// ones that were closed. Ctrl+S saves the selected document; closing a dirty tab
+    /// asks for confirmation first.
     /// </summary>
     public void DrawDocuments()
     {
+        ImGuiIOPtr io = ImGui.GetIO();
+        if (io.KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.S, false))
+        {
+            SaveActive();
+        }
+
+        _activeDocument = null;
         if (_documents.Count == 0)
         {
             ImGui.TextDisabled("Double-click an asset in the browser to open it.");
-            return;
         }
-
-        if (ImGui.BeginTabBar("##document_tabs", ImGuiTabBarFlags.Reorderable))
+        else if (ImGui.BeginTabBar("##document_tabs", ImGuiTabBarFlags.Reorderable))
         {
             for (int i = _documents.Count - 1; i >= 0; i--)
             {
                 AssetDocument document = _documents[i];
-                document.DrawTabItem(document == _documentToSelect);
+                if (document.DrawTabItem(document == _documentToSelect))
+                {
+                    _activeDocument = document;
+                }
                 if (!document.IsOpen)
                 {
-                    _documents.RemoveAt(i);
-                    if (_documentToSelect == document)
+                    if (document.IsDirty)
                     {
-                        _documentToSelect = null;
+                        // Veto the close and ask first (popup drawn below).
+                        document.Reopen();
+                        _pendingClose = document;
+                        _openCloseConfirm = true;
                     }
-                    document.Dispose();
-                    DocumentClosed?.Invoke(document);
+                    else
+                    {
+                        CloseDocument(document);
+                    }
                 }
             }
             ImGui.EndTabBar();
         }
 
         _documentToSelect = null;
+        DrawCloseConfirmPopup();
+    }
+
+    /// <summary>Removes, disposes and notifies about a closed document.</summary>
+    private void CloseDocument(AssetDocument document)
+    {
+        _documents.Remove(document);
+        if (_documentToSelect == document)
+        {
+            _documentToSelect = null;
+        }
+        if (_pendingClose == document)
+        {
+            _pendingClose = null;
+        }
+        document.Dispose();
+        DocumentClosed?.Invoke(document);
+    }
+
+    /// <summary>Draws the unsaved-changes confirmation modal for a tab close request.</summary>
+    private void DrawCloseConfirmPopup()
+    {
+        if (_openCloseConfirm)
+        {
+            _openCloseConfirm = false;
+            ImGui.OpenPopup(CloseConfirmPopupName);
+        }
+
+        bool popupOpen = true;
+        bool visible = ImGui.BeginPopupModal(CloseConfirmPopupName, ref popupOpen, ImGuiWindowFlags.AlwaysAutoResize);
+        if (!popupOpen)
+        {
+            // The modal's own close button means Cancel.
+            _pendingClose = null;
+        }
+        if (!visible)
+        {
+            return;
+        }
+
+        AssetDocument? document = _pendingClose;
+        if (document == null)
+        {
+            ImGui.CloseCurrentPopup();
+            ImGui.EndPopup();
+            return;
+        }
+
+        ImGui.TextUnformatted($"'{document.AssetPath}' has unsaved changes.");
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        if (!document.IsReadOnly)
+        {
+            if (ImGui.Button("Save", new Vector2(110f, 0f)))
+            {
+                document.Save();
+                if (!document.IsDirty)
+                {
+                    // Saved cleanly; a failed save keeps the document dirty (its
+                    // toolbar shows the error) and the popup open.
+                    CloseDocument(document);
+                    _pendingClose = null;
+                    ImGui.CloseCurrentPopup();
+                }
+            }
+            ImGui.SameLine();
+        }
+        if (ImGui.Button("Don't Save", new Vector2(110f, 0f)))
+        {
+            CloseDocument(document);
+            _pendingClose = null;
+            ImGui.CloseCurrentPopup();
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Cancel", new Vector2(110f, 0f)))
+        {
+            _pendingClose = null;
+            ImGui.CloseCurrentPopup();
+        }
+        ImGui.EndPopup();
     }
 }

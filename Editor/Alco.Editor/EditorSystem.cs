@@ -112,11 +112,13 @@ public sealed class EditorSystem : BaseEngineSystem
         ImGui.End();
     }
 
-    /// <summary>Draws the draggable divider between the two panes.</summary>
+    /// <summary>Draws the visible, draggable divider between the two panes.</summary>
     private void DrawSplitter()
     {
         ImGui.InvisibleButton("##layout_splitter", new Vector2(SplitterThickness, -1f));
-        if (ImGui.IsItemActive())
+        bool hovered = ImGui.IsItemHovered();
+        bool active = ImGui.IsItemActive();
+        if (active)
         {
             // Left + splitter + remaining = full width; cap the left pane so the
             // document area always keeps its minimum width.
@@ -127,10 +129,19 @@ public sealed class EditorSystem : BaseEngineSystem
                 MinLeftPanelWidth,
                 Math.Max(MinLeftPanelWidth, maxLeft));
         }
-        if (ImGui.IsItemHovered() || ImGui.IsItemActive())
+        if (hovered || active)
         {
             ImGui.SetMouseCursor(ImGuiMouseCursor.ResizeEW);
         }
+
+        // Center line, highlighted while hovered or dragged.
+        Vector2 min = ImGui.GetItemRectMin();
+        Vector2 max = ImGui.GetItemRectMax();
+        float x = MathF.Round((min.X + max.X) * 0.5f) + 0.5f;
+        uint color = ImGui.GetColorU32(active ? ImGuiCol.SeparatorActive
+            : hovered ? ImGuiCol.SeparatorHovered
+            : ImGuiCol.Border);
+        ImGui.GetWindowDrawList().AddLine(new Vector2(x, min.Y), new Vector2(x, max.Y), color, active ? 2f : 1f);
     }
 
     private void DrawMainMenuBar()
@@ -142,6 +153,10 @@ public sealed class EditorSystem : BaseEngineSystem
 
         if (ImGui.BeginMenu("File"))
         {
+            if (ImGui.MenuItem("Save", "Ctrl+S", false, _documents.ActiveDocument is { IsDirty: true, IsReadOnly: false }))
+            {
+                _documents.SaveActive();
+            }
             if (ImGui.MenuItem("Exit", "Esc"))
             {
                 _engine.Stop();

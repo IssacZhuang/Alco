@@ -40,8 +40,9 @@ public abstract class AssetDocument : AutoDisposable
     /// <summary>
     /// Draws the document as one tab inside the manager's tab bar. Called once per
     /// frame by the document manager, between <c>BeginTabBar</c>/<c>EndTabBar</c>.
+    /// Returns whether the tab is the selected one (its content is visible).
     /// </summary>
-    public void DrawTabItem(bool setSelected)
+    public bool DrawTabItem(bool setSelected)
     {
         bool open = IsOpen;
         ImGuiTabItemFlags flags = ImGuiTabItemFlags.None;
@@ -66,7 +67,11 @@ public abstract class AssetDocument : AutoDisposable
             DrawContent();
             ImGui.EndTabItem();
         }
+        return visible;
     }
+
+    /// <summary>Reopens the tab after a close request was vetoed (unsaved-changes prompt).</summary>
+    internal void Reopen() => IsOpen = true;
 
     /// <summary>Draws the document's content inside its tab.</summary>
     protected abstract void DrawContent();
