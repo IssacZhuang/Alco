@@ -9,6 +9,7 @@
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
     <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
     <ProjectReference Include="..\..\Src\Alco.LLM\Alco.LLM.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.Particles\Alco.Particles.csproj" />
   </ItemGroup>
 
 </Project>

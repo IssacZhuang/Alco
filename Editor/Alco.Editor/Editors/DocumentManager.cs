@@ -1,6 +1,7 @@
 using System.Numerics;
 using Alco.ImGUI;
 using Alco.IO;
+using Alco.Particles;
 
 namespace Alco.Editor;
 
@@ -28,6 +29,7 @@ public sealed class DocumentManager
         _context = context;
 
         RegisterFactory(FileExt.Material, path => new MaterialDocument(context, path));
+        RegisterFactory(ParticleAssetPipeline.EffectExtension, path => new ParticleEffectDocument(context, path));
         RegisterFactory(FileExt.ImagePNG, path => new TextureDocument(context, path));
         RegisterFactory(FileExt.ImageJPG, path => new TextureDocument(context, path));
         RegisterFactory(FileExt.ImageBMP, path => new TextureDocument(context, path));

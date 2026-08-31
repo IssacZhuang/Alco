@@ -3,6 +3,7 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
+using Alco.Particles;
 using Alco.Rendering;
 
 namespace Alco.Editor.App;
@@ -62,6 +63,19 @@ public sealed class EditorGame : GameEngine
     /// Exposes the editor system so the host can print the loaded project.
     /// </summary>
     public EditorSystem EditorSystem => _editorSystem;
+
+    /// <inheritdoc />
+    public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
+    {
+        foreach (IAssetLoader loader in base.CreateDefaultAssetLoaders())
+        {
+            yield return loader;
+        }
+
+        // Particle effect assets (.afx) open in the particle effect document; the
+        // loader also serves games that load effects through the editor's asset system.
+        yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.ShaderSystem);
+    }
 
     protected override void OnUpdate(float delta)
     {
