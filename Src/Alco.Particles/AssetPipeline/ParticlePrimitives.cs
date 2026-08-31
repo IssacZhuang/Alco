@@ -344,4 +344,11 @@ public class ParticleFlipbook
 
     /// <summary>Whether the animation loops instead of clamping to the last frame.</summary>
     public bool Loop { get; set; } = true;
+
+    /// <summary>
+    /// Whether the animation plays in reverse (last frame at spawn, first frame at
+    /// death) — for sprite sheets authored for shaders that key the frame off the
+    /// remaining lifetime instead of the age.
+    /// </summary>
+    public bool Reverse { get; set; }
 }

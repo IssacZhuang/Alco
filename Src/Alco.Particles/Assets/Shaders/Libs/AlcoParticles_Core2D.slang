@@ -45,7 +45,8 @@ public struct EmitterParams2D
     public float emitterTime;      // seconds on the emitter timeline
     public uint frameSeed;         // per-frame RNG seed
     public uint flags;             // bit0: world-space simulation, bit1: color gradient lookup,
-                                   // bit2: size curve lookup, bit3: velocity-stretched quads
+                                   // bit2: size curve lookup, bit3: velocity-stretched quads,
+                                   // bit4: flipbook plays in reverse
     // emitter transform (spawn only, world space)
     public float4x4 worldMatrix;
     // emission shape: x = type (0 point, 1 circle, 2 box), y = radius,
@@ -68,8 +69,19 @@ public struct EmitterParams2D
     // render
     public float4 tint;
     public float4 flipbook;        // x = rows, y = cols, z = fps, w = loop (0/1)
-    public uint4 renderMisc;       // x = quad mesh index count
+    public uint4 renderMisc;       // x = quad mesh index count, y = custom per-instance
+                                   // data (float bits; surfaced to material vertex hooks
+                                   // as ParticleVertexInput.customData)
 };
+
+// ── emitter flag bits ───────────────────────────────────────────────────────
+// Shared by the 2D and 3D emitter parameter blocks (same bit positions); the
+// C# twins mirror them as EmitterParams2D.Flag*/EmitterParams3D.Flag*.
+public static const uint PARTICLE_FLAG_WORLD_SPACE = 1u;       // world-space simulation
+public static const uint PARTICLE_FLAG_COLOR_GRADIENT = 2u;    // color-gradient lookup bound
+public static const uint PARTICLE_FLAG_SIZE_CURVE = 4u;        // size-curve lookup bound
+public static const uint PARTICLE_FLAG_VELOCITY_STRETCH = 8u;  // velocity-stretched quads
+public static const uint PARTICLE_FLAG_FLIPBOOK_REVERSE = 16u; // flipbook plays in reverse
 
 // ── indirect draw record (matches Alco.Graphics.IndexedIndirectData) ────────
 
@@ -168,7 +180,7 @@ public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2
     float2 localPosition = particleSampleShape2D(emitter, rng);
     float2 velocity = particleSampleVelocity2D(emitter, localPosition, rng);
     float2 position = localPosition;
-    if ((emitter.flags & 1u) != 0u) // world space: spawn through the emitter transform
+    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u) // world space: spawn through the emitter transform
     {
         position = mul(emitter.worldMatrix, float4(localPosition, 0.0, 1.0)).xy;
         velocity = mul(emitter.worldMatrix, float4(velocity, 0.0, 0.0)).xy;

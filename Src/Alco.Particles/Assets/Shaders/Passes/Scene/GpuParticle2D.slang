@@ -3,11 +3,13 @@
 // The built-in 2D particle render pass TEMPLATE: draws the emitter's quad mesh
 // once per simulated particle (indexed-indirect, instance count written by the
 // simulate pass), expanding the quad in the vertex shader from the particle
-// record fetched through the emitter's render list. The fragment entry is
-// generic over the particle surface (AlcoParticles_Surface): the material
-// compiler composes this module with the group's material surface module, so
-// the visual comes from the .amat - the built-in default surface
-// (AlcoParticles_SurfaceDefault) shades texture x particle color.
+// record fetched through the emitter's render list. Both entries are generic
+// over the group's particle surface (IParticleSurface, AlcoParticles_Surface —
+// the dimension-neutral contract shared with the 3D pass): the material
+// compiler composes this module with the group's material surface
+// module, so the visual comes from the .amat — the built-in default surface
+// (AlcoParticles_SurfaceDefault) shades texture x particle color and leaves the
+// vertex stage untouched (the adjustWorldPosition hook's default).
 //
 // The pass owns the resource contract the particle system binds: the "camera"
 // block (auto-bound view-projection), the "scene" block (bound by the particle
@@ -58,7 +60,7 @@ public struct OverLifeResources
     // The group's baked over-life lookup textures (256x1): the color gradient
     // (RGBA8) and the size curve (R16Float - curve values may exceed 1). Both
     // bind a 1x1 identity texture when the group authors none; the
-    // EmitterParams2D flag bits (1/2) gate the fetch.
+    // PARTICLE_FLAG_COLOR_GRADIENT/PARTICLE_FLAG_SIZE_CURVE bits gate the fetch.
     public Texture2D colorGradient;
     public Texture2D<float> sizeCurve;
 };
@@ -77,7 +79,7 @@ public struct GpuParticleDraw2D
 [[vk::push_constant]] GpuParticleDraw2D pc;
 
 [shader("vertex")]
-public V2F MainVS(Vertex input)
+public V2F MainVS<T : IParticleSurface>(Vertex input)
 {
     V2F output = (V2F)0;
     EmitterParams2D emitter = scene.emitters[pc.emitterSlot];
@@ -87,19 +89,20 @@ public V2F MainVS(Vertex input)
     float age = max(particle.duration - particle.lifetime, 0.0);
     float age01 = particle.duration > 0.0 ? saturate(age / particle.duration) : 0.0;
 
-    // Size over life: the baked size curve (flag bit2) replaces the simulate
-    // pass's end-scale lerp; it multiplies the spawn scale.
+    // Size over life: the baked size curve (PARTICLE_FLAG_SIZE_CURVE) replaces
+    // the simulate pass's end-scale lerp; it multiplies the spawn scale.
     float2 scale = particle.scale;
-    if ((emitter.flags & 4u) != 0u)
+    if ((emitter.flags & PARTICLE_FLAG_SIZE_CURVE) != 0u)
     {
         scale = particle.startScale * overLife.sizeCurve.Sample(samplers.linearClamp, float2(age01, 0.5));
     }
 
-    // Velocity stretch (flag bit3, with align-rotation-to-velocity): the quad's
+    // Velocity stretch (PARTICLE_FLAG_VELOCITY_STRETCH, with
+    // align-rotation-to-velocity): the quad's
     // local x axis follows the current velocity, lengthened by the speed; the
     // perpendicular keeps the base size. Speed ~ 0 keeps the aligned rotation.
     float2 corner;
-    if ((emitter.flags & 8u) != 0u)
+    if ((emitter.flags & PARTICLE_FLAG_VELOCITY_STRETCH) != 0u)
     {
         float speed = length(particle.velocity);
         float2 axis = speed > 1e-4
@@ -114,9 +117,23 @@ public V2F MainVS(Vertex input)
         corner = particleRotate(input.position.xy * scale, particle.rotation);
     }
     float3 world = mul(pc.model, float4(particle.position + corner, 0.0, 1.0)).xyz;
+
+    // The material's vertex-stage hook (e.g. facade depth), fed through the
+    // dimension-neutral ParticleVertexInput: the default surface returns the
+    // position unchanged.
+    T surface = T();
+    ParticleVertexInput vertexInput;
+    vertexInput.world = world;
+    vertexInput.particlePosition = mul(pc.model, float4(particle.position, 0.0, 1.0)).xyz;
+    vertexInput.age01 = age01;
+    vertexInput.emitterWorldMatrix = emitter.worldMatrix;
+    vertexInput.customData = asfloat(emitter.renderMisc.y);
+    world = surface.adjustWorldPosition(vertexInput);
     output.position = mul(camera.viewProjection, float4(world, 1.0));
 
-    // Flipbook: the frame follows the particle's age.
+    // Flipbook: the frame follows the particle's age (or the remaining life when
+    // PARTICLE_FLAG_FLIPBOOK_REVERSE is set — sprite sheets authored for
+    // lifetime-keyed playback).
     float2 uv = input.uv;
     uint rows = uint(emitter.flipbook.x);
     uint cols = uint(emitter.flipbook.y);
@@ -125,16 +142,21 @@ public V2F MainVS(Vertex input)
         uint frame = uint(age * emitter.flipbook.z);
         uint total = rows * cols;
         frame = emitter.flipbook.w > 0.5 ? frame % total : min(frame, total - 1u);
+        if ((emitter.flags & PARTICLE_FLAG_FLIPBOOK_REVERSE) != 0u)
+        {
+            frame = total - 1u - frame;
+        }
         float2 cell = float2(float(frame % cols), float(frame / cols));
         uv = (uv + cell) / float2(float(cols), float(rows));
     }
     output.uv = uv;
 
-    // Color over life: the baked gradient (flag bit1) replaces the simulate
+    // Color over life: the baked gradient (PARTICLE_FLAG_COLOR_GRADIENT)
+    // replaces the simulate
     // pass's spawn->end lerp (spawn color x gradient sample); the fade ramps
     // re-apply on top, unchanged.
     float4 color = particle.color;
-    if ((emitter.flags & 2u) != 0u)
+    if ((emitter.flags & PARTICLE_FLAG_COLOR_GRADIENT) != 0u)
     {
         color = particle.startColor * overLife.colorGradient.Sample(samplers.linearClamp, float2(age01, 0.5));
         float fadeIn = emitter.life.z > 1e-5 ? smoothstep(0.0, emitter.life.z, age01) : 1.0;

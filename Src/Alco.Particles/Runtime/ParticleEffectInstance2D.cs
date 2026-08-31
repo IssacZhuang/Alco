@@ -91,6 +91,15 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// <summary>Whether the instance still does GPU work (emitting or particles alive).</summary>
     public bool IsActive { get; private set; } = true;
 
+    /// <summary>
+    /// Whether the instance is visible to the camera (culling hook driven by the
+    /// caller, e.g. a spatial grid). An invisible instance skips its emit/simulate
+    /// dispatches and its draw — GPU cost drops to zero — while its emission
+    /// timeline keeps advancing, so a looping effect resumes seamlessly instead of
+    /// bursting when it becomes visible again.
+    /// </summary>
+    public bool IsVisible { get; set; } = true;
+
     /// <summary>The unwrapped emission timeline position in seconds.</summary>
     public float Time => _groups.Length > 0 ? _groups[0].Time : 0f;
 

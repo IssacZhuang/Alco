@@ -2,13 +2,15 @@
 // dissolve surface exercising the shared pieces of particle materials - a
 // [MaterialParams] block mixing uniform parameters with texture slots (the
 // noise map is the "shared texture" a material asset carries) and the
-// conventional "texture" slot a group overrides with its own sprite.
+// conventional "texture" slot a group overrides with its own sprite. It also
+// overrides the 2D vertex hook as a pass-through so the validation suite
+// covers that linkage path too.
 
 #language slang 2025
 module TestParticleSurface;
 
 import AlcoRendering_Core; // samplers, [MaterialParams]
-import AlcoParticles_Surface;
+import AlcoParticles_Surface; // IParticleSurface, ParticleSurfaceInput, ParticleVertexInput
 
 public struct DissolveParamsData
 {
@@ -25,6 +27,13 @@ public ParameterBlock<DissolveParamsData> dissolveParams;
 
 public struct Surface : IParticleSurface
 {
+    public override float3 adjustWorldPosition(ParticleVertexInput input)
+    {
+        // Pass-through that still reads the input, so the composed vertex
+        // shader provably links the override.
+        return input.world + input.particlePosition * 0.0;
+    }
+
     public override float4 shade(ParticleSurfaceInput input)
     {
         float4 texel = dissolveParams.texture.Sample(samplers.linearClamp, input.uv);

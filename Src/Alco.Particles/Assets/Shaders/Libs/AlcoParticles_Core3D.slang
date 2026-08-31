@@ -47,7 +47,9 @@ public struct EmitterParams3D
     public float emitterTime;      // seconds on the emitter timeline
     public uint frameSeed;         // per-frame RNG seed
     public uint flags;             // bit0: world-space simulation, bit1: color gradient lookup,
-                                   // bit2: size curve lookup, bit3: velocity-stretched billboards
+                                   // bit2: size curve lookup, bit3: velocity-stretched billboards,
+                                   // bit4: flipbook plays in reverse
+                                   // (PARTICLE_FLAG_* constants, AlcoParticles_Core2D)
     // emitter transform (spawn only, world space)
     public float4x4 worldMatrix;
     // emission shape: x = type (0 point, 1 sphere, 2 hemisphere, 3 box),
@@ -68,7 +70,9 @@ public struct EmitterParams3D
     // render
     public float4 tint;
     public float4 flipbook;        // x = rows, y = cols, z = fps, w = loop (0/1)
-    public uint4 renderMisc;       // x = quad mesh index count
+    public uint4 renderMisc;       // x = quad mesh index count, y = custom per-instance
+                                   // data (float bits; surfaced to material vertex hooks
+                                   // as ParticleVertexInput.customData)
 };
 
 // ── default spawn/simulate pieces (reusable by custom behaviors) ────────────
@@ -153,7 +157,7 @@ public void particleSpawnDefault3D(inout ParticleData3D particle, EmitterParams3
     float3 localPosition = particleSampleShape3D(emitter, rng);
     float3 velocity = particleSampleVelocity3D(emitter, localPosition, rng);
     float3 position = localPosition;
-    if ((emitter.flags & 1u) != 0u) // world space: spawn through the emitter transform
+    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u) // world space: spawn through the emitter transform
     {
         position = mul(emitter.worldMatrix, float4(localPosition, 1.0)).xyz;
         velocity = mul(emitter.worldMatrix, float4(velocity, 0.0)).xyz;

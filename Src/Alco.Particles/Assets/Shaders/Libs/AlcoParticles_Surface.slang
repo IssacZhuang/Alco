@@ -11,13 +11,16 @@
 // AlcoWorld3D_Surface, which this file mirrors.
 //
 // The material compiler composes a pass template with a surface module through
-// slang's component system: the template's generic fragment entry takes the
-// surface type as its specialization argument (discovered from the surface
+// slang's component system: the template's generic entry points take the
+// surface type as their specialization argument (discovered from the surface
 // module, exactly one conformer), so slang type-checks it against this
 // contract at compile time.
 //
-// The contract is dimension-neutral: the same surface shades 2D and 3D
-// particles. A group overrides the surface's "texture" slot (by convention the
+// The shading contract is dimension-neutral: the same surface shades 2D and 3D
+// particles, and the vertex-stage hook (adjustWorldPosition) takes the
+// dimension-neutral ParticleVertexInput — each pass template fills it from its
+// own particle/emitter records, so one surface module serves both dimensions.
+// A group overrides the surface's "texture" slot (by convention the
 // particle sprite) with its own texture - material-instance derivation.
 
 #language slang 2025
@@ -31,10 +34,29 @@ public struct ParticleSurfaceInput
     public float age01;   // the normalized particle age in [0, 1]
 };
 
-/// The particle shading contract: the fragment color of one particle fragment.
-/// The default shades a textureless particle as a flat colored quad. Slang
-/// requires the `override` keyword when replacing this default implementation.
+/// The per-vertex inputs a particle surface's vertex hook adjusts from. Both
+/// pass templates fill this from their own particle/emitter records; fields a
+/// hook never reads are dead-code-eliminated. Adding fields later is backward
+/// compatible — templates fill them, existing surfaces ignore them.
+public struct ParticleVertexInput
+{
+    public float3 world;            // the quad corner's world position (post model transform, pre projection)
+    public float3 particlePosition; // the particle's world position (the corner = center + quad offset)
+    public float age01;             // the normalized particle age in [0, 1]
+    public float4x4 emitterWorldMatrix; // the emitter's spawn-time world transform (CPU-written every frame)
+    public float customData;        // the instance's custom data channel (EmitterParams.CustomData, 0 unless set)
+};
+
+/// The particle shading contract: the fragment color of one particle fragment,
+/// plus an optional vertex-stage hook. Both methods carry defaults — a surface
+/// that only colors fragments overrides shade alone. Slang requires the
+/// `override` keyword when replacing a default implementation.
 public interface IParticleSurface
 {
     float4 shade(ParticleSurfaceInput input) { return input.color; }
+
+    /// Adjusts a quad corner's world position before the projection (default:
+    /// unchanged). Override only when the material moves vertices (e.g. facade
+    /// depth writes).
+    float3 adjustWorldPosition(ParticleVertexInput input) { return input.world; }
 }

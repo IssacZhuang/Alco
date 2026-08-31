@@ -175,9 +175,11 @@ public abstract class ParticleGroupAsset
 
     /// <summary>
     /// The material asset (<c>.amat</c>) defining the group's visuals: its surface
-    /// module shades the particle fragments (implementing <c>IParticleSurface</c>;
-    /// the built-in default shades texture × particle color), and it carries the
-    /// shared resources — textures (e.g. noise maps) and uniform shader parameters
+    /// module shades the particle fragments and may adjust their vertices
+    /// (implementing <c>IParticleSurface</c> — one contract for the 2D and 3D
+    /// passes; the built-in default shades texture × particle color), and it
+    /// carries the shared
+    /// resources — textures (e.g. noise maps) and uniform shader parameters
     /// (the surface's <c>[MaterialParams]</c> blocks). Null compiles the engine's
     /// default particle surface with its fallback textures.
     /// </summary>
@@ -197,6 +199,14 @@ public abstract class ParticleGroupAsset
     /// order-independent and recommended for unsorted GPU particles.
     /// </summary>
     public BlendState? Blend { get; set; }
+
+    /// <summary>
+    /// The depth-stencil state preset of the group's material (<c>"None"</c>,
+    /// <c>"Read"</c>, <c>"Write"</c>, …); null keeps the particle pass's default
+    /// (2D: no depth test; 3D: the system's default). Surfaces whose vertex hook
+    /// writes meaningful world z (e.g. facade depth) pair with <c>"Read"</c>.
+    /// </summary>
+    public DepthStencilState? Depth { get; set; }
 
     /// <summary>A global color multiplier applied on top of the per-particle color.</summary>
     public ColorFloat Tint { get; set; } = ColorFloat.White;

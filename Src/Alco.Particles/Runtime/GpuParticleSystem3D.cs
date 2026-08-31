@@ -226,7 +226,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             for (int i = 0; i < _instances.Count; i++)
             {
                 ParticleEffectInstance3D instance = _instances[i];
-                if (!instance.IsActive)
+                if (!instance.IsActive || !instance.IsVisible)
                 {
                     continue;
                 }
@@ -266,7 +266,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         for (int i = 0; i < _instances.Count; i++)
         {
             ParticleEffectInstance3D instance = _instances[i];
-            if (!instance.IsActive)
+            if (!instance.IsActive || !instance.IsVisible)
             {
                 continue;
             }
@@ -350,7 +350,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                 _renderTemplate,
                 (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles3d:{group.Name}"));
             material.BlendState = group.Blend ?? BlendState.AlphaBlend;
-            material.DepthStencilState = _depthStencilState;
+            material.DepthStencilState = group.Depth ?? _depthStencilState;
             if (group.Texture != null && !material.TrySetTexture(ShaderResourceId.Texture, group.Texture))
             {
                 throw new InvalidDataException(

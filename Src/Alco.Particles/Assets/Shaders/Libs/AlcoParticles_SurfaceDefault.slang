@@ -9,7 +9,7 @@
 module AlcoParticles_SurfaceDefault;
 
 import AlcoRendering_Core; // samplers
-import AlcoParticles_Surface;
+import AlcoParticles_Surface; // IParticleSurface, ParticleSurfaceInput
 
 public struct MaterialParamsData
 {
@@ -18,6 +18,8 @@ public struct MaterialParamsData
 
 public ParameterBlock<MaterialParamsData> material;
 
+// Fragment-only: the vertex hook keeps its default (position unchanged), so the
+// module serves the 2D and the 3D pass alike.
 public struct Surface : IParticleSurface
 {
     public override float4 shade(ParticleSurfaceInput input)

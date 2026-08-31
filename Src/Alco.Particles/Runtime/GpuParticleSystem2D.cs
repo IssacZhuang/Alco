@@ -32,7 +32,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly List<Texture2D> _overLifeTextures = [];
     private readonly List<ParticleEffectInstance2D> _instances = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
-    private Camera2DBuffer? _camera;
+    private GraphicsValueBuffer<Matrix4x4>? _camera;
 
     /// <summary>
     /// Creates the system with its shared pool's initial capacities.
@@ -61,9 +61,12 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
     /// <summary>
     /// The 2D camera the groups render with; bound to every group's material.
-    /// Must be set before <see cref="Render"/> is called.
+    /// Accepts any view-projection matrix buffer (a <see cref="Camera2DBuffer"/>,
+    /// or the shared <see cref="RenderingSystem.MainCameraViewProjectionBuffer"/> to
+    /// track whatever camera is currently rendering). Must be set before
+    /// <see cref="Render"/> is called.
     /// </summary>
-    public Camera2DBuffer? Camera
+    public GraphicsValueBuffer<Matrix4x4>? Camera
     {
         get => _camera;
         set
@@ -213,7 +216,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             for (int i = 0; i < _instances.Count; i++)
             {
                 ParticleEffectInstance2D instance = _instances[i];
-                if (!instance.IsActive)
+                if (!instance.IsActive || !instance.IsVisible)
                 {
                     continue;
                 }
@@ -253,7 +256,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         for (int i = 0; i < _instances.Count; i++)
         {
             ParticleEffectInstance2D instance = _instances[i];
-            if (!instance.IsActive)
+            if (!instance.IsActive || !instance.IsVisible)
             {
                 continue;
             }
@@ -320,15 +323,21 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         if (!_materials.TryGetValue(group, out GraphicsMaterial? material))
         {
             // The group's material instance: the .amat compiles against the 2D
-            // pass template (its surface shades the fragments, its textures and
-            // [MaterialParams] values bind), then the group's own texture derives
-            // over the surface's "texture" slot.
+            // pass template (its surface shades the fragments and may adjust the
+            // vertices, its textures and [MaterialParams] values bind), then the
+            // group's own texture derives over the surface's "texture" slot.
             MaterialAsset asset = group.Material ?? _defaultAsset;
             material = _materialCompiler.Compile(
                 asset,
                 _renderTemplate,
                 (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
             material.BlendState = group.Blend ?? BlendState.AlphaBlend;
+            if (group.Depth is { } depth)
+            {
+                // Groups authoring world z in a custom render module (e.g. facade
+                // sprites) depth-test (never write) the scene depth with "Read".
+                material.DepthStencilState = depth;
+            }
             if (group.Texture != null && !material.TrySetTexture(ShaderResourceId.Texture, group.Texture))
             {
                 throw new InvalidDataException(

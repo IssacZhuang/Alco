@@ -35,7 +35,10 @@ public struct EmitterParams3D
     /// <summary>
     /// Bit flags; bit0: world-space simulation (spawn through <see cref="WorldMatrix"/>),
     /// bit1: color-gradient lookup bound, bit2: size-curve lookup bound,
-    /// bit3: velocity-stretched billboards.
+    /// bit3: velocity-stretched billboards,
+    /// bit4: flipbook plays in reverse (last frame at spawn).
+    /// The slang side mirrors these as the PARTICLE_FLAG_* constants
+    /// (AlcoParticles_Core2D.slang).
     /// </summary>
     public uint Flags;
 
@@ -84,8 +87,14 @@ public struct EmitterParams3D
     /// <summary>The quad mesh's index count (written into the indirect draw record).</summary>
     public uint IndexCount;
 
-    /// <summary>Reserved.</summary>
-    public uint Reserved0;
+    /// <summary>
+    /// A custom per-instance data channel for custom surface vertex hooks, the 3D
+    /// counterpart of <see cref="EmitterParams2D.CustomData"/>
+    /// (<c>IParticleSurface.adjustWorldPosition</c>, surfaced as
+    /// <c>ParticleVertexInput.customData</c>). Set per instance through
+    /// <see cref="ParticleEffectInstance3D.SetGroupParams"/>.
+    /// </summary>
+    public float CustomData;
 
     /// <summary>Reserved.</summary>
     public uint Reserved1;
@@ -104,6 +113,9 @@ public struct EmitterParams3D
 
     /// <summary>The velocity-stretch flag bit of <see cref="Flags"/>.</summary>
     public const uint FlagVelocityStretch = 8u;
+
+    /// <summary>The reversed-flipbook flag bit of <see cref="Flags"/>.</summary>
+    public const uint FlagFlipbookReverse = 16u;
 
     /// <summary>
     /// Merges an edited record into the live slot record of an emitter: the static
@@ -189,6 +201,10 @@ public struct EmitterParams3D
         if (group.VelocityStretch)
         {
             parameters.Flags |= FlagVelocityStretch;
+        }
+        if (flipbook is { Reverse: true })
+        {
+            parameters.Flags |= FlagFlipbookReverse;
         }
         return parameters;
     }

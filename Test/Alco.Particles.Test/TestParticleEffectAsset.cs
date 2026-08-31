@@ -226,4 +226,36 @@ public class TestParticleEffectAsset
             Assert.That(Marshal.SizeOf<EmitterParams3D>(), Is.EqualTo(320));
         });
     }
+
+    [Test]
+    public void FlipbookReverseSetsTheReverseFlagBit()
+    {
+        // Sheets authored for remaining-lifetime playback (full flame at death)
+        // play in reverse; the bit sits at the same position in 2D and 3D.
+        var reverse = new ParticleFlipbook { Rows = 4, Cols = 4, Fps = 12f, Loop = false, Reverse = true };
+        var forward = new ParticleFlipbook { Rows = 4, Cols = 4, Fps = 12f, Loop = false };
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = reverse }, 6).Flags
+                    & EmitterParams2D.FlagFlipbookReverse,
+                Is.Not.Zero);
+            Assert.That(
+                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = forward }, 6).Flags
+                    & EmitterParams2D.FlagFlipbookReverse,
+                Is.Zero);
+            Assert.That(
+                EmitterParams2D.FromAsset(new ParticleGroup2DAsset(), 6).Flags
+                    & EmitterParams2D.FlagFlipbookReverse,
+                Is.Zero, "no flipbook, no reverse bit");
+            Assert.That(
+                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = reverse }, 6).Flags
+                    & EmitterParams3D.FlagFlipbookReverse,
+                Is.Not.Zero, "3D shares the bit position");
+            Assert.That(
+                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = forward }, 6).Flags
+                    & EmitterParams3D.FlagFlipbookReverse,
+                Is.Zero);
+        });
+    }
 }

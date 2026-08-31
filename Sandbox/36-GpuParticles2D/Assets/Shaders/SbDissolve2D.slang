@@ -11,7 +11,7 @@
 module SbDissolve2D;
 
 import AlcoRendering_Core; // samplers, [MaterialParams]
-import AlcoParticles_Surface;
+import AlcoParticles_Surface; // IParticleSurface, ParticleSurfaceInput
 
 public struct DissolveParamsData
 {
