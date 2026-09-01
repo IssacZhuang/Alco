@@ -68,6 +68,10 @@ public sealed class EditorSystem : BaseEngineSystem
         // sources for later project switches.
         _context.ProjectChanged += OnProjectChanged;
         _projectOpener = new ProjectOpener(_context, _documents);
+        if (_context.Project.FilePath != null)
+        {
+            RecentProjectStore.Save(_context.Project.FilePath);
+        }
     }
 
     /// <summary>The project open in the editor.</summary>
@@ -109,6 +113,7 @@ public sealed class EditorSystem : BaseEngineSystem
         if (!project.IsUntitled)
         {
             SetIniFilename(Path.Combine(project.ProjectDirectory, "imgui.ini"));
+            RecentProjectStore.Save(project.FilePath!);
         }
         _engine.MainView.Title = string.Format(WindowTitleFormat, project.Name);
     }

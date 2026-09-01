@@ -98,7 +98,14 @@ public sealed partial class ParticleEffectDocument : AssetDocument
     /// <inheritdoc/>
     protected override void DrawContent()
     {
-        TickStructuralRebuild(ImGui.GetIO().DeltaTime);
+        ImGuiIOPtr io = ImGui.GetIO();
+        TickStructuralRebuild(io.DeltaTime);
+
+        // Spacebar restarts the preview (unless the user is typing in a field).
+        if (!io.WantTextInput && ImGui.IsKeyPressed(ImGuiKey.Space, false))
+        {
+            _preview.Restart();
+        }
 
         DrawToolbar();
         ImGui.Separator();

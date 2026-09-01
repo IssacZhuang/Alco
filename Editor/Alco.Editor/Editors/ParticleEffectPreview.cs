@@ -86,6 +86,13 @@ public sealed class ParticleEffectPreview : AutoDisposable
     /// <summary>Whether the simulation is frozen (the instance timeline still exists).</summary>
     public bool IsPaused => _paused;
 
+    /// <summary>Restarts the live effect instance (the toolbar button and the Space shortcut).</summary>
+    public void Restart()
+    {
+        _instance2D?.Restart();
+        _instance3D?.Restart();
+    }
+
     /// <summary>The failure of the last effect rebuild, or empty when the preview is live.</summary>
     public string Error => _viewport.Error;
 
@@ -206,10 +213,13 @@ public sealed class ParticleEffectPreview : AutoDisposable
         ImGui.SameLine();
         if (ImGui.Button("Restart"))
         {
-            _instance2D?.Restart();
-            _instance3D?.Restart();
+            Restart();
         }
         ImGui.EndDisabled();
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Restart the effect (Space)");
+        }
         ImGui.SameLine();
         ImGui.SetNextItemWidth(110f);
         ImGui.SliderFloat("##timescale", ref _timeScale, 0.05f, 4f, "speed %.2fx");

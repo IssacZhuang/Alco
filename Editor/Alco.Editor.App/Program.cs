@@ -8,6 +8,7 @@ namespace Alco.Editor.App;
 /// Entry point of the Alco editor. Project resolution order:
 /// <list type="number">
 /// <item>The path given as the positional command line argument (a <c>.alco</c> file).</item>
+/// <item>The project remembered from the previous session (<see cref="RecentProjectStore"/>).</item>
 /// <item>The first <c>*.alco</c> file found walking up from the current directory
 /// (the engine is usually embedded as a submodule next to the game project's
 /// <c>.alco</c> file).</item>
@@ -103,6 +104,12 @@ internal static class Program
         if (projectArg != null)
         {
             return AlcoProject.Load(projectArg);
+        }
+
+        string? remembered = RecentProjectStore.Load();
+        if (remembered != null)
+        {
+            return AlcoProject.Load(remembered);
         }
 
         string? fromDisk = FindProjectFileUpwards(Directory.GetCurrentDirectory(), "*.alco");
