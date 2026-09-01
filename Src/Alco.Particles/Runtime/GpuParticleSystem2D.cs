@@ -28,6 +28,11 @@ namespace Alco.Particles;
 /// <br/>Note the batch list is recorded at simulation time; <c>Render</c> replays
 /// it, so a visibility flip between the two phases lands the next frame (the
 /// simulation itself already gates on the previous frame's visibility).
+/// <br/>Rate limiting: with <see cref="SimulationRateLimitEnabled"/> on (the
+/// default), the simulation steps at most once per <see cref="SimulationInterval"/>
+/// and the frames in between skip every dispatch and replay the cached draw plan
+/// — the pool buffers persist, so the last simulated state still draws. The GPU
+/// simulation cost then scales with the configured rate instead of the frame rate.
 /// <br/>Usage: insert the simulation into the pipeline with an
 /// <see cref="RGNode_Callback"/> before the scene content node and call
 /// <see cref="Render"/> from the scene content (or an <see cref="IRenderPassContent"/>).
@@ -60,6 +65,11 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly List<DrawBatch> _drawBatches = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
     private GraphicsValueBuffer<Matrix4x4>? _camera;
+    // The rate-limiting state: the un-simulated frame time accumulated since the
+    // last step, and whether the draw plan and pool buffers hold a replayable
+    // simulated state (see RecordSimulation).
+    private float _simulationAccumulator;
+    private bool _hasValidPlan;
 
     /// <summary>
     /// Creates the system with its shared pool's initial capacities.
@@ -111,6 +121,29 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
     /// <summary>The quad mesh the particles draw with (centered, position.xy in [-0.5, 0.5]).</summary>
     public Mesh QuadMesh { get; set; }
+
+    /// <summary>The default <see cref="SimulationInterval"/>: a 60 Hz simulation rate.</summary>
+    public const float DefaultSimulationInterval = 1f / 60f;
+
+    /// <summary>
+    /// Whether the simulation rate limiter is on (default on). When off, every
+    /// <see cref="RecordSimulation"/> call simulates — the unthrottled behavior.
+    /// </summary>
+    public bool SimulationRateLimitEnabled { get; set; } = true;
+
+    /// <summary>
+    /// The fixed time in seconds between simulation steps while
+    /// <see cref="SimulationRateLimitEnabled"/> is on. Frames below it record no
+    /// emit/simulate dispatches at all — <see cref="Render"/> replays the cached
+    /// draw plan, which still draws the last simulated state — and their deltas
+    /// accumulate; each step simulates exactly one interval and carries the
+    /// remainder, so the cadence is even and the average pacing matches the wall
+    /// clock. Backlog beyond one interval (a hitch, or a frame rate below the
+    /// simulation rate) is discarded — effects play through stalls slightly
+    /// slower instead of fast-forwarding. Must be positive to have an effect; a
+    /// non-positive value simulates every frame.
+    /// </summary>
+    public float SimulationInterval { get; set; } = DefaultSimulationInterval;
 
     /// <summary>The live effect instances.</summary>
     public IReadOnlyList<ParticleEffectInstance2D> Instances => _instances;
@@ -224,11 +257,39 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// compilation, save load, OS stall) must not fast-forward one-shot effects
     /// past their emission timeline and kill every live particle in a single
     /// dispatch — effects play through hitches slightly slower instead.
+    /// <br/>While <see cref="SimulationRateLimitEnabled"/> is on, a frame whose
+    /// accumulated delta stays below <see cref="SimulationInterval"/> skips the
+    /// whole simulation: pool migrations still record (growth and buffer disposal
+    /// must not stall), but the parameter upload, the draw-plan rebuild and every
+    /// dispatch wait for the next step, and <see cref="Render"/> replays the cached
+    /// plan. Each step simulates one fixed interval with the remainder carried
+    /// over; backlog beyond one interval is discarded (the same never-fast-forward
+    /// policy as the hitch clamp). Pending slice kills ride the next simulated
+    /// frame — they only gate a slice's reuse, which itself happens on simulated
+    /// frames. A zero <paramref name="deltaTime"/> (paused) never accumulates and
+    /// always simulates, so culling flips and kills stay live while the game is
+    /// frozen.
     /// </summary>
     /// <param name="commandBuffer">The frame command buffer to record into.</param>
     /// <param name="deltaTime">The simulation time step in seconds.</param>
     public void RecordSimulation(GPUCommandBuffer commandBuffer, float deltaTime)
     {
+        if (SimulationRateLimitEnabled && _hasValidPlan && deltaTime > 0f)
+        {
+            _simulationAccumulator += deltaTime;
+            if (_simulationAccumulator < SimulationInterval)
+            {
+                _pool.RecordMigration(commandBuffer);
+                return;
+            }
+            // A fixed step per interval keeps the cadence even and the trajectory
+            // independent of the frame rate; the remainder carries over, with any
+            // backlog beyond one interval discarded — the hitch policy of
+            // ParticleEmission.MaxDeltaTime (play through stalls slightly slower,
+            // never fast-forward).
+            deltaTime = Math.Min(SimulationInterval, ParticleEmission.MaxDeltaTime);
+            _simulationAccumulator = Math.Min(_simulationAccumulator - deltaTime, SimulationInterval);
+        }
         deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
         _pool.RecordMigration(commandBuffer);
 
@@ -243,6 +304,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             _pool.Params.UpdateBufferRanged(dirtyMin, dirtyMax - dirtyMin + 1);
         }
         BuildDrawPlan();
+        _hasValidPlan = true;
 
         IReadOnlyList<(uint Offset, uint Count)> kills = _pool.PendingKills;
         bool anyActive = AnyActiveGroups();
@@ -394,6 +456,14 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             _pool.FreeSlot(group.Slot);
         }
         _instances.Remove(instance);
+        if (instance.IsActive)
+        {
+            // An actively drawing instance leaves the plan: without a resimulation
+            // its stale draw would replay for up to one simulation interval. A
+            // deactivated instance (a finished one-shot) draws nothing, so it must
+            // NOT force one — reaping one-shots is constant during play.
+            _hasValidPlan = false;
+        }
     }
 
     private bool AnyActiveGroups()
@@ -514,6 +584,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
     private void OnPoolReallocated()
     {
+        // Pool growth swaps the instance-data buffer without copying it (per-frame
+        // transient), so the cached draw plan would draw garbage if replayed:
+        // force the next RecordSimulation to resimulate and rebuild the plan.
+        _hasValidPlan = false;
         foreach ((ComputeMaterial emit, ComputeMaterial simulate) in _behaviorMaterials.Values)
         {
             BindPool(emit);

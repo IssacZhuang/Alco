@@ -10,8 +10,10 @@ namespace Alco.Particles;
 /// instances entirely on the GPU — the 3D counterpart of
 /// <see cref="GpuParticleSystem2D"/> (see its remarks for the material-batched
 /// multi-draw architecture; the draw plan is built in RecordSimulation and replayed
-/// in Render the same way). Renders camera-facing billboards with depth testing
-/// (tested, not written) — draw it into the scene's forward/transparent pass.
+/// in Render the same way, and the same rate limiting applies — see
+/// <see cref="SimulationRateLimitEnabled"/>). Renders camera-facing billboards with
+/// depth testing (tested, not written) — draw it into the scene's forward/transparent
+/// pass.
 /// </summary>
 public sealed class GpuParticleSystem3D : AutoDisposable
 {
@@ -42,6 +44,11 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles3d-default" };
     private CameraPerspectiveBuffer? _camera;
     private DepthStencilState _depthStencilState = DepthStencilState.ReadReverseZ;
+    // The rate-limiting state: the un-simulated frame time accumulated since the
+    // last step, and whether the draw plan and pool buffers hold a replayable
+    // simulated state (see RecordSimulation).
+    private float _simulationAccumulator;
+    private bool _hasValidPlan;
 
     /// <summary>
     /// Creates the system with its shared pool's initial capacities.
@@ -110,6 +117,22 @@ public sealed class GpuParticleSystem3D : AutoDisposable
 
     /// <summary>The quad mesh the particles draw with (centered, position.xy in [-0.5, 0.5]).</summary>
     public Mesh QuadMesh { get; set; }
+
+    /// <summary>The default <see cref="SimulationInterval"/>: a 60 Hz simulation rate.</summary>
+    public const float DefaultSimulationInterval = 1f / 60f;
+
+    /// <summary>
+    /// Whether the simulation rate limiter is on (default on). When off, every
+    /// <see cref="RecordSimulation"/> call simulates — the unthrottled behavior.
+    /// </summary>
+    public bool SimulationRateLimitEnabled { get; set; } = true;
+
+    /// <summary>
+    /// The minimum time in seconds between simulation steps while
+    /// <see cref="SimulationRateLimitEnabled"/> is on (see
+    /// <see cref="GpuParticleSystem2D.SimulationInterval"/> for the semantics).
+    /// </summary>
+    public float SimulationInterval { get; set; } = DefaultSimulationInterval;
 
     /// <summary>The live effect instances.</summary>
     public IReadOnlyList<ParticleEffectInstance3D> Instances => _instances;
@@ -200,12 +223,28 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     /// Records the simulation of all active instances into
     /// <paramref name="commandBuffer"/> (see
     /// <see cref="GpuParticleSystem2D.RecordSimulation"/> for the recorded work,
-    /// the delta-time freeze semantics and the hitch clamp).
+    /// the delta-time freeze semantics, the hitch clamp and the rate limiter).
     /// </summary>
     /// <param name="commandBuffer">The frame command buffer to record into.</param>
     /// <param name="deltaTime">The simulation time step in seconds.</param>
     public void RecordSimulation(GPUCommandBuffer commandBuffer, float deltaTime)
     {
+        if (SimulationRateLimitEnabled && _hasValidPlan && deltaTime > 0f)
+        {
+            _simulationAccumulator += deltaTime;
+            if (_simulationAccumulator < SimulationInterval)
+            {
+                _pool.RecordMigration(commandBuffer);
+                return;
+            }
+            // A fixed step per interval keeps the cadence even and the trajectory
+            // independent of the frame rate; the remainder carries over, with any
+            // backlog beyond one interval discarded — the hitch policy of
+            // ParticleEmission.MaxDeltaTime (play through stalls slightly slower,
+            // never fast-forward).
+            deltaTime = Math.Min(SimulationInterval, ParticleEmission.MaxDeltaTime);
+            _simulationAccumulator = Math.Min(_simulationAccumulator - deltaTime, SimulationInterval);
+        }
         deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
         _pool.RecordMigration(commandBuffer);
 
@@ -220,6 +259,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             _pool.Params.UpdateBufferRanged(dirtyMin, dirtyMax - dirtyMin + 1);
         }
         BuildDrawPlan();
+        _hasValidPlan = true;
 
         IReadOnlyList<(uint Offset, uint Count)> kills = _pool.PendingKills;
         bool anyActive = AnyActiveGroups();
@@ -379,6 +419,14 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             _pool.FreeSlot(group.Slot);
         }
         _instances.Remove(instance);
+        if (instance.IsActive)
+        {
+            // An actively drawing instance leaves the plan: without a resimulation
+            // its stale draw would replay for up to one simulation interval. A
+            // deactivated instance (a finished one-shot) draws nothing, so it must
+            // NOT force one — reaping one-shots is constant during play.
+            _hasValidPlan = false;
+        }
     }
 
     private bool AnyActiveGroups()
@@ -491,6 +539,10 @@ public sealed class GpuParticleSystem3D : AutoDisposable
 
     private void OnPoolReallocated()
     {
+        // Pool growth swaps the instance-data buffer without copying it (per-frame
+        // transient), so the cached draw plan would draw garbage if replayed:
+        // force the next RecordSimulation to resimulate and rebuild the plan.
+        _hasValidPlan = false;
         foreach ((ComputeMaterial emit, ComputeMaterial simulate) in _behaviorMaterials.Values)
         {
             BindPool(emit);
