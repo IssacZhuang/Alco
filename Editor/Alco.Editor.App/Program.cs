@@ -5,16 +5,9 @@ using Alco.Graphics;
 namespace Alco.Editor.App;
 
 /// <summary>
-/// Entry point of the Alco editor. Project resolution order:
-/// <list type="number">
-/// <item>The path given as the positional command line argument (a <c>.alco</c> file).</item>
-/// <item>The project remembered from the previous session (<see cref="RecentProjectStore"/>).</item>
-/// <item>The first <c>*.alco</c> file found walking up from the current directory
-/// (the engine is usually embedded as a submodule next to the game project's
-/// <c>.alco</c> file).</item>
-/// <item>The bundled <c>Demo.alco</c> next to the executable.</item>
-/// <item>An in-memory untitled project rooted at the current directory.</item>
-/// </list>
+/// Entry point of the Alco editor. A <c>.alco</c> project path given as the positional
+/// command line argument is opened directly; without one the editor starts with no
+/// project and shows the startup screen (open button + recent projects).
 /// </summary>
 internal static class Program
 {
@@ -38,10 +31,13 @@ internal static class Program
 
         Log.Info("Editor project: ", project.Name);
 
+        string title = project.IsUntitled
+            ? "Alco Editor"
+            : string.Format(EditorSystem.WindowTitleFormat, project.Name);
         GameEngineSetting setting = new()
         {
             StopWhenError = true,
-            View = new ViewSetting(1600, 900, string.Format(EditorSystem.WindowTitleFormat, project.Name)),
+            View = new ViewSetting(1600, 900, title),
             Graphics = GraphicsSetting.Default with
             {
                 Backend = GraphicsBackend.WGPUVulkan,
@@ -98,50 +94,15 @@ internal static class Program
         return true;
     }
 
-    /// <summary>Resolves the project to open, following the documented search order.</summary>
+    /// <summary>
+    /// Loads the project given on the command line, or falls back to an untitled
+    /// in-memory project rooted at the current directory, which makes the editor show
+    /// its startup screen.
+    /// </summary>
     private static AlcoProject ResolveProject(string? projectArg)
     {
-        if (projectArg != null)
-        {
-            return AlcoProject.Load(projectArg);
-        }
-
-        string? remembered = RecentProjectStore.Load();
-        if (remembered != null)
-        {
-            return AlcoProject.Load(remembered);
-        }
-
-        string? fromDisk = FindProjectFileUpwards(Directory.GetCurrentDirectory(), "*.alco");
-        if (fromDisk != null)
-        {
-            return AlcoProject.Load(fromDisk);
-        }
-
-        string demoPath = Path.Combine(AppContext.BaseDirectory, "Demo.alco");
-        if (File.Exists(demoPath))
-        {
-            return AlcoProject.Load(demoPath);
-        }
-
-        return AlcoProject.CreateUntitled(Directory.GetCurrentDirectory());
-    }
-
-    /// <summary>Walks up the directory tree looking for a project file; null when none exists.</summary>
-    private static string? FindProjectFileUpwards(string startDirectory, string searchPattern)
-    {
-        string? current = Path.GetFullPath(startDirectory);
-        while (current != null)
-        {
-            string[] matches = Directory.GetFiles(current, searchPattern);
-            if (matches.Length > 0)
-            {
-                return matches[0];
-            }
-
-            current = Directory.GetParent(current)?.FullName;
-        }
-
-        return null;
+        return projectArg != null
+            ? AlcoProject.Load(projectArg)
+            : AlcoProject.CreateUntitled(Directory.GetCurrentDirectory());
     }
 }

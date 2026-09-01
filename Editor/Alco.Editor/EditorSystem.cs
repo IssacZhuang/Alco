@@ -10,7 +10,8 @@ namespace Alco.Editor;
 /// The editor shell: main menu bar and a strict two-pane layout — the asset browser on
 /// the left, the document area (a tab bar with one tab per open asset) on the right,
 /// separated by a draggable splitter. The layout is fixed; only the split position and
-/// the browser's visibility can change.
+/// the browser's visibility can change. While no project is open (an untitled project),
+/// the shell is replaced by the startup screen (<see cref="StartupScreenPanel"/>).
 /// <para/>
 /// ImGui content is emitted from <see cref="DoUI"/>, which must be called between
 /// <see cref="ImGUISystem"/>'s frame begin and render — that is, from the game update
@@ -27,11 +28,19 @@ public sealed class EditorSystem : BaseEngineSystem
     /// <summary>Editor window title pattern; takes the project name ({0}).</summary>
     public const string WindowTitleFormat = "Alco Editor - {0}";
 
+    /// <summary>Application name under which editor preferences are stored (app-local).</summary>
+    private const string PreferenceApplication = "Alco.Editor";
+
+    /// <summary>Preference key holding the recently opened projects.</summary>
+    private const string RecentProjectsKey = "recent-projects";
+
     private readonly GameEngine _engine;
     private readonly EditorContext _context;
     private readonly AssetBrowserPanel _assetBrowser;
     private readonly DocumentManager _documents;
     private readonly ProjectOpener _projectOpener;
+    private readonly RecentProjects _recentProjects;
+    private readonly StartupScreenPanel _startupScreen;
 
     private float _leftPanelWidth = DefaultLeftPanelWidth;
     private bool _assetBrowserOpen = true;
@@ -68,10 +77,12 @@ public sealed class EditorSystem : BaseEngineSystem
         // sources for later project switches.
         _context.ProjectChanged += OnProjectChanged;
         _projectOpener = new ProjectOpener(_context, _documents);
-        if (_context.Project.FilePath != null)
-        {
-            RecentProjectStore.Save(_context.Project.FilePath);
-        }
+
+        // Recent projects live in the engine's app-local preference storage.
+        _recentProjects = engine.LoadPreference<RecentProjects>(PreferenceApplication, RecentProjectsKey);
+        _startupScreen = new StartupScreenPanel(_recentProjects, RequestOpenProjectDialog,
+            path => TryOpenProject(path, discardUnsaved: false, out _));
+        RecordProjectOpened(project);
     }
 
     /// <summary>The project open in the editor.</summary>
@@ -106,16 +117,30 @@ public sealed class EditorSystem : BaseEngineSystem
 
     /// <summary>
     /// Reacts to a project switch: points ImGui's layout persistence at the new
-    /// project directory and updates the window title.
+    /// project directory, updates the window title and records the recent-project entry.
     /// </summary>
     private void OnProjectChanged(AlcoProject project)
     {
         if (!project.IsUntitled)
         {
             SetIniFilename(Path.Combine(project.ProjectDirectory, "imgui.ini"));
-            RecentProjectStore.Save(project.FilePath!);
         }
+        RecordProjectOpened(project);
         _engine.MainView.Title = string.Format(WindowTitleFormat, project.Name);
+    }
+
+    /// <summary>
+    /// Adds the project to the recent list and persists it through the engine preference
+    /// system (app-local). Untitled projects are not recorded.
+    /// </summary>
+    private void RecordProjectOpened(AlcoProject project)
+    {
+        if (project.IsUntitled)
+        {
+            return;
+        }
+        _recentProjects.OnProjectOpened(project.FilePath!);
+        _engine.SavePreference(PreferenceApplication, RecentProjectsKey, _recentProjects);
     }
 
     /// <summary>
@@ -135,6 +160,14 @@ public sealed class EditorSystem : BaseEngineSystem
             OpenProjectDialog();
         }
         DrawOpenProjectModal();
+
+        // No project open (untitled placeholder): show the startup screen instead of
+        // the editor shell.
+        if (_context.Project.IsUntitled)
+        {
+            _startupScreen.DrawContent();
+            return;
+        }
 
         ImGuiViewportPtr viewport = ImGui.GetMainViewport();
         ImGui.SetNextWindowPos(viewport.WorkPos, ImGuiCond.Always);
