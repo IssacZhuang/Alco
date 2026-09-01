@@ -8,9 +8,10 @@ namespace Alco.Editor;
 
 /// <summary>
 /// A reusable offscreen preview viewport for asset editors: a small
-/// <see cref="RenderPipeline"/> (HDR scene + ACES tonemap + blit into an RGBA8
-/// target shown through <c>ImGui.Image</c>) with a built-in camera, viewport
-/// input, and a world-space helper overlay (grid, axes and a scale bar).
+/// <see cref="RenderPipeline"/> (HDR scene, a toolbar-switchable display
+/// transform that defaults to the game's Neutral post chain, and a blit into
+/// an RGBA8 target shown through <c>ImGui.Image</c>) with a built-in camera,
+/// viewport input, and a world-space helper overlay (grid, axes and a scale bar).
 /// <br/>The viewport does not know what it renders. The owning document hooks
 /// the pipeline through delegates: <see cref="SceneContent"/> draws into the
 /// scene pass, <see cref="RecordFrame"/> records per-frame GPU work ahead of it
@@ -23,14 +24,27 @@ namespace Alco.Editor;
 public abstract class PreviewViewport : AutoDisposable
 {
     private readonly RenderPipeline _pipeline;
+    private readonly RGNode_Tonemap _tonemap;
     private readonly RenderTexture _target;
     /// <summary>The smallest on-screen cell size before the grid falls back to a coarser decade.</summary>
     private const float MinGridCellPixels = 24f;
 
+    /// <summary>The display-transform combo entries, in enum order.</summary>
+    private static readonly TonemapType[] DisplayOperators =
+    [
+        TonemapType.Linear,
+        TonemapType.Reinhard,
+        TonemapType.Uncharted2,
+        TonemapType.Filmic,
+        TonemapType.ACES,
+        TonemapType.Neutral,
+        TonemapType.AgX,
+    ];
+
     /// <summary>The finest grid step; finer measurement is the scale bar's job.</summary>
     private const float MinGridStep = 0.1f;
 
-    private ColorFloat _background = new(0.07f, 0.07f, 0.07f, 1f);
+    private ColorFloat _background = new(0.15f, 0.15f, 0.15f, 1f);
     private bool _showGrid = true;
     private bool _showAxes = true;
     private bool _showRuler = true;
@@ -56,7 +70,7 @@ public abstract class PreviewViewport : AutoDisposable
         _pipeline.ClearColor = _background;
         _pipeline.Use(new RGNode_Callback { Callback = renderContext => RecordFrame?.Invoke(renderContext) });
         _pipeline.Use(new SceneNode(this, _pipeline.Graph, _pipeline.Chain));
-        var tonemap = new RGNode_Tonemap(
+        _tonemap = new RGNode_Tonemap(
             rendering,
             _pipeline.Graph,
             _pipeline.Chain,
@@ -70,13 +84,12 @@ public abstract class PreviewViewport : AutoDisposable
                 AcesShader = builtIn.Shader_AcesTonemap,
                 NeutralShader = builtIn.Shader_NeutralTonemap,
                 AgxShader = builtIn.Shader_AgxTonemap,
-            })
-        { Operator = TonemapType.ACES };
-        // Linear-to-sRGB: the ACES default gamma of 1 leaves the frame in linear space.
-        ACESTonemapData aces = tonemap.ACESData;
-        aces.Gamma = 2.2f;
-        tonemap.ACESData = aces;
-        _pipeline.Use(tonemap);
+            });
+        // Neutral with its default data is the game's post chain (Engine.cs uses
+        // the same operator), so the preview shows authored colors the way they
+        // present in game. The toolbar can switch operators for comparison.
+        _tonemap.Operator = TonemapType.Neutral;
+        _pipeline.Use(_tonemap);
 
         _target = rendering.CreateRenderTexture(rendering.PreferredRGBATexturePass, 512, 288, name + "_target");
     }
@@ -195,6 +208,23 @@ public abstract class PreviewViewport : AutoDisposable
             ResetCamera();
         }
         ImGui.SameLine();
+        ImGui.SetNextItemWidth(90f);
+        if (ImGui.BeginCombo("##display_transform", DisplayOperatorLabel(_tonemap.Operator)))
+        {
+            foreach (TonemapType type in DisplayOperators)
+            {
+                if (ImGui.Selectable(DisplayOperatorLabel(type), _tonemap.Operator == type))
+                {
+                    _tonemap.Operator = type;
+                }
+            }
+            ImGui.EndCombo();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Display transform. Neutral matches the game's post chain");
+        }
+        ImGui.SameLine();
         ImGui.Checkbox("Grid", ref _showGrid);
         ImGui.SameLine();
         ImGui.Checkbox("Axes", ref _showAxes);
@@ -205,6 +235,22 @@ public abstract class PreviewViewport : AutoDisposable
             ImGui.SameLine();
             ToolbarTrailing.Invoke();
         }
+    }
+
+    /// <summary>The toolbar label of a display-transform operator.</summary>
+    private static string DisplayOperatorLabel(TonemapType type)
+    {
+        return type switch
+        {
+            TonemapType.Linear => "Linear",
+            TonemapType.Reinhard => "Reinhard",
+            TonemapType.Uncharted2 => "Uncharted 2",
+            TonemapType.Filmic => "Filmic",
+            TonemapType.ACES => "ACES",
+            TonemapType.Neutral => "Neutral",
+            TonemapType.AgX => "AgX",
+            _ => type.ToString(),
+        };
     }
 
     /// <summary>Renders the frame into the target and draws it, handling viewport input.</summary>
