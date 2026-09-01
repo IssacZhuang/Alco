@@ -42,6 +42,14 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         /// <summary>Whether the group still does GPU work (emitting or has live particles).</summary>
         public bool Active = true;
 
+        /// <summary>
+        /// Whether the group draws and simulates (per-instance state; the asset is
+        /// never mutated). A hidden group drops out of the draw plan — its live
+        /// particles freeze — while its emission timeline keeps advancing,
+        /// mirroring <see cref="ParticleEffectInstance2D.IsVisible"/>.
+        /// </summary>
+        public bool Visible = true;
+
         /// <summary>The group's render material (shared per group asset).</summary>
         public required GraphicsMaterial Material;
 
@@ -68,12 +76,14 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         GpuParticleSystem2D system,
         ParticleEffect2DAsset asset,
         in Transform2D transform,
+        float height,
         int seed,
         GroupState[] groups)
     {
         _system = system;
         Asset = asset;
         Transform = transform;
+        Height = height;
         _random = new FastRandom(unchecked((uint)(seed == 0 ? Environment.TickCount : seed)));
         _groups = groups;
         IsPlaying = true;
@@ -84,6 +94,12 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
 
     /// <summary>The emitter transform of the whole effect (all groups).</summary>
     public Transform2D Transform { get; set; }
+
+    /// <summary>
+    /// The emitter's height above its ground-plane <see cref="Transform"/>. World-space
+    /// particles capture it at spawn; local-space particles follow it while alive.
+    /// </summary>
+    public float Height { get; set; }
 
     /// <summary>Whether the effect is emitting (starts playing on creation).</summary>
     public bool IsPlaying { get; private set; }
@@ -128,6 +144,23 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     public void SetGroupEmissionRate(int groupIndex, float rate)
     {
         _groups[groupIndex].EmissionRate = Math.Max(rate, 0f);
+    }
+
+    /// <summary>Whether a group is visible (drawn and simulated) on this instance.</summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    public bool IsGroupVisible(int groupIndex) => _groups[groupIndex].Visible;
+
+    /// <summary>
+    /// Shows or hides a group for this instance (the asset is not mutated). A
+    /// hidden group drops out of the draw plan — its emit/simulate dispatches and
+    /// draw are skipped, so its live particles freeze — while its emission
+    /// timeline keeps advancing, mirroring <see cref="IsVisible"/>.
+    /// </summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <param name="visible">True to draw and simulate the group.</param>
+    public void SetGroupVisible(int groupIndex, bool visible)
+    {
+        _groups[groupIndex].Visible = visible;
     }
 
     /// <summary>A copy of the group's live parameter record (static and per-frame fields).</summary>
@@ -232,6 +265,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
             parameters.EmitterTime = asset.Duration > 0f ? group.Time % asset.Duration : group.Time;
             parameters.FrameSeed = _random.NextUint();
             parameters.WorldMatrix = Transform.Matrix;
+            parameters.EmitterHeight = Height;
             group.Cursor = (group.Cursor + group.SpawnCount) % group.Slice.Capacity;
             dirtyMin = Math.Min(dirtyMin, group.Slot);
             dirtyMax = Math.Max(dirtyMax, group.Slot);

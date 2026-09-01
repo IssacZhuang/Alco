@@ -123,7 +123,15 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     {
         corner = particleRotate(input.position.xy * scale, particle.rotation);
     }
+    float height = particle.height;
+    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) == 0u)
+    {
+        height += asfloat(emitter.renderMisc.z);
+    }
     float3 world = mul(model, float4(particle.position + corner, 0.0, 1.0)).xyz;
+    float3 particleWorld = mul(model, float4(particle.position, 0.0, 1.0)).xyz;
+    world.y += height;
+    particleWorld.y += height;
 
     // The material's vertex-stage hook (e.g. facade depth), fed through the
     // dimension-neutral ParticleVertexInput: the default surface returns the
@@ -131,10 +139,11 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     T surface = T();
     ParticleVertexInput vertexInput;
     vertexInput.world = world;
-    vertexInput.particlePosition = mul(model, float4(particle.position, 0.0, 1.0)).xyz;
+    vertexInput.particlePosition = particleWorld;
     vertexInput.age01 = age01;
     vertexInput.emitterWorldMatrix = emitter.worldMatrix;
     vertexInput.customData = asfloat(emitter.renderMisc.y);
+    vertexInput.height = height;
     world = surface.adjustWorldPosition(vertexInput);
     output.position = mul(camera.viewProjection, float4(world, 1.0));
 

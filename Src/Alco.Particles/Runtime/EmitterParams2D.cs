@@ -70,8 +70,13 @@ public struct EmitterParams2D
     /// <summary>Over-life: x = end scale multiplier, y = velocity-stretch length scale.</summary>
     public Vector4 OverLife;
 
-    /// <summary>Motion: xy = gravity, z = drag.</summary>
+    /// <summary>Motion: xy = planar gravity, z = drag, w = height acceleration.</summary>
     public Vector4 Motion;
+
+    /// <summary>
+    /// Height motion: x/y = initial height min/max, z/w = initial height velocity min/max.
+    /// </summary>
+    public Vector4 HeightMotion;
 
     /// <summary>Spawn color range lower bound.</summary>
     public ColorFloat ColorMin;
@@ -101,8 +106,11 @@ public struct EmitterParams2D
     /// </summary>
     public float CustomData;
 
-    /// <summary>Reserved.</summary>
-    public uint Reserved1;
+    /// <summary>
+    /// The emitter's height above its ground-plane transform. World-space groups
+    /// bake it into particles at spawn; local-space groups add it while rendering.
+    /// </summary>
+    public float EmitterHeight;
 
     /// <summary>Reserved.</summary>
     public uint Reserved2;
@@ -128,7 +136,7 @@ public struct EmitterParams2D
     /// slot-bound (<see cref="Capacity"/>, <see cref="SliceOffset"/>,
     /// <see cref="IndexCount"/>) and per-frame (<see cref="SpawnCount"/>,
     /// <see cref="EmitCursor"/>, <see cref="DeltaTime"/>, <see cref="EmitterTime"/>,
-    /// <see cref="FrameSeed"/>, <see cref="WorldMatrix"/>) fields keep their live
+    /// <see cref="FrameSeed"/>, <see cref="WorldMatrix"/>, <see cref="EmitterHeight"/>) fields keep their live
     /// values. Backs <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
     /// </summary>
     /// <param name="live">The current slot record.</param>
@@ -145,6 +153,7 @@ public struct EmitterParams2D
         merged.EmitterTime = live.EmitterTime;
         merged.FrameSeed = live.FrameSeed;
         merged.WorldMatrix = live.WorldMatrix;
+        merged.EmitterHeight = live.EmitterHeight;
         merged.IndexCount = live.IndexCount;
         return merged;
     }
@@ -188,7 +197,12 @@ public struct EmitterParams2D
             group.AngularVelocity.Min,
             group.AngularVelocity.Max);
         parameters.OverLife = new Vector4(group.EndScale, group.StretchLengthScale, 0f, 0f);
-        parameters.Motion = new Vector4(group.Gravity, group.Drag, 0f);
+        parameters.Motion = new Vector4(group.Gravity, group.Drag, group.HeightAcceleration);
+        parameters.HeightMotion = new Vector4(
+            group.StartHeight.Min,
+            group.StartHeight.Max,
+            group.HeightVelocity.Min,
+            group.HeightVelocity.Max);
         parameters.ColorMin = group.StartColor.Min;
         parameters.ColorMax = group.StartColor.Max;
         parameters.ColorEnd = group.EndColor;

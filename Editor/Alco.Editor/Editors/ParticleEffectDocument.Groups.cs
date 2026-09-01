@@ -50,6 +50,13 @@ public sealed partial class ParticleEffectDocument
     ];
 
     private readonly Dictionary<ParticleGroupAsset, GroupUiState> _groupStates = new();
+
+    /// <summary>
+    /// The groups hidden in the preview, keyed by group object so the state
+    /// survives reordering (stale entries from deleted groups are harmless).
+    /// Editor-only state: never serialized into the asset file.
+    /// </summary>
+    private readonly HashSet<ParticleGroupAsset> _hiddenGroups = new();
     private string[]? _behaviorCandidates;
 
     /// <summary>The whole parameters pane: effect header, group editors, add button.</summary>
@@ -125,6 +132,27 @@ public sealed partial class ParticleEffectDocument
     {
         GroupUiState state = GetGroupUiState(group);
         ImGui.PushID(index);
+
+        // Editor-only visibility toggle on the header row: hides the group's
+        // particles and shape outline in the preview without touching the asset.
+        bool visible = !_hiddenGroups.Contains(group);
+        if (ImGui.Checkbox("##visible", ref visible))
+        {
+            if (visible)
+            {
+                _hiddenGroups.Remove(group);
+            }
+            else
+            {
+                _hiddenGroups.Add(group);
+            }
+            _preview.SetGroupVisible(index, visible);
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Show this group in the preview only (never saved to the asset).");
+        }
+        ImGui.SameLine();
 
         if (ImGui.CollapsingHeader($"{group.Name}##header", ImGuiTreeNodeFlags.DefaultOpen))
         {
@@ -399,7 +427,7 @@ public sealed partial class ParticleEffectDocument
         }
     }
 
-    /// <summary>Motion: direction, spread, speed, gravity, drag (all live).</summary>
+    /// <summary>Motion: planar direction/speed, independent 2.5D height, gravity and drag (all live).</summary>
     private void DrawMotionSection(int index, ParticleGroupAsset group)
     {
         ImGui.SeparatorText("Motion");
@@ -466,10 +494,27 @@ public sealed partial class ParticleEffectDocument
         }
         else
         {
-            Vector2 gravity = ((ParticleGroup2DAsset)group).Gravity;
+            var group2D = (ParticleGroup2DAsset)group;
+            Vector2 gravity = group2D.Gravity;
             if (DragRow("Gravity", ref gravity, 0.05f))
             {
-                ((ParticleGroup2DAsset)group).Gravity = gravity;
+                group2D.Gravity = gravity;
+                OnLiveEdit(index);
+            }
+            if (DrawRangeRow("Start Height", group2D.StartHeight, out ParticleRange startHeight, 0.05f))
+            {
+                group2D.StartHeight = startHeight;
+                OnLiveEdit(index);
+            }
+            if (DrawRangeRow("Height Velocity", group2D.HeightVelocity, out ParticleRange heightVelocity, 0.05f))
+            {
+                group2D.HeightVelocity = heightVelocity;
+                OnLiveEdit(index);
+            }
+            float heightAcceleration = group2D.HeightAcceleration;
+            if (DragRow("Height Acceleration", ref heightAcceleration, 0.05f))
+            {
+                group2D.HeightAcceleration = heightAcceleration;
                 OnLiveEdit(index);
             }
         }

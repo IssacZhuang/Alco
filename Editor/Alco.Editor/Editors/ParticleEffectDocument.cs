@@ -200,11 +200,24 @@ public sealed partial class ParticleEffectDocument : AssetDocument
             string json = JsonSerializer.Serialize(_effect, _jsonOptions);
             ParticleEffectAsset fresh = JsonSerializer.Deserialize<ParticleEffectAsset>(json, _jsonOptions)!;
             _preview.SetEffect(fresh);
+            ApplyGroupVisibility();
             _roundtripError = string.Empty;
         }
         catch (Exception e)
         {
             _roundtripError = $"Preview rebuild failed: {e.Message}";
+        }
+    }
+
+    /// <summary>Re-applies the editor-only hidden-group toggles to a freshly rebuilt preview instance.</summary>
+    private void ApplyGroupVisibility()
+    {
+        for (int i = 0; i < EffectGroupCount; i++)
+        {
+            if (_hiddenGroups.Contains(GetGroup(i)))
+            {
+                _preview.SetGroupVisible(i, false);
+            }
         }
     }
 

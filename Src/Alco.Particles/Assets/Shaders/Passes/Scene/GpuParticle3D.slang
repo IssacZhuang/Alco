@@ -151,6 +151,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     vertexInput.age01 = age01;
     vertexInput.emitterWorldMatrix = emitter.worldMatrix;
     vertexInput.customData = asfloat(emitter.renderMisc.y);
+    vertexInput.height = 0.0;
     world = surface.adjustWorldPosition(vertexInput);
     output.position = mul(camera.viewProjection, float4(world, 1.0));
 

@@ -35,6 +35,12 @@ public struct GpuParticle2D
     /// <summary>Angular velocity in radians per second.</summary>
     public float AngularVelocity;
 
+    /// <summary>Height above the ground plane in world (or emitter-local) units.</summary>
+    public float Height;
+
+    /// <summary>Current height velocity in world units per second.</summary>
+    public float HeightVelocity;
+
     /// <summary>Remaining lifetime in seconds; &lt;= 0 marks a dead (free) slot.</summary>
     public float Lifetime;
 

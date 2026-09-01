@@ -45,6 +45,7 @@ public struct ParticleVertexInput
     public float age01;             // the normalized particle age in [0, 1]
     public float4x4 emitterWorldMatrix; // the emitter's spawn-time world transform (CPU-written every frame)
     public float customData;        // the instance's custom data channel (EmitterParams.CustomData, 0 unless set)
+    public float height;            // projected 2D height; zero for 3D particles
 };
 
 /// The particle shading contract: the fragment color of one particle fragment,

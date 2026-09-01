@@ -27,6 +27,7 @@ public class TestEmitterParamsMerge
             EmitterTime = 3.25f,
             FrameSeed = 0xDEADBEEF,
             WorldMatrix = Matrix4x4.CreateTranslation(1f, 2f, 0f),
+            EmitterHeight = 1.25f,
             IndexCount = 6,
             Speed = new Vector4(1f, 2f, 0f, 0f),
             Life = new Vector4(0.5f, 1.5f, 0.1f, 0.2f),
@@ -43,12 +44,14 @@ public class TestEmitterParamsMerge
             EmitterTime = -1f,
             FrameSeed = 1,
             WorldMatrix = Matrix4x4.CreateTranslation(99f, 99f, 99f),
+            EmitterHeight = 99f,
             IndexCount = 3,
             // The static edits that must win.
             Speed = new Vector4(10f, 20f, 1f, 0.15f),
             Life = new Vector4(2f, 4f, 0.1f, 0.2f),
             Size = new Vector4(0.5f, 0.5f, 2f, 2f),
             Motion = new Vector4(0f, -9.8f, 1.5f, 0f),
+            HeightMotion = new Vector4(0.25f, 0.75f, 2f, 4f),
             Tint = new ColorFloat(1f, 0f, 0f, 1f),
             Flags = EmitterParams2D.FlagVelocityStretch,
         };
@@ -66,12 +69,14 @@ public class TestEmitterParamsMerge
             Assert.That(merged.EmitterTime, Is.EqualTo(3.25f));
             Assert.That(merged.FrameSeed, Is.EqualTo(0xDEADBEEFu));
             Assert.That(merged.WorldMatrix, Is.EqualTo(Matrix4x4.CreateTranslation(1f, 2f, 0f)));
+            Assert.That(merged.EmitterHeight, Is.EqualTo(1.25f));
             Assert.That(merged.IndexCount, Is.EqualTo(6u));
             // The edited static fields win.
             Assert.That(merged.Speed, Is.EqualTo(new Vector4(10f, 20f, 1f, 0.15f)));
             Assert.That(merged.Life, Is.EqualTo(new Vector4(2f, 4f, 0.1f, 0.2f)));
             Assert.That(merged.Size, Is.EqualTo(new Vector4(0.5f, 0.5f, 2f, 2f)));
             Assert.That(merged.Motion, Is.EqualTo(new Vector4(0f, -9.8f, 1.5f, 0f)));
+            Assert.That(merged.HeightMotion, Is.EqualTo(new Vector4(0.25f, 0.75f, 2f, 4f)));
             Assert.That(merged.Tint, Is.EqualTo(new ColorFloat(1f, 0f, 0f, 1f)));
             Assert.That(merged.Flags, Is.EqualTo(EmitterParams2D.FlagVelocityStretch));
         });

@@ -133,6 +133,20 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <returns>The new instance; dispose it to destroy the effect.</returns>
     public ParticleEffectInstance2D CreateInstance(ParticleEffect2DAsset effect, in Transform2D transform, int seed = 0)
     {
+        return CreateInstance(effect, transform, 0f, seed);
+    }
+
+    /// <summary>
+    /// Creates an effect instance with a ground-plane transform and an independent
+    /// 2.5D emitter height. The instance starts playing immediately.
+    /// </summary>
+    /// <param name="effect">The effect asset.</param>
+    /// <param name="transform">The emitter's ground-plane transform.</param>
+    /// <param name="height">The emitter height above the ground plane.</param>
+    /// <param name="seed">The deterministic RNG seed of the instance; 0 seeds from the environment tick.</param>
+    /// <returns>The new instance; dispose it to destroy the effect.</returns>
+    public ParticleEffectInstance2D CreateInstance(ParticleEffect2DAsset effect, in Transform2D transform, float height, int seed = 0)
+    {
         ArgumentNullException.ThrowIfNull(effect);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         if (effect.Groups.Count == 0)
@@ -189,7 +203,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             throw;
         }
         _pool.Params.UpdateBufferRanged(uploadMin, uploadMax - uploadMin + 1);
-        var instance = new ParticleEffectInstance2D(this, effect, transform, seed, groups);
+        var instance = new ParticleEffectInstance2D(this, effect, transform, height, seed, groups);
         _instances.Add(instance);
         return instance;
     }
@@ -315,7 +329,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             }
             foreach (ParticleEffectInstance2D.GroupState group in instance.Groups)
             {
-                if (!group.Active)
+                if (!group.Active || !group.Visible)
                 {
                     continue;
                 }

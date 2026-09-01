@@ -266,6 +266,23 @@ public sealed class ParticleGroup2DAsset : ParticleGroupAsset
 
     /// <summary>The constant gravity acceleration in world units per second squared.</summary>
     public System.Numerics.Vector2 Gravity { get; set; }
+
+    /// <summary>
+    /// The particle's initial height above the emitter's ground plane. Height is
+    /// projected along positive world Y by the 2D render pass while remaining
+    /// independent from the particle's ground-plane <see cref="Shape"/> position.
+    /// </summary>
+    public ParticleRange StartHeight { get; set; }
+
+    /// <summary>The initial height velocity range in world units per second.</summary>
+    public ParticleRange HeightVelocity { get; set; }
+
+    /// <summary>
+    /// The constant height acceleration in world units per second squared. Positive
+    /// values rise; negative values fall. <see cref="ParticleGroupAsset.Drag"/>
+    /// damps both ground-plane and height velocity.
+    /// </summary>
+    public float HeightAcceleration { get; set; }
 }
 
 /// <summary>A 3D emitter group; adds 3D shape, direction, billboard roll and size parameters.</summary>

@@ -16,8 +16,10 @@ namespace Alco.Editor;
 /// the effect instance lifecycle (<see cref="SetEffect"/>,
 /// <see cref="LiveUpdateGroup(int, ParticleGroup2DAsset)"/>), the transport
 /// controls (pause, stop, restart, time scale — pausing records a 0 delta,
-/// which freezes the simulation but keeps pool bookkeeping alive) and the
-/// per-group emitter shape outlines read from <see cref="OverlaySource"/>.
+/// which freezes the simulation but keeps pool bookkeeping alive), the
+/// per-group emitter shape outlines read from <see cref="OverlaySource"/>,
+/// and the editor-only per-group visibility toggles
+/// (<see cref="SetGroupVisible"/>, never serialized into the asset).
 /// </summary>
 public sealed class ParticleEffectPreview : AutoDisposable
 {
@@ -157,6 +159,25 @@ public sealed class ParticleEffectPreview : AutoDisposable
         _instance3D.SetGroupParams(groupIndex, EmitterParams3D.FromAsset(group, _system3D!.QuadMesh.GetSubMesh(0).IndexCount));
     }
 
+    /// <summary>Whether a group is visible in the preview (true when there is no live instance).</summary>
+    /// <param name="groupIndex">The group index (0 .. group count - 1).</param>
+    private bool IsGroupVisible(int groupIndex) => _instance2D?.IsGroupVisible(groupIndex)
+        ?? _instance3D?.IsGroupVisible(groupIndex)
+        ?? true;
+
+    /// <summary>
+    /// Shows or hides a group in the preview. Preview-only state on the live
+    /// instance — the asset is never affected; the owning document re-applies the
+    /// toggles after preview rebuilds.
+    /// </summary>
+    /// <param name="groupIndex">The group index (0 .. group count - 1).</param>
+    /// <param name="visible">True to draw and simulate the group.</param>
+    public void SetGroupVisible(int groupIndex, bool visible)
+    {
+        _instance2D?.SetGroupVisible(groupIndex, visible);
+        _instance3D?.SetGroupVisible(groupIndex, visible);
+    }
+
     /// <summary>Draws the transport toolbar, the viewport and the status line.</summary>
     public void Draw()
     {
@@ -288,6 +309,10 @@ public sealed class ParticleEffectPreview : AutoDisposable
             List<ParticleGroup3DAsset> groups = ((ParticleEffect3DAsset)OverlaySource).Groups;
             for (int i = 0; i < groups.Count; i++)
             {
+                if (!IsGroupVisible(i))
+                {
+                    continue;
+                }
                 DrawShape3D(drawList, viewProjection, imageMin, imageSize, groups[i].Shape, ShapeColor(i));
             }
             return;
@@ -296,6 +321,10 @@ public sealed class ParticleEffectPreview : AutoDisposable
         List<ParticleGroup2DAsset> groups2D = ((ParticleEffect2DAsset)OverlaySource).Groups;
         for (int i = 0; i < groups2D.Count; i++)
         {
+            if (!IsGroupVisible(i))
+            {
+                continue;
+            }
             DrawShape2D(drawList, viewProjection, imageMin, imageSize, groups2D[i].Shape, ShapeColor(i));
         }
     }

@@ -318,7 +318,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             }
             foreach (ParticleEffectInstance3D.GroupState group in instance.Groups)
             {
-                if (!group.Active)
+                if (!group.Active || !group.Visible)
                 {
                     continue;
                 }

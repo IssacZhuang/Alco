@@ -15,7 +15,7 @@ module AlcoParticles_Core2D;
 
 import AlcoRendering_Core;
 
-// ── particle record (80 bytes) ──────────────────────────────────────────────
+// ── particle record (88 bytes) ──────────────────────────────────────────────
 
 public struct ParticleData2D
 {
@@ -27,11 +27,13 @@ public struct ParticleData2D
     public float2 startScale;      // spawn scale, the lerp source of size-over-life
     public float rotation;         // radians
     public float angularVelocity;  // radians per second
+    public float height;           // independent height above the ground plane
+    public float heightVelocity;   // height units per second
     public float lifetime;         // remaining seconds; <= 0 marks a dead (free) slot
     public float duration;         // total seconds
 };
 
-// ── per-emitter parameters (336 bytes, one per emitter slot, CPU-written) ───
+// ── per-emitter parameters (352 bytes, one per emitter slot, CPU-written) ───
 
 public struct EmitterParams2D
 {
@@ -62,7 +64,8 @@ public struct EmitterParams2D
     public float4 size;            // xy = min, zw = max (quad extents at spawn)
     public float4 rotation2;       // x = start rotation min, y = max, z = angular velocity min, w = max
     public float4 overLife;        // x = end scale multiplier, y = stretch length scale
-    public float4 motion;          // xy = gravity, z = drag
+    public float4 motion;          // xy = planar gravity, z = drag, w = height acceleration
+    public float4 heightMotion;    // xy = initial height min/max, zw = height velocity min/max
     public float4 colorMin;
     public float4 colorMax;
     public float4 colorEnd;
@@ -71,7 +74,8 @@ public struct EmitterParams2D
     public float4 flipbook;        // x = rows, y = cols, z = fps, w = loop (0/1)
     public uint4 renderMisc;       // x = quad mesh index count, y = custom per-instance
                                    // data (float bits; surfaced to material vertex hooks
-                                   // as ParticleVertexInput.customData)
+                                   // as ParticleVertexInput.customData), z = emitter
+                                   // height (float bits)
 };
 
 // ── emitter flag bits ───────────────────────────────────────────────────────
@@ -203,6 +207,12 @@ public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2
     }
     particle.position = position;
     particle.velocity = velocity;
+    particle.height = particleRange(rng, emitter.heightMotion.x, emitter.heightMotion.y);
+    particle.heightVelocity = particleRange(rng, emitter.heightMotion.z, emitter.heightMotion.w);
+    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u)
+    {
+        particle.height += asfloat(emitter.renderMisc.z);
+    }
     particle.duration = particleRange(rng, emitter.life.x, emitter.life.y);
     particle.lifetime = particle.duration;
     particle.startScale = float2(
@@ -236,6 +246,9 @@ public void particleSimulateDefault2D(inout ParticleData2D particle, EmitterPara
     particle.velocity += emitter.motion.xy * dt;
     particle.velocity *= exp(-emitter.motion.z * dt);
     particle.position += particle.velocity * dt;
+    particle.heightVelocity += emitter.motion.w * dt;
+    particle.heightVelocity *= exp(-emitter.motion.z * dt);
+    particle.height += particle.heightVelocity * dt;
     particle.rotation += particle.angularVelocity * dt;
     particle.scale = particle.startScale * lerp(1.0, emitter.overLife.x, age);
     float4 color = lerp(particle.startColor, emitter.colorEnd, age);

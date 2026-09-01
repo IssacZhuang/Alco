@@ -39,6 +39,9 @@ public class TestParticleEffectAsset
                     "angularVelocity": { "min": -3, "max": 3 },
                     "alignRotationToVelocity": true,
                     "gravity": { "x": 0, "y": -300 },
+                    "startHeight": { "min": 0.25, "max": 0.75 },
+                    "heightVelocity": { "min": 2, "max": 4 },
+                    "heightAcceleration": -9.8,
                     "drag": 1.5,
                     "startColor": { "min": "#FFCC00FF", "max": "#FF5000FF" },
                     "endColor": "#00000000",
@@ -100,6 +103,11 @@ public class TestParticleEffectAsset
             Assert.That(sparks.Speed.Min, Is.EqualTo(100f));
             Assert.That(sparks.AlignRotationToVelocity, Is.True);
             Assert.That(sparks.Gravity.Y, Is.EqualTo(-300f));
+            Assert.That(sparks.StartHeight.Min, Is.EqualTo(0.25f));
+            Assert.That(sparks.StartHeight.Max, Is.EqualTo(0.75f));
+            Assert.That(sparks.HeightVelocity.Min, Is.EqualTo(2f));
+            Assert.That(sparks.HeightVelocity.Max, Is.EqualTo(4f));
+            Assert.That(sparks.HeightAcceleration, Is.EqualTo(-9.8f));
             Assert.That(sparks.StartColor.Max.R, Is.EqualTo(1f));
             Assert.That(sparks.StartColor.Max.G, Is.EqualTo(0x50 / 255f).Within(1e-6));
             Assert.That(sparks.EndColor.A, Is.EqualTo(0f));
@@ -143,6 +151,8 @@ public class TestParticleEffectAsset
                 "stretch + alignRotationToVelocity sets the stretch bit");
             Assert.That(parameters.Speed.W, Is.EqualTo(0.08f));
             Assert.That(parameters.OverLife.Y, Is.EqualTo(1.5f));
+            Assert.That(parameters.HeightMotion, Is.EqualTo(new System.Numerics.Vector4(0.25f, 0.75f, 2f, 4f)));
+            Assert.That(parameters.Motion.W, Is.EqualTo(-9.8f));
             Assert.That(defaults.Flags, Is.EqualTo(EmitterParams2D.FlagWorldSpace),
                 "a default group sets only the world-space bit");
         });
@@ -220,9 +230,9 @@ public class TestParticleEffectAsset
         // sizes; a mismatch here means a struct drifted out of sync.
         Assert.Multiple(() =>
         {
-            Assert.That(Marshal.SizeOf<GpuParticle2D>(), Is.EqualTo(80));
+            Assert.That(Marshal.SizeOf<GpuParticle2D>(), Is.EqualTo(88));
             Assert.That(Marshal.SizeOf<GpuParticle3D>(), Is.EqualTo(80));
-            Assert.That(Marshal.SizeOf<EmitterParams2D>(), Is.EqualTo(336));
+            Assert.That(Marshal.SizeOf<EmitterParams2D>(), Is.EqualTo(352));
             Assert.That(Marshal.SizeOf<EmitterParams3D>(), Is.EqualTo(320));
         });
     }

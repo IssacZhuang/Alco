@@ -41,6 +41,14 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
         /// <summary>Whether the group still does GPU work (emitting or has live particles).</summary>
         public bool Active = true;
 
+        /// <summary>
+        /// Whether the group draws and simulates (per-instance state; the asset is
+        /// never mutated). A hidden group drops out of the draw plan — its live
+        /// particles freeze — while its emission timeline keeps advancing,
+        /// mirroring <see cref="ParticleEffectInstance3D.IsVisible"/>.
+        /// </summary>
+        public bool Visible = true;
+
         /// <summary>The group's render material (shared per group asset).</summary>
         public required GraphicsMaterial Material;
 
@@ -127,6 +135,23 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
     public void SetGroupEmissionRate(int groupIndex, float rate)
     {
         _groups[groupIndex].EmissionRate = Math.Max(rate, 0f);
+    }
+
+    /// <summary>Whether a group is visible (drawn and simulated) on this instance.</summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    public bool IsGroupVisible(int groupIndex) => _groups[groupIndex].Visible;
+
+    /// <summary>
+    /// Shows or hides a group for this instance (the asset is not mutated). A
+    /// hidden group drops out of the draw plan — its emit/simulate dispatches and
+    /// draw are skipped, so its live particles freeze — while its emission
+    /// timeline keeps advancing, mirroring <see cref="IsVisible"/>.
+    /// </summary>
+    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <param name="visible">True to draw and simulate the group.</param>
+    public void SetGroupVisible(int groupIndex, bool visible)
+    {
+        _groups[groupIndex].Visible = visible;
     }
 
     /// <summary>A copy of the group's live parameter record (static and per-frame fields).</summary>
