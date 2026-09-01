@@ -74,9 +74,16 @@ public sealed partial class ParticleEffectDocument
         ImGui.TextDisabled($"Type: {(_is3D ? "3D" : "2D")} — {EffectGroupCount} group(s); rendered in list order");
 
         int count = EffectGroupCount;
+        int removeGroup = -1;
         for (int i = 0; i < count; i++)
         {
-            DrawGroup(i, GetGroup(i));
+            DrawGroup(i, GetGroup(i), ref removeGroup);
+        }
+        // Deferred until the loop ends: removing mid-iteration would shift the
+        // remaining indices and throw inside this draw pass.
+        if (removeGroup >= 0)
+        {
+            RemoveGroup(removeGroup);
         }
 
         if (ImGui.Button("Add Group"))
@@ -127,8 +134,9 @@ public sealed partial class ParticleEffectDocument
         }
     }
 
-    /// <summary>One group editor: header buttons, then the parameter sections.</summary>
-    private void DrawGroup(int index, ParticleGroupAsset group)
+    /// <summary>One group editor: header buttons, then the parameter sections. A Delete
+    /// click only records the index; the caller removes the group after the draw pass.</summary>
+    private void DrawGroup(int index, ParticleGroupAsset group, ref int removeGroup)
     {
         GroupUiState state = GetGroupUiState(group);
         ImGui.PushID(index);
@@ -176,7 +184,7 @@ public sealed partial class ParticleEffectDocument
             ImGui.BeginDisabled(EffectGroupCount <= 1);
             if (ImGui.SmallButton("Delete"))
             {
-                RemoveGroup(index);
+                removeGroup = index;
             }
             ImGui.EndDisabled();
 

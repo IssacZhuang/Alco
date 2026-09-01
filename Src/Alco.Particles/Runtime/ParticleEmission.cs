@@ -11,6 +11,15 @@ namespace Alco.Particles;
 internal static class ParticleEmission
 {
     /// <summary>
+    /// The maximum simulation time step the particle systems simulate per frame.
+    /// Frame deltas beyond it (hitches: first-use shader compilation, save load,
+    /// OS stalls) clamp, so transient effects play through the stall slightly
+    /// slower instead of fast-forwarding past their emission timeline and dying
+    /// in a single dispatch.
+    /// </summary>
+    public const float MaxDeltaTime = 0.1f;
+
+    /// <summary>
     /// Advances the emission timeline by one frame.
     /// </summary>
     /// <param name="time">The unwrapped timeline position in seconds (never wraps; the shader-side emitter time wraps by modulo).</param>

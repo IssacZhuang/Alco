@@ -117,6 +117,9 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     /// <summary>The shared buffer pool (diagnostics).</summary>
     internal ParticleBufferPool<GpuParticle3D, EmitterParams3D> Pool => _pool;
 
+    /// <summary>The number of groups in the draw plan built by the last <see cref="RecordSimulation"/> (tests).</summary>
+    internal int PlannedDrawGroupCount => _drawGroups.Count;
+
     /// <summary>The shared pool's current particle capacity (grows geometrically when exhausted).</summary>
     public int PoolParticleCapacity => _pool.ParticleCapacity;
 
@@ -196,13 +199,14 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     /// <summary>
     /// Records the simulation of all active instances into
     /// <paramref name="commandBuffer"/> (see
-    /// <see cref="GpuParticleSystem2D.RecordSimulation"/> for the recorded work and
-    /// the delta-time freeze semantics).
+    /// <see cref="GpuParticleSystem2D.RecordSimulation"/> for the recorded work,
+    /// the delta-time freeze semantics and the hitch clamp).
     /// </summary>
     /// <param name="commandBuffer">The frame command buffer to record into.</param>
     /// <param name="deltaTime">The simulation time step in seconds.</param>
     public void RecordSimulation(GPUCommandBuffer commandBuffer, float deltaTime)
     {
+        deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
         _pool.RecordMigration(commandBuffer);
 
         uint dirtyMin = uint.MaxValue;
@@ -326,6 +330,10 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                 {
                     bucket = [];
                     _drawBuckets[group.Material] = bucket;
+                    // A brand-new material enters the first-seen order on its
+                    // very first frame — otherwise the effect's debut frame
+                    // neither dispatches nor draws.
+                    _drawMaterials.Add(group.Material);
                 }
                 else if (bucket.Count == 0)
                 {

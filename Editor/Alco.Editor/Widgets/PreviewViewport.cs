@@ -30,7 +30,7 @@ public abstract class PreviewViewport : AutoDisposable
     /// <summary>The finest grid step; finer measurement is the scale bar's job.</summary>
     private const float MinGridStep = 0.1f;
 
-    private ColorFloat _background = new(0.13f, 0.13f, 0.13f, 1f);
+    private ColorFloat _background = new(0.07f, 0.07f, 0.07f, 1f);
     private bool _showGrid = true;
     private bool _showAxes = true;
     private bool _showRuler = true;

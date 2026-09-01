@@ -118,6 +118,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <summary>The shared buffer pool (diagnostics).</summary>
     internal ParticleBufferPool<GpuParticle2D, EmitterParams2D> Pool => _pool;
 
+    /// <summary>The number of groups in the draw plan built by the last <see cref="RecordSimulation"/> (tests).</summary>
+    internal int PlannedDrawGroupCount => _drawGroups.Count;
+
     /// <summary>The shared pool's current particle capacity (grows geometrically when exhausted).</summary>
     public int PoolParticleCapacity => _pool.ParticleCapacity;
 
@@ -216,12 +219,17 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// before the scene pass the particles draw into (e.g. from an
     /// <see cref="RGNode_Callback"/>). Pass
     /// <paramref name="deltaTime"/> = 0 to freeze the simulation while still
-    /// processing pool migrations and pending kills.
+    /// processing pool migrations and pending kills. The step clamps to
+    /// <see cref="ParticleEmission.MaxDeltaTime"/>: a hitch (first-use shader
+    /// compilation, save load, OS stall) must not fast-forward one-shot effects
+    /// past their emission timeline and kill every live particle in a single
+    /// dispatch — effects play through hitches slightly slower instead.
     /// </summary>
     /// <param name="commandBuffer">The frame command buffer to record into.</param>
     /// <param name="deltaTime">The simulation time step in seconds.</param>
     public void RecordSimulation(GPUCommandBuffer commandBuffer, float deltaTime)
     {
+        deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
         _pool.RecordMigration(commandBuffer);
 
         uint dirtyMin = uint.MaxValue;
@@ -337,6 +345,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 {
                     bucket = [];
                     _drawBuckets[group.Material] = bucket;
+                    // A brand-new material enters the first-seen order on its
+                    // very first frame — otherwise the effect's debut frame
+                    // neither dispatches nor draws.
+                    _drawMaterials.Add(group.Material);
                 }
                 else if (bucket.Count == 0)
                 {

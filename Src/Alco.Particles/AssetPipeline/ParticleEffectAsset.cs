@@ -108,8 +108,13 @@ public abstract class ParticleGroupAsset
     /// <summary>The particle lifetime range in seconds.</summary>
     public ParticleRange Lifetime { get; set; } = new(1f, 2f);
 
-    /// <summary>The initial speed range in world units per second.</summary>
-    public ParticleRange Speed { get; set; } = new(10f, 20f);
+    /// <summary>
+    /// The initial speed range in world units per second. Defaults to 0
+    /// (stationary): an omitted speed must not silently combine with the
+    /// default constant direction into motion the author never wrote —
+    /// authors opt into movement by writing a speed.
+    /// </summary>
+    public ParticleRange Speed { get; set; } = new();
 
     /// <summary>
     /// The per-particle color at spawn, sampled component-wise between min (rgba)
