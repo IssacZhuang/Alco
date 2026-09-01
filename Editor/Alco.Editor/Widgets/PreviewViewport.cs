@@ -10,7 +10,7 @@ namespace Alco.Editor;
 /// A reusable offscreen preview viewport for asset editors: a small
 /// <see cref="RenderPipeline"/> (HDR scene + ACES tonemap + blit into an RGBA8
 /// target shown through <c>ImGui.Image</c>) with a built-in camera, viewport
-/// input, and a world-space helper overlay (grid and axes).
+/// input, and a world-space helper overlay (grid, axes and a scale bar).
 /// <br/>The viewport does not know what it renders. The owning document hooks
 /// the pipeline through delegates: <see cref="SceneContent"/> draws into the
 /// scene pass, <see cref="RecordFrame"/> records per-frame GPU work ahead of it
@@ -24,9 +24,17 @@ public abstract class PreviewViewport : AutoDisposable
 {
     private readonly RenderPipeline _pipeline;
     private readonly RenderTexture _target;
+    /// <summary>The smallest on-screen cell size before the grid falls back to a coarser decade.</summary>
+    private const float MinGridCellPixels = 24f;
+
+    /// <summary>The finest grid step; finer measurement is the scale bar's job.</summary>
+    private const float MinGridStep = 0.1f;
+
     private ColorFloat _background = new(0.13f, 0.13f, 0.13f, 1f);
     private bool _showGrid = true;
     private bool _showAxes = true;
+    private bool _showRuler = true;
+    private float _gridStep = 1f;
 
     /// <summary>Creates the pipeline, target and overlay plumbing.</summary>
     /// <param name="context">The editor context (engine services).</param>
@@ -122,8 +130,8 @@ public abstract class PreviewViewport : AutoDisposable
     /// <summary>The camera view-projection matrix used by the overlay projection.</summary>
     protected abstract Matrix4x4 ViewProjection { get; }
 
-    /// <summary>The world scale the grid spacing adapts to (view width or orbit distance).</summary>
-    protected abstract float OverlayScale { get; }
+    /// <summary>The screen density at the camera's focus point, in pixels per world unit.</summary>
+    protected abstract float PixelsPerUnit { get; }
 
     /// <summary>The camera readout in the status line (e.g. "zoom 1x", "dist 8").</summary>
     protected abstract string CameraStatus { get; }
@@ -190,6 +198,8 @@ public abstract class PreviewViewport : AutoDisposable
         ImGui.Checkbox("Grid", ref _showGrid);
         ImGui.SameLine();
         ImGui.Checkbox("Axes", ref _showAxes);
+        ImGui.SameLine();
+        ImGui.Checkbox("Ruler", ref _showRuler);
         if (ToolbarTrailing != null)
         {
             ImGui.SameLine();
@@ -259,30 +269,74 @@ public abstract class PreviewViewport : AutoDisposable
         }
     }
 
-    /// <summary>Draws the helper overlay (grid, world axes, extras) over the viewport image.</summary>
+    /// <summary>Draws the helper overlay (grid, world axes, scale bar, extras) over the viewport image.</summary>
     private void DrawOverlay(Vector2 imageMin, Vector2 imageSize)
     {
-        if (!_showGrid && !_showAxes && OverlayExtras == null)
+        if (!_showGrid && !_showAxes && !_showRuler && OverlayExtras == null)
         {
             return;
         }
 
         Matrix4x4 viewProjection = ViewProjection;
-        // Adaptive 1-2-5 spacing, roughly ten cells across the view.
-        float step = PickGridStep(OverlayScale / 10f);
+        // The grid is a world-size ruler, not a screen-space pattern: cells keep
+        // their true world size across a wide zoom range and only jump decades
+        // when they would shrink below a readable pixel width.
+        float pixelsPerUnit = PixelsPerUnit;
+        _gridStep = PickAnchoredGridStep(pixelsPerUnit);
 
         ImDrawListPtr drawList = ImGui.GetWindowDrawList();
         drawList.PushClipRect(imageMin, imageMin + imageSize, true);
         if (_showGrid)
         {
-            DrawGridLines(drawList, viewProjection, imageMin, imageSize, step);
+            DrawGridLines(drawList, viewProjection, imageMin, imageSize, _gridStep);
         }
         if (_showAxes)
         {
-            DrawAxisLines(drawList, viewProjection, imageMin, imageSize, step);
+            DrawAxisLines(drawList, viewProjection, imageMin, imageSize, _gridStep);
+        }
+        if (_showRuler)
+        {
+            DrawScaleBar(drawList, imageMin, imageSize, pixelsPerUnit);
         }
         OverlayExtras?.Invoke(drawList, viewProjection, imageMin, imageSize);
         drawList.PopClipRect();
+    }
+
+    /// <summary>
+    /// Snaps the grid step to the finest decade (0.1, 1, 10, ...) whose cells
+    /// reach <see cref="MinGridCellPixels"/> on screen, anchoring one cell to a
+    /// true world-unit size instead of resizing with the camera.
+    /// </summary>
+    private static float PickAnchoredGridStep(float pixelsPerUnit)
+    {
+        float step = MinGridStep;
+        while (step * pixelsPerUnit < MinGridCellPixels)
+        {
+            step *= 10f;
+        }
+        return step;
+    }
+
+    /// <summary>Draws a bottom-left scale bar with a 1-2-5 world length close to 90 pixels.</summary>
+    private void DrawScaleBar(ImDrawListPtr drawList, Vector2 imageMin, Vector2 imageSize, float pixelsPerUnit)
+    {
+        const float targetPixels = 90f;
+        float length = PickGridStep(targetPixels / pixelsPerUnit);
+        Vector2 start = new(imageMin.X + 12f, imageMin.Y + imageSize.Y - 14f);
+        Vector2 end = start + new Vector2(length * pixelsPerUnit, 0f);
+        uint color = ImGui.GetColorU32(new Vector4(1f, 1f, 1f, 0.55f));
+        drawList.AddLine(start, end, color, 1.5f);
+        drawList.AddLine(start, start + new Vector2(0f, -5f), color, 1.5f);
+        drawList.AddLine(end, end + new Vector2(0f, -5f), color, 1.5f);
+        string label = UnitsLabel(length);
+        Vector2 textSize = ImGui.CalcTextSize(label);
+        drawList.AddText(new Vector2((start.X + end.X - textSize.X) * 0.5f, start.Y - 6f - textSize.Y), color, label);
+    }
+
+    /// <summary>Formats a world-unit length for the grid readout and the scale bar ("0.5u").</summary>
+    private static string UnitsLabel(float units)
+    {
+        return $"{units:0.##}u";
     }
 
     /// <summary>The diagnostics line under the viewport.</summary>
@@ -295,7 +349,12 @@ public abstract class PreviewViewport : AutoDisposable
         {
             prefix += " | ";
         }
-        ImGui.TextDisabled($"{prefix}{CameraStatus} | {InputHint}{StatusSuffix?.Invoke() ?? string.Empty}");
+        string camera = CameraStatus;
+        if (_showGrid)
+        {
+            camera += $" | grid {UnitsLabel(_gridStep)}";
+        }
+        ImGui.TextDisabled($"{prefix}{camera} | {InputHint}{StatusSuffix?.Invoke() ?? string.Empty}");
     }
 
     /// <summary>Snaps a raw grid spacing to a 1-2-5 decade step.</summary>

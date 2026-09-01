@@ -52,7 +52,7 @@ public sealed class PreviewViewport3D : PreviewViewport
     protected override Matrix4x4 ViewProjection => _camera.Data.ViewProjectionMatrix;
 
     /// <inheritdoc />
-    protected override float OverlayScale => _orbitDistance;
+    protected override float PixelsPerUnit => (float)Target.Height / (2f * _orbitDistance * MathF.Tan(_camera.FieldOfView * 0.5f));
 
     /// <inheritdoc />
     protected override string CameraStatus => $"dist {_orbitDistance:0.##}";
@@ -168,7 +168,8 @@ public sealed class PreviewViewport3D : PreviewViewport
         uint xColor = ImGui.GetColorU32(new Vector4(1f, 0.3f, 0.3f, 0.8f));
         uint yColor = ImGui.GetColorU32(new Vector4(0.35f, 0.9f, 0.35f, 0.8f));
         const float thickness = 1.5f;
-        float extent = step * 10f;
+        // Never shrink with a fine grid step, so the axes stay visible when zoomed in.
+        float extent = MathF.Max(step * 10f, 10f);
         DrawWorldLine(drawList, viewProjection, imageMin, imageSize,
             new Vector3(-extent, 0f, 0f), new Vector3(extent, 0f, 0f), xColor, thickness);
         DrawWorldLine(drawList, viewProjection, imageMin, imageSize,

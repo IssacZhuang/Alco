@@ -242,8 +242,11 @@ public sealed class ParticleEffectPreview : AutoDisposable
             ImGui.SetTooltip("Restart the effect (Space)");
         }
         ImGui.SameLine();
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted("Speed");
+        ImGui.SameLine();
         ImGui.SetNextItemWidth(110f);
-        ImGui.SliderFloat("##timescale", ref _timeScale, 0.05f, 4f, "speed %.2fx");
+        ImGui.SliderFloat("##timescale", ref _timeScale, 0.05f, 4f, "%.2fx");
     }
 
     /// <summary>The emitter shape overlay toggle after the viewport's camera controls.</summary>

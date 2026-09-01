@@ -221,7 +221,7 @@ public static class BuiltInImGUIStyle
         style.Colors[(int)ImGuiCol.WindowBg] = bg;
         style.Colors[(int)ImGuiCol.ChildBg] = surf;
         style.Colors[(int)ImGuiCol.PopupBg] = WithAlpha(raised, 0.98f);
-        style.Colors[(int)ImGuiCol.FrameBg] = surf;
+        style.Colors[(int)ImGuiCol.FrameBg] = raised;
         style.Colors[(int)ImGuiCol.FrameBgHovered] = Mix(hover, accent, 0.12f);
         style.Colors[(int)ImGuiCol.FrameBgActive] = Mix(surf, accent, 0.22f);
 

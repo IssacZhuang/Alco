@@ -307,28 +307,29 @@ public sealed partial class ParticleEffectDocument
         {
             ParticleBurst burst = group.Bursts[b];
             ImGui.PushID(b);
-            ImGui.AlignTextToFramePadding();
-            ImGui.TextUnformatted("Burst");
-            ImGui.SameLine();
+            Caption("Burst");
+            Caption("at");
             float time = burst.Time;
             ImGui.SetNextItemWidth(70f);
-            if (ImGui.DragFloat("##time", ref time, 0.02f, 0f, 300f, "t=%.2f"))
+            if (ImGui.DragFloat("##time", ref time, 0.02f, 0f, 300f))
             {
                 burst.Time = time;
                 OnStructuralEdit();
             }
             ImGui.SameLine();
+            Caption("min");
             int countMin = burst.CountMin;
             ImGui.SetNextItemWidth(60f);
-            if (ImGui.DragInt("##countmin", ref countMin, 0.2f, 0, 100000, "min %d"))
+            if (ImGui.DragInt("##countmin", ref countMin, 0.2f, 0, 100000))
             {
                 burst.CountMin = countMin;
                 OnStructuralEdit();
             }
             ImGui.SameLine();
+            Caption("max");
             int countMax = burst.CountMax;
             ImGui.SetNextItemWidth(60f);
-            if (ImGui.DragInt("##countmax", ref countMax, 0.2f, 0, 100000, "max %d"))
+            if (ImGui.DragInt("##countmax", ref countMax, 0.2f, 0, 100000))
             {
                 burst.CountMax = countMax;
                 OnStructuralEdit();
@@ -1049,20 +1050,28 @@ public sealed partial class ParticleEffectDocument
         return ImGui.SliderFloat(label, ref value, min, max);
     }
 
+    /// <summary>A small caption vertically aligned with the following widget, on the same line.</summary>
+    private static void Caption(string text)
+    {
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(text);
+        ImGui.SameLine();
+    }
+
     /// <summary>A min/max pair of drag fields for a scalar range.</summary>
     private static bool DrawRangeRow(string label, ParticleRange range, out ParticleRange result, float speed)
     {
         float min = range.Min;
         float max = range.Max;
         ImGui.PushID(label);
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(label);
-        ImGui.SameLine();
+        Caption(label);
+        Caption("min");
         ImGui.SetNextItemWidth(90f);
-        bool changed = ImGui.DragFloat("##min", ref min, speed, 0f, 0f, "min %.3g");
+        bool changed = ImGui.DragFloat("##min", ref min, speed, 0f, 0f);
         ImGui.SameLine();
+        Caption("max");
         ImGui.SetNextItemWidth(90f);
-        changed |= ImGui.DragFloat("##max", ref max, speed, 0f, 0f, "max %.3g");
+        changed |= ImGui.DragFloat("##max", ref max, speed, 0f, 0f);
         ImGui.PopID();
         result = new ParticleRange(min, max);
         return changed;
@@ -1074,14 +1083,14 @@ public sealed partial class ParticleEffectDocument
         Vector2 min = range.Min;
         Vector2 max = range.Max;
         ImGui.PushID(label);
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(label);
-        ImGui.SameLine();
+        Caption(label);
+        Caption("min");
         ImGui.SetNextItemWidth(140f);
-        bool changed = ImGui.DragFloat2("##min", ref min, speed, 0f, 0f, "min %.3g");
+        bool changed = ImGui.DragFloat2("##min", ref min, speed, 0f, 0f);
         ImGui.SameLine();
+        Caption("max");
         ImGui.SetNextItemWidth(-1f);
-        changed |= ImGui.DragFloat2("##max", ref max, speed, 0f, 0f, "max %.3g");
+        changed |= ImGui.DragFloat2("##max", ref max, speed, 0f, 0f);
         ImGui.PopID();
         result = new ParticleVector2Range { Min = min, Max = max };
         return changed;

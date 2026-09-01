@@ -47,7 +47,7 @@ public sealed class PreviewViewport2D : PreviewViewport
     protected override Matrix4x4 ViewProjection => _camera.Data.ViewProjectionMatrix;
 
     /// <inheritdoc />
-    protected override float OverlayScale => _camera.ViewSize.X;
+    protected override float PixelsPerUnit => (float)Target.Width / _camera.ViewSize.X;
 
     /// <inheritdoc />
     protected override string CameraStatus => $"zoom {_zoom:0.##}x";
