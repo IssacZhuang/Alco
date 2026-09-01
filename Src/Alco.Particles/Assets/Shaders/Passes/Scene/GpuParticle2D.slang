@@ -147,21 +147,27 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     world = surface.adjustWorldPosition(vertexInput);
     output.position = mul(camera.viewProjection, float4(world, 1.0));
 
-    // Flipbook: the frame follows the particle's age (or the remaining life when
-    // PARTICLE_FLAG_FLIPBOOK_REVERSE is set — sprite sheets authored for
+    // Flipbook: the playback rate is relative to the particle's lifetime —
+    // flipbook.z plays the anim that many times over one lifetime (1 = every
+    // frame exactly once from spawn to death, per particle; 2 = twice; 0 =
+    // static first frame). flipbook.w frames per anim splits the sheet into
+    // variants; each particle plays the one anim picked at spawn
+    // (particle.animStart). PARTICLE_FLAG_FLIPBOOK_REVERSE plays the anim
+    // backwards (last frame at spawn — sprite sheets authored for
     // lifetime-keyed playback).
     float2 uv = input.uv;
     uint rows = uint(emitter.flipbook.x);
     uint cols = uint(emitter.flipbook.y);
     if (rows * cols > 1u)
     {
-        uint frame = uint(age * emitter.flipbook.z);
         uint total = rows * cols;
-        frame = emitter.flipbook.w > 0.5 ? frame % total : min(frame, total - 1u);
+        uint perAnim = emitter.flipbook.w > 0.5 ? min(uint(emitter.flipbook.w), total) : total;
+        uint frameInAnim = uint(age01 * float(perAnim) * emitter.flipbook.z) % perAnim;
         if ((emitter.flags & PARTICLE_FLAG_FLIPBOOK_REVERSE) != 0u)
         {
-            frame = total - 1u - frame;
+            frameInAnim = perAnim - 1u - frameInAnim;
         }
+        uint frame = particle.animStart + frameInAnim;
         float2 cell = float2(float(frame % cols), float(frame / cols));
         uv = (uv + cell) / float2(float(cols), float(rows));
     }

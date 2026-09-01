@@ -15,7 +15,7 @@ module AlcoParticles_Core2D;
 
 import AlcoRendering_Core;
 
-// ── particle record (88 bytes) ──────────────────────────────────────────────
+// ── particle record (92 bytes) ──────────────────────────────────────────────
 
 public struct ParticleData2D
 {
@@ -31,6 +31,7 @@ public struct ParticleData2D
     public float heightVelocity;   // height units per second
     public float lifetime;         // remaining seconds; <= 0 marks a dead (free) slot
     public float duration;         // total seconds
+    public uint animStart;         // flipbook: first frame of the anim picked at spawn
 };
 
 // ── per-emitter parameters (352 bytes, one per emitter slot, CPU-written) ───
@@ -71,7 +72,8 @@ public struct EmitterParams2D
     public float4 colorEnd;
     // render
     public float4 tint;
-    public float4 flipbook;        // x = rows, y = cols, z = fps, w = loop (0/1)
+    public float4 flipbook;        // x = rows, y = cols, z = lifetime-relative cycles,
+                                   // w = frames per anim (0 = whole sheet, one anim)
     public uint4 renderMisc;       // x = quad mesh index count, y = custom per-instance
                                    // data (float bits; surfaced to material vertex hooks
                                    // as ParticleVertexInput.customData), z = emitter
@@ -139,6 +141,22 @@ public float particleRandom(inout uint state)
 public float particleRange(inout uint state, float minValue, float maxValue)
 {
     return lerp(minValue, maxValue, particleRandom(state));
+}
+
+// Flipbook anim pick, shared by the 2D and 3D spawn defaults: when the sheet
+// packs several anims (flipbook.w frames per anim), draws one anim at random
+// and returns its first frame; 0 for a whole-sheet single animation. Trailing
+// cells are skipped when the anim length does not divide the sheet evenly.
+public uint particlePickFlipbookAnim(float4 flipbook, inout uint state)
+{
+    if (flipbook.w < 0.5)
+    {
+        return 0u;
+    }
+    uint total = uint(flipbook.x) * uint(flipbook.y);
+    uint perAnim = min(uint(flipbook.w), total);
+    uint animCount = max(total / perAnim, 1u);
+    return min(uint(particleRandom(state) * float(animCount)), animCount - 1u) * perAnim;
 }
 
 // ── small math helpers ──────────────────────────────────────────────────────
@@ -229,6 +247,7 @@ public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2
         particleRandom(rng), particleRandom(rng), particleRandom(rng), particleRandom(rng))
         * (emitter.colorMax - emitter.colorMin) + emitter.colorMin;
     particle.color = particle.startColor;
+    particle.animStart = particlePickFlipbookAnim(emitter.flipbook, rng);
 }
 
 // The default simulate: gravity, exponential drag, integration, rotation,

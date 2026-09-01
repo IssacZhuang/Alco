@@ -339,11 +339,23 @@ public class ParticleFlipbook
     /// <summary>The number of columns in the sprite sheet.</summary>
     public int Cols { get; set; } = 1;
 
-    /// <summary>The playback rate in frames per second over the particle's age.</summary>
-    public float Fps { get; set; } = 30f;
+    /// <summary>
+    /// The playback rate relative to the particle's lifetime: 1 plays the whole
+    /// sheet exactly once from spawn to death, 2 plays it twice, 0 holds the
+    /// first frame; fractional values play a portion of the sheet. Each particle
+    /// aligns to its own sampled lifetime, so a randomized lifetime stays in
+    /// sync — no fps/lifetime math.
+    /// </summary>
+    public float Cycles { get; set; } = 1f;
 
-    /// <summary>Whether the animation loops instead of clamping to the last frame.</summary>
-    public bool Loop { get; set; } = true;
+    /// <summary>
+    /// The number of frames in one animation when the sheet packs several
+    /// variants (e.g. a smoke sheet of eight one-row anims): each particle
+    /// draws one anim at spawn and plays only that. 0 (default) treats the
+    /// whole sheet as a single animation; trailing cells are skipped when the
+    /// length does not divide the sheet evenly.
+    /// </summary>
+    public int FramesPerAnim { get; set; }
 
     /// <summary>
     /// Whether the animation plays in reverse (last frame at spawn, first frame at

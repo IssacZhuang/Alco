@@ -160,15 +160,17 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     uint cols = uint(emitter.flipbook.y);
     if (rows * cols > 1u)
     {
-        // The frame follows the particle's age (or the remaining life when
-        // PARTICLE_FLAG_FLIPBOOK_REVERSE is set — see the 2D pass).
-        uint frame = uint(age * emitter.flipbook.z);
+        // Lifetime-relative cycles (flipbook.z) play the anim picked at spawn
+        // (particle.animStart); flipbook.w frames per anim splits the sheet
+        // into variants. REVERSE plays the anim backwards — see the 2D pass.
         uint total = rows * cols;
-        frame = emitter.flipbook.w > 0.5 ? frame % total : min(frame, total - 1u);
+        uint perAnim = emitter.flipbook.w > 0.5 ? min(uint(emitter.flipbook.w), total) : total;
+        uint frameInAnim = uint(age01 * float(perAnim) * emitter.flipbook.z) % perAnim;
         if ((emitter.flags & PARTICLE_FLAG_FLIPBOOK_REVERSE) != 0u)
         {
-            frame = total - 1u - frame;
+            frameInAnim = perAnim - 1u - frameInAnim;
         }
+        uint frame = particle.animStart + frameInAnim;
         float2 cell = float2(float(frame % cols), float(frame / cols));
         uv = (uv + cell) / float2(float(cols), float(rows));
     }

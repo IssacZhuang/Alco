@@ -196,7 +196,7 @@ public class TestParticleEffectAsset
                         "material": "Materials/TestParticleMat.amat",
                         "texture": "TestNoise",
                         "blend": "Additive",
-                        "flipbook": { "rows": 2, "cols": 2, "fps": 12 }
+                        "flipbook": { "rows": 2, "cols": 2 }
                     }
                 ]
             }
@@ -230,8 +230,8 @@ public class TestParticleEffectAsset
         // sizes; a mismatch here means a struct drifted out of sync.
         Assert.Multiple(() =>
         {
-            Assert.That(Marshal.SizeOf<GpuParticle2D>(), Is.EqualTo(88));
-            Assert.That(Marshal.SizeOf<GpuParticle3D>(), Is.EqualTo(80));
+            Assert.That(Marshal.SizeOf<GpuParticle2D>(), Is.EqualTo(92));
+            Assert.That(Marshal.SizeOf<GpuParticle3D>(), Is.EqualTo(84));
             Assert.That(Marshal.SizeOf<EmitterParams2D>(), Is.EqualTo(352));
             Assert.That(Marshal.SizeOf<EmitterParams3D>(), Is.EqualTo(320));
         });
@@ -242,8 +242,8 @@ public class TestParticleEffectAsset
     {
         // Sheets authored for remaining-lifetime playback (full flame at death)
         // play in reverse; the bit sits at the same position in 2D and 3D.
-        var reverse = new ParticleFlipbook { Rows = 4, Cols = 4, Fps = 12f, Loop = false, Reverse = true };
-        var forward = new ParticleFlipbook { Rows = 4, Cols = 4, Fps = 12f, Loop = false };
+        var reverse = new ParticleFlipbook { Rows = 4, Cols = 4, Cycles = 1f, Reverse = true };
+        var forward = new ParticleFlipbook { Rows = 4, Cols = 4, Cycles = 1f };
         Assert.Multiple(() =>
         {
             Assert.That(
@@ -266,6 +266,66 @@ public class TestParticleEffectAsset
                 EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = forward }, 6).Flags
                     & EmitterParams3D.FlagFlipbookReverse,
                 Is.Zero);
+        });
+    }
+
+    [Test]
+    public void FlipbookCyclesAreLifetimeRelative()
+    {
+        // Cycles scale the anim against each particle's own lifetime: 1 plays
+        // every frame exactly once from spawn to death (per particle), 2 plays
+        // it twice; packed into the flipbook vector's z lane in 2D and 3D.
+        var flipbook = new ParticleFlipbook { Rows = 4, Cols = 4, Cycles = 2f };
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = flipbook }, 6).Flipbook.Z,
+                Is.EqualTo(2f));
+            Assert.That(
+                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = flipbook }, 6).Flipbook.Z,
+                Is.EqualTo(2f));
+            Assert.That(new ParticleFlipbook().Cycles, Is.EqualTo(1f),
+                "one play-through per lifetime by default");
+        });
+
+        // FramesPerAnim splits a variant sheet into anims (w lane, clamped to
+        // the sheet); 0 keeps the whole sheet as one animation.
+        var sheet = new ParticleFlipbook { Rows = 8, Cols = 8, FramesPerAnim = 8 };
+        var clamped = new ParticleFlipbook { Rows = 4, Cols = 4, FramesPerAnim = 99 };
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = sheet }, 6).Flipbook.W,
+                Is.EqualTo(8f));
+            Assert.That(
+                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = sheet }, 6).Flipbook.W,
+                Is.EqualTo(8f));
+            Assert.That(
+                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = clamped }, 6).Flipbook.W,
+                Is.EqualTo(16f), "clamped to rows x cols");
+            Assert.That(new ParticleFlipbook().FramesPerAnim, Is.EqualTo(0),
+                "whole sheet by default");
+        });
+
+        // The parser accepts the cycles/framesPerAnim members and rejects the
+        // retired fps one (strict unmapped-member policy).
+        using EngineHost engine = new(GameEngineSetting.CreateNoGPU());
+        JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
+            engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
+        const string json = """
+            {
+                "$type": "Alco.Particles.ParticleEffect2DAsset",
+                "version": "1.0",
+                "groups": [ { "name": "Smoke", "flipbook": { "rows": 8, "cols": 8, "cycles": 1, "framesPerAnim": 8 } } ]
+            }
+            """;
+        var effect = JsonSerializer.Deserialize<ParticleEffectAsset>(json, options) as ParticleEffect2DAsset;
+        Assert.Multiple(() =>
+        {
+            Assert.That(effect!.Groups[0].Flipbook!.Cycles, Is.EqualTo(1f));
+            Assert.That(effect.Groups[0].Flipbook!.FramesPerAnim, Is.EqualTo(8));
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffectAsset>(
+                json.Replace("\"cycles\": 1", "\"fps\": 24"), options));
         });
     }
 }

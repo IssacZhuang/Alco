@@ -46,6 +46,9 @@ public struct GpuParticle2D
 
     /// <summary>Total lifetime in seconds.</summary>
     public float Duration;
+
+    /// <summary>Flipbook: the first frame of the anim picked at spawn.</summary>
+    public uint AnimStart;
 }
 
 /// <summary>
@@ -85,4 +88,7 @@ public struct GpuParticle3D
 
     /// <summary>Total lifetime in seconds.</summary>
     public float Duration;
+
+    /// <summary>Flipbook: the first frame of the anim picked at spawn.</summary>
+    public uint AnimStart;
 }

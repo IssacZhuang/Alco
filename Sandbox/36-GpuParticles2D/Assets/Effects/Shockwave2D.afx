@@ -21,7 +21,7 @@
             "fadeOut": 0.2,
             "texture": "Shockwave",
             "blend": "Additive",
-            "flipbook": { "rows": 4, "cols": 4, "fps": 15, "loop": false }
+            "flipbook": { "rows": 4, "cols": 4, "cycles": 1.0 }
         }
     ]
 }

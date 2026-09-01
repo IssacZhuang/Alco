@@ -17,7 +17,7 @@ module AlcoParticles_Core3D;
 import AlcoRendering_Core;
 import AlcoParticles_Core2D;
 
-// ── particle record (80 bytes) ──────────────────────────────────────────────
+// ── particle record (84 bytes) ──────────────────────────────────────────────
 
 public struct ParticleData3D
 {
@@ -31,6 +31,7 @@ public struct ParticleData3D
     public float rollRate;         // billboard roll velocity, radians per second
     public float lifetime;         // remaining seconds; <= 0 marks a dead (free) slot
     public float duration;         // total seconds
+    public uint animStart;         // flipbook: first frame of the anim picked at spawn
 };
 
 // ── per-emitter parameters (320 bytes, one per emitter slot, CPU-written) ───
@@ -69,7 +70,8 @@ public struct EmitterParams3D
     public float4 colorEnd;
     // render
     public float4 tint;
-    public float4 flipbook;        // x = rows, y = cols, z = fps, w = loop (0/1)
+    public float4 flipbook;        // x = rows, y = cols, z = lifetime-relative cycles,
+                                   // w = frames per anim (0 = whole sheet, one anim)
     public uint4 renderMisc;       // x = quad mesh index count, y = custom per-instance
                                    // data (float bits; surfaced to material vertex hooks
                                    // as ParticleVertexInput.customData)
@@ -174,6 +176,7 @@ public void particleSpawnDefault3D(inout ParticleData3D particle, EmitterParams3
         particleRandom(rng), particleRandom(rng), particleRandom(rng), particleRandom(rng))
         * (emitter.colorMax - emitter.colorMin) + emitter.colorMin;
     particle.color = particle.startColor;
+    particle.animStart = particlePickFlipbookAnim(emitter.flipbook, rng);
 }
 
 // The default simulate: gravity, exponential drag, integration, roll,

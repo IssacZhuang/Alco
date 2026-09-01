@@ -81,7 +81,7 @@ public struct EmitterParams3D
     /// <summary>The global color multiplier of the group's material.</summary>
     public ColorFloat Tint;
 
-    /// <summary>Flipbook: x = rows, y = cols, z = fps, w = loop (0/1).</summary>
+    /// <summary>Flipbook: x = rows, y = cols, z = lifetime-relative cycle count, w = frames per anim (0 = whole sheet).</summary>
     public Vector4 Flipbook;
 
     /// <summary>The quad mesh's index count (written into the indirect draw record).</summary>
@@ -186,7 +186,11 @@ public struct EmitterParams3D
         parameters.Tint = group.Tint;
         ParticleFlipbook? flipbook = group.Flipbook;
         parameters.Flipbook = flipbook != null
-            ? new Vector4(flipbook.Rows, flipbook.Cols, flipbook.Fps, flipbook.Loop ? 1f : 0f)
+            ? new Vector4(
+                flipbook.Rows,
+                flipbook.Cols,
+                flipbook.Cycles,
+                Math.Clamp(flipbook.FramesPerAnim, 0, flipbook.Rows * flipbook.Cols))
             : new Vector4(1f, 1f, 0f, 0f);
         parameters.IndexCount = indexCount;
         parameters.Flags = group.SimulationSpace == ParticleSimulationSpace.World ? FlagWorldSpace : 0u;

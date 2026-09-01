@@ -767,18 +767,26 @@ public sealed partial class ParticleEffectDocument
             flipbook.Cols = cols;
             OnLiveEdit(index);
         }
-        float fps = flipbook.Fps;
-        if (DragRow("FPS", ref fps, 0.5f, 0f, 240f))
+        int framesPerAnim = flipbook.FramesPerAnim;
+        if (DragRow("Frames/Anim", ref framesPerAnim, 0.1f, 0, flipbook.Rows * flipbook.Cols))
         {
-            flipbook.Fps = fps;
+            flipbook.FramesPerAnim = framesPerAnim;
             OnLiveEdit(index);
         }
-        bool loop = flipbook.Loop;
-        if (ImGui.Checkbox("Loop", ref loop))
+        float cycles = flipbook.Cycles;
+        if (DragRow("Cycles", ref cycles, 0.02f, 0f, 64f))
         {
-            flipbook.Loop = loop;
+            flipbook.Cycles = cycles;
             OnLiveEdit(index);
         }
+        int frames = flipbook.Rows * flipbook.Cols;
+        float averageLifetime = (group.Lifetime.Min + group.Lifetime.Max) * 0.5f;
+        float animFrames = framesPerAnim > 0 ? framesPerAnim : frames;
+        float effectiveFps = averageLifetime > 1e-5f ? animFrames * flipbook.Cycles / averageLifetime : 0f;
+        string animHint = framesPerAnim > 0
+            ? $"{frames / Math.Max(framesPerAnim, 1)} anims of {framesPerAnim} frames — one random anim per particle"
+            : "the whole sheet is one animation";
+        ImGui.TextDisabled($"{animHint}; {flipbook.Cycles:0.##}x, ~{effectiveFps:0.#} fps");
         bool reverse = flipbook.Reverse;
         if (ImGui.Checkbox("Reverse", ref reverse))
         {
