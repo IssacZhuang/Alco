@@ -1,13 +1,46 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
 namespace Alco.LLM;
+
+/// <summary>
+/// Retry policy for transient LLM request failures. Applied to every streaming request
+/// inside <see cref="LLMSession"/>. Retries only happen when no token has been received
+/// yet; mid-stream failures are not retried to avoid duplicate output.
+/// </summary>
+public sealed record LLMRetryPolicy
+{
+    /// <summary>
+    /// Whether retry is enabled. When <c>false</c>, any failure throws immediately.
+    /// Default <c>true</c>.
+    /// </summary>
+    public bool Enabled { get; init; } = true;
+
+    /// <summary>
+    /// Maximum number of attempts (including the first call). Default <c>3</c>.
+    /// Values less than <c>1</c> are treated as <c>1</c>.
+    /// </summary>
+    public int MaxAttempts { get; init; } = 3;
+
+    /// <summary>
+    /// Base delay in milliseconds for exponential backoff. Default <c>1000</c>.
+    /// </summary>
+    public int BaseDelayMs { get; init; } = 1000;
+
+    /// <summary>
+    /// Maximum delay cap in milliseconds. Default <c>30000</c>.
+    /// </summary>
+    public int MaxDelayMs { get; init; } = 30000;
+}
 
 /// <summary>
 /// Configuration for LLMSession.
@@ -47,6 +80,21 @@ public class LLMSessionConfig
     /// Values less than or equal to 1 disable parallelism and execute all tool calls serially.
     /// </summary>
     public int MaxConcurrentTools { get; set; } = 10;
+
+    /// <summary>
+    /// JSON serializer options used when formatting structured tool results for LLM history.
+    /// </summary>
+    public JsonSerializerOptions? JsonOptions { get; set; }
+
+    /// <summary>
+    /// Hard cap for formatted model-facing tool result text.
+    /// </summary>
+    public int MaxToolResultLength { get; set; } = ToolResultFormatter.DefaultMaxFormattedLength;
+
+    /// <summary>
+    /// Retry policy for transient LLM request failures. Defaults to enabled with 3 attempts.
+    /// </summary>
+    public LLMRetryPolicy RetryPolicy { get; set; } = new();
 }
 
 /// <summary>
@@ -66,6 +114,8 @@ public sealed class LLMSession
     private readonly bool _autoInvokeTools;
     private readonly TimeSpan _toolTimeout;
     private readonly int _maxConcurrentTools;
+    private readonly ToolResultFormatter _toolResultFormatter;
+    private readonly LLMRetryPolicy _retryPolicy;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="LLMSession"/> class.
@@ -85,6 +135,8 @@ public sealed class LLMSession
         _autoInvokeTools = config.AutoInvokeTools;
         _toolTimeout = config.ToolTimeout;
         _maxConcurrentTools = config.MaxConcurrentTools;
+        _toolResultFormatter = new ToolResultFormatter(config.JsonOptions, config.MaxToolResultLength);
+        _retryPolicy = config.RetryPolicy ?? new LLMRetryPolicy();
 
         _chatOptions = new ChatOptions
         {
@@ -153,15 +205,10 @@ public sealed class LLMSession
             var updates = new List<ChatResponseUpdate>();
             yield return new RequestStartedEvent(DateTimeOffset.UtcNow, requestIndex);
 
-            await foreach (var update in _chatClient.GetStreamingResponseAsync(_chatHistory, _chatOptions, cancellationToken))
+            await foreach (var sessionEvent in StreamLlmRequestEventsAsync(
+                _chatHistory, _chatOptions, requestIndex, updates, cancellationToken))
             {
-                updates.Add(update);
-
-                if (!string.IsNullOrEmpty(update.Text))
-                {
-                    yield return new TextDeltaEvent(DateTimeOffset.UtcNow, update.Text);
-                }
-
+                yield return sessionEvent;
             }
 
             var functionCalls = updates.SelectMany(u => u.Contents.OfType<FunctionCallContent>()).ToList();
@@ -244,18 +291,17 @@ public sealed class LLMSession
             requestIndex++;
         }
 
+        // Loop exited without a tool-free response — the iteration cap was hit.
+        yield return new MaxIterationsReachedEvent(DateTimeOffset.UtcNow, requestIndex);
+
         var finalOptions = new ChatOptions { Temperature = _chatOptions.Temperature };
         var finalUpdates = new List<ChatResponseUpdate>();
         yield return new RequestStartedEvent(DateTimeOffset.UtcNow, requestIndex);
 
-        await foreach (var update in _chatClient.GetStreamingResponseAsync(_chatHistory, finalOptions, cancellationToken))
+        await foreach (var sessionEvent in StreamLlmRequestEventsAsync(
+            _chatHistory, finalOptions, requestIndex, finalUpdates, cancellationToken))
         {
-            finalUpdates.Add(update);
-
-            if (!string.IsNullOrEmpty(update.Text))
-            {
-                yield return new TextDeltaEvent(DateTimeOffset.UtcNow, update.Text);
-            }
+            yield return sessionEvent;
         }
 
         _chatHistory.AddMessages(finalUpdates);
@@ -329,19 +375,27 @@ public sealed class LLMSession
         if (error != null)
         {
             var displayError = UnwrapException(error);
-            return new ToolInvocationEventResult(
-                new FunctionResultContent(callId, CreateToolFailureResult(displayError)),
-                new ToolCallFailedEvent(
-                    DateTimeOffset.UtcNow,
-                    callId,
-                    toolName,
-                    displayError.Message,
-                    displayError.GetType().Name,
-                    stopwatch.Elapsed));
+            var (code, errorType) = ClassifyError(displayError);
+            return BuildToolFailureResult(
+                callId,
+                toolName,
+                new ToolError(displayError.Message, code, errorType),
+                stopwatch.Elapsed);
         }
 
+        if (result is ToolError toolError)
+        {
+            return BuildToolFailureResult(callId, toolName, toolError, stopwatch.Elapsed);
+        }
+
+        // Format structured results into compact text for LLM history; plain values pass through.
+        // The raw result is preserved on the completion event for UI/debug consumers.
+        object? llmResult = result is AgentToolResult toolResult
+            ? _toolResultFormatter.Format(toolResult)
+            : result;
+
         return new ToolInvocationEventResult(
-            new FunctionResultContent(callId, result),
+            new FunctionResultContent(callId, llmResult),
             new ToolCallCompletedEvent(
                 DateTimeOffset.UtcNow,
                 callId,
@@ -381,15 +435,16 @@ public sealed class LLMSession
         }
     }
 
-    private static Dictionary<string, object?> CreateToolFailureResult(Exception error)
+    private static (string Code, string ErrorType) ClassifyError(Exception unwrappedError)
     {
-        Exception displayError = UnwrapException(error);
-        return new Dictionary<string, object?>
+        string errorType = unwrappedError.GetType().Name;
+        string code = unwrappedError switch
         {
-            ["success"] = false,
-            ["error"] = displayError.Message,
-            ["errorType"] = displayError.GetType().Name,
+            KeyNotFoundException => "TOOL_NOT_FOUND",
+            TimeoutException => "TIMEOUT",
+            _ => "RUNTIME_EXCEPTION",
         };
+        return (code, errorType);
     }
 
     private static Exception UnwrapException(Exception error)
@@ -406,6 +461,152 @@ public sealed class LLMSession
 
         return error;
     }
+
+    /// <summary>
+    /// Streaming retry wrapper. Yields <see cref="RetryStreamItem"/> for each retry attempt
+    /// (before the backoff delay), then <see cref="UpdateStreamItem"/> for each streamed update
+    /// from the successful attempt. Retries only happen when no update has been received yet;
+    /// once the first update is yielded, mid-stream failures propagate without retry.
+    /// </summary>
+    private async IAsyncEnumerable<StreamItem> InvokeWithRetryAsync(
+        List<ChatMessage> messages,
+        ChatOptions options,
+        int requestIndex,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        int maxAttempts = Math.Max(1, _retryPolicy.MaxAttempts);
+        IAsyncEnumerator<ChatResponseUpdate>? enumerator = null;
+        bool hasFirst = false;
+        ChatResponseUpdate? firstUpdate = null;
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            RequestRetryEvent? retryEvent = null;
+            bool shouldRetry = false;
+            try
+            {
+                enumerator = _chatClient.GetStreamingResponseAsync(messages, options, cancellationToken)
+                    .GetAsyncEnumerator(cancellationToken);
+                hasFirst = await enumerator.MoveNextAsync();
+                if (hasFirst)
+                {
+                    firstUpdate = enumerator.Current;
+                }
+                break;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                if (enumerator != null)
+                {
+                    await enumerator.DisposeAsync();
+                }
+                throw;
+            }
+            catch (Exception ex) when (_retryPolicy.Enabled && IsTransient(ex) && attempt < maxAttempts - 1)
+            {
+                if (enumerator != null)
+                {
+                    await enumerator.DisposeAsync();
+                }
+                enumerator = null;
+                hasFirst = false;
+                firstUpdate = null;
+                int delayMs = ComputeBackoff(attempt);
+                retryEvent = new RequestRetryEvent(
+                    DateTimeOffset.UtcNow,
+                    requestIndex,
+                    attempt + 1,
+                    maxAttempts,
+                    delayMs,
+                    ex.Message,
+                    ex.GetType().Name);
+                shouldRetry = true;
+            }
+
+            if (shouldRetry)
+            {
+                yield return new RetryStreamItem(retryEvent!);
+                await Task.Delay(retryEvent!.DelayMs, cancellationToken);
+                continue;
+            }
+        }
+
+        if (hasFirst)
+        {
+            yield return new UpdateStreamItem(firstUpdate!);
+            while (await enumerator!.MoveNextAsync())
+            {
+                yield return new UpdateStreamItem(enumerator.Current);
+            }
+        }
+
+        if (enumerator != null)
+        {
+            await enumerator.DisposeAsync();
+        }
+    }
+
+    private async IAsyncEnumerable<LLMSessionEvent> StreamLlmRequestEventsAsync(
+        List<ChatMessage> messages,
+        ChatOptions options,
+        int requestIndex,
+        List<ChatResponseUpdate> updates,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var item in InvokeWithRetryAsync(messages, options, requestIndex, cancellationToken))
+        {
+            switch (item)
+            {
+                case RetryStreamItem retryItem:
+                    yield return retryItem.Event;
+                    break;
+                case UpdateStreamItem updateItem:
+                    updates.Add(updateItem.Update);
+                    if (!string.IsNullOrEmpty(updateItem.Update.Text))
+                    {
+                        yield return new TextDeltaEvent(DateTimeOffset.UtcNow, updateItem.Update.Text);
+                    }
+                    break;
+            }
+        }
+    }
+
+    private ToolInvocationEventResult BuildToolFailureResult(
+        string callId,
+        string toolName,
+        ToolError errorResult,
+        TimeSpan duration)
+    {
+        return new ToolInvocationEventResult(
+            new FunctionResultContent(callId, _toolResultFormatter.Format(errorResult)),
+            new ToolCallFailedEvent(
+                DateTimeOffset.UtcNow,
+                callId,
+                toolName,
+                errorResult.Error,
+                errorResult.ErrorType ?? nameof(ToolError),
+                duration,
+                errorResult.Code));
+    }
+
+    private static bool IsTransient(Exception ex)
+    {
+        return ex is HttpRequestException
+            || ex is IOException
+            || ex is TimeoutException
+            || ex is SocketException;
+    }
+
+    private int ComputeBackoff(int failedAttempt)
+    {
+        long exponential = (long)_retryPolicy.BaseDelayMs * (1L << failedAttempt);
+        int cap = (int)Math.Min(exponential, _retryPolicy.MaxDelayMs);
+        return Random.Shared.Next(0, cap + 1);
+    }
+
+    private abstract record StreamItem;
+    private sealed record UpdateStreamItem(ChatResponseUpdate Update) : StreamItem;
+    private sealed record RetryStreamItem(RequestRetryEvent Event) : StreamItem;
 
     private sealed record ToolInvocationEventResult(FunctionResultContent ResultContent, LLMSessionEvent Event);
 }

@@ -144,6 +144,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(InvalidOperationException)));
+        Assert.That(failed.ErrorCode, Is.EqualTo("RUNTIME_EXCEPTION"));
 
         var completed = events.OfType<ToolCallCompletedEvent>().Single();
         Assert.That(completed.CallId, Is.EqualTo("call2"));
@@ -174,6 +175,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
+        Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
 
         var completed = events.OfType<ToolCallCompletedEvent>().Single();
         Assert.That(completed.CallId, Is.EqualTo("call2"));
@@ -275,7 +277,7 @@ public class ParallelToolExecutionTests
         Assert.That(((ToolCallCompletedEvent)toolEvents[3]).CallId, Is.EqualTo("call2"));
     }
 
-    // AC9: timeout applies to a single agent-thread tool on the serial path.
+    // AC9: timeout now applies to a single agent-thread tool on the serial path (fixed bug).
     [Test]
     public async Task ChatEventsAsync_SingleAgentThreadToolTimeout_YieldsFailedEvent()
     {
@@ -295,6 +297,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
+        Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
         Assert.That(failed.Duration, Is.LessThan(TimeSpan.FromMilliseconds(1500)));
     }
 }
