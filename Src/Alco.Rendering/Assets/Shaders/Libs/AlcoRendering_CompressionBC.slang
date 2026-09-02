@@ -40,24 +40,12 @@ public uint float3ToUint565(in float3 color)
     return colorPacked;
 }
 
-// Convert float3 color to 565 uint using 'ceil' arithmetic
+// Convert float3 color to 565 uint using 'round' arithmetic
 // color parameter is inout and is modified to match the converted value
-uint float3ToUint565Ceil(inout float3 color)
+uint float3ToUint565Round(inout float3 color)
 {
     float3 scale = float3(31.f, 63.f, 31.f);
-    float3 colorScaled = ceil(saturate(color) * scale);
-    uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5) | (uint) colorScaled.b;
-    color = colorScaled / scale;
-
-    return colorPacked;
-}
-
-// Convert float3 color to 565 uint using 'floor' arithmetic
-// color parameter is inout and is modified to match the converted value
-uint float3ToUint565Floor(inout float3 color)
-{
-    float3 scale = float3(31.f, 63.f, 31.f);
-    float3 colorScaled = floor(saturate(color) * scale);
+    float3 colorScaled = round(saturate(color) * scale);
     uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5) | (uint) colorScaled.b;
     color = colorScaled / scale;
 
@@ -181,8 +169,18 @@ public uint2 compressBC1Block(in float3 Block[16])
     float3 minColor, maxColor;
     getMinMax(Block, minColor, maxColor);
 
-    uint minColor565 = float3ToUint565Floor(minColor);
-    uint maxColor565 = float3ToUint565Ceil(maxColor);
+    // Inset the bounding box by 1/16 of its extent, then round-quantize both
+    // endpoints to 565. Rounding (instead of flooring min / ceiling max, which
+    // spreads the palette outward) keeps the 4-entry palette steps tight on
+    // low-contrast blocks; the inset additionally pulls the endpoints toward
+    // the bulk of the block. Quantized endpoints are written back so the index
+    // projection matches the palette the decoder reconstructs.
+    float3 inset = (maxColor - minColor) / 16.f;
+    minColor = saturate(minColor + inset);
+    maxColor = saturate(maxColor - inset);
+
+    uint minColor565 = float3ToUint565Round(minColor);
+    uint maxColor565 = float3ToUint565Round(maxColor);
 
     uint indices = 0;
     if (minColor565 < maxColor565)
@@ -218,8 +216,13 @@ public uint4 compressBC3Block(in float3 BlockRGB[16], in float blockA[16])
     float3 minColor, maxColor;
     getMinMax(BlockRGB, minColor, maxColor);
 
-    uint minColor565 = float3ToUint565Floor(minColor);
-    uint maxColor565 = float3ToUint565Ceil(maxColor);
+    // Same inset + round-quantized endpoints as compressBC1Block.
+    float3 inset = (maxColor - minColor) / 16.f;
+    minColor = saturate(minColor + inset);
+    maxColor = saturate(maxColor - inset);
+
+    uint minColor565 = float3ToUint565Round(minColor);
+    uint maxColor565 = float3ToUint565Round(maxColor);
 
     float minAlpha, maxAlpha;
     getMinMax(blockA, minAlpha, maxAlpha);
