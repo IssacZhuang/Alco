@@ -171,6 +171,13 @@ public static unsafe class BcDecoder
         {
             MixChannel(palette, 0, 4, 8, 2, 1);
             MixChannel(palette, 0, 4, 12, 1, 2);
+            // The BC1 palette order is 0=c0, 1=(2c0+c1)/3, 2=(c0+2c1)/3, 3=c1:
+            // rotate the freshly mixed colors and the c1 endpoint into place.
+            Span<byte> c1 = stackalloc byte[4];
+            palette.Slice(4, 4).CopyTo(c1);
+            palette.Slice(8, 4).CopyTo(palette.Slice(4, 4));
+            palette.Slice(12, 4).CopyTo(palette.Slice(8, 4));
+            c1.CopyTo(palette.Slice(12, 4));
         }
         else
         {

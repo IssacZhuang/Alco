@@ -67,9 +67,9 @@ public unsafe class TestBcDecoder
     [Test]
     public void Bc1_FourColorMode_DecodesBothEndpoints()
     {
-        // color0 > color1 selects the 4-color mode; pixel 1 carries index 1 (color1).
+        // color0 > color1 selects the 4-color mode; pixel 1 carries index 3 (color1).
         byte[] pixels = DecodeSingleBlock(
-            Bc1ColorBlock(0xFFFF, 0x0000, 1u << 2),
+            Bc1ColorBlock(0xFFFF, 0x0000, 3u << 2),
             DdsDecoder.BcFamily.BC1);
 
         Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 255, 255, 255, 255 }));
@@ -95,14 +95,17 @@ public unsafe class TestBcDecoder
     public void Bc1_InterpolatedColors_MatchIntegerMix()
     {
         // 0xF800 (red) > 0x07E0 (green) selects the 4-color mode. RGB565 channel
-        // replication expands the endpoints to (255,0,0) and (0,255,0); index 2
-        // is the integer mix (2*c0 + c1) / 3 = (170, 85, 0).
+        // replication expands the endpoints to (255,0,0) and (0,255,0); the BC1
+        // palette order is index 1 = (2*c0 + c1)/3 = (170, 85, 0) and
+        // index 2 = (c0 + 2*c1)/3 = (85, 170, 0). Pixel 1 carries index 1,
+        // pixel 2 carries index 2.
         byte[] pixels = DecodeSingleBlock(
-            Bc1ColorBlock(0xF800, 0x07E0, 2u << 2),
+            Bc1ColorBlock(0xF800, 0x07E0, (1u << 2) | (2u << 4)),
             DdsDecoder.BcFamily.BC1);
 
         Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 255, 0, 0, 255 }));
         Assert.That(pixels[4..8], Is.EqualTo(new byte[] { 170, 85, 0, 255 }));
+        Assert.That(pixels[8..12], Is.EqualTo(new byte[] { 85, 170, 0, 255 }));
     }
 
     [Test]

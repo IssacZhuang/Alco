@@ -38,6 +38,14 @@ uint getOutputIndex(uint2 pos)
 void mainCS<let isSRGB : bool>(uint3 id : SV_DispatchThreadID)
 
 {
+    // The thread group covers 8x8 blocks; a small image dispatches the same
+    // group with fewer valid blocks, and the out-of-range threads' output
+    // indices would alias back into the valid region — bail out early.
+    if (id.x >= constants.size.x || id.y >= constants.size.y)
+    {
+        return;
+    }
+
     uint2 samplePos = id.xy * 4;
 
     float3 blockBaseColor[16];

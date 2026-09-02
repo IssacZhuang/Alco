@@ -259,11 +259,14 @@ internal static unsafe class TextureConversion
 				float alpha = 0;
 				for (int dy = 0; dy < 2; dy++)
 				{
-					int row = ((y * 2 + dy) * width + x * 2) * 4;
-					red += SrgbToLinear[source[row]];
-					green += SrgbToLinear[source[row + 1]];
-					blue += SrgbToLinear[source[row + 2]];
-					alpha += source[row + 3];
+					for (int dx = 0; dx < 2; dx++)
+					{
+						int index = ((y * 2 + dy) * width + x * 2 + dx) * 4;
+						red += SrgbToLinear[source[index]];
+						green += SrgbToLinear[source[index + 1]];
+						blue += SrgbToLinear[source[index + 2]];
+						alpha += source[index + 3];
+					}
 				}
 
 				int destinationOffset = (y * newWidth + x) * 4;

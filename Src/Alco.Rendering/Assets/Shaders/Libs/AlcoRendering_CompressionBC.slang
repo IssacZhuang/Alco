@@ -120,10 +120,11 @@ uint getPackedColorBlockIndices(in float3 Block[16], in float3 minColor, in floa
 	
     for (int i = 15; i >= 0; --i)
     {
-		// Compute the distance index for this element
+		// Compute the distance index for this element; the projection already
+		// yields the palette order (0 = maxColor .. 3 = minColor).
         uint index = round(dot(Block[i], scaledRange) + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (3 * (index == 3));
+		// Clamp round-off overshoot at the min endpoint.
+		index = min(index, 3u);
 		// OR into the final packedIndices
         packedIndices = (packedIndices << 2) | index;
     }
@@ -148,8 +149,8 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
     {
 		// Compute the distance index for this element
         uint index = round(Block[i] * scale + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (7 * (index == 7));
+		// Clamp round-off overshoot at the min endpoint.
+        index = min(index, 7u);
 		// OR into the final packedIndices
         packedIndices.x |= (index << (i * 3 + 16));
     }
@@ -158,7 +159,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
 	{
         i = 5;
         uint index = round(Block[i] * scale + bias);
-        index += (index > 0) - (7 * (index == 7));
+        index = min(index, 7u);
         packedIndices.x |= (index << 31);
         packedIndices.y |= (index >> 1);
     }
@@ -167,7 +168,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
     for (i = 6; i < 16; ++i)
     {
         uint index = round(Block[i] * scale + bias);
-        index += (index > 0) - (7 * (index == 7 ? 1 : 0));
+        index = min(index, 7u);
         packedIndices.y |= (index << (i * 3 - 16));
     }
 
@@ -404,8 +405,8 @@ uint getPackedCoCgBlockIndices(in float3 Block[16], in float2 minCoCg, in float2
     {
 		// Compute the distance index for this element
         uint index = round(dot(Block[i].yz, scaledRange) + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (3 * (index == 3));
+		// Clamp round-off overshoot at the min endpoint.
+        index = min(index, 3u);
 		// OR into the final packedIndices
         packedIndices = (packedIndices << 2) | index;
     }
@@ -429,8 +430,8 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
     {
 		// Compute the distance index for this element
         uint index = round(Block[i].x * scale + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (7 * (index == 7));
+		// Clamp round-off overshoot at the min endpoint.
+        index = min(index, 7u);
 		// OR into the final packedIndices
         packedIndices.x |= (index << (i * 3 + 16));
     }
@@ -439,7 +440,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
 	{
         i = 5;
         uint index = round(Block[i].x * scale + bias);
-        index += (index > 0) - (7 * (index == 7));
+        index = min(index, 7u);
         packedIndices.x |= (index << 31);
         packedIndices.y |= (index >> 1);
     }
@@ -448,7 +449,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
     for (i = 6; i < 16; ++i)
     {
         uint index = round(Block[i].x * scale + bias);
-        index += (index > 0) - (7 * (index == 7 ? 1 : 0));
+        index = min(index, 7u);
         packedIndices.y |= (index << (i * 3 - 16));
     }
 
