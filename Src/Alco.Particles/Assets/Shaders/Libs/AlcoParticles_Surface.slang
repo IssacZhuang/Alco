@@ -32,6 +32,7 @@ public struct ParticleSurfaceInput
     public float2 uv;     // the quad UV with the flipbook frame applied
     public float4 color;  // the particle's color over life x the group's tint
     public float age01;   // the normalized particle age in [0, 1]
+    public float3 worldPosition; // the fragment's world position (after the vertex hook, before the projection) - the geometry input surfaces shade world-space data from (e.g. a light-map lookup a material module feeds)
 };
 
 /// The per-vertex inputs a particle surface's vertex hook adjusts from. Both

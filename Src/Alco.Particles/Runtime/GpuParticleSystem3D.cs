@@ -15,6 +15,9 @@ namespace Alco.Particles;
 /// <see cref="SimulationRateLimitEnabled"/>). Renders camera-facing billboards with
 /// depth testing (tested, not written) — draw it into the scene's forward/transparent
 /// pass.
+/// <br/>Material modules (<see cref="AddMaterialModule"/>) bind further shared
+/// shader resources into the render materials — see
+/// <see cref="GpuParticleSystem2D.AddMaterialModule"/>.
 /// <br/>Threading: instance creation, release (instance disposal), the camera, the
 /// frame simulation and rendering are serialized on one reentrant gate shared with
 /// the pool, so creating/destroying effects from any thread is safe and never
@@ -57,6 +60,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     private readonly List<uint> _drawStarts = [];
     private readonly List<DrawBatch> _drawBatches = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles3d-default" };
+    private readonly ParticleMaterialModules _materialModules;
     private CameraPerspectiveBuffer? _camera;
     private DepthStencilState _depthStencilState = DepthStencilState.ReadReverseZ;
     // The rate-limiting state: the un-simulated frame time accumulated since the
@@ -77,6 +81,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         _rendering = rendering;
         _pool = new ParticleBufferPool<GpuParticle3D, EmitterParams3D>(rendering, particleCapacity, emitterSlots, "particles3d", _gate);
         _pool.Reallocated += OnPoolReallocated;
+        _materialModules = new ParticleMaterialModules(_gate);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
         _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
         _renderTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule3D);
@@ -132,6 +137,44 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                 {
                     material.DepthStencilState = value;
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers a material module (see <see cref="IParticleMaterialModule"/> and
+    /// <see cref="GpuParticleSystem2D.AddMaterialModule"/>): its bindings apply
+    /// immediately to every material already cached and to every render material
+    /// the system creates afterwards.
+    /// </summary>
+    /// <param name="module">The module to register.</param>
+    /// <returns>The unregistration handle; dispose it to remove the module.</returns>
+    public IDisposable AddMaterialModule(IParticleMaterialModule module)
+    {
+        ArgumentNullException.ThrowIfNull(module);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        lock (_gate)
+        {
+            IDisposable registration = _materialModules.Add(module);
+            foreach (GraphicsMaterial material in _materials.Values)
+            {
+                module.ConfigureMaterial(material);
+            }
+            return registration;
+        }
+    }
+
+    /// <summary>
+    /// Re-applies every registered material module to every cached render
+    /// material (see <see cref="GpuParticleSystem2D.RefreshMaterialModules"/>).
+    /// </summary>
+    public void RefreshMaterialModules()
+    {
+        lock (_gate)
+        {
+            foreach (GraphicsMaterial material in _materials.Values)
+            {
+                _materialModules.Apply(material);
             }
         }
     }
@@ -585,6 +628,10 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             }
             _overLifeTextures.AddRange(overLifeTextures);
             _materials[group] = material;
+            // Publication and module application share one critical section, so
+            // a concurrent AddMaterialModule either sweeps this material or is
+            // already in the list this Apply reads — never a gap between them.
+            _materialModules.Apply(material);
             return material;
         }
     }

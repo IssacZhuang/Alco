@@ -15,7 +15,10 @@
 // The pass owns the resource contract the particle system binds: the "camera"
 // block (auto-bound view-projection), the "scene" block (bound by the particle
 // system) and the "overLife" block (the group's baked color-gradient/size-curve
-// lookup textures). The surface module owns the material resources. There is
+// lookup textures). The surface module owns the material resources, and shared
+// resources beyond the pass (e.g. a lighting middleware's light map) bind into
+// slots the surface declares through material modules (IParticleMaterialModule)
+// - this pass stays agnostic of them. There is
 // no push constant: the emitter slot comes from the drawData record and the
 // emitter transform from the emitter parameters (worldMatrix; world-space
 // groups draw through identity).
@@ -45,6 +48,7 @@ public struct V2F
     public float2 uv : TEXCOORD0;
     public float4 color : COLOR0;
     public float age01 : TEXCOORD1;
+    public float3 worldPosition : TEXCOORD2; // the shaded fragment's world position (post vertex hook)
 };
 
 public struct CameraParams
@@ -145,6 +149,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     vertexInput.customData = asfloat(emitter.renderMisc.y);
     vertexInput.height = height;
     world = surface.adjustWorldPosition(vertexInput);
+    output.worldPosition = world;
     output.position = mul(camera.viewProjection, float4(world, 1.0));
 
     // Flipbook: the playback rate is relative to the particle's lifetime —
@@ -198,5 +203,6 @@ public float4 MainPS<T : IParticleSurface>(V2F input) : SV_TARGET
     surfaceInput.uv = input.uv;
     surfaceInput.color = input.color;
     surfaceInput.age01 = input.age01;
+    surfaceInput.worldPosition = input.worldPosition;
     return surface.shade(surfaceInput);
 }

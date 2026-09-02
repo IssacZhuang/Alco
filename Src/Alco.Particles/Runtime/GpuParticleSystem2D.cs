@@ -37,6 +37,10 @@ namespace Alco.Particles;
 /// <br/>Usage: insert the simulation into the pipeline with an
 /// <see cref="RGNode_Callback"/> before the scene content node and call
 /// <see cref="Render"/> from the scene content (or an <see cref="IRenderPassContent"/>).
+/// <br/>Material modules (<see cref="AddMaterialModule"/>) bind further shared
+/// shader resources into the render materials (e.g. a lighting middleware
+/// binding a light map); slots resolve by name with opt-in semantics, so
+/// surfaces that declare no matching slot are unaffected.
 /// <br/>Threading: instance creation, release (instance disposal), the camera,
 /// the frame simulation and rendering are serialized on one reentrant gate shared
 /// with the pool, so creating/destroying effects from any thread is safe and never
@@ -82,6 +86,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly List<uint> _drawStarts = [];
     private readonly List<DrawBatch> _drawBatches = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
+    private readonly ParticleMaterialModules _materialModules;
     private GraphicsValueBuffer<Matrix4x4>? _camera;
     // The rate-limiting state: the un-simulated frame time accumulated since the
     // last step, and whether the draw plan and pool buffers hold a replayable
@@ -101,6 +106,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         _rendering = rendering;
         _pool = new ParticleBufferPool<GpuParticle2D, EmitterParams2D>(rendering, particleCapacity, emitterSlots, "particles2d", _gate);
         _pool.Reallocated += OnPoolReallocated;
+        _materialModules = new ParticleMaterialModules(_gate);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
         _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
         _renderTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D);
@@ -136,6 +142,48 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                         material.SetBuffer(ShaderResourceId.Camera, value);
                     }
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers a material module (see <see cref="IParticleMaterialModule"/>):
+    /// its bindings apply immediately to every material already cached and to
+    /// every render material the system creates afterwards. The typical module
+    /// is a lighting middleware binding a shared light-map texture and its
+    /// sampling parameters into slots the particle surfaces declare.
+    /// </summary>
+    /// <param name="module">The module to register.</param>
+    /// <returns>The unregistration handle; dispose it to remove the module.</returns>
+    public IDisposable AddMaterialModule(IParticleMaterialModule module)
+    {
+        ArgumentNullException.ThrowIfNull(module);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        lock (_gate)
+        {
+            IDisposable registration = _materialModules.Add(module);
+            foreach (GraphicsMaterial material in _materials.Values)
+            {
+                module.ConfigureMaterial(material);
+            }
+            return registration;
+        }
+    }
+
+    /// <summary>
+    /// Re-applies every registered material module to every cached render
+    /// material (materials created afterwards configure at creation anyway).
+    /// For a module that replaced one of its resource objects (e.g. its light
+    /// map was recreated) and needs the new object bound everywhere; unchanged
+    /// bindings are overwritten idempotently.
+    /// </summary>
+    public void RefreshMaterialModules()
+    {
+        lock (_gate)
+        {
+            foreach (GraphicsMaterial material in _materials.Values)
+            {
+                _materialModules.Apply(material);
             }
         }
     }
@@ -629,6 +677,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             }
             _overLifeTextures.AddRange(overLifeTextures);
             _materials[group] = material;
+            // Publication and module application share one critical section, so
+            // a concurrent AddMaterialModule either sweeps this material or is
+            // already in the list this Apply reads — never a gap between them.
+            _materialModules.Apply(material);
             return material;
         }
     }
