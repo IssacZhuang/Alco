@@ -54,6 +54,19 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         public required GraphicsMaterial Material;
 
         /// <summary>
+        /// The group's behavior emit compute material (shared per behavior library,
+        /// resolved once at creation so the frame loop needs no cache lookup).
+        /// </summary>
+        public required ComputeMaterial EmitMaterial;
+
+        /// <summary>
+        /// The group's behavior simulate compute material (shared per behavior
+        /// library, resolved once at creation so the frame loop needs no cache
+        /// lookup).
+        /// </summary>
+        public required ComputeMaterial SimulateMaterial;
+
+        /// <summary>
         /// The live emission rate in particles per second (per-instance; initialized
         /// from the asset, editable through <see cref="SetGroupEmissionRate"/>).
         /// </summary>

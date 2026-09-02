@@ -1,3 +1,4 @@
+using System.Threading;
 using Alco.Graphics;
 using Alco.Rendering;
 
@@ -43,6 +44,15 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     private readonly RenderingSystem _rendering;
     private readonly string _name;
 
+    /// <summary>
+    /// Serializes every bookkeeping mutation (allocation, free, growth, migration,
+    /// kills) and the params writes/uploads. The owning particle system passes its
+    /// own gate so pool operations and system operations share one reentrant lock —
+    /// growth raises <see cref="Reallocated"/> with the gate held, and the system's
+    /// handler re-enters pool/system state under it, so a second lock could deadlock.
+    /// </summary>
+    private readonly Lock _gate;
+
     private GraphicsBuffer _particles;
     private GraphicsBuffer _renderList;
     private GraphicsBuffer _drawArgs;
@@ -67,11 +77,21 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     /// <param name="particleCapacity">The initial particle pool size in particles.</param>
     /// <param name="emitterSlots">The initial emitter-slot count (one slot per emitter group instance).</param>
     /// <param name="name">The diagnostic name prefix of the pool's buffers.</param>
-    public unsafe ParticleBufferPool(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, string name = "particles")
+    /// <param name="gate">
+    /// The gate to serialize this pool's state with — pass the owning particle
+    /// system's gate so pool and system operations share one reentrant lock (growth
+    /// raises <see cref="Reallocated"/> with the gate held and the system handler
+    /// re-enters system state under it; a second lock could deadlock). Null creates
+    /// a private gate.
+    /// </param>
+    public unsafe ParticleBufferPool(
+        RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, string name = "particles",
+        Lock? gate = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         _rendering = rendering;
         _name = name;
+        _gate = gate ?? new Lock();
         _particleCapacity = particleCapacity;
         _particles = rendering.CreateGraphicsBuffer((uint)(particleCapacity * sizeof(TParticle)), $"{name}_pool");
         _renderList = rendering.CreateGraphicsBuffer((uint)(particleCapacity * sizeof(uint)), $"{name}_render_list");
@@ -120,19 +140,94 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     public int SlotCapacity => _slotCapacity;
 
     /// <summary>The number of currently allocated emitter slots.</summary>
-    public int AllocatedSlotCount => _slotCapacity - _freeSlots.Count;
+    public int AllocatedSlotCount
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _slotCapacity - _freeSlots.Count;
+            }
+        }
+    }
 
     /// <summary>
     /// Raised after any pool buffer was reallocated (growth): every material bound
-    /// to the pool must rebind its buffer slots.
+    /// to the pool must rebind its buffer slots. Raised with the pool's gate held;
+    /// handlers may re-enter pool and owning-system members (the gate is reentrant).
     /// </summary>
     public event Action? Reallocated;
 
     /// <summary>The slices that must be killed (zeroed) by the next simulation, before any emit.</summary>
-    public IReadOnlyList<(uint Offset, uint Count)> PendingKills => _pendingKills;
+    public IReadOnlyList<(uint Offset, uint Count)> PendingKills
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pendingKills;
+            }
+        }
+    }
 
     /// <summary>Drops the consumed pending-kill list.</summary>
-    public void ClearPendingKills() => _pendingKills.Clear();
+    public void ClearPendingKills()
+    {
+        lock (_gate)
+        {
+            _pendingKills.Clear();
+        }
+    }
+
+    /// <summary>
+    /// Atomically drains the pending kill ranges: returns them as a snapshot and
+    /// clears the queue in one step, so a kill queued concurrently with the drain is
+    /// never lost between an observe and a clear. The frame simulation calls this
+    /// before dispatching the kills.
+    /// </summary>
+    /// <returns>The kill ranges to dispatch; empty when none are pending.</returns>
+    public (uint Offset, uint Count)[] TakePendingKills()
+    {
+        lock (_gate)
+        {
+            if (_pendingKills.Count == 0)
+            {
+                return Array.Empty<(uint Offset, uint Count)>();
+            }
+            (uint Offset, uint Count)[] kills = _pendingKills.ToArray();
+            _pendingKills.Clear();
+            return kills;
+        }
+    }
+
+    /// <summary>
+    /// Writes one emitter's parameter record into the CPU mirror (thread-safe;
+    /// see <see cref="UpdateParams"/> for the upload).
+    /// </summary>
+    /// <param name="slot">The emitter slot to write.</param>
+    /// <param name="value">The record to store.</param>
+    public void SetParams(uint slot, in TParams value)
+    {
+        lock (_gate)
+        {
+            _params[(int)slot] = value;
+        }
+    }
+
+    /// <summary>
+    /// Uploads a range of the CPU-mirrored parameter array to the GPU buffer
+    /// (thread-safe; serialized against concurrent writes and uploads, including
+    /// the frame simulation's dirty-range upload).
+    /// </summary>
+    /// <param name="start">The first slot of the range.</param>
+    /// <param name="count">The number of slots to upload.</param>
+    public void UpdateParams(uint start, uint count)
+    {
+        lock (_gate)
+        {
+            _params.UpdateBufferRanged(start, count);
+        }
+    }
 
     /// <summary>
     /// Allocates a particle slice of at least <paramref name="capacity"/> particles.
@@ -145,17 +240,20 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     public ParticleSlice AllocateSlice(int capacity)
     {
         int rounded = Math.Max(1 << MinSliceShift, (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(capacity, 1)));
-        if (_freeSlices.TryGetValue(rounded, out Stack<uint>? free) && free.Count > 0)
+        lock (_gate)
         {
-            return new ParticleSlice(free.Pop(), (uint)rounded);
+            if (_freeSlices.TryGetValue(rounded, out Stack<uint>? free) && free.Count > 0)
+            {
+                return new ParticleSlice(free.Pop(), (uint)rounded);
+            }
+            if (_highWater + rounded > (uint)_particleCapacity)
+            {
+                GrowParticles(_highWater + (uint)rounded);
+            }
+            ParticleSlice slice = new(_highWater, (uint)rounded);
+            _highWater += (uint)rounded;
+            return slice;
         }
-        if (_highWater + rounded > (uint)_particleCapacity)
-        {
-            GrowParticles(_highWater + (uint)rounded);
-        }
-        ParticleSlice slice = new(_highWater, (uint)rounded);
-        _highWater += (uint)rounded;
-        return slice;
     }
 
     /// <summary>
@@ -166,9 +264,12 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     /// <param name="slice">The slice to zero.</param>
     public void QueueKill(in ParticleSlice slice)
     {
-        if (slice.Capacity > 0)
+        lock (_gate)
         {
-            _pendingKills.Add((slice.Offset, slice.Capacity));
+            if (slice.Capacity > 0)
+            {
+                _pendingKills.Add((slice.Offset, slice.Capacity));
+            }
         }
     }
 
@@ -183,28 +284,40 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         {
             return;
         }
-        if (!_freeSlices.TryGetValue((int)slice.Capacity, out Stack<uint>? free))
+        lock (_gate)
         {
-            free = new Stack<uint>();
-            _freeSlices[(int)slice.Capacity] = free;
+            if (!_freeSlices.TryGetValue((int)slice.Capacity, out Stack<uint>? free))
+            {
+                free = new Stack<uint>();
+                _freeSlices[(int)slice.Capacity] = free;
+            }
+            free.Push(slice.Offset);
+            QueueKill(slice);
         }
-        free.Push(slice.Offset);
-        QueueKill(slice);
     }
 
     /// <summary>Allocates an emitter slot (an index into the params and draw-args arrays).</summary>
     public uint AllocateSlot()
     {
-        if (_freeSlots.Count == 0)
+        lock (_gate)
         {
-            GrowSlots(_slotCapacity * 2);
+            if (_freeSlots.Count == 0)
+            {
+                GrowSlots(_slotCapacity * 2);
+            }
+            return _freeSlots.Pop();
         }
-        return _freeSlots.Pop();
     }
 
     /// <summary>Returns an emitter slot to the pool.</summary>
     /// <param name="slot">The slot to return.</param>
-    public void FreeSlot(uint slot) => _freeSlots.Push(slot);
+    public void FreeSlot(uint slot)
+    {
+        lock (_gate)
+        {
+            _freeSlots.Push(slot);
+        }
+    }
 
     /// <summary>
     /// Records the pending growth copies into the frame's command buffer. Must run
@@ -214,24 +327,27 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     public void RecordMigration(GPUCommandBuffer commandBuffer)
     {
         ArgumentNullException.ThrowIfNull(commandBuffer);
-        foreach ((GraphicsBuffer source, GraphicsBuffer target, ulong bytes) in _pendingCopies)
+        lock (_gate)
         {
-            commandBuffer.CopyBuffer(source.NativeBuffer, target.NativeBuffer, 0, 0, bytes);
-            _retired.Add((source, 2));
-        }
-        _pendingCopies.Clear();
-        for (int i = _retired.Count - 1; i >= 0; i--)
-        {
-            (GraphicsBuffer buffer, int framesLeft) = _retired[i];
-            framesLeft--;
-            if (framesLeft <= 0)
+            foreach ((GraphicsBuffer source, GraphicsBuffer target, ulong bytes) in _pendingCopies)
             {
-                buffer.Dispose();
-                _retired.RemoveAt(i);
+                commandBuffer.CopyBuffer(source.NativeBuffer, target.NativeBuffer, 0, 0, bytes);
+                _retired.Add((source, 2));
             }
-            else
+            _pendingCopies.Clear();
+            for (int i = _retired.Count - 1; i >= 0; i--)
             {
-                _retired[i] = (buffer, framesLeft);
+                (GraphicsBuffer buffer, int framesLeft) = _retired[i];
+                framesLeft--;
+                if (framesLeft <= 0)
+                {
+                    buffer.Dispose();
+                    _retired.RemoveAt(i);
+                }
+                else
+                {
+                    _retired[i] = (buffer, framesLeft);
+                }
             }
         }
     }
