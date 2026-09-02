@@ -68,6 +68,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly ParticleBufferPool<GpuParticle2D, EmitterParams2D> _pool;
     private readonly MaterialCompiler _materialCompiler;
     private readonly ShaderLibrary _renderTemplate;
+    // Cached at construction: a render template declaring an "emissive" value
+    // specialization axis (e.g. a MRT emission pass template) is fed from each
+    // group's blend state at material compile time (see GetOrCreateMaterial).
+    private readonly bool _renderTemplateHasEmissiveAxis;
     private readonly ShaderLibrary _emitTemplate;
     private readonly ShaderLibrary _simulateTemplate;
     private readonly ShaderLibrary _defaultBehavior;
@@ -100,7 +104,12 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <param name="rendering">The rendering system.</param>
     /// <param name="particleCapacity">The initial particle pool size (grows geometrically when exhausted).</param>
     /// <param name="emitterSlots">The initial emitter-slot count (one per emitter group instance).</param>
-    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256)
+    /// <param name="renderModule">The pass-template module group surfaces compose with;
+    /// null uses the built-in <see cref="ParticleAssetPipeline.RenderModule2D"/>. A custom
+    /// template must keep the built-in pass's vertex stage and resource contract; it may
+    /// declare an "emissive" value-specialization axis, which the system feeds from each
+    /// group's blend state (additive-like blends compile the emissive variant).</param>
+    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, string? renderModule = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         _rendering = rendering;
@@ -109,7 +118,8 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         _materialModules = new ParticleMaterialModules(_gate);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
         _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
-        _renderTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D);
+        _renderTemplate = shaderSystem.GetLibrary(renderModule ?? ParticleAssetPipeline.RenderModule2D);
+        _renderTemplateHasEmissiveAxis = _renderTemplate.Reflection.SpecializationAxes.Any(axis => axis.Name == "emissive");
         _emitTemplate = shaderSystem.GetLibrary("GpuParticleEmit2D");
         _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate2D");
         _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior2D);
@@ -523,6 +533,21 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             }
         }
 
+        // Blend-class ordering: additive-like materials (the glow class) draw
+        // before occluding blends, so smoke-class particles cover glow instead of
+        // being overdrawn by it — independent of spawn order. Stable within each
+        // class: the first-seen order is preserved.
+        int additiveInsertAt = 0;
+        for (int i = 0; i < _drawMaterials.Count; i++)
+        {
+            if (IsAdditiveLike(_drawMaterials[i].BlendState))
+            {
+                GraphicsMaterial material = _drawMaterials[i];
+                _drawMaterials.RemoveAt(i);
+                _drawMaterials.Insert(additiveInsertAt++, material);
+            }
+        }
+
         _drawGroups.Clear();
         _drawIndices.Clear();
         _drawStarts.Clear();
@@ -545,6 +570,13 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             _drawBatches.Add(new DrawBatch(_drawMaterials[m], first, (uint)bucket.Count));
         }
     }
+
+    /// <summary>
+    /// Additive-like blends (add with a dst factor of One) accumulate light onto the
+    /// target; they form the glow class that must draw before occluding blends.
+    /// </summary>
+    private static bool IsAdditiveLike(BlendState blend)
+        => blend.Color.Operation == BlendOperation.Add && blend.Color.DstFactor == BlendFactor.One;
 
     internal ref EmitterParams2D ParamsRef(uint slot) => ref _pool.Params.AsSpan()[(int)slot];
 
@@ -639,11 +671,31 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         // vertices, its textures and [MaterialParams] values bind), then the
         // group's own texture derives over the surface's "texture" slot.
         MaterialAsset asset = group.Material ?? _defaultAsset;
-        GraphicsMaterial material = _materialCompiler.Compile(
-            asset,
-            _renderTemplate,
-            (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
-        material.BlendState = group.Blend ?? BlendState.AlphaBlend;
+        BlendState blend = group.Blend ?? BlendState.AlphaBlend;
+        GraphicsMaterial material;
+        if (_renderTemplateHasEmissiveAxis)
+        {
+            // The template's "emissive" axis routes the shaded color between the
+            // pass's color and emission outputs; the blend state defines the class:
+            // additive-like blends are the glow class, everything else occludes.
+            Dictionary<string, ShaderValue> specializations = new(asset.Specializations)
+            {
+                ["emissive"] = IsAdditiveLike(blend),
+            };
+            material = _materialCompiler.Compile(
+                asset,
+                _renderTemplate,
+                specializations,
+                (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
+        }
+        else
+        {
+            material = _materialCompiler.Compile(
+                asset,
+                _renderTemplate,
+                (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
+        }
+        material.BlendState = blend;
         if (group.Depth is { } depth)
         {
             // Groups authoring world z in a custom render module (e.g. facade

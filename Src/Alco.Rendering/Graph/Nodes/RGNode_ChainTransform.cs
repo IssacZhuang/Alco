@@ -48,8 +48,11 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
     /// <param name="resolutionScale">The output's resolution scale relative to the graph viewport.</param>
     /// <param name="name">A diagnostic name for the output transient and the
     /// auto-registered profiler counters.</param>
+    /// <param name="depthSource">Optional transient whose depth attachment the output
+    /// shares (both layouts must declare a depth attachment with the same format) — a
+    /// transform feeding later content nodes that depth-test against the scene depth.</param>
     protected RGNode_ChainTransform(RenderGraph graph, RenderChain chain, GPUAttachmentLayout outputLayout,
-        float resolutionScale = 1.0f, string name = "chain_transform")
+        float resolutionScale = 1.0f, string name = "chain_transform", RenderGraphTexture? depthSource = null)
     {
         ArgumentNullException.ThrowIfNull(graph);
         ArgumentNullException.ThrowIfNull(chain);
@@ -58,7 +61,7 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
         _name = name;
         Chain = chain;
         Output = graph.CreateTransient(new RenderGraphTextureDescriptor(
-            outputLayout, resolutionScale: resolutionScale, name: name + "_output"));
+            outputLayout, resolutionScale: resolutionScale, depthSource: depthSource, name: name + "_output"));
     }
 
     /// <summary>The content chain the node reads and advances.</summary>
