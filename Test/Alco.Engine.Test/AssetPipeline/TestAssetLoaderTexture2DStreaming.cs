@@ -197,21 +197,24 @@ public class TestAssetLoaderTexture2DStreaming
     }
 
     [Test]
-    public void FileBackedDds_StreamsMipChainInPlace()
+    public void FileBackedDds_StreamsFallbackRgbaInPlace()
     {
         _fileSource.AddFile("textures/compressed.dds", CreateDds8x8());
 
         Texture2D texture = _assetSystem.Load<Texture2D>("textures/compressed.dds");
 
+        // The NoGPU device has no BC support: the loader streams an uncompressed
+        // RGBA8 fallback texture (level 0 only) instead of the BC1 mip chain.
         Assert.That(texture.Width, Is.EqualTo(8));
         Assert.That(texture.Height, Is.EqualTo(8));
-        Assert.That(texture.MipLevels, Is.EqualTo(2));
-        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.BC1RGBAUnorm));
+        Assert.That(texture.MipLevels, Is.EqualTo(1));
+        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
 
         GPUTexture native = texture.NativeTexture;
         Assert.That(_fileSource.OpenedStreams, Has.Count.EqualTo(1));
         Assert.That(SpinWait.SpinUntil(() => _fileSource.OpenedStreams[0].Disposed, TimeSpan.FromSeconds(10)), Is.True);
         Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(texture.IsContentLoaded, Is.True);
     }
 
     [Test]

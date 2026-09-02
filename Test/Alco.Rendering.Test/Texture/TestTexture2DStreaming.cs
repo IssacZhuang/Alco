@@ -10,7 +10,8 @@ namespace Alco.Rendering.Test;
 // texture at the file-dictated specification and UploadTexture2DContent uploads the
 // decoded content in place, so the texture's identity never changes. Runs on the
 // NoGPU device: specification and identity are verifiable, pixel content is not
-// (NoTexture discards writes).
+// (NoTexture discards writes). The NoGPU device reports no BC support, so the DDS
+// tests cover the CPU fallback path; BcCapableNoDevice covers the verbatim BC path.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class TestTexture2DStreaming
@@ -53,7 +54,7 @@ public class TestTexture2DStreaming
     }
 
     [Test]
-    public void CreateFromHeader_Dds_UsesFileSpecOverOption()
+    public void CreateFromHeader_Dds_WithoutBcSupport_FallsBackToRgba()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
@@ -62,6 +63,26 @@ public class TestTexture2DStreaming
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
         Assert.That(info.MipLevels, Is.EqualTo(2));
+
+        using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+
+        // The NoGPU device has no BC support: the texture pre-creates as
+        // uncompressed RGBA8 with a single level (the fallback decodes level 0).
+        Assert.That(texture.Width, Is.EqualTo(8));
+        Assert.That(texture.Height, Is.EqualTo(8));
+        Assert.That(texture.MipLevels, Is.EqualTo(1));
+        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
+    }
+
+    [Test]
+    public void CreateFromHeader_Dds_WithBcSupport_UsesFileSpec()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: new BcCapableNoDevice());
+        RenderingSystem rendering = host.RenderingSystem;
+
+        // 8x8 BC1, header claims 3 levels but only 8x8 and 4x4 are block-aligned.
+        byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
 
         using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
 
@@ -88,7 +109,7 @@ public class TestTexture2DStreaming
     }
 
     [Test]
-    public void UploadContent_Dds_UploadsMipChainKeepsIdentity()
+    public void UploadContent_Dds_WithoutBcSupport_DecodesLevel0AndMarksLoaded()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
@@ -96,10 +117,33 @@ public class TestTexture2DStreaming
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
         using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
+        Assert.That(texture.IsContentLoaded, Is.False);
+        GPUTexture native = texture.NativeTexture;
+
+        // The NoGPU device has no BC support: the upload decodes level 0 to RGBA8
+        // (NoTexture discards the write, so only spec and identity are verifiable).
+        Assert.DoesNotThrow(() => rendering.UploadTexture2DContent(texture, data));
+
+        Assert.That(texture.IsContentLoaded, Is.True);
+        Assert.That(texture.NativeTexture, Is.SameAs(native));
+    }
+
+    [Test]
+    public void UploadContent_Dds_WithBcSupport_UploadsMipChainKeepsIdentity()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: new BcCapableNoDevice());
+        RenderingSystem rendering = host.RenderingSystem;
+
+        byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
+        using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.BC1RGBAUnorm));
         GPUTexture native = texture.NativeTexture;
 
         Assert.DoesNotThrow(() => rendering.UploadTexture2DContent(texture, data));
 
+        Assert.That(texture.IsContentLoaded, Is.True);
         Assert.That(texture.NativeTexture, Is.SameAs(native));
     }
 

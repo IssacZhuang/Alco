@@ -19,6 +19,8 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_ClearTexture = "ClearTexture";
 
+   public const string Shader_TextureCompressBc1 = "TextureCompressBc1";
+
    public const string Shader_TextureCompressBc3 = "TextureCompressBc3";
 
    public const string Shader_FloodFillLighting = "FloodFillLighting";

@@ -158,6 +158,57 @@ public sealed class TextureCompressorBC3 : AutoDisposable
 
     }
 
+    /// <summary>
+    /// Compress the source texture on the GPU and read the BC3 blocks back to CPU
+    /// memory, without creating an intermediate block-compressed GPU texture.
+    /// </summary>
+    /// <param name="source">The source texture; both dimensions must be multiples of 4.</param>
+    /// <param name="destination">The destination span; must hold at least
+    /// <c>blocksX * blocksY * 16</c> bytes.</param>
+    /// <returns>The number of block bytes written (one uint4 per 4x4 block, row-major).</returns>
+    /// <exception cref="InvalidOperationException">BC compression is not supported by
+    /// the device, or the source dimensions are not multiples of 4.</exception>
+    /// <exception cref="ArgumentException">The destination span is too small.</exception>
+    public unsafe int CompressBlocks(Texture2D source, Span<byte> destination)
+    {
+        if (!_device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
+        {
+            throw new InvalidOperationException("Texture compression BC3 is not supported");
+        }
+
+        if (source.Width % 4 != 0 || source.Height % 4 != 0)
+        {
+            throw new InvalidOperationException("Texture width and height must be divisible by 4");
+        }
+
+        uint blocksX = source.Width / 4;
+        uint blocksY = source.Height / 4;
+        int byteCount = (int)(blocksX * blocksY * (uint)sizeof(uint4));
+
+        EnsureBufferSize(blocksX, blocksY);
+
+        _material.SetTexture(ShaderResourceId.Input, source);
+
+        _commandCompress.Begin();
+        using (var computePass = _commandCompress.BeginCompute())
+        {
+            _material.DispatchBySizeWithConstant(computePass, blocksX, blocksY, 1, new uint2(blocksX, blocksY));
+        }
+        _commandCompress.End();
+        _device.Submit(_commandCompress);
+
+        if (destination.Length < byteCount)
+        {
+            throw new ArgumentException($"The destination span holds {destination.Length} bytes but the compressed blocks need {byteCount}.");
+        }
+
+        fixed (byte* dest = destination)
+        {
+            _device.ReadBuffer(_blocks.NativeBuffer, dest, 0, (uint)byteCount);
+        }
+        return byteCount;
+    }
+
     private void EnsureBufferSize(uint blocksX, uint blocksY)
 
     {

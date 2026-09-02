@@ -24,6 +24,8 @@ public partial class BuiltInAssets
 
     public Shader Shader_ClearTexture => GetShader("ClearTexture");
 
+    public Shader Shader_TextureCompressBc1 => GetShader("TextureCompressBc1");
+
     public Shader Shader_TextureCompressBc3 => GetShader("TextureCompressBc3");
 
     public Shader Shader_FloodFillLighting => GetShader("FloodFillLighting");

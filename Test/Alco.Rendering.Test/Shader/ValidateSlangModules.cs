@@ -52,7 +52,7 @@ public class ValidateSlangModules
     // link proves is the stages after the front-end: specialization argument
     // matching (arity/type), linking, layout validation and target codegen.
     //   FXAA: <let Quality : int>, Sprite: <let Repeated : bool>,
-    //   TextureCompressBc3: <let IsSRGB : bool>,
+    //   TextureCompressBc1/TextureCompressBc3: <let IsSRGB : bool>,
     //   TileInstanced: VertexMain<let IsFacade : bool>, PixelMain<let Bombing :
     //   bool> — args map to entry points in definition order.
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
@@ -60,6 +60,7 @@ public class ValidateSlangModules
         {
             ["FXAA"] = [["1"]],
             ["Sprite"] = [["false"]],
+            ["TextureCompressBc1"] = [["false"]],
             ["TextureCompressBc3"] = [["false"]],
             ["TileInstanced"] = [["false", "false"]],
         };
