@@ -1,7 +1,7 @@
 using System.Numerics;
+using Alco.Editor.Extensibility;
 using Alco.ImGUI;
 using Alco.IO;
-using Alco.Particles;
 
 namespace Alco.Editor;
 
@@ -9,34 +9,26 @@ namespace Alco.Editor;
 /// Owns the open asset documents: opens assets by path, dispatches to the document
 /// type registered for the file extension (mirroring how <see cref="AssetSystem"/>
 /// routes loaders by extension), selects already-open tabs, and closes/disposes
-/// documents whose tab was closed.
+/// documents whose tab was closed. The factories come from the
+/// <see cref="DocumentRegistry"/> filled by the editor modules.
 /// </summary>
 public sealed class DocumentManager
 {
     private const string CloseConfirmPopupName = "Unsaved Changes";
 
     private readonly EditorContext _context;
+    private readonly DocumentRegistry _registry;
     private readonly List<AssetDocument> _documents = new();
-    private readonly Dictionary<string, Func<string, AssetDocument>> _factories = new(StringComparer.OrdinalIgnoreCase);
     private AssetDocument? _documentToSelect;
     private AssetDocument? _activeDocument;
     private AssetDocument? _pendingClose;
     private bool _openCloseConfirm;
 
-    /// <summary>Creates the manager and registers the built-in document factories.</summary>
-    public DocumentManager(EditorContext context)
+    /// <summary>Creates the manager over the document factories in <paramref name="registry"/>.</summary>
+    public DocumentManager(EditorContext context, DocumentRegistry registry)
     {
         _context = context;
-
-        RegisterFactory(FileExt.Material, path => new MaterialDocument(context, path));
-        RegisterFactory(ParticleAssetPipeline.EffectExtension, path => new ParticleEffectDocument(context, path));
-        RegisterFactory(FileExt.ImagePNG, path => new TextureDocument(context, path));
-        RegisterFactory(FileExt.ImageJPG, path => new TextureDocument(context, path));
-        RegisterFactory(FileExt.ImageBMP, path => new TextureDocument(context, path));
-        RegisterFactory(FileExt.ImageTGA, path => new TextureDocument(context, path));
-        RegisterFactory(FileExt.ImageGIF, path => new TextureDocument(context, path));
-        RegisterFactory(FileExt.ImageHDR, path => new TextureDocument(context, path));
-        RegisterFactory(FileExt.ImageDDS, path => new TextureDocument(context, path));
+        _registry = registry;
     }
 
     /// <summary>The currently open documents.</summary>
@@ -50,12 +42,6 @@ public sealed class DocumentManager
 
     /// <summary>Raised after a document was closed and disposed.</summary>
     public event Action<AssetDocument>? DocumentClosed;
-
-    /// <summary>Registers the document factory for a file extension (e.g. <c>.amat</c>).</summary>
-    public void RegisterFactory(string extension, Func<string, AssetDocument> factory)
-    {
-        _factories[extension] = factory;
-    }
 
     /// <summary>Returns the open document for <paramref name="assetPath"/>, or null.</summary>
     public AssetDocument? FindOpen(string assetPath)
@@ -136,9 +122,8 @@ public sealed class DocumentManager
         try
         {
             string extension = Path.GetExtension(assetPath);
-            document = _factories.TryGetValue(extension, out Func<string, AssetDocument>? factory)
-                ? factory(assetPath)
-                : new InfoDocument(_context, assetPath);
+            document = _registry.TryCreate(extension, assetPath)
+                ?? new InfoDocument(_context, assetPath);
         }
         catch (Exception e)
         {

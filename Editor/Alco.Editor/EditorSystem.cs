@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Alco.Editor.Extensibility;
 using Alco.Engine;
 using Alco.ImGUI;
 using Alco.IO;
@@ -15,7 +16,7 @@ namespace Alco.Editor;
 /// <para/>
 /// ImGui content is emitted from <see cref="DoUI"/>, which must be called between
 /// <see cref="ImGUISystem"/>'s frame begin and render — that is, from the game update
-/// phase (<c>EditorGame.OnUpdate</c>). This system's own <c>OnUpdate</c> runs before
+/// phase (<c>EditorEngine.OnUpdate</c>). This system's own <c>OnUpdate</c> runs before
 /// the ImGui frame starts and must never emit ImGui calls.
 /// </summary>
 public sealed class EditorSystem : BaseEngineSystem
@@ -28,6 +29,12 @@ public sealed class EditorSystem : BaseEngineSystem
     /// <summary>Editor window title pattern; takes the project name ({0}).</summary>
     public const string WindowTitleFormat = "Alco Editor - {0}";
 
+    /// <summary>
+    /// The title of the main menu bar's panel menu; floating panels registered in the
+    /// <see cref="PanelRegistry"/> get their toggle items appended to its end.
+    /// </summary>
+    public const string WindowMenuTitle = "Window";
+
     /// <summary>Application name under which editor preferences are stored (app-local).</summary>
     private const string PreferenceApplication = "Alco.Editor";
 
@@ -36,6 +43,7 @@ public sealed class EditorSystem : BaseEngineSystem
 
     private readonly GameEngine _engine;
     private readonly EditorContext _context;
+    private readonly EditorRegistry _registry;
     private readonly AssetBrowserPanel _assetBrowser;
     private readonly DocumentManager _documents;
     private readonly ProjectOpener _projectOpener;
@@ -55,7 +63,9 @@ public sealed class EditorSystem : BaseEngineSystem
     /// </summary>
     /// <param name="engine">The editor engine.</param>
     /// <param name="project">The project to edit.</param>
-    public EditorSystem(GameEngine engine, AlcoProject project)
+    /// <param name="modules">Editor modules registered after the built-in defaults;
+    /// a later module can override an earlier registration.</param>
+    public EditorSystem(GameEngine engine, AlcoProject project, IReadOnlyList<IEditorModule>? modules = null)
     {
         _engine = engine;
         _context = new EditorContext(engine, project);
@@ -66,12 +76,27 @@ public sealed class EditorSystem : BaseEngineSystem
         }
         BuiltInImGUIStyle.ApplyAlcoStyle();
 
+        // The registry is the composition root: the built-in module registers the
+        // editor's defaults first; the caller's modules then add (or override)
+        // extensions. The shell itself is available as a service because the menu
+        // delegates resolve it lazily (they run at draw time, after construction).
+        _registry = new EditorRegistry(_context);
+        _registry.Services.Register<EditorSystem>(this);
+        new BuiltInEditorModule().Register(_registry);
+        if (modules != null)
+        {
+            foreach (IEditorModule module in modules)
+            {
+                module.Register(_registry);
+            }
+        }
+
         // Meta saves from asset documents trigger watcher hot reloads; without a
         // reloader for meta types the asset system would throw on an async-void path.
-        engine.AssetSystem.RegisterAssetHotReloader(new MetaHotReloader());
+        engine.AssetSystem.RegisterAssetHotReloader(new MetaHotReloader(_registry.MetaTypes));
 
-        _documents = new DocumentManager(_context);
-        _assetBrowser = new AssetBrowserPanel(_context, _documents);
+        _documents = new DocumentManager(_context, _registry.Documents);
+        _assetBrowser = new AssetBrowserPanel(_context, _documents, _registry.AssetTemplates);
 
         // The opener performs the project's initial asset mount and owns the mounted
         // sources for later project switches.
@@ -96,6 +121,13 @@ public sealed class EditorSystem : BaseEngineSystem
 
     /// <summary>Restores the default panel split (Window &gt; Reset Layout).</summary>
     public void RequestResetLayout() => _leftPanelWidth = DefaultLeftPanelWidth;
+
+    /// <summary>Whether the asset browser pane is visible (the Window &gt; Asset Browser toggle).</summary>
+    public bool AssetBrowserOpen
+    {
+        get => _assetBrowserOpen;
+        set => _assetBrowserOpen = value;
+    }
 
     /// <summary>
     /// Opens another <c>.alco</c> project in this editor session: closes open
@@ -202,6 +234,16 @@ public sealed class EditorSystem : BaseEngineSystem
             ImGui.EndChild();
         }
         ImGui.End();
+
+        // Floating panels registered by modules draw after the fixed shell layout.
+        IReadOnlyList<IEditorPanel> panels = _registry.Panels.Panels;
+        for (int i = 0; i < panels.Count; i++)
+        {
+            if (panels[i].IsOpen)
+            {
+                panels[i].Draw(_context);
+            }
+        }
     }
 
     /// <summary>Draws the visible, draggable divider between the two panes.</summary>
@@ -243,33 +285,45 @@ public sealed class EditorSystem : BaseEngineSystem
             return;
         }
 
-        if (ImGui.BeginMenu("File"))
+        IReadOnlyList<EditorMenu> menus = _registry.Menus.Menus;
+        for (int i = 0; i < menus.Count; i++)
         {
-            if (ImGui.MenuItem("Open Project...", string.Empty))
+            EditorMenu menu = menus[i];
+            if (!ImGui.BeginMenu(menu.Title))
             {
-                RequestOpenProjectDialog();
+                continue;
             }
-            ImGui.Separator();
-            if (ImGui.MenuItem("Save", "Ctrl+S", false, _documents.ActiveDocument is { IsDirty: true, IsReadOnly: false }))
-            {
-                _documents.SaveActive();
-            }
-            if (ImGui.MenuItem("Exit", "Esc"))
-            {
-                _engine.Stop();
-            }
-            ImGui.EndMenu();
-        }
 
-        if (ImGui.BeginMenu("Window"))
-        {
-            if (ImGui.MenuItem("Asset Browser", string.Empty, _assetBrowserOpen))
+            IReadOnlyList<EditorMenuEntry> entries = menu.Entries;
+            for (int j = 0; j < entries.Count; j++)
             {
-                _assetBrowserOpen = !_assetBrowserOpen;
+                EditorMenuEntry entry = entries[j];
+                if (entry.IsSeparator)
+                {
+                    ImGui.Separator();
+                    continue;
+                }
+                EditorMenuItem item = entry.Item!;
+                if (ImGui.MenuItem(entry.Label, item.Shortcut,
+                        item.IsChecked?.Invoke() ?? false, item.IsEnabled?.Invoke() ?? true))
+                {
+                    item.Execute();
+                }
             }
-            if (ImGui.MenuItem("Reset Layout"))
+
+            // Floating panels get their toggle items at the end of the Window menu.
+            if (menu.Title == WindowMenuTitle)
             {
-                RequestResetLayout();
+                IReadOnlyList<IEditorPanel> panels = _registry.Panels.Panels;
+                for (int j = 0; j < panels.Count; j++)
+                {
+                    IEditorPanel panel = panels[j];
+                    bool open = panel.IsOpen;
+                    if (ImGui.MenuItem(panel.Title, string.Empty, open))
+                    {
+                        panel.IsOpen = !open;
+                    }
+                }
             }
             ImGui.EndMenu();
         }

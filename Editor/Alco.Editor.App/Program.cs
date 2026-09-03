@@ -44,9 +44,9 @@ internal static class Program
             },
         };
 
-        using (EditorGame game = new(setting, project, apiPort, enableApi))
+        using (EditorEngine engine = new(setting, project, apiPort, enableApi))
         {
-            game.Run();
+            engine.Run();
         }
 
         GC.Collect();

@@ -1,4 +1,5 @@
 using System.Numerics;
+using Alco.Editor.Extensibility;
 using Alco.ImGUI;
 using Alco.Rendering;
 
@@ -20,8 +21,9 @@ public sealed class PreviewViewport2D : PreviewViewport
     /// <param name="context">The editor context (engine services).</param>
     /// <param name="name">The base name for the pipeline and its resources.</param>
     /// <param name="baseViewWidth">The view width in world units at zoom 1.</param>
-    public PreviewViewport2D(EditorContext context, string name, float baseViewWidth = 4f)
-        : base(context, name)
+    /// <param name="pipelineFactory">The pipeline factory; null uses the default preview pipeline.</param>
+    public PreviewViewport2D(EditorContext context, string name, float baseViewWidth = 4f, IPreviewPipelineFactory? pipelineFactory = null)
+        : base(context, name, pipelineFactory)
     {
         _baseViewWidth = baseViewWidth;
         _camera = context.RenderingSystem.CreateCamera2D(baseViewWidth, baseViewWidth * 9f / 16f, 100f, name + "_2d");

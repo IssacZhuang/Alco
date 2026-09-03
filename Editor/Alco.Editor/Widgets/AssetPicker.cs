@@ -10,7 +10,9 @@ namespace Alco.Editor;
 /// search box over a browser: with an empty search it shows the directory tree pruned
 /// to branches that contain assets of the requested type; with a non-empty search it
 /// shows the matching asset paths as a flat list. Clicking an entry writes its path
-/// into the field and closes the popup. The filtered tree is cached and rebuilt when
+/// into the field and closes the popup. The input field and the browse button also
+/// accept an asset dropped from the asset browser (<see cref="EditorDragDrop.AssetPayload"/>),
+/// taking the same assignment path as a popup pick. The filtered tree is cached and rebuilt when
 /// the asset system version or the type filter changes. One instance per field: each
 /// instance keeps its own search text and tree cache.
 /// </summary>
@@ -38,11 +40,22 @@ public sealed class AssetPicker
     public bool Draw(EditorContext context, string id, ref string assetPath, Type? assetType = null)
     {
         bool changed = ImGui.InputText(id, ref assetPath, 256);
+        if (EditorDragDrop.TryAcceptAsset(out string dropped))
+        {
+            // Same assignment path as a popup pick.
+            assetPath = dropped;
+            changed = true;
+        }
 
         ImGui.SameLine();
         if (ImGui.SmallButton("...##" + id))
         {
             OpenPopupUnderLastItem(id);
+        }
+        if (!changed && EditorDragDrop.TryAcceptAsset(out dropped))
+        {
+            assetPath = dropped;
+            changed = true;
         }
 
         changed |= DrawPopup(context, id, ref assetPath, assetType);

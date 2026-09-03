@@ -26,7 +26,7 @@
 - **Benchmark/** - Performance benchmarks
 - **Docs/** - Documentation
 - **Tool/** - Development tools
-- **Editor/** - Engine editor
+- **Editor/** - Editor engine (Alco.Editor): the editor is a framework, not an app — hosts documents, preview viewports and panels, and exposes extensibility registries (`Alco.Editor/Extensibility/`: IEditorModule, document/preview-pipeline/panel/menu/asset-template registries, interface-keyed EditorServices) so a game project composes its own editor app; Alco.Editor.App is the vanilla shell for engine development
 
 ## Coordinate System
 - Left-handed, row-major matrices (following Unreal Engine style)

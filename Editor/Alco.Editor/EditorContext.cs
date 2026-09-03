@@ -1,3 +1,4 @@
+using Alco.Editor.Extensibility;
 using Alco.Engine;
 using Alco.IO;
 using Alco.Rendering;
@@ -19,10 +20,18 @@ public sealed class EditorContext
     {
         Engine = engine;
         _project = project;
+        Extensions = new EditorServices();
     }
 
     /// <summary>The running editor engine.</summary>
     public GameEngine Engine { get; }
+
+    /// <summary>
+    /// The interface-keyed service bag shared by editor modules (exposed to them as
+    /// <see cref="EditorRegistry.Services"/>). The built-in module registers the
+    /// default services; modules registered later can override them.
+    /// </summary>
+    public EditorServices Extensions { get; }
 
     /// <summary>The project open in the editor.</summary>
     public AlcoProject Project => _project;

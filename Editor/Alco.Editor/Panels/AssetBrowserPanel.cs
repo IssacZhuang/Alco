@@ -1,3 +1,4 @@
+using Alco.Editor.Extensibility;
 using Alco.ImGUI;
 using Alco.IO;
 
@@ -6,7 +7,8 @@ namespace Alco.Editor;
 /// <summary>
 /// The asset browser panel (fixed left pane): a directory tree over every file the
 /// asset system serves (owned roots and referenced entries merged), with read-only
-/// markers for referenced assets. Double-clicking a file opens it as a document tab.
+/// markers for referenced assets. Double-clicking a file opens it as a document tab,
+/// and files can be dragged onto widgets accepting <see cref="EditorDragDrop.AssetPayload"/>.
 /// The tree rebuilds whenever <see cref="AssetSystem.Version"/> changes (hot reload,
 /// mount changes) or on demand via the refresh button.
 /// </summary>
@@ -14,6 +16,7 @@ public sealed class AssetBrowserPanel
 {
     private readonly EditorContext _context;
     private readonly DocumentManager _documents;
+    private readonly AssetTemplateRegistry _templates;
 
     private int _lastAssetVersion = -1;
     private Node _root = new Node();
@@ -21,10 +24,11 @@ public sealed class AssetBrowserPanel
     private string? _selectedPath;
 
     /// <summary>Creates the panel.</summary>
-    public AssetBrowserPanel(EditorContext context, DocumentManager documents)
+    public AssetBrowserPanel(EditorContext context, DocumentManager documents, AssetTemplateRegistry templates)
     {
         _context = context;
         _documents = documents;
+        _templates = templates;
     }
 
     /// <summary>Draws the panel content inside the left pane's child region.</summary>
@@ -71,13 +75,14 @@ public sealed class AssetBrowserPanel
         }
         if (ImGui.BeginPopup("##new_asset_popup"))
         {
-            if (ImGui.Selectable("Particle Effect 2D (.afx)"))
+            IReadOnlyList<IAssetTemplate> templates = _templates.Templates;
+            for (int i = 0; i < templates.Count; i++)
             {
-                CreateParticleEffect(ParticleEffectTemplates.Effect2D, "NewEffect2D");
-            }
-            if (ImGui.Selectable("Particle Effect 3D (.afx)"))
-            {
-                CreateParticleEffect(ParticleEffectTemplates.Effect3D, "NewEffect3D");
+                IAssetTemplate template = templates[i];
+                if (ImGui.Selectable(template.DisplayName))
+                {
+                    CreateFromTemplate(template);
+                }
             }
             ImGui.EndPopup();
         }
@@ -91,10 +96,10 @@ public sealed class AssetBrowserPanel
     }
 
     /// <summary>
-    /// Writes a new particle effect from a template into the selected file's directory
+    /// Writes a new asset from a template into the selected file's directory
     /// (or the first owned root) under a unique name and opens it in its document.
     /// </summary>
-    private void CreateParticleEffect(string template, string baseName)
+    private void CreateFromTemplate(IAssetTemplate template)
     {
         string directory = string.Empty;
         if (_selectedPath is { } selected && _context.Project.IsOwnedAsset(selected))
@@ -102,12 +107,12 @@ public sealed class AssetBrowserPanel
             directory = (Path.GetDirectoryName(selected) ?? string.Empty).Replace('\\', '/');
         }
 
-        string relativePath = ParticleEffectTemplates.GetUniqueAssetPath(_context, directory, baseName);
+        string relativePath = ParticleEffectTemplates.GetUniqueAssetPath(_context, directory, template.BaseName, template.FileExtension);
         string absolutePath = Path.Combine(
             _context.Project.GetAbsoluteAssetRoots()[0],
             relativePath.Replace('/', Path.DirectorySeparatorChar));
         Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
-        File.WriteAllText(absolutePath, template);
+        File.WriteAllText(absolutePath, template.CreateContent(Path.GetFileNameWithoutExtension(relativePath)));
 
         _selectedPath = relativePath;
         _documents.Open(relativePath);
@@ -207,6 +212,8 @@ public sealed class AssetBrowserPanel
         {
             _documents.Open(assetPath);
         }
+
+        EditorDragDrop.SetAsset(assetPath);
     }
 
     private void DrawFilteredList()

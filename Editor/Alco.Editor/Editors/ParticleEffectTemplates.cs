@@ -78,10 +78,27 @@ public static class ParticleEffectTemplates
     /// <returns>The free relative path including the particle effect extension.</returns>
     public static string GetUniqueAssetPath(EditorContext context, string directory, string baseName)
     {
+        return GetUniqueAssetPath(context, directory, baseName, ParticleAssetPipeline.EffectExtension);
+    }
+
+    /// <summary>
+    /// Finds a free asset-system-relative path for a new asset, appending
+    /// <c>_2</c>, <c>_3</c>, … to <paramref name="baseName"/> until the name is
+    /// unused on disk and in the asset system.
+    /// </summary>
+    /// <param name="context">The editor context (project and asset system).</param>
+    /// <param name="directory">
+    /// The asset-system-relative directory to create the asset in ("" for an owned root).
+    /// </param>
+    /// <param name="baseName">The file base name without extension (e.g. <c>NewEffect2D</c>).</param>
+    /// <param name="extension">The file extension of the created asset (e.g. <c>.afx</c>).</param>
+    /// <returns>The free relative path including <paramref name="extension"/>.</returns>
+    public static string GetUniqueAssetPath(EditorContext context, string directory, string baseName, string extension)
+    {
         string prefix = directory.Length > 0 ? directory.TrimEnd('/') + "/" : string.Empty;
         for (int i = 1; ; i++)
         {
-            string candidate = $"{prefix}{baseName}{(i == 1 ? string.Empty : "_" + i)}{ParticleAssetPipeline.EffectExtension}";
+            string candidate = $"{prefix}{baseName}{(i == 1 ? string.Empty : "_" + i)}{extension}";
             if (context.AssetSystem.IsFileExist(candidate) || context.Project.IsOwnedAsset(candidate))
             {
                 continue;

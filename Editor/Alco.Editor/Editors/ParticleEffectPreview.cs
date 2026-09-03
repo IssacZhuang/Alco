@@ -1,6 +1,6 @@
 using System.Numerics;
+using Alco.Editor.Extensibility;
 using Alco.Engine;
-using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.Particles;
 using Alco.Rendering;
@@ -60,20 +60,22 @@ public sealed class ParticleEffectPreview : AutoDisposable
         _is3D = is3D;
         RenderingSystem rendering = context.RenderingSystem;
 
+        // The environment (registered as a service by the editor modules) owns the
+        // particle system setup and the preview pipeline; the camera binding stays
+        // here because the camera belongs to the viewport.
+        IParticlePreviewEnvironment environment = context.Extensions.Get<IParticlePreviewEnvironment>();
+        IPreviewPipelineFactory pipelineFactory = environment.CreatePipelineFactory(is3D);
         if (is3D)
         {
-            _viewport3D = new PreviewViewport3D(context, "particle_preview");
-            _system3D = new GpuParticleSystem3D(rendering)
-            {
-                Camera = _viewport3D.Camera,
-                // The preview pipeline clears depth to 1 with a plain (non-reversed) projection.
-                DepthStencilState = DepthStencilState.Read,
-            };
+            _viewport3D = new PreviewViewport3D(context, "particle_preview", pipelineFactory);
+            _system3D = environment.CreateSystem3D(rendering);
+            _system3D.Camera = _viewport3D.Camera;
         }
         else
         {
-            _viewport2D = new PreviewViewport2D(context, "particle_preview");
-            _system2D = new GpuParticleSystem2D(rendering) { Camera = _viewport2D.Camera };
+            _viewport2D = new PreviewViewport2D(context, "particle_preview", pipelineFactory: pipelineFactory);
+            _system2D = environment.CreateSystem2D(rendering);
+            _system2D.Camera = _viewport2D.Camera;
         }
         _viewport = (PreviewViewport?)_viewport2D ?? _viewport3D!;
         _viewport.RecordFrame = OnSimulate;

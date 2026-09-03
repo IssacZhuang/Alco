@@ -1,4 +1,5 @@
 using System.Numerics;
+using Alco.Editor.Extensibility;
 using Alco.ImGUI;
 using Alco.Rendering;
 
@@ -20,8 +21,9 @@ public sealed class PreviewViewport3D : PreviewViewport
     /// <summary>Creates the viewport with its perspective camera.</summary>
     /// <param name="context">The editor context (engine services).</param>
     /// <param name="name">The base name for the pipeline and its resources.</param>
-    public PreviewViewport3D(EditorContext context, string name)
-        : base(context, name)
+    /// <param name="pipelineFactory">The pipeline factory; null uses the default preview pipeline.</param>
+    public PreviewViewport3D(EditorContext context, string name, IPreviewPipelineFactory? pipelineFactory = null)
+        : base(context, name, pipelineFactory)
     {
         _camera = context.RenderingSystem.CreateCameraPerspective(0.9f, 16f / 9f, 0.1f, 300f, name + "_3d");
         UpdateCamera();

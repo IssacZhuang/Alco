@@ -1,5 +1,5 @@
 using System.Numerics;
-using Alco.Engine;
+using Alco.Editor.Extensibility;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.Rendering;
@@ -8,9 +8,10 @@ namespace Alco.Editor;
 
 /// <summary>
 /// A reusable offscreen preview viewport for asset editors: a small
-/// <see cref="RenderPipeline"/> (HDR scene, a toolbar-switchable display
+/// <see cref="RenderPipeline"/> (by default an HDR scene, a toolbar-switchable display
 /// transform that defaults to the game's Neutral post chain, and a blit into
-/// an RGBA8 target shown through <c>ImGui.Image</c>) with a built-in camera,
+/// an RGBA8 target shown through <c>ImGui.Image</c>; a custom
+/// <see cref="IPreviewPipelineFactory"/> can replace the chain) with a built-in camera,
 /// viewport input, and a world-space helper overlay (grid, axes and a scale bar).
 /// <br/>The viewport does not know what it renders. The owning document hooks
 /// the pipeline through delegates: <see cref="SceneContent"/> draws into the
@@ -24,7 +25,7 @@ namespace Alco.Editor;
 public abstract class PreviewViewport : AutoDisposable
 {
     private readonly RenderPipeline _pipeline;
-    private readonly RGNode_Tonemap _tonemap;
+    private readonly RGNode_Tonemap? _tonemap;
     private readonly RenderTexture _target;
     /// <summary>The smallest on-screen cell size before the grid falls back to a coarser decade.</summary>
     private const float MinGridCellPixels = 24f;
@@ -53,45 +54,24 @@ public abstract class PreviewViewport : AutoDisposable
     /// <summary>Creates the pipeline, target and overlay plumbing.</summary>
     /// <param name="context">The editor context (engine services).</param>
     /// <param name="name">The base name for the pipeline and its resources.</param>
-    protected PreviewViewport(EditorContext context, string name)
+    /// <param name="pipelineFactory">The factory producing the render pipeline, its
+    /// target and its optional tonemap node; null uses
+    /// <see cref="DefaultPreviewPipelineFactory.Instance"/>.</param>
+    protected PreviewViewport(EditorContext context, string name, IPreviewPipelineFactory? pipelineFactory = null)
     {
         ArgumentNullException.ThrowIfNull(context);
-        RenderingSystem rendering = context.RenderingSystem;
-        BuiltInAssets builtIn = context.Engine.BuiltInAssets;
 
-        _pipeline = new RenderPipeline(rendering, new RenderPipeline.Descriptor
-        {
-            SceneLayout = rendering.PreferredHDRPass,
-            BlitShader = builtIn.Shader_Blit,
-            Width = 512,
-            Height = 288,
-            Name = name,
-        });
+        // The content nodes are owned by the viewport: their callbacks read the
+        // RecordFrame/SceneContent delegates, so owners can swap content freely.
+        var recordNode = new RGNode_Callback { Callback = renderContext => RecordFrame?.Invoke(renderContext) };
+        var pipelineContext = new PreviewPipelineContext(
+            context, name, 512, 288, recordNode,
+            (graph, chain) => new SceneNode(this, graph, chain));
+        PreviewPipeline preview = (pipelineFactory ?? DefaultPreviewPipelineFactory.Instance).Create(pipelineContext);
+        _pipeline = preview.Pipeline;
         _pipeline.ClearColor = _background;
-        _pipeline.Use(new RGNode_Callback { Callback = renderContext => RecordFrame?.Invoke(renderContext) });
-        _pipeline.Use(new SceneNode(this, _pipeline.Graph, _pipeline.Chain));
-        _tonemap = new RGNode_Tonemap(
-            rendering,
-            _pipeline.Graph,
-            _pipeline.Chain,
-            _pipeline.PostProcessLayout,
-            new RGNode_Tonemap.Descriptor
-            {
-                BlitShader = builtIn.Shader_Blit,
-                ReinhardShader = builtIn.Shader_ReinhardLuminanceTonemap,
-                Uncharted2Shader = builtIn.Shader_Uncharted2Tonemap,
-                FilmicShader = builtIn.Shader_FilmicTonemap,
-                AcesShader = builtIn.Shader_AcesTonemap,
-                NeutralShader = builtIn.Shader_NeutralTonemap,
-                AgxShader = builtIn.Shader_AgxTonemap,
-            });
-        // Neutral with its default data is the game's post chain (Engine.cs uses
-        // the same operator), so the preview shows authored colors the way they
-        // present in game. The toolbar can switch operators for comparison.
-        _tonemap.Operator = TonemapType.Neutral;
-        _pipeline.Use(_tonemap);
-
-        _target = rendering.CreateRenderTexture(rendering.PreferredRGBATexturePass, 512, 288, name + "_target");
+        _tonemap = preview.Tonemap;
+        _target = preview.Target;
     }
 
     /// <summary>The render target the pipeline draws into (for aspect ratios).</summary>
@@ -139,6 +119,13 @@ public abstract class PreviewViewport : AutoDisposable
 
     /// <summary>A failure of the owner's content, shown in red under the viewport.</summary>
     public string Error { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional hook invoked with the asset path dropped onto the viewport image
+    /// (an <see cref="EditorDragDrop.AssetPayload"/> drag); return true to consume
+    /// the drop. While null, the viewport is not a drop target.
+    /// </summary>
+    public Func<string, bool>? AssetDropped { get; set; }
 
     /// <summary>The camera view-projection matrix used by the overlay projection.</summary>
     protected abstract Matrix4x4 ViewProjection { get; }
@@ -207,22 +194,25 @@ public abstract class PreviewViewport : AutoDisposable
         {
             ResetCamera();
         }
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(90f);
-        if (ImGui.BeginCombo("##display_transform", DisplayOperatorLabel(_tonemap.Operator)))
+        if (_tonemap != null)
         {
-            foreach (TonemapType type in DisplayOperators)
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(90f);
+            if (ImGui.BeginCombo("##display_transform", DisplayOperatorLabel(_tonemap.Operator)))
             {
-                if (ImGui.Selectable(DisplayOperatorLabel(type), _tonemap.Operator == type))
+                foreach (TonemapType type in DisplayOperators)
                 {
-                    _tonemap.Operator = type;
+                    if (ImGui.Selectable(DisplayOperatorLabel(type), _tonemap.Operator == type))
+                    {
+                        _tonemap.Operator = type;
+                    }
                 }
+                ImGui.EndCombo();
             }
-            ImGui.EndCombo();
-        }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Display transform. Neutral matches the game's post chain");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Display transform. Neutral matches the game's post chain");
+            }
         }
         ImGui.SameLine();
         ImGui.Checkbox("Grid", ref _showGrid);
@@ -305,6 +295,10 @@ public abstract class PreviewViewport : AutoDisposable
         if (ImGui.IsItemActive() && ImGui.IsMouseDragging(ImGuiMouseButton.Middle))
         {
             OnMiddleDrag(io.MouseDelta, imageSize);
+        }
+        if (AssetDropped != null && EditorDragDrop.TryAcceptAsset(out string droppedAsset))
+        {
+            AssetDropped.Invoke(droppedAsset);
         }
 
         DrawOverlay(imageMin, imageSize);
