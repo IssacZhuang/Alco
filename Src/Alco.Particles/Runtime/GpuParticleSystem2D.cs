@@ -68,10 +68,6 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly ParticleBufferPool<GpuParticle2D, EmitterParams2D> _pool;
     private readonly MaterialCompiler _materialCompiler;
     private readonly ShaderLibrary _renderTemplate;
-    // Cached at construction: a render template declaring an "emissive" value
-    // specialization axis (e.g. a MRT emission pass template) is fed from each
-    // group's blend state at material compile time (see GetOrCreateMaterial).
-    private readonly bool _renderTemplateHasEmissiveAxis;
     private readonly ShaderLibrary _emitTemplate;
     private readonly ShaderLibrary _simulateTemplate;
     private readonly ShaderLibrary _defaultBehavior;
@@ -104,12 +100,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <param name="rendering">The rendering system.</param>
     /// <param name="particleCapacity">The initial particle pool size (grows geometrically when exhausted).</param>
     /// <param name="emitterSlots">The initial emitter-slot count (one per emitter group instance).</param>
-    /// <param name="renderModule">The pass-template module group surfaces compose with;
-    /// null uses the built-in <see cref="ParticleAssetPipeline.RenderModule2D"/>. A custom
-    /// template must keep the built-in pass's vertex stage and resource contract; it may
-    /// declare an "emissive" value-specialization axis, which the system feeds from each
-    /// group's blend state (additive-like blends compile the emissive variant).</param>
-    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, string? renderModule = null)
+    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         _rendering = rendering;
@@ -118,8 +109,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         _materialModules = new ParticleMaterialModules(_gate);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
         _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
-        _renderTemplate = shaderSystem.GetLibrary(renderModule ?? ParticleAssetPipeline.RenderModule2D);
-        _renderTemplateHasEmissiveAxis = _renderTemplate.Reflection.SpecializationAxes.Any(axis => axis.Name == "emissive");
+        _renderTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D);
         _emitTemplate = shaderSystem.GetLibrary("GpuParticleEmit2D");
         _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate2D");
         _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior2D);
@@ -459,12 +449,31 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// one indexed-indirect draw per record — see
     /// <see cref="RenderPassScope.MultiDrawIndexedIndirect"/>). Call from the
     /// scene content node (<see cref="RGNode_SceneContent"/> or an
-    /// <see cref="IRenderPassContent"/>).
+    /// <see cref="IRenderPassContent"/>). See <see cref="Render(RenderPassScope, Func{GraphicsMaterial, bool})"/>
+    /// to draw only a subset of the plan into its own pass.
     /// </summary>
     /// <param name="pass">The render pass scope of the scene pass.</param>
-    public void Render(RenderPassScope pass)
+    public void Render(RenderPassScope pass) => Render(pass, static _ => true);
+
+    /// <summary>
+    /// Records the batched indirect draws of the draw-plan batches whose material
+    /// passes <paramref name="filter"/>, in draw-plan order — the subset variant of
+    /// <see cref="Render(RenderPassScope)"/> for pipelines that split one system's
+    /// plan across several passes (e.g. materials of one blend class into an
+    /// accumulation pass, the rest into an occluding pass). The grouping policy is
+    /// entirely the caller's: the system gives it the batch's material and draws
+    /// whatever the filter accepts. Disjoint filters tile the plan; overlapping
+    /// filters draw the shared batches twice.
+    /// <br/>The filter runs under the system gate (while the draw plan is replayed),
+    /// so it must be a pure, non-blocking predicate that never calls back into the
+    /// system.
+    /// </summary>
+    /// <param name="pass">The render pass scope of the pass the subset draws into.</param>
+    /// <param name="filter">Selects the batches to draw by their material.</param>
+    public void Render(RenderPassScope pass, Func<GraphicsMaterial, bool> filter)
     {
         ArgumentNullException.ThrowIfNull(pass);
+        ArgumentNullException.ThrowIfNull(filter);
         if (_camera == null)
         {
             throw new InvalidOperationException($"The {nameof(Camera)} of the particle system was not set.");
@@ -476,6 +485,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             for (int i = 0; i < _drawBatches.Count; i++)
             {
                 DrawBatch batch = _drawBatches[i];
+                if (!filter(batch.Material))
+                {
+                    continue;
+                }
                 pass.MultiDrawIndexedIndirect(
                     QuadMesh,
                     batch.Material,
@@ -533,21 +546,6 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             }
         }
 
-        // Blend-class ordering: additive-like materials (the glow class) draw
-        // before occluding blends, so smoke-class particles cover glow instead of
-        // being overdrawn by it — independent of spawn order. Stable within each
-        // class: the first-seen order is preserved.
-        int additiveInsertAt = 0;
-        for (int i = 0; i < _drawMaterials.Count; i++)
-        {
-            if (IsAdditiveLike(_drawMaterials[i].BlendState))
-            {
-                GraphicsMaterial material = _drawMaterials[i];
-                _drawMaterials.RemoveAt(i);
-                _drawMaterials.Insert(additiveInsertAt++, material);
-            }
-        }
-
         _drawGroups.Clear();
         _drawIndices.Clear();
         _drawStarts.Clear();
@@ -570,13 +568,6 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             _drawBatches.Add(new DrawBatch(_drawMaterials[m], first, (uint)bucket.Count));
         }
     }
-
-    /// <summary>
-    /// Additive-like blends (add with a dst factor of One) accumulate light onto the
-    /// target; they form the glow class that must draw before occluding blends.
-    /// </summary>
-    private static bool IsAdditiveLike(BlendState blend)
-        => blend.Color.Operation == BlendOperation.Add && blend.Color.DstFactor == BlendFactor.One;
 
     internal ref EmitterParams2D ParamsRef(uint slot) => ref _pool.Params.AsSpan()[(int)slot];
 
@@ -671,31 +662,11 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         // vertices, its textures and [MaterialParams] values bind), then the
         // group's own texture derives over the surface's "texture" slot.
         MaterialAsset asset = group.Material ?? _defaultAsset;
-        BlendState blend = group.Blend ?? BlendState.AlphaBlend;
-        GraphicsMaterial material;
-        if (_renderTemplateHasEmissiveAxis)
-        {
-            // The template's "emissive" axis routes the shaded color between the
-            // pass's color and emission outputs; the blend state defines the class:
-            // additive-like blends are the glow class, everything else occludes.
-            Dictionary<string, ShaderValue> specializations = new(asset.Specializations)
-            {
-                ["emissive"] = IsAdditiveLike(blend),
-            };
-            material = _materialCompiler.Compile(
-                asset,
-                _renderTemplate,
-                specializations,
-                (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
-        }
-        else
-        {
-            material = _materialCompiler.Compile(
-                asset,
-                _renderTemplate,
-                (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
-        }
-        material.BlendState = blend;
+        GraphicsMaterial material = _materialCompiler.Compile(
+            asset,
+            _renderTemplate,
+            (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"particles2d:{group.Name}"));
+        material.BlendState = group.Blend ?? BlendState.AlphaBlend;
         if (group.Depth is { } depth)
         {
             // Groups authoring world z in a custom render module (e.g. facade
