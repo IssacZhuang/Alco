@@ -22,6 +22,11 @@ internal static class ParticleShaderKeys
     /// <summary>Per-draw instance records: the instance-step vertex buffer of the batched draws.</summary>
     public const string InstanceData = "instanceData";
 
+    /// <summary>The batched dispatch work table: one work record per 64-thread
+    /// block of the wide emit/simulate dispatches (emit materials bind the emit
+    /// table, simulate materials the simulate table).</summary>
+    public const string WorkBlocks = "workBlocks";
+
     /// <summary>The group's baked color-gradient lookup texture (render pass templates).</summary>
     public const string ColorGradient = "colorGradient";
 

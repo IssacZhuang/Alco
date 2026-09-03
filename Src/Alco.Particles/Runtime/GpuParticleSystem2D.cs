@@ -8,11 +8,13 @@ namespace Alco.Particles;
 
 /// <summary>
 /// The 2D GPU particle system: simulates and renders any number of
-/// <see cref="ParticleEffect2DAsset"/> instances entirely on the GPU. Per emitter
-/// group and frame it records two compute dispatches (emit + simulate/compact)
-/// into the render graph and — batched per material — one indexed multi-draw
-/// indirect into the scene pass; CPU work per frame is a small parameter update
-/// per active emitter plus the per-frame draw-plan bookkeeping.
+/// <see cref="ParticleEffect2DAsset"/> instances entirely on the GPU. Per frame it
+/// records the compute work batched per behavior material — one wide emit and one
+/// wide simulate/compact dispatch each, whose 64-thread blocks resolve their
+/// emitter group through a CPU-uploaded work-block table (see
+/// <see cref="GpuParticleWorkBlock"/>) — and, batched per render material, one
+/// indexed multi-draw indirect into the scene pass; CPU work per frame is a small
+/// parameter update per active emitter plus the per-frame draw-plan bookkeeping.
 /// <br/>All instances share one buffer pool (see <see cref="ParticleBufferPool{,}"/>),
 /// which makes creating/destroying effects cheap and keeps the draw state stable.
 /// <br/>Draw batching: per frame the CPU buckets the visible active groups by
@@ -57,6 +59,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <summary>One material-homogeneous run of the per-frame draw plan.</summary>
     private readonly record struct DrawBatch(GraphicsMaterial Material, uint First, uint Count);
 
+    /// <summary>One behavior-material-homogeneous run of the per-frame batched compute plan.</summary>
+    private readonly record struct WorkDispatch(ComputeMaterial Material, uint First, uint Count);
+
     /// <summary>
     /// Serializes all shared mutable state (instances, material caches, draw plan,
     /// pool bookkeeping via the pool's shared gate). Reentrant, so nested
@@ -85,6 +90,21 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly List<uint> _drawIndices = [];
     private readonly List<uint> _drawStarts = [];
     private readonly List<DrawBatch> _drawBatches = [];
+    // The per-frame batched compute plan (rebuilt with the draw plan): the draw
+    // plan's groups re-bucketed by behavior material in first-seen order, each
+    // bucket flattened into one work-block record per 64-thread block and recorded
+    // as one wide dispatch over its table run (see BuildWorkBlocks).
+    private readonly Dictionary<ComputeMaterial, List<int>> _workBuckets = [];
+    private readonly List<ComputeMaterial> _workMaterials = [];
+    private readonly List<GpuParticleWorkBlock> _emitBlocks = [];
+    private readonly List<GpuParticleWorkBlock> _simulateBlocks = [];
+    private readonly List<WorkDispatch> _emitDispatches = [];
+    private readonly List<WorkDispatch> _simulateDispatches = [];
+    private GraphicsArrayBuffer<GpuParticleWorkBlock> _emitBlockBuffer;
+    private GraphicsArrayBuffer<GpuParticleWorkBlock> _simulateBlockBuffer;
+    // Outgrown work-block buffers retire two frames later (in-flight frames may
+    // still reference them) — the same policy as the pool's growth.
+    private readonly List<(GraphicsArrayBuffer<GpuParticleWorkBlock> Buffer, int FramesLeft)> _retiredWorkBuffers = [];
     private readonly MaterialAsset _defaultAsset = new() { Name = "particles2d-default" };
     private readonly ParticleMaterialModules _materialModules;
     private GraphicsValueBuffer<Matrix4x4>? _camera;
@@ -120,8 +140,13 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         // Bind the pool up front: OnPoolReallocated refreshes this, but the first
         // slice-recycle kill dispatch can precede any reallocation.
         _initMaterial.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
+        _emitBlockBuffer = rendering.CreateGraphicsArrayBuffer<GpuParticleWorkBlock>(InitialWorkBlockCapacity, "particles2d_emit_work");
+        _simulateBlockBuffer = rendering.CreateGraphicsArrayBuffer<GpuParticleWorkBlock>(InitialWorkBlockCapacity, "particles2d_simulate_work");
         QuadMesh = rendering.MeshCenteredSprite;
     }
+
+    /// <summary>The initial capacity of the work-block tables in records (grows geometrically when exhausted).</summary>
+    private const int InitialWorkBlockCapacity = 512;
 
     /// <summary>
     /// The 2D camera the groups render with; bound to every group's material.
@@ -235,6 +260,18 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <summary>The number of groups in the draw plan built by the last <see cref="RecordSimulation"/> (tests).</summary>
     internal int PlannedDrawGroupCount => _drawGroups.Count;
 
+    /// <summary>The number of batched emit dispatches of the last simulated frame (tests).</summary>
+    internal int PlannedEmitDispatchCount => _emitDispatches.Count;
+
+    /// <summary>The number of batched simulate dispatches of the last simulated frame (tests).</summary>
+    internal int PlannedSimulateDispatchCount => _simulateDispatches.Count;
+
+    /// <summary>The number of emit work blocks of the last simulated frame (tests).</summary>
+    internal int PlannedEmitBlockCount => _emitBlocks.Count;
+
+    /// <summary>The number of simulate work blocks of the last simulated frame (tests).</summary>
+    internal int PlannedSimulateBlockCount => _simulateBlocks.Count;
+
     /// <summary>The shared pool's current particle capacity (grows geometrically when exhausted).</summary>
     public int PoolParticleCapacity => _pool.ParticleCapacity;
 
@@ -339,8 +376,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <summary>
     /// Records the simulation of all active instances into
     /// <paramref name="commandBuffer"/>: pending pool migrations, the parameter
-    /// upload, the per-frame draw plan, pending slice kills, then per group the
-    /// emit and simulate/compact dispatches. The caller owns the ordering: record
+    /// upload, the per-frame draw plan, pending slice kills, then the emit and
+    /// simulate/compact dispatches batched per behavior material (see
+    /// <see cref="BuildWorkBlocks"/>). The caller owns the ordering: record
     /// before the scene pass the particles draw into (e.g. from an
     /// <see cref="RGNode_Callback"/>). Pass
     /// <paramref name="deltaTime"/> = 0 to freeze the simulation while still
@@ -377,6 +415,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 if (_simulationAccumulator < SimulationInterval)
                 {
                     _pool.RecordMigration(commandBuffer);
+                    TickRetiredWorkBuffers();
                     return;
                 }
                 // A fixed step per interval keeps the cadence even and the trajectory
@@ -389,6 +428,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             }
             deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
             _pool.RecordMigration(commandBuffer);
+            TickRetiredWorkBuffers();
 
             uint dirtyMin = uint.MaxValue;
             uint dirtyMax = 0;
@@ -409,6 +449,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             {
                 return;
             }
+            if (anyActive)
+            {
+                BuildWorkBlocks();
+            }
 
             using (GPUCommandBuffer.ComputePass computePass = commandBuffer.BeginCompute())
             {
@@ -424,23 +468,26 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 {
                     return;
                 }
-                for (int i = 0; i < _drawGroups.Count; i++)
+                // One wide dispatch per behavior material instead of one per group:
+                // each 64-thread block resolves its group through the work-block
+                // table (the emit pass also resets the draw-args record, so every
+                // active group contributes at least one emit block — even with zero
+                // spawns). All emits record before all simulates: a group's spawn
+                // still lands before its own step, cross-group slices are disjoint,
+                // and the backend makes a dispatch's writes visible to the next.
+                for (int i = 0; i < _emitDispatches.Count; i++)
                 {
-                    ParticleEffectInstance2D.GroupState group = _drawGroups[i];
-                    // The emit pass also resets the draw-args record, so it runs every
-                    // frame the group is active — even with zero spawns. The behavior
-                    // materials were resolved into the group state at creation, so
-                    // the frame loop takes no cache lookup.
-                    var constant = new GpuParticleSlotConstant
-                    {
-                        EmitterSlot = group.Slot,
-                        DrawIndex = _drawIndices[i],
-                        DrawStart = _drawStarts[i],
-                    };
-                    group.EmitMaterial.DispatchByGroupWithConstant(
-                        computePass, Math.Max((group.SpawnCount + 63) / 64, 1), 1, 1, constant);
-                    group.SimulateMaterial.DispatchByGroupWithConstant(
-                        computePass, (group.Slice.Capacity + 63) / 64, 1, 1, constant);
+                    WorkDispatch dispatch = _emitDispatches[i];
+                    dispatch.Material.DispatchByGroupWithConstant(
+                        computePass, dispatch.Count, 1, 1,
+                        new GpuParticleWorkConstant { WorkBlockBase = dispatch.First });
+                }
+                for (int i = 0; i < _simulateDispatches.Count; i++)
+                {
+                    WorkDispatch dispatch = _simulateDispatches[i];
+                    dispatch.Material.DispatchByGroupWithConstant(
+                        computePass, dispatch.Count, 1, 1,
+                        new GpuParticleWorkConstant { WorkBlockBase = dispatch.First });
                 }
             }
         }
@@ -549,6 +596,120 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         }
     }
 
+    /// <summary>
+    /// Rebuilds the batched compute plan of the current draw plan: the groups
+    /// re-bucketed by behavior material in first-seen order (a group's emit and
+    /// simulate materials pair by behavior, but the two passes bucket separately),
+    /// each bucket flattened into one work-block record per 64-thread block and
+    /// uploaded to its GPU table, then recorded as one wide dispatch over the
+    /// bucket's table run.
+    /// </summary>
+    private void BuildWorkBlocks()
+    {
+        _emitBlocks.Clear();
+        _simulateBlocks.Clear();
+        _emitDispatches.Clear();
+        _simulateDispatches.Clear();
+        AppendWorkBlocks(emit: true, _emitBlocks, _emitDispatches);
+        AppendWorkBlocks(emit: false, _simulateBlocks, _simulateDispatches);
+        UploadWorkBlocks(ref _emitBlockBuffer, _emitBlocks, emit: true, "particles2d_emit_work");
+        UploadWorkBlocks(ref _simulateBlockBuffer, _simulateBlocks, emit: false, "particles2d_simulate_work");
+    }
+
+    private void AppendWorkBlocks(bool emit, List<GpuParticleWorkBlock> blocks, List<WorkDispatch> dispatches)
+    {
+        foreach (List<int> bucket in _workBuckets.Values)
+        {
+            bucket.Clear();
+        }
+        _workMaterials.Clear();
+        for (int i = 0; i < _drawGroups.Count; i++)
+        {
+            // The behavior materials were resolved into the group state at
+            // creation, so the frame loop takes no cache lookup.
+            ComputeMaterial material = emit ? _drawGroups[i].EmitMaterial : _drawGroups[i].SimulateMaterial;
+            if (!_workBuckets.TryGetValue(material, out List<int>? bucket))
+            {
+                bucket = [];
+                _workBuckets[material] = bucket;
+            }
+            if (bucket.Count == 0)
+            {
+                // Buckets persist across frames; an empty one means this is the
+                // material's first group of the frame — it (re)enters the
+                // first-seen order.
+                _workMaterials.Add(material);
+            }
+            bucket.Add(i);
+        }
+        for (int m = 0; m < _workMaterials.Count; m++)
+        {
+            List<int> bucket = _workBuckets[_workMaterials[m]];
+            uint first = (uint)blocks.Count;
+            for (int g = 0; g < bucket.Count; g++)
+            {
+                int groupIndex = bucket[g];
+                ParticleEffectInstance2D.GroupState group = _drawGroups[groupIndex];
+                uint threads = emit ? Math.Max(group.SpawnCount, 1u) : group.Slice.Capacity;
+                uint blockCount = (threads + 63) / 64;
+                for (uint b = 0; b < blockCount; b++)
+                {
+                    blocks.Add(new GpuParticleWorkBlock
+                    {
+                        EmitterSlot = group.Slot,
+                        DrawIndex = _drawIndices[groupIndex],
+                        DrawStart = _drawStarts[groupIndex],
+                        ThreadBase = b * 64,
+                    });
+                }
+            }
+            dispatches.Add(new WorkDispatch(_workMaterials[m], first, (uint)blocks.Count - first));
+        }
+    }
+
+    private void UploadWorkBlocks(
+        ref GraphicsArrayBuffer<GpuParticleWorkBlock> buffer, List<GpuParticleWorkBlock> blocks, bool emit, string name)
+    {
+        if (blocks.Count > buffer.Length)
+        {
+            // Geometric growth; the table is per-frame transient, so the outgrown
+            // buffer swaps without a copy and retires two frames later — the same
+            // policy as the pool's instance-data buffer.
+            int capacity = Math.Max(buffer.Length * 2, (int)BitOperations.RoundUpToPowerOf2((uint)blocks.Count));
+            GraphicsArrayBuffer<GpuParticleWorkBlock> grown = _rendering.CreateGraphicsArrayBuffer<GpuParticleWorkBlock>(capacity, name);
+            _retiredWorkBuffers.Add((buffer, 2));
+            buffer = grown;
+            foreach ((ComputeMaterial emitMaterial, ComputeMaterial simulateMaterial) in _behaviorMaterials.Values)
+            {
+                (emit ? emitMaterial : simulateMaterial).TrySetBuffer(ParticleShaderKeys.WorkBlocks, buffer);
+            }
+        }
+        if (blocks.Count == 0)
+        {
+            return;
+        }
+        CollectionsMarshal.AsSpan(blocks).CopyTo(buffer.AsSpan());
+        buffer.UpdateBufferRanged(0, (uint)blocks.Count);
+    }
+
+    private void TickRetiredWorkBuffers()
+    {
+        for (int i = _retiredWorkBuffers.Count - 1; i >= 0; i--)
+        {
+            (GraphicsArrayBuffer<GpuParticleWorkBlock> buffer, int framesLeft) = _retiredWorkBuffers[i];
+            framesLeft--;
+            if (framesLeft <= 0)
+            {
+                buffer.Dispose();
+                _retiredWorkBuffers.RemoveAt(i);
+            }
+            else
+            {
+                _retiredWorkBuffers[i] = (buffer, framesLeft);
+            }
+        }
+    }
+
     internal ref EmitterParams2D ParamsRef(uint slot) => ref _pool.Params.AsSpan()[(int)slot];
 
     internal void ReleaseInstance(ParticleEffectInstance2D instance)
@@ -605,8 +766,8 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         }
         ComputeMaterial emit = _rendering.CreateComputeMaterial(_materialCompiler.ComposeCompute(_emitTemplate, behavior));
         ComputeMaterial simulate = _rendering.CreateComputeMaterial(_materialCompiler.ComposeCompute(_simulateTemplate, behavior));
-        BindPool(emit);
-        BindPool(simulate);
+        BindPool(emit, _emitBlockBuffer);
+        BindPool(simulate, _simulateBlockBuffer);
         lock (_gate)
         {
             if (_behaviorMaterials.TryGetValue(behavior, out (ComputeMaterial, ComputeMaterial) existing))
@@ -616,6 +777,11 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                 return existing;
             }
             _behaviorMaterials[behavior] = (emit, simulate);
+            // Close the growth race: a work-table growth between the off-gate
+            // BindPool above and this insert would leave the new materials bound
+            // to a retired table (the growth sweep only covers cached materials).
+            emit.TrySetBuffer(ParticleShaderKeys.WorkBlocks, _emitBlockBuffer);
+            simulate.TrySetBuffer(ParticleShaderKeys.WorkBlocks, _simulateBlockBuffer);
             return (emit, simulate);
         }
     }
@@ -688,13 +854,14 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         }
     }
 
-    private void BindPool(ComputeMaterial material)
+    private void BindPool(ComputeMaterial material, GraphicsArrayBuffer<GpuParticleWorkBlock> workBlocks)
     {
         material.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
         material.TrySetBuffer(ParticleShaderKeys.Emitters, _pool.Params);
         material.TrySetBuffer(ParticleShaderKeys.RenderList, _pool.RenderList);
         material.TrySetBuffer(ParticleShaderKeys.DrawArgs, _pool.DrawArgs);
         material.TrySetBuffer(ParticleShaderKeys.InstanceData, _pool.InstanceData);
+        material.TrySetBuffer(ParticleShaderKeys.WorkBlocks, workBlocks);
     }
 
     // The group's over-life lookup textures: the authored gradient/curve bake
@@ -749,8 +916,8 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         _hasValidPlan = false;
         foreach ((ComputeMaterial emit, ComputeMaterial simulate) in _behaviorMaterials.Values)
         {
-            BindPool(emit);
-            BindPool(simulate);
+            BindPool(emit, _emitBlockBuffer);
+            BindPool(simulate, _simulateBlockBuffer);
         }
         _initMaterial.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);
         foreach (GraphicsMaterial material in _materials.Values)
@@ -787,17 +954,30 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             }
             _materialCompiler.Dispose();
             _initMaterial.Dispose();
+            _emitBlockBuffer.Dispose();
+            _simulateBlockBuffer.Dispose();
+            foreach ((GraphicsArrayBuffer<GpuParticleWorkBlock> retired, _) in _retiredWorkBuffers)
+            {
+                retired.Dispose();
+            }
+            _retiredWorkBuffers.Clear();
             _pool.Reallocated -= OnPoolReallocated;
             _pool.Dispose();
         }
     }
 }
 
-/// <summary>The push constant of the emit/simulate compute passes (16 bytes).</summary>
+/// <summary>
+/// One 64-thread block's work record of the batched emit/simulate dispatches
+/// (16 bytes; GPU layout twin of GpuWorkBlock in AlcoParticles_Core2D.slang).
+/// The CPU uploads one record per block of the wide per-material dispatches; a
+/// block's shader thread index within its group's dispatch span is
+/// ThreadBase + SV_GroupThreadID.x.
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
-internal struct GpuParticleSlotConstant
+internal struct GpuParticleWorkBlock
 {
-    /// <summary>The emitter slot of the dispatch.</summary>
+    /// <summary>The emitter slot of the block's group.</summary>
     public uint EmitterSlot;
 
     /// <summary>The record's index in this frame's compacted draw-args array.</summary>
@@ -806,8 +986,25 @@ internal struct GpuParticleSlotConstant
     /// <summary>The draw's firstInstance: its base into the instance-data buffer.</summary>
     public uint DrawStart;
 
+    /// <summary>The block's first thread index within the group's dispatch span.</summary>
+    public uint ThreadBase;
+}
+
+/// <summary>The push constant of a batched emit/simulate dispatch (16 bytes).</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct GpuParticleWorkConstant
+{
+    /// <summary>The dispatch bucket's first record in the work-block table.</summary>
+    public uint WorkBlockBase;
+
     /// <summary>Reserved.</summary>
     public uint Pad0;
+
+    /// <summary>Reserved.</summary>
+    public uint Pad1;
+
+    /// <summary>Reserved.</summary>
+    public uint Pad2;
 }
 
 /// <summary>The push constant of the slice-init compute pass (16 bytes).</summary>

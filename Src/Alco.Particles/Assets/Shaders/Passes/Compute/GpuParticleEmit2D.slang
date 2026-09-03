@@ -2,9 +2,12 @@
 //
 // 2D GPU particle emit pass template: spawns this frame's new particles into
 // the emitter's ring-buffer slice, generic over the group's simulation behavior
-// (composed at link time — see MaterialCompiler.ComposeCompute). Thread 0 also
-// resets the emitter's indirect draw args record of this frame, so the pass is
-// dispatched every frame the emitter is active, even with zero spawns.
+// (composed at link time — see MaterialCompiler.ComposeCompute). The frame's
+// active groups are batched per behavior material into one wide dispatch: each
+// 64-thread block looks up its group's work record in the work-block table
+// (GpuWorkBlock) instead of a per-group push constant. The first thread of each
+// group's span also resets the group's indirect draw args record of this frame,
+// so every active group contributes at least one block, even with zero spawns.
 
 #language slang 2025
 module GpuParticleEmit2D;
@@ -17,26 +20,29 @@ public struct EmitResources
     public RWStructuredBuffer<EmitterParams2D> emitters;
     public RWStructuredBuffer<uint> renderList;
     public RWStructuredBuffer<GpuDrawArgs> drawArgs;
+    public RWStructuredBuffer<GpuWorkBlock> workBlocks;
 };
 
 public ParameterBlock<EmitResources> resources;
 
 public struct EmitConstant
 {
-    public uint emitterSlot;
-    public uint drawIndex;   // the record's slot in this frame's draw-args array
-    public uint drawStart;   // the draw's firstInstance / instance-data base
+    public uint workBlockBase; // the bucket's first record in the work-block table
     public uint pad0;
+    public uint pad1;
+    public uint pad2;
 };
 
 [[vk::push_constant]] EmitConstant pc;
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
-public void mainCS<T : IParticleBehavior2D>(uint3 dispatchId : SV_DispatchThreadID)
+public void mainCS<T : IParticleBehavior2D>(uint3 groupId : SV_GroupID, uint3 groupThread : SV_GroupThreadID)
 {
-    EmitterParams2D emitter = resources.emitters[pc.emitterSlot];
-    if (dispatchId.x == 0)
+    GpuWorkBlock work = resources.workBlocks[pc.workBlockBase + groupId.x];
+    uint tid = work.threadBase + groupThread.x;
+    EmitterParams2D emitter = resources.emitters[work.emitterSlot];
+    if (tid == 0)
     {
         // The args record lands at the CPU-assigned drawIndex of the material-
         // batched array (contiguous per material for the multi-draw), and its
@@ -46,14 +52,14 @@ public void mainCS<T : IParticleBehavior2D>(uint3 dispatchId : SV_DispatchThread
         args.instanceCount = 0;
         args.firstIndex = 0;
         args.vertexOffset = 0;
-        args.firstInstance = pc.drawStart;
-        resources.drawArgs[pc.drawIndex] = args;
+        args.firstInstance = work.drawStart;
+        resources.drawArgs[work.drawIndex] = args;
     }
-    if (dispatchId.x >= emitter.spawnCount)
+    if (tid >= emitter.spawnCount)
     {
         return;
     }
-    uint local = (emitter.emitCursor + dispatchId.x) % emitter.capacity;
+    uint local = (emitter.emitCursor + tid) % emitter.capacity;
     uint slot = emitter.sliceOffset + local;
     uint rng = particleHash(emitter.frameSeed, slot);
     ParticleData2D particle = (ParticleData2D)0;

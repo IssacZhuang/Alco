@@ -91,10 +91,14 @@ public class ValidateParticleShaders
                     $"GpuParticleSimulate{dimension} × {behavior}: missing 'drawArgs'");
                 Assert.That(simulateReflection.TryGetResourceLocation("instanceData", out _), Is.True,
                     $"GpuParticleSimulate{dimension} × {behavior}: missing 'instanceData'");
+                Assert.That(simulateReflection.TryGetResourceLocation("workBlocks", out _), Is.True,
+                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'workBlocks'");
                 Assert.That(emitReflection.TryGetResourceLocation("particles", out _), Is.True,
                     $"GpuParticleEmit{dimension} × {behavior}: missing 'particles'");
                 Assert.That(emitReflection.TryGetResourceLocation("drawArgs", out _), Is.True,
                     $"GpuParticleEmit{dimension} × {behavior}: missing 'drawArgs'");
+                Assert.That(emitReflection.TryGetResourceLocation("workBlocks", out _), Is.True,
+                    $"GpuParticleEmit{dimension} × {behavior}: missing 'workBlocks'");
             }
         }
     }

@@ -116,6 +116,24 @@ public struct GpuInstanceData
     public uint particleIndex;  // the particle's slot inside the emitter's slice
 };
 
+// ── batched dispatch work record (16 bytes, one per 64-thread block) ────────
+//
+// The CPU buckets the frame's active emitter groups by behavior material and
+// records one wide emit/simulate dispatch per bucket instead of one dispatch
+// per group; each 64-thread block of the wide dispatch looks up its work record
+// at workBlockBase + SV_GroupID.x and derives its thread index within the
+// group's dispatch span as threadBase + SV_GroupThreadID.x (see
+// GpuParticleEmit2D/Simulate2D). The C# twin (GpuParticleWorkBlock) must match
+// this layout field for field.
+
+public struct GpuWorkBlock
+{
+    public uint emitterSlot;   // the emitter slot the block's threads work on
+    public uint drawIndex;     // the group's record slot in this frame's draw-args array
+    public uint drawStart;     // the draw's firstInstance / instance-data base
+    public uint threadBase;    // the block's first thread index within the group's span
+};
+
 // ── hash RNG (PCG) ──────────────────────────────────────────────────────────
 
 public uint particleHash(uint seed, uint slot)

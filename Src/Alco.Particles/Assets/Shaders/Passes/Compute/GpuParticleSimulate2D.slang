@@ -4,7 +4,9 @@
 // particle of the emitter's slice by the frame's delta time (generic over the
 // group's simulation behavior) and appends the survivors to the emitter's
 // render list, atomically counting them into the indirect draw args record the
-// render pass draws with.
+// render pass draws with. Batched like the emit pass: one wide dispatch per
+// behavior material, each 64-thread block resolving its group through the
+// work-block table (see GpuParticleEmit2D).
 
 #language slang 2025
 module GpuParticleSimulate2D;
@@ -18,30 +20,33 @@ public struct SimulateResources
     public RWStructuredBuffer<uint> renderList;
     public RWStructuredBuffer<GpuDrawArgs> drawArgs;
     public RWStructuredBuffer<GpuInstanceData> instanceData;
+    public RWStructuredBuffer<GpuWorkBlock> workBlocks;
 };
 
 public ParameterBlock<SimulateResources> resources;
 
 public struct SimulateConstant
 {
-    public uint emitterSlot;
-    public uint drawIndex;
-    public uint drawStart;
+    public uint workBlockBase; // the bucket's first record in the work-block table
     public uint pad0;
+    public uint pad1;
+    public uint pad2;
 };
 
 [[vk::push_constant]] SimulateConstant pc;
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
-public void mainCS<T : IParticleBehavior2D>(uint3 dispatchId : SV_DispatchThreadID)
+public void mainCS<T : IParticleBehavior2D>(uint3 groupId : SV_GroupID, uint3 groupThread : SV_GroupThreadID)
 {
-    EmitterParams2D emitter = resources.emitters[pc.emitterSlot];
-    if (dispatchId.x >= emitter.capacity)
+    GpuWorkBlock work = resources.workBlocks[pc.workBlockBase + groupId.x];
+    uint tid = work.threadBase + groupThread.x;
+    EmitterParams2D emitter = resources.emitters[work.emitterSlot];
+    if (tid >= emitter.capacity)
     {
         return;
     }
-    uint slot = emitter.sliceOffset + dispatchId.x;
+    uint slot = emitter.sliceOffset + tid;
     ParticleData2D particle = resources.particles[slot];
     if (particle.lifetime <= 0.0)
     {
@@ -55,10 +60,10 @@ public void mainCS<T : IParticleBehavior2D>(uint3 dispatchId : SV_DispatchThread
         return;
     }
     uint target;
-    InterlockedAdd(resources.drawArgs[pc.drawIndex].instanceCount, 1, target);
-    resources.renderList[emitter.sliceOffset + target] = dispatchId.x;
+    InterlockedAdd(resources.drawArgs[work.drawIndex].instanceCount, 1, target);
+    resources.renderList[emitter.sliceOffset + target] = tid;
     GpuInstanceData instance;
-    instance.emitterSlot = pc.emitterSlot;
-    instance.particleIndex = dispatchId.x;
-    resources.instanceData[pc.drawStart + target] = instance;
+    instance.emitterSlot = work.emitterSlot;
+    instance.particleIndex = tid;
+    resources.instanceData[work.drawStart + target] = instance;
 }
