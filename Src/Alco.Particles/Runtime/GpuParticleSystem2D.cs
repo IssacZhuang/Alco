@@ -100,7 +100,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <param name="rendering">The rendering system.</param>
     /// <param name="particleCapacity">The initial particle pool size (grows geometrically when exhausted).</param>
     /// <param name="emitterSlots">The initial emitter-slot count (one per emitter group instance).</param>
-    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256)
+    /// <param name="renderModule">The pass-template module group surfaces compose with;
+    /// null uses the built-in <see cref="ParticleAssetPipeline.RenderModule2D"/>. A custom
+    /// template must keep the built-in pass's vertex stage and resource contract.</param>
+    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, string? renderModule = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         _rendering = rendering;
@@ -109,7 +112,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         _materialModules = new ParticleMaterialModules(_gate);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
         _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
-        _renderTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D);
+        _renderTemplate = shaderSystem.GetLibrary(renderModule ?? ParticleAssetPipeline.RenderModule2D);
         _emitTemplate = shaderSystem.GetLibrary("GpuParticleEmit2D");
         _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate2D");
         _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior2D);
@@ -449,31 +452,12 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// one indexed-indirect draw per record — see
     /// <see cref="RenderPassScope.MultiDrawIndexedIndirect"/>). Call from the
     /// scene content node (<see cref="RGNode_SceneContent"/> or an
-    /// <see cref="IRenderPassContent"/>). See <see cref="Render(RenderPassScope, Func{GraphicsMaterial, bool})"/>
-    /// to draw only a subset of the plan into its own pass.
+    /// <see cref="IRenderPassContent"/>).
     /// </summary>
     /// <param name="pass">The render pass scope of the scene pass.</param>
-    public void Render(RenderPassScope pass) => Render(pass, static _ => true);
-
-    /// <summary>
-    /// Records the batched indirect draws of the draw-plan batches whose material
-    /// passes <paramref name="filter"/>, in draw-plan order — the subset variant of
-    /// <see cref="Render(RenderPassScope)"/> for pipelines that split one system's
-    /// plan across several passes (e.g. materials of one blend class into an
-    /// accumulation pass, the rest into an occluding pass). The grouping policy is
-    /// entirely the caller's: the system gives it the batch's material and draws
-    /// whatever the filter accepts. Disjoint filters tile the plan; overlapping
-    /// filters draw the shared batches twice.
-    /// <br/>The filter runs under the system gate (while the draw plan is replayed),
-    /// so it must be a pure, non-blocking predicate that never calls back into the
-    /// system.
-    /// </summary>
-    /// <param name="pass">The render pass scope of the pass the subset draws into.</param>
-    /// <param name="filter">Selects the batches to draw by their material.</param>
-    public void Render(RenderPassScope pass, Func<GraphicsMaterial, bool> filter)
+    public void Render(RenderPassScope pass)
     {
         ArgumentNullException.ThrowIfNull(pass);
-        ArgumentNullException.ThrowIfNull(filter);
         if (_camera == null)
         {
             throw new InvalidOperationException($"The {nameof(Camera)} of the particle system was not set.");
@@ -485,10 +469,6 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             for (int i = 0; i < _drawBatches.Count; i++)
             {
                 DrawBatch batch = _drawBatches[i];
-                if (!filter(batch.Material))
-                {
-                    continue;
-                }
                 pass.MultiDrawIndexedIndirect(
                     QuadMesh,
                     batch.Material,
