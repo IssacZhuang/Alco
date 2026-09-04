@@ -134,12 +134,15 @@ public sealed partial class ParticleEffectDocument
         }
     }
 
-    /// <summary>One group editor: header buttons, then the parameter sections. A Delete
-    /// click only records the index; the caller removes the group after the draw pass.</summary>
+    /// <summary>One group editor: the header row (visibility checkbox, collapsing header
+    /// and right-aligned ASCII actions) then the parameter sections. A Delete click only
+    /// records the index; the caller removes the group after the draw pass.</summary>
     private void DrawGroup(int index, ParticleGroupAsset group, ref int removeGroup)
     {
         GroupUiState state = GetGroupUiState(group);
         ImGui.PushID(index);
+        float rowTopY = ImGui.GetCursorPosY();
+        float rowLeftX = ImGui.GetCursorPosX();
 
         // Editor-only visibility toggle on the header row: hides the group's
         // particles and shape outline in the preview without touching the asset.
@@ -162,32 +165,70 @@ public sealed partial class ParticleEffectDocument
         }
         ImGui.SameLine();
 
-        if (ImGui.CollapsingHeader($"{group.Name}##header", ImGuiTreeNodeFlags.DefaultOpen))
-        {
-            // Group list actions.
-            if (ImGui.SmallButton("Up"))
-            {
-                MoveGroup(index, -1);
-            }
-            ImGui.SameLine();
-            if (ImGui.SmallButton("Down"))
-            {
-                MoveGroup(index, +1);
-            }
-            ImGui.SameLine();
-            if (ImGui.SmallButton("Duplicate"))
-            {
-                DuplicateGroup(index);
-                OnStructuralEdit();
-            }
-            ImGui.SameLine();
-            ImGui.BeginDisabled(EffectGroupCount <= 1);
-            if (ImGui.SmallButton("Delete"))
-            {
-                removeGroup = index;
-            }
-            ImGui.EndDisabled();
+        // The header claims the whole row width; the actions sit on its right end as
+        // uniform square icon buttons (side = the row's frame height) with a tight
+        // gap, so the cluster reads as one toolbar. SetNextItemAllowOverlap makes
+        // the header yield hover and clicks to the buttons, which are submitted
+        // after it over the same rect.
+        const float actionGap = 2f;
+        float iconSize = ImGui.GetFrameHeight();
+        float actionsWidth = (iconSize * 4f) + (actionGap * 3f);
+        float rowRightX = ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X;
+        ImGui.SetNextItemAllowOverlap();
+        bool open = ImGui.CollapsingHeader($"{group.Name}##header");
 
+        // Group list actions, right-aligned on the header row.
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(rowRightX - actionsWidth);
+        ImGui.BeginDisabled(index == 0);
+        if (GroupActionButton(GroupActionIcon.MoveUp, new Vector2(iconSize)))
+        {
+            MoveGroup(index, -1);
+        }
+        ImGui.EndDisabled();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            ImGui.SetTooltip("Move up");
+        }
+        ImGui.SameLine(0, actionGap);
+        ImGui.BeginDisabled(index == EffectGroupCount - 1);
+        if (GroupActionButton(GroupActionIcon.MoveDown, new Vector2(iconSize)))
+        {
+            MoveGroup(index, +1);
+        }
+        ImGui.EndDisabled();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            ImGui.SetTooltip("Move down");
+        }
+        ImGui.SameLine(0, actionGap);
+        if (GroupActionButton(GroupActionIcon.Duplicate, new Vector2(iconSize)))
+        {
+            DuplicateGroup(index);
+            OnStructuralEdit();
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Duplicate");
+        }
+        ImGui.SameLine(0, actionGap);
+        ImGui.BeginDisabled(EffectGroupCount <= 1);
+        if (GroupActionButton(GroupActionIcon.Delete, new Vector2(iconSize)))
+        {
+            removeGroup = index;
+        }
+        ImGui.EndDisabled();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            ImGui.SetTooltip("Delete");
+        }
+
+        // Advance below the header row explicitly: the buttons end at the right edge
+        // and NewLine() from there would insert an extra blank line between groups.
+        ImGui.SetCursorPosX(rowLeftX);
+        ImGui.SetCursorPosY(rowTopY + iconSize + ImGui.GetStyle().ItemSpacing.Y);
+        if (open)
+        {
             DrawGroupName(group);
             DrawEmissionSection(index, group);
             DrawShapeSection(index, group);
@@ -200,6 +241,62 @@ public sealed partial class ParticleEffectDocument
         }
 
         ImGui.PopID();
+    }
+
+    /// <summary>Vector glyphs for <see cref="GroupActionButton"/>.</summary>
+    private enum GroupActionIcon
+    {
+        MoveUp,
+        MoveDown,
+        Duplicate,
+        Delete,
+    }
+
+    /// <summary>A square button whose glyph is stroked as vector lines instead of font
+    /// text: font ink for these small glyphs sits at inconsistent heights, so drawing
+    /// them manually keeps every icon optically centered. Must run inside the
+    /// caller's disabled scope — the glyph uses the style's text color and dims
+    /// with the frame.</summary>
+    private static bool GroupActionButton(GroupActionIcon icon, Vector2 size)
+    {
+        bool clicked = ImGui.Button($"##{icon}", size);
+        Vector2 center = ImGui.GetItemRectMin() + (size * 0.5f);
+        float half = size.X * 0.2f; // glyph half-extent inside the button
+        ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+        uint color = ImGui.GetColorU32(ImGuiCol.Text);
+        const float thickness = 1.5f;
+        switch (icon)
+        {
+            case GroupActionIcon.MoveUp:
+                drawList.AddLine(new Vector2(center.X - half, center.Y + (half * 0.5f)), new Vector2(center.X, center.Y - (half * 0.5f)), color, thickness);
+                drawList.AddLine(new Vector2(center.X, center.Y - (half * 0.5f)), new Vector2(center.X + half, center.Y + (half * 0.5f)), color, thickness);
+                break;
+            case GroupActionIcon.MoveDown:
+                drawList.AddLine(new Vector2(center.X - half, center.Y - (half * 0.5f)), new Vector2(center.X, center.Y + (half * 0.5f)), color, thickness);
+                drawList.AddLine(new Vector2(center.X, center.Y + (half * 0.5f)), new Vector2(center.X + half, center.Y - (half * 0.5f)), color, thickness);
+                break;
+            case GroupActionIcon.Duplicate:
+            {
+                // Conventional "duplicate" glyph: a full sheet in front with the
+                // top-left corner of a second sheet peeking out behind it.
+                Vector2 frontMin = center - new Vector2(half * 0.35f);
+                Vector2 frontMax = center + new Vector2(half);
+                Vector2 shift = new Vector2(-half * 0.65f); // back sheet offset
+                Vector2 backMin = frontMin + shift;
+                drawList.AddLine(backMin, new Vector2(frontMax.X + shift.X, backMin.Y), color, thickness);
+                drawList.AddLine(backMin, new Vector2(backMin.X, frontMax.Y + shift.Y), color, thickness);
+                drawList.AddLine(frontMin, new Vector2(frontMax.X, frontMin.Y), color, thickness);
+                drawList.AddLine(new Vector2(frontMax.X, frontMin.Y), frontMax, color, thickness);
+                drawList.AddLine(frontMax, new Vector2(frontMin.X, frontMax.Y), color, thickness);
+                drawList.AddLine(new Vector2(frontMin.X, frontMax.Y), frontMin, color, thickness);
+                break;
+            }
+            case GroupActionIcon.Delete:
+                drawList.AddLine(new Vector2(center.X - half, center.Y - half), new Vector2(center.X + half, center.Y + half), color, thickness);
+                drawList.AddLine(new Vector2(center.X - half, center.Y + half), new Vector2(center.X + half, center.Y - half), color, thickness);
+                break;
+        }
+        return clicked;
     }
 
     /// <summary>Moves a group within the list (no-op at the boundaries).</summary>
