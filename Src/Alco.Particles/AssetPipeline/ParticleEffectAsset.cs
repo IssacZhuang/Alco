@@ -208,8 +208,10 @@ public abstract class ParticleGroupAsset
     /// <summary>
     /// The depth-stencil state preset of the group's material (<c>"None"</c>,
     /// <c>"Read"</c>, <c>"Write"</c>, …); null keeps the particle pass's default
-    /// (2D: no depth test; 3D: the system's default). Surfaces whose vertex hook
-    /// writes meaningful world z (e.g. facade depth) pair with <c>"Read"</c>.
+    /// (2D: no depth test; 3D: the system's default). A 2D group authoring a depth
+    /// state also opts into the pass's depth-base world z (depth base minus particle
+    /// height — see <see cref="EmitterParams2D.FlagDepthBase"/>), so its quads sort
+    /// against the scene depth they test.
     /// </summary>
     public DepthStencilState? Depth { get; set; }
 

@@ -827,8 +827,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         material.BlendState = group.Blend ?? BlendState.AlphaBlend;
         if (group.Depth is { } depth)
         {
-            // Groups authoring world z in a custom render module (e.g. facade
-            // sprites) depth-test (never write) the scene depth with "Read".
+            // Groups authoring a depth state depth-test (never write) the scene
+            // depth with "Read"; the pass then also writes world z from the
+            // emitter's DepthBase minus the particle height (FlagDepthBase).
             material.DepthStencilState = depth;
         }
         if (group.Texture != null && !material.TrySetTexture(ShaderResourceId.Texture, group.Texture))

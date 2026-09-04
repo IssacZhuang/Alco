@@ -137,7 +137,21 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     world.y += height;
     particleWorld.y += height;
 
-    // The material's vertex-stage hook (e.g. facade depth), fed through the
+    // Scene-depth arbitration (PARTICLE_FLAG_DEPTH_BASE): the group's depth base
+    // minus the particle's height becomes world z — height recedes the particle
+    // in depth, matching entity depth stacks — so a group depth-testing the scene
+    // ("depth": "Read") sorts against it. Surface vertex hooks run after this and
+    // only refine the projection (e.g. tilt a standing facade quad); groups
+    // without the flag keep z = 0.
+    if ((emitter.flags & PARTICLE_FLAG_DEPTH_BASE) != 0u)
+    {
+        float depth = emitter.depthBase - height;
+        world.z = depth;
+        particleWorld.z = depth;
+    }
+
+    // The material's vertex-stage hook (e.g. a facade quad's depth tilt, on top
+    // of the depth-base z above), fed through the
     // dimension-neutral ParticleVertexInput: the default surface returns the
     // position unchanged.
     T surface = T();

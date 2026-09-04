@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using NUnit.Framework;
 using Alco.Engine;
+using Alco.Graphics;
 using Alco.Particles;
 
 namespace Alco.Particles.Test;
@@ -160,6 +161,13 @@ public class TestParticleEffectAsset
         // 2D stretch requires the velocity alignment; without it no bit is set.
         var unaligned = new ParticleGroup2DAsset { VelocityStretch = true };
         Assert.That(EmitterParams2D.FromAsset(unaligned, 6).Flags & EmitterParams2D.FlagVelocityStretch, Is.Zero);
+
+        // A 2D group authoring a depth state opts into the pass's depth-base
+        // world z (depth base minus particle height); a group without one keeps
+        // the default z of 0 (no flag, no depth test).
+        var depthRead = new ParticleGroup2DAsset { Depth = DepthStencilState.Read };
+        Assert.That(EmitterParams2D.FromAsset(depthRead, 6).Flags & EmitterParams2D.FlagDepthBase, Is.Not.Zero);
+        Assert.That(EmitterParams2D.FromAsset(new ParticleGroup2DAsset(), 6).Flags & EmitterParams2D.FlagDepthBase, Is.Zero);
 
         // 3D stretch stands alone (billboards have no align-rotation mode).
         var stretched3D = new ParticleGroup3DAsset { VelocityStretch = true, StretchSpeedScale = 0.2f };

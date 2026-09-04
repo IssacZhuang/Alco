@@ -120,6 +120,16 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// </summary>
     public float Height { get; set; }
 
+    /// <summary>
+    /// The effect's base world z for scene-depth arbitration, written into every
+    /// group's per-frame parameters (see <see cref="EmitterParams2D.DepthBase"/>).
+    /// Groups that author a depth state (the depth-base flag) render at
+    /// <c>z = DepthBase - particle height</c>; the value typically follows the host
+    /// entity's depth stack, set per tick alongside <see cref="Transform"/> and
+    /// <see cref="Height"/>. Ignored by groups without the flag.
+    /// </summary>
+    public float DepthBase { get; set; }
+
     /// <summary>Whether the effect is emitting (starts playing on creation).</summary>
     public bool IsPlaying { get; private set; }
 
@@ -285,6 +295,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
             parameters.FrameSeed = _random.NextUint();
             parameters.WorldMatrix = Transform.Matrix;
             parameters.EmitterHeight = Height;
+            parameters.DepthBase = DepthBase;
             group.Cursor = (group.Cursor + group.SpawnCount) % group.Slice.Capacity;
             dirtyMin = Math.Min(dirtyMin, group.Slot);
             dirtyMax = Math.Max(dirtyMax, group.Slot);

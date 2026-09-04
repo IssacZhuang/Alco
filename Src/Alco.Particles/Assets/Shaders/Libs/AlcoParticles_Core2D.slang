@@ -80,7 +80,9 @@ public struct EmitterParams2D
     public float customData;       // custom per-instance data (surfaced to material
                                    // vertex hooks as ParticleVertexInput.customData)
     public float emitterHeight;    // base height added to world-space spawns
-    public uint reserved2;
+    public float depthBase;        // base world z of the group's depth plane; with
+                                   // PARTICLE_FLAG_DEPTH_BASE the render pass writes
+                                   // world.z = depthBase - particle height (2D only)
     public float2 positionOffset;     // fixed spawn offset in emitter-local space
     public float2 reserved3;       // pads the struct to the 16-byte std430 buffer stride
 };
@@ -88,11 +90,14 @@ public struct EmitterParams2D
 // ── emitter flag bits ───────────────────────────────────────────────────────
 // Shared by the 2D and 3D emitter parameter blocks (same bit positions); the
 // C# twins mirror them as EmitterParams2D.Flag*/EmitterParams3D.Flag*.
+// PARTICLE_FLAG_DEPTH_BASE is 2D-only: the 3D pass takes depth from projection.
 public static const uint PARTICLE_FLAG_WORLD_SPACE = 1u;       // world-space simulation
 public static const uint PARTICLE_FLAG_COLOR_GRADIENT = 2u;    // color-gradient lookup bound
 public static const uint PARTICLE_FLAG_SIZE_CURVE = 4u;        // size-curve lookup bound
 public static const uint PARTICLE_FLAG_VELOCITY_STRETCH = 8u;  // velocity-stretched quads
 public static const uint PARTICLE_FLAG_FLIPBOOK_REVERSE = 16u; // flipbook plays in reverse
+public static const uint PARTICLE_FLAG_DEPTH_BASE = 32u;       // render pass writes world z
+                                                               // from EmitterParams2D.depthBase
 
 // ── indirect draw record (matches Alco.Graphics.IndexedIndirectData) ────────
 
