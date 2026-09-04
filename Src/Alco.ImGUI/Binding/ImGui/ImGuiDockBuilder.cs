@@ -98,7 +98,13 @@ public static unsafe class ImGuiDockBuilder
     public static void Finish(uint rootNodeId) => igDockBuilderFinish(rootNodeId);
 
     /// <summary>Returns the central node id of the given node hierarchy (0 when none exists).</summary>
-    public static uint GetCentralNode(uint nodeId) => igDockBuilderGetCentralNode(nodeId);
+    public static uint GetCentralNode(uint nodeId)
+    {
+        void* node = igDockBuilderGetCentralNode(nodeId);
+        // The native function returns ImGuiDockNode*; marshal the node id, which is the
+        // first field of the struct. Declaring the return as uint would truncate the pointer.
+        return node == null ? 0 : *(uint*)node;
+    }
 
     /// <summary>Returns whether a node with the given id currently exists in the dock context.</summary>
     public static bool NodeExists(uint nodeId) => igDockBuilderGetNode(nodeId) != null;
@@ -130,7 +136,7 @@ public static unsafe class ImGuiDockBuilder
     private static extern void igDockBuilderFinish(uint node_id);
 
     [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
-    private static extern uint igDockBuilderGetCentralNode(uint node_id);
+    private static extern void* igDockBuilderGetCentralNode(uint node_id);
 
     [DllImport("cimgui", CallingConvention = CallingConvention.Cdecl)]
     private static extern void* igDockBuilderGetNode(uint node_id);

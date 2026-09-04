@@ -52,6 +52,10 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
         ImGuiIOPtr io = ImGui.GetIO();
 
+        // Enable the docking branch features (drag windows onto each other to split/tab,
+        // dock into the engine debug workspace). The native cimgui build supports it.
+        io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
+
         io.ConfigErrorRecovery = true;
         io.ConfigErrorRecoveryEnableAssert = false;
         io.ConfigErrorRecoveryEnableDebugLog = true;
