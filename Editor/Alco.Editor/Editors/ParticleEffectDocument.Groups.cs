@@ -361,7 +361,8 @@ public sealed partial class ParticleEffectDocument
         }
     }
 
-    /// <summary>Shape: the 2D/3D emission shape with per-type fields (all live).</summary>
+    /// <summary>Shape: the 2D/3D emission shape with per-type fields and the fixed
+    /// position offset of the spawn point (all live).</summary>
     private void DrawShapeSection(int index, ParticleGroupAsset group)
     {
         ImGui.SeparatorText("Shape");
@@ -399,6 +400,16 @@ public sealed partial class ParticleEffectDocument
                     OnLiveEdit(index);
                 }
             }
+            Vector2 positionOffset = group2D.PositionOffset;
+            if (DragRow("Position Offset", ref positionOffset, 0.02f))
+            {
+                group2D.PositionOffset = positionOffset;
+                OnLiveEdit(index);
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Fixed emitter-local offset of the spawn point; rotates with the emitter.");
+            }
         }
         else
         {
@@ -432,6 +443,16 @@ public sealed partial class ParticleEffectDocument
                     shape.Extents = extents;
                     OnLiveEdit(index);
                 }
+            }
+            Vector3 positionOffset = ((ParticleGroup3DAsset)group).PositionOffset;
+            if (DragRow("Position Offset", ref positionOffset, 0.02f))
+            {
+                ((ParticleGroup3DAsset)group).PositionOffset = positionOffset;
+                OnLiveEdit(index);
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Fixed emitter-local offset of the spawn point; rotates with the emitter.");
             }
         }
     }

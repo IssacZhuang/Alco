@@ -43,7 +43,7 @@ public void mainCS<T : IParticleBehavior3D>(uint3 groupId : SV_GroupID, uint3 gr
         // of the material-batched args array, firstInstance addressing the
         // draw's run in the instance-data buffer.
         GpuDrawArgs args;
-        args.indexCount = emitter.renderMisc.x;
+        args.indexCount = emitter.indexCount;
         args.instanceCount = 0;
         args.firstIndex = 0;
         args.vertexOffset = 0;

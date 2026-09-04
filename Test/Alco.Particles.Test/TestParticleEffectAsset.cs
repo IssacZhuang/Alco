@@ -227,13 +227,20 @@ public class TestParticleEffectAsset
     public void GpuTwinsKeepTheirExpectedLayout()
     {
         // The slang twins (AlcoParticles_Core{2D,3D}.slang) document the same
-        // sizes; a mismatch here means a struct drifted out of sync.
+        // sizes; a mismatch here means a struct drifted out of sync. The emitter
+        // records must additionally stay a multiple of 16 bytes: the buffer
+        // element stride rounds up to the struct alignment (16, from the
+        // matrix), so a CPU size below that shifts every emitter's parameters.
+        // The PositionOffset pins verify the vector members land on the offsets
+        // every backend agrees on (scalars 4-aligned, float2 at 8, float3 at 16).
         Assert.Multiple(() =>
         {
             Assert.That(Marshal.SizeOf<GpuParticle2D>(), Is.EqualTo(92));
             Assert.That(Marshal.SizeOf<GpuParticle3D>(), Is.EqualTo(84));
-            Assert.That(Marshal.SizeOf<EmitterParams2D>(), Is.EqualTo(352));
-            Assert.That(Marshal.SizeOf<EmitterParams3D>(), Is.EqualTo(320));
+            Assert.That(Marshal.SizeOf<EmitterParams2D>(), Is.EqualTo(368));
+            Assert.That(Marshal.SizeOf<EmitterParams3D>(), Is.EqualTo(336));
+            Assert.That(Marshal.OffsetOf<EmitterParams2D>(nameof(EmitterParams2D.PositionOffset)), Is.EqualTo(new IntPtr(352)));
+            Assert.That(Marshal.OffsetOf<EmitterParams3D>(nameof(EmitterParams3D.PositionOffset)), Is.EqualTo(new IntPtr(320)));
         });
     }
 

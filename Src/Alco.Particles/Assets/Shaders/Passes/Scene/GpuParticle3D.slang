@@ -154,7 +154,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     vertexInput.particlePosition = center;
     vertexInput.age01 = age01;
     vertexInput.emitterWorldMatrix = emitter.worldMatrix;
-    vertexInput.customData = asfloat(emitter.renderMisc.y);
+    vertexInput.customData = emitter.customData;
     vertexInput.height = 0.0;
     world = surface.adjustWorldPosition(vertexInput);
     output.worldPosition = world;

@@ -7,6 +7,9 @@ namespace Alco.Particles;
 /// The per-emitter parameter record of a 3D particle group; the 3D counterpart of
 /// <see cref="EmitterParams2D"/>. Exact twin of the slang <c>EmitterParams3D</c>
 /// struct (AlcoParticles_Core3D.slang) — the field order and padding must match.
+/// The total size must stay a multiple of 16: the buffer element stride rounds up
+/// to the struct alignment (16, from the matrix), and a CPU/GPU size mismatch
+/// shifts every emitter's parameters.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct EmitterParams3D
@@ -102,6 +105,23 @@ public struct EmitterParams3D
     /// <summary>Reserved.</summary>
     public uint Reserved2;
 
+    /// <summary>
+    /// The fixed spawn offset in emitter-local space: shifts every spawned
+    /// particle by this vector before the world transform, so it follows the
+    /// emitter's rotation in both simulation spaces. Offsets a directional
+    /// effect away from its anchor (e.g. a muzzle flash off the muzzle point).
+    /// Must stay the last slang member (16-byte aligned): HLSL packs a scalar
+    /// after a float3 into its w slot while std430 pushes it to the next row,
+    /// so the pad below is CPU-side only.
+    /// </summary>
+    public Vector3 PositionOffset;
+
+    /// <summary>
+    /// Trailing CPU-side pad that keeps the struct size a multiple of 16 — the
+    /// buffer element stride on the slang side; the shaders never read it.
+    /// </summary>
+    public float Reserved3;
+
     /// <summary>The world-space-simulation flag bit of <see cref="Flags"/>.</summary>
     public const uint FlagWorldSpace = 1u;
 
@@ -193,6 +213,7 @@ public struct EmitterParams3D
                 Math.Clamp(flipbook.FramesPerAnim, 0, flipbook.Rows * flipbook.Cols))
             : new Vector4(1f, 1f, 0f, 0f);
         parameters.IndexCount = indexCount;
+        parameters.PositionOffset = group.PositionOffset;
         parameters.Flags = group.SimulationSpace == ParticleSimulationSpace.World ? FlagWorldSpace : 0u;
         if (group.ColorGradient is { Count: > 0 })
         {

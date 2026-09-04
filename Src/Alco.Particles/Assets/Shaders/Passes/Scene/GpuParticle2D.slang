@@ -130,7 +130,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     float height = particle.height;
     if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) == 0u)
     {
-        height += asfloat(emitter.renderMisc.z);
+        height += emitter.emitterHeight;
     }
     float3 world = mul(model, float4(particle.position + corner, 0.0, 1.0)).xyz;
     float3 particleWorld = mul(model, float4(particle.position, 0.0, 1.0)).xyz;
@@ -146,7 +146,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     vertexInput.particlePosition = particleWorld;
     vertexInput.age01 = age01;
     vertexInput.emitterWorldMatrix = emitter.worldMatrix;
-    vertexInput.customData = asfloat(emitter.renderMisc.y);
+    vertexInput.customData = emitter.customData;
     vertexInput.height = height;
     world = surface.adjustWorldPosition(vertexInput);
     output.worldPosition = world;

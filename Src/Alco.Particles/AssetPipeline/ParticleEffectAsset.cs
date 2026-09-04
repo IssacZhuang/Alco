@@ -226,6 +226,14 @@ public sealed class ParticleGroup2DAsset : ParticleGroupAsset
     /// <summary>The emission shape.</summary>
     public ParticleShape2D Shape { get; set; } = new();
 
+    /// <summary>
+    /// The fixed spawn offset in emitter-local space: every particle is born
+    /// this far from the emitter origin (rotated with the emitter), on top of
+    /// the shape sample. Offsets a directional effect away from its anchor —
+    /// e.g. a muzzle flash born just past the muzzle point.
+    /// </summary>
+    public System.Numerics.Vector2 PositionOffset { get; set; }
+
     /// <summary>The base emission direction (used by <see cref="ParticleDirectionMode.Constant"/>).</summary>
     public System.Numerics.Vector2 Direction { get; set; } = new(0f, 1f);
 
@@ -295,6 +303,14 @@ public sealed class ParticleGroup3DAsset : ParticleGroupAsset
 {
     /// <summary>The emission shape.</summary>
     public ParticleShape3D Shape { get; set; } = new();
+
+    /// <summary>
+    /// The fixed spawn offset in emitter-local space: every particle is born
+    /// this far from the emitter origin (rotated with the emitter), on top of
+    /// the shape sample. Offsets a directional effect away from its anchor —
+    /// e.g. a muzzle flash born just past the muzzle point.
+    /// </summary>
+    public System.Numerics.Vector3 PositionOffset { get; set; }
 
     /// <summary>The base emission direction (used by <see cref="ParticleDirectionMode.Constant"/>).</summary>
     public System.Numerics.Vector3 Direction { get; set; } = new(0f, 0f, 1f);

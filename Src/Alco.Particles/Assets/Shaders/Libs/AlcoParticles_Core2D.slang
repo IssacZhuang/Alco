@@ -34,7 +34,7 @@ public struct ParticleData2D
     public uint animStart;         // flipbook: first frame of the anim picked at spawn
 };
 
-// ── per-emitter parameters (352 bytes, one per emitter slot, CPU-written) ───
+// ── per-emitter parameters (368 bytes, one per emitter slot, CPU-written) ───
 
 public struct EmitterParams2D
 {
@@ -74,10 +74,15 @@ public struct EmitterParams2D
     public float4 tint;
     public float4 flipbook;        // x = rows, y = cols, z = lifetime-relative cycles,
                                    // w = frames per anim (0 = whole sheet, one anim)
-    public uint4 renderMisc;       // x = quad mesh index count, y = custom per-instance
-                                   // data (float bits; surfaced to material vertex hooks
-                                   // as ParticleVertexInput.customData), z = emitter
-                                   // height (float bits)
+    // Tail block, laid out as flat scalars so positionOffset can be added without
+    // breaking the 16-byte std430 buffer stride (C# twin: EmitterParams2D).
+    public uint indexCount;        // quad mesh index count for indirect draw args
+    public float customData;       // custom per-instance data (surfaced to material
+                                   // vertex hooks as ParticleVertexInput.customData)
+    public float emitterHeight;    // base height added to world-space spawns
+    public uint reserved2;
+    public float2 positionOffset;     // fixed spawn offset in emitter-local space
+    public float2 reserved3;       // pads the struct to the 16-byte std430 buffer stride
 };
 
 // ── emitter flag bits ───────────────────────────────────────────────────────
@@ -234,6 +239,10 @@ public float2 particleSampleVelocity2D(EmitterParams2D emitter, float2 localPosi
 public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2D emitter, inout uint rng)
 {
     float2 localPosition = particleSampleShape2D(emitter, rng);
+    // The authored spawn offset: shifts the spawn point in emitter-local space
+    // before any transform, so it rotates with the emitter in both simulation
+    // spaces (a muzzle flash stays past the muzzle point).
+    localPosition += emitter.positionOffset;
     float2 velocity = particleSampleVelocity2D(emitter, localPosition, rng);
     float2 position = localPosition;
     if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u) // world space: spawn through the emitter transform
@@ -247,7 +256,7 @@ public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2
     particle.heightVelocity = particleRange(rng, emitter.heightMotion.z, emitter.heightMotion.w);
     if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u)
     {
-        particle.height += asfloat(emitter.renderMisc.z);
+        particle.height += emitter.emitterHeight;
     }
     particle.duration = particleRange(rng, emitter.life.x, emitter.life.y);
     particle.lifetime = particle.duration;

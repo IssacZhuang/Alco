@@ -7,7 +7,9 @@ namespace Alco.Particles;
 /// The per-emitter parameter record of a 2D particle group, written by the CPU
 /// every frame and read by the emit/simulate/render shaders. Exact twin of the
 /// slang <c>EmitterParams2D</c> struct (AlcoParticles_Core2D.slang) — the field
-/// order and padding must match.
+/// order and padding must match. The total size must stay a multiple of 16:
+/// std430 rounds the buffer element stride up to the struct alignment (16, from
+/// the matrix), and a CPU/GPU size mismatch shifts every emitter's parameters.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct EmitterParams2D
@@ -101,8 +103,7 @@ public struct EmitterParams2D
     /// (<c>IParticleSurface.adjustWorldPosition</c>, surfaced as
     /// <c>ParticleVertexInput.customData</c>): the built-in passes never
     /// read it, so a project shader is free to define its meaning (e.g. an authored
-    /// depth base). The physical channel is <c>renderMisc.y</c> on the slang side;
-    /// set per instance through <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
+    /// depth base); set per instance through <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
     /// </summary>
     public float CustomData;
 
@@ -114,6 +115,20 @@ public struct EmitterParams2D
 
     /// <summary>Reserved.</summary>
     public uint Reserved2;
+
+    /// <summary>
+    /// The fixed spawn offset in emitter-local space: shifts every spawned
+    /// particle by this vector before the world transform, so it follows the
+    /// emitter's rotation in both simulation spaces. Offsets a directional
+    /// effect away from its anchor (e.g. a muzzle flash off the muzzle point).
+    /// </summary>
+    public Vector2 PositionOffset;
+
+    /// <summary>
+    /// Trailing pad that keeps the struct size a multiple of 16 — the std430
+    /// buffer element stride on the slang side.
+    /// </summary>
+    public Vector2 Reserved3;
 
     /// <summary>The world-space-simulation flag bit of <see cref="Flags"/>.</summary>
     public const uint FlagWorldSpace = 1u;
@@ -216,6 +231,7 @@ public struct EmitterParams2D
                 Math.Clamp(flipbook.FramesPerAnim, 0, flipbook.Rows * flipbook.Cols))
             : new Vector4(1f, 1f, 0f, 0f);
         parameters.IndexCount = indexCount;
+        parameters.PositionOffset = group.PositionOffset;
         parameters.Flags = group.SimulationSpace == ParticleSimulationSpace.World ? FlagWorldSpace : 0u;
         if (group.ColorGradient is { Count: > 0 })
         {

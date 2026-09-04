@@ -34,7 +34,7 @@ public struct ParticleData3D
     public uint animStart;         // flipbook: first frame of the anim picked at spawn
 };
 
-// ── per-emitter parameters (320 bytes, one per emitter slot, CPU-written) ───
+// ── per-emitter parameters (336 bytes, one per emitter slot, CPU-written) ───
 
 public struct EmitterParams3D
 {
@@ -72,9 +72,16 @@ public struct EmitterParams3D
     public float4 tint;
     public float4 flipbook;        // x = rows, y = cols, z = lifetime-relative cycles,
                                    // w = frames per anim (0 = whole sheet, one anim)
-    public uint4 renderMisc;       // x = quad mesh index count, y = custom per-instance
-                                   // data (float bits; surfaced to material vertex hooks
-                                   // as ParticleVertexInput.customData)
+    // Tail block, laid out as flat scalars so positionOffset can be added without
+    // breaking the 16-byte buffer stride (C# twin: EmitterParams3D). The float3
+    // must stay last: HLSL packs a following scalar into its w slot while std430
+    // pushes it to the next 16-byte row — the two rules disagree there.
+    public uint indexCount;        // quad mesh index count for indirect draw args
+    public float customData;       // custom per-instance data (surfaced to material
+                                   // vertex hooks as ParticleVertexInput.customData)
+    public uint reserved1;
+    public uint reserved2;
+    public float3 positionOffset;     // fixed spawn offset in emitter-local space
 };
 
 // ── default spawn/simulate pieces (reusable by custom behaviors) ────────────
@@ -157,6 +164,10 @@ public float3 particleRotateAxis(float3 v, float3 axis, float radians)
 public void particleSpawnDefault3D(inout ParticleData3D particle, EmitterParams3D emitter, inout uint rng)
 {
     float3 localPosition = particleSampleShape3D(emitter, rng);
+    // The authored spawn offset: shifts the spawn point in emitter-local space
+    // before any transform, so it rotates with the emitter in both simulation
+    // spaces (a muzzle flash stays past the muzzle point).
+    localPosition += emitter.positionOffset;
     float3 velocity = particleSampleVelocity3D(emitter, localPosition, rng);
     float3 position = localPosition;
     if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u) // world space: spawn through the emitter transform
