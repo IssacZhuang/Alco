@@ -180,23 +180,22 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     }
 
     /// <summary>
-    /// Atomically drains the pending kill ranges: returns them as a snapshot and
-    /// clears the queue in one step, so a kill queued concurrently with the drain is
-    /// never lost between an observe and a clear. The frame simulation calls this
-    /// before dispatching the kills.
+    /// Atomically drains the pending kill ranges into a reusable sink: the sink is
+    /// cleared and refilled with the queue's contents, and the queue is cleared, all
+    /// in one step under the gate — so a kill queued concurrently with the drain is
+    /// never lost, and a consumer that early-returns leaves no stale records for the
+    /// next frame. The frame simulation calls this before dispatching the kills;
+    /// the sink is owned by the caller and stays untouched by the pool afterwards.
     /// </summary>
-    /// <returns>The kill ranges to dispatch; empty when none are pending.</returns>
-    public (uint Offset, uint Count)[] TakePendingKills()
+    /// <param name="kills">The reusable sink to drain into.</param>
+    public void DrainPendingKills(List<(uint Offset, uint Count)> kills)
     {
+        ArgumentNullException.ThrowIfNull(kills);
         lock (_gate)
         {
-            if (_pendingKills.Count == 0)
-            {
-                return Array.Empty<(uint Offset, uint Count)>();
-            }
-            (uint Offset, uint Count)[] kills = _pendingKills.ToArray();
+            kills.Clear();
+            kills.AddRange(_pendingKills);
             _pendingKills.Clear();
-            return kills;
         }
     }
 

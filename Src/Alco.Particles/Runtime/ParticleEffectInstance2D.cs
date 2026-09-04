@@ -12,8 +12,14 @@ namespace Alco.Particles;
 /// </summary>
 public sealed class ParticleEffectInstance2D : AutoDisposable
 {
-    /// <summary>The per-group runtime state of a 2D effect instance.</summary>
-    internal sealed class GroupState
+    /// <summary>
+    /// The per-group runtime state of a 2D effect instance: one value record in
+    /// the instance's group array — a struct so an instance's groups are one
+    /// contiguous allocation instead of one object per group. Mutate array
+    /// elements through <c>ref</c> locals only; copies taken elsewhere (the draw
+    /// plan's bucket lists) are value snapshots.
+    /// </summary>
+    internal struct GroupState
     {
         /// <summary>The group asset.</summary>
         public required ParticleGroup2DAsset Asset;
@@ -40,7 +46,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         public uint SpawnCount;
 
         /// <summary>Whether the group still does GPU work (emitting or has live particles).</summary>
-        public bool Active = true;
+        public bool Active;
 
         /// <summary>
         /// Whether the group draws and simulates (per-instance state; the asset is
@@ -48,7 +54,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         /// particles freeze — while its emission timeline keeps advancing,
         /// mirroring <see cref="ParticleEffectInstance2D.IsVisible"/>.
         /// </summary>
-        public bool Visible = true;
+        public bool Visible;
 
         /// <summary>The group's render material (shared per group asset).</summary>
         public required GraphicsMaterial Material;
@@ -195,7 +201,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// <param name="parameters">The record carrying the edited static fields.</param>
     public void SetGroupParams(int groupIndex, in EmitterParams2D parameters)
     {
-        GroupState group = _groups[groupIndex];
+        ref GroupState group = ref _groups[groupIndex];
         EmitterParams2D merged = EmitterParams2D.MergeEdited(_system.ParamsRef(group.Slot), parameters);
         _system.ParamsRef(group.Slot) = merged;
         group.Lifetime = new ParticleRange(merged.Life.X, merged.Life.Y);
@@ -224,7 +230,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     {
         for (int i = 0; i < _groups.Length; i++)
         {
-            GroupState group = _groups[i];
+            ref GroupState group = ref _groups[i];
             _system.Pool.QueueKill(group.Slice);
             group.Cursor = 0;
             group.Time = 0f;
@@ -245,7 +251,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         bool anyActive = false;
         for (int i = 0; i < _groups.Length; i++)
         {
-            GroupState group = _groups[i];
+            ref GroupState group = ref _groups[i];
             ParticleGroup2DAsset asset = group.Asset;
             // The lifecycle step gates emission per group: a one-shot group whose
             // timeline ran out idles and deactivates even while the instance still

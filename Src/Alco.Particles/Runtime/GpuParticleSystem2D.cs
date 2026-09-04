@@ -84,6 +84,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     // The per-frame draw plan (rebuilt in RecordSimulation, replayed in Render):
     // groups bucketed by material in first-seen order, flattened with their
     // drawIndex/drawStart assignment, plus one batch record per material.
+    // GroupState is a struct: the bucket lists hold value snapshots taken after
+    // the frame's AdvanceFrame pass, so nothing between that pass and the
+    // dispatches recorded from these lists may mutate group state (and mutations
+    // afterwards would not be reflected in the plan until the next rebuild).
     private readonly Dictionary<GraphicsMaterial, List<ParticleEffectInstance2D.GroupState>> _drawBuckets = [];
     private readonly List<GraphicsMaterial> _drawMaterials = [];
     private readonly List<ParticleEffectInstance2D.GroupState> _drawGroups = [];
@@ -100,6 +104,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly List<GpuParticleWorkBlock> _simulateBlocks = [];
     private readonly List<WorkDispatch> _emitDispatches = [];
     private readonly List<WorkDispatch> _simulateDispatches = [];
+    // The reusable sink of the frame's drained pending slice kills — allocation-free
+    // even while effects churn every frame (see ParticleBufferPool.DrainPendingKills).
+    private readonly List<(uint Offset, uint Count)> _kills = [];
     private GraphicsArrayBuffer<GpuParticleWorkBlock> _emitBlockBuffer;
     private GraphicsArrayBuffer<GpuParticleWorkBlock> _simulateBlockBuffer;
     // Outgrown work-block buffers retire two frames later (in-flight frames may
@@ -317,6 +324,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         ParticleSlice pendingSlice = default;
         uint uploadMin = uint.MaxValue;
         uint uploadMax = 0;
+        int built = 0;
         try
         {
             for (int i = 0; i < groups.Length; i++)
@@ -341,7 +349,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
                     SimulateMaterial = simulate,
                     EmissionRate = groupAsset.EmissionRate,
                     Lifetime = groupAsset.Lifetime,
+                    Active = true,
+                    Visible = true,
                 };
+                built++;
                 pendingSlice = default; // ownership moved to the group state
             }
         }
@@ -349,13 +360,14 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         {
             // A mid-construction failure (e.g. an invalid group material) must not
             // leak pool resources: free the in-flight group's slot/slice plus every
-            // completed group's.
+            // completed group's (the struct array has no null tail to detect them,
+            // so the count of completed assignments carries the boundary).
             _pool.FreeSlice(pendingSlice);
             if (pendingSlice.Capacity > 0)
             {
                 _pool.FreeSlot(pendingSlot);
             }
-            for (int i = 0; i < groups.Length && groups[i] != null; i++)
+            for (int i = 0; i < built; i++)
             {
                 _pool.FreeSlice(groups[i].Slice);
                 _pool.FreeSlot(groups[i].Slot);
@@ -443,9 +455,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
             BuildDrawPlan();
             _hasValidPlan = true;
 
-            (uint Offset, uint Count)[] kills = _pool.TakePendingKills();
+            _pool.DrainPendingKills(_kills);
             bool anyActive = AnyActiveGroups();
-            if (kills.Length == 0 && !anyActive)
+            if (_kills.Count == 0 && !anyActive)
             {
                 return;
             }
@@ -456,9 +468,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
             using (GPUCommandBuffer.ComputePass computePass = commandBuffer.BeginCompute())
             {
-                for (int i = 0; i < kills.Length; i++)
+                for (int i = 0; i < _kills.Count; i++)
                 {
-                    (uint offset, uint count) = kills[i];
+                    (uint offset, uint count) = _kills[i];
                     _initMaterial.DispatchByGroupWithConstant(
                         computePass, (count + 63) / 64, 1, 1,
                         new GpuParticleInitConstant { SliceOffset = offset, Count = count });
