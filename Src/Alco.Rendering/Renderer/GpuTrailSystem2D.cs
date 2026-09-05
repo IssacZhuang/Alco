@@ -7,12 +7,10 @@ namespace Alco.Rendering;
 /// <summary>
 /// Renders any number of 2D trail ribbons GPU-resident: the CPU appends one point
 /// record per emission into the trail's ring slice of the shared point buffer, and
-/// the vertex stage does everything per-frame — validity, aging and the quad
-/// expansion (module AlcoRendering_Trails2D) — so the per-frame CPU cost scales with
-/// newly emitted points, not with live trails. The engine's trail answer to the GPU
-/// particle system's design: trails exist because their emission positions come from
-/// the CPU game simulation, so emission stays CPU while every per-frame cost moves
-/// GPU-side.
+/// the vertex stage handles validity, aging and quad expansion (module
+/// AlcoRendering_Trails2D). CPU work covers newly emitted points and bounded
+/// trail-slot scans for lifecycle, uploads and material batching; live points
+/// require no per-frame CPU simulation.
 /// <br/>Materials: the trail's <see cref="TrailEffect2D.Material"/> asset composes
 /// with the trail pass template (<see cref="RenderModule"/>, GpuTrail2D) through a
 /// <see cref="MaterialCompiler"/> the system owns — the asset's surface module
@@ -143,6 +141,30 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     /// <summary>One material-homogeneous run of the per-frame draw plan.</summary>
     private readonly record struct DrawBatch(GraphicsMaterial Material, uint First, uint Count);
 
+    /// <summary>A contiguous free range in the shared point buffer.</summary>
+    private readonly record struct PointRange(uint Offset, uint Count);
+
+    // The graphics state structs expose object-based equality. Compare their
+    // values directly so cache hits do not box them on the creation path.
+    private sealed class MaterialKeyComparer : IEqualityComparer<(MaterialAsset Asset, BlendState Blend, DepthStencilState Depth)>
+    {
+        /// <inheritdoc />
+        public bool Equals(
+            (MaterialAsset Asset, BlendState Blend, DepthStencilState Depth) x,
+            (MaterialAsset Asset, BlendState Blend, DepthStencilState Depth) y)
+        {
+            return ReferenceEquals(x.Asset, y.Asset) && x.Blend == y.Blend && x.Depth == y.Depth
+                && x.Depth.StencilReadMask == y.Depth.StencilReadMask
+                && x.Depth.StencilWriteMask == y.Depth.StencilWriteMask;
+        }
+
+        /// <inheritdoc />
+        public int GetHashCode((MaterialAsset Asset, BlendState Blend, DepthStencilState Depth) key)
+        {
+            return HashCode.Combine(key.Asset, key.Blend, key.Depth);
+        }
+    }
+
     /// <summary>The smallest trail slice, in points.</summary>
     private const uint MinSlicePoints = 32;
 
@@ -163,10 +185,12 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     private readonly PrimitiveMesh _indexMesh;
     private readonly TrailState[] _states;
     private readonly Stack<int> _freeSlots;
-    private readonly Dictionary<int, Stack<uint>> _freeSlices = [];
+    // Sorted by offset; adjacent ranges merge on release. There can be at most
+    // one more free range than live trails, so the list never needs to grow.
+    private readonly List<PointRange> _freeSlices;
     // The compiled materials of the (asset, blend, depth) pairs the trails named so
     // far: one compile per pair, shared by every trail of the pair.
-    private readonly Dictionary<(MaterialAsset Asset, BlendState Blend, DepthStencilState Depth), GraphicsMaterial> _materials = [];
+    private readonly Dictionary<(MaterialAsset Asset, BlendState Blend, DepthStencilState Depth), GraphicsMaterial> _materials = new(new MaterialKeyComparer());
     private readonly MaterialAsset _defaultAsset = new() { Name = "trails2d-default" };
     private GraphicsValueBuffer<Matrix4x4>? _camera;
     // The per-frame draw plan (rebuilt in Render): trails bucketed by material in
@@ -174,7 +198,6 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     private readonly Dictionary<GraphicsMaterial, List<int>> _drawBuckets = [];
     private readonly List<GraphicsMaterial> _drawMaterials = [];
     private readonly List<DrawBatch> _drawBatches = [];
-    private uint _pointsHighWater;
     private float _time;
     private uint _paramsDirtyMin = uint.MaxValue;
     private uint _paramsDirtyMax;
@@ -209,6 +232,10 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         _drawArgsData = new IndexedIndirectData[trailSlots];
         _states = new TrailState[trailSlots];
         _freeSlots = new Stack<int>(trailSlots);
+        _freeSlices = new List<PointRange>(Math.Min(trailSlots, pointCapacity / (int)MinSlicePoints) + 1)
+        {
+            new(0, (uint)pointCapacity),
+        };
         for (int i = trailSlots - 1; i >= 0; i--)
         {
             _freeSlots.Push(i);
@@ -216,7 +243,8 @@ public sealed class GpuTrailSystem2D : AutoDisposable
 
         // The static index pattern every trail draws with: quad-strip segments of 4
         // vertices and 6 indices, segment k covering vertices 4k..4k+3. A trail's
-        // draw addresses its slice through the record's vertexOffset (sliceOffset * 4).
+        // vertexOffset identifies its slice; the shader maps logical segment k
+        // to consecutive ring points starting at the oldest written point.
         var indices = new uint[(MaxSlicePoints - 1) * 6];
         for (uint k = 0; k < MaxSlicePoints - 1; k++)
         {
@@ -551,7 +579,7 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         GraphicsMaterial material = _materialCompiler.Compile(
             asset,
             _renderTemplate,
-            (_, shader) => _rendering.CreateGraphicsMaterial(shader, $"trails2d:{asset.Name}"));
+            (materialAsset, shader) => _rendering.CreateGraphicsMaterial(shader, $"trails2d:{materialAsset.Name}"));
         material.BlendState = blend;
         material.DepthStencilState = depth;
         // Ribbon triangles are not consistently wound after surface displacement
@@ -618,6 +646,7 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     {
         state.Instance = null;
         state.Material = null;
+        state.PointsDirty = false;
         state.Generation++;
         FreeSlice(state.SliceOffset, state.Capacity);
         _freeSlots.Push(slot);
@@ -625,37 +654,51 @@ public sealed class GpuTrailSystem2D : AutoDisposable
 
     private bool TryAllocateSlice(int expectedPoints, out uint offset, out uint capacity)
     {
-        uint rounded = Math.Clamp(BitOperations.RoundUpToPowerOf2((uint)Math.Max(expectedPoints, 1)), MinSlicePoints, MaxSlicePoints);
-        if (_freeSlices.TryGetValue((int)rounded, out Stack<uint>? free) && free.Count > 0)
+        uint rounded = BitOperations.RoundUpToPowerOf2((uint)Math.Clamp(expectedPoints, (int)MinSlicePoints, (int)MaxSlicePoints));
+        for (int i = 0; i < _freeSlices.Count; i++)
         {
-            offset = free.Pop();
+            PointRange range = _freeSlices[i];
+            if (range.Count < rounded)
+            {
+                continue;
+            }
+            offset = range.Offset;
             capacity = rounded;
+            if (range.Count == rounded)
+            {
+                _freeSlices.RemoveAt(i);
+            }
+            else
+            {
+                _freeSlices[i] = new PointRange(range.Offset + rounded, range.Count - rounded);
+            }
             return true;
         }
-        if (_pointsHighWater + rounded > (uint)_points.Length)
-        {
-            offset = 0;
-            capacity = 0;
-            return false;
-        }
-        offset = _pointsHighWater;
-        capacity = rounded;
-        _pointsHighWater += rounded;
-        return true;
+        offset = 0;
+        capacity = 0;
+        return false;
     }
 
     private void FreeSlice(uint offset, uint capacity)
     {
-        if (capacity == 0)
+        int index = 0;
+        while (index < _freeSlices.Count && _freeSlices[index].Offset < offset)
         {
-            return;
+            index++;
         }
-        if (!_freeSlices.TryGetValue((int)capacity, out Stack<uint>? free))
+        if (index > 0 && _freeSlices[index - 1].Offset + _freeSlices[index - 1].Count == offset)
         {
-            free = new Stack<uint>();
-            _freeSlices[(int)capacity] = free;
+            PointRange previous = _freeSlices[--index];
+            offset = previous.Offset;
+            capacity += previous.Count;
+            _freeSlices.RemoveAt(index);
         }
-        free.Push(offset);
+        if (index < _freeSlices.Count && offset + capacity == _freeSlices[index].Offset)
+        {
+            capacity += _freeSlices[index].Count;
+            _freeSlices.RemoveAt(index);
+        }
+        _freeSlices.Insert(index, new PointRange(offset, capacity));
     }
 
     private void FlushUploads()

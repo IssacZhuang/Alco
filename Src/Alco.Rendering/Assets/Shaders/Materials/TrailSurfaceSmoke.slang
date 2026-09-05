@@ -47,7 +47,7 @@ float hash2(float2 p) { return frac(sin(dot(p, float2(127.1, 311.7))) * 43758.54
 float vnoise2(float2 p)
 {
     float2 i = floor(p), f = frac(p);
-    f = f * f * (2.0 - f);
+    f = f * f * (3.0 - 2.0 * f);
     return lerp(lerp(hash2(i), hash2(i + float2(1, 0)), f.x),
                 lerp(hash2(i + float2(0, 1)), hash2(i + float2(1, 1)), f.x), f.y);
 }

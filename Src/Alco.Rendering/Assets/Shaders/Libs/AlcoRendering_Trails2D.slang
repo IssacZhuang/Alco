@@ -2,18 +2,17 @@
 //
 // GPU-resident trail ribbon machinery paired with GpuTrailSystem2D (Alco.Rendering).
 // The CPU appends one point record per emission into the trail's ring slice of the
-// shared point buffer; the vertex stage does everything per-frame — validity, aging
-// and the across-ribbon expansion — so the per-frame CPU cost scales with newly
-// emitted points, not with live trails.
+// shared point buffer; the vertex stage handles validity, aging and across-ribbon
+// expansion. The CPU scans trail slots for lifecycle, uploads and draw batching.
 //
 // Geometry contract: every trail owns a ring slice of the shared point buffer; the
 // renderer multi-draws one indexed draw per trail (firstInstance = trail slot,
 // vertexOffset = sliceOffset * 4) over a static quad-strip index pattern of 4
-// vertices and 6 indices per segment, so a vertex resolves its segment's left point
-// as vid >> 2, its endpoint as (vid >> 1) & 1 and its across-ribbon side as vid & 1
-// (VertexIndex includes the draw's vertexOffset on Vulkan). Dead segments — expired
-// endpoints, the ring discontinuity — collapse to TRAIL_DEAD_CLIP and are clipped
-// before rasterization, costing no fragments.
+// vertices and 6 indices per segment. The logical segment is (vid >> 2) - sliceOffset,
+// its endpoint is (vid >> 1) & 1 and its across-ribbon side is vid & 1 (VertexIndex
+// includes the draw's vertexOffset on Vulkan). Logical segments walk from the
+// oldest written point, wrapping both endpoints within the slice. Expired segments
+// collapse to TRAIL_DEAD_CLIP and are clipped before rasterization.
 //
 // Look-free module: the trail pass template (GpuTrail2D) declares the parameter
 // blocks (the trailPoints/trailParams buffers and the trailGlobals uniform block
@@ -93,17 +92,18 @@ public bool TrySampleTrail2D(
     uint cursor = trail.ring.z;
     uint written = trail.ring.w;
 
-    uint leftSlot = vertexId >> 2;
-    uint localLeft = leftSlot - sliceOffset;
+    uint segment = (vertexId >> 2) - sliceOffset;
     uint window = min(written, capacity);
-    // Outside the live window (paranoia — the draw range already excludes it).
-    if (capacity == 0 || localLeft + 1 >= window) return false;
-    // The ring discontinuity: once the slice wrapped, the segment joining the newest
-    // point (cursor - 1) to the overwritten oldest (cursor) is a time jump.
-    if (written >= capacity && localLeft + 1 == cursor) return false;
+    if (capacity == 0 || segment + 1 >= window) return false;
 
-    TrailPoint2D pointA = trailPoints[leftSlot];
-    TrailPoint2D pointB = trailPoints[leftSlot + 1];
+    // Chronological traversal includes capacity-1 -> 0 when it is live and
+    // excludes newest -> oldest. Slice capacities are powers of two.
+    uint oldest = written >= capacity ? cursor : 0;
+    uint localLeft = (oldest + segment) & (capacity - 1);
+    uint localRight = (localLeft + 1) & (capacity - 1);
+
+    TrailPoint2D pointA = trailPoints[sliceOffset + localLeft];
+    TrailPoint2D pointB = trailPoints[sliceOffset + localRight];
     float life = max(trail.envelope.x, 1e-4);
     float ageA = time - pointA.emitTime;
     float ageB = time - pointB.emitTime;
