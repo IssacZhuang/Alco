@@ -21,7 +21,7 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
     internal struct GroupState
     {
         /// <summary>The group asset.</summary>
-        public required ParticleGroup3DAsset Asset;
+        public required ParticleGroup3D Asset;
 
         /// <summary>The emitter slot (params/draw-args index).</summary>
         public uint Slot;
@@ -92,7 +92,7 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
 
     internal ParticleEffectInstance3D(
         GpuParticleSystem3D system,
-        ParticleEffect3DAsset asset,
+        ParticleEffect3D asset,
         in Transform3D transform,
         int seed,
         GroupState[] groups)
@@ -106,7 +106,7 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
     }
 
     /// <summary>The effect asset this instance plays.</summary>
-    public ParticleEffect3DAsset Asset { get; }
+    public ParticleEffect3D Asset { get; }
 
     /// <summary>The emitter transform of the whole effect (all groups).</summary>
     public Transform3D Transform { get; set; }
@@ -244,7 +244,7 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
         for (int i = 0; i < _groups.Length; i++)
         {
             ref GroupState group = ref _groups[i];
-            ParticleGroup3DAsset asset = group.Asset;
+            ParticleGroup3D asset = group.Asset;
             // The lifecycle step gates emission per group: a one-shot group whose
             // timeline ran out idles and deactivates even while the instance still
             // plays, so finished effects are destroyable (IsActive -> false).

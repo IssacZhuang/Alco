@@ -1,7 +1,7 @@
 {
     // A one-shot explosion: a radial spark burst plus a lingering smoke cloud.
     // Non-looping — the instance deactivates itself once the particles die.
-    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "$type": "Alco.Particles.ParticleEffect2D",
     "version": "1.0",
     "groups": [
         {

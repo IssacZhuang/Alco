@@ -171,7 +171,7 @@ public struct EmitterParams3D
     /// <param name="group">The group asset.</param>
     /// <param name="indexCount">The quad mesh's index count.</param>
     /// <returns>The filled record.</returns>
-    public static EmitterParams3D FromAsset(ParticleGroup3DAsset group, uint indexCount)
+    public static EmitterParams3D FromAsset(ParticleGroup3D group, uint indexCount)
     {
         ArgumentNullException.ThrowIfNull(group);
         EmitterParams3D parameters = default;

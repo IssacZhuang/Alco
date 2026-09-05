@@ -5,7 +5,7 @@
     // the end, and the size curve (replaces the endScale lerp) grows the
     // particles over their life. Sparse emission keeps the additive blend from
     // saturating, so the gradient colors stay readable.
-    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "$type": "Alco.Particles.ParticleEffect2D",
     "version": "1.0",
     "groups": [
         {

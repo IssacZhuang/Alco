@@ -157,13 +157,13 @@ public class TestParticleMaterialModule
         });
     }
 
-    private static ParticleEffect2DAsset BuildEffect2D(string name)
+    private static ParticleEffect2D BuildEffect2D(string name)
         => new()
         {
             Name = name,
             Groups =
             [
-                new ParticleGroup2DAsset
+                new ParticleGroup2D
                 {
                     Name = $"{name}-group",
                     MaxParticles = 128,
@@ -173,13 +173,13 @@ public class TestParticleMaterialModule
             ],
         };
 
-    private static ParticleEffect3DAsset BuildEffect3D(string name)
+    private static ParticleEffect3D BuildEffect3D(string name)
         => new()
         {
             Name = name,
             Groups =
             [
-                new ParticleGroup3DAsset
+                new ParticleGroup3D
                 {
                     Name = $"{name}-group",
                     MaxParticles = 128,

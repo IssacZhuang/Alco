@@ -41,7 +41,7 @@ public class Game : GameEngine
     private readonly RenderPipeline _pipeline;
     private readonly Camera2DBuffer _camera;
     private readonly GpuParticleSystem2D _particles;
-    private readonly Dictionary<string, ParticleEffect2DAsset> _effects = new();
+    private readonly Dictionary<string, ParticleEffect2D> _effects = new();
     private readonly List<string> _effectNames = [];
     private readonly List<InstanceEntry> _instances = [];
     private FastRandom _random = new(12345);
@@ -145,13 +145,13 @@ public class Game : GameEngine
         MainPresenter.OnResize += size => _pipeline.Resize(size.X, size.Y);
 
         // The effect assets.
-        _effects["Explosion"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Explosion.afx");
-        _effects["Flame"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Flame.afx");
-        _effects["Fountain"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Fountain.afx");
-        _effects["Vortex"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Vortex.afx");
-        _effects["Shockwave"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Shockwave2D.afx");
-        _effects["Dissolve"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Dissolve2D.afx");
-        _effects["Rainbow"] = AssetSystem.Load<ParticleEffect2DAsset>("Effects/Rainbow.afx");
+        _effects["Explosion"] = AssetSystem.Load<ParticleEffect2D>("Effects/Explosion.afx");
+        _effects["Flame"] = AssetSystem.Load<ParticleEffect2D>("Effects/Flame.afx");
+        _effects["Fountain"] = AssetSystem.Load<ParticleEffect2D>("Effects/Fountain.afx");
+        _effects["Vortex"] = AssetSystem.Load<ParticleEffect2D>("Effects/Vortex.afx");
+        _effects["Shockwave"] = AssetSystem.Load<ParticleEffect2D>("Effects/Shockwave2D.afx");
+        _effects["Dissolve"] = AssetSystem.Load<ParticleEffect2D>("Effects/Dissolve2D.afx");
+        _effects["Rainbow"] = AssetSystem.Load<ParticleEffect2D>("Effects/Rainbow.afx");
         _effectNames.AddRange(_effects.Keys);
 
         // The static scene (deterministic seeds keep screenshot mode reproducible).
@@ -199,14 +199,14 @@ public class Game : GameEngine
     // slice capacity, so the ring buffer stays exactly full (live == pooled)
     // without overwrite churn. Particle size is a CLI knob: authored-like sizes
     // stress the rasterizer, tiny quads isolate the simulation cost.
-    private ParticleEffect2DAsset CreateFillEffect(float size)
+    private ParticleEffect2D CreateFillEffect(float size)
     {
-        return new ParticleEffect2DAsset
+        return new ParticleEffect2D
         {
             Name = "Fill",
             Groups =
             [
-                new ParticleGroup2DAsset
+                new ParticleGroup2D
                 {
                     Name = "Fill",
                     MaxParticles = 8192,
@@ -326,7 +326,7 @@ public class Game : GameEngine
                 int groups = 0;
                 foreach (InstanceEntry entry in _instances)
                 {
-                    foreach (ParticleGroup2DAsset group in entry.Instance.Asset.Groups)
+                    foreach (ParticleGroup2D group in entry.Instance.Asset.Groups)
                     {
                         groups++;
                         // The slice capacity (what the simulate pass touches) and the

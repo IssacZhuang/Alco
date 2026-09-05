@@ -1,7 +1,7 @@
 {
     // A looping fountain: a narrow upward jet under strong gravity, plus a
     // periodic burst every loop of the 2-second timeline.
-    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "$type": "Alco.Particles.ParticleEffect2D",
     "version": "1.0",
     "groups": [
         {

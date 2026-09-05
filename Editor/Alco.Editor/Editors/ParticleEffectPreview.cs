@@ -14,7 +14,7 @@ namespace Alco.Editor;
 /// viewport input and the grid/axes overlay).
 /// <br/>This class adds the particle-specific parts on top of the viewport:
 /// the effect instance lifecycle (<see cref="SetEffect"/>,
-/// <see cref="LiveUpdateGroup(int, ParticleGroup2DAsset)"/>), the transport
+/// <see cref="LiveUpdateGroup(int, ParticleGroup2D)"/>), the transport
 /// controls (pause, stop, restart, time scale — pausing records a 0 delta,
 /// which freezes the simulation but keeps pool bookkeeping alive), the
 /// per-group emitter shape outlines read from <see cref="OverlaySource"/>,
@@ -105,11 +105,11 @@ public sealed class ParticleEffectPreview : AutoDisposable
     /// Set once by the owning document; edits mutate this object in place, so the
     /// overlay always reflects the current parameters (live or not yet rebuilt).
     /// </summary>
-    public ParticleEffectAsset? OverlaySource { get; set; }
+    public ParticleEffect? OverlaySource { get; set; }
 
     /// <summary>Replaces the previewed effect instance (the asset must match the preview's dimension).</summary>
     /// <param name="effect">A fresh effect asset object (never the document's edit copy).</param>
-    public void SetEffect(ParticleEffectAsset effect)
+    public void SetEffect(ParticleEffect effect)
     {
         ArgumentNullException.ThrowIfNull(effect);
         _instance2D?.Dispose();
@@ -121,11 +121,11 @@ public sealed class ParticleEffectPreview : AutoDisposable
         {
             if (_is3D)
             {
-                _instance3D = _system3D!.CreateInstance((ParticleEffect3DAsset)effect, Transform3D.Identity, PreviewSeed);
+                _instance3D = _system3D!.CreateInstance((ParticleEffect3D)effect, Transform3D.Identity, PreviewSeed);
             }
             else
             {
-                _instance2D = _system2D!.CreateInstance((ParticleEffect2DAsset)effect, Transform2D.Identity, PreviewSeed);
+                _instance2D = _system2D!.CreateInstance((ParticleEffect2D)effect, Transform2D.Identity, PreviewSeed);
             }
         }
         catch (Exception e)
@@ -140,7 +140,7 @@ public sealed class ParticleEffectPreview : AutoDisposable
     /// Hot-applies the edited static fields of one 2D group to the live instance
     /// (no respawn); a no-op while the preview has no live instance.
     /// </summary>
-    public void LiveUpdateGroup(int groupIndex, ParticleGroup2DAsset group)
+    public void LiveUpdateGroup(int groupIndex, ParticleGroup2D group)
     {
         if (_instance2D == null || groupIndex >= _instance2D.GroupCount)
         {
@@ -150,8 +150,8 @@ public sealed class ParticleEffectPreview : AutoDisposable
         _instance2D.SetGroupParams(groupIndex, EmitterParams2D.FromAsset(group, _system2D!.QuadMesh.GetSubMesh(0).IndexCount));
     }
 
-    /// <summary>The 3D counterpart of <see cref="LiveUpdateGroup(int, ParticleGroup2DAsset)"/>.</summary>
-    public void LiveUpdateGroup(int groupIndex, ParticleGroup3DAsset group)
+    /// <summary>The 3D counterpart of <see cref="LiveUpdateGroup(int, ParticleGroup2D)"/>.</summary>
+    public void LiveUpdateGroup(int groupIndex, ParticleGroup3D group)
     {
         if (_instance3D == null || groupIndex >= _instance3D.GroupCount)
         {
@@ -311,7 +311,7 @@ public sealed class ParticleEffectPreview : AutoDisposable
 
         if (_is3D)
         {
-            List<ParticleGroup3DAsset> groups = ((ParticleEffect3DAsset)OverlaySource).Groups;
+            List<ParticleGroup3D> groups = ((ParticleEffect3D)OverlaySource).Groups;
             for (int i = 0; i < groups.Count; i++)
             {
                 if (!IsGroupVisible(i))
@@ -323,7 +323,7 @@ public sealed class ParticleEffectPreview : AutoDisposable
             return;
         }
 
-        List<ParticleGroup2DAsset> groups2D = ((ParticleEffect2DAsset)OverlaySource).Groups;
+        List<ParticleGroup2D> groups2D = ((ParticleEffect2D)OverlaySource).Groups;
         for (int i = 0; i < groups2D.Count; i++)
         {
             if (!IsGroupVisible(i))

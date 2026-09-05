@@ -29,10 +29,13 @@ public class ValidateSlangModules
         string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders");
         foreach (string file in Directory.GetFiles(root, "*.slang", SearchOption.AllDirectories))
         {
-            // Libs are imported, not entry modules — only pass modules own
-            // entry points; their file base name is the module identity.
+            // Libs are imported and materials are composed, not entry modules —
+            // only pass modules own entry points; their file base name is the
+            // module identity (materials get their link coverage through
+            // TemplateSurfaces composition instead).
             string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-            if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase))
+            if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase) ||
+                relative.StartsWith("Materials/", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -65,6 +68,16 @@ public class ValidateSlangModules
             ["TileInstanced"] = [["false", "false"]],
         };
 
+    // Pass templates whose generic entry points take the surface type as their
+    // specialization argument (the material-composition contract): they compose
+    // with the named standard surface instead of linking standalone, the same
+    // route the material compiler takes at runtime.
+    private static readonly IReadOnlyDictionary<string, string> TemplateSurfaces =
+        new Dictionary<string, string>
+        {
+            ["GpuTrail2D"] = "TrailSurfaceDefault",
+        };
+
     [Test]
     [TestCaseSource(nameof(ModuleCases))]
     public void Module_CompilesAllEntryPoints(string moduleName, string file)
@@ -93,7 +106,9 @@ public class ValidateSlangModules
             : [[]];
         foreach (string[] args in argSets)
         {
-            using SlangProgram program = system.Modules.GetProgramAllEntries(moduleName, args);
+            using SlangProgram program = TemplateSurfaces.TryGetValue(moduleName, out string? surface)
+                ? system.Modules.GetComposedProgram(moduleName, surface, args)
+                : system.Modules.GetProgramAllEntries(moduleName, args);
             Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
             Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
             foreach (ReadOnlyMemory<byte> code in program.EntryCode)

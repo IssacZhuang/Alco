@@ -19,7 +19,7 @@ public class TestParticleEffectAsset
     private const string Effect2DJson = """
         {
             // a comment, tolerated
-            "$type": "Alco.Particles.ParticleEffect2DAsset",
+            "$type": "Alco.Particles.ParticleEffect2D",
             "version": "1.0",
             "groups": [
                 {
@@ -81,16 +81,16 @@ public class TestParticleEffectAsset
         JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
             engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
 
-        ParticleEffectAsset asset = JsonSerializer.Deserialize<ParticleEffectAsset>(Effect2DJson, options)
+        ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(Effect2DJson, options)
             ?? throw new InvalidDataException("empty");
 
         Assert.Multiple(() =>
         {
-            ParticleEffect2DAsset effect = asset as ParticleEffect2DAsset
+            ParticleEffect2D effect = asset as ParticleEffect2D
                 ?? throw new AssertionException("not a 2D effect");
             Assert.That(effect.Groups, Has.Count.EqualTo(2));
 
-            ParticleGroup2DAsset sparks = effect.Groups[0];
+            ParticleGroup2D sparks = effect.Groups[0];
             Assert.That(sparks.Name, Is.EqualTo("Sparks"));
             Assert.That(sparks.MaxParticles, Is.EqualTo(2048));
             Assert.That(sparks.EmissionRate, Is.EqualTo(500f));
@@ -127,7 +127,7 @@ public class TestParticleEffectAsset
             Assert.That(sparks.Behavior, Is.Null);
 
             // The second group takes every default.
-            ParticleGroup2DAsset smoke = effect.Groups[1];
+            ParticleGroup2D smoke = effect.Groups[1];
             Assert.That(smoke.Shape.Type, Is.EqualTo(ParticleShape2DType.Point));
             Assert.That(smoke.SimulationSpace, Is.EqualTo(ParticleSimulationSpace.World));
             Assert.That(smoke.Tint, Is.EqualTo(ColorFloat.White));
@@ -141,9 +141,9 @@ public class TestParticleEffectAsset
         // The emitter params carry the over-life/stretch settings as flag bits
         // and spare lanes (the struct layouts stay at 336/320 bytes).
         EmitterParams2D parameters = EmitterParams2D.FromAsset(
-            (asset as ParticleEffect2DAsset)!.Groups[0], 6);
+            (asset as ParticleEffect2D)!.Groups[0], 6);
         EmitterParams2D defaults = EmitterParams2D.FromAsset(
-            (asset as ParticleEffect2DAsset)!.Groups[1], 6);
+            (asset as ParticleEffect2D)!.Groups[1], 6);
         Assert.Multiple(() =>
         {
             Assert.That(parameters.Flags & EmitterParams2D.FlagColorGradient, Is.Not.Zero);
@@ -159,18 +159,18 @@ public class TestParticleEffectAsset
         });
 
         // 2D stretch requires the velocity alignment; without it no bit is set.
-        var unaligned = new ParticleGroup2DAsset { VelocityStretch = true };
+        var unaligned = new ParticleGroup2D { VelocityStretch = true };
         Assert.That(EmitterParams2D.FromAsset(unaligned, 6).Flags & EmitterParams2D.FlagVelocityStretch, Is.Zero);
 
         // A 2D group authoring a depth state opts into the pass's depth-base
         // world z (depth base minus particle height); a group without one keeps
         // the default z of 0 (no flag, no depth test).
-        var depthRead = new ParticleGroup2DAsset { Depth = DepthStencilState.Read };
+        var depthRead = new ParticleGroup2D { Depth = DepthStencilState.Read };
         Assert.That(EmitterParams2D.FromAsset(depthRead, 6).Flags & EmitterParams2D.FlagDepthBase, Is.Not.Zero);
-        Assert.That(EmitterParams2D.FromAsset(new ParticleGroup2DAsset(), 6).Flags & EmitterParams2D.FlagDepthBase, Is.Zero);
+        Assert.That(EmitterParams2D.FromAsset(new ParticleGroup2D(), 6).Flags & EmitterParams2D.FlagDepthBase, Is.Zero);
 
         // 3D stretch stands alone (billboards have no align-rotation mode).
-        var stretched3D = new ParticleGroup3DAsset { VelocityStretch = true, StretchSpeedScale = 0.2f };
+        var stretched3D = new ParticleGroup3D { VelocityStretch = true, StretchSpeedScale = 0.2f };
         EmitterParams3D parameters3D = EmitterParams3D.FromAsset(stretched3D, 6);
         Assert.Multiple(() =>
         {
@@ -181,7 +181,7 @@ public class TestParticleEffectAsset
 
         // Strict members: an unknown field fails the parse.
         string bad = Effect2DJson.Replace("\"emissionRate\"", "\"emissionRateTypo\"");
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffectAsset>(bad, options));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffect>(bad, options));
     }
 
     [Test]
@@ -196,7 +196,7 @@ public class TestParticleEffectAsset
         // the surface's "texture" slot.
         const string json = """
             {
-                "$type": "Alco.Particles.ParticleEffect2DAsset",
+                "$type": "Alco.Particles.ParticleEffect2D",
                 "version": "1.0",
                 "groups": [
                     {
@@ -210,11 +210,11 @@ public class TestParticleEffectAsset
             }
             """;
 
-        ParticleEffectAsset asset = JsonSerializer.Deserialize<ParticleEffectAsset>(json, options)
+        ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(json, options)
             ?? throw new InvalidDataException("empty");
-        ParticleEffect2DAsset effect = asset as ParticleEffect2DAsset
+        ParticleEffect2D effect = asset as ParticleEffect2D
             ?? throw new AssertionException("not a 2D effect");
-        ParticleGroup2DAsset group = effect.Groups[0];
+        ParticleGroup2D group = effect.Groups[0];
 
         Assert.Multiple(() =>
         {
@@ -262,23 +262,23 @@ public class TestParticleEffectAsset
         Assert.Multiple(() =>
         {
             Assert.That(
-                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = reverse }, 6).Flags
+                EmitterParams2D.FromAsset(new ParticleGroup2D { Flipbook = reverse }, 6).Flags
                     & EmitterParams2D.FlagFlipbookReverse,
                 Is.Not.Zero);
             Assert.That(
-                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = forward }, 6).Flags
+                EmitterParams2D.FromAsset(new ParticleGroup2D { Flipbook = forward }, 6).Flags
                     & EmitterParams2D.FlagFlipbookReverse,
                 Is.Zero);
             Assert.That(
-                EmitterParams2D.FromAsset(new ParticleGroup2DAsset(), 6).Flags
+                EmitterParams2D.FromAsset(new ParticleGroup2D(), 6).Flags
                     & EmitterParams2D.FlagFlipbookReverse,
                 Is.Zero, "no flipbook, no reverse bit");
             Assert.That(
-                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = reverse }, 6).Flags
+                EmitterParams3D.FromAsset(new ParticleGroup3D { Flipbook = reverse }, 6).Flags
                     & EmitterParams3D.FlagFlipbookReverse,
                 Is.Not.Zero, "3D shares the bit position");
             Assert.That(
-                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = forward }, 6).Flags
+                EmitterParams3D.FromAsset(new ParticleGroup3D { Flipbook = forward }, 6).Flags
                     & EmitterParams3D.FlagFlipbookReverse,
                 Is.Zero);
         });
@@ -294,10 +294,10 @@ public class TestParticleEffectAsset
         Assert.Multiple(() =>
         {
             Assert.That(
-                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = flipbook }, 6).Flipbook.Z,
+                EmitterParams2D.FromAsset(new ParticleGroup2D { Flipbook = flipbook }, 6).Flipbook.Z,
                 Is.EqualTo(2f));
             Assert.That(
-                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = flipbook }, 6).Flipbook.Z,
+                EmitterParams3D.FromAsset(new ParticleGroup3D { Flipbook = flipbook }, 6).Flipbook.Z,
                 Is.EqualTo(2f));
             Assert.That(new ParticleFlipbook().Cycles, Is.EqualTo(1f),
                 "one play-through per lifetime by default");
@@ -310,13 +310,13 @@ public class TestParticleEffectAsset
         Assert.Multiple(() =>
         {
             Assert.That(
-                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = sheet }, 6).Flipbook.W,
+                EmitterParams2D.FromAsset(new ParticleGroup2D { Flipbook = sheet }, 6).Flipbook.W,
                 Is.EqualTo(8f));
             Assert.That(
-                EmitterParams3D.FromAsset(new ParticleGroup3DAsset { Flipbook = sheet }, 6).Flipbook.W,
+                EmitterParams3D.FromAsset(new ParticleGroup3D { Flipbook = sheet }, 6).Flipbook.W,
                 Is.EqualTo(8f));
             Assert.That(
-                EmitterParams2D.FromAsset(new ParticleGroup2DAsset { Flipbook = clamped }, 6).Flipbook.W,
+                EmitterParams2D.FromAsset(new ParticleGroup2D { Flipbook = clamped }, 6).Flipbook.W,
                 Is.EqualTo(16f), "clamped to rows x cols");
             Assert.That(new ParticleFlipbook().FramesPerAnim, Is.EqualTo(0),
                 "whole sheet by default");
@@ -329,17 +329,17 @@ public class TestParticleEffectAsset
             engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
         const string json = """
             {
-                "$type": "Alco.Particles.ParticleEffect2DAsset",
+                "$type": "Alco.Particles.ParticleEffect2D",
                 "version": "1.0",
                 "groups": [ { "name": "Smoke", "flipbook": { "rows": 8, "cols": 8, "cycles": 1, "framesPerAnim": 8 } } ]
             }
             """;
-        var effect = JsonSerializer.Deserialize<ParticleEffectAsset>(json, options) as ParticleEffect2DAsset;
+        var effect = JsonSerializer.Deserialize<ParticleEffect>(json, options) as ParticleEffect2D;
         Assert.Multiple(() =>
         {
             Assert.That(effect!.Groups[0].Flipbook!.Cycles, Is.EqualTo(1f));
             Assert.That(effect.Groups[0].Flipbook!.FramesPerAnim, Is.EqualTo(8));
-            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffectAsset>(
+            Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffect>(
                 json.Replace("\"cycles\": 1", "\"fps\": 24"), options));
         });
     }

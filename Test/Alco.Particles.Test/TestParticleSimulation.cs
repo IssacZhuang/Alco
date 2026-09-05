@@ -33,7 +33,7 @@ public class TestParticleSimulation
     public void NewMaterialDrawsOnItsFirstFrame2D()
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D(), CreateGroup2D());
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D(), CreateGroup2D());
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -48,7 +48,7 @@ public class TestParticleSimulation
     public void NewMaterialDrawsOnItsFirstFrame3D()
     {
         using var system = new GpuParticleSystem3D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
-        ParticleEffect3DAsset effect = CreateEffect3D(CreateGroup3D());
+        ParticleEffect3D effect = CreateEffect3D(CreateGroup3D());
         using ParticleEffectInstance3D instance = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(0f, 0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -63,7 +63,7 @@ public class TestParticleSimulation
     public void HitchDeltaClamps2D()
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D(duration: 1f, looping: false));
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D(duration: 1f, looping: false));
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -85,7 +85,7 @@ public class TestParticleSimulation
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
         system.SimulationInterval = 1f / 64f;
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D());
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D());
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -120,7 +120,7 @@ public class TestParticleSimulation
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
         system.SimulationInterval = 1f / 64f; // 4/256 — all deltas below are dyadic, so the float math is exact
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D());
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D());
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -143,7 +143,7 @@ public class TestParticleSimulation
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
         system.SimulationInterval = 1f / 64f;
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D());
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D());
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -166,7 +166,7 @@ public class TestParticleSimulation
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
         system.SimulationRateLimitEnabled = false;
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D());
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D());
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -183,7 +183,7 @@ public class TestParticleSimulation
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
         system.SimulationInterval = 1f / 64f;
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D());
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D());
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -202,7 +202,7 @@ public class TestParticleSimulation
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
         system.SimulationInterval = 1f / 64f;
-        var group = new ParticleGroup2DAsset
+        var group = new ParticleGroup2D
         {
             Name = "TestGroup",
             MaxParticles = 128,
@@ -211,7 +211,7 @@ public class TestParticleSimulation
             Looping = false,
             Lifetime = new ParticleRange(0.05f, 0.05f),
         };
-        ParticleEffect2DAsset effect = CreateEffect2D(group);
+        ParticleEffect2D effect = CreateEffect2D(group);
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -238,7 +238,7 @@ public class TestParticleSimulation
     {
         using var system = new GpuParticleSystem3D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
         system.SimulationInterval = 1f / 64f;
-        ParticleEffect3DAsset effect = CreateEffect3D(CreateGroup3D());
+        ParticleEffect3D effect = CreateEffect3D(CreateGroup3D());
         using ParticleEffectInstance3D instance = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(0f, 0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -266,7 +266,7 @@ public class TestParticleSimulation
         });
     }
 
-    private static ParticleGroup2DAsset CreateGroup2D(float duration = 0f, bool looping = true)
+    private static ParticleGroup2D CreateGroup2D(float duration = 0f, bool looping = true)
         => new()
         {
             Name = "TestGroup",
@@ -277,10 +277,10 @@ public class TestParticleSimulation
             Lifetime = new ParticleRange(1f, 2f),
         };
 
-    private static ParticleEffect2DAsset CreateEffect2D(params ParticleGroup2DAsset[] groups)
+    private static ParticleEffect2D CreateEffect2D(params ParticleGroup2D[] groups)
         => new() { Name = "TestEffect", Groups = [.. groups] };
 
-    private static ParticleGroup3DAsset CreateGroup3D()
+    private static ParticleGroup3D CreateGroup3D()
         => new()
         {
             Name = "TestGroup",
@@ -289,6 +289,6 @@ public class TestParticleSimulation
             Lifetime = new ParticleRange(1f, 2f),
         };
 
-    private static ParticleEffect3DAsset CreateEffect3D(params ParticleGroup3DAsset[] groups)
+    private static ParticleEffect3D CreateEffect3D(params ParticleGroup3D[] groups)
         => new() { Name = "TestEffect", Groups = [.. groups] };
 }

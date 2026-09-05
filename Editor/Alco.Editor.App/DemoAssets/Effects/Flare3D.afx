@@ -1,7 +1,7 @@
 {
     // A looping 3D flame jet: continuous cone emission straight up (+Z), light
     // gravity, additive glow billboards. Self-contained (no material reference).
-    "$type": "Alco.Particles.ParticleEffect3DAsset",
+    "$type": "Alco.Particles.ParticleEffect3D",
     "version": "1.0",
     "groups": [
         {

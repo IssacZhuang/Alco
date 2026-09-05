@@ -14,7 +14,7 @@ public static class ParticleEffectTemplates
     /// <summary>A minimal looping 2D effect: one circle emitter fading out over life.</summary>
     public const string Effect2D = """
         {
-            "$type": "Alco.Particles.ParticleEffect2DAsset",
+            "$type": "Alco.Particles.ParticleEffect2D",
             "version": "1.0",
             "groups": [
                 {
@@ -41,7 +41,7 @@ public static class ParticleEffectTemplates
     /// <summary>A minimal looping 3D effect: one sphere emitter fading out over life.</summary>
     public const string Effect3D = """
         {
-            "$type": "Alco.Particles.ParticleEffect3DAsset",
+            "$type": "Alco.Particles.ParticleEffect3D",
             "version": "1.0",
             "groups": [
                 {

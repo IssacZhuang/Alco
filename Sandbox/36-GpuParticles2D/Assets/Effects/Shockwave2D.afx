@@ -1,7 +1,7 @@
 {
     // A looping shockwave pulse: near-stationary particles playing a 4x4
     // flipbook (Shockwave.png) over their lifetime, clamped to the last frame.
-    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "$type": "Alco.Particles.ParticleEffect2D",
     "version": "1.0",
     "groups": [
         {

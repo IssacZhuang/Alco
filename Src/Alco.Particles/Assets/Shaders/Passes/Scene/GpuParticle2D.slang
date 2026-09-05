@@ -9,7 +9,7 @@
 // AlcoParticles_Surface — the dimension-neutral contract shared with the 3D
 // pass): the material compiler composes this module with the group's material
 // surface module, so the visual comes from the .amat — the built-in default
-// surface (AlcoParticles_SurfaceDefault) shades texture x particle color and
+// surface (ParticleSurfaceDefault) shades texture x particle color and
 // leaves the vertex stage untouched (the adjustWorldPosition hook's default).
 //
 // The pass owns the resource contract the particle system binds: the "camera"

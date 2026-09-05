@@ -36,7 +36,7 @@ public class Game : GameEngine
     private readonly RenderPipeline _pipeline;
     private readonly CameraPerspectiveBuffer _camera;
     private readonly GpuParticleSystem3D _particles;
-    private readonly Dictionary<string, ParticleEffect3DAsset> _effects = new();
+    private readonly Dictionary<string, ParticleEffect3D> _effects = new();
     private readonly List<string> _effectNames = [];
     private readonly List<InstanceEntry> _instances = [];
     private FastRandom _random = new(54321);
@@ -170,9 +170,9 @@ public class Game : GameEngine
         ];
 
         // The effect assets.
-        _effects["Flare"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Flare3D.afx");
-        _effects["Explosion"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Explosion3D.afx");
-        _effects["Vortex"] = AssetSystem.Load<ParticleEffect3DAsset>("Effects/Vortex3D.afx");
+        _effects["Flare"] = AssetSystem.Load<ParticleEffect3D>("Effects/Flare3D.afx");
+        _effects["Explosion"] = AssetSystem.Load<ParticleEffect3D>("Effects/Explosion3D.afx");
+        _effects["Vortex"] = AssetSystem.Load<ParticleEffect3D>("Effects/Vortex3D.afx");
         _effectNames.AddRange(_effects.Keys);
 
         // The static scene (deterministic seeds keep screenshot mode reproducible).
@@ -199,14 +199,14 @@ public class Game : GameEngine
     // slice capacity, so the ring buffer stays exactly full (live == pooled)
     // without overwrite churn. Particle size is a CLI knob: authored-like sizes
     // stress the rasterizer, tiny quads isolate the simulation cost.
-    private ParticleEffect3DAsset CreateFillEffect(float size)
+    private ParticleEffect3D CreateFillEffect(float size)
     {
-        return new ParticleEffect3DAsset
+        return new ParticleEffect3D
         {
             Name = "Fill",
             Groups =
             [
-                new ParticleGroup3DAsset
+                new ParticleGroup3D
                 {
                     Name = "Fill",
                     MaxParticles = 8192,
@@ -337,7 +337,7 @@ public class Game : GameEngine
                 int groups = 0;
                 foreach (InstanceEntry entry in _instances)
                 {
-                    foreach (ParticleGroup3DAsset group in entry.Instance.Asset.Groups)
+                    foreach (ParticleGroup3D group in entry.Instance.Asset.Groups)
                     {
                         groups++;
                         // The slice capacity (what the simulate pass touches) and the

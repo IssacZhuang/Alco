@@ -303,7 +303,7 @@ public class ParticleShape3D
 }
 
 /// <summary>
-/// One key of a color-over-life gradient (<see cref="ParticleGroupAsset.ColorGradient"/>):
+/// One key of a color-over-life gradient (<see cref="ParticleGroup.ColorGradient"/>):
 /// the color at a normalized particle age. Keys may be authored out of order and
 /// outside [0, 1]; the bake (<see cref="ParticleOverLifeBake"/>) sorts and clamps them.
 /// </summary>
@@ -317,7 +317,7 @@ public class ParticleColorKey
 }
 
 /// <summary>
-/// One key of a scalar-over-life curve (<see cref="ParticleGroupAsset.SizeCurve"/>):
+/// One key of a scalar-over-life curve (<see cref="ParticleGroup.SizeCurve"/>):
 /// the multiplier at a normalized particle age; see <see cref="ParticleColorKey"/>
 /// for the key ordering/clamping rules.
 /// </summary>

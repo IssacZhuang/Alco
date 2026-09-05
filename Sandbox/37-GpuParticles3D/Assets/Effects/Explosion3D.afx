@@ -1,7 +1,7 @@
 {
     // A one-shot 3D explosion: a radial spark shell plus a lingering smoke ball.
     // Non-looping — the instance deactivates itself once the particles die.
-    "$type": "Alco.Particles.ParticleEffect3DAsset",
+    "$type": "Alco.Particles.ParticleEffect3D",
     "version": "1.0",
     "groups": [
         {

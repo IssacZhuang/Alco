@@ -27,7 +27,7 @@ public sealed partial class ParticleEffectDocument : AssetDocument
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly JsonSerializerOptions _jsonWriteOptions;
     private readonly string _absolutePath = string.Empty;
-    private readonly ParticleEffectAsset _effect;
+    private readonly ParticleEffect _effect;
     private readonly bool _is3D;
     private readonly ParticleEffectPreview _preview;
 
@@ -51,9 +51,9 @@ public sealed partial class ParticleEffectDocument : AssetDocument
 
         // Detached edit copy: parse the file directly instead of taking the shared
         // cached instance, so edits never leak into other consumers before a save.
-        _effect = JsonSerializer.Deserialize<ParticleEffectAsset>(File.ReadAllText(_absolutePath), _jsonOptions)
+        _effect = JsonSerializer.Deserialize<ParticleEffect>(File.ReadAllText(_absolutePath), _jsonOptions)
             ?? throw new InvalidDataException($"Particle effect asset '{assetPath}' is empty.");
-        _is3D = _effect is ParticleEffect3DAsset;
+        _is3D = _effect is ParticleEffect3D;
 
         _preview = new ParticleEffectPreview(context, _is3D);
         _preview.OverlaySource = _effect;
@@ -77,7 +77,7 @@ public sealed partial class ParticleEffectDocument : AssetDocument
             return;
         }
 
-        _effect.Version ??= ParticleEffectAsset.FormatVersion;
+        _effect.Version ??= ParticleEffect.FormatVersion;
         try
         {
             File.WriteAllText(_absolutePath, JsonSerializer.Serialize(_effect, _jsonWriteOptions));
@@ -156,11 +156,11 @@ public sealed partial class ParticleEffectDocument : AssetDocument
         MarkDirty();
         if (_is3D)
         {
-            _preview.LiveUpdateGroup(groupIndex, ((ParticleEffect3DAsset)_effect).Groups[groupIndex]);
+            _preview.LiveUpdateGroup(groupIndex, ((ParticleEffect3D)_effect).Groups[groupIndex]);
         }
         else
         {
-            _preview.LiveUpdateGroup(groupIndex, ((ParticleEffect2DAsset)_effect).Groups[groupIndex]);
+            _preview.LiveUpdateGroup(groupIndex, ((ParticleEffect2D)_effect).Groups[groupIndex]);
         }
     }
 
@@ -198,7 +198,7 @@ public sealed partial class ParticleEffectDocument : AssetDocument
         try
         {
             string json = JsonSerializer.Serialize(_effect, _jsonOptions);
-            ParticleEffectAsset fresh = JsonSerializer.Deserialize<ParticleEffectAsset>(json, _jsonOptions)!;
+            ParticleEffect fresh = JsonSerializer.Deserialize<ParticleEffect>(json, _jsonOptions)!;
             _preview.SetEffect(fresh);
             ApplyGroupVisibility();
             _roundtripError = string.Empty;

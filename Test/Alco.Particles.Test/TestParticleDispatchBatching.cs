@@ -36,7 +36,7 @@ public class TestParticleDispatchBatching
     public void SharedBehaviorMergesDispatches2D()
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D("A"), CreateGroup2D("B"));
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D("A"), CreateGroup2D("B"));
         using ParticleEffectInstance2D instance1 = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(-1f, 0f)), seed: 1);
         using ParticleEffectInstance2D instance2 = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(1f, 0f)), seed: 2);
 
@@ -60,9 +60,9 @@ public class TestParticleDispatchBatching
     public void DistinctBehaviorsSplitDispatches2D()
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleGroup2DAsset custom = CreateGroup2D("Custom");
+        ParticleGroup2D custom = CreateGroup2D("Custom");
         custom.Behavior = _engine.RenderingSystem.ShaderSystem.GetLibrary("TestBehavior2D");
-        ParticleEffect2DAsset effect = CreateEffect2D(CreateGroup2D("Default"), custom);
+        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D("Default"), custom);
         using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -83,7 +83,7 @@ public class TestParticleDispatchBatching
     public void SharedBehaviorMergesDispatches3D()
     {
         using var system = new GpuParticleSystem3D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleEffect3DAsset effect = CreateEffect3D(CreateGroup3D("A"), CreateGroup3D("B"));
+        ParticleEffect3D effect = CreateEffect3D(CreateGroup3D("A"), CreateGroup3D("B"));
         using ParticleEffectInstance3D instance1 = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(-1f, 0f, 0f)), seed: 1);
         using ParticleEffectInstance3D instance2 = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(1f, 0f, 0f)), seed: 2);
 
@@ -105,9 +105,9 @@ public class TestParticleDispatchBatching
     public void DistinctBehaviorsSplitDispatches3D()
     {
         using var system = new GpuParticleSystem3D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleGroup3DAsset custom = CreateGroup3D("Custom");
+        ParticleGroup3D custom = CreateGroup3D("Custom");
         custom.Behavior = _engine.RenderingSystem.ShaderSystem.GetLibrary("TestBehavior3D");
-        ParticleEffect3DAsset effect = CreateEffect3D(CreateGroup3D("Default"), custom);
+        ParticleEffect3D effect = CreateEffect3D(CreateGroup3D("Default"), custom);
         using ParticleEffectInstance3D instance = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(0f, 0f, 0f)), seed: 1);
 
         using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
@@ -122,7 +122,7 @@ public class TestParticleDispatchBatching
         });
     }
 
-    private static ParticleGroup2DAsset CreateGroup2D(string name)
+    private static ParticleGroup2D CreateGroup2D(string name)
         => new()
         {
             Name = name,
@@ -132,10 +132,10 @@ public class TestParticleDispatchBatching
             Lifetime = new ParticleRange(1f, 2f),
         };
 
-    private static ParticleEffect2DAsset CreateEffect2D(params ParticleGroup2DAsset[] groups)
+    private static ParticleEffect2D CreateEffect2D(params ParticleGroup2D[] groups)
         => new() { Name = "TestEffect", Groups = [.. groups] };
 
-    private static ParticleGroup3DAsset CreateGroup3D(string name)
+    private static ParticleGroup3D CreateGroup3D(string name)
         => new()
         {
             Name = name,
@@ -144,6 +144,6 @@ public class TestParticleDispatchBatching
             Lifetime = new ParticleRange(1f, 2f),
         };
 
-    private static ParticleEffect3DAsset CreateEffect3D(params ParticleGroup3DAsset[] groups)
+    private static ParticleEffect3D CreateEffect3D(params ParticleGroup3D[] groups)
         => new() { Name = "TestEffect", Groups = [.. groups] };
 }

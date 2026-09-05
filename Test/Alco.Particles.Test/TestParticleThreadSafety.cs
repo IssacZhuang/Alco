@@ -76,7 +76,7 @@ public class TestParticleThreadSafety
         // One shared asset: the first simultaneous creations all miss the material
         // cache, compile concurrently off the gate, and the losers must dispose
         // their duplicates cleanly.
-        ParticleEffect2DAsset effect = BuildEffect2D("first-use");
+        ParticleEffect2D effect = BuildEffect2D("first-use");
         var exceptions = new ConcurrentQueue<Exception>();
         var instances = new ConcurrentQueue<ParticleEffectInstance2D>();
         var start = new Barrier(4);
@@ -183,13 +183,13 @@ public class TestParticleThreadSafety
         return commands;
     }
 
-    private static ParticleEffect2DAsset BuildEffect2D(string name)
+    private static ParticleEffect2D BuildEffect2D(string name)
         => new()
         {
             Name = name,
             Groups =
             [
-                new ParticleGroup2DAsset
+                new ParticleGroup2D
                 {
                     Name = $"{name}-group",
                     MaxParticles = 128,
@@ -199,13 +199,13 @@ public class TestParticleThreadSafety
             ],
         };
 
-    private static ParticleEffect3DAsset BuildEffect3D(string name)
+    private static ParticleEffect3D BuildEffect3D(string name)
         => new()
         {
             Name = name,
             Groups =
             [
-                new ParticleGroup3DAsset
+                new ParticleGroup3D
                 {
                     Name = $"{name}-group",
                     MaxParticles = 128,

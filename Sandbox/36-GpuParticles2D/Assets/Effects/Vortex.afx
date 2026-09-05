@@ -2,7 +2,7 @@
     // A vortex driven by a custom simulation behavior (SbVortex2D.slang, linked
     // into the emit/simulate templates through slang interface specialization).
     // Local simulation space: the whole swirl follows the emitter transform.
-    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "$type": "Alco.Particles.ParticleEffect2D",
     "version": "1.0",
     "groups": [
         {

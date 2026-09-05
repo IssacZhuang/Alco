@@ -157,7 +157,7 @@ public struct EmitterParams2D
     /// <summary>
     /// The depth-base flag bit of <see cref="Flags"/> (2D only): the render pass
     /// writes world z from <see cref="DepthBase"/> minus the particle's height.
-    /// Set from the group's authored <see cref="ParticleGroupAsset.Depth"/> state —
+    /// Set from the group's authored <see cref="ParticleGroup.Depth"/> state —
     /// a group that depth-tests the scene needs a meaningful world z.
     /// </summary>
     public const uint FlagDepthBase = 32u;
@@ -199,7 +199,7 @@ public struct EmitterParams2D
     /// <param name="group">The group asset.</param>
     /// <param name="indexCount">The quad mesh's index count.</param>
     /// <returns>The filled record.</returns>
-    public static EmitterParams2D FromAsset(ParticleGroup2DAsset group, uint indexCount)
+    public static EmitterParams2D FromAsset(ParticleGroup2D group, uint indexCount)
     {
         ArgumentNullException.ThrowIfNull(group);
         EmitterParams2D parameters = default;

@@ -24,12 +24,12 @@ public sealed class TestParticleEffectTemplates
         JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
             engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
 
-        ParticleEffectAsset asset = JsonSerializer.Deserialize<ParticleEffectAsset>(
+        ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(
             ParticleEffectTemplates.Effect2D, options)!;
 
-        ParticleEffect2DAsset effect = asset as ParticleEffect2DAsset
+        ParticleEffect2D effect = asset as ParticleEffect2D
             ?? throw new AssertionException("the 2D template is not a 2D effect");
-        Assert.That(effect.Version, Is.EqualTo(ParticleEffectAsset.FormatVersion));
+        Assert.That(effect.Version, Is.EqualTo(ParticleEffect.FormatVersion));
         Assert.That(effect.Groups, Has.Count.EqualTo(1));
         Assert.That(effect.Groups[0].Texture, Is.Null, "templates must stay self-contained");
         Assert.That(effect.Groups[0].Material, Is.Null, "templates must stay self-contained");
@@ -43,12 +43,12 @@ public sealed class TestParticleEffectTemplates
         JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
             engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
 
-        ParticleEffectAsset asset = JsonSerializer.Deserialize<ParticleEffectAsset>(
+        ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(
             ParticleEffectTemplates.Effect3D, options)!;
 
-        ParticleEffect3DAsset effect = asset as ParticleEffect3DAsset
+        ParticleEffect3D effect = asset as ParticleEffect3D
             ?? throw new AssertionException("the 3D template is not a 3D effect");
-        Assert.That(effect.Version, Is.EqualTo(ParticleEffectAsset.FormatVersion));
+        Assert.That(effect.Version, Is.EqualTo(ParticleEffect.FormatVersion));
         Assert.That(effect.Groups, Has.Count.EqualTo(1));
     }
 
@@ -59,16 +59,16 @@ public sealed class TestParticleEffectTemplates
         JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(
             engine.AssetSystem, engine.RenderingSystem.ShaderSystem);
 
-        ParticleEffectAsset asset = JsonSerializer.Deserialize<ParticleEffectAsset>(
+        ParticleEffect asset = JsonSerializer.Deserialize<ParticleEffect>(
             ParticleEffectTemplates.Effect2D, options)!;
 
         string json = JsonSerializer.Serialize(asset, options);
         Assert.That(json, Does.Contain("$type"), "the polymorphic discriminator must be written");
 
-        ParticleEffectAsset copy = JsonSerializer.Deserialize<ParticleEffectAsset>(json, options)!;
-        ParticleEffect2DAsset effect = (ParticleEffect2DAsset)copy;
-        ParticleGroup2DAsset group = effect.Groups[0];
-        ParticleGroup2DAsset original = ((ParticleEffect2DAsset)asset).Groups[0];
+        ParticleEffect copy = JsonSerializer.Deserialize<ParticleEffect>(json, options)!;
+        ParticleEffect2D effect = (ParticleEffect2D)copy;
+        ParticleGroup2D group = effect.Groups[0];
+        ParticleGroup2D original = ((ParticleEffect2D)asset).Groups[0];
         Assert.Multiple(() =>
         {
             Assert.That(group.EmissionRate, Is.EqualTo(original.EmissionRate));

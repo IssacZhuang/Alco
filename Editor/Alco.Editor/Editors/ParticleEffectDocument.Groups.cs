@@ -49,14 +49,14 @@ public sealed partial class ParticleEffectDocument
         ("Default", DepthStencilState.Default),
     ];
 
-    private readonly Dictionary<ParticleGroupAsset, GroupUiState> _groupStates = new();
+    private readonly Dictionary<ParticleGroup, GroupUiState> _groupStates = new();
 
     /// <summary>
     /// The groups hidden in the preview, keyed by group object so the state
     /// survives reordering (stale entries from deleted groups are harmless).
     /// Editor-only state: never serialized into the asset file.
     /// </summary>
-    private readonly HashSet<ParticleGroupAsset> _hiddenGroups = new();
+    private readonly HashSet<ParticleGroup> _hiddenGroups = new();
     private string[]? _behaviorCandidates;
 
     /// <summary>The whole parameters pane: effect header, group editors, add button.</summary>
@@ -95,13 +95,13 @@ public sealed partial class ParticleEffectDocument
 
     /// <summary>The group count of the edited effect (2D/3D agnostic).</summary>
     private int EffectGroupCount => _is3D
-        ? ((ParticleEffect3DAsset)_effect).Groups.Count
-        : ((ParticleEffect2DAsset)_effect).Groups.Count;
+        ? ((ParticleEffect3D)_effect).Groups.Count
+        : ((ParticleEffect2D)_effect).Groups.Count;
 
     /// <summary>Returns the edited group at <paramref name="index"/> as the shared base type.</summary>
-    private ParticleGroupAsset GetGroup(int index) => _is3D
-        ? ((ParticleEffect3DAsset)_effect).Groups[index]
-        : ((ParticleEffect2DAsset)_effect).Groups[index];
+    private ParticleGroup GetGroup(int index) => _is3D
+        ? ((ParticleEffect3D)_effect).Groups[index]
+        : ((ParticleEffect2D)_effect).Groups[index];
 
     /// <summary>Adds a default group to the effect.</summary>
     private void AddGroup()
@@ -109,11 +109,11 @@ public sealed partial class ParticleEffectDocument
         string name = $"Group {EffectGroupCount + 1}";
         if (_is3D)
         {
-            ((ParticleEffect3DAsset)_effect).Groups.Add(new ParticleGroup3DAsset { Name = name });
+            ((ParticleEffect3D)_effect).Groups.Add(new ParticleGroup3D { Name = name });
         }
         else
         {
-            ((ParticleEffect2DAsset)_effect).Groups.Add(new ParticleGroup2DAsset { Name = name });
+            ((ParticleEffect2D)_effect).Groups.Add(new ParticleGroup2D { Name = name });
         }
     }
 
@@ -122,22 +122,22 @@ public sealed partial class ParticleEffectDocument
     {
         if (_is3D)
         {
-            var groups = ((ParticleEffect3DAsset)_effect).Groups;
+            var groups = ((ParticleEffect3D)_effect).Groups;
             string json = JsonSerializer.Serialize(groups[index], _jsonOptions);
-            groups.Insert(index + 1, JsonSerializer.Deserialize<ParticleGroup3DAsset>(json, _jsonOptions)!);
+            groups.Insert(index + 1, JsonSerializer.Deserialize<ParticleGroup3D>(json, _jsonOptions)!);
         }
         else
         {
-            var groups = ((ParticleEffect2DAsset)_effect).Groups;
+            var groups = ((ParticleEffect2D)_effect).Groups;
             string json = JsonSerializer.Serialize(groups[index], _jsonOptions);
-            groups.Insert(index + 1, JsonSerializer.Deserialize<ParticleGroup2DAsset>(json, _jsonOptions)!);
+            groups.Insert(index + 1, JsonSerializer.Deserialize<ParticleGroup2D>(json, _jsonOptions)!);
         }
     }
 
     /// <summary>One group editor: the header row (visibility checkbox, collapsing header
     /// and right-aligned ASCII actions) then the parameter sections. A Delete click only
     /// records the index; the caller removes the group after the draw pass.</summary>
-    private void DrawGroup(int index, ParticleGroupAsset group, ref int removeGroup)
+    private void DrawGroup(int index, ParticleGroup group, ref int removeGroup)
     {
         GroupUiState state = GetGroupUiState(group);
         ImGui.PushID(index);
@@ -309,12 +309,12 @@ public sealed partial class ParticleEffectDocument
         }
         if (_is3D)
         {
-            var groups = ((ParticleEffect3DAsset)_effect).Groups;
+            var groups = ((ParticleEffect3D)_effect).Groups;
             (groups[index], groups[target]) = (groups[target], groups[index]);
         }
         else
         {
-            var groups = ((ParticleEffect2DAsset)_effect).Groups;
+            var groups = ((ParticleEffect2D)_effect).Groups;
             (groups[index], groups[target]) = (groups[target], groups[index]);
         }
         OnStructuralEdit();
@@ -329,17 +329,17 @@ public sealed partial class ParticleEffectDocument
         }
         if (_is3D)
         {
-            ((ParticleEffect3DAsset)_effect).Groups.RemoveAt(index);
+            ((ParticleEffect3D)_effect).Groups.RemoveAt(index);
         }
         else
         {
-            ((ParticleEffect2DAsset)_effect).Groups.RemoveAt(index);
+            ((ParticleEffect2D)_effect).Groups.RemoveAt(index);
         }
         OnStructuralEdit();
     }
 
     /// <summary>The per-group widget state, created on first use.</summary>
-    private GroupUiState GetGroupUiState(ParticleGroupAsset group)
+    private GroupUiState GetGroupUiState(ParticleGroup group)
     {
         if (!_groupStates.TryGetValue(group, out GroupUiState? state))
         {
@@ -354,7 +354,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The group name row (diagnostics only; no preview impact).</summary>
-    private void DrawGroupName(ParticleGroupAsset group)
+    private void DrawGroupName(ParticleGroup group)
     {
         string name = group.Name;
         ImGui.SetNextItemWidth(-120f);
@@ -366,7 +366,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>Emission: rate (live), capacity, timeline and bursts (structural).</summary>
-    private void DrawEmissionSection(int index, ParticleGroupAsset group)
+    private void DrawEmissionSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Emission");
 
@@ -460,11 +460,11 @@ public sealed partial class ParticleEffectDocument
 
     /// <summary>Shape: the 2D/3D emission shape with per-type fields and the fixed
     /// position offset of the spawn point (all live).</summary>
-    private void DrawShapeSection(int index, ParticleGroupAsset group)
+    private void DrawShapeSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Shape");
 
-        if (group is ParticleGroup2DAsset group2D)
+        if (group is ParticleGroup2D group2D)
         {
             ParticleShape2D shape = group2D.Shape;
             ParticleShape2DType type = shape.Type;
@@ -510,7 +510,7 @@ public sealed partial class ParticleEffectDocument
         }
         else
         {
-            ParticleShape3D shape = ((ParticleGroup3DAsset)group).Shape;
+            ParticleShape3D shape = ((ParticleGroup3D)group).Shape;
             ParticleShape3DType type = shape.Type;
             if (ImGui.Combo("Type", ref type))
             {
@@ -541,10 +541,10 @@ public sealed partial class ParticleEffectDocument
                     OnLiveEdit(index);
                 }
             }
-            Vector3 positionOffset = ((ParticleGroup3DAsset)group).PositionOffset;
+            Vector3 positionOffset = ((ParticleGroup3D)group).PositionOffset;
             if (DragRow("Position Offset", ref positionOffset, 0.02f))
             {
-                ((ParticleGroup3DAsset)group).PositionOffset = positionOffset;
+                ((ParticleGroup3D)group).PositionOffset = positionOffset;
                 OnLiveEdit(index);
             }
             if (ImGui.IsItemHovered())
@@ -555,13 +555,13 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>Motion: planar direction/speed, independent 2.5D height, gravity and drag (all live).</summary>
-    private void DrawMotionSection(int index, ParticleGroupAsset group)
+    private void DrawMotionSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Motion");
 
         if (_is3D)
         {
-            var group3D = (ParticleGroup3DAsset)group;
+            var group3D = (ParticleGroup3D)group;
             ParticleDirectionMode mode = group3D.DirectionMode;
             if (ImGui.Combo("Direction Mode", ref mode))
             {
@@ -583,7 +583,7 @@ public sealed partial class ParticleEffectDocument
         }
         else
         {
-            var group2D = (ParticleGroup2DAsset)group;
+            var group2D = (ParticleGroup2D)group;
             ParticleDirectionMode mode = group2D.DirectionMode;
             if (ImGui.Combo("Direction Mode", ref mode))
             {
@@ -612,16 +612,16 @@ public sealed partial class ParticleEffectDocument
 
         if (_is3D)
         {
-            Vector3 gravity = ((ParticleGroup3DAsset)group).Gravity;
+            Vector3 gravity = ((ParticleGroup3D)group).Gravity;
             if (DragRow("Gravity", ref gravity, 0.05f))
             {
-                ((ParticleGroup3DAsset)group).Gravity = gravity;
+                ((ParticleGroup3D)group).Gravity = gravity;
                 OnLiveEdit(index);
             }
         }
         else
         {
-            var group2D = (ParticleGroup2DAsset)group;
+            var group2D = (ParticleGroup2D)group;
             Vector2 gravity = group2D.Gravity;
             if (DragRow("Gravity", ref gravity, 0.05f))
             {
@@ -655,7 +655,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>Lifetime, fades, size and the over-life size curve.</summary>
-    private void DrawLifeAndSizeSection(int index, ParticleGroupAsset group)
+    private void DrawLifeAndSizeSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Lifetime & Size");
 
@@ -680,7 +680,7 @@ public sealed partial class ParticleEffectDocument
 
         if (_is3D)
         {
-            var group3D = (ParticleGroup3DAsset)group;
+            var group3D = (ParticleGroup3D)group;
             if (DrawRangeRow("Size", group3D.Size, out ParticleRange size, 0.02f))
             {
                 group3D.Size = size;
@@ -689,7 +689,7 @@ public sealed partial class ParticleEffectDocument
         }
         else
         {
-            var group2D = (ParticleGroup2DAsset)group;
+            var group2D = (ParticleGroup2D)group;
             if (DrawRangeRow("Size", group2D.Size, out ParticleVector2Range size, 0.02f))
             {
                 group2D.Size = size;
@@ -710,13 +710,13 @@ public sealed partial class ParticleEffectDocument
 
         if (_is3D)
         {
-            var group3D = (ParticleGroup3DAsset)group;
+            var group3D = (ParticleGroup3D)group;
             DrawAngleRangeRow(index, "Start Rotation (deg)", group3D.StartRotation, v => group3D.StartRotation = v);
             DrawAngleRangeRow(index, "Angular Velocity (deg/s)", group3D.AngularVelocity, v => group3D.AngularVelocity = v);
         }
         else
         {
-            var group2D = (ParticleGroup2DAsset)group;
+            var group2D = (ParticleGroup2D)group;
             DrawAngleRangeRow(index, "Start Rotation (deg)", group2D.StartRotation, v => group2D.StartRotation = v);
             DrawAngleRangeRow(index, "Angular Velocity (deg/s)", group2D.AngularVelocity, v => group2D.AngularVelocity = v);
         }
@@ -740,7 +740,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>Color: spawn range, end color, tint and the over-life gradient.</summary>
-    private void DrawColorSection(int index, ParticleGroupAsset group)
+    private void DrawColorSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Color");
 
@@ -792,9 +792,9 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>Velocity stretch (2D also requires rotation alignment; all live).</summary>
-    private void DrawStretchSection(int index, ParticleGroupAsset group)
+    private void DrawStretchSection(int index, ParticleGroup group)
     {
-        if (group is ParticleGroup2DAsset group2D)
+        if (group is ParticleGroup2D group2D)
         {
             ImGui.SeparatorText("Rotation & Stretch");
 
@@ -835,7 +835,7 @@ public sealed partial class ParticleEffectDocument
         {
             ImGui.SeparatorText("Stretch");
 
-            var group3D = (ParticleGroup3DAsset)group;
+            var group3D = (ParticleGroup3D)group;
             bool stretch = group3D.VelocityStretch;
             if (ImGui.Checkbox("Velocity Stretch", ref stretch))
             {
@@ -858,7 +858,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>Flipbook animation of the particle texture (all live).</summary>
-    private void DrawFlipbookSection(int index, ParticleGroupAsset group)
+    private void DrawFlipbookSection(int index, ParticleGroup group)
     {
         bool enabled = group.Flipbook != null;
         if (ImGui.Checkbox("Flipbook", ref enabled))
@@ -915,7 +915,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>Rendering: simulation space (live), blend/depth/material/texture/behavior (structural).</summary>
-    private void DrawRenderingSection(int index, ParticleGroupAsset group, GroupUiState state)
+    private void DrawRenderingSection(int index, ParticleGroup group, GroupUiState state)
     {
         ImGui.SeparatorText("Rendering");
 
@@ -939,7 +939,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The blend preset combo; "(Default)" maps to null (alpha blend).</summary>
-    private void DrawBlendRow(ParticleGroupAsset group)
+    private void DrawBlendRow(ParticleGroup group)
     {
         int current = PresetIndex(group.Blend, s_blendPresets);
         if (DrawPresetCombo("Blend", current, s_blendPresets, out int selected))
@@ -950,7 +950,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The depth preset combo; "(Default)" maps to null (pass default).</summary>
-    private void DrawDepthRow(ParticleGroupAsset group)
+    private void DrawDepthRow(ParticleGroup group)
     {
         int current = PresetIndex(group.Depth, s_depthPresets);
         if (DrawPresetCombo("Depth", current, s_depthPresets, out int selected))
@@ -1002,7 +1002,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The material picker row; an empty path maps to null (default surface).</summary>
-    private void DrawMaterialRow(ParticleGroupAsset group, GroupUiState state)
+    private void DrawMaterialRow(ParticleGroup group, GroupUiState state)
     {
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("Material");
@@ -1036,7 +1036,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The texture picker row; an empty path keeps the material's own binding.</summary>
-    private void DrawTextureRow(ParticleGroupAsset group, GroupUiState state)
+    private void DrawTextureRow(ParticleGroup group, GroupUiState state)
     {
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("Texture");
@@ -1066,7 +1066,7 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The behavior module combo: default, the built-ins and every .slang file stem.</summary>
-    private void DrawBehaviorRow(ParticleGroupAsset group, GroupUiState state)
+    private void DrawBehaviorRow(ParticleGroup group, GroupUiState state)
     {
         string currentName = group.Behavior?.Name ?? string.Empty;
         string[] candidates = GetBehaviorCandidates(currentName);

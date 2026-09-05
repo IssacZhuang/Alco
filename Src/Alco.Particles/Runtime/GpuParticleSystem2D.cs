@@ -8,7 +8,7 @@ namespace Alco.Particles;
 
 /// <summary>
 /// The 2D GPU particle system: simulates and renders any number of
-/// <see cref="ParticleEffect2DAsset"/> instances entirely on the GPU. Per frame it
+/// <see cref="ParticleEffect2D"/> instances entirely on the GPU. Per frame it
 /// records the compute work batched per behavior material — one wide emit and one
 /// wide simulate/compact dispatch each, whose 64-thread blocks resolve their
 /// emitter group through a CPU-uploaded work-block table (see
@@ -78,7 +78,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private readonly ShaderLibrary _defaultBehavior;
     private readonly ComputeMaterial _initMaterial;
     private readonly Dictionary<ShaderLibrary, (ComputeMaterial Emit, ComputeMaterial Simulate)> _behaviorMaterials = [];
-    private readonly Dictionary<ParticleGroup2DAsset, GraphicsMaterial> _materials = [];
+    private readonly Dictionary<ParticleGroup2D, GraphicsMaterial> _materials = [];
     private readonly List<Texture2D> _overLifeTextures = [];
     private readonly List<ParticleEffectInstance2D> _instances = [];
     // The per-frame draw plan (rebuilt in RecordSimulation, replayed in Render):
@@ -292,7 +292,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <param name="transform">The emitter transform.</param>
     /// <param name="seed">The deterministic RNG seed of the instance; 0 seeds from the environment tick.</param>
     /// <returns>The new instance; dispose it to destroy the effect.</returns>
-    public ParticleEffectInstance2D CreateInstance(ParticleEffect2DAsset effect, in Transform2D transform, int seed = 0)
+    public ParticleEffectInstance2D CreateInstance(ParticleEffect2D effect, in Transform2D transform, int seed = 0)
     {
         return CreateInstance(effect, transform, 0f, seed);
     }
@@ -309,7 +309,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <param name="height">The emitter height above the ground plane.</param>
     /// <param name="seed">The deterministic RNG seed of the instance; 0 seeds from the environment tick.</param>
     /// <returns>The new instance; dispose it to destroy the effect.</returns>
-    public ParticleEffectInstance2D CreateInstance(ParticleEffect2DAsset effect, in Transform2D transform, float height, int seed = 0)
+    public ParticleEffectInstance2D CreateInstance(ParticleEffect2D effect, in Transform2D transform, float height, int seed = 0)
     {
         ArgumentNullException.ThrowIfNull(effect);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -329,7 +329,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         {
             for (int i = 0; i < groups.Length; i++)
             {
-                ParticleGroup2DAsset groupAsset = effect.Groups[i];
+                ParticleGroup2D groupAsset = effect.Groups[i];
                 pendingSlot = _pool.AllocateSlot();
                 pendingSlice = _pool.AllocateSlice(Math.Max(groupAsset.MaxParticles, 1));
                 EmitterParams2D parameters = EmitterParams2D.FromAsset(groupAsset, indexCount);
@@ -804,7 +804,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// bakes run off the gate, so a worker-thread first-use compile never stalls
     /// the frame simulation; a concurrent duplicate loses the race and is disposed.
     /// </summary>
-    private GraphicsMaterial GetOrCreateMaterial(ParticleGroup2DAsset group)
+    private GraphicsMaterial GetOrCreateMaterial(ParticleGroup2D group)
     {
         GraphicsValueBuffer<Matrix4x4>? camera;
         lock (_gate)
@@ -883,7 +883,7 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     // flag bits gate the fetch, so no shader permutation is needed. Baked
     // textures are owned by the system (appended to _overLifeTextures once the
     // material wins the double-check) and disposed with it.
-    private void BindOverLifeTextures(ParticleGroup2DAsset group, GraphicsMaterial material, List<Texture2D> created)
+    private void BindOverLifeTextures(ParticleGroup2D group, GraphicsMaterial material, List<Texture2D> created)
     {
         if (group.ColorGradient is { Count: > 0 } gradientKeys)
         {

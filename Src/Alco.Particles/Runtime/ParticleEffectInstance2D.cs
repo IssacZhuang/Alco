@@ -22,7 +22,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     internal struct GroupState
     {
         /// <summary>The group asset.</summary>
-        public required ParticleGroup2DAsset Asset;
+        public required ParticleGroup2D Asset;
 
         /// <summary>The emitter slot (params/draw-args index).</summary>
         public uint Slot;
@@ -93,7 +93,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
 
     internal ParticleEffectInstance2D(
         GpuParticleSystem2D system,
-        ParticleEffect2DAsset asset,
+        ParticleEffect2D asset,
         in Transform2D transform,
         float height,
         int seed,
@@ -109,7 +109,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     }
 
     /// <summary>The effect asset this instance plays.</summary>
-    public ParticleEffect2DAsset Asset { get; }
+    public ParticleEffect2D Asset { get; }
 
     /// <summary>The emitter transform of the whole effect (all groups).</summary>
     public Transform2D Transform { get; set; }
@@ -262,7 +262,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         for (int i = 0; i < _groups.Length; i++)
         {
             ref GroupState group = ref _groups[i];
-            ParticleGroup2DAsset asset = group.Asset;
+            ParticleGroup2D asset = group.Asset;
             // The lifecycle step gates emission per group: a one-shot group whose
             // timeline ran out idles and deactivates even while the instance still
             // plays, so finished effects are destroyable (IsActive -> false).

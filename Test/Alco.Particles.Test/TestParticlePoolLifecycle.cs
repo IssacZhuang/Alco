@@ -135,7 +135,7 @@ public class TestParticlePoolLifecycle
     public void InstanceDisposeReturnsSlotsAndSlices()
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1024, emitterSlots: 8);
-        ParticleEffect2DAsset effect = CreateEffect(CreateGroup(), CreateGroup());
+        ParticleEffect2D effect = CreateEffect(CreateGroup(), CreateGroup());
 
         ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(1f, 2f)), seed: 7);
         Assert.That(system.Pool.AllocatedSlotCount, Is.EqualTo(2));
@@ -176,7 +176,7 @@ public class TestParticlePoolLifecycle
             Name = "bad",
             Textures = new Dictionary<string, Texture2D> { ["bogus"] = texture },
         };
-        ParticleEffect2DAsset effect = CreateEffect(CreateGroup(), CreateGroup(material: badMaterial));
+        ParticleEffect2D effect = CreateEffect(CreateGroup(), CreateGroup(material: badMaterial));
 
         Assert.Throws<InvalidDataException>(() => system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1));
         Assert.Multiple(() =>
@@ -200,8 +200,8 @@ public class TestParticlePoolLifecycle
     public void AdvanceFrameHotPathAllocatesNothing()
     {
         using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 1 << 16, emitterSlots: 128);
-        ParticleEffect2DAsset looping = CreateEffect(CreateGroup(rate: 200f), CreateGroup(rate: 200f));
-        ParticleEffect2DAsset oneShot = CreateEffect(CreateGroup(rate: 0f, duration: 0.1f, looping: false));
+        ParticleEffect2D looping = CreateEffect(CreateGroup(rate: 200f), CreateGroup(rate: 200f));
+        ParticleEffect2D oneShot = CreateEffect(CreateGroup(rate: 0f, duration: 0.1f, looping: false));
 
         var instances = new ParticleEffectInstance2D[33];
         for (int i = 0; i < 32; i++)
@@ -246,7 +246,7 @@ public class TestParticlePoolLifecycle
             $"the per-frame CPU path allocated {allocated} B over {frames} frames ({allocated / (double)frames:F2} B/frame)");
     }
 
-    private static ParticleGroup2DAsset CreateGroup(
+    private static ParticleGroup2D CreateGroup(
         float rate = 100f, float duration = 0f, bool looping = true, MaterialAsset? material = null)
         => new()
         {
@@ -259,6 +259,6 @@ public class TestParticlePoolLifecycle
             Material = material,
         };
 
-    private static ParticleEffect2DAsset CreateEffect(params ParticleGroup2DAsset[] groups)
+    private static ParticleEffect2D CreateEffect(params ParticleGroup2D[] groups)
         => new() { Name = "TestEffect", Groups = [.. groups] };
 }

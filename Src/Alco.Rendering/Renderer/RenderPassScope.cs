@@ -303,6 +303,37 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
+    /// The <see cref="MultiDrawIndexedIndirect(in Mesh, in GraphicsMaterial, GraphicsBuffer, uint, uint, GraphicsBuffer, in int)"/>
+    /// variant without a draw-data buffer: the per-draw identity travels through each
+    /// record's firstInstance field instead, which the vertex stage reads with the
+    /// Vulkan-semantic instance-id builtin (SV_VulkanInstanceID — absolute, unlike
+    /// the D3D12-semantic per-draw counter). For consumers whose sub-draw identity
+    /// needs no per-draw vertex fetch, e.g. <see cref="GpuTrailSystem2D"/>.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from each indirect record).</param>
+    /// <param name="material">The material of every sub-draw.</param>
+    /// <param name="indirectBuffer">The buffer holding the consecutive indirect draw records.</param>
+    /// <param name="indirectOffset">The byte offset of the first record.</param>
+    /// <param name="drawCount">The number of consecutive records.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void MultiDrawIndexedIndirect(
+        in Mesh mesh,
+        in GraphicsMaterial material,
+        GraphicsBuffer indirectBuffer,
+        uint indirectOffset,
+        uint drawCount,
+        in int subMeshIndex = 0)
+    {
+        ThrowIfInactive();
+        ThrowIfBundle(nameof(MultiDrawIndexedIndirect));
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
+        SetPipeline(pipelineContext.Pipeline!);
+        SetMesh(mesh, subMeshIndex);
+        PushResources(material);
+        _pass.MultiDrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset, drawCount);
+    }
+
+    /// <summary>
     /// Draws many sub-draws of one mesh with one command and one shared push
     /// constant (per-draw data must travel through the draw-data buffer, see
     /// <see cref="MultiDrawIndexedIndirect"/>).

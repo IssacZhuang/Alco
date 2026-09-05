@@ -8,13 +8,13 @@ namespace Alco.Particles;
 /// A particle effect asset (<c>.afx</c>) — the data-only, serializable description
 /// of a whole particle effect: a list of <em>groups</em>, where each group is one
 /// emitter with its own emission/motion parameters, an optional slang behavior
-/// module defining the simulation (<see cref="ParticleGroupAsset.Behavior"/>) and a
-/// material configuration defining the visuals (<see cref="ParticleGroupAsset.Material"/>).
-/// <br/>2D and 3D effects are separate types (<see cref="ParticleEffect2DAsset"/> /
-/// <see cref="ParticleEffect3DAsset"/>); their data structures never mix — 2D effects
+/// module defining the simulation (<see cref="ParticleGroup.Behavior"/>) and a
+/// material configuration defining the visuals (<see cref="ParticleGroup.Material"/>).
+/// <br/>2D and 3D effects are separate types (<see cref="ParticleEffect2D"/> /
+/// <see cref="ParticleEffect3D"/>); their data structures never mix — 2D effects
 /// simulate the cheaper <c>Transform2D</c>-style particle layout.
 /// </summary>
-public abstract class ParticleEffectAsset : IJsonOnDeserialized
+public abstract class ParticleEffect : IJsonOnDeserialized
 {
     /// <summary>Format version of the particle effect files this runtime consumes.</summary>
     public const string FormatVersion = "1.0";
@@ -33,12 +33,12 @@ public abstract class ParticleEffectAsset : IJsonOnDeserialized
 }
 
 /// <summary>A 2D particle effect: a list of 2D emitter groups.</summary>
-public sealed class ParticleEffect2DAsset : ParticleEffectAsset
+public sealed class ParticleEffect2D : ParticleEffect
 {
-    private List<ParticleGroup2DAsset> _groups = [];
+    private List<ParticleGroup2D> _groups = [];
 
     /// <summary>The emitter groups of the effect; rendered in list order.</summary>
-    public List<ParticleGroup2DAsset> Groups
+    public List<ParticleGroup2D> Groups
     {
         get => _groups;
         set => _groups = value ?? [];
@@ -53,12 +53,12 @@ public sealed class ParticleEffect2DAsset : ParticleEffectAsset
 }
 
 /// <summary>A 3D particle effect: a list of 3D emitter groups.</summary>
-public sealed class ParticleEffect3DAsset : ParticleEffectAsset
+public sealed class ParticleEffect3D : ParticleEffect
 {
-    private List<ParticleGroup3DAsset> _groups = [];
+    private List<ParticleGroup3D> _groups = [];
 
     /// <summary>The emitter groups of the effect; rendered in list order.</summary>
-    public List<ParticleGroup3DAsset> Groups
+    public List<ParticleGroup3D> Groups
     {
         get => _groups;
         set => _groups = value ?? [];
@@ -78,7 +78,7 @@ public sealed class ParticleEffect3DAsset : ParticleEffectAsset
 /// behavior module and the material configuration. Dimension-specific shape and
 /// direction parameters live on the derived 2D/3D types.
 /// </summary>
-public abstract class ParticleGroupAsset
+public abstract class ParticleGroup
 {
     /// <summary>The group name (diagnostics only).</summary>
     public string Name { get; set; } = "Group";
@@ -223,7 +223,7 @@ public abstract class ParticleGroupAsset
 }
 
 /// <summary>A 2D emitter group; adds 2D shape, direction, rotation and size parameters.</summary>
-public sealed class ParticleGroup2DAsset : ParticleGroupAsset
+public sealed class ParticleGroup2D : ParticleGroup
 {
     /// <summary>The emission shape.</summary>
     public ParticleShape2D Shape { get; set; } = new();
@@ -294,14 +294,14 @@ public sealed class ParticleGroup2DAsset : ParticleGroupAsset
 
     /// <summary>
     /// The constant height acceleration in world units per second squared. Positive
-    /// values rise; negative values fall. <see cref="ParticleGroupAsset.Drag"/>
+    /// values rise; negative values fall. <see cref="ParticleGroup.Drag"/>
     /// damps both ground-plane and height velocity.
     /// </summary>
     public float HeightAcceleration { get; set; }
 }
 
 /// <summary>A 3D emitter group; adds 3D shape, direction, billboard roll and size parameters.</summary>
-public sealed class ParticleGroup3DAsset : ParticleGroupAsset
+public sealed class ParticleGroup3D : ParticleGroup
 {
     /// <summary>The emission shape.</summary>
     public ParticleShape3D Shape { get; set; } = new();

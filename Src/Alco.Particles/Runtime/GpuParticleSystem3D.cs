@@ -7,7 +7,7 @@ using Alco.Rendering;
 namespace Alco.Particles;
 
 /// <summary>
-/// The 3D GPU particle system: simulates and renders <see cref="ParticleEffect3DAsset"/>
+/// The 3D GPU particle system: simulates and renders <see cref="ParticleEffect3D"/>
 /// instances entirely on the GPU — the 3D counterpart of
 /// <see cref="GpuParticleSystem2D"/> (see its remarks for the material-batched
 /// multi-draw architecture; the draw plan is built in RecordSimulation and replayed
@@ -50,7 +50,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     private readonly ShaderLibrary _defaultBehavior;
     private readonly ComputeMaterial _initMaterial;
     private readonly Dictionary<ShaderLibrary, (ComputeMaterial Emit, ComputeMaterial Simulate)> _behaviorMaterials = [];
-    private readonly Dictionary<ParticleGroup3DAsset, GraphicsMaterial> _materials = [];
+    private readonly Dictionary<ParticleGroup3D, GraphicsMaterial> _materials = [];
     private readonly List<Texture2D> _overLifeTextures = [];
     private readonly List<ParticleEffectInstance3D> _instances = [];
     // The per-frame draw plan (rebuilt in RecordSimulation, replayed in Render):
@@ -268,7 +268,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     /// <param name="transform">The emitter transform.</param>
     /// <param name="seed">The deterministic RNG seed of the instance; 0 seeds from the environment tick.</param>
     /// <returns>The new instance; dispose it to destroy the effect.</returns>
-    public ParticleEffectInstance3D CreateInstance(ParticleEffect3DAsset effect, in Transform3D transform, int seed = 0)
+    public ParticleEffectInstance3D CreateInstance(ParticleEffect3D effect, in Transform3D transform, int seed = 0)
     {
         ArgumentNullException.ThrowIfNull(effect);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -288,7 +288,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         {
             for (int i = 0; i < groups.Length; i++)
             {
-                ParticleGroup3DAsset groupAsset = effect.Groups[i];
+                ParticleGroup3D groupAsset = effect.Groups[i];
                 pendingSlot = _pool.AllocateSlot();
                 pendingSlice = _pool.AllocateSlice(Math.Max(groupAsset.MaxParticles, 1));
                 EmitterParams3D parameters = EmitterParams3D.FromAsset(groupAsset, indexCount);
@@ -737,7 +737,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     /// bakes run off the gate, so a worker-thread first-use compile never stalls the
     /// frame simulation; a concurrent duplicate loses the race and is disposed.
     /// </summary>
-    private GraphicsMaterial GetOrCreateMaterial(ParticleGroup3DAsset group)
+    private GraphicsMaterial GetOrCreateMaterial(ParticleGroup3D group)
     {
         CameraPerspectiveBuffer? camera;
         DepthStencilState depth;
@@ -810,7 +810,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     // white (identity) texture. Baked textures are owned by the system (appended
     // to _overLifeTextures once the material wins the double-check) and disposed
     // with it.
-    private void BindOverLifeTextures(ParticleGroup3DAsset group, GraphicsMaterial material, List<Texture2D> created)
+    private void BindOverLifeTextures(ParticleGroup3D group, GraphicsMaterial material, List<Texture2D> created)
     {
         if (group.ColorGradient is { Count: > 0 } gradientKeys)
         {

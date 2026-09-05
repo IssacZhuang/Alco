@@ -3,7 +3,7 @@
     // come from the Dissolve2D material asset (custom surface + shared noise +
     // edge parameters); this group derives only its sprite ("texture") and keeps
     // its alpha high — the dissolve, not a fade, makes the particles disappear.
-    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "$type": "Alco.Particles.ParticleEffect2D",
     "version": "1.0",
     "groups": [
         {

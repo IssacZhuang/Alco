@@ -26,17 +26,17 @@ public static class ParticleAssetPipeline
     /// composed with the render pass templates for groups whose material names no
     /// surface module of its own.
     /// </summary>
-    public const string DefaultSurface = "AlcoParticles-SurfaceDefault";
+    public const string DefaultSurface = "ParticleSurfaceDefault";
 
     /// <summary>
     /// The module name of the default 2D simulation behavior (used by 2D groups
-    /// without an explicit <see cref="ParticleGroupAsset.Behavior"/>).
+    /// without an explicit <see cref="ParticleGroup.Behavior"/>).
     /// </summary>
     public const string DefaultBehavior2D = "AlcoParticles-Default2D";
 
     /// <summary>
     /// The module name of the default 3D simulation behavior (used by 3D groups
-    /// without an explicit <see cref="ParticleGroupAsset.Behavior"/>).
+    /// without an explicit <see cref="ParticleGroup.Behavior"/>).
     /// </summary>
     public const string DefaultBehavior3D = "AlcoParticles-Default3D";
 

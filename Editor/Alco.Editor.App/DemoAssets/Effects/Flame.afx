@@ -1,7 +1,7 @@
 {
     // A looping flame jet: continuous emission from a small disc, buoyant
     // (upward gravity), shrink-and-fade over life, additive glow.
-    "$type": "Alco.Particles.ParticleEffect2DAsset",
+    "$type": "Alco.Particles.ParticleEffect2D",
     "version": "1.0",
     "groups": [
         {
