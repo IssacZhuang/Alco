@@ -65,6 +65,7 @@ public struct TrailSample2D
     public float3 posDepth;      // xy: world position, z: render depth
     public float2 normal;        // the ribbon normal at the point
     public float u;              // arc length in world units
+    public float distanceFromStart; // arc distance from the first retained ribbon point
     public float across;         // -1..1 across the ribbon
     public float age;            // seconds since the point was emitted
     public float age01;          // age / life, saturated
@@ -117,6 +118,9 @@ public bool TrySampleTrail2D(
     sample.posDepth = point.posDepth;
     sample.normal = point.normal;
     sample.u = point.u;
+    // Emission starts one spacing interval beyond the anchor; use the actual
+    // first retained point so the ribbon's starting edge reaches zero alpha.
+    sample.distanceFromStart = point.u - trailPoints[sliceOffset + oldest].u;
     sample.across = float(vertexId & 1) * 2.0 - 1.0;
     sample.age = age;
     sample.age01 = saturate(age / life);

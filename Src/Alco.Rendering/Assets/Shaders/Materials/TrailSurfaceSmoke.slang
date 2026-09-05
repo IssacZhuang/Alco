@@ -27,7 +27,7 @@ public struct SmokeParamsData
     public float4 smokeColor; // rgb: color, a: global opacity
     public float4 shape;      // x: noiseScale, y: noiseDrift, z: turbAmp, w: turbFreq
     public float4 width;      // x: widthVar, y: widthFreq
-    public float4 edge;       // x: edgeStart, y: edgePow
+    public float4 edge;       // x: edgeStart, y: edgePow, z: start fade distance (world units, 0 disables)
 };
 
 [MaterialParams]
@@ -61,7 +61,7 @@ public struct Surface : ITrailSurface
         TrailVertexResult result;
         result.worldOffset = float2(0.0, 0.0);
         result.widthScale = 1.0;
-        result.data = float4(0.0, 0.0, 0.0, 0.0);
+        result.data = float4(input.sample.distanceFromStart, 0.0, 0.0, 0.0);
 
         float seed = input.sample.trail.misc.x;
         float u = input.sample.u;
@@ -89,6 +89,10 @@ public struct Surface : ITrailSurface
         // shapes the curve.
         float edge = pow(1.0 - smoothstep(smokeParams.edge.x, 1.0, abs(input.uv.y)), smokeParams.edge.y);
 
+        // Soften the start of the retained ribbon, independently of the
+        // age envelope. Evaluate per fragment so sparse points keep a smooth ramp.
+        float startFade = smokeParams.edge.z <= 0.0 ? 1.0 : smoothstep(0.0, smokeParams.edge.z, input.data.x);
+
         // Smoke density field, slowly crawling along the ribbon over time.
         float2 nc = float2(input.uv.x * smokeParams.shape.x - input.time * smokeParams.shape.y,
                            input.uv.y * 0.6 + input.seed);
@@ -104,7 +108,7 @@ public struct Surface : ITrailSurface
         // (opacity x fade in/out).
         float dens = input.color.a / max(input.data.w, 0.35);
 
-        float a = edge * dens * cut * lerp(0.55, 1.0, m) * smokeParams.smokeColor.a;
+        float a = edge * startFade * dens * cut * lerp(0.55, 1.0, m) * smokeParams.smokeColor.a;
         if (a < 0.003) discard;
 
         // Slightly brighter core fakes volumetric thickness; the trail's
