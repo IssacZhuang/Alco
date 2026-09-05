@@ -26,6 +26,12 @@ internal sealed partial class WebGPUDevice : GPUDevice
     private const ulong StagingCacheOversizeReuseThreshold = 4UL * 1024 * 1024;
 
     private readonly DeviceDescriptor _descriptor;
+    // wgpu-core 29.0.3 takes texture initialization and device tracker locks in
+    // opposite orders in write_texture and submit. Serialize texture uploads
+    // with every submission (including readbacks) to prevent a first-use deadlock.
+    // Buffer writes do not hold an initialization lock while taking trackers;
+    // their native queue synchronization is sufficient for this lock inversion.
+    private readonly Lock _textureUploadLock = new();
     private readonly List<PendingTextureReadback> _pendingTextureReadbacks = new(capacity: 4);
     private unsafe TextureReadbackCallbackState* _textureReadbackCallbackStates;
     // Native staging-buffer cache. The policy holds no native handles; the WGPUBuffer handle
@@ -125,7 +131,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
     protected unsafe override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
         WGPUCommandBuffer buffer = ((WebGPUCommandBuffer)commandBuffer).TakeBuffer();
-        wgpuQueueSubmit(Queue, 1, &buffer);//add reference count
+        lock (_textureUploadLock)
+        {
+            wgpuQueueSubmit(Queue, 1, &buffer);//add reference count
+        }
         wgpuCommandBufferRelease(buffer);//just decrement the reference count
     }
 
@@ -258,7 +267,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
 
             WGPUCommandBuffer commandBuffer = wgpuCommandEncoderFinish(encoder, null);
 
-            ulong submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
+            ulong submissionIndex;
+            lock (_textureUploadLock)
+            {
+                submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
+            }
 
             wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, size,
                 new WGPUBufferMapCallbackInfo()
@@ -326,7 +339,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
             depthOrArrayLayers = texture.Depth,
         };
 
-        wgpuQueueWriteTexture(Queue, &copyTextureInfo, data, dataSize, &textureDataLayout, &writeSize);
+        lock (_textureUploadLock)
+        {
+            wgpuQueueWriteTexture(Queue, &copyTextureInfo, data, dataSize, &textureDataLayout, &writeSize);
+        }
     }
 
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
@@ -367,7 +383,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
             wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &layout.CopySize);
 
             commandBuffer = wgpuCommandEncoderFinish(encoder, null);
-            ulong submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
+            ulong submissionIndex;
+            lock (_textureUploadLock)
+            {
+                submissionIndex = wgpuQueueSubmitForIndex(Queue, 1, &commandBuffer);
+            }
 
             wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)layout.StagingDataSize,
                 new WGPUBufferMapCallbackInfo()
@@ -470,7 +490,10 @@ internal sealed partial class WebGPUDevice : GPUDevice
             wgpuCommandEncoderCopyTextureToBuffer(encoder, &source, &destBuffer, &layout.CopySize);
 
             commandBuffer = wgpuCommandEncoderFinish(encoder, null);
-            wgpuQueueSubmit(Queue, 1, &commandBuffer);
+            lock (_textureUploadLock)
+            {
+                wgpuQueueSubmit(Queue, 1, &commandBuffer);
+            }
 
             wgpuBufferMapAsync(tmpBuffer, WGPUMapMode.Read, 0, (nuint)layout.StagingDataSize,
                 new WGPUBufferMapCallbackInfo()
