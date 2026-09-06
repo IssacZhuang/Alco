@@ -262,8 +262,13 @@ internal class NoDevice : GPUDevice
         request.Complete();
     }
 
+    protected override void ProcessPendingReadbacksCore()
+    {
+        // NoGPU readbacks complete synchronously in BeginReadTextureCore; nothing to deliver.
+    }
+
     protected override void OnEndFrameCore()
     {
-        
+
     }
 }

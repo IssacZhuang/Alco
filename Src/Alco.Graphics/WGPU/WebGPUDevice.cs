@@ -904,7 +904,12 @@ internal sealed partial class WebGPUDevice : GPUDevice
         _textureReadbackCallbackStates[index] = default;
     }
 
-    protected unsafe override void OnEndFrameCore()
+    /// <summary>
+    /// Delivers completed native readback callbacks (<c>wgpuInstanceProcessEvents</c>) and retires
+    /// finished texture readbacks. Idempotent and submit-free, so it is safe to call outside the
+    /// frame loop (e.g. draining captures at shutdown) in addition to the end-of-frame call.
+    /// </summary>
+    protected unsafe override void ProcessPendingReadbacksCore()
     {
         // Drain completed async readbacks, and pump event processing only when there are any.
         if (_pendingTextureReadbacks.Count > 0)
@@ -912,6 +917,11 @@ internal sealed partial class WebGPUDevice : GPUDevice
             wgpuInstanceProcessEvents(Instance);
             ProcessPendingTextureReadbacks();
         }
+    }
+
+    protected unsafe override void OnEndFrameCore()
+    {
+        ProcessPendingReadbacksCore();
 
         // Trim the idle staging cache even when no readbacks are pending, so that the last
         // returned buffer does not stay cached forever after readback activity stops.

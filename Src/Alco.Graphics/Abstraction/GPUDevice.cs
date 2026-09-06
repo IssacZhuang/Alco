@@ -451,6 +451,18 @@ public abstract class GPUDevice
         }
     }
 
+    /// <summary>
+    /// Processes pending asynchronous texture readbacks on the main thread: delivers completed
+    /// GPU readbacks to their requests so observers (e.g. PNG readback pipelines) can consume
+    /// them. Runs automatically at end of frame; also safe to call manually while the frame
+    /// loop is not running (e.g. to drain in-flight captures at engine shutdown), because the
+    /// GPU executes the queue independently and only the completion delivery needs this call.
+    /// </summary>
+    public void ProcessPendingReadbacks()
+    {
+        ProcessPendingReadbacksCore();
+    }
+
 
     // polymorphism
 
@@ -653,6 +665,9 @@ public abstract class GPUDevice
         uint dataSize,
         GPUTextureReadbackRequest request,
         uint mipLevel = 0);
+
+    /// <exclude />
+    protected abstract void ProcessPendingReadbacksCore();
 
     protected abstract void OnEndFrameCore();
     protected abstract void DisposeCore();

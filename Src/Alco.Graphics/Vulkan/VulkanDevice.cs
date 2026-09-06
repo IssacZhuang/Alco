@@ -2239,6 +2239,16 @@ internal sealed unsafe class VulkanDevice : GPUDevice
 
     // ===== frame lifecycle =====
 
+    /// <summary>
+    /// Polls fence status of in-flight texture readbacks and retires completed ones. Safe to
+    /// call outside the frame loop (e.g. draining captures at shutdown); the GPU signals fences
+    /// independently of the pump.
+    /// </summary>
+    protected override void ProcessPendingReadbacksCore()
+    {
+        ProcessReadbacks();
+    }
+
     protected override void OnEndFrameCore()
     {
         ProcessReadbacks();
