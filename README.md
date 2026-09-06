@@ -28,7 +28,7 @@ Alco is a high-performance game engine designed for optimal CPU and GPU utilizat
 - **Tool/** - Development tools
 - **Editor/** - Engine editor
 
-See [CLAUDE.md](CLAUDE.md) for detailed project structure, coordinate system, and coding standards.
+See [AGENTS.md](AGENTS.md) for detailed project structure, coordinate system, and coding standards.
 
 ## Examples
 
