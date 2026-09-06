@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 
-namespace Alco.LLM;
+namespace Alco.AgentControlProtocol;
 
 /// <summary>
 /// HTTP API adapter for <see cref="ToolRegistry"/>.

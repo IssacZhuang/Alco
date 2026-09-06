@@ -9,11 +9,12 @@ namespace Alco.Engine;
 /// Frame-driven pipeline that turns a GPU texture into PNG bytes: asynchronous GPU
 /// readback into a pooled CPU buffer, then a thread-pool PNG encode, surfaced as a
 /// <see cref="RenderCaptureResult"/>. This is the shared tail of every "render
-/// something, hand it out as PNG" system (render-graph captures, offscreen map
-/// snapshots, ...): the owner renders into its own <see cref="RenderTexture"/>, calls
-/// <see cref="TryBeginRead"/> when the pixels are ready, and pumps <see cref="Poll"/>
-/// once per update until it returns a result. The encoded PNG is always opaque
-/// (alpha is forced to 255 during encode).
+/// something, hand it out as PNG" system (render-graph captures, swapchain captures,
+/// offscreen map snapshots, ...): the owner renders into its own
+/// <see cref="RenderTexture"/>, calls <see cref="TryBeginRead"/> with a completion
+/// callback when the pixels are ready, and the pipeline's pumper delivers the result
+/// to that callback. The encoded PNG is always opaque (alpha is forced to 255 during
+/// encode).
 /// <br/>Readbacks only complete on the main thread's frame pump, so
 /// <b>callers must not block-await their completion task on the main thread</b> — that
 /// would stall the very pump this pipeline depends on. All methods are main-thread only.
@@ -30,6 +31,7 @@ public sealed class PngReadbackPipeline
     private NativeBuffer<byte> _readbackBuffer;
 
     private Task<RenderCaptureResult>? _encodeTask;
+    private Action<RenderCaptureResult>? _onCompleted;
     private bool _readbackInFlight;
     private uint _width;
     private uint _height;
@@ -59,16 +61,14 @@ public sealed class PngReadbackPipeline
     /// next frame's command buffer).
     /// </summary>
     /// <param name="source">The texture to read. Must be RGBA8 with a valid size.</param>
+    /// <param name="onCompleted">Invoked from <see cref="Pump"/> with the finished result (success or failure).</param>
     /// <param name="failure">The failure result when the read could not start; null on success.</param>
     /// <returns>True when the readback was submitted; false with <paramref name="failure"/> set.</returns>
     /// <exception cref="InvalidOperationException">A readback is already in flight.</exception>
-    public unsafe bool TryBeginRead(RenderTexture source, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out RenderCaptureResult? failure)
+    public unsafe bool TryBeginRead(RenderTexture source, Action<RenderCaptureResult> onCompleted, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out RenderCaptureResult? failure)
     {
         ArgumentNullException.ThrowIfNull(source);
-        if (_readbackInFlight || _encodeTask != null)
-        {
-            throw new InvalidOperationException("The PNG readback pipeline already has a capture in flight.");
-        }
+        ArgumentNullException.ThrowIfNull(onCompleted);
 
         if (source.IsDisposed)
         {
@@ -98,7 +98,7 @@ public sealed class PngReadbackPipeline
         }
 
         GPUTexture nativeTexture = sourceTexture.NativeTexture;
-        return TryBeginRead(nativeTexture, out failure);
+        return TryBeginRead(nativeTexture, onCompleted, out failure);
     }
 
     /// <summary>
@@ -108,11 +108,14 @@ public sealed class PngReadbackPipeline
     /// pixel processing and format-generic.
     /// </summary>
     /// <param name="source">The texture to read. Must be RGBA8 with a valid size and copy-source usage.</param>
+    /// <param name="onCompleted">Invoked from <see cref="Pump"/> with the finished result (success or failure).</param>
     /// <param name="failure">The failure result when the read could not start; null on success.</param>
     /// <returns>True when the readback was submitted; false with <paramref name="failure"/> set.</returns>
     /// <exception cref="InvalidOperationException">A readback is already in flight.</exception>
-    public unsafe bool TryBeginRead(GPUTexture source, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out RenderCaptureResult? failure)
+    public unsafe bool TryBeginRead(GPUTexture source, Action<RenderCaptureResult> onCompleted, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out RenderCaptureResult? failure)
     {
+        ArgumentNullException.ThrowIfNull(onCompleted);
+
         if (_readbackInFlight || _encodeTask != null)
         {
             throw new InvalidOperationException("The PNG readback pipeline already has a capture in flight.");
@@ -144,28 +147,46 @@ public sealed class PngReadbackPipeline
         _readbackStartTimestamp = Stopwatch.GetTimestamp();
         _device.BeginReadTexture(source, _readbackBuffer.UnsafePointer, (uint)byteLength, _readbackRequest);
         _readbackInFlight = true;
+        _onCompleted = onCompleted;
         failure = null;
         return true;
     }
 
     /// <summary>
-    /// Pumps the pipeline: completes a finished encode, starts the encode when the
-    /// readback completed, and returns the finished capture's result — or null while
-    /// the capture is still in flight. Call once per update.
+    /// Pumps the pipeline once per update on the main thread: completes a finished
+    /// encode, starts the encode when the readback completed, and delivers the finished
+    /// capture's result to the callback registered with <see cref="TryBeginRead"/>.
+    /// A shared pipeline can be pumped by a single pumper (the engine) and still route
+    /// each result to its owning capture system.
     /// </summary>
-    public RenderCaptureResult? Poll()
+    public void Pump()
     {
         if (CompleteFinishedEncode(out RenderCaptureResult? finished))
         {
-            return finished;
+            if (finished != null)
+            {
+                Deliver(finished);
+            }
+
+            return;
         }
 
         if (StartEncodeIfReadbackCompleted(out finished))
         {
-            return finished;
-        }
+            if (finished != null)
+            {
+                Deliver(finished);
+            }
 
-        return null;
+            return;
+        }
+    }
+
+    private void Deliver(RenderCaptureResult result)
+    {
+        Action<RenderCaptureResult>? callback = _onCompleted;
+        _onCompleted = null;
+        callback?.Invoke(result);
     }
 
     private bool StartEncodeIfReadbackCompleted(out RenderCaptureResult? failure)

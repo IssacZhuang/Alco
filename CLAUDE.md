@@ -18,7 +18,8 @@
 - **Alco.GUI/** - GUI framework
 - **Alco.IO/** - Input/Output handling
 - **Alco.ShaderCompiler/** - Shader compilation tools
-- **Alco.LLM/** - Large Language Model integration system using Microsoft Semantic Kernel
+- **Alco.AgentControlProtocol/** - External agent control plane: tool registry (attribute-discovered agent functions with main-thread marshaling), localhost HTTP API server (Kestrel), built-in ExecuteScript (Roslyn C# scripting) and CaptureScreenshot tools; depends only on Alco.Engine — referencing this project gives a game full external AI-agent control
+- **Alco.LLM/** - In-game LLM agent framework (LLMAgent/LLMSession over Microsoft.Extensions.AI with OpenAI/Anthropic/Gemini providers); depends on Alco.AgentControlProtocol and reuses its tool registry
 
 ### Other Directories
 - **Sandbox/** - Example applications demonstrating engine features
@@ -93,7 +94,7 @@
 - StbSharp - Image and font processing (embedded as source code and modified)
 - ImGui - Immediate Mode Graphical User Interface (embedded as source code and modified)
 - ImGui.NET - ImGui binding for .NET (embedded as source code and modified)
-- Microsoft.SemanticKernel (v1.71.0) - LLM integration framework
+- Microsoft.Extensions.AI (v10.6.0) - LLM integration abstraction (Alco.LLM)
 
 ## Development Requirements
 - .NET 10.0 SDK

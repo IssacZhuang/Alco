@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using NUnit.Framework;
 
-namespace Alco.LLM.Test;
+namespace Alco.AgentControlProtocol.Test;
 
 [TestFixture]
 public class ToolRegistryInvocationTests

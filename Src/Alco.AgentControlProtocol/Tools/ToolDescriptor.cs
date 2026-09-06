@@ -2,7 +2,7 @@ using System;
 using System.Reflection;
 using System.Text.Json;
 
-namespace Alco.LLM;
+namespace Alco.AgentControlProtocol;
 
 /// <summary>
 /// Describes a single tool function discovered from a <see cref="AgentToolsAttribute"/> type.

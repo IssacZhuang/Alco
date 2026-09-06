@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 
-namespace Alco.LLM;
+namespace Alco.AgentControlProtocol;
 
 /// <summary>
 /// Represents a binary tool result that the HTTP adapter can return directly.

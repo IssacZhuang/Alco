@@ -19,6 +19,9 @@ namespace Alco.Engine;
 /// readback and a thread-pool PNG encode. The system runs late in the update
 /// (order 9000), before the frame's pipeline execution, so requests armed here take
 /// effect in the same frame and readbacks land between two frames' submissions.
+/// <br/>The PNG readback is performed on a shared <see cref="PngReadbackPipeline"/>
+/// (pumped by the engine); when another capture system holds it, the completed
+/// capture waits and begins its readback on a later update.
 /// </summary>
 public sealed class RenderCaptureSystem : BaseEngineSystem
 {
@@ -46,11 +49,13 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
     /// Creates the capture system.
     /// </summary>
     /// <param name="engine">The owning engine, for the graphics device and main-thread checks.</param>
-    public RenderCaptureSystem(GameEngine engine)
+    /// <param name="readback">The shared PNG readback pipeline; pumped by the engine, not disposed here.</param>
+    public RenderCaptureSystem(GameEngine engine, PngReadbackPipeline readback)
     {
         ArgumentNullException.ThrowIfNull(engine);
+        ArgumentNullException.ThrowIfNull(readback);
         _engine = engine;
-        _readback = new PngReadbackPipeline(engine.GraphicsDevice);
+        _readback = readback;
     }
 
     /// <summary>
@@ -100,12 +105,8 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
 
     public override void OnUpdate(float deltaTime)
     {
-        RenderCaptureResult? result = _readback.Poll();
-        if (result != null)
-        {
-            CompleteActiveRequest(result);
-        }
-
+        // The shared readback pipeline is pumped by the engine; completed captures are
+        // delivered to the callback registered in StartReadbackIfCaptureCompleted.
         StartReadbackIfCaptureCompleted();
         DispatchPendingRequests();
     }
@@ -202,12 +203,24 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
 
     private void StartReadbackIfCaptureCompleted()
     {
-        if (_activeRequest == null || _activeNode == null || !_activeNode.TryTakeCompleted())
+        if (_activeRequest == null || _activeNode == null)
         {
             return;
         }
 
-        if (_readback.TryBeginRead(_activeNode.CaptureTexture, out RenderCaptureResult? failure))
+        // Another capture system holds the shared pipeline: leave the node's completion
+        // flag set and retry on a later update — the capture texture persists.
+        if (_readback.IsBusy)
+        {
+            return;
+        }
+
+        if (!_activeNode.TryTakeCompleted())
+        {
+            return;
+        }
+
+        if (_readback.TryBeginRead(_activeNode.CaptureTexture, CompleteActiveRequest, out RenderCaptureResult? failure))
         {
             return;
         }
@@ -237,7 +250,7 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
         _pendingRequests.Clear();
         CompleteActiveRequest(disposedResult);
 
-        _readback.Dispose();
+        // The readback pipeline is engine-owned and shared; not disposed here.
         _captureNodes.Clear();
     }
 

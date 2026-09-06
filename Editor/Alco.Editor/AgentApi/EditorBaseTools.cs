@@ -1,15 +1,15 @@
 using System.ComponentModel;
 using System.Text;
 using Alco.Engine;
-using Alco.LLM;
+using Alco.AgentControlProtocol;
 
 namespace Alco.Editor;
 
 /// <summary>
 /// The editor's base agent tools, always available while the agent API runs:
-/// frame screenshots (ImGui overlay included, for UI debugging), document
-/// open/close/save, project switching, asset listing and layout control.
-/// Asset-type-specific tools are
+/// document open/close/save, project switching, asset listing and layout control.
+/// Frame screenshots and script execution come from the agent control host's built-in
+/// tools. Asset-type-specific tools are
 /// contributed by the open documents themselves (<see cref="AssetDocument.CreateAgentTools"/>).
 /// Tools run on the engine main thread unless marked otherwise.
 /// </summary>
@@ -20,33 +20,12 @@ public sealed class EditorBaseTools
 
     private readonly GameEngine _engine;
     private readonly EditorSystem _editor;
-    private readonly SwapchainCaptureSystem _capture;
 
     /// <summary>Creates the base tool set.</summary>
-    public EditorBaseTools(GameEngine engine, EditorSystem editor, SwapchainCaptureSystem capture)
+    public EditorBaseTools(GameEngine engine, EditorSystem editor)
     {
         _engine = engine;
         _editor = editor;
-        _capture = capture;
-    }
-
-    /// <summary>
-    /// Captures the frame about to be presented — editor UI and ImGui overlay included.
-    /// Runs on the agent thread: it hops to the main thread only to register the capture,
-    /// then awaits the asynchronous GPU readback and PNG encode.
-    /// </summary>
-    [AgentFunction(IsOnAgentThread = true)]
-    [Description("Captures a screenshot of the whole editor window (including all ImGui UI) and returns it as a PNG image. Use it to inspect the current editor UI state.")]
-    public async Task<BinaryToolResult> CaptureScreenshot()
-    {
-        Task<RenderCaptureResult> capture = await _engine.PostToMainThreadAsync(() => _capture.RequestCaptureAsync());
-        RenderCaptureResult result = await capture;
-        if (!result.Success || result.PngBytes == null)
-        {
-            throw new InvalidOperationException($"Screenshot failed: {result.Error}");
-        }
-
-        return new BinaryToolResult(result.PngBytes, RenderCaptureResult.PngMimeType, "editor-screenshot.png");
     }
 
     [AgentFunction]

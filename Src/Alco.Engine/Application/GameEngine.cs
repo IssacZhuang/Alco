@@ -35,6 +35,9 @@ IDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
+    private readonly PngReadbackPipeline _captureReadback;
+    private readonly RenderCaptureSystem _renderCaptureSystem;
+    private readonly SwapchainCaptureSystem _swapchainCaptureSystem;
 
     private readonly Platform _platform;
     private readonly Input _input;
@@ -156,6 +159,38 @@ IDisposable
     }
 
     /// <summary>
+    /// The shared PNG readback pipeline behind the capture systems. Pumped by the
+    /// engine each update; capture owners register a completion callback when
+    /// beginning a read.
+    /// </summary>
+    public PngReadbackPipeline CaptureReadback
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _captureReadback;
+    }
+
+    /// <summary>
+    /// The engine-managed render-graph capture system (content chain of the active
+    /// render pipeline, ImGui overlay excluded). The host keeps
+    /// <see cref="RenderCaptureSystem.ActivePipeline"/> current.
+    /// </summary>
+    public RenderCaptureSystem RenderCaptureSystem
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _renderCaptureSystem;
+    }
+
+    /// <summary>
+    /// The engine-managed swapchain capture system (the exact pixels about to be
+    /// presented, ImGui overlay included).
+    /// </summary>
+    public SwapchainCaptureSystem SwapchainCapture
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _swapchainCaptureSystem;
+    }
+
+    /// <summary>
     /// Gets the average main-loop frame rate measured from wall-clock frame intervals.
     /// </summary>
     public int FrameRate
@@ -268,6 +303,20 @@ IDisposable
         //main view
         _mainView = CreateView(_setting.View);
         _mainPresenter = new ViewPresenter(_mainView);
+
+        // Engine-managed capture systems: one shared PNG readback pipeline serves both
+        // the render-graph captures (content chain, ImGui excluded) and the swapchain
+        // captures (presented frame, ImGui included). Hosts assign the active render
+        // pipeline to RenderCaptureSystem when they build their pipelines. Headless
+        // (no swapchain) swapchain captures fall back to the render-graph chain tail.
+        _captureReadback = new PngReadbackPipeline(_graphicsDevice);
+        _renderCaptureSystem = new RenderCaptureSystem(this, _captureReadback);
+        AddSystem(_renderCaptureSystem);
+        _swapchainCaptureSystem = new SwapchainCaptureSystem(this, _captureReadback)
+        {
+            OffscreenFallback = () => _renderCaptureSystem.RequestCaptureAsync(),
+        };
+        AddSystem(_swapchainCaptureSystem);
 
         // Auto-initialize debug stats overlay as an engine-managed system.
         AddSystem(new DebugStatsSystem(this));
@@ -405,6 +454,10 @@ IDisposable
         // Process any callbacks queued for the main thread
         _synchronizationContext.ProcessCallbacks();
 
+        // Pump the shared PNG readback pipeline: delivers finished captures to the
+        // capture systems' completion callbacks.
+        _captureReadback.Pump();
+
         _audioDevice.Poll(delta);
 
         // Acquire the swapchain surface for this frame
@@ -483,6 +536,7 @@ IDisposable
         _mainPresenter.Dispose();
         MainView.Close();
         _platform.Dispose();
+        _captureReadback.Dispose();
 
         EventOnDispose?.Invoke();
         GC.SuppressFinalize(this);

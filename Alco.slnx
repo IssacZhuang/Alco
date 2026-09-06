@@ -62,6 +62,7 @@
     <Project Path="Sandbox/~SandboxUtils/~SandboxUtils.csproj" />
   </Folder>
   <Folder Name="/Src/">
+    <Project Path="Src/Alco.AgentControlProtocol/Alco.AgentControlProtocol.csproj" />
     <Project Path="Src/Alco.Audio/Alco.Audio.csproj" />
     <Project Path="Src/Alco.Engine/Alco.Engine.csproj" />
     <Project Path="Src/Alco.Graphics/Alco.Graphics.csproj" />
@@ -82,6 +83,7 @@
     <Project Path="Test/Alco.Profiler.BuildTool.Fixture/Alco.Profiler.BuildTool.Fixture.csproj" />
     <Project Path="Test/Alco.Profiler.BuildTool.Test/Alco.Profiler.BuildTool.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
+    <Project Path="Test/Alco.AgentControlProtocol.Test/Alco.AgentControlProtocol.Test.csproj" />
     <Project Path="Test/Alco.Editor.Test/Alco.Editor.Test.csproj" />
     <Project Path="Test/Alco.Graphics.Test/Alco.Graphics.Test.csproj" />
     <Project Path="Test/Alco.LLM.Test/Alco.LLM.Test.csproj" />

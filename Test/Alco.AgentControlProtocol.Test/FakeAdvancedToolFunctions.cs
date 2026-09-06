@@ -1,7 +1,6 @@
-using Alco.AgentControlProtocol;
 using System.ComponentModel;
 
-namespace Alco.LLM.Test;
+namespace Alco.AgentControlProtocol.Test;
 
 /// <summary>
 /// Additional tool functions for invocation reliability tests.

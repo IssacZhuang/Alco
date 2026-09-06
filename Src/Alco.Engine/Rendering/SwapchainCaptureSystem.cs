@@ -9,13 +9,17 @@ namespace Alco.Engine;
 /// bytes, delivered through a <see cref="Task{RenderCaptureResult}"/>. This complements
 /// <see cref="RenderCaptureSystem"/>, whose render-graph captures stop before the ImGui
 /// pass; screenshots meant for debugging editor/ImGui UI must come from here.
+/// <br/>In headless/offscreen mode (no swapchain), requests are routed through
+/// <see cref="OffscreenFallback"/> — typically the render-graph chain tail, which is
+/// the frame that would be presented.
 /// <br/>Requests are serialized (one capture in flight). A dispatched request arms a
 /// one-shot conversion in the post-ImGui / pre-present window
 /// (<see cref="IGPUDeviceHost.OnEndFrame"/>): the surface is blitted into an RGBA8
 /// staging texture with a full-screen GPU draw (any surface format is converted by the
 /// blit — no CPU-side pixel processing), then the shared <see cref="PngReadbackPipeline"/>
 /// performs the asynchronous GPU readback and a thread-pool PNG encode, completing the
-/// request a couple of frames later.
+/// request a couple of frames later. When another capture system holds the shared
+/// pipeline, the staged capture waits and begins its readback on a later update.
 /// </summary>
 public sealed class SwapchainCaptureSystem : BaseEngineSystem
 {
@@ -27,16 +31,36 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
     private PendingCaptureRequest? _activeRequest;
     private RenderTexture? _staging;
     private bool _readArmed;
+    private bool _readStaged;
+    private Task<RenderCaptureResult>? _fallbackTask;
+
+    /// <summary>
+    /// Services capture requests when the main view has no presenter surface —
+    /// headless/offscreen mode, where no swapchain exists to hook. Typically wired to
+    /// <see cref="RenderCaptureSystem.RequestCaptureAsync()"/> so the pipeline's chain
+    /// tail (the frame that would be presented; no ImGui overlay exists headless)
+    /// serves as the screenshot. Requests fail with a clear error when null.
+    /// </summary>
+    public Func<Task<RenderCaptureResult>>? OffscreenFallback { get; set; }
+
+    /// <summary>
+    /// Runs after <see cref="RenderCaptureSystem"/> (order 9000) so a render-graph
+    /// capture issued in the same frame reads back first when both contend for the
+    /// shared readback pipeline.
+    /// </summary>
+    public override int Order => 9500;
 
     /// <summary>
     /// Creates the capture system and hooks the post-ImGui / pre-present window.
     /// </summary>
     /// <param name="engine">The owning engine, for the presenter, graphics device and main-thread checks.</param>
-    public SwapchainCaptureSystem(GameEngine engine)
+    /// <param name="readback">The shared PNG readback pipeline; pumped by the engine, not disposed here.</param>
+    public SwapchainCaptureSystem(GameEngine engine, PngReadbackPipeline readback)
     {
         ArgumentNullException.ThrowIfNull(engine);
+        ArgumentNullException.ThrowIfNull(readback);
         _engine = engine;
-        _readback = new PngReadbackPipeline(engine.GraphicsDevice);
+        _readback = readback;
 
         if (engine.Setting.Graphics.Backend != GraphicsBackend.None)
         {
@@ -69,13 +93,28 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
 
     public override void OnUpdate(float deltaTime)
     {
-        RenderCaptureResult? result = _readback.Poll();
-        if (result != null)
+        // The shared readback pipeline is pumped by the engine; completed readbacks are
+        // delivered to the callback registered when the read began.
+        CompleteFallbackIfFinished();
+        BeginReadIfStaged();
+        DispatchPendingRequests();
+    }
+
+    /// <summary>
+    /// Resolves the active request from the finished offscreen-fallback capture (the
+    /// fallback's task completes on the render-graph system's own update, which runs
+    /// just before this system in update order).
+    /// </summary>
+    private void CompleteFallbackIfFinished()
+    {
+        if (_fallbackTask == null || !_fallbackTask.IsCompleted)
         {
-            CompleteActiveRequest(result);
+            return;
         }
 
-        DispatchPendingRequests();
+        Task<RenderCaptureResult> task = _fallbackTask;
+        _fallbackTask = null;
+        CompleteActiveRequest(task.GetAwaiter().GetResult());
     }
 
     private void DispatchPendingRequests()
@@ -92,6 +131,24 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         {
             request.Completion.TrySetResult(
                 RenderCaptureResult.CreateFailure("Swapchain capture requires a GPU backend.", nameof(GraphicsBackend.None)));
+            return;
+        }
+
+        // Headless/offscreen mode: no swapchain to hook, so the OnEndFrame arm below
+        // would never fire. Route the request through the offscreen fallback instead
+        // (typically the render-graph chain tail).
+        if (_engine.MainView.Swapchain == null)
+        {
+            if (OffscreenFallback == null)
+            {
+                request.Completion.TrySetResult(RenderCaptureResult.CreateFailure(
+                    "No presenter surface (headless mode) and no offscreen fallback configured.",
+                    nameof(InvalidOperationException)));
+                return;
+            }
+
+            _activeRequest = request;
+            _fallbackTask = OffscreenFallback();
             return;
         }
 
@@ -122,12 +179,20 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
             EnsureStaging(frameBuffer.Width, frameBuffer.Height);
             BlitSurface(frameBuffer);
 
-            if (_readback.TryBeginRead(_staging!, out RenderCaptureResult? failure))
+            // Another capture system holds the shared readback pipeline: keep the staged
+            // pixels (the staging texture persists) and begin the read on a later update.
+            if (_readback.IsBusy)
+            {
+                _readStaged = true;
+            }
+            else if (_readback.TryBeginRead(_staging!, CompleteActiveRequest, out RenderCaptureResult? failure))
             {
                 return;
             }
-
-            CompleteActiveRequest(failure!);
+            else
+            {
+                CompleteActiveRequest(failure!);
+            }
         }
         catch (Exception ex)
         {
@@ -135,6 +200,23 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
                 $"Swapchain capture failed: {ex.Message}",
                 ex.GetType().Name));
         }
+    }
+
+    /// <summary>Begins the staged readback once the shared pipeline is free.</summary>
+    private void BeginReadIfStaged()
+    {
+        if (!_readStaged || _activeRequest == null || _readback.IsBusy)
+        {
+            return;
+        }
+
+        _readStaged = false;
+        if (_readback.TryBeginRead(_staging!, CompleteActiveRequest, out RenderCaptureResult? failure))
+        {
+            return;
+        }
+
+        CompleteActiveRequest(failure!);
     }
 
     /// <summary>Keeps the RGBA8 staging texture at the surface's current size.</summary>
@@ -180,6 +262,8 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         PendingCaptureRequest? request = _activeRequest;
         _activeRequest = null;
         _readArmed = false;
+        _readStaged = false;
+        _fallbackTask = null;
         request?.Completion.TrySetResult(result);
     }
 
@@ -199,7 +283,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         _pendingRequests.Clear();
         CompleteActiveRequest(disposedResult);
 
-        _readback.Dispose();
+        // The readback pipeline is engine-owned and shared; not disposed here.
         _staging?.Dispose();
         _blitMaterial?.Dispose();
         _renderContext?.Dispose();

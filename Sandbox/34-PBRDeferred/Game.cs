@@ -1385,7 +1385,8 @@ public class Game : GameEngine
 
     /// <summary>
     /// Pumps the armed screenshot: submits the readback once the capture node's blit
-    /// has landed, writes the PNG when the encode completes, and stops the sandbox.
+    /// has landed; the result is written and the sandbox stops from the completion
+    /// callback.
     /// </summary>
     private void PollScreenshot()
     {
@@ -1396,7 +1397,7 @@ public class Game : GameEngine
 
         if (_screenshotCaptureNode!.TryTakeCompleted())
         {
-            if (!_screenshotReadback!.TryBeginRead(_screenshotCaptureNode.CaptureTexture, out RenderCaptureResult? beginFailure))
+            if (!_screenshotReadback!.TryBeginRead(_screenshotCaptureNode.CaptureTexture, OnScreenshotCompleted, out RenderCaptureResult? beginFailure))
             {
                 Console.WriteLine($"Screenshot failed: {beginFailure!.Error}");
                 Stop();
@@ -1404,12 +1405,12 @@ public class Game : GameEngine
             }
         }
 
-        RenderCaptureResult? result = _screenshotReadback!.Poll();
-        if (result == null)
-        {
-            return;
-        }
+        _screenshotReadback?.Pump();
+    }
 
+    /// <summary>Writes the finished capture to disk and stops the sandbox.</summary>
+    private void OnScreenshotCompleted(RenderCaptureResult result)
+    {
         if (result.Success && result.PngBytes != null)
         {
             File.WriteAllBytes(_screenshotPath!, result.PngBytes);

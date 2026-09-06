@@ -1,57 +1,40 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
+using Alco.AgentControlProtocol;
 using Alco.Engine;
-using Alco.LLM;
 
 namespace Alco.Editor;
 
 /// <summary>
-/// Hosts the editor's agent API: a <see cref="GameApiServer"/> (HTTP/JSON on localhost)
-/// exposing the base editor tools (screenshot, open/close/save, project switching,
-/// asset listing, layout)
-/// plus whatever tools the open asset documents contribute. Document tools are
+/// Hosts the editor's agent API on top of an <see cref="AgentControlHost"/> (HTTP/JSON
+/// on localhost): the engine's built-in tools (script execution, frame screenshots)
+/// plus the base editor tools (open/close/save, project switching, asset listing,
+/// layout) and whatever tools the open asset documents contribute. Document tools are
 /// discovered from <see cref="AssetDocument.CreateAgentTools"/> and registered while
 /// the document is open — text-format assets usually contribute none, since agents
 /// edit those files directly and hot reload updates the preview.
-/// <br/>The registry's main-thread queue is drained from <see cref="OnTick"/>; tool
+/// <br/>The host's main-thread queue is drained from <see cref="OnTick"/>; tool
 /// invocations therefore complete while the editor loop keeps running.
 /// </summary>
 public sealed class EditorApiHost : BaseEngineSystem
 {
     private readonly DocumentManager _documents;
-    private readonly ToolRegistry _registry;
-    private readonly GameApiServer _server;
+    private readonly AgentControlHost _host;
     private readonly Dictionary<AssetDocument, object[]> _documentTools = new();
 
     /// <summary>
     /// Creates and starts the agent API host.
     /// </summary>
-    /// <param name="engine">The editor engine (JSON converters, main-thread pump).</param>
+    /// <param name="engine">The editor engine.</param>
     /// <param name="editorSystem">The editor shell the tools operate on.</param>
-    /// <param name="capture">The swapchain capture backing the screenshot tool.</param>
     /// <param name="port">The localhost port to listen on.</param>
-    public EditorApiHost(GameEngine engine, EditorSystem editorSystem, SwapchainCaptureSystem capture, int port)
+    public EditorApiHost(GameEngine engine, EditorSystem editorSystem, int port)
     {
         ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(editorSystem);
-        ArgumentNullException.ThrowIfNull(capture);
 
-        var jsonOptions = new JsonSerializerOptions
+        _host = new AgentControlHost(engine, new AgentControlOptions
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
-        };
-        foreach (JsonConverter converter in engine.CreateDefaultJsonConverters())
-        {
-            jsonOptions.Converters.Add(converter);
-        }
-
-        _registry = new ToolRegistry(
-            Array.Empty<Type>(),
-            new object[] { new EditorBaseTools(engine, editorSystem, capture) },
-            jsonOptions);
-        _server = new GameApiServer(_registry, jsonOptions, port);
+            ToolInstances = new object[] { new EditorBaseTools(engine, editorSystem) },
+        });
 
         _documents = editorSystem.Documents;
         _documents.DocumentOpened += OnDocumentOpened;
@@ -61,14 +44,14 @@ public sealed class EditorApiHost : BaseEngineSystem
             OnDocumentOpened(document);
         }
 
-        _server.Start();
+        _host.StartServer(port);
     }
 
     /// <summary>The port the API listens on.</summary>
-    public int Port => _server.Port;
+    public int Port => _host.Server!.Port;
 
-    /// <summary>The tool registry behind the API (base tools + open documents' tools).</summary>
-    public ToolRegistry Registry => _registry;
+    /// <summary>The tool registry behind the API (built-ins + editor tools + open documents' tools).</summary>
+    public ToolRegistry Registry => _host.Registry;
 
     private void OnDocumentOpened(AssetDocument document)
     {
@@ -80,7 +63,7 @@ public sealed class EditorApiHost : BaseEngineSystem
 
         foreach (object tool in tools)
         {
-            _registry.RegisterInstance(tool);
+            _host.Registry.RegisterInstance(tool);
         }
         _documentTools[document] = tools;
     }
@@ -94,14 +77,14 @@ public sealed class EditorApiHost : BaseEngineSystem
 
         foreach (object tool in tools)
         {
-            _registry.UnregisterInstance(tool);
+            _host.Registry.UnregisterInstance(tool);
         }
     }
 
     /// <inheritdoc/>
     public override void OnTick(float delta)
     {
-        _registry.DrainMainThreadQueue();
+        _host.Registry.DrainMainThreadQueue();
     }
 
     /// <inheritdoc/>
@@ -109,6 +92,6 @@ public sealed class EditorApiHost : BaseEngineSystem
     {
         _documents.DocumentOpened -= OnDocumentOpened;
         _documents.DocumentClosed -= OnDocumentClosed;
-        _server.Dispose();
+        _host.Dispose();
     }
 }

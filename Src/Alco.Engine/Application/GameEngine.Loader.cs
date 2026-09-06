@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Alco.Rendering;
 using Alco.IO;
 
@@ -108,5 +110,27 @@ public partial class GameEngine
         yield return new JsonStringEnumConverter();
         yield return new JsonConverterPadding();
         yield return new JsonConverterCurvePointFactory();
+    }
+
+    /// <summary>
+    /// Creates the JSON serializer options shared by agent-facing surfaces (tool
+    /// argument deserialization, HTTP responses): camelCase naming configured with the
+    /// engine's default JSON converters. Hosts and the agent control protocol use this
+    /// so every surface serializes engine types identically.
+    /// </summary>
+    public JsonSerializerOptions CreateAgentJsonOptions()
+    {
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+        };
+
+        foreach (var converter in CreateDefaultJsonConverters())
+        {
+            options.Converters.Add(converter);
+        }
+
+        return options;
     }
 }

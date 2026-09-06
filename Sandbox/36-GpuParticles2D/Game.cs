@@ -91,8 +91,7 @@ public class Game : GameEngine
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 90;
         if (_screenshotPath != null)
         {
-            _swapchainCapture = new SwapchainCaptureSystem(this);
-            AddSystem(_swapchainCapture);
+            _swapchainCapture = SwapchainCapture;
         }
 
         AddSystem(new ImGUISystem(this));

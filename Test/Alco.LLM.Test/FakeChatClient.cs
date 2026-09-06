@@ -1,3 +1,4 @@
+using Alco.AgentControlProtocol;
 using Microsoft.Extensions.AI;
 
 namespace Alco.LLM.Test;

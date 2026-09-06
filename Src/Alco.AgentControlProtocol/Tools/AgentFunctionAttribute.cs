@@ -1,6 +1,6 @@
 using System;
 
-namespace Alco.LLM;
+namespace Alco.AgentControlProtocol;
 
 /// <summary>
 /// Marks a method as an agent function invocable by LLM agents.

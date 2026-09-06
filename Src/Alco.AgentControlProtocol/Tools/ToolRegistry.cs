@@ -11,7 +11,7 @@ using System.Text.Json.Schema;
 using System.Threading.Tasks;
 using Alco.Engine;
 
-namespace Alco.LLM;
+namespace Alco.AgentControlProtocol;
 
 /// <summary>
 /// Central registry for agent tool functions. Discovers <see cref="AgentFunctionAttribute"/> methods

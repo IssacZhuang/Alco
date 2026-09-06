@@ -40,11 +40,10 @@ public sealed class EditorEngine : GameEngine
 
         if (enableApi)
         {
-            // The capture system must come after ImGUISystem: screenshots arm in the
-            // post-ImGui / pre-present window. The API host drains its tool queue on tick.
-            SwapchainCaptureSystem capture = new(this);
-            AddSystem(capture);
-            AddSystem(new EditorApiHost(this, _editorSystem, capture, apiPort));
+            // The engine ctor already runs the swapchain capture system; screenshots
+            // and script execution come from the agent control host's built-in tools.
+            // The API host drains its tool queue on tick.
+            AddSystem(new EditorApiHost(this, _editorSystem, apiPort));
         }
 
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

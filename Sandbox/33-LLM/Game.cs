@@ -6,6 +6,7 @@ using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
+using Alco.AgentControlProtocol;
 using Alco.LLM;
 using Alco.Rendering;
 
@@ -51,8 +52,8 @@ public class Game : GameEngine
     {
         AddSystem(new ImGUISystem(this));
 
+        // LLMSystem is a plain agent factory now (no engine system); it needs no ticking.
         _llmSystem = new LLMSystem(this);
-        AddSystem(_llmSystem);
         _preference = LoadPreference<SandboxPreference>("33-LLM", "config");
 
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
