@@ -17,7 +17,7 @@
 // contract at compile time.
 //
 // The shading contract is dimension-neutral: the same surface shades 2D and 3D
-// particles, and the vertex-stage hook (adjustWorldPosition) takes the
+// particles, and the vertex-stage hook (getWorldPosition) takes the
 // dimension-neutral ParticleVertexInput — each pass template fills it from its
 // own particle/emitter records, so one surface module serves both dimensions.
 // A group overrides the surface's "texture" slot (by convention the
@@ -51,14 +51,14 @@ public struct ParticleVertexInput
 
 /// The particle shading contract: the fragment color of one particle fragment,
 /// plus an optional vertex-stage hook. Both methods carry defaults — a surface
-/// that only colors fragments overrides shade alone. Slang requires the
+/// that only colors fragments overrides getColor alone. Slang requires the
 /// `override` keyword when replacing a default implementation.
 public interface IParticleSurface
 {
-    float4 shade(ParticleSurfaceInput input) { return input.color; }
+    float4 getColor(ParticleSurfaceInput input) { return input.color; }
 
-    /// Adjusts a quad corner's world position before the projection (default:
+    /// The quad corner's final world position before the projection (default:
     /// unchanged). Override only when the material moves vertices (e.g. facade
     /// depth writes).
-    float3 adjustWorldPosition(ParticleVertexInput input) { return input.world; }
+    float3 getWorldPosition(ParticleVertexInput input) { return input.world; }
 }

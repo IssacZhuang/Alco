@@ -19,7 +19,7 @@
 // Division of labor: the template owns the ribbon machinery - point fetch,
 // validity, the width0 -> width1 envelope, the fade in/out alpha envelope and
 // the projection - so a surface only shapes the look. The vertex hook
-// (adjustRibbonVertex) covers the looks that move ribbon vertices (turbulence
+// (getVertexAdjustment) covers the looks that move ribbon vertices (turbulence
 // wander, width noise); its private VS -> FS channel (TrailVertexResult.data)
 // carries what the fragment stage then needs from that math (e.g. the width
 // scale's density compensation).
@@ -63,18 +63,18 @@ public struct TrailVertexResult
 
 /// The trail shading contract: the fragment color of one ribbon fragment,
 /// plus an optional vertex-stage ribbon adjustment hook. Both methods carry
-/// defaults - a surface that only colors fragments overrides shade alone.
+/// defaults - a surface that only colors fragments overrides getColor alone.
 /// Slang requires the `override` keyword when replacing a default
 /// implementation.
 public interface ITrailSurface
 {
-    float4 shade(TrailSurfaceInput input) { return input.color; }
+    float4 getColor(TrailSurfaceInput input) { return input.color; }
 
-    /// Adjusts one ribbon vertex before the projection: offsets its world
-    /// position (e.g. turbulence wander), scales the ribbon width (e.g. noise
-    /// bulges and necks) and fills the private pass-through the fragment
+    /// The adjustment of one ribbon vertex before the projection: offsets its
+    /// world position (e.g. turbulence wander), scales the ribbon width (e.g.
+    /// noise bulges and necks) and fills the private pass-through the fragment
     /// stage may need from the same math (default: nothing changes).
-    TrailVertexResult adjustRibbonVertex(TrailVertexInput input)
+    TrailVertexResult getVertexAdjustment(TrailVertexInput input)
     {
         TrailVertexResult result;
         result.worldOffset = float2(0.0, 0.0);

@@ -10,7 +10,7 @@
 // pass): the material compiler composes this module with the group's material
 // surface module, so the visual comes from the .amat — the built-in default
 // surface (ParticleSurfaceDefault) shades texture x particle color and
-// leaves the vertex stage untouched (the adjustWorldPosition hook's default).
+// leaves the vertex stage untouched (the getWorldPosition hook's default).
 //
 // The pass owns the resource contract the particle system binds: the "camera"
 // block (auto-bound view-projection), the "scene" block (bound by the particle
@@ -162,7 +162,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     vertexInput.emitterWorldMatrix = emitter.worldMatrix;
     vertexInput.customData = emitter.customData;
     vertexInput.height = height;
-    world = surface.adjustWorldPosition(vertexInput);
+    world = surface.getWorldPosition(vertexInput);
     output.worldPosition = world;
     output.position = mul(camera.viewProjection, float4(world, 1.0));
 
@@ -218,5 +218,5 @@ public float4 MainPS<T : IParticleSurface>(V2F input) : SV_TARGET
     surfaceInput.color = input.color;
     surfaceInput.age01 = input.age01;
     surfaceInput.worldPosition = input.worldPosition;
-    return surface.shade(surfaceInput);
+    return surface.getColor(surfaceInput);
 }

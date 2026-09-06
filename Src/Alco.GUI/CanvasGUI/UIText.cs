@@ -110,6 +110,13 @@ public class UIText : UISelectable
     {
         get
         {
+            // A pending unflushed write always wins: rebuilding _tmpStr from the flushed buffer
+            // here would silently discard the write (set -> get before OnUpdate flush).
+            if (_isTmpStrWriteDirty)
+            {
+                return _tmpStr;
+            }
+
             if (_isTmpStrReadDirty)
             {
                 _tmpStr = new string(_text.AsSpan(0, _textLength));

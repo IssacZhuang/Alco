@@ -29,7 +29,7 @@ public ParameterBlock<DefaultParamsData> material;
 // Fragment-only: the vertex hook keeps its default (ribbon unchanged).
 public struct Surface : ITrailSurface
 {
-    public override float4 shade(TrailSurfaceInput input)
+    public override float4 getColor(TrailSurfaceInput input)
     {
         float edge = pow(1.0 - smoothstep(material.edgeStart, 1.0, abs(input.uv.y)),
                          1.0 + max(material.edgeSharpness, 0.0));

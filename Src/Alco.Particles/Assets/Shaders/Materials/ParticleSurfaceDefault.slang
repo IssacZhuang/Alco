@@ -22,7 +22,7 @@ public ParameterBlock<MaterialParamsData> material;
 // module serves the 2D and the 3D pass alike.
 public struct Surface : IParticleSurface
 {
-    public override float4 shade(ParticleSurfaceInput input)
+    public override float4 getColor(ParticleSurfaceInput input)
     {
         return material.texture.Sample(samplers.linearClamp, input.uv) * input.color;
     }

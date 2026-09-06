@@ -28,7 +28,7 @@ public ParameterBlock<DissolveParamsData> dissolveParams;
 
 public struct Surface : IParticleSurface
 {
-    public override float4 shade(ParticleSurfaceInput input)
+    public override float4 getColor(ParticleSurfaceInput input)
     {
         float4 texel = dissolveParams.texture.Sample(samplers.linearClamp, input.uv);
         float noise = dissolveParams.noiseTexture.Sample(

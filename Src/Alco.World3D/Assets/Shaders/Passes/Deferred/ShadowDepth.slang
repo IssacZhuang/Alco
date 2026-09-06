@@ -91,7 +91,9 @@ public ShadowV2F MainVS<T : ISurface>(ShadowVertex input)
     // The surface may deform the vertex; every pass applies this identically
     // so shadows match the G-buffer silhouette.
     T surface = T();
-    surface.modifyVertex(worldPos, worldNormal, input.uv);
+    float3 surfaceWorldPos = surface.getWorldPosition(worldPos, worldNormal, input.uv);
+    worldNormal = surface.getWorldNormal(worldPos, worldNormal, input.uv);
+    worldPos = surfaceWorldPos;
     output.position = mul(data.lightViewProjections[(uint)shadowConstants.params.x], float4(worldPos, 1.0f));
     output.normal = worldNormal;
     output.tangent = float4(worldTangent, input.tangent.w);

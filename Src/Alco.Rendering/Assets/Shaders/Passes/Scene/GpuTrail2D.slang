@@ -8,7 +8,7 @@
 // with the trail material's surface module, so the visual comes from the
 // .amat - the built-in default surface (TrailSurfaceDefault)
 // shades the color gradient with a soft across-ribbon edge and leaves the
-// vertex stage untouched (the adjustRibbonVertex hook's default).
+// vertex stage untouched (the getVertexAdjustment hook's default).
 //
 // The pass owns the resource contract the trail system binds: the "camera"
 // block (auto-bound view-projection), the "trailScene" block (the trail
@@ -82,7 +82,7 @@ public V2F MainVS<T : ITrailSurface>(TrailVertexInput2D input)
     TrailVertexInput surfaceVertex;
     surfaceVertex.sample = s;
     surfaceVertex.halfWidth = halfWidth;
-    TrailVertexResult ribbon = surface.adjustRibbonVertex(surfaceVertex);
+    TrailVertexResult ribbon = surface.getVertexAdjustment(surfaceVertex);
 
     float2 world = s.posDepth.xy + ribbon.worldOffset
                  + s.normal * (s.across * halfWidth * ribbon.widthScale);
@@ -120,5 +120,5 @@ public float4 MainPS<T : ITrailSurface>(V2F input) : SV_TARGET
     surfaceInput.userData = input.userData;
     surfaceInput.time = trailGlobals.time;
     surfaceInput.data = input.data;
-    return surface.shade(surfaceInput);
+    return surface.getColor(surfaceInput);
 }

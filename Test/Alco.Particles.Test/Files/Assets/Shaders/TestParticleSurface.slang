@@ -27,14 +27,14 @@ public ParameterBlock<DissolveParamsData> dissolveParams;
 
 public struct Surface : IParticleSurface
 {
-    public override float3 adjustWorldPosition(ParticleVertexInput input)
+    public override float3 getWorldPosition(ParticleVertexInput input)
     {
         // Pass-through that still reads the input, so the composed vertex
         // shader provably links the override.
         return input.world + input.particlePosition * 0.0;
     }
 
-    public override float4 shade(ParticleSurfaceInput input)
+    public override float4 getColor(ParticleSurfaceInput input)
     {
         float4 texel = dissolveParams.texture.Sample(samplers.linearClamp, input.uv);
         float noise = dissolveParams.noiseTexture.Sample(

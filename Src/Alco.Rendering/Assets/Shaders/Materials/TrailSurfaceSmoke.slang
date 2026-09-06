@@ -56,7 +56,7 @@ float fbm(float2 p) { return vnoise2(p) * 0.6 + vnoise2(p * 2.3) * 0.3 + vnoise2
 
 public struct Surface : ITrailSurface
 {
-    public override TrailVertexResult adjustRibbonVertex(TrailVertexInput input)
+    public override TrailVertexResult getVertexAdjustment(TrailVertexInput input)
     {
         TrailVertexResult result;
         result.worldOffset = float2(0.0, 0.0);
@@ -83,7 +83,7 @@ public struct Surface : ITrailSurface
         return result;
     }
 
-    public override float4 shade(TrailSurfaceInput input)
+    public override float4 getColor(TrailSurfaceInput input)
     {
         // Edge gradient: edgeStart shifts where the falloff begins, edgePow
         // shapes the curve.

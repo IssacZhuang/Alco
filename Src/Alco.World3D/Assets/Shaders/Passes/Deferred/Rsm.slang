@@ -95,7 +95,9 @@ public RsmV2F MainVS<T : ISurface>(RsmVertex input)
     // The surface may deform the vertex; every pass applies this identically
     // so the RSM matches the G-buffer silhouette.
     T surface = T();
-    surface.modifyVertex(worldPos, worldNormal, input.uv);
+    float3 surfaceWorldPos = surface.getWorldPosition(worldPos, worldNormal, input.uv);
+    worldNormal = surface.getWorldNormal(worldPos, worldNormal, input.uv);
+    worldPos = surfaceWorldPos;
     uint cascade = (uint)rsmConstants.params.x;
     float4 folded = mul(data.lightViewProjections[cascade], float4(worldPos, 1.0f));
     // RGNode_ShadowPass folds the cascade into its atlas quadrant with
