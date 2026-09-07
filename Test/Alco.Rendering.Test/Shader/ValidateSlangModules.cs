@@ -76,6 +76,7 @@ public class ValidateSlangModules
         new Dictionary<string, string>
         {
             ["GpuTrail2D"] = "TrailSurfaceDefault",
+            ["GpuTrail3D"] = "TrailSurface3DDefault",
         };
 
     [Test]
