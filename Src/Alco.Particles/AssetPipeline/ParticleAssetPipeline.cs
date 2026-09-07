@@ -21,6 +21,24 @@ public static class ParticleAssetPipeline
     /// <summary>The module name of the built-in 3D particle render pass template.</summary>
     public const string RenderModule3D = "GpuParticle3D";
 
+    /// <summary>The module name of the built-in 2D emit pass template.</summary>
+    public const string EmitModule2D = "GpuParticleEmit2D";
+
+    /// <summary>The module name of the built-in 3D emit pass template.</summary>
+    public const string EmitModule3D = "GpuParticleEmit3D";
+
+    /// <summary>The module name of the built-in 2D simulate pass template.</summary>
+    public const string SimulateModule2D = "GpuParticleSimulate2D";
+
+    /// <summary>The module name of the built-in 3D simulate pass template.</summary>
+    public const string SimulateModule3D = "GpuParticleSimulate3D";
+
+    /// <summary>The module name of the built-in 2D init pass (slice-recycle kills).</summary>
+    public const string InitModule2D = "GpuParticleInit2D";
+
+    /// <summary>The module name of the built-in 3D init pass (slice-recycle kills).</summary>
+    public const string InitModule3D = "GpuParticleInit3D";
+
     /// <summary>
     /// The module name of the default particle surface (texture × particle color),
     /// composed with the render pass templates for groups whose material names no

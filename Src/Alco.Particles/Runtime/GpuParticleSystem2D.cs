@@ -127,10 +127,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     /// <param name="rendering">The rendering system.</param>
     /// <param name="particleCapacity">The initial particle pool size (grows geometrically when exhausted).</param>
     /// <param name="emitterSlots">The initial emitter-slot count (one per emitter group instance).</param>
-    /// <param name="renderModule">The pass-template module group surfaces compose with;
+    /// <param name="renderTemplate">The pass-template library group surfaces compose with;
     /// null uses the built-in <see cref="ParticleAssetPipeline.RenderModule2D"/>. A custom
     /// template must keep the built-in pass's vertex stage and resource contract.</param>
-    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, string? renderModule = null)
+    public GpuParticleSystem2D(RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, ShaderLibrary? renderTemplate = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         _rendering = rendering;
@@ -139,11 +139,11 @@ public sealed class GpuParticleSystem2D : AutoDisposable
         _materialModules = new ParticleMaterialModules(_gate);
         ShaderSystem shaderSystem = rendering.ShaderSystem;
         _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
-        _renderTemplate = shaderSystem.GetLibrary(renderModule ?? ParticleAssetPipeline.RenderModule2D);
-        _emitTemplate = shaderSystem.GetLibrary("GpuParticleEmit2D");
-        _simulateTemplate = shaderSystem.GetLibrary("GpuParticleSimulate2D");
+        _renderTemplate = renderTemplate ?? shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D);
+        _emitTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.EmitModule2D);
+        _simulateTemplate = shaderSystem.GetLibrary(ParticleAssetPipeline.SimulateModule2D);
         _defaultBehavior = shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultBehavior2D);
-        _initMaterial = rendering.CreateComputeMaterial(shaderSystem.GetShader("GpuParticleInit2D"));
+        _initMaterial = rendering.CreateComputeMaterial(shaderSystem.GetShader(ParticleAssetPipeline.InitModule2D));
         // Bind the pool up front: OnPoolReallocated refreshes this, but the first
         // slice-recycle kill dispatch can precede any reallocation.
         _initMaterial.TrySetBuffer(ShaderResourceId.Particles, _pool.Particles);

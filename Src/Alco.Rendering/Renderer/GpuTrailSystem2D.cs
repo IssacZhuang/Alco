@@ -210,12 +210,12 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     /// <param name="rendering">The rendering system.</param>
     /// <param name="pointCapacity">The shared point buffer size in points (all trails combined).</param>
     /// <param name="trailSlots">The maximum number of simultaneously-live trails.</param>
-    /// <param name="renderModule">
-    /// The pass-template module trail surfaces compose with; null uses the built-in
+    /// <param name="renderTemplate">
+    /// The pass-template library trail surfaces compose with; null uses the built-in
     /// <see cref="RenderModule"/>. A custom template must keep the built-in pass's
     /// vertex stage and resource contract.
     /// </param>
-    public GpuTrailSystem2D(RenderingSystem rendering, int pointCapacity = 65536, int trailSlots = 1024, string? renderModule = null)
+    public GpuTrailSystem2D(RenderingSystem rendering, int pointCapacity = 65536, int trailSlots = 1024, ShaderLibrary? renderTemplate = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(pointCapacity, 0);
@@ -224,7 +224,7 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         _rendering = rendering;
         ShaderSystem shaderSystem = rendering.ShaderSystem;
         _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(DefaultSurface));
-        _renderTemplate = shaderSystem.GetLibrary(renderModule ?? RenderModule);
+        _renderTemplate = renderTemplate ?? shaderSystem.GetLibrary(RenderModule);
         _points = rendering.CreateGraphicsArrayBuffer<TrailPoint2D>(pointCapacity, "trails2d_points");
         _params = rendering.CreateGraphicsArrayBuffer<TrailParams2D>(trailSlots, "trails2d_params");
         _globals = rendering.CreateGraphicsValueBuffer(new TrailGlobals2D(), "trails2d_globals");
