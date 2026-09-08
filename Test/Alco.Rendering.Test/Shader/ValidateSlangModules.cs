@@ -12,6 +12,7 @@ namespace Alco.Rendering.Test;
 // the engine's asset resolver conventions (module-name matching).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Validates engine shader modules and their material compositions.</summary>
 public class ValidateSlangModules
 {
     private static string RepoRoot()
@@ -24,6 +25,7 @@ public class ValidateSlangModules
         return dir?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
 
+    /// <summary>Returns every engine shader module that owns entry points.</summary>
     public static IEnumerable<TestCaseData> ModuleCases()
     {
         string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders");
@@ -70,15 +72,18 @@ public class ValidateSlangModules
 
     // Pass templates whose generic entry points take the surface type as their
     // specialization argument (the material-composition contract): they compose
-    // with the named standard surface instead of linking standalone, the same
-    // route the material compiler takes at runtime.
-    private static readonly IReadOnlyDictionary<string, string> TemplateSurfaces =
-        new Dictionary<string, string>
+    // with each built-in surface instead of linking standalone, the same route
+    // the material compiler takes at runtime. Both dimensions share ITrailSurface.
+    private static readonly IReadOnlyDictionary<string, string[]> TemplateSurfaces =
+        new Dictionary<string, string[]>
         {
-            ["GpuTrail2D"] = "TrailSurfaceDefault",
-            ["GpuTrail3D"] = "TrailSurface3DDefault",
+            ["GpuTrail2D"] = ["TrailSurfaceDefault", "TrailSurfaceSmoke"],
+            ["GpuTrail3D"] = ["TrailSurfaceDefault", "TrailSurfaceSmoke"],
         };
 
+    /// <summary>Compiles every entry point with representative specialization arguments.</summary>
+    /// <param name="moduleName">The shader module name.</param>
+    /// <param name="file">The source file represented by the test case.</param>
     [Test]
     [TestCaseSource(nameof(ModuleCases))]
     public void Module_CompilesAllEntryPoints(string moduleName, string file)
@@ -105,16 +110,23 @@ public class ValidateSlangModules
         string[][] argSets = Specializations.TryGetValue(moduleName, out string[][]? sets)
             ? sets
             : [[]];
-        foreach (string[] args in argSets)
+        string?[] surfaces = TemplateSurfaces.TryGetValue(moduleName, out string[]? templateSurfaces)
+            ? templateSurfaces
+            : new string?[] { null };
+        foreach (string? surface in surfaces)
         {
-            using SlangProgram program = TemplateSurfaces.TryGetValue(moduleName, out string? surface)
-                ? system.Modules.GetComposedProgram(moduleName, surface, args)
-                : system.Modules.GetProgramAllEntries(moduleName, args);
-            Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
-            Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
-            foreach (ReadOnlyMemory<byte> code in program.EntryCode)
+            foreach (string[] args in argSets)
             {
-                Assert.That(code.Length, Is.GreaterThan(4), "empty SPIR-V blob");
+                using SlangProgram program = surface != null
+                    ? system.Modules.GetComposedProgram(moduleName, surface, args)
+                    : system.Modules.GetProgramAllEntries(moduleName, args);
+                string composition = surface == null ? moduleName : $"{moduleName}+{surface}";
+                Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{composition} defines no entry points");
+                Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
+                foreach (ReadOnlyMemory<byte> code in program.EntryCode)
+                {
+                    Assert.That(code.Length, Is.GreaterThan(4), $"{composition}: empty SPIR-V blob");
+                }
             }
         }
         _ = file;

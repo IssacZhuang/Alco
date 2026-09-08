@@ -16,7 +16,7 @@ public sealed class TrailEffect3D
 {
     /// <summary>
     /// Gets or sets the render material asset of the trail: its surface module
-    /// (implementing <c>ITrailSurface3D</c>) composes with the 3D trail pass template
+    /// (implementing <c>ITrailSurface</c>) composes with the 3D trail pass template
     /// (GpuTrail3D), its textures and parameter values bind onto the surface.
     /// Trails batch by compiled material: one multi-draw-indirect per material.
     /// Null selects the engine's default surface (the color gradient with a soft

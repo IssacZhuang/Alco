@@ -20,7 +20,7 @@ namespace Alco.Rendering;
 /// <br/>Materials: the trail's <see cref="TrailEffect3D.Material"/> asset composes
 /// with the trail pass template (<see cref="RenderModule"/>, GpuTrail3D) through a
 /// <see cref="MaterialCompiler"/> the system owns — the asset's surface module
-/// (implementing ITrailSurface3D, module AlcoRendering_TrailSurface3D) shapes the
+/// (implementing ITrailSurface, module AlcoRendering_TrailSurface) shapes the
 /// look, the system compiles, caches per (asset, blend, depth), applies the pass
 /// state (premultiplied blend, depth-read, cull-none) and binds the shared buffers
 /// (the camera block and the trailPoints/trailParams/trailGlobals resources the
@@ -51,7 +51,7 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     /// across-ribbon edge), composed with the render pass template for trails whose
     /// material names no surface module of its own.
     /// </summary>
-    public const string DefaultSurface = "TrailSurface3DDefault";
+    public const string DefaultSurface = "TrailSurfaceDefault";
 
     /// <summary>One trail point record (GPU twin of TrailPoint3D in AlcoRendering_Trails3D, 32 bytes).</summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)]

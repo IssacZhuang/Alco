@@ -126,8 +126,8 @@ public sealed class TestGpuTrailSystem3D
     }
 
     /// <summary>Both built-in surfaces compose with the corrected trail pass and resource layout.</summary>
-    [TestCase("TrailSurface3DDefault")]
-    [TestCase("TrailSurface3DSmoke")]
+    [TestCase("TrailSurfaceDefault")]
+    [TestCase("TrailSurfaceSmoke")]
     public void BuiltInSurfaceComposes(string surfaceName)
     {
         using var host = CreateHost();
@@ -281,6 +281,59 @@ public sealed class TestGpuTrailSystem3D
                 else
                     Assert.That(alpha, Is.Zero, $"Stale geometry outside the live window at x={worldX}.");
             }
+        }
+    }
+
+    /// <summary>
+    /// The rendered envelope eases into and out of visibility like its 2D
+    /// counterpart, while zero-duration ramps remain fully visible.
+    /// </summary>
+    [TestCase(0.05f, 0.2f, 0.5f, 40)]
+    [TestCase(0.15f, 0.2f, 0.5f, 215)]
+    [TestCase(0.625f, 0.2f, 0.5f, 215)]
+    [TestCase(0.875f, 0.2f, 0.5f, 40)]
+    [TestCase(0f, 0f, 0f, 255)]
+    [TestCase(1f, 0f, 0f, 255)]
+    [Category("WebGPU")]
+    public unsafe void FadeEnvelopeRendersSmoothEndpoints(float age, float fadeIn, float fadeOut, int expectedAlpha)
+    {
+        using var deviceHost = new DeviceHost();
+        GPUDevice device = GraphicsDeviceFactory.CreateWebGPUDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
+        using var host = CreateHost(device);
+        RenderingSystem rendering = host.RenderingSystem;
+        Vector3 cameraPosition = new(0f, 0f, -5f);
+        Matrix4x4 view = Matrix4x4.CreateLookAtLeftHanded(cameraPosition, Vector3.Zero, Vector3.UnitY);
+        Matrix4x4 projection = Matrix4x4.CreateOrthographicLeftHanded(2f, 2f, 0.1f, 10f);
+        using var camera = rendering.CreateGraphicsValueBuffer(view * projection, "trail3d_fade_camera");
+        using var system = new GpuTrailSystem3D(rendering, 32, 1)
+        {
+            Camera = camera, CameraPosition = cameraPosition,
+        };
+        var effect = new TrailEffect3D
+        {
+            ExpectedPoints = 32, Spacing = 0.25f, Life = 1f,
+            Width0 = 0.15f, Width1 = 0.15f, Opacity = 1f,
+            FadeIn = fadeIn, FadeOut = fadeOut, Depth = DepthStencilState.None,
+        };
+        Assert.That(system.TryCreateInstance(effect, new Vector3(-0.75f, 0f, 0f), out var trail), Is.True);
+        using (trail)
+        using (var layout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "trail3d_fade")))
+        using (var target = rendering.CreateRenderTexture(layout, 64, 65, "trail3d_fade"))
+        using (var context = rendering.CreateRenderContext("trail3d_fade"))
+        {
+            trail.ExtendTo(new Vector3(0.5f, 0f, 0f));
+            system.Update(age);
+            using (context.BeginFrame())
+            using (RenderPassScope pass = context.BeginPass(target.FrameBuffer, [new ClearColorData(0, Vector4.Zero)]))
+                system.Render(pass);
+
+            byte[] pixels = new byte[64 * 65 * 4];
+            fixed (byte* pointer = pixels)
+                device.ReadTexture(target.FrameBuffer.Colors[0], pointer, (uint)pixels.Length);
+            // The center pixel lies exactly on the camera-facing ribbon's axis,
+            // isolating the age envelope from the surface's edge falloff.
+            Assert.That(pixels[(32 * 64 + 32) * 4 + 3], Is.EqualTo(expectedAlpha).Within(1));
         }
     }
 

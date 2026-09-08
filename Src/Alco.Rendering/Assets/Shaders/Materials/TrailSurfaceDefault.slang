@@ -1,11 +1,10 @@
 // file "TrailSurfaceDefault.slang" - module "TrailSurfaceDefault"
 //
-// The default trail surface: the trail's color gradient (color0 -> color1
-// over the point's age, arriving premultiplied with the fade envelope's
-// alpha) shaped by a soft across-ribbon edge - the visual of every trail
-// whose material names no surface module of its own. The trail systems
-// compose it as the material compiler's default surface
-// (GpuTrailSystem2D.DefaultSurface).
+// The default 2D/3D trail surface: the trail's color gradient (color0 -> color1
+// over the point's age, with the fade envelope applied to alpha) shaped by a
+// soft across-ribbon edge - the visual of every trail whose material names no
+// surface module of its own. Both trail systems compose it as the material
+// compiler's default surface. The fragment output premultiplies RGB by alpha.
 //
 // The edge parameters read zero when the material asset authors none:
 // edgeStart 0 spreads the falloff over the whole half width, edgeSharpness 0

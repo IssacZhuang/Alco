@@ -22,7 +22,7 @@
 // Look-free module: the trail pass template (GpuTrail3D) declares the parameter
 // blocks (the trailPoints/trailParams buffers and the trailGlobals uniform block
 // - names are the binding contract) and owns the entry points; the surface
-// module (ITrailSurface3D, AlcoRendering_TrailSurface3D) shapes the look. This
+// module (ITrailSurface, AlcoRendering_TrailSurface) shapes the look. This
 // module provides the fetch, validity and aging math plus the standard
 // TrailSample3D attributes both build on.
 

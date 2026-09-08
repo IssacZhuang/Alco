@@ -7,9 +7,9 @@
 // point's baked travel tangent and the trailGlobals camera position, so trails
 // wander freely through 3D space (the 2D pass bakes the ribbon normal at
 // emission instead). Both entries are generic over the trail's surface
-// (ITrailSurface3D, AlcoRendering_TrailSurface3D): the material compiler
+// (ITrailSurface, AlcoRendering_TrailSurface): the material compiler
 // composes this module with the trail material's surface module, so the visual
-// comes from the .amat - the built-in default surface (TrailSurface3DDefault)
+// comes from the .amat - the built-in default surface (TrailSurfaceDefault)
 // shades the color gradient with a soft across-ribbon edge and leaves the
 // vertex stage untouched (the getVertexAdjustment hook's default).
 //
@@ -29,7 +29,7 @@
 module GpuTrail3D;
 
 import AlcoRendering_Trails3D;
-import AlcoRendering_TrailSurface3D;
+import AlcoRendering_TrailSurface;
 
 public struct V2F
 {
@@ -64,7 +64,7 @@ public ParameterBlock<TrailSceneParams> trailScene;
 public ParameterBlock<TrailGlobals3D> trailGlobals;
 
 [shader("vertex")]
-public V2F MainVS<T : ITrailSurface3D>(TrailVertexInput3D input)
+public V2F MainVS<T : ITrailSurface>(TrailVertexInput3D input)
 {
     V2F output = (V2F)0;
     TrailSample3D s;
@@ -83,10 +83,20 @@ public V2F MainVS<T : ITrailSurface3D>(TrailVertexInput3D input)
     // The surface's vertex hook: turbulence wander, buoyant rise, width noise -
     // or nothing.
     T surface = T();
-    TrailVertex3DInput surfaceVertex;
-    surfaceVertex.sample = s;
+    TrailVertexInput surfaceVertex;
+    surfaceVertex.centerPosition = s.position;
+    surfaceVertex.tangent = s.tangent;
+    surfaceVertex.side = s.side;
+    surfaceVertex.upDirection = float3(0.0, 0.0, 1.0);
+    surfaceVertex.uv = float2(s.u, s.across);
+    surfaceVertex.distanceFromStart = s.distanceFromStart;
     surfaceVertex.halfWidth = halfWidth;
-    TrailVertex3DResult ribbon = surface.getVertexAdjustment(surfaceVertex);
+    surfaceVertex.age = s.age;
+    surfaceVertex.age01 = s.age01;
+    surfaceVertex.time = trailGlobals.time;
+    surfaceVertex.seed = s.trail.misc.x;
+    surfaceVertex.userData = s.trail.userData;
+    TrailVertexResult ribbon = surface.getVertexAdjustment(surfaceVertex);
 
     // The camera-facing strip: the across-ribbon offset rides the side axis the
     // sampler derived from the view direction and the travel tangent.
@@ -98,9 +108,10 @@ public V2F MainVS<T : ITrailSurface3D>(TrailVertexInput3D input)
     // The color gradient over age with the fade envelope's alpha applied: the
     // opacity record x fadeIn (the head ramps in over misc.y of the life) x
     // fadeOut (the tail ramps out over misc.z); a zero fraction disables its
-    // ramp.
-    float fadeIn = s.trail.misc.y <= 0.0 ? 1.0 : saturate(s.age01 / s.trail.misc.y);
-    float fadeOut = s.trail.misc.z <= 0.0 ? 1.0 : saturate((1.0 - s.age01) / s.trail.misc.z);
+    // ramp. Ease the endpoints, matching the 2D trail envelope, so fading smoke
+    // does not expose abrupt brightness steps between aging batches.
+    float fadeIn = s.trail.misc.y <= 0.0 ? 1.0 : smoothstep(0.0, s.trail.misc.y, s.age01);
+    float fadeOut = s.trail.misc.z <= 0.0 ? 1.0 : smoothstep(0.0, s.trail.misc.z, 1.0 - s.age01);
     float4 color = lerp(s.trail.color0, s.trail.color1, s.age01);
     color.a *= s.trail.envelope.w * fadeIn * fadeOut;
 
@@ -115,10 +126,10 @@ public V2F MainVS<T : ITrailSurface3D>(TrailVertexInput3D input)
 }
 
 [shader("fragment")]
-public float4 MainPS<T : ITrailSurface3D>(V2F input) : SV_TARGET
+public float4 MainPS<T : ITrailSurface>(V2F input) : SV_TARGET
 {
     T surface = T();
-    TrailSurface3DInput surfaceInput;
+    TrailSurfaceInput surfaceInput;
     surfaceInput.uv = input.uv;
     surfaceInput.color = input.color;
     surfaceInput.age = input.age;

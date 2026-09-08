@@ -35,6 +35,7 @@ public struct V2F
     public float seed : TEXCOORD3;    // the trail's random seed
     public float4 userData : TEXCOORD4; // the trail's custom data channel
     public float4 data : TEXCOORD5;   // the surface hook's private VS -> FS channel
+    public float3 worldPosition : TEXCOORD6; // final ribbon position; z is sorting depth
 };
 
 // The transparent layer output: a single premultiplied-alpha slot. Trail
@@ -80,20 +81,34 @@ public V2F MainVS<T : ITrailSurface>(TrailVertexInput2D input)
     // The surface's vertex hook: turbulence wander, width noise - or nothing.
     T surface = T();
     TrailVertexInput surfaceVertex;
-    surfaceVertex.sample = s;
+    surfaceVertex.centerPosition = s.posDepth;
+    surfaceVertex.tangent = float3(s.normal.y, -s.normal.x, 0.0);
+    surfaceVertex.side = float3(s.normal, 0.0);
+    surfaceVertex.upDirection = float3(0.0, 1.0, 0.0);
+    surfaceVertex.uv = float2(s.u, s.across);
+    surfaceVertex.distanceFromStart = s.distanceFromStart;
     surfaceVertex.halfWidth = halfWidth;
+    surfaceVertex.age = s.age;
+    surfaceVertex.age01 = s.age01;
+    surfaceVertex.time = trailGlobals.time;
+    surfaceVertex.seed = s.trail.misc.x;
+    surfaceVertex.userData = s.trail.userData;
     TrailVertexResult ribbon = surface.getVertexAdjustment(surfaceVertex);
 
-    float2 world = s.posDepth.xy + ribbon.worldOffset
+    // A shared surface may displace out of the ribbon plane in 3D. Preserve
+    // the caller's sorting depth in 2D, where z is not a physical height.
+    float2 world = s.posDepth.xy + ribbon.worldOffset.xy
                  + s.normal * (s.across * halfWidth * ribbon.widthScale);
-    output.position = mul(camera.viewProjection, float4(world, s.posDepth.z, 1.0));
+    output.worldPosition = float3(world, s.posDepth.z);
+    output.position = mul(camera.viewProjection, float4(output.worldPosition, 1.0));
 
     // The color gradient over age with the fade envelope's alpha applied: the
     // opacity record x fadeIn (the head ramps in over misc.y of the life) x
     // fadeOut (the tail ramps out over misc.z); a zero fraction disables its
-    // ramp.
-    float fadeIn = s.trail.misc.y <= 0.0 ? 1.0 : saturate(s.age01 / s.trail.misc.y);
-    float fadeOut = s.trail.misc.z <= 0.0 ? 1.0 : saturate((1.0 - s.age01) / s.trail.misc.z);
+    // ramp. Smooth the endpoints so aging batches do not appear or disappear
+    // with the abrupt slope of a linear fade (the original smoke envelope).
+    float fadeIn = s.trail.misc.y <= 0.0 ? 1.0 : smoothstep(0.0, s.trail.misc.y, s.age01);
+    float fadeOut = s.trail.misc.z <= 0.0 ? 1.0 : smoothstep(0.0, s.trail.misc.z, 1.0 - s.age01);
     float4 color = lerp(s.trail.color0, s.trail.color1, s.age01);
     color.a *= s.trail.envelope.w * fadeIn * fadeOut;
 
@@ -119,6 +134,7 @@ public float4 MainPS<T : ITrailSurface>(V2F input) : SV_TARGET
     surfaceInput.seed = input.seed;
     surfaceInput.userData = input.userData;
     surfaceInput.time = trailGlobals.time;
+    surfaceInput.worldPosition = input.worldPosition;
     surfaceInput.data = input.data;
     return surface.getColor(surfaceInput);
 }

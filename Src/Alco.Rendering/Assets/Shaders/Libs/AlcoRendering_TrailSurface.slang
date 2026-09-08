@@ -1,8 +1,8 @@
 // file "AlcoRendering_TrailSurface.slang" - module "AlcoRendering_TrailSurface"
 //
 // The surface contract between trail material modules (user-owned code,
-// referenced by .amat material assets) and the trail pass template
-// (GpuTrail2D). A trail material module exports exactly one public struct
+// referenced by .amat material assets) and both trail pass templates
+// (GpuTrail2D/3D). A trail material module exports exactly one public struct
 // implementing ITrailSurface - the type name is free - and declares its
 // textures and uniform parameters at module scope: texture slots are the
 // fields of its ParameterBlocks (bound from the material asset's texture
@@ -27,11 +27,10 @@
 #language slang 2025
 module AlcoRendering_TrailSurface;
 
-import AlcoRendering_Trails2D; // TrailSample2D
-
 /// The per-fragment inputs a trail surface shades from. color arrives as
 /// lerp(color0, color1, age01) with the fade envelope's alpha already applied
-/// (opacity x fadeIn x fadeOut of the trail's record).
+/// (opacity x fadeIn x fadeOut of the trail's record). Its RGB is straight;
+/// getColor returns premultiplied RGB and coverage alpha.
 public struct TrailSurfaceInput
 {
     public float2 uv;        // x: arc length along the ribbon, y: -1..1 across
@@ -39,24 +38,35 @@ public struct TrailSurfaceInput
     public float age;        // seconds since the point was emitted
     public float age01;      // age / life, saturated
     public float seed;       // the trail's random seed
-    public float4 userData;  // the trail's custom data channel (TrailEffect2D.UserData)
+    public float4 userData;  // the trail's custom data channel
     public float time;       // the renderer clock (noise animation)
+    public float3 worldPosition; // final position after vertex adjustment and width expansion; 2D z is sorting depth, not physical height
     public float4 data;      // the vertex hook's private pass-through channel
 };
 
-/// The per-vertex inputs of the ribbon adjustment hook: the sampled ribbon
-/// vertex and the base half width the template computed (the width0 -> width1
-/// envelope over age). Fields a hook never reads are dead-code-eliminated.
+/// The dimension-independent inputs of the ribbon adjustment hook. Each pass
+/// adapts its own point and parameter records; materials never depend on their
+/// storage layout. Fields a hook never reads are dead-code-eliminated.
 public struct TrailVertexInput
 {
-    public TrailSample2D sample;  // posDepth/normal/u/across/age/age01/trail (envelope, colors, userData, seed)
-    public float halfWidth;       // the template's base half width in world units
+    public float3 centerPosition; // center before expansion; 2D z is sorting depth
+    public float3 tangent;        // unit travel direction
+    public float3 side;           // unit across-ribbon direction, camera-facing in 3D
+    public float3 upDirection;    // world up: +Y in 2D, +Z in 3D; distinct from cross(side, tangent)
+    public float2 uv;             // x: arc length, y: -1..1 across the ribbon
+    public float distanceFromStart; // arc distance from the first retained point
+    public float halfWidth;       // width envelope before the surface's widthScale
+    public float age;             // seconds since emission
+    public float age01;           // normalized age in [0, 1]
+    public float time;            // the renderer clock
+    public float seed;            // the trail's random seed
+    public float4 userData;       // the trail's custom data channel
 };
 
 /// The vertex hook's result over the template's ribbon vertex.
 public struct TrailVertexResult
 {
-    public float2 worldOffset;    // world-plane offset added to the vertex (0 = unchanged)
+    public float3 worldOffset;    // world offset; the 2D pass uses xy and preserves sorting depth
     public float widthScale;      // multiplier on the base half width (1 = unchanged)
     public float4 data;           // private VS -> FS pass-through (0 = nothing)
 };
@@ -68,7 +78,10 @@ public struct TrailVertexResult
 /// implementation.
 public interface ITrailSurface
 {
-    float4 getColor(TrailSurfaceInput input) { return input.color; }
+    float4 getColor(TrailSurfaceInput input)
+    {
+        return float4(input.color.rgb * input.color.a, input.color.a);
+    }
 
     /// The adjustment of one ribbon vertex before the projection: offsets its
     /// world position (e.g. turbulence wander), scales the ribbon width (e.g.
@@ -77,7 +90,7 @@ public interface ITrailSurface
     TrailVertexResult getVertexAdjustment(TrailVertexInput input)
     {
         TrailVertexResult result;
-        result.worldOffset = float2(0.0, 0.0);
+        result.worldOffset = float3(0.0, 0.0, 0.0);
         result.widthScale = 1.0;
         result.data = float4(0.0, 0.0, 0.0, 0.0);
         return result;
