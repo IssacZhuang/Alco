@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.InteropServices;
 using Alco.IO;
 
@@ -44,7 +45,16 @@ public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
             var vertexSpan = new ReadOnlySpan<VertexPBR>(vertices, vertexCount);
             var indexSpan = new ReadOnlySpan<uint>(indices, indexCount);
 
-            return _renderingSystem.CreatePrimitiveMesh(vertexSpan, indexSpan, context.Filename);
+            PrimitiveMesh mesh = _renderingSystem.CreatePrimitiveMesh(vertexSpan, indexSpan, context.Filename);
+            Vector3 min = new(float.MaxValue);
+            Vector3 max = new(float.MinValue);
+            for (int i = 0; i < vertexSpan.Length; i++)
+            {
+                min = Vector3.Min(min, vertexSpan[i].Position);
+                max = Vector3.Max(max, vertexSpan[i].Position);
+            }
+            mesh.SetLocalBounds(min, max);
+            return mesh;
         }
         finally
         {

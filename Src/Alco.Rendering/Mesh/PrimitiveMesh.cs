@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
@@ -161,6 +162,18 @@ public sealed unsafe class PrimitiveMesh : Mesh
     public void EnsureIndexBufferSizeUnsafe(uint size)
     {
         EnsureIndexBufferSize(size);
+    }
+
+    /// <summary>
+    /// Sets the mesh's local-space axis-aligned bounds computed by the caller over the
+    /// decoded vertices. Call before the mesh is first used for culling.
+    /// </summary>
+    /// <param name="min">The minimum corner of the local bounds.</param>
+    /// <param name="max">The maximum corner of the local bounds.</param>
+    public void SetLocalBounds(Vector3 min, Vector3 max)
+    {
+        LocalBoundsMin = min;
+        LocalBoundsMax = max;
     }
 
     public override SubMeshData GetSubMesh(int index)

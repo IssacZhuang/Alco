@@ -266,6 +266,41 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
+    /// The <see cref="DrawIndexedIndirect{T}"/> variant for materials without push constants:
+    /// draws a mesh with the draw arguments read from an indirect buffer, pushing nothing. The
+    /// record at <paramref name="indirectOffset"/> must follow the
+    /// <see cref="Alco.Graphics.IndexedIndirectData"/> layout; the shader still fetches instance
+    /// data by instance id, offset by the record's firstInstance field. Available while
+    /// recording render bundles, so bundles recorded against a persistent indirect buffer replay
+    /// whatever the buffer holds at execute time.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from the indirect record).</param>
+    /// <param name="material">The material to use for drawing; its pipeline must declare no push constants.</param>
+    /// <param name="indirectBuffer">The buffer holding the indirect draw record.</param>
+    /// <param name="indirectOffset">The byte offset of the record in the indirect buffer.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void DrawIndexedIndirect(in Mesh mesh, in GraphicsMaterial material, GraphicsBuffer indirectBuffer, uint indirectOffset, in int subMeshIndex = 0)
+    {
+        ThrowIfInactive();
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
+        if (pipelineContext.PushConstantsSize > 0)
+        {
+            throw new InvalidOperationException($"The material's pipeline requires {pipelineContext.PushConstantsSize} bytes of push constants; use the generic {nameof(DrawIndexedIndirect)} overload.");
+        }
+        SetPipeline(pipelineContext.Pipeline!);
+        SetMesh(mesh, subMeshIndex);
+        PushResources(material);
+        if (_bundle != null)
+        {
+            _bundle.DrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset);
+        }
+        else
+        {
+            _pass.DrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset);
+        }
+    }
+
+    /// <summary>
     /// Draws many sub-draws of one mesh with one command: the multi-draw indirect
     /// records (one <see cref="Alco.Graphics.IndexedIndirectData"/> per sub-draw,
     /// 20-byte stride) are read consecutively from <paramref name="indirectBuffer"/>

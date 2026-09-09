@@ -2,6 +2,7 @@
 using System.Collections.Frozen;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using Alco.Graphics;
 
 namespace Alco.Rendering;
 
@@ -91,6 +92,16 @@ public sealed class TileRenderer : AutoDisposable
             Tiling = 1.0f;
             Color = Vector4.One;
         }
+    }
+
+    /// <summary>The compute dispatch constant of the GPU-driven culling; mirrors
+    /// <c>CullConstant</c> in TileGpuCull.slang.</summary>
+    private struct CullConstant
+    {
+        public Vector4 Viewport; // xy = min corner, zw = max corner (tile space)
+        public int2 Size;
+        public uint TileCount;
+        public uint Pad0;
     }
 
     private class Renderer : AutoDisposable
@@ -284,6 +295,22 @@ public sealed class TileRenderer : AutoDisposable
     private readonly TileBatch[] _batches;
     private readonly BatchUpdateTask _updateTask;
 
+    // GPU-driven mode state; null/empty in the default CPU batched mode.
+    private readonly bool _gpuDriven;
+    private GraphicsMaterial[]? _gpuMaterials;
+    private ComputeMaterialInstance? _cullMaterial;
+    private GraphicsBuffer? _groupBaseBuffer;
+    private GraphicsBuffer? _recordsBuffer;
+    private GraphicsBuffer? _visibleBuffer;
+    private uint[]? _groupCounts;
+    private uint[]? _groupBase;
+    private IndexedIndirectData[]? _recordStaging;
+    private uint _instancesResourceId;
+    private bool _instancesResourceIdResolved;
+    private bool _dataDirty = true;
+    private int _uploadFirstRow = -1;
+    private int _uploadLastRow = -1;
+
     // Viewport fields for culling
     private RectInt _viewport;
     private bool _hasViewport;
@@ -294,6 +321,12 @@ public sealed class TileRenderer : AutoDisposable
     public Transform3D Transform;
 
     public string Name { get; }
+
+    /// <summary>
+    /// Gets whether the renderer runs the GPU-driven path (compute culling plus indirect
+    /// draws) instead of the CPU batched path.
+    /// </summary>
+    public bool GpuDriven => _gpuDriven;
 
     public int2 Size => new int2(_width, _height);
 
@@ -326,7 +359,11 @@ public sealed class TileRenderer : AutoDisposable
     /// <param name="batchSizeX">The width of each batch in tiles.</param>
     /// <param name="batchSizeY">The height of each batch in tiles.</param>
     /// <param name="name">The name of the renderer.</param>
-    internal TileRenderer(RenderingSystem rendering, IRenderContext context, TileSet tileSet, int width, int height, int batchSizeX, int batchSizeY, string name = "tile_renderer")
+    /// <param name="cullShader">The tile culling compute shader (TileGpuCull); when non-null the
+    /// renderer runs the GPU-driven path — visibility is resolved per frame by
+    /// <see cref="RecordCull"/> and <see cref="Render"/> records one indirect draw per
+    /// non-empty tile id instead of drawing per visible batch.</param>
+    internal TileRenderer(RenderingSystem rendering, IRenderContext context, TileSet tileSet, int width, int height, int batchSizeX, int batchSizeY, string name = "tile_renderer", Shader? cullShader = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         ArgumentNullException.ThrowIfNull(context);
@@ -360,20 +397,29 @@ public sealed class TileRenderer : AutoDisposable
         ReadOnlySpan<int> span = _tileMap;
         _tileMapBuffer.UpdateBuffer(span);
 
-        // Initialize batches
-        _batches = new TileBatch[_batchCountX * _batchCountY];
-        for (int batchY = 0; batchY < _batchCountY; batchY++)
+        if (cullShader != null)
         {
-            for (int batchX = 0; batchX < _batchCountX; batchX++)
+            _gpuDriven = true;
+            _batches = Array.Empty<TileBatch>();
+            InitGpuResources(cullShader);
+        }
+        else
+        {
+            // Initialize batches
+            _batches = new TileBatch[_batchCountX * _batchCountY];
+            for (int batchY = 0; batchY < _batchCountY; batchY++)
             {
-                int batchIndex = batchY * _batchCountX + batchX;
-                int startX = batchX * batchSizeX;
-                int startY = batchY * batchSizeY;
-                int actualBatchWidth = Math.Min(batchSizeX, width - startX);
-                int actualBatchHeight = Math.Min(batchSizeY, height - startY);
+                for (int batchX = 0; batchX < _batchCountX; batchX++)
+                {
+                    int batchIndex = batchY * _batchCountX + batchX;
+                    int startX = batchX * batchSizeX;
+                    int startY = batchY * batchSizeY;
+                    int actualBatchWidth = Math.Min(batchSizeX, width - startX);
+                    int actualBatchHeight = Math.Min(batchSizeY, height - startY);
 
-                _batches[batchIndex] = new TileBatch(tileSet, rendering, context,
-                    startX, startY, actualBatchWidth, actualBatchHeight, width, height, _tileMapBuffer);
+                    _batches[batchIndex] = new TileBatch(tileSet, rendering, context,
+                        startX, startY, actualBatchWidth, actualBatchHeight, width, height, _tileMapBuffer);
+                }
             }
         }
 
@@ -386,6 +432,13 @@ public sealed class TileRenderer : AutoDisposable
     /// </summary>
     public void ForceUpdateBuffer()
     {
+        if (_gpuDriven)
+        {
+            // The GPU path uploads through RecordCull; mark everything for re-upload.
+            MarkRowsDirty(0, _height - 1);
+            return;
+        }
+
         // Mark all batches as dirty
         SetAllBatchesDirty();
 
@@ -402,6 +455,12 @@ public sealed class TileRenderer : AutoDisposable
     /// </summary>
     public void SetAllBatchesDirty()
     {
+        if (_gpuDriven)
+        {
+            MarkRowsDirty(0, _height - 1);
+            return;
+        }
+
         for (int i = 0; i < _batches.Length; i++)
         {
             _batches[i].SetDirty();
@@ -416,6 +475,12 @@ public sealed class TileRenderer : AutoDisposable
     public void SetBatchDirtyByTilePosition(int tileX, int tileY)
     {
         if (!IsInBounds(tileX, tileY)) return;
+
+        if (_gpuDriven)
+        {
+            MarkRowsDirty(tileY, tileY);
+            return;
+        }
 
         int batchX = tileX / _batchSizeX;
         int batchY = tileY / _batchSizeY;
@@ -475,6 +540,13 @@ public sealed class TileRenderer : AutoDisposable
         }
 
         _tileMap[y * _width + x] = tileId;
+
+        if (_gpuDriven)
+        {
+            MarkRowsDirty(y, y);
+            return;
+        }
+
         SetBatchDirtyByTilePosition(x, y);
     }
 
@@ -491,6 +563,21 @@ public sealed class TileRenderer : AutoDisposable
         from = math.clamp(from, new int2(0, 0), size - new int2(1, 1));
         to = math.clamp(to, new int2(0, 0), size - new int2(1, 1));
 
+        for (int i = from.Y; i <= to.Y; i++)
+        {
+            for (int j = from.X; j <= to.X; j++)
+            {
+                _tileMap[i * _width + j] = tileId;
+            }
+        }
+
+        if (_gpuDriven)
+        {
+            // Row-major storage: the rectangle collapses into one contiguous row span.
+            MarkRowsDirty(from.Y, to.Y);
+            return;
+        }
+
         // Calculate affected batches
         HashSet<int> affectedBatches = new HashSet<int>();
 
@@ -498,8 +585,6 @@ public sealed class TileRenderer : AutoDisposable
         {
             for (int j = from.X; j <= to.X; j++)
             {
-                _tileMap[i * _width + j] = tileId;
-
                 // Calculate which batch this tile belongs to
                 int batchX = j / _batchSizeX;
                 int batchY = i / _batchSizeY;
@@ -525,6 +610,13 @@ public sealed class TileRenderer : AutoDisposable
     public void SetAllTiles(int tileId)
     {
         _tileMap.AsSpan().Fill(tileId);
+
+        if (_gpuDriven)
+        {
+            MarkRowsDirty(0, _height - 1);
+            return;
+        }
+
         SetAllBatchesDirty();
     }
 
@@ -553,6 +645,13 @@ public sealed class TileRenderer : AutoDisposable
         }
 
         _tileMap[y * _width + x] = TileIdEmpty;
+
+        if (_gpuDriven)
+        {
+            MarkRowsDirty(y, y);
+            return;
+        }
+
         SetBatchDirtyByTilePosition(x, y);
     }
 
@@ -562,15 +661,30 @@ public sealed class TileRenderer : AutoDisposable
     public void ClearAllTiles()
     {
         _tileMap.AsSpan().Fill(TileIdEmpty);
+
+        if (_gpuDriven)
+        {
+            MarkRowsDirty(0, _height - 1);
+            return;
+        }
+
         SetAllBatchesDirty();
     }
 
     /// <summary>
     /// Renders all batches. Only updates dirty batches for better performance.
     /// Uses viewport culling to only render visible batches.
+    /// The GPU-driven path instead records one indirect draw per non-empty tile id; visibility
+    /// was already resolved by this frame's <see cref="RecordCull"/>.
     /// </summary>
     public void Render()
     {
+        if (_gpuDriven)
+        {
+            RenderGpu();
+            return;
+        }
+
         if (TryUpdateDirtyBatches())
         {
             ReadOnlySpan<int> span = _tileMap;
@@ -588,6 +702,227 @@ public sealed class TileRenderer : AutoDisposable
                 _batches[i].Render(constant);
             }
         }
+    }
+
+    /// <summary>
+    /// Creates the GPU-driven mode's buffers, per-tile-id materials and the culling compute
+    /// material. The per-tile-id materials bind the tile map and the visible-instance buffer so
+    /// the recorded indirect draws fetch everything the tile pass needs.
+    /// </summary>
+    private void InitGpuResources(Shader cullShader)
+    {
+        int tileCount = _tileSet.Count;
+        _gpuMaterials = new GraphicsMaterial[tileCount];
+        _groupCounts = new uint[tileCount];
+        _groupBase = new uint[tileCount];
+        _recordStaging = new IndexedIndirectData[tileCount];
+
+        GraphicsBuffer visibleBuffer = _rendering.CreateGraphicsBuffer((uint)(_width * _height * Unsafe.SizeOf<TileInstanceData>()), $"{Name}_visible_tiles");
+        GraphicsBuffer groupBaseBuffer = _rendering.CreateGraphicsBuffer((uint)(tileCount * sizeof(uint)), $"{Name}_group_base");
+        GraphicsBuffer recordsBuffer = _rendering.CreateGraphicsBuffer((uint)(tileCount * Unsafe.SizeOf<IndexedIndirectData>()), $"{Name}_draw_records");
+        _visibleBuffer = visibleBuffer;
+        _groupBaseBuffer = groupBaseBuffer;
+        _recordsBuffer = recordsBuffer;
+
+        for (int i = 0; i < tileCount; i++)
+        {
+            GraphicsMaterial material = _tileSet.GetItem(i).Material.CreateInstance();
+            material.TrySetBuffer(ShaderResourceId.TileMap, _tileMapBuffer);
+            if (!_instancesResourceIdResolved)
+            {
+                // Every material derives from the tile pass family, so the first one resolves
+                // the shared "instances" resource id for them all.
+                _instancesResourceId = material.GetResourceId(ShaderResourceId.Instances);
+                _instancesResourceIdResolved = true;
+            }
+            material.SetBuffer(_instancesResourceId, visibleBuffer);
+            _gpuMaterials[i] = material;
+        }
+
+        ComputeMaterialInstance cullMaterial = _rendering.CreateComputeMaterial(cullShader).CreateInstance();
+        cullMaterial.SetBuffer("tileMap", _tileMapBuffer);
+        cullMaterial.SetBuffer("groupBase", groupBaseBuffer);
+        cullMaterial.SetBuffer("records", recordsBuffer);
+        cullMaterial.SetBuffer("visible", visibleBuffer);
+        _cullMaterial = cullMaterial;
+    }
+
+    /// <summary>
+    /// GPU-driven path only: uploads changed tile rows, refreshes the per-tile-id group tables
+    /// when tile data changed, resets the indirect draw records and dispatches the culling
+    /// compute for the frame. Call once per frame on the render thread before the pass
+    /// <see cref="Render"/> records in.
+    /// </summary>
+    /// <param name="commandBuffer">The frame command buffer, with no pass open.</param>
+    /// <param name="viewport">The camera's culling viewport in world space.</param>
+    /// <exception cref="InvalidOperationException">The renderer runs the CPU batched path.</exception>
+    public void RecordCull(GPUCommandBuffer commandBuffer, RectInt viewport)
+    {
+        if (!_gpuDriven)
+        {
+            throw new InvalidOperationException("RecordCull is only available in the GPU-driven mode; construct the renderer with a culling shader.");
+        }
+
+        if (_tileSet.Count == 0)
+        {
+            return;
+        }
+
+        if (_uploadFirstRow >= 0)
+        {
+            int rowCount = _uploadLastRow - _uploadFirstRow + 1;
+            _tileMapBuffer.UpdateBuffer(
+                _tileMap.AsSpan(_uploadFirstRow * _width, rowCount * _width),
+                (uint)(_uploadFirstRow * _width * sizeof(int)));
+            _uploadFirstRow = -1;
+            _uploadLastRow = -1;
+        }
+
+        if (_dataDirty)
+        {
+            RecountGroups();
+        }
+
+        // Reset every record's instance count to zero (the compute atomically counts them up
+        // again); the queue write is ordered ahead of the dispatch.
+        _recordsBuffer!.UpdateBuffer(_recordStaging!);
+
+        var constant = new CullConstant
+        {
+            Viewport = TransformViewportToTileSpace(viewport),
+            Size = new int2(_width, _height),
+            TileCount = (uint)_tileSet.Count,
+            Pad0 = 0,
+        };
+        using (GPUCommandBuffer.ComputePass computePass = commandBuffer.BeginCompute())
+        {
+            _cullMaterial!.DispatchByGroupWithConstant(
+                computePass, (uint)((_width * _height + 63) / 64), 1, 1, constant);
+        }
+    }
+
+    /// <summary>
+    /// Records the indirect draws of the GPU-driven path: one per tile id present in the map,
+    /// with the visible instance count filled in by this frame's culling compute. The draw count
+    /// is independent of the viewport's batch coverage.
+    /// </summary>
+    private void RenderGpu()
+    {
+        uint[] counts = _groupCounts!;
+        GraphicsMaterial[] materials = _gpuMaterials!;
+        Transform3D transform = Transform;
+        Constant constant = new(transform.Matrix, new int2(_width, _height));
+
+        for (int i = 0; i < counts.Length; i++)
+        {
+            if (counts[i] == 0)
+            {
+                continue;
+            }
+
+            TileItem item = _tileSet.GetItem(i);
+            constant.CurrentTileId = i;
+            constant.BlendFactor = item.BlendFactor;
+            constant.Color = item.Color;
+            constant.Tiling = item.Tiling;
+
+            _context.DrawIndexedIndirect(
+                _rendering.MeshCenteredSprite,
+                materials[i],
+                _recordsBuffer!,
+                (uint)(i * Unsafe.SizeOf<IndexedIndirectData>()),
+                constant);
+        }
+    }
+
+    /// <summary>
+    /// Recomputes the per-tile-id instance counts and visible-buffer segment bases and re-stages
+    /// the indirect draw records. GPU-driven path only; called when tile data changed.
+    /// </summary>
+    private void RecountGroups()
+    {
+        uint[] counts = _groupCounts!;
+        Array.Clear(counts);
+        ReadOnlySpan<int> tiles = _tileMap;
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            int tileId = tiles[i];
+            if (tileId >= 0 && tileId < counts.Length)
+            {
+                counts[tileId]++;
+            }
+        }
+
+        uint[] groupBase = _groupBase!;
+        uint segmentBase = 0;
+        for (int i = 0; i < groupBase.Length; i++)
+        {
+            groupBase[i] = segmentBase;
+            segmentBase += counts[i];
+        }
+
+        uint indexCount = _rendering.MeshCenteredSprite.GetSubMesh(0).IndexCount;
+        IndexedIndirectData[] staging = _recordStaging!;
+        for (int i = 0; i < staging.Length; i++)
+        {
+            staging[i] = new IndexedIndirectData(indexCount, 0, 0, 0, groupBase[i]);
+        }
+
+        _groupBaseBuffer!.UpdateBuffer(groupBase);
+        _dataDirty = false;
+    }
+
+    /// <summary>
+    /// Marks the row range holding changed tiles for upload, growing to the union with any
+    /// pending range. Row-major storage turns the range into one contiguous buffer write.
+    /// </summary>
+    private void MarkRowsDirty(int firstRow, int lastRow)
+    {
+        _dataDirty = true;
+
+        if (_uploadFirstRow < 0)
+        {
+            _uploadFirstRow = firstRow;
+            _uploadLastRow = lastRow;
+            return;
+        }
+
+        _uploadFirstRow = Math.Min(_uploadFirstRow, firstRow);
+        _uploadLastRow = Math.Max(_uploadLastRow, lastRow);
+    }
+
+    /// <summary>
+    /// Transforms a world-space viewport rectangle into tile space through the inverse model
+    /// matrix and inflates it by the culling margin. An identity transform (terrain, floors)
+    /// keeps the original rectangle.
+    /// </summary>
+    private Vector4 TransformViewportToTileSpace(RectInt viewport)
+    {
+        Vector2 min = new(viewport.Origin.X, viewport.Origin.Y);
+        Vector2 max = new(viewport.Max.X, viewport.Max.Y);
+
+        Matrix4x4 model = Transform.Matrix;
+        if (model != Matrix4x4.Identity && Matrix4x4.Invert(model, out Matrix4x4 inverse))
+        {
+            min = new Vector2(float.MaxValue, float.MaxValue);
+            max = new Vector2(float.MinValue, float.MinValue);
+            for (int i = 0; i < 4; i++)
+            {
+                Vector2 corner = i switch
+                {
+                    0 => new Vector2(viewport.Origin.X, viewport.Origin.Y),
+                    1 => new Vector2(viewport.Max.X, viewport.Origin.Y),
+                    2 => new Vector2(viewport.Max.X, viewport.Max.Y),
+                    _ => new Vector2(viewport.Origin.X, viewport.Max.Y),
+                };
+                Vector4 tile = Vector4.Transform(new Vector4(corner, 0f, 1f), inverse);
+                min = Vector2.Min(min, new Vector2(tile.X, tile.Y));
+                max = Vector2.Max(max, new Vector2(tile.X, tile.Y));
+            }
+        }
+
+        const float Margin = 2f;
+        return new Vector4(min.X - Margin, min.Y - Margin, max.X + Margin, max.Y + Margin);
     }
 
 
@@ -610,14 +945,6 @@ public sealed class TileRenderer : AutoDisposable
 
         _viewport = new RectInt(clampedOrigin, clampedSize);
         _hasViewport = true;
-    }
-
-    /// <summary>
-    /// Clears the viewport, causing all batches to be rendered.
-    /// </summary>
-    public void ClearViewport()
-    {
-        _hasViewport = false;
     }
 
     /// <summary>
@@ -662,9 +989,19 @@ public sealed class TileRenderer : AutoDisposable
     {
         if (disposing)
         {
-            foreach (var batch in _batches)
+            if (_gpuDriven)
             {
-                batch.Dispose();
+                _cullMaterial?.Dispose();
+                _groupBaseBuffer?.Dispose();
+                _recordsBuffer?.Dispose();
+                _visibleBuffer?.Dispose();
+            }
+            else
+            {
+                foreach (var batch in _batches)
+                {
+                    batch.Dispose();
+                }
             }
             _tileMapBuffer?.Dispose();
         }

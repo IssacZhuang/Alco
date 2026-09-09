@@ -74,10 +74,11 @@ public partial class RenderingSystem
     /// <param name="width">The width of the tile map in tiles.</param>
     /// <param name="height">The height of the tile map in tiles.</param>
     /// <param name="name">The name of the tile renderer.</param>
+    /// <param name="cullShader">The tile culling compute shader; enables the GPU-driven path when non-null.</param>
     /// <returns>The created tile renderer.</returns>
-    public TileRenderer CreateTileRenderer(IRenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer")
+    public TileRenderer CreateTileRenderer(IRenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer", Shader? cullShader = null)
     {
-        return new TileRenderer(this, renderContext, tileSet, width, height, 64, 64, name);
+        return new TileRenderer(this, renderContext, tileSet, width, height, 64, 64, name, cullShader);
     }
 
     /// <summary>
@@ -152,16 +153,16 @@ public partial class RenderingSystem
         return CreateInstanceRenderer<T>(renderContext.Pass, material, instanceBufferShaderName, sizePerBuffer, name);
     }
 
-    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, string)"/>
-    public TileRenderer CreateTileRenderer(RenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer")
+    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, string, Shader)"/>
+    public TileRenderer CreateTileRenderer(RenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer", Shader? cullShader = null)
     {
-        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, name);
+        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, name, cullShader);
     }
 
-    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, string)"/>
-    public TileRenderer CreateTileRenderer(SubRenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer")
+    /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, string, Shader)"/>
+    public TileRenderer CreateTileRenderer(SubRenderContext renderContext, TileSet tileSet, int width, int height, string name = "tile_renderer", Shader? cullShader = null)
     {
-        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, name);
+        return CreateTileRenderer(renderContext.Pass, tileSet, width, height, name, cullShader);
     }
 
     /// <inheritdoc cref="CreateTileRenderer(IRenderContext, TileSet, int, int, int, int, string)"/>
