@@ -1,15 +1,17 @@
 using System.Buffers.Binary;
 using System.IO;
+using System.IO.Hashing;
 
 using Alco;
 
 namespace Alco.IO;
 
 /// <summary>
-/// Builds an Alco package in-memory following the documented format:
-/// [magic][Int64 LE meta length][meta payload via BinaryParser][content payload].
-/// The meta type <typeparamref name="TMeta"/> supplies the magic number and may carry type-specific
-/// fields beyond the inherited entry directory.
+/// Builds a sealed Alco package in-memory following the documented format:
+/// [fixed 64-byte header][content payload][directory payload at the tail]. The meta type
+/// <typeparamref name="TMeta"/> supplies the magic number and may carry type-specific fields beyond
+/// the inherited entry directory. The produced layout is fully compact (zero garbage, entries in
+/// insertion order); it is what <see cref="PackageWriter{TMeta}.CompactFile"/> converges to.
 /// </summary>
 /// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
 public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackageMeta, new()
@@ -93,24 +95,31 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
 
     /// <summary>
     /// Builds the package bytes:
-    /// [<see cref="IPackageMeta.Magic"/>][meta length (Int64 LE)][meta payload][content payload].
-    /// Entries are padded to <see cref="EntryAlignment"/> (content-relative).
+    /// [fixed header][content payload][directory payload]. Descriptor A points at the tail
+    /// directory with the initial sequence; descriptor B is unused. Entries are padded to
+    /// <see cref="EntryAlignment"/> (content-relative).
     /// </summary>
     /// <returns>Package bytes</returns>
     public byte[] Build()
     {
         (TMeta meta, ReadOnlyMemory<byte> metaBytes, long totalContentLength) = PrepareBuild();
 
-        int finalLength = checked((int)(12L + metaBytes.Length + totalContentLength));
+        long directoryOffset = PackageFormat.HeaderSize + totalContentLength;
+        ulong directoryHash = XxHash64.HashToUInt64(metaBytes.Span);
+
+        int finalLength = checked((int)(PackageFormat.HeaderSize + totalContentLength + metaBytes.Length));
         byte[] package = new byte[finalLength];
 
-        TMeta.Magic.CopyTo(package.AsSpan(0, 4));
+        PackageDirectoryDescriptor descriptor = new()
+        {
+            Offset = directoryOffset,
+            Length = (uint)metaBytes.Length,
+            Hash = directoryHash,
+            Sequence = PackageFormat.InitialSequence,
+        };
+        PackageHeader.Encode(package.AsSpan(0, PackageFormat.HeaderSize), TMeta.Magic, descriptor, PackageDirectoryDescriptor.Unused);
 
-        BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4, 8), metaBytes.Length);
-
-        metaBytes.Span.CopyTo(package.AsSpan(12));
-
-        int cursor = 12 + metaBytes.Length;
+        int cursor = PackageFormat.HeaderSize;
         foreach (string name in _order)
         {
             if (!_nameToBytes.TryGetValue(name, out byte[]? bytes))
@@ -122,28 +131,35 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
             cursor += AlignUp(bytes.Length, _entryAlignment);
         }
 
+        metaBytes.Span.CopyTo(package.AsSpan(checked((int)directoryOffset)));
+
         return package;
     }
 
     /// <summary>
     /// Builds the package directly into an output stream following the same layout as
-    /// <see cref="Build()"/>: [<see cref="IPackageMeta.Magic"/>][meta length (Int64 LE)]
-    /// [meta payload][content payload]. Use for payloads too large to materialize as a single
-    /// managed array on top of the builder's own buffers.
+    /// <see cref="Build()"/>: [fixed header][content payload][directory payload], written strictly
+    /// sequentially (the header is finalized up-front, so no seek-back is required). Use for
+    /// payloads too large to materialize as a single managed array on top of the builder's own
+    /// buffers.
     /// </summary>
     /// <param name="output">The output stream; written from its current position.</param>
     public void Build(Stream output)
     {
         ArgumentNullException.ThrowIfNull(output);
 
-        (TMeta meta, ReadOnlyMemory<byte> metaBytes, long _) = PrepareBuild();
+        (TMeta meta, ReadOnlyMemory<byte> metaBytes, long totalContentLength) = PrepareBuild();
 
-        Span<byte> header = stackalloc byte[12];
-        TMeta.Magic.CopyTo(header[..4]);
-        BinaryPrimitives.WriteInt64LittleEndian(header.Slice(4, 8), metaBytes.Length);
+        PackageDirectoryDescriptor descriptor = new()
+        {
+            Offset = PackageFormat.HeaderSize + totalContentLength,
+            Length = (uint)metaBytes.Length,
+            Hash = XxHash64.HashToUInt64(metaBytes.Span),
+            Sequence = PackageFormat.InitialSequence,
+        };
+        Span<byte> header = stackalloc byte[PackageFormat.HeaderSize];
+        PackageHeader.Encode(header, TMeta.Magic, descriptor, PackageDirectoryDescriptor.Unused);
         output.Write(header);
-
-        output.Write(metaBytes.Span);
 
         byte[] padding = new byte[Math.Max(0, _entryAlignment - 1)];
         foreach (string name in _order)
@@ -161,11 +177,13 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
                 output.Write(padding.AsSpan(0, pad));
             }
         }
+
+        output.Write(metaBytes.Span);
     }
 
     /// <summary>
-    /// Compute entry offsets (content-relative, honoring <see cref="EntryAlignment"/>) and
-    /// encode the meta payload. Shared by both Build overloads.
+    /// Compute entry offsets (content-relative, honoring <see cref="EntryAlignment"/>), content
+    /// checksums, and the encoded meta payload. Shared by both Build overloads.
     /// </summary>
     private (TMeta Meta, ReadOnlyMemory<byte> MetaBytes, long TotalContentLength) PrepareBuild()
     {
@@ -182,7 +200,7 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
             }
 
             int size = bytes.Length;
-            meta.AddEntry(name, runningOffset, size);
+            meta.AddEntry(name, runningOffset, size, XxHash64.HashToUInt64(bytes));
             int paddedSize = AlignUp(size, _entryAlignment);
             runningOffset += paddedSize;
             totalContentLength += paddedSize;
