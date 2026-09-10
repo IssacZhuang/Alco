@@ -14,8 +14,10 @@ namespace Alco.Rendering;
 /// <summary>Builds slang module resolvers over a name-addressed asset source.</summary>
 public static class ShaderModuleResolver
 {
+    /// <summary>Creates a resolver that matches exact asset paths and complete module file names.</summary>
     /// <param name="openStream">Opens an asset by its exact asset-system path.</param>
     /// <param name="listNames">Lists all asset names (used for probe matching).</param>
+    /// <returns>The resolver used by the slang compiler.</returns>
     public static SlangFileResolver Create(
         Func<string, Stream?> openStream,
         Func<IEnumerable<string>> listNames)
@@ -63,30 +65,46 @@ public static class ShaderModuleResolver
     }
 
     private static string? ProbeDashed(
-            string key, Func<IEnumerable<string>> listNames, Func<string, Stream?> openStream)
+        string key, Func<IEnumerable<string>> listNames, Func<string, Stream?> openStream)
+    {
+        string dashed = key.Replace('/', '-').Replace('_', '-');
+        string? match = null;
+        int matchedLength = 0;
+        foreach (string asset in listNames())
         {
-            string dashed = key.Replace('/', '-').Replace('_', '-');
-            foreach (string asset in listNames())
+            if (!asset.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
             {
-                if (!asset.EndsWith(".slang", StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-                string assetDashed = asset.Replace('/', '-').Replace('_', '-');
-                if (dashed.EndsWith(assetDashed, StringComparison.OrdinalIgnoreCase) ||
-                    assetDashed.EndsWith(dashed, StringComparison.OrdinalIgnoreCase))
-                {
-                    Stream? stream = openStream(asset);
-                    if (stream != null)
-                    {
-                        using (stream)
-                        {
-                            return ReadAll(stream);
-                        }
-                    }
-                }
+                continue;
             }
-            return null;
+
+            // Match the complete file name: ShadowGpuCull must never resolve to
+            // AmbientShadowGpuCull. A probe may carry a relative directory prefix
+            // or use '/' instead of '_' inside the module name.
+            string moduleName = Path.GetFileName(asset).Replace('_', '-');
+            if (moduleName.Length <= matchedLength ||
+                !dashed.EndsWith(moduleName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            int prefixLength = dashed.Length - moduleName.Length;
+            if (prefixLength > 0 && dashed[prefixLength - 1] != '-')
+            {
+                continue;
+            }
+
+            using Stream? stream = openStream(asset);
+            if (stream == null)
+            {
+                continue;
+            }
+
+            // Prefer the full module name over a shorter suffix regardless of
+            // asset enumeration order (AlcoRendering_Core before Core).
+            match = ReadAll(stream);
+            matchedLength = moduleName.Length;
+        }
+        return match;
     }
 
     private static string ReadAll(Stream stream)
