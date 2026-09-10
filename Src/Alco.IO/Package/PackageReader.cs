@@ -4,7 +4,6 @@ using Microsoft.Win32.SafeHandles;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.IO.Hashing;
 using System.Text;
 
 
@@ -12,9 +11,9 @@ namespace Alco.IO;
 
 /// <summary>
 /// Reads an Alco package over a file, byte array, unmanaged memory, or seekable <see cref="Stream"/>.
-/// Validates the file magic and format version against <typeparamref name="TMeta"/>'s magic, then
-/// loads the entry directory referenced by the newest valid header descriptor. Supports concurrent
-/// positional reads; each thread supplies its own destination buffer.
+/// Validates the file magic against <typeparamref name="TMeta"/>'s magic and decodes the entry
+/// directory (the <see cref="PackageMetaBase.Entries"/> inherited by <typeparamref name="TMeta"/>).
+/// Supports concurrent positional reads; each thread supplies its own destination buffer.
 /// </summary>
 /// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
 public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : PackageMetaBase, IPackageMeta, new()
@@ -26,7 +25,7 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     private readonly bool _ownsStream;
     private readonly long _length;
 
-    // Base offset of the content section: the fixed header size (see PackageFormat)
+    // Base offset of the content section: 12 + MetaLength
     private readonly long _contentBase;
 
     private readonly FrozenDictionary<string, PackageEntry> _entries;
@@ -39,22 +38,13 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     public TMeta Meta { get; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether full-entry reads verify the entry's XxHash64
-    /// checksum and throw <see cref="InvalidDataException"/> on mismatch (torn writes, bit rot).
-    /// Off by default: verification costs one hash pass per read. Partial reads
-    /// (<see cref="ReadByEntry(PackageEntry, Span{byte}, long)"/>) are never verified.
-    /// </summary>
-    public bool VerifyEntryChecksums { get; set; }
-
-    /// <summary>
     /// Opens a package reader from a file path.
     /// </summary>
     /// <param name="path">Package file path</param>
     internal PackageReader(string path)
     {
-        //open with read; FileShare.Write tolerates a concurrently open PackageWriter (append-only
-        //commits never move bytes a resolved directory references, so positional reads stay safe)
-        _file = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write, FileOptions.Asynchronous);
+        //open with read
+        _file = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.Read, FileOptions.Asynchronous);
         _length = RandomAccess.GetLength(_file);
         Meta = ReadEntries(out _contentBase);
         _entries = Meta.Entries.ToFrozenDictionary(entry => entry.Name, entry => entry);
@@ -144,11 +134,6 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
         long absoluteOffset = checked(_contentBase + entry.Start);
         CheckLength(absoluteOffset, (int)entry.Size);
         Read(buffer, absoluteOffset);
-
-        if (VerifyEntryChecksums && entry.Checksum != 0 && XxHash64.HashToUInt64(buffer) != entry.Checksum)
-        {
-            throw new InvalidDataException($"Entry '{entry.Name}' content checksum mismatch; the package is corrupt.");
-        }
     }
 
     /// <summary>
@@ -216,6 +201,37 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
         }
     }
 
+    private int ReadUnsafe(byte* buffer, long offset, int size)
+    {
+        CheckLength(offset, size);
+        if (_file != null)
+        {
+            return RandomAccess.Read(_file, new Span<byte>(buffer, size), offset);
+        }
+        else if (_memory != null)
+        {
+            Span<byte> memory = _memory.AsSpan();
+            int offsetInt = checked((int)offset);
+            memory.Slice(offsetInt, size).CopyTo(new Span<byte>(buffer, size));
+            return size;
+        }
+        else if (_stream != null)
+        {
+            return Read(new Span<byte>(buffer, size), offset);
+        }
+        else
+        {
+            throw new InvalidOperationException("No file, memory, or stream backing is available");
+        }
+    }
+
+    private long ReadInt64LittleEndian(long offset)
+    {
+        byte* ptr = stackalloc byte[8];
+        ReadUnsafe(ptr, offset, 8);
+        return BinaryPrimitives.ReadInt64LittleEndian(new ReadOnlySpan<byte>(ptr, 8));
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void CheckLength(long offset, int size)
     {
@@ -229,70 +245,34 @@ public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : P
     {
         ReadOnlySpan<byte> expectedMagic = TMeta.Magic;
 
-        if (_length < PackageFormat.HeaderSize)
-        {
-            throw new InvalidDataException($"Package too small ({_length} bytes) to contain a {PackageFormat.HeaderSize}-byte header.");
-        }
-
-        // Verify magic number and format version, then resolve the entry directory through the
-        // two double-buffered header descriptors (see PackageFormat).
-        Span<byte> header = stackalloc byte[PackageFormat.HeaderSize];
-        Read(header, 0);
-        if (!header[..4].SequenceEqual(expectedMagic))
+        // Verify magic number
+        Span<byte> magicBuffer = stackalloc byte[4];
+        Read(magicBuffer, 0);
+        if (!magicBuffer.SequenceEqual(expectedMagic))
         {
             throw new InvalidDataException($"Invalid package magic. Expected '{Encoding.ASCII.GetString(expectedMagic)}'.");
         }
 
-        uint version = BinaryPrimitives.ReadUInt32LittleEndian(header[4..]);
-        if (version != PackageFormat.Version)
+        long metaLength = ReadInt64LittleEndian(4);
+        if (metaLength < 0)
         {
-            throw new InvalidDataException($"Unsupported package format version {version} (expected {PackageFormat.Version}).");
+            throw new InvalidDataException($"Negative meta length: {metaLength}");
+        }
+        if (12L + metaLength > _length)
+        {
+            throw new InvalidDataException($"Meta section exceeds package length. MetaLength={metaLength}, Length={_length}");
+        }
+        if (metaLength > int.MaxValue)
+        {
+            throw new InvalidDataException($"Meta length too large (>{int.MaxValue}).");
         }
 
-        PackageDirectoryDescriptor a = PackageDirectoryDescriptor.Parse(header, PackageFormat.DescriptorAOffset);
-        PackageDirectoryDescriptor b = PackageDirectoryDescriptor.Parse(header, PackageFormat.DescriptorBOffset);
-
-        // Prefer the higher sequence (ties resolve to A); fall back to the other descriptor when
-        // the preferred one fails validation (torn descriptor patch, corruption).
-        TMeta? meta = b.Sequence > a.Sequence
-            ? TryReadDirectory(b) ?? TryReadDirectory(a)
-            : TryReadDirectory(a) ?? TryReadDirectory(b);
-
-        if (meta == null)
-        {
-            throw new InvalidDataException("No valid entry directory descriptor found; the package is corrupt.");
-        }
-
-        contentBase = PackageFormat.HeaderSize;
-        return meta;
-    }
-
-    /// <summary>
-    /// Loads and validates the directory referenced by one descriptor. Returns null when the
-    /// descriptor is unused, out of bounds, or fails its hash check — never throws.
-    /// </summary>
-    /// <param name="descriptor">The header descriptor to attempt.</param>
-    /// <returns>The decoded meta, or null when the descriptor is not usable.</returns>
-    private TMeta? TryReadDirectory(in PackageDirectoryDescriptor descriptor)
-    {
-        if (descriptor.IsUnused || descriptor.Length == 0)
-        {
-            return null;
-        }
-
-        if (descriptor.Offset < PackageFormat.HeaderSize || checked(descriptor.Offset + descriptor.Length) > _length)
-        {
-            return null;
-        }
-
-        byte[] directory = new byte[descriptor.Length];
-        Read(directory, descriptor.Offset);
-        if (XxHash64.HashToUInt64(directory) != descriptor.Hash)
-        {
-            return null;
-        }
-
-        return Alco.BinaryParser.Decode<TMeta>(directory);
+        int metaLengthInt = (int)metaLength;
+        byte[] meta = new byte[metaLengthInt];
+        Read(meta, 12L);
+        TMeta packageMeta = Alco.BinaryParser.Decode<TMeta>(meta);
+        contentBase = 12L + metaLength;
+        return packageMeta;
     }
 
     protected override void Dispose(bool disposing)

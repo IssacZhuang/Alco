@@ -7,7 +7,7 @@ namespace Alco.IO.Test;
 
 public class TestPackageBuilderAlignment
 {
-    private static byte[] BuildPackage(int alignment)
+    private static (byte[] Package, long MetaLength) BuildPackage(int alignment)
     {
         PackageBuilder<PackageMeta> builder = new()
         {
@@ -15,14 +15,17 @@ public class TestPackageBuilderAlignment
         };
         builder.AddOrUpdateFile("a", new byte[] { 1, 2, 3 });
         builder.AddOrUpdateFile("b", new byte[] { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 });
-        return builder.Build();
+        byte[] package = builder.Build();
+        long metaLength = BinaryPrimitives.ReadInt64LittleEndian(package.AsSpan(4, 8));
+        return (package, metaLength);
     }
 
     [Test]
     public void AlignmentMovesEntryStarts()
     {
         const int alignment = 16;
-        byte[] package = BuildPackage(alignment);
+        (byte[] package, long metaLength) = BuildPackage(alignment);
+        long contentBase = 12 + metaLength;
 
         using PackageReader<PackageMeta> reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.Multiple(() =>
@@ -41,7 +44,7 @@ public class TestPackageBuilderAlignment
     [Test]
     public void DefaultAlignmentPacksBackToBack()
     {
-        byte[] package = BuildPackage(1);
+        (byte[] package, long metaLength) = BuildPackage(1);
 
         using PackageReader<PackageMeta> reader = PackageReader<PackageMeta>.OpenMemory(package);
         Assert.Multiple(() =>
@@ -50,23 +53,8 @@ public class TestPackageBuilderAlignment
             Assert.That(entryA!.Start, Is.EqualTo(0));
             Assert.That(reader.TryGetEntry("b", out PackageEntry? entryB), Is.True);
             Assert.That(entryB!.Start, Is.EqualTo(3), "no padding with alignment 1");
-        });
-
-        // Layout: [64B header][3 + 10 content][tail directory referenced by descriptor A].
-        Assert.Multiple(() =>
-        {
-            Assert.That(Encoding.ASCII.GetString(package.AsSpan(0, 4)), Is.EqualTo("alco"));
-            Assert.That(BinaryPrimitives.ReadUInt32LittleEndian(package.AsSpan(4, 4)), Is.EqualTo(PackageFormat.Version));
-
-            long directoryOffset = BinaryPrimitives.ReadInt64LittleEndian(package.AsSpan(PackageFormat.DescriptorAOffset, 8));
-            uint directoryLength = BinaryPrimitives.ReadUInt32LittleEndian(package.AsSpan(PackageFormat.DescriptorAOffset + 8, 4));
-            uint sequenceA = BinaryPrimitives.ReadUInt32LittleEndian(package.AsSpan(PackageFormat.DescriptorAOffset + 20, 4));
-            uint sequenceB = BinaryPrimitives.ReadUInt32LittleEndian(package.AsSpan(PackageFormat.DescriptorBOffset + 20, 4));
-
-            Assert.That(directoryOffset, Is.EqualTo(PackageFormat.HeaderSize + 13), "directory must start right after the 13 content bytes");
-            Assert.That(package.Length, Is.EqualTo((int)(directoryOffset + directoryLength)), "package ends with the directory");
-            Assert.That(sequenceA, Is.EqualTo(PackageFormat.InitialSequence));
-            Assert.That(sequenceB, Is.EqualTo(0), "sealed packages leave descriptor B unused");
+            // 12 header + meta + 3 + 10 content
+            Assert.That(package.Length, Is.EqualTo(12 + (int)metaLength + 13));
         });
     }
 
