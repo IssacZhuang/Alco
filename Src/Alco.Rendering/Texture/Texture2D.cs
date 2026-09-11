@@ -265,6 +265,64 @@ public sealed class Texture2D : Texture
         MarkContentLoaded();
     }
 
+    /// <summary>
+    /// Uploads a sub-rectangle of a same-sized CPU bitmap into this texture, leaving texels outside
+    /// the rectangle untouched. Rows are repacked into a grow-only scratch buffer at a 256-byte
+    /// aligned stride (a queue-write requirement), so steady-state region uploads allocate nothing.
+    /// </summary>
+    /// <typeparam name="T">The pixel type; must match the texture's format, as in <see cref="SetPixels{T}(Bitmap{T})"/>.</typeparam>
+    /// <param name="bitmap">The CPU bitmap holding the region's source data.</param>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    public unsafe void SetPixels<T>(Bitmap<T> bitmap, int x, int y, int width, int height) where T : unmanaged
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+        if (!IsWriteable)
+        {
+            throw new InvalidOperationException("The texture is not writeable");
+        }
+        ArgumentOutOfRangeException.ThrowIfNegative(x);
+        ArgumentOutOfRangeException.ThrowIfNegative(y);
+        ArgumentOutOfRangeException.ThrowIfNegative(width);
+        ArgumentOutOfRangeException.ThrowIfNegative(height);
+        if (x + width > Width || y + height > Height || x + width > bitmap.Width || y + height > bitmap.Height)
+        {
+            throw new ArgumentOutOfRangeException($"The region ({x}, {y}, {width}, {height}) exceeds the texture size ({Width}, {Height}) or the bitmap size ({bitmap.Width}, {bitmap.Height})");
+        }
+        if (width == 0 || height == 0)
+        {
+            return;
+        }
+
+        uint pixelSize = (uint)sizeof(T);
+        uint tightRow = (uint)width * pixelSize;
+        uint alignedRow = (tightRow + 255u) & ~255u;
+        uint dataSize = alignedRow * ((uint)height - 1) + tightRow;
+
+        if (_regionScratch is null || _regionScratch.Length < dataSize)
+        {
+            _regionScratch = new byte[dataSize];
+        }
+
+        T* src = bitmap.UnsafePointer;
+        int srcStride = bitmap.Width;
+        fixed (byte* scratch = _regionScratch)
+        {
+            for (int row = 0; row < height; row++)
+            {
+                T* srcLine = src + (long)(y + row) * srcStride + x;
+                Buffer.MemoryCopy(srcLine, scratch + (long)row * alignedRow, tightRow, tightRow);
+            }
+
+            _device.WriteTextureRegion(_texture, scratch, dataSize, alignedRow, (uint)x, (uint)y, (uint)width, (uint)height);
+        }
+        MarkContentLoaded();
+    }
+
+    private byte[]? _regionScratch;
+
     public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)
     {
         _texture = texture;

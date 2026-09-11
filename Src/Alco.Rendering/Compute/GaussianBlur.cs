@@ -63,6 +63,23 @@ public class GaussianBlur : AutoDisposable
 
     public void Compute(GPUCommandBuffer.ComputePass computePass, RenderTexture input, RenderTexture output)
     {
+        ComputeRegion(computePass, input, output, 0, 0, (int)input.Width, (int)input.Height);
+    }
+
+    /// <summary>
+    /// Runs the blur over a sub-rectangle only. Texels outside the region are not dispatched and
+    /// keep their last computed values; threads past the region edge (dispatch groups round up to
+    /// the thread-group size) return early so frozen texels are never rewritten.
+    /// </summary>
+    /// <param name="computePass">The compute pass to record the dispatch to.</param>
+    /// <param name="input">The input texture; must match the output's size.</param>
+    /// <param name="output">The output texture; must match the input's size.</param>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    public void ComputeRegion(GPUCommandBuffer.ComputePass computePass, RenderTexture input, RenderTexture output, int x, int y, int width, int height)
+    {
         if (input.Width != output.Width || input.Height != output.Height)
         {
             throw new ArgumentException("Input and output must have the same size");
@@ -72,19 +89,16 @@ public class GaussianBlur : AutoDisposable
         {
             texSize = new int2(input.Width, input.Height),
             kernelSize = new int2(_kernelSizeX, _kernelSizeY),
+            rectOrigin = new int2(x, y),
+            rectSize = new int2(width, height),
             kernelSum = _kernelSum,
         };
 
         _material.TrySetRenderTexture(ShaderResourceId.Input, input);
         _material.TrySetRenderTexture(ShaderResourceId.Output, output);
 
-        _material.DispatchBySizeWithConstant(
-            computePass,
-            input.Width,
-            input.Height,
-            1,
-            constant
-        );
+        _material.ReflectionInfo.Size.GetDispatchCount((uint)width, (uint)height, 1, out uint groupX, out uint groupY, out _);
+        _material.DispatchByGroupWithConstant(computePass, groupX, groupY, 1, constant);
     }
 
     protected override void Dispose(bool disposing)

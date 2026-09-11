@@ -598,6 +598,37 @@ public abstract class GPUDevice
         }
     }
 
+    /// <summary>
+    /// Writes a sub-rectangle of texels to the GPU texture at the mip level. The source data holds
+    /// <paramref name="height"/> rows of <paramref name="width"/> texels each, packed at
+    /// <paramref name="bytesPerRow"/> bytes per row; the row stride must be 256-byte aligned when
+    /// <paramref name="height"/> exceeds one (a WebGPU queue-write requirement). Texels outside the
+    /// rectangle are left untouched.
+    /// </summary>
+    /// <param name="texture">The target GPU texture.</param>
+    /// <param name="data">The pointer to the region data.</param>
+    /// <param name="dataSize">The total size of the region data. (unit: byte)</param>
+    /// <param name="bytesPerRow">The source row stride in bytes; 256-byte aligned for multi-row writes.</param>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    /// <param name="mipLevel">The target mip level of the texture.</param>
+    public unsafe void WriteTextureRegion(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel = 0)
+    {
+        GraphicsException.ThrowIfDisposed(texture);
+        WriteTextureRegionCore(texture, data, dataSize, bytesPerRow, x, y, width, height, mipLevel);
+    }
+
     /// <exclude />
     protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
 
@@ -654,6 +685,18 @@ public abstract class GPUDevice
 
     /// <exclude />
     protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel);
+
+    /// <exclude />
+    protected abstract unsafe void WriteTextureRegionCore(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel);
 
     /// <exclude />
     protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0);

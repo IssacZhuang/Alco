@@ -345,6 +345,54 @@ internal sealed partial class WebGPUDevice : GPUDevice
         }
     }
 
+    protected override unsafe void WriteTextureRegionCore(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel)
+    {
+        WGPUTexture nativeTexture = ((WebGPUTexture)texture).Native;
+
+        WGPUTexelCopyTextureInfo copyTextureInfo = new WGPUTexelCopyTextureInfo
+        {
+            texture = nativeTexture,
+            mipLevel = mipLevel,
+            origin = new WGPUOrigin3D
+            {
+                x = x,
+                y = y,
+                z = 0,
+            },
+            aspect = WGPUTextureAspect.All,
+        };
+
+        // The source layout is caller-controlled: rows are packed at bytesPerRow (256-byte aligned
+        // for multi-row regions), so the copy reads exactly the rectangle's rows.
+        WGPUTexelCopyBufferLayout textureDataLayout = new WGPUTexelCopyBufferLayout
+        {
+            offset = 0,
+            bytesPerRow = bytesPerRow,
+            rowsPerImage = height,
+        };
+
+        WGPUExtent3D writeSize = new WGPUExtent3D
+        {
+            width = width,
+            height = height,
+            depthOrArrayLayers = 1,
+        };
+
+        lock (_textureUploadLock)
+        {
+            wgpuQueueWriteTexture(Queue, &copyTextureInfo, data, dataSize, &textureDataLayout, &writeSize);
+        }
+    }
+
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
         // WebGPUTextureBase, not WebGPUTexture: swapchain surface textures are readable too.

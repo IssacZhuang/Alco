@@ -2035,6 +2035,92 @@ internal sealed unsafe class VulkanDevice : GPUDevice
         }
     }
 
+    protected override unsafe void WriteTextureRegionCore(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel)
+    {
+        VulkanTexture textureImpl = (VulkanTexture)texture;
+        uint texelSize = VulkanUtility.PixelFormatSize(textureImpl.PixelFormat);
+        VkImageAspectFlags aspect = VulkanUtility.AspectToVulkan(TextureAspect.All, textureImpl.VkFormat);
+
+        StagingBuffer staging;
+        ulong alignedRow;
+        if (texelSize > 0)
+        {
+            ulong tightRow = (ulong)width * texelSize;
+            alignedRow = VulkanUtility.AlignUp(tightRow, VulkanUtility.TexelRowAlignment);
+            staging = StagingBuffer.Create(this, alignedRow * height, writable: true);
+
+            if (alignedRow == tightRow && bytesPerRow == alignedRow)
+            {
+                // rows are already at the staged stride: single copy
+                ulong expected = tightRow * height;
+                Buffer.MemoryCopy(data, staging.Mapped, alignedRow * height, Math.Min((ulong)dataSize, expected));
+            }
+            else
+            {
+                // repack the caller's rows into the aligned staging layout
+                byte* src = data;
+                byte* dst = (byte*)staging.Mapped;
+                for (uint row = 0; row < height; row++)
+                {
+                    Buffer.MemoryCopy(src + (ulong)row * bytesPerRow, dst + (ulong)row * alignedRow, tightRow, tightRow);
+                }
+            }
+        }
+        else
+        {
+            // compressed formats: expect block-aligned source data (queue convention)
+            alignedRow = 0;
+            staging = StagingBuffer.Create(this, dataSize, writable: true);
+            Buffer.MemoryCopy(data, staging.Mapped, dataSize, dataSize);
+        }
+
+        // asynchronous like buffer uploads: texture streaming runs on worker
+        // threads and must never block the render thread or the queue
+        lock (_queueLock)
+        {
+            VkCommandBuffer commandBuffer = BeginOneShotLocked();
+            Tracker.TransitionTexture(commandBuffer, textureImpl, VulkanResourceState.CopyDst);
+            VkBufferImageCopy copy = new VkBufferImageCopy
+            {
+                bufferOffset = 0,
+                bufferRowLength = alignedRow != 0 && texelSize > 0 ? (uint)(alignedRow / texelSize) : 0,
+                bufferImageHeight = 0,
+                imageSubresource = new VkImageSubresourceLayers
+                {
+                    aspectMask = aspect,
+                    mipLevel = mipLevel,
+                    baseArrayLayer = 0,
+                    layerCount = 1,
+                },
+                imageOffset = new VkOffset3D
+                {
+                    x = (int)x,
+                    y = (int)y,
+                    z = 0,
+                },
+                imageExtent = new VkExtent3D
+                {
+                    width = width,
+                    height = height,
+                    depth = 1,
+                },
+            };
+            vkCmdCopyBufferToImage(commandBuffer, staging.Buffer, textureImpl.Image, Tracker.LayoutForTexture(textureImpl, VulkanResourceState.CopyDst), 1, &copy);
+            // the image stays in CopyDst (TRANSFER_DST layout); the next usage
+            // transitions it out with the precise edge
+            SubmitOneShotAsyncLocked(commandBuffer, staging);
+        }
+    }
+
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
         VulkanTexture textureImpl = (VulkanTexture)texture;

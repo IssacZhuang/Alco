@@ -70,6 +70,55 @@ public class FloodFillLightMap : AutoDisposable
         _lightMapCPU.Fill(color);
     }
 
+    /// <summary>
+    /// Clears a sub-rectangle of the CPU light map to a color, row-wise. Combined with
+    /// <see cref="UploadLightMapRegion"/> this rebuilds only the compute region's input state.
+    /// </summary>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    /// <param name="color">The color to fill with.</param>
+    public void ClearLightMap(int x, int y, int width, int height, Vector4 color)
+    {
+        _lightMapCPU.Fill(x, y, width, height, color);
+    }
+
+    /// <summary>
+    /// Uploads the whole CPU light map into the front texture and marks the computed result dirty.
+    /// Use for full-map recomputes (warm-up, snapshots); the region variant for per-tick updates.
+    /// </summary>
+    public void UploadLightMap()
+    {
+        _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU);
+        _isResultDirty = true;
+    }
+
+    /// <summary>
+    /// Uploads a sub-rectangle of the CPU light map into the front texture and marks the computed
+    /// result dirty. Texels outside the region keep their last computed values — callers must
+    /// have rebuilt the region's CPU input (clear + light stamps) beforehand.
+    /// </summary>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    public void UploadLightMapRegion(int x, int y, int width, int height)
+    {
+        _lightMaps.Front.ColorTextures[0].SetPixels(_lightMapCPU, x, y, width, height);
+        _isResultDirty = true;
+    }
+
+    /// <summary>
+    /// Uploads the whole CPU opacity map into the opacity texture. Called when obstacle
+    /// registrations changed; opacity is event-driven and always uploaded in full.
+    /// </summary>
+    public void UploadOpacityMap()
+    {
+        _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
+        _isResultDirty = true;
+    }
+
     public void SetDirty()
     {
         _isTextureDirty = true;
@@ -105,26 +154,49 @@ public class FloodFillLightMap : AutoDisposable
     {
         ResetTexture();
 
+        if (_isResultDirty)
+        {
+            _isResultDirty = false;
+            RunFloodFill(computePass, 0, 0, Width, Height);
+        }
+    }
+
+    /// <summary>
+    /// Runs the flood-fill iterations over a sub-rectangle only, ignoring the result-dirty gate:
+    /// region callers upload fresh input state for the region beforehand, so the propagation
+    /// always runs. Texels outside the region are not dispatched and keep their last computed
+    /// values; the region must therefore be expanded by at least <see cref="Iteration"/> texels
+    /// beyond any sampled area, since border texels read one-step-old neighbors each iteration.
+    /// </summary>
+    /// <param name="computePass">The compute pass to record the dispatches to.</param>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    public void ComputeRegion(GPUCommandBuffer.ComputePass computePass, int x, int y, int width, int height)
+    {
+        _isResultDirty = false;
+        RunFloodFill(computePass, x, y, width, height);
+    }
+
+    private void RunFloodFill(GPUCommandBuffer.ComputePass computePass, int x, int y, int width, int height)
+    {
         FloodFillLightingConstant constant = new FloodFillLightingConstant
         {
+            RectOrigin = new int2(x, y),
+            RectSize = new int2(width, height),
             AttenuationCorner = AttenuationCorner * AttenuationMultiplier,
             AttenuationSide = AttenuationSide * AttenuationMultiplier,
         };
 
-        if (_isResultDirty)
+        _material.ReflectionInfo.Size.GetDispatchCount((uint)width, (uint)height, 1, out uint groupX, out uint groupY, out uint groupZ);
+        for (int i = 0; i < Iteration; i++)
         {
-            _material.ReflectionInfo.Size.GetDispatchCount((uint)Width, (uint)Height, 1, out uint groupX, out uint groupY, out uint groupZ);
-            for (int i = 0; i < Iteration; i++)
-            {
-                _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
-                _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
-                _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, constant);
-                _lightMaps.Swap();
-            }
-
-            _isResultDirty = false;
+            _material.SetRenderTexture(_shaderId_front, _lightMaps.Front);
+            _material.SetRenderTexture(_shaderId_back, _lightMaps.Back);
+            _material.DispatchByGroupWithConstant(computePass, groupX, groupY, groupZ, constant);
+            _lightMaps.Swap();
         }
-
     }
 
     public void ResetTexture(bool force = false)
