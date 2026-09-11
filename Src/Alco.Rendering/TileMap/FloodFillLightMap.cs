@@ -111,11 +111,40 @@ public class FloodFillLightMap : AutoDisposable
 
     /// <summary>
     /// Uploads the whole CPU opacity map into the opacity texture. Called when obstacle
-    /// registrations changed; opacity is event-driven and always uploaded in full.
+    /// registrations changed without a known region; opacity is event-driven and always
+    /// uploaded in full by this path.
     /// </summary>
     public void UploadOpacityMap()
     {
         _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU);
+        _isResultDirty = true;
+    }
+
+    /// <summary>
+    /// Clears a sub-rectangle of the CPU opacity map to fully transparent, row-wise. Combined with
+    /// <see cref="UploadOpacityMapRegion"/> this rebuilds only the changed obstacles' texels.
+    /// </summary>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    public void ClearOpacityRegion(int x, int y, int width, int height)
+    {
+        _opacityMapCPU.Fill(x, y, width, height, Color32.White);
+    }
+
+    /// <summary>
+    /// Uploads a sub-rectangle of the CPU opacity map into the opacity texture and marks the
+    /// computed result dirty. Texels outside the region keep their last values — callers must
+    /// have rebuilt the region's CPU opacity (clear + obstacle stamps) beforehand.
+    /// </summary>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    public void UploadOpacityMapRegion(int x, int y, int width, int height)
+    {
+        _opacityMap.ColorTextures[0].SetPixels(_opacityMapCPU, x, y, width, height);
         _isResultDirty = true;
     }
 
