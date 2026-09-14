@@ -54,6 +54,11 @@ namespace Alco
 
         public bool TryGetNullableValue<T>(out T? v) where T : unmanaged
         {
+            if (_binary.Length != Unsafe.SizeOf<T?>())
+            {
+                v = null;
+                return false;
+            }
             v = BinaryUtility.DecodeToNullableValue<T>(_binary.Span);
             return true;
         }

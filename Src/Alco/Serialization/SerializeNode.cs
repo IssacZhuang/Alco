@@ -24,6 +24,16 @@ public abstract class SerializeNode
     public abstract void BindValue<T>(string key, ref T value, T @default = default) where T : unmanaged;
 
     /// <summary>
+    /// Binds a nullable unmanaged value as a single entry whose payload is the flat
+    /// [bool hasValue][T value] memory layout. On load, a missing key, a mismatched
+    /// payload or a false flag all yield <c>null</c>.
+    /// </summary>
+    /// <typeparam name="T">The unmanaged value type to bind.</typeparam>
+    /// <param name="key">The key identifier for the value in the serialization format.</param>
+    /// <param name="value">Reference to the nullable value to be serialized or deserialized.</param>
+    public abstract void BindValue<T>(string key, ref T? value) where T : unmanaged;
+
+    /// <summary>
     /// Binds a string value with an optional default value.
     /// </summary>
     /// <param name="key">The key identifier for the string in the serialization format.</param>

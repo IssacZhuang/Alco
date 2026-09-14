@@ -224,6 +224,18 @@ public class BinarySerializeWriteNode : SerializeWriteNode
         _content.Add(key, BinaryValue.CreateByValue(value));
     }
 
+    /// <summary>
+    /// Writes a nullable unmanaged value as a single entry whose payload is the
+    /// flat [bool hasValue][T value] memory layout.
+    /// </summary>
+    /// <typeparam name="T">The unmanaged value type to write.</typeparam>
+    /// <param name="key">The key identifier for the value in the serialization format.</param>
+    /// <param name="value">The nullable value to write.</param>
+    public override void SetNullableValue<T>(string key, T? value)
+    {
+        _content.Add(key, BinaryValue.CreateByNullableValue(value));
+    }
+
     public override void SetEnum<T>(string key, T value)
     {
         _content.Add(key, BinaryValue.CreateByEnum(value));
