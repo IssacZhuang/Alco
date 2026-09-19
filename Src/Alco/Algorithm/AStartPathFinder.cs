@@ -27,8 +27,11 @@ public abstract class AStarPathFinder : IPathFinder
     /// </summary>
     /// <param name="path">Output path queue (cleared before writing) containing grid cells to traverse.</param>
     /// <param name="start">World-space start position; will be cast to integral grid cell.</param>
-    /// <param name="end">World-space goal position; will be cast to integral grid cell.</param>
-    /// <param name="ignoreEndPoint">If true, returns a path to any traversable cell adjacent to the end point. If false, path must reach the exact end point.</param>
+    /// <param name="end">World-space goal position; will be cast to integral grid cell.
+    /// When <paramref name="ignoreEndPoint"/> is false the final waypoint is the exact end position
+    /// (which always lies inside the goal cell) instead of the goal cell center.</param>
+    /// <param name="ignoreEndPoint">If true, returns a path to any traversable cell adjacent to the end point,
+    /// ending at that neighbor's cell center. If false, path must reach the exact end point.</param>
     /// <returns>True if a path was found; otherwise false.</returns>
     public bool TryGetPath(ICollection<Vector2> path, Vector2 start, Vector2 end, bool ignoreEndPoint)
     {
@@ -38,10 +41,16 @@ public abstract class AStarPathFinder : IPathFinder
         int2 startCell = math.round(start);
         int2 endCell = math.round(end);
 
-        // Trivial case
+        // Trivial case: same cell. Without an endpoint override the exact end is still meaningful
+        // (e.g. a fractional anchor inside the current cell), so emit it as a single-step path
+        // unless the start is already there.
         if (startCell.X == endCell.X && startCell.Y == endCell.Y)
         {
             path.Clear();
+            if (!ignoreEndPoint && Vector2.DistanceSquared(start, end) > 1e-8f)
+            {
+                path.Add(end);
+            }
             return true;
         }
 
@@ -118,7 +127,9 @@ public abstract class AStarPathFinder : IPathFinder
                 path.Clear();
                 for (int i = 0; i < _tmpPath.Count; i++)
                 {
-                    path.Add(_tmpPath[i]);
+                    // Without an endpoint override the search ends on the goal cell, so its center
+                    // yields to the exact end position (always inside that cell).
+                    path.Add(!ignoreEndPoint && i == _tmpPath.Count - 1 ? end : _tmpPath[i]);
                 }
                 return true;
             }
