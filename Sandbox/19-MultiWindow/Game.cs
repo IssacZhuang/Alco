@@ -90,10 +90,9 @@ public class Game : GameEngine
             new RGNode_Bloom.Descriptor
             {
                 BlitShader = BuiltInAssets.Shader_BloomBlit,
-                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                SetupShader = BuiltInAssets.Shader_BloomSetup,
                 DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
-                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
-                TargetDownsampleHeight = 11,
+                GaussianShader = BuiltInAssets.Shader_BloomGaussian,
                 SceneCopyShader = BuiltInAssets.Shader_Blit,
             });
         _mainPipeline.Use(_bloomNode1);
@@ -106,10 +105,9 @@ public class Game : GameEngine
             new RGNode_Bloom.Descriptor
             {
                 BlitShader = BuiltInAssets.Shader_BloomBlit,
-                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                SetupShader = BuiltInAssets.Shader_BloomSetup,
                 DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
-                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
-                TargetDownsampleHeight = 11,
+                GaussianShader = BuiltInAssets.Shader_BloomGaussian,
                 SceneCopyShader = BuiltInAssets.Shader_Blit,
             });
         _pipeline2.Use(_bloomNode2);

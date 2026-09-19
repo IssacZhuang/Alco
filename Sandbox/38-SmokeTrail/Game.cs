@@ -320,13 +320,12 @@ public class Game : GameEngine
             new RGNode_Bloom.Descriptor
             {
                 BlitShader = BuiltInAssets.Shader_BloomBlit,
-                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                SetupShader = BuiltInAssets.Shader_BloomSetup,
                 DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
-                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
+                GaussianShader = BuiltInAssets.Shader_BloomGaussian,
                 SceneCopyShader = BuiltInAssets.Shader_Blit,
                 Threshold = 0.7f,
                 Intensity = 0.9f,
-                Spread = 1.1f,
             }));
         var tonemapNode = new RGNode_Tonemap(
             RenderingSystem,

@@ -53,10 +53,9 @@ public class Game : GameEngine
             new RGNode_Bloom.Descriptor
             {
                 BlitShader = BuiltInAssets.Shader_BloomBlit,
-                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                SetupShader = BuiltInAssets.Shader_BloomSetup,
                 DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
-                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
-                TargetDownsampleHeight = 11,
+                GaussianShader = BuiltInAssets.Shader_BloomGaussian,
                 SceneCopyShader = BuiltInAssets.Shader_Blit,
             });
         _mainPipeline.Use(_bloomNode);
@@ -141,28 +140,24 @@ public class Game : GameEngine
             _bloomNode.IsEnabled = bloomEnabled;
         }
 
+        // Bloom Threshold (-1 disables it: the whole image blooms)
         float threshold = _bloomNode.Threshold;
-        if (ImGui.SliderFloat("Bloom Threshold", ref threshold, 0.0f, 3.0f))
+        if (ImGui.SliderFloat("Bloom Threshold", ref threshold, -1.0f, 5.0f))
         {
             _bloomNode.Threshold = threshold;
         }
 
-        float spread = _bloomNode.Spread;
-        if (ImGui.SliderFloat("Bloom Spread", ref spread, 0.0f, 5.0f))
-        {
-            _bloomNode.Spread = spread;
-        }
-
         float bloomIntensity = _bloomNode.Intensity;
-        if (ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0.0f, 5.0f))
+        if (ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0.0f, 3.0f))
         {
             _bloomNode.Intensity = bloomIntensity;
         }
 
-        float gamma = _bloomNode.Gamma;
-        if (ImGui.SliderFloat("Bloom Gamma", ref gamma, 0.5f, 4.0f))
+        // Bloom Size Scale (multiplier on every gaussian radius)
+        float sizeScale = _bloomNode.SizeScale;
+        if (ImGui.SliderFloat("Bloom Size Scale", ref sizeScale, 0.1f, 3.0f))
         {
-            _bloomNode.Gamma = gamma;
+            _bloomNode.SizeScale = sizeScale;
         }
 
         // Tone map controls

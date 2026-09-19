@@ -9,6 +9,10 @@ public static partial class BuiltInAssetsPath
     
    public const string Font_Default = "Fonts/Default.ttf";
 
+   public const string Shader_TrailSurfaceDefault = "TrailSurfaceDefault";
+
+   public const string Shader_TrailSurfaceSmoke = "TrailSurfaceSmoke";
+
    public const string Shader_Blit = "Blit";
 
    public const string Shader_BlitDepth = "BlitDepth";
@@ -35,11 +39,11 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_BloomBlit = "BloomBlit";
 
-   public const string Shader_BloomClamp = "BloomClamp";
-
    public const string Shader_BloomDownsample = "BloomDownsample";
 
-   public const string Shader_BloomUpsample = "BloomUpsample";
+   public const string Shader_BloomGaussian = "BloomGaussian";
+
+   public const string Shader_BloomSetup = "BloomSetup";
 
    public const string Shader_ColorGrading = "ColorGrading";
 
@@ -56,6 +60,10 @@ public static partial class BuiltInAssetsPath
    public const string Shader_ReinhardLuminanceTonemap = "ReinhardLuminanceTonemap";
 
    public const string Shader_Uncharted2Tonemap = "Uncharted2Tonemap";
+
+   public const string Shader_GpuTrail2D = "GpuTrail2D";
+
+   public const string Shader_GpuTrail3D = "GpuTrail3D";
 
    public const string Shader_Particle2D = "Particle2D";
 

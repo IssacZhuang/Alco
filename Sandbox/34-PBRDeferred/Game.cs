@@ -719,19 +719,19 @@ public class Game : GameEngine
 
         // Bloom is a chain transform node on the pipeline's post chain;
         // registered before tonemap, so boosted emissive surfaces get
-        // a natural glow.
-        float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
-            ? parsedBloomThreshold
-            : 1f;
-        float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
-            ? parsedBloomIntensity
-            : 0.35f;
+        // a natural glow. The node keeps the factory's default tunables;
+        // CLI overrides land on the node, never the shared factory asset.
         var bloomFactory = LoadRenderNodeFactory<RGNodeFactory_Bloom>("RenderNodes/Bloom.rnfact");
         _bloom = bloomFactory.CreateNode<RGNode_Bloom>(nodeFactoryContext);
-        // CLI overrides land on the node, never the shared factory asset.
         _bloom.IsEnabled = !args.Contains("--no-bloom");
-        _bloom.Threshold = bloomThreshold;
-        _bloom.Intensity = bloomIntensity;
+        if (float.TryParse(GetArgValue(args, "--bloom-threshold="), out float bloomThreshold))
+        {
+            _bloom.Threshold = bloomThreshold;
+        }
+        if (float.TryParse(GetArgValue(args, "--bloom-intensity="), out float bloomIntensity))
+        {
+            _bloom.Intensity = bloomIntensity;
+        }
         _preset.Pipeline.Use(_bloom);
 
         // HDR tone mapping node (registered after bloom).
