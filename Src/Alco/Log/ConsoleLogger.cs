@@ -11,6 +11,13 @@ namespace Alco;
 public class ConsoleLogger : AutoDisposable, ILogger
 {
     private readonly ThreadLocal<SpanStringBuilder> _builder = new ThreadLocal<SpanStringBuilder>(() => new SpanStringBuilder());
+
+    // Serializes writes across every ConsoleLogger instance: each instance wraps its own
+    // StreamWriter around the shared stdout handle, and StreamWriter is not thread-safe —
+    // unsynchronized concurrent writes corrupt the writer state and throw. The writer keeps
+    // the underlying stdout stream open (leaveOpen) so disposing one logger never closes
+    // the handle out from under the others.
+    private static readonly object WriteLock = new();
     private readonly StreamWriter _writer;
 
     // ANSI color codes
@@ -22,9 +29,10 @@ public class ConsoleLogger : AutoDisposable, ILogger
 
     public ConsoleLogger()
     {
-        var stdout = Console.OpenStandardOutput();
-        _writer = new StreamWriter(stdout, new UTF8Encoding(false));
-        _writer.AutoFlush = true;
+        _writer = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false), bufferSize: 1024, leaveOpen: true)
+        {
+            AutoFlush = true,
+        };
     }
 
     protected override void Dispose(bool disposing)
@@ -32,59 +40,48 @@ public class ConsoleLogger : AutoDisposable, ILogger
         _writer.Dispose();
     }
 
+    private void WriteColored(string ansiColor, ReadOnlySpan<char> message)
+    {
+        var builder = _builder.Value!;
+        builder.Clear();
+        builder.Append(ansiColor);
+        builder.Append(message);
+        builder.Append(AnsiReset);
+        lock (WriteLock)
+        {
+            try
+            {
+                _writer.WriteLine(builder.AsReadOnlySpan());
+            }
+            catch (Exception)
+            {
+                // A logger must never throw into its caller: the console pipe may be closed
+                // or detached (test host shutdown, redirected output ending) — drop the line.
+            }
+        }
+    }
+
     /// <summary>
     /// Logs an informational message in cyan color
     /// </summary>
     /// <param name="message">The message to log</param>
-    public void Info(ReadOnlySpan<char> message)
-    {
-        var builder = _builder.Value!;
-        builder.Clear();
-        builder.Append(AnsiInfo);
-        builder.Append(message);
-        builder.Append(AnsiReset);
-        _writer.WriteLine(builder.AsReadOnlySpan());
-    }
+    public void Info(ReadOnlySpan<char> message) => WriteColored(AnsiInfo, message);
 
     /// <summary>
     /// Logs an error message in red color
     /// </summary>
     /// <param name="message">The message to log</param>
-    public void Error(ReadOnlySpan<char> message)
-    {
-        var builder = _builder.Value!;
-        builder.Clear();
-        builder.Append(AnsiError);
-        builder.Append(message);
-        builder.Append(AnsiReset);
-        _writer.WriteLine(builder.AsReadOnlySpan());
-    }
+    public void Error(ReadOnlySpan<char> message) => WriteColored(AnsiError, message);
 
     /// <summary>
     /// Logs a success message in green color
     /// </summary>
     /// <param name="message">The message to log</param>
-    public void Success(ReadOnlySpan<char> message)
-    {
-        var builder = _builder.Value!;
-        builder.Clear();
-        builder.Append(AnsiSuccess);
-        builder.Append(message);
-        builder.Append(AnsiReset);
-        _writer.WriteLine(builder.AsReadOnlySpan());
-    }
+    public void Success(ReadOnlySpan<char> message) => WriteColored(AnsiSuccess, message);
 
     /// <summary>
     /// Logs a warning message in yellow color
     /// </summary>
     /// <param name="message">The message to log</param>
-    public void Warning(ReadOnlySpan<char> message)
-    {
-        var builder = _builder.Value!;
-        builder.Clear();
-        builder.Append(AnsiWarning);
-        builder.Append(message);
-        builder.Append(AnsiReset);
-        _writer.WriteLine(builder.AsReadOnlySpan());
-    }
+    public void Warning(ReadOnlySpan<char> message) => WriteColored(AnsiWarning, message);
 }
