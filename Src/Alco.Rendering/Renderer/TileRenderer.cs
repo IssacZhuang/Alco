@@ -102,6 +102,8 @@ public sealed class TileRenderer : AutoDisposable
         public int2 Size;
         public uint TileCount;
         public uint Pad0;
+        public int2 RectOrigin; // visible-rect min corner clamped to the map (tile space)
+        public int2 RectSize; // visible-rect size in cells
     }
 
     private class Renderer : AutoDisposable
@@ -787,17 +789,39 @@ public sealed class TileRenderer : AutoDisposable
         // again); the queue write is ordered ahead of the dispatch.
         _recordsBuffer!.UpdateBuffer(_recordStaging!);
 
+        Vector4 tileViewport = TransformViewportToTileSpace(viewport);
+
+        // The scan covers only the cells that can pass the shader's rect test: the
+        // tile-space viewport AABB inflated by the cell half extent (0.5 quad half +
+        // 1.0 blend margin, mirroring TileGpuCull.slang) and clamped to the map. Every
+        // cell outside this rect is guaranteed invisible, so the dispatch never touches
+        // the rest of the map regardless of its size.
+        const float CellHalfExtent = 1.5f;
+        int rectMinX = Math.Clamp((int)Math.Floor(tileViewport.X - CellHalfExtent), 0, _width);
+        int rectMinY = Math.Clamp((int)Math.Floor(tileViewport.Y - CellHalfExtent), 0, _height);
+        int rectMaxX = Math.Clamp((int)Math.Ceiling(tileViewport.Z + CellHalfExtent), 0, _width);
+        int rectMaxY = Math.Clamp((int)Math.Ceiling(tileViewport.W + CellHalfExtent), 0, _height);
+
         var constant = new CullConstant
         {
-            Viewport = TransformViewportToTileSpace(viewport),
+            Viewport = tileViewport,
             Size = new int2(_width, _height),
             TileCount = (uint)_tileSet.Count,
             Pad0 = 0,
+            RectOrigin = new int2(rectMinX, rectMinY),
+            RectSize = new int2(rectMaxX - rectMinX, rectMaxY - rectMinY),
         };
-        using (GPUCommandBuffer.ComputePass computePass = commandBuffer.BeginCompute())
+
+        // An empty rect (camera fully off-map) leaves every record at its reset zero
+        // count; a zero-size dispatch is invalid, so skip the compute pass entirely.
+        if (constant.RectSize.X > 0 && constant.RectSize.Y > 0)
         {
+            using GPUCommandBuffer.ComputePass computePass = commandBuffer.BeginCompute();
+            // One group row per visible cell row (Y), 64 threads spanning a row's cells
+            // (X): both dimensions stay far below the 65535 workgroups-per-dimension
+            // limit at any map or zoom level.
             _cullMaterial!.DispatchByGroupWithConstant(
-                computePass, (uint)((_width * _height + 63) / 64), 1, 1, constant);
+                computePass, (uint)((constant.RectSize.X + 63) / 64), (uint)constant.RectSize.Y, 1, constant);
         }
     }
 
