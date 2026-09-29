@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Alco.IO;
 using Alco.Rendering;
 
@@ -18,9 +19,9 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
     private readonly JsonSerializerOptions _options;
 
     /// <summary>Creates the loader with the serializer options of <see cref="CreateJsonOptions"/>.</summary>
-    public AssetLoaderParticleEffect(AssetSystem assetSystem, ShaderSystem shaderSystem)
+    public AssetLoaderParticleEffect(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
-        _options = CreateJsonOptions(assetSystem, shaderSystem);
+        _options = CreateJsonOptions(assetSystem, shaderSystem, typeInfoResolver);
     }
 
     /// <inheritdoc />
@@ -48,14 +49,14 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
     /// color, range, texture, shader(-library) and blend-state converters. Exposed
     /// for tests and tooling that parse effect files outside the asset system.
     /// </summary>
-    public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, ShaderSystem shaderSystem)
+    public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-            TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(ParticleEffect)]),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(ParticleEffect)], typeInfoResolver),
         };
         options.Converters.Add(new JsonConverterMaterialVector3());
         options.Converters.Add(new JsonConverterMaterialVector4());

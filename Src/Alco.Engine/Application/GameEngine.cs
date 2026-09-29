@@ -8,6 +8,7 @@ using Alco.IO;
 using System.Text;
 using Alco.Audio;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Runtime;
@@ -323,7 +324,8 @@ IDisposable
 
         _preferenceSerializerOption = new JsonSerializerOptions
         {
-            WriteIndented = true
+            WriteIndented = true,
+            TypeInfoResolver = Setting.TypeInfoResolver ?? new DefaultJsonTypeInfoResolver(),
         };
         foreach (var converter in CreateDefaultJsonConverters())
         {

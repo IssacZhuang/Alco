@@ -1,4 +1,5 @@
 using System;
+using System.Text.Json.Serialization.Metadata;
 using Alco.Audio;
 using Alco.Graphics;
 
@@ -55,6 +56,15 @@ namespace Alco.Engine
         /// Gets or sets whether instrumented methods may be collected by the method profiler.
         /// </summary>
         public bool EnableMethodProfiling { get; set; }
+
+        /// <summary>
+        /// Gets or sets the JSON type metadata resolver used by every engine JSON surface
+        /// (config database, asset metas, preferences, polymorphic asset loaders, texture
+        /// option caches). Games targeting NativeAOT set this to their source generated
+        /// <see cref="JsonSerializerContext"/>; when null, the engine falls back to
+        /// reflection-based metadata, which is the correct default under JIT.
+        /// </summary>
+        public IJsonTypeInfoResolver? TypeInfoResolver { get; set; }
 
         /// <summary>
         /// The view setting

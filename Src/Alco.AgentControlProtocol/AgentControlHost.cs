@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Alco.Engine;
 
@@ -37,15 +38,21 @@ public sealed class AgentControlHost : BaseEngineSystem
         Registry = new ToolRegistry(options.ToolTypes, options.ToolInstances, JsonOptions);
 
         // Built-in tools are always constructed so hosts can toggle them at runtime via
-        // the registry; they are only registered when enabled.
+        // the registry; they are only registered when enabled. ScriptTool compiles C#
+        // with Roslyn at runtime, which requires dynamic code support: under NativeAOT
+        // (IsDynamicCodeSupported == false) the tool is absent and Roslyn stays out of
+        // the image because the compiler folds the check to a constant.
         ScreenshotTool = new ScreenshotTool(engine);
-        ScriptTool = new ScriptTool(engine, options.ScriptGlobalsFactory, options.ScriptCompilationTimeoutMs);
+        if (RuntimeFeature.IsDynamicCodeSupported)
+        {
+            ScriptTool = new ScriptTool(engine, options.ScriptGlobalsFactory, options.ScriptCompilationTimeoutMs);
+        }
         if (options.EnableScreenshotTool)
         {
             Registry.RegisterInstance(ScreenshotTool);
         }
 
-        if (options.EnableScriptExecution)
+        if (ScriptTool != null && options.EnableScriptExecution)
         {
             Registry.RegisterInstance(ScriptTool);
         }
@@ -70,11 +77,12 @@ public sealed class AgentControlHost : BaseEngineSystem
     public ScreenshotTool ScreenshotTool { get; }
 
     /// <summary>
-    /// The built-in script execution tool instance. Registered with the registry only
-    /// while enabled; hosts can unregister/re-register it at runtime to toggle the
-    /// tool without rebuilding the registry.
+    /// The built-in script execution tool instance, or <c>null</c> when dynamic code
+    /// is unsupported (NativeAOT), where Roslyn scripting cannot run. Registered with
+    /// the registry only while enabled; hosts can unregister/re-register it at runtime
+    /// to toggle the tool without rebuilding the registry.
     /// </summary>
-    public ScriptTool ScriptTool { get; }
+    public ScriptTool? ScriptTool { get; }
 
     /// <summary>
     /// The HTTP API server, or <c>null</c> before <see cref="StartServer"/> is called.

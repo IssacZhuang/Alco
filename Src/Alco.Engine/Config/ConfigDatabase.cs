@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Alco;
 using Alco.IO;
 using Alco.Rendering;
@@ -98,8 +99,14 @@ public class ConfigDatabase
     /// <param name="polymorphicTypes">Additional root types to support for polymorphic JSON serialization</param>
     /// <param name="converters">Custom JSON converters to use for deserialization</param>
     /// <param name="onError">Callback for error messages</param>
+    /// <param name="typeInfoResolver">
+    /// Optional resolver supplying type metadata (e.g. a source generated JsonSerializerContext
+    /// for NativeAOT, where reflection-based metadata cannot be compiled at runtime). Defaults
+    /// to reflection.
+    /// </param>
     /// <exception cref="ArgumentNullException">Thrown when any callback parameter is null</exception>
-    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onError)
+    public ConfigDatabase(ReadOnlySpan<Type> polymorphicTypes, ReadOnlySpan<JsonConverter> converters, Action<string> onError,
+        System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         ArgumentNullException.ThrowIfNull(onError);
         _onError = onError;
@@ -124,7 +131,7 @@ public class ConfigDatabase
 
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new PolymorphicJsonTypeResolver(rootTypes.ToArray()),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver(rootTypes.ToArray(), typeInfoResolver),
             WriteIndented = true,
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
@@ -148,8 +155,10 @@ public class ConfigDatabase
     /// </summary>
     /// <param name="converters">Custom JSON converters to use for deserialization</param>
     /// <param name="onError">Callback for error messages</param>
-    public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onError)
-        : this(Array.Empty<Type>(), converters, onError)
+    /// <param name="typeInfoResolver">Optional type metadata resolver (source generated context for NativeAOT); defaults to reflection.</param>
+    public ConfigDatabase(ReadOnlySpan<JsonConverter> converters, Action<string> onError,
+        IJsonTypeInfoResolver? typeInfoResolver = null)
+        : this(Array.Empty<Type>(), converters, onError, typeInfoResolver)
     {
     }
 

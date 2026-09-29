@@ -68,10 +68,11 @@ public static class ParticleAssetPipeline
     /// (module references stay unresolved name strings are NOT supported — pass a
     /// rendering system).
     /// </param>
-    public static void RegisterLoaders(AssetSystem assetSystem, RenderingSystem renderingSystem)
+    public static void RegisterLoaders(AssetSystem assetSystem, RenderingSystem renderingSystem,
+        System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         ArgumentNullException.ThrowIfNull(assetSystem);
         ArgumentNullException.ThrowIfNull(renderingSystem);
-        assetSystem.RegisterAssetLoader(new AssetLoaderParticleEffect(assetSystem, renderingSystem.ShaderSystem));
+        assetSystem.RegisterAssetLoader(new AssetLoaderParticleEffect(assetSystem, renderingSystem.ShaderSystem, typeInfoResolver));
     }
 }

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Alco.IO;
 
 namespace Alco.Rendering;
@@ -15,9 +16,9 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
 {
     private readonly JsonSerializerOptions _options;
 
-    public AssetLoaderMaterialAsset(AssetSystem assetSystem, ShaderSystem shaderSystem)
+    public AssetLoaderMaterialAsset(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
-        _options = CreateJsonOptions(assetSystem, shaderSystem);
+        _options = CreateJsonOptions(assetSystem, shaderSystem, typeInfoResolver);
     }
 
     /// <inheritdoc />
@@ -45,14 +46,14 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
     /// libraries, vectors/colors, enums). Exposed for tests and tooling that parse
     /// material files outside the asset system.
     /// </summary>
-    public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, ShaderSystem shaderSystem)
+    public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-            TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(MaterialAsset)]),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(MaterialAsset)], typeInfoResolver),
         };
         options.Converters.Add(new JsonConverterMaterialVector3());
         options.Converters.Add(new JsonConverterMaterialVector4());

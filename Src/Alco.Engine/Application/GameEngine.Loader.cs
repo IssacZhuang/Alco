@@ -15,21 +15,21 @@ public partial class GameEngine
         var jsonConvertersList = jsonConverters.ToList();
 
         // material
-        yield return new AssetLoaderMaterialAsset(AssetSystem, RenderingSystem.ShaderSystem);
+        yield return new AssetLoaderMaterialAsset(AssetSystem, RenderingSystem.ShaderSystem, Setting.TypeInfoResolver);
 
         // render node factories (shader bindings for render nodes)
-        yield return new AssetLoaderRenderNodeFactory(RenderingSystem.ShaderSystem);
+        yield return new AssetLoaderRenderNodeFactory(RenderingSystem.ShaderSystem, Setting.TypeInfoResolver);
 
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
             yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSdf, generateSdf: false, cacheDirectory: CreateFontCacheDirectory(Setting.Graphics));
-            yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem);
+            yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
         else
         {
             yield return new AssetLoaderFontTTFNoGPU(RenderingSystem);
-            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem);
+            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
 
         // audio
@@ -45,7 +45,7 @@ public partial class GameEngine
         }
 
         //meta
-        yield return new AssetLoaderMeta(jsonConvertersList);
+        yield return new AssetLoaderMeta(jsonConvertersList, Setting.TypeInfoResolver);
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()

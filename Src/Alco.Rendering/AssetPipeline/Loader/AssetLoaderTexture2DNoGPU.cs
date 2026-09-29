@@ -40,10 +40,14 @@ public class AssetLoaderTexture2DNoGPU : IAssetLoader
     /// </summary>
     /// <param name="renderingSystem">The rendering system used to create textures.</param>
     /// <param name="assetSystem">The asset system used for option file discovery and loading.</param>
-    public AssetLoaderTexture2DNoGPU(RenderingSystem renderingSystem, AssetSystem assetSystem)
+    /// <param name="typeInfoResolver">
+    /// Optional resolver supplying option-file type metadata (a source generated
+    /// JsonSerializerContext under NativeAOT); defaults to reflection.
+    /// </param>
+    public AssetLoaderTexture2DNoGPU(RenderingSystem renderingSystem, AssetSystem assetSystem, System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         _renderingSystem = renderingSystem;
-        _cache = new TextureOptionCache(assetSystem);
+        _cache = new TextureOptionCache(assetSystem, typeInfoResolver);
     }
 
     /// <inheritdoc/>
