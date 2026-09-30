@@ -39,6 +39,26 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
+    /// Converts a filename to its extensionless alias form when its extension is a
+    /// recognized asset extension — the form that resolves back through the alias
+    /// table regardless of the concrete file format shipped (e.g. a texture
+    /// reference stays valid when packages replace <c>.png</c> files with
+    /// <c>.dds</c>). Filenames with no recognized extension are returned unchanged;
+    /// the alias table has no entry for them, so only the full name resolves.
+    /// </summary>
+    /// <param name="filename">The filename to convert.</param>
+    /// <returns>The extensionless alias form, or the filename unchanged.</returns>
+    public string GetAliasPath(string filename)
+    {
+        string extension = Path.GetExtension(filename);
+        if (extension.Length == 0 || !IsRecongizedExtension(extension))
+        {
+            return filename;
+        }
+        return Path.ChangeExtension(filename, null);
+    }
+
+    /// <summary>
     /// Check if the file exists
     /// /// </summary>
     /// <param name="filename">The filename to check</param>

@@ -20,6 +20,7 @@ public class JsonConverterMaterialAsset : BaseJsonConverterAsset<MaterialAsset>
         // Write the loadable asset path (stamped by the loader), not the display
         // name: re-reading the reference must resolve through the asset system, and
         // the bare name ("Water") matches no file entry or alias ("Materials/Water").
-        writer.WriteStringValue(value.SourceFile ?? value.Name);
+        // The alias form drops the extension so re-reads stay format-independent.
+        writer.WriteStringValue(_assetSystem.GetAliasPath(value.SourceFile ?? value.Name));
     }
 }

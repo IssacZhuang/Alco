@@ -14,8 +14,9 @@ public class JsonConverterFont : BaseJsonConverterAsset<Font>
 
     public override void Write(Utf8JsonWriter writer, Font value, JsonSerializerOptions options)
     {
-        // Font carries no asset name; approximate with the underlying texture name.
-        writer.WriteStringValue(value.Texture.Name);
+        // Font carries no asset name; approximate with the underlying texture name
+        // in extensionless alias form so re-reads stay format-independent.
+        writer.WriteStringValue(_assetSystem.GetAliasPath(value.Texture.Name));
     }
 }
 

@@ -32,6 +32,8 @@ public class JsonConverterMaterialTexture : JsonConverter<Texture2D>
 
     public override void Write(Utf8JsonWriter writer, Texture2D value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.Name);
+        // Extensionless alias form: format-independent on re-read (packages may
+        // ship a different concrete format, e.g. png -> dds).
+        writer.WriteStringValue(_assetSystem.GetAliasPath(value.Name));
     }
 }
