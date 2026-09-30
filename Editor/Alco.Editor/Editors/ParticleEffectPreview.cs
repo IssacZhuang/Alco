@@ -2,7 +2,7 @@ using System.Numerics;
 using Alco.Editor.Extensibility;
 using Alco.Engine;
 using Alco.ImGUI;
-using Alco.Particles;
+using Alco.Effects;
 using Alco.Rendering;
 
 namespace Alco.Editor;

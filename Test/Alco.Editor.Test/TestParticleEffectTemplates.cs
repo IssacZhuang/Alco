@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Alco.Engine;
-using Alco.Particles;
+using Alco.Effects;
 using NUnit.Framework;
 
 namespace Alco.Editor.Test;

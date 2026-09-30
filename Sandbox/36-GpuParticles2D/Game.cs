@@ -4,12 +4,12 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
-using Alco.Particles;
+using Alco.Effects;
 using Alco.Rendering;
 using SandboxUtils;
 
 /// <summary>
-/// Sandbox demonstrating the 2D GPU particle system (Alco.Particles): particle
+/// Sandbox demonstrating the 2D GPU particle system (Alco.Effects): particle
 /// effects are assets (<c>.afx</c>) with one or more emitter groups, simulated
 /// and rendered entirely on the GPU (two compute dispatches + one indexed-indirect
 /// instanced draw per group per frame). The scene shows six effects — a one-shot

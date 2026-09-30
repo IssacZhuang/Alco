@@ -343,7 +343,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     /// record's firstInstance field instead, which the vertex stage reads with the
     /// Vulkan-semantic instance-id builtin (SV_VulkanInstanceID — absolute, unlike
     /// the D3D12-semantic per-draw counter). For consumers whose sub-draw identity
-    /// needs no per-draw vertex fetch, e.g. <see cref="GpuTrailSystem2D"/>.
+    /// needs no per-draw vertex fetch, e.g. <c>GpuTrailSystem2D</c> (Alco.Effects).
     /// </summary>
     /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from each indirect record).</param>
     /// <param name="material">The material of every sub-draw.</param>

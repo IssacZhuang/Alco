@@ -3,7 +3,7 @@ using System.Text.Json;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
-using Alco.Particles;
+using Alco.Effects;
 using Alco.Rendering;
 
 namespace Alco.Editor;

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Alco;
 using Alco.Engine;
+using Alco.Effects;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
@@ -16,7 +17,7 @@ using SandboxUtils;
 /// ship hovers over a walled arena scattered with crates and glowing corner
 /// pylons; enemy drones spawn in waves and kamikaze-chase the ship.
 /// <br/>The sandbox's signature feature — the 3D GPU trail renderer
-/// (<see cref="GpuTrailSystem3D"/>, Alco.Rendering) — drives the bullets: every
+/// (<see cref="GpuTrailSystem3D"/>, Alco.Effects) — drives the bullets: every
 /// shot is an emissive tracer that drags a camera-facing smoke ribbon
 /// (TrailSurfaceSmoke: turbulence wander, buoyant rise, noise-eroded
 /// dissipation), and every destroyed drone bursts into a short smoke puff from

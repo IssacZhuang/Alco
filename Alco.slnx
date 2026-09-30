@@ -72,7 +72,7 @@
     <Project Path="Src/Alco.IO/Alco.IO.csproj" />
     <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
     <Project Path="Src/Alco.Profiler/Alco.Profiler.csproj" />
-    <Project Path="Src/Alco.Particles/Alco.Particles.csproj" />
+    <Project Path="Src/Alco.Effects/Alco.Effects.csproj" />
     <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
     <Project Path="Src/Alco.World3D/Alco.World3D.csproj" />
     <Project Path="Src/Alco.ShaderCompiler/Alco.ShaderCompiler.csproj" />
@@ -80,7 +80,7 @@
   </Folder>
   <Folder Name="/Test/">
     <Project Path="Test/Alco.Profiler.Test/Alco.Profiler.Test.csproj" />
-    <Project Path="Test/Alco.Particles.Test/Alco.Particles.Test.csproj" />
+    <Project Path="Test/Alco.Effects.Test/Alco.Effects.Test.csproj" />
     <Project Path="Test/Alco.Profiler.BuildTool.Fixture/Alco.Profiler.BuildTool.Fixture.csproj" />
     <Project Path="Test/Alco.Profiler.BuildTool.Test/Alco.Profiler.BuildTool.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />

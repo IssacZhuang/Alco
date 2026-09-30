@@ -18,7 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Editor\Alco.Editor\Alco.Editor.csproj" />
-    <ProjectReference Include="..\..\Src\Alco.Particles\Alco.Particles.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.Effects\Alco.Effects.csproj" />
   </ItemGroup>
 
 </Project>

@@ -70,17 +70,6 @@ public class ValidateSlangModules
             ["TileInstanced"] = [["false", "false"]],
         };
 
-    // Pass templates whose generic entry points take the surface type as their
-    // specialization argument (the material-composition contract): they compose
-    // with each built-in surface instead of linking standalone, the same route
-    // the material compiler takes at runtime. Both dimensions share ITrailSurface.
-    private static readonly IReadOnlyDictionary<string, string[]> TemplateSurfaces =
-        new Dictionary<string, string[]>
-        {
-            ["GpuTrail2D"] = ["TrailSurfaceDefault", "TrailSurfaceSmoke"],
-            ["GpuTrail3D"] = ["TrailSurfaceDefault", "TrailSurfaceSmoke"],
-        };
-
     /// <summary>Compiles every entry point with representative specialization arguments.</summary>
     /// <param name="moduleName">The shader module name.</param>
     /// <param name="file">The source file represented by the test case.</param>
@@ -110,23 +99,14 @@ public class ValidateSlangModules
         string[][] argSets = Specializations.TryGetValue(moduleName, out string[][]? sets)
             ? sets
             : [[]];
-        string?[] surfaces = TemplateSurfaces.TryGetValue(moduleName, out string[]? templateSurfaces)
-            ? templateSurfaces
-            : new string?[] { null };
-        foreach (string? surface in surfaces)
+        foreach (string[] args in argSets)
         {
-            foreach (string[] args in argSets)
+            using SlangProgram program = system.Modules.GetProgramAllEntries(moduleName, args);
+            Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
+            Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
+            foreach (ReadOnlyMemory<byte> code in program.EntryCode)
             {
-                using SlangProgram program = surface != null
-                    ? system.Modules.GetComposedProgram(moduleName, surface, args)
-                    : system.Modules.GetProgramAllEntries(moduleName, args);
-                string composition = surface == null ? moduleName : $"{moduleName}+{surface}";
-                Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{composition} defines no entry points");
-                Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
-                foreach (ReadOnlyMemory<byte> code in program.EntryCode)
-                {
-                    Assert.That(code.Length, Is.GreaterThan(4), $"{composition}: empty SPIR-V blob");
-                }
+                Assert.That(code.Length, Is.GreaterThan(4), $"{moduleName}: empty SPIR-V blob");
             }
         }
         _ = file;

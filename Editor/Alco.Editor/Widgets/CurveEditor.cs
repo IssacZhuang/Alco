@@ -1,6 +1,6 @@
 using System.Numerics;
 using Alco.ImGUI;
-using Alco.Particles;
+using Alco.Effects;
 
 namespace Alco.Editor;
 

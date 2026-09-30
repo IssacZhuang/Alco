@@ -4,12 +4,12 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
-using Alco.Particles;
+using Alco.Effects;
 using Alco.Rendering;
 using SandboxUtils;
 
 /// <summary>
-/// Sandbox demonstrating the 3D GPU particle system (Alco.Particles): particle
+/// Sandbox demonstrating the 3D GPU particle system (Alco.Effects): particle
 /// effect assets (<c>.afx</c>, 3D flavor) simulated and rendered entirely on the
 /// GPU, drawn as camera-facing billboards with depth testing against the scene.
 /// The scene shows a looping flame jet, one-shot explosions (velocity-stretched

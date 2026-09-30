@@ -1,5 +1,5 @@
 using Alco.Graphics;
-using Alco.Particles;
+using Alco.Effects;
 using Alco.Rendering;
 
 namespace Alco.Editor.Extensibility;
