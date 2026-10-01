@@ -593,11 +593,11 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a BC3 texture compressor from the texture-compress-bc3 shader
+    /// Creates a BC3 texture compressor from the TextureCompressBc3 shader
     /// (MainCS&lt;let IsSRGB&gt;): the linear (false) and sRGB (true) compression
     /// dispatchers are the shader's specializations, construction-bound per variant.
     /// </summary>
-    /// <param name="shader">The texture-compress-bc3 shader.</param>
+    /// <param name="shader">The TextureCompressBc3 shader.</param>
     /// <returns>A new TextureCompressorBC3 instance.</returns>
     public TextureCompressorBC3 CreateTextureCompressorBC3(Shader shader)
     {
@@ -605,11 +605,11 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a BC1 texture compressor from the texture-compress-bc1 shader
+    /// Creates a BC1 texture compressor from the TextureCompressBc1 shader
     /// (MainCS&lt;let IsSRGB&gt;): the linear (false) and sRGB (true) compression
     /// dispatchers are the shader's specializations, construction-bound per variant.
     /// </summary>
-    /// <param name="shader">The texture-compress-bc1 shader.</param>
+    /// <param name="shader">The TextureCompressBc1 shader.</param>
     /// <returns>A new TextureCompressorBC1 instance.</returns>
     public TextureCompressorBC1 CreateTextureCompressorBC1(Shader shader)
     {

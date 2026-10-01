@@ -41,7 +41,7 @@ public sealed class TextureCompressorBC1 : AutoDisposable
     /// Initializes a new instance of the <see cref="TextureCompressorBC1"/> class.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance.</param>
-    /// <param name="shader">The texture-compress-bc1 shader (MainCS&lt;let IsSRGB&gt;;
+    /// <param name="shader">The TextureCompressBc1 shader (MainCS&lt;let IsSRGB&gt;;
     /// the linear/sRGB dispatchers are its specializations).</param>
     /// <param name="defaultBufferSize">Initial capacity of the block staging buffer.</param>
     internal TextureCompressorBC1(RenderingSystem renderingSystem, Shader shader,
