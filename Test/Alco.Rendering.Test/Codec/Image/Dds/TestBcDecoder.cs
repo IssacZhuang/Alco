@@ -1,5 +1,8 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
+using Alco.Graphics;
+using Alco.Graphics.WebGPU;
+using Alco.ShaderCompiler;
 using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
@@ -51,6 +54,7 @@ public unsafe class TestBcDecoder
         return block;
     }
 
+    /// <summary>Verifies a solid BC1 block with equal endpoints.</summary>
     [Test]
     public void Bc1_SolidBlock_DecodesToReplicatedColor()
     {
@@ -64,64 +68,78 @@ public unsafe class TestBcDecoder
         }
     }
 
+    /// <summary>Verifies that the endpoints occupy palette indices zero and one.</summary>
     [Test]
     public void Bc1_FourColorMode_DecodesBothEndpoints()
     {
-        // color0 > color1 selects the 4-color mode; pixel 1 carries index 3 (color1).
         byte[] pixels = DecodeSingleBlock(
-            Bc1ColorBlock(0xFFFF, 0x0000, 3u << 2),
+            Bc1ColorBlock(0xFFFF, 0x0000, 1u << 2),
             DdsDecoder.BcFamily.BC1);
 
         Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 255, 255, 255, 255 }));
         Assert.That(pixels[4..8], Is.EqualTo(new byte[] { 0, 0, 0, 255 }));
     }
 
+    /// <summary>Verifies transparent black for the BC1 punchthrough palette entry.</summary>
     [Test]
     public void Bc1_ThreeColorMode_Index3IsTransparent()
     {
         // color0 < color1 selects the punchthrough mode: index 3 decodes to
         // transparent black while index 0 keeps color 0 opaque.
         byte[] pixels = DecodeSingleBlock(
-            Bc1ColorBlock(0x0000, 0xFFFF, 3u << 6),
-            DdsDecoder.BcFamily.BC1);
-
-        Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 0, 0, 0, 255 }));       // index 0 = color0
-        Assert.That(pixels[4..8], Is.EqualTo(new byte[] { 0, 0, 0, 255 }));       // pixel 1, index 0
-        Assert.That(pixels[8..12], Is.EqualTo(new byte[] { 0, 0, 0, 255 }));      // pixel 2, index 0
-        Assert.That(pixels[12..16], Is.EqualTo(new byte[] { 0, 0, 0, 0 }));       // pixel 3, index 3 = punchthrough
-    }
-
-    [Test]
-    public void Bc1_InterpolatedColors_MatchIntegerMix()
-    {
-        // 0xF800 (red) > 0x07E0 (green) selects the 4-color mode. RGB565 channel
-        // replication expands the endpoints to (255,0,0) and (0,255,0); the BC1
-        // palette order is index 1 = (2*c0 + c1)/3 = (170, 85, 0) and
-        // index 2 = (c0 + 2*c1)/3 = (85, 170, 0). Pixel 1 carries index 1,
-        // pixel 2 carries index 2.
-        byte[] pixels = DecodeSingleBlock(
-            Bc1ColorBlock(0xF800, 0x07E0, (1u << 2) | (2u << 4)),
+            Bc1ColorBlock(0xF800, 0xFFFF, 3u << 6),
             DdsDecoder.BcFamily.BC1);
 
         Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 255, 0, 0, 255 }));
-        Assert.That(pixels[4..8], Is.EqualTo(new byte[] { 170, 85, 0, 255 }));
-        Assert.That(pixels[8..12], Is.EqualTo(new byte[] { 85, 170, 0, 255 }));
+        Assert.That(pixels[4..8], Is.EqualTo(new byte[] { 255, 0, 0, 255 }));
+        Assert.That(pixels[8..12], Is.EqualTo(new byte[] { 255, 0, 0, 255 }));
+        Assert.That(pixels[12..16], Is.EqualTo(new byte[] { 0, 0, 0, 0 }));       // pixel 3, index 3 = punchthrough
     }
 
+    /// <summary>Verifies endpoint-first color palettes for every supported BC family.</summary>
+    /// <param name="family">The block format to decode.</param>
+    [TestCase(DdsDecoder.BcFamily.BC1)]
+    [TestCase(DdsDecoder.BcFamily.BC2)]
+    [TestCase(DdsDecoder.BcFamily.BC3)]
+    public void FourColorPalette_MatchesIntegerMix(DdsDecoder.BcFamily family)
+    {
+        uint indices = (1u << 2) | (2u << 4) | (3u << 6);
+        byte[] block = family == DdsDecoder.BcFamily.BC1
+            ? Bc1ColorBlock(0xF800, 0x07E0, indices)
+            : Bc3Block(255, 255, 0, 0xF800, 0x07E0, indices);
+        if (family == DdsDecoder.BcFamily.BC2)
+        {
+            Array.Fill(block, (byte)255, 0, 8);
+        }
+        byte[] pixels = DecodeSingleBlock(block, family);
+
+        Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 255, 0, 0, 255 }));
+        Assert.That(pixels[4..8], Is.EqualTo(new byte[] { 0, 255, 0, 255 }));
+        Assert.That(pixels[8..12], Is.EqualTo(new byte[] { 170, 85, 0, 255 }));
+        Assert.That(pixels[12..16], Is.EqualTo(new byte[] { 85, 170, 0, 255 }));
+    }
+
+    /// <summary>Verifies every alpha entry across byte and 32-bit packing boundaries.</summary>
     [Test]
     public void Bc3_AlphaInterpolation_MatchesEightValuePalette()
     {
-        // a0=255 > a1=0: palette[j] = ((8-j)*255 + (j-1)*0)/7. Pixel 1 carries
-        // alpha index 3 ((5*255 + 2*0)/7 = 182); pixel 0 carries index 0 (255).
-        ulong alphaIndices = 3UL << 3;
+        ulong alphaIndices = 0;
+        for (int i = 0; i < 16; i++)
+        {
+            alphaIndices |= (ulong)(i % 8) << (i * 3);
+        }
         byte[] pixels = DecodeSingleBlock(
             Bc3Block(255, 0, alphaIndices, 0xFFFF, 0xFFFF, 0),
             DdsDecoder.BcFamily.BC3);
+        byte[] expected = [255, 0, 218, 182, 145, 109, 72, 36];
 
-        Assert.That(pixels[3], Is.EqualTo(255));
-        Assert.That(pixels[7], Is.EqualTo(182));
+        for (int i = 0; i < 16; i++)
+        {
+            Assert.That(pixels[i * 4 + 3], Is.EqualTo(expected[i % 8]), $"pixel {i}");
+        }
     }
 
+    /// <summary>Verifies explicit zero and opaque alpha in the six-value mode.</summary>
     [Test]
     public void Bc3_AlphaSixValueMode_HasExplicitBlackAndWhiteEntries()
     {
@@ -137,23 +155,28 @@ public unsafe class TestBcDecoder
         Assert.That(pixels[11], Is.EqualTo(255));
     }
 
-    [Test]
-    public void Bc3_ThreeColorBlock_Index3RepeatsColor0WithContainerAlpha()
+    /// <summary>Verifies four-color interpolation with reversed endpoints and separate alpha.</summary>
+    /// <param name="family">The block format to decode.</param>
+    [TestCase(DdsDecoder.BcFamily.BC2)]
+    [TestCase(DdsDecoder.BcFamily.BC3)]
+    public void SeparateAlpha_ReversedEndpoints_StillUsesFourColors(DdsDecoder.BcFamily family)
     {
-        // color0 < color1 without punchthrough: index 3 repeats color 0 and the
-        // alpha comes from the DXT5 block, not from the color block. Pixel 3
-        // carries color index 3; with a0=64/a1=255 its alpha is index 0 (= 64) —
-        // a punchthrough decode would wrongly yield 0. Pixel 0 carries alpha
-        // index 7 (= 255, the 6-value palette's explicit white entry).
-        ulong alphaIndices = 7UL;
-        byte[] pixels = DecodeSingleBlock(
-            Bc3Block(64, 255, alphaIndices, 0x0000, 0xFFFF, 3u << 6),
-            DdsDecoder.BcFamily.BC3);
+        uint colorIndices = (1u << 2) | (2u << 4) | (3u << 6);
+        byte[] block = Bc3Block(68, 255, 7UL, 0x0000, 0xFFFF, colorIndices);
+        if (family == DdsDecoder.BcFamily.BC2)
+        {
+            Array.Fill(block, (byte)0x44, 0, 8);
+            block[0] = 0x4F;
+        }
+        byte[] pixels = DecodeSingleBlock(block, family);
 
-        Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 0, 0, 0, 255 }));   // index 0 = color0, alpha 255
-        Assert.That(pixels[12..16], Is.EqualTo(new byte[] { 0, 0, 0, 64 }));  // index 3 = color0, alpha 64
+        Assert.That(pixels[0..4], Is.EqualTo(new byte[] { 0, 0, 0, 255 }));
+        Assert.That(pixels[4..8], Is.EqualTo(new byte[] { 255, 255, 255, 68 }));
+        Assert.That(pixels[8..12], Is.EqualTo(new byte[] { 85, 85, 85, 68 }));
+        Assert.That(pixels[12..16], Is.EqualTo(new byte[] { 170, 170, 170, 68 }));
     }
 
+    /// <summary>Verifies expansion of BC2 four-bit alpha values.</summary>
     [Test]
     public void Bc2_FourBitAlpha_ExpandsNibbles()
     {
@@ -172,6 +195,107 @@ public unsafe class TestBcDecoder
         Assert.That(pixels[15], Is.EqualTo(119));
     }
 
+    /// <summary>Verifies real GPU encoders against the native BC palette layout.</summary>
+    /// <param name="family">The compression format to exercise.</param>
+    /// <param name="solid">Whether the source block has constant channels.</param>
+    [TestCase(DdsDecoder.BcFamily.BC1, false)]
+    [TestCase(DdsDecoder.BcFamily.BC3, false)]
+    [TestCase(DdsDecoder.BcFamily.BC1, true)]
+    [TestCase(DdsDecoder.BcFamily.BC3, true)]
+    [Category("WebGPU")]
+    [NonParallelizable]
+    public void GpuCompression_UsesEndpointFirstPalette(DdsDecoder.BcFamily family, bool solid)
+    {
+        using GpuHost gpuHost = new();
+        var device = new WebGPUDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.WGPUVulkan));
+        if (!device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
+        {
+            Assert.Ignore("The graphics adapter does not support BC compression.");
+        }
+
+        DirectoryInfo? directory = new(AppContext.BaseDirectory);
+        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Alco.slnx")))
+        {
+            directory = directory.Parent;
+        }
+        string shaderRoot = Path.Combine(directory!.FullName, "Src", "Alco.Rendering", "Assets", "Shaders");
+        string[] shaderFiles = Directory.GetFiles(shaderRoot, "*.slang", SearchOption.AllDirectories);
+        var resolver = ShaderModuleResolver.Create(
+            path =>
+            {
+                string candidate = Path.Combine(shaderRoot, SlangPathUtility.NormalizePath(path));
+                return File.Exists(candidate) ? File.OpenRead(candidate) : null;
+            },
+            () => shaderFiles.Select(path => Path.GetRelativePath(shaderRoot, path).Replace('\\', '/')));
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(resolver, device);
+        byte[] alpha = [255, 219, 182, 146, 109, 73, 36, 0];
+        byte[] sourcePixels = new byte[64];
+        for (int i = 0; i < 16; i++)
+        {
+            byte color = solid ? (byte)128 : (byte)(255 - i % 4 * 85);
+            sourcePixels[i * 4] = color;
+            sourcePixels[i * 4 + 1] = color;
+            sourcePixels[i * 4 + 2] = color;
+            sourcePixels[i * 4 + 3] = family == DdsDecoder.BcFamily.BC1 ? (byte)255
+                : solid ? (byte)128 : alpha[i % 8];
+        }
+        using Texture2D source = host.RenderingSystem.CreateTexture2D(sourcePixels, 4, 4, ImageLoadOption.Default);
+        byte[] block = new byte[family == DdsDecoder.BcFamily.BC1 ? 8 : 16];
+        if (family == DdsDecoder.BcFamily.BC1)
+        {
+            using TextureCompressorBC1 compressor = host.RenderingSystem.CreateTextureCompressorBC1(
+                host.RenderingSystem.ShaderSystem.GetShader("TextureCompressBc1"));
+            Assert.That(compressor.CompressBlocks(source, block), Is.EqualTo(block.Length));
+        }
+        else
+        {
+            using TextureCompressorBC3 compressor = host.RenderingSystem.CreateTextureCompressorBC3(
+                host.RenderingSystem.ShaderSystem.GetShader("TextureCompressBc3"));
+            Assert.That(compressor.CompressBlocks(source, block), Is.EqualTo(block.Length));
+        }
+
+        uint colorIndices = BinaryPrimitives.ReadUInt32LittleEndian(block.AsSpan(block.Length - 4));
+        ulong alphaIndices = family == DdsDecoder.BcFamily.BC3
+            ? BinaryPrimitives.ReadUInt64LittleEndian(block) >> 16 : 0;
+        byte[] expectedColorIndices = [0, 2, 3, 1];
+        byte[] expectedAlphaIndices = [0, 2, 3, 4, 5, 6, 7, 1];
+        byte[] decoded = DecodeSingleBlock(block, family);
+        for (int i = 0; i < 16; i++)
+        {
+            Assert.That((colorIndices >> (i * 2)) & 3,
+                Is.EqualTo(solid ? 0 : expectedColorIndices[i % 4]), $"color index {i}");
+            if (family == DdsDecoder.BcFamily.BC3)
+            {
+                Assert.That((alphaIndices >> (i * 3)) & 7,
+                    Is.EqualTo(solid ? 0 : expectedAlphaIndices[i % 8]), $"alpha index {i}");
+            }
+            for (int channel = 0; channel < 4; channel++)
+            {
+                Assert.That(Math.Abs(decoded[i * 4 + channel] - sourcePixels[i * 4 + channel]),
+                    Is.LessThanOrEqualTo(channel == 3 ? 1 : 17), $"pixel {i}, channel {channel}");
+            }
+        }
+    }
+
+    private sealed class GpuHost : IGPUDeviceHost, IDisposable
+    {
+        /// <inheritdoc />
+        public event Action OnEndFrame { add { } remove { } }
+        /// <inheritdoc />
+        public event Action? OnDispose;
+        /// <inheritdoc />
+        public void Dispose() => OnDispose?.Invoke();
+        /// <inheritdoc />
+        public void LogInfo(ReadOnlySpan<char> message) { }
+        /// <inheritdoc />
+        public void LogWarning(ReadOnlySpan<char> message) => TestContext.Progress.WriteLine(message.ToString());
+        /// <inheritdoc />
+        public void LogError(ReadOnlySpan<char> message) => TestContext.Progress.WriteLine(message.ToString());
+        /// <inheritdoc />
+        public void LogSuccess(ReadOnlySpan<char> message) { }
+    }
+
+    /// <summary>Verifies rejection of unsupported CPU decoding families.</summary>
     [Test]
     public void Bc4AndBc7_Throw()
     {
@@ -182,6 +306,7 @@ public unsafe class TestBcDecoder
             () => BcDecoder.DecodeLevel(block, 0, DdsDecoder.BcFamily.BC7, 4, 4, 0));
     }
 
+    /// <summary>Verifies that truncated payloads fail before block access.</summary>
     [Test]
     public void DecodeLevel_TruncatedPayload_Throws()
     {
@@ -191,6 +316,7 @@ public unsafe class TestBcDecoder
             () => BcDecoder.DecodeLevel(block, 0, DdsDecoder.BcFamily.BC1, 16, 16, 0));
     }
 
+    /// <summary>Verifies mip offsets when decoding a level after the base image.</summary>
     [Test]
     public void DecodeLevel_SecondLevel_SkipsFirstLevelBytes()
     {

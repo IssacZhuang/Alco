@@ -101,8 +101,8 @@ public static unsafe class BcDecoder
             return;
         }
 
-        // BC2/BC3: 8 alpha bytes followed by the color block. The color decode never
-        // punches alpha through; a 3-color block maps code 3 to color 0 (s3tc spec).
+        // BC2/BC3: 8 alpha bytes followed by the color block. RGB always uses
+        // four-color interpolation regardless of endpoint order; alpha is separate.
         DecodeBc1Colors(block[8..], punchthrough: false, tile);
 
         if (family == DdsDecoder.BcFamily.BC2)
@@ -152,10 +152,10 @@ public static unsafe class BcDecoder
     }
 
     /// <summary>
-    /// Decompress the 8-byte BC1 color block into the tile. With
+    /// Decompress the 8-byte BC color block into the tile. With
     /// <paramref name="punchthrough"/> (BC1), a 3-color block maps index 3 to
-    /// transparent black; without it (BC2/BC3) index 3 maps to color 0 and alpha is
-    /// left untouched for the container's own alpha channel.
+    /// transparent black; without it (BC2/BC3), four-color interpolation is used
+    /// regardless of endpoint order.
     /// </summary>
     private static void DecodeBc1Colors(ReadOnlySpan<byte> colors, bool punchthrough, Span<byte> tile)
     {
@@ -166,23 +166,16 @@ public static unsafe class BcDecoder
         Span<byte> palette = stackalloc byte[4 * 4]; // Four RGBA colors.
         WriteRgb565(palette, 0, color0);
         WriteRgb565(palette, 4, color1);
-        bool fourColorMode = color0 > color1;
+        bool fourColorMode = !punchthrough || color0 > color1;
         if (fourColorMode)
         {
             MixChannel(palette, 0, 4, 8, 2, 1);
             MixChannel(palette, 0, 4, 12, 1, 2);
-            // The BC1 palette order is 0=c0, 1=(2c0+c1)/3, 2=(c0+2c1)/3, 3=c1:
-            // rotate the freshly mixed colors and the c1 endpoint into place.
-            Span<byte> c1 = stackalloc byte[4];
-            palette.Slice(4, 4).CopyTo(c1);
-            palette.Slice(8, 4).CopyTo(palette.Slice(4, 4));
-            palette.Slice(12, 4).CopyTo(palette.Slice(8, 4));
-            c1.CopyTo(palette.Slice(12, 4));
         }
         else
         {
             MixChannel(palette, 0, 4, 8, 1, 1);
-            palette[0..4].CopyTo(palette[12..16]); // Code 3 repeats color 0.
+            palette[12..16].Clear();
         }
 
         for (int i = 0; i < 16; i++)

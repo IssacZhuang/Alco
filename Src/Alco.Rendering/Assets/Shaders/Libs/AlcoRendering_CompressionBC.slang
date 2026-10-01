@@ -95,6 +95,19 @@ void getMinMax(in float3 Block[16], out float3 outMin, out float3 outMax)
     }
 }
 
+// BC palettes store both endpoints before the interpolated entries.
+uint getColorPaletteIndex(float projection)
+{
+    uint index = (uint)clamp(round(projection), 0.f, 3.f);
+    return index == 0u ? 0u : (index == 3u ? 1u : index + 1u);
+}
+
+uint getAlphaPaletteIndex(float projection)
+{
+    uint index = (uint)clamp(round(projection), 0.f, 7.f);
+    return index == 0u ? 0u : (index == 7u ? 1u : index + 1u);
+}
+
 // Calculate the final packed indices for a color block
 uint getPackedColorBlockIndices(in float3 Block[16], in float3 minColor, in float3 maxColor)
 {
@@ -108,11 +121,7 @@ uint getPackedColorBlockIndices(in float3 Block[16], in float3 minColor, in floa
 	
     for (int i = 15; i >= 0; --i)
     {
-		// Compute the distance index for this element; the projection already
-		// yields the palette order (0 = maxColor .. 3 = minColor).
-        uint index = round(dot(Block[i], scaledRange) + bias);
-		// Clamp round-off overshoot at the min endpoint.
-		index = min(index, 3u);
+        uint index = getColorPaletteIndex(dot(Block[i], scaledRange) + bias);
 		// OR into the final packedIndices
         packedIndices = (packedIndices << 2) | index;
     }
@@ -135,10 +144,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
 	// The first 5 elements of the block will go into the top 16 bits of the x component
     for (i = 0; i < 5; ++i)
     {
-		// Compute the distance index for this element
-        uint index = round(Block[i] * scale + bias);
-		// Clamp round-off overshoot at the min endpoint.
-        index = min(index, 7u);
+        uint index = getAlphaPaletteIndex(Block[i] * scale + bias);
 		// OR into the final packedIndices
         packedIndices.x |= (index << (i * 3 + 16));
     }
@@ -146,8 +152,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
 	// The 6th element is split across the x and y components
 	{
         i = 5;
-        uint index = round(Block[i] * scale + bias);
-        index = min(index, 7u);
+        uint index = getAlphaPaletteIndex(Block[i] * scale + bias);
         packedIndices.x |= (index << 31);
         packedIndices.y |= (index >> 1);
     }
@@ -155,8 +160,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
 	// The rest of the elements fill the y component
     for (i = 6; i < 16; ++i)
     {
-        uint index = round(Block[i] * scale + bias);
-        index = min(index, 7u);
+        uint index = getAlphaPaletteIndex(Block[i] * scale + bias);
         packedIndices.y |= (index << (i * 3 - 16));
     }
 
@@ -406,10 +410,7 @@ uint getPackedCoCgBlockIndices(in float3 Block[16], in float2 minCoCg, in float2
 
     for (int i = 15; i >= 0; --i)
     {
-		// Compute the distance index for this element
-        uint index = round(dot(Block[i].yz, scaledRange) + bias);
-		// Clamp round-off overshoot at the min endpoint.
-        index = min(index, 3u);
+        uint index = getColorPaletteIndex(dot(Block[i].yz, scaledRange) + bias);
 		// OR into the final packedIndices
         packedIndices = (packedIndices << 2) | index;
     }
@@ -431,10 +432,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
 	// The first 5 elements of the block will go into the top 16 bits of the x component
     for (i = 0; i < 5; ++i)
     {
-		// Compute the distance index for this element
-        uint index = round(Block[i].x * scale + bias);
-		// Clamp round-off overshoot at the min endpoint.
-        index = min(index, 7u);
+        uint index = getAlphaPaletteIndex(Block[i].x * scale + bias);
 		// OR into the final packedIndices
         packedIndices.x |= (index << (i * 3 + 16));
     }
@@ -442,8 +440,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
 	// The 6th element is split across the x and y components
 	{
         i = 5;
-        uint index = round(Block[i].x * scale + bias);
-        index = min(index, 7u);
+        uint index = getAlphaPaletteIndex(Block[i].x * scale + bias);
         packedIndices.x |= (index << 31);
         packedIndices.y |= (index >> 1);
     }
@@ -451,8 +448,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
 	// The rest of the elements fill the y component
     for (i = 6; i < 16; ++i)
     {
-        uint index = round(Block[i].x * scale + bias);
-        index = min(index, 7u);
+        uint index = getAlphaPaletteIndex(Block[i].x * scale + bias);
         packedIndices.y |= (index << (i * 3 - 16));
     }
 
