@@ -1,4 +1,6 @@
+using System.Collections.Immutable;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
@@ -6,6 +8,7 @@ using Alco.Engine;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Scripting;
 using Microsoft.CodeAnalysis.Scripting;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Alco.AgentControlProtocol;
 
@@ -17,7 +20,10 @@ namespace Alco.AgentControlProtocol;
 /// Compilation runs on the agent (background) thread because it is CPU-bound and
 /// touches no game state. The compiled script then executes on the engine main thread
 /// so it can read game state directly (entities, maps, services) without callers
-/// worrying about thread marshalling.
+/// worrying about thread marshalling. Scripts may <c>await</c>: only the first
+/// synchronous segment blocks the posted main-thread callback, and continuations are
+/// pumped back onto the main thread by the engine loop once per frame, so the game
+/// keeps running while a script waits.
 /// </remarks>
 public sealed class ScriptTool
 {
@@ -63,8 +69,15 @@ public sealed class ScriptTool
     /// <summary>
     /// Compiles and executes an arbitrary C# script and returns its result as a string.
     /// Compilation runs on a background thread; execution runs on the engine main thread.
+    /// The source is either the inline <paramref name="code"/> string or a .csx file at
+    /// the absolute <paramref name="scriptPath"/> — provide exactly one of the two.
     /// </summary>
     /// <param name="code">The C# code to compile and execute. May use a top-level <c>return</c> statement; the return value is stringified.</param>
+    /// <param name="scriptPath">
+    /// Absolute path to a .csx script file to execute. Compilation diagnostics report positions
+    /// in this file, and <c>#load</c>/<c>#r</c> directives inside it resolve relative paths
+    /// against its directory.
+    /// </param>
     /// <param name="timeoutMs">Compilation timeout in milliseconds. Defaults to the host's configured timeout when omitted or non-positive.</param>
     /// <returns>
     /// The stringified script return value on success, or a prefixed diagnostic message on
@@ -74,20 +87,51 @@ public sealed class ScriptTool
     [AgentFunction(IsOnAgentThread = true)]
     [Description(
         "Compile and execute an arbitrary C# script and return its stringified result. " +
+        "Provide either inline 'code' or an absolute 'scriptPath' to a .csx file. " +
         "The script runs on the engine main thread with an 'Engine' global bound to the " +
-        "engine instance. The BCL namespaces (System, System.Linq, " +
-        "System.Collections.Generic, System.Globalization, System.Numerics), every " +
-        "loaded Alco.* namespace, and the host application's root namespaces are " +
-        "imported by default. Use a top-level 'return' statement to yield a value; " +
-        "compilation errors, runtime exceptions and timeouts are returned as prefixed " +
+        "engine instance, and may await tasks. The BCL namespaces (System, System.IO, " +
+        "System.Linq, System.Collections.Generic, System.Globalization, System.Numerics, " +
+        "System.Threading.Tasks), every loaded Alco.* namespace, and the host application's " +
+        "root namespaces are imported by default. Use a top-level 'return' statement to yield " +
+        "a value; compilation errors, runtime exceptions and timeouts are returned as prefixed " +
         "strings.")]
     public async Task<string> ExecuteScript(
-        [Description("C# code to compile and execute. May use a top-level 'return' statement to yield a value.")] string code,
+        [Description("C# code to compile and execute. Provide either this or scriptPath. May use a top-level 'return' statement to yield a value.")] string code = "",
+        [Description("Absolute path to a .csx script file to execute. Provide either this or code. Diagnostics report positions in the file; #load/#r resolve relative to its directory.")] string scriptPath = "",
         [Description("Compilation timeout in milliseconds. Defaults to the host's configured timeout.")] int timeoutMs = 0)
     {
-        if (string.IsNullOrWhiteSpace(code))
+        if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(scriptPath))
         {
-            return "No code provided.";
+            return "Provide either 'code' or 'scriptPath', not both.";
+        }
+
+        ScriptOptions options;
+        if (!string.IsNullOrWhiteSpace(scriptPath))
+        {
+            if (!Path.IsPathRooted(scriptPath))
+            {
+                return $"scriptPath must be an absolute path: '{scriptPath}'.";
+            }
+
+            if (!TryReadScriptFile(scriptPath, out code, out string? readError))
+            {
+                return readError;
+            }
+
+            string? baseDirectory = Path.GetDirectoryName(scriptPath);
+            options = BuildScriptOptions()
+                .WithFilePath(scriptPath)
+                .WithSourceResolver(new SourceFileResolver(ImmutableArray<string>.Empty, baseDirectory))
+                .WithMetadataResolver(ScriptMetadataResolver.Default.WithBaseDirectory(baseDirectory));
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                return "No code provided.";
+            }
+
+            options = BuildScriptOptions();
         }
 
         if (timeoutMs <= 0)
@@ -105,7 +149,7 @@ public sealed class ScriptTool
         ScriptRunner<object?>? runner;
         try
         {
-            runner = await CompileAsync(code, timeoutMs, globals.GetType()).ConfigureAwait(false);
+            runner = await CompileAsync(code, timeoutMs, globals.GetType(), options).ConfigureAwait(false);
         }
         catch (CompilationErrorException ex)
         {
@@ -122,13 +166,17 @@ public sealed class ScriptTool
         }
 
         // Execute on the engine main thread so the script body can read game state directly.
-        // The runner returns a Task<object?> (Roslyn scripts are async); PostToMainThreadAsync runs
-        // the lambda on the main thread and we synchronously block on the returned task there.
+        // The posted lambda runs only the script's first synchronous segment and returns the
+        // script task (Roslyn scripts are async); the engine main loop then pumps the script's
+        // await continuations back onto the main thread once per frame. Blocking on the task
+        // here would instead deadlock whenever a script awaits, because the continuation queue
+        // is drained by that same main thread.
         object? returnValue;
         try
         {
-            returnValue = await _engine.PostToMainThreadAsync(() => runner(globals).GetAwaiter().GetResult())
+            Task<object?> scriptTask = await _engine.PostToMainThreadAsync(() => runner(globals))
                 .ConfigureAwait(false);
+            returnValue = await scriptTask.ConfigureAwait(false);
         }
         catch (TargetInvocationException ex) when (ex.InnerException != null)
         {
@@ -156,12 +204,13 @@ public sealed class ScriptTool
     /// The globals type whose public members the script sees as top-level names; must be
     /// public with public members because scripts compile to a separate assembly.
     /// </param>
+    /// <param name="options">The script options carrying references, imports and, for file-based scripts, the source resolvers.</param>
     /// <returns>The compiled script runner, or <c>null</c> if the script has no entry point.</returns>
     /// <exception cref="CompilationErrorException">Thrown when the code fails to compile.</exception>
     /// <exception cref="TimeoutException">Thrown when compilation exceeds the timeout.</exception>
-    private static async Task<ScriptRunner<object?>?> CompileAsync(string code, int timeoutMs, Type globalsType)
+    private static async Task<ScriptRunner<object?>?> CompileAsync(string code, int timeoutMs, Type globalsType, ScriptOptions options)
     {
-        Script<object?> script = CSharpScript.Create<object?>(code, BuildScriptOptions(), globalsType);
+        Script<object?> script = CSharpScript.Create<object?>(code, options, globalsType);
         ScriptRunner<object?>? runner = script.CreateDelegate();
 
         // Force compilation (the heavy CPU work) and race it against the timeout. CreateDelegate
@@ -210,12 +259,15 @@ public sealed class ScriptTool
         var namespaces = new HashSet<string>(StringComparer.Ordinal)
         {
             // BCL namespaces always useful in scripts. System.Numerics supplies Vector2/int2 which are
-            // pervasive across the engine APIs.
+            // pervasive across the engine APIs; System.IO and System.Threading.Tasks match the standard
+            // dotnet-script/csi defaults so File/Task (and awaiting) work bare.
             "System",
+            "System.IO",
             "System.Linq",
             "System.Collections.Generic",
             "System.Globalization",
             "System.Numerics",
+            "System.Threading.Tasks",
         };
 
         foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
@@ -255,6 +307,29 @@ public sealed class ScriptTool
         return ScriptOptions.Default
             .WithReferences(references)
             .WithImports(namespaces.OrderBy(ns => ns, StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// Reads a script file, mapping common IO failures to a prefixed error string.
+    /// </summary>
+    /// <param name="scriptPath">Absolute path to the script file.</param>
+    /// <param name="code">The file contents when reading succeeds.</param>
+    /// <param name="error">A prefixed error message when reading fails.</param>
+    /// <returns>True when the file was read; false with <paramref name="error"/> set otherwise.</returns>
+    private static bool TryReadScriptFile(string scriptPath, out string code, [NotNullWhen(false)] out string? error)
+    {
+        try
+        {
+            code = File.ReadAllText(scriptPath);
+            error = null;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            code = string.Empty;
+            error = $"Cannot read script file '{scriptPath}': {ex.Message}";
+            return false;
+        }
     }
 
     /// <summary>
@@ -322,8 +397,19 @@ public sealed class ScriptTool
         foreach (var diagnostic in ex.Diagnostics)
         {
             sb.Append("  ").Append(diagnostic.Severity).Append(' ')
-                .Append(diagnostic.Id).Append(": ")
-                .AppendLine(diagnostic.GetMessage());
+                .Append(diagnostic.Id).Append(": ");
+
+            // File-based scripts carry a source location; surface it (1-based, editor-style)
+            // so diagnostics map back onto the .csx file. Inline submissions have no path.
+            FileLinePositionSpan span = diagnostic.Location.GetLineSpan();
+            if (span.IsValid && !string.IsNullOrEmpty(span.Path))
+            {
+                sb.Append(span.Path)
+                    .Append('(').Append(span.StartLinePosition.Line + 1).Append(',')
+                    .Append(span.StartLinePosition.Character + 1).Append("): ");
+            }
+
+            sb.AppendLine(diagnostic.GetMessage());
         }
 
         return sb.ToString().TrimEnd();

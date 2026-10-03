@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Alco.Engine;
 using NUnit.Framework;
@@ -73,9 +74,64 @@ public class ScriptToolTests
     }
 
     [Test]
+    public void ExecuteScript_AwaitIncompleteTask_CompletesWithoutDeadlock()
+    {
+        // Regression test: the script awaits an incomplete task while running on the main
+        // thread; the engine loop must pump its continuation instead of deadlocking.
+        Assert.That(_harness.AwaitScript, Is.EqualTo("awaited"));
+    }
+
+    [Test]
+    public void ExecuteScript_BclNamespaces_ImportTaskAndFileBare()
+    {
+        Assert.That(_harness.BareBclNames, Is.EqualTo("Task/System.IO.File"));
+    }
+
+    [Test]
+    public void ExecuteScript_ScriptPath_RunsFileAndReportsDiagnostics()
+    {
+        Assert.That(_harness.FileScript, Is.EqualTo("42"));
+        Assert.That(_harness.FileScriptCompileError, Does.StartWith("Compilation error:"));
+        Assert.That(_harness.FileScriptCompileError, Does.Contain(_harness.ScriptFileName + "(1,8)"));
+    }
+
+    [Test]
+    public void ExecuteScript_ScriptPath_RelativeLoadResolvesAgainstScriptDirectory()
+    {
+        Assert.That(_harness.FileScriptRelativeLoad, Is.EqualTo("10"));
+    }
+
+    [Test]
+    public void ExecuteScript_ScriptPath_RelativePathIsRejected()
+    {
+        Assert.That(_harness.RelativePathScript, Does.StartWith("scriptPath must be an absolute path:"));
+    }
+
+    [Test]
+    public void ExecuteScript_ScriptPath_MissingFileReportsReadError()
+    {
+        Assert.That(_harness.MissingFileScript, Does.StartWith("Cannot read script file"));
+    }
+
+    [Test]
+    public void ExecuteScript_CodeAndScriptPathTogetherIsRejected()
+    {
+        Assert.That(_harness.BothCodeAndPath, Is.EqualTo("Provide either 'code' or 'scriptPath', not both."));
+    }
+
+    [Test]
     public void ExecuteScript_NoFailure()
     {
         Assert.That(_harness.Failure, Is.Null);
+    }
+
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        if (_harness.TempDirectory != null && Directory.Exists(_harness.TempDirectory))
+        {
+            Directory.Delete(_harness.TempDirectory, true);
+        }
     }
 
     /// <summary>
@@ -96,6 +152,16 @@ public class ScriptToolTests
         public string? FactoryNullEngineType { get; private set; }
         public string? NonPublicGlobals { get; private set; }
         public string? EmptyCode { get; private set; }
+        public string? AwaitScript { get; private set; }
+        public string? BareBclNames { get; private set; }
+        public string? FileScript { get; private set; }
+        public string? FileScriptCompileError { get; private set; }
+        public string? FileScriptRelativeLoad { get; private set; }
+        public string? RelativePathScript { get; private set; }
+        public string? MissingFileScript { get; private set; }
+        public string? BothCodeAndPath { get; private set; }
+        public string? TempDirectory { get; private set; }
+        public string? ScriptFileName { get; private set; }
         public Exception? Failure { get; private set; }
 
         public ScriptEngineHarness()
@@ -125,8 +191,20 @@ public class ScriptToolTests
             ScriptTool nullFactoryTool = new(this, () => null);
             ScriptTool nonPublicTool = new(this, () => new PrivateGlobals());
 
+            TempDirectory = Path.Combine(Path.GetTempPath(), "ScriptToolTests_" + Guid.NewGuid().ToString("N"));
+            string mainScriptPath = Path.Combine(TempDirectory, "main.csx");
+            string brokenScriptPath = Path.Combine(TempDirectory, "broken.csx");
+            string loadMainScriptPath = Path.Combine(TempDirectory, "load_main.csx");
+
             try
             {
+                Directory.CreateDirectory(TempDirectory);
+                File.WriteAllText(mainScriptPath, "return 6 * 7;");
+                File.WriteAllText(brokenScriptPath, "return nope;");
+                File.WriteAllText(loadMainScriptPath, "#load \"helper.csx\"\nreturn Helper() * 2;");
+                File.WriteAllText(Path.Combine(TempDirectory, "helper.csx"), "int Helper() => 5;");
+                ScriptFileName = "broken.csx";
+
                 Basic = await defaultTool.ExecuteScript("return 6 * 7;");
                 DefaultEngineType = await defaultTool.ExecuteScript("return Engine.GetType().Name;");
                 HostGlobalsLabel = await hostTool.ExecuteScript("return Label;");
@@ -135,6 +213,14 @@ public class ScriptToolTests
                 FactoryNullEngineType = await nullFactoryTool.ExecuteScript("return Engine.GetType().Name;");
                 NonPublicGlobals = await nonPublicTool.ExecuteScript("return X;");
                 EmptyCode = await defaultTool.ExecuteScript("");
+                AwaitScript = await defaultTool.ExecuteScript("await Task.Delay(50); return \"awaited\";");
+                BareBclNames = await defaultTool.ExecuteScript("return $\"{typeof(Task).Name}/{typeof(File).FullName}\";");
+                FileScript = await defaultTool.ExecuteScript(scriptPath: mainScriptPath);
+                FileScriptCompileError = await defaultTool.ExecuteScript(scriptPath: brokenScriptPath);
+                FileScriptRelativeLoad = await defaultTool.ExecuteScript(scriptPath: loadMainScriptPath);
+                RelativePathScript = await defaultTool.ExecuteScript(scriptPath: "relative.csx");
+                MissingFileScript = await defaultTool.ExecuteScript(scriptPath: Path.Combine(TempDirectory, "missing.csx"));
+                BothCodeAndPath = await defaultTool.ExecuteScript("return 1;", scriptPath: mainScriptPath);
             }
             catch (Exception ex)
             {
