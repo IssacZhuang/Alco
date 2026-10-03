@@ -133,6 +133,26 @@ public class TestAStarPathFinder
     }
 
     [Test]
+    public void BlockedStart_CanPathOut()
+    {
+        // A search may start inside a blocked cell (e.g. a pawn standing in an obstacle);
+        // the start cell is never traversability-checked so the search can lead out of it.
+        var pf = new GridPathFinder(3, 3, blocked: new[] { new int2(0, 0) });
+        var path = new List<Vector2>();
+
+        bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(2, 2), ignoreEndPoint: false);
+
+        Assert.That(ok, Is.True);
+        Assert.That(path.Count, Is.GreaterThan(0));
+        Assert.That(path[path.Count - 1], Is.EqualTo(new Vector2(2, 2)));
+        foreach (var step in path)
+        {
+            Assert.That(step, Is.Not.EqualTo(new Vector2(0, 0)),
+                "the blocked start cell must not appear in the emitted path");
+        }
+    }
+
+    [Test]
     public void UniquePath_OnRectGrid_IsValidShortestPath()
     {
         // Grid 5x2; only y in {0,1}. Block (2,0) to force detour; with diagonal allowed,

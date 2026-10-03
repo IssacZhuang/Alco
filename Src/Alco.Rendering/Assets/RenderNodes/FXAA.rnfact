@@ -11,6 +11,8 @@
         "quality": "Medium",
         "mode": "Luma",
         "threshold": 0.125,
-        "subpix": 0.75
+        "subpix": 0.75,
+        "depthThresholdMin": 0.000244140625,
+        "depthThresholdRel": 0.015625
     }
 }

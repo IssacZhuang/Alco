@@ -91,6 +91,9 @@ public class FXAA : TextureProcessor
     private float _threshold = 0.125f;
     // Subpixel AA amount, likewise mirrored (see Threshold).
     private float _subpix = 0.75f;
+    // Depth edge detection thresholds, likewise mirrored (see Threshold).
+    private float _depthThresholdMin = 1.0f / 4096.0f;
+    private float _depthThresholdRel = 1.0f / 64.0f;
     // Reflection-driven uniform buffer over the shader's fxaaData block — no
     // hand-written CPU twin (the alignment padding lives in the reflected layout).
     private readonly UniformGraphicsBuffer _fxaaShaderData;
@@ -180,6 +183,39 @@ public class FXAA : TextureProcessor
     }
 
     /// <summary>
+    /// Gets or sets the depth edge detection absolute floor (depth modes):
+    /// neighbor depth differences below it never count as geometric edges.
+    /// Valid range: 0 - 0.01, Default: 1/4096
+    /// </summary>
+    public float DepthThresholdMin
+    {
+        get => _depthThresholdMin;
+        set
+        {
+            _depthThresholdMin = Math.Clamp(value, 0.0f, 0.01f);
+            _fxaaShaderData.SetValue("depthThresholdMin", _depthThresholdMin);
+            _fxaaShaderData.Flush();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the depth edge detection relative threshold (depth modes):
+    /// a neighbor counts as across an edge when its depth differs from the
+    /// center by this fraction of the center depth. Valid range: 0 - 0.25,
+    /// Default: 1/64
+    /// </summary>
+    public float DepthThresholdRel
+    {
+        get => _depthThresholdRel;
+        set
+        {
+            _depthThresholdRel = Math.Clamp(value, 0.0f, 0.25f);
+            _fxaaShaderData.SetValue("depthThresholdRel", _depthThresholdRel);
+            _fxaaShaderData.Flush();
+        }
+    }
+
+    /// <summary>
     /// Initializes a new instance of the FXAA post-processing effect.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance</param>
@@ -209,6 +245,8 @@ public class FXAA : TextureProcessor
         _fxaaShaderData.SetValue("invFrameSize", Vector2.One);
         _fxaaShaderData.SetValue("threshold", _threshold);
         _fxaaShaderData.SetValue("subpix", _subpix);
+        _fxaaShaderData.SetValue("depthThresholdMin", _depthThresholdMin);
+        _fxaaShaderData.SetValue("depthThresholdRel", _depthThresholdRel);
         _fxaaShaderData.Flush();
         _fxaaMaterial.SetBuffer(ShaderId_fxaaData, _fxaaShaderData);
     }

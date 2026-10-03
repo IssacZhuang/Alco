@@ -23,9 +23,11 @@ public ParameterBlock<PassParams> pass;
 // FXAA configuration constants
 public struct FxaaData
 {
-    public float2 invFrameSize; // 1.0 / FrameSize
-    public float threshold;     // Edge detection threshold (0.063-0.333)
-    public float subpix;        // Subpixel aliasing removal amount (0-1)
+    public float2 invFrameSize;       // 1.0 / FrameSize
+    public float threshold;           // Edge detection threshold (0.063-0.333)
+    public float subpix;              // Subpixel aliasing removal amount (0-1)
+    public float depthThresholdMin;   // Depth edge absolute floor (depth modes)
+    public float depthThresholdRel;   // Depth edge fraction of center depth (depth modes)
 };
 
 public ParameterBlock<FxaaData> fxaaData;
@@ -168,13 +170,12 @@ float fxaaLuma(float3 rgb) {
 ============================================================================*/
 
 // A neighbor lies across a geometric edge when its depth differs from the
-// center by more than a floor plus a relative fraction of the center depth.
-// Raw depth compares suffice under both conventions the engine renders with:
-// orthographic forward (near=0, far=1, sky=1) and reversed-infinite
-// (near=1, sky=0) — both are monotonic and the sky clear value simply sits
-// at the far end, so the relative test needs no linearization.
-static const float FXAA_DEPTH_EDGE_THRESHOLD_MIN = 1.0 / 4096.0;
-static const float FXAA_DEPTH_EDGE_THRESHOLD_REL = 1.0 / 64.0;
+// center by more than a floor plus a relative fraction of the center depth
+// (both tunable through the fxaaData block). Raw depth compares suffice under
+// both conventions the engine renders with: orthographic forward (near=0,
+// far=1, sky=1) and reversed-infinite (near=1, sky=0) — both are monotonic
+// and the sky clear value simply sits at the far end, so the relative test
+// needs no linearization.
 
 struct FxaaDepthEdge {
   bool isEdge;
@@ -193,7 +194,7 @@ FxaaDepthEdge fxaaDetectDepthEdge(float2 pos, float2 rcpFrame) {
   float dE = pass.depthTexture.Load(int3(pixel + int2(1, 0), 0));
 
   float neighborDiff = max(abs(dN - dM), max(abs(dS - dM), max(abs(dW - dM), abs(dE - dM))));
-  float threshold = max(FXAA_DEPTH_EDGE_THRESHOLD_MIN, abs(dM) * FXAA_DEPTH_EDGE_THRESHOLD_REL);
+  float threshold = max(fxaaData.depthThresholdMin, abs(dM) * fxaaData.depthThresholdRel);
 
   FxaaDepthEdge edge;
   edge.isEdge = neighborDiff > threshold;

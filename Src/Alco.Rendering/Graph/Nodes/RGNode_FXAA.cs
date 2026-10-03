@@ -62,6 +62,28 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     }
 
     /// <summary>
+    /// The depth edge detection absolute floor (depth modes). Neighbor depth
+    /// differences below it never count as geometric edges.
+    /// Valid range: 0 - 0.01, default: 1/4096.
+    /// </summary>
+    public float DepthThresholdMin
+    {
+        get => _fxaa.DepthThresholdMin;
+        set => _fxaa.DepthThresholdMin = value;
+    }
+
+    /// <summary>
+    /// The depth edge detection relative threshold (depth modes): the neighbor
+    /// depth difference that counts as across an edge, as a fraction of the
+    /// center depth. Valid range: 0 - 0.25, default: 1/64.
+    /// </summary>
+    public float DepthThresholdRel
+    {
+        get => _fxaa.DepthThresholdRel;
+        set => _fxaa.DepthThresholdRel = value;
+    }
+
+    /// <summary>
     /// The node's construction data: the scene-copy shader, the fxaa shader and
     /// the effect's tunables. The quality and mode axes are generic value
     /// specializations of the module's MainPS&lt;let Quality : int,
@@ -80,21 +102,27 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
 
         /// <summary>The quality preset; changing it selects a different specialized shader.</summary>
         public FXAAQuality Quality { get; init; } = FXAAQuality.Medium;
-        /// <summary>The edge-detection mode (luma by default — the depth-aware
-        /// modes need the node's depth source).</summary>
+        /// <summary>The edge-detection mode. Luma is the data-driven default
+        /// (factory compositions may carry no depth source); the game's
+        /// pipelines opt into the depth-aware modes explicitly.</summary>
         public FXAAMode Mode { get; init; } = FXAAMode.Luma;
         /// <summary>The edge detection threshold (0.063 - 0.333).</summary>
         public float Threshold { get; init; } = 0.125f;
         /// <summary>The subpixel aliasing removal amount (0-1).</summary>
         public float Subpix { get; init; } = 0.75f;
+        /// <summary>The depth edge detection absolute floor (0-0.01).</summary>
+        public float DepthThresholdMin { get; init; } = 1.0f / 4096.0f;
+        /// <summary>The depth edge detection relative threshold (0-0.25).</summary>
+        public float DepthThresholdRel { get; init; } = 1.0f / 64.0f;
 
         /// <summary>Required so the property initializers run (C# struct rule).</summary>
         public Descriptor() { }
     }
 
     /// <summary>
-    /// Creates a luma-mode node without a depth source (the factory path:
-    /// compositions that register no <see cref="SceneDepthSource"/> service).
+    /// Creates a node without a depth source (the factory path: compositions
+    /// that register no <see cref="SceneDepthSource"/> service); the depth-aware
+    /// modes are out of reach for the node's lifetime.
     /// </summary>
     public RGNode_FXAA(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
         GPUAttachmentLayout outputLayout, in Descriptor descriptor)
@@ -133,6 +161,8 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
             Mode = descriptor.Mode,
             Threshold = descriptor.Threshold,
             Subpix = descriptor.Subpix,
+            DepthThresholdMin = descriptor.DepthThresholdMin,
+            DepthThresholdRel = descriptor.DepthThresholdRel,
         };
     }
 
