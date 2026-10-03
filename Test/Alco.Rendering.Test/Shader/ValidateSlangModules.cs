@@ -56,14 +56,16 @@ public class ValidateSlangModules
     // only differ in how already-validated IR constant-folds. What the single
     // link proves is the stages after the front-end: specialization argument
     // matching (arity/type), linking, layout validation and target codegen.
-    //   FXAA: <let Quality : int>, Sprite: <let Repeated : bool>,
+    //   FXAA: <let Quality : int, let Mode : int> — each mode linked: the mode
+    //   axis changes which branches stay live after constant folding, so every
+    //   mode's codegen is distinct, Sprite: <let Repeated : bool>,
     //   TextureCompressBc1/TextureCompressBc3: <let IsSRGB : bool>,
     //   TileInstanced: VertexMain<let IsFacade : bool>, PixelMain<let Bombing :
     //   bool> — args map to entry points in definition order.
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
         new Dictionary<string, string[][]>
         {
-            ["FXAA"] = [["1"]],
+            ["FXAA"] = [["1", "0"], ["1", "1"], ["1", "2"]],
             ["Sprite"] = [["false"]],
             ["TextureCompressBc1"] = [["false"]],
             ["TextureCompressBc3"] = [["false"]],

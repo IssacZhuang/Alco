@@ -11,6 +11,11 @@ import AlcoRendering_Core;
 public struct PassParams
 {
     public Texture2D texture;
+    // Sampleable scene depth for the depth-aware modes. The field survives in
+    // every specialization's parameter layout (ParameterBlock fields are not
+    // pruned per specialization), so the material binds it in all modes; the
+    // luma mode's dead code drops the loads.
+    public DepthTexture2D depthTexture;
 };
 
 public ParameterBlock<PassParams> pass;
@@ -54,6 +59,19 @@ struct V2F {
 // 1 = FXAA_QUALITY_MEDIUM - 8 steps,  balanced
 // 2 = FXAA_QUALITY_HIGH   - 12 steps, high quality
 // 3 = FXAA_QUALITY_ULTRA  - 29 steps, maximum quality
+//
+// The mode axis selects the edge detector:
+// 0 = FXAA_MODE_LUMA           - classic FXAA 3.11 luma-only detection
+// 1 = FXAA_MODE_DEPTH_ASSISTED - depth discontinuities rescue edges the luma
+//                                gate rejects and steer the edge walk on
+//                                geometric edges; luma remains the fallback
+// 2 = FXAA_MODE_DEPTH_ONLY     - only depth-detected geometric edges are
+//                                anti-aliased (shader/specular edges pass
+//                                through untouched)
+//
+// Integer-variant branches must use if statements, never ternaries — a
+// ternary condition that const-folds to true from an int generic comparison
+// crashes slang 2026.16 natively (see GenericValueParameterTest).
 
 static const float sampleDistancesLow[4] = {
   1.5,
@@ -145,8 +163,48 @@ float fxaaLuma(float3 rgb) {
   return rgb.y * (0.587 / 0.299) + rgb.x;
 }
 
-float4 fxaaPixelShader<let quality : int>(float2 pos,     // Pixel position
-                                          float2 rcpFrame // 1.0 / screen size
+/*============================================================================
+                    DEPTH EDGE DETECTION (mode != 0)
+============================================================================*/
+
+// A neighbor lies across a geometric edge when its depth differs from the
+// center by more than a floor plus a relative fraction of the center depth.
+// Raw depth compares suffice under both conventions the engine renders with:
+// orthographic forward (near=0, far=1, sky=1) and reversed-infinite
+// (near=1, sky=0) — both are monotonic and the sky clear value simply sits
+// at the far end, so the relative test needs no linearization.
+static const float FXAA_DEPTH_EDGE_THRESHOLD_MIN = 1.0 / 4096.0;
+static const float FXAA_DEPTH_EDGE_THRESHOLD_REL = 1.0 / 64.0;
+
+struct FxaaDepthEdge {
+  bool isEdge;
+  bool horzSpan; // the discontinuity implies a horizontal span (N/S gradient)
+};
+
+// Loads the 4-neighborhood of scene depth around the pixel and reports the
+// geometric edge. Mirrors the luma edgeHorz/edgeVert semantics: the N/S depth
+// gradient marks a horizontal span, the W/E gradient a vertical one.
+FxaaDepthEdge fxaaDetectDepthEdge(float2 pos, float2 rcpFrame) {
+  int2 pixel = int2(pos / rcpFrame); // texel centers land on integer pixels
+  float dM = pass.depthTexture.Load(int3(pixel, 0));
+  float dN = pass.depthTexture.Load(int3(pixel + int2(0, -1), 0));
+  float dS = pass.depthTexture.Load(int3(pixel + int2(0, 1), 0));
+  float dW = pass.depthTexture.Load(int3(pixel + int2(-1, 0), 0));
+  float dE = pass.depthTexture.Load(int3(pixel + int2(1, 0), 0));
+
+  float neighborDiff = max(abs(dN - dM), max(abs(dS - dM), max(abs(dW - dM), abs(dE - dM))));
+  float threshold = max(FXAA_DEPTH_EDGE_THRESHOLD_MIN, abs(dM) * FXAA_DEPTH_EDGE_THRESHOLD_REL);
+
+  FxaaDepthEdge edge;
+  edge.isEdge = neighborDiff > threshold;
+  float depthHorz = abs(dN - dM) + abs(dS - dM);
+  float depthVert = abs(dW - dM) + abs(dE - dM);
+  edge.horzSpan = depthHorz >= depthVert;
+  return edge;
+}
+
+float4 fxaaPixelShader<let quality : int, let mode : int>(float2 pos,     // Pixel position
+                                                         float2 rcpFrame // 1.0 / screen size
 ) {
   // FXAA algorithm parameters
   float fxaaQualitySubpix = fxaaData.subpix; // Subpixel aliasing removal amount
@@ -176,9 +234,39 @@ float4 fxaaPixelShader<let quality : int>(float2 pos,     // Pixel position
   float rangeMax = max(lumaM, max(max(lumaN, lumaW), max(lumaS, lumaE)));
   float range = rangeMax - rangeMin;
 
-  // Early exit if the variation in local luma is lower than a threshold
-  if (range <
-      max(fxaaQualityEdgeThresholdMin, rangeMax * fxaaQualityEdgeThreshold)) {
+  // Geometric edge around this pixel (depth modes only; folds away for luma).
+  bool depthEdge = false;
+  bool depthHorzSpan = false;
+  if (mode != 0) {
+    FxaaDepthEdge edge = fxaaDetectDepthEdge(pos, rcpFrame);
+    depthEdge = edge.isEdge;
+    depthHorzSpan = edge.horzSpan;
+  }
+
+  /*--------------------------------------------------------------------------*/
+  // LOCAL CONTRAST CHECK
+  /*--------------------------------------------------------------------------*/
+
+  // Which pixels proceed to edge work, per mode:
+  // luma (0)          — local luma contrast must clear the luma gate;
+  // depth-assisted(1) — a depth edge rescues pixels the luma gate rejects,
+  //                     but only when the edge is visible at all (range above
+  //                     the absolute floor): same-colored geometry at
+  //                     different depths must stay untouched;
+  // depth-only (2)    — the geometric edge alone decides, same visibility
+  //                     floor, so shader/specular aliasing passes through.
+  bool processEdge = false;
+  if (mode == 0) {
+    processEdge = range >= max(fxaaQualityEdgeThresholdMin, rangeMax * fxaaQualityEdgeThreshold);
+  }
+  if (mode == 1) {
+    processEdge = range >= max(fxaaQualityEdgeThresholdMin, rangeMax * fxaaQualityEdgeThreshold) ||
+                  (depthEdge && range >= fxaaQualityEdgeThresholdMin);
+  }
+  if (mode == 2) {
+    processEdge = depthEdge && range >= fxaaQualityEdgeThresholdMin;
+  }
+  if (!processEdge) {
     return float4(rgbM, 1.0);
   }
 
@@ -207,6 +295,14 @@ float4 fxaaPixelShader<let quality : int>(float2 pos,     // Pixel position
   float lumaL = (lumaN + lumaW + lumaE + lumaS) * 0.25;
   float rangeL = abs(lumaL - lumaM);
   float blendL = max(0.0, (rangeL / range) - 0.25) * 1.333;
+  // Geometric edges keep their hard silhouette: the local-average blend
+  // exists for subpixel shader detail, and on a true depth discontinuity it
+  // only softens the silhouette the directional resample just recentered.
+  if (mode != 0) {
+    if (depthEdge) {
+      blendL = 0.0;
+    }
+  }
   blendL = min(fxaaQualitySubpix, blendL);
 
   /*--------------------------------------------------------------------------*/
@@ -223,6 +319,13 @@ float4 fxaaPixelShader<let quality : int>(float2 pos,     // Pixel position
                    abs((0.25 * lumaNE) + (-0.5 * lumaE) + (0.25 * lumaSE));
 
   bool horzSpan = edgeHorz >= edgeVert;
+  // On a geometric edge the depth gradient is the trustworthy direction —
+  // exactly the low-contrast silhouettes whose luma orientation is noise.
+  if (mode != 0) {
+    if (depthEdge) {
+      horzSpan = depthHorzSpan;
+    }
+  }
 
   /*--------------------------------------------------------------------------*/
   // EDGE DIRECTION
@@ -320,6 +423,6 @@ float3 rgbF =
 return float4(lerp(rgbF, rgbL, blendL), 1.0);
 }
 
-[shader("fragment")] float4 MainPS<let quality : int>(V2F input) : SV_TARGET {
-  return fxaaPixelShader<quality>(input.uv, fxaaData.invFrameSize);
+[shader("fragment")] float4 MainPS<let quality : int, let mode : int>(V2F input) : SV_TARGET {
+  return fxaaPixelShader<quality, mode>(input.uv, fxaaData.invFrameSize);
 }

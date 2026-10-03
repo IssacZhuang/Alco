@@ -9,6 +9,9 @@ namespace Alco.Rendering;
 public sealed class RGNode_FXAA : RGNode_ChainTransform
 {
     private readonly FXAA _fxaa;
+    // The out-of-chain resource whose depth attachment the depth-aware modes
+    // sample; null keeps the effect in luma mode's fallback binding.
+    private readonly RenderGraphTexture? _sceneDepthSource;
 
     /// <summary>
     /// The FXAA quality preset. Changing it recompiles the shader variant.
@@ -17,6 +20,25 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     {
         get => _fxaa.Quality;
         set => _fxaa.Quality = value;
+    }
+
+    /// <summary>
+    /// The edge-detection mode. Changing it recompiles the shader variant.
+    /// The depth-aware modes require a depth source at construction.
+    /// </summary>
+    public FXAAMode Mode
+    {
+        get => _fxaa.Mode;
+        set
+        {
+            if (value != FXAAMode.Luma && _sceneDepthSource == null)
+            {
+                throw new InvalidOperationException(
+                    $"FXAA mode '{value}' samples scene depth, but the node was built without a depth source. " +
+                    "Pass the pipeline's scene color resource as the node's depth source.");
+            }
+            _fxaa.Mode = value;
+        }
     }
 
     /// <summary>
@@ -41,29 +63,43 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
 
     /// <summary>
     /// The node's construction data: the scene-copy shader, the fxaa shader and
-    /// the effect's tunables. The quality axis is a generic value specialization
-    /// of the module's MainPS&lt;let Quality : int&gt; entry — the node requests each
-    /// preset's specialized pipeline on demand. Service-type dependencies
-    /// (the rendering system, graph, chain, output layout) are explicit
-    /// constructor parameters instead — a descriptor is pure data.
+    /// the effect's tunables. The quality and mode axes are generic value
+    /// specializations of the module's MainPS&lt;let Quality : int,
+    /// let Mode : int&gt; entry — the node requests each (preset, mode) pair's
+    /// specialized pipeline on demand. Service-type dependencies (the
+    /// rendering system, graph, chain, output layout, depth source) are
+    /// explicit constructor parameters instead — a descriptor is pure data.
     /// </summary>
     public readonly struct Descriptor
     {
         /// <summary>The scene-copy shader used for the final blit.</summary>
         public required Shader SceneCopyShader { get; init; }
 
-        /// <summary>The fxaa shader (each quality preset is its own specialization).</summary>
+        /// <summary>The fxaa shader (each (quality, mode) pair is its own specialization).</summary>
         public required Shader FxaaShader { get; init; }
 
         /// <summary>The quality preset; changing it selects a different specialized shader.</summary>
         public FXAAQuality Quality { get; init; } = FXAAQuality.Medium;
+        /// <summary>The edge-detection mode (luma by default — the depth-aware
+        /// modes need the node's depth source).</summary>
+        public FXAAMode Mode { get; init; } = FXAAMode.Luma;
         /// <summary>The edge detection threshold (0.063 - 0.333).</summary>
         public float Threshold { get; init; } = 0.125f;
-        /// <summary>The subpixel aliasing removal amount (0 - 1).</summary>
+        /// <summary>The subpixel aliasing removal amount (0-1).</summary>
         public float Subpix { get; init; } = 0.75f;
 
         /// <summary>Required so the property initializers run (C# struct rule).</summary>
         public Descriptor() { }
+    }
+
+    /// <summary>
+    /// Creates a luma-mode node without a depth source (the factory path:
+    /// compositions that register no <see cref="SceneDepthSource"/> service).
+    /// </summary>
+    public RGNode_FXAA(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
+        GPUAttachmentLayout outputLayout, in Descriptor descriptor)
+        : this(rendering, graph, chain, outputLayout, depthSource: null, in descriptor)
+    {
     }
 
     /// <summary>
@@ -75,17 +111,42 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     /// <param name="chain">The content chain the node reads and advances.</param>
     /// <param name="outputLayout">The attachment layout of the node's output transient
     /// (color-only, in the chain's content format).</param>
+    /// <param name="depthSource">The resource whose depth attachment the depth-aware
+    /// modes sample (the pipeline's scene color resource); the read is declared in
+    /// <see cref="Setup"/> so the graph keeps it alive through this node.</param>
     /// <param name="descriptor">The node's construction data.</param>
     public RGNode_FXAA(RenderingSystem rendering, RenderGraph graph, RenderChain chain,
-        GPUAttachmentLayout outputLayout, in Descriptor descriptor)
+        GPUAttachmentLayout outputLayout, RenderGraphTexture? depthSource, in Descriptor descriptor)
         : base(graph, chain, outputLayout, name: "FXAA")
     {
+        if (descriptor.Mode != FXAAMode.Luma && depthSource == null)
+        {
+            throw new ArgumentException(
+                $"FXAA mode '{descriptor.Mode}' samples scene depth, but no depth source was given. " +
+                "Pass the pipeline's scene color resource as the depth source.", nameof(descriptor));
+        }
+
+        _sceneDepthSource = depthSource;
         _fxaa = new FXAA(rendering, descriptor.SceneCopyShader, descriptor.FxaaShader)
         {
             Quality = descriptor.Quality,
+            Mode = descriptor.Mode,
             Threshold = descriptor.Threshold,
             Subpix = descriptor.Subpix,
         };
+    }
+
+    /// <inheritdoc />
+    public override void Setup(RenderGraphBuilder builder)
+    {
+        base.Setup(builder);
+        // The scene depth is sampled outside the content chain; declare the
+        // read so the graph keeps the resource (and its depth attachment)
+        // alive through this node.
+        if (_sceneDepthSource != null)
+        {
+            builder.Read(_sceneDepthSource);
+        }
     }
 
     /// <inheritdoc />
@@ -103,6 +164,8 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
         {
             _fxaa.TimestampSampler = null;
         }
+        // The facade is stable across resizes; the effect rebinds per blit.
+        _fxaa.DepthSource = _sceneDepthSource?.Texture;
         _fxaa.Blit(context.RenderContext, input, output.FrameBuffer);
     }
 
