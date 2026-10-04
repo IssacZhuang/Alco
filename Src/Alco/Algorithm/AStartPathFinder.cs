@@ -33,7 +33,7 @@ public abstract class AStarPathFinder : IPathFinder
     /// <param name="ignoreEndPoint">If true, returns a path to any traversable cell adjacent to the end point,
     /// ending at that neighbor's cell center. If false, path must reach the exact end point.</param>
     /// <returns>True if a path was found; otherwise false.</returns>
-    public bool TryGetPath(ICollection<Vector2> path, Vector2 start, Vector2 end, bool ignoreEndPoint)
+    public virtual bool TryGetPath(ICollection<Vector2> path, Vector2 start, Vector2 end, bool ignoreEndPoint)
     {
         ArgumentNullException.ThrowIfNull(path);
         Reset();
