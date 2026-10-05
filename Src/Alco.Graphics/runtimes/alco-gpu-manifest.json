@@ -20,7 +20,7 @@
   "binaries": {
     "win-x64": {
       "file": "runtimes/win-x64/native/alco_gpu.dll",
-      "sha256": "eddf1bc01a874979f9395968e0c385a98a97729b24260ef92cfa47b3b40f216a",
+      "sha256": "26446079e3fed71661cdae554abe7f8a803a8c82e089240178f7e17d65c2b5dc",
       "builtFrom": "local cargo build --release"
     },
     "win-arm64": null,

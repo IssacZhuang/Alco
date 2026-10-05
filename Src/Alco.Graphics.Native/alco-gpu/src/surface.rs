@@ -16,6 +16,12 @@ use wgpu_types as wgt;
 
 pub(crate) struct SurfaceObj {
     pub id: wgc::id::SurfaceId,
+    /// Last configured format/size. wgpu-core builds every acquired surface
+    /// texture's descriptor from the configuration, so these values are the
+    /// authoritative texture info reported through `alco_texture_get_info`.
+    pub format: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 /// C# `SurfaceSource` discriminant (mirrors `SurfaceHandle.cs`).
@@ -280,7 +286,12 @@ pub unsafe extern "C" fn alco_surface_create(
 
                 match result {
                     Ok(id) => {
-                        let handle = ctx.surfaces().insert(SurfaceObj { id });
+                        let handle = ctx.surfaces().insert(SurfaceObj {
+                            id,
+                            format: 0,
+                            width: 0,
+                            height: 0,
+                        });
                         (AlcoStatus::OK, Some(handle))
                     }
                     Err(status) => (status, None),
@@ -405,7 +416,14 @@ pub unsafe extern "C" fn alco_surface_configure(
                     .global
                     .surface_configure(surface_id, ctx.device_id, &wconfig)
                 {
-                    None => AlcoStatus::OK,
+                    None => {
+                        let _ = ctx.surfaces().with(surface, |obj| {
+                            obj.format = config.format;
+                            obj.width = wconfig.width;
+                            obj.height = wconfig.height;
+                        });
+                        AlcoStatus::OK
+                    }
                     Some(e) => {
                         set_error_from(AlcoStatus::VALIDATION, &e);
                         AlcoStatus::VALIDATION
@@ -445,21 +463,31 @@ pub unsafe extern "C" fn alco_surface_get_current_texture(
                         return AlcoStatus::INVALID_HANDLE;
                     }
                 };
+                let (format, width, height) = match ctx
+                    .surfaces()
+                    .with(surface, |obj| (obj.format, obj.width, obj.height))
+                {
+                    Ok(v) => v,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid surface handle");
+                        return AlcoStatus::INVALID_HANDLE;
+                    }
+                };
                 match ctx.global.surface_get_current_texture(surface_id, None) {
                     Ok(output) => {
                         *out_status = status_to_alco(output.status);
                         match output.texture {
                             Some(texture_id) => {
-                                // Surface textures have a single mip, one layer; the
-                                // configured size is authoritative and read back by
-                                // C# via texture_get_info after configure.
+                                // wgpu-core derives the acquired texture's descriptor
+                                // from the surface configuration, so the recorded
+                                // format/size are what get_current_texture produced.
                                 let handle = ctx.textures().insert(TextureObj {
                                     id: texture_id,
-                                    width: 0,
-                                    height: 0,
+                                    width,
+                                    height,
                                     depth_or_array_layers: 1,
                                     mip_level_count: 1,
-                                    format: 0,
+                                    format,
                                     is_surface_texture: true,
                                 });
                                 *out_texture = handle;
