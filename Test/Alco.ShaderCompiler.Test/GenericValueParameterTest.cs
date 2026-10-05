@@ -13,10 +13,10 @@ namespace Alco.ShaderCompiler;
 /// accepts per scalar kind at link-time specialization (decimal integers for
 /// int/uint, true/false for bool). A slang upgrade that rejects these forms
 /// must fail here, not inside a game material compile.
-/// <br/>Known slang 2026.16 defect, documented by the explicit tests below: a
-/// ternary whose condition const-folds to true from an int/uint generic
-/// comparison crashes the compiler natively — shader bodies must use <c>if</c>
-/// statements for integer-variant branches (bool conditions are unaffected).
+/// <br/>Fixed slang defect, pinned as a regression guard below: a ternary
+/// whose condition const-folds to true from an int/uint generic comparison
+/// crashed the compiler natively in slang 2026.16 (bool conditions were
+/// unaffected); compiles correctly as of slang 2026.19.
 /// </summary>
 [TestFixture]
 public class GenericValueParameterTest
@@ -57,8 +57,9 @@ public class GenericValueParameterTest
         }
         """;
 
-    // The crashing shape, kept for the record: ternary condition const-folds
-    // true from an int comparison. See the fixture doc comment.
+    // The shape that crashed slang 2026.16 natively (fixed in 2026.19):
+    // ternary condition const-folds true from an int comparison.
+    // See the fixture doc comment.
     private const string IntTernaryShader = """
         [shader("fragment")]
         float4 MainPS<let mode : int>(float4 color : COLOR) : SV_TARGET
@@ -160,9 +161,9 @@ public class GenericValueParameterTest
     }
 
     [Test]
-    [Explicit("slang 2026.16 crashes the process natively: a ternary condition that const-folds to true from an int generic comparison. Shader bodies must use if statements; rerun manually after a slang upgrade.")]
-    public void IntAxis_TernaryTrueCondition_CrashesSlang2616()
+    public void IntAxis_TernaryTrueCondition_Compiles()
     {
+        // Crashed slang 2026.16 natively; guards the fix in 2026.19+.
         using SlangProgram program = Link(IntTernaryShader, "3");
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
     }

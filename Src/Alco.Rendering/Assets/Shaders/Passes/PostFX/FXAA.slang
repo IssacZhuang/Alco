@@ -71,9 +71,10 @@ struct V2F {
 //                                anti-aliased (shader/specular edges pass
 //                                through untouched)
 //
-// Integer-variant branches must use if statements, never ternaries — a
+// Integer-variant branches use if statements rather than ternaries — a
 // ternary condition that const-folds to true from an int generic comparison
-// crashes slang 2026.16 natively (see GenericValueParameterTest).
+// crashed slang 2026.16 natively (fixed in 2026.19; see
+// GenericValueParameterTest).
 
 static const float sampleDistancesLow[4] = {
   1.5,

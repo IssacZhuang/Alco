@@ -8,7 +8,7 @@ namespace Alco.ShaderCompiler;
 // with raw pointers and vtable slots verified against the pinned slang headers:
 // vtable slot indices, C# 9 function pointers, manual Release().
 //
-// Vtable layouts verified against slang.h of the pinned release (2026.16);
+// Vtable layouts verified against slang.h of the pinned release (2026.19);
 // slots are annotated per interface. Only the methods the engine uses are
 // surfaced.
 // ─────────────────────────────────────────────────────────────────────────────

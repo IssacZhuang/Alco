@@ -4,7 +4,7 @@ using NUnit.Framework;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Verified capability (Slang 2026.16, SPIR-V 1.3, engine session config):
+// Verified capability (Slang 2026.19, SPIR-V 1.3, engine session config):
 // `ParameterBlock<T>` groups a struct's parameters into ONE descriptor set
 // with sequential bindings — no register / [[vk::binding]] annotation needed.
 // The SPIR-V DescriptorSet/Binding decorations are the ground truth (the

@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace Alco.ShaderCompiler;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pinned slang release: 2026.16 (slang.dll / libslang.so / libslang.dylib).
+// Pinned slang release: 2026.19 (slang.dll / libslang.so / libslang.dylib).
 //
 // This file is the raw P/Invoke surface over slang's C exports: the process
 // entry points (global session, blob factory) and the reflection query

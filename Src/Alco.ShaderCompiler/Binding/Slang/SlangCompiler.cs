@@ -130,7 +130,7 @@ public sealed class SlangCompiler : IDisposable
     private static SlangGlobalSession GlobalSession =>
         _globalSession ??= SlangGlobalSession.Create();
 
-    /// <summary>The pinned slang release's build tag (e.g. "2026.16..."), for cache key stamping.</summary>
+    /// <summary>The pinned slang release's build tag (e.g. "2026.19..."), for cache key stamping.</summary>
     public string BuildTag { get; }
 
     public SlangCompiler()
