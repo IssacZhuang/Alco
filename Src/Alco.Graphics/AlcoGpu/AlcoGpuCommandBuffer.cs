@@ -570,22 +570,28 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
     private void ReleaseCommandEncoder()
     {
-        if (!_encoder.IsNull && _device.IsNativeAlive)
+        if (!_encoder.IsNull)
         {
             // Destroy consumes the handle; a stale handle is worthless either way.
             AlcoHandle encoder = _encoder;
             _encoder = AlcoHandle.Null;
-            AlcoGpuNative.EncoderDestroy(_device.Native, encoder);
+            if (_device.IsNativeAlive)
+            {
+                AlcoGpuNative.EncoderDestroy(_device.Native, encoder);
+            }
         }
     }
 
     private void ReleaseCommandBuffer()
     {
-        if (!_buffer.IsNull && _device.IsNativeAlive)
+        if (!_buffer.IsNull)
         {
             AlcoHandle buffer = _buffer;
             _buffer = AlcoHandle.Null;
-            AlcoGpuNative.CommandBufferDestroy(_device.Native, buffer);
+            if (_device.IsNativeAlive)
+            {
+                AlcoGpuNative.CommandBufferDestroy(_device.Native, buffer);
+            }
         }
     }
 
@@ -597,7 +603,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             // End consumes the pass handle on success and failure alike.
             AlcoHandle pass = _renderPass;
             _renderPass = AlcoHandle.Null;
-            AlcoGpuNative.RenderPassEnd(_device.Native, pass);
+            if (_device.IsNativeAlive)
+            {
+                AlcoGpuNative.RenderPassEnd(_device.Native, pass);
+            }
         }
     }
 
@@ -609,7 +618,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             // End consumes the pass handle on success and failure alike.
             AlcoHandle pass = _computePass;
             _computePass = AlcoHandle.Null;
-            AlcoGpuNative.ComputePassEnd(_device.Native, pass);
+            if (_device.IsNativeAlive)
+            {
+                AlcoGpuNative.ComputePassEnd(_device.Native, pass);
+            }
         }
     }
 

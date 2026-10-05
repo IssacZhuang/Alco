@@ -187,6 +187,7 @@ pub unsafe extern "C-unwind" fn alco_encoder_create(
                     .device_create_command_encoder(ctx.device_id, &wdesc, None);
                 if let Some(e) = err {
                     set_error_from(AlcoStatus::OUT_OF_MEMORY, &e);
+                    ctx.global.command_encoder_drop(id);
                     return (AlcoStatus::OUT_OF_MEMORY, AlcoHandle::NULL);
                 }
                 (AlcoStatus::OK, ctx.encoders().insert(EncoderObj { id }))
@@ -708,7 +709,11 @@ render_pass_fn!(
             set_error(AlcoStatus::INVALID_ARGUMENT, "null immediate data");
             return Err(AlcoStatus::INVALID_ARGUMENT);
         }
-        let bytes = std::slice::from_raw_parts(data, size as usize);
+        let bytes = if size == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(data, size as usize)
+        };
         record_result(ctx.global.render_pass_set_immediates(pass, offset, bytes))
     }
 );
@@ -1006,7 +1011,11 @@ compute_pass_fn!(
             set_error(AlcoStatus::INVALID_ARGUMENT, "null immediate data");
             return Err(AlcoStatus::INVALID_ARGUMENT);
         }
-        let bytes = std::slice::from_raw_parts(data, size as usize);
+        let bytes = if size == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(data, size as usize)
+        };
         record_result(ctx.global.compute_pass_set_immediates(pass, offset, bytes))
     }
 );
@@ -1342,7 +1351,11 @@ pub unsafe extern "C-unwind" fn alco_queue_write_buffer(
         }
         run_with_device(device, |ctx| {
                 let buffer_id = lookup_buffer(ctx, buffer)?;
-                let bytes = std::slice::from_raw_parts(data, size as usize);
+                let bytes = if size == 0 {
+                    &[]
+                } else {
+                    std::slice::from_raw_parts(data, size as usize)
+                };
                 match ctx
                     .global
                     .queue_write_buffer(ctx.queue_id, buffer_id, offset, bytes)
@@ -1384,7 +1397,11 @@ pub unsafe extern "C-unwind" fn alco_queue_write_texture(
         };
         run_with_device(device, |ctx| {
                 let destination = copy_texture_info(ctx, texture, mip_level, origin, aspect)?;
-                let bytes = std::slice::from_raw_parts(data, data_size as usize);
+                let bytes = if data_size == 0 {
+                    &[]
+                } else {
+                    std::slice::from_raw_parts(data, data_size as usize)
+                };
                 let wlayout = copy_layout(layout)?;
                 let wsize = extent3d(size);
                 match ctx.global.queue_write_texture(
@@ -1750,7 +1767,11 @@ bundle_fn!(
             set_error(AlcoStatus::INVALID_ARGUMENT, "null immediate data");
             return Err(AlcoStatus::INVALID_ARGUMENT);
         }
-        let bytes = std::slice::from_raw_parts(data, size as usize);
+        let bytes = if size == 0 {
+            &[]
+        } else {
+            std::slice::from_raw_parts(data, size as usize)
+        };
         record_result(ctx.global.render_bundle_encoder_set_immediates(bundle, offset, bytes))
     }
 );
@@ -1952,6 +1973,123 @@ mod tests {
     }
 
     #[test]
+    fn vulkan_empty_texture_writes_preserve_validation() {
+        let Some(device) = TestDevice::new() else { return };
+        unsafe {
+            let desc = AlcoTextureDesc {
+                dimension: 1, format: 18, usage: 1 << 1, width: 1, height: 1,
+                depth_or_array_layers: 1, mip_level_count: 1, sample_count: 1,
+                name: ptr::null(),
+            };
+            let mut texture = AlcoHandle::NULL;
+            assert_eq!(alco_texture_create(device.handle, &desc, &mut texture),
+                AlcoStatus::OK, "{}", last_error());
+            let layout = AlcoCopyLayout {
+                offset: 0, bytes_per_row: ALCO_NONE, rows_per_image: ALCO_NONE,
+            };
+            let write = |texture, data, data_size, width| alco_queue_write_texture(
+                device.handle, texture, 0, AlcoOrigin3D { x: 0, y: 0, z: 0 }, 0,
+                data, data_size, &layout,
+                AlcoExtent3D { width, height: 1, depth_or_array_layers: 1 },
+            );
+            let bytes = [0u8; 4];
+            for data in [ptr::null(), bytes.as_ptr()] {
+                assert_eq!(write(texture, data, 0, 0), AlcoStatus::OK, "{}", last_error());
+                assert_eq!(write(texture, data, 0, 1), AlcoStatus::VALIDATION,
+                    "{}", last_error());
+            }
+            assert_eq!(write(texture, ptr::null(), 4, 0), AlcoStatus::INVALID_ARGUMENT);
+            assert_eq!(write(AlcoHandle::NULL, ptr::null(), 0, 0), AlcoStatus::INVALID_HANDLE);
+            assert_eq!(alco_texture_destroy(device.handle, texture), AlcoStatus::OK);
+        }
+    }
+
+    #[test]
+    fn vulkan_empty_immediate_setters_accept_null_and_reject_nonempty_null() {
+        let Some(device) = TestDevice::new() else { return };
+        unsafe {
+            type Setter = unsafe extern "C-unwind" fn(
+                AlcoHandle, AlcoHandle, u32, *const u8, u32,
+            ) -> AlcoStatus;
+            let bytes = [0u8; 4];
+            for (compute, set) in [
+                (false, alco_render_pass_set_immediates as Setter),
+                (true, alco_compute_pass_set_immediates as Setter),
+            ] {
+                let encoder = encoder(device.handle);
+                let mut pass = AlcoHandle::NULL;
+                let status = if compute {
+                    alco_compute_pass_begin(device.handle, encoder, ptr::null(), &mut pass)
+                } else {
+                    let desc = AlcoRenderPassDesc {
+                        color_attachments: ptr::null(), color_attachment_count: 0,
+                        depth_stencil: ptr::null(), timestamp_writes: ptr::null(),
+                    };
+                    alco_render_pass_begin(device.handle, encoder, &desc, &mut pass)
+                };
+                assert_eq!(status, AlcoStatus::OK, "{}", last_error());
+                assert_eq!(set(device.handle, pass, 0, ptr::null(), 4),
+                    AlcoStatus::INVALID_ARGUMENT);
+                assert_eq!(set(device.handle, AlcoHandle::NULL, 0, ptr::null(), 0),
+                    AlcoStatus::INVALID_HANDLE);
+                for data in [ptr::null(), bytes.as_ptr()] {
+                    assert_eq!(set(device.handle, pass, 0, data, 0),
+                        AlcoStatus::OK, "{}", last_error());
+                }
+                let status = if compute {
+                    alco_compute_pass_end(device.handle, pass)
+                } else {
+                    alco_render_pass_end(device.handle, pass)
+                };
+                assert_eq!(status, AlcoStatus::OK, "{}", last_error());
+                assert_eq!(alco_encoder_destroy(device.handle, encoder), AlcoStatus::OK);
+            }
+            let desc = AlcoBundleEncoderDesc {
+                color_formats: ptr::null(), color_format_count: 0, depth_stencil_format: 42,
+                depth_read_only: ALCO_TRUE, stencil_read_only: ALCO_TRUE,
+                sample_count: 1, name: ptr::null(),
+            };
+            let mut bundle = AlcoHandle::NULL;
+            assert_eq!(alco_bundle_encoder_create(device.handle, &desc, &mut bundle),
+                AlcoStatus::OK, "{}", last_error());
+            assert_eq!(alco_bundle_set_immediates(device.handle, bundle, 0, ptr::null(), 4),
+                AlcoStatus::INVALID_ARGUMENT);
+            assert_eq!(alco_bundle_set_immediates(device.handle, AlcoHandle::NULL, 0, ptr::null(), 0),
+                AlcoStatus::INVALID_HANDLE);
+            for data in [ptr::null(), bytes.as_ptr()] {
+                assert_eq!(alco_bundle_set_immediates(device.handle, bundle, 0, data, 0),
+                    AlcoStatus::OK, "{}", last_error());
+            }
+            assert_eq!(alco_bundle_encoder_destroy(device.handle, bundle), AlcoStatus::OK);
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+        }
+    }
+
+    #[test]
+    fn vulkan_failed_encoder_creation_releases_core_registry_entries() {
+        let Some(device) = TestDevice::new() else { return };
+        DEVICES.with(device.handle, |ctx| {
+            // Lose the core device while keeping the ABI context valid for retries.
+            ctx.global.device_destroy(ctx.device_id);
+        }).unwrap();
+        unsafe {
+            for _ in 0..32 {
+                let mut handle = AlcoHandle::NULL;
+                assert_eq!(alco_encoder_create(device.handle, ptr::null(), &mut handle),
+                    AlcoStatus::OUT_OF_MEMORY, "{}", last_error());
+                assert!(last_error().contains("device is lost"), "{}", last_error());
+                assert!(handle.is_null());
+                DEVICES.with(device.handle, |ctx| {
+                    let report = ctx.global.generate_report().hub.command_encoders;
+                    assert_eq!(report.num_allocated, 0, "{report:?}");
+                    assert_eq!(report.num_kept_from_user, 0, "{report:?}");
+                }).unwrap();
+                assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            }
+        }
+    }
+
+    #[test]
     fn vulkan_readback_submission_retains_work_without_retaining_registration() {
         let Some(device) = TestDevice::new() else { return };
         unsafe {
@@ -1960,6 +2098,20 @@ mod tests {
             let bytes = [3, 19, 127, 254];
             assert_eq!(alco_queue_write_buffer(device.handle, source, 0, bytes.as_ptr(), 4),
                 AlcoStatus::OK);
+            for data in [ptr::null(), bytes.as_ptr()] {
+                for offset in [0, 4] {
+                    assert_eq!(alco_queue_write_buffer(device.handle, source, offset, data, 0),
+                        AlcoStatus::OK, "{}", last_error());
+                }
+            }
+            assert_eq!(alco_queue_write_buffer(device.handle, source, 0, ptr::null(), 4),
+                AlcoStatus::INVALID_ARGUMENT);
+            assert_eq!(alco_queue_write_buffer(device.handle, AlcoHandle::NULL, 0, ptr::null(), 0),
+                AlcoStatus::INVALID_HANDLE);
+            for offset in [1, 8] {
+                assert_eq!(alco_queue_write_buffer(device.handle, source, offset, ptr::null(), 0),
+                    AlcoStatus::VALIDATION, "{}", last_error());
+            }
             let encoder = encoder(device.handle);
             assert_eq!(alco_copy_buffer_to_buffer(device.handle, encoder, source, 0,
                 destination, 0, 4), AlcoStatus::OK);

@@ -150,6 +150,37 @@ public sealed class AlcoGpuIntegrationTests
         Assert.That(readback, Is.EqualTo(written));
     }
 
+    /// <summary>Empty public buffer writes leave existing data intact and the device usable.</summary>
+    /// <param name="backend">The requested graphics backend.</param>
+    [TestCase(GraphicsBackend.Auto)]
+    [TestCase(GraphicsBackend.WGPUDx12)]
+    public unsafe void EmptyBufferWritesPreserveContents(GraphicsBackend backend)
+    {
+        if (backend == GraphicsBackend.WGPUDx12 && !OperatingSystem.IsWindows())
+        {
+            Assert.Ignore("Direct3D 12 requires Windows.");
+        }
+
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host, backend);
+        using GPUBuffer buffer = device.CreateBuffer(new BufferDescriptor(64,
+            BufferUsage.CopyDst | BufferUsage.CopySrc));
+        byte[] written = new byte[64];
+        new Random(1234).NextBytes(written);
+        device.WriteBuffer(buffer, written);
+
+        device.WriteBuffer(buffer, Array.Empty<byte>());
+        device.WriteBuffer(buffer, 4, Array.Empty<uint>());
+        device.WriteBuffer(buffer, 0, null, 0);
+
+        byte[] readback = new byte[written.Length];
+        fixed (byte* pointer = readback)
+        {
+            device.ReadBuffer(buffer, pointer, 0, (uint)readback.Length);
+        }
+        Assert.That(readback, Is.EqualTo(written));
+    }
+
     /// <summary>Completes an async texture readback through per-frame polling.</summary>
     [Test]
     public unsafe void AsyncTextureReadbackCompletes()

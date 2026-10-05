@@ -1,5 +1,6 @@
 using System.IO;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Alco.Graphics.AlcoGpu;
 using Alco.Graphics.AlcoGpu.Interop;
@@ -21,6 +22,8 @@ public sealed class AlcoGpuRegressionTests
         public event Action? OnDispose;
         /// <summary>Gets whether a device has subscribed any host lifecycle handlers.</summary>
         public bool HasSubscribers => OnEndFrame != null || OnDispose != null;
+        /// <summary>Gets the number of informational log records delivered to this host.</summary>
+        public int InfoLogCount { get; private set; }
         /// <summary>Processes deferred cleanup for several frames.</summary>
         public void Drain()
         {
@@ -36,7 +39,7 @@ public sealed class AlcoGpuRegressionTests
             OnDispose?.Invoke();
         }
         /// <inheritdoc />
-        public void LogInfo(ReadOnlySpan<char> message) { }
+        public void LogInfo(ReadOnlySpan<char> message) => InfoLogCount++;
         /// <inheritdoc />
         public void LogWarning(ReadOnlySpan<char> message) => TestContext.Progress.WriteLine(message.ToString());
         /// <inheritdoc />
@@ -99,6 +102,25 @@ public sealed class AlcoGpuRegressionTests
         AssertAllocationBalance(before);
         Assert.DoesNotThrow(() => CreateDevice(host));
         Assert.That(host.HasSubscribers, Is.True);
+    }
+
+    /// <summary>Failed construction clears the router root and drops later logs without a replacement device.</summary>
+    [Test]
+    public void FailedDeviceConstructionDetachesLogRouterWithoutReplacement()
+    {
+        using var host = new Host();
+        long before = AllocationCount();
+        Assert.Throws<GraphicsException>(() =>
+            new AlcoGpuDevice(new DeviceDescriptor(host, GraphicsBackend.Auto, pushConstantsSize: uint.MaxValue)));
+        Assert.That(host.HasSubscribers, Is.False);
+        Assert.That(typeof(AlcoGpuLogRouter).GetField("_attached",
+            BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null), Is.Null);
+
+        int delivered = host.InfoLogCount;
+        Assert.DoesNotThrow(() => AlcoGpuLogRouter.Route(AlcoGpuAbi.LogLevel.Info, "late construction log"));
+        Assert.That(host.InfoLogCount, Is.EqualTo(delivered));
+        Assert.DoesNotThrow(host.Drain);
+        AssertAllocationBalance(before);
     }
 
     /// <summary>Depth-only metadata omits stencil operations independently of layout read-only state.</summary>
@@ -414,6 +436,60 @@ public sealed class AlcoGpuRegressionTests
         AssertAllocationBalance(before);
     }
 
+    /// <summary>Late immediate destruction clears open passes and finished buffers without calling a dead device.</summary>
+    /// <param name="compute">Whether the open command buffer records a compute pass instead of a render pass.</param>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void LateOpenPassDestroyImmediateClearsHandlesAndRecordingState(bool compute)
+    {
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host);
+        using GPUAttachmentLayout layout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(PixelFormat.RGBA8Unorm)], null));
+        using GPUFrameBuffer frameBuffer = device.CreateFrameBuffer(new FrameBufferDescriptor(layout, 16, 16));
+        long before = AllocationCount();
+        using GPUCommandBuffer commands = device.CreateCommandBuffer();
+        commands.Begin();
+        if (compute)
+        {
+            commands.BeginCompute();
+        }
+        else
+        {
+            commands.BeginRender(frameBuffer);
+        }
+        Assert.That(GetHandle(commands, compute ? "_computePass" : "_renderPass").IsNull, Is.False);
+        Assert.That(GetHandle(commands, "_encoder").IsNull, Is.False);
+        Assert.That(commands.IsRecording, Is.True);
+        Assert.That(GetRecordingFlag(commands, compute ? "_isRecordingCompute" : "_isRecordingRender"), Is.True);
+
+        using GPUCommandBuffer finished = device.CreateCommandBuffer();
+        finished.Begin();
+        finished.End();
+        Assert.That(finished.HasBuffer, Is.True);
+        host.Dispose();
+        Assert.That(device.IsNativeAlive, Is.False);
+
+        Assert.DoesNotThrow(() => device.DestroyImmediate(commands));
+        Assert.DoesNotThrow(() => device.DestroyImmediate(finished));
+        Assert.Multiple(() =>
+        {
+            Assert.That(commands.IsDisposed, Is.True);
+            Assert.That(commands.IsRecording, Is.False);
+            Assert.That(GetRecordingFlag(commands, "_isRecordingRender"), Is.False);
+            Assert.That(GetRecordingFlag(commands, "_isRecordingCompute"), Is.False);
+            Assert.That(GetHandle(commands, "_renderPass").IsNull, Is.True);
+            Assert.That(GetHandle(commands, "_computePass").IsNull, Is.True);
+            Assert.That(GetHandle(commands, "_encoder").IsNull, Is.True);
+            Assert.That(GetHandle(commands, "_buffer").IsNull, Is.True);
+            Assert.That(finished.HasBuffer, Is.False);
+            Assert.That(GetHandle(finished, "_buffer").IsNull, Is.True);
+        });
+        AssertAllocationBalance(before);
+        Assert.DoesNotThrow(() => device.DestroyImmediate(commands));
+        Assert.DoesNotThrow(commands.Dispose);
+    }
+
     /// <summary>
     /// Children outliving the device stay silent: device destruction drops the
     /// native registry with every resource in it, so explicit late disposal and
@@ -425,24 +501,30 @@ public sealed class AlcoGpuRegressionTests
         using var host = new Host();
         AlcoGpuDevice device = CreateDevice(host);
         GPUBuffer explicitBuffer = device.CreateBuffer(new BufferDescriptor(64, BufferUsage.CopyDst));
+        using GPUAttachmentLayout layout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(PixelFormat.RGBA8Unorm)], null));
+        using GPUFrameBuffer frameBuffer = device.CreateFrameBuffer(new FrameBufferDescriptor(layout, 16, 16));
         CreateOrphanChildren(device);
 
-        // Device disposal is owned by the host: OnDispose destroys the native device.
-        host.Dispose();
-
-        // Explicit late paths must not poke native handles into the destroyed
-        // device: deferred queueing, the drained-but-detached frame end, and the
-        // immediate destroy that mirrors device-shutdown cleanup.
-        Assert.DoesNotThrow(explicitBuffer.Dispose);
-        Assert.DoesNotThrow(host.Drain);
-        Assert.DoesNotThrow(() => device.DestroyImmediate(explicitBuffer));
-
-        // Finalizers of the never-disposed orphans run against the dead device.
+        // Capture before releasing the open-pass commands so even automatic GC is observed.
+        WeakReference[] openPasses;
         StringWriter console = new();
         TextWriter originalOut = Console.Out;
         Console.SetOut(console);
         try
         {
+            // Keep both open-pass commands alive until the host destroys the device.
+            openPasses = CreateOrphanOpenPassCommands(device, frameBuffer, host);
+            Assert.That(device.IsNativeAlive, Is.False);
+
+            // Explicit late paths must not poke native handles into the destroyed
+            // device: deferred queueing, the drained-but-detached frame end, and the
+            // immediate destroy that mirrors device-shutdown cleanup.
+            Assert.DoesNotThrow(explicitBuffer.Dispose);
+            Assert.DoesNotThrow(host.Drain);
+            Assert.DoesNotThrow(() => device.DestroyImmediate(explicitBuffer));
+
+            // Finalizers of the never-disposed orphans run against the dead device.
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
@@ -454,8 +536,32 @@ public sealed class AlcoGpuRegressionTests
         }
 
         Assert.That(console.ToString(), Does.Not.Contain("Error in GPUObject"));
+        for (int i = 0; i < openPasses.Length; i++)
+        {
+            Assert.That(openPasses[i].IsAlive, Is.False,
+                "The orphan open-pass command buffer must be collected after its finalizer runs.");
+        }
     }
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static WeakReference[] CreateOrphanOpenPassCommands(AlcoGpuDevice device, GPUFrameBuffer frameBuffer, Host host)
+    {
+        GPUCommandBuffer render = device.CreateCommandBuffer();
+        render.Begin();
+        render.BeginRender(frameBuffer);
+        GPUCommandBuffer compute = device.CreateCommandBuffer();
+        compute.Begin();
+        compute.BeginCompute();
+        Assert.That(GetHandle(render, "_renderPass").IsNull, Is.False);
+        Assert.That(GetHandle(compute, "_computePass").IsNull, Is.False);
+        WeakReference[] references = [new(render, trackResurrection: true), new(compute, trackResurrection: true)];
+        host.Dispose();
+        GC.KeepAlive(render);
+        GC.KeepAlive(compute);
+        return references;
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CreateOrphanChildren(AlcoGpuDevice device)
     {
         GPUBuffer buffer = device.CreateBuffer(new BufferDescriptor(128, BufferUsage.Uniform));

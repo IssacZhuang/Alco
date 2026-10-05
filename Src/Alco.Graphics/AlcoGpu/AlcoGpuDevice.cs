@@ -1137,6 +1137,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         {
             // The base constructor subscribes before native creation. Roll back without
             // replacing the original creation error with failures from partial cleanup.
+            AlcoGpuLogRouter.Detach(this);
             DetachHostEvents();
             void ReleaseLayout(GPUBindGroup? layout)
             {
