@@ -31,7 +31,9 @@ public partial class RenderingSystem
         bool metalLib = MetalLibTargetEnabled(GraphicsDevice.Backend, GraphicsDevice.IsFeatureSupported(GPUFeatures.MetalLibPassthrough));
         SlangCodeTarget target = GraphicsDevice.Backend switch
         {
-            GraphicsBackend.WGPUDx12 => SlangCodeTarget.Dxil,
+            // DX12 consumes SPIR-V through wgpu's standard Naga path. Direct DXIL
+            // passthrough cannot apply the HAL's binding and builtin remapping.
+            GraphicsBackend.WGPUDx12 => SlangCodeTarget.Spirv,
             GraphicsBackend.WGPUMetal => metalLib ? SlangCodeTarget.MetalLib : SlangCodeTarget.Msl,
             _ => SlangCodeTarget.Spirv,
         };

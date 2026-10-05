@@ -108,7 +108,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     float size = particle.size;
     if ((emitter.flags & PARTICLE_FLAG_SIZE_CURVE) != 0u)
     {
-        size = particle.startSize * overLife.sizeCurve.Sample(samplers.linearClamp, float2(age01, 0.5));
+        size = particle.startSize * overLife.sizeCurve.SampleLevel(samplers.linearClamp, float2(age01, 0.5), 0.0);
     }
 
     float3 center = mul(model, float4(particle.position, 1.0)).xyz;
@@ -188,7 +188,7 @@ public V2F MainVS<T : IParticleSurface>(Vertex input)
     float4 color = particle.color;
     if ((emitter.flags & PARTICLE_FLAG_COLOR_GRADIENT) != 0u)
     {
-        color = particle.startColor * overLife.colorGradient.Sample(samplers.linearClamp, float2(age01, 0.5));
+        color = particle.startColor * overLife.colorGradient.SampleLevel(samplers.linearClamp, float2(age01, 0.5), 0.0);
         float fadeIn = emitter.life.z > 1e-5 ? smoothstep(0.0, emitter.life.z, age01) : 1.0;
         float fadeOut = emitter.life.w > 1e-5 ? 1.0 - smoothstep(1.0 - emitter.life.w, 1.0, age01) : 1.0;
         color.a *= fadeIn * fadeOut;

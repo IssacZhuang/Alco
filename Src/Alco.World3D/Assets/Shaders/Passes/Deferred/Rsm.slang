@@ -40,7 +40,7 @@ public struct RsmV2F
     float4 tangent : TEXCOORD1; // xyz = world tangent, w = bitangent sign
     float3 worldPos : TEXCOORD2;
     float2 uv : TEXCOORD3;
-    uint instanceID : TEXCOORD4;
+    nointerpolation uint instanceID : TEXCOORD4;
 }
 
 // Push constant payload: only the RSM cascade index remains per-draw

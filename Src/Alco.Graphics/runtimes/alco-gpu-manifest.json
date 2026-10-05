@@ -20,8 +20,8 @@
   "binaries": {
     "win-x64": {
       "file": "runtimes/win-x64/native/alco_gpu.dll",
-      "sha256": "05203bfbe59300f514890c9e2da4687e649c316b1b2385a045d142726f509fb5",
-      "sourceSha256": "42480008c1df5c59171c4ecb0b21cc2f1ba2fd2999b2ccd1ba49b3d7436c6ed5",
+      "sha256": "325e42f6792e476d040ef7a6dc45536af04bb098deb2e55b8186c0815732f840",
+      "sourceSha256": "86072da5a235dd967014fc21148a3786782e85c4ca7ba0edf11ef65398e257bc",
       "builtFrom": "local cargo build --locked --release via MSBuild ResolveAlcoGpuNative"
     },
     "win-arm64": {
@@ -72,5 +72,5 @@
     "runId": 37313673995,
     "url": "https://github.com/IssacZhuang/Alco/actions/runs/37313673995"
   },
-  "note": "All eight RID libraries were rebuilt from the recorded commit by the native-alco-gpu workflow. Delivery is validated by adjacent .source.sha256 sidecars containing source and binary fingerprints. Local dotnet builds automatically compile missing or stale selected-RID libraries with Cargo --locked --release; use -p:AlcoGpuBuildNative=true to select a source build. Compilation success does not imply GPU runtime validation on every platform. See Docs/AlcoGpuAbi.md and Docs/AlcoGpuRefactorReview.md."
+  "note": "The recorded workflow delivered the original eight RID libraries. The win-x64 library was subsequently rebuilt locally with the DX12 shader translation fixes and validated on an NVIDIA GeForce RTX 4070 Ti; the other seven libraries retain their original source fingerprints and have not been rebuilt with these fixes. Delivery is validated by adjacent .source.sha256 sidecars containing source and binary fingerprints. Local dotnet builds automatically compile missing or stale selected-RID libraries with Cargo --locked --release; use -p:AlcoGpuBuildNative=true to select a source build. Compilation success does not imply GPU runtime validation on every platform. See Docs/AlcoGpuAbi.md and Docs/AlcoGpuRefactorReview.md."
 }

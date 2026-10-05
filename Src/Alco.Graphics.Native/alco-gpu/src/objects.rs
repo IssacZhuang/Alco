@@ -917,8 +917,8 @@ pub unsafe extern "C-unwind" fn alco_sampler_destroy(
 // Shader module
 // ---------------------------------------------------------------------------
 
-/// ABI: creates a shader module. DXIL/MSL/MetalLib/SPIR-V go through the
-/// passthrough path; WGSL goes through Naga.
+/// ABI: creates a shader module. DX12 SPIR-V and WGSL go through Naga;
+/// other supported native shader formats use passthrough.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_shader_module_create(
     device: AlcoHandle,
@@ -947,7 +947,13 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                             for chunk in data.chunks_exact(4) {
                                 words.push(u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
                             }
-                            if ctx.caps & caps::PASSTHROUGH_SHADERS != 0 {
+                            if ctx.backend == backend::RESOLVED_DX12 {
+                                if let Err(message) = crate::shader_spirv::normalize(&mut words) {
+                                    set_error(AlcoStatus::VALIDATION, message);
+                                    return AlcoStatus::VALIDATION;
+                                }
+                            }
+                            if ctx.caps & caps::PASSTHROUGH_SHADERS != 0 && ctx.backend != backend::RESOLVED_DX12 {
                                 let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
                                     p.spirv = Some(std::borrow::Cow::Owned(words.clone()));
                                 });
@@ -958,7 +964,10 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                             } else {
                                 let source = wgc::pipeline::ShaderModuleSource::SpirV(
                                     std::borrow::Cow::Owned(words.clone()),
-                                    wgc::naga::front::spv::Options::default(),
+                                    wgc::naga::front::spv::Options {
+                                        adjust_coordinate_space: ctx.backend != backend::RESOLVED_DX12,
+                                        ..Default::default()
+                                    },
                                 );
                                 let sdesc = wgc::pipeline::ShaderModuleDescriptor {
                                     label: module_label.clone(),

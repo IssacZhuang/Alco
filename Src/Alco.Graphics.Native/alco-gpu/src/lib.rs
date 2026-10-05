@@ -12,6 +12,7 @@ pub(crate) mod device;
 pub(crate) mod logging;
 pub(crate) mod objects;
 pub(crate) mod pipeline;
+pub(crate) mod shader_spirv;
 pub(crate) mod surface;
 pub(crate) mod entry;
 pub(crate) mod handle;

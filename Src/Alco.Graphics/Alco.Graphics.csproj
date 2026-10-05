@@ -11,6 +11,15 @@
 
   <ItemGroup>
     <Compile Remove="AlcoGpu\**\*" Condition="'$(UseAlcoGpu)' != 'true'" />
+    <Content Include="$(MSBuildThisFileDirectory)../Alco.ShaderCompiler/runtimes/$(RuntimeIdentifier)/native/dxil.dll"
+             Condition="'$(UseAlcoGpu)' == 'true' and ('$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64')">
+      <Link>dxil.dll</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Pack>true</Pack>
+      <PackagePath>runtimes/$(RuntimeIdentifier)/native/</PackagePath>
+      <Visible>False</Visible>
+    </Content>
   </ItemGroup>
 
   <!-- Normalize source line endings so delivery fingerprints survive checkout

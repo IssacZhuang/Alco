@@ -37,7 +37,7 @@ public struct GBufferV2F
     float3 normal : TEXCOORD0;
     float2 uv : TEXCOORD1;
     float4 tangent : TEXCOORD2; // xyz = world tangent, w = bitangent sign
-    uint instanceID : TEXCOORD3;
+    nointerpolation uint instanceID : TEXCOORD3;
     float3 worldPos : TEXCOORD4;
 }
 

@@ -147,8 +147,8 @@ fn base_adapter_features(backend: wgt::Backend) -> wgt::Features {
     let mut required = wgt::Features::IMMEDIATES
         | wgt::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
         | wgt::Features::VERTEX_WRITABLE_STORAGE;
-    // Vulkan can fall back to Naga SPIR-V; other backends need passthrough.
-    if backend != wgt::Backend::Vulkan {
+    // Vulkan and DX12 can compile SPIR-V through Naga; Metal needs passthrough.
+    if backend != wgt::Backend::Vulkan && backend != wgt::Backend::Dx12 {
         required |= wgt::Features::PASSTHROUGH_SHADERS;
     }
     required
@@ -276,7 +276,7 @@ pub unsafe extern "C-unwind" fn alco_device_create(
         let instance_desc = wgt::InstanceDescriptor {
             backends,
             flags: if debug {
-                wgt::InstanceFlags::DEBUG
+                wgt::InstanceFlags::debugging()
             } else {
                 wgt::InstanceFlags::default()
             },
@@ -298,8 +298,8 @@ pub unsafe extern "C-unwind" fn alco_device_create(
 
         // Base feature policy of the Alco engine contract (mirrors the old
         // WebGPUDevice gating): immediates, adapter-specific format features
-        // and vertex writable storage are always required; passthrough shaders
-        // are required everywhere except Vulkan where Naga SPIR-V is a fallback.
+        // and vertex writable storage are always required. Vulkan and DX12
+        // support Naga SPIR-V; Metal requires native shader passthrough.
         let (supported, mut device_caps) = supported_alco_features(adapter_features);
 
         // Requested Alco features are desired-optional: intersect with adapter
@@ -308,6 +308,9 @@ pub unsafe extern "C-unwind" fn alco_device_create(
         // behavior of only requesting probed features).
         let mut required = base_adapter_features(adapter_info.backend)
             | alco_features_to_wgpu(desc.required_features & supported);
+        if adapter_info.backend == wgt::Backend::Dx12 {
+            required |= adapter_features & wgt::Features::SHADER_F16;
+        }
         let passthrough_available = adapter_features.contains(wgt::Features::PASSTHROUGH_SHADERS);
         if passthrough_available {
             required |= wgt::Features::PASSTHROUGH_SHADERS;
@@ -591,7 +594,8 @@ mod tests {
             adapter_rejection(backend, features, limit, 16).is_none());
         assert_eq!(selected.unwrap().0, wgt::DeviceType::IntegratedGpu);
         assert!(adapter_rejection(wgt::Backend::Vulkan, base, 16, 16).is_none());
-        assert!(adapter_rejection(wgt::Backend::Dx12, base, 16, 16).is_some());
+        assert!(adapter_rejection(wgt::Backend::Dx12, base, 16, 16).is_none());
+        assert!(adapter_rejection(wgt::Backend::Metal, base, 16, 16).is_some());
         assert!(adapter_rejection(wgt::Backend::Metal,
             base | wgt::Features::PASSTHROUGH_SHADERS, 16, 16).is_none());
         // Desired-optional features must not become selection requirements.

@@ -36,9 +36,9 @@ public sealed class AlcoGpuIntegrationTests
         public void LogSuccess(ReadOnlySpan<char> message) { }
     }
 
-    private static AlcoGpuDevice CreateDevice(Host host, GraphicsBackend backend = GraphicsBackend.Auto)
+    private static AlcoGpuDevice CreateDevice(Host host, GraphicsBackend backend = GraphicsBackend.Auto, bool debug = false)
     {
-        return new AlcoGpuDevice(new DeviceDescriptor(host, backend));
+        return new AlcoGpuDevice(new DeviceDescriptor(host, backend, debug: debug));
     }
 
     private const string FullscreenTriangleWgsl = """
@@ -62,9 +62,11 @@ public sealed class AlcoGpuIntegrationTests
 
     /// <summary>Renders a fullscreen WGSL triangle and validates the read-back pixels.</summary>
     /// <param name="backend">The requested graphics backend.</param>
-    [TestCase(GraphicsBackend.Auto)]
-    [TestCase(GraphicsBackend.WGPUDx12)]
-    public unsafe void RenderQuadAndReadbackMatchesExpectedPixels(GraphicsBackend backend)
+    /// <param name="debug">Whether to enable native debugging and validation.</param>
+    [TestCase(GraphicsBackend.Auto, false)]
+    [TestCase(GraphicsBackend.WGPUDx12, false)]
+    [TestCase(GraphicsBackend.WGPUDx12, true)]
+    public unsafe void RenderQuadAndReadbackMatchesExpectedPixels(GraphicsBackend backend, bool debug)
     {
         if (backend == GraphicsBackend.WGPUDx12 && !OperatingSystem.IsWindows())
         {
@@ -72,7 +74,7 @@ public sealed class AlcoGpuIntegrationTests
         }
         const uint size = 64;
         using var host = new Host();
-        AlcoGpuDevice device = CreateDevice(host, backend);
+        AlcoGpuDevice device = CreateDevice(host, backend, debug);
 
         byte[] code = Encoding.UTF8.GetBytes(FullscreenTriangleWgsl);
         var vertexModule = new ShaderModule(ShaderStage.Vertex, ShaderLanguage.WGSL, code, "vs_main");
@@ -382,6 +384,9 @@ public sealed class AlcoGpuIntegrationTests
             Acquire(swapchain);
             Assert.That(swapchain.FrameBuffer.Width, Is.EqualTo(width));
             Assert.That(swapchain.FrameBuffer.Height, Is.EqualTo(height));
+            TextureUsage expectedUsage = TextureUsage.ColorAttachment |
+                (backend == GraphicsBackend.WGPUDx12 ? TextureUsage.Read : TextureUsage.TextureBinding);
+            Assert.That(swapchain.FrameBuffer.Colors[0].Usage, Is.EqualTo(expectedUsage));
 
             commands.Begin();
             using (commands.BeginRender(swapchain.FrameBuffer)) { }

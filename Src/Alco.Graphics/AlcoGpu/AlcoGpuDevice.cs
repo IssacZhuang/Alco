@@ -1055,7 +1055,11 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             }
 
             ShaderPassthroughEnabled = (info.Caps & AlcoGpuAbi.Caps.PassthroughShaders) != 0;
-            if (ShaderPassthroughEnabled)
+            if (Backend == GraphicsBackend.WGPUDx12)
+            {
+                _host.LogSuccess("DX12 SPIR-V shader translation is enabled");
+            }
+            else if (ShaderPassthroughEnabled)
             {
                 _host.LogSuccess($"Native {Backend} shader passthrough is enabled");
             }

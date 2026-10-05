@@ -14,9 +14,10 @@ namespace Alco.Engine;
 /// the frame that would be presented.
 /// <br/>Requests are serialized (one capture in flight). A dispatched request arms a
 /// one-shot conversion in the post-ImGui / pre-present window
-/// (<see cref="IGPUDeviceHost.OnEndFrame"/>): the surface is blitted into an RGBA8
-/// staging texture with a full-screen GPU draw (any surface format is converted by the
-/// blit — no CPU-side pixel processing), then the shared <see cref="PngReadbackPipeline"/>
+/// (<see cref="IGPUDeviceHost.OnEndFrame"/>): a surface that cannot be sampled is first
+/// copied into a same-format sampleable texture, then blitted into an RGBA8 staging
+/// texture with a full-screen GPU draw (any surface format is converted by the blit —
+/// no CPU-side pixel processing). The shared <see cref="PngReadbackPipeline"/> then
 /// performs the asynchronous GPU readback and a thread-pool PNG encode, completing the
 /// request a couple of frames later. When another capture system holds the shared
 /// pipeline, the staged capture waits and begins its readback on a later update.
@@ -30,6 +31,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
     private readonly List<PendingCaptureRequest> _pendingRequests = new();
     private PendingCaptureRequest? _activeRequest;
     private RenderTexture? _staging;
+    private Texture2D? _surfaceCopy;
     private bool _readArmed;
     private bool _readStaged;
     private Task<RenderCaptureResult>? _fallbackTask;
@@ -91,6 +93,8 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         return request.Completion.Task;
     }
 
+    /// <summary>Advances queued captures and starts staged readbacks when the shared pipeline is free.</summary>
+    /// <param name="deltaTime">The elapsed time since the previous update, in seconds.</param>
     public override void OnUpdate(float deltaTime)
     {
         // The shared readback pipeline is pumped by the engine; completed readbacks are
@@ -233,18 +237,53 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         }
     }
 
+    /// <summary>Keeps a sampleable copy at the acquired surface texture's size and format.</summary>
+    private Texture2D EnsureSurfaceCopy(GPUTexture surface)
+    {
+        if (_surfaceCopy != null && _surfaceCopy.Width == surface.Width &&
+            _surfaceCopy.Height == surface.Height && _surfaceCopy.NativeTexture.PixelFormat == surface.PixelFormat)
+        {
+            return _surfaceCopy;
+        }
+
+        Texture2D copy = _engine.RenderingSystem.CreateTexture2D(surface.Width, surface.Height, ImageLoadOption.Default with
+        {
+            Format = surface.PixelFormat,
+            Usage = TextureUsage.Write | TextureUsage.TextureBinding,
+            Name = "swapchain_capture_surface_copy",
+        });
+        _surfaceCopy?.Dispose();
+        _surfaceCopy = copy;
+        return copy;
+    }
+
     /// <summary>
     /// Converts the surface's first color attachment into the RGBA8 staging texture
-    /// with a full-screen blit and submits it, ordered before the frame's present.
+    /// with a full-screen blit, first copying surfaces that cannot be sampled. Both
+    /// operations share one submission, ordered before the frame's present.
     /// </summary>
     private void BlitSurface(GPUFrameBuffer frameBuffer)
     {
-        Texture2D source = _engine.RenderingSystem.CreateTexture2D(frameBuffer.Colors[0], frameBuffer.ColorViews[0]);
+        GPUTexture surface = frameBuffer.Colors[0];
+        bool needsCopy = (surface.Usage & TextureUsage.TextureBinding) == 0;
+        if (needsCopy && (surface.Usage & TextureUsage.Read) == 0)
+        {
+            throw new NotSupportedException("The surface texture supports neither sampling nor copy-source usage for capture.");
+        }
+
+        Texture2D source = needsCopy
+            ? EnsureSurfaceCopy(surface)
+            : _engine.RenderingSystem.CreateTexture2D(surface, frameBuffer.ColorViews[0]);
         try
         {
             _blitMaterial!.SetTexture(ShaderResourceId.Texture, source);
             using (RenderFrameScope frame = _renderContext!.BeginFrame())
             {
+                if (needsCopy)
+                {
+                    _renderContext.CommandBuffer.CopyTexture(surface, source.NativeTexture);
+                }
+
                 using (RenderPassScope pass = _renderContext.BeginPass(_staging!.FrameBuffer))
                 {
                     pass.Draw(_engine.RenderingSystem.MeshFullScreen, _blitMaterial);
@@ -253,7 +292,10 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         }
         finally
         {
-            source.Dispose();
+            if (!needsCopy)
+            {
+                source.Dispose();
+            }
         }
     }
 
@@ -267,6 +309,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         request?.Completion.TrySetResult(result);
     }
 
+    /// <summary>Unhooks frame capture, completes outstanding requests, and releases capture-owned GPU resources.</summary>
     public override void Dispose()
     {
         ((IGPUDeviceHost)_engine).OnEndFrame -= OnEndFrame;
@@ -285,6 +328,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
 
         // The readback pipeline is engine-owned and shared; not disposed here.
         _staging?.Dispose();
+        _surfaceCopy?.Dispose();
         _blitMaterial?.Dispose();
         _renderContext?.Dispose();
     }

@@ -169,7 +169,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         _colorAttachments = null;
         _depthAttachment = null;
 
-        AlcoGpuSurfaceTexture surfaceTexture = AlcoGpuSurfaceTexture.Create(Device, surface);
+        AlcoGpuSurfaceTexture surfaceTexture = AlcoGpuSurfaceTexture.Create(Device, surface, (TextureUsage)config.Usage);
         _colorTextures = new AlcoGpuSurfaceTexture[1];
         _colorTextures[0] = surfaceTexture;
 
@@ -385,12 +385,19 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
         protected override GPUDevice Device { get; }
 
-        public static AlcoGpuSurfaceTexture Create(GPUDevice device, AlcoHandle surface)
+        /// <summary>
+        /// Acquires a surface texture whose managed usage matches the surface configuration.
+        /// </summary>
+        /// <param name="device">The graphics device that owns the surface.</param>
+        /// <param name="surface">The configured native surface.</param>
+        /// <param name="usage">The usage flags enabled by the surface configuration.</param>
+        /// <returns>The managed wrapper for the acquired surface texture.</returns>
+        public static AlcoGpuSurfaceTexture Create(GPUDevice device, AlcoHandle surface, TextureUsage usage)
         {
             AlcoGpuDevice alcoDevice = (AlcoGpuDevice)device;
             uint acquireStatus;
             AlcoGpuNative.SurfaceGetCurrentTexture(alcoDevice.Native, surface, out AlcoHandle texture, &acquireStatus);
-            return new AlcoGpuSurfaceTexture(alcoDevice, surface, texture, (PixelFormat)GetTextureInfo(alcoDevice, texture).Format, acquireStatus);
+            return new AlcoGpuSurfaceTexture(alcoDevice, surface, texture, (PixelFormat)GetTextureInfo(alcoDevice, texture).Format, usage, acquireStatus);
         }
 
         private static AlcoTextureInfo GetTextureInfo(AlcoGpuDevice device, AlcoHandle texture)
@@ -405,16 +412,17 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
             AlcoHandle surface,
             AlcoHandle texture,
             PixelFormat format,
+            TextureUsage usage,
             uint acquireStatus
         ) : base(
-            new TextureDescriptor( //just a dummy descriptor
+            new TextureDescriptor( // Surface dimensions are read from the acquired native texture.
                 TextureDimension.Texture2D,
                 format,
                 1,
                 1,
                 1,
                 1,
-                TextureUsage.None, //the surface texture cannot be sampled
+                usage,
                 1,
                 "swapchain_texture"
             )
