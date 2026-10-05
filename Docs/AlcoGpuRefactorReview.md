@@ -384,7 +384,7 @@ Sandbox 34/38 的进程退出码仍为 0，因为示例启用了 `StopWhenError`
 
 ## 8. 工作区修复与验收记录
 
-修复及验证日期：2026-10-05。以下结果对应 `2cb9cb54` 之后的**未提交工作区**，不改变第 1–7 节的历史审查结论。没有执行 commit、push 或 CI workflow dispatch。
+修复及验证日期：2026-10-05。第 8.1–8.7 节记录 `2cb9cb54` 之后、提交前的修复验证快照，不改变第 1–7 节的历史审查结论。随后已按用户要求提交并推送 `fed0ba76`，触发八 RID 原生 CI 构建；最新交付状态见第 8.8 节。
 
 **当前结论：原报告 GPU-01 至 GPU-10 均已落实源码修复并补充对应回归验证；但整体分支验收尚未通过。** 新增的 DX12 实际执行测试仍有 6 项失败，额外检查的两个 Sandbox 也未通过，SmokeTrail 退出后仍有资源 finalizer 生命周期错误。因此不能将本次结果描述为“全量测试通过”或“分支已可合并”。
 
@@ -570,3 +570,35 @@ wgpu-types 30 的 `CreateShaderModuleDescriptorPassthrough` 明确警告：除�
 | 重建前收到的历史 win-x64 DLL 备份 | `C:/Users/10953/AppData/Local/Temp/alco-pre-fix-native-ym7fsbm3/alco_gpu.dll` |
 
 **验收界限：**十项原审查问题的修复及上述对应回归已有证据；完整跨后端、跨平台及全部示例验收仍有明确失败和未验证项。保留失败测试，维持“整体分支尚未通过验收”的判断。
+
+### 8.8 提交及 GitHub Actions 八 RID 交付
+
+随后用户要求提交改动并使用 GitHub Actions 编译多平台二进制。修复、回归测试及构建工作流已提交为 `fed0ba76b654cbe275f2d5732e51e70e114ef6a8` 并推送至 `alco_wgpu`。
+
+以该提交触发的 [Native alco-gpu run 37313673995](https://github.com/IssacZhuang/Alco/actions/runs/37313673995) **全部成功**，包括 Windows/macOS/Android 双架构、Linux x64、Linux ARM64 manylinux 2.28，以及汇总清单步骤。`create-pr=false`，没有自动创建 PR。
+
+下载并核对了全部八个 RID 的架构、二进制 SHA-256、源码指纹及相邻 sidecar。所有库的源码指纹为 `e865152f2262eb0e710e3c1852d71527e55b8689198fd8f479f4b55f561748f9`；已替换仓库中的旧交付物，并在 manifest 的 `delivery` 中记录 source commit、run id 和 URL。替换前的库和清单保存在本地备份中。
+
+| RID | 当前 CI 二进制 SHA-256 |
+| --- | --- |
+| win-x64 | `92b0b7465d26931d1d58b32819fc1cee87d1d5465579c4bf415643015d2c4dd6` |
+| win-arm64 | `57266c712db5fbd878bb1b32a77f36433bbabf82808f9fe4b39c8edd86edd04f` |
+| linux-x64 | `982ed4a770c85827dee5f42641474c68a3543ce5600eea73d58c81a9b4f5fa22` |
+| linux-arm64 | `3298c01ce7c1f4aa87a9d6520f98d20fbb3b3d6affafd66571d0afc03f8c4b02` |
+| osx-x64 | `ce390bc07d32203e71d47cfb729433cfbd86e2d51811a931f300783c925565a9` |
+| osx-arm64 | `328b7938211dfcbe46d494c3cb5e1ea8e2a0aad090d7c6cddadb4265684167f7` |
+| android-x64 | `223d548f3a58c2a8409648ebf0e43625ff5d7dea6e7a47febc86e811fc794c24` |
+| android-arm64 | `ea3a31e01f9fc9f81760eed1674340528a725956fb0c15f5a81c4f55feeb4e6a` |
+
+补充实际消费验证：
+
+- 八个 RID 的 `ResolveAlcoGpuNative` 均返回 `_AlcoGpuDeliveryIsCurrent=True`。
+- CI win-x64 DLL 直接加载返回 ABI `0x10002`，build info 返回 wgpu-core 30.0.1。
+- 以不存在的 Cargo 路径执行完整 Debug `dotnet build` 成功，0 警告、0 错误，确认当前交付可免 Rust 消费。
+- 使用 CI DLL 重跑完整 `Alco.Graphics.Test`：**66 通过、2 失败、0 跳过**；失败仍是第 8.6 节记录的两个 DX12 device-create 用例，无新增失败。
+- `dotnet pack --no-build --no-restore -r win-x64` 成功生成包，并核对其中 native payload 为当前 CI DLL。
+- CI linux-x64 `.so` 在 WSL 中实际加载，ABI handshake 返回 `0x10002`。
+
+Actions 上传了八个单 RID artifact，以及包含库、sidecar 和 manifest 的 `alco-gpu-runtimes-all`。本地下载、旧产物备份、图形测试 TRX 和验证 NuGet 包位于 `C:/Users/10953/AppData/Local/Temp/alco-native-actions-37313673995-l3d1jcyw`。
+
+第 8.3 节“只有本地 win-x64 重建、其余为旧库”的描述是提交前快照，当前仓库已由本节的八 RID CI 交付取代。**八平台编译成功不等于八平台 GPU 渲染验收通过**；第 8.6 节的 DX12、Sandbox 和 finalizer 问题仍未修复。
