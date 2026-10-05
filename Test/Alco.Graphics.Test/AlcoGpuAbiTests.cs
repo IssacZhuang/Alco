@@ -311,4 +311,45 @@ public unsafe class AlcoGpuAbiTests
             AlcoGpuNative.DeviceDestroy(device);
         }
     }
+
+    /// <summary>
+    /// Verifies every documented log level is accepted and an unknown level
+    /// throws through the error callback; the filter is restored to the
+    /// process default afterwards.
+    /// </summary>
+    [Test]
+    public void LogLevelAcceptsKnownValuesAndRejectsUnknownValues()
+    {
+        foreach (uint level in new[]
+                 {
+                     AlcoGpuAbi.LogLevel.Off, AlcoGpuAbi.LogLevel.Error, AlcoGpuAbi.LogLevel.Warn,
+                     AlcoGpuAbi.LogLevel.Info, AlcoGpuAbi.LogLevel.Debug, AlcoGpuAbi.LogLevel.Trace,
+                 })
+        {
+            Assert.That(AlcoGpuNative.SetLogLevel(level), Is.EqualTo(AlcoGpuAbi.Status.Ok));
+        }
+
+        GraphicsException error = Assert.Throws<GraphicsException>(
+            () => AlcoGpuNative.SetLogLevel(99))!;
+        Assert.That(error.Message, Does.Contain("log level"));
+
+        // Restore the forwarding default so later tests observe Warn-level records.
+        AlcoGpuNative.SetLogLevel(AlcoGpuAbi.LogLevel.Warn);
+    }
+
+    /// <summary>
+    /// Verifies log callback registration succeeds and stays idempotent: the
+    /// native forwarder installs once and repeat registrations keep it in
+    /// place.
+    /// </summary>
+    [Test]
+    public void LogCallbackRegistrationIsIdempotent()
+    {
+        Assert.That(
+            AlcoGpuNative.SetLogCallback(&AlcoGpuMarshal.OnNativeLog, null),
+            Is.EqualTo(AlcoGpuAbi.Status.Ok));
+        Assert.That(
+            AlcoGpuNative.SetLogCallback(&AlcoGpuMarshal.OnNativeLog, null),
+            Is.EqualTo(AlcoGpuAbi.Status.Ok));
+    }
 }

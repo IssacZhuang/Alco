@@ -5,7 +5,7 @@
     "path": "Src/Alco.Graphics.Native/alco-gpu",
     "version": "0.1.0",
     "rustToolchain": "1.97.1",
-    "abiVersion": "1.3",
+    "abiVersion": "1.4",
     "wgpuCore": "=30.0.1",
     "features": [
       "wgsl",
@@ -20,9 +20,9 @@
   "binaries": {
     "win-x64": {
       "file": "runtimes/win-x64/native/alco_gpu.dll",
-      "sha256": "e8f101866e8478cca57a4eb119a5f820187550893c8142f9d23a8823b341fa31",
-      "sourceSha256": "18a04cd37596adc318d1a5fcb4500095326c61007a30b53c6619b542523ce4c1",
-      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+      "sha256": "05203bfbe59300f514890c9e2da4687e649c316b1b2385a045d142726f509fb5",
+      "sourceSha256": "42480008c1df5c59171c4ecb0b21cc2f1ba2fd2999b2ccd1ba49b3d7436c6ed5",
+      "builtFrom": "local cargo build --locked --release via MSBuild ResolveAlcoGpuNative"
     },
     "win-arm64": {
       "file": "runtimes/win-arm64/native/alco_gpu.dll",

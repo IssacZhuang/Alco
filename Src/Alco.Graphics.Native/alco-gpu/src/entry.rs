@@ -258,8 +258,8 @@ mod tests {
         assert_eq!(last_error(), (AlcoStatus::UNSUPPORTED.0, "resource\\0name".into()));
     }
 
-    /// Records callbacks fired on this thread only: guard calls from
-    /// concurrently running tests land on their own thread-locals.
+    // Records callbacks fired on this thread only: guard calls from
+    // concurrently running tests land on their own thread-locals.
     thread_local! {
         static FIRED: RefCell<Option<(u32, String)>> = const { RefCell::new(None) };
     }

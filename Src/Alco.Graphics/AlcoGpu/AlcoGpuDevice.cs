@@ -156,6 +156,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         // Destroys the native device context including its wgpu Global; every
         // remaining object handle becomes invalid (double destroy is detected).
         AlcoGpuNative.DeviceDestroy(Native);
+
+        // Late native records must not reach a disposed device's host.
+        AlcoGpuLogRouter.Detach(this);
     }
 
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
@@ -933,6 +936,34 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         }
     }
 
+    /// <summary>
+    /// Routes one wgpu-core log record delivered through the process-wide
+    /// native log callback. Unlike <see cref="PollMessages"/>,
+    /// error-severity records do not throw: they can fire from the middle of
+    /// a native operation where an unwind is undefined, and synchronous
+    /// failures already throw through the error callback.
+    /// </summary>
+    /// <param name="level">The <see cref="AlcoGpuAbi.LogLevel"/> of the record.</param>
+    /// <param name="message">The record text.</param>
+    internal void RouteNativeLog(uint level, string message)
+    {
+        switch (level)
+        {
+            case AlcoGpuAbi.LogLevel.Error:
+                _host.LogError("[alco-gpu] " + message);
+                break;
+            case AlcoGpuAbi.LogLevel.Warn:
+                if (IsDebug)
+                {
+                    _host.LogWarning(message);
+                }
+                break;
+            default:
+                _host.LogInfo(message);
+                break;
+        }
+    }
+
     internal AlcoGpuDevice(in DeviceDescriptor descriptor) : base(descriptor)
     {
         try
@@ -940,6 +971,11 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             IsDebug = descriptor.Debug;
             _descriptor = descriptor;
             _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
+
+            // Forwarding must be active before the native device exists: the
+            // root causes of device-creation failures are only reported
+            // through wgpu-core log records.
+            AlcoGpuLogRouter.Attach(this);
 
             // All optional features are blanket-requested; the native side intersects
             // them with adapter support and reports the supported set back.

@@ -9,6 +9,7 @@ pub mod abi;
 pub(crate) mod commands;
 pub(crate) mod convert;
 pub(crate) mod device;
+pub(crate) mod logging;
 pub(crate) mod objects;
 pub(crate) mod pipeline;
 pub(crate) mod surface;

@@ -15,7 +15,7 @@ internal static unsafe partial class AlcoGpuAbi
     public const uint AbiMajor = 1;
 
     /// <summary>ABI minor version implemented by the native library.</summary>
-    public const uint AbiMinor = 3;
+    public const uint AbiMinor = 4;
 
     /// <summary>Sentinel for "no value" in optional uint fields.</summary>
     public const uint AlcoNone = uint.MaxValue;
@@ -39,6 +39,18 @@ internal static unsafe partial class AlcoGpuAbi
         public const uint Unsupported = 7;
         /// <summary>A polled operation is still in flight.</summary>
         public const uint NotReady = 8;
+    }
+
+    /// <summary>Log levels crossing the native log callback (mirror of wgpu-native WGPULogLevel).</summary>
+    public static class LogLevel
+    {
+        /// <summary>Disables native log forwarding entirely.</summary>
+        public const uint Off = 0;
+        public const uint Error = 1;
+        public const uint Warn = 2;
+        public const uint Info = 3;
+        public const uint Debug = 4;
+        public const uint Trace = 5;
     }
 
     /// <summary>Backend request values (mirror of GraphicsBackend native subset).</summary>

@@ -25,6 +25,32 @@ internal static unsafe class AlcoGpuMarshal
         throw new GraphicsException($"[alco-gpu:{StatusKind(status)}] {text}");
     }
 
+    /// <summary>
+    /// Native log callback: invoked synchronously by alco-gpu from inside
+    /// wgpu-core for every record at or below the configured level. Unlike
+    /// <see cref="OnNativeError"/> it must never throw — records fire through
+    /// native frames that do not permit unwinding — so failures of the
+    /// managed sink are swallowed here.
+    /// </summary>
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    internal static void OnNativeLog(uint level, byte* message, void* userdata)
+    {
+        string? text = BorrowedString(message);
+        if (text is null)
+        {
+            return;
+        }
+
+        try
+        {
+            AlcoGpuLogRouter.Route(level, text);
+        }
+        catch
+        {
+            // Never unwind through native wgpu-core frames.
+        }
+    }
+
     /// <summary>Maps an <see cref="AlcoGpuAbi.Status"/> value to its short name.</summary>
     internal static string StatusKind(uint status)
     {

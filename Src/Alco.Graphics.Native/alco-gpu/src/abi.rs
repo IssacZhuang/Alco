@@ -9,7 +9,7 @@
 /// ABI major version. Increment on any breaking layout/semantic change.
 pub const ABI_MAJOR: u32 = 1;
 /// ABI minor version. Increment on additive changes.
-pub const ABI_MINOR: u32 = 3;
+pub const ABI_MINOR: u32 = 4;
 
 /// Sentinel for "no value" in optional `u32` fields.
 pub const ALCO_NONE: u32 = u32::MAX;
@@ -93,6 +93,18 @@ pub mod caps {
     pub const MULTI_DRAW_INDIRECT: u64 = 1 << 2;
     /// TIMESTAMP_QUERY_INSIDE_PASSES native feature available.
     pub const TIMESTAMP_INSIDE_PASSES: u64 = 1 << 3;
+}
+
+/// `AlcoLogLevel` values for the log callback — same numeric values as
+/// wgpu-native's `WGPULogLevel` and the C# `AlcoGpuAbi.LogLevel` constants.
+pub mod log_level {
+    /// Disables forwarding entirely (argument to `alco_set_log_level`).
+    pub const OFF: u32 = 0;
+    pub const ERROR: u32 = 1;
+    pub const WARN: u32 = 2;
+    pub const INFO: u32 = 3;
+    pub const DEBUG: u32 = 4;
+    pub const TRACE: u32 = 5;
 }
 
 /// Device creation descriptor. The C# side performs all feature gating (same

@@ -10,7 +10,7 @@ surfaces as a catchable `GraphicsException` instead of a process-killing panic.
 - C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
   callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
   `Interop/AlcoGpuMarshal.cs` throwing error callback)
-- Current ABI version: **1.3** (`ABI_MAJOR=1`, `ABI_MINOR=3`)
+- Current ABI version: **1.4** (`ABI_MAJOR=1`, `ABI_MINOR=4`)
 
 ## Conventions
 
@@ -70,10 +70,46 @@ default-message path, silence for `OK`/`NOT_READY`, and unregistration;
 (double-destroy throws, validation chains retain root causes, `NOT_READY` still
 returns normally).
 
-## Export groups (87 exports)
+## Log callback
+
+wgpu-core reports internal diagnostics — root causes that never surface through
+return values, such as the indirect-validation initialization failure that
+surfaces as `DeviceError::Lost` — exclusively through the `log` crate. Without a
+`log::Log` implementation installed, those records are dropped silently.
+`alco_set_log_callback(callback, userdata)` (mirroring wgpu-native's
+`wgpuSetLogCallback`/`wgpuSetLogLevel`) installs a process-wide forwarder that
+delivers every record to the host:
+
+- The callback is `(level, message, userdata)` with `log_level` values
+  `OFF=0, ERROR=1, WARN=2, INFO=3, DEBUG=4, TRACE=5`; `message` is NUL-terminated
+  UTF-8 **borrowed for the duration of the call only** — the host must copy.
+- The forwarder installs lazily on the first registration; when no level was
+  configured, it defaults to Warn. `alco_set_log_level(level)` adjusts the
+  filter later (unknown values fail with `INVALID_ARGUMENT`).
+- Unlike the error callback, the log callback is plain `extern "C"` and **must
+  not throw**: records fire synchronously from deep inside wgpu-core stack
+  frames that are not `C-unwind`, so a foreign unwind started there is
+  undefined behavior. It also must not call back into the library.
+- Registration fails with `Unsupported` when another library already owns the
+  process-wide `log` logger (records would never reach the forwarder).
+
+C# wiring: `AlcoGpuLogRouter` registers `AlcoGpuMarshal.OnNativeLog` when the
+first `AlcoGpuDevice` is constructed — before native device creation, so
+device-creation root causes are captured — and routes records to the device
+host log (`Error` → `LogError`, `Warn` → `LogWarning` on debug devices,
+`Info/Debug/Trace` → `LogInfo`). Error-severity records deliberately do not
+throw (they can fire mid-native-operation; synchronous failures already throw
+through the error callback).
+
+Verification: `logging.rs` unit tests cover level+message delivery, filtering,
+unregistration, idempotent registration and unknown-level rejection;
+`AlcoGpuAbiTests` assert the `SetLogLevel`/`SetLogCallback` contracts.
+
+## Export groups (66 exports)
 
 **Meta** — `alco_abi_version`, `alco_build_info` (wgpu version, build id),
-`alco_get_last_error`, `alco_set_error_callback`.
+`alco_get_last_error`, `alco_set_error_callback`, `alco_set_log_callback`,
+`alco_set_log_level`.
 
 **Device** — `alco_device_create` (backend request, debug flag, required `GPUFeatures`
 bits, push-constants size; adapter selection is fully synchronous — no callbacks),

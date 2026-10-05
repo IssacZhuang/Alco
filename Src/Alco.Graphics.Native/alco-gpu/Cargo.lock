@@ -6,6 +6,7 @@ version = 4
 name = "alco-gpu"
 version = "0.1.0"
 dependencies = [
+ "log",
  "raw-window-handle",
  "wgpu-core",
  "wgpu-types",

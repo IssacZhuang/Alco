@@ -44,6 +44,28 @@ internal static unsafe partial class AlcoGpuNative
         delegate* unmanaged[Cdecl]<uint, byte*, void*, void> callback,
         void* userdata);
 
+    /// <summary>
+    /// Registers the process-wide native log callback (null unregisters) and
+    /// installs the native log forwarder on first use. Records fire
+    /// synchronously from inside wgpu-core, so the callback must never throw;
+    /// the message is borrowed for the duration of the call only. Fails with
+    /// <see cref="AlcoGpuAbi.Status.Unsupported"/> (thrown as
+    /// <see cref="GraphicsException"/>) when another library already owns the
+    /// process-wide logger.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_set_log_callback")]
+    public static partial uint SetLogCallback(
+        delegate* unmanaged[Cdecl]<uint, byte*, void*, void> callback,
+        void* userdata);
+
+    /// <summary>
+    /// Sets the maximum level forwarded to the native log callback; invalid
+    /// values throw <see cref="GraphicsException"/> through the error
+    /// callback.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_set_log_level")]
+    public static partial uint SetLogLevel(uint level);
+
     [LibraryImport(LibraryName, EntryPoint = "alco_device_create")]
     public static partial uint DeviceCreate(in AlcoDeviceDesc desc, out AlcoHandle device);
 
