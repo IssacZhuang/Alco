@@ -212,7 +212,7 @@ public class Game : GameEngine
     {
         // slang module program: every [shader(...)] entry point compiled to SPIR-V
         SlangProgram program = CompileProgram("sandbox4_box_blur", "box-blur.slang");
-        ShaderModule computeShader = StageModule(program, "MainCS");
+        ShaderModule computeShader = StageModule(program, "mainCS");
 
         DebugSaveFile("box-blur.spv", computeShader.Source);
         Log.Info(program.Reflection);
