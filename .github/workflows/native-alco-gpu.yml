@@ -120,12 +120,13 @@ jobs:
               curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs |
                 sh -s -- -y --default-toolchain none --profile minimal
               export PATH=/root/.cargo/bin:$PATH
-              cd alco-gpu
+              crate="Src/Alco.Graphics.Native/alco-gpu"
+              cd "$crate"
               rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target "$RUST_TARGET"
               cargo build --release --target "$RUST_TARGET"
-              cd ..
+              cd /workspace
               mkdir -p "staging/$RID"
-              cp "alco-gpu/target/$RUST_TARGET/release/libalco_gpu.so" "staging/$RID/"
+              cp "$crate/target/$RUST_TARGET/release/libalco_gpu.so" "staging/$RID/"
             '
 
       - name: Verify binary
