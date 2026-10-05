@@ -1,0 +1,74 @@
+using System.Runtime.CompilerServices;
+using Alco.Graphics.AlcoGpu.Interop;
+using static Alco.Graphics.InteropUtility;
+
+namespace Alco.Graphics.AlcoGpu;
+
+/// <summary>
+/// A bind group layout (the C# GPUBindGroup concept): a native layout of
+/// binding declarations without bound resources.
+/// </summary>
+internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
+{
+    #region Properties
+    private readonly AlcoHandle _native;
+    private readonly BindGroupEntry[] _bindings;
+
+    #endregion
+
+    #region Abstract Implementation
+    public override IReadOnlyList<BindGroupEntry> Bindings
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _bindings;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (!_native.IsNull)
+        {
+            uint status = AlcoGpuNative.BindGroupLayoutDestroy(((AlcoGpuDevice)Device).Native, _native);
+            AlcoGpuMarshal.ThrowIfFailed(status);
+        }
+    }
+
+    #endregion
+
+    #region AlcoGpu Implementation
+    public AlcoHandle Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _native;
+    }
+
+    protected override GPUDevice Device { get; }
+
+    internal AlcoGpuBindGroup(AlcoGpuDevice device, BindGroupDescriptor descriptor) : base(descriptor)
+    {
+        Device = device;
+
+        BindGroupEntry[] entries = descriptor.Bindings;
+        AlcoBindGroupLayoutEntry* nativeEntries = AlcoGpuUtility.AllocBindGroupLayoutEntries(entries);
+
+        ReadOnlySpan<byte> name = Name.Utf8Z();
+        fixed (byte* ptrName = name)
+        {
+            AlcoBindGroupLayoutDesc nativeDescriptor = new()
+            {
+                Entries = nativeEntries,
+                EntryCount = (uint)entries.Length,
+                Name = ptrName,
+            };
+
+            uint status = AlcoGpuNative.BindGroupLayoutCreate(device.Native, in nativeDescriptor, out _native);
+            AlcoGpuMarshal.ThrowIfFailed(status);
+        }
+
+        Free(nativeEntries);
+
+        _bindings = new BindGroupEntry[entries.Length];
+        Array.Copy(entries, _bindings, entries.Length);
+    }
+
+    #endregion
+}

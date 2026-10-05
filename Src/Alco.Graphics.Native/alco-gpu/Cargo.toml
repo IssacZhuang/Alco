@@ -1,0 +1,19 @@
+[package]
+name = "alco-gpu"
+version = "0.1.0"
+edition = "2021"
+description = "Alco-owned C ABI over wgpu-core replacing wgpu-native"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "alco_gpu"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wgpu-core = { version = "=30.0.1", features = ["wgsl", "spirv", "glsl", "gles", "vulkan", "metal", "dx12"] }
+wgpu-types = "=30.0.1"
+raw-window-handle = "0.6.2"
+
+[profile.release]
+panic = "unwind"

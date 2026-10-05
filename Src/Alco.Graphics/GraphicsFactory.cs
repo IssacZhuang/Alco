@@ -1,5 +1,9 @@
 using Alco.Graphics.NoGPU;
 
+#if USE_ALCO_GPU
+using Alco.Graphics.AlcoGpu;
+#endif
+
 #if USE_WEBGPU
 using Alco.Graphics.WebGPU;
 #endif
@@ -29,6 +33,19 @@ public static class GraphicsDeviceFactory
         return new WebGPUDevice(descriptor);
 #else
         throw new PlatformNotSupportedException("WebGPU is not supported");
+#endif
+    }
+
+    /// <summary>
+    /// Creates the alco-gpu device: the self-maintained Rust layer over wgpu-core
+    /// exposing the alco_* C ABI.
+    /// </summary>
+    public static GPUDevice CreateAlcoGpuDevice(DeviceDescriptor descriptor)
+    {
+#if USE_ALCO_GPU
+        return new AlcoGpuDevice(descriptor);
+#else
+        throw new PlatformNotSupportedException("alco-gpu is not supported");
 #endif
     }
 }

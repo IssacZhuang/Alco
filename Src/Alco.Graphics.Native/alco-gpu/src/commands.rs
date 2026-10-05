@@ -1,0 +1,1805 @@
+//! Command encoding: encoders, render/compute passes, copies, query
+//! resolution, queue writes/submission and render bundles.
+//!
+//! wgpu-core 30 records passes by value (`RenderPass`/`ComputePass` live in
+//! per-device handle tables while open); `*_end` consumes the handle and
+//! appends the recorded pass to its parent encoder. `alco_queue_submit`
+//! consumes the command-buffer handle, mirroring the old backend's
+//! take-buffer-on-submit semantics.
+
+use crate::abi::*;
+use crate::convert::*;
+use crate::device::{DeviceCtx, DEVICES};
+use crate::entry::{set_error, set_error_from};
+use crate::handle::HandleTable;
+use crate::objects::label;
+use std::ffi::c_char;
+use wgpu_core as wgc;
+use wgpu_types as wgt;
+
+pub(crate) struct EncoderObj {
+    pub id: wgc::id::CommandEncoderId,
+}
+
+pub(crate) struct CommandBufferObj {
+    pub id: wgc::id::CommandBufferId,
+}
+
+pub(crate) struct RenderPassObj {
+    pub pass: wgc::command::RenderPass,
+}
+
+pub(crate) struct ComputePassObj {
+    pub pass: wgc::command::ComputePass,
+}
+
+pub(crate) struct BundleEncoderObj {
+    pub encoder: Box<wgc::command::RenderBundleEncoder>,
+}
+
+pub(crate) struct RenderBundleObj {
+    pub id: wgc::id::RenderBundleId,
+}
+
+pub(crate) struct CommandTables {
+    pub encoders: HandleTable<EncoderObj>,
+    pub command_buffers: HandleTable<CommandBufferObj>,
+    pub render_passes: HandleTable<RenderPassObj>,
+    pub compute_passes: HandleTable<ComputePassObj>,
+    pub bundle_encoders: HandleTable<BundleEncoderObj>,
+    pub render_bundles: HandleTable<RenderBundleObj>,
+}
+
+impl Default for CommandTables {
+    fn default() -> Self {
+        Self {
+            encoders: HandleTable::new(),
+            command_buffers: HandleTable::new(),
+            render_passes: HandleTable::new(),
+            compute_passes: HandleTable::new(),
+            bundle_encoders: HandleTable::new(),
+            render_bundles: HandleTable::new(),
+        }
+    }
+}
+
+impl DeviceCtx {
+    pub fn encoders(&self) -> &HandleTable<EncoderObj> {
+        &self.commands.encoders
+    }
+    pub fn command_buffers(&self) -> &HandleTable<CommandBufferObj> {
+        &self.commands.command_buffers
+    }
+    pub fn render_passes(&self) -> &HandleTable<RenderPassObj> {
+        &self.commands.render_passes
+    }
+    pub fn compute_passes(&self) -> &HandleTable<ComputePassObj> {
+        &self.commands.compute_passes
+    }
+    pub fn bundle_encoders(&self) -> &HandleTable<BundleEncoderObj> {
+        &self.commands.bundle_encoders
+    }
+    pub fn render_bundles(&self) -> &HandleTable<RenderBundleObj> {
+        &self.commands.render_bundles
+    }
+}
+
+/// Runs a fallible body with the device context; the body reports failures as
+/// `Err(status)` (after recording a message), enabling `?` on lookups.
+pub(crate) fn run_with_device(
+    device: AlcoHandle,
+    body: impl FnOnce(&DeviceCtx) -> Result<(), AlcoStatus>,
+) -> AlcoStatus {
+    match DEVICES.with(device, |ctx| body(ctx)) {
+        Ok(Ok(())) => AlcoStatus::OK,
+        Ok(Err(status)) => status,
+        Err(s) => {
+            set_error(s, "invalid device handle");
+            s
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ABI structs
+// ---------------------------------------------------------------------------
+
+/// One color attachment of a render pass.
+#[repr(C)]
+pub struct AlcoColorAttachment {
+    pub view: AlcoHandle,
+    /// Resolve target view, `AlcoHandle::NULL` when unused.
+    pub resolve_view: AlcoHandle,
+    /// C# `AttachmentLoadOp`: 0 Load, 1 Clear.
+    pub load_op: u32,
+    /// C# `AttachmentStoreOp`: 0 Store, 1 Discard.
+    pub store_op: u32,
+    pub clear_color: [f32; 4],
+}
+
+/// Depth-stencil attachment of a render pass. A load/store op value of
+/// `ALCO_NONE` marks the channel read-only (wgpu `PassChannel` with no ops).
+#[repr(C)]
+pub struct AlcoDepthStencilAttachment {
+    pub view: AlcoHandle,
+    pub depth_load_op: u32,
+    pub depth_store_op: u32,
+    pub depth_clear: f32,
+    pub stencil_load_op: u32,
+    pub stencil_store_op: u32,
+    pub stencil_clear: u32,
+}
+
+#[repr(C)]
+pub struct AlcoTimestampWrites {
+    pub query_set: AlcoHandle,
+    /// `ALCO_NONE` when not written.
+    pub beginning_index: u32,
+    pub end_index: u32,
+}
+
+#[repr(C)]
+pub struct AlcoRenderPassDesc {
+    pub color_attachments: *const AlcoColorAttachment,
+    pub color_attachment_count: u32,
+    /// Null when the pass has no depth-stencil attachment.
+    pub depth_stencil: *const AlcoDepthStencilAttachment,
+    /// Null when the pass writes no timestamps.
+    pub timestamp_writes: *const AlcoTimestampWrites,
+}
+
+/// Full-mip source layout for texture copies/writes (computed C#-side, which
+/// owns the row-pitch rules per format).
+#[repr(C)]
+pub struct AlcoCopyLayout {
+    pub offset: u64,
+    /// `ALCO_NONE` when not required (single row).
+    pub bytes_per_row: u32,
+    pub rows_per_image: u32,
+}
+
+#[repr(C)]
+pub struct AlcoOrigin3D {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+}
+
+#[repr(C)]
+pub struct AlcoExtent3D {
+    pub width: u32,
+    pub height: u32,
+    pub depth_or_array_layers: u32,
+}
+
+// ---------------------------------------------------------------------------
+// Encoder lifecycle
+// ---------------------------------------------------------------------------
+
+/// ABI: creates a command encoder.
+#[no_mangle]
+pub unsafe extern "C" fn alco_encoder_create(
+    device: AlcoHandle,
+    name: *const c_char,
+    out: *mut AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        if out.is_null() {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        DEVICES
+            .with(device, |ctx| {
+                let wdesc = wgt::CommandEncoderDescriptor {
+                    label: label(name),
+                };
+                let (id, err) = ctx
+                    .global
+                    .device_create_command_encoder(ctx.device_id, &wdesc, None);
+                if let Some(e) = err {
+                    set_error_from(AlcoStatus::OUT_OF_MEMORY, &e);
+                    return (AlcoStatus::OUT_OF_MEMORY, AlcoHandle::NULL);
+                }
+                (AlcoStatus::OK, ctx.encoders().insert(EncoderObj { id }))
+            })
+            .map(|(status, handle)| {
+                if status.is_ok() {
+                    *out = handle;
+                }
+                status
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+/// ABI: finishes an encoder into a command buffer. The encoder handle is
+/// consumed (the wgpu encoder object is dropped — recording is complete).
+#[no_mangle]
+pub unsafe extern "C" fn alco_encoder_finish(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    out: *mut AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        if out.is_null() {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        DEVICES
+            .with(device, |ctx| {
+                let encoder_obj = match ctx.encoders().remove(encoder) {
+                    Ok(obj) => obj,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid encoder handle");
+                        return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                    }
+                };
+                let wdesc = wgt::CommandBufferDescriptor { label: None };
+                let (id, err) = ctx
+                    .global
+                    .command_encoder_finish(encoder_obj.id, &wdesc, None);
+                ctx.global.command_encoder_drop(encoder_obj.id);
+                if let Some((_, e)) = err {
+                    set_error_from(AlcoStatus::VALIDATION, &e);
+                    ctx.global.command_buffer_drop(id);
+                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
+                }
+                (AlcoStatus::OK, ctx.command_buffers().insert(CommandBufferObj { id }))
+            })
+            .map(|(status, handle)| {
+                if status.is_ok() {
+                    *out = handle;
+                }
+                status
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+/// ABI: destroys an encoder that will never be finished.
+#[no_mangle]
+pub unsafe extern "C" fn alco_encoder_destroy(device: AlcoHandle, encoder: AlcoHandle) -> AlcoStatus {
+    crate::entry::guard(|| {
+        DEVICES
+            .with(device, |ctx| match ctx.encoders().remove(encoder) {
+                Ok(obj) => {
+                    ctx.global.command_encoder_drop(obj.id);
+                    AlcoStatus::OK
+                }
+                Err(_) => {
+                    set_error(AlcoStatus::INVALID_HANDLE, "invalid encoder handle");
+                    AlcoStatus::INVALID_HANDLE
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+/// ABI: destroys a command buffer that was never submitted.
+#[no_mangle]
+pub unsafe extern "C" fn alco_command_buffer_destroy(
+    device: AlcoHandle,
+    command_buffer: AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        DEVICES
+            .with(device, |ctx| match ctx.command_buffers().remove(command_buffer) {
+                Ok(obj) => {
+                    ctx.global.command_buffer_drop(obj.id);
+                    AlcoStatus::OK
+                }
+                Err(_) => {
+                    set_error(AlcoStatus::INVALID_HANDLE, "invalid command buffer handle");
+                    AlcoStatus::INVALID_HANDLE
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Render pass
+// ---------------------------------------------------------------------------
+
+/// ABI: begins a render pass. On begin failure no pass handle is produced.
+#[no_mangle]
+pub unsafe extern "C" fn alco_render_pass_begin(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    desc: *const AlcoRenderPassDesc,
+    out: *mut AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        let desc = match desc.as_ref() {
+            Some(d) if !out.is_null() => d,
+            _ => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return AlcoStatus::INVALID_ARGUMENT;
+            }
+        };
+        DEVICES
+            .with(device, |ctx| {
+                let encoder_id = match ctx.encoders().with(encoder, |obj| obj.id) {
+                    Ok(id) => id,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid encoder handle");
+                        return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                    }
+                };
+
+                let mut attachments = Vec::new();
+                if desc.color_attachment_count > 0 {
+                    if desc.color_attachments.is_null() {
+                        set_error(AlcoStatus::INVALID_ARGUMENT, "null color attachment array");
+                        return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL);
+                    }
+                    let raw = std::slice::from_raw_parts(
+                        desc.color_attachments,
+                        desc.color_attachment_count as usize,
+                    );
+                    for attachment in raw {
+                        let view = match ctx.views().with(attachment.view, |obj| obj.id) {
+                            Ok(id) => id,
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid texture view handle in color attachment");
+                                return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                            }
+                        };
+                        let resolve = if attachment.resolve_view.is_null() {
+                            None
+                        } else {
+                            match ctx.views().with(attachment.resolve_view, |obj| obj.id) {
+                                Ok(id) => Some(id),
+                                Err(_) => {
+                                    set_error(AlcoStatus::INVALID_HANDLE, "invalid resolve view handle in color attachment");
+                                    return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                                }
+                            }
+                        };
+                        let load_op = match attachment.load_op {
+                            0 => wgt::LoadOp::Load,
+                            1 => wgt::LoadOp::Clear(wgt::Color {
+                                r: attachment.clear_color[0] as f64,
+                                g: attachment.clear_color[1] as f64,
+                                b: attachment.clear_color[2] as f64,
+                                a: attachment.clear_color[3] as f64,
+                            }),
+                            other => {
+                                set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid color load op {other}"));
+                                return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL);
+                            }
+                        };
+                        let store_op = match store_op(attachment.store_op) {
+                            Ok(op) => op,
+                            Err(s) => return (s, AlcoHandle::NULL),
+                        };
+                        attachments.push(Some(wgc::command::RenderPassColorAttachment {
+                            view,
+                            depth_slice: None,
+                            resolve_target: resolve,
+                            load_op,
+                            store_op,
+                        }));
+                    }
+                }
+
+                let depth_stencil = match desc.depth_stencil.as_ref() {
+                    Some(d) => {
+                        let view = match ctx.views().with(d.view, |obj| obj.id) {
+                            Ok(id) => id,
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid texture view handle in depth attachment");
+                                return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                            }
+                        };
+                        let depth = match pass_channel(
+                            d.depth_load_op,
+                            d.depth_store_op,
+                            d.depth_clear,
+                            "depth",
+                        ) {
+                            Ok(c) => c,
+                            Err(status) => return (status, AlcoHandle::NULL),
+                        };
+                        let stencil = match pass_channel_u32(
+                            d.stencil_load_op,
+                            d.stencil_store_op,
+                            d.stencil_clear,
+                            "stencil",
+                        ) {
+                            Ok(c) => c,
+                            Err(status) => return (status, AlcoHandle::NULL),
+                        };
+                        Some(wgc::command::RenderPassDepthStencilAttachment {
+                            view,
+                            depth,
+                            stencil,
+                        })
+                    }
+                    None => None,
+                };
+
+                let timestamp_writes = match desc.timestamp_writes.as_ref() {
+                    Some(t) => {
+                        let query_set = match ctx.query_sets().with(t.query_set, |obj| obj.id) {
+                            Ok(id) => id,
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid query set handle in timestamp writes");
+                                return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                            }
+                        };
+                        Some(wgc::command::PassTimestampWrites {
+                            query_set,
+                            beginning_of_pass_write_index: optional_index(t.beginning_index),
+                            end_of_pass_write_index: optional_index(t.end_index),
+                        })
+                    }
+                    None => None,
+                };
+
+                let wdesc = wgc::command::RenderPassDescriptor {
+                    label: None,
+                    color_attachments: std::borrow::Cow::Owned(attachments),
+                    depth_stencil_attachment: depth_stencil,
+                    timestamp_writes,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                };
+
+                let (pass, err) = ctx
+                    .global
+                    .command_encoder_begin_render_pass(encoder_id, &wdesc);
+                if let Some(e) = err {
+                    set_error_from(AlcoStatus::VALIDATION, &e);
+                    drop(pass);
+                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
+                }
+                (AlcoStatus::OK, ctx.render_passes().insert(RenderPassObj { pass }))
+            })
+            .map(|(status, handle)| {
+                if status.is_ok() {
+                    *out = handle;
+                }
+                status
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+fn optional_index(v: u32) -> Option<u32> {
+    if v == ALCO_NONE {
+        None
+    } else {
+        Some(v)
+    }
+}
+
+fn pass_channel(
+    load_op: u32,
+    store: u32,
+    clear: f32,
+    what: &str,
+) -> Result<wgc::command::PassChannel<Option<f32>>, AlcoStatus> {
+    let read_only = load_op == ALCO_NONE && store == ALCO_NONE;
+    let load = if read_only {
+        None
+    } else {
+        Some(match load_op {
+            0 => wgt::LoadOp::Load,
+            1 => wgt::LoadOp::Clear(Some(clear)),
+            other => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid {what} load op {other}"));
+                return Err(AlcoStatus::INVALID_ARGUMENT);
+            }
+        })
+    };
+    let store = if read_only {
+        None
+    } else {
+        Some(match store_op(store) {
+            Ok(op) => op,
+            Err(status) => return Err(status),
+        })
+    };
+    Ok(wgc::command::PassChannel {
+        load_op: load,
+        store_op: store,
+        read_only,
+    })
+}
+
+fn pass_channel_u32(
+    load_op: u32,
+    store: u32,
+    clear: u32,
+    what: &str,
+) -> Result<wgc::command::PassChannel<Option<u32>>, AlcoStatus> {
+    let read_only = load_op == ALCO_NONE && store == ALCO_NONE;
+    let load = if read_only {
+        None
+    } else {
+        Some(match load_op {
+            0 => wgt::LoadOp::Load,
+            1 => wgt::LoadOp::Clear(Some(clear)),
+            other => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid {what} load op {other}"));
+                return Err(AlcoStatus::INVALID_ARGUMENT);
+            }
+        })
+    };
+    let store = if read_only {
+        None
+    } else {
+        Some(match store_op(store) {
+            Ok(op) => op,
+            Err(status) => return Err(status),
+        })
+    };
+    Ok(wgc::command::PassChannel {
+        load_op: load,
+        store_op: store,
+        read_only,
+    })
+}
+
+/// ABI: ends a render pass (consumes the pass handle).
+#[no_mangle]
+pub unsafe extern "C" fn alco_render_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
+    crate::entry::guard(|| {
+        DEVICES
+            .with(device, |ctx| {
+                let mut obj = match ctx.render_passes().remove(pass) {
+                    Ok(obj) => obj,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid render pass handle");
+                        return AlcoStatus::INVALID_HANDLE;
+                    }
+                };
+                match ctx.global.render_pass_end(&mut obj.pass) {
+                    Ok(()) => AlcoStatus::OK,
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        AlcoStatus::VALIDATION
+                    }
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+macro_rules! render_pass_fn {
+    ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
+        $(#[$doc])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
+            crate::entry::guard(|| {
+                DEVICES
+                    .with(device, |ctx| {
+                        let result = ctx.render_passes().with(pass, |obj| {
+                            type Body = fn(&DeviceCtx, &mut wgc::command::RenderPass, $($ty),*) -> Result<(), AlcoStatus>;
+                            let body: Body = $body;
+                            body(ctx, &mut obj.pass $(, $arg)*)
+                        });
+                        match result {
+                            Ok(Ok(())) => AlcoStatus::OK,
+                            Ok(Err(status)) => status,
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid render pass handle");
+                                AlcoStatus::INVALID_HANDLE
+                            }
+                        }
+                    })
+                    .unwrap_or_else(|s| {
+                        set_error(s, "invalid device handle");
+                        s
+                    })
+            })
+        }
+    };
+}
+
+fn record_result(
+    result: Result<(), impl std::fmt::Display>,
+) -> Result<(), AlcoStatus> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            Err(AlcoStatus::VALIDATION)
+        }
+    }
+}
+
+render_pass_fn!(
+    /// ABI: sets the render pipeline.
+    alco_render_pass_set_pipeline(pipeline: AlcoHandle) |ctx, pass, pipeline| {
+        match ctx.pipelines().with(pipeline, |obj| match obj {
+            crate::pipeline::PipelineObj::Graphics(id) => Some(*id),
+            crate::pipeline::PipelineObj::Compute(_) => None,
+        }) {
+            Ok(Some(id)) => record_result(ctx.global.render_pass_set_pipeline(pass, id)),
+            Ok(None) => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "pipeline is not a graphics pipeline");
+                Err(AlcoStatus::INVALID_ARGUMENT)
+            }
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid graphics pipeline handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: binds a resource group (bind group) at `slot`.
+    alco_render_pass_set_bind_group(slot: u32, group: AlcoHandle) |ctx, pass, slot, group| {
+        let id = ctx.bind_groups().with(group, |obj| obj.id);
+        match id {
+            Ok(id) => record_result(ctx.global.render_pass_set_bind_group(pass, slot, Some(id), &[])),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid bind group handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: binds a vertex buffer slot.
+    alco_render_pass_set_vertex_buffer(slot: u32, buffer: AlcoHandle, offset: u64, size: u64) |ctx, pass, slot, buffer, offset, size| {
+        let id = ctx.buffers().with(buffer, |obj| obj.id);
+        match id {
+            Ok(id) => record_result(ctx.global.render_pass_set_vertex_buffer(
+                pass,
+                slot,
+                Some(id),
+                offset,
+                nonzero_size(size),
+            )),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: binds the index buffer.
+    alco_render_pass_set_index_buffer(buffer: AlcoHandle, format: u32, offset: u64, size: u64) |ctx, pass, buffer, format, offset, size| {
+        let id = ctx.buffers().with(buffer, |obj| obj.id);
+        let wformat = index_format(format);
+        match (id, wformat) {
+            (Ok(id), Ok(format)) => record_result(ctx.global.render_pass_set_index_buffer(
+                pass,
+                id,
+                format,
+                offset,
+                nonzero_size(size),
+            )),
+            (Err(_), _) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+            (_, Err(s)) => Err(s),
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: sets the scissor rectangle.
+    alco_render_pass_set_scissor_rect(x: u32, y: u32, width: u32, height: u32) |ctx, pass, x, y, width, height| {
+        record_result(ctx.global.render_pass_set_scissor_rect(pass, x, y, width, height))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: sets the stencil reference value.
+    alco_render_pass_set_stencil_reference(reference: u32) |ctx, pass, reference| {
+        record_result(ctx.global.render_pass_set_stencil_reference(pass, reference))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: uploads immediates (push constants) for the graphics stages.
+    alco_render_pass_set_immediates(offset: u32, data: *const u8, size: u32) |ctx, pass, offset, data, size| {
+        if data.is_null() && size > 0 {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null immediate data");
+            return Err(AlcoStatus::INVALID_ARGUMENT);
+        }
+        let bytes = std::slice::from_raw_parts(data, size as usize);
+        record_result(ctx.global.render_pass_set_immediates(pass, offset, bytes))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: non-indexed draw.
+    alco_render_pass_draw(vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) |ctx, pass, vertex_count, instance_count, first_vertex, first_instance| {
+        record_result(ctx.global.render_pass_draw(pass, vertex_count, instance_count, first_vertex, first_instance))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: indexed draw.
+    alco_render_pass_draw_indexed(index_count: u32, instance_count: u32, first_index: u32, vertex_offset: i32, first_instance: u32) |ctx, pass, index_count, instance_count, first_index, vertex_offset, first_instance| {
+        record_result(ctx.global.render_pass_draw_indexed(pass, index_count, instance_count, first_index, vertex_offset, first_instance))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: indirect non-indexed draw.
+    alco_render_pass_draw_indirect(buffer: AlcoHandle, offset: u64) |ctx, pass, buffer, offset| {
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.render_pass_draw_indirect(pass, id, offset)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: indirect indexed draw.
+    alco_render_pass_draw_indexed_indirect(buffer: AlcoHandle, offset: u64) |ctx, pass, buffer, offset| {
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.render_pass_draw_indexed_indirect(pass, id, offset)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: multi-draw indexed indirect.
+    alco_render_pass_multi_draw_indexed_indirect(buffer: AlcoHandle, offset: u64, count: u32) |ctx, pass, buffer, offset, count| {
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.render_pass_multi_draw_indexed_indirect(pass, id, offset, count)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: writes a timestamp inside the pass.
+    alco_render_pass_write_timestamp(query_set: AlcoHandle, query_index: u32) |ctx, pass, query_set, query_index| {
+        match ctx.query_sets().with(query_set, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.render_pass_write_timestamp(pass, id, query_index)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid query set handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+/// ABI: executes render bundles in the open pass.
+#[no_mangle]
+pub unsafe extern "C" fn alco_render_pass_execute_bundles(
+    device: AlcoHandle,
+    pass: AlcoHandle,
+    bundles: *const AlcoHandle,
+    bundle_count: u32,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        if bundles.is_null() && bundle_count > 0 {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null bundle array");
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        DEVICES
+            .with(device, |ctx| {
+                let result = ctx.render_passes().with(pass, |obj| {
+                    let handles = if bundles.is_null() {
+                        &[][..]
+                    } else {
+                        std::slice::from_raw_parts(bundles, bundle_count as usize)
+                    };
+                    let mut ids = Vec::with_capacity(handles.len());
+                    for handle in handles {
+                        match ctx.render_bundles().with(*handle, |obj| obj.id) {
+                            Ok(id) => ids.push(id),
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid render bundle handle");
+                                return Err(AlcoStatus::INVALID_HANDLE);
+                            }
+                        }
+                    }
+                    record_result(ctx.global.render_pass_execute_bundles(&mut obj.pass, &ids))
+                });
+                match result {
+                    Ok(Ok(())) => AlcoStatus::OK,
+                    Ok(Err(status)) => status,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid render pass handle");
+                        AlcoStatus::INVALID_HANDLE
+                    }
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+fn nonzero_size(size: u64) -> Option<wgt::BufferSize> {
+    if size == 0 {
+        None
+    } else {
+        wgt::BufferSize::new(size)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Compute pass
+// ---------------------------------------------------------------------------
+
+/// ABI: begins a compute pass; `timestamp_writes` may be null.
+#[no_mangle]
+pub unsafe extern "C" fn alco_compute_pass_begin(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    timestamp_writes: *const AlcoTimestampWrites,
+    out: *mut AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        if out.is_null() {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        DEVICES
+            .with(device, |ctx| {
+                let encoder_id = match ctx.encoders().with(encoder, |obj| obj.id) {
+                    Ok(id) => id,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid encoder handle");
+                        return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                    }
+                };
+                let timestamp_writes = match timestamp_writes.as_ref() {
+                    Some(t) => {
+                        let query_set = match ctx.query_sets().with(t.query_set, |obj| obj.id) {
+                            Ok(id) => id,
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid query set handle in timestamp writes");
+                                return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                            }
+                        };
+                        Some(wgc::command::PassTimestampWrites {
+                            query_set,
+                            beginning_of_pass_write_index: optional_index(t.beginning_index),
+                            end_of_pass_write_index: optional_index(t.end_index),
+                        })
+                    }
+                    None => None,
+                };
+                let wdesc = wgc::command::ComputePassDescriptor {
+                    label: None,
+                    timestamp_writes,
+                };
+                let (pass, err) = ctx
+                    .global
+                    .command_encoder_begin_compute_pass(encoder_id, &wdesc);
+                if let Some(e) = err {
+                    set_error_from(AlcoStatus::VALIDATION, &e);
+                    drop(pass);
+                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
+                }
+                (AlcoStatus::OK, ctx.compute_passes().insert(ComputePassObj { pass }))
+            })
+            .map(|(status, handle)| {
+                if status.is_ok() {
+                    *out = handle;
+                }
+                status
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+/// ABI: ends a compute pass (consumes the pass handle).
+#[no_mangle]
+pub unsafe extern "C" fn alco_compute_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
+    crate::entry::guard(|| {
+        DEVICES
+            .with(device, |ctx| {
+                let mut obj = match ctx.compute_passes().remove(pass) {
+                    Ok(obj) => obj,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid compute pass handle");
+                        return AlcoStatus::INVALID_HANDLE;
+                    }
+                };
+                match ctx.global.compute_pass_end(&mut obj.pass) {
+                    Ok(()) => AlcoStatus::OK,
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        AlcoStatus::VALIDATION
+                    }
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+macro_rules! compute_pass_fn {
+    ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
+        $(#[$doc])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
+            crate::entry::guard(|| {
+                DEVICES
+                    .with(device, |ctx| {
+                        let result = ctx.compute_passes().with(pass, |obj| {
+                            type Body = fn(&DeviceCtx, &mut wgc::command::ComputePass, $($ty),*) -> Result<(), AlcoStatus>;
+                            let body: Body = $body;
+                            body(ctx, &mut obj.pass $(, $arg)*)
+                        });
+                        match result {
+                            Ok(Ok(())) => AlcoStatus::OK,
+                            Ok(Err(status)) => status,
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid compute pass handle");
+                                AlcoStatus::INVALID_HANDLE
+                            }
+                        }
+                    })
+                    .unwrap_or_else(|s| {
+                        set_error(s, "invalid device handle");
+                        s
+                    })
+            })
+        }
+    };
+}
+
+compute_pass_fn!(
+    /// ABI: sets the compute pipeline.
+    alco_compute_pass_set_pipeline(pipeline: AlcoHandle) |ctx, pass, pipeline| {
+        match ctx.pipelines().with(pipeline, |obj| match obj {
+            crate::pipeline::PipelineObj::Compute(id) => Some(*id),
+            crate::pipeline::PipelineObj::Graphics(_) => None,
+        }) {
+            Ok(Some(id)) => record_result(ctx.global.compute_pass_set_pipeline(pass, id)),
+            Ok(None) => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "pipeline is not a compute pipeline");
+                Err(AlcoStatus::INVALID_ARGUMENT)
+            }
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid compute pipeline handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: binds a resource group at `slot`.
+    alco_compute_pass_set_bind_group(slot: u32, group: AlcoHandle) |ctx, pass, slot, group| {
+        let id = ctx.bind_groups().with(group, |obj| obj.id);
+        match id {
+            Ok(id) => record_result(ctx.global.compute_pass_set_bind_group(pass, slot, Some(id), &[])),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid bind group handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: uploads immediates (push constants) for the compute stage.
+    alco_compute_pass_set_immediates(offset: u32, data: *const u8, size: u32) |ctx, pass, offset, data, size| {
+        if data.is_null() && size > 0 {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null immediate data");
+            return Err(AlcoStatus::INVALID_ARGUMENT);
+        }
+        let bytes = std::slice::from_raw_parts(data, size as usize);
+        record_result(ctx.global.compute_pass_set_immediates(pass, offset, bytes))
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: dispatches compute workgroups.
+    alco_compute_pass_dispatch_workgroups(x: u32, y: u32, z: u32) |ctx, pass, x, y, z| {
+        record_result(ctx.global.compute_pass_dispatch_workgroups(pass, x, y, z))
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: indirect compute dispatch.
+    alco_compute_pass_dispatch_workgroups_indirect(buffer: AlcoHandle, offset: u64) |ctx, pass, buffer, offset| {
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.compute_pass_dispatch_workgroups_indirect(pass, id, offset)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: writes a timestamp inside the pass.
+    alco_compute_pass_write_timestamp(query_set: AlcoHandle, query_index: u32) |ctx, pass, query_set, query_index| {
+        match ctx.query_sets().with(query_set, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.compute_pass_write_timestamp(pass, id, query_index)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid query set handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+// ---------------------------------------------------------------------------
+// Copies and queries
+// ---------------------------------------------------------------------------
+
+/// ABI: buffer-to-buffer copy on the open encoder.
+#[no_mangle]
+pub unsafe extern "C" fn alco_copy_buffer_to_buffer(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    source: AlcoHandle,
+    source_offset: u64,
+    destination: AlcoHandle,
+    destination_offset: u64,
+    size: u64,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        run_with_device(device, |ctx| {
+                let encoder_id = lookup_encoder(ctx, encoder)?;
+                let src = lookup_buffer(ctx, source)?;
+                let dst = lookup_buffer(ctx, destination)?;
+                match ctx.global.command_encoder_copy_buffer_to_buffer(
+                    encoder_id,
+                    src,
+                    source_offset,
+                    dst,
+                    destination_offset,
+                    Some(size),
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        Err(AlcoStatus::VALIDATION)
+                    }
+                }
+            })
+    })
+}
+
+fn lookup_encoder(ctx: &DeviceCtx, handle: AlcoHandle) -> Result<wgc::id::CommandEncoderId, AlcoStatus> {
+    ctx.encoders().with(handle, |obj| obj.id).map_err(|_| {
+        set_error(AlcoStatus::INVALID_HANDLE, "invalid encoder handle");
+        AlcoStatus::INVALID_HANDLE
+    })
+}
+
+fn lookup_buffer(ctx: &DeviceCtx, handle: AlcoHandle) -> Result<wgc::id::BufferId, AlcoStatus> {
+    ctx.buffers().with(handle, |obj| obj.id).map_err(|_| {
+        set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+        AlcoStatus::INVALID_HANDLE
+    })
+}
+
+fn lookup_texture(ctx: &DeviceCtx, handle: AlcoHandle) -> Result<wgc::id::TextureId, AlcoStatus> {
+    ctx.textures().with(handle, |obj| obj.id).map_err(|_| {
+        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
+        AlcoStatus::INVALID_HANDLE
+    })
+}
+
+fn copy_layout(layout: &AlcoCopyLayout) -> Result<wgt::TexelCopyBufferLayout, AlcoStatus> {
+    Ok(wgt::TexelCopyBufferLayout {
+        offset: layout.offset,
+        bytes_per_row: optional_index(layout.bytes_per_row),
+        rows_per_image: optional_index(layout.rows_per_image),
+    })
+}
+
+fn copy_texture_info(
+    ctx: &DeviceCtx,
+    texture: AlcoHandle,
+    mip_level: u32,
+    origin: AlcoOrigin3D,
+    aspect: u32,
+) -> Result<wgt::TexelCopyTextureInfo<wgc::id::TextureId>, AlcoStatus> {
+    Ok(wgt::TexelCopyTextureInfo {
+        texture: lookup_texture(ctx, texture)?,
+        mip_level,
+        origin: wgt::Origin3d {
+            x: origin.x,
+            y: origin.y,
+            z: origin.z,
+        },
+        aspect: texture_aspect(aspect)?,
+    })
+}
+
+fn extent3d(extent: AlcoExtent3D) -> wgt::Extent3d {
+    wgt::Extent3d {
+        width: extent.width,
+        height: extent.height,
+        depth_or_array_layers: extent.depth_or_array_layers,
+    }
+}
+
+/// ABI: buffer-to-texture copy on the open encoder.
+#[no_mangle]
+pub unsafe extern "C" fn alco_copy_buffer_to_texture(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    source: AlcoHandle,
+    source_layout: *const AlcoCopyLayout,
+    destination: AlcoHandle,
+    destination_mip_level: u32,
+    destination_aspect: u32,
+    copy_size: AlcoExtent3D,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        let source_layout = match source_layout.as_ref() {
+            Some(l) => l,
+            None => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null source layout");
+                return AlcoStatus::INVALID_ARGUMENT;
+            }
+        };
+        run_with_device(device, |ctx| {
+                let encoder_id = lookup_encoder(ctx, encoder)?;
+                let source = wgc::command::TexelCopyBufferInfo {
+                    buffer: lookup_buffer(ctx, source)?,
+                    layout: copy_layout(source_layout)?,
+                };
+                let destination = copy_texture_info(
+                    ctx,
+                    destination,
+                    destination_mip_level,
+                    AlcoOrigin3D { x: 0, y: 0, z: 0 },
+                    destination_aspect,
+                )?;
+                let size = extent3d(copy_size);
+                match ctx.global.command_encoder_copy_buffer_to_texture(
+                    encoder_id,
+                    &source,
+                    &destination,
+                    &size,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        Err(AlcoStatus::VALIDATION)
+                    }
+                }
+            })
+    })
+}
+
+/// ABI: texture-to-buffer copy on the open encoder.
+#[no_mangle]
+pub unsafe extern "C" fn alco_copy_texture_to_buffer(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    source: AlcoHandle,
+    source_mip_level: u32,
+    source_aspect: u32,
+    destination: AlcoHandle,
+    destination_layout: *const AlcoCopyLayout,
+    copy_size: AlcoExtent3D,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        let destination_layout = match destination_layout.as_ref() {
+            Some(l) => l,
+            None => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null destination layout");
+                return AlcoStatus::INVALID_ARGUMENT;
+            }
+        };
+        run_with_device(device, |ctx| {
+                let encoder_id = lookup_encoder(ctx, encoder)?;
+                let source = copy_texture_info(
+                    ctx,
+                    source,
+                    source_mip_level,
+                    AlcoOrigin3D { x: 0, y: 0, z: 0 },
+                    source_aspect,
+                )?;
+                let destination = wgc::command::TexelCopyBufferInfo {
+                    buffer: lookup_buffer(ctx, destination)?,
+                    layout: copy_layout(destination_layout)?,
+                };
+                let size = extent3d(copy_size);
+                match ctx.global.command_encoder_copy_texture_to_buffer(
+                    encoder_id,
+                    &source,
+                    &destination,
+                    &size,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        Err(AlcoStatus::VALIDATION)
+                    }
+                }
+            })
+    })
+}
+
+/// ABI: texture-to-texture copy on the open encoder.
+#[no_mangle]
+pub unsafe extern "C" fn alco_copy_texture_to_texture(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    source: AlcoHandle,
+    source_mip_level: u32,
+    destination: AlcoHandle,
+    destination_mip_level: u32,
+    aspect: u32,
+    copy_size: AlcoExtent3D,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        run_with_device(device, |ctx| {
+                let encoder_id = lookup_encoder(ctx, encoder)?;
+                let source = copy_texture_info(
+                    ctx,
+                    source,
+                    source_mip_level,
+                    AlcoOrigin3D { x: 0, y: 0, z: 0 },
+                    aspect,
+                )?;
+                let destination = copy_texture_info(
+                    ctx,
+                    destination,
+                    destination_mip_level,
+                    AlcoOrigin3D { x: 0, y: 0, z: 0 },
+                    aspect,
+                )?;
+                let size = extent3d(copy_size);
+                match ctx.global.command_encoder_copy_texture_to_texture(
+                    encoder_id,
+                    &source,
+                    &destination,
+                    &size,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        Err(AlcoStatus::VALIDATION)
+                    }
+                }
+            })
+    })
+}
+
+/// ABI: resolves timestamp queries into a buffer.
+#[no_mangle]
+pub unsafe extern "C" fn alco_resolve_query_set(
+    device: AlcoHandle,
+    encoder: AlcoHandle,
+    query_set: AlcoHandle,
+    first_query: u32,
+    query_count: u32,
+    destination: AlcoHandle,
+    destination_offset: u64,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        run_with_device(device, |ctx| {
+                let encoder_id = lookup_encoder(ctx, encoder)?;
+                let query_set_id = ctx.query_sets().with(query_set, |obj| obj.id).map_err(|_| {
+                    set_error(AlcoStatus::INVALID_HANDLE, "invalid query set handle");
+                    AlcoStatus::INVALID_HANDLE
+                })?;
+                let destination = lookup_buffer(ctx, destination)?;
+                match ctx.global.command_encoder_resolve_query_set(
+                    encoder_id,
+                    query_set_id,
+                    first_query,
+                    query_count,
+                    destination,
+                    destination_offset,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        Err(AlcoStatus::VALIDATION)
+                    }
+                }
+            })
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Queue
+// ---------------------------------------------------------------------------
+
+/// ABI: writes bytes into a buffer through the queue (bypasses command
+/// encoding).
+#[no_mangle]
+pub unsafe extern "C" fn alco_queue_write_buffer(
+    device: AlcoHandle,
+    buffer: AlcoHandle,
+    offset: u64,
+    data: *const u8,
+    size: u32,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        if data.is_null() && size > 0 {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null data pointer");
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        run_with_device(device, |ctx| {
+                let buffer_id = lookup_buffer(ctx, buffer)?;
+                let bytes = std::slice::from_raw_parts(data, size as usize);
+                match ctx
+                    .global
+                    .queue_write_buffer(ctx.queue_id, buffer_id, offset, bytes)
+                {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        Err(AlcoStatus::VALIDATION)
+                    }
+                }
+            })
+    })
+}
+
+/// ABI: writes raw bytes into a texture region through the queue.
+#[no_mangle]
+pub unsafe extern "C" fn alco_queue_write_texture(
+    device: AlcoHandle,
+    texture: AlcoHandle,
+    mip_level: u32,
+    origin: AlcoOrigin3D,
+    aspect: u32,
+    data: *const u8,
+    data_size: u32,
+    layout: *const AlcoCopyLayout,
+    size: AlcoExtent3D,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        if data.is_null() && data_size > 0 {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null data pointer");
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        let layout = match layout.as_ref() {
+            Some(l) => l,
+            None => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null layout");
+                return AlcoStatus::INVALID_ARGUMENT;
+            }
+        };
+        run_with_device(device, |ctx| {
+                let destination = copy_texture_info(ctx, texture, mip_level, origin, aspect)?;
+                let bytes = std::slice::from_raw_parts(data, data_size as usize);
+                let wlayout = copy_layout(layout)?;
+                let wsize = extent3d(size);
+                match ctx.global.queue_write_texture(
+                    ctx.queue_id,
+                    &destination,
+                    bytes,
+                    &wlayout,
+                    &wsize,
+                ) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        Err(AlcoStatus::VALIDATION)
+                    }
+                }
+            })
+    })
+}
+
+/// ABI: submits a command buffer. The handle is consumed; `out_index`
+/// receives the submission index usable with `alco_device_poll`.
+#[no_mangle]
+pub unsafe extern "C" fn alco_queue_submit(
+    device: AlcoHandle,
+    command_buffer: AlcoHandle,
+    out_index: *mut u64,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        DEVICES
+            .with(device, |ctx| {
+                let obj = match ctx.command_buffers().remove(command_buffer) {
+                    Ok(obj) => obj,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid command buffer handle");
+                        return AlcoStatus::INVALID_HANDLE;
+                    }
+                };
+                match ctx.global.queue_submit(ctx.queue_id, &[obj.id]) {
+                    Ok(index) => {
+                        if !out_index.is_null() {
+                            *out_index = index;
+                        }
+                        AlcoStatus::OK
+                    }
+                    Err((index, e)) => {
+                        if !out_index.is_null() {
+                            *out_index = index;
+                        }
+                        set_error_from(AlcoStatus::VALIDATION, &e);
+                        AlcoStatus::VALIDATION
+                    }
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+// ---------------------------------------------------------------------------
+// Render bundles
+// ---------------------------------------------------------------------------
+
+/// C# `RenderBundleDescriptor`.
+#[repr(C)]
+pub struct AlcoBundleEncoderDesc {
+    pub color_formats: *const u32,
+    pub color_format_count: u32,
+    /// `ALCO_NONE`/0 when the bundle targets no depth attachment.
+    pub depth_stencil_format: u32,
+    pub depth_read_only: u32,
+    pub stencil_read_only: u32,
+    pub sample_count: u32,
+    pub name: *const c_char,
+}
+
+/// ABI: creates a render bundle encoder.
+#[no_mangle]
+pub unsafe extern "C" fn alco_bundle_encoder_create(
+    device: AlcoHandle,
+    desc: *const AlcoBundleEncoderDesc,
+    out: *mut AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        let desc = match desc.as_ref() {
+            Some(d) if !out.is_null() => d,
+            _ => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return AlcoStatus::INVALID_ARGUMENT;
+            }
+        };
+        DEVICES
+            .with(device, |ctx| {
+                let mut formats = Vec::new();
+                if desc.color_format_count > 0 {
+                    if desc.color_formats.is_null() {
+                        set_error(AlcoStatus::INVALID_ARGUMENT, "null color format array");
+                        return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL);
+                    }
+                    let raw = std::slice::from_raw_parts(desc.color_formats, desc.color_format_count as usize);
+                    for format in raw {
+                        match pixel_format(*format) {
+                            Ok(f) => formats.push(Some(f)),
+                            Err(s) => return (s, AlcoHandle::NULL),
+                        }
+                    }
+                }
+                let depth_stencil = if desc.depth_stencil_format != ALCO_NONE && desc.depth_stencil_format != 0 {
+                    match pixel_format(desc.depth_stencil_format) {
+                        Ok(f) => Some(wgt::RenderBundleDepthStencil {
+                            format: f,
+                            depth_read_only: desc.depth_read_only != 0,
+                            stencil_read_only: desc.stencil_read_only != 0,
+                        }),
+                        Err(s) => return (s, AlcoHandle::NULL),
+                    }
+                } else {
+                    None
+                };
+                let wdesc = wgc::command::RenderBundleEncoderDescriptor {
+                    label: label(desc.name),
+                    color_formats: std::borrow::Cow::Owned(formats),
+                    depth_stencil,
+                    sample_count: desc.sample_count.max(1),
+                    multiview: None,
+                };
+                let (encoder, err) = ctx
+                    .global
+                    .device_create_render_bundle_encoder(ctx.device_id, &wdesc);
+                if let Some(e) = err {
+                    set_error_from(AlcoStatus::VALIDATION, &e);
+                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
+                }
+                (AlcoStatus::OK, ctx.bundle_encoders().insert(BundleEncoderObj { encoder }))
+            })
+            .map(|(status, handle)| {
+                if status.is_ok() {
+                    *out = handle;
+                }
+                status
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+/// ABI: finishes a bundle encoder into a render bundle (consumes the encoder handle).
+#[no_mangle]
+pub unsafe extern "C" fn alco_bundle_encoder_finish(
+    device: AlcoHandle,
+    bundle_encoder: AlcoHandle,
+    out: *mut AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        if out.is_null() {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        DEVICES
+            .with(device, |ctx| {
+                let mut obj = match ctx.bundle_encoders().remove(bundle_encoder) {
+                    Ok(obj) => obj,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid bundle encoder handle");
+                        return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                    }
+                };
+                let wdesc = wgc::command::RenderBundleDescriptor { label: None };
+                let (id, err) = ctx
+                    .global
+                    .render_bundle_encoder_finish(&mut obj.encoder, &wdesc, None);
+                if let Some(e) = err {
+                    set_error_from(AlcoStatus::VALIDATION, &e);
+                    ctx.global.render_bundle_drop(id);
+                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
+                }
+                (AlcoStatus::OK, ctx.render_bundles().insert(RenderBundleObj { id }))
+            })
+            .map(|(status, handle)| {
+                if status.is_ok() {
+                    *out = handle;
+                }
+                status
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+/// ABI: destroys a bundle encoder that was never finished.
+#[no_mangle]
+pub unsafe extern "C" fn alco_bundle_encoder_destroy(
+    device: AlcoHandle,
+    bundle_encoder: AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        DEVICES
+            .with(device, |ctx| match ctx.bundle_encoders().remove(bundle_encoder) {
+                // Dropping the boxed encoder is the whole cleanup (wgpu-core has
+                // no separate unfinished-encoder drop entry point).
+                Ok(_obj) => AlcoStatus::OK,
+                Err(_) => {
+                    set_error(AlcoStatus::INVALID_HANDLE, "invalid bundle encoder handle");
+                    AlcoStatus::INVALID_HANDLE
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+/// ABI: destroys a render bundle.
+#[no_mangle]
+pub unsafe extern "C" fn alco_render_bundle_destroy(
+    device: AlcoHandle,
+    bundle: AlcoHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        DEVICES
+            .with(device, |ctx| match ctx.render_bundles().remove(bundle) {
+                Ok(obj) => {
+                    ctx.global.render_bundle_drop(obj.id);
+                    AlcoStatus::OK
+                }
+                Err(_) => {
+                    set_error(AlcoStatus::INVALID_HANDLE, "invalid render bundle handle");
+                    AlcoStatus::INVALID_HANDLE
+                }
+            })
+            .unwrap_or_else(|s| {
+                set_error(s, "invalid device handle");
+                s
+            })
+    })
+}
+
+macro_rules! bundle_fn {
+    ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
+        $(#[$doc])*
+        #[no_mangle]
+        pub unsafe extern "C" fn $name(device: AlcoHandle, bundle_encoder: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
+            crate::entry::guard(|| {
+                DEVICES
+                    .with(device, |ctx| {
+                        let result = ctx.bundle_encoders().with(bundle_encoder, |obj| {
+                            type Body = fn(&DeviceCtx, &mut wgc::command::RenderBundleEncoder, $($ty),*) -> Result<(), AlcoStatus>;
+                            let body: Body = $body;
+                            body(ctx, &mut obj.encoder $(, $arg)*)
+                        });
+                        match result {
+                            Ok(Ok(())) => AlcoStatus::OK,
+                            Ok(Err(status)) => status,
+                            Err(_) => {
+                                set_error(AlcoStatus::INVALID_HANDLE, "invalid bundle encoder handle");
+                                AlcoStatus::INVALID_HANDLE
+                            }
+                        }
+                    })
+                    .unwrap_or_else(|s| {
+                        set_error(s, "invalid device handle");
+                        s
+                    })
+            })
+        }
+    };
+}
+
+bundle_fn!(
+    /// ABI: sets the bundle's graphics pipeline.
+    alco_bundle_set_pipeline(pipeline: AlcoHandle) |ctx, bundle, pipeline| {
+        match ctx.pipelines().with(pipeline, |obj| match obj {
+            crate::pipeline::PipelineObj::Graphics(id) => Some(*id),
+            crate::pipeline::PipelineObj::Compute(_) => None,
+        }) {
+            Ok(Some(id)) => record_result(ctx.global.render_bundle_encoder_set_pipeline(bundle, id)),
+            Ok(None) => {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "pipeline is not a graphics pipeline");
+                Err(AlcoStatus::INVALID_ARGUMENT)
+            }
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid graphics pipeline handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+bundle_fn!(
+    /// ABI: binds a resource group at `slot`.
+    alco_bundle_set_bind_group(slot: u32, group: AlcoHandle) |ctx, bundle, slot, group| {
+        let id = ctx.bind_groups().with(group, |obj| obj.id);
+        match id {
+            Ok(id) => record_result(ctx.global.render_bundle_encoder_set_bind_group(bundle, slot, Some(id), &[])),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid bind group handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+bundle_fn!(
+    /// ABI: binds a vertex buffer slot.
+    alco_bundle_set_vertex_buffer(slot: u32, buffer: AlcoHandle, offset: u64, size: u64) |ctx, bundle, slot, buffer, offset, size| {
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.render_bundle_encoder_set_vertex_buffer(
+                bundle,
+                slot,
+                Some(id),
+                offset,
+                nonzero_size(size),
+            )),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+bundle_fn!(
+    /// ABI: binds the index buffer.
+    alco_bundle_set_index_buffer(buffer: AlcoHandle, format: u32, offset: u64, size: u64) |ctx, bundle, buffer, format, offset, size| {
+        let wformat = index_format(format);
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => match wformat {
+                Ok(format) => record_result(ctx.global.render_bundle_encoder_set_index_buffer(
+                    bundle,
+                    id,
+                    format,
+                    offset,
+                    nonzero_size(size),
+                )),
+                Err(s) => Err(s),
+            },
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+bundle_fn!(
+    /// ABI: uploads immediates (push constants).
+    alco_bundle_set_immediates(offset: u32, data: *const u8, size: u32) |ctx, bundle, offset, data, size| {
+        if data.is_null() && size > 0 {
+            set_error(AlcoStatus::INVALID_ARGUMENT, "null immediate data");
+            return Err(AlcoStatus::INVALID_ARGUMENT);
+        }
+        let bytes = std::slice::from_raw_parts(data, size as usize);
+        record_result(ctx.global.render_bundle_encoder_set_immediates(bundle, offset, bytes))
+    }
+);
+
+bundle_fn!(
+    /// ABI: non-indexed draw.
+    alco_bundle_draw(vertex_count: u32, instance_count: u32, first_vertex: u32, first_instance: u32) |ctx, bundle, vertex_count, instance_count, first_vertex, first_instance| {
+        record_result(ctx.global.render_bundle_encoder_draw(bundle, vertex_count, instance_count, first_vertex, first_instance))
+    }
+);
+
+bundle_fn!(
+    /// ABI: indexed draw.
+    alco_bundle_draw_indexed(index_count: u32, instance_count: u32, first_index: u32, vertex_offset: i32, first_instance: u32) |ctx, bundle, index_count, instance_count, first_index, vertex_offset, first_instance| {
+        record_result(ctx.global.render_bundle_encoder_draw_indexed(bundle, index_count, instance_count, first_index, vertex_offset, first_instance))
+    }
+);
+
+bundle_fn!(
+    /// ABI: indirect non-indexed draw.
+    alco_bundle_draw_indirect(buffer: AlcoHandle, offset: u64) |ctx, bundle, buffer, offset| {
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.render_bundle_encoder_draw_indirect(bundle, id, offset)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+bundle_fn!(
+    /// ABI: indirect indexed draw.
+    alco_bundle_draw_indexed_indirect(buffer: AlcoHandle, offset: u64) |ctx, bundle, buffer, offset| {
+        match ctx.buffers().with(buffer, |obj| obj.id) {
+            Ok(id) => record_result(ctx.global.render_bundle_encoder_draw_indexed_indirect(bundle, id, offset)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);

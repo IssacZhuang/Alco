@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 
-namespace Alco.Graphics.WebGPU;
+namespace Alco.Graphics;
 
 /// <summary>
-/// Pure-managed selection and trimming policy for the WebGPU readback staging-buffer
-/// cache. Holds no native handles and performs no WebGPU calls, so it can be unit tested
-/// in isolation. An instance is owned by <see cref="WebGPUDevice"/> and all access is
+/// Pure-managed selection and trimming policy for the GPU readback staging-buffer
+/// cache. Holds no native handles and performs no graphics calls, so it can be unit tested
+/// in isolation. An instance is owned by a GPUDevice backend and all access is
 /// guarded by the device's staging-cache lock.
 /// </summary>
-/// <typeparam name="TTicket">An opaque caller-supplied value that identifies a cached buffer (typically a <see cref="WebGPU.WGPUBuffer"/> handle boxed by the caller). The policy treats it as opaque.</typeparam>
+/// <typeparam name="TTicket">An opaque caller-supplied value that identifies a cached buffer (typically a native buffer handle boxed by the caller). The policy treats it as opaque.</typeparam>
 internal sealed class ReadbackStagingBufferCachePolicy<TTicket>
 {
     private struct IdleEntry

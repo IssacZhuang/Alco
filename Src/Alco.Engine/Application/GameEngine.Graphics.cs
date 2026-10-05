@@ -82,9 +82,9 @@ public partial class GameEngine
             return GraphicsDeviceFactory.CreateVulkanDevice(deviceDescriptor);
         }
 
-        // every other backend runs through wgpu; the wgpu device maps the
-        // requested backend onto its instance/adapter options
-        return GraphicsDeviceFactory.CreateWebGPUDevice(deviceDescriptor);
+        // every other backend runs through the alco-gpu Rust layer over wgpu-core;
+        // the device maps the requested backend onto its adapter selection
+        return GraphicsDeviceFactory.CreateAlcoGpuDevice(deviceDescriptor);
     }
 
 }
