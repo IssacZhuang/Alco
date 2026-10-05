@@ -15,7 +15,7 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
 
     protected override void Dispose(bool disposing)
     {
-        if (!_buffer.IsNull)
+        if (!_buffer.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
         {
             AlcoGpuNative.BufferDestroy(((AlcoGpuDevice)Device).Native, _buffer);
         }

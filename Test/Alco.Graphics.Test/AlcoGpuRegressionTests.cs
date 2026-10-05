@@ -1,3 +1,4 @@
+using System.IO;
 using System.Reflection;
 using System.Text;
 using Alco.Graphics.AlcoGpu;
@@ -411,6 +412,70 @@ public sealed class AlcoGpuRegressionTests
         GPUPipeline valid = device.CreateGraphicsPipeline(PipelineDescriptor(depthOnly: false));
         Assert.DoesNotThrow(valid.Destroy);
         AssertAllocationBalance(before);
+    }
+
+    /// <summary>
+    /// Children outliving the device stay silent: device destruction drops the
+    /// native registry with every resource in it, so explicit late disposal and
+    /// late finalizers must skip their native destroy calls without errors.
+    /// </summary>
+    [Test]
+    public void LateDisposalsAfterDeviceDestroyStaySilent()
+    {
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host);
+        GPUBuffer explicitBuffer = device.CreateBuffer(new BufferDescriptor(64, BufferUsage.CopyDst));
+        CreateOrphanChildren(device);
+
+        // Device disposal is owned by the host: OnDispose destroys the native device.
+        host.Dispose();
+
+        // Explicit late paths must not poke native handles into the destroyed
+        // device: deferred queueing, the drained-but-detached frame end, and the
+        // immediate destroy that mirrors device-shutdown cleanup.
+        Assert.DoesNotThrow(explicitBuffer.Dispose);
+        Assert.DoesNotThrow(host.Drain);
+        Assert.DoesNotThrow(() => device.DestroyImmediate(explicitBuffer));
+
+        // Finalizers of the never-disposed orphans run against the dead device.
+        StringWriter console = new();
+        TextWriter originalOut = Console.Out;
+        Console.SetOut(console);
+        try
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+        }
+
+        Assert.That(console.ToString(), Does.Not.Contain("Error in GPUObject"));
+    }
+
+    private static void CreateOrphanChildren(AlcoGpuDevice device)
+    {
+        GPUBuffer buffer = device.CreateBuffer(new BufferDescriptor(128, BufferUsage.Uniform));
+        GPUTexture texture = device.CreateTexture(new TextureDescriptor(
+            TextureDimension.Texture2D, PixelFormat.RGBA8Unorm, 16, 16));
+        GPUTextureView view = device.CreateTextureView(new TextureViewDescriptor(texture));
+        GPUSampler sampler = device.CreateSampler(new SamplerDescriptor(
+            FilterMode.Nearest, FilterMode.Nearest, FilterMode.Nearest,
+            AddressMode.ClampToEdge, AddressMode.ClampToEdge, AddressMode.ClampToEdge));
+        GPUBindGroup layout = device.CreateBindGroup(new BindGroupDescriptor([
+            new BindGroupEntry(0, ShaderStage.Vertex, BindingType.UniformBuffer)]));
+        GPUResourceGroup group = device.CreateResourceGroup(new ResourceGroupDescriptor
+        {
+            Layout = layout,
+            Resources = [new ResourceBindingEntry(0, buffer)],
+        });
+        // All locals become garbage once this method returns; nothing is disposed.
+        GC.KeepAlive(view);
+        GC.KeepAlive(sampler);
+        GC.KeepAlive(group);
     }
 
     private static AlcoDepthStencilAttachment GetDepthCache(GPUCommandBuffer commands) =>

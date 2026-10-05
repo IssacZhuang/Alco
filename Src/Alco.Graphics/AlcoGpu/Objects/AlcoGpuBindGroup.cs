@@ -26,7 +26,7 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull)
+        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
         {
             AlcoGpuNative.BindGroupLayoutDestroy(((AlcoGpuDevice)Device).Native, _native);
         }

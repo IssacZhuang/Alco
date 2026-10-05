@@ -14,7 +14,7 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull)
+        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
         {
             AlcoGpuNative.PipelineDestroy(((AlcoGpuDevice)Device).Native, _native);
         }

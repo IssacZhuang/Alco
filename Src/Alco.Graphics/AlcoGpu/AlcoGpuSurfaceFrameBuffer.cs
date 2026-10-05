@@ -112,8 +112,13 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         }
 
         // The surface must outlive every acquired texture; dropping it last also
-        // destroys any texture the caller forgot to release.
-        AlcoGpuNative.SurfaceDestroy(((AlcoGpuDevice)Device).Native, _surface);
+        // destroys any texture the caller forgot to release. Skipped when the
+        // native device is already gone: it dropped the surface with itself.
+        AlcoGpuDevice device = (AlcoGpuDevice)Device;
+        if (device.IsNativeAlive)
+        {
+            AlcoGpuNative.SurfaceDestroy(device.Native, _surface);
+        }
     }
 
     #endregion
@@ -344,12 +349,12 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         {
             // Surface textures are only released (never destroyed); the surface
             // itself is dropped by the owning AlcoGpuSurfaceFrameBuffer.
-            if (!_texture.IsNull)
+            if (!_texture.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
             {
                 AlcoGpuNative.TextureRelease(((AlcoGpuDevice)Device).Native, _texture);
                 _texture = AlcoHandle.Null;
             }
-            if (!_defaultView.IsNull)
+            if (!_defaultView.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
             {
                 AlcoGpuNative.TextureViewDestroy(((AlcoGpuDevice)Device).Native, _defaultView);
                 _defaultView = AlcoHandle.Null;
@@ -440,12 +445,12 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         /// </summary>
         public void Drop()
         {
-            if (!_texture.IsNull)
+            if (!_texture.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
             {
                 AlcoGpuNative.TextureRelease(((AlcoGpuDevice)Device).Native, _texture);
                 _texture = AlcoHandle.Null;
             }
-            if (!_defaultView.IsNull)
+            if (!_defaultView.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
             {
                 AlcoGpuNative.TextureViewDestroy(((AlcoGpuDevice)Device).Native, _defaultView);
                 _defaultView = AlcoHandle.Null;

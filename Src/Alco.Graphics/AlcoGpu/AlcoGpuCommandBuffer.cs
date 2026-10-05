@@ -570,7 +570,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
     private void ReleaseCommandEncoder()
     {
-        if (!_encoder.IsNull)
+        if (!_encoder.IsNull && _device.IsNativeAlive)
         {
             // Destroy consumes the handle; a stale handle is worthless either way.
             AlcoHandle encoder = _encoder;
@@ -581,7 +581,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
     private void ReleaseCommandBuffer()
     {
-        if (!_buffer.IsNull)
+        if (!_buffer.IsNull && _device.IsNativeAlive)
         {
             AlcoHandle buffer = _buffer;
             _buffer = AlcoHandle.Null;

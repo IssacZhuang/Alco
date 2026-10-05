@@ -200,7 +200,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
     private void ReleaseRenderBundle()
     {
-        if (!_bundle.IsNull)
+        if (!_bundle.IsNull && _device.IsNativeAlive)
         {
             AlcoHandle bundle = _bundle;
             _bundle = AlcoHandle.Null;
@@ -210,7 +210,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
     private void ReleaseRenderBundleEncoder()
     {
-        if (!_bundleEncoder.IsNull)
+        if (!_bundleEncoder.IsNull && _device.IsNativeAlive)
         {
             // An unfinished bundle encoder is simply destroyed without finishing.
             AlcoHandle bundleEncoder = _bundleEncoder;

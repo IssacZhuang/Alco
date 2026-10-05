@@ -51,6 +51,16 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
     internal AlcoHandle Native { get; }
 
+    /// <summary>
+    /// Whether the native device context is still alive. <see cref="DisposeCore"/>
+    /// destroys the native device, which drops the wgpu Global and with it every
+    /// native resource registered on the device. Child objects (buffers, textures,
+    /// pipelines, ...) skip their own native destroy calls once this is false:
+    /// their handles are already gone and late finalizers must stay no-ops
+    /// instead of poking a destroyed device.
+    /// </summary>
+    internal bool IsNativeAlive { get; private set; }
+
     public bool IsDebug { get; }
 
     /// <summary>
@@ -153,8 +163,13 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         BindGroupTexture2DStorage.Destroy();
         BindGroupTexture3DRead.Destroy();
 
+        // Flipped before the native destroy so child finalizers racing with this
+        // dispose skip their own destroy calls.
+        IsNativeAlive = false;
+
         // Destroys the native device context including its wgpu Global; every
-        // remaining object handle becomes invalid (double destroy is detected).
+        // remaining object handle was released by that drop, so late finalizers
+        // must not destroy them again (they check IsNativeAlive).
         AlcoGpuNative.DeviceDestroy(Native);
 
         // Late native records must not reach a disposed device's host.
@@ -1000,6 +1015,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                 AlcoHandle deviceHandle;
                 AlcoGpuNative.DeviceCreate(in desc, out deviceHandle);
                 Native = deviceHandle;
+                IsNativeAlive = true;
             }
 
             AlcoDeviceInfo info = default;
@@ -1137,6 +1153,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             ReleaseLayout(BindGroupTexture2DStorage);
             if (!Native.IsNull)
             {
+                IsNativeAlive = false;
                 AlcoGpuNative.DeviceDestroy(Native);
             }
             throw;

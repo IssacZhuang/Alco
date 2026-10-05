@@ -35,7 +35,7 @@ internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull)
+        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
         {
             AlcoGpuNative.TextureViewDestroy(((AlcoGpuDevice)Device).Native, _native);
         }

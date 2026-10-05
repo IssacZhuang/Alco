@@ -26,7 +26,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull)
+        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
         {
             AlcoGpuNative.BindGroupDestroy(((AlcoGpuDevice)Device).Native, _native);
         }

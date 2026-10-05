@@ -109,7 +109,7 @@ internal static unsafe class AlcoGpuUtility
     /// <summary>Destroys a shader module created through <see cref="CreateShaderModule"/>.</summary>
     public static void DestroyShaderModule(this AlcoGpuDevice device, AlcoHandle module)
     {
-        if (module.IsNull)
+        if (module.IsNull || !device.IsNativeAlive)
         {
             return;
         }

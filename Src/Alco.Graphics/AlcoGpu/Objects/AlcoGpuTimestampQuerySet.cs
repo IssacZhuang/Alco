@@ -28,7 +28,7 @@ internal sealed unsafe class AlcoGpuTimestampQuerySet : GPUTimestampQuerySet
 
     protected override void Dispose(bool disposing)
     {
-        if (_querySet.IsNull)
+        if (_querySet.IsNull || !((AlcoGpuDevice)Device).IsNativeAlive)
         {
             return;
         }
