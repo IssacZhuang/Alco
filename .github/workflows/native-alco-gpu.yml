@@ -2,8 +2,8 @@
 #
 # Builds all 8 RIDs and (by default) opens a PR that drops the binaries into
 # Src/Alco.Graphics/runtimes/<RID>/native/ and refreshes runtimes/alco-gpu-manifest.json
-# (sha256 provenance). The regular Build workflow keeps testing the committed win-x64
-# binary; this pipeline is the source for the other RIDs.
+# (sha256 provenance). The regular Build workflow compiles and tests the selected
+# host RID from source; this manual pipeline refreshes all delivered RID binaries.
 #
 # Recipes are carried over from the alco-wgpu-native pipeline: manylinux 2.28 containers
 # (QEMU for arm64), Android NDK r29 with API-21 clang linkers, and an @rpath install
@@ -39,6 +39,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.1
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: ${{ env.CRATE_DIR }}
@@ -49,11 +52,11 @@ jobs:
 
       - name: Build win-x64
         working-directory: Src/Alco.Graphics.Native/alco-gpu
-        run: cargo build --release --target x86_64-pc-windows-msvc
+        run: cargo build --locked --release --target x86_64-pc-windows-msvc
 
       - name: Build win-arm64
         working-directory: Src/Alco.Graphics.Native/alco-gpu
-        run: cargo build --release --target aarch64-pc-windows-msvc
+        run: cargo build --locked --release --target aarch64-pc-windows-msvc
 
       - name: Stage binaries
         shell: pwsh
@@ -123,7 +126,7 @@ jobs:
               crate="Src/Alco.Graphics.Native/alco-gpu"
               cd "$crate"
               rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target "$RUST_TARGET"
-              cargo build --release --target "$RUST_TARGET"
+              cargo build --locked --release --target "$RUST_TARGET"
               cd /workspace
               mkdir -p "staging/$RID"
               cp "$crate/target/$RUST_TARGET/release/libalco_gpu.so" "staging/$RID/"
@@ -160,6 +163,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.1
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: ${{ env.CRATE_DIR }}
@@ -170,11 +176,11 @@ jobs:
 
       - name: Build osx-x64
         working-directory: Src/Alco.Graphics.Native/alco-gpu
-        run: cargo build --release --target x86_64-apple-darwin
+        run: cargo build --locked --release --target x86_64-apple-darwin
 
       - name: Build osx-arm64
         working-directory: Src/Alco.Graphics.Native/alco-gpu
-        run: cargo build --release --target aarch64-apple-darwin
+        run: cargo build --locked --release --target aarch64-apple-darwin
 
       - name: Stage and verify binaries
         run: |
@@ -215,6 +221,9 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@1.97.1
+
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: ${{ env.CRATE_DIR }}
@@ -250,11 +259,11 @@ jobs:
 
       - name: Build android-arm64
         working-directory: Src/Alco.Graphics.Native/alco-gpu
-        run: cargo build --release --target aarch64-linux-android
+        run: cargo build --locked --release --target aarch64-linux-android
 
       - name: Build android-x64
         working-directory: Src/Alco.Graphics.Native/alco-gpu
-        run: cargo build --release --target x86_64-linux-android
+        run: cargo build --locked --release --target x86_64-linux-android
 
       - name: Stage and verify binaries
         run: |
@@ -312,8 +321,23 @@ jobs:
           import os
           import shutil
 
+          from pathlib import Path
+
           runtimes = 'Src/Alco.Graphics/runtimes'
           downloaded = 'downloaded'
+          crate = Path('Src/Alco.Graphics.Native/alco-gpu')
+          sources = [crate / name for name in
+                     ('Cargo.toml', 'Cargo.lock', 'rust-toolchain.toml', 'build.rs', '.cargo/config.toml')
+                     if (crate / name).is_file()]
+          sources.extend((crate / 'src').rglob('*.rs'))
+          source_digest = hashlib.sha256()
+          for path in sorted(sources, key=lambda path: path.relative_to(crate).as_posix()):
+              # Match AlcoGpuCheckDelivery: relative path + NUL + normalized text hash + LF.
+              text = path.read_text(encoding='utf-8-sig').replace('\r\n', '\n').replace('\r', '\n')
+              digest = hashlib.sha256(text.encode('utf-8')).hexdigest()
+              entry = f'{path.relative_to(crate).as_posix()}\0{digest}\n'
+              source_digest.update(entry.encode('utf-8'))
+          source_hash = source_digest.hexdigest()
           # Artifacts land as downloaded/alco-gpu-<rid>/<library>; the two Windows
           # RIDs share a file name, so merging into one directory is not an option.
           libraries = {
@@ -336,18 +360,23 @@ jobs:
               os.makedirs(target_dir, exist_ok=True)
               shutil.copyfile(source, os.path.join(target_dir, library))
               digest = hashlib.sha256(open(source, 'rb').read()).hexdigest()
+              stamp_path = os.path.join(target_dir, library + '.source.sha256')
+              with open(stamp_path, 'w', encoding='utf-8', newline='\n') as stamp:
+                  stamp.write(f'{source_hash}\n{digest}\n')
 
               manifest = json.load(open(manifest_path, encoding='utf-8'))
               manifest['binaries'][rid] = {
                   'file': f'runtimes/{rid}/native/{library}',
                   'sha256': digest,
+                  'sourceSha256': source_hash,
                   'builtFrom': 'native-alco-gpu GitHub Actions pipeline',
               }
               manifest['note'] = (
                   'Purely provenance metadata; not consumed at build time. '
-                  'Binaries are produced by the native-alco-gpu workflow; rebuild locally '
-                  'with: cd Src/Alco.Graphics.Native/alco-gpu && cargo build --release, '
-                  'then copy target/release/alco_gpu* into runtimes/<RID>/native/.'
+                  'Binaries are produced by the native-alco-gpu workflow. Local dotnet builds '
+                  'automatically compile missing RID libraries with Cargo --locked --release; '
+                  'use -p:AlcoGpuBuildNative=true to rebuild from source without replacing '
+                  'delivered runtimes binaries. See Docs/AlcoGpuAbi.md.'
               )
               with open(manifest_path, 'w', encoding='utf-8', newline='\n') as handle:
                   json.dump(manifest, handle, indent=2, ensure_ascii=False)
@@ -375,7 +404,7 @@ jobs:
 
             - Replaces all 8 `Src/Alco.Graphics/runtimes/<RID>/native/` binaries
             - Refreshes `runtimes/alco-gpu-manifest.json` sha256 provenance
-            - After merging, run the regular Build workflow to re-verify the win-x64 path
+            - The regular Build workflow separately compiles and tests each host RID from source
           branch: ci/alco-gpu-native-binaries
           add-paths: |
             Src/Alco.Graphics/runtimes/**

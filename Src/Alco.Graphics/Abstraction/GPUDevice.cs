@@ -60,6 +60,8 @@ public abstract class GPUDevice
     /// <summary>Gets nanoseconds represented by one timestamp tick.</summary>
     public abstract float TimestampPeriodNanoseconds { get; }
 
+    /// <summary>Initializes the device's host lifecycle subscriptions.</summary>
+    /// <param name="descriptor">The device configuration and lifecycle host.</param>
     public GPUDevice(in DeviceDescriptor descriptor)
     {
         _disposeDelay = descriptor.DisposeDelay;
@@ -68,6 +70,13 @@ public abstract class GPUDevice
         _host = host;
         host.OnEndFrame += OnEndFrame;
         host.OnDispose += Dispose;
+    }
+
+    /// <summary>Detaches lifecycle handlers when device construction fails or disposal completes.</summary>
+    protected void DetachHostEvents()
+    {
+        _host.OnDispose -= Dispose;
+        _host.OnEndFrame -= OnEndFrame;
     }
 
     // Default bind groups, those are the most common bind groups used in the graphics pipeline.
@@ -748,7 +757,6 @@ public abstract class GPUDevice
         DisposeCore();
 
         _host.LogInfo("GPU device closed");
-        _host.OnDispose -= Dispose;
-        _host.OnEndFrame -= OnEndFrame;
+        DetachHostEvents();
     }
 }

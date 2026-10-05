@@ -43,9 +43,16 @@ pub(crate) fn set_error(status: AlcoStatus, message: impl Into<String>) {
     });
 }
 
-/// Records a failure from any `Display` error (wgpu-core errors).
-pub(crate) fn set_error_from(status: AlcoStatus, error: &dyn std::fmt::Display) {
-    set_error(status, error.to_string());
+/// Records the complete error source chain, retaining context and root causes.
+pub(crate) fn set_error_from(status: AlcoStatus, error: &dyn std::error::Error) {
+    let mut message = error.to_string();
+    let mut source = error.source();
+    while let Some(cause) = source {
+        message.push_str("\nCaused by: ");
+        message.push_str(&cause.to_string());
+        source = cause.source();
+    }
+    set_error(status, message);
 }
 
 /// ABI export: copies the thread-local last error into `out`. The message is
@@ -119,5 +126,68 @@ fn default_message(status: AlcoStatus) -> &'static str {
         AlcoStatus::UNSUPPORTED => "operation unsupported on this device",
         AlcoStatus::NOT_READY => "operation still pending",
         _ => "operation failed",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::error::Error;
+    use std::ffi::CStr;
+    use std::fmt;
+
+    #[derive(Debug)]
+    struct TestError {
+        message: &'static str,
+        source: Option<Box<TestError>>,
+    }
+
+    impl fmt::Display for TestError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(self.message)
+        }
+    }
+
+    impl Error for TestError {
+        fn source(&self) -> Option<&(dyn Error + 'static)> {
+            self.source.as_deref().map(|e| e as &dyn Error)
+        }
+    }
+
+    fn last_error() -> (u32, String) {
+        let mut info = AlcoErrorInfo { status: 0, message: std::ptr::null() };
+        unsafe {
+            alco_get_last_error(&mut info);
+            (info.status, CStr::from_ptr(info.message).to_string_lossy().into_owned())
+        }
+    }
+
+    #[test]
+    fn complete_error_chain_is_preserved_through_abi() {
+        for root in ["Depth32Float has no stencil aspect", "Rgba8Unorm has no depth aspect"] {
+            let error = TestError {
+                message: "In a pass parameter",
+                source: Some(Box::new(TestError {
+                    message: "attachment validation",
+                    source: Some(Box::new(TestError { message: root, source: None })),
+                })),
+            };
+            let status = guard(|| {
+                set_error_from(AlcoStatus::VALIDATION, &error);
+                AlcoStatus::VALIDATION
+            });
+            assert_eq!(status, AlcoStatus::VALIDATION);
+            assert_eq!(last_error(), (
+                status.0,
+                format!("In a pass parameter\nCaused by: attachment validation\nCaused by: {root}"),
+            ));
+        }
+    }
+
+    #[test]
+    fn leaf_errors_and_interior_nuls_retain_their_details() {
+        let error = TestError { message: "resource\0name", source: None };
+        set_error_from(AlcoStatus::UNSUPPORTED, &error);
+        assert_eq!(last_error(), (AlcoStatus::UNSUPPORTED.0, "resource\\0name".into()));
     }
 }

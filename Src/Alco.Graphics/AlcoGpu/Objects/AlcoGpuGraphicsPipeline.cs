@@ -4,11 +4,11 @@ using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Owns a native graphics pipeline and releases transient creation data on failure.</summary>
 internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
 {
     #region Properties
     private readonly AlcoHandle _pipeline;
-    private readonly ShaderStage _stages;
 
     #endregion
 
@@ -28,14 +28,12 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
 
     #region AlcoGpu Implementation
 
+    /// <summary>Gets the native graphics pipeline handle.</summary>
     public AlcoHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _pipeline;
     }
-
-    /// <summary>Shader stages referenced by this pipeline (debug introspection).</summary>
-    internal ShaderStage Stages => _stages;
 
     internal AlcoGpuGraphicsPipeline(AlcoGpuDevice device, in GraphicsPipelineDescriptor descriptor) : base(descriptor)
     {
@@ -46,17 +44,13 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
 
         DescriptorUtility.GetVertexAndPixelModules(descriptor.ShaderModules, out ShaderModule vertex, out ShaderModule pixel);
 
-        _stages = ShaderStage.None;
-        for (int i = 0; i < descriptor.ShaderModules.Length; i++)
-        {
-            _stages |= descriptor.ShaderModules[i].Stage;
-        }
-
         AlcoHandle vertexShader = device.CreateShaderModule(vertex);
-        AlcoHandle pixelShader = device.CreateShaderModule(pixel);
+        AlcoHandle pixelShader = AlcoHandle.Null;
+        AlcoVertexElement* vertexElements = null;
 
         try
         {
+            pixelShader = device.CreateShaderModule(pixel);
             // === Vertex layouts ======================================
 
             VertexInputLayout[] vertexInputLayouts = descriptor.VertexInputLayouts;
@@ -67,7 +61,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
             }
 
             // One contiguous block of attributes; each layout points into it.
-            AlcoVertexElement* vertexElements = Alloc<AlcoVertexElement>(Math.Max(vertexElementCount, 1));
+            vertexElements = Alloc<AlcoVertexElement>(Math.Max(vertexElementCount, 1));
             AlcoVertexLayout* vertexBufferLayouts = stackalloc AlcoVertexLayout[vertexInputLayouts.Length];
             AlcoVertexElement* elementCursor = vertexElements;
             for (int i = 0; i < vertexInputLayouts.Length; i++)
@@ -166,11 +160,10 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                 uint status = AlcoGpuNative.GraphicsPipelineCreate(nativeDevice, in desc, out _pipeline);
                 AlcoGpuMarshal.ThrowIfFailed(status);
             }
-
-            Free(vertexElements);
         }
         finally
         {
+            Free(vertexElements);
             // The pipeline layout is built internally and dropped natively, so the
             // transient modules can be released right after creation.
             device.DestroyShaderModule(vertexShader);

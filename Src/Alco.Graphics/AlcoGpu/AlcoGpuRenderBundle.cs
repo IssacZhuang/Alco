@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
@@ -22,6 +23,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
     #region Abstract Implementation
 
+    /// <summary>Gets whether a finished native render bundle is available for execution.</summary>
     public override bool HasBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -38,17 +40,36 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
     protected override void Dispose(bool disposing)
     {
-        // the bundle will not be released if End() is not called
-        // do check here to prevent memory leak
-        ReleaseRenderBundle();
-        ReleaseRenderBundleEncoder();
-
-        InteropUtility.Free(_nativeName);
+        ExceptionDispatchInfo? failure = null;
+        try
+        {
+            ReleaseRenderBundle();
+        }
+        catch (Exception error)
+        {
+            failure = ExceptionDispatchInfo.Capture(error);
+        }
+        try
+        {
+            ReleaseRenderBundleEncoder();
+        }
+        catch (Exception error)
+        {
+            failure ??= ExceptionDispatchInfo.Capture(error);
+        }
+        finally
+        {
+            InteropUtility.Free(_nativeName);
+            _graphicsPipeline = AlcoHandle.Null;
+            _isRecording = false;
+        }
+        failure?.Throw();
     }
 
     /// <summary>Begins the native render bundle encoder.</summary>
     protected unsafe override void BeginCore(GPUAttachmentLayout attachmentLayout)
     {
+        _isRecording = false;
         ReleaseRenderBundleEncoder();
         AlcoGpuAttachmentLayout nativeAttachmentLayout = (AlcoGpuAttachmentLayout)attachmentLayout;
 
@@ -65,8 +86,8 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
             ColorFormats = colors,
             ColorFormatCount = (uint)colorCount,
             DepthStencilFormat = depthInfo.HasValue ? (uint)depthInfo.Value.Format : AlcoGpuAbi.AlcoNone,
-            // Must match the read-only state of the passes this bundle is executed
-            // into (bundle/pass attachment compatibility).
+            // Missing aspects must be read-only too, matching pass channels with
+            // omitted operations under core 30's bundle/pass compatibility rules.
             DepthReadOnly = depthInfo.HasValue && depthInfo.Value.IsDepthReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
             StencilReadOnly = depthInfo.HasValue && depthInfo.Value.IsStencilReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
             SampleCount = 1,
@@ -75,6 +96,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
         uint status = AlcoGpuNative.BundleEncoderCreate(_device.Native, in descriptor, out _bundleEncoder);
         AlcoGpuMarshal.ThrowIfFailed(status);
+        _isRecording = true;
     }
 
     /// <summary>Ends the render bundle encoder and finishes the encoded bundle.</summary>
@@ -83,15 +105,11 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         ReleaseRenderBundle();
 
         uint status = AlcoGpuNative.BundleEncoderFinish(_device.Native, _bundleEncoder, out _bundle);
-        if (status != AlcoGpuAbi.Status.Ok)
-        {
-            ReleaseRenderBundleEncoder();
-            AlcoGpuMarshal.ThrowIfFailed(status);
-        }
-
-        // finish consumes the encoder handle
+        // Finish consumes the encoder even when validation fails. Do not issue a
+        // second destroy that would replace the actionable validation error.
         _bundleEncoder = AlcoHandle.Null;
         _graphicsPipeline = AlcoHandle.Null;
+        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
@@ -195,8 +213,8 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         if (!_bundle.IsNull)
         {
             uint status = AlcoGpuNative.RenderBundleDestroy(_device.Native, _bundle);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _bundle = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -206,8 +224,8 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         {
             // An unfinished bundle encoder is simply destroyed without finishing.
             uint status = AlcoGpuNative.BundleEncoderDestroy(_device.Native, _bundleEncoder);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _bundleEncoder = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 

@@ -142,6 +142,109 @@ fn supported_alco_features(adapter_features: wgt::Features) -> (u64, u64) {
     (features, caps)
 }
 
+/// Required engine capabilities, separate from desired-optional Alco features.
+fn base_adapter_features(backend: wgt::Backend) -> wgt::Features {
+    let mut required = wgt::Features::IMMEDIATES
+        | wgt::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
+        | wgt::Features::VERTEX_WRITABLE_STORAGE;
+    // Vulkan can fall back to Naga SPIR-V; other backends need passthrough.
+    if backend != wgt::Backend::Vulkan {
+        required |= wgt::Features::PASSTHROUGH_SHADERS;
+    }
+    required
+}
+
+fn adapter_rejection(
+    backend: wgt::Backend,
+    features: wgt::Features,
+    max_immediate_size: u32,
+    requested_immediate_size: u32,
+) -> Option<String> {
+    let missing = base_adapter_features(backend) - features;
+    if !missing.is_empty() {
+        return Some(format!("missing required features: {missing:?}"));
+    }
+    let requested = requested_immediate_size.max(1);
+    if max_immediate_size < requested {
+        return Some(format!(
+            "max_immediate_size {max_immediate_size} is below requested {requested}",
+        ));
+    }
+    None
+}
+
+fn high_performance_options() -> wgc::instance::RequestAdapterOptions {
+    wgc::instance::RequestAdapterOptions {
+        power_preference: wgt::PowerPreference::HighPerformance,
+        force_fallback_adapter: false,
+        compatible_surface: None,
+        apply_limit_buckets: false,
+    }
+}
+
+// Match wgpu-core 30's high-performance ordering for capability-filtered fallback.
+// A stable sort preserves core enumeration/backend order within each device type.
+fn high_performance_rank(device_type: wgt::DeviceType) -> u8 {
+    match device_type {
+        wgt::DeviceType::DiscreteGpu => 1,
+        wgt::DeviceType::IntegratedGpu => 2,
+        wgt::DeviceType::Other => 3,
+        wgt::DeviceType::VirtualGpu => 4,
+        wgt::DeviceType::Cpu => 5,
+    }
+}
+
+fn select_adapter(
+    global: &Global,
+    backends: wgt::Backends,
+    immediate_size: u32,
+) -> Result<wgc::id::AdapterId, AlcoStatus> {
+    let preferred = global
+        .request_adapter(&high_performance_options(), backends, None)
+        .map_err(|e| {
+            set_error_from(AlcoStatus::UNSUPPORTED, &e);
+            AlcoStatus::UNSUPPORTED
+        })?;
+    let rejection = |id| {
+        adapter_rejection(
+            global.adapter_get_info(id).backend,
+            global.adapter_features(id),
+            global.adapter_limits(id).max_immediate_size,
+            immediate_size,
+        )
+    };
+    let Some(reason) = rejection(preferred) else {
+        return Ok(preferred);
+    };
+    let mut reasons = vec![format!("{}: {reason}", global.adapter_get_info(preferred).name)];
+    global.adapter_drop(preferred);
+
+    // RequestAdapterOptions has no feature/limit filter in v30. Enumerate only
+    // when the preferred GPU cannot satisfy the engine, then apply the same
+    // high-performance ranking to all capability-supported candidates.
+    let mut candidates = global.enumerate_adapters(backends, false);
+    candidates.sort_by_key(|&id| high_performance_rank(global.adapter_get_info(id).device_type));
+    let mut selected = None;
+    for id in candidates {
+        if selected.is_none() {
+            if let Some(reason) = rejection(id) {
+                reasons.push(format!("{}: {reason}", global.adapter_get_info(id).name));
+            } else {
+                selected = Some(id);
+                continue;
+            }
+        }
+        global.adapter_drop(id);
+    }
+    selected.ok_or_else(|| {
+        set_error(
+            AlcoStatus::UNSUPPORTED,
+            format!("no adapter supports the engine requirements: {}", reasons.join("; ")),
+        );
+        AlcoStatus::UNSUPPORTED
+    })
+}
+
 unsafe fn borrow_str(ptr: *const c_char) -> String {
     if ptr.is_null() {
         String::new()
@@ -183,16 +286,9 @@ pub unsafe extern "C" fn alco_device_create(
         };
         let global = Arc::new(Global::new("alco-gpu", instance_desc, None));
 
-        let adapters = global.enumerate_adapters(backends, false);
-        let adapter_id = match adapters.first() {
-            Some(id) => *id,
-            None => {
-                set_error(
-                    AlcoStatus::UNSUPPORTED,
-                    format!("no adapter found for backend {backends:?}"),
-                );
-                return AlcoStatus::UNSUPPORTED;
-            }
+        let adapter_id = match select_adapter(&global, backends, desc.push_constants_size) {
+            Ok(id) => id,
+            Err(status) => return status,
         };
 
         let adapter_info = global.adapter_get_info(adapter_id);
@@ -210,25 +306,11 @@ pub unsafe extern "C" fn alco_device_create(
         // support instead of failing, so the C# side can blanket-request the
         // optional set without a probe round trip (mirrors the old WebGPUDevice
         // behavior of only requesting probed features).
-        let mut required = wgt::Features::IMMEDIATES
-            | wgt::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
-            | wgt::Features::VERTEX_WRITABLE_STORAGE
+        let mut required = base_adapter_features(adapter_info.backend)
             | alco_features_to_wgpu(desc.required_features & supported);
         let passthrough_available = adapter_features.contains(wgt::Features::PASSTHROUGH_SHADERS);
-        if resolved == backend::RESOLVED_VULKAN {
-            if passthrough_available {
-                required |= wgt::Features::PASSTHROUGH_SHADERS;
-            }
-        } else if passthrough_available {
-            required |= wgt::Features::PASSTHROUGH_SHADERS;
-        } else {
-            set_error(
-                AlcoStatus::UNSUPPORTED,
-                "passthrough shaders are required on this backend but unavailable",
-            );
-            return AlcoStatus::UNSUPPORTED;
-        }
         if passthrough_available {
+            required |= wgt::Features::PASSTHROUGH_SHADERS;
             device_caps |= caps::PASSTHROUGH_SHADERS;
         }
         // MetalLib passthrough is an Apple-platform source kind.
@@ -466,4 +548,55 @@ pub unsafe extern "C" fn alco_device_pop_message(
                 AlcoStatus::INVALID_HANDLE
             })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adapter_request_preserves_high_performance_and_backend_masks() {
+        let options = high_performance_options();
+        assert_eq!(options.power_preference, wgt::PowerPreference::HighPerformance);
+        assert!(!options.force_fallback_adapter);
+        assert!(!options.apply_limit_buckets);
+        assert!(options.compatible_surface.is_none());
+        assert_eq!(request_backends(backend::AUTO), wgt::Backends::PRIMARY);
+        assert_eq!(request_backends(backend::VULKAN), wgt::Backends::VULKAN);
+        assert_eq!(request_backends(backend::DX12), wgt::Backends::DX12);
+        assert_eq!(request_backends(backend::METAL), wgt::Backends::METAL);
+    }
+
+    #[test]
+    fn fallback_ranking_matches_core_high_performance_order_and_is_stable() {
+        use wgt::DeviceType::*;
+        let mut candidates = [(Cpu, 0), (IntegratedGpu, 1), (DiscreteGpu, 2),
+            (Other, 3), (VirtualGpu, 4), (DiscreteGpu, 5)];
+        candidates.sort_by_key(|&(ty, _)| high_performance_rank(ty));
+        assert_eq!(candidates, [(DiscreteGpu, 2), (DiscreteGpu, 5),
+            (IntegratedGpu, 1), (Other, 3), (VirtualGpu, 4), (Cpu, 0)]);
+    }
+
+    #[test]
+    fn unsupported_preferred_adapter_does_not_hide_supported_candidates() {
+        let base = base_adapter_features(wgt::Backend::Vulkan);
+        let mut candidates = [
+            (wgt::DeviceType::IntegratedGpu, wgt::Backend::Vulkan, base, 256),
+            (wgt::DeviceType::DiscreteGpu, wgt::Backend::Vulkan,
+                base - wgt::Features::VERTEX_WRITABLE_STORAGE, 256),
+            (wgt::DeviceType::DiscreteGpu, wgt::Backend::Vulkan, base, 8),
+        ];
+        candidates.sort_by_key(|&(ty, ..)| high_performance_rank(ty));
+        let selected = candidates.iter().find(|&&(_, backend, features, limit)|
+            adapter_rejection(backend, features, limit, 16).is_none());
+        assert_eq!(selected.unwrap().0, wgt::DeviceType::IntegratedGpu);
+        assert!(adapter_rejection(wgt::Backend::Vulkan, base, 16, 16).is_none());
+        assert!(adapter_rejection(wgt::Backend::Dx12, base, 16, 16).is_some());
+        assert!(adapter_rejection(wgt::Backend::Metal,
+            base | wgt::Features::PASSTHROUGH_SHADERS, 16, 16).is_none());
+        // Desired-optional features must not become selection requirements.
+        assert!(!base.contains(wgt::Features::TIMESTAMP_QUERY));
+        assert_eq!(alco_features_to_wgpu(alco_features::TIMESTAMP_QUERY &
+            supported_alco_features(base).0), wgt::Features::empty());
+    }
 }

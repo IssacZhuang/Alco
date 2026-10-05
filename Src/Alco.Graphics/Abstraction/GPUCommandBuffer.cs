@@ -8,6 +8,7 @@ namespace Alco.Graphics;
 /// </summary> 
 public abstract class GPUCommandBuffer : BaseGPUObject
 {
+    /// <summary>A recording scope for a render pass.</summary>
     public readonly struct RenderPass : IDisposable
     {
         private readonly GPUCommandBuffer _commandBuffer;
@@ -187,13 +188,21 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             _commandBuffer.WriteTimestampInsidePassCore(querySet, queryIndex);
         }
 
+        /// <summary>Ends this render pass and restores its recording state even on failure.</summary>
         public void Dispose()
         {
-            _commandBuffer.EndRenderCore();
-            _commandBuffer._isRecordingRender = false;
+            try
+            {
+                _commandBuffer.EndRenderCore();
+            }
+            finally
+            {
+                _commandBuffer._isRecordingRender = false;
+            }
         }
     }
 
+    /// <summary>A recording scope for a compute pass.</summary>
     public readonly struct ComputePass : IDisposable
     {
         private readonly GPUCommandBuffer _commandBuffer;
@@ -274,10 +283,17 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             _commandBuffer.WriteTimestampInsidePassCore(querySet, queryIndex);
         }
 
+        /// <summary>Ends this compute pass and restores its recording state even on failure.</summary>
         public void Dispose()
         {
-            _commandBuffer.EndComputeCore();
-            _commandBuffer._isRecordingCompute = false;
+            try
+            {
+                _commandBuffer.EndComputeCore();
+            }
+            finally
+            {
+                _commandBuffer._isRecordingCompute = false;
+            }
         }
     }
 
@@ -298,18 +314,27 @@ public abstract class GPUCommandBuffer : BaseGPUObject
     {
     }
 
+    /// <summary>Begins recording; a failed begin leaves the command buffer idle.</summary>
     public void Begin()
     {
         AssetUtility.IsFalse(_isRecording, "Command buffer is already recording, you might call GPUCommandBuffer.Begin() twice before calling GPUCommandBuffer.End()");
-        _isRecording = true;
         BeginCore();
+        _isRecordingRender = _isRecordingCompute = false;
+        _isRecording = true;
     }
 
+    /// <summary>Finishes recording and restores all recording flags even on failure.</summary>
     public void End()
     {
         AssetUtility.IsTrue(_isRecording, "Command buffer is not recording, you might call GPUCommandBuffer.End() twice before calling GPUCommandBuffer.Begin()");
-        EndCore();
-        _isRecording = false;
+        try
+        {
+            EndCore();
+        }
+        finally
+        {
+            _isRecording = _isRecordingRender = _isRecordingCompute = false;
+        }
     }
 
     public RenderPass BeginRender(

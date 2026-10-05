@@ -131,16 +131,110 @@ scenario under wgpu-native aborted the process.
 
 ## Building / updating the binary
 
-Locally (win-x64 host):
+### Local builds and prerequisites
+
+`Alco.Graphics.csproj` ensures that the **selected** `RuntimeIdentifier` has a native
+library during build, publish, and NuGet pack. A current delivered library in
+`Src/Alco.Graphics/runtimes/<RID>/native/` is used without invoking Cargo or requiring
+Rust. Its adjacent `<library>.source.sha256` sidecar must match both the current source
+fingerprint and the library's SHA-256. Missing, unstamped, or stale deliveries select a
+local source build (with a diagnostic), never silently run or package an old artifact.
+MSBuild automatically runs `cargo build --locked --release
+--target <triple>` in `Src/Alco.Graphics.Native/alco-gpu`, honoring its pinned
+`rust-toolchain.toml` (Rust **1.97.1**) and `Cargo.lock`. It does not install tools,
+download replacement binaries, update the manifest, or write to the source runtimes
+directory. `RUSTUP_AUTO_INSTALL=0` prevents implicit toolchain installation. Cargo may
+download locked crate dependencies on the first build; offline builds need those crates
+cached in advance.
+
+Install Rust/Cargo with rustup and the selected target **before** building a missing
+RID, for example `rustup target add --toolchain 1.97.1 aarch64-pc-windows-msvc`.
+Installing the Rust target is not enough: its native linker and SDK/sysroot must also
+be available. A missing Cargo executable, target, linker, or failed native compilation
+produces an actionable MSBuild error rather than silently excluding the library.
+
+| RID | Rust target | Library | Required native tools |
+| --- | --- | --- | --- |
+| `win-x64` | `x86_64-pc-windows-msvc` | `alco_gpu.dll` | Visual Studio C++ Build Tools (x64) and Windows SDK |
+| `win-arm64` | `aarch64-pc-windows-msvc` | `alco_gpu.dll` | Visual Studio C++ ARM64 build tools/libraries and Windows SDK ARM64 libraries |
+| `linux-x64` | `x86_64-unknown-linux-gnu` | `libalco_gpu.so` | C linker and glibc development sysroot (for example `build-essential`, `pkg-config` on Ubuntu) |
+| `linux-arm64` | `aarch64-unknown-linux-gnu` | `libalco_gpu.so` | Native ARM64 C toolchain, or `aarch64-linux-gnu-gcc` and matching sysroot |
+| `osx-x64` | `x86_64-apple-darwin` | `libalco_gpu.dylib` | Xcode command-line tools and macOS SDK |
+| `osx-arm64` | `aarch64-apple-darwin` | `libalco_gpu.dylib` | Xcode command-line tools and macOS SDK |
+| `android-x64` | `x86_64-linux-android` | `libalco_gpu.so` | Android NDK r29, `x86_64-linux-android21-clang` linker |
+| `android-arm64` | `aarch64-linux-android` | `libalco_gpu.so` | Android NDK r29, `aarch64-linux-android21-clang` linker |
+
+Cross-compilation is not automatically provisioned. Build on a supported host or
+configure Cargo's target-specific linker environment, for example
+`CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc` or
+`CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=<NDK>/toolchains/llvm/prebuilt/<host>/bin/aarch64-linux-android21-clang`
+(use `.cmd` on Windows). Android x64 uses `CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER`.
+For Windows cross-builds, run in the appropriate VS developer environment if needed;
+MSVC must have the destination architecture's libraries, not just an x64 linker.
+Local macOS builds default to deployment target 10.15 (override with
+`MACOSX_DEPLOYMENT_TARGET`) and an `@rpath/libalco_gpu.dylib` install name. Local Linux
+builds use the host glibc; use the manual workflow's manylinux recipe for distributable
+binaries with the documented glibc 2.28 baseline.
+
+Pass `-r <RID>` explicitly when the repository's OS defaults do not match the desired
+architecture (the defaults are Windows/Linux x64 and macOS ARM64). For example:
 
 ```bash
-cd Src/Alco.Graphics.Native/alco-gpu
-cargo build --release
-cp target/release/alco_gpu.dll ../../Alco.Graphics/runtimes/win-x64/native/
+dotnet build Src/Alco.Graphics/Alco.Graphics.csproj -r win-arm64
+dotnet publish Sandbox/0-BasicWindow/0-BasicWindow.csproj -r linux-x64
+dotnet pack Src/Alco.Graphics/Alco.Graphics.csproj -r linux-x64
 ```
 
-All 8 RIDs (win x64/arm64, linux x64/arm64, osx x64/arm64, android x64/arm64) are built
-by the manual-dispatch **Native alco-gpu** workflow (`.github/workflows/native-alco-gpu.yml`):
+The generated file lives under
+`Src/Alco.Graphics/obj/alco-gpu/<triple>/release/` and is dynamically added as Content
+**after** Cargo runs. It is copied to the application/output and publish directories
+with its platform file name so the native loader can find it, including through project
+references. NuGet pack places the selected library at `runtimes/<RID>/native/<library>`;
+packing one RID does not imply that binaries for the other seven RIDs are included.
+The same checks apply to `publish --no-build` and `pack --no-build`.
+
+Local generated libraries track Rust source, Cargo manifest/lockfile, toolchain, and
+project timestamps via MSBuild `Inputs`/`Outputs`; unchanged builds skip Cargo.
+Delivered binaries deliberately do **not** track checkout timestamps: validated source
+and binary fingerprints allow a fresh checkout to build without Rust. Generated
+libraries also validate their sidecars so source deletions or edits preserving file
+timestamps cannot bypass rebuilding. NuGet consumers receive ordinary native runtime
+assets only; the source-build target and its Rust prerequisite are not packaged.
+When editing Rust or validating native changes, use
+`-p:AlcoGpuBuildNative=true` to select the source-built library even if a delivered one
+exists. This retains incremental compilation and never replaces the delivered binary.
+Use `-p:AlcoGpuCargoTargetDirectory=<absolute-path>` for an isolated Cargo cache and
+`-p:AlcoGpuCargoExecutable=<path-to-cargo>` if Cargo is not on PATH. After changing
+linker flags/environment, clear that native cache (or use a different directory) to
+force rebuilding. `dotnet msbuild Src/Alco.Graphics/Alco.Graphics.csproj
+-t:ResolveAlcoGpuNative -p:RuntimeIdentifier=<RID> -v:normal` inspects the mapping
+without running Cargo or copying files.
+
+### CI and delivered binaries
+
+The regular **Build** workflow (`.github/workflows/build.yml`) installs pinned Rust
+and compiles the selected host RID through the same MSBuild integration with
+`AlcoGpuBuildNative=true`, then runs the full normal test suite against those actual
+outputs. Linux installs Mesa's lavapipe Vulkan software ICD (`mesa-vulkan-drivers`,
+`libvulkan1`) in addition to build tools; macOS uses Metal and Windows uses its installed
+adapter. These are runtime GPU prerequisites, distinct from Rust/linker prerequisites.
+
+All 8 RIDs are also built by the manual-dispatch **Native alco-gpu** workflow
+(`.github/workflows/native-alco-gpu.yml`), using pinned Rust and `--locked --release`:
 manylinux 2.28 containers (QEMU for arm64), Android NDK r29 (API 21), macOS deployment
-target 10.15 with an `@rpath` install name. The workflow opens a PR that replaces the
-runtimes binaries and refreshes `runtimes/alco-gpu-manifest.json` (per-RID sha256).
+target 10.15 with an `@rpath` install name. Its optional PR replaces delivered runtimes
+binaries and their `.source.sha256` sidecars, and refreshes
+`runtimes/alco-gpu-manifest.json` (per-RID binary/source SHA-256 provenance).
+Local builds leave delivered artifacts and the manifest untouched.
+
+A delivery sidecar has exactly two lines: the lowercase source fingerprint, then the
+lowercase SHA-256 of the binary. The source fingerprint is SHA-256 over sorted,
+crate-relative POSIX paths for `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, all
+`src/**/*.rs`, and optional `build.rs` / `.cargo/config.toml`. Each entry is UTF-8
+`<path> + NUL + <lowercase SHA256 of UTF-8 source text> + LF`; source text strips a
+UTF-8 BOM and normalizes CRLF/lone CR to LF. This avoids checkout line-ending drift.
+After rebuilding a delivered binary, obtain its source fingerprint with
+`dotnet msbuild Src/Alco.Graphics/Alco.Graphics.csproj -t:ResolveAlcoGpuNative
+-p:RuntimeIdentifier=<RID> -nologo -getProperty:_AlcoGpuSourceHash` and write both hashes
+as UTF-8 lines to the adjacent sidecar. Do not stamp an old binary with a new source
+fingerprint; it must actually have been rebuilt from those sources.

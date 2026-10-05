@@ -17,6 +17,7 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
     #endregion
 
     #region Abstract Implementation
+    /// <inheritdoc />
     public override IReadOnlyList<BindGroupEntry> Bindings
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,6 +36,7 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
     #endregion
 
     #region AlcoGpu Implementation
+    /// <summary>Gets the native bind group layout handle.</summary>
     public AlcoHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -50,21 +52,26 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
         BindGroupEntry[] entries = descriptor.Bindings;
         AlcoBindGroupLayoutEntry* nativeEntries = AlcoGpuUtility.AllocBindGroupLayoutEntries(entries);
 
-        ReadOnlySpan<byte> name = Name.Utf8Z();
-        fixed (byte* ptrName = name)
+        try
         {
-            AlcoBindGroupLayoutDesc nativeDescriptor = new()
+            ReadOnlySpan<byte> name = Name.Utf8Z();
+            fixed (byte* ptrName = name)
             {
-                Entries = nativeEntries,
-                EntryCount = (uint)entries.Length,
-                Name = ptrName,
-            };
+                AlcoBindGroupLayoutDesc nativeDescriptor = new()
+                {
+                    Entries = nativeEntries,
+                    EntryCount = (uint)entries.Length,
+                    Name = ptrName,
+                };
 
-            uint status = AlcoGpuNative.BindGroupLayoutCreate(device.Native, in nativeDescriptor, out _native);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+                uint status = AlcoGpuNative.BindGroupLayoutCreate(device.Native, in nativeDescriptor, out _native);
+                AlcoGpuMarshal.ThrowIfFailed(status);
+            }
         }
-
-        Free(nativeEntries);
+        finally
+        {
+            Free(nativeEntries);
+        }
 
         _bindings = new BindGroupEntry[entries.Length];
         Array.Copy(entries, _bindings, entries.Length);

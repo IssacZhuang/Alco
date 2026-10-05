@@ -229,7 +229,7 @@ public sealed class TestGpuTrailSystem3D
     public unsafe void RingRendersContinuousLiveWindow(int writtenPoints, bool offsetSlice)
     {
         using var deviceHost = new DeviceHost();
-        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
+        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.Auto));
         using var host = CreateHost(device);
         RenderingSystem rendering = host.RenderingSystem;
 
@@ -299,7 +299,7 @@ public sealed class TestGpuTrailSystem3D
     public unsafe void FadeEnvelopeRendersSmoothEndpoints(float age, float fadeIn, float fadeOut, int expectedAlpha)
     {
         using var deviceHost = new DeviceHost();
-        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
+        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.Auto));
         using var host = CreateHost(device);
         RenderingSystem rendering = host.RenderingSystem;
         Vector3 cameraPosition = new(0f, 0f, -5f);

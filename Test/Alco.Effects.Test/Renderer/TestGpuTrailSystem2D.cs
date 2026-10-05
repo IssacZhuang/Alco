@@ -229,7 +229,7 @@ public sealed class TestGpuTrailSystem2D
     public unsafe void RingRendersContinuousLiveWindow(int writtenPoints, bool offsetSlice)
     {
         using var deviceHost = new DeviceHost();
-        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
+        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.Auto));
         using var host = CreateHost(device);
         RenderingSystem rendering = host.RenderingSystem;
         using var camera = rendering.CreateGraphicsValueBuffer(Matrix4x4.Identity, "trail_test_camera");
@@ -286,7 +286,7 @@ public sealed class TestGpuTrailSystem2D
     public unsafe void FadeEnvelopeRendersSmoothEndpoints(float age, float fadeIn, float fadeOut, int expectedAlpha)
     {
         using var deviceHost = new DeviceHost();
-        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
+        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.Auto));
         using var host = CreateHost(device);
         RenderingSystem rendering = host.RenderingSystem;
         using var camera = rendering.CreateGraphicsValueBuffer(Matrix4x4.Identity, "trail_fade_camera");

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using Alco.Graphics.AlcoGpu;
@@ -35,7 +36,7 @@ public sealed class AlcoGpuIntegrationTests
         public void LogSuccess(ReadOnlySpan<char> message) { }
     }
 
-    private static AlcoGpuDevice CreateDevice(Host host, GraphicsBackend backend = GraphicsBackend.WGPUVulkan)
+    private static AlcoGpuDevice CreateDevice(Host host, GraphicsBackend backend = GraphicsBackend.Auto)
     {
         return new AlcoGpuDevice(new DeviceDescriptor(host, backend));
     }
@@ -60,12 +61,18 @@ public sealed class AlcoGpuIntegrationTests
         """;
 
     /// <summary>Renders a fullscreen WGSL triangle and validates the read-back pixels.</summary>
-    [Test]
-    public unsafe void RenderQuadAndReadbackMatchesExpectedPixels()
+    /// <param name="backend">The requested graphics backend.</param>
+    [TestCase(GraphicsBackend.Auto)]
+    [TestCase(GraphicsBackend.WGPUDx12)]
+    public unsafe void RenderQuadAndReadbackMatchesExpectedPixels(GraphicsBackend backend)
     {
+        if (backend == GraphicsBackend.WGPUDx12 && !OperatingSystem.IsWindows())
+        {
+            Assert.Ignore("Direct3D 12 requires Windows.");
+        }
         const uint size = 64;
         using var host = new Host();
-        AlcoGpuDevice device = CreateDevice(host);
+        AlcoGpuDevice device = CreateDevice(host, backend);
 
         byte[] code = Encoding.UTF8.GetBytes(FullscreenTriangleWgsl);
         var vertexModule = new ShaderModule(ShaderStage.Vertex, ShaderLanguage.WGSL, code, "vs_main");
@@ -333,6 +340,112 @@ public sealed class AlcoGpuIntegrationTests
             }
         }
 
+    }
+
+    /// <summary>Creates empty binding layouts and resource groups through the managed API.</summary>
+    [Test]
+    public void EmptyManagedResourceGroupsCanBeCreated()
+    {
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host);
+        using GPUBindGroup layout = device.CreateBindGroup(new BindGroupDescriptor([]));
+        using GPUResourceGroup resources = device.CreateResourceGroup(new ResourceGroupDescriptor(layout, []));
+    }
+
+    /// <summary>Reconfigures an acquired swapchain before presentation and renders subsequent frames.</summary>
+    /// <param name="backend">The requested Windows graphics backend.</param>
+    [TestCase(GraphicsBackend.WGPUVulkan)]
+    [TestCase(GraphicsBackend.WGPUDx12)]
+    [Platform("Win")]
+    public void SwapchainResizeAndVSyncRecoverUnpresentedAcquisitions(GraphicsBackend backend)
+    {
+        using var window = new HiddenWindow();
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host, backend);
+        using GPUSwapchain swapchain = device.CreateSwapchain(new SwapchainDescriptor(
+            SurfaceSource.CreateWin32Window(window.Handle, window.Instance), device.PreferredSurfaceFormat,
+            PixelFormat.Depth32Float, 64, 64, true));
+        using GPUCommandBuffer commands = device.CreateCommandBuffer();
+
+        for (int iteration = 0; iteration < 24; iteration++)
+        {
+            Acquire(swapchain);
+            uint width = (uint)(80 + iteration % 3 * 16);
+            uint height = (uint)(80 + iteration % 2 * 16);
+            window.Resize(width, height);
+            swapchain.Resize(width, height);
+            bool vsync = iteration % 2 != 0;
+            swapchain.IsVSyncEnabled = vsync;
+            Assert.That(swapchain.IsVSyncEnabled, Is.EqualTo(vsync));
+            Acquire(swapchain);
+            Assert.That(swapchain.FrameBuffer.Width, Is.EqualTo(width));
+            Assert.That(swapchain.FrameBuffer.Height, Is.EqualTo(height));
+
+            commands.Begin();
+            using (commands.BeginRender(swapchain.FrameBuffer)) { }
+            commands.End();
+            device.Submit(commands);
+            swapchain.Present();
+            host.EndFrame();
+        }
+        swapchain.Destroy();
+        host.EndFrame();
+        host.EndFrame();
+    }
+
+    private static void Acquire(GPUSwapchain swapchain)
+    {
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            if (swapchain.RequestSurfaceTexture())
+            {
+                return;
+            }
+            Thread.Sleep(10);
+        }
+        Assert.Fail("The swapchain did not acquire a usable surface texture.");
+    }
+
+    private sealed class HiddenWindow : IDisposable
+    {
+        /// <summary>Gets the application module that owns the native window.</summary>
+        public IntPtr Instance { get; } = GetModuleHandleW(null);
+        /// <summary>Gets the hidden native window handle.</summary>
+        public IntPtr Handle { get; }
+
+        /// <summary>Creates a hidden window for surface lifecycle verification.</summary>
+        public HiddenWindow()
+        {
+            Handle = CreateWindowExW(0, "STATIC", "alco-gpu regression", 0x00CF0000,
+                0, 0, 64, 64, IntPtr.Zero, IntPtr.Zero, Instance, IntPtr.Zero);
+            Assert.That(Handle, Is.Not.EqualTo(IntPtr.Zero), $"CreateWindowExW failed: {Marshal.GetLastWin32Error()}");
+        }
+
+        /// <summary>Changes the native window dimensions without activating it.</summary>
+        public void Resize(uint width, uint height)
+        {
+            Assert.That(SetWindowPos(Handle, IntPtr.Zero, 0, 0, (int)width, (int)height, 0x0014),
+                Is.True, $"SetWindowPos failed: {Marshal.GetLastWin32Error()}");
+        }
+
+        /// <inheritdoc />
+        public void Dispose() => DestroyWindow(Handle);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        private static extern IntPtr GetModuleHandleW(string? moduleName);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern IntPtr CreateWindowExW(uint extendedStyle, string className, string title,
+            uint style, int x, int y, int width, int height, IntPtr parent, IntPtr menu, IntPtr instance, IntPtr parameter);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y,
+            int width, int height, uint flags);
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyWindow(IntPtr window);
     }
 
     private static unsafe void UploadRepeatedly(GPUDevice device, GPUTexture[] textures,

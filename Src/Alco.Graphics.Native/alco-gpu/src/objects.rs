@@ -30,16 +30,26 @@ pub(crate) struct BufferObj {
     pub map_completion: Option<Arc<MapCompletion>>,
 }
 
+/// Core texture registration and the metadata reported through the ABI.
 pub(crate) struct TextureObj {
+    /// Core texture identity.
     pub id: wgc::id::TextureId,
+    /// Texture width in texels.
     pub width: u32,
+    /// Texture height in texels.
     pub height: u32,
+    /// Texture depth or array-layer count.
     pub depth_or_array_layers: u32,
+    /// Number of mip levels.
     pub mip_level_count: u32,
+    /// C# pixel-format value.
     pub format: u32,
     /// True when this texture is an acquired surface texture: it must be
     /// released (never destroyed) — matching the old backend's contract.
     pub is_surface_texture: bool,
+    /// Parent surface handle for acquired textures; absent for regular textures.
+    /// Its generation prevents a stale texture from discarding a replacement surface.
+    pub surface: Option<AlcoHandle>,
 }
 
 pub(crate) struct TextureViewObj {
@@ -66,6 +76,8 @@ pub(crate) struct QuerySetObj {
     pub id: wgc::id::QuerySetId,
 }
 
+/// Per-device handle tables for resource objects.
+#[derive(Default)]
 pub(crate) struct ObjectTables {
     pub buffers: HandleTable<BufferObj>,
     pub textures: HandleTable<TextureObj>,
@@ -76,22 +88,6 @@ pub(crate) struct ObjectTables {
     pub bind_groups: HandleTable<BindGroupObj>,
     pub query_sets: HandleTable<QuerySetObj>,
     pub pipelines: HandleTable<crate::pipeline::PipelineObj>,
-}
-
-impl Default for ObjectTables {
-    fn default() -> Self {
-        Self {
-            buffers: HandleTable::new(),
-            textures: HandleTable::new(),
-            views: HandleTable::new(),
-            samplers: HandleTable::new(),
-            shader_modules: HandleTable::new(),
-            bind_group_layouts: HandleTable::new(),
-            bind_groups: HandleTable::new(),
-            query_sets: HandleTable::new(),
-            pipelines: HandleTable::new(),
-        }
-    }
 }
 
 macro_rules! table_accessors {
@@ -592,6 +588,7 @@ pub unsafe extern "C" fn alco_texture_create(
                     mip_level_count: desc.mip_level_count,
                     format: desc.format,
                     is_surface_texture: false,
+                    surface: None,
                 });
                 (AlcoStatus::OK, handle)
             })
@@ -616,25 +613,32 @@ pub unsafe extern "C" fn alco_texture_destroy(
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
-            .with(device, |ctx| match ctx.textures().remove(texture) {
-                Ok(obj) if obj.is_surface_texture => {
-                    set_error(
-                        AlcoStatus::INVALID_ARGUMENT,
-                        "surface textures must be released, not destroyed",
-                    );
-                    // Re-insert so the surface release path can still find it.
-                    let handle = ctx.textures().insert(obj);
-                    let _ = handle;
-                    AlcoStatus::INVALID_ARGUMENT
+            .with(device, |ctx| {
+                // Reject the wrong lifecycle operation without consuming the handle.
+                match ctx.textures().with(texture, |obj| obj.is_surface_texture) {
+                    Ok(true) => {
+                        set_error(
+                            AlcoStatus::INVALID_ARGUMENT,
+                            "surface textures must be released, not destroyed",
+                        );
+                        return AlcoStatus::INVALID_ARGUMENT;
+                    }
+                    Ok(false) => {}
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
+                        return AlcoStatus::INVALID_HANDLE;
+                    }
                 }
-                Ok(obj) => {
-                    ctx.global.texture_destroy(obj.id);
-                    ctx.global.texture_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
-                    AlcoStatus::INVALID_HANDLE
+                match ctx.textures().remove(texture) {
+                    Ok(obj) => {
+                        ctx.global.texture_destroy(obj.id);
+                        ctx.global.texture_drop(obj.id);
+                        AlcoStatus::OK
+                    }
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
+                        AlcoStatus::INVALID_HANDLE
+                    }
                 }
             })
             .unwrap_or_else(|s| {
@@ -1027,7 +1031,7 @@ pub unsafe extern "C" fn alco_shader_module_create(
                     };
 
                 if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
+                    set_error_from(AlcoStatus::VALIDATION, e.as_ref());
                     ctx.global.shader_module_drop(id);
                     return AlcoStatus::VALIDATION;
                 }
@@ -1156,7 +1160,12 @@ fn bind_group_layout_entry(
     })
 }
 
-/// ABI: creates a bind group layout (the C# GPUBindGroup object).
+/// ABI: creates a bind group layout (the C# GPUBindGroup object), including
+/// a valid empty layout when `entry_count` is zero.
+///
+/// # Safety
+/// `desc` and `out` must be valid pointers. For a positive entry count,
+/// `entries` must point to that many initialized layout entries.
 #[no_mangle]
 pub unsafe extern "C" fn alco_bind_group_layout_create(
     device: AlcoHandle,
@@ -1165,15 +1174,19 @@ pub unsafe extern "C" fn alco_bind_group_layout_create(
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
-            Some(d) if !out.is_null() && !d.entries.is_null() && d.entry_count > 0 => d,
+            Some(d) if !out.is_null() && (d.entry_count == 0 || !d.entries.is_null()) => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor, out pointer or empty entries");
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor, out pointer or nonempty entry array");
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
         DEVICES
             .with(device, move |ctx| {
-                let entries = std::slice::from_raw_parts(desc.entries, desc.entry_count as usize);
+                let entries = if desc.entry_count == 0 {
+                    &[][..]
+                } else {
+                    std::slice::from_raw_parts(desc.entries, desc.entry_count as usize)
+                };
                 let mut wentries = Vec::with_capacity(entries.len());
                 for entry in entries {
                     match bind_group_layout_entry(entry) {
@@ -1234,7 +1247,12 @@ pub unsafe extern "C" fn alco_bind_group_layout_destroy(
     })
 }
 
-/// ABI: creates a bind group instance (the C# GPUResourceGroup object).
+/// ABI: creates a bind group instance (the C# GPUResourceGroup object),
+/// allowing zero entries for an empty layout.
+///
+/// # Safety
+/// `desc` and `out` must be valid pointers. For a positive entry count,
+/// `entries` must point to that many initialized binding entries.
 #[no_mangle]
 pub unsafe extern "C" fn alco_bind_group_create(
     device: AlcoHandle,
@@ -1243,9 +1261,9 @@ pub unsafe extern "C" fn alco_bind_group_create(
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
-            Some(d) if !out.is_null() && !d.entries.is_null() && d.entry_count > 0 => d,
+            Some(d) if !out.is_null() && (d.entry_count == 0 || !d.entries.is_null()) => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor, out pointer or empty entries");
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor, out pointer or nonempty entry array");
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
@@ -1258,7 +1276,11 @@ pub unsafe extern "C" fn alco_bind_group_create(
                         return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
                     }
                 };
-                let entries = std::slice::from_raw_parts(desc.entries, desc.entry_count as usize);
+                let entries = if desc.entry_count == 0 {
+                    &[][..]
+                } else {
+                    std::slice::from_raw_parts(desc.entries, desc.entry_count as usize)
+                };
                 let mut wentries = Vec::with_capacity(entries.len());
                 for entry in entries {
                     let resource = match entry.kind {
@@ -1427,4 +1449,67 @@ pub unsafe extern "C" fn alco_query_set_destroy(
                 s
             })
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_support::{last_error, TestDevice};
+    use std::ptr;
+
+    #[test]
+    fn positive_binding_counts_require_non_null_arrays_before_device_lookup() {
+        unsafe {
+            let layout = AlcoBindGroupLayoutDesc {
+                entries: ptr::null(), entry_count: 1, name: ptr::null(),
+            };
+            let group = AlcoBindGroupDesc {
+                layout: AlcoHandle::NULL, entries: ptr::null(), entry_count: 1, name: ptr::null(),
+            };
+            let mut out = AlcoHandle::NULL;
+            assert_eq!(alco_bind_group_layout_create(AlcoHandle::NULL, &layout, &mut out),
+                AlcoStatus::INVALID_ARGUMENT);
+            assert_eq!(alco_bind_group_create(AlcoHandle::NULL, &group, &mut out),
+                AlcoStatus::INVALID_ARGUMENT);
+        }
+    }
+
+    #[test]
+    fn vulkan_empty_bindings_accept_null_and_valid_zero_length_arrays() {
+        let Some(device) = TestDevice::new() else { return };
+        let layout_placeholder = AlcoBindGroupLayoutEntry {
+            binding: 0, visibility: 0, ty: 0, sampler_kind: 0, texture_sample_type: 0,
+            view_dimension: 0, storage_access: 0, storage_format: 0,
+        };
+        let group_placeholder = AlcoBindGroupEntry {
+            binding: 0, resource: AlcoHandle::NULL, offset: 0, size: 0, kind: 0,
+        };
+        unsafe {
+            for entries in [ptr::null(), &layout_placeholder] {
+                let desc = AlcoBindGroupLayoutDesc { entries, entry_count: 0, name: ptr::null() };
+                let mut layout = AlcoHandle::NULL;
+                assert_eq!(alco_bind_group_layout_create(device.handle, &desc, &mut layout),
+                    AlcoStatus::OK, "{}", last_error());
+                assert!(!layout.is_null());
+                for entries in [ptr::null(), &group_placeholder] {
+                    let desc = AlcoBindGroupDesc {
+                        layout, entries, entry_count: 0, name: ptr::null(),
+                    };
+                    let mut group = AlcoHandle::NULL;
+                    assert_eq!(alco_bind_group_create(device.handle, &desc, &mut group),
+                        AlcoStatus::OK, "{}", last_error());
+                    assert!(!group.is_null());
+                    let report = DEVICES.with(device.handle, |ctx|
+                        ctx.global.generate_report().hub.bind_groups).unwrap();
+                    assert_eq!(report.num_allocated, 1);
+                    assert_eq!(report.num_kept_from_user, 1);
+                    assert_eq!(alco_bind_group_destroy(device.handle, group), AlcoStatus::OK);
+                }
+                assert_eq!(alco_bind_group_layout_destroy(device.handle, layout), AlcoStatus::OK);
+            }
+            let report = DEVICES.with(device.handle, |ctx| ctx.global.generate_report().hub).unwrap();
+            assert_eq!(report.bind_groups.num_allocated, 0);
+            assert_eq!(report.bind_group_layouts.num_allocated, 0);
+        }
+    }
 }

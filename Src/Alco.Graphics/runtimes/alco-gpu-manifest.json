@@ -20,16 +20,45 @@
   "binaries": {
     "win-x64": {
       "file": "runtimes/win-x64/native/alco_gpu.dll",
-      "sha256": "26446079e3fed71661cdae554abe7f8a803a8c82e089240178f7e17d65c2b5dc",
-      "builtFrom": "local cargo build --release"
+      "sha256": "b0fcd7425bb18f5e3fdcae40c068f5cd719879aee569a2308ae2fcc9d48c5e1f",
+      "sourceSha256": "e865152f2262eb0e710e3c1852d71527e55b8689198fd8f479f4b55f561748f9",
+      "builtFrom": "local cargo build --release --locked; GPU-01 through GPU-10 repair working tree"
     },
-    "win-arm64": null,
-    "linux-x64": null,
-    "linux-arm64": null,
-    "osx-x64": null,
-    "osx-arm64": null,
-    "android-x64": null,
-    "android-arm64": null
+    "win-arm64": {
+      "file": "runtimes/win-arm64/native/alco_gpu.dll",
+      "sha256": "133f5ad226bf5f071249cb9389c2743d22eb9c6eb0ae31cb2bef8f6763a98b0d",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "linux-x64": {
+      "file": "runtimes/linux-x64/native/libalco_gpu.so",
+      "sha256": "878226a66aaa401cad0febf7aebd623bf4a09e342c47454bca5acfb69ca03a7f",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "linux-arm64": {
+      "file": "runtimes/linux-arm64/native/libalco_gpu.so",
+      "sha256": "1b7d01691d72637c917dfa6be759b0bc8f4ff9ccafe8cb659d1ad213418ce5bf",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "osx-x64": {
+      "file": "runtimes/osx-x64/native/libalco_gpu.dylib",
+      "sha256": "7d6b376545f786ac40b3c562b0357dbcf2c92f8e621a0cc48ff47c6525dba7c3",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "osx-arm64": {
+      "file": "runtimes/osx-arm64/native/libalco_gpu.dylib",
+      "sha256": "6597435de81dd28d2b1eb52acd2b8062ac691f785facef44dc44a72bdd09115d",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "android-x64": {
+      "file": "runtimes/android-x64/native/libalco_gpu.so",
+      "sha256": "b972c30270a0292eab26695cacc4c178df5b56d051a56cbd148d312c41f33d5b",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "android-arm64": {
+      "file": "runtimes/android-arm64/native/libalco_gpu.so",
+      "sha256": "0c952b88972ee5d7d5d5265b02d11eb695d864ae3922890ab174ffca6b102f1a",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    }
   },
-  "note": "Purely provenance metadata; not consumed at build time. All RIDs are built by the 'Native alco-gpu' GitHub Actions workflow (.github/workflows/native-alco-gpu.yml), which opens a PR that fills these entries. Rebuild locally with: cd Src/Alco.Graphics.Native/alco-gpu && cargo build --release, then copy target/release/alco_gpu* into runtimes/<RID>/native/."
+  "note": "Provenance metadata; delivery is validated by the adjacent .source.sha256 sidecar. Only win-x64 has been rebuilt with the review fixes locally. Other entries retain the pre-fix CI-delivered artifacts and will use a source build until refreshed with current source/binary fingerprints. dotnet builds automatically compile missing or stale selected-RID libraries using Cargo --locked --release into obj; see Docs/AlcoGpuAbi.md."
 }

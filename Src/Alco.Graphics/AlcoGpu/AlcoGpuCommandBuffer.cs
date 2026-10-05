@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
@@ -39,6 +40,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
     protected override GPUDevice Device { get; }
 
+    /// <summary>Gets whether a finished native command buffer is available for submission.</summary>
     public override bool HasBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -47,14 +49,32 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
     protected override void Dispose(bool disposing)
     {
-        TryFinishCurrentRenderPass();
-        TryFinishCurrentComputePass();
+        ExceptionDispatchInfo? failure = null;
+        void Cleanup(Action release)
+        {
+            try
+            {
+                release();
+            }
+            catch (Exception error)
+            {
+                // Capture the native message before another cleanup call overwrites it.
+                failure ??= ExceptionDispatchInfo.Capture(error);
+            }
+        }
 
-        ReleaseCommandBuffer();
-        ReleaseCommandEncoder();
+        Cleanup(TryFinishCurrentRenderPass);
+        Cleanup(TryFinishCurrentComputePass);
+        Cleanup(ReleaseCommandBuffer);
+        Cleanup(ReleaseCommandEncoder);
 
         InteropUtility.Free(_nativeName);
         _colorAttachmentsCache.Dispose();
+        _depthStencilAttachmentCache = null;
+        _graphicsPipeline = AlcoHandle.Null;
+        _computePipeline = AlcoHandle.Null;
+        _isRecording = _isRecordingRender = _isRecordingCompute = false;
+        failure?.Throw();
     }
 
     /// <summary>Begins the native command encoder used for recording.</summary>
@@ -70,17 +90,22 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     /// <summary>Ends the native command encoder and finishes the command buffer.</summary>
     protected unsafe override void EndCore()
     {
-        TryFinishCurrentComputePass();
-        TryFinishCurrentRenderPass();
+        try
+        {
+            TryFinishCurrentComputePass();
+            TryFinishCurrentRenderPass();
 
-        uint status = AlcoGpuNative.EncoderFinish(_device.Native, _encoder, out _buffer);
-        AlcoGpuMarshal.ThrowIfFailed(status);
-        _encoder = AlcoHandle.Null;
-
-        _graphicsPipeline = AlcoHandle.Null;
-        _computePipeline = AlcoHandle.Null;
-
-        _depthStencilAttachmentCache = null;
+            uint status = AlcoGpuNative.EncoderFinish(_device.Native, _encoder, out _buffer);
+            // Finish consumes the encoder on success and validation failure alike.
+            _encoder = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
+        }
+        finally
+        {
+            _graphicsPipeline = AlcoHandle.Null;
+            _computePipeline = AlcoHandle.Null;
+            _depthStencilAttachmentCache = null;
+        }
     }
 
     protected override void BeginRenderCore(
@@ -174,44 +199,53 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         if (tmpDescriptor.DepthStencil != null)
         {
             AlcoDepthStencilAttachment attachment = *tmpDescriptor.DepthStencil;
+            AlcoDepthAttachmentInfo depthInfo = ((AlcoGpuAttachmentLayout)frameBuffer.AttachmentLayout).DepthInfo!.Value;
             bool depthReadOnly = attachment.DepthLoadOp == AlcoGpuAbi.AlcoNone;
             bool stencilReadOnly = attachment.StencilLoadOp == AlcoGpuAbi.AlcoNone;
 
-            if (depthReadOnly && (clearDepth.HasValue || depthOps.HasValue))
+            // Missing aspects are not user-declared read-only channels. Ignore their
+            // clear values and never synthesize operations for them from depthOps.
+            if (depthInfo.HasDepth && depthReadOnly && (clearDepth.HasValue || depthOps.HasValue))
             {
                 throw new InvalidOperationException(
                     "The pass's depth attachment is read-only (the attachment layout declares " +
                     "DepthAttachment.ReadOnly): it cannot be cleared or have explicit load/store ops.");
             }
-            if (stencilReadOnly && (clearStencil.HasValue || depthOps.HasValue))
+            if (depthInfo.HasStencil && stencilReadOnly && (clearStencil.HasValue || depthOps.HasValue))
             {
                 throw new InvalidOperationException(
                     "The pass's stencil attachment is read-only (the attachment layout declares " +
                     "DepthAttachment.ReadOnly): it cannot be cleared or have explicit load/store ops.");
             }
 
-            if (clearDepth.HasValue)
+            if (depthInfo.HasDepth)
             {
-                attachment.DepthLoadOp = AlcoGpuUtility.LoadOpToAbi(AttachmentLoadOp.Clear);
-                attachment.DepthStoreOp = 0; // store
-                attachment.DepthClear = clearDepth.Value;
-            }
-            else if (depthOps.HasValue)
-            {
-                attachment.DepthLoadOp = AlcoGpuUtility.LoadOpToAbi(depthOps.Value.LoadOp);
-                attachment.DepthStoreOp = AlcoGpuUtility.StoreOpToAbi(depthOps.Value.StoreOp);
+                if (clearDepth.HasValue)
+                {
+                    attachment.DepthLoadOp = AlcoGpuUtility.LoadOpToAbi(AttachmentLoadOp.Clear);
+                    attachment.DepthStoreOp = 0; // store
+                    attachment.DepthClear = clearDepth.Value;
+                }
+                else if (depthOps.HasValue)
+                {
+                    attachment.DepthLoadOp = AlcoGpuUtility.LoadOpToAbi(depthOps.Value.LoadOp);
+                    attachment.DepthStoreOp = AlcoGpuUtility.StoreOpToAbi(depthOps.Value.StoreOp);
+                }
             }
 
-            if (clearStencil.HasValue)
+            if (depthInfo.HasStencil)
             {
-                attachment.StencilLoadOp = AlcoGpuUtility.LoadOpToAbi(AttachmentLoadOp.Clear);
-                attachment.StencilStoreOp = 0; // store
-                attachment.StencilClear = clearStencil.Value;
-            }
-            else if (depthOps.HasValue)
-            {
-                attachment.StencilLoadOp = AlcoGpuUtility.LoadOpToAbi(depthOps.Value.LoadOp);
-                attachment.StencilStoreOp = AlcoGpuUtility.StoreOpToAbi(depthOps.Value.StoreOp);
+                if (clearStencil.HasValue)
+                {
+                    attachment.StencilLoadOp = AlcoGpuUtility.LoadOpToAbi(AttachmentLoadOp.Clear);
+                    attachment.StencilStoreOp = 0; // store
+                    attachment.StencilClear = clearStencil.Value;
+                }
+                else if (depthOps.HasValue)
+                {
+                    attachment.StencilLoadOp = AlcoGpuUtility.LoadOpToAbi(depthOps.Value.LoadOp);
+                    attachment.StencilStoreOp = AlcoGpuUtility.StoreOpToAbi(depthOps.Value.StoreOp);
+                }
             }
 
             _depthStencilAttachmentCache = attachment;
@@ -246,8 +280,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         if (!_renderPass.IsNull)
         {
             uint status = AlcoGpuNative.RenderPassEnd(_device.Native, _renderPass);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _renderPass = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -291,8 +325,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         if (!_computePass.IsNull)
         {
             uint status = AlcoGpuNative.ComputePassEnd(_device.Native, _computePass);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _computePass = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -577,8 +611,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         if (!_encoder.IsNull)
         {
             uint status = AlcoGpuNative.EncoderDestroy(_device.Native, _encoder);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _encoder = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -587,8 +621,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         if (!_buffer.IsNull)
         {
             uint status = AlcoGpuNative.CommandBufferDestroy(_device.Native, _buffer);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _buffer = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -598,8 +632,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         if (!_renderPass.IsNull)
         {
             uint status = AlcoGpuNative.RenderPassEnd(_device.Native, _renderPass);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _renderPass = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -609,8 +643,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         if (!_computePass.IsNull)
         {
             uint status = AlcoGpuNative.ComputePassEnd(_device.Native, _computePass);
-            AlcoGpuMarshal.ThrowIfFailed(status);
             _computePass = AlcoHandle.Null;
+            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 

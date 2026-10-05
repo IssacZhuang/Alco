@@ -14,14 +14,20 @@ use std::ffi::c_char;
 use wgpu_core as wgc;
 use wgpu_types as wgt;
 
+/// Core surface registration, configuration, and outstanding acquisition.
 pub(crate) struct SurfaceObj {
+    /// Core surface identity.
     pub id: wgc::id::SurfaceId,
-    /// Last configured format/size. wgpu-core builds every acquired surface
+    /// Last configured format. wgpu-core builds every acquired surface
     /// texture's descriptor from the configuration, so these values are the
     /// authoritative texture info reported through `alco_texture_get_info`.
     pub format: u32,
+    /// Last configured width in texels.
     pub width: u32,
+    /// Last configured height in texels.
     pub height: u32,
+    /// Current unpresented texture, distinct from older unreleased handles.
+    pub acquired_texture: Option<wgc::id::TextureId>,
 }
 
 /// C# `SurfaceSource` discriminant (mirrors `SurfaceHandle.cs`).
@@ -42,44 +48,62 @@ pub mod surface_tag {
 
 /// C# acquire-status codes (wgpu-native compatible).
 pub mod acquire_status {
+    /// A usable texture with an optimal surface configuration.
     pub const SUCCESS_OPTIMAL: u32 = 0;
+    /// A usable texture whose surface configuration may need updating.
     pub const SUCCESS_SUBOPTIMAL: u32 = 1;
+    /// Acquisition timed out or the window was occluded.
     pub const TIMEOUT: u32 = 2;
+    /// The surface configuration is outdated.
     pub const OUTDATED: u32 = 3;
+    /// The surface was lost.
     pub const LOST: u32 = 4;
+    /// Acquisition failed validation.
     pub const ERROR: u32 = 5;
 }
 
+/// Raw platform handles used to create a surface through the C ABI.
 #[repr(C)]
 pub struct AlcoSurfaceDesc {
+    /// Platform discriminant from `surface_tag`.
     pub tag: u32,
     /// hwnd / CAMetalLayer* / wl_surface* / xcb window / Xlib window / ANativeWindow*.
     pub handle: u64,
     /// Win32 HINSTANCE (0 = none) / wl_display* / xcb connection* / Xlib Display*.
     pub display: u64,
+    /// Optional NUL-terminated UTF-8 debug label.
     pub name: *const c_char,
 }
 
+/// Supported surface formats and present modes returned through the C ABI.
 #[repr(C)]
 pub struct AlcoSurfaceCaps {
+    /// Supported C# pixel-format values, limited to `format_count` entries.
     pub formats: [u32; 64],
+    /// Number of initialized entries in `formats`.
     pub format_count: u32,
     /// C# present modes: 0 Fifo, 1 Immediate, 2 Mailbox.
     pub present_modes: [u32; 8],
+    /// Number of initialized entries in `present_modes`.
     pub present_mode_count: u32,
 }
 
+/// Swapchain configuration accepted by the C ABI.
 #[repr(C)]
 pub struct AlcoSurfaceConfig {
     /// C# `TextureUsage` bits (RenderAttachment and optionally TextureBinding).
     pub usage: u32,
+    /// C# pixel-format value.
     pub format: u32,
+    /// Requested texture width in texels, clamped to at least one.
     pub width: u32,
+    /// Requested texture height in texels, clamped to at least one.
     pub height: u32,
     /// C# `PresentMode`: 0 Fifo, 1 Immediate, 2 Mailbox.
     pub present_mode: u32,
     /// C# `CompositeAlphaMode`.
     pub alpha_mode: u32,
+    /// Desired maximum number of frames in flight, clamped to at least one.
     pub desired_frame_latency: u32,
 }
 
@@ -100,7 +124,10 @@ fn alco_present_mode(v: u32) -> Result<wgt::PresentMode, AlcoStatus> {
         1 => wgt::PresentMode::Immediate,
         2 => wgt::PresentMode::Mailbox,
         other => {
-            set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid present mode {other}"));
+            set_error(
+                AlcoStatus::INVALID_ARGUMENT,
+                format!("invalid present mode {other}"),
+            );
             return Err(AlcoStatus::INVALID_ARGUMENT);
         }
     })
@@ -114,13 +141,20 @@ fn alco_alpha_mode(v: u32) -> Result<wgt::CompositeAlphaMode, AlcoStatus> {
         3 => wgt::CompositeAlphaMode::PostMultiplied,
         4 => wgt::CompositeAlphaMode::Inherit,
         other => {
-            set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid alpha mode {other}"));
+            set_error(
+                AlcoStatus::INVALID_ARGUMENT,
+                format!("invalid alpha mode {other}"),
+            );
             return Err(AlcoStatus::INVALID_ARGUMENT);
         }
     })
 }
 
 /// ABI: creates a surface from raw platform handles.
+///
+/// # Safety
+/// `desc` and `out` must be valid pointers. Platform handles must remain valid
+/// until the surface is destroyed.
 #[no_mangle]
 pub unsafe extern "C" fn alco_surface_create(
     device: AlcoHandle,
@@ -131,7 +165,10 @@ pub unsafe extern "C" fn alco_surface_create(
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor or out pointer");
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    "null descriptor or out pointer",
+                );
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
@@ -179,9 +216,9 @@ pub unsafe extern "C" fn alco_surface_create(
                                 Some(rwh::RawDisplayHandle::Wayland(
                                     rwh::WaylandDisplayHandle::new(display),
                                 )),
-                                rwh::RawWindowHandle::Wayland(
-                                    rwh::WaylandWindowHandle::new(surface),
-                                ),
+                                rwh::RawWindowHandle::Wayland(rwh::WaylandWindowHandle::new(
+                                    surface,
+                                )),
                                 None,
                             )
                             .map_err(|e| {
@@ -190,10 +227,11 @@ pub unsafe extern "C" fn alco_surface_create(
                             })
                     }
                     surface_tag::XCB => {
-                        let window = std::num::NonZeroU32::new(desc.handle as u32).ok_or_else(|| {
-                            set_error(AlcoStatus::INVALID_ARGUMENT, "zero xcb window");
-                            AlcoStatus::INVALID_ARGUMENT
-                        })?;
+                        let window =
+                            std::num::NonZeroU32::new(desc.handle as u32).ok_or_else(|| {
+                                set_error(AlcoStatus::INVALID_ARGUMENT, "zero xcb window");
+                                AlcoStatus::INVALID_ARGUMENT
+                            })?;
                         let connection = handle_ptr(desc.display).ok_or_else(|| {
                             set_error(AlcoStatus::INVALID_ARGUMENT, "null xcb connection");
                             AlcoStatus::INVALID_ARGUMENT
@@ -243,9 +281,9 @@ pub unsafe extern "C" fn alco_surface_create(
                                 Some(rwh::RawDisplayHandle::Android(
                                     rwh::AndroidDisplayHandle::new(),
                                 )),
-                                rwh::RawWindowHandle::AndroidNdk(
-                                    rwh::AndroidNdkWindowHandle::new(window),
-                                ),
+                                rwh::RawWindowHandle::AndroidNdk(rwh::AndroidNdkWindowHandle::new(
+                                    window,
+                                )),
                                 None,
                             )
                             .map_err(|e| {
@@ -279,7 +317,10 @@ pub unsafe extern "C" fn alco_surface_create(
                         }
                     }
                     other => {
-                        set_error(AlcoStatus::INVALID_ARGUMENT, format!("unsupported surface tag {other}"));
+                        set_error(
+                            AlcoStatus::INVALID_ARGUMENT,
+                            format!("unsupported surface tag {other}"),
+                        );
                         Err(AlcoStatus::INVALID_ARGUMENT)
                     }
                 })();
@@ -291,6 +332,7 @@ pub unsafe extern "C" fn alco_surface_create(
                             format: 0,
                             width: 0,
                             height: 0,
+                            acquired_texture: None,
                         });
                         (AlcoStatus::OK, Some(handle))
                     }
@@ -313,6 +355,9 @@ pub unsafe extern "C" fn alco_surface_create(
 }
 
 /// ABI: fills supported formats and present modes for the device's adapter.
+///
+/// # Safety
+/// `out` must point to writable storage for an `AlcoSurfaceCaps` value.
 #[no_mangle]
 pub unsafe extern "C" fn alco_surface_get_capabilities(
     device: AlcoHandle,
@@ -366,6 +411,9 @@ pub unsafe extern "C" fn alco_surface_get_capabilities(
 }
 
 /// ABI: (re)configures the surface's swapchain.
+///
+/// # Safety
+/// `config` must point to an initialized `AlcoSurfaceConfig` value.
 #[no_mangle]
 pub unsafe extern "C" fn alco_surface_configure(
     device: AlcoHandle,
@@ -442,6 +490,9 @@ pub unsafe extern "C" fn alco_surface_configure(
 /// an `acquire_status` code. On a non-success status the texture handle is
 /// null and no error is recorded — the caller decides whether to skip or
 /// reconfigure, matching the old backend.
+///
+/// # Safety
+/// `out_texture` and `out_status` must point to writable output storage.
 #[no_mangle]
 pub unsafe extern "C" fn alco_surface_get_current_texture(
     device: AlcoHandle,
@@ -489,6 +540,10 @@ pub unsafe extern "C" fn alco_surface_get_current_texture(
                                     mip_level_count: 1,
                                     format,
                                     is_surface_texture: true,
+                                    surface: Some(surface),
+                                });
+                                let _ = ctx.surfaces().with(surface, |obj| {
+                                    obj.acquired_texture = Some(texture_id);
                                 });
                                 *out_texture = handle;
                                 AlcoStatus::OK
@@ -515,6 +570,9 @@ pub unsafe extern "C" fn alco_surface_get_current_texture(
 }
 
 /// ABI: presents the current surface texture.
+///
+/// # Safety
+/// `out_status`, when non-null, must point to writable storage for a status code.
 #[no_mangle]
 pub unsafe extern "C" fn alco_surface_present(
     device: AlcoHandle,
@@ -533,12 +591,19 @@ pub unsafe extern "C" fn alco_surface_present(
                 };
                 match ctx.global.surface_present(surface_id) {
                     Ok(status) => {
+                        // Core consumes the acquisition even for a non-Good status.
+                        // Older texture handles may remain alive until their release.
+                        let _ = ctx.surfaces().with(surface, |obj| {
+                            obj.acquired_texture = None;
+                        });
                         if !out_status.is_null() {
                             *out_status = status_to_alco(status);
                         }
                         AlcoStatus::OK
                     }
                     Err(e) => {
+                        // Some core errors occur before taking the acquisition;
+                        // leave it available for the release path to clean up.
                         set_error_from(AlcoStatus::VALIDATION, &e);
                         AlcoStatus::VALIDATION
                     }
@@ -551,8 +616,9 @@ pub unsafe extern "C" fn alco_surface_present(
     })
 }
 
-/// ABI: releases (drops) the acquired surface texture handle. Surface
-/// textures must never go through `alco_texture_destroy`.
+/// ABI: releases an acquired surface texture, discarding it first if it has
+/// not been presented. Surface textures must never go through
+/// `alco_texture_destroy`. Rejected regular textures keep their original handle.
 #[no_mangle]
 pub unsafe extern "C" fn alco_texture_release(
     device: AlcoHandle,
@@ -560,24 +626,65 @@ pub unsafe extern "C" fn alco_texture_release(
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
-            .with(device, |ctx| match ctx.textures().remove(texture) {
-                Ok(obj) if obj.is_surface_texture => {
-                    ctx.global.texture_drop(obj.id);
-                    AlcoStatus::OK
+            .with(device, |ctx| {
+                // Validate before removing: rejection must not bump the generation
+                // or replace a regular texture's caller-visible handle.
+                let (texture_id, surface) = match ctx
+                    .textures()
+                    .with(texture, |obj| (obj.id, obj.is_surface_texture, obj.surface))
+                {
+                    Ok((id, true, surface)) => (id, surface),
+                    Ok((_, false, _)) => {
+                        set_error(
+                            AlcoStatus::INVALID_ARGUMENT,
+                            "texture is not a surface texture; use alco_texture_destroy",
+                        );
+                        return AlcoStatus::INVALID_ARGUMENT;
+                    }
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
+                        return AlcoStatus::INVALID_HANDLE;
+                    }
+                };
+                if let Some(surface) = surface {
+                    let status = ctx
+                        .surfaces()
+                        .with(surface, |obj| {
+                            if obj.acquired_texture != Some(texture_id) {
+                                // Already presented, or a later frame is now acquired.
+                                return AlcoStatus::OK;
+                            }
+                            match ctx.global.surface_texture_discard(obj.id) {
+                                Ok(())
+                                | Err(wgc::present::SurfaceError::NothingToPresent)
+                                | Err(wgc::present::SurfaceError::NotConfigured) => {
+                                    // Present can fail after taking the texture, and a
+                                    // rejected core reconfigure can remove presentation.
+                                    // Either case has already ended the acquisition.
+                                    obj.acquired_texture = None;
+                                    AlcoStatus::OK
+                                }
+                                Err(e) => {
+                                    // Keep the handle available when discard fails.
+                                    set_error_from(AlcoStatus::VALIDATION, &e);
+                                    AlcoStatus::VALIDATION
+                                }
+                            }
+                        })
+                        .unwrap_or(AlcoStatus::OK);
+                    if !status.is_ok() {
+                        return status;
+                    }
                 }
-                Ok(obj) => {
-                    // Regular textures go through the full destroy path.
-                    let handle = ctx.textures().insert(obj);
-                    let _ = handle;
-                    set_error(
-                        AlcoStatus::INVALID_ARGUMENT,
-                        "texture is not a surface texture; use alco_texture_destroy",
-                    );
-                    AlcoStatus::INVALID_ARGUMENT
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
-                    AlcoStatus::INVALID_HANDLE
+                match ctx.textures().remove(texture) {
+                    Ok(obj) => {
+                        ctx.global.texture_drop(obj.id);
+                        AlcoStatus::OK
+                    }
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
+                        AlcoStatus::INVALID_HANDLE
+                    }
                 }
             })
             .unwrap_or_else(|s| {
@@ -589,7 +696,10 @@ pub unsafe extern "C" fn alco_texture_release(
 
 /// ABI: destroys a surface. The surface must not have an acquired texture.
 #[no_mangle]
-pub unsafe extern "C" fn alco_surface_destroy(device: AlcoHandle, surface: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C" fn alco_surface_destroy(
+    device: AlcoHandle,
+    surface: AlcoHandle,
+) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| match ctx.surfaces().remove(surface) {

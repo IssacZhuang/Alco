@@ -41,6 +41,8 @@ pub(crate) struct RenderBundleObj {
     pub id: wgc::id::RenderBundleId,
 }
 
+/// Per-device handle tables for command recording and submission objects.
+#[derive(Default)]
 pub(crate) struct CommandTables {
     pub encoders: HandleTable<EncoderObj>,
     pub command_buffers: HandleTable<CommandBufferObj>,
@@ -48,19 +50,6 @@ pub(crate) struct CommandTables {
     pub compute_passes: HandleTable<ComputePassObj>,
     pub bundle_encoders: HandleTable<BundleEncoderObj>,
     pub render_bundles: HandleTable<RenderBundleObj>,
-}
-
-impl Default for CommandTables {
-    fn default() -> Self {
-        Self {
-            encoders: HandleTable::new(),
-            command_buffers: HandleTable::new(),
-            render_passes: HandleTable::new(),
-            compute_passes: HandleTable::new(),
-            bundle_encoders: HandleTable::new(),
-            render_bundles: HandleTable::new(),
-        }
-    }
 }
 
 impl DeviceCtx {
@@ -511,10 +500,7 @@ fn pass_channel(
     let store = if read_only {
         None
     } else {
-        Some(match store_op(store) {
-            Ok(op) => op,
-            Err(status) => return Err(status),
-        })
+        Some(store_op(store)?)
     };
     Ok(wgc::command::PassChannel {
         load_op: load,
@@ -545,10 +531,7 @@ fn pass_channel_u32(
     let store = if read_only {
         None
     } else {
-        Some(match store_op(store) {
-            Ok(op) => op,
-            Err(status) => return Err(status),
-        })
+        Some(store_op(store)?)
     };
     Ok(wgc::command::PassChannel {
         load_op: load,
@@ -617,7 +600,7 @@ macro_rules! render_pass_fn {
 }
 
 fn record_result(
-    result: Result<(), impl std::fmt::Display>,
+    result: Result<(), impl std::error::Error>,
 ) -> Result<(), AlcoStatus> {
     match result {
         Ok(()) => Ok(()),
@@ -1421,8 +1404,12 @@ pub unsafe extern "C" fn alco_queue_write_texture(
     })
 }
 
-/// ABI: submits a command buffer. The handle is consumed; `out_index`
-/// receives the submission index usable with `alco_device_poll`.
+/// ABI: submits a command buffer. Both the handle and core registration are
+/// consumed on success or failure; `out_index` receives the submission index
+/// usable with `alco_device_poll`.
+///
+/// # Safety
+/// `out_index`, if non-null, must point to a writable `u64`.
 #[no_mangle]
 pub unsafe extern "C" fn alco_queue_submit(
     device: AlcoHandle,
@@ -1439,7 +1426,11 @@ pub unsafe extern "C" fn alco_queue_submit(
                         return AlcoStatus::INVALID_HANDLE;
                     }
                 };
-                match ctx.global.queue_submit(ctx.queue_id, &[obj.id]) {
+                let result = ctx.global.queue_submit(ctx.queue_id, &[obj.id]);
+                // Submission consumes command contents, not the core registry entry.
+                // Keep its result/index while releasing the ID on both paths.
+                ctx.global.command_buffer_drop(obj.id);
+                match result {
                     Ok(index) => {
                         if !out_index.is_null() {
                             *out_index = index;
@@ -1803,3 +1794,191 @@ bundle_fn!(
         }
     }
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::device::alco_device_poll;
+    use crate::objects::*;
+    use crate::test_support::{last_error, TestDevice};
+    use std::ptr;
+
+    fn registry_counts(device: AlcoHandle) -> (usize, usize, usize) {
+        DEVICES.with(device, |ctx| {
+            let report = ctx.global.generate_report().hub;
+            assert_eq!(report.command_buffers.num_allocated,
+                report.command_buffers.num_kept_from_user);
+            (report.command_buffers.num_allocated,
+                report.command_buffers.num_kept_from_user,
+                report.command_encoders.num_allocated)
+        }).unwrap()
+    }
+
+    unsafe fn encoder(device: AlcoHandle) -> AlcoHandle {
+        let mut handle = AlcoHandle::NULL;
+        assert_eq!(alco_encoder_create(device, ptr::null(), &mut handle), AlcoStatus::OK,
+            "{}", last_error());
+        handle
+    }
+
+    unsafe fn finish(device: AlcoHandle, encoder: AlcoHandle) -> AlcoHandle {
+        let mut handle = AlcoHandle::NULL;
+        assert_eq!(alco_encoder_finish(device, encoder, &mut handle), AlcoStatus::OK,
+            "{}", last_error());
+        handle
+    }
+
+    unsafe fn buffer(device: AlcoHandle, usage: u32) -> AlcoHandle {
+        let desc = AlcoBufferDesc { size: 4, usage, name: ptr::null() };
+        let mut handle = AlcoHandle::NULL;
+        assert_eq!(alco_buffer_create(device, &desc, &mut handle), AlcoStatus::OK,
+            "{}", last_error());
+        handle
+    }
+
+    #[test]
+    fn vulkan_successful_submissions_release_core_registry_entries() {
+        let Some(device) = TestDevice::new() else { return };
+        unsafe {
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            let mut previous_index = 0;
+            for iteration in 0..1024 {
+                let encoder = encoder(device.handle);
+                let command = finish(device.handle, encoder);
+                assert_eq!(registry_counts(device.handle), (1, 1, 0));
+                let mut index = 0;
+                assert_eq!(alco_queue_submit(device.handle, command, &mut index), AlcoStatus::OK,
+                    "{}", last_error());
+                assert!(index > previous_index);
+                previous_index = index;
+                assert_eq!(registry_counts(device.handle), (0, 0, 0));
+                assert_eq!(alco_command_buffer_destroy(device.handle, command),
+                    AlcoStatus::INVALID_HANDLE);
+                if iteration % 64 == 63 {
+                    assert_eq!(alco_device_poll(device.handle, ALCO_TRUE, index, ptr::null_mut()),
+                        AlcoStatus::OK, "{}", last_error());
+                    assert_eq!(registry_counts(device.handle), (0, 0, 0));
+                }
+            }
+            // The optional output pointer must not alter cleanup semantics.
+            let encoder = encoder(device.handle);
+            let command = finish(device.handle, encoder);
+            assert_eq!(alco_queue_submit(device.handle, command, ptr::null_mut()), AlcoStatus::OK);
+            assert_eq!(alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, ptr::null_mut()),
+                AlcoStatus::OK);
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+        }
+    }
+
+    #[test]
+    fn vulkan_failed_submission_consumes_handle_and_core_registry_entry() {
+        let Some(device) = TestDevice::new() else { return };
+        unsafe {
+            // A destroyed resource is detected at submission, after a valid finish.
+            let source = buffer(device.handle, 1 << 2);
+            let destination = buffer(device.handle, 1 << 3);
+            let encoder = encoder(device.handle);
+            assert_eq!(alco_copy_buffer_to_buffer(device.handle, encoder, source, 0,
+                destination, 0, 4), AlcoStatus::OK, "{}", last_error());
+            let command = finish(device.handle, encoder);
+            assert_eq!(registry_counts(device.handle), (1, 1, 0));
+            assert_eq!(alco_buffer_destroy(device.handle, source), AlcoStatus::OK);
+            let mut index = u64::MAX;
+            let status = alco_queue_submit(device.handle, command, &mut index);
+            assert_eq!(status, AlcoStatus::VALIDATION, "{}", last_error());
+            assert!(last_error().contains("destroyed"), "{}", last_error());
+            assert_ne!(index, u64::MAX);
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            assert_eq!(alco_queue_submit(device.handle, command, ptr::null_mut()),
+                AlcoStatus::INVALID_HANDLE);
+            assert_eq!(alco_command_buffer_destroy(device.handle, command),
+                AlcoStatus::INVALID_HANDLE);
+            assert_eq!(alco_buffer_destroy(device.handle, destination), AlcoStatus::OK);
+        }
+    }
+
+    #[test]
+    fn vulkan_pass_errors_preserve_distinct_attachment_root_causes() {
+        let Some(device) = TestDevice::new() else { return };
+        unsafe {
+            let texture_desc = AlcoTextureDesc {
+                dimension: 1, format: 42, usage: 1 << 5, width: 4, height: 4,
+                depth_or_array_layers: 1, mip_level_count: 1, sample_count: 1,
+                name: ptr::null(),
+            };
+            let mut texture = AlcoHandle::NULL;
+            assert_eq!(alco_texture_create(device.handle, &texture_desc, &mut texture),
+                AlcoStatus::OK, "{}", last_error());
+            let mut view = AlcoHandle::NULL;
+            assert_eq!(alco_texture_create_view(device.handle, texture, ptr::null(), &mut view),
+                AlcoStatus::OK, "{}", last_error());
+            let mut messages = Vec::new();
+            for (clear, stencil_load, stencil_store, expected) in [
+                (1.0, 0, 0, "without stencil aspect"),
+                (2.0, ALCO_NONE, ALCO_NONE, "must be between 0.0 and 1.0"),
+            ] {
+                let encoder = encoder(device.handle);
+                let attachment = AlcoDepthStencilAttachment {
+                    view, depth_load_op: 1, depth_store_op: 0, depth_clear: clear,
+                    stencil_load_op: stencil_load, stencil_store_op: stencil_store, stencil_clear: 0,
+                };
+                let pass_desc = AlcoRenderPassDesc {
+                    color_attachments: ptr::null(), color_attachment_count: 0,
+                    depth_stencil: &attachment, timestamp_writes: ptr::null(),
+                };
+                let mut pass = AlcoHandle::NULL;
+                assert_eq!(alco_render_pass_begin(device.handle, encoder, &pass_desc, &mut pass),
+                    AlcoStatus::OK, "{}", last_error());
+                assert_eq!(alco_render_pass_end(device.handle, pass), AlcoStatus::OK);
+                let mut command = AlcoHandle::NULL;
+                assert_eq!(alco_encoder_finish(device.handle, encoder, &mut command),
+                    AlcoStatus::VALIDATION);
+                let message = last_error();
+                assert!(message.contains("In a pass parameter"), "{message}");
+                assert!(message.contains("Caused by:"), "{message}");
+                assert!(message.contains(expected), "{message}");
+                if stencil_load != ALCO_NONE {
+                    assert!(message.contains("Depth32Float"), "{message}");
+                    assert!(message.contains("LoadOp") && message.contains("StoreOp"), "{message}");
+                }
+                messages.push(message);
+                assert!(command.is_null());
+                assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            }
+            assert_ne!(messages[0], messages[1]);
+            assert_eq!(alco_texture_view_destroy(device.handle, view), AlcoStatus::OK);
+            assert_eq!(alco_texture_destroy(device.handle, texture), AlcoStatus::OK);
+        }
+    }
+
+    #[test]
+    fn vulkan_readback_submission_retains_work_without_retaining_registration() {
+        let Some(device) = TestDevice::new() else { return };
+        unsafe {
+            let source = buffer(device.handle, (1 << 2) | (1 << 3));
+            let destination = buffer(device.handle, (1 << 0) | (1 << 3));
+            let bytes = [3, 19, 127, 254];
+            assert_eq!(alco_queue_write_buffer(device.handle, source, 0, bytes.as_ptr(), 4),
+                AlcoStatus::OK);
+            let encoder = encoder(device.handle);
+            assert_eq!(alco_copy_buffer_to_buffer(device.handle, encoder, source, 0,
+                destination, 0, 4), AlcoStatus::OK);
+            let command = finish(device.handle, encoder);
+            let mut index = 0;
+            assert_eq!(alco_queue_submit(device.handle, command, &mut index), AlcoStatus::OK);
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            assert_eq!(alco_buffer_map_read(device.handle, destination, 0, 4), AlcoStatus::OK);
+            assert_eq!(alco_device_poll(device.handle, ALCO_TRUE, index, ptr::null_mut()),
+                AlcoStatus::OK);
+            assert_eq!(alco_buffer_map_poll(device.handle, destination), AlcoStatus::OK);
+            let mut mapped = ptr::null();
+            assert_eq!(alco_buffer_get_mapped_range(device.handle, destination, 0, 4, &mut mapped),
+                AlcoStatus::OK);
+            assert_eq!(std::slice::from_raw_parts(mapped, 4), &bytes);
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            assert_eq!(alco_buffer_unmap(device.handle, destination), AlcoStatus::OK);
+            assert_eq!(alco_buffer_destroy(device.handle, destination), AlcoStatus::OK);
+            assert_eq!(alco_buffer_destroy(device.handle, source), AlcoStatus::OK);
+        }
+    }
+}

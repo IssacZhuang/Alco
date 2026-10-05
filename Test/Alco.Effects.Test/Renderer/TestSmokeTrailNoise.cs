@@ -42,7 +42,7 @@ public sealed class TestSmokeTrailNoise
         public GpuCapture()
         {
             _deviceHost = new DeviceHost();
-            GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(_deviceHost, GraphicsBackend.WGPUVulkan));
+            GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(_deviceHost, GraphicsBackend.Auto));
             _host = CreateHost(device);
             _camera = Rendering.CreateGraphicsValueBuffer(Matrix4x4.Identity, "trail_contract_camera");
         }

@@ -8,7 +8,9 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
 {
     /// <summary>The pre-baked render pass descriptor (attachment views are refreshed per frame).</summary>
     public abstract AlcoRenderPassDesc Native { get; }
+    /// <summary>Gets the native color attachment formats.</summary>
     public abstract ReadOnlySpan<PixelFormat> NativeColorFormats { get; }
+    /// <summary>Gets the native depth-stencil attachment format, if present.</summary>
     public abstract PixelFormat? NativeDepthFormat { get; }
 
     protected AlcoGpuFrameBufferBase(in FrameBufferDescriptor descriptor) : base(descriptor)
@@ -74,8 +76,8 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
     }
 
     /// <summary>
-    /// Allocates and bakes the pass depth-stencil attachment. Read-only channels use the
-    /// ALCO_NONE sentinel so the pass keeps them usable as sampled textures.
+    /// Allocates and bakes the pass depth-stencil attachment. Missing and read-only channels
+    /// use the ALCO_NONE sentinel; only present, writable aspects receive load/store ops.
     /// </summary>
     protected static unsafe AlcoDepthStencilAttachment* AllocDepthAttachment(
         GPUTextureView depthStencilView,

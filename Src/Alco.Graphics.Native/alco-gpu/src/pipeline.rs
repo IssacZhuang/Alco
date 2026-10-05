@@ -299,7 +299,7 @@ pub unsafe extern "C" fn alco_graphics_pipeline_create(
                     let writes_target = i < output_count;
                     targets.push(Some(wgt::ColorTargetState {
                         format,
-                        blend: writes_target.then(|| wgt::BlendState {
+                        blend: writes_target.then_some(wgt::BlendState {
                             color: color_blend,
                             alpha: alpha_blend,
                         }),

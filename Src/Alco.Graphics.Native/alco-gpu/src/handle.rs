@@ -39,16 +39,18 @@ impl<T> Default for HandleTable<T> {
 }
 
 impl<T> HandleTable<T> {
+    /// Inserts an object, reusing a vacant slot without losing the free list.
     pub fn insert(&self, value: T) -> AlcoHandle {
         let mut slots = self.slots.lock().unwrap();
         let mut free = self.free_head.lock().unwrap();
 
         let (index, generation) = match free.take() {
             Some(index) => {
-                let generation = match &slots[index] {
-                    Slot::Vacant { generation, .. } => *generation,
+                let (generation, next) = match &slots[index] {
+                    Slot::Vacant { generation, next } => (*generation, *next),
                     Slot::Occupied { .. } => unreachable!("free-list index must be vacant"),
                 };
+                *free = next;
                 slots[index] = Slot::Occupied { generation, value };
                 (index, generation)
             }
@@ -134,6 +136,56 @@ mod tests {
         assert_ne!(h1.generation(), h2.generation());
         assert_eq!(table.remove(h1).unwrap_err(), AlcoStatus::INVALID_HANDLE);
         assert_eq!(table.remove(h2).unwrap(), 2);
+    }
+
+    #[test]
+    fn batch_reuse_preserves_every_free_slot_and_generation() {
+        const BATCH: usize = 64;
+        let table = HandleTable::new();
+        let mut handles: Vec<_> = (0..BATCH).map(|i| table.insert(i)).collect();
+        for round in 0..128 {
+            let stale = handles.clone();
+            // Odd strides permute this power-of-two batch, covering different
+            // release orders as well as ascending and descending order.
+            let stride = (round * 2 + 1) % BATCH;
+            let order: Vec<_> = (0..BATCH).map(|i| (i * stride) % BATCH).collect();
+            for &index in &order {
+                assert_eq!(table.remove(handles[index]).unwrap(), index);
+            }
+            for &index in order.iter().rev() {
+                let handle = table.insert(index);
+                assert_eq!(handle.index(), stale[index].index());
+                assert_eq!(handle.generation(), stale[index].generation() + 1);
+                assert_eq!(table.with(handle, |v| *v).unwrap(), index);
+                handles[index] = handle;
+            }
+            assert_eq!(table.slots.lock().unwrap().len(), BATCH);
+            assert!(table.free_head.lock().unwrap().is_none());
+            for old in stale {
+                assert_eq!(table.with(old, |_| ()).unwrap_err(), AlcoStatus::INVALID_HANDLE);
+                assert_eq!(table.remove(old).unwrap_err(), AlcoStatus::INVALID_HANDLE);
+            }
+        }
+    }
+
+    #[test]
+    fn partial_batch_reuse_keeps_live_slots_and_remaining_free_chain() {
+        let table = HandleTable::new();
+        let handles: Vec<_> = (0..8).map(|i| table.insert(i)).collect();
+        for index in [0, 2, 4, 6] {
+            table.remove(handles[index]).unwrap();
+        }
+        let replacements: Vec<_> = (0..2).map(|i| table.insert(10 + i)).collect();
+        assert_eq!(replacements[0].index(), 6);
+        assert_eq!(replacements[1].index(), 4);
+        table.remove(replacements[0]).unwrap();
+        for expected in [6, 2, 0] {
+            assert_eq!(table.insert(99).index(), expected);
+        }
+        for index in [1, 3, 5, 7] {
+            assert_eq!(table.with(handles[index], |v| *v).unwrap(), index);
+        }
+        assert_eq!(table.slots.lock().unwrap().len(), 8);
     }
 
     #[test]

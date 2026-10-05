@@ -3,18 +3,31 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Describes a color attachment's native format and default clear value.</summary>
 internal struct AlcoColorAttachmentInfo
 {
+    /// <summary>The color attachment format.</summary>
     public PixelFormat Format;
+    /// <summary>The default clear color.</summary>
     public Vector4 ClearColor;
 }
 
+/// <summary>Describes depth-stencil aspect presence, default clears, and native read-only state.</summary>
 internal struct AlcoDepthAttachmentInfo
 {
+    /// <summary>The depth-stencil attachment format.</summary>
     public PixelFormat Format;
+    /// <summary>Whether the format contains a depth aspect, independently of read-only state.</summary>
+    public bool HasDepth;
+    /// <summary>Whether the format contains a stencil aspect, independently of read-only state.</summary>
+    public bool HasStencil;
+    /// <summary>The default depth clear value.</summary>
     public float ClearDepth;
+    /// <summary>Whether depth operations are omitted for a missing or read-only aspect.</summary>
     public bool IsDepthReadOnly;
+    /// <summary>The default stencil clear value.</summary>
     public uint ClearStencil;
+    /// <summary>Whether stencil operations are omitted for a missing or read-only aspect.</summary>
     public bool IsStencilReadOnly;
 }
 
@@ -75,13 +88,17 @@ internal sealed class AlcoGpuAttachmentLayout : GPUAttachmentLayout
         if (descriptor.Depth.HasValue)
         {
             DepthAttachment depth = descriptor.Depth.Value;
+            bool hasDepth = PixelFormatUtility.IsDepthFormat(depth.Format);
+            bool hasStencil = PixelFormatUtility.HasStencil(depth.Format) || depth.Format == PixelFormat.Stencil8;
             _depthInfo = new AlcoDepthAttachmentInfo
             {
                 Format = depth.Format,
+                HasDepth = hasDepth,
+                HasStencil = hasStencil,
                 ClearDepth = depth.ClearDepth,
-                IsDepthReadOnly = depth.ReadOnly,
+                IsDepthReadOnly = depth.ReadOnly || !hasDepth,
                 ClearStencil = depth.ClearStencil,
-                IsStencilReadOnly = depth.ReadOnly,
+                IsStencilReadOnly = depth.ReadOnly || !hasStencil,
             };
         }
     }

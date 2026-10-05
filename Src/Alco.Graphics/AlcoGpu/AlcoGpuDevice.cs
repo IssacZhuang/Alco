@@ -152,6 +152,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         BindGroupStorageBufferWithCounter.Destroy();
         BindGroupTexture2DRead.Destroy();
         BindGroupTexture2DStorage.Destroy();
+        BindGroupTexture3DRead.Destroy();
 
         // Destroys the native device context including its wgpu Global; every
         // remaining object handle becomes invalid (double destroy is detected).
@@ -810,10 +811,15 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         AlcoHandle encoder = CreateEncoder("readback_encoder");
         uint status = AlcoGpuNative.CopyBufferToBuffer(Native, encoder, source, sourceOffset, staging, 0, size);
-        if (status != AlcoGpuAbi.Status.Ok)
+        try
         {
-            AlcoGpuNative.EncoderDestroy(Native, encoder);
             AlcoGpuMarshal.ThrowIfFailed(status);
+        }
+        catch
+        {
+            // Marshal the failure before cleanup can overwrite the native error slot.
+            AlcoGpuNative.EncoderDestroy(Native, encoder);
+            throw;
         }
 
         return SubmitEncoder(encoder);
@@ -833,7 +839,15 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         AlcoHandle encoder = CreateEncoder("readback_encoder");
         uint status = AlcoGpuNative.CopyTextureToBuffer(
             Native, encoder, source, mipLevel, (uint)TextureAspect.All, staging, in layout, copySize);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        try
+        {
+            AlcoGpuMarshal.ThrowIfFailed(status);
+        }
+        catch
+        {
+            AlcoGpuNative.EncoderDestroy(Native, encoder);
+            throw;
+        }
 
         return SubmitEncoder(encoder);
     }
@@ -859,11 +873,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         {
             ulong index;
             status = AlcoGpuNative.QueueSubmit(Native, commandBuffer, &index);
-            if (status != AlcoGpuAbi.Status.Ok)
-            {
-                AlcoGpuNative.CommandBufferDestroy(Native, commandBuffer);
-                AlcoGpuMarshal.ThrowIfFailed(status);
-            }
+            // QueueSubmit consumes the command buffer on both success and failure.
+            AlcoGpuMarshal.ThrowIfFailed(status);
 
             return index;
         }
@@ -919,146 +930,177 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
     internal AlcoGpuDevice(in DeviceDescriptor descriptor) : base(descriptor)
     {
-        IsDebug = descriptor.Debug;
-        _descriptor = descriptor;
-        _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
-
-        // All optional features are blanket-requested; the native side intersects
-        // them with adapter support and reports the supported set back.
-        GPUFeatures requestedFeatures =
-            GPUFeatures.TextureCompressionBC
-            | GPUFeatures.TimestampQuery
-            | GPUFeatures.TimestampQueryInsidePasses
-            | GPUFeatures.IndirectFirstInstance;
-
-        ReadOnlySpan<byte> nameSpan = descriptor.Name.Utf8Z();
-        fixed (byte* ptrName = nameSpan)
+        try
         {
-            AlcoDeviceDesc desc = new()
+            IsDebug = descriptor.Debug;
+            _descriptor = descriptor;
+            _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
+
+            // All optional features are blanket-requested; the native side intersects
+            // them with adapter support and reports the supported set back.
+            GPUFeatures requestedFeatures =
+                GPUFeatures.TextureCompressionBC
+                | GPUFeatures.TimestampQuery
+                | GPUFeatures.TimestampQueryInsidePasses
+                | GPUFeatures.IndirectFirstInstance;
+
+            ReadOnlySpan<byte> nameSpan = descriptor.Name.Utf8Z();
+            fixed (byte* ptrName = nameSpan)
             {
-                Backend = BackendToRequest(descriptor.Backend),
-                Debug = descriptor.Debug ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
-                RequiredFeatures = (ulong)requestedFeatures,
-                PushConstantsSize = descriptor.PushConstantsSize,
-                Name = ptrName,
+                AlcoDeviceDesc desc = new()
+                {
+                    Backend = BackendToRequest(descriptor.Backend),
+                    Debug = descriptor.Debug ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
+                    RequiredFeatures = (ulong)requestedFeatures,
+                    PushConstantsSize = descriptor.PushConstantsSize,
+                    Name = ptrName,
+                };
+
+                AlcoHandle deviceHandle;
+                uint status = AlcoGpuNative.DeviceCreate(in desc, out deviceHandle);
+                AlcoGpuMarshal.ThrowIfFailed(status);
+                Native = deviceHandle;
+            }
+
+            AlcoDeviceInfo info = default;
+            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceGetInfo(Native, ref info));
+
+            Backend = info.Backend switch
+            {
+                AlcoGpuAbi.BackendResolved.Vulkan => GraphicsBackend.WGPUVulkan,
+                AlcoGpuAbi.BackendResolved.Dx12 => GraphicsBackend.WGPUDx12,
+                AlcoGpuAbi.BackendResolved.Metal => GraphicsBackend.WGPUMetal,
+                _ => GraphicsBackend.Auto,
             };
 
-            AlcoHandle deviceHandle;
-            uint status = AlcoGpuNative.DeviceCreate(in desc, out deviceHandle);
-            AlcoGpuMarshal.ThrowIfFailed(status);
-            Native = deviceHandle;
-        }
+            string adapterName = AlcoGpuMarshal.BorrowedString(info.AdapterName) ?? "unknown";
+            _host.LogSuccess($"Adapter name: {adapterName}");
+            _host.LogSuccess($"Graphics backend: {Backend}");
 
-        AlcoDeviceInfo info = default;
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceGetInfo(Native, ref info));
+            _maxBindGroups = (int)info.MaxBindGroups;
+            SupportedFeatures = (GPUFeatures)info.SupportedFeatures;
 
-        Backend = info.Backend switch
-        {
-            AlcoGpuAbi.BackendResolved.Vulkan => GraphicsBackend.WGPUVulkan,
-            AlcoGpuAbi.BackendResolved.Dx12 => GraphicsBackend.WGPUDx12,
-            AlcoGpuAbi.BackendResolved.Metal => GraphicsBackend.WGPUMetal,
-            _ => GraphicsBackend.Auto,
-        };
-
-        string adapterName = AlcoGpuMarshal.BorrowedString(info.AdapterName) ?? "unknown";
-        _host.LogSuccess($"Adapter name: {adapterName}");
-        _host.LogSuccess($"Graphics backend: {Backend}");
-
-        _maxBindGroups = (int)info.MaxBindGroups;
-        SupportedFeatures = (GPUFeatures)info.SupportedFeatures;
-
-        if (SupportedFeatures.HasFlag(GPUFeatures.TextureCompressionBC))
-        {
-            _host.LogSuccess("Texture compression BC is supported");
-        }
-        if (SupportedFeatures.HasFlag(GPUFeatures.TimestampQuery))
-        {
-            _host.LogSuccess("GPU timestamp queries are supported");
-        }
-        if (SupportedFeatures.HasFlag(GPUFeatures.TimestampQueryInsidePasses))
-        {
-            _host.LogSuccess("GPU timestamp queries inside passes are supported");
-        }
-        if (!SupportedFeatures.HasFlag(GPUFeatures.IndirectFirstInstance))
-        {
-            _host.LogWarning(
-                "Non-zero indirect firstInstance is unavailable; batched indirect draws that address per-draw data through firstInstance will not render correctly.");
-        }
-
-        ShaderPassthroughEnabled = (info.Caps & AlcoGpuAbi.Caps.PassthroughShaders) != 0;
-        if (ShaderPassthroughEnabled)
-        {
-            _host.LogSuccess($"Native {Backend} shader passthrough is enabled");
-        }
-        else if (Backend == GraphicsBackend.WGPUVulkan)
-        {
-            _host.LogWarning("Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
-        }
-
-        if (SupportedFeatures.HasFlag(GPUFeatures.MetalLibPassthrough))
-        {
-            _host.LogSuccess("Precompiled metallib shader passthrough is enabled");
-        }
-
-        TimestampPeriodNanoseconds = SupportedFeatures.HasFlag(GPUFeatures.TimestampQuery)
-            ? info.TimestampPeriodNs
-            : 0.0f;
-
-        // create default bind groups
-        BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_buffer",
-            Bindings = new BindGroupEntry[]
+            if (SupportedFeatures.HasFlag(GPUFeatures.TextureCompressionBC))
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.UniformBuffer),
-            },
-        });
-
-        BindGroupStorageBuffer = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_storage_buffer",
-            Bindings = new BindGroupEntry[]
+                _host.LogSuccess("Texture compression BC is supported");
+            }
+            if (SupportedFeatures.HasFlag(GPUFeatures.TimestampQuery))
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
-            },
-        });
-
-        BindGroupStorageBufferWithCounter = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_storage_buffer_with_counter",
-            Bindings = new BindGroupEntry[]
+                _host.LogSuccess("GPU timestamp queries are supported");
+            }
+            if (SupportedFeatures.HasFlag(GPUFeatures.TimestampQueryInsidePasses))
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
-                new BindGroupEntry(1, ShaderStage.Standard, BindingType.StorageBuffer),
-            },
-        });
-
-        BindGroupTexture3DRead = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_texture_3d_read",
-            Bindings = new BindGroupEntry[]
+                _host.LogSuccess("GPU timestamp queries inside passes are supported");
+            }
+            if (!SupportedFeatures.HasFlag(GPUFeatures.IndirectFirstInstance))
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
-            },
-        });
+                _host.LogWarning(
+                    "Non-zero indirect firstInstance is unavailable; batched indirect draws that address per-draw data through firstInstance will not render correctly.");
+            }
 
-        BindGroupTexture2DRead = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_texture_read",
-            Bindings = new BindGroupEntry[]
+            ShaderPassthroughEnabled = (info.Caps & AlcoGpuAbi.Caps.PassthroughShaders) != 0;
+            if (ShaderPassthroughEnabled)
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
-            },
-        });
+                _host.LogSuccess($"Native {Backend} shader passthrough is enabled");
+            }
+            else if (Backend == GraphicsBackend.WGPUVulkan)
+            {
+                _host.LogWarning("Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
+            }
 
-        BindGroupTexture2DStorage = CreateBindGroup(new BindGroupDescriptor
-        {
-            Name = "default_bind_group_storage_texture",
-            Bindings = new BindGroupEntry[]
+            if (SupportedFeatures.HasFlag(GPUFeatures.MetalLibPassthrough))
             {
-                new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D, PixelFormat.RGBA8Unorm)),
-            },
-        });
+                _host.LogSuccess("Precompiled metallib shader passthrough is enabled");
+            }
+
+            TimestampPeriodNanoseconds = SupportedFeatures.HasFlag(GPUFeatures.TimestampQuery)
+                ? info.TimestampPeriodNs
+                : 0.0f;
+
+            // create default bind groups
+            BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
+            {
+                Name = "default_bind_group_buffer",
+                Bindings = new BindGroupEntry[]
+                {
+                    new BindGroupEntry(0, ShaderStage.Standard, BindingType.UniformBuffer),
+                },
+            });
+
+            BindGroupStorageBuffer = CreateBindGroup(new BindGroupDescriptor
+            {
+                Name = "default_bind_group_storage_buffer",
+                Bindings = new BindGroupEntry[]
+                {
+                    new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+                },
+            });
+
+            BindGroupStorageBufferWithCounter = CreateBindGroup(new BindGroupDescriptor
+            {
+                Name = "default_bind_group_storage_buffer_with_counter",
+                Bindings = new BindGroupEntry[]
+                {
+                    new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+                    new BindGroupEntry(1, ShaderStage.Standard, BindingType.StorageBuffer),
+                },
+            });
+
+            BindGroupTexture3DRead = CreateBindGroup(new BindGroupDescriptor
+            {
+                Name = "default_bind_group_texture_3d_read",
+                Bindings = new BindGroupEntry[]
+                {
+                    new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
+                },
+            });
+
+            BindGroupTexture2DRead = CreateBindGroup(new BindGroupDescriptor
+            {
+                Name = "default_bind_group_texture_read",
+                Bindings = new BindGroupEntry[]
+                {
+                    new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                },
+            });
+
+            BindGroupTexture2DStorage = CreateBindGroup(new BindGroupDescriptor
+            {
+                Name = "default_bind_group_storage_texture",
+                Bindings = new BindGroupEntry[]
+                {
+                    new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D, PixelFormat.RGBA8Unorm)),
+                },
+            });
+        }
+        catch
+        {
+            // The base constructor subscribes before native creation. Roll back without
+            // replacing the original creation error with failures from partial cleanup.
+            DetachHostEvents();
+            void ReleaseLayout(GPUBindGroup? layout)
+            {
+                try
+                {
+                    layout?.Destroy();
+                }
+                catch
+                {
+                    // DeviceDestroy below releases any remaining native registry objects.
+                }
+            }
+            ReleaseLayout(BindGroupUniformBuffer);
+            ReleaseLayout(BindGroupStorageBuffer);
+            ReleaseLayout(BindGroupStorageBufferWithCounter);
+            ReleaseLayout(BindGroupTexture3DRead);
+            ReleaseLayout(BindGroupTexture2DRead);
+            ReleaseLayout(BindGroupTexture2DStorage);
+            if (!Native.IsNull)
+            {
+                AlcoGpuNative.DeviceDestroy(Native);
+            }
+            throw;
+        }
     }
 
     private static uint BackendToRequest(GraphicsBackend backend)
