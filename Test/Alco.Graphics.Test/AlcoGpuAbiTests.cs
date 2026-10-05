@@ -5,8 +5,10 @@ namespace Alco.Graphics.Test;
 
 /// <summary>
 /// Round-trip tests of the alco-gpu C ABI: version handshake, real device
-/// creation on the local adapter, info queries and the double-destroy error
-/// contract (which must surface as a catchable status, not a process abort).
+/// creation on the local adapter, info queries and the failure contract.
+/// The process-wide error callback registered by <see cref="AlcoGpuNative"/>
+/// turns every failure status into a <see cref="GraphicsException"/> thrown
+/// from the native call site (NOT_READY is control flow and returns normally).
 /// </summary>
 [TestFixture]
 [Category("AlcoGpu")]
@@ -43,15 +45,13 @@ public unsafe class AlcoGpuAbiTests
         desc.PushConstantsSize = 128;
         desc.Name = null;
 
-        uint status = AlcoGpuNative.DeviceCreate(in desc, out AlcoHandle device);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.DeviceCreate(in desc, out AlcoHandle device);
         Assert.That(device.IsNull, Is.False);
 
         try
         {
             AlcoDeviceInfo info = default;
-            status = AlcoGpuNative.DeviceGetInfo(device, ref info);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.DeviceGetInfo(device, ref info);
             Assert.That(info.Backend, Is.EqualTo(AlcoGpuAbi.BackendResolved.Vulkan)
                 .Or.EqualTo(AlcoGpuAbi.BackendResolved.Dx12)
                 .Or.EqualTo(AlcoGpuAbi.BackendResolved.Metal));
@@ -69,32 +69,35 @@ public unsafe class AlcoGpuAbiTests
         }
         finally
         {
-            status = AlcoGpuNative.DeviceDestroy(device);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.DeviceDestroy(device);
         }
     }
 
-    /// <summary>Verifies stale device handles return a recoverable error.</summary>
+    /// <summary>Verifies stale device handles throw a recoverable managed exception.</summary>
     [Test]
-    public void DoubleDestroyReturnsInvalidHandleInsteadOfCrashing()
+    public void DoubleDestroyThrowsInvalidHandleInsteadOfCrashing()
     {
         AlcoDeviceDesc desc = default;
         desc.Backend = AlcoGpuAbi.BackendRequest.Auto;
         desc.Debug = AlcoGpuAbi.AlcoFalse;
         desc.PushConstantsSize = 128;
 
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceCreate(in desc, out AlcoHandle device));
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceDestroy(device));
+        AlcoGpuNative.DeviceCreate(in desc, out AlcoHandle device);
+        AlcoGpuNative.DeviceDestroy(device);
 
-        // The second destroy must be a clean, catchable error — this exact
-        // scenario aborted the process under wgpu-native.
-        uint status = AlcoGpuNative.DeviceDestroy(device);
-        Assert.That(status, Is.EqualTo(AlcoGpuAbi.Status.InvalidHandle));
+        // The second destroy must unwind out of the native call as a managed
+        // exception — this exact scenario aborted the process under wgpu-native.
+        GraphicsException error = Assert.Throws<GraphicsException>(
+            () => AlcoGpuNative.DeviceDestroy(device))!;
+        Assert.That(error.Message, Does.Contain("invalid handle"));
+        Assert.That(error.Message, Does.Contain("device handle is invalid or already destroyed"));
 
-        AlcoErrorInfo error = default;
-        AlcoGpuNative.GetLastError(ref error);
-        Assert.That(error.Status, Is.EqualTo(AlcoGpuAbi.Status.InvalidHandle));
-        Assert.That(AlcoGpuMarshal.BorrowedString(error.Message), Is.Not.Null.And.Not.Empty);
+        // The thread-local last-error slot still carries the failure for callers
+        // that prefer polling it after the callback fired.
+        AlcoErrorInfo lastError = default;
+        AlcoGpuNative.GetLastError(ref lastError);
+        Assert.That(lastError.Status, Is.EqualTo(AlcoGpuAbi.Status.InvalidHandle));
+        Assert.That(AlcoGpuMarshal.BorrowedString(lastError.Message), Is.Not.Null.And.Not.Empty);
     }
 
     /// <summary>Verifies batch destruction reuses every slot without accepting stale handles.</summary>
@@ -114,14 +117,14 @@ public unsafe class AlcoGpuAbiTests
                 {
                     if (!buffers[i].IsNull)
                     {
-                        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferDestroy(device, buffers[i]));
+                        AlcoGpuNative.BufferDestroy(device, buffers[i]);
                         buffers[i] = AlcoHandle.Null;
                     }
                 }
                 var indices = new HashSet<uint>();
                 for (int i = 0; i < count; i++)
                 {
-                    AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferCreate(device, in descriptor, out buffers[i]));
+                    AlcoGpuNative.BufferCreate(device, in descriptor, out buffers[i]);
                     uint index = (uint)buffers[i].Value;
                     Assert.That(index, Is.LessThan(count), "the handle table grew despite bounded live buffers");
                     Assert.That(indices.Add(index), Is.True, "two live buffers share a slot");
@@ -130,7 +133,7 @@ public unsafe class AlcoGpuAbiTests
                 {
                     for (int i = 0; i < count; i++)
                     {
-                        Assert.That(AlcoGpuNative.BufferDestroy(device, stale[i]), Is.EqualTo(AlcoGpuAbi.Status.InvalidHandle));
+                        Assert.Throws<GraphicsException>(() => AlcoGpuNative.BufferDestroy(device, stale[i]));
                     }
                 }
             }
@@ -144,7 +147,7 @@ public unsafe class AlcoGpuAbiTests
                     AlcoGpuNative.BufferDestroy(device, buffers[i]);
                 }
             }
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceDestroy(device));
+            AlcoGpuNative.DeviceDestroy(device);
         }
     }
 
@@ -165,22 +168,22 @@ public unsafe class AlcoGpuAbiTests
             {
                 Entries = useNullEntries ? null : &layoutEntry,
             };
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BindGroupLayoutCreate(device, in layoutDescriptor, out layout));
+            AlcoGpuNative.BindGroupLayoutCreate(device, in layoutDescriptor, out layout);
             AlcoBindGroupDesc groupDescriptor = new()
             {
                 Layout = layout,
                 Entries = useNullEntries ? null : &groupEntry,
             };
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BindGroupCreate(device, in groupDescriptor, out group));
+            AlcoGpuNative.BindGroupCreate(device, in groupDescriptor, out group);
 
             layoutDescriptor.Entries = null;
             layoutDescriptor.EntryCount = 1;
-            Assert.That(AlcoGpuNative.BindGroupLayoutCreate(device, in layoutDescriptor, out _),
-                Is.EqualTo(AlcoGpuAbi.Status.InvalidArgument));
+            Assert.Throws<GraphicsException>(
+                () => AlcoGpuNative.BindGroupLayoutCreate(device, in layoutDescriptor, out _));
             groupDescriptor.Entries = null;
             groupDescriptor.EntryCount = 1;
-            Assert.That(AlcoGpuNative.BindGroupCreate(device, in groupDescriptor, out _),
-                Is.EqualTo(AlcoGpuAbi.Status.InvalidArgument));
+            Assert.Throws<GraphicsException>(
+                () => AlcoGpuNative.BindGroupCreate(device, in groupDescriptor, out _));
         }
         finally
         {
@@ -192,7 +195,7 @@ public unsafe class AlcoGpuAbiTests
             {
                 AlcoGpuNative.BindGroupLayoutDestroy(device, layout);
             }
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceDestroy(device));
+            AlcoGpuNative.DeviceDestroy(device);
         }
     }
 
@@ -220,9 +223,9 @@ public unsafe class AlcoGpuAbiTests
                 MipLevelCount = 1,
                 SampleCount = 1,
             };
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.TextureCreate(device, in textureDescriptor, out texture));
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.TextureCreateView(device, texture, null, out view));
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.EncoderCreate(device, null, out encoder));
+            AlcoGpuNative.TextureCreate(device, in textureDescriptor, out texture);
+            AlcoGpuNative.TextureCreateView(device, texture, null, out view);
+            AlcoGpuNative.EncoderCreate(device, null, out encoder);
             AlcoDepthStencilAttachment depth = new()
             {
                 View = view,
@@ -233,19 +236,17 @@ public unsafe class AlcoGpuAbiTests
                 StencilStoreOp = invalidStencil ? 0 : AlcoGpuAbi.AlcoNone,
             };
             AlcoRenderPassDesc descriptor = new() { DepthStencil = &depth };
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.RenderPassBegin(device, encoder, in descriptor, out pass));
-            uint endStatus = AlcoGpuNative.RenderPassEnd(device, pass);
+            AlcoGpuNative.RenderPassBegin(device, encoder, in descriptor, out pass);
+            AlcoGpuNative.RenderPassEnd(device, pass);
             pass = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(endStatus);
-            uint finishStatus = AlcoGpuNative.EncoderFinish(device, encoder, out AlcoHandle buffer);
+            AlcoHandle buffer = AlcoHandle.Null;
+            GraphicsException finishError = Assert.Throws<GraphicsException>(
+                () => AlcoGpuNative.EncoderFinish(device, encoder, out buffer))!;
             encoder = AlcoHandle.Null;
-            Assert.That(finishStatus, Is.EqualTo(AlcoGpuAbi.Status.Validation));
+            Assert.That(finishError.Message, Does.Contain("validation"));
             Assert.That(buffer.IsNull, Is.True);
-            AlcoErrorInfo error = default;
-            AlcoGpuNative.GetLastError(ref error);
-            string? message = AlcoGpuMarshal.BorrowedString(error.Message);
-            Assert.That(message, Does.Contain("In a pass parameter"));
-            Assert.That(message, invalidStencil
+            Assert.That(finishError.Message, Does.Contain("In a pass parameter"));
+            Assert.That(finishError.Message, invalidStencil
                 ? Does.Contain("without stencil aspect").And.Contain("Depth32Float")
                 : Does.Contain("between 0.0 and 1.0"));
         }
@@ -267,7 +268,7 @@ public unsafe class AlcoGpuAbiTests
             {
                 AlcoGpuNative.TextureDestroy(device, texture);
             }
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceDestroy(device));
+            AlcoGpuNative.DeviceDestroy(device);
         }
     }
 
@@ -279,11 +280,15 @@ public unsafe class AlcoGpuAbiTests
             Debug = AlcoGpuAbi.AlcoTrue,
             PushConstantsSize = 128,
         };
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceCreate(in descriptor, out AlcoHandle device));
+        AlcoGpuNative.DeviceCreate(in descriptor, out AlcoHandle device);
         return device;
     }
 
-    /// <summary>Verifies a nonblocking device poll and an empty message queue are safe.</summary>
+    /// <summary>
+    /// Verifies a nonblocking device poll is safe, an empty message queue returns
+    /// NOT_READY (control flow never fires the error callback), and polling it
+    /// twice in a row stays exception-free.
+    /// </summary>
     [Test]
     public void PollAndEmptyMessageQueueAreSafe()
     {
@@ -291,11 +296,11 @@ public unsafe class AlcoGpuAbiTests
         desc.Backend = AlcoGpuAbi.BackendRequest.Auto;
         desc.PushConstantsSize = 128;
 
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceCreate(in desc, out AlcoHandle device));
+        AlcoGpuNative.DeviceCreate(in desc, out AlcoHandle device);
         try
         {
             uint queueEmpty = 0;
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoFalse, 0, &queueEmpty));
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoFalse, 0, &queueEmpty);
 
             AlcoDeviceMessage message = default;
             uint status = AlcoGpuNative.DevicePopMessage(device, ref message);
@@ -303,7 +308,7 @@ public unsafe class AlcoGpuAbiTests
         }
         finally
         {
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceDestroy(device));
+            AlcoGpuNative.DeviceDestroy(device);
         }
     }
 }

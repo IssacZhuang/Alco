@@ -167,7 +167,7 @@ pub struct AlcoExtent3D {
 
 /// ABI: creates a command encoder.
 #[no_mangle]
-pub unsafe extern "C" fn alco_encoder_create(
+pub unsafe extern "C-unwind" fn alco_encoder_create(
     device: AlcoHandle,
     name: *const c_char,
     out: *mut AlcoHandle,
@@ -207,7 +207,7 @@ pub unsafe extern "C" fn alco_encoder_create(
 /// ABI: finishes an encoder into a command buffer. The encoder handle is
 /// consumed (the wgpu encoder object is dropped — recording is complete).
 #[no_mangle]
-pub unsafe extern "C" fn alco_encoder_finish(
+pub unsafe extern "C-unwind" fn alco_encoder_finish(
     device: AlcoHandle,
     encoder: AlcoHandle,
     out: *mut AlcoHandle,
@@ -253,7 +253,7 @@ pub unsafe extern "C" fn alco_encoder_finish(
 
 /// ABI: destroys an encoder that will never be finished.
 #[no_mangle]
-pub unsafe extern "C" fn alco_encoder_destroy(device: AlcoHandle, encoder: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_encoder_destroy(device: AlcoHandle, encoder: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| match ctx.encoders().remove(encoder) {
@@ -275,7 +275,7 @@ pub unsafe extern "C" fn alco_encoder_destroy(device: AlcoHandle, encoder: AlcoH
 
 /// ABI: destroys a command buffer that was never submitted.
 #[no_mangle]
-pub unsafe extern "C" fn alco_command_buffer_destroy(
+pub unsafe extern "C-unwind" fn alco_command_buffer_destroy(
     device: AlcoHandle,
     command_buffer: AlcoHandle,
 ) -> AlcoStatus {
@@ -304,7 +304,7 @@ pub unsafe extern "C" fn alco_command_buffer_destroy(
 
 /// ABI: begins a render pass. On begin failure no pass handle is produced.
 #[no_mangle]
-pub unsafe extern "C" fn alco_render_pass_begin(
+pub unsafe extern "C-unwind" fn alco_render_pass_begin(
     device: AlcoHandle,
     encoder: AlcoHandle,
     desc: *const AlcoRenderPassDesc,
@@ -542,7 +542,7 @@ fn pass_channel_u32(
 
 /// ABI: ends a render pass (consumes the pass handle).
 #[no_mangle]
-pub unsafe extern "C" fn alco_render_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_render_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| {
@@ -572,7 +572,7 @@ macro_rules! render_pass_fn {
     ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
         $(#[$doc])*
         #[no_mangle]
-        pub unsafe extern "C" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
+        pub unsafe extern "C-unwind" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
             crate::entry::guard(|| {
                 DEVICES
                     .with(device, |ctx| {
@@ -781,7 +781,7 @@ render_pass_fn!(
 
 /// ABI: executes render bundles in the open pass.
 #[no_mangle]
-pub unsafe extern "C" fn alco_render_pass_execute_bundles(
+pub unsafe extern "C-unwind" fn alco_render_pass_execute_bundles(
     device: AlcoHandle,
     pass: AlcoHandle,
     bundles: *const AlcoHandle,
@@ -842,7 +842,7 @@ fn nonzero_size(size: u64) -> Option<wgt::BufferSize> {
 
 /// ABI: begins a compute pass; `timestamp_writes` may be null.
 #[no_mangle]
-pub unsafe extern "C" fn alco_compute_pass_begin(
+pub unsafe extern "C-unwind" fn alco_compute_pass_begin(
     device: AlcoHandle,
     encoder: AlcoHandle,
     timestamp_writes: *const AlcoTimestampWrites,
@@ -908,7 +908,7 @@ pub unsafe extern "C" fn alco_compute_pass_begin(
 
 /// ABI: ends a compute pass (consumes the pass handle).
 #[no_mangle]
-pub unsafe extern "C" fn alco_compute_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_compute_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| {
@@ -938,7 +938,7 @@ macro_rules! compute_pass_fn {
     ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
         $(#[$doc])*
         #[no_mangle]
-        pub unsafe extern "C" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
+        pub unsafe extern "C-unwind" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
             crate::entry::guard(|| {
                 DEVICES
                     .with(device, |ctx| {
@@ -1050,7 +1050,7 @@ compute_pass_fn!(
 
 /// ABI: buffer-to-buffer copy on the open encoder.
 #[no_mangle]
-pub unsafe extern "C" fn alco_copy_buffer_to_buffer(
+pub unsafe extern "C-unwind" fn alco_copy_buffer_to_buffer(
     device: AlcoHandle,
     encoder: AlcoHandle,
     source: AlcoHandle,
@@ -1140,7 +1140,7 @@ fn extent3d(extent: AlcoExtent3D) -> wgt::Extent3d {
 
 /// ABI: buffer-to-texture copy on the open encoder.
 #[no_mangle]
-pub unsafe extern "C" fn alco_copy_buffer_to_texture(
+pub unsafe extern "C-unwind" fn alco_copy_buffer_to_texture(
     device: AlcoHandle,
     encoder: AlcoHandle,
     source: AlcoHandle,
@@ -1190,7 +1190,7 @@ pub unsafe extern "C" fn alco_copy_buffer_to_texture(
 
 /// ABI: texture-to-buffer copy on the open encoder.
 #[no_mangle]
-pub unsafe extern "C" fn alco_copy_texture_to_buffer(
+pub unsafe extern "C-unwind" fn alco_copy_texture_to_buffer(
     device: AlcoHandle,
     encoder: AlcoHandle,
     source: AlcoHandle,
@@ -1240,7 +1240,7 @@ pub unsafe extern "C" fn alco_copy_texture_to_buffer(
 
 /// ABI: texture-to-texture copy on the open encoder.
 #[no_mangle]
-pub unsafe extern "C" fn alco_copy_texture_to_texture(
+pub unsafe extern "C-unwind" fn alco_copy_texture_to_texture(
     device: AlcoHandle,
     encoder: AlcoHandle,
     source: AlcoHandle,
@@ -1286,7 +1286,7 @@ pub unsafe extern "C" fn alco_copy_texture_to_texture(
 
 /// ABI: resolves timestamp queries into a buffer.
 #[no_mangle]
-pub unsafe extern "C" fn alco_resolve_query_set(
+pub unsafe extern "C-unwind" fn alco_resolve_query_set(
     device: AlcoHandle,
     encoder: AlcoHandle,
     query_set: AlcoHandle,
@@ -1328,7 +1328,7 @@ pub unsafe extern "C" fn alco_resolve_query_set(
 /// ABI: writes bytes into a buffer through the queue (bypasses command
 /// encoding).
 #[no_mangle]
-pub unsafe extern "C" fn alco_queue_write_buffer(
+pub unsafe extern "C-unwind" fn alco_queue_write_buffer(
     device: AlcoHandle,
     buffer: AlcoHandle,
     offset: u64,
@@ -1359,7 +1359,7 @@ pub unsafe extern "C" fn alco_queue_write_buffer(
 
 /// ABI: writes raw bytes into a texture region through the queue.
 #[no_mangle]
-pub unsafe extern "C" fn alco_queue_write_texture(
+pub unsafe extern "C-unwind" fn alco_queue_write_texture(
     device: AlcoHandle,
     texture: AlcoHandle,
     mip_level: u32,
@@ -1411,7 +1411,7 @@ pub unsafe extern "C" fn alco_queue_write_texture(
 /// # Safety
 /// `out_index`, if non-null, must point to a writable `u64`.
 #[no_mangle]
-pub unsafe extern "C" fn alco_queue_submit(
+pub unsafe extern "C-unwind" fn alco_queue_submit(
     device: AlcoHandle,
     command_buffer: AlcoHandle,
     out_index: *mut u64,
@@ -1472,7 +1472,7 @@ pub struct AlcoBundleEncoderDesc {
 
 /// ABI: creates a render bundle encoder.
 #[no_mangle]
-pub unsafe extern "C" fn alco_bundle_encoder_create(
+pub unsafe extern "C-unwind" fn alco_bundle_encoder_create(
     device: AlcoHandle,
     desc: *const AlcoBundleEncoderDesc,
     out: *mut AlcoHandle,
@@ -1544,7 +1544,7 @@ pub unsafe extern "C" fn alco_bundle_encoder_create(
 
 /// ABI: finishes a bundle encoder into a render bundle (consumes the encoder handle).
 #[no_mangle]
-pub unsafe extern "C" fn alco_bundle_encoder_finish(
+pub unsafe extern "C-unwind" fn alco_bundle_encoder_finish(
     device: AlcoHandle,
     bundle_encoder: AlcoHandle,
     out: *mut AlcoHandle,
@@ -1589,7 +1589,7 @@ pub unsafe extern "C" fn alco_bundle_encoder_finish(
 
 /// ABI: destroys a bundle encoder that was never finished.
 #[no_mangle]
-pub unsafe extern "C" fn alco_bundle_encoder_destroy(
+pub unsafe extern "C-unwind" fn alco_bundle_encoder_destroy(
     device: AlcoHandle,
     bundle_encoder: AlcoHandle,
 ) -> AlcoStatus {
@@ -1613,7 +1613,7 @@ pub unsafe extern "C" fn alco_bundle_encoder_destroy(
 
 /// ABI: destroys a render bundle.
 #[no_mangle]
-pub unsafe extern "C" fn alco_render_bundle_destroy(
+pub unsafe extern "C-unwind" fn alco_render_bundle_destroy(
     device: AlcoHandle,
     bundle: AlcoHandle,
 ) -> AlcoStatus {
@@ -1640,7 +1640,7 @@ macro_rules! bundle_fn {
     ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
         $(#[$doc])*
         #[no_mangle]
-        pub unsafe extern "C" fn $name(device: AlcoHandle, bundle_encoder: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
+        pub unsafe extern "C-unwind" fn $name(device: AlcoHandle, bundle_encoder: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
             crate::entry::guard(|| {
                 DEVICES
                     .with(device, |ctx| {

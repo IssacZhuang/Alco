@@ -94,8 +94,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
             Name = _nativeName,
         };
 
-        uint status = AlcoGpuNative.BundleEncoderCreate(_device.Native, in descriptor, out _bundleEncoder);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BundleEncoderCreate(_device.Native, in descriptor, out _bundleEncoder);
         _isRecording = true;
     }
 
@@ -104,88 +103,79 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
     {
         ReleaseRenderBundle();
 
-        uint status = AlcoGpuNative.BundleEncoderFinish(_device.Native, _bundleEncoder, out _bundle);
         // Finish consumes the encoder even when validation fails. Do not issue a
         // second destroy that would replace the actionable validation error.
+        AlcoHandle bundleEncoder = _bundleEncoder;
         _bundleEncoder = AlcoHandle.Null;
         _graphicsPipeline = AlcoHandle.Null;
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BundleEncoderFinish(_device.Native, bundleEncoder, out _bundle);
     }
 
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
         _graphicsPipeline = ((AlcoGpuGraphicsPipeline)pipeline).Native;
-        uint status = AlcoGpuNative.BundleSetPipeline(_device.Native, _bundleEncoder, _graphicsPipeline);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BundleSetPipeline(_device.Native, _bundleEncoder, _graphicsPipeline);
     }
 
     protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleSetBindGroup(
+        AlcoGpuNative.BundleSetBindGroup(
             _device.Native, _bundleEncoder, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleSetVertexBuffer(
+        AlcoGpuNative.BundleSetVertexBuffer(
             _device.Native, _bundleEncoder, slot, ((AlcoGpuBuffer)buffer).Native, offset, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleSetIndexBuffer(
+        AlcoGpuNative.BundleSetIndexBuffer(
             _device.Native, _bundleEncoder, ((AlcoGpuBuffer)buffer).Native, (uint)format, offset, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleDraw(_device.Native, _bundleEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BundleDraw(_device.Native, _bundleEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
     protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleDrawIndexed(_device.Native, _bundleEncoder, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BundleDrawIndexed(_device.Native, _bundleEncoder, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleDrawIndirect(
+        AlcoGpuNative.BundleDrawIndirect(
             _device.Native, _bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleDrawIndexedIndirect(
+        AlcoGpuNative.BundleDrawIndexedIndirect(
             _device.Native, _bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.BundleSetImmediates(_device.Native, _bundleEncoder, bufferOffset, data, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BundleSetImmediates(_device.Native, _bundleEncoder, bufferOffset, data, size);
     }
 
     #endregion
@@ -212,9 +202,9 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
     {
         if (!_bundle.IsNull)
         {
-            uint status = AlcoGpuNative.RenderBundleDestroy(_device.Native, _bundle);
+            AlcoHandle bundle = _bundle;
             _bundle = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.RenderBundleDestroy(_device.Native, bundle);
         }
     }
 
@@ -223,9 +213,9 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         if (!_bundleEncoder.IsNull)
         {
             // An unfinished bundle encoder is simply destroyed without finishing.
-            uint status = AlcoGpuNative.BundleEncoderDestroy(_device.Native, _bundleEncoder);
+            AlcoHandle bundleEncoder = _bundleEncoder;
             _bundleEncoder = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.BundleEncoderDestroy(_device.Native, bundleEncoder);
         }
     }
 

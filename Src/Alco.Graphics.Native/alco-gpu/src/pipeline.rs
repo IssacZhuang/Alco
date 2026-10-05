@@ -184,7 +184,7 @@ fn stencil_face(face: &AlcoStencilFace) -> Result<wgt::StencilFaceState, AlcoSta
 
 /// ABI: creates a graphics pipeline.
 #[no_mangle]
-pub unsafe extern "C" fn alco_graphics_pipeline_create(
+pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
     device: AlcoHandle,
     desc: *const AlcoGraphicsPipelineDesc,
     out: *mut AlcoHandle,
@@ -440,7 +440,7 @@ pub unsafe extern "C" fn alco_graphics_pipeline_create(
 
 /// ABI: creates a compute pipeline.
 #[no_mangle]
-pub unsafe extern "C" fn alco_compute_pipeline_create(
+pub unsafe extern "C-unwind" fn alco_compute_pipeline_create(
     device: AlcoHandle,
     desc: *const AlcoComputePipelineDesc,
     out: *mut AlcoHandle,
@@ -503,7 +503,7 @@ pub unsafe extern "C" fn alco_compute_pipeline_create(
 
 /// ABI: destroys a graphics or compute pipeline.
 #[no_mangle]
-pub unsafe extern "C" fn alco_pipeline_destroy(device: AlcoHandle, pipeline: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_pipeline_destroy(device: AlcoHandle, pipeline: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| match ctx.pipelines().remove(pipeline) {

@@ -152,7 +152,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         _surface = surface;
 
         // configure the surface
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.SurfaceConfigure(device.Native, surface, in config));
+        AlcoGpuNative.SurfaceConfigure(device.Native, surface, in config);
         _config = config;
 
         _descriptor = new AlcoRenderPassDesc
@@ -270,7 +270,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         if (shouldResize)
         {
             AlcoSurfaceConfig config = _config;
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.SurfaceConfigure(((AlcoGpuDevice)Device).Native, _surface, in config));
+            AlcoGpuNative.SurfaceConfigure(((AlcoGpuDevice)Device).Native, _surface, in config);
             ResizeDepthTexture();
             _isConfigDirty = false;
         }
@@ -384,15 +384,14 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         {
             AlcoGpuDevice alcoDevice = (AlcoGpuDevice)device;
             uint acquireStatus;
-            AlcoGpuMarshal.ThrowIfFailed(
-                AlcoGpuNative.SurfaceGetCurrentTexture(alcoDevice.Native, surface, out AlcoHandle texture, &acquireStatus));
+            AlcoGpuNative.SurfaceGetCurrentTexture(alcoDevice.Native, surface, out AlcoHandle texture, &acquireStatus);
             return new AlcoGpuSurfaceTexture(alcoDevice, surface, texture, (PixelFormat)GetTextureInfo(alcoDevice, texture).Format, acquireStatus);
         }
 
         private static AlcoTextureInfo GetTextureInfo(AlcoGpuDevice device, AlcoHandle texture)
         {
             AlcoTextureInfo info = default;
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.TextureGetInfo(device.Native, texture, ref info));
+            AlcoGpuNative.TextureGetInfo(device.Native, texture, ref info);
             return info;
         }
 
@@ -426,14 +425,13 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
             _height = info.Height;
 
             // Create the default full view.
-            AlcoGpuMarshal.ThrowIfFailed(
-                AlcoGpuNative.TextureCreateView(device.Native, _texture, null, out _defaultView));
+            AlcoGpuNative.TextureCreateView(device.Native, _texture, null, out _defaultView);
         }
 
         public void PresentAndDrop()
         {
             uint presentStatus;
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.SurfacePresent(((AlcoGpuDevice)Device).Native, _surface, &presentStatus));
+            AlcoGpuNative.SurfacePresent(((AlcoGpuDevice)Device).Native, _surface, &presentStatus);
             Drop();
         }
 
@@ -467,8 +465,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
             AlcoGpuDevice device = (AlcoGpuDevice)Device;
             uint acquireStatus;
-            AlcoGpuMarshal.ThrowIfFailed(
-                AlcoGpuNative.SurfaceGetCurrentTexture(device.Native, _surface, out AlcoHandle texture, &acquireStatus));
+            AlcoGpuNative.SurfaceGetCurrentTexture(device.Native, _surface, out AlcoHandle texture, &acquireStatus);
             switch (acquireStatus)
             {
                 case AlcoGpuAbi.AcquireStatus.SuccessOptimal:
@@ -492,8 +489,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
             _height = info.Height;
 
             //refresh the view
-            AlcoGpuMarshal.ThrowIfFailed(
-                AlcoGpuNative.TextureCreateView(device.Native, _texture, null, out _defaultView));
+            AlcoGpuNative.TextureCreateView(device.Native, _texture, null, out _defaultView);
             *view = _defaultView;
 
             shouldResize = false;

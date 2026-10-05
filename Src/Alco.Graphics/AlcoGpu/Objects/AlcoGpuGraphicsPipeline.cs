@@ -19,8 +19,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
     {
         if (!_pipeline.IsNull)
         {
-            uint status = AlcoGpuNative.PipelineDestroy(((AlcoGpuDevice)Device).Native, _pipeline);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.PipelineDestroy(((AlcoGpuDevice)Device).Native, _pipeline);
         }
     }
 
@@ -157,8 +156,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                     Name = pName,
                 };
 
-                uint status = AlcoGpuNative.GraphicsPipelineCreate(nativeDevice, in desc, out _pipeline);
-                AlcoGpuMarshal.ThrowIfFailed(status);
+                AlcoGpuNative.GraphicsPipelineCreate(nativeDevice, in desc, out _pipeline);
             }
         }
         finally

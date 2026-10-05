@@ -50,8 +50,7 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
     {
         if (!_nativeTexture.IsNull)
         {
-            uint status = AlcoGpuNative.TextureDestroy(((AlcoGpuDevice)Device).Native, _nativeTexture);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.TextureDestroy(((AlcoGpuDevice)Device).Native, _nativeTexture);
         }
     }
 
@@ -96,8 +95,7 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
                 Name = ptrName,
             };
 
-            uint status = AlcoGpuNative.TextureCreate(device.Native, in desc, out _nativeTexture);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.TextureCreate(device.Native, in desc, out _nativeTexture);
         }
     }
 

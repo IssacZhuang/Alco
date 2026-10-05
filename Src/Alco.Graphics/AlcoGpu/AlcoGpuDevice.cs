@@ -128,8 +128,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         lock (_textureUploadLock)
         {
             // The native side consumes the command-buffer handle on submit.
-            uint status = AlcoGpuNative.QueueSubmit(Native, buffer, null);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.QueueSubmit(Native, buffer, null);
         }
     }
 
@@ -156,8 +155,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
         // Destroys the native device context including its wgpu Global; every
         // remaining object handle becomes invalid (double destroy is detected).
-        uint status = AlcoGpuNative.DeviceDestroy(Native);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.DeviceDestroy(Native);
     }
 
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
@@ -238,8 +236,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         AlcoHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
-        uint status = AlcoGpuNative.QueueWriteBuffer(Native, nativeBuffer, bufferOffset, data, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.QueueWriteBuffer(Native, nativeBuffer, bufferOffset, data, size);
     }
 
     protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
@@ -252,9 +249,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         {
             ulong submissionIndex = CopyBufferToStaging(nativeBuffer, bufferOffset, tmpBuffer.Handle, size);
 
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, size));
+            AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, size);
             PollAndWait(submissionIndex);
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferMapPoll(Native, tmpBuffer.Handle));
+            AlcoGpuNative.BufferMapPoll(Native, tmpBuffer.Handle);
             wasMapped = true;
 
             void* pointer = GetMappedRange(tmpBuffer.Handle, size);
@@ -266,7 +263,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         {
             if (wasMapped)
             {
-                AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferUnmap(Native, tmpBuffer.Handle));
+                AlcoGpuNative.BufferUnmap(Native, tmpBuffer.Handle);
             }
 
             if (succeeded)
@@ -299,9 +296,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
         lock (_textureUploadLock)
         {
-            uint status = AlcoGpuNative.QueueWriteTexture(
+            AlcoGpuNative.QueueWriteTexture(
                 Native, nativeTexture, mipLevel, origin, (uint)TextureAspect.All, data, dataSize, in layout, writeSize);
-            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -338,9 +334,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
         lock (_textureUploadLock)
         {
-            uint status = AlcoGpuNative.QueueWriteTexture(
+            AlcoGpuNative.QueueWriteTexture(
                 Native, nativeTexture, mipLevel, origin, (uint)TextureAspect.All, data, dataSize, in layout, writeSize);
-            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -362,9 +357,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             ulong submissionIndex = CopyTextureToStaging(
                 nativeTexture, mipLevel, tmpBuffer.Handle, in layout.BufferLayout, layout.CopySize);
 
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, layout.StagingDataSize));
+            AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, layout.StagingDataSize);
             PollAndWait(submissionIndex);
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferMapPoll(Native, tmpBuffer.Handle));
+            AlcoGpuNative.BufferMapPoll(Native, tmpBuffer.Handle);
             wasMapped = true;
 
             void* pointer = GetMappedRange(tmpBuffer.Handle, layout.StagingDataSize);
@@ -376,7 +371,14 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             // needed) and destroy it instead.
             if (wasMapped && acquired)
             {
-                AlcoGpuNative.BufferUnmap(Native, tmpBuffer.Handle);
+                try
+                {
+                    AlcoGpuNative.BufferUnmap(Native, tmpBuffer.Handle);
+                }
+                catch
+                {
+                    // Best-effort unmap; the original failure is the actionable one.
+                }
                 wasMapped = false;
             }
 
@@ -392,7 +394,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         {
             if (wasMapped)
             {
-                AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferUnmap(Native, tmpBuffer.Handle));
+                AlcoGpuNative.BufferUnmap(Native, tmpBuffer.Handle);
             }
 
             if (acquired)
@@ -419,7 +421,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
             // The map completes when the submission finishes; polled each frame
             // from ProcessPendingReadbacksCore.
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, layout.StagingDataSize));
+            AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, layout.StagingDataSize);
 
             _pendingTextureReadbacks.Add(new PendingTextureReadback
             {
@@ -594,26 +596,26 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         for (int i = 0; i < _pendingTextureReadbacks.Count; i++)
         {
             PendingTextureReadback readback = _pendingTextureReadbacks[i];
-            uint pollStatus = AlcoGpuNative.BufferMapPoll(Native, readback.Buffer.Handle);
-            if (pollStatus == AlcoGpuAbi.Status.NotReady)
-            {
-                continue;
-            }
-
             bool succeeded = false;
+            bool stillPending = false;
             bool wasMapped = false;
             try
             {
-                if (pollStatus != AlcoGpuAbi.Status.Ok)
+                uint pollStatus = AlcoGpuNative.BufferMapPoll(Native, readback.Buffer.Handle);
+                if (pollStatus == AlcoGpuAbi.Status.NotReady)
                 {
-                    AlcoGpuMarshal.ThrowIfFailed(pollStatus);
+                    stillPending = true;
                 }
-
-                wasMapped = true;
-                void* pointer = GetMappedRange(readback.Buffer.Handle, readback.StagingDataSize);
-                CopyCompletedTextureReadback(readback.Destination, pointer, readback);
-                readback.Request.Complete();
-                succeeded = true;
+                else
+                {
+                    // Failure statuses throw from the native error callback at the
+                    // poll call above; reaching here means the map succeeded.
+                    wasMapped = true;
+                    void* pointer = GetMappedRange(readback.Buffer.Handle, readback.StagingDataSize);
+                    CopyCompletedTextureReadback(readback.Destination, pointer, readback);
+                    readback.Request.Complete();
+                    succeeded = true;
+                }
             }
             catch (Exception ex)
             {
@@ -623,8 +625,21 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             {
                 if (wasMapped)
                 {
-                    AlcoGpuNative.BufferUnmap(Native, readback.Buffer.Handle);
+                    try
+                    {
+                        AlcoGpuNative.BufferUnmap(Native, readback.Buffer.Handle);
+                    }
+                    catch
+                    {
+                        // Best-effort unmap during failure handling; the failure
+                        // already routed to the request is the actionable one.
+                    }
                 }
+            }
+
+            if (stillPending)
+            {
+                continue;
             }
 
             // A buffer may be returned to the cache only after a successful readback and unmap;
@@ -662,8 +677,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             return;
         }
 
-        uint status = AlcoGpuNative.BufferDestroy(Native, buffer.Handle);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BufferDestroy(Native, buffer.Handle);
     }
 
     /// <summary>
@@ -691,8 +705,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst),
         };
 
-        uint status = AlcoGpuNative.BufferCreate(Native, in descriptor, out AlcoHandle handle);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BufferCreate(Native, in descriptor, out AlcoHandle handle);
         return new StagingTicket(handle, capacity);
     }
 
@@ -810,14 +823,12 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     private ulong CopyBufferToStaging(AlcoHandle source, uint sourceOffset, AlcoHandle staging, ulong size)
     {
         AlcoHandle encoder = CreateEncoder("readback_encoder");
-        uint status = AlcoGpuNative.CopyBufferToBuffer(Native, encoder, source, sourceOffset, staging, 0, size);
         try
         {
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.CopyBufferToBuffer(Native, encoder, source, sourceOffset, staging, 0, size);
         }
         catch
         {
-            // Marshal the failure before cleanup can overwrite the native error slot.
             AlcoGpuNative.EncoderDestroy(Native, encoder);
             throw;
         }
@@ -837,11 +848,10 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         AlcoExtent3D copySize)
     {
         AlcoHandle encoder = CreateEncoder("readback_encoder");
-        uint status = AlcoGpuNative.CopyTextureToBuffer(
-            Native, encoder, source, mipLevel, (uint)TextureAspect.All, staging, in layout, copySize);
         try
         {
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.CopyTextureToBuffer(
+                Native, encoder, source, mipLevel, (uint)TextureAspect.All, staging, in layout, copySize);
         }
         catch
         {
@@ -857,8 +867,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         ReadOnlySpan<byte> nameSpan = name.Utf8Z();
         fixed (byte* ptrName = nameSpan)
         {
-            uint status = AlcoGpuNative.EncoderCreate(Native, ptrName, out AlcoHandle encoder);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.EncoderCreate(Native, ptrName, out AlcoHandle encoder);
             return encoder;
         }
     }
@@ -866,15 +875,13 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     private ulong SubmitEncoder(AlcoHandle encoder)
     {
         // finish consumes the encoder handle on both success and failure.
-        uint status = AlcoGpuNative.EncoderFinish(Native, encoder, out AlcoHandle commandBuffer);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.EncoderFinish(Native, encoder, out AlcoHandle commandBuffer);
 
         lock (_textureUploadLock)
         {
             ulong index;
-            status = AlcoGpuNative.QueueSubmit(Native, commandBuffer, &index);
             // QueueSubmit consumes the command buffer on both success and failure.
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.QueueSubmit(Native, commandBuffer, &index);
 
             return index;
         }
@@ -883,15 +890,13 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     /// <summary>Blocks until the given submission (and its map callbacks) completes.</summary>
     private void PollAndWait(ulong submissionIndex)
     {
-        uint status = AlcoGpuNative.DevicePoll(Native, AlcoGpuAbi.AlcoTrue, submissionIndex, null);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.DevicePoll(Native, AlcoGpuAbi.AlcoTrue, submissionIndex, null);
     }
 
     private void* GetMappedRange(AlcoHandle buffer, ulong size)
     {
         void* pointer = null;
-        uint status = AlcoGpuNative.BufferGetMappedRange(Native, buffer, 0, size, &pointer);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.BufferGetMappedRange(Native, buffer, 0, size, &pointer);
         return pointer;
     }
 
@@ -957,13 +962,12 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                 };
 
                 AlcoHandle deviceHandle;
-                uint status = AlcoGpuNative.DeviceCreate(in desc, out deviceHandle);
-                AlcoGpuMarshal.ThrowIfFailed(status);
+                AlcoGpuNative.DeviceCreate(in desc, out deviceHandle);
                 Native = deviceHandle;
             }
 
             AlcoDeviceInfo info = default;
-            AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.DeviceGetInfo(Native, ref info));
+            AlcoGpuNative.DeviceGetInfo(Native, ref info);
 
             Backend = info.Backend switch
             {

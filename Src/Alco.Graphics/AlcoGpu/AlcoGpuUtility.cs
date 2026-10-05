@@ -101,8 +101,7 @@ internal static unsafe class AlcoGpuUtility
                 WorkgroupZ = source.WorkgroupSize.Z,
             };
 
-            uint status = AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoHandle module);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoHandle module);
             return module;
         }
     }
@@ -115,8 +114,7 @@ internal static unsafe class AlcoGpuUtility
             return;
         }
 
-        uint status = AlcoGpuNative.ShaderModuleDestroy(device.Native, module);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.ShaderModuleDestroy(device.Native, module);
     }
 
     /// <summary>Allocates and fills native bind-group-layout entries from managed descriptors.</summary>

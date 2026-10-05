@@ -17,8 +17,7 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
     {
         if (!_native.IsNull)
         {
-            uint status = AlcoGpuNative.SamplerDestroy(((AlcoGpuDevice)Device).Native, _native);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.SamplerDestroy(((AlcoGpuDevice)Device).Native, _native);
         }
     }
 
@@ -53,8 +52,7 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
                 Name = ptrName,
             };
 
-            uint status = AlcoGpuNative.SamplerCreate(device.Native, in desc, out _native);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.SamplerCreate(device.Native, in desc, out _native);
         }
     }
 

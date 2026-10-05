@@ -17,8 +17,7 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
     {
         if (!_buffer.IsNull)
         {
-            uint status = AlcoGpuNative.BufferDestroy(((AlcoGpuDevice)Device).Native, _buffer);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.BufferDestroy(((AlcoGpuDevice)Device).Native, _buffer);
         }
     }
 
@@ -46,8 +45,7 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
                 Name = ptrName,
             };
 
-            uint status = AlcoGpuNative.BufferCreate(device.Native, in desc, out _buffer);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.BufferCreate(device.Native, in desc, out _buffer);
         }
     }
 

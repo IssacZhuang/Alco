@@ -7,17 +7,18 @@ surfaces as a catchable `GraphicsException` instead of a process-killing panic.
 
 - Crate: `Src/Alco.Graphics.Native/alco-gpu` (cdylib `alco_gpu`, committed binaries in
   `Src/Alco.Graphics/runtimes/<RID>/native/`, provenance in `runtimes/alco-gpu-manifest.json`)
-- C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes,
-  `Interop/AlcoGpuStructs.cs` struct mirrors)
-- Current ABI version: **1.2** (`ABI_MAJOR=1`, `ABI_MINOR=2`)
+- C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
+  callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
+  `Interop/AlcoGpuMarshal.cs` throwing error callback)
+- Current ABI version: **1.3** (`ABI_MAJOR=1`, `ABI_MINOR=3`)
 
 ## Conventions
 
 | Rule | Detail |
 | --- | --- |
-| Exports | `#[no_mangle] extern "C"`, `alco_` prefix, C symbol per function |
+| Exports | `#[no_mangle] extern "C-unwind"`, `alco_` prefix, C symbol per function (identical symbol names to plain `C`; `C-unwind` defines foreign-exception unwinding through the frame, see *Error callback*) |
 | Status | Every fallible export returns `AlcoStatus (u32)`; `0` = OK |
-| Errors | Synchronous failures write a thread-local last-error (`alco_get_last_error`); C# throws at the call site |
+| Errors | Synchronous failures write a thread-local last-error (`alco_get_last_error`) **and** fire the registered error callback, which throws at the native call site (see *Error callback*) |
 | Async events | Device-lost / validation / native warnings queue per device; drained via `alco_device_pop_message` (severity 0 error, 1 warning, 2 info) |
 | Handles | `AlcoHandle = u64` (`generation << 32 \| index`), one generational table per object type; stale / double-destroy returns `InvalidHandle`, never panics |
 | Panics | Every export body is wrapped in `catch_unwind`; a panic becomes status `Panic` + message |
@@ -33,9 +34,46 @@ surfaces as a catchable `GraphicsException` instead of a process-killing panic.
 
 `NotReady` is a control-flow value used by the map polling model (below), not an error.
 
-## Export groups (86 exports)
+## Error callback
 
-**Meta** — `alco_abi_version`, `alco_build_info` (wgpu version, build id), `alco_get_last_error`.
+`alco_set_error_callback(callback, userdata)` registers a process-wide callback
+(null unregisters). This restores the wgpu-native-era error model: the C# host
+registers a `[UnmanagedCallersOnly]` callback that throws `GraphicsException`, so
+every failure unwinds out of the `alco_*` call as a managed exception at the exact
+call site — no per-call status checks are needed in Alco.Graphics.
+
+Contract:
+
+- The callback fires **synchronously on the calling thread**, from `guard` in
+  `entry.rs`, **strictly after `catch_unwind` has returned**. This ordering is the
+  load-bearing safety property: a managed exception thrown inside the callback is a
+  foreign unwind, and had it been caught by `catch_unwind` it would be swallowed
+  into an opaque payload and resume at an unspecified point. Firing after the
+  guard's match means the unwind passes only through frames with no pending
+  destructors — the guard frame, the export frame, and the host stub.
+- Exports are declared `extern "C-unwind"` so a foreign unwind passing through their
+  frames is defined behavior under the Rust `C-unwind` ABI (symbol names are
+  unchanged). The callback type itself is `extern "C-unwind" fn(u32, *const c_char, *mut c_void)`.
+- Failures are every status except `OK` and `NOT_READY` (`NOT_READY` is control
+  flow and must never fire). `message` is the thread-local last-error (borrowed
+  until the next alco call on the thread); statuses a body failed to annotate carry
+  a generic default message, and Rust panics fire with status `Panic`.
+- The callback **must not call back into the library**: any alco call on the same
+  thread replaces the thread-local message the callback still holds a pointer to.
+- Unregistered (the default) behavior is unchanged: failures simply return their
+  status and the host may poll `alco_get_last_error` — the callback is purely
+  additive, which is why this is an ABI minor bump.
+
+Verification: `entry.rs` unit tests cover firing with status + message, the
+default-message path, silence for `OK`/`NOT_READY`, and unregistration;
+`AlcoGpuAbiTests`/`AlcoGpuIntegrationTests` exercise the throwing path end-to-end
+(double-destroy throws, validation chains retain root causes, `NOT_READY` still
+returns normally).
+
+## Export groups (87 exports)
+
+**Meta** — `alco_abi_version`, `alco_build_info` (wgpu version, build id),
+`alco_get_last_error`, `alco_set_error_callback`.
 
 **Device** — `alco_device_create` (backend request, debug flag, required `GPUFeatures`
 bits, push-constants size; adapter selection is fully synchronous — no callbacks),
@@ -96,7 +134,9 @@ acquire status, not through size drift).
 
 ## Map / readback model
 
-There are no C callbacks. Buffer mapping is a poll-driven state machine:
+Buffer mapping remains poll-driven (the error callback above is only for failures;
+async completion is still polled, and async paths never throw from a callback — the
+old wgpu-native layer followed the same rule):
 
 1. `alco_buffer_map_read` initiates the map (after the copies touching the buffer have
    been submitted).
@@ -124,10 +164,12 @@ TextureBinding=1<<2, StorageBinding=1<<3, ColorAttachment=1<<4, DepthAttachment=
 
 ## Error containment
 
-Double-destroy and use-after-destroy of any object return `InvalidHandle` (verified by
-`DoubleDestroyReturnsInvalidHandleAndKeepsProcessAlive` / `...InsteadOfCrashing`); the
-device remains usable afterwards. This is the core reason the layer exists: the same
-scenario under wgpu-native aborted the process.
+Double-destroy and use-after-destroy of any object throw `GraphicsException`
+("invalid handle") from the native call via the error callback (verified by
+`DoubleDestroyThrowsInvalidHandleAndKeepsProcessAlive` /
+`DoubleDestroyThrowsInvalidHandleInsteadOfCrashing`); the device remains usable
+afterwards. This is the core reason the layer exists: the same scenario under
+wgpu-native aborted the process.
 
 ## Building / updating the binary
 

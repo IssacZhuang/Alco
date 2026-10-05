@@ -276,7 +276,7 @@ pub struct AlcoBindGroupDesc {
 
 /// ABI: creates a buffer.
 #[no_mangle]
-pub unsafe extern "C" fn alco_buffer_create(
+pub unsafe extern "C-unwind" fn alco_buffer_create(
     device: AlcoHandle,
     desc: *const AlcoBufferDesc,
     out: *mut AlcoHandle,
@@ -325,7 +325,7 @@ pub unsafe extern "C" fn alco_buffer_create(
 
 /// ABI: destroys a buffer (generational — double destroy returns INVALID_HANDLE).
 #[no_mangle]
-pub unsafe extern "C" fn alco_buffer_destroy(device: AlcoHandle, buffer: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_buffer_destroy(device: AlcoHandle, buffer: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| match ctx.buffers().remove(buffer) {
@@ -350,7 +350,7 @@ pub unsafe extern "C" fn alco_buffer_destroy(device: AlcoHandle, buffer: AlcoHan
 /// `alco_buffer_map_poll`; the native callback only records the outcome into
 /// a shared cell that stays valid regardless of object lifetime.
 #[no_mangle]
-pub unsafe extern "C" fn alco_buffer_map_read(
+pub unsafe extern "C-unwind" fn alco_buffer_map_read(
     device: AlcoHandle,
     buffer: AlcoHandle,
     offset: u64,
@@ -405,7 +405,7 @@ pub unsafe extern "C" fn alco_buffer_map_read(
 /// ABI: polls a pending map. `NOT_READY` = still mapping, `OK` = mapped
 /// (range available via `alco_buffer_get_mapped_range`), `VALIDATION` = failed.
 #[no_mangle]
-pub unsafe extern "C" fn alco_buffer_map_poll(
+pub unsafe extern "C-unwind" fn alco_buffer_map_poll(
     device: AlcoHandle,
     buffer: AlcoHandle,
 ) -> AlcoStatus {
@@ -454,7 +454,7 @@ pub unsafe extern "C" fn alco_buffer_map_poll(
 /// # Safety
 /// `out` must be a valid `*const u8` slot; the range is valid until unmap.
 #[no_mangle]
-pub unsafe extern "C" fn alco_buffer_get_mapped_range(
+pub unsafe extern "C-unwind" fn alco_buffer_get_mapped_range(
     device: AlcoHandle,
     buffer: AlcoHandle,
     offset: u64,
@@ -503,7 +503,7 @@ pub unsafe extern "C" fn alco_buffer_get_mapped_range(
 
 /// ABI: unmaps the buffer and resets the map state machine.
 #[no_mangle]
-pub unsafe extern "C" fn alco_buffer_unmap(device: AlcoHandle, buffer: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_buffer_unmap(device: AlcoHandle, buffer: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| {
@@ -537,7 +537,7 @@ pub unsafe extern "C" fn alco_buffer_unmap(device: AlcoHandle, buffer: AlcoHandl
 
 /// ABI: creates a texture.
 #[no_mangle]
-pub unsafe extern "C" fn alco_texture_create(
+pub unsafe extern "C-unwind" fn alco_texture_create(
     device: AlcoHandle,
     desc: *const AlcoTextureDesc,
     out: *mut AlcoHandle,
@@ -607,7 +607,7 @@ pub unsafe extern "C" fn alco_texture_create(
 
 /// ABI: destroys a texture; surface textures are rejected (release-only).
 #[no_mangle]
-pub unsafe extern "C" fn alco_texture_destroy(
+pub unsafe extern "C-unwind" fn alco_texture_destroy(
     device: AlcoHandle,
     texture: AlcoHandle,
 ) -> AlcoStatus {
@@ -650,7 +650,7 @@ pub unsafe extern "C" fn alco_texture_destroy(
 
 /// ABI: fills texture info (used for acquired surface textures).
 #[no_mangle]
-pub unsafe extern "C" fn alco_texture_get_info(
+pub unsafe extern "C-unwind" fn alco_texture_get_info(
     device: AlcoHandle,
     texture: AlcoHandle,
     out: *mut AlcoTextureInfo,
@@ -686,7 +686,7 @@ pub unsafe extern "C" fn alco_texture_get_info(
 /// ABI: creates a texture view. Pass a null `desc` for the default view
 /// (used for per-frame surface textures).
 #[no_mangle]
-pub unsafe extern "C" fn alco_texture_create_view(
+pub unsafe extern "C-unwind" fn alco_texture_create_view(
     device: AlcoHandle,
     texture: AlcoHandle,
     desc: *const AlcoTextureViewDesc,
@@ -772,7 +772,7 @@ pub unsafe extern "C" fn alco_texture_create_view(
 
 /// ABI: destroys a texture view.
 #[no_mangle]
-pub unsafe extern "C" fn alco_texture_view_destroy(
+pub unsafe extern "C-unwind" fn alco_texture_view_destroy(
     device: AlcoHandle,
     view: AlcoHandle,
 ) -> AlcoStatus {
@@ -809,7 +809,7 @@ fn plain_or_none(v: u32) -> Option<u32> {
 
 /// ABI: creates a sampler.
 #[no_mangle]
-pub unsafe extern "C" fn alco_sampler_create(
+pub unsafe extern "C-unwind" fn alco_sampler_create(
     device: AlcoHandle,
     desc: *const AlcoSamplerDesc,
     out: *mut AlcoHandle,
@@ -890,7 +890,7 @@ pub unsafe extern "C" fn alco_sampler_create(
 
 /// ABI: destroys a sampler.
 #[no_mangle]
-pub unsafe extern "C" fn alco_sampler_destroy(
+pub unsafe extern "C-unwind" fn alco_sampler_destroy(
     device: AlcoHandle,
     sampler: AlcoHandle,
 ) -> AlcoStatus {
@@ -920,7 +920,7 @@ pub unsafe extern "C" fn alco_sampler_destroy(
 /// ABI: creates a shader module. DXIL/MSL/MetalLib/SPIR-V go through the
 /// passthrough path; WGSL goes through Naga.
 #[no_mangle]
-pub unsafe extern "C" fn alco_shader_module_create(
+pub unsafe extern "C-unwind" fn alco_shader_module_create(
     device: AlcoHandle,
     desc: *const AlcoShaderModuleDesc,
     out: *mut AlcoHandle,
@@ -1084,7 +1084,7 @@ fn passthrough_desc(
 
 /// ABI: destroys a shader module.
 #[no_mangle]
-pub unsafe extern "C" fn alco_shader_module_destroy(
+pub unsafe extern "C-unwind" fn alco_shader_module_destroy(
     device: AlcoHandle,
     module: AlcoHandle,
 ) -> AlcoStatus {
@@ -1167,7 +1167,7 @@ fn bind_group_layout_entry(
 /// `desc` and `out` must be valid pointers. For a positive entry count,
 /// `entries` must point to that many initialized layout entries.
 #[no_mangle]
-pub unsafe extern "C" fn alco_bind_group_layout_create(
+pub unsafe extern "C-unwind" fn alco_bind_group_layout_create(
     device: AlcoHandle,
     desc: *const AlcoBindGroupLayoutDesc,
     out: *mut AlcoHandle,
@@ -1224,7 +1224,7 @@ pub unsafe extern "C" fn alco_bind_group_layout_create(
 
 /// ABI: destroys a bind group layout.
 #[no_mangle]
-pub unsafe extern "C" fn alco_bind_group_layout_destroy(
+pub unsafe extern "C-unwind" fn alco_bind_group_layout_destroy(
     device: AlcoHandle,
     layout: AlcoHandle,
 ) -> AlcoStatus {
@@ -1254,7 +1254,7 @@ pub unsafe extern "C" fn alco_bind_group_layout_destroy(
 /// `desc` and `out` must be valid pointers. For a positive entry count,
 /// `entries` must point to that many initialized binding entries.
 #[no_mangle]
-pub unsafe extern "C" fn alco_bind_group_create(
+pub unsafe extern "C-unwind" fn alco_bind_group_create(
     device: AlcoHandle,
     desc: *const AlcoBindGroupDesc,
     out: *mut AlcoHandle,
@@ -1357,7 +1357,7 @@ pub unsafe extern "C" fn alco_bind_group_create(
 
 /// ABI: destroys a bind group.
 #[no_mangle]
-pub unsafe extern "C" fn alco_bind_group_destroy(
+pub unsafe extern "C-unwind" fn alco_bind_group_destroy(
     device: AlcoHandle,
     group: AlcoHandle,
 ) -> AlcoStatus {
@@ -1386,7 +1386,7 @@ pub unsafe extern "C" fn alco_bind_group_destroy(
 
 /// ABI: creates a timestamp query set.
 #[no_mangle]
-pub unsafe extern "C" fn alco_query_set_create(
+pub unsafe extern "C-unwind" fn alco_query_set_create(
     device: AlcoHandle,
     count: u32,
     name: *const c_char,
@@ -1428,7 +1428,7 @@ pub unsafe extern "C" fn alco_query_set_create(
 
 /// ABI: destroys a query set (drop only — destroy+drop double-removes in wgpu).
 #[no_mangle]
-pub unsafe extern "C" fn alco_query_set_destroy(
+pub unsafe extern "C-unwind" fn alco_query_set_destroy(
     device: AlcoHandle,
     query_set: AlcoHandle,
 ) -> AlcoStatus {

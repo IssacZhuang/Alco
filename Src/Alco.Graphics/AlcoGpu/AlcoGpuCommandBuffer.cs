@@ -83,8 +83,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         ReleaseCommandBuffer();
         ReleaseCommandEncoder();
 
-        uint status = AlcoGpuNative.EncoderCreate(_device.Native, _nativeName, out _encoder);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.EncoderCreate(_device.Native, _nativeName, out _encoder);
     }
 
     /// <summary>Ends the native command encoder and finishes the command buffer.</summary>
@@ -95,10 +94,11 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             TryFinishCurrentComputePass();
             TryFinishCurrentRenderPass();
 
-            uint status = AlcoGpuNative.EncoderFinish(_device.Native, _encoder, out _buffer);
-            // Finish consumes the encoder on success and validation failure alike.
+            // Finish consumes the encoder on success and validation failure alike,
+            // so the mirror handle is cleared before the call.
+            AlcoHandle encoder = _encoder;
             _encoder = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.EncoderFinish(_device.Native, encoder, out _buffer);
         }
         finally
         {
@@ -271,18 +271,12 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             renderPassDesc.DepthStencil = &depthStencilAttachment;
         }
 
-        uint status = AlcoGpuNative.RenderPassBegin(_device.Native, _encoder, in renderPassDesc, out _renderPass);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassBegin(_device.Native, _encoder, in renderPassDesc, out _renderPass);
     }
 
     protected override void EndRenderCore()
     {
-        if (!_renderPass.IsNull)
-        {
-            uint status = AlcoGpuNative.RenderPassEnd(_device.Native, _renderPass);
-            _renderPass = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
-        }
+        TryFinishCurrentRenderPass();
     }
 
     protected override void BeginComputeCore()
@@ -290,8 +284,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         TryFinishCurrentRenderPass();
         TryFinishCurrentComputePass();
 
-        uint status = AlcoGpuNative.ComputePassBegin(_device.Native, _encoder, null, out _computePass);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.ComputePassBegin(_device.Native, _encoder, null, out _computePass);
     }
 
     protected override void BeginComputeTimestampCore(
@@ -309,8 +302,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             EndIndex = ToTimestampIndex(endQueryIndex),
         };
 
-        uint status = AlcoGpuNative.ComputePassBegin(_device.Native, _encoder, &timestampWrites, out _computePass);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.ComputePassBegin(_device.Native, _encoder, &timestampWrites, out _computePass);
     }
 
     // An absent timestamp write is marked with the all-ones sentinel (mirrors
@@ -322,12 +314,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
     protected override void EndComputeCore()
     {
-        if (!_computePass.IsNull)
-        {
-            uint status = AlcoGpuNative.ComputePassEnd(_device.Native, _computePass);
-            _computePass = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
-        }
+        TryFinishCurrentComputePass();
     }
 
     protected override void WriteTimestampInsidePassCore(
@@ -336,15 +323,13 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     {
         if (!_computePass.IsNull)
         {
-            uint status = AlcoGpuNative.ComputePassWriteTimestamp(
+            AlcoGpuNative.ComputePassWriteTimestamp(
                 _device.Native, _computePass, ((AlcoGpuTimestampQuerySet)querySet).Native, queryIndex);
-            AlcoGpuMarshal.ThrowIfFailed(status);
         }
         else if (!_renderPass.IsNull)
         {
-            uint status = AlcoGpuNative.RenderPassWriteTimestamp(
+            AlcoGpuNative.RenderPassWriteTimestamp(
                 _device.Native, _renderPass, ((AlcoGpuTimestampQuerySet)querySet).Native, queryIndex);
-            AlcoGpuMarshal.ThrowIfFailed(status);
         }
     }
 
@@ -355,7 +340,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         GPUBuffer destination,
         ulong destinationOffset)
     {
-        uint status = AlcoGpuNative.ResolveQuerySet(
+        AlcoGpuNative.ResolveQuerySet(
             _device.Native,
             _encoder,
             ((AlcoGpuTimestampQuerySet)querySet).Native,
@@ -363,151 +348,132 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             queryCount,
             ((AlcoGpuBuffer)destination).Native,
             destinationOffset);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void SetScissorRectCore(uint x, uint y, uint width, uint height)
     {
-        uint status = AlcoGpuNative.RenderPassSetScissorRect(_device.Native, _renderPass, x, y, width, height);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassSetScissorRect(_device.Native, _renderPass, x, y, width, height);
     }
 
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
         _graphicsPipeline = ((AlcoGpuGraphicsPipeline)pipeline).Native;
-        uint status = AlcoGpuNative.RenderPassSetPipeline(_device.Native, _renderPass, _graphicsPipeline);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassSetPipeline(_device.Native, _renderPass, _graphicsPipeline);
     }
 
     protected override void SetStencilReferenceCore(uint value)
     {
-        uint status = AlcoGpuNative.RenderPassSetStencilReference(_device.Native, _renderPass, value);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassSetStencilReference(_device.Native, _renderPass, value);
     }
 
     protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassSetBindGroup(
+        AlcoGpuNative.RenderPassSetBindGroup(
             _device.Native, _renderPass, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassSetVertexBuffer(
+        AlcoGpuNative.RenderPassSetVertexBuffer(
             _device.Native, _renderPass, slot, ((AlcoGpuBuffer)buffer).Native, offset, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassSetIndexBuffer(
+        AlcoGpuNative.RenderPassSetIndexBuffer(
             _device.Native, _renderPass, ((AlcoGpuBuffer)buffer).Native, (uint)format, offset, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassDraw(_device.Native, _renderPass, vertexCount, instanceCount, firstVertex, firstInstance);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassDraw(_device.Native, _renderPass, vertexCount, instanceCount, firstVertex, firstInstance);
     }
 
     protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassDrawIndexed(_device.Native, _renderPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassDrawIndexed(_device.Native, _renderPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassDrawIndirect(
+        AlcoGpuNative.RenderPassDrawIndirect(
             _device.Native, _renderPass, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassDrawIndexedIndirect(
+        AlcoGpuNative.RenderPassDrawIndexedIndirect(
             _device.Native, _renderPass, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void MultiDrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount)
     {
         ValidateGraphicsPipeline();
 
-        uint status = AlcoGpuNative.RenderPassMultiDrawIndexedIndirect(
+        AlcoGpuNative.RenderPassMultiDrawIndexedIndirect(
             _device.Native, _renderPass, ((AlcoGpuBuffer)indirectBuffer).Native, offset, drawCount);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
-        uint status = AlcoGpuNative.RenderPassSetImmediates(_device.Native, _renderPass, bufferOffset, data, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassSetImmediates(_device.Native, _renderPass, bufferOffset, data, size);
     }
 
     protected override unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size)
     {
-        uint status = AlcoGpuNative.ComputePassSetImmediates(_device.Native, _computePass, bufferOffset, data, size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.ComputePassSetImmediates(_device.Native, _computePass, bufferOffset, data, size);
     }
 
     protected override void SetComputePipelineCore(GPUPipeline pipeline)
     {
         _computePipeline = ((AlcoGpuComputePipeline)pipeline).Native;
-        uint status = AlcoGpuNative.ComputePassSetPipeline(_device.Native, _computePass, _computePipeline);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.ComputePassSetPipeline(_device.Native, _computePass, _computePipeline);
     }
 
     protected override void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         ValidateComputePipeline();
 
-        uint status = AlcoGpuNative.ComputePassSetBindGroup(
+        AlcoGpuNative.ComputePassSetBindGroup(
             _device.Native, _computePass, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void DispatchComputeCore(uint x, uint y, uint z)
     {
         ValidateComputePipeline();
 
-        uint status = AlcoGpuNative.ComputePassDispatchWorkgroups(_device.Native, _computePass, x, y, z);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.ComputePassDispatchWorkgroups(_device.Native, _computePass, x, y, z);
     }
 
     protected override void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateComputePipeline();
 
-        uint status = AlcoGpuNative.ComputePassDispatchWorkgroupsIndirect(
+        AlcoGpuNative.ComputePassDispatchWorkgroupsIndirect(
             _device.Native, _computePass, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
-        uint status = AlcoGpuNative.CopyBufferToBuffer(
+        AlcoGpuNative.CopyBufferToBuffer(
             _device.Native, _encoder,
             ((AlcoGpuBuffer)src).Native, srcOffset,
             ((AlcoGpuBuffer)dst).Native, dstOffset,
             size);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect)
@@ -524,11 +490,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             DepthOrArrayLayers = nativeDst.Depth,
         };
 
-        uint status = AlcoGpuNative.CopyBufferToTexture(
+        AlcoGpuNative.CopyBufferToTexture(
             _device.Native, _encoder,
             ((AlcoGpuBuffer)src).Native, in layout,
             nativeDst.Native, mipLevel, (uint)aspect, extent);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
@@ -546,19 +511,17 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             DepthOrArrayLayers = 1,
         };
 
-        uint status = AlcoGpuNative.CopyTextureToTexture(
+        AlcoGpuNative.CopyTextureToTexture(
             _device.Native, _encoder,
             nativeSrc.Native, srcMipLevel,
             nativeDst.Native, dstMipLevel,
             (uint)aspect, copySize);
-        AlcoGpuMarshal.ThrowIfFailed(status);
     }
 
     protected override void ExecuteBundleCore(GPURenderBundle bundle)
     {
         AlcoHandle native = ((AlcoGpuRenderBundle)bundle).Native;
-        uint status = AlcoGpuNative.RenderPassExecuteBundles(_device.Native, _renderPass, &native, 1);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassExecuteBundles(_device.Native, _renderPass, &native, 1);
     }
 
     protected override void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundle)
@@ -569,8 +532,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             nativeBundles[i] = ((AlcoGpuRenderBundle)bundle[i]).Native;
         }
 
-        uint status = AlcoGpuNative.RenderPassExecuteBundles(_device.Native, _renderPass, nativeBundles, (uint)bundle.Length);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.RenderPassExecuteBundles(_device.Native, _renderPass, nativeBundles, (uint)bundle.Length);
     }
 
     #endregion
@@ -610,9 +572,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     {
         if (!_encoder.IsNull)
         {
-            uint status = AlcoGpuNative.EncoderDestroy(_device.Native, _encoder);
+            // Destroy consumes the handle; a stale handle is worthless either way.
+            AlcoHandle encoder = _encoder;
             _encoder = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.EncoderDestroy(_device.Native, encoder);
         }
     }
 
@@ -620,9 +583,9 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     {
         if (!_buffer.IsNull)
         {
-            uint status = AlcoGpuNative.CommandBufferDestroy(_device.Native, _buffer);
+            AlcoHandle buffer = _buffer;
             _buffer = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.CommandBufferDestroy(_device.Native, buffer);
         }
     }
 
@@ -631,9 +594,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     {
         if (!_renderPass.IsNull)
         {
-            uint status = AlcoGpuNative.RenderPassEnd(_device.Native, _renderPass);
+            // End consumes the pass handle on success and failure alike.
+            AlcoHandle pass = _renderPass;
             _renderPass = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.RenderPassEnd(_device.Native, pass);
         }
     }
 
@@ -642,9 +606,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     {
         if (!_computePass.IsNull)
         {
-            uint status = AlcoGpuNative.ComputePassEnd(_device.Native, _computePass);
+            // End consumes the pass handle on success and failure alike.
+            AlcoHandle pass = _computePass;
             _computePass = AlcoHandle.Null;
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.ComputePassEnd(_device.Native, pass);
         }
     }
 

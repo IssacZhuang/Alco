@@ -191,11 +191,12 @@ public sealed class AlcoGpuIntegrationTests
     }
 
     /// <summary>
-    /// Double-destroy at the ABI level returns InvalidHandle instead of killing the
-    /// process — the core reason the alco-gpu layer exists.
+    /// Double-destroy at the ABI level throws a managed GraphicsException from
+    /// the native call instead of killing the process — the core reason the
+    /// alco-gpu layer exists.
     /// </summary>
     [Test]
-    public unsafe void DoubleDestroyReturnsInvalidHandleAndKeepsProcessAlive()
+    public unsafe void DoubleDestroyThrowsInvalidHandleAndKeepsProcessAlive()
     {
         using var host = new Host();
         AlcoGpuDevice device = CreateDevice(host);
@@ -206,16 +207,17 @@ public sealed class AlcoGpuIntegrationTests
             Usage = (uint)BufferUsage.Uniform,
         };
 
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle buffer));
+        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle buffer);
         Assert.That(buffer.IsNull, Is.False);
 
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferDestroy(device.Native, buffer));
-        uint second = AlcoGpuNative.BufferDestroy(device.Native, buffer);
-        Assert.That(second, Is.EqualTo(AlcoGpuAbi.Status.InvalidHandle));
+        AlcoGpuNative.BufferDestroy(device.Native, buffer);
+        GraphicsException second = Assert.Throws<GraphicsException>(
+            () => AlcoGpuNative.BufferDestroy(device.Native, buffer))!;
+        Assert.That(second.Message, Does.Contain("invalid handle"));
 
         // The device still works after the contained failure.
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle replacement));
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferDestroy(device.Native, replacement));
+        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle replacement);
+        AlcoGpuNative.BufferDestroy(device.Native, replacement);
     }
 
     /// <summary>The QueryResolve usage bit survives the ABI conversion (bit 9 regression).</summary>
@@ -235,8 +237,8 @@ public sealed class AlcoGpuIntegrationTests
             Usage = (uint)(BufferUsage.QueryResolve | BufferUsage.CopyDst | BufferUsage.CopySrc),
         };
 
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle buffer));
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.BufferDestroy(device.Native, buffer));
+        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle buffer);
+        AlcoGpuNative.BufferDestroy(device.Native, buffer);
     }
 
     /// <summary>Exercises texture streaming concurrently with native queue submissions.</summary>

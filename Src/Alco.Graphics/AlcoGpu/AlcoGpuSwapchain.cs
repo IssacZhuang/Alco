@@ -29,7 +29,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
 
         // check compatibility
         AlcoSurfaceCaps caps = default;
-        AlcoGpuMarshal.ThrowIfFailed(AlcoGpuNative.SurfaceGetCapabilities(device.Native, _surface, ref caps));
+        AlcoGpuNative.SurfaceGetCapabilities(device.Native, _surface, ref caps);
 
         // get supported present modes (ABI present-mode values)
         _supportedPresentModes = new uint[caps.PresentModeCount];
@@ -149,8 +149,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
         fixed (byte* ptrName = name)
         {
             desc.Name = ptrName;
-            uint status = AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoHandle handle);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoHandle handle);
             return handle;
         }
     }

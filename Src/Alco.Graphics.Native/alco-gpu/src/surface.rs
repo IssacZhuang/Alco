@@ -156,7 +156,7 @@ fn alco_alpha_mode(v: u32) -> Result<wgt::CompositeAlphaMode, AlcoStatus> {
 /// `desc` and `out` must be valid pointers. Platform handles must remain valid
 /// until the surface is destroyed.
 #[no_mangle]
-pub unsafe extern "C" fn alco_surface_create(
+pub unsafe extern "C-unwind" fn alco_surface_create(
     device: AlcoHandle,
     desc: *const AlcoSurfaceDesc,
     out: *mut AlcoHandle,
@@ -359,7 +359,7 @@ pub unsafe extern "C" fn alco_surface_create(
 /// # Safety
 /// `out` must point to writable storage for an `AlcoSurfaceCaps` value.
 #[no_mangle]
-pub unsafe extern "C" fn alco_surface_get_capabilities(
+pub unsafe extern "C-unwind" fn alco_surface_get_capabilities(
     device: AlcoHandle,
     surface: AlcoHandle,
     out: *mut AlcoSurfaceCaps,
@@ -415,7 +415,7 @@ pub unsafe extern "C" fn alco_surface_get_capabilities(
 /// # Safety
 /// `config` must point to an initialized `AlcoSurfaceConfig` value.
 #[no_mangle]
-pub unsafe extern "C" fn alco_surface_configure(
+pub unsafe extern "C-unwind" fn alco_surface_configure(
     device: AlcoHandle,
     surface: AlcoHandle,
     config: *const AlcoSurfaceConfig,
@@ -494,7 +494,7 @@ pub unsafe extern "C" fn alco_surface_configure(
 /// # Safety
 /// `out_texture` and `out_status` must point to writable output storage.
 #[no_mangle]
-pub unsafe extern "C" fn alco_surface_get_current_texture(
+pub unsafe extern "C-unwind" fn alco_surface_get_current_texture(
     device: AlcoHandle,
     surface: AlcoHandle,
     out_texture: *mut AlcoHandle,
@@ -574,7 +574,7 @@ pub unsafe extern "C" fn alco_surface_get_current_texture(
 /// # Safety
 /// `out_status`, when non-null, must point to writable storage for a status code.
 #[no_mangle]
-pub unsafe extern "C" fn alco_surface_present(
+pub unsafe extern "C-unwind" fn alco_surface_present(
     device: AlcoHandle,
     surface: AlcoHandle,
     out_status: *mut u32,
@@ -620,7 +620,7 @@ pub unsafe extern "C" fn alco_surface_present(
 /// not been presented. Surface textures must never go through
 /// `alco_texture_destroy`. Rejected regular textures keep their original handle.
 #[no_mangle]
-pub unsafe extern "C" fn alco_texture_release(
+pub unsafe extern "C-unwind" fn alco_texture_release(
     device: AlcoHandle,
     texture: AlcoHandle,
 ) -> AlcoStatus {
@@ -696,7 +696,7 @@ pub unsafe extern "C" fn alco_texture_release(
 
 /// ABI: destroys a surface. The surface must not have an acquired texture.
 #[no_mangle]
-pub unsafe extern "C" fn alco_surface_destroy(
+pub unsafe extern "C-unwind" fn alco_surface_destroy(
     device: AlcoHandle,
     surface: AlcoHandle,
 ) -> AlcoStatus {

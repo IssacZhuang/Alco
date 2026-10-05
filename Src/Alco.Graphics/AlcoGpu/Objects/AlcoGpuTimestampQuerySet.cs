@@ -22,8 +22,7 @@ internal sealed unsafe class AlcoGpuTimestampQuerySet : GPUTimestampQuerySet
         ReadOnlySpan<byte> nameBytes = name.Utf8Z();
         fixed (byte* namePointer = nameBytes)
         {
-            uint status = AlcoGpuNative.QuerySetCreate(device.Native, count, namePointer, out _querySet);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.QuerySetCreate(device.Native, count, namePointer, out _querySet);
         }
     }
 
@@ -34,7 +33,6 @@ internal sealed unsafe class AlcoGpuTimestampQuerySet : GPUTimestampQuerySet
             return;
         }
 
-        uint status = AlcoGpuNative.QuerySetDestroy(((AlcoGpuDevice)Device).Native, _querySet);
-        AlcoGpuMarshal.ThrowIfFailed(status);
+        AlcoGpuNative.QuerySetDestroy(((AlcoGpuDevice)Device).Native, _querySet);
     }
 }

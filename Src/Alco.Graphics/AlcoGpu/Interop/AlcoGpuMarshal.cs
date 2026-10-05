@@ -1,30 +1,34 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Alco.Graphics.AlcoGpu.Interop;
 
 /// <summary>
-/// Marshals native status codes and borrowed strings into managed exceptions
-/// and text. Failures carry the native message from the thread-local
-/// last-error slot.
+/// Marshals native failures into managed exceptions. The process-wide error
+/// callback registered by <see cref="AlcoGpuNative"/> throws directly from
+/// the native call site, so every alco-gpu failure becomes a
+/// <see cref="GraphicsException"/> without per-call status checks.
 /// </summary>
 internal static unsafe class AlcoGpuMarshal
 {
     /// <summary>
-    /// Throws a <see cref="GraphicsException"/> carrying the native message
-    /// when <paramref name="status"/> is not OK. <see cref="AlcoGpuAbi.Status.NotReady"/>
-    /// is a control-flow value and must be handled by callers before this check.
+    /// Native error callback (C-unwind): invoked synchronously by alco-gpu on
+    /// the calling thread when an entry point fails. Thrown exceptions unwind
+    /// through the native frames back into the managed caller, mirroring the
+    /// former wgpu-native uncaptured-error handling.
     /// </summary>
-    public static void ThrowIfFailed(uint status, [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(status))] string? call = null)
+    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+    internal static void OnNativeError(uint status, byte* message, void* userdata)
     {
-        if (status == AlcoGpuAbi.Status.Ok || status == AlcoGpuAbi.Status.NotReady)
-        {
-            return;
-        }
+        string text = BorrowedString(message) ?? "<no native message>";
+        throw new GraphicsException($"[alco-gpu:{StatusKind(status)}] {text}");
+    }
 
-        AlcoErrorInfo info = default;
-        AlcoGpuNative.GetLastError(ref info);
-        string message = BorrowedString(info.Message) ?? "<no native message>";
-        string kind = status switch
+    /// <summary>Maps an <see cref="AlcoGpuAbi.Status"/> value to its short name.</summary>
+    internal static string StatusKind(uint status)
+    {
+        return status switch
         {
             AlcoGpuAbi.Status.InvalidHandle => "invalid handle",
             AlcoGpuAbi.Status.InvalidArgument => "invalid argument",
@@ -35,7 +39,6 @@ internal static unsafe class AlcoGpuMarshal
             AlcoGpuAbi.Status.Unsupported => "unsupported",
             _ => "failure",
         };
-        throw new GraphicsException($"[alco-gpu:{kind}] {call}: {message}");
     }
 
     /// <summary>Reads a borrowed NUL-terminated UTF-8 string; null for null pointers.</summary>

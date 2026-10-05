@@ -3,16 +3,27 @@ using System.Runtime.InteropServices;
 namespace Alco.Graphics.AlcoGpu.Interop;
 
 /// <summary>
-/// P/Invoke surface of the alco-gpu native library. Every fallible entry
-/// returns a status code from <see cref="AlcoGpuAbi.Status"/>; failure
-/// details are read with <see cref="AlcoGpuNative.GetLastError"/>.
+/// P/Invoke surface of the alco-gpu native library. Fallible entries return a
+/// status code from <see cref="AlcoGpuAbi.Status"/>, but the process-wide
+/// error callback registered at load time throws a
+/// <see cref="GraphicsException"/> from the native call site on every
+/// failure, so managed callers never observe failure status returns
+/// (<see cref="AlcoGpuAbi.Status.NotReady"/> is control flow and never fires).
 /// </summary>
 internal static unsafe partial class AlcoGpuNative
 {
     private const string LibraryName = "alco_gpu";
 
-    /// <summary>Ensures the native library is resolvable (probes the app directory first).</summary>
-    static AlcoGpuNative() => AlcoGpuNativeLibrary.EnsureLoaded();
+    /// <summary>
+    /// Ensures the native library is resolvable (probes the app directory first)
+    /// and registers the throwing error callback so all failures — including
+    /// device creation itself — surface as managed exceptions.
+    /// </summary>
+    static AlcoGpuNative()
+    {
+        AlcoGpuNativeLibrary.EnsureLoaded();
+        SetErrorCallback(&AlcoGpuMarshal.OnNativeError, null);
+    }
 
     [LibraryImport(LibraryName, EntryPoint = "alco_abi_version")]
     public static partial uint AbiVersion();
@@ -22,6 +33,16 @@ internal static unsafe partial class AlcoGpuNative
 
     [LibraryImport(LibraryName, EntryPoint = "alco_get_last_error")]
     public static partial void GetLastError(ref AlcoErrorInfo info);
+
+    /// <summary>
+    /// Registers the process-wide error callback; null unregisters. The
+    /// callback fires synchronously on the calling thread for every failure
+    /// status, with the message borrowed until the next alco call.
+    /// </summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_set_error_callback")]
+    public static partial void SetErrorCallback(
+        delegate* unmanaged[Cdecl]<uint, byte*, void*, void> callback,
+        void* userdata);
 
     [LibraryImport(LibraryName, EntryPoint = "alco_device_create")]
     public static partial uint DeviceCreate(in AlcoDeviceDesc desc, out AlcoHandle device);

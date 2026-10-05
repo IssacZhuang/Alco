@@ -258,7 +258,7 @@ unsafe fn borrow_str(ptr: *const c_char) -> String {
 /// # Safety
 /// `desc` must be valid; `out` must be a valid `AlcoHandle` slot.
 #[no_mangle]
-pub unsafe extern "C" fn alco_device_create(
+pub unsafe extern "C-unwind" fn alco_device_create(
     desc: *const AlcoDeviceDesc,
     out: *mut AlcoHandle,
 ) -> AlcoStatus {
@@ -393,7 +393,7 @@ pub unsafe extern "C" fn alco_device_create(
 
 /// ABI: destroys a device. Stale handles fail with `INVALID_HANDLE`.
 #[no_mangle]
-pub unsafe extern "C" fn alco_device_destroy(device: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         let ctx = match DEVICES.remove(device) {
             Ok(ctx) => ctx,
@@ -418,7 +418,7 @@ pub unsafe extern "C" fn alco_device_destroy(device: AlcoHandle) -> AlcoStatus {
 /// # Safety
 /// `out` must be a valid `AlcoDeviceInfo` slot.
 #[no_mangle]
-pub unsafe extern "C" fn alco_device_get_info(
+pub unsafe extern "C-unwind" fn alco_device_get_info(
     device: AlcoHandle,
     out: *mut AlcoDeviceInfo,
 ) -> AlcoStatus {
@@ -461,7 +461,7 @@ pub unsafe extern "C" fn alco_device_get_info(
 /// # Safety
 /// `out_queue_empty` if non-null is a valid `u32` slot.
 #[no_mangle]
-pub unsafe extern "C" fn alco_device_poll(
+pub unsafe extern "C-unwind" fn alco_device_poll(
     device: AlcoHandle,
     wait: u32,
     submit_index: u64,
@@ -519,7 +519,7 @@ pub unsafe extern "C" fn alco_device_poll(
 /// # Safety
 /// `out` must be a valid `AlcoDeviceMessage` slot.
 #[no_mangle]
-pub unsafe extern "C" fn alco_device_pop_message(
+pub unsafe extern "C-unwind" fn alco_device_pop_message(
     device: AlcoHandle,
     out: *mut AlcoDeviceMessage,
 ) -> AlcoStatus {

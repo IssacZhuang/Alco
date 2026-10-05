@@ -28,8 +28,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
     {
         if (!_native.IsNull)
         {
-            uint status = AlcoGpuNative.BindGroupDestroy(((AlcoGpuDevice)Device).Native, _native);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.BindGroupDestroy(((AlcoGpuDevice)Device).Native, _native);
         }
     }
 
@@ -107,8 +106,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
                 Name = ptrName,
             };
 
-            uint status = AlcoGpuNative.BindGroupCreate(device.Native, in nativeDescriptor, out _native);
-            AlcoGpuMarshal.ThrowIfFailed(status);
+            AlcoGpuNative.BindGroupCreate(device.Native, in nativeDescriptor, out _native);
         }
     }
 
