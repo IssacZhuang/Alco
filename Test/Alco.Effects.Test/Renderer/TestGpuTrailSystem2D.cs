@@ -225,11 +225,11 @@ public sealed class TestGpuTrailSystem2D
     [TestCase(34, false)]
     [TestCase(64, false)]
     [TestCase(66, true)]
-    [Category("WebGPU")]
+    [Category("AlcoGpu")]
     public unsafe void RingRendersContinuousLiveWindow(int writtenPoints, bool offsetSlice)
     {
         using var deviceHost = new DeviceHost();
-        GPUDevice device = GraphicsDeviceFactory.CreateWebGPUDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
+        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
         using var host = CreateHost(device);
         RenderingSystem rendering = host.RenderingSystem;
         using var camera = rendering.CreateGraphicsValueBuffer(Matrix4x4.Identity, "trail_test_camera");
@@ -282,11 +282,11 @@ public sealed class TestGpuTrailSystem2D
     [TestCase(0.875f, 0.2f, 0.5f, 40)]
     [TestCase(0f, 0f, 0f, 255)]
     [TestCase(1f, 0f, 0f, 255)]
-    [Category("WebGPU")]
+    [Category("AlcoGpu")]
     public unsafe void FadeEnvelopeRendersSmoothEndpoints(float age, float fadeIn, float fadeOut, int expectedAlpha)
     {
         using var deviceHost = new DeviceHost();
-        GPUDevice device = GraphicsDeviceFactory.CreateWebGPUDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
+        GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(deviceHost, GraphicsBackend.WGPUVulkan));
         using var host = CreateHost(device);
         RenderingSystem rendering = host.RenderingSystem;
         using var camera = rendering.CreateGraphicsValueBuffer(Matrix4x4.Identity, "trail_fade_camera");

@@ -87,8 +87,8 @@
 
 ## Third-Party Dependencies
 - Silk.NET (v2.22.0) - OpenAL audio and SPIR-V reflection
-- Alimer.Bindings.WebGPU (v1.5.0) - WebGPU API bindings
-- wgpu-native - WebGPU native implementation
+- alco-gpu (Src/Alco.Graphics.Native/alco-gpu) - self-maintained Rust cdylib exposing the `alco_*` C ABI that Alco.Graphics P/Invokes; replaces wgpu-native and the native Vulkan backend
+- wgpu-core (v30.0.1, via alco-gpu) - GPU abstraction layer over Vulkan/D3D12/Metal/GLES that alco-gpu is built on
 - DirectX Compiler - HLSL shader compilation
 - System.IO.Hashing (v9.0.0) - High-performance hashing
 - StbSharp - Image and font processing (embedded as source code and modified)

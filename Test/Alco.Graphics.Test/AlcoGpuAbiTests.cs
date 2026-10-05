@@ -51,6 +51,13 @@ public unsafe class AlcoGpuAbiTests
             AlcoGpuMarshal.ThrowIfFailed(status);
             Assert.That(info.Backend, Is.EqualTo(AlcoGpuAbi.BackendResolved.Vulkan).Or.EqualTo(AlcoGpuAbi.BackendResolved.Dx12));
             Assert.That(info.Caps & AlcoGpuAbi.Caps.PassthroughShaders, Is.Not.Zero, "passthrough shaders expected on desktop adapters");
+
+            // MetalLib passthrough is an Apple-platform capability; DXIL/MSL
+            // passthrough on the desktop is covered by the check above.
+            if (OperatingSystem.IsMacOS())
+            {
+                Assert.That(info.Caps & AlcoGpuAbi.Caps.MetalLib, Is.Not.Zero, "MetalLib passthrough expected on Apple platforms");
+            }
             Assert.That(info.MaxBindGroups, Is.GreaterThan(0));
             Assert.That(info.MaxImmediateSize, Is.EqualTo(128));
             Assert.That(AlcoGpuMarshal.BorrowedString(info.AdapterName), Is.Not.Null.And.Not.Empty);

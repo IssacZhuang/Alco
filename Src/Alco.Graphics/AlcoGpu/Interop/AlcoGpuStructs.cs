@@ -15,7 +15,7 @@ internal static unsafe partial class AlcoGpuAbi
     public const uint AbiMajor = 1;
 
     /// <summary>ABI minor version implemented by the native library.</summary>
-    public const uint AbiMinor = 1;
+    public const uint AbiMinor = 2;
 
     /// <summary>Sentinel for "no value" in optional uint fields.</summary>
     public const uint AlcoNone = uint.MaxValue;
@@ -394,6 +394,10 @@ internal struct AlcoBindGroupEntry
 
     public ulong Offset;
     public ulong Size;
+
+    /// <summary>Resource kind: 0 buffer, 1 texture view, 2 sampler. Handles from
+    /// different per-type tables may collide numerically, so the kind must be explicit.</summary>
+    public uint Kind;
 }
 
 /// <summary>Bind group descriptor (mirrors AlcoBindGroupDesc).</summary>

@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "package": "alco-gpu",
+  "crate": {
+    "path": "Src/Alco.Graphics.Native/alco-gpu",
+    "version": "0.1.0",
+    "rustToolchain": "1.97.1",
+    "abiVersion": "1.2",
+    "wgpuCore": "=30.0.1",
+    "features": [
+      "wgsl",
+      "spirv",
+      "glsl",
+      "gles",
+      "vulkan",
+      "metal",
+      "dx12"
+    ]
+  },
+  "binaries": {
+    "win-x64": {
+      "file": "runtimes/win-x64/native/alco_gpu.dll",
+      "sha256": "eddf1bc01a874979f9395968e0c385a98a97729b24260ef92cfa47b3b40f216a",
+      "builtFrom": "local cargo build --release"
+    },
+    "win-arm64": null,
+    "linux-x64": null,
+    "linux-arm64": null,
+    "osx-x64": null,
+    "osx-arm64": null,
+    "android-x64": null,
+    "android-arm64": null
+  },
+  "note": "Purely provenance metadata; not consumed at build time. Null RIDs are pending the manual native CI workflow. Rebuild locally with: cd Src/Alco.Graphics.Native/alco-gpu && cargo build --release, then copy target/release/alco_gpu* into runtimes/<RID>/native/."
+}

@@ -69,6 +69,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
                 case BindableResourceType.Buffer:
                     AlcoGpuBuffer buffer = (AlcoGpuBuffer)entry.Resource;
                     nativeEntry.Resource = buffer.Native;
+                    nativeEntry.Kind = 0;
                     if (entry.UseOffset)
                     {
                         nativeEntry.Offset = entry.Offset;
@@ -83,10 +84,12 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
                 case BindableResourceType.Sampler:
                     AlcoGpuSampler sampler = (AlcoGpuSampler)entry.Resource;
                     nativeEntry.Resource = sampler.Native;
+                    nativeEntry.Kind = 2;
                     break;
                 case BindableResourceType.TextureView:
                     AlcoGpuTextureViewBase textureView = (AlcoGpuTextureViewBase)entry.Resource;
                     nativeEntry.Resource = textureView.Native;
+                    nativeEntry.Kind = 1;
                     break;
             }
 

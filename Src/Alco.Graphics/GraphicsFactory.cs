@@ -4,12 +4,6 @@ using Alco.Graphics.NoGPU;
 using Alco.Graphics.AlcoGpu;
 #endif
 
-#if USE_WEBGPU
-using Alco.Graphics.WebGPU;
-#endif
-
-using Alco.Graphics.Vulkan;
-
 namespace Alco.Graphics;
 
 public static class GraphicsDeviceFactory
@@ -20,20 +14,6 @@ public static class GraphicsDeviceFactory
     public static GPUDevice GetNoGPUDevice()
     {
         return new NoDevice();
-    }
-
-    public static GPUDevice CreateVulkanDevice(DeviceDescriptor descriptor)
-    {
-        return new VulkanDevice(descriptor);
-    }
-
-    public static GPUDevice CreateWebGPUDevice(DeviceDescriptor descriptor)
-    {
-#if USE_WEBGPU
-        return new WebGPUDevice(descriptor);
-#else
-        throw new PlatformNotSupportedException("WebGPU is not supported");
-#endif
     }
 
     /// <summary>

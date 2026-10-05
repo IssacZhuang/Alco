@@ -42,7 +42,7 @@ public sealed class TestSmokeTrailNoise
         public GpuCapture()
         {
             _deviceHost = new DeviceHost();
-            GPUDevice device = GraphicsDeviceFactory.CreateWebGPUDevice(new DeviceDescriptor(_deviceHost, GraphicsBackend.WGPUVulkan));
+            GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(new DeviceDescriptor(_deviceHost, GraphicsBackend.WGPUVulkan));
             _host = CreateHost(device);
             _camera = Rendering.CreateGraphicsValueBuffer(Matrix4x4.Identity, "trail_contract_camera");
         }
@@ -94,7 +94,7 @@ public sealed class TestSmokeTrailNoise
     /// <summary>The same smoke material renders continuous noise through both dimensional templates.</summary>
     [TestCase(0.37f)]
     [TestCase(81.37f)]
-    [Category("WebGPU")]
+    [Category("AlcoGpu")]
     public void NoiseRemainsContinuousAcrossCellBoundaries(float seed)
     {
         const int width = 4096, height = 65;
@@ -127,7 +127,7 @@ public sealed class TestSmokeTrailNoise
     /// <summary>Both templates preserve color interpolation and inherited fragment shading premultiplies alpha.</summary>
     [TestCase("TrailSurfaceDefault")]
     [TestCase("TrailInheritedSurface")]
-    [Category("WebGPU")]
+    [Category("AlcoGpu")]
     public void SharedMaterialPreservesPremultipliedColorGradient(string surfaceName)
     {
         using var capture = new GpuCapture();
@@ -147,7 +147,7 @@ public sealed class TestSmokeTrailNoise
 
     /// <summary>Offsets use world up and fragments receive expanded positions while 2D preserves sorting depth.</summary>
     [Test]
-    [Category("WebGPU")]
+    [Category("AlcoGpu")]
     public void SharedVertexHookPreservesDimensionalPositionContract()
     {
         const int width = 512, height = 512;

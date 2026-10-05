@@ -260,6 +260,10 @@ pub struct AlcoBindGroupEntry {
     pub resource: AlcoHandle,
     pub offset: u64,
     pub size: u64,
+    /// Resource kind: 0 buffer, 1 texture view, 2 sampler. Required because
+    /// handles from different per-type tables may collide numerically, so the
+    /// kind cannot be recovered by probing tables.
+    pub kind: u32,
 }
 
 #[repr(C)]
@@ -1257,22 +1261,45 @@ pub unsafe extern "C" fn alco_bind_group_create(
                 let entries = std::slice::from_raw_parts(desc.entries, desc.entry_count as usize);
                 let mut wentries = Vec::with_capacity(entries.len());
                 for entry in entries {
-                    let resource = if ctx.buffers().with(entry.resource, |_| ()).is_ok() {
-                        let id = ctx.buffers().with(entry.resource, |obj| obj.id).unwrap();
-                        wgc::binding_model::BindingResource::Buffer(wgc::binding_model::BufferBinding {
-                            buffer: id,
-                            offset: entry.offset,
-                            size: if entry.size == 0 { None } else { Some(entry.size) },
-                        })
-                    } else if ctx.views().with(entry.resource, |_| ()).is_ok() {
-                        let id = ctx.views().with(entry.resource, |obj| obj.id).unwrap();
-                        wgc::binding_model::BindingResource::TextureView(id)
-                    } else if ctx.samplers().with(entry.resource, |_| ()).is_ok() {
-                        let id = ctx.samplers().with(entry.resource, |obj| obj.id).unwrap();
-                        wgc::binding_model::BindingResource::Sampler(id)
-                    } else {
-                        set_error(AlcoStatus::INVALID_HANDLE, format!("invalid resource handle in binding {}", entry.binding));
-                        return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                    let resource = match entry.kind {
+                        0 => {
+                            let id = match ctx.buffers().with(entry.resource, |obj| obj.id) {
+                                Ok(id) => id,
+                                Err(_) => {
+                                    set_error(AlcoStatus::INVALID_HANDLE, format!("invalid buffer handle in binding {}", entry.binding));
+                                    return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                                }
+                            };
+                            wgc::binding_model::BindingResource::Buffer(wgc::binding_model::BufferBinding {
+                                buffer: id,
+                                offset: entry.offset,
+                                size: if entry.size == 0 { None } else { Some(entry.size) },
+                            })
+                        }
+                        1 => {
+                            let id = match ctx.views().with(entry.resource, |obj| obj.id) {
+                                Ok(id) => id,
+                                Err(_) => {
+                                    set_error(AlcoStatus::INVALID_HANDLE, format!("invalid texture view handle in binding {}", entry.binding));
+                                    return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                                }
+                            };
+                            wgc::binding_model::BindingResource::TextureView(id)
+                        }
+                        2 => {
+                            let id = match ctx.samplers().with(entry.resource, |obj| obj.id) {
+                                Ok(id) => id,
+                                Err(_) => {
+                                    set_error(AlcoStatus::INVALID_HANDLE, format!("invalid sampler handle in binding {}", entry.binding));
+                                    return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
+                                }
+                            };
+                            wgc::binding_model::BindingResource::Sampler(id)
+                        }
+                        other => {
+                            set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid resource kind {other} in binding {}", entry.binding));
+                            return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL);
+                        }
                     };
                     wentries.push(wgc::binding_model::BindGroupEntry {
                         binding: entry.binding,

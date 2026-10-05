@@ -77,12 +77,7 @@ public partial class GameEngine
             Name = "graphics_device"
         };
 
-        if (setting.Backend == GraphicsBackend.NativeVulkan)
-        {
-            return GraphicsDeviceFactory.CreateVulkanDevice(deviceDescriptor);
-        }
-
-        // every other backend runs through the alco-gpu Rust layer over wgpu-core;
+        // every backend runs through the alco-gpu Rust layer over wgpu-core;
         // the device maps the requested backend onto its adapter selection
         return GraphicsDeviceFactory.CreateAlcoGpuDevice(deviceDescriptor);
     }

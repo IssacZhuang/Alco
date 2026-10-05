@@ -17,7 +17,4 @@ public enum GraphicsBackend
 
     /// <summary>wgpu running on Metal.</summary>
     WGPUMetal = 4,
-
-    /// <summary>The engine's native Vulkan backend (Alco.Graphics.Vulkan).</summary>
-    NativeVulkan = 5,
 }

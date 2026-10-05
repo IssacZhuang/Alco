@@ -1,7 +1,7 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.Graphics.WebGPU;
+using Alco.Graphics.AlcoGpu;
 using Alco.ShaderCompiler;
 using NUnit.Framework;
 
@@ -202,12 +202,12 @@ public unsafe class TestBcDecoder
     [TestCase(DdsDecoder.BcFamily.BC3, false)]
     [TestCase(DdsDecoder.BcFamily.BC1, true)]
     [TestCase(DdsDecoder.BcFamily.BC3, true)]
-    [Category("WebGPU")]
+    [Category("AlcoGpu")]
     [NonParallelizable]
     public void GpuCompression_UsesEndpointFirstPalette(DdsDecoder.BcFamily family, bool solid)
     {
         using GpuHost gpuHost = new();
-        var device = new WebGPUDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.WGPUVulkan));
+        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.WGPUVulkan));
         if (!device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
         {
             Assert.Ignore("The graphics adapter does not support BC compression.");
