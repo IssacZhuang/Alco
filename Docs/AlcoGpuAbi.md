@@ -131,11 +131,16 @@ scenario under wgpu-native aborted the process.
 
 ## Building / updating the binary
 
+Locally (win-x64 host):
+
 ```bash
 cd Src/Alco.Graphics.Native/alco-gpu
 cargo build --release
 cp target/release/alco_gpu.dll ../../Alco.Graphics/runtimes/win-x64/native/
 ```
 
-Update `runtimes/alco-gpu-manifest.json` (wgpu version, ABI version, per-RID sha256)
-when committing a new binary. Other RIDs are pending the native CI workflow.
+All 8 RIDs (win x64/arm64, linux x64/arm64, osx x64/arm64, android x64/arm64) are built
+by the manual-dispatch **Native alco-gpu** workflow (`.github/workflows/native-alco-gpu.yml`):
+manylinux 2.28 containers (QEMU for arm64), Android NDK r29 (API 21), macOS deployment
+target 10.15 with an `@rpath` install name. The workflow opens a PR that replaces the
+runtimes binaries and refreshes `runtimes/alco-gpu-manifest.json` (per-RID sha256).

@@ -31,5 +31,5 @@
     "android-x64": null,
     "android-arm64": null
   },
-  "note": "Purely provenance metadata; not consumed at build time. Null RIDs are pending the manual native CI workflow. Rebuild locally with: cd Src/Alco.Graphics.Native/alco-gpu && cargo build --release, then copy target/release/alco_gpu* into runtimes/<RID>/native/."
+  "note": "Purely provenance metadata; not consumed at build time. All RIDs are built by the 'Native alco-gpu' GitHub Actions workflow (.github/workflows/native-alco-gpu.yml), which opens a PR that fills these entries. Rebuild locally with: cd Src/Alco.Graphics.Native/alco-gpu && cargo build --release, then copy target/release/alco_gpu* into runtimes/<RID>/native/."
 }

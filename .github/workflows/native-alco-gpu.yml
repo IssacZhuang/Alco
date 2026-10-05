@@ -1,0 +1,380 @@
+# Cross-platform native build pipeline for the alco-gpu Rust cdylib.
+#
+# Builds all 8 RIDs and (by default) opens a PR that drops the binaries into
+# Src/Alco.Graphics/runtimes/<RID>/native/ and refreshes runtimes/alco-gpu-manifest.json
+# (sha256 provenance). The regular Build workflow keeps testing the committed win-x64
+# binary; this pipeline is the source for the other RIDs.
+#
+# Recipes are carried over from the alco-wgpu-native pipeline: manylinux 2.28 containers
+# (QEMU for arm64), Android NDK r29 with API-21 clang linkers, and an @rpath install
+# name on macOS. alco-gpu is pure Rust (no bindgen), so all libclang steps are gone.
+
+name: Native alco-gpu
+
+on:
+  workflow_dispatch:
+    inputs:
+      create-pr:
+        description: 'Open a PR updating runtimes binaries and the manifest'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-alco-gpu-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CRATE_DIR: Src/Alco.Graphics.Native/alco-gpu
+  RUST_TOOLCHAIN: 1.97.1
+
+jobs:
+  windows:
+    name: Build win-x64 + win-arm64
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ env.CRATE_DIR }}
+
+      - name: Install cross targets
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
+
+      - name: Build win-x64
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Build win-arm64
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: cargo build --release --target aarch64-pc-windows-msvc
+
+      - name: Stage binaries
+        shell: pwsh
+        run: |
+          $crate = $env:CRATE_DIR
+          New-Item -ItemType Directory -Force -Path staging/win-x64, staging/win-arm64 | Out-Null
+          Copy-Item "$crate/target/x86_64-pc-windows-msvc/release/alco_gpu.dll" staging/win-x64/
+          Copy-Item "$crate/target/aarch64-pc-windows-msvc/release/alco_gpu.dll" staging/win-arm64/
+          foreach ($dll in @('staging/win-x64/alco_gpu.dll', 'staging/win-arm64/alco_gpu.dll')) {
+            $size = (Get-Item $dll).Length
+            if ($size -lt 1MB) { throw "$dll is only $size bytes" }
+          }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-win-x64
+          path: staging/win-x64/alco_gpu.dll
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-win-arm64
+          path: staging/win-arm64/alco_gpu.dll
+          if-no-files-found: error
+
+  linux:
+    name: Build linux-x64 + linux-arm64 (manylinux 2.28)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            rust-target: x86_64-unknown-linux-gnu
+            docker-image: quay.io/pypa/manylinux_2_28_x86_64
+            docker-platform: linux/amd64
+          - rid: linux-arm64
+            rust-target: aarch64-unknown-linux-gnu
+            docker-image: quay.io/pypa/manylinux_2_28_aarch64
+            docker-platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up QEMU for arm64 manylinux
+        if: matrix.docker-platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Build in manylinux 2.28
+        env:
+          RID: ${{ matrix.rid }}
+          RUST_TARGET: ${{ matrix.rust-target }}
+          RUST_TOOLCHAIN: ${{ env.RUST_TOOLCHAIN }}
+        run: |
+          docker run --rm --platform "${{ matrix.docker-platform }}" \
+            -e RID -e RUST_TARGET -e RUST_TOOLCHAIN \
+            -v "$GITHUB_WORKSPACE:/workspace" \
+            -w /workspace \
+            "${{ matrix.docker-image }}" \
+            bash -lc '
+              set -euo pipefail
+              curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs |
+                sh -s -- -y --default-toolchain none --profile minimal
+              export PATH=/root/.cargo/bin:$PATH
+              cd alco-gpu
+              rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target "$RUST_TARGET"
+              cargo build --release --target "$RUST_TARGET"
+              cd ..
+              mkdir -p "staging/$RID"
+              cp "alco-gpu/target/$RUST_TARGET/release/libalco_gpu.so" "staging/$RID/"
+            '
+
+      - name: Verify binary
+        run: |
+          lib="staging/${{ matrix.rid }}/libalco_gpu.so"
+          size=$(stat -c%s "$lib")
+          if [ "$size" -lt 1048576 ]; then
+            echo "$lib is only $size bytes"
+            exit 1
+          fi
+          nm -D "$lib" | grep -q ' T alco_abi_version$' || {
+            echo "$lib does not export alco_abi_version"
+            exit 1
+          }
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-${{ matrix.rid }}
+          path: staging/${{ matrix.rid }}/libalco_gpu.so
+          if-no-files-found: error
+
+  macos:
+    name: Build osx-x64 + osx-arm64
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      # wgpu-hal's Metal path uses MTLSharedEvent (10.14+); 10.15 keeps a small margin.
+      MACOSX_DEPLOYMENT_TARGET: '10.15'
+      # Bundled dylibs are expected to carry an @rpath install name.
+      RUSTFLAGS: -C link-args=-Wl,-install_name,@rpath/libalco_gpu.dylib
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ env.CRATE_DIR }}
+
+      - name: Install cross targets
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: rustup target add x86_64-apple-darwin aarch64-apple-darwin
+
+      - name: Build osx-x64
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Build osx-arm64
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Stage and verify binaries
+        run: |
+          set -euo pipefail
+          mkdir -p staging/osx-x64 staging/osx-arm64
+          cp "$CRATE_DIR/target/x86_64-apple-darwin/release/libalco_gpu.dylib" staging/osx-x64/
+          cp "$CRATE_DIR/target/aarch64-apple-darwin/release/libalco_gpu.dylib" staging/osx-arm64/
+          for lib in staging/osx-x64/libalco_gpu.dylib staging/osx-arm64/libalco_gpu.dylib; do
+            size=$(stat -f%z "$lib")
+            if [ "$size" -lt 1048576 ]; then
+              echo "$lib is only $size bytes"
+              exit 1
+            fi
+            nm -gU "$lib" | grep -q ' _alco_abi_version$' || {
+              echo "$lib does not export alco_abi_version"
+              exit 1
+            }
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-osx-x64
+          path: staging/osx-x64/libalco_gpu.dylib
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-osx-arm64
+          path: staging/osx-arm64/libalco_gpu.dylib
+          if-no-files-found: error
+
+  android:
+    name: Build android-x64 + android-arm64 (NDK r29)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      NDK_VERSION: r29
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ${{ env.CRATE_DIR }}
+
+      - name: Cache Android NDK
+        id: ndk-cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/android-ndk-r29
+          key: android-ndk-r29-linux
+
+      - name: Install Android NDK
+        if: steps.ndk-cache.outputs.cache-hit != 'true'
+        run: |
+          archive="$RUNNER_TEMP/android-ndk-r29-linux.zip"
+          curl --fail --location --retry 3 \
+            "https://dl.google.com/android/repository/android-ndk-r29-linux.zip" \
+            --output "$archive"
+          unzip -q "$archive" -d "$RUNNER_TEMP"
+          rm -f "$archive"
+
+      - name: Configure NDK linkers
+        run: |
+          set -euo pipefail
+          toolchain="$RUNNER_TEMP/android-ndk-r29/toolchains/llvm/prebuilt/linux-x86_64"
+          test -x "$toolchain/bin/aarch64-linux-android21-clang"
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$toolchain/bin/aarch64-linux-android21-clang" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$toolchain/bin/x86_64-linux-android21-clang" >> "$GITHUB_ENV"
+
+      - name: Install cross targets
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: rustup target add aarch64-linux-android x86_64-linux-android
+
+      - name: Build android-arm64
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: cargo build --release --target aarch64-linux-android
+
+      - name: Build android-x64
+        working-directory: Src/Alco.Graphics.Native/alco-gpu
+        run: cargo build --release --target x86_64-linux-android
+
+      - name: Stage and verify binaries
+        run: |
+          set -euo pipefail
+          mkdir -p staging/android-arm64 staging/android-x64
+          cp "$CRATE_DIR/target/aarch64-linux-android/release/libalco_gpu.so" staging/android-arm64/
+          cp "$CRATE_DIR/target/x86_64-linux-android/release/libalco_gpu.so" staging/android-x64/
+          for lib in staging/android-arm64/libalco_gpu.so staging/android-x64/libalco_gpu.so; do
+            size=$(stat -c%s "$lib")
+            if [ "$size" -lt 1048576 ]; then
+              echo "$lib is only $size bytes"
+              exit 1
+            fi
+            nm -D "$lib" | grep -q ' T alco_abi_version$' || {
+              echo "$lib does not export alco_abi_version"
+              exit 1
+            }
+          done
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-android-arm64
+          path: staging/android-arm64/libalco_gpu.so
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-android-x64
+          path: staging/android-x64/libalco_gpu.so
+          if-no-files-found: error
+
+  update-runtimes:
+    name: Update runtimes and manifest
+    needs: [windows, linux, macos, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download all RID binaries
+        uses: actions/download-artifact@v8
+        with:
+          pattern: alco-gpu-*
+          path: downloaded
+
+      - name: Assemble runtimes and refresh manifest
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+
+          runtimes = 'Src/Alco.Graphics/runtimes'
+          downloaded = 'downloaded'
+          # Artifacts land as downloaded/alco-gpu-<rid>/<library>; the two Windows
+          # RIDs share a file name, so merging into one directory is not an option.
+          libraries = {
+              'win-x64': 'alco_gpu.dll',
+              'win-arm64': 'alco_gpu.dll',
+              'linux-x64': 'libalco_gpu.so',
+              'linux-arm64': 'libalco_gpu.so',
+              'osx-x64': 'libalco_gpu.dylib',
+              'osx-arm64': 'libalco_gpu.dylib',
+              'android-x64': 'libalco_gpu.so',
+              'android-arm64': 'libalco_gpu.so',
+          }
+
+          manifest_path = os.path.join(runtimes, 'alco-gpu-manifest.json')
+          for rid, library in libraries.items():
+              source = os.path.join(downloaded, f'alco-gpu-{rid}', library)
+              if not os.path.isfile(source) or os.path.getsize(source) < 1048576:
+                  raise SystemExit(f'missing or undersized binary for {rid}: {source}')
+              target_dir = os.path.join(runtimes, rid, 'native')
+              os.makedirs(target_dir, exist_ok=True)
+              shutil.copyfile(source, os.path.join(target_dir, library))
+              digest = hashlib.sha256(open(source, 'rb').read()).hexdigest()
+
+              manifest = json.load(open(manifest_path, encoding='utf-8'))
+              manifest['binaries'][rid] = {
+                  'file': f'runtimes/{rid}/native/{library}',
+                  'sha256': digest,
+                  'builtFrom': 'native-alco-gpu GitHub Actions pipeline',
+              }
+              manifest['note'] = (
+                  'Purely provenance metadata; not consumed at build time. '
+                  'Binaries are produced by the native-alco-gpu workflow; rebuild locally '
+                  'with: cd Src/Alco.Graphics.Native/alco-gpu && cargo build --release, '
+                  'then copy target/release/alco_gpu* into runtimes/<RID>/native/.'
+              )
+              with open(manifest_path, 'w', encoding='utf-8', newline='\n') as handle:
+                  json.dump(manifest, handle, indent=2, ensure_ascii=False)
+                  handle.write('\n')
+          print('manifest refreshed for', ', '.join(libraries))
+          PY
+
+      - name: Upload combined runtimes bundle
+        uses: actions/upload-artifact@v7
+        with:
+          name: alco-gpu-runtimes-all
+          path: |
+            Src/Alco.Graphics/runtimes/*/native/*
+            Src/Alco.Graphics/runtimes/alco-gpu-manifest.json
+          if-no-files-found: error
+
+      - name: Open pull request with the new binaries
+        if: ${{ inputs.create-pr }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'ci: refresh alco_gpu binaries for all RIDs (native-alco-gpu)'
+          title: 'ci: alco_gpu binaries for all RIDs (native pipeline)'
+          body: |
+            Produced by the `Native alco-gpu` workflow (dispatch ${{ github.run_id }}).
+
+            - Replaces all 8 `Src/Alco.Graphics/runtimes/<RID>/native/` binaries
+            - Refreshes `runtimes/alco-gpu-manifest.json` sha256 provenance
+            - After merging, run the regular Build workflow to re-verify the win-x64 path
+          branch: ci/alco-gpu-native-binaries
+          add-paths: |
+            Src/Alco.Graphics/runtimes/**
