@@ -248,7 +248,7 @@ macro_rules! object_ref {
 
 /// C# `BufferDescriptor`.
 #[repr(C)]
-pub struct AlcoBufferDesc {
+pub struct BufferDesc {
     /// Buffer allocation size in bytes.
     pub size: u64,
     /// C# `BufferUsage` bits.
@@ -259,7 +259,7 @@ pub struct AlcoBufferDesc {
 
 /// C# `TextureDescriptor`.
 #[repr(C)]
-pub struct AlcoTextureDesc {
+pub struct TextureDesc {
     /// C# texture or view dimension discriminant.
     pub dimension: u32,
     /// C# pixel-format discriminant.
@@ -280,9 +280,9 @@ pub struct AlcoTextureDesc {
     pub name: *const c_char,
 }
 
-/// Result of `alco_texture_get_info`.
+/// Result of `texture_get_info`.
 #[repr(C)]
-pub struct AlcoTextureInfo {
+pub struct TextureInfo {
     /// Width in texels.
     pub width: u32,
     /// Height in texels.
@@ -297,7 +297,7 @@ pub struct AlcoTextureInfo {
 
 /// C# `TextureViewDescriptor`.
 #[repr(C)]
-pub struct AlcoTextureViewDesc {
+pub struct TextureViewDesc {
     /// C# texture or view dimension discriminant.
     pub dimension: u32,
     /// First mip level included in the view.
@@ -318,7 +318,7 @@ pub struct AlcoTextureViewDesc {
 
 /// C# `SamplerDescriptor`.
 #[repr(C)]
-pub struct AlcoSamplerDesc {
+pub struct SamplerDesc {
     /// C# minification filter discriminant.
     pub min_filter: u32,
     /// C# magnification filter discriminant.
@@ -352,7 +352,7 @@ pub mod shader_language {
     pub const METALLIB: u32 = 6;
 }
 
-/// Flag bits of `AlcoShaderModuleDesc::flags`; unknown bits are ignored.
+/// Flag bits of `ShaderModuleDesc::flags`; unknown bits are ignored.
 pub mod shader_module_flags {
     /// SPIR-V input already matches Naga's coordinate convention (Slang's
     /// direct emission): skip the GL-style Y adjustment during translation.
@@ -361,7 +361,7 @@ pub mod shader_module_flags {
 
 /// C# `ShaderModule` (bytes + entry point + workgroup size).
 #[repr(C)]
-pub struct AlcoShaderModuleDesc {
+pub struct ShaderModuleDesc {
     /// Shader-language discriminant from shader_language.
     pub language: u32,
     /// Call-scoped pointer to shader source bytes.
@@ -384,7 +384,7 @@ pub struct AlcoShaderModuleDesc {
 
 /// One entry of C# `BindGroupDescriptor.Bindings`.
 #[repr(C)]
-pub struct AlcoBindGroupLayoutEntry {
+pub struct BindGroupLayoutEntry {
     /// Shader binding index.
     pub binding: u32,
     /// C# `ShaderStage` bits.
@@ -405,9 +405,9 @@ pub struct AlcoBindGroupLayoutEntry {
 
 /// Bind-group-layout entries and their optional debug name.
 #[repr(C)]
-pub struct AlcoBindGroupLayoutDesc {
+pub struct BindGroupLayoutDesc {
     /// Pointer to entry_count initialized descriptor entries.
-    pub entries: *const AlcoBindGroupLayoutEntry,
+    pub entries: *const BindGroupLayoutEntry,
     /// Number of initialized entries; zero permits a null array.
     pub entry_count: u32,
     /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
@@ -416,7 +416,7 @@ pub struct AlcoBindGroupLayoutDesc {
 
 /// One entry of C# `ResourceGroupDescriptor.Resources`.
 #[repr(C)]
-pub struct AlcoBindGroupEntry {
+pub struct BindGroupEntry {
     /// Shader binding index.
     pub binding: u32,
     /// Buffer, texture-view or sampler handle.
@@ -432,11 +432,11 @@ pub struct AlcoBindGroupEntry {
 
 /// Typed bind-group layout and the resources to bind.
 #[repr(C)]
-pub struct AlcoBindGroupDesc {
+pub struct BindGroupDesc {
     /// Live typed bind-group-layout pointer.
-    pub layout: AlcoBindGroupLayoutHandle,
+    pub layout: BindGroupLayoutHandle,
     /// Pointer to entry_count initialized descriptor entries.
-    pub entries: *const AlcoBindGroupEntry,
+    pub entries: *const BindGroupEntry,
     /// Number of initialized entries; zero permits a null array.
     pub entry_count: u32,
     /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
@@ -453,20 +453,17 @@ pub struct AlcoBindGroupDesc {
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoBufferDesc,
-    out: *mut AlcoBufferHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_buffer(
+    device: DeviceHandle,
+    desc: *const BufferDesc,
+    out: *mut BufferHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
-                    "null descriptor or out pointer",
-                );
-                return AlcoStatus::INVALID_ARGUMENT;
+                set_error(Status::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -482,17 +479,17 @@ pub unsafe extern "C-unwind" fn alco_buffer_create(
         };
         let (id, err) = ctx.global.device_create_buffer(ctx.device_id, &wdesc, None);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.buffer_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoBufferHandle::new(BufferObj {
+        let handle = BufferHandle::new(BufferObj {
             id,
             ctx: Arc::clone(ctx),
             map_completion: None,
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -502,7 +499,7 @@ pub unsafe extern "C-unwind" fn alco_buffer_create(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_destroy(buffer: AlcoBufferHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn buffer_destroy(buffer: BufferHandle) -> Status {
     crate::entry::guard(|| {
         let obj = match buffer.take() {
             Ok(obj) => obj,
@@ -513,19 +510,19 @@ pub unsafe extern "C-unwind" fn alco_buffer_destroy(buffer: AlcoBufferHandle) ->
         };
         obj.ctx.global.buffer_destroy(obj.id);
         drop(obj);
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
 /// Shared read/write map initiation. Completion is poll-driven via
-/// `alco_buffer_map_poll`; the native callback only records the outcome into
+/// `buffer_map_poll`; the native callback only records the outcome into
 /// a shared cell that stays valid regardless of object lifetime.
 unsafe fn map_buffer(
-    buffer: AlcoBufferHandle,
+    buffer: BufferHandle,
     offset: u64,
     size: u64,
     host: wgc::device::HostMap,
-) -> AlcoStatus {
+) -> Status {
     let obj = match buffer.get_mut() {
         Ok(obj) => obj,
         Err(status) => {
@@ -559,89 +556,89 @@ unsafe fn map_buffer(
     {
         Ok(_) => {
             obj.map_completion = Some(completion);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(e) => {
-            set_error_from(AlcoStatus::VALIDATION, &e);
-            AlcoStatus::VALIDATION
+            set_error_from(Status::VALIDATION, &e);
+            Status::VALIDATION
         }
     }
 }
 
 /// ABI: initiates a read map. Completion is poll-driven via
-/// `alco_buffer_map_poll`; the native callback only records the outcome into
+/// `buffer_map_poll`; the native callback only records the outcome into
 /// a shared cell that stays valid regardless of object lifetime.
 ///
 /// # Safety
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_map_read(
-    buffer: AlcoBufferHandle,
+pub unsafe extern "C-unwind" fn buffer_map_read(
+    buffer: BufferHandle,
     offset: u64,
     size: u64,
-) -> AlcoStatus {
+) -> Status {
     crate::entry::guard(|| map_buffer(buffer, offset, size, wgc::device::HostMap::Read))
 }
 
 /// ABI: initiates a write map. The mapped range from
-/// `alco_buffer_get_mapped_range` is writable until `alco_buffer_unmap`.
+/// `buffer_get_mapped_range` is writable until `buffer_unmap`.
 ///
 /// # Safety
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_map_write(
-    buffer: AlcoBufferHandle,
+pub unsafe extern "C-unwind" fn buffer_map_write(
+    buffer: BufferHandle,
     offset: u64,
     size: u64,
-) -> AlcoStatus {
+) -> Status {
     crate::entry::guard(|| map_buffer(buffer, offset, size, wgc::device::HostMap::Write))
 }
 
 /// ABI: polls a pending map. `NOT_READY` = still mapping, `OK` = mapped
-/// (range available via `alco_buffer_get_mapped_range`), `VALIDATION` = failed.
+/// (range available via `buffer_get_mapped_range`), `VALIDATION` = failed.
 ///
 /// # Safety
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_map_poll(buffer: AlcoBufferHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn buffer_map_poll(buffer: BufferHandle) -> Status {
     crate::entry::guard(|| {
         let obj = object_ref!(buffer, "invalid buffer handle");
         let Some(completion) = obj.map_completion.as_ref() else {
-            return AlcoStatus::NOT_READY;
+            return Status::NOT_READY;
         };
         match completion.state.load(Ordering::Acquire) {
-            1 => AlcoStatus::OK,
+            1 => Status::OK,
             2 => {
                 let error = completion.error.lock().unwrap();
                 let message = error.as_ref().expect("failed map must publish its error");
-                set_error(AlcoStatus::VALIDATION, message.to_string_lossy());
-                AlcoStatus::VALIDATION
+                set_error(Status::VALIDATION, message.to_string_lossy());
+                Status::VALIDATION
             }
-            _ => AlcoStatus::NOT_READY,
+            _ => Status::NOT_READY,
         }
     })
 }
 
 /// ABI: returns the mapped range pointer — read-only after a read map,
-/// writable after a write map until `alco_buffer_unmap`.
+/// writable after a write map until `buffer_unmap`.
 ///
 /// # Safety
 /// All live typed handles must outlive the call; destruction must not overlap access.
 /// `out` must be a valid `*const u8` slot; the range is valid until unmap.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_get_mapped_range(
-    buffer: AlcoBufferHandle,
+pub unsafe extern "C-unwind" fn buffer_get_mapped_range(
+    buffer: BufferHandle,
     offset: u64,
     size: u64,
     out: *mut *const u8,
-) -> AlcoStatus {
+) -> Status {
     crate::entry::guard(|| {
         if out.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer");
+            return Status::INVALID_ARGUMENT;
         }
         let obj = object_ref!(buffer, "invalid buffer handle");
         match obj
@@ -651,18 +648,15 @@ pub unsafe extern "C-unwind" fn alco_buffer_get_mapped_range(
         {
             Ok((ptr, len)) if len >= size => {
                 *out = ptr.as_ptr();
-                AlcoStatus::OK
+                Status::OK
             }
             Ok(_) => {
-                set_error(
-                    AlcoStatus::VALIDATION,
-                    "mapped range smaller than requested",
-                );
-                AlcoStatus::VALIDATION
+                set_error(Status::VALIDATION, "mapped range smaller than requested");
+                Status::VALIDATION
             }
             Err(e) => {
-                set_error_from(AlcoStatus::VALIDATION, &e);
-                AlcoStatus::VALIDATION
+                set_error_from(Status::VALIDATION, &e);
+                Status::VALIDATION
             }
         }
     })
@@ -674,7 +668,7 @@ pub unsafe extern "C-unwind" fn alco_buffer_get_mapped_range(
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_unmap(buffer: AlcoBufferHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn buffer_unmap(buffer: BufferHandle) -> Status {
     crate::entry::guard(|| {
         let obj = match buffer.get_mut() {
             Ok(obj) => obj,
@@ -684,11 +678,11 @@ pub unsafe extern "C-unwind" fn alco_buffer_unmap(buffer: AlcoBufferHandle) -> A
             }
         };
         if let Err(e) = obj.ctx.global.buffer_unmap(obj.id) {
-            set_error_from(AlcoStatus::VALIDATION, &e);
-            return AlcoStatus::VALIDATION;
+            set_error_from(Status::VALIDATION, &e);
+            return Status::VALIDATION;
         }
         obj.map_completion = None;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -702,20 +696,17 @@ pub unsafe extern "C-unwind" fn alco_buffer_unmap(buffer: AlcoBufferHandle) -> A
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_texture_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoTextureDesc,
-    out: *mut AlcoTextureHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_texture(
+    device: DeviceHandle,
+    desc: *const TextureDesc,
+    out: *mut TextureHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
-                    "null descriptor or out pointer",
-                );
-                return AlcoStatus::INVALID_ARGUMENT;
+                set_error(Status::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -745,11 +736,11 @@ pub unsafe extern "C-unwind" fn alco_texture_create(
             .global
             .device_create_texture(ctx.device_id, &wdesc, None);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.texture_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoTextureHandle::new(TextureObj {
+        let handle = TextureHandle::new(TextureObj {
             id,
             ctx: Arc::clone(ctx),
             width: desc.width,
@@ -761,7 +752,7 @@ pub unsafe extern "C-unwind" fn alco_texture_create(
             surface: None,
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -771,15 +762,15 @@ pub unsafe extern "C-unwind" fn alco_texture_create(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_texture_destroy(texture: AlcoTextureHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn texture_destroy(texture: TextureHandle) -> Status {
     crate::entry::guard(|| {
         // Reject the wrong lifecycle operation without consuming the handle.
         if object_ref!(texture, "invalid texture handle").is_surface_texture {
             set_error(
-                AlcoStatus::INVALID_ARGUMENT,
+                Status::INVALID_ARGUMENT,
                 "surface textures must be released, not destroyed",
             );
-            return AlcoStatus::INVALID_ARGUMENT;
+            return Status::INVALID_ARGUMENT;
         }
         let obj = match texture.take() {
             Ok(obj) => obj,
@@ -790,7 +781,7 @@ pub unsafe extern "C-unwind" fn alco_texture_destroy(texture: AlcoTextureHandle)
         };
         obj.ctx.global.texture_destroy(obj.id);
         drop(obj);
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -800,24 +791,24 @@ pub unsafe extern "C-unwind" fn alco_texture_destroy(texture: AlcoTextureHandle)
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_texture_get_info(
-    texture: AlcoTextureHandle,
-    out: *mut AlcoTextureInfo,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn texture_get_info(
+    texture: TextureHandle,
+    out: *mut TextureInfo,
+) -> Status {
     crate::entry::guard(|| {
         if out.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer");
+            return Status::INVALID_ARGUMENT;
         }
         let obj = object_ref!(texture, "invalid texture handle");
-        *out = AlcoTextureInfo {
+        *out = TextureInfo {
             width: obj.width,
             height: obj.height,
             depth_or_array_layers: obj.depth_or_array_layers,
             mip_level_count: obj.mip_level_count,
             format: obj.format,
         };
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -828,15 +819,15 @@ pub unsafe extern "C-unwind" fn alco_texture_get_info(
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_texture_create_view(
-    texture: AlcoTextureHandle,
-    desc: *const AlcoTextureViewDesc,
-    out: *mut AlcoTextureViewHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn texture_create_view(
+    texture: TextureHandle,
+    desc: *const TextureViewDesc,
+    out: *mut TextureViewHandle,
+) -> Status {
     crate::entry::guard(|| {
         if out.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer");
+            return Status::INVALID_ARGUMENT;
         }
         let obj = object_ref!(texture, "invalid texture handle");
         let ctx = &obj.ctx;
@@ -888,16 +879,16 @@ pub unsafe extern "C-unwind" fn alco_texture_create_view(
         };
         let (id, err) = ctx.global.texture_create_view(obj.id, &wdesc, None);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.texture_view_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        *out = AlcoTextureViewHandle::new(TextureViewObj {
+        *out = TextureViewHandle::new(TextureViewObj {
             id,
             ctx: Arc::clone(ctx),
             surface: obj.surface.clone(),
         });
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -907,13 +898,11 @@ pub unsafe extern "C-unwind" fn alco_texture_create_view(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_texture_view_destroy(
-    view: AlcoTextureViewHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn texture_view_destroy(view: TextureViewHandle) -> Status {
     crate::entry::guard(|| match view.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid texture view handle");
@@ -923,7 +912,7 @@ pub unsafe extern "C-unwind" fn alco_texture_view_destroy(
 }
 
 pub(crate) fn plain_or_none(v: u32) -> Option<u32> {
-    if v == 0 || v == ALCO_NONE {
+    if v == 0 || v == NONE {
         None
     } else {
         Some(v)
@@ -940,20 +929,17 @@ pub(crate) fn plain_or_none(v: u32) -> Option<u32> {
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_sampler_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoSamplerDesc,
-    out: *mut AlcoSamplerHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_sampler(
+    device: DeviceHandle,
+    desc: *const SamplerDesc,
+    out: *mut SamplerHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
-                    "null descriptor or out pointer",
-                );
-                return AlcoStatus::INVALID_ARGUMENT;
+                set_error(Status::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -1002,16 +988,16 @@ pub unsafe extern "C-unwind" fn alco_sampler_create(
             .global
             .device_create_sampler(ctx.device_id, &wdesc, None);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.sampler_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoSamplerHandle::new(SamplerObj {
+        let handle = SamplerHandle::new(SamplerObj {
             id,
             ctx: Arc::clone(ctx),
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -1021,11 +1007,11 @@ pub unsafe extern "C-unwind" fn alco_sampler_create(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_sampler_destroy(sampler: AlcoSamplerHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn sampler_destroy(sampler: SamplerHandle) -> Status {
     crate::entry::guard(|| match sampler.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid sampler handle");
@@ -1054,20 +1040,20 @@ pub unsafe extern "C-unwind" fn alco_sampler_destroy(sampler: AlcoSamplerHandle)
 /// non-null name and entry-point pointers must reference null-terminated strings.
 /// `out` must point to a writable handle slot.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_shader_module_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoShaderModuleDesc,
-    out: *mut AlcoShaderModuleHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_shader_module(
+    device: DeviceHandle,
+    desc: *const ShaderModuleDesc,
+    out: *mut ShaderModuleHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() && !d.data.is_null() && d.size > 0 => d,
             _ => {
                 set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
+                    Status::INVALID_ARGUMENT,
                     "null descriptor, out pointer or empty source",
                 );
-                return AlcoStatus::INVALID_ARGUMENT;
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -1174,23 +1160,23 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
             }
             other => {
                 set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
+                    Status::INVALID_ARGUMENT,
                     format!("unsupported shader language {other}"),
                 );
-                return AlcoStatus::INVALID_ARGUMENT;
+                return Status::INVALID_ARGUMENT;
             }
         };
 
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, e.as_ref());
+            set_error_from(Status::VALIDATION, e.as_ref());
             ctx.global.shader_module_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        *out = AlcoShaderModuleHandle::new(ShaderModuleObj {
+        *out = ShaderModuleHandle::new(ShaderModuleObj {
             id,
             ctx: Arc::clone(ctx),
         });
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -1214,13 +1200,13 @@ fn spirv_words(data: &[u8]) -> std::borrow::Cow<'_, [u32]> {
     std::borrow::Cow::Owned(words)
 }
 
-fn require_passthrough(ctx: &DeviceCtx) -> Result<(), AlcoStatus> {
+fn require_passthrough(ctx: &DeviceCtx) -> Result<(), Status> {
     if ctx.caps & caps::PASSTHROUGH_SHADERS == 0 {
         set_error(
-            AlcoStatus::UNSUPPORTED,
+            Status::UNSUPPORTED,
             "this device does not support passthrough shaders",
         );
-        return Err(AlcoStatus::UNSUPPORTED);
+        return Err(Status::UNSUPPORTED);
     }
     Ok(())
 }
@@ -1255,13 +1241,11 @@ fn passthrough_desc<'a>(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_shader_module_destroy(
-    module: AlcoShaderModuleHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn shader_module_destroy(module: ShaderModuleHandle) -> Status {
     crate::entry::guard(|| match module.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid shader module handle");
@@ -1275,8 +1259,8 @@ pub unsafe extern "C-unwind" fn alco_shader_module_destroy(
 // ---------------------------------------------------------------------------
 
 fn bind_group_layout_entry(
-    entry: &AlcoBindGroupLayoutEntry,
-) -> Result<wgt::BindGroupLayoutEntry, AlcoStatus> {
+    entry: &BindGroupLayoutEntry,
+) -> Result<wgt::BindGroupLayoutEntry, Status> {
     let ty = match entry.ty {
         // UniformBuffer
         1 => wgt::BindingType::Buffer {
@@ -1312,10 +1296,10 @@ fn bind_group_layout_entry(
         6 => wgt::BindingType::Sampler(wgt::SamplerBindingType::Comparison),
         other => {
             set_error(
-                AlcoStatus::INVALID_ARGUMENT,
+                Status::INVALID_ARGUMENT,
                 format!("invalid binding type {other}"),
             );
-            return Err(AlcoStatus::INVALID_ARGUMENT);
+            return Err(Status::INVALID_ARGUMENT);
         }
     };
     Ok(wgt::BindGroupLayoutEntry {
@@ -1334,20 +1318,20 @@ fn bind_group_layout_entry(
 /// `desc` and `out` must be valid pointers. For a positive entry count,
 /// `entries` must point to that many initialized layout entries.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_bind_group_layout_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoBindGroupLayoutDesc,
-    out: *mut AlcoBindGroupLayoutHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_bind_group_layout(
+    device: DeviceHandle,
+    desc: *const BindGroupLayoutDesc,
+    out: *mut BindGroupLayoutHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() && (d.entry_count == 0 || !d.entries.is_null()) => d,
             _ => {
                 set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
+                    Status::INVALID_ARGUMENT,
                     "null descriptor, out pointer or nonempty entry array",
                 );
-                return AlcoStatus::INVALID_ARGUMENT;
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -1371,16 +1355,16 @@ pub unsafe extern "C-unwind" fn alco_bind_group_layout_create(
             .global
             .device_create_bind_group_layout(ctx.device_id, &wdesc, None);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.bind_group_layout_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoBindGroupLayoutHandle::new(BindGroupLayoutObj {
+        let handle = BindGroupLayoutHandle::new(BindGroupLayoutObj {
             id,
             ctx: Arc::clone(ctx),
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -1390,13 +1374,11 @@ pub unsafe extern "C-unwind" fn alco_bind_group_layout_create(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_bind_group_layout_destroy(
-    layout: AlcoBindGroupLayoutHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn bind_group_layout_destroy(layout: BindGroupLayoutHandle) -> Status {
     crate::entry::guard(|| match layout.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid bind group layout handle");
@@ -1413,20 +1395,20 @@ pub unsafe extern "C-unwind" fn alco_bind_group_layout_destroy(
 /// `desc` and `out` must be valid pointers. For a positive entry count,
 /// `entries` must point to that many initialized binding entries.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_bind_group_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoBindGroupDesc,
-    out: *mut AlcoBindGroupHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_bind_group(
+    device: DeviceHandle,
+    desc: *const BindGroupDesc,
+    out: *mut BindGroupHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() && (d.entry_count == 0 || !d.entries.is_null()) => d,
             _ => {
                 set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
+                    Status::INVALID_ARGUMENT,
                     "null descriptor, out pointer or nonempty entry array",
                 );
-                return AlcoStatus::INVALID_ARGUMENT;
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -1481,10 +1463,10 @@ pub unsafe extern "C-unwind" fn alco_bind_group_create(
                 }
                 other => {
                     set_error(
-                        AlcoStatus::INVALID_ARGUMENT,
+                        Status::INVALID_ARGUMENT,
                         format!("invalid resource kind {other} in binding {}", entry.binding),
                     );
-                    return AlcoStatus::INVALID_ARGUMENT;
+                    return Status::INVALID_ARGUMENT;
                 }
             };
             wentries.push(wgc::binding_model::BindGroupEntry {
@@ -1501,16 +1483,16 @@ pub unsafe extern "C-unwind" fn alco_bind_group_create(
             .global
             .device_create_bind_group(ctx.device_id, &wdesc, None);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.bind_group_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoBindGroupHandle::new(BindGroupObj {
+        let handle = BindGroupHandle::new(BindGroupObj {
             id,
             ctx: Arc::clone(ctx),
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -1520,11 +1502,11 @@ pub unsafe extern "C-unwind" fn alco_bind_group_create(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_bind_group_destroy(group: AlcoBindGroupHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn bind_group_destroy(group: BindGroupHandle) -> Status {
     crate::entry::guard(|| match group.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid bind group handle");
@@ -1543,19 +1525,16 @@ pub unsafe extern "C-unwind" fn alco_bind_group_destroy(group: AlcoBindGroupHand
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_query_set_create(
-    device: AlcoDeviceHandle,
+pub unsafe extern "C-unwind" fn device_create_query_set(
+    device: DeviceHandle,
     count: u32,
     name: *const c_char,
-    out: *mut AlcoQuerySetHandle,
-) -> AlcoStatus {
+    out: *mut QuerySetHandle,
+) -> Status {
     crate::entry::guard(|| {
         if out.is_null() || count == 0 {
-            set_error(
-                AlcoStatus::INVALID_ARGUMENT,
-                "null out pointer or zero count",
-            );
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer or zero count");
+            return Status::INVALID_ARGUMENT;
         }
         let ctx = &object_ref!(device, "invalid device handle").ctx;
         let wdesc = wgt::QuerySetDescriptor {
@@ -1567,16 +1546,16 @@ pub unsafe extern "C-unwind" fn alco_query_set_create(
             .global
             .device_create_query_set(ctx.device_id, &wdesc, None);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.query_set_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoQuerySetHandle::new(QuerySetObj {
+        let handle = QuerySetHandle::new(QuerySetObj {
             id,
             ctx: Arc::clone(ctx),
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -1586,13 +1565,11 @@ pub unsafe extern "C-unwind" fn alco_query_set_create(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_query_set_destroy(
-    query_set: AlcoQuerySetHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn query_set_destroy(query_set: QuerySetHandle) -> Status {
     crate::entry::guard(|| match query_set.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid query set handle");
@@ -1604,10 +1581,8 @@ pub unsafe extern "C-unwind" fn alco_query_set_destroy(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::commands::{
-        alco_copy_buffer_to_buffer, alco_encoder_create, alco_encoder_finish,
-    };
-    use crate::device::alco_device_poll;
+    use crate::commands::{device_create_encoder, encoder_copy_buffer_to_buffer, encoder_finish};
+    use crate::device::device_poll;
     use crate::test_support::{last_error, TestDevice};
     use std::ptr;
 
@@ -1722,26 +1697,26 @@ mod tests {
     #[test]
     fn positive_binding_counts_require_non_null_arrays_before_device_lookup() {
         unsafe {
-            let layout = AlcoBindGroupLayoutDesc {
+            let layout = BindGroupLayoutDesc {
                 entries: ptr::null(),
                 entry_count: 1,
                 name: ptr::null(),
             };
-            let group = AlcoBindGroupDesc {
-                layout: AlcoBindGroupLayoutHandle::NULL,
+            let group = BindGroupDesc {
+                layout: BindGroupLayoutHandle::NULL,
                 entries: ptr::null(),
                 entry_count: 1,
                 name: ptr::null(),
             };
-            let mut layout_out = AlcoBindGroupLayoutHandle::NULL;
-            let mut group_out = AlcoBindGroupHandle::NULL;
+            let mut layout_out = BindGroupLayoutHandle::NULL;
+            let mut group_out = BindGroupHandle::NULL;
             assert_eq!(
-                alco_bind_group_layout_create(AlcoDeviceHandle::NULL, &layout, &mut layout_out),
-                AlcoStatus::INVALID_ARGUMENT
+                device_create_bind_group_layout(DeviceHandle::NULL, &layout, &mut layout_out),
+                Status::INVALID_ARGUMENT
             );
             assert_eq!(
-                alco_bind_group_create(AlcoDeviceHandle::NULL, &group, &mut group_out),
-                AlcoStatus::INVALID_ARGUMENT
+                device_create_bind_group(DeviceHandle::NULL, &group, &mut group_out),
+                Status::INVALID_ARGUMENT
             );
         }
     }
@@ -1751,7 +1726,7 @@ mod tests {
         let Some(device) = TestDevice::new() else {
             return;
         };
-        let layout_placeholder = AlcoBindGroupLayoutEntry {
+        let layout_placeholder = BindGroupLayoutEntry {
             binding: 0,
             visibility: 0,
             ty: 0,
@@ -1761,7 +1736,7 @@ mod tests {
             storage_access: 0,
             storage_format: 0,
         };
-        let group_placeholder = AlcoBindGroupEntry {
+        let group_placeholder = BindGroupEntry {
             binding: 0,
             resource: ptr::null_mut(),
             offset: 0,
@@ -1770,30 +1745,30 @@ mod tests {
         };
         unsafe {
             for entries in [ptr::null(), &layout_placeholder] {
-                let desc = AlcoBindGroupLayoutDesc {
+                let desc = BindGroupLayoutDesc {
                     entries,
                     entry_count: 0,
                     name: ptr::null(),
                 };
-                let mut layout = AlcoBindGroupLayoutHandle::NULL;
+                let mut layout = BindGroupLayoutHandle::NULL;
                 assert_eq!(
-                    alco_bind_group_layout_create(device.handle, &desc, &mut layout),
-                    AlcoStatus::OK,
+                    device_create_bind_group_layout(device.handle, &desc, &mut layout),
+                    Status::OK,
                     "{}",
                     last_error()
                 );
                 assert!(!layout.is_null());
                 for entries in [ptr::null(), &group_placeholder] {
-                    let desc = AlcoBindGroupDesc {
+                    let desc = BindGroupDesc {
                         layout,
                         entries,
                         entry_count: 0,
                         name: ptr::null(),
                     };
-                    let mut group = AlcoBindGroupHandle::NULL;
+                    let mut group = BindGroupHandle::NULL;
                     assert_eq!(
-                        alco_bind_group_create(device.handle, &desc, &mut group),
-                        AlcoStatus::OK,
+                        device_create_bind_group(device.handle, &desc, &mut group),
+                        Status::OK,
                         "{}",
                         last_error()
                     );
@@ -1809,9 +1784,9 @@ mod tests {
                         .bind_groups;
                     assert_eq!(report.num_allocated, 1);
                     assert_eq!(report.num_kept_from_user, 1);
-                    assert_eq!(alco_bind_group_destroy(group), AlcoStatus::OK);
+                    assert_eq!(bind_group_destroy(group), Status::OK);
                 }
-                assert_eq!(alco_bind_group_layout_destroy(layout), AlcoStatus::OK);
+                assert_eq!(bind_group_layout_destroy(layout), Status::OK);
             }
             let report = device
                 .handle
@@ -1867,49 +1842,34 @@ mod tests {
     #[test]
     fn resource_null_handles_fail_without_accessing_a_device() {
         unsafe {
+            assert_eq!(buffer_destroy(BufferHandle::NULL), Status::INVALID_HANDLE);
             assert_eq!(
-                alco_buffer_destroy(AlcoBufferHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
+                buffer_map_read(BufferHandle::NULL, 0, 4),
+                Status::INVALID_HANDLE
+            );
+            assert_eq!(buffer_map_poll(BufferHandle::NULL), Status::INVALID_HANDLE);
+            assert_eq!(buffer_unmap(BufferHandle::NULL), Status::INVALID_HANDLE);
+            assert_eq!(texture_destroy(TextureHandle::NULL), Status::INVALID_HANDLE);
+            assert_eq!(
+                texture_view_destroy(TextureViewHandle::NULL),
+                Status::INVALID_HANDLE
+            );
+            assert_eq!(sampler_destroy(SamplerHandle::NULL), Status::INVALID_HANDLE);
+            assert_eq!(
+                shader_module_destroy(ShaderModuleHandle::NULL),
+                Status::INVALID_HANDLE
             );
             assert_eq!(
-                alco_buffer_map_read(AlcoBufferHandle::NULL, 0, 4),
-                AlcoStatus::INVALID_HANDLE
+                bind_group_layout_destroy(BindGroupLayoutHandle::NULL),
+                Status::INVALID_HANDLE
             );
             assert_eq!(
-                alco_buffer_map_poll(AlcoBufferHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
+                bind_group_destroy(BindGroupHandle::NULL),
+                Status::INVALID_HANDLE
             );
             assert_eq!(
-                alco_buffer_unmap(AlcoBufferHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
-            );
-            assert_eq!(
-                alco_texture_destroy(AlcoTextureHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
-            );
-            assert_eq!(
-                alco_texture_view_destroy(AlcoTextureViewHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
-            );
-            assert_eq!(
-                alco_sampler_destroy(AlcoSamplerHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
-            );
-            assert_eq!(
-                alco_shader_module_destroy(AlcoShaderModuleHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
-            );
-            assert_eq!(
-                alco_bind_group_layout_destroy(AlcoBindGroupLayoutHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
-            );
-            assert_eq!(
-                alco_bind_group_destroy(AlcoBindGroupHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
-            );
-            assert_eq!(
-                alco_query_set_destroy(AlcoQuerySetHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
+                query_set_destroy(QuerySetHandle::NULL),
+                Status::INVALID_HANDLE
             );
         }
     }
@@ -1920,19 +1880,19 @@ mod tests {
             return;
         };
         unsafe {
-            let desc = AlcoBufferDesc {
+            let desc = BufferDesc {
                 size: 16,
                 usage: 1 | 8,
                 name: ptr::null(),
             };
-            let mut buffer = AlcoBufferHandle::NULL;
+            let mut buffer = BufferHandle::NULL;
             assert_eq!(
-                alco_buffer_create(device.handle, &desc, &mut buffer),
-                AlcoStatus::OK,
+                device_create_buffer(device.handle, &desc, &mut buffer),
+                Status::OK,
                 "{}",
                 last_error()
             );
-            assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::NOT_READY);
+            assert_eq!(buffer_map_poll(buffer), Status::NOT_READY);
             let completion = Arc::new(MapCompletion {
                 state: AtomicU32::new(0),
                 error: Mutex::new(None),
@@ -1940,18 +1900,18 @@ mod tests {
             buffer.get_mut().unwrap().map_completion = Some(Arc::clone(&completion));
             let count = Arc::strong_count(&completion);
             for _ in 0..32 {
-                assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::NOT_READY);
+                assert_eq!(buffer_map_poll(buffer), Status::NOT_READY);
                 assert_eq!(Arc::strong_count(&completion), count);
             }
             assert!(completion.error.lock().unwrap().is_none());
             completion.state.store(1, Ordering::Release);
-            assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::OK);
+            assert_eq!(buffer_map_poll(buffer), Status::OK);
             *completion.error.lock().unwrap() = Some(CString::new("map failure").unwrap());
             completion.state.store(2, Ordering::Release);
-            assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::VALIDATION);
+            assert_eq!(buffer_map_poll(buffer), Status::VALIDATION);
             assert_eq!(last_error(), "map failure");
             assert_eq!(Arc::strong_count(&completion), count);
-            assert_eq!(alco_buffer_destroy(buffer), AlcoStatus::OK);
+            assert_eq!(buffer_destroy(buffer), Status::OK);
             assert_eq!(Arc::strong_count(&completion), 1);
         }
     }
@@ -1963,20 +1923,20 @@ mod tests {
         };
         unsafe {
             let weak = Arc::downgrade(&device.handle.get().unwrap().ctx);
-            let buffer_desc = AlcoBufferDesc {
+            let buffer_desc = BufferDesc {
                 size: 16,
                 usage: 8,
                 name: ptr::null(),
             };
-            let mut buffer = AlcoBufferHandle::NULL;
+            let mut buffer = BufferHandle::NULL;
             assert_eq!(
-                alco_buffer_create(device.handle, &buffer_desc, &mut buffer),
-                AlcoStatus::OK,
+                device_create_buffer(device.handle, &buffer_desc, &mut buffer),
+                Status::OK,
                 "{}",
                 last_error()
             );
             assert_eq!(weak.strong_count(), 2);
-            let texture_desc = AlcoTextureDesc {
+            let texture_desc = TextureDesc {
                 dimension: 1,
                 format: 18,
                 usage: 4,
@@ -1987,36 +1947,36 @@ mod tests {
                 sample_count: 1,
                 name: ptr::null(),
             };
-            let mut texture = AlcoTextureHandle::NULL;
+            let mut texture = TextureHandle::NULL;
             assert_eq!(
-                alco_texture_create(device.handle, &texture_desc, &mut texture),
-                AlcoStatus::OK,
+                device_create_texture(device.handle, &texture_desc, &mut texture),
+                Status::OK,
                 "{}",
                 last_error()
             );
-            let mut view = AlcoTextureViewHandle::NULL;
+            let mut view = TextureViewHandle::NULL;
             assert_eq!(
-                alco_texture_create_view(texture, ptr::null(), &mut view),
-                AlcoStatus::OK,
+                texture_create_view(texture, ptr::null(), &mut view),
+                Status::OK,
                 "{}",
                 last_error()
             );
             assert_eq!(weak.strong_count(), 4);
             drop(device);
             assert_eq!(weak.strong_count(), 3);
-            let mut info = AlcoTextureInfo {
+            let mut info = TextureInfo {
                 width: 0,
                 height: 0,
                 depth_or_array_layers: 0,
                 mip_level_count: 0,
                 format: 0,
             };
-            assert_eq!(alco_texture_get_info(texture, &mut info), AlcoStatus::OK);
+            assert_eq!(texture_get_info(texture, &mut info), Status::OK);
             assert_eq!((info.width, info.height, info.format), (4, 4, 18));
-            assert_eq!(alco_buffer_destroy(buffer), AlcoStatus::OK);
-            assert_eq!(alco_texture_destroy(texture), AlcoStatus::OK);
+            assert_eq!(buffer_destroy(buffer), Status::OK);
+            assert_eq!(texture_destroy(texture), Status::OK);
             assert_eq!(weak.strong_count(), 1);
-            assert_eq!(alco_texture_view_destroy(view), AlcoStatus::OK);
+            assert_eq!(texture_view_destroy(view), Status::OK);
             assert!(weak.upgrade().is_none());
         }
     }
@@ -2028,49 +1988,44 @@ mod tests {
         };
         const SIZE: u64 = 64;
         unsafe {
-            let source_desc = AlcoBufferDesc {
+            let source_desc = BufferDesc {
                 size: SIZE,
                 usage: (1 << 1) | (1 << 2), // MAP_WRITE | COPY_SRC
                 name: ptr::null(),
             };
-            let destination_desc = AlcoBufferDesc {
+            let destination_desc = BufferDesc {
                 size: SIZE,
                 usage: (1 << 0) | (1 << 3), // MAP_READ | COPY_DST
                 name: ptr::null(),
             };
-            let mut source = AlcoBufferHandle::NULL;
+            let mut source = BufferHandle::NULL;
             assert_eq!(
-                alco_buffer_create(device.handle, &source_desc, &mut source),
-                AlcoStatus::OK,
+                device_create_buffer(device.handle, &source_desc, &mut source),
+                Status::OK,
                 "{}",
                 last_error()
             );
-            let mut destination = AlcoBufferHandle::NULL;
+            let mut destination = BufferHandle::NULL;
             assert_eq!(
-                alco_buffer_create(device.handle, &destination_desc, &mut destination),
-                AlcoStatus::OK,
+                device_create_buffer(device.handle, &destination_desc, &mut destination),
+                Status::OK,
                 "{}",
                 last_error()
             );
             // The write map completes during blocking device maintenance; the
             // mapped range is writable for the requested size.
-            assert_eq!(alco_buffer_map_write(source, 0, SIZE), AlcoStatus::OK);
+            assert_eq!(buffer_map_write(source, 0, SIZE), Status::OK);
             assert_eq!(
-                alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, ptr::null_mut()),
-                AlcoStatus::OK,
+                device_poll(device.handle, TRUE, u64::MAX, ptr::null_mut()),
+                Status::OK,
                 "{}",
                 last_error()
             );
-            assert_eq!(
-                alco_buffer_map_poll(source),
-                AlcoStatus::OK,
-                "{}",
-                last_error()
-            );
+            assert_eq!(buffer_map_poll(source), Status::OK, "{}", last_error());
             let mut range = std::ptr::null();
             assert_eq!(
-                alco_buffer_get_mapped_range(source, 0, SIZE, &mut range),
-                AlcoStatus::OK,
+                buffer_get_mapped_range(source, 0, SIZE, &mut range),
+                Status::OK,
                 "{}",
                 last_error()
             );
@@ -2078,62 +2033,57 @@ mod tests {
             for element in 0..SIZE as usize {
                 *mapped.add(element) = (element * 5 % 251) as u8;
             }
-            assert_eq!(alco_buffer_unmap(source), AlcoStatus::OK);
-            let mut enc = AlcoEncoderHandle::NULL;
+            assert_eq!(buffer_unmap(source), Status::OK);
+            let mut enc = EncoderHandle::NULL;
             assert_eq!(
-                alco_encoder_create(device.handle, ptr::null(), &mut enc),
-                AlcoStatus::OK,
+                device_create_encoder(device.handle, ptr::null(), &mut enc),
+                Status::OK,
                 "{}",
                 last_error()
             );
             assert_eq!(
-                alco_copy_buffer_to_buffer(enc, source, 0, destination, 0, SIZE),
-                AlcoStatus::OK,
+                encoder_copy_buffer_to_buffer(enc, source, 0, destination, 0, SIZE),
+                Status::OK,
                 "{}",
                 last_error()
             );
-            let mut command = AlcoCommandBufferHandle::NULL;
+            let mut command = CommandBufferHandle::NULL;
             assert_eq!(
-                alco_encoder_finish(enc, &mut command),
-                AlcoStatus::OK,
+                encoder_finish(enc, &mut command),
+                Status::OK,
                 "{}",
                 last_error()
             );
             let mut index = 0;
             assert_eq!(
-                crate::commands::alco_queue_submit(device.handle, command, &mut index),
-                AlcoStatus::OK,
+                crate::commands::queue_submit(device.handle, command, &mut index),
+                Status::OK,
                 "{}",
                 last_error()
             );
             assert_eq!(
-                alco_device_poll(device.handle, ALCO_TRUE, index, ptr::null_mut()),
-                AlcoStatus::OK,
+                device_poll(device.handle, TRUE, index, ptr::null_mut()),
+                Status::OK,
                 "{}",
                 last_error()
             );
             assert_eq!(
-                alco_buffer_map_read(destination, 0, SIZE),
-                AlcoStatus::OK,
+                buffer_map_read(destination, 0, SIZE),
+                Status::OK,
                 "{}",
                 last_error()
             );
             assert_eq!(
-                alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, ptr::null_mut()),
-                AlcoStatus::OK,
+                device_poll(device.handle, TRUE, u64::MAX, ptr::null_mut()),
+                Status::OK,
                 "{}",
                 last_error()
             );
-            assert_eq!(
-                alco_buffer_map_poll(destination),
-                AlcoStatus::OK,
-                "{}",
-                last_error()
-            );
+            assert_eq!(buffer_map_poll(destination), Status::OK, "{}", last_error());
             let mut read = std::ptr::null();
             assert_eq!(
-                alco_buffer_get_mapped_range(destination, 0, SIZE, &mut read),
-                AlcoStatus::OK,
+                buffer_get_mapped_range(destination, 0, SIZE, &mut read),
+                Status::OK,
                 "{}",
                 last_error()
             );
@@ -2144,9 +2094,9 @@ mod tests {
                     "element {element}"
                 );
             }
-            assert_eq!(alco_buffer_unmap(destination), AlcoStatus::OK);
-            assert_eq!(alco_buffer_destroy(source), AlcoStatus::OK);
-            assert_eq!(alco_buffer_destroy(destination), AlcoStatus::OK);
+            assert_eq!(buffer_unmap(destination), Status::OK);
+            assert_eq!(buffer_destroy(source), Status::OK);
+            assert_eq!(buffer_destroy(destination), Status::OK);
         }
     }
 }

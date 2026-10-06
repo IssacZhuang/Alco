@@ -28,12 +28,12 @@ internal static unsafe class AlcoGpuUtility
     }
 
     /// <summary>Computes the tight copy layout for one mip of an uncompressed texture.</summary>
-    public static AlcoCopyLayout GetTextureDataLayout(PixelFormat pixelFormat, uint width, uint height)
+    public static AlcoGpuAbi.CopyLayout GetTextureDataLayout(PixelFormat pixelFormat, uint width, uint height)
     {
         // Uncompressed formats.
         if (PixelFormatUtility.TryGetPixelSize(pixelFormat, out uint pixelSize))
         {
-            return new AlcoCopyLayout
+            return new AlcoGpuAbi.CopyLayout
             {
                 Offset = 0,
                 BytesPerRow = width * pixelSize,
@@ -47,7 +47,7 @@ internal static unsafe class AlcoGpuUtility
         {
             uint blocksPerRow = (width + 3) / 4;
             uint blockRowsPerImage = (height + 3) / 4;
-            return new AlcoCopyLayout
+            return new AlcoGpuAbi.CopyLayout
             {
                 Offset = 0,
                 BytesPerRow = blocksPerRow * blockSize,
@@ -62,7 +62,7 @@ internal static unsafe class AlcoGpuUtility
     /// Creates a native shader module from a slang-produced module. The returned
     /// handle is owned by the caller and must be destroyed after pipeline creation.
     /// </summary>
-    public static AlcoShaderModuleHandle CreateShaderModule(this AlcoGpuDevice device, in ShaderModule source)
+    public static AlcoGpuAbi.ShaderModuleHandle CreateShaderModule(this AlcoGpuDevice device, in ShaderModule source)
     {
         try
         {
@@ -92,7 +92,7 @@ internal static unsafe class AlcoGpuUtility
             fixed (byte* ptrCode = code)
             fixed (byte* ptrEntry = entry)
             {
-                AlcoShaderModuleDesc desc = new()
+                AlcoGpuAbi.ShaderModuleDesc desc = new()
                 {
                     Language = (uint)source.Language,
                     Data = ptrCode,
@@ -106,7 +106,7 @@ internal static unsafe class AlcoGpuUtility
                         : 0,
                 };
 
-                AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoShaderModuleHandle module);
+                AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoGpuAbi.ShaderModuleHandle module);
                 return module;
             }
         }
@@ -117,7 +117,7 @@ internal static unsafe class AlcoGpuUtility
     }
 
     /// <summary>Destroys a shader module created through <see cref="CreateShaderModule"/>.</summary>
-    public static void DestroyShaderModule(this AlcoGpuDevice device, AlcoShaderModuleHandle module)
+    public static void DestroyShaderModule(this AlcoGpuDevice device, AlcoGpuAbi.ShaderModuleHandle module)
     {
         try
         {
@@ -137,9 +137,9 @@ internal static unsafe class AlcoGpuUtility
     /// <summary>Converts one managed binding declaration into its ABI representation.</summary>
     /// <param name="binding">The managed binding declaration.</param>
     /// <returns>The native binding declaration.</returns>
-    public static AlcoBindGroupLayoutEntry ConvertBindGroupLayoutEntry(BindGroupEntry binding)
+    public static AlcoGpuAbi.BindGroupLayoutEntry ConvertBindGroupLayoutEntry(BindGroupEntry binding)
     {
-        AlcoBindGroupLayoutEntry entry = new()
+        AlcoGpuAbi.BindGroupLayoutEntry entry = new()
         {
             Binding = binding.Binding,
             Visibility = (uint)binding.Stage,

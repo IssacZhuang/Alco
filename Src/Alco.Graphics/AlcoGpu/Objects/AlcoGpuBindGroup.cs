@@ -11,7 +11,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 {
     #region Properties
-    private AlcoBindGroupLayoutHandle _native;
+    private AlcoGpuAbi.BindGroupLayoutHandle _native;
     private readonly BindGroupEntry[] _bindings;
 
     #endregion
@@ -28,8 +28,8 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
     {
         try
         {
-            AlcoBindGroupLayoutHandle handle = _native;
-            _native = AlcoBindGroupLayoutHandle.Null;
+            AlcoGpuAbi.BindGroupLayoutHandle handle = _native;
+            _native = AlcoGpuAbi.BindGroupLayoutHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -51,7 +51,7 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 
     #region AlcoGpu Implementation
     /// <summary>Gets the native bind group layout handle.</summary>
-    public AlcoBindGroupLayoutHandle Native
+    public AlcoGpuAbi.BindGroupLayoutHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -67,19 +67,19 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 
             BindGroupEntry[] entries = descriptor.Bindings;
             _bindings = (BindGroupEntry[])entries.Clone();
-            Span<AlcoBindGroupLayoutEntry> nativeEntryStorage = entries.Length <= 32
-                ? stackalloc AlcoBindGroupLayoutEntry[entries.Length] : new AlcoBindGroupLayoutEntry[entries.Length];
+            Span<AlcoGpuAbi.BindGroupLayoutEntry> nativeEntryStorage = entries.Length <= 32
+                ? stackalloc AlcoGpuAbi.BindGroupLayoutEntry[entries.Length] : new AlcoGpuAbi.BindGroupLayoutEntry[entries.Length];
             for (int i = 0; i < entries.Length; i++)
             {
                 nativeEntryStorage[i] = AlcoGpuUtility.ConvertBindGroupLayoutEntry(entries[i]);
             }
 
             ReadOnlySpan<byte> name = Name.Utf8Z();
-            fixed (AlcoBindGroupLayoutEntry* nativeEntries = nativeEntryStorage)
+            fixed (AlcoGpuAbi.BindGroupLayoutEntry* nativeEntries = nativeEntryStorage)
             {
                 fixed (byte* ptrName = name)
                 {
-                    AlcoBindGroupLayoutDesc nativeDescriptor = new()
+                    AlcoGpuAbi.BindGroupLayoutDesc nativeDescriptor = new()
                     {
                         Entries = nativeEntries,
                         EntryCount = (uint)entries.Length,

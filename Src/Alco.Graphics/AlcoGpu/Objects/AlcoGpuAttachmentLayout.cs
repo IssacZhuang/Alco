@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 namespace Alco.Graphics.AlcoGpu;
 
 /// <summary>Describes a color attachment's native format and default clear value.</summary>
-internal struct AlcoColorAttachmentInfo
+internal struct ColorAttachmentInfo
 {
     /// <summary>The color attachment format.</summary>
     public PixelFormat Format;
@@ -13,7 +13,7 @@ internal struct AlcoColorAttachmentInfo
 }
 
 /// <summary>Describes depth-stencil aspect presence, default clears, and native read-only state.</summary>
-internal struct AlcoDepthAttachmentInfo
+internal struct DepthAttachmentInfo
 {
     /// <summary>The depth-stencil attachment format.</summary>
     public PixelFormat Format;
@@ -39,8 +39,8 @@ internal struct AlcoDepthAttachmentInfo
 internal sealed class AlcoGpuAttachmentLayout : GPUAttachmentLayout
 {
     #region Properties
-    private readonly AlcoColorAttachmentInfo[] _colorInfos;
-    private readonly AlcoDepthAttachmentInfo? _depthInfo;
+    private readonly ColorAttachmentInfo[] _colorInfos;
+    private readonly DepthAttachmentInfo? _depthInfo;
 
     #endregion
 
@@ -56,13 +56,13 @@ internal sealed class AlcoGpuAttachmentLayout : GPUAttachmentLayout
 
     #region AlcoGpu Implementation
 
-    internal ReadOnlySpan<AlcoColorAttachmentInfo> ColorInfos
+    internal ReadOnlySpan<ColorAttachmentInfo> ColorInfos
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorInfos;
     }
 
-    internal AlcoDepthAttachmentInfo? DepthInfo
+    internal DepthAttachmentInfo? DepthInfo
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _depthInfo;
@@ -74,11 +74,11 @@ internal sealed class AlcoGpuAttachmentLayout : GPUAttachmentLayout
 
         int colorCount = descriptor.Colors.Length;
 
-        _colorInfos = new AlcoColorAttachmentInfo[colorCount];
+        _colorInfos = new ColorAttachmentInfo[colorCount];
         for (int i = 0; i < colorCount; i++)
         {
             ColorAttachment color = descriptor.Colors[i];
-            _colorInfos[i] = new AlcoColorAttachmentInfo
+            _colorInfos[i] = new ColorAttachmentInfo
             {
                 Format = color.Format,
                 ClearColor = color.ClearColor,
@@ -90,7 +90,7 @@ internal sealed class AlcoGpuAttachmentLayout : GPUAttachmentLayout
             DepthAttachment depth = descriptor.Depth.Value;
             bool hasDepth = PixelFormatUtility.IsDepthFormat(depth.Format);
             bool hasStencil = PixelFormatUtility.HasStencil(depth.Format) || depth.Format == PixelFormat.Stencil8;
-            _depthInfo = new AlcoDepthAttachmentInfo
+            _depthInfo = new DepthAttachmentInfo
             {
                 Format = depth.Format,
                 HasDepth = hasDepth,

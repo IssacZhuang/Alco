@@ -56,7 +56,7 @@ macro_rules! object_ref {
 
 /// One C# `VertexElement`.
 #[repr(C)]
-pub struct AlcoVertexElement {
+pub struct VertexElement {
     /// Shader vertex-input location.
     pub location: u32,
     /// Byte offset of this attribute within a vertex.
@@ -67,20 +67,20 @@ pub struct AlcoVertexElement {
 
 /// One C# `VertexInputLayout` (a vertex buffer slot).
 #[repr(C)]
-pub struct AlcoVertexLayout {
+pub struct VertexLayout {
     /// Byte stride between vertices.
     pub stride: u32,
     /// C# `VertexStepMode`.
     pub step_mode: u32,
     /// Pointer to element_count initialized vertex elements.
-    pub elements: *const AlcoVertexElement,
+    pub elements: *const VertexElement,
     /// Number of vertex elements in this layout.
     pub element_count: u32,
 }
 
 /// C# `BlendComponent`.
 #[repr(C)]
-pub struct AlcoBlendComponent {
+pub struct BlendComponent {
     /// C# source blend-factor discriminant.
     pub src_factor: u32,
     /// C# destination blend-factor discriminant.
@@ -91,16 +91,16 @@ pub struct AlcoBlendComponent {
 
 /// C# `BlendState`.
 #[repr(C)]
-pub struct AlcoBlendState {
+pub struct BlendState {
     /// Blend component applied to color channels.
-    pub color: AlcoBlendComponent,
+    pub color: BlendComponent,
     /// Blend component applied to the alpha channel.
-    pub alpha: AlcoBlendComponent,
+    pub alpha: BlendComponent,
 }
 
 /// C# `StencilFaceState`.
 #[repr(C)]
-pub struct AlcoStencilFace {
+pub struct StencilFace {
     /// C# comparison-function discriminant used by stencil tests.
     pub compare: u32,
     /// Stencil operation when the stencil test fails.
@@ -113,7 +113,7 @@ pub struct AlcoStencilFace {
 
 /// C# `DepthStencilState`.
 #[repr(C)]
-pub struct AlcoDepthStencilState {
+pub struct DepthStencilState {
     /// Whether successful depth tests write the depth attachment.
     pub depth_write_enabled: u32,
     /// Present in the C# struct but unsupported by WebGPU; kept for layout parity.
@@ -121,9 +121,9 @@ pub struct AlcoDepthStencilState {
     /// C# comparison function used for depth tests.
     pub depth_compare: u32,
     /// Stencil state for front-facing primitives.
-    pub front: AlcoStencilFace,
+    pub front: StencilFace,
     /// Stencil state for back-facing primitives.
-    pub back: AlcoStencilFace,
+    pub back: StencilFace,
     /// Mask applied to values compared by the stencil test.
     pub stencil_read_mask: u32,
     /// Mask applied to stencil attachment writes.
@@ -132,21 +132,21 @@ pub struct AlcoDepthStencilState {
 
 /// C# `GraphicsPipelineDescriptor`.
 #[repr(C)]
-pub struct AlcoGraphicsPipelineDesc {
+pub struct GraphicsPipelineDesc {
     /// Typed bind-group-layout pointers (C# `GPUBindGroup`).
-    pub bind_group_layouts: *const AlcoBindGroupLayoutHandle,
+    pub bind_group_layouts: *const BindGroupLayoutHandle,
     /// Number of layout handles; zero permits a null array.
     pub bind_group_layout_count: u32,
     /// Live typed vertex shader-module pointer.
-    pub vertex_module: AlcoShaderModuleHandle,
+    pub vertex_module: ShaderModuleHandle,
     /// NUL-terminated UTF-8 vertex entry-point name.
     pub vertex_entry: *const c_char,
     /// Live typed fragment shader-module pointer.
-    pub fragment_module: AlcoShaderModuleHandle,
+    pub fragment_module: ShaderModuleHandle,
     /// NUL-terminated UTF-8 fragment entry-point name.
     pub fragment_entry: *const c_char,
     /// Pointer to vertex_layout_count initialized vertex layouts.
-    pub vertex_layouts: *const AlcoVertexLayout,
+    pub vertex_layouts: *const VertexLayout,
     /// Number of vertex-buffer layouts; zero permits a null array.
     pub vertex_layout_count: u32,
     /// C# `FillMode` (Solid/Wireframe). Wireframe is accepted but rasterized
@@ -157,10 +157,10 @@ pub struct AlcoGraphicsPipelineDesc {
     /// C# `FrontFace`.
     pub front_face: u32,
     /// Blend state shared by writable color targets.
-    pub blend: AlcoBlendState,
+    pub blend: BlendState,
     /// Depth and stencil state when an attachment format is present.
-    pub depth_stencil: AlcoDepthStencilState,
-    /// C# `PixelFormat` value or `ALCO_NONE` for no depth attachment.
+    pub depth_stencil: DepthStencilState,
+    /// C# `PixelFormat` value or `NONE` for no depth attachment.
     pub depth_stencil_format: u32,
     /// C# `PrimitiveTopology`.
     pub topology: u32,
@@ -169,7 +169,7 @@ pub struct AlcoGraphicsPipelineDesc {
     /// Number of color targets; zero permits a null array.
     pub color_format_count: u32,
     /// Number of fragment outputs; targets at or beyond it get a zero write
-    /// mask instead of failing validation. `ALCO_NONE` means "all targets".
+    /// mask instead of failing validation. `NONE` means "all targets".
     pub fragment_output_count: u32,
     /// Total immediates (push constants) size in bytes, 0 when unused.
     pub immediate_size: u32,
@@ -179,13 +179,13 @@ pub struct AlcoGraphicsPipelineDesc {
 
 /// C# `ComputePipelineDescriptor`.
 #[repr(C)]
-pub struct AlcoComputePipelineDesc {
+pub struct ComputePipelineDesc {
     /// Pointer to bind_group_layout_count typed layout handles.
-    pub bind_group_layouts: *const AlcoBindGroupLayoutHandle,
+    pub bind_group_layouts: *const BindGroupLayoutHandle,
     /// Number of layout handles; zero permits a null array.
     pub bind_group_layout_count: u32,
     /// Live typed compute shader-module pointer.
-    pub compute_module: AlcoShaderModuleHandle,
+    pub compute_module: ShaderModuleHandle,
     /// NUL-terminated UTF-8 compute entry-point name.
     pub compute_entry: *const c_char,
     /// Total immediate-data size in bytes; zero disables immediates.
@@ -198,16 +198,16 @@ pub struct AlcoComputePipelineDesc {
 /// Returns `Err` with a status already recorded on failure.
 unsafe fn create_pipeline_layout(
     ctx: &DeviceCtx,
-    layouts: *const AlcoBindGroupLayoutHandle,
+    layouts: *const BindGroupLayoutHandle,
     count: u32,
     immediate_size: u32,
     name: *const c_char,
-) -> Result<wgc::id::PipelineLayoutId, AlcoStatus> {
+) -> Result<wgc::id::PipelineLayoutId, Status> {
     let mut wlayouts = DescriptorStorage::<_, 8>::new(count as usize);
     if count > 0 {
         if layouts.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null bind group layout array");
-            return Err(AlcoStatus::INVALID_ARGUMENT);
+            set_error(Status::INVALID_ARGUMENT, "null bind group layout array");
+            return Err(Status::INVALID_ARGUMENT);
         }
         let handles = std::slice::from_raw_parts(layouts, count as usize);
         for handle in handles {
@@ -231,9 +231,9 @@ unsafe fn create_pipeline_layout(
         .global
         .device_create_pipeline_layout(ctx.device_id, &wdesc, None);
     if let Some(e) = err {
-        set_error_from(AlcoStatus::VALIDATION, &e);
+        set_error_from(Status::VALIDATION, &e);
         ctx.global.pipeline_layout_drop(id);
-        return Err(AlcoStatus::VALIDATION);
+        return Err(Status::VALIDATION);
     }
     Ok(id)
 }
@@ -250,7 +250,7 @@ fn programmable_stage<'a>(
     }
 }
 
-fn stencil_face(face: &AlcoStencilFace) -> Result<wgt::StencilFaceState, AlcoStatus> {
+fn stencil_face(face: &StencilFace) -> Result<wgt::StencilFaceState, Status> {
     Ok(wgt::StencilFaceState {
         compare: compare_function(face.compare)?,
         fail_op: stencil_operation(face.stencil_fail_op)?,
@@ -265,20 +265,17 @@ fn stencil_face(face: &AlcoStencilFace) -> Result<wgt::StencilFaceState, AlcoSta
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoGraphicsPipelineDesc,
-    out: *mut AlcoGraphicsPipelineHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_graphics_pipeline(
+    device: DeviceHandle,
+    desc: *const GraphicsPipelineDesc,
+    out: *mut GraphicsPipelineHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
-                    "null descriptor or out pointer",
-                );
-                return AlcoStatus::INVALID_ARGUMENT;
+                set_error(Status::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -295,8 +292,8 @@ pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
 
         // --- Vertex layouts -------------------------------------
         if desc.vertex_layout_count > 0 && desc.vertex_layouts.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null vertex layout array");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null vertex layout array");
+            return Status::INVALID_ARGUMENT;
         }
         let layouts = if desc.vertex_layouts.is_null() {
             &[][..]
@@ -351,7 +348,7 @@ pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
         }
 
         // --- Blend + color targets -------------------------------------
-        let blend = |c: &AlcoBlendComponent| -> Result<wgt::BlendComponent, AlcoStatus> {
+        let blend = |c: &BlendComponent| -> Result<wgt::BlendComponent, Status> {
             Ok(wgt::BlendComponent {
                 src_factor: blend_factor(c.src_factor)?,
                 dst_factor: blend_factor(c.dst_factor)?,
@@ -368,15 +365,15 @@ pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
         };
 
         if desc.color_format_count > 0 && desc.color_formats.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null color format array");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null color format array");
+            return Status::INVALID_ARGUMENT;
         }
         let formats = if desc.color_formats.is_null() {
             &[][..]
         } else {
             std::slice::from_raw_parts(desc.color_formats, desc.color_format_count as usize)
         };
-        let output_count = if desc.fragment_output_count == ALCO_NONE {
+        let output_count = if desc.fragment_output_count == NONE {
             formats.len()
         } else {
             desc.fragment_output_count as usize
@@ -439,43 +436,42 @@ pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
         };
 
         // --- Depth stencil -------------------------------------
-        let depth_stencil =
-            if desc.depth_stencil_format != ALCO_NONE && desc.depth_stencil_format != 0 {
-                let format = match pixel_format(desc.depth_stencil_format) {
-                    Ok(f) => f,
-                    Err(s) => return s,
-                };
-                let front = match stencil_face(&desc.depth_stencil.front) {
-                    Ok(f) => f,
-                    Err(s) => return s,
-                };
-                let back = match stencil_face(&desc.depth_stencil.back) {
-                    Ok(b) => b,
-                    Err(s) => return s,
-                };
-                let depth_compare = match compare_function(desc.depth_stencil.depth_compare) {
-                    Ok(c) => c,
-                    Err(s) => return s,
-                };
-                Some(wgt::DepthStencilState {
-                    format,
-                    depth_write_enabled: Some(desc.depth_stencil.depth_write_enabled != 0),
-                    depth_compare: Some(depth_compare),
-                    stencil: wgt::StencilState {
-                        front,
-                        back,
-                        read_mask: desc.depth_stencil.stencil_read_mask,
-                        write_mask: desc.depth_stencil.stencil_write_mask,
-                    },
-                    bias: wgt::DepthBiasState {
-                        constant: 0,
-                        slope_scale: 0.0,
-                        clamp: 0.0,
-                    },
-                })
-            } else {
-                None
+        let depth_stencil = if desc.depth_stencil_format != NONE && desc.depth_stencil_format != 0 {
+            let format = match pixel_format(desc.depth_stencil_format) {
+                Ok(f) => f,
+                Err(s) => return s,
             };
+            let front = match stencil_face(&desc.depth_stencil.front) {
+                Ok(f) => f,
+                Err(s) => return s,
+            };
+            let back = match stencil_face(&desc.depth_stencil.back) {
+                Ok(b) => b,
+                Err(s) => return s,
+            };
+            let depth_compare = match compare_function(desc.depth_stencil.depth_compare) {
+                Ok(c) => c,
+                Err(s) => return s,
+            };
+            Some(wgt::DepthStencilState {
+                format,
+                depth_write_enabled: Some(desc.depth_stencil.depth_write_enabled != 0),
+                depth_compare: Some(depth_compare),
+                stencil: wgt::StencilState {
+                    front,
+                    back,
+                    read_mask: desc.depth_stencil.stencil_read_mask,
+                    write_mask: desc.depth_stencil.stencil_write_mask,
+                },
+                bias: wgt::DepthBiasState {
+                    constant: 0,
+                    slope_scale: 0.0,
+                    clamp: 0.0,
+                },
+            })
+        } else {
+            None
+        };
 
         // --- Pipeline layout (internal) -------------------------------------
         let layout_id = match create_pipeline_layout(
@@ -518,16 +514,16 @@ pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
             .device_create_render_pipeline(ctx.device_id, &wdesc, None);
         ctx.global.pipeline_layout_drop(layout_id);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.render_pipeline_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoGraphicsPipelineHandle::new(GraphicsPipelineObj {
+        let handle = GraphicsPipelineHandle::new(GraphicsPipelineObj {
             id,
             ctx: Arc::clone(ctx),
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -537,20 +533,17 @@ pub unsafe extern "C-unwind" fn alco_graphics_pipeline_create(
 /// All non-null pointers and typed handles must remain valid for the call.
 /// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_compute_pipeline_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoComputePipelineDesc,
-    out: *mut AlcoComputePipelineHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_compute_pipeline(
+    device: DeviceHandle,
+    desc: *const ComputePipelineDesc,
+    out: *mut ComputePipelineHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
-                    "null descriptor or out pointer",
-                );
-                return AlcoStatus::INVALID_ARGUMENT;
+                set_error(Status::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return Status::INVALID_ARGUMENT;
             }
         };
         let ctx = &object_ref!(device, "invalid device handle").ctx;
@@ -580,16 +573,16 @@ pub unsafe extern "C-unwind" fn alco_compute_pipeline_create(
             .device_create_compute_pipeline(ctx.device_id, &wdesc, None);
         ctx.global.pipeline_layout_drop(layout_id);
         if let Some(e) = err {
-            set_error_from(AlcoStatus::VALIDATION, &e);
+            set_error_from(Status::VALIDATION, &e);
             ctx.global.compute_pipeline_drop(id);
-            return AlcoStatus::VALIDATION;
+            return Status::VALIDATION;
         }
-        let handle = AlcoComputePipelineHandle::new(ComputePipelineObj {
+        let handle = ComputePipelineHandle::new(ComputePipelineObj {
             id,
             ctx: Arc::clone(ctx),
         });
         *out = handle;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
@@ -599,13 +592,13 @@ pub unsafe extern "C-unwind" fn alco_compute_pipeline_create(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_graphics_pipeline_destroy(
-    pipeline: AlcoGraphicsPipelineHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn graphics_pipeline_destroy(
+    pipeline: GraphicsPipelineHandle,
+) -> Status {
     crate::entry::guard(|| match pipeline.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid graphics pipeline handle");
@@ -620,13 +613,13 @@ pub unsafe extern "C-unwind" fn alco_graphics_pipeline_destroy(
 /// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
 /// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_compute_pipeline_destroy(
-    pipeline: AlcoComputePipelineHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn compute_pipeline_destroy(
+    pipeline: ComputePipelineHandle,
+) -> Status {
     crate::entry::guard(|| match pipeline.take() {
         Ok(obj) => {
             drop(obj);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid compute pipeline handle");
@@ -639,8 +632,7 @@ pub unsafe extern "C-unwind" fn alco_compute_pipeline_destroy(
 mod tests {
     use super::*;
     use crate::objects::{
-        alco_shader_module_create, alco_shader_module_destroy, shader_language,
-        AlcoShaderModuleDesc,
+        device_create_shader_module, shader_language, shader_module_destroy, ShaderModuleDesc,
     };
     use crate::test_support::{last_error, TestDevice};
     use std::ptr;
@@ -649,12 +641,12 @@ mod tests {
     fn distinct_pipeline_destroy_exports_reject_null_handles() {
         unsafe {
             assert_eq!(
-                alco_graphics_pipeline_destroy(AlcoGraphicsPipelineHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
+                graphics_pipeline_destroy(GraphicsPipelineHandle::NULL),
+                Status::INVALID_HANDLE
             );
             assert_eq!(
-                alco_compute_pipeline_destroy(AlcoComputePipelineHandle::NULL),
-                AlcoStatus::INVALID_HANDLE
+                compute_pipeline_destroy(ComputePipelineHandle::NULL),
+                Status::INVALID_HANDLE
             );
         }
     }
@@ -666,7 +658,7 @@ mod tests {
         };
         unsafe {
             let source = b"@compute @workgroup_size(1) fn main() {}";
-            let module_desc = AlcoShaderModuleDesc {
+            let module_desc = ShaderModuleDesc {
                 language: shader_language::WGSL,
                 data: source.as_ptr(),
                 size: source.len() as u32,
@@ -677,10 +669,10 @@ mod tests {
                 name: ptr::null(),
                 flags: 0,
             };
-            let mut module = AlcoShaderModuleHandle::NULL;
+            let mut module = ShaderModuleHandle::NULL;
             assert_eq!(
-                alco_shader_module_create(device.handle, &module_desc, &mut module),
-                AlcoStatus::OK,
+                device_create_shader_module(device.handle, &module_desc, &mut module),
+                Status::OK,
                 "{}",
                 last_error()
             );
@@ -690,7 +682,7 @@ mod tests {
             assert!(matches!(converted, Cow::Borrowed(_)));
             assert_eq!(converted.as_ptr(), module_desc.entry_point.cast());
             let weak = Arc::downgrade(&device.handle.get().unwrap().ctx);
-            let desc = AlcoComputePipelineDesc {
+            let desc = ComputePipelineDesc {
                 bind_group_layouts: ptr::null(),
                 bind_group_layout_count: 0,
                 compute_module: module,
@@ -698,10 +690,10 @@ mod tests {
                 immediate_size: 0,
                 name: ptr::null(),
             };
-            let mut pipeline = AlcoComputePipelineHandle::NULL;
+            let mut pipeline = ComputePipelineHandle::NULL;
             assert_eq!(
-                alco_compute_pipeline_create(device.handle, &desc, &mut pipeline),
-                AlcoStatus::OK,
+                device_create_compute_pipeline(device.handle, &desc, &mut pipeline),
+                Status::OK,
                 "{}",
                 last_error()
             );
@@ -716,12 +708,12 @@ mod tests {
                 .hub;
             assert_eq!(hub.pipeline_layouts.num_allocated, 0);
             assert_eq!(hub.compute_pipelines.num_allocated, 1);
-            assert_eq!(alco_shader_module_destroy(module), AlcoStatus::OK);
+            assert_eq!(shader_module_destroy(module), Status::OK);
             drop(device);
             assert_eq!(weak.strong_count(), 1);
             assert_eq!(
-                alco_compute_pipeline_destroy(pipeline),
-                AlcoStatus::OK,
+                compute_pipeline_destroy(pipeline),
+                Status::OK,
                 "{}",
                 last_error()
             );

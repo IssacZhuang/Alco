@@ -44,9 +44,9 @@ unsafe fn clone_surface_owner<T>(handle: Handle<T>) -> Arc<T> {
     Arc::from_raw(handle.0)
 }
 
-unsafe fn take_surface_owner<T>(handle: Handle<T>) -> Result<Arc<T>, AlcoStatus> {
+unsafe fn take_surface_owner<T>(handle: Handle<T>) -> Result<Arc<T>, Status> {
     if handle.is_null() {
-        Err(AlcoStatus::INVALID_HANDLE)
+        Err(Status::INVALID_HANDLE)
     } else {
         Ok(Arc::from_raw(handle.0))
     }
@@ -55,7 +55,7 @@ unsafe fn take_surface_owner<T>(handle: Handle<T>) -> Result<Arc<T>, AlcoStatus>
 struct SurfaceState {
     /// Last configured format. wgpu-core builds every acquired surface
     /// texture's descriptor from the configuration, so these values are the
-    /// authoritative texture info reported through `alco_texture_get_info`.
+    /// authoritative texture info reported through `texture_get_info`.
     format: u32,
     /// Last configured width in texels.
     width: u32,
@@ -99,7 +99,7 @@ pub mod acquire_status {
 
 /// Raw platform handles used to create a surface through the C ABI.
 #[repr(C)]
-pub struct AlcoSurfaceDesc {
+pub struct SurfaceDesc {
     /// Platform discriminant from `surface_tag`.
     pub tag: u32,
     /// hwnd / CAMetalLayer* / wl_surface* / xcb window / Xlib window / ANativeWindow*.
@@ -112,7 +112,7 @@ pub struct AlcoSurfaceDesc {
 
 /// Supported surface formats and present modes returned through the C ABI.
 #[repr(C)]
-pub struct AlcoSurfaceCaps {
+pub struct SurfaceCaps {
     /// Supported C# pixel-format values, limited to `format_count` entries.
     pub formats: [u32; 64],
     /// Number of initialized entries in `formats`.
@@ -125,7 +125,7 @@ pub struct AlcoSurfaceCaps {
 
 /// Swapchain configuration accepted by the C ABI.
 #[repr(C)]
-pub struct AlcoSurfaceConfig {
+pub struct SurfaceConfig {
     /// C# `TextureUsage` bits (RenderAttachment and optionally TextureBinding).
     pub usage: u32,
     /// C# pixel-format value.
@@ -142,7 +142,7 @@ pub struct AlcoSurfaceConfig {
     pub desired_frame_latency: u32,
 }
 
-fn status_to_alco(status: wgt::SurfaceStatus) -> u32 {
+fn status_to_abi(status: wgt::SurfaceStatus) -> u32 {
     match status {
         wgt::SurfaceStatus::Good => acquire_status::SUCCESS_OPTIMAL,
         wgt::SurfaceStatus::Suboptimal => acquire_status::SUCCESS_SUBOPTIMAL,
@@ -153,22 +153,22 @@ fn status_to_alco(status: wgt::SurfaceStatus) -> u32 {
     }
 }
 
-fn alco_present_mode(v: u32) -> Result<wgt::PresentMode, AlcoStatus> {
+fn present_mode(v: u32) -> Result<wgt::PresentMode, Status> {
     Ok(match v {
         0 => wgt::PresentMode::Fifo,
         1 => wgt::PresentMode::Immediate,
         2 => wgt::PresentMode::Mailbox,
         other => {
             set_error(
-                AlcoStatus::INVALID_ARGUMENT,
+                Status::INVALID_ARGUMENT,
                 format!("invalid present mode {other}"),
             );
-            return Err(AlcoStatus::INVALID_ARGUMENT);
+            return Err(Status::INVALID_ARGUMENT);
         }
     })
 }
 
-fn alco_alpha_mode(v: u32) -> Result<wgt::CompositeAlphaMode, AlcoStatus> {
+fn alpha_mode(v: u32) -> Result<wgt::CompositeAlphaMode, Status> {
     Ok(match v {
         0 => wgt::CompositeAlphaMode::Auto,
         1 => wgt::CompositeAlphaMode::Opaque,
@@ -177,10 +177,10 @@ fn alco_alpha_mode(v: u32) -> Result<wgt::CompositeAlphaMode, AlcoStatus> {
         4 => wgt::CompositeAlphaMode::Inherit,
         other => {
             set_error(
-                AlcoStatus::INVALID_ARGUMENT,
+                Status::INVALID_ARGUMENT,
                 format!("invalid alpha mode {other}"),
             );
-            return Err(AlcoStatus::INVALID_ARGUMENT);
+            return Err(Status::INVALID_ARGUMENT);
         }
     })
 }
@@ -196,23 +196,20 @@ fn alco_alpha_mode(v: u32) -> Result<wgt::CompositeAlphaMode, AlcoStatus> {
 /// The platform handles must remain alive until all acquired textures and views
 /// have been released, even if the public surface owner is destroyed first.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_surface_create(
-    device: AlcoDeviceHandle,
-    desc: *const AlcoSurfaceDesc,
-    out: *mut AlcoSurfaceHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create_surface(
+    device: DeviceHandle,
+    desc: *const SurfaceDesc,
+    out: *mut SurfaceHandle,
+) -> Status {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
-                    "null descriptor or out pointer",
-                );
-                return AlcoStatus::INVALID_ARGUMENT;
+                set_error(Status::INVALID_ARGUMENT, "null descriptor or out pointer");
+                return Status::INVALID_ARGUMENT;
             }
         };
-        *out = AlcoSurfaceHandle::NULL;
+        *out = SurfaceHandle::NULL;
         let ctx = match device.get() {
             Ok(owner) => &owner.ctx,
             Err(status) => {
@@ -228,11 +225,11 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
             let handle_ptr = |v: u64| NonNull::<std::ffi::c_void>::new(v as usize as *mut _);
             let nonzero_isize = |v: u64| NonZeroIsize::new(v as isize);
 
-            let result: Result<wgc::id::SurfaceId, AlcoStatus> = (|| match desc.tag {
+            let result: Result<wgc::id::SurfaceId, Status> = (|| match desc.tag {
                 surface_tag::WIN32 => {
                     let hwnd = nonzero_isize(desc.handle).ok_or_else(|| {
-                        set_error(AlcoStatus::INVALID_ARGUMENT, "null hwnd");
-                        AlcoStatus::INVALID_ARGUMENT
+                        set_error(Status::INVALID_ARGUMENT, "null hwnd");
+                        Status::INVALID_ARGUMENT
                     })?;
                     let mut window = rwh::Win32WindowHandle::new(hwnd);
                     window.hinstance = nonzero_isize(desc.display);
@@ -245,18 +242,18 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
                             None,
                         )
                         .map_err(|e| {
-                            set_error_from(AlcoStatus::UNSUPPORTED, &e);
-                            AlcoStatus::UNSUPPORTED
+                            set_error_from(Status::UNSUPPORTED, &e);
+                            Status::UNSUPPORTED
                         })
                 }
                 surface_tag::WAYLAND => {
                     let surface = handle_ptr(desc.handle).ok_or_else(|| {
-                        set_error(AlcoStatus::INVALID_ARGUMENT, "null wl_surface");
-                        AlcoStatus::INVALID_ARGUMENT
+                        set_error(Status::INVALID_ARGUMENT, "null wl_surface");
+                        Status::INVALID_ARGUMENT
                     })?;
                     let display = handle_ptr(desc.display).ok_or_else(|| {
-                        set_error(AlcoStatus::INVALID_ARGUMENT, "null wl_display");
-                        AlcoStatus::INVALID_ARGUMENT
+                        set_error(Status::INVALID_ARGUMENT, "null wl_display");
+                        Status::INVALID_ARGUMENT
                     })?;
                     ctx.global
                         .instance_create_surface(
@@ -267,19 +264,19 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
                             None,
                         )
                         .map_err(|e| {
-                            set_error_from(AlcoStatus::UNSUPPORTED, &e);
-                            AlcoStatus::UNSUPPORTED
+                            set_error_from(Status::UNSUPPORTED, &e);
+                            Status::UNSUPPORTED
                         })
                 }
                 surface_tag::XCB => {
                     let window =
                         std::num::NonZeroU32::new(desc.handle as u32).ok_or_else(|| {
-                            set_error(AlcoStatus::INVALID_ARGUMENT, "zero xcb window");
-                            AlcoStatus::INVALID_ARGUMENT
+                            set_error(Status::INVALID_ARGUMENT, "zero xcb window");
+                            Status::INVALID_ARGUMENT
                         })?;
                     let connection = handle_ptr(desc.display).ok_or_else(|| {
-                        set_error(AlcoStatus::INVALID_ARGUMENT, "null xcb connection");
-                        AlcoStatus::INVALID_ARGUMENT
+                        set_error(Status::INVALID_ARGUMENT, "null xcb connection");
+                        Status::INVALID_ARGUMENT
                     })?;
                     ctx.global
                         .instance_create_surface(
@@ -291,14 +288,14 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
                             None,
                         )
                         .map_err(|e| {
-                            set_error_from(AlcoStatus::UNSUPPORTED, &e);
-                            AlcoStatus::UNSUPPORTED
+                            set_error_from(Status::UNSUPPORTED, &e);
+                            Status::UNSUPPORTED
                         })
                 }
                 surface_tag::XLIB => {
                     let display = handle_ptr(desc.display).ok_or_else(|| {
-                        set_error(AlcoStatus::INVALID_ARGUMENT, "null Xlib display");
-                        AlcoStatus::INVALID_ARGUMENT
+                        set_error(Status::INVALID_ARGUMENT, "null Xlib display");
+                        Status::INVALID_ARGUMENT
                     })?;
                     ctx.global
                         .instance_create_surface(
@@ -312,14 +309,14 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
                             None,
                         )
                         .map_err(|e| {
-                            set_error_from(AlcoStatus::UNSUPPORTED, &e);
-                            AlcoStatus::UNSUPPORTED
+                            set_error_from(Status::UNSUPPORTED, &e);
+                            Status::UNSUPPORTED
                         })
                 }
                 surface_tag::ANDROID => {
                     let window = handle_ptr(desc.handle).ok_or_else(|| {
-                        set_error(AlcoStatus::INVALID_ARGUMENT, "null ANativeWindow");
-                        AlcoStatus::INVALID_ARGUMENT
+                        set_error(Status::INVALID_ARGUMENT, "null ANativeWindow");
+                        Status::INVALID_ARGUMENT
                     })?;
                     ctx.global
                         .instance_create_surface(
@@ -332,8 +329,8 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
                             None,
                         )
                         .map_err(|e| {
-                            set_error_from(AlcoStatus::UNSUPPORTED, &e);
-                            AlcoStatus::UNSUPPORTED
+                            set_error_from(Status::UNSUPPORTED, &e);
+                            Status::UNSUPPORTED
                         })
                 }
                 surface_tag::METAL_LAYER => {
@@ -341,32 +338,32 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
                     {
                         let layer = desc.handle as *mut std::ffi::c_void;
                         if layer.is_null() {
-                            set_error(AlcoStatus::INVALID_ARGUMENT, "null CAMetalLayer");
-                            return Err(AlcoStatus::INVALID_ARGUMENT);
+                            set_error(Status::INVALID_ARGUMENT, "null CAMetalLayer");
+                            return Err(Status::INVALID_ARGUMENT);
                         }
                         ctx.global
                             .instance_create_surface_metal(layer, None)
                             .map_err(|e| {
-                                set_error_from(AlcoStatus::UNSUPPORTED, &e);
-                                AlcoStatus::UNSUPPORTED
+                                set_error_from(Status::UNSUPPORTED, &e);
+                                Status::UNSUPPORTED
                             })
                     }
                     #[cfg(not(target_os = "macos"))]
                     {
                         let _ = desc.handle;
                         set_error(
-                            AlcoStatus::UNSUPPORTED,
+                            Status::UNSUPPORTED,
                             "metal layer surfaces require a macOS build",
                         );
-                        Err(AlcoStatus::UNSUPPORTED)
+                        Err(Status::UNSUPPORTED)
                     }
                 }
                 other => {
                     set_error(
-                        AlcoStatus::INVALID_ARGUMENT,
+                        Status::INVALID_ARGUMENT,
                         format!("unsupported surface tag {other}"),
                     );
-                    Err(AlcoStatus::INVALID_ARGUMENT)
+                    Err(Status::INVALID_ARGUMENT)
                 }
             })();
 
@@ -383,7 +380,7 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
                         }),
                     });
                     *out = surface_into_handle(surface);
-                    AlcoStatus::OK
+                    Status::OK
                 }
                 Err(status) => status,
             }
@@ -399,14 +396,14 @@ pub unsafe extern "C-unwind" fn alco_surface_create(
 /// # Safety
 /// `surface` must be null or live for this call. `out` must be writable.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_surface_get_capabilities(
-    surface: AlcoSurfaceHandle,
-    out: *mut AlcoSurfaceCaps,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn surface_get_capabilities(
+    surface: SurfaceHandle,
+    out: *mut SurfaceCaps,
+) -> Status {
     crate::entry::guard(|| {
         if out.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer");
+            return Status::INVALID_ARGUMENT;
         }
         let surface = match surface.get() {
             Ok(obj) => obj,
@@ -423,17 +420,17 @@ pub unsafe extern "C-unwind" fn alco_surface_get_capabilities(
             Ok(caps) => {
                 (*out).format_count = caps.formats.len().min(64) as u32;
                 for index in 0..(*out).format_count as usize {
-                    (*out).formats[index] = pixel_format_to_alco(caps.formats[index]);
+                    (*out).formats[index] = pixel_format_to_abi(caps.formats[index]);
                 }
                 (*out).present_mode_count = caps.present_modes.len().min(8) as u32;
                 for index in 0..(*out).present_mode_count as usize {
-                    (*out).present_modes[index] = present_mode_to_alco(caps.present_modes[index]);
+                    (*out).present_modes[index] = present_mode_to_abi(caps.present_modes[index]);
                 }
-                AlcoStatus::OK
+                Status::OK
             }
             Err(error) => {
-                set_error_from(AlcoStatus::UNSUPPORTED, &error);
-                AlcoStatus::UNSUPPORTED
+                set_error_from(Status::UNSUPPORTED, &error);
+                Status::UNSUPPORTED
             }
         }
     })
@@ -447,16 +444,16 @@ pub unsafe extern "C-unwind" fn alco_surface_get_capabilities(
 /// # Safety
 /// `surface` must be null or live for this call. `config` must be readable.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_surface_configure(
-    surface: AlcoSurfaceHandle,
-    config: *const AlcoSurfaceConfig,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn surface_configure(
+    surface: SurfaceHandle,
+    config: *const SurfaceConfig,
+) -> Status {
     crate::entry::guard(|| {
         let config = match config.as_ref() {
             Some(c) => c,
             None => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null config pointer");
-                return AlcoStatus::INVALID_ARGUMENT;
+                set_error(Status::INVALID_ARGUMENT, "null config pointer");
+                return Status::INVALID_ARGUMENT;
             }
         };
         let surface_obj = match surface.get() {
@@ -473,11 +470,11 @@ pub unsafe extern "C-unwind" fn alco_surface_configure(
                 Ok(f) => f,
                 Err(s) => return s,
             };
-            let present_mode = match alco_present_mode(config.present_mode) {
+            let present_mode = match present_mode(config.present_mode) {
                 Ok(m) => m,
                 Err(s) => return s,
             };
-            let alpha_mode = match alco_alpha_mode(config.alpha_mode) {
+            let alpha_mode = match alpha_mode(config.alpha_mode) {
                 Ok(m) => m,
                 Err(s) => return s,
             };
@@ -500,11 +497,11 @@ pub unsafe extern "C-unwind" fn alco_surface_configure(
                     state.format = config.format;
                     state.width = wconfig.width;
                     state.height = wconfig.height;
-                    AlcoStatus::OK
+                    Status::OK
                 }
                 Some(e) => {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    AlcoStatus::VALIDATION
+                    set_error_from(Status::VALIDATION, &e);
+                    Status::VALIDATION
                 }
             }
         }
@@ -523,17 +520,17 @@ pub unsafe extern "C-unwind" fn alco_surface_configure(
 /// # Safety
 /// `surface` must be null or live for this call. Both outputs must be writable.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_surface_get_current_texture(
-    surface: AlcoSurfaceHandle,
-    out_texture: *mut AlcoTextureHandle,
+pub unsafe extern "C-unwind" fn surface_get_current_texture(
+    surface: SurfaceHandle,
+    out_texture: *mut TextureHandle,
     out_status: *mut u32,
-) -> AlcoStatus {
+) -> Status {
     crate::entry::guard(|| {
         if out_texture.is_null() || out_status.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer");
+            return Status::INVALID_ARGUMENT;
         }
-        *out_texture = AlcoTextureHandle::NULL;
+        *out_texture = TextureHandle::NULL;
         *out_status = acquire_status::ERROR;
         let surface_obj = match surface.get() {
             Ok(obj) => obj,
@@ -548,13 +545,13 @@ pub unsafe extern "C-unwind" fn alco_surface_get_current_texture(
             let (format, width, height) = (state.format, state.width, state.height);
             match ctx.global.surface_get_current_texture(surface_obj.id, None) {
                 Ok(output) => {
-                    *out_status = status_to_alco(output.status);
+                    *out_status = status_to_abi(output.status);
                     match output.texture {
                         Some(texture_id) => {
                             // wgpu-core derives the acquired texture's descriptor
                             // from the surface configuration, so the recorded
                             // format/size are what get_current_texture produced.
-                            let handle = AlcoTextureHandle::new(TextureObj {
+                            let handle = TextureHandle::new(TextureObj {
                                 ctx: Arc::clone(ctx),
                                 id: texture_id,
                                 width,
@@ -567,19 +564,19 @@ pub unsafe extern "C-unwind" fn alco_surface_get_current_texture(
                             });
                             state.acquired_texture = Some(texture_id);
                             *out_texture = handle;
-                            AlcoStatus::OK
+                            Status::OK
                         }
                         None => {
-                            *out_texture = AlcoTextureHandle::NULL;
-                            AlcoStatus::OK
+                            *out_texture = TextureHandle::NULL;
+                            Status::OK
                         }
                     }
                 }
                 Err(e) => {
-                    *out_texture = AlcoTextureHandle::NULL;
+                    *out_texture = TextureHandle::NULL;
                     *out_status = acquire_status::ERROR;
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    AlcoStatus::VALIDATION
+                    set_error_from(Status::VALIDATION, &e);
+                    Status::VALIDATION
                 }
             }
         }
@@ -594,10 +591,10 @@ pub unsafe extern "C-unwind" fn alco_surface_get_current_texture(
 /// # Safety
 /// `surface` must be null or live for this call. A non-null output must be writable.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_surface_present(
-    surface: AlcoSurfaceHandle,
+pub unsafe extern "C-unwind" fn surface_present(
+    surface: SurfaceHandle,
     out_status: *mut u32,
-) -> AlcoStatus {
+) -> Status {
     crate::entry::guard(|| {
         let surface_obj = match surface.get() {
             Ok(obj) => obj,
@@ -615,15 +612,15 @@ pub unsafe extern "C-unwind" fn alco_surface_present(
                     // Older texture handles may remain alive until their release.
                     state.acquired_texture = None;
                     if !out_status.is_null() {
-                        *out_status = status_to_alco(status);
+                        *out_status = status_to_abi(status);
                     }
-                    AlcoStatus::OK
+                    Status::OK
                 }
                 Err(e) => {
                     // Some core errors occur before taking the acquisition;
                     // leave it available for the release path to clean up.
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    AlcoStatus::VALIDATION
+                    set_error_from(Status::VALIDATION, &e);
+                    Status::VALIDATION
                 }
             }
         }
@@ -680,7 +677,7 @@ pub(crate) fn cleanup_texture(texture: &mut TextureObj) -> Result<(), wgc::prese
 /// <summary>
 /// Consumes an acquired surface texture, discarding it if unpresented. A valid
 /// surface-texture owner is consumed even if cleanup reports an error. Rejected
-/// regular textures retain their owner and must use alco_texture_destroy.
+/// regular textures retain their owner and must use texture_destroy.
 /// </summary>
 /// <param name="texture">The texture owner to consume.</param>
 /// <returns>The release status, including any cleanup failure.</returns>
@@ -689,16 +686,16 @@ pub(crate) fn cleanup_texture(texture: &mut TextureObj) -> Result<(), wgc::prese
 /// `texture` must be null or a live texture pointer. All uses of a non-null
 /// texture must have ended, and the caller must never use or release it again.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_texture_release(texture: AlcoTextureHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn texture_release(texture: TextureHandle) -> Status {
     crate::entry::guard(|| {
         match texture.get() {
             Ok(obj) if obj.is_surface_texture => {}
             Ok(_) => {
                 set_error(
-                    AlcoStatus::INVALID_ARGUMENT,
-                    "texture is not a surface texture; use alco_texture_destroy",
+                    Status::INVALID_ARGUMENT,
+                    "texture is not a surface texture; use texture_destroy",
                 );
-                return AlcoStatus::INVALID_ARGUMENT;
+                return Status::INVALID_ARGUMENT;
             }
             Err(status) => {
                 set_error(status, "invalid texture handle");
@@ -709,10 +706,10 @@ pub unsafe extern "C-unwind" fn alco_texture_release(texture: AlcoTextureHandle)
         let result = cleanup_texture(&mut owner);
         drop(owner);
         match result {
-            Ok(()) => AlcoStatus::OK,
+            Ok(()) => Status::OK,
             Err(error) => {
-                set_error_from(AlcoStatus::VALIDATION, &error);
-                AlcoStatus::VALIDATION
+                set_error_from(Status::VALIDATION, &error);
+                Status::VALIDATION
             }
         }
     })
@@ -730,11 +727,11 @@ pub unsafe extern "C-unwind" fn alco_texture_release(texture: AlcoTextureHandle)
 /// All public-handle borrows must have ended. Never use this pointer again, and
 /// keep the platform window alive until all acquired texture/view owners end.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_surface_destroy(surface: AlcoSurfaceHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn surface_destroy(surface: SurfaceHandle) -> Status {
     crate::entry::guard(|| match take_surface_owner(surface) {
         Ok(owner) => {
             drop(owner);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => {
             set_error(status, "invalid surface handle");
@@ -799,7 +796,7 @@ mod tests {
     fn null_public_surface_owner_is_rejected() {
         assert!(matches!(
             unsafe { take_surface_owner(Handle::<u32>::NULL) },
-            Err(AlcoStatus::INVALID_HANDLE)
+            Err(Status::INVALID_HANDLE)
         ));
     }
 

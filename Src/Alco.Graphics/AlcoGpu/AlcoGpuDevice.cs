@@ -31,12 +31,12 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     private readonly struct StagingTicket
     {
         /// <summary>Gets or stores Handle.</summary>
-        public readonly AlcoBufferHandle Handle;
+        public readonly AlcoGpuAbi.BufferHandle Handle;
         /// <summary>Gets or stores Capacity.</summary>
         public readonly ulong Capacity;
 
         /// <summary>Provides the StagingTicket operation.</summary>
-        public StagingTicket(AlcoBufferHandle handle, ulong capacity)
+        public StagingTicket(AlcoGpuAbi.BufferHandle handle, ulong capacity)
         {
             Handle = handle;
             Capacity = capacity;
@@ -51,10 +51,10 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     private readonly PixelFormat _preferredSurfaceFormat;
     private readonly int _maxBindGroups;
 
-    private AlcoDeviceHandle _native;
+    private AlcoGpuAbi.DeviceHandle _native;
 
     /// <summary>Gets the owned native device pointer.</summary>
-    internal AlcoDeviceHandle Native => _native;
+    internal AlcoGpuAbi.DeviceHandle Native => _native;
 
     /// <summary>Gets whether operational calls can still use the native device context.</summary>
     /// <remarks>Children retain their native context and always release their own wrappers.</remarks>
@@ -101,9 +101,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     private struct TextureReadbackLayout
     {
         /// <summary>Gets or stores BufferLayout.</summary>
-        public AlcoCopyLayout BufferLayout;
+        public AlcoGpuAbi.CopyLayout BufferLayout;
         /// <summary>Gets or stores CopySize.</summary>
-        public AlcoExtent3D CopySize;
+        public AlcoGpuAbi.Extent3D CopySize;
         /// <summary>Gets or stores StagingDataSize.</summary>
         public ulong StagingDataSize;
         /// <summary>Gets or stores DataSize.</summary>
@@ -162,7 +162,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         try
         {
-            AlcoCommandBufferHandle buffer = ((AlcoGpuCommandBuffer)commandBuffer).TakeBuffer();
+            AlcoGpuAbi.CommandBufferHandle buffer = ((AlcoGpuCommandBuffer)commandBuffer).TakeBuffer();
             lock (_textureUploadLock)
             {
                 // The native side consumes the command-buffer handle on submit.
@@ -203,8 +203,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             Cleanup(() => BindGroupTexture2DStorage?.Destroy());
             Cleanup(() => BindGroupTexture3DRead?.Destroy());
 
-            AlcoDeviceHandle device = _native;
-            _native = AlcoDeviceHandle.Null;
+            AlcoGpuAbi.DeviceHandle device = _native;
+            _native = AlcoGpuAbi.DeviceHandle.Null;
             if (!device.IsNull)
             {
                 Cleanup(() => AlcoGpuNative.DeviceDestroy(device));
@@ -299,7 +299,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         try
         {
-            AlcoBufferHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
+            AlcoGpuAbi.BufferHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
             AlcoGpuNative.QueueWriteBuffer(Native, nativeBuffer, bufferOffset, data, size);
         }
         finally
@@ -314,7 +314,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         try
         {
-            AlcoBufferHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
+            AlcoGpuAbi.BufferHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
             StagingTicket tmpBuffer = AcquireStagingBuffer(size);
             bool succeeded = false;
             bool wasMapped = false;
@@ -361,20 +361,20 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         try
         {
-            AlcoTextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+            AlcoGpuAbi.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
 
             // The write covers exactly the given mip level's extent, not the level-0 size.
             uint mipWidth = Math.Max(1u, texture.Width >> (int)mipLevel);
             uint mipHeight = Math.Max(1u, texture.Height >> (int)mipLevel);
 
-            AlcoCopyLayout layout = AlcoGpuUtility.GetTextureDataLayout(texture.PixelFormat, mipWidth, mipHeight);
-            AlcoExtent3D writeSize = new()
+            AlcoGpuAbi.CopyLayout layout = AlcoGpuUtility.GetTextureDataLayout(texture.PixelFormat, mipWidth, mipHeight);
+            AlcoGpuAbi.Extent3D writeSize = new()
             {
                 Width = mipWidth,
                 Height = mipHeight,
                 DepthOrArrayLayers = texture.Depth,
             };
-            AlcoOrigin3D origin = default;
+            AlcoGpuAbi.Origin3D origin = default;
 
             lock (_textureUploadLock)
             {
@@ -403,20 +403,20 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         try
         {
-            AlcoTextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+            AlcoGpuAbi.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
 
             // The source layout is caller-controlled: rows are packed at bytesPerRow
             // (256-byte aligned for multi-row regions), so the copy reads exactly the
             // rectangle's rows.
-            AlcoCopyLayout layout = new()
+            AlcoGpuAbi.CopyLayout layout = new()
             {
                 Offset = 0,
                 BytesPerRow = bytesPerRow,
                 RowsPerImage = height,
             };
 
-            AlcoOrigin3D origin = new() { X = x, Y = y, Z = 0 };
-            AlcoExtent3D writeSize = new()
+            AlcoGpuAbi.Origin3D origin = new() { X = x, Y = y, Z = 0 };
+            AlcoGpuAbi.Extent3D writeSize = new()
             {
                 Width = width,
                 Height = height,
@@ -442,7 +442,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         try
         {
             // AlcoGpuTextureBase, not AlcoGpuTexture: swapchain surface textures are readable too.
-            AlcoTextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+            AlcoGpuAbi.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
             TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
 
             StagingTicket tmpBuffer = default;
@@ -530,7 +530,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         try
         {
-            AlcoTextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+            AlcoGpuAbi.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
             TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
 
             StagingTicket tmpBuffer = AcquireStagingBuffer(layout.StagingDataSize);
@@ -585,7 +585,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         uint height = texture.GetMipHeight(mipLevel);
         uint depth = texture.GetMipDepth(mipLevel);
 
-        AlcoCopyLayout bufferLayout;
+        AlcoGpuAbi.CopyLayout bufferLayout;
         ulong stagingDataSize = dataSize;
         uint tightBytesPerRow = 0;
         uint alignedBytesPerRow = 0;
@@ -601,7 +601,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                     $"The destination buffer is too small for texture readback. Required: {expectedDataSize}, provided: {dataSize}.");
             }
 
-            bufferLayout = new AlcoCopyLayout
+            bufferLayout = new AlcoGpuAbi.CopyLayout
             {
                 Offset = 0,
                 BytesPerRow = alignedBytesPerRow,
@@ -617,7 +617,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         return new TextureReadbackLayout
         {
             BufferLayout = bufferLayout,
-            CopySize = new AlcoExtent3D
+            CopySize = new AlcoGpuAbi.Extent3D
             {
                 Width = width,
                 Height = height,
@@ -717,7 +717,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             // Pump the native queue without blocking so in-flight maps can complete.
             if (_pendingTextureReadbacks.Count > 0)
             {
-                AlcoGpuNative.DevicePoll(Native, AlcoGpuAbi.AlcoFalse, ulong.MaxValue, null);
+                AlcoGpuNative.DevicePoll(Native, AlcoGpuAbi.False, ulong.MaxValue, null);
             }
 
             System.Runtime.ExceptionServices.ExceptionDispatchInfo? cleanupFailure = null;
@@ -813,7 +813,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     private void ReleaseReadbackBuffer(ref StagingTicket buffer)
     {
         // Native destruction consumes the wrapper even when it reports an error.
-        AlcoBufferHandle handle = buffer.Handle;
+        AlcoGpuAbi.BufferHandle handle = buffer.Handle;
         buffer = default;
         try
         {
@@ -849,13 +849,13 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
             // Miss: create a new buffer at a reuse-friendly bucket size. Done outside the lock.
             ulong capacity = _stagingCache.Bucketize(requiredSize);
-            AlcoBufferDesc descriptor = new()
+            AlcoGpuAbi.BufferDesc descriptor = new()
             {
                 Size = capacity,
                 Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst),
             };
 
-            AlcoGpuNative.BufferCreate(Native, in descriptor, out AlcoBufferHandle handle);
+            AlcoGpuNative.BufferCreate(Native, in descriptor, out AlcoGpuAbi.BufferHandle handle);
             return new StagingTicket(handle, capacity);
         }
         finally
@@ -977,11 +977,11 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     /// Copies a buffer region into a staging buffer and submits it, returning the
     /// submission index the caller can poll/wait on.
     /// </summary>
-    private ulong CopyBufferToStaging(AlcoBufferHandle source, uint sourceOffset, AlcoBufferHandle staging, ulong size)
+    private ulong CopyBufferToStaging(AlcoGpuAbi.BufferHandle source, uint sourceOffset, AlcoGpuAbi.BufferHandle staging, ulong size)
     {
         try
         {
-            AlcoEncoderHandle encoder = CreateEncoder();
+            AlcoGpuAbi.EncoderHandle encoder = CreateEncoder();
             try
             {
                 AlcoGpuNative.CopyBufferToBuffer(encoder, source, sourceOffset, staging, 0, size);
@@ -1006,15 +1006,15 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     /// submission index the caller can poll/wait on.
     /// </summary>
     private unsafe ulong CopyTextureToStaging(
-        AlcoTextureHandle source,
+        AlcoGpuAbi.TextureHandle source,
         uint mipLevel,
-        AlcoBufferHandle staging,
-        in AlcoCopyLayout layout,
-        AlcoExtent3D copySize)
+        AlcoGpuAbi.BufferHandle staging,
+        in AlcoGpuAbi.CopyLayout layout,
+        AlcoGpuAbi.Extent3D copySize)
     {
         try
         {
-            AlcoEncoderHandle encoder = CreateEncoder();
+            AlcoGpuAbi.EncoderHandle encoder = CreateEncoder();
             try
             {
                 AlcoGpuNative.CopyTextureToBuffer(encoder, source, mipLevel, (uint)TextureAspect.All, staging, in layout, copySize);
@@ -1034,14 +1034,14 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         }
     }
 
-    private AlcoEncoderHandle CreateEncoder()
+    private AlcoGpuAbi.EncoderHandle CreateEncoder()
     {
         try
         {
             ReadOnlySpan<byte> nameSpan = "readback_encoder\u0000"u8;
             fixed (byte* ptrName = nameSpan)
             {
-                AlcoGpuNative.EncoderCreate(Native, ptrName, out AlcoEncoderHandle encoder);
+                AlcoGpuNative.EncoderCreate(Native, ptrName, out AlcoGpuAbi.EncoderHandle encoder);
                 return encoder;
             }
         }
@@ -1051,12 +1051,12 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         }
     }
 
-    private ulong SubmitEncoder(AlcoEncoderHandle encoder)
+    private ulong SubmitEncoder(AlcoGpuAbi.EncoderHandle encoder)
     {
         try
         {
             // finish consumes the encoder handle on both success and failure.
-            AlcoGpuNative.EncoderFinish(encoder, out AlcoCommandBufferHandle commandBuffer);
+            AlcoGpuNative.EncoderFinish(encoder, out AlcoGpuAbi.CommandBufferHandle commandBuffer);
 
             lock (_textureUploadLock)
             {
@@ -1078,7 +1078,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         try
         {
-            AlcoGpuNative.DevicePoll(Native, AlcoGpuAbi.AlcoTrue, submissionIndex, null);
+            AlcoGpuNative.DevicePoll(Native, AlcoGpuAbi.True, submissionIndex, null);
         }
         finally
         {
@@ -1086,7 +1086,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         }
     }
 
-    private void* GetMappedRange(AlcoBufferHandle buffer, ulong size)
+    private void* GetMappedRange(AlcoGpuAbi.BufferHandle buffer, ulong size)
     {
         try
         {
@@ -1110,7 +1110,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         {
             while (true)
             {
-                AlcoDeviceMessage message = default;
+                AlcoGpuAbi.DeviceMessage message = default;
                 uint status = AlcoGpuNative.DevicePopMessage(Native, ref message);
                 if (status != AlcoGpuAbi.Status.Ok)
                 {
@@ -1195,21 +1195,21 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                 ReadOnlySpan<byte> nameSpan = descriptor.Name.Utf8Z();
                 fixed (byte* ptrName = nameSpan)
                 {
-                    AlcoDeviceDesc desc = new()
+                    AlcoGpuAbi.DeviceDesc desc = new()
                     {
                         Backend = BackendToRequest(descriptor.Backend),
-                        Debug = descriptor.Debug ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
+                        Debug = descriptor.Debug ? AlcoGpuAbi.True : AlcoGpuAbi.False,
                         RequiredFeatures = (ulong)requestedFeatures,
                         PushConstantsSize = descriptor.PushConstantsSize,
                         Name = ptrName,
                     };
 
-                    AlcoDeviceHandle deviceHandle;
+                    AlcoGpuAbi.DeviceHandle deviceHandle;
                     AlcoGpuNative.DeviceCreate(in desc, out deviceHandle);
                     _native = deviceHandle;
                 }
 
-                AlcoDeviceInfo info = default;
+                AlcoGpuAbi.DeviceInfo info = default;
                 AlcoGpuNative.DeviceGetInfo(Native, ref info);
 
                 Backend = info.Backend switch
@@ -1349,8 +1349,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                 ReleaseLayout(BindGroupTexture2DStorage);
                 if (!Native.IsNull)
                 {
-                    AlcoDeviceHandle device = _native;
-                    _native = AlcoDeviceHandle.Null;
+                    AlcoGpuAbi.DeviceHandle device = _native;
+                    _native = AlcoGpuAbi.DeviceHandle.Null;
                     try { AlcoGpuNative.DeviceDestroy(device); }
                     catch { /* Preserve the construction failure. */ }
                 }

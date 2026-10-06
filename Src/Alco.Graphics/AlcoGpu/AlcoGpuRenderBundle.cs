@@ -12,10 +12,10 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
     #region Properties
     private readonly AlcoGpuDevice _device;
-    private AlcoBundleEncoderHandle _bundleEncoder;
-    private AlcoRenderBundleHandle _bundle;
+    private AlcoGpuAbi.BundleEncoderHandle _bundleEncoder;
+    private AlcoGpuAbi.RenderBundleHandle _bundle;
 
-    private AlcoGraphicsPipelineHandle _graphicsPipeline;
+    private AlcoGpuAbi.GraphicsPipelineHandle _graphicsPipeline;
 
     // owned by this object, released on dispose
     private byte* _nativeName;
@@ -31,7 +31,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         get => !_bundle.IsNull;
     }
 
-    internal AlcoRenderBundleHandle Native
+    internal AlcoGpuAbi.RenderBundleHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _bundle;
@@ -63,7 +63,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
             byte* name = _nativeName;
             _nativeName = null;
             InteropUtility.Free(name);
-            _graphicsPipeline = AlcoGraphicsPipelineHandle.Null;
+            _graphicsPipeline = AlcoGpuAbi.GraphicsPipelineHandle.Null;
             _isRecording = false;
         }
         failure?.Throw();
@@ -85,16 +85,16 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
                 colorStorage[i] = (uint)nativeAttachmentLayout.ColorInfos[i].Format;
             }
 
-            AlcoDepthAttachmentInfo? depthInfo = nativeAttachmentLayout.DepthInfo;
-            AlcoBundleEncoderDesc descriptor = new()
+            DepthAttachmentInfo? depthInfo = nativeAttachmentLayout.DepthInfo;
+            AlcoGpuAbi.BundleEncoderDesc descriptor = new()
             {
                 ColorFormats = null,
                 ColorFormatCount = (uint)colorCount,
-                DepthStencilFormat = depthInfo.HasValue ? (uint)depthInfo.Value.Format : AlcoGpuAbi.AlcoNone,
+                DepthStencilFormat = depthInfo.HasValue ? (uint)depthInfo.Value.Format : AlcoGpuAbi.None,
                 // Missing aspects must be read-only too, matching pass channels with
                 // omitted operations under core 30's bundle/pass compatibility rules.
-                DepthReadOnly = depthInfo.HasValue && depthInfo.Value.IsDepthReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
-                StencilReadOnly = depthInfo.HasValue && depthInfo.Value.IsStencilReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
+                DepthReadOnly = depthInfo.HasValue && depthInfo.Value.IsDepthReadOnly ? AlcoGpuAbi.True : AlcoGpuAbi.False,
+                StencilReadOnly = depthInfo.HasValue && depthInfo.Value.IsStencilReadOnly ? AlcoGpuAbi.True : AlcoGpuAbi.False,
                 SampleCount = 1,
                 Name = _nativeName,
             };
@@ -122,9 +122,9 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
             // Finish consumes the encoder even when validation fails. Do not issue a
             // second destroy that would replace the actionable validation error.
-            AlcoBundleEncoderHandle bundleEncoder = _bundleEncoder;
-            _bundleEncoder = AlcoBundleEncoderHandle.Null;
-            _graphicsPipeline = AlcoGraphicsPipelineHandle.Null;
+            AlcoGpuAbi.BundleEncoderHandle bundleEncoder = _bundleEncoder;
+            _bundleEncoder = AlcoGpuAbi.BundleEncoderHandle.Null;
+            _graphicsPipeline = AlcoGpuAbi.GraphicsPipelineHandle.Null;
             AlcoGpuNative.BundleEncoderFinish(bundleEncoder, out _bundle);
         }
         finally
@@ -283,8 +283,8 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         Device = device;
         _device = device;
 
-        _bundle = AlcoRenderBundleHandle.Null;
-        _bundleEncoder = AlcoBundleEncoderHandle.Null;
+        _bundle = AlcoGpuAbi.RenderBundleHandle.Null;
+        _bundleEncoder = AlcoGpuAbi.BundleEncoderHandle.Null;
 
         try
         {
@@ -309,8 +309,8 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         {
             if (!_bundle.IsNull)
             {
-                AlcoRenderBundleHandle bundle = _bundle;
-                _bundle = AlcoRenderBundleHandle.Null;
+                AlcoGpuAbi.RenderBundleHandle bundle = _bundle;
+                _bundle = AlcoGpuAbi.RenderBundleHandle.Null;
                 AlcoGpuNative.RenderBundleDestroy(bundle);
             }
         }
@@ -327,8 +327,8 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
             if (!_bundleEncoder.IsNull)
             {
                 // An unfinished bundle encoder is simply destroyed without finishing.
-                AlcoBundleEncoderHandle bundleEncoder = _bundleEncoder;
-                _bundleEncoder = AlcoBundleEncoderHandle.Null;
+                AlcoGpuAbi.BundleEncoderHandle bundleEncoder = _bundleEncoder;
+                _bundleEncoder = AlcoGpuAbi.BundleEncoderHandle.Null;
                 AlcoGpuNative.BundleEncoderDestroy(bundleEncoder);
             }
         }

@@ -11,26 +11,29 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 - C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
   callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
   `Interop/AlcoGpuMarshal.cs` throwing error callback)
-- Current ABI version: **2.3** (`ABI_MAJOR=2`, `ABI_MINOR=3`). ABI 1 generational
-  handles and device-first object method signatures are not binary-compatible.
+- Current ABI version: **3.0** (`ABI_MAJOR=3`, `ABI_MINOR=0`). ABI 3 dropped the
+  `alco_` symbol prefix: entry points follow the wgpu-core parent-first convention
+  (`device_create_buffer`, `encoder_begin_render_pass`, `buffer_destroy`), and the
+  C# interop structs moved to short names nested in `AlcoGpuAbi`. ABI 2 and earlier
+  are not binary-compatible.
 
 ## Conventions
 
 | Rule | Detail |
 | --- | --- |
-| Exports | `#[no_mangle] extern "C-unwind"`, `alco_` prefix, C symbol per function (identical symbol names to plain `C`; `C-unwind` defines foreign-exception unwinding through the frame, see *Error callback*) |
-| Status | Every fallible export returns `AlcoStatus (u32)`; `0` = OK |
-| Errors | Synchronous failures replace the thread-local latest failure (`alco_get_last_error`) **and** fire the registered error callback. Successful and `NotReady` calls leave that failure untouched (see *Error callback*) |
-| Async events | Device-lost / validation / native warnings queue per device; drained via `alco_device_pop_message` (severity 0 error, 1 warning, 2 info) |
-| Handles | Typed opaque native pointers; each C# `Alco*Handle` is a sequential readonly struct containing one `nint`. Null required handles return `InvalidHandle`; other pointer validity is a caller precondition |
+| Exports | `#[no_mangle] extern "C-unwind"`, unprefixed C symbol per function named parent-first (`device_create_buffer`, `encoder_copy_buffer_to_texture`, `buffer_unmap`); `C-unwind` defines foreign-exception unwinding through the frame, see *Error callback* |
+| Status | Every fallible export returns `Status (u32)`; `0` = OK |
+| Errors | Synchronous failures replace the thread-local latest failure (`get_last_error`) **and** fire the registered error callback. Successful and `NotReady` calls leave that failure untouched (see *Error callback*) |
+| Async events | Device-lost / validation / native warnings queue per device; drained via `device_pop_message` (severity 0 error, 1 warning, 2 info) |
+| Handles | Typed opaque native pointers; each C# `AlcoGpuAbi.*Handle` is a sequential readonly struct containing one `nint`. Null required handles return `InvalidHandle`; other pointer validity is a caller precondition |
 | Panics | Every export body is wrapped in `catch_unwind`; a panic becomes status `Panic` + message |
 | Structs | `#[repr(C)]` ↔ `[StructLayout(LayoutKind.Sequential)]`, mirrored field-by-field in `AlcoGpuStructs.cs` |
-| Bools | `u32` (`ALCO_TRUE = 1`) |
+| Bools | `u32` (`TRUE = 1`) |
 | Enums | `u32` with the same numeric values as the C# enums (identity cast — see `convert.rs`) |
-| Sentinels | `ALCO_NONE = u32::MAX` (optional depth format, read-only load/store ops, timestamp index none, fragment output count = all writes); `u64::MAX` submit index in `alco_device_poll` = "latest" |
+| Sentinels | `NONE = u32::MAX` (optional depth format, read-only load/store ops, timestamp index none, fragment output count = all writes); `u64::MAX` submit index in `device_poll` = "latest" |
 | Strings | In: NUL-terminated UTF-8, borrowed for the call. Out: export-specific borrowed lifetimes; latest-error text lasts until the next failure on that thread, device info until public device destruction, message text until the next pop on that device, build info for process lifetime |
 
-### AlcoStatus codes
+### Status codes
 
 `OK=0, InvalidHandle=1, InvalidArgument=2, Validation=3, OutOfMemory=4, DeviceLost=5, Panic=6, Unsupported=7, NotReady=8`.
 
@@ -38,10 +41,10 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 
 ## Error callback
 
-`alco_set_error_callback(callback, userdata)` registers a process-wide callback
+`set_error_callback(callback, userdata)` registers a process-wide callback
 (null unregisters). This restores the wgpu-native-era error model: the C# host
 registers a `[UnmanagedCallersOnly]` callback that throws `GraphicsException`, so
-every failure unwinds out of the `alco_*` call as a managed exception at the exact
+every failure unwinds out of the native call as a managed exception at the exact
 call site — no per-call status checks are needed in Alco.Graphics.
 
 Contract:
@@ -64,7 +67,7 @@ Contract:
   a fallback; returning a failure without recording its diagnostic violates this
   internal protocol. Rust panics record fresh text with status `Panic`.
 - `OK` and `NOT_READY` do not clear, replace, format, or allocate TLS error text.
-  `alco_get_last_error` observes the latest failure, not the status of the most
+  `get_last_error` observes the latest failure, not the status of the most
   recent call; it returns `OK` with null text if that thread has never failed.
   Copy the message when it must survive a later failure. Panic-hook installation
   uses one-time initialization with a read-only completed fast path.
@@ -72,7 +75,7 @@ Contract:
   replace the message while the callback still holds its pointer, and reentry
   could violate the exclusive borrow of the object being operated on.
 - Unregistered (the default) behavior simply returns the failure status. The host
-  may poll `alco_get_last_error`; registering the callback adds synchronous
+  may poll `get_last_error`; registering the callback adds synchronous
   notification, not a different ownership or consumption contract.
 
 Verification: `entry.rs` unit tests cover firing with status + message, the
@@ -80,7 +83,8 @@ default-message path, silence for `OK`/`NOT_READY`, and unregistration;
 `AlcoGpuAbiTests`/`AlcoGpuRegressionTests` exercise null-handle failures, real-buffer
 operation validation, retained latest-error text across success/`NOT_READY`,
 validation root causes, and failed consuming operations. Raw double-destroy and
-stale-pointer tests are deliberately excluded because those calls violate ABI 2.
+stale-pointer tests are deliberately excluded because those calls violate the ABI
+contract.
 
 ## Log callback
 
@@ -88,7 +92,7 @@ wgpu-core reports internal diagnostics — root causes that never surface throug
 return values, such as the indirect-validation initialization failure that
 surfaces as `DeviceError::Lost` — exclusively through the `log` crate. Without a
 `log::Log` implementation installed, those records are dropped silently.
-`alco_set_log_callback(callback, userdata)` (mirroring wgpu-native's
+`set_log_callback(callback, userdata)` (mirroring wgpu-native's
 `wgpuSetLogCallback`/`wgpuSetLogLevel`) installs a process-wide forwarder that
 delivers every record to the host:
 
@@ -96,7 +100,7 @@ delivers every record to the host:
   `OFF=0, ERROR=1, WARN=2, INFO=3, DEBUG=4, TRACE=5`; `message` is NUL-terminated
   UTF-8 **borrowed for the duration of the call only** — the host must copy.
 - The forwarder installs lazily on the first registration; when no level was
-  configured, it defaults to Warn. `alco_set_log_level(level)` adjusts the
+  configured, it defaults to Warn. `set_log_level(level)` adjusts the
   filter later (unknown values fail with `INVALID_ARGUMENT`).
 - Unlike the error callback, the log callback is plain `extern "C"` and **must
   not throw**: records fire synchronously from deep inside wgpu-core stack
@@ -119,32 +123,32 @@ unregistration, idempotent registration and unknown-level rejection;
 
 ## Export groups
 
-**Meta** — `alco_abi_version`, `alco_build_info` (wgpu version, build id),
-`alco_get_last_error`, `alco_set_error_callback`, `alco_set_log_callback`,
-`alco_set_log_level`.
+**Meta** — `abi_version`, `build_info` (wgpu version, build id),
+`get_last_error`, `set_error_callback`, `set_log_callback`,
+`set_log_level`.
 
-**Device** — `alco_device_create` (backend request, debug flag, required `GPUFeatures`
+**Device** — `device_create` (backend request, debug flag, required `GPUFeatures`
 bits, push-constants size; adapter selection is fully synchronous — no callbacks),
-`alco_device_destroy`, `alco_device_get_info` (resolved backend, adapter name, supported
+`device_destroy`, `device_get_info` (resolved backend, adapter name, supported
 features, capability bits, limits incl. `max_bind_groups` / `max_immediate_size` /
-`timestamp_period_ns`), `alco_device_poll`, `alco_device_pop_message`.
+`timestamp_period_ns`), `device_poll`, `device_pop_message`.
 
 Requested features are intersected with adapter support inside `device_create`; the C#
 side blanket-requests optional features and gates on the reported bits.
 
-**Queue** — `alco_queue_write_buffer`, `alco_queue_write_texture` (all mips + optional
-region), `alco_queue_submit` (consumes the command buffer handle, returns the submission
-index used by blocking polls), `alco_queue_submit_batch` (consumes an array of command
+**Queue** — `queue_write_buffer`, `queue_write_texture` (all mips + optional
+region), `queue_submit` (consumes the command buffer handle, returns the submission
+index used by blocking polls), `queue_submit_batch` (consumes an array of command
 buffer handles as one submission in array order — the wgpu-native array submit shape;
 count must be non-zero and the array non-null).
 
-**Buffer** — create / destroy / `alco_buffer_map_read` / `alco_buffer_map_write`
-(mapped range from `alco_buffer_get_mapped_range` is writable after a write map) /
-`alco_buffer_map_poll` / `alco_buffer_get_mapped_range` / `alco_buffer_unmap`.
+**Buffer** — create / destroy / `buffer_map_read` / `buffer_map_write`
+(mapped range from `buffer_get_mapped_range` is writable after a write map) /
+`buffer_map_poll` / `buffer_get_mapped_range` / `buffer_unmap`.
 
-**Texture / View / Sampler** — create / destroy / `alco_texture_get_info` /
-`alco_texture_create_view` (null descriptor = default view, used for surface textures) /
-`alco_texture_release` (surface textures are released, never destroyed) / sampler pair.
+**Texture / View / Sampler** — create / destroy / `texture_get_info` /
+`texture_create_view` (null descriptor = default view, used for surface textures) /
+`texture_release` (surface textures are released, never destroyed) / sampler pair.
 
 **Shader modules** — create / destroy. Language enum covers WGSL / SPIR-V / DXIL /
 MSL / MetalLib; passthrough languages require the `PassthroughShaders` capability,
@@ -154,20 +158,20 @@ unaligned sources are decoded once. The library is producer-agnostic: it perform
 Slang-specific SPIR-V post-processing (the managed compile pipeline normalizes
 Slang's default-only switch wrappers before submission, see
 `Alco.Graphics/Compiler/Spirv/SpirvNormalizer.cs`), and the trailing `flags` field
-of `AlcoShaderModuleDesc` declares input properties — bit
+of `ShaderModuleDesc` declares input properties — bit
 `shader_module_flags::SPIRV_ADJUSTED_COORDINATES` skips Naga's GL-style Y
 adjustment for SPIR-V that already matches its coordinate convention (Slang's
 direct emission). Unknown flag bits are ignored.
 Callers retain source storage until creation returns; no borrowed source escapes
 the call.
 
-**Pipelines** — `alco_graphics_pipeline_create` (bind group layout handles, vertex
+**Pipelines** — `device_create_graphics_pipeline` (bind group layout handles, vertex
 layouts, per-stage `{module, entry point}`, rasterizer/blend/depth-stencil value structs,
 topology, color formats, optional depth format, fragment output count, push constants
 size — the pipeline layout is built internally and is not visible to C#),
-`alco_compute_pipeline_create`, `alco_graphics_pipeline_destroy`, and
-`alco_compute_pipeline_destroy`. Graphics and compute pipeline pointers are
-separate types; the shared ABI 1 `alco_pipeline_destroy` export is removed.
+`device_create_compute_pipeline`, `graphics_pipeline_destroy`, and
+`compute_pipeline_destroy`. Graphics and compute pipeline pointers are
+separate types; the shared ABI 1 `pipeline_destroy` export is removed.
 
 **Bind group layout (C# `GPUBindGroup`) and bind group (C# `GPUResourceGroup`)** —
 create/destroy pairs. Layout entries carry binding/visibility/type plus a type-specific
@@ -184,9 +188,9 @@ draw indexed, indirect variants, the full multi-draw family (indirect, indirect 
 variants), **debug markers / debug groups**, write timestamp, execute bundles); compute pass
 begin/end/release + setters including **debug markers / debug groups**; copies
 (`buffer_to_buffer`, `buffer_to_texture`, `texture_to_buffer`, `texture_to_texture`);
-`alco_encoder_clear_buffer` (size zero = to the end) and `alco_encoder_clear_texture`
-(`AlcoSubresourceRange`, counts zero/`ALCO_NONE` = the rest; needs the `ClearTexture`
-feature); `alco_resolve_query_set`; encoder-level **debug markers / debug groups**.
+`encoder_clear_buffer` (size zero = to the end) and `encoder_clear_texture`
+(`SubresourceRange`, counts zero/`NONE` = the rest; needs the `ClearTexture`
+feature); `encoder_resolve_query_set`; encoder-level **debug markers / debug groups**.
 
 **Render bundles** — bundle encoder create/destroy/finish + the subset of setters above,
 including debug markers / debug groups recorded into the bundle.
@@ -194,26 +198,26 @@ including debug markers / debug groups recorded into the bundle.
 **Query sets** — create / destroy (type is always timestamp).
 
 **Surface** — create (platform tag: Win32 / MetalLayer / Wayland / Xcb / Xlib / Android,
-field mapping mirrors `SurfaceHandle.cs`), `alco_surface_get_capabilities`
-(formats[64] / present modes[8]), configure, `alco_surface_get_current_texture`
+field mapping mirrors `SurfaceHandle.cs`), `surface_get_capabilities`
+(formats[64] / present modes[8]), configure, `surface_get_current_texture`
 (returns status enum + texture handle), present, release current texture, destroy.
 
 Acquired surface textures report the **configured** format/size — wgpu-core derives the
 acquired texture's descriptor from the surface configuration, so the values recorded at
-`alco_surface_configure` time are authoritative (and resize is signaled through the
+`surface_configure` time are authoritative (and resize is signaled through the
 acquire status, not through size drift).
 
 ## Typed pointers and call context
 
 The ABI has no Alco handle registry, generation counter, slot lookup, address
 quarantine, or runtime type discovery. Each non-null handle points to one
-independently owned native wrapper. C# mirrors are `AlcoDeviceHandle`,
-`AlcoBufferHandle`, `AlcoTextureHandle`, `AlcoTextureViewHandle`, `AlcoSamplerHandle`,
-`AlcoShaderModuleHandle`, `AlcoBindGroupLayoutHandle`, `AlcoBindGroupHandle`,
-`AlcoQuerySetHandle`, `AlcoGraphicsPipelineHandle`, `AlcoComputePipelineHandle`,
-`AlcoEncoderHandle`, `AlcoCommandBufferHandle`, `AlcoRenderPassHandle`,
-`AlcoComputePassHandle`, `AlcoBundleEncoderHandle`, `AlcoRenderBundleHandle`, and
-`AlcoSurfaceHandle`. Each contains exactly one native-sized `nint`; copying the
+independently owned native wrapper. C# mirrors are `AlcoGpuAbi.DeviceHandle`,
+`BufferHandle`, `TextureHandle`, `TextureViewHandle`, `SamplerHandle`,
+`ShaderModuleHandle`, `BindGroupLayoutHandle`, `BindGroupHandle`,
+`QuerySetHandle`, `GraphicsPipelineHandle`, `ComputePipelineHandle`,
+`EncoderHandle`, `CommandBufferHandle`, `RenderPassHandle`,
+`ComputePassHandle`, `BundleEncoderHandle`, `RenderBundleHandle`, and
+`SurfaceHandle`. Each contains exactly one native-sized `nint`; copying the
 value copies a borrowed identity, not ownership or a reference count.
 
 - Device creation has no device parameter. Other top-level object creation takes
@@ -268,7 +272,7 @@ Mapped pointers must not outlive unmap or buffer release; borrowed strings retai
 the lifetimes documented by their exports. Acquired surface textures and their
 views retain the parent surface independently of its public handle; the platform
 window/display/layer must outlive the last retained child owner, not just
-`alco_surface_destroy`. Managed `GC.KeepAlive` guards protect call-scoped wrapper
+`surface_destroy`. Managed `GC.KeepAlive` guards protect call-scoped wrapper
 lifetimes, not synchronization against explicit disposal.
 
 ### Consumption and device-first cleanup
@@ -280,14 +284,14 @@ callback fires only after that cleanup. Hosts must clear owned mirrors before
 calling a consuming export, even if the call later throws. Missing required
 arguments are precondition failures, not a promise that other inputs were consumed.
 
-`alco_render_pass_release` and `alco_compute_pass_release` abandon a live pass
+`render_pass_release` and `compute_pass_release` abandon a live pass
 without calling End or reporting deferred pass validation. They consume the pass
 wrapper and allow cleanup of open recordings, including after device invalidation.
 Release is not a way to recover and continue a valid recording; abandon its parent
 encoder as well. End is the normal recording path; its recorded validation may be
 reported only by encoder finish.
 
-Public `alco_device_destroy` invalidates and releases the unique device owner and
+Public `device_destroy` invalidates and releases the unique device owner and
 shuts down normal device work. It does **not** bulk-free independently owned child
 wrappers. Each child retains the context needed for later cleanup. Final core
 queue/device/adapter registrations and the context are reclaimed after the last
@@ -320,15 +324,15 @@ Buffer mapping remains poll-driven (the error callback above is only for failure
 async completion is still polled, and async paths never throw from a callback — the
 old wgpu-native layer followed the same rule):
 
-1. `alco_buffer_map_read` initiates the map (after the copies touching the buffer have
+1. `buffer_map_read` initiates the map (after the copies touching the buffer have
    been submitted).
-2. `alco_device_poll` drives the map callbacks to completion.
-3. `alco_buffer_map_poll` returns `NotReady` while mapping, `OK` when mapped,
+2. `device_poll` drives the map callbacks to completion.
+3. `buffer_map_poll` returns `NotReady` while mapping, `OK` when mapped,
    `Validation` on failure.
-4. `alco_buffer_get_mapped_range` yields the pointer; `alco_buffer_unmap` ends access.
+4. `buffer_get_mapped_range` yields the pointer; `buffer_unmap` ends access.
 
-`alco_device_poll` with `wait=ALCO_TRUE` blocks until the given submission index
-(`u64::MAX` = latest). With `wait=ALCO_FALSE` it performs one non-blocking pump; this is
+`device_poll` with `wait=TRUE` blocks until the given submission index
+(`u64::MAX` = latest). With `wait=FALSE` it performs one non-blocking pump; this is
 implemented as a **zero-timeout wait**, not `PollType::Poll` — on wgpu-core 30.0.1 the
 `Poll` variant never observes fence completion on the Vulkan backend, so pending maps
 would never resolve. A zero-timeout wait takes the same hal-wait + triage path as a
@@ -366,8 +370,9 @@ managed unmanaged-temporary balance; it is not a count of Rust wrappers.
 
 Native tests verify deeper wrapper/context reclamation using existing core reports,
 weak context ownership, and reference-count checks. These test-only observations
-do not introduce a production registry or live-counter export. ABI 2 tests must
-run against a freshly built ABI 2 library, never an ABI 1 delivered binary.
+do not introduce a production registry or live-counter export. ABI 3 tests must
+run against a freshly built ABI 3 library, never an ABI 2 (or older) delivered
+binary.
 
 ## Building / updating the binary
 

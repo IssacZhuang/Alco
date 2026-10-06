@@ -1,16 +1,16 @@
 //! Entry-point guard machinery: every exported ABI function runs its body
 //! through [`guard`], which wraps it in `catch_unwind` so a Rust panic becomes
-//! `AlcoStatus::PANIC` plus a thread-local message instead of an abort at the
+//! `Status::PANIC` plus a thread-local message instead of an abort at the
 //! FFI boundary (an abort would kill the host process before the C# runtime
 //! could react). The crate MUST be built with `panic = "unwind"`.
 //!
 //! Failure protocol: a body returning a failure must record its own fresh
 //! diagnostic through [`set_error`], [`set_error_from`] or [`fail`]. Success and
-//! NOT_READY never touch diagnostic storage. `alco_get_last_error` exposes the
+//! NOT_READY never touch diagnostic storage. `get_last_error` exposes the
 //! latest failure on this thread, not the outcome of a later successful call.
 //!
 //! Error callback: a host may register a callback with
-//! [`alco_set_error_callback`]. [`guard`] invokes it synchronously — strictly
+//! [`set_error_callback`]. [`guard`] invokes it synchronously — strictly
 //! AFTER `catch_unwind` has returned, on the calling thread — for every
 //! failure status (anything but OK/NOT_READY), passing the thread-local
 //! message. The C# host's callback throws a managed exception to unwind out
@@ -22,21 +22,21 @@
 //! call back into the library: a failure on the same thread replaces the
 //! thread-local message the callback still holds a pointer to.
 
-use crate::abi::{AlcoErrorInfo, AlcoStatus};
+use crate::abi::{ErrorInfo, Status};
 use std::cell::RefCell;
 use std::ffi::{c_char, c_void, CString};
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::sync::Once;
 
 thread_local! {
-    static LAST_ERROR: RefCell<Option<(AlcoStatus, CString)>> = const { RefCell::new(None) };
+    static LAST_ERROR: RefCell<Option<(Status, CString)>> = const { RefCell::new(None) };
 }
 
 static HOOK_INSTALLED: Once = Once::new();
 
 /// Host error callback: `(status, NUL-terminated message, host userdata)`.
 /// Declared `C-unwind` because the host throws from it to abort the alco call.
-pub type AlcoErrorCallback = extern "C-unwind" fn(u32, *const c_char, *mut c_void);
+pub type ErrorCallback = extern "C-unwind" fn(u32, *const c_char, *mut c_void);
 
 static ERROR_CALLBACK: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 static ERROR_CALLBACK_USERDATA: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
@@ -48,8 +48,8 @@ static ERROR_CALLBACK_USERDATA: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::nul
 /// Registration changes require quiescent calls. A non-null callback must
 /// remain valid until unregistered and must not reenter the library.
 #[no_mangle]
-pub unsafe extern "C" fn alco_set_error_callback(
-    callback: Option<AlcoErrorCallback>,
+pub unsafe extern "C" fn set_error_callback(
+    callback: Option<ErrorCallback>,
     userdata: *mut c_void,
 ) {
     initialize();
@@ -65,15 +65,15 @@ pub unsafe extern "C" fn alco_set_error_callback(
 /// borrow is released before the call so a re-entering alco call cannot hit
 /// an active `RefCell` borrow.
 #[cold]
-fn fire_error_callback(status: AlcoStatus) {
-    if status.is_ok() || status.0 == AlcoStatus::NOT_READY.0 {
+fn fire_error_callback(status: Status) {
+    if status.is_ok() || status.0 == Status::NOT_READY.0 {
         return;
     }
     let function = ERROR_CALLBACK.load(Ordering::Acquire);
     if function.is_null() {
         return;
     }
-    let callback: AlcoErrorCallback = unsafe { std::mem::transmute(function) };
+    let callback: ErrorCallback = unsafe { std::mem::transmute(function) };
     let userdata = ERROR_CALLBACK_USERDATA.load(Ordering::Acquire);
     let message = LAST_ERROR.with(|slot| {
         slot.borrow()
@@ -93,7 +93,7 @@ pub(crate) fn initialize() {
 
 /// Records a failure with a human-readable message on the current thread.
 #[cold]
-pub(crate) fn set_error(status: AlcoStatus, message: impl Into<String>) {
+pub(crate) fn set_error(status: Status, message: impl Into<String>) {
     let msg = message.into();
     LAST_ERROR.with(|slot| {
         *slot.borrow_mut() = Some((
@@ -107,7 +107,7 @@ pub(crate) fn set_error(status: AlcoStatus, message: impl Into<String>) {
 
 /// Records the complete error source chain, retaining context and root causes.
 #[cold]
-pub(crate) fn set_error_from(status: AlcoStatus, error: &dyn std::error::Error) {
+pub(crate) fn set_error_from(status: Status, error: &dyn std::error::Error) {
     let mut message = error.to_string();
     let mut source = error.source();
     while let Some(cause) = source {
@@ -122,9 +122,9 @@ pub(crate) fn set_error_from(status: AlcoStatus, error: &dyn std::error::Error) 
 /// The message is borrowed until the next failure on this thread.
 ///
 /// # Safety
-/// `out` must be a valid pointer to an `AlcoErrorInfo`.
+/// `out` must be a valid pointer to an `ErrorInfo`.
 #[no_mangle]
-pub unsafe extern "C" fn alco_get_last_error(out: *mut AlcoErrorInfo) {
+pub unsafe extern "C" fn get_last_error(out: *mut ErrorInfo) {
     if out.is_null() {
         return;
     }
@@ -134,7 +134,7 @@ pub unsafe extern "C" fn alco_get_last_error(out: *mut AlcoErrorInfo) {
             (*out).message = message.as_ptr();
         }
         None => {
-            (*out).status = AlcoStatus::OK.0;
+            (*out).status = Status::OK.0;
             (*out).message = std::ptr::null();
         }
     });
@@ -142,7 +142,7 @@ pub unsafe extern "C" fn alco_get_last_error(out: *mut AlcoErrorInfo) {
 
 /// Runs an ABI entry body under panic protection. See the module docs for the
 /// failure protocol.
-pub(crate) fn guard(body: impl FnOnce() -> AlcoStatus) -> AlcoStatus {
+pub(crate) fn guard(body: impl FnOnce() -> Status) -> Status {
     // Panic containment does not promise that interrupted recording remains reusable.
     let status = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)) {
         Ok(status) => status,
@@ -152,14 +152,14 @@ pub(crate) fn guard(body: impl FnOnce() -> AlcoStatus) -> AlcoStatus {
                 .cloned()
                 .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
                 .unwrap_or_else(|| "panic with non-string payload".to_string());
-            set_error(AlcoStatus::PANIC, message);
-            AlcoStatus::PANIC
+            set_error(Status::PANIC, message);
+            Status::PANIC
         }
     };
     // Fired strictly after catch_unwind has returned; nothing on this frame
     // needs cleanup, so a foreign unwind from the callback passes straight
     // through to the host caller. See the module docs.
-    if !status.is_ok() && status != AlcoStatus::NOT_READY {
+    if !status.is_ok() && status != Status::NOT_READY {
         fire_error_callback(status);
     }
     status
@@ -167,28 +167,28 @@ pub(crate) fn guard(body: impl FnOnce() -> AlcoStatus) -> AlcoStatus {
 
 /// Runs an infallible body (`()` return) under panic protection.
 #[allow(dead_code)]
-pub(crate) fn guard_unit(body: impl FnOnce() + std::panic::UnwindSafe) -> AlcoStatus {
+pub(crate) fn guard_unit(body: impl FnOnce() + std::panic::UnwindSafe) -> Status {
     guard(|| {
         body();
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
 /// Records a fresh default diagnostic and returns the supplied failure status.
 #[cold]
-pub(crate) fn fail(status: AlcoStatus) -> AlcoStatus {
+pub(crate) fn fail(status: Status) -> Status {
     set_error(status, default_message(status));
     status
 }
 
-fn default_message(status: AlcoStatus) -> &'static str {
+fn default_message(status: Status) -> &'static str {
     match status {
-        AlcoStatus::INVALID_HANDLE => "null object handle",
-        AlcoStatus::INVALID_ARGUMENT => "invalid argument",
-        AlcoStatus::VALIDATION => "operation failed validation",
-        AlcoStatus::OUT_OF_MEMORY => "out of memory",
-        AlcoStatus::DEVICE_LOST => "device lost",
-        AlcoStatus::UNSUPPORTED => "operation unsupported on this device",
+        Status::INVALID_HANDLE => "null object handle",
+        Status::INVALID_ARGUMENT => "invalid argument",
+        Status::VALIDATION => "operation failed validation",
+        Status::OUT_OF_MEMORY => "out of memory",
+        Status::DEVICE_LOST => "device lost",
+        Status::UNSUPPORTED => "operation unsupported on this device",
         _ => "operation failed",
     }
 }
@@ -219,12 +219,12 @@ mod tests {
     }
 
     fn last_error() -> (u32, String) {
-        let mut info = AlcoErrorInfo {
+        let mut info = ErrorInfo {
             status: 0,
             message: std::ptr::null(),
         };
         unsafe {
-            alco_get_last_error(&mut info);
+            get_last_error(&mut info);
             (
                 info.status,
                 CStr::from_ptr(info.message).to_string_lossy().into_owned(),
@@ -249,10 +249,10 @@ mod tests {
                 })),
             };
             let status = guard(|| {
-                set_error_from(AlcoStatus::VALIDATION, &error);
-                AlcoStatus::VALIDATION
+                set_error_from(Status::VALIDATION, &error);
+                Status::VALIDATION
             });
-            assert_eq!(status, AlcoStatus::VALIDATION);
+            assert_eq!(status, Status::VALIDATION);
             assert_eq!(
                 last_error(),
                 (
@@ -271,10 +271,10 @@ mod tests {
             message: "resource\0name",
             source: None,
         };
-        set_error_from(AlcoStatus::UNSUPPORTED, &error);
+        set_error_from(Status::UNSUPPORTED, &error);
         assert_eq!(
             last_error(),
-            (AlcoStatus::UNSUPPORTED.0, "resource\\0name".into())
+            (Status::UNSUPPORTED.0, "resource\\0name".into())
         );
     }
 
@@ -313,14 +313,14 @@ mod tests {
             Self::install_with(record_callback)
         }
 
-        fn install_with(callback: AlcoErrorCallback) -> Self {
-            unsafe { alco_set_error_callback(Some(callback), std::ptr::null_mut()) };
+        fn install_with(callback: ErrorCallback) -> Self {
+            unsafe { set_error_callback(Some(callback), std::ptr::null_mut()) };
             CallbackRegistration
         }
     }
     impl Drop for CallbackRegistration {
         fn drop(&mut self) {
-            unsafe { alco_set_error_callback(None, std::ptr::null_mut()) };
+            unsafe { set_error_callback(None, std::ptr::null_mut()) };
             UNWIND_CALLBACK.with(|unwind| unwind.set(false));
         }
     }
@@ -331,16 +331,13 @@ mod tests {
         let _registration = CallbackRegistration::install();
 
         let status = guard(|| {
-            set_error(AlcoStatus::INVALID_HANDLE, "device handle is invalid");
-            AlcoStatus::INVALID_HANDLE
+            set_error(Status::INVALID_HANDLE, "device handle is invalid");
+            Status::INVALID_HANDLE
         });
-        assert_eq!(status, AlcoStatus::INVALID_HANDLE);
+        assert_eq!(status, Status::INVALID_HANDLE);
         assert_eq!(
             FIRED.with(|fired| fired.borrow().clone()),
-            Some((
-                AlcoStatus::INVALID_HANDLE.0,
-                "device handle is invalid".into()
-            ))
+            Some((Status::INVALID_HANDLE.0, "device handle is invalid".into()))
         );
     }
 
@@ -349,11 +346,11 @@ mod tests {
         let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
         let _registration = CallbackRegistration::install();
 
-        let status = guard(|| fail(AlcoStatus::OUT_OF_MEMORY));
-        assert_eq!(status, AlcoStatus::OUT_OF_MEMORY);
+        let status = guard(|| fail(Status::OUT_OF_MEMORY));
+        assert_eq!(status, Status::OUT_OF_MEMORY);
         assert_eq!(
             FIRED.with(|fired| fired.borrow().clone()),
-            Some((AlcoStatus::OUT_OF_MEMORY.0, "out of memory".into()))
+            Some((Status::OUT_OF_MEMORY.0, "out of memory".into()))
         );
     }
 
@@ -363,8 +360,8 @@ mod tests {
         let _registration = CallbackRegistration::install();
         FIRED.with(|fired| *fired.borrow_mut() = None);
 
-        assert_eq!(guard(|| AlcoStatus::OK), AlcoStatus::OK);
-        assert_eq!(guard(|| AlcoStatus::NOT_READY), AlcoStatus::NOT_READY);
+        assert_eq!(guard(|| Status::OK), Status::OK);
+        assert_eq!(guard(|| Status::NOT_READY), Status::NOT_READY);
         assert_eq!(FIRED.with(|fired| fired.borrow().clone()), None);
     }
 
@@ -373,31 +370,28 @@ mod tests {
         let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
         let _registration = CallbackRegistration::install();
         FIRED.with(|fired| *fired.borrow_mut() = None);
-        set_error(AlcoStatus::VALIDATION, "latest validation failure");
-        let mut initial = AlcoErrorInfo {
+        set_error(Status::VALIDATION, "latest validation failure");
+        let mut initial = ErrorInfo {
             status: 0,
             message: std::ptr::null(),
         };
-        unsafe { alco_get_last_error(&mut initial) };
+        unsafe { get_last_error(&mut initial) };
         for _ in 0..32 {
-            assert_eq!(guard(|| AlcoStatus::OK), AlcoStatus::OK);
-            assert_eq!(guard(|| AlcoStatus::NOT_READY), AlcoStatus::NOT_READY);
-            let mut info = AlcoErrorInfo {
+            assert_eq!(guard(|| Status::OK), Status::OK);
+            assert_eq!(guard(|| Status::NOT_READY), Status::NOT_READY);
+            let mut info = ErrorInfo {
                 status: 0,
                 message: std::ptr::null(),
             };
-            unsafe { alco_get_last_error(&mut info) };
-            assert_eq!(info.status, AlcoStatus::VALIDATION.0);
+            unsafe { get_last_error(&mut info) };
+            assert_eq!(info.status, Status::VALIDATION.0);
             assert_eq!(info.message, initial.message);
             assert_eq!(FIRED.with(|fired| fired.borrow().clone()), None);
         }
-        assert_eq!(
-            guard(|| fail(AlcoStatus::OUT_OF_MEMORY)),
-            AlcoStatus::OUT_OF_MEMORY
-        );
+        assert_eq!(guard(|| fail(Status::OUT_OF_MEMORY)), Status::OUT_OF_MEMORY);
         assert_eq!(
             last_error(),
-            (AlcoStatus::OUT_OF_MEMORY.0, "out of memory".into())
+            (Status::OUT_OF_MEMORY.0, "out of memory".into())
         );
     }
 
@@ -415,9 +409,9 @@ mod tests {
                     std::panic::panic_any("panic context\nCaused by: root\0cause");
                 }
             });
-            assert_eq!(status, AlcoStatus::PANIC);
+            assert_eq!(status, Status::PANIC);
             let expected = (
-                AlcoStatus::PANIC.0,
+                Status::PANIC.0,
                 "panic context\nCaused by: root\\0cause".into(),
             );
             assert_eq!(last_error(), expected);
@@ -444,13 +438,13 @@ mod tests {
         FIRED.with(|fired| *fired.borrow_mut() = None);
         UNWIND_CALLBACK.with(|unwind| unwind.set(true));
 
-        let payload = std::panic::catch_unwind(|| guard(|| fail(AlcoStatus::INVALID_ARGUMENT)))
-            .expect_err("callback unwind must not become AlcoStatus::PANIC");
+        let payload = std::panic::catch_unwind(|| guard(|| fail(Status::INVALID_ARGUMENT)))
+            .expect_err("callback unwind must not become Status::PANIC");
         assert_eq!(
             payload.downcast_ref::<&str>(),
             Some(&"callback unwind must reach the caller")
         );
-        let expected = (AlcoStatus::INVALID_ARGUMENT.0, "invalid argument".into());
+        let expected = (Status::INVALID_ARGUMENT.0, "invalid argument".into());
         assert_eq!(last_error(), expected);
         assert_eq!(FIRED.with(|fired| fired.borrow().clone()), Some(expected));
     }
@@ -496,11 +490,11 @@ mod tests {
             threads.push(std::thread::spawn(move || {
                 barrier.wait();
                 initialize();
-                assert_eq!(guard(|| panic!("initial guarded panic")), AlcoStatus::PANIC);
+                assert_eq!(guard(|| panic!("initial guarded panic")), Status::PANIC);
                 assert!(HOOK_INSTALLED.is_completed());
                 assert_eq!(
                     last_error(),
-                    (AlcoStatus::PANIC.0, "initial guarded panic".into())
+                    (Status::PANIC.0, "initial guarded panic".into())
                 );
             }));
         }
@@ -515,10 +509,7 @@ mod tests {
             hook_calls.fetch_add(1, Ordering::Relaxed);
         }));
         for _ in 0..8 {
-            assert_eq!(
-                guard(|| panic!("subsequent guarded panic")),
-                AlcoStatus::PANIC
-            );
+            assert_eq!(guard(|| panic!("subsequent guarded panic")), Status::PANIC);
         }
         assert_eq!(calls.load(Ordering::Relaxed), 8);
     }
@@ -527,10 +518,7 @@ mod tests {
     fn error_callback_does_not_fire_once_unregistered() {
         let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
         FIRED.with(|fired| *fired.borrow_mut() = None);
-        assert_eq!(
-            guard(|| fail(AlcoStatus::VALIDATION)),
-            AlcoStatus::VALIDATION
-        );
+        assert_eq!(guard(|| fail(Status::VALIDATION)), Status::VALIDATION);
         assert_eq!(FIRED.with(|fired| fired.borrow().clone()), None);
     }
 }

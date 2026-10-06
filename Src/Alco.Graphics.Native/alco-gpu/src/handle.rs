@@ -1,6 +1,6 @@
 //! Typed opaque pointers with caller-ordered borrowing and unique consumption.
 
-use crate::abi::AlcoStatus;
+use crate::abi::Status;
 use std::fmt;
 
 /// A pointer to an independently owned native object.
@@ -57,8 +57,8 @@ impl<T> Handle<T> {
     /// A non-null pointer must identify a live object of this type. The owner
     /// must prevent mutation and destruction for the returned borrow's lifetime.
     #[inline]
-    pub unsafe fn get<'a>(self) -> Result<&'a T, AlcoStatus> {
-        unsafe { self.0.as_ref() }.ok_or_else(|| crate::entry::fail(AlcoStatus::INVALID_HANDLE))
+    pub unsafe fn get<'a>(self) -> Result<&'a T, Status> {
+        unsafe { self.0.as_ref() }.ok_or_else(|| crate::entry::fail(Status::INVALID_HANDLE))
     }
 
     /// Exclusively borrows a live object.
@@ -67,8 +67,8 @@ impl<T> Handle<T> {
     /// A non-null pointer must identify a live object of this type. No other
     /// borrow, mutation, callback reentry, or destruction may overlap this borrow.
     #[inline]
-    pub unsafe fn get_mut<'a>(self) -> Result<&'a mut T, AlcoStatus> {
-        unsafe { self.0.as_mut() }.ok_or_else(|| crate::entry::fail(AlcoStatus::INVALID_HANDLE))
+    pub unsafe fn get_mut<'a>(self) -> Result<&'a mut T, Status> {
+        unsafe { self.0.as_mut() }.ok_or_else(|| crate::entry::fail(Status::INVALID_HANDLE))
     }
 
     /// Consumes an object's unique boxed owner.
@@ -78,9 +78,9 @@ impl<T> Handle<T> {
     /// All borrows must have ended. Arc-backed device/surface owners must use
     /// their own release operation rather than this method.
     #[inline]
-    pub unsafe fn take(self) -> Result<Box<T>, AlcoStatus> {
+    pub unsafe fn take(self) -> Result<Box<T>, Status> {
         if self.is_null() {
-            Err(crate::entry::fail(AlcoStatus::INVALID_HANDLE))
+            Err(crate::entry::fail(Status::INVALID_HANDLE))
         } else {
             Ok(unsafe { Box::from_raw(self.0) })
         }
@@ -115,12 +115,9 @@ mod tests {
     #[test]
     fn null_is_rejected_without_dereferencing() {
         unsafe {
-            assert_eq!(Handle::<u32>::NULL.get(), Err(AlcoStatus::INVALID_HANDLE));
-            assert_eq!(
-                Handle::<u32>::NULL.get_mut(),
-                Err(AlcoStatus::INVALID_HANDLE)
-            );
-            assert_eq!(Handle::<u32>::NULL.take(), Err(AlcoStatus::INVALID_HANDLE));
+            assert_eq!(Handle::<u32>::NULL.get(), Err(Status::INVALID_HANDLE));
+            assert_eq!(Handle::<u32>::NULL.get_mut(), Err(Status::INVALID_HANDLE));
+            assert_eq!(Handle::<u32>::NULL.take(), Err(Status::INVALID_HANDLE));
         }
     }
 

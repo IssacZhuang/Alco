@@ -115,52 +115,41 @@ struct TextureInfo {
 // Handle<T> is a transparent pointer; opaque Rust pointees never cross by value.
 #[allow(improper_ctypes)]
 extern "C-unwind" {
-    fn alco_device_create(desc: *const AlcoDeviceDesc, out: *mut AlcoDeviceHandle) -> AlcoStatus;
-    fn alco_device_destroy(device: AlcoDeviceHandle) -> AlcoStatus;
-    fn alco_device_poll(
-        device: AlcoDeviceHandle,
-        wait: u32,
-        index: u64,
-        empty: *mut u32,
-    ) -> AlcoStatus;
-    fn alco_surface_create(
-        device: AlcoDeviceHandle,
+    fn device_create(desc: *const DeviceDesc, out: *mut DeviceHandle) -> Status;
+    fn device_destroy(device: DeviceHandle) -> Status;
+    fn device_poll(device: DeviceHandle, wait: u32, index: u64, empty: *mut u32) -> Status;
+    fn device_create_surface(
+        device: DeviceHandle,
         desc: *const SurfaceDesc,
-        out: *mut AlcoSurfaceHandle,
-    ) -> AlcoStatus;
-    fn alco_surface_get_capabilities(
-        surface: AlcoSurfaceHandle,
-        out: *mut SurfaceCaps,
-    ) -> AlcoStatus;
-    fn alco_surface_configure(
-        surface: AlcoSurfaceHandle,
-        config: *const SurfaceConfig,
-    ) -> AlcoStatus;
-    fn alco_surface_get_current_texture(
-        surface: AlcoSurfaceHandle,
-        texture: *mut AlcoTextureHandle,
+        out: *mut SurfaceHandle,
+    ) -> Status;
+    fn surface_get_capabilities(surface: SurfaceHandle, out: *mut SurfaceCaps) -> Status;
+    fn surface_configure(surface: SurfaceHandle, config: *const SurfaceConfig) -> Status;
+    fn surface_get_current_texture(
+        surface: SurfaceHandle,
+        texture: *mut TextureHandle,
         status: *mut u32,
-    ) -> AlcoStatus;
-    fn alco_surface_present(surface: AlcoSurfaceHandle, status: *mut u32) -> AlcoStatus;
-    fn alco_surface_destroy(surface: AlcoSurfaceHandle) -> AlcoStatus;
-    fn alco_texture_create(
-        device: AlcoDeviceHandle,
+    ) -> Status;
+    fn surface_present(surface: SurfaceHandle, status: *mut u32) -> Status;
+    fn surface_destroy(surface: SurfaceHandle) -> Status;
+    fn device_create_texture(
+        device: DeviceHandle,
         desc: *const TextureDesc,
-        out: *mut AlcoTextureHandle,
-    ) -> AlcoStatus;
-    fn alco_texture_get_info(texture: AlcoTextureHandle, out: *mut TextureInfo) -> AlcoStatus;
-    fn alco_texture_create_view(
-        texture: AlcoTextureHandle,
+        out: *mut TextureHandle,
+    ) -> Status;
+    fn texture_get_info(texture: TextureHandle, out: *mut TextureInfo) -> Status;
+    fn texture_create_view(
+        texture: TextureHandle,
         desc: *const c_void,
-        out: *mut AlcoTextureViewHandle,
-    ) -> AlcoStatus;
-    fn alco_texture_view_destroy(view: AlcoTextureViewHandle) -> AlcoStatus;
-    fn alco_texture_release(texture: AlcoTextureHandle) -> AlcoStatus;
-    fn alco_texture_destroy(texture: AlcoTextureHandle) -> AlcoStatus;
+        out: *mut TextureViewHandle,
+    ) -> Status;
+    fn texture_view_destroy(view: TextureViewHandle) -> Status;
+    fn texture_release(texture: TextureHandle) -> Status;
+    fn texture_destroy(texture: TextureHandle) -> Status;
 }
 
 extern "C" {
-    fn alco_get_last_error(out: *mut AlcoErrorInfo);
+    fn get_last_error(out: *mut ErrorInfo);
 }
 
 #[link(name = "user32")]
@@ -198,11 +187,11 @@ extern "system" {
 }
 
 fn last_error() -> String {
-    let mut error = AlcoErrorInfo {
+    let mut error = ErrorInfo {
         status: 0,
         message: null(),
     };
-    unsafe { alco_get_last_error(&mut error) };
+    unsafe { get_last_error(&mut error) };
     if error.message.is_null() {
         String::new()
     } else {
@@ -212,37 +201,37 @@ fn last_error() -> String {
     }
 }
 
-fn expect_status(status: AlcoStatus, expected: AlcoStatus, operation: &str) {
+fn expect_status(status: Status, expected: Status, operation: &str) {
     assert_eq!(status, expected, "{operation}: {}", last_error());
 }
 
-fn expect_ok(status: AlcoStatus, operation: &str) {
-    expect_status(status, AlcoStatus::OK, operation);
+fn expect_ok(status: Status, operation: &str) {
+    expect_status(status, Status::OK, operation);
 }
 
-fn cleanup(status: AlcoStatus, operation: &str) {
+fn cleanup(status: Status, operation: &str) {
     // Cleanup must not panic, particularly when an assertion is already unwinding.
     if !status.is_ok() {
         eprintln!("cleanup {operation}: {status:?}: {}", last_error());
     }
 }
 
-struct Device(AlcoDeviceHandle);
+struct Device(DeviceHandle);
 
 impl Device {
     fn new() -> Option<Self> {
         // Referencing the rlib also ensures its exported entry points are linked.
-        assert_eq!(alco_gpu::alco_abi_version() >> 16, ABI_MAJOR);
-        let desc = AlcoDeviceDesc {
+        assert_eq!(alco_gpu::abi_version() >> 16, ABI_MAJOR);
+        let desc = DeviceDesc {
             backend: backend::VULKAN,
-            debug: ALCO_FALSE,
+            debug: FALSE,
             required_features: 0,
             push_constants_size: 4,
             name: null(),
         };
-        let mut handle = AlcoDeviceHandle::NULL;
-        let status = unsafe { alco_device_create(&desc, &mut handle) };
-        if status == AlcoStatus::UNSUPPORTED {
+        let mut handle = DeviceHandle::NULL;
+        let status = unsafe { device_create(&desc, &mut handle) };
+        if status == Status::UNSUPPORTED {
             eprintln!(
                 "SKIP surface lifecycle: Vulkan device unavailable: {}",
                 last_error()
@@ -258,10 +247,10 @@ impl Drop for Device {
     fn drop(&mut self) {
         unsafe {
             cleanup(
-                alco_device_poll(self.0, ALCO_TRUE, u64::MAX, null_mut()),
+                device_poll(self.0, TRUE, u64::MAX, null_mut()),
                 "device idle",
             );
-            cleanup(alco_device_destroy(self.0), "device destroy");
+            cleanup(device_destroy(self.0), "device destroy");
         }
     }
 }
@@ -333,7 +322,7 @@ impl Drop for HiddenWindow {
 
 struct Surface<'w> {
     window: &'w HiddenWindow,
-    handle: AlcoSurfaceHandle,
+    handle: SurfaceHandle,
 }
 
 impl<'w> Surface<'w> {
@@ -344,9 +333,9 @@ impl<'w> Surface<'w> {
             display: window.instance as usize as u64,
             name: null(),
         };
-        let mut handle = AlcoSurfaceHandle::NULL;
+        let mut handle = SurfaceHandle::NULL;
         expect_ok(
-            unsafe { alco_surface_create(device.0, &desc, &mut handle) },
+            unsafe { device_create_surface(device.0, &desc, &mut handle) },
             "surface create",
         );
         let surface = Self { window, handle };
@@ -357,7 +346,7 @@ impl<'w> Surface<'w> {
             present_mode_count: 0,
         };
         expect_ok(
-            unsafe { alco_surface_get_capabilities(handle, &mut caps) },
+            unsafe { surface_get_capabilities(handle, &mut caps) },
             "surface capabilities",
         );
         assert!(caps.format_count > 0 && caps.format_count <= 64);
@@ -376,21 +365,20 @@ impl<'w> Surface<'w> {
 
     fn configure(&self, config: &SurfaceConfig) {
         expect_ok(
-            unsafe { alco_surface_configure(self.handle, config) },
+            unsafe { surface_configure(self.handle, config) },
             "surface configure",
         );
     }
 
     fn acquire(&self) -> Acquired<'w> {
-        let mut texture = AlcoTextureHandle::NULL;
+        let mut texture = TextureHandle::NULL;
         let mut status = u32::MAX;
-        let result =
-            unsafe { alco_surface_get_current_texture(self.handle, &mut texture, &mut status) };
+        let result = unsafe { surface_get_current_texture(self.handle, &mut texture, &mut status) };
         // Own the handle immediately so assertions and view creation can unwind safely.
         let mut acquired = Acquired {
             _window: self.window,
             texture,
-            view: AlcoTextureViewHandle::NULL,
+            view: TextureViewHandle::NULL,
         };
         expect_ok(result, "surface acquire");
         assert!(
@@ -399,7 +387,7 @@ impl<'w> Surface<'w> {
         );
         assert!(!texture.is_null());
         expect_ok(
-            unsafe { alco_texture_create_view(texture, null(), &mut acquired.view) },
+            unsafe { texture_create_view(texture, null(), &mut acquired.view) },
             "surface view create",
         );
         acquired
@@ -408,7 +396,7 @@ impl<'w> Surface<'w> {
     fn present(&self) {
         let mut status = u32::MAX;
         expect_ok(
-            unsafe { alco_surface_present(self.handle, &mut status) },
+            unsafe { surface_present(self.handle, &mut status) },
             "surface present",
         );
         assert!(
@@ -420,41 +408,38 @@ impl<'w> Surface<'w> {
 
 impl Drop for Surface<'_> {
     fn drop(&mut self) {
-        cleanup(
-            unsafe { alco_surface_destroy(self.handle) },
-            "surface destroy",
-        );
+        cleanup(unsafe { surface_destroy(self.handle) }, "surface destroy");
     }
 }
 
 struct Acquired<'w> {
     // Child wrappers keep the physical window alive independently of Surface.
     _window: &'w HiddenWindow,
-    texture: AlcoTextureHandle,
-    view: AlcoTextureViewHandle,
+    texture: TextureHandle,
+    view: TextureViewHandle,
 }
 
 impl Acquired<'_> {
     fn info(&self) -> TextureInfo {
         let mut info = TextureInfo::default();
         expect_ok(
-            unsafe { alco_texture_get_info(self.texture, &mut info) },
+            unsafe { texture_get_info(self.texture, &mut info) },
             "texture info",
         );
         info
     }
 
-    fn release_texture(&mut self) -> AlcoStatus {
+    fn release_texture(&mut self) -> Status {
         // Valid acquired releases consume the owner even on cleanup failure.
         // Disarm before the call so an assertion or host unwind never retries it.
-        let texture = std::mem::replace(&mut self.texture, AlcoTextureHandle::NULL);
-        unsafe { alco_texture_release(texture) }
+        let texture = std::mem::replace(&mut self.texture, TextureHandle::NULL);
+        unsafe { texture_release(texture) }
     }
 
     fn release_view(&mut self) {
-        let view = std::mem::replace(&mut self.view, AlcoTextureViewHandle::NULL);
+        let view = std::mem::replace(&mut self.view, TextureViewHandle::NULL);
         expect_ok(
-            unsafe { alco_texture_view_destroy(view) },
+            unsafe { texture_view_destroy(view) },
             "surface view destroy",
         );
     }
@@ -470,26 +455,23 @@ impl Drop for Acquired<'_> {
     fn drop(&mut self) {
         unsafe {
             if !self.texture.is_null() {
-                cleanup(
-                    alco_texture_release(self.texture),
-                    "surface texture release",
-                );
+                cleanup(texture_release(self.texture), "surface texture release");
             }
             if !self.view.is_null() {
-                cleanup(alco_texture_view_destroy(self.view), "surface view destroy");
+                cleanup(texture_view_destroy(self.view), "surface view destroy");
             }
         }
     }
 }
 
 struct RegularTexture {
-    handle: AlcoTextureHandle,
+    handle: TextureHandle,
 }
 
 impl Drop for RegularTexture {
     fn drop(&mut self) {
         cleanup(
-            unsafe { alco_texture_destroy(self.handle) },
+            unsafe { texture_destroy(self.handle) },
             "regular texture destroy",
         );
     }
@@ -593,34 +575,34 @@ fn null_and_wrong_kind_lifecycle_calls_preserve_live_resource_identity() {
         sample_count: 1,
         name: null(),
     };
-    let mut handle = AlcoTextureHandle::NULL;
+    let mut handle = TextureHandle::NULL;
     expect_ok(
-        unsafe { alco_texture_create(device.0, &desc, &mut handle) },
+        unsafe { device_create_texture(device.0, &desc, &mut handle) },
         "regular texture create",
     );
     let regular = RegularTexture { handle };
     let identity = unsafe { regular.handle.get().unwrap().id };
     expect_status(
-        unsafe { alco_texture_release(regular.handle) },
-        AlcoStatus::INVALID_ARGUMENT,
+        unsafe { texture_release(regular.handle) },
+        Status::INVALID_ARGUMENT,
         "wrong-kind release",
     );
     assert!(last_error().contains("not a surface texture"));
     let mut info = TextureInfo::default();
     expect_ok(
-        unsafe { alco_texture_get_info(regular.handle, &mut info) },
+        unsafe { texture_get_info(regular.handle, &mut info) },
         "regular handle after rejection",
     );
     assert_eq!((info.width, info.height), (16, 16));
     assert_eq!(unsafe { regular.handle.get().unwrap().id }, identity);
     expect_status(
-        unsafe { alco_texture_release(AlcoTextureHandle::NULL) },
-        AlcoStatus::INVALID_HANDLE,
+        unsafe { texture_release(TextureHandle::NULL) },
+        Status::INVALID_HANDLE,
         "null texture release",
     );
     expect_status(
-        unsafe { alco_surface_destroy(AlcoSurfaceHandle::NULL) },
-        AlcoStatus::INVALID_HANDLE,
+        unsafe { surface_destroy(SurfaceHandle::NULL) },
+        Status::INVALID_HANDLE,
         "null surface destroy",
     );
     let window = HiddenWindow::new();
@@ -629,8 +611,8 @@ fn null_and_wrong_kind_lifecycle_calls_preserve_live_resource_identity() {
     let acquired = surface.acquire();
     let identity = unsafe { acquired.texture.get().unwrap().id };
     expect_status(
-        unsafe { alco_texture_destroy(acquired.texture) },
-        AlcoStatus::INVALID_ARGUMENT,
+        unsafe { texture_destroy(acquired.texture) },
+        Status::INVALID_ARGUMENT,
         "wrong-kind acquired texture destroy",
     );
     assert_eq!(unsafe { acquired.texture.get().unwrap().id }, identity);
@@ -645,15 +627,15 @@ fn surface_validation_errors_still_allow_texture_cleanup_and_recovery() {
     let (surface, _, mut config) = Surface::new(&device, &window);
     let mut present_status = u32::MAX;
     expect_status(
-        unsafe { alco_surface_present(surface.handle, &mut present_status) },
-        AlcoStatus::VALIDATION,
+        unsafe { surface_present(surface.handle, &mut present_status) },
+        Status::VALIDATION,
         "present before configure",
     );
     assert_eq!(present_status, u32::MAX);
     surface.configure(&config);
     expect_status(
-        unsafe { alco_surface_present(surface.handle, null_mut()) },
-        AlcoStatus::VALIDATION,
+        unsafe { surface_present(surface.handle, null_mut()) },
+        Status::VALIDATION,
         "present without acquisition",
     );
     assert!(last_error().contains("No surface image"));
@@ -661,15 +643,15 @@ fn surface_validation_errors_still_allow_texture_cleanup_and_recovery() {
     let acquired = surface.acquire();
     config.present_mode = u32::MAX;
     expect_status(
-        unsafe { alco_surface_configure(surface.handle, &config) },
-        AlcoStatus::INVALID_ARGUMENT,
+        unsafe { surface_configure(surface.handle, &config) },
+        Status::INVALID_ARGUMENT,
         "invalid present mode",
     );
     assert_eq!(acquired.info().width, 64);
     config.present_mode = 0;
     expect_status(
-        unsafe { alco_surface_configure(surface.handle, &config) },
-        AlcoStatus::VALIDATION,
+        unsafe { surface_configure(surface.handle, &config) },
+        Status::VALIDATION,
         "configure while acquired",
     );
     assert!(last_error().contains("must be dropped before re-configuring"));
@@ -679,7 +661,7 @@ fn surface_validation_errors_still_allow_texture_cleanup_and_recovery() {
     surface.configure(&config);
     let recovered = surface.acquire();
     expect_ok(
-        unsafe { alco_surface_present(surface.handle, null_mut()) },
+        unsafe { surface_present(surface.handle, null_mut()) },
         "present with optional null status",
     );
     recovered.release();
@@ -721,14 +703,14 @@ fn borrowed_surface_texture_operations_do_not_allocate_or_acquire_an_owner() {
     assert_eq!(report.hub.texture_views.num_allocated, 1);
     let mut info = TextureInfo::default();
     expect_ok(
-        unsafe { alco_texture_get_info(acquired.texture, &mut info) },
+        unsafe { texture_get_info(acquired.texture, &mut info) },
         "warm texture info",
     );
     let allocations = allocation_count(|| {
         for _ in 0..256 {
             assert_eq!(
-                unsafe { alco_texture_get_info(acquired.texture, &mut info) },
-                AlcoStatus::OK
+                unsafe { texture_get_info(acquired.texture, &mut info) },
+                Status::OK
             );
             assert_eq!(unsafe { surface.handle.get().unwrap().id }, parent.id);
             assert_eq!(Arc::strong_count(parent), 3);
@@ -797,7 +779,7 @@ fn device_first_cleanup_consumes_failed_release_with_a_retained_view() {
     drop(surface);
     expect_status(
         acquired.release_texture(),
-        AlcoStatus::VALIDATION,
+        Status::VALIDATION,
         "release after device destroy consumes despite discard failure",
     );
     assert!(last_error().contains("lost"));
@@ -831,12 +813,12 @@ fn native_acquired_texture_drop_cleans_invalid_device_without_abi_diagnostics() 
     drop(device);
     drop(surface);
     expect_status(
-        unsafe { alco_surface_present(AlcoSurfaceHandle::NULL, null_mut()) },
-        AlcoStatus::INVALID_HANDLE,
+        unsafe { surface_present(SurfaceHandle::NULL, null_mut()) },
+        Status::INVALID_HANDLE,
         "diagnostic sentinel",
     );
     let error_before = last_error();
-    let texture = std::mem::replace(&mut acquired.texture, AlcoTextureHandle::NULL);
+    let texture = std::mem::replace(&mut acquired.texture, TextureHandle::NULL);
     drop(unsafe { texture.take().unwrap() });
     assert_eq!(
         last_error(),

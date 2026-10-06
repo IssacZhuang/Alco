@@ -5,12 +5,12 @@ namespace Alco.Graphics.AlcoGpu;
 /// <summary>Describes AlcoGpuTimestampQuerySet.</summary>
 internal sealed unsafe class AlcoGpuTimestampQuerySet : GPUTimestampQuerySet
 {
-    private AlcoQuerySetHandle _querySet;
+    private AlcoGpuAbi.QuerySetHandle _querySet;
 
     protected override GPUDevice Device { get; }
 
     /// <summary>Gets the native query-set handle.</summary>
-    public AlcoQuerySetHandle Native => _querySet;
+    public AlcoGpuAbi.QuerySetHandle Native => _querySet;
 
     /// <summary>Creates a native timestamp query set.</summary>
     /// <param name="device">The owning device.</param>
@@ -46,8 +46,8 @@ internal sealed unsafe class AlcoGpuTimestampQuerySet : GPUTimestampQuerySet
     {
         try
         {
-            AlcoQuerySetHandle handle = _querySet;
-            _querySet = AlcoQuerySetHandle.Null;
+            AlcoGpuAbi.QuerySetHandle handle = _querySet;
+            _querySet = AlcoGpuAbi.QuerySetHandle.Null;
             if (!handle.IsNull)
             {
                 try

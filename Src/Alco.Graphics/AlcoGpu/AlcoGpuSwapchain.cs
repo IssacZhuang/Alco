@@ -8,7 +8,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
 {
     private readonly AlcoGpuDevice _device;
     private readonly AlcoGpuAttachmentLayout _attachmentLayout;
-    private AlcoSurfaceHandle _surface;
+    private AlcoGpuAbi.SurfaceHandle _surface;
     private readonly AlcoGpuSurfaceFrameBuffer _frameBuffer;
 
     private readonly PixelFormat _surfaceFormat;
@@ -16,7 +16,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
     private readonly PixelFormat[] _supportedSurfaceFormats;
     private readonly uint[] _supportedPresentModes;
 
-    private AlcoSurfaceConfig _config;
+    private AlcoGpuAbi.SurfaceConfig _config;
     private bool _isVSyncEnabled;
 
     /// <summary>
@@ -33,7 +33,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
                 _surface = CreateSurface(device, descriptor.SurfaceSource);
 
                 // check compatibility
-                AlcoSurfaceCaps caps = default;
+                AlcoGpuAbi.SurfaceCaps caps = default;
                 AlcoGpuNative.SurfaceGetCapabilities(_surface, ref caps);
 
                 // get supported present modes (ABI present-mode values)
@@ -126,11 +126,11 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
         }
     }
 
-    private static AlcoSurfaceHandle CreateSurface(AlcoGpuDevice device, SurfaceSource surface)
+    private static AlcoGpuAbi.SurfaceHandle CreateSurface(AlcoGpuDevice device, SurfaceSource surface)
     {
         try
         {
-            AlcoSurfaceDesc desc = default;
+            AlcoGpuAbi.SurfaceDesc desc = default;
             switch (surface)
             {
                 case Win32SurfaceSource win32Surface:
@@ -169,7 +169,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
             fixed (byte* ptrName = name)
             {
                 desc.Name = ptrName;
-                AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoSurfaceHandle handle);
+                AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoGpuAbi.SurfaceHandle handle);
                 return handle;
             }
         }
@@ -251,8 +251,8 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
                 try { _attachmentLayout?.Destroy(disposing); }
                 finally
                 {
-                    AlcoSurfaceHandle surface = _surface;
-                    _surface = AlcoSurfaceHandle.Null;
+                    AlcoGpuAbi.SurfaceHandle surface = _surface;
+                    _surface = AlcoGpuAbi.SurfaceHandle.Null;
                     if (!surface.IsNull) { AlcoGpuNative.SurfaceDestroy(surface); }
                 }
             }

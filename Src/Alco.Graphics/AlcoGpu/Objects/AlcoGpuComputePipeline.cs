@@ -7,7 +7,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 {
     #region Properties
-    private AlcoComputePipelineHandle _native;
+    private AlcoGpuAbi.ComputePipelineHandle _native;
     #endregion
 
     #region Abstract Implementation
@@ -17,8 +17,8 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
     {
         try
         {
-            AlcoComputePipelineHandle handle = _native;
-            _native = AlcoComputePipelineHandle.Null;
+            AlcoGpuAbi.ComputePipelineHandle handle = _native;
+            _native = AlcoGpuAbi.ComputePipelineHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -40,7 +40,7 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 
     #region AlcoGpu Implementation
     /// <summary>Gets the native compute pipeline handle.</summary>
-    public AlcoComputePipelineHandle Native
+    public AlcoGpuAbi.ComputePipelineHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -51,7 +51,7 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
         try
         {
             Device = device;
-            AlcoDeviceHandle nativeDevice = device.Native;
+            AlcoGpuAbi.DeviceHandle nativeDevice = device.Native;
 
             ReadOnlySpan<byte> entryPoint = descriptor.Source.EntryPoint.Utf8Z();
             ReadOnlySpan<byte> name = Name.Utf8Z();
@@ -59,21 +59,21 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
             fixed (byte* ptrEntry = entryPoint)
             fixed (byte* ptrName = name)
             {
-                AlcoShaderModuleHandle module = device.CreateShaderModule(descriptor.Source);
+                AlcoGpuAbi.ShaderModuleHandle module = device.CreateShaderModule(descriptor.Source);
 
                 try
                 {
                     GPUBindGroup[] bindGroups = descriptor.BindGroups;
-                    Span<AlcoBindGroupLayoutHandle> bindGroupLayoutStorage = bindGroups.Length <= 64
-                        ? stackalloc AlcoBindGroupLayoutHandle[bindGroups.Length] : new AlcoBindGroupLayoutHandle[bindGroups.Length];
+                    Span<AlcoGpuAbi.BindGroupLayoutHandle> bindGroupLayoutStorage = bindGroups.Length <= 64
+                        ? stackalloc AlcoGpuAbi.BindGroupLayoutHandle[bindGroups.Length] : new AlcoGpuAbi.BindGroupLayoutHandle[bindGroups.Length];
                     for (int i = 0; i < bindGroups.Length; i++)
                     {
                         bindGroupLayoutStorage[i] = ((AlcoGpuBindGroup)bindGroups[i]).Native;
                     }
 
-                    fixed (AlcoBindGroupLayoutHandle* bindGroupLayouts = bindGroupLayoutStorage)
+                    fixed (AlcoGpuAbi.BindGroupLayoutHandle* bindGroupLayouts = bindGroupLayoutStorage)
                     {
-                    AlcoComputePipelineDesc desc = new()
+                    AlcoGpuAbi.ComputePipelineDesc desc = new()
                     {
                         BindGroupLayouts = bindGroupLayouts,
                         BindGroupLayoutCount = (uint)bindGroups.Length,

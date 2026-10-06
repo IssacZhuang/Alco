@@ -7,7 +7,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal abstract class AlcoGpuTextureBase : GPUTexture
 {
     /// <summary>Gets the borrowed native pointer; ownership stays with this object.</summary>
-    public abstract AlcoTextureHandle Native { get; }
+    public abstract AlcoGpuAbi.TextureHandle Native { get; }
 
     protected AlcoGpuTextureBase(in TextureDescriptor descriptor) : base(descriptor)
     {
@@ -18,7 +18,7 @@ internal abstract class AlcoGpuTextureBase : GPUTexture
 internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
 {
     #region Properties
-    private AlcoTextureHandle _nativeTexture;
+    private AlcoGpuAbi.TextureHandle _nativeTexture;
     // A borrowed owned attachment must retain its parent through managed native calls.
     private readonly BaseGPUObject? _owner;
     private readonly uint _width;
@@ -59,8 +59,8 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
     {
         try
         {
-            AlcoTextureHandle handle = _nativeTexture;
-            _nativeTexture = AlcoTextureHandle.Null;
+            AlcoGpuAbi.TextureHandle handle = _nativeTexture;
+            _nativeTexture = AlcoGpuAbi.TextureHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -82,7 +82,7 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
 
     #region AlcoGpu Implementation
     /// <inheritdoc />
-    public override AlcoTextureHandle Native
+    public override AlcoGpuAbi.TextureHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _nativeTexture;
@@ -111,7 +111,7 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
             ReadOnlySpan<byte> name = Name.Utf8Z();
             fixed (byte* ptrName = name)
             {
-                AlcoTextureDesc desc = new()
+                AlcoGpuAbi.TextureDesc desc = new()
                 {
                     Dimension = (uint)descriptor.Dimension,
                     Format = (uint)descriptor.Format,

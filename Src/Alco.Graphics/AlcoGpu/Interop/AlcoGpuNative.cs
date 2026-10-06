@@ -33,23 +33,23 @@ internal static unsafe partial class AlcoGpuNative
     }
 
     /// <summary>Provides the AbiVersion operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_abi_version")]
+    [LibraryImport(LibraryName, EntryPoint = "abi_version")]
     public static partial uint AbiVersion();
 
     /// <summary>Provides the BuildInfo operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_build_info")]
-    public static partial void BuildInfo(ref AlcoBuildInfo info);
+    [LibraryImport(LibraryName, EntryPoint = "build_info")]
+    public static partial void BuildInfo(ref AlcoGpuAbi.BuildInfo info);
 
     /// <summary>Provides the GetLastError operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_get_last_error")]
-    public static partial void GetLastError(ref AlcoErrorInfo info);
+    [LibraryImport(LibraryName, EntryPoint = "get_last_error")]
+    public static partial void GetLastError(ref AlcoGpuAbi.ErrorInfo info);
 
     /// <summary>
     /// Registers the process-wide error callback; null unregisters. The
     /// callback fires synchronously on the calling thread for every failure
     /// status, with the message borrowed until the next failure on the same thread.
     /// </summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_set_error_callback")]
+    [LibraryImport(LibraryName, EntryPoint = "set_error_callback")]
     public static partial void SetErrorCallback(
         delegate* unmanaged[Cdecl]<uint, byte*, void*, void> callback,
         void* userdata);
@@ -63,7 +63,7 @@ internal static unsafe partial class AlcoGpuNative
     /// <see cref="GraphicsException"/>) when another library already owns the
     /// process-wide logger.
     /// </summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_set_log_callback")]
+    [LibraryImport(LibraryName, EntryPoint = "set_log_callback")]
     public static partial uint SetLogCallback(
         delegate* unmanaged[Cdecl]<uint, byte*, void*, void> callback,
         void* userdata);
@@ -73,482 +73,482 @@ internal static unsafe partial class AlcoGpuNative
     /// values throw <see cref="GraphicsException"/> through the error
     /// callback.
     /// </summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_set_log_level")]
+    [LibraryImport(LibraryName, EntryPoint = "set_log_level")]
     public static partial uint SetLogLevel(uint level);
 
     /// <summary>Provides the DeviceCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_device_create")]
-    public static partial uint DeviceCreate(in AlcoDeviceDesc desc, out AlcoDeviceHandle device);
+    [LibraryImport(LibraryName, EntryPoint = "device_create")]
+    public static partial uint DeviceCreate(in AlcoGpuAbi.DeviceDesc desc, out AlcoGpuAbi.DeviceHandle device);
 
     /// <summary>Provides the DeviceDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_device_destroy")]
-    public static partial uint DeviceDestroy(AlcoDeviceHandle device);
+    [LibraryImport(LibraryName, EntryPoint = "device_destroy")]
+    public static partial uint DeviceDestroy(AlcoGpuAbi.DeviceHandle device);
 
     /// <summary>Provides the DeviceGetInfo operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_device_get_info")]
-    public static partial uint DeviceGetInfo(AlcoDeviceHandle device, ref AlcoDeviceInfo info);
+    [LibraryImport(LibraryName, EntryPoint = "device_get_info")]
+    public static partial uint DeviceGetInfo(AlcoGpuAbi.DeviceHandle device, ref AlcoGpuAbi.DeviceInfo info);
 
     /// <summary>Provides the DevicePoll operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_device_poll")]
-    public static partial uint DevicePoll(AlcoDeviceHandle device, uint wait, ulong submitIndex, uint* queueEmpty);
+    [LibraryImport(LibraryName, EntryPoint = "device_poll")]
+    public static partial uint DevicePoll(AlcoGpuAbi.DeviceHandle device, uint wait, ulong submitIndex, uint* queueEmpty);
 
     /// <summary>Provides the DevicePopMessage operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_device_pop_message")]
-    public static partial uint DevicePopMessage(AlcoDeviceHandle device, ref AlcoDeviceMessage message);
+    [LibraryImport(LibraryName, EntryPoint = "device_pop_message")]
+    public static partial uint DevicePopMessage(AlcoGpuAbi.DeviceHandle device, ref AlcoGpuAbi.DeviceMessage message);
 
     // ------------------------------------------------------------------
     // Buffers
     // ------------------------------------------------------------------
 
     /// <summary>Provides the BufferCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_create")]
-    public static partial uint BufferCreate(AlcoDeviceHandle device, in AlcoBufferDesc desc, out AlcoBufferHandle buffer);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_buffer")]
+    public static partial uint BufferCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.BufferDesc desc, out AlcoGpuAbi.BufferHandle buffer);
 
     /// <summary>Provides the BufferDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_destroy")]
-    public static partial uint BufferDestroy(AlcoBufferHandle buffer);
+    [LibraryImport(LibraryName, EntryPoint = "buffer_destroy")]
+    public static partial uint BufferDestroy(AlcoGpuAbi.BufferHandle buffer);
 
     /// <summary>Provides the BufferMapRead operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_map_read")]
-    public static partial uint BufferMapRead(AlcoBufferHandle buffer, ulong offset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "buffer_map_read")]
+    public static partial uint BufferMapRead(AlcoGpuAbi.BufferHandle buffer, ulong offset, ulong size);
 
     /// <summary>Provides the BufferMapWrite operation; the mapped range is writable until unmap.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_map_write")]
-    public static partial uint BufferMapWrite(AlcoBufferHandle buffer, ulong offset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "buffer_map_write")]
+    public static partial uint BufferMapWrite(AlcoGpuAbi.BufferHandle buffer, ulong offset, ulong size);
 
     /// <summary>Provides the BufferMapPoll operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_map_poll")]
-    public static partial uint BufferMapPoll(AlcoBufferHandle buffer);
+    [LibraryImport(LibraryName, EntryPoint = "buffer_map_poll")]
+    public static partial uint BufferMapPoll(AlcoGpuAbi.BufferHandle buffer);
 
     /// <summary>Provides the BufferGetMappedRange operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_get_mapped_range")]
-    public static partial uint BufferGetMappedRange(AlcoBufferHandle buffer, ulong offset, ulong size, void** mapped);
+    [LibraryImport(LibraryName, EntryPoint = "buffer_get_mapped_range")]
+    public static partial uint BufferGetMappedRange(AlcoGpuAbi.BufferHandle buffer, ulong offset, ulong size, void** mapped);
 
     /// <summary>Provides the BufferUnmap operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_unmap")]
-    public static partial uint BufferUnmap(AlcoBufferHandle buffer);
+    [LibraryImport(LibraryName, EntryPoint = "buffer_unmap")]
+    public static partial uint BufferUnmap(AlcoGpuAbi.BufferHandle buffer);
 
     // ------------------------------------------------------------------
     // Textures / views / samplers
     // ------------------------------------------------------------------
 
     /// <summary>Provides the TextureCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_texture_create")]
-    public static partial uint TextureCreate(AlcoDeviceHandle device, in AlcoTextureDesc desc, out AlcoTextureHandle texture);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_texture")]
+    public static partial uint TextureCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.TextureDesc desc, out AlcoGpuAbi.TextureHandle texture);
 
     /// <summary>Provides the TextureDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_texture_destroy")]
-    public static partial uint TextureDestroy(AlcoTextureHandle texture);
+    [LibraryImport(LibraryName, EntryPoint = "texture_destroy")]
+    public static partial uint TextureDestroy(AlcoGpuAbi.TextureHandle texture);
 
     /// <summary>Provides the TextureGetInfo operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_texture_get_info")]
-    public static partial uint TextureGetInfo(AlcoTextureHandle texture, ref AlcoTextureInfo info);
+    [LibraryImport(LibraryName, EntryPoint = "texture_get_info")]
+    public static partial uint TextureGetInfo(AlcoGpuAbi.TextureHandle texture, ref AlcoGpuAbi.TextureInfo info);
 
     /// <summary>Provides the TextureCreateView operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_texture_create_view")]
-    public static partial uint TextureCreateView(AlcoTextureHandle texture, AlcoTextureViewDesc* desc, out AlcoTextureViewHandle view);
+    [LibraryImport(LibraryName, EntryPoint = "texture_create_view")]
+    public static partial uint TextureCreateView(AlcoGpuAbi.TextureHandle texture, AlcoGpuAbi.TextureViewDesc* desc, out AlcoGpuAbi.TextureViewHandle view);
 
     /// <summary>Provides the TextureViewDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_texture_view_destroy")]
-    public static partial uint TextureViewDestroy(AlcoTextureViewHandle view);
+    [LibraryImport(LibraryName, EntryPoint = "texture_view_destroy")]
+    public static partial uint TextureViewDestroy(AlcoGpuAbi.TextureViewHandle view);
 
     /// <summary>Provides the SamplerCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_sampler_create")]
-    public static partial uint SamplerCreate(AlcoDeviceHandle device, in AlcoSamplerDesc desc, out AlcoSamplerHandle sampler);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_sampler")]
+    public static partial uint SamplerCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.SamplerDesc desc, out AlcoGpuAbi.SamplerHandle sampler);
 
     /// <summary>Provides the SamplerDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_sampler_destroy")]
-    public static partial uint SamplerDestroy(AlcoSamplerHandle sampler);
+    [LibraryImport(LibraryName, EntryPoint = "sampler_destroy")]
+    public static partial uint SamplerDestroy(AlcoGpuAbi.SamplerHandle sampler);
 
     /// <summary>Releases an acquired surface texture (destroy is rejected for those).</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_texture_release")]
-    public static partial uint TextureRelease(AlcoTextureHandle texture);
+    [LibraryImport(LibraryName, EntryPoint = "texture_release")]
+    public static partial uint TextureRelease(AlcoGpuAbi.TextureHandle texture);
 
     // ------------------------------------------------------------------
     // Shader modules
     // ------------------------------------------------------------------
 
     /// <summary>Provides the ShaderModuleCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_shader_module_create")]
-    public static partial uint ShaderModuleCreate(AlcoDeviceHandle device, in AlcoShaderModuleDesc desc, out AlcoShaderModuleHandle module);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_shader_module")]
+    public static partial uint ShaderModuleCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.ShaderModuleDesc desc, out AlcoGpuAbi.ShaderModuleHandle module);
 
     /// <summary>Provides the ShaderModuleDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_shader_module_destroy")]
-    public static partial uint ShaderModuleDestroy(AlcoShaderModuleHandle module);
+    [LibraryImport(LibraryName, EntryPoint = "shader_module_destroy")]
+    public static partial uint ShaderModuleDestroy(AlcoGpuAbi.ShaderModuleHandle module);
 
     // ------------------------------------------------------------------
     // Bind group layouts / bind groups
     // ------------------------------------------------------------------
 
     /// <summary>Provides the BindGroupLayoutCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bind_group_layout_create")]
-    public static partial uint BindGroupLayoutCreate(AlcoDeviceHandle device, in AlcoBindGroupLayoutDesc desc, out AlcoBindGroupLayoutHandle layout);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_bind_group_layout")]
+    public static partial uint BindGroupLayoutCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.BindGroupLayoutDesc desc, out AlcoGpuAbi.BindGroupLayoutHandle layout);
 
     /// <summary>Provides the BindGroupLayoutDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bind_group_layout_destroy")]
-    public static partial uint BindGroupLayoutDestroy(AlcoBindGroupLayoutHandle layout);
+    [LibraryImport(LibraryName, EntryPoint = "bind_group_layout_destroy")]
+    public static partial uint BindGroupLayoutDestroy(AlcoGpuAbi.BindGroupLayoutHandle layout);
 
     /// <summary>Provides the BindGroupCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bind_group_create")]
-    public static partial uint BindGroupCreate(AlcoDeviceHandle device, in AlcoBindGroupDesc desc, out AlcoBindGroupHandle group);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_bind_group")]
+    public static partial uint BindGroupCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.BindGroupDesc desc, out AlcoGpuAbi.BindGroupHandle group);
 
     /// <summary>Provides the BindGroupDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bind_group_destroy")]
-    public static partial uint BindGroupDestroy(AlcoBindGroupHandle group);
+    [LibraryImport(LibraryName, EntryPoint = "bind_group_destroy")]
+    public static partial uint BindGroupDestroy(AlcoGpuAbi.BindGroupHandle group);
 
     // ------------------------------------------------------------------
     // Pipelines
     // ------------------------------------------------------------------
 
     /// <summary>Provides the GraphicsPipelineCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_graphics_pipeline_create")]
-    public static partial uint GraphicsPipelineCreate(AlcoDeviceHandle device, in AlcoGraphicsPipelineDesc desc, out AlcoGraphicsPipelineHandle pipeline);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_graphics_pipeline")]
+    public static partial uint GraphicsPipelineCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.GraphicsPipelineDesc desc, out AlcoGpuAbi.GraphicsPipelineHandle pipeline);
 
     /// <summary>Provides the ComputePipelineCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pipeline_create")]
-    public static partial uint ComputePipelineCreate(AlcoDeviceHandle device, in AlcoComputePipelineDesc desc, out AlcoComputePipelineHandle pipeline);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_compute_pipeline")]
+    public static partial uint ComputePipelineCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.ComputePipelineDesc desc, out AlcoGpuAbi.ComputePipelineHandle pipeline);
 
     /// <summary>Provides the GraphicsPipelineDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_graphics_pipeline_destroy")]
-    public static partial uint GraphicsPipelineDestroy(AlcoGraphicsPipelineHandle pipeline);
+    [LibraryImport(LibraryName, EntryPoint = "graphics_pipeline_destroy")]
+    public static partial uint GraphicsPipelineDestroy(AlcoGpuAbi.GraphicsPipelineHandle pipeline);
 
     /// <summary>Provides the ComputePipelineDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pipeline_destroy")]
-    public static partial uint ComputePipelineDestroy(AlcoComputePipelineHandle pipeline);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pipeline_destroy")]
+    public static partial uint ComputePipelineDestroy(AlcoGpuAbi.ComputePipelineHandle pipeline);
 
     // ------------------------------------------------------------------
     // Command encoding
     // ------------------------------------------------------------------
 
     /// <summary>Provides the EncoderCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_create")]
-    public static partial uint EncoderCreate(AlcoDeviceHandle device, byte* name, out AlcoEncoderHandle encoder);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_encoder")]
+    public static partial uint EncoderCreate(AlcoGpuAbi.DeviceHandle device, byte* name, out AlcoGpuAbi.EncoderHandle encoder);
 
     /// <summary>Provides the EncoderFinish operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_finish")]
-    public static partial uint EncoderFinish(AlcoEncoderHandle encoder, out AlcoCommandBufferHandle commandBuffer);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_finish")]
+    public static partial uint EncoderFinish(AlcoGpuAbi.EncoderHandle encoder, out AlcoGpuAbi.CommandBufferHandle commandBuffer);
 
     /// <summary>Provides the EncoderDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_destroy")]
-    public static partial uint EncoderDestroy(AlcoEncoderHandle encoder);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_destroy")]
+    public static partial uint EncoderDestroy(AlcoGpuAbi.EncoderHandle encoder);
 
     /// <summary>Provides the CommandBufferDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_command_buffer_destroy")]
-    public static partial uint CommandBufferDestroy(AlcoCommandBufferHandle commandBuffer);
+    [LibraryImport(LibraryName, EntryPoint = "command_buffer_destroy")]
+    public static partial uint CommandBufferDestroy(AlcoGpuAbi.CommandBufferHandle commandBuffer);
 
     /// <summary>Provides the RenderPassBegin operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_begin")]
-    public static partial uint RenderPassBegin(AlcoEncoderHandle encoder, in AlcoRenderPassDesc desc, out AlcoRenderPassHandle renderPass);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_begin_render_pass")]
+    public static partial uint RenderPassBegin(AlcoGpuAbi.EncoderHandle encoder, in AlcoGpuAbi.RenderPassDesc desc, out AlcoGpuAbi.RenderPassHandle renderPass);
 
     /// <summary>Provides the RenderPassEnd operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_end")]
-    public static partial uint RenderPassEnd(AlcoRenderPassHandle renderPass);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_end")]
+    public static partial uint RenderPassEnd(AlcoGpuAbi.RenderPassHandle renderPass);
 
     /// <summary>Consumes an open render pass without validating or ending it.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_release")]
-    public static partial uint RenderPassRelease(AlcoRenderPassHandle renderPass);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_release")]
+    public static partial uint RenderPassRelease(AlcoGpuAbi.RenderPassHandle renderPass);
 
     /// <summary>Provides the RenderPassSetPipeline operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_pipeline")]
-    public static partial uint RenderPassSetPipeline(AlcoRenderPassHandle renderPass, AlcoGraphicsPipelineHandle pipeline);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_pipeline")]
+    public static partial uint RenderPassSetPipeline(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.GraphicsPipelineHandle pipeline);
 
     /// <summary>Provides the RenderPassSetBindGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_bind_group")]
-    public static partial uint RenderPassSetBindGroup(AlcoRenderPassHandle renderPass, uint slot, AlcoBindGroupHandle group);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_bind_group")]
+    public static partial uint RenderPassSetBindGroup(AlcoGpuAbi.RenderPassHandle renderPass, uint slot, AlcoGpuAbi.BindGroupHandle group);
 
     /// <summary>Provides the RenderPassSetVertexBuffer operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_vertex_buffer")]
-    public static partial uint RenderPassSetVertexBuffer(AlcoRenderPassHandle renderPass, uint slot, AlcoBufferHandle buffer, ulong offset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_vertex_buffer")]
+    public static partial uint RenderPassSetVertexBuffer(AlcoGpuAbi.RenderPassHandle renderPass, uint slot, AlcoGpuAbi.BufferHandle buffer, ulong offset, ulong size);
 
     /// <summary>Provides the RenderPassSetIndexBuffer operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_index_buffer")]
-    public static partial uint RenderPassSetIndexBuffer(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, uint format, ulong offset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_index_buffer")]
+    public static partial uint RenderPassSetIndexBuffer(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.BufferHandle buffer, uint format, ulong offset, ulong size);
 
     /// <summary>Provides the RenderPassSetScissorRect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_scissor_rect")]
-    public static partial uint RenderPassSetScissorRect(AlcoRenderPassHandle renderPass, uint x, uint y, uint width, uint height);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_scissor_rect")]
+    public static partial uint RenderPassSetScissorRect(AlcoGpuAbi.RenderPassHandle renderPass, uint x, uint y, uint width, uint height);
 
     /// <summary>Provides the RenderPassSetViewport operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_viewport")]
-    public static partial uint RenderPassSetViewport(AlcoRenderPassHandle renderPass, float x, float y, float width, float height, float depthMin, float depthMax);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_viewport")]
+    public static partial uint RenderPassSetViewport(AlcoGpuAbi.RenderPassHandle renderPass, float x, float y, float width, float height, float depthMin, float depthMax);
 
     /// <summary>Provides the RenderPassSetBlendConstant operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_blend_constant")]
-    public static partial uint RenderPassSetBlendConstant(AlcoRenderPassHandle renderPass, float r, float g, float b, float a);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_blend_constant")]
+    public static partial uint RenderPassSetBlendConstant(AlcoGpuAbi.RenderPassHandle renderPass, float r, float g, float b, float a);
 
     /// <summary>Provides the RenderPassSetStencilReference operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_stencil_reference")]
-    public static partial uint RenderPassSetStencilReference(AlcoRenderPassHandle renderPass, uint reference);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_stencil_reference")]
+    public static partial uint RenderPassSetStencilReference(AlcoGpuAbi.RenderPassHandle renderPass, uint reference);
 
     /// <summary>Provides the RenderPassSetImmediates operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_immediates")]
-    public static partial uint RenderPassSetImmediates(AlcoRenderPassHandle renderPass, uint offset, byte* data, uint size);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_set_immediates")]
+    public static partial uint RenderPassSetImmediates(AlcoGpuAbi.RenderPassHandle renderPass, uint offset, byte* data, uint size);
 
     /// <summary>Provides the RenderPassDraw operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_draw")]
-    public static partial uint RenderPassDraw(AlcoRenderPassHandle renderPass, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_draw")]
+    public static partial uint RenderPassDraw(AlcoGpuAbi.RenderPassHandle renderPass, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
 
     /// <summary>Provides the RenderPassDrawIndexed operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_draw_indexed")]
-    public static partial uint RenderPassDrawIndexed(AlcoRenderPassHandle renderPass, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_draw_indexed")]
+    public static partial uint RenderPassDrawIndexed(AlcoGpuAbi.RenderPassHandle renderPass, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
 
     /// <summary>Provides the RenderPassDrawIndirect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_draw_indirect")]
-    public static partial uint RenderPassDrawIndirect(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_draw_indirect")]
+    public static partial uint RenderPassDrawIndirect(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.BufferHandle buffer, ulong offset);
 
     /// <summary>Provides the RenderPassDrawIndexedIndirect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_draw_indexed_indirect")]
-    public static partial uint RenderPassDrawIndexedIndirect(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_draw_indexed_indirect")]
+    public static partial uint RenderPassDrawIndexedIndirect(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.BufferHandle buffer, ulong offset);
 
     /// <summary>Provides the RenderPassMultiDrawIndexedIndirect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indexed_indirect")]
-    public static partial uint RenderPassMultiDrawIndexedIndirect(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, uint count);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_multi_draw_indexed_indirect")]
+    public static partial uint RenderPassMultiDrawIndexedIndirect(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.BufferHandle buffer, ulong offset, uint count);
 
     /// <summary>Provides the RenderPassMultiDrawIndirect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indirect")]
-    public static partial uint RenderPassMultiDrawIndirect(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, uint count);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_multi_draw_indirect")]
+    public static partial uint RenderPassMultiDrawIndirect(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.BufferHandle buffer, ulong offset, uint count);
 
     /// <summary>Provides the RenderPassMultiDrawIndirectCount operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indirect_count")]
-    public static partial uint RenderPassMultiDrawIndirectCount(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, AlcoBufferHandle countBuffer, ulong countBufferOffset, uint maxCount);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_multi_draw_indirect_count")]
+    public static partial uint RenderPassMultiDrawIndirectCount(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.BufferHandle buffer, ulong offset, AlcoGpuAbi.BufferHandle countBuffer, ulong countBufferOffset, uint maxCount);
 
     /// <summary>Provides the RenderPassMultiDrawIndexedIndirectCount operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indexed_indirect_count")]
-    public static partial uint RenderPassMultiDrawIndexedIndirectCount(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, AlcoBufferHandle countBuffer, ulong countBufferOffset, uint maxCount);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_multi_draw_indexed_indirect_count")]
+    public static partial uint RenderPassMultiDrawIndexedIndirectCount(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.BufferHandle buffer, ulong offset, AlcoGpuAbi.BufferHandle countBuffer, ulong countBufferOffset, uint maxCount);
 
     /// <summary>Provides the RenderPassInsertDebugMarker operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_insert_debug_marker")]
-    public static partial uint RenderPassInsertDebugMarker(AlcoRenderPassHandle renderPass, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_insert_debug_marker")]
+    public static partial uint RenderPassInsertDebugMarker(AlcoGpuAbi.RenderPassHandle renderPass, byte* label);
 
     /// <summary>Provides the RenderPassPushDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_push_debug_group")]
-    public static partial uint RenderPassPushDebugGroup(AlcoRenderPassHandle renderPass, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_push_debug_group")]
+    public static partial uint RenderPassPushDebugGroup(AlcoGpuAbi.RenderPassHandle renderPass, byte* label);
 
     /// <summary>Provides the RenderPassPopDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_pop_debug_group")]
-    public static partial uint RenderPassPopDebugGroup(AlcoRenderPassHandle renderPass);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_pop_debug_group")]
+    public static partial uint RenderPassPopDebugGroup(AlcoGpuAbi.RenderPassHandle renderPass);
 
     /// <summary>Provides the RenderPassWriteTimestamp operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_write_timestamp")]
-    public static partial uint RenderPassWriteTimestamp(AlcoRenderPassHandle renderPass, AlcoQuerySetHandle querySet, uint queryIndex);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_write_timestamp")]
+    public static partial uint RenderPassWriteTimestamp(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.QuerySetHandle querySet, uint queryIndex);
 
     /// <summary>Provides the RenderPassExecuteBundles operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_execute_bundles")]
-    public static partial uint RenderPassExecuteBundles(AlcoRenderPassHandle renderPass, AlcoRenderBundleHandle* bundles, uint count);
+    [LibraryImport(LibraryName, EntryPoint = "render_pass_execute_bundles")]
+    public static partial uint RenderPassExecuteBundles(AlcoGpuAbi.RenderPassHandle renderPass, AlcoGpuAbi.RenderBundleHandle* bundles, uint count);
 
     /// <summary>Provides the ComputePassBegin operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_begin")]
-    public static partial uint ComputePassBegin(AlcoEncoderHandle encoder, AlcoTimestampWrites* timestampWrites, out AlcoComputePassHandle computePass);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_begin_compute_pass")]
+    public static partial uint ComputePassBegin(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.TimestampWrites* timestampWrites, out AlcoGpuAbi.ComputePassHandle computePass);
 
     /// <summary>Provides the ComputePassEnd operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_end")]
-    public static partial uint ComputePassEnd(AlcoComputePassHandle computePass);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_end")]
+    public static partial uint ComputePassEnd(AlcoGpuAbi.ComputePassHandle computePass);
 
     /// <summary>Consumes an open compute pass without validating or ending it.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_release")]
-    public static partial uint ComputePassRelease(AlcoComputePassHandle computePass);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_release")]
+    public static partial uint ComputePassRelease(AlcoGpuAbi.ComputePassHandle computePass);
 
     /// <summary>Provides the ComputePassSetPipeline operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_set_pipeline")]
-    public static partial uint ComputePassSetPipeline(AlcoComputePassHandle computePass, AlcoComputePipelineHandle pipeline);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_set_pipeline")]
+    public static partial uint ComputePassSetPipeline(AlcoGpuAbi.ComputePassHandle computePass, AlcoGpuAbi.ComputePipelineHandle pipeline);
 
     /// <summary>Provides the ComputePassSetBindGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_set_bind_group")]
-    public static partial uint ComputePassSetBindGroup(AlcoComputePassHandle computePass, uint slot, AlcoBindGroupHandle group);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_set_bind_group")]
+    public static partial uint ComputePassSetBindGroup(AlcoGpuAbi.ComputePassHandle computePass, uint slot, AlcoGpuAbi.BindGroupHandle group);
 
     /// <summary>Provides the ComputePassSetImmediates operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_set_immediates")]
-    public static partial uint ComputePassSetImmediates(AlcoComputePassHandle computePass, uint offset, byte* data, uint size);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_set_immediates")]
+    public static partial uint ComputePassSetImmediates(AlcoGpuAbi.ComputePassHandle computePass, uint offset, byte* data, uint size);
 
     /// <summary>Provides the ComputePassDispatchWorkgroups operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_dispatch_workgroups")]
-    public static partial uint ComputePassDispatchWorkgroups(AlcoComputePassHandle computePass, uint x, uint y, uint z);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_dispatch_workgroups")]
+    public static partial uint ComputePassDispatchWorkgroups(AlcoGpuAbi.ComputePassHandle computePass, uint x, uint y, uint z);
 
     /// <summary>Provides the ComputePassDispatchWorkgroupsIndirect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_dispatch_workgroups_indirect")]
-    public static partial uint ComputePassDispatchWorkgroupsIndirect(AlcoComputePassHandle computePass, AlcoBufferHandle buffer, ulong offset);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_dispatch_workgroups_indirect")]
+    public static partial uint ComputePassDispatchWorkgroupsIndirect(AlcoGpuAbi.ComputePassHandle computePass, AlcoGpuAbi.BufferHandle buffer, ulong offset);
 
     /// <summary>Provides the ComputePassWriteTimestamp operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_write_timestamp")]
-    public static partial uint ComputePassWriteTimestamp(AlcoComputePassHandle computePass, AlcoQuerySetHandle querySet, uint queryIndex);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_write_timestamp")]
+    public static partial uint ComputePassWriteTimestamp(AlcoGpuAbi.ComputePassHandle computePass, AlcoGpuAbi.QuerySetHandle querySet, uint queryIndex);
 
     /// <summary>Provides the ComputePassInsertDebugMarker operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_insert_debug_marker")]
-    public static partial uint ComputePassInsertDebugMarker(AlcoComputePassHandle computePass, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_insert_debug_marker")]
+    public static partial uint ComputePassInsertDebugMarker(AlcoGpuAbi.ComputePassHandle computePass, byte* label);
 
     /// <summary>Provides the ComputePassPushDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_push_debug_group")]
-    public static partial uint ComputePassPushDebugGroup(AlcoComputePassHandle computePass, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_push_debug_group")]
+    public static partial uint ComputePassPushDebugGroup(AlcoGpuAbi.ComputePassHandle computePass, byte* label);
 
     /// <summary>Provides the ComputePassPopDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_pop_debug_group")]
-    public static partial uint ComputePassPopDebugGroup(AlcoComputePassHandle computePass);
+    [LibraryImport(LibraryName, EntryPoint = "compute_pass_pop_debug_group")]
+    public static partial uint ComputePassPopDebugGroup(AlcoGpuAbi.ComputePassHandle computePass);
 
     // ------------------------------------------------------------------
     // Copies / queries
     // ------------------------------------------------------------------
 
     /// <summary>Provides the CopyBufferToBuffer operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_copy_buffer_to_buffer")]
-    public static partial uint CopyBufferToBuffer(AlcoEncoderHandle encoder, AlcoBufferHandle source, ulong sourceOffset, AlcoBufferHandle destination, ulong destinationOffset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_copy_buffer_to_buffer")]
+    public static partial uint CopyBufferToBuffer(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.BufferHandle source, ulong sourceOffset, AlcoGpuAbi.BufferHandle destination, ulong destinationOffset, ulong size);
 
     /// <summary>Provides the CopyBufferToTexture operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_copy_buffer_to_texture")]
-    public static partial uint CopyBufferToTexture(AlcoEncoderHandle encoder, AlcoBufferHandle source, in AlcoCopyLayout sourceLayout, AlcoTextureHandle destination, uint destinationMipLevel, uint destinationAspect, AlcoExtent3D copySize);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_copy_buffer_to_texture")]
+    public static partial uint CopyBufferToTexture(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.BufferHandle source, in AlcoGpuAbi.CopyLayout sourceLayout, AlcoGpuAbi.TextureHandle destination, uint destinationMipLevel, uint destinationAspect, AlcoGpuAbi.Extent3D copySize);
 
     /// <summary>Provides the CopyTextureToBuffer operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_copy_texture_to_buffer")]
-    public static partial uint CopyTextureToBuffer(AlcoEncoderHandle encoder, AlcoTextureHandle source, uint sourceMipLevel, uint sourceAspect, AlcoBufferHandle destination, in AlcoCopyLayout destinationLayout, AlcoExtent3D copySize);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_copy_texture_to_buffer")]
+    public static partial uint CopyTextureToBuffer(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.TextureHandle source, uint sourceMipLevel, uint sourceAspect, AlcoGpuAbi.BufferHandle destination, in AlcoGpuAbi.CopyLayout destinationLayout, AlcoGpuAbi.Extent3D copySize);
 
     /// <summary>Provides the CopyTextureToTexture operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_copy_texture_to_texture")]
-    public static partial uint CopyTextureToTexture(AlcoEncoderHandle encoder, AlcoTextureHandle source, uint sourceMipLevel, AlcoTextureHandle destination, uint destinationMipLevel, uint aspect, AlcoExtent3D copySize);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_copy_texture_to_texture")]
+    public static partial uint CopyTextureToTexture(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.TextureHandle source, uint sourceMipLevel, AlcoGpuAbi.TextureHandle destination, uint destinationMipLevel, uint aspect, AlcoGpuAbi.Extent3D copySize);
 
     /// <summary>Provides the ResolveQuerySet operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_resolve_query_set")]
-    public static partial uint ResolveQuerySet(AlcoEncoderHandle encoder, AlcoQuerySetHandle querySet, uint firstQuery, uint queryCount, AlcoBufferHandle destination, ulong destinationOffset);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_resolve_query_set")]
+    public static partial uint ResolveQuerySet(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.QuerySetHandle querySet, uint firstQuery, uint queryCount, AlcoGpuAbi.BufferHandle destination, ulong destinationOffset);
 
     /// <summary>Provides the EncoderClearBuffer operation; a size of zero clears to the end of the buffer.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_clear_buffer")]
-    public static partial uint EncoderClearBuffer(AlcoEncoderHandle encoder, AlcoBufferHandle buffer, ulong offset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_clear_buffer")]
+    public static partial uint EncoderClearBuffer(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.BufferHandle buffer, ulong offset, ulong size);
 
     /// <summary>Provides the EncoderClearTexture operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_clear_texture")]
-    public static partial uint EncoderClearTexture(AlcoEncoderHandle encoder, AlcoTextureHandle texture, AlcoSubresourceRange range);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_clear_texture")]
+    public static partial uint EncoderClearTexture(AlcoGpuAbi.EncoderHandle encoder, AlcoGpuAbi.TextureHandle texture, AlcoGpuAbi.SubresourceRange range);
 
     /// <summary>Provides the EncoderInsertDebugMarker operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_insert_debug_marker")]
-    public static partial uint EncoderInsertDebugMarker(AlcoEncoderHandle encoder, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_insert_debug_marker")]
+    public static partial uint EncoderInsertDebugMarker(AlcoGpuAbi.EncoderHandle encoder, byte* label);
 
     /// <summary>Provides the EncoderPushDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_push_debug_group")]
-    public static partial uint EncoderPushDebugGroup(AlcoEncoderHandle encoder, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_push_debug_group")]
+    public static partial uint EncoderPushDebugGroup(AlcoGpuAbi.EncoderHandle encoder, byte* label);
 
     /// <summary>Provides the EncoderPopDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_pop_debug_group")]
-    public static partial uint EncoderPopDebugGroup(AlcoEncoderHandle encoder);
+    [LibraryImport(LibraryName, EntryPoint = "encoder_pop_debug_group")]
+    public static partial uint EncoderPopDebugGroup(AlcoGpuAbi.EncoderHandle encoder);
 
     /// <summary>Provides the QuerySetCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_query_set_create")]
-    public static partial uint QuerySetCreate(AlcoDeviceHandle device, uint count, byte* name, out AlcoQuerySetHandle querySet);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_query_set")]
+    public static partial uint QuerySetCreate(AlcoGpuAbi.DeviceHandle device, uint count, byte* name, out AlcoGpuAbi.QuerySetHandle querySet);
 
     /// <summary>Provides the QuerySetDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_query_set_destroy")]
-    public static partial uint QuerySetDestroy(AlcoQuerySetHandle querySet);
+    [LibraryImport(LibraryName, EntryPoint = "query_set_destroy")]
+    public static partial uint QuerySetDestroy(AlcoGpuAbi.QuerySetHandle querySet);
 
     // ------------------------------------------------------------------
     // Queue
     // ------------------------------------------------------------------
 
     /// <summary>Provides the QueueWriteBuffer operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_queue_write_buffer")]
-    public static partial uint QueueWriteBuffer(AlcoDeviceHandle device, AlcoBufferHandle buffer, ulong offset, byte* data, uint size);
+    [LibraryImport(LibraryName, EntryPoint = "queue_write_buffer")]
+    public static partial uint QueueWriteBuffer(AlcoGpuAbi.DeviceHandle device, AlcoGpuAbi.BufferHandle buffer, ulong offset, byte* data, uint size);
 
     /// <summary>Provides the QueueWriteTexture operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_queue_write_texture")]
-    public static partial uint QueueWriteTexture(AlcoDeviceHandle device, AlcoTextureHandle texture, uint mipLevel, AlcoOrigin3D origin, uint aspect, byte* data, uint dataSize, in AlcoCopyLayout layout, AlcoExtent3D size);
+    [LibraryImport(LibraryName, EntryPoint = "queue_write_texture")]
+    public static partial uint QueueWriteTexture(AlcoGpuAbi.DeviceHandle device, AlcoGpuAbi.TextureHandle texture, uint mipLevel, AlcoGpuAbi.Origin3D origin, uint aspect, byte* data, uint dataSize, in AlcoGpuAbi.CopyLayout layout, AlcoGpuAbi.Extent3D size);
 
     /// <summary>Submits a command buffer; the native side consumes the handle.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_queue_submit")]
-    public static partial uint QueueSubmit(AlcoDeviceHandle device, AlcoCommandBufferHandle commandBuffer, ulong* outIndex);
+    [LibraryImport(LibraryName, EntryPoint = "queue_submit")]
+    public static partial uint QueueSubmit(AlcoGpuAbi.DeviceHandle device, AlcoGpuAbi.CommandBufferHandle commandBuffer, ulong* outIndex);
 
     /// <summary>Submits an array of command buffers as one submission; the native side consumes every handle.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_queue_submit_batch")]
-    public static partial uint QueueSubmitBatch(AlcoDeviceHandle device, AlcoCommandBufferHandle* commandBuffers, uint count, ulong* outIndex);
+    [LibraryImport(LibraryName, EntryPoint = "queue_submit_batch")]
+    public static partial uint QueueSubmitBatch(AlcoGpuAbi.DeviceHandle device, AlcoGpuAbi.CommandBufferHandle* commandBuffers, uint count, ulong* outIndex);
 
     // ------------------------------------------------------------------
     // Render bundles
     // ------------------------------------------------------------------
 
     /// <summary>Provides the BundleEncoderCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_encoder_create")]
-    public static partial uint BundleEncoderCreate(AlcoDeviceHandle device, in AlcoBundleEncoderDesc desc, out AlcoBundleEncoderHandle bundleEncoder);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_bundle_encoder")]
+    public static partial uint BundleEncoderCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.BundleEncoderDesc desc, out AlcoGpuAbi.BundleEncoderHandle bundleEncoder);
 
     /// <summary>Provides the BundleEncoderFinish operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_encoder_finish")]
-    public static partial uint BundleEncoderFinish(AlcoBundleEncoderHandle bundleEncoder, out AlcoRenderBundleHandle bundle);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_encoder_finish")]
+    public static partial uint BundleEncoderFinish(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, out AlcoGpuAbi.RenderBundleHandle bundle);
 
     /// <summary>Destroys a bundle encoder that was never finished.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_encoder_destroy")]
-    public static partial uint BundleEncoderDestroy(AlcoBundleEncoderHandle bundleEncoder);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_encoder_destroy")]
+    public static partial uint BundleEncoderDestroy(AlcoGpuAbi.BundleEncoderHandle bundleEncoder);
 
     /// <summary>Provides the RenderBundleDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_render_bundle_destroy")]
-    public static partial uint RenderBundleDestroy(AlcoRenderBundleHandle bundle);
+    [LibraryImport(LibraryName, EntryPoint = "render_bundle_destroy")]
+    public static partial uint RenderBundleDestroy(AlcoGpuAbi.RenderBundleHandle bundle);
 
     /// <summary>Provides the BundleSetPipeline operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_set_pipeline")]
-    public static partial uint BundleSetPipeline(AlcoBundleEncoderHandle bundleEncoder, AlcoGraphicsPipelineHandle pipeline);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_set_pipeline")]
+    public static partial uint BundleSetPipeline(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, AlcoGpuAbi.GraphicsPipelineHandle pipeline);
 
     /// <summary>Provides the BundleSetBindGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_set_bind_group")]
-    public static partial uint BundleSetBindGroup(AlcoBundleEncoderHandle bundleEncoder, uint slot, AlcoBindGroupHandle group);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_set_bind_group")]
+    public static partial uint BundleSetBindGroup(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, uint slot, AlcoGpuAbi.BindGroupHandle group);
 
     /// <summary>Provides the BundleSetVertexBuffer operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_set_vertex_buffer")]
-    public static partial uint BundleSetVertexBuffer(AlcoBundleEncoderHandle bundleEncoder, uint slot, AlcoBufferHandle buffer, ulong offset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_set_vertex_buffer")]
+    public static partial uint BundleSetVertexBuffer(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, uint slot, AlcoGpuAbi.BufferHandle buffer, ulong offset, ulong size);
 
     /// <summary>Provides the BundleSetIndexBuffer operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_set_index_buffer")]
-    public static partial uint BundleSetIndexBuffer(AlcoBundleEncoderHandle bundleEncoder, AlcoBufferHandle buffer, uint format, ulong offset, ulong size);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_set_index_buffer")]
+    public static partial uint BundleSetIndexBuffer(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, AlcoGpuAbi.BufferHandle buffer, uint format, ulong offset, ulong size);
 
     /// <summary>Provides the BundleSetImmediates operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_set_immediates")]
-    public static partial uint BundleSetImmediates(AlcoBundleEncoderHandle bundleEncoder, uint offset, byte* data, uint size);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_set_immediates")]
+    public static partial uint BundleSetImmediates(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, uint offset, byte* data, uint size);
 
     /// <summary>Provides the BundleDraw operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_draw")]
-    public static partial uint BundleDraw(AlcoBundleEncoderHandle bundleEncoder, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_draw")]
+    public static partial uint BundleDraw(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance);
 
     /// <summary>Provides the BundleDrawIndexed operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_draw_indexed")]
-    public static partial uint BundleDrawIndexed(AlcoBundleEncoderHandle bundleEncoder, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_draw_indexed")]
+    public static partial uint BundleDrawIndexed(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance);
 
     /// <summary>Provides the BundleDrawIndirect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_draw_indirect")]
-    public static partial uint BundleDrawIndirect(AlcoBundleEncoderHandle bundleEncoder, AlcoBufferHandle buffer, ulong offset);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_draw_indirect")]
+    public static partial uint BundleDrawIndirect(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, AlcoGpuAbi.BufferHandle buffer, ulong offset);
 
     /// <summary>Provides the BundleDrawIndexedIndirect operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_draw_indexed_indirect")]
-    public static partial uint BundleDrawIndexedIndirect(AlcoBundleEncoderHandle bundleEncoder, AlcoBufferHandle buffer, ulong offset);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_draw_indexed_indirect")]
+    public static partial uint BundleDrawIndexedIndirect(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, AlcoGpuAbi.BufferHandle buffer, ulong offset);
 
     /// <summary>Provides the BundleInsertDebugMarker operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_insert_debug_marker")]
-    public static partial uint BundleInsertDebugMarker(AlcoBundleEncoderHandle bundleEncoder, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_insert_debug_marker")]
+    public static partial uint BundleInsertDebugMarker(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, byte* label);
 
     /// <summary>Provides the BundlePushDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_push_debug_group")]
-    public static partial uint BundlePushDebugGroup(AlcoBundleEncoderHandle bundleEncoder, byte* label);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_push_debug_group")]
+    public static partial uint BundlePushDebugGroup(AlcoGpuAbi.BundleEncoderHandle bundleEncoder, byte* label);
 
     /// <summary>Provides the BundlePopDebugGroup operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_pop_debug_group")]
-    public static partial uint BundlePopDebugGroup(AlcoBundleEncoderHandle bundleEncoder);
+    [LibraryImport(LibraryName, EntryPoint = "bundle_pop_debug_group")]
+    public static partial uint BundlePopDebugGroup(AlcoGpuAbi.BundleEncoderHandle bundleEncoder);
 
     // ------------------------------------------------------------------
     // Surfaces
     // ------------------------------------------------------------------
 
     /// <summary>Provides the SurfaceCreate operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_surface_create")]
-    public static partial uint SurfaceCreate(AlcoDeviceHandle device, in AlcoSurfaceDesc desc, out AlcoSurfaceHandle surface);
+    [LibraryImport(LibraryName, EntryPoint = "device_create_surface")]
+    public static partial uint SurfaceCreate(AlcoGpuAbi.DeviceHandle device, in AlcoGpuAbi.SurfaceDesc desc, out AlcoGpuAbi.SurfaceHandle surface);
 
     /// <summary>Provides the SurfaceGetCapabilities operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_surface_get_capabilities")]
-    public static partial uint SurfaceGetCapabilities(AlcoSurfaceHandle surface, ref AlcoSurfaceCaps caps);
+    [LibraryImport(LibraryName, EntryPoint = "surface_get_capabilities")]
+    public static partial uint SurfaceGetCapabilities(AlcoGpuAbi.SurfaceHandle surface, ref AlcoGpuAbi.SurfaceCaps caps);
 
     /// <summary>Provides the SurfaceConfigure operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_surface_configure")]
-    public static partial uint SurfaceConfigure(AlcoSurfaceHandle surface, in AlcoSurfaceConfig config);
+    [LibraryImport(LibraryName, EntryPoint = "surface_configure")]
+    public static partial uint SurfaceConfigure(AlcoGpuAbi.SurfaceHandle surface, in AlcoGpuAbi.SurfaceConfig config);
 
     /// <summary>Provides the SurfaceGetCurrentTexture operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_surface_get_current_texture")]
-    public static partial uint SurfaceGetCurrentTexture(AlcoSurfaceHandle surface, out AlcoTextureHandle texture, uint* status);
+    [LibraryImport(LibraryName, EntryPoint = "surface_get_current_texture")]
+    public static partial uint SurfaceGetCurrentTexture(AlcoGpuAbi.SurfaceHandle surface, out AlcoGpuAbi.TextureHandle texture, uint* status);
 
     /// <summary>Provides the SurfacePresent operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_surface_present")]
-    public static partial uint SurfacePresent(AlcoSurfaceHandle surface, uint* status);
+    [LibraryImport(LibraryName, EntryPoint = "surface_present")]
+    public static partial uint SurfacePresent(AlcoGpuAbi.SurfaceHandle surface, uint* status);
 
     /// <summary>Provides the SurfaceDestroy operation.</summary>
-    [LibraryImport(LibraryName, EntryPoint = "alco_surface_destroy")]
-    public static partial uint SurfaceDestroy(AlcoSurfaceHandle surface);
+    [LibraryImport(LibraryName, EntryPoint = "surface_destroy")]
+    public static partial uint SurfaceDestroy(AlcoGpuAbi.SurfaceHandle surface);
 }

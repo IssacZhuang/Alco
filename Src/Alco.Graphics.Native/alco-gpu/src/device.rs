@@ -38,7 +38,7 @@ pub struct DeviceCtx {
     /// Timestamp tick duration in nanoseconds.
     pub timestamp_period_ns: f32,
     /// Queued asynchronous messages drained by the host.
-    pub messages: Mutex<Vec<DeviceMessage>>,
+    pub messages: Mutex<Vec<QueuedDeviceMessage>>,
     /// Storage backing the borrowed message pointer of the last pop.
     pub message_scratch: Mutex<CString>,
 }
@@ -82,7 +82,7 @@ impl Drop for DeviceCtx {
 }
 
 /// One asynchronously queued device diagnostic.
-pub struct DeviceMessage {
+pub struct QueuedDeviceMessage {
     /// Severity: zero error, one warning, two information.
     pub severity: u32,
     /// Kind: zero generic, one device lost.
@@ -99,7 +99,7 @@ impl DeviceCtx {
     pub fn push_message(&self, severity: u32, kind: u32, message: impl Into<String>) {
         let text = CString::new(message.into().replace('\0', "\\0"))
             .unwrap_or_else(|_| CString::new("invalid message").unwrap());
-        self.messages.lock().unwrap().push(DeviceMessage {
+        self.messages.lock().unwrap().push(QueuedDeviceMessage {
             severity,
             kind,
             message: text,
@@ -108,7 +108,7 @@ impl DeviceCtx {
 }
 
 /// Alco feature bits — numeric values mirror C# `GPUFeatures` exactly.
-pub(crate) mod alco_features {
+pub(crate) mod gpu_features {
     pub const TEXTURE_COMPRESSION_BC: u64 = 1 << 0;
     pub const TIMESTAMP_QUERY: u64 = 1 << 1;
     pub const TIMESTAMP_QUERY_INSIDE_PASSES: u64 = 1 << 2;
@@ -141,21 +141,21 @@ fn resolved_backend_value(backend: wgt::Backend) -> u32 {
 
 /// Converts Alco feature bits to wgpu `Features`. `METALLIB_PASSTHROUGH` has no
 /// wgpu counterpart (it is a build/platform capability reported via caps).
-fn alco_features_to_wgpu(alco: u64) -> wgt::Features {
+fn gpu_features_to_wgpu(bits: u64) -> wgt::Features {
     let mut features = wgt::Features::empty();
-    if alco & alco_features::TEXTURE_COMPRESSION_BC != 0 {
+    if bits & gpu_features::TEXTURE_COMPRESSION_BC != 0 {
         features |= wgt::Features::TEXTURE_COMPRESSION_BC;
     }
-    if alco & alco_features::TIMESTAMP_QUERY != 0 {
+    if bits & gpu_features::TIMESTAMP_QUERY != 0 {
         features |= wgt::Features::TIMESTAMP_QUERY;
     }
-    if alco & alco_features::TIMESTAMP_QUERY_INSIDE_PASSES != 0 {
+    if bits & gpu_features::TIMESTAMP_QUERY_INSIDE_PASSES != 0 {
         features |= wgt::Features::TIMESTAMP_QUERY_INSIDE_PASSES;
     }
-    if alco & alco_features::INDIRECT_FIRST_INSTANCE != 0 {
+    if bits & gpu_features::INDIRECT_FIRST_INSTANCE != 0 {
         features |= wgt::Features::INDIRECT_FIRST_INSTANCE;
     }
-    if alco & alco_features::CLEAR_TEXTURE != 0 {
+    if bits & gpu_features::CLEAR_TEXTURE != 0 {
         features |= wgt::Features::CLEAR_TEXTURE;
     }
     // MULTI_DRAW_INDIRECT needs no wgpu feature in wgpu 30: multi-draw is
@@ -164,28 +164,28 @@ fn alco_features_to_wgpu(alco: u64) -> wgt::Features {
 }
 
 /// Computes the Alco feature bits and caps supported by an adapter.
-fn supported_alco_features(adapter_features: wgt::Features) -> (u64, u64) {
+fn supported_gpu_features(adapter_features: wgt::Features) -> (u64, u64) {
     let mut features = 0u64;
     let mut caps = 0u64;
     if adapter_features.contains(wgt::Features::TEXTURE_COMPRESSION_BC) {
-        features |= alco_features::TEXTURE_COMPRESSION_BC;
+        features |= gpu_features::TEXTURE_COMPRESSION_BC;
     }
     if adapter_features.contains(wgt::Features::TIMESTAMP_QUERY) {
-        features |= alco_features::TIMESTAMP_QUERY;
+        features |= gpu_features::TIMESTAMP_QUERY;
     }
     if adapter_features.contains(wgt::Features::TIMESTAMP_QUERY_INSIDE_PASSES) {
-        features |= alco_features::TIMESTAMP_QUERY_INSIDE_PASSES;
+        features |= gpu_features::TIMESTAMP_QUERY_INSIDE_PASSES;
         caps |= caps::TIMESTAMP_INSIDE_PASSES;
     }
     if adapter_features.contains(wgt::Features::INDIRECT_FIRST_INSTANCE) {
-        features |= alco_features::INDIRECT_FIRST_INSTANCE;
+        features |= gpu_features::INDIRECT_FIRST_INSTANCE;
     }
     if adapter_features.contains(wgt::Features::CLEAR_TEXTURE) {
-        features |= alco_features::CLEAR_TEXTURE;
+        features |= gpu_features::CLEAR_TEXTURE;
     }
     // Multi-draw is always claimed: wgpu 30 supports multi_draw_* on all
     // backends, emulating with per-record draws when no native path exists.
-    features |= alco_features::MULTI_DRAW_INDIRECT;
+    features |= gpu_features::MULTI_DRAW_INDIRECT;
     if adapter_features.contains(wgt::Features::PASSTHROUGH_SHADERS) {
         caps |= caps::PASSTHROUGH_SHADERS;
     }
@@ -248,12 +248,12 @@ fn select_adapter(
     global: &Global,
     backends: wgt::Backends,
     immediate_size: u32,
-) -> Result<wgc::id::AdapterId, AlcoStatus> {
+) -> Result<wgc::id::AdapterId, Status> {
     let preferred = global
         .request_adapter(&high_performance_options(), backends, None)
         .map_err(|e| {
-            set_error_from(AlcoStatus::UNSUPPORTED, &e);
-            AlcoStatus::UNSUPPORTED
+            set_error_from(Status::UNSUPPORTED, &e);
+            Status::UNSUPPORTED
         })?;
     let rejection = |id| {
         adapter_rejection(
@@ -291,13 +291,13 @@ fn select_adapter(
     }
     selected.ok_or_else(|| {
         set_error(
-            AlcoStatus::UNSUPPORTED,
+            Status::UNSUPPORTED,
             format!(
                 "no adapter supports the engine requirements: {}",
                 reasons.join("; ")
             ),
         );
-        AlcoStatus::UNSUPPORTED
+        Status::UNSUPPORTED
     })
 }
 
@@ -312,26 +312,23 @@ unsafe fn borrow_str(ptr: *const c_char) -> String {
 /// ABI: creates a device (instance → adapter → device) synchronously.
 ///
 /// # Safety
-/// `desc` must be valid; `out` must be a valid `AlcoDeviceHandle` slot.
+/// `desc` must be valid; `out` must be a valid `DeviceHandle` slot.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_device_create(
-    desc: *const AlcoDeviceDesc,
-    out: *mut AlcoDeviceHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_create(
+    desc: *const DeviceDesc,
+    out: *mut DeviceHandle,
+) -> Status {
     crate::entry::guard(|| {
         if desc.is_null() || out.is_null() {
-            set_error(
-                AlcoStatus::INVALID_ARGUMENT,
-                "null descriptor or out pointer",
-            );
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null descriptor or out pointer");
+            return Status::INVALID_ARGUMENT;
         }
         let desc = &*desc;
-        *out = AlcoDeviceHandle::NULL;
+        *out = DeviceHandle::NULL;
         crate::entry::initialize();
 
         let backends = request_backends(desc.backend);
-        let debug = desc.debug == ALCO_TRUE;
+        let debug = desc.debug == TRUE;
 
         let instance_desc = wgt::InstanceDescriptor {
             backends,
@@ -360,14 +357,14 @@ pub unsafe extern "C-unwind" fn alco_device_create(
         // WebGPUDevice gating): immediates, adapter-specific format features
         // and vertex writable storage are always required. Vulkan and DX12
         // support Naga SPIR-V; Metal requires native shader passthrough.
-        let (supported, mut device_caps) = supported_alco_features(adapter_features);
+        let (supported, mut device_caps) = supported_gpu_features(adapter_features);
 
         // Requested Alco features are desired-optional: intersect with adapter
         // support instead of failing, so the C# side can blanket-request the
         // optional set without a probe round trip (mirrors the old WebGPUDevice
         // behavior of only requesting probed features).
         let mut required = base_adapter_features(adapter_info.backend)
-            | alco_features_to_wgpu(desc.required_features & supported);
+            | gpu_features_to_wgpu(desc.required_features & supported);
         if adapter_info.backend == wgt::Backend::Dx12 {
             required |= adapter_features & wgt::Features::SHADER_F16;
         }
@@ -387,10 +384,10 @@ pub unsafe extern "C-unwind" fn alco_device_create(
         let missing = required - adapter_features;
         if !missing.is_empty() {
             set_error(
-                AlcoStatus::UNSUPPORTED,
+                Status::UNSUPPORTED,
                 format!("adapter does not support required features: {missing:?}"),
             );
-            return AlcoStatus::UNSUPPORTED;
+            return Status::UNSUPPORTED;
         }
 
         // Required limits = adapter limits with the immediate (push constants)
@@ -410,8 +407,8 @@ pub unsafe extern "C-unwind" fn alco_device_create(
             match global.adapter_request_device(adapter_id, &device_desc, None, None) {
                 Ok(ids) => ids,
                 Err(e) => {
-                    set_error_from(AlcoStatus::UNSUPPORTED, &e);
-                    return AlcoStatus::UNSUPPORTED;
+                    set_error_from(Status::UNSUPPORTED, &e);
+                    return Status::UNSUPPORTED;
                 }
             };
 
@@ -423,7 +420,7 @@ pub unsafe extern "C-unwind" fn alco_device_create(
 
         let mut supported = supported;
         if device_caps & caps::METALLIB != 0 {
-            supported |= alco_features::METALLIB_PASSTHROUGH;
+            supported |= gpu_features::METALLIB_PASSTHROUGH;
         }
 
         let ctx = DeviceCtx {
@@ -445,8 +442,8 @@ pub unsafe extern "C-unwind" fn alco_device_create(
             message_scratch: Mutex::new(CString::new("").unwrap()),
         };
 
-        *out = AlcoDeviceHandle::new(DeviceOwner { ctx: Arc::new(ctx) });
-        AlcoStatus::OK
+        *out = DeviceHandle::new(DeviceOwner { ctx: Arc::new(ctx) });
+        Status::OK
     })
 }
 
@@ -458,11 +455,11 @@ pub unsafe extern "C-unwind" fn alco_device_create(
 /// The pointer must identify a live unique device owner. All ordinary device and
 /// child operations must finish before teardown; the consumed pointer cannot be reused.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoDeviceHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_destroy(device: DeviceHandle) -> Status {
     crate::entry::guard(|| match device.take() {
         Ok(owner) => {
             drop(owner);
-            AlcoStatus::OK
+            Status::OK
         }
         Err(status) => status,
     })
@@ -474,14 +471,14 @@ pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoDeviceHandle) ->
 /// `out` must be writable. The device owner must remain alive through this call
 /// and every use of its borrowed adapter name.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_device_get_info(
-    device: AlcoDeviceHandle,
-    out: *mut AlcoDeviceInfo,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_get_info(
+    device: DeviceHandle,
+    out: *mut DeviceInfo,
+) -> Status {
     crate::entry::guard(|| {
         if out.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer");
+            return Status::INVALID_ARGUMENT;
         }
         let owner = match device.get() {
             Ok(owner) => owner,
@@ -497,13 +494,13 @@ pub unsafe extern "C-unwind" fn alco_device_get_info(
         (*out).max_bind_groups = ctx.max_bind_groups;
         (*out).max_immediate_size = ctx.max_immediate_size;
         (*out).timestamp_period_ns = ctx.timestamp_period_ns;
-        AlcoStatus::OK
+        Status::OK
     })
 }
 
-/// ABI: polls the device. With `wait = ALCO_TRUE` blocks until the given
+/// ABI: polls the device. With `wait = TRUE` blocks until the given
 /// submission index (or the latest submission when `u64::MAX`) completes.
-/// With `wait = ALCO_FALSE` performs a single non-blocking pump: map and
+/// With `wait = FALSE` performs a single non-blocking pump: map and
 /// submitted-work callbacks that are already complete get fired.
 ///
 /// The non-blocking path deliberately uses a zero-timeout `Wait` rather than
@@ -515,19 +512,19 @@ pub unsafe extern "C-unwind" fn alco_device_get_info(
 /// # Safety
 /// `out_queue_empty` if non-null is a valid `u32` slot.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_device_poll(
-    device: AlcoDeviceHandle,
+pub unsafe extern "C-unwind" fn device_poll(
+    device: DeviceHandle,
     wait: u32,
     submit_index: u64,
     out_queue_empty: *mut u32,
-) -> AlcoStatus {
+) -> Status {
     crate::entry::guard(|| {
         let owner = match device.get() {
             Ok(owner) => owner,
             Err(status) => return status,
         };
         let ctx = &owner.ctx;
-        let poll_type = if wait == ALCO_TRUE {
+        let poll_type = if wait == TRUE {
             if submit_index == u64::MAX {
                 wgt::PollType::Wait {
                     submission_index: None,
@@ -550,7 +547,7 @@ pub unsafe extern "C-unwind" fn alco_device_poll(
                 if !out_queue_empty.is_null() {
                     *out_queue_empty = matches!(status, wgt::PollStatus::QueueEmpty) as u32;
                 }
-                AlcoStatus::OK
+                Status::OK
             }
             // A zero-timeout poll with work still in flight reports Timeout;
             // that is the expected "not done yet" outcome, not a device fault.
@@ -558,11 +555,11 @@ pub unsafe extern "C-unwind" fn alco_device_poll(
                 if !out_queue_empty.is_null() {
                     *out_queue_empty = 0;
                 }
-                AlcoStatus::OK
+                Status::OK
             }
             Err(e) => {
-                set_error_from(AlcoStatus::DEVICE_LOST, &e);
-                AlcoStatus::DEVICE_LOST
+                set_error_from(Status::DEVICE_LOST, &e);
+                Status::DEVICE_LOST
             }
         }
     })
@@ -572,16 +569,16 @@ pub unsafe extern "C-unwind" fn alco_device_poll(
 /// empty. The message string is borrowed until the next pop on this device.
 ///
 /// # Safety
-/// `out` must be a valid `AlcoDeviceMessage` slot.
+/// `out` must be a valid `DeviceMessage` slot.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_device_pop_message(
-    device: AlcoDeviceHandle,
-    out: *mut AlcoDeviceMessage,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn device_pop_message(
+    device: DeviceHandle,
+    out: *mut DeviceMessage,
+) -> Status {
     crate::entry::guard(|| {
         if out.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
-            return AlcoStatus::INVALID_ARGUMENT;
+            set_error(Status::INVALID_ARGUMENT, "null out pointer");
+            return Status::INVALID_ARGUMENT;
         }
         let owner = match device.get() {
             Ok(owner) => owner,
@@ -596,9 +593,9 @@ pub unsafe extern "C-unwind" fn alco_device_pop_message(
                 (*out).severity = message.severity;
                 (*out).kind = message.kind;
                 (*out).message = scratch.as_ptr();
-                AlcoStatus::OK
+                Status::OK
             }
-            None => AlcoStatus::NOT_READY,
+            None => Status::NOT_READY,
         }
     })
 }
@@ -614,7 +611,7 @@ mod tests {
         };
         let ctx = unsafe { device.handle.get().unwrap().ctx.clone() };
         let weak = Arc::downgrade(&ctx);
-        let mut info = AlcoDeviceInfo {
+        let mut info = DeviceInfo {
             backend: 0,
             adapter_name: std::ptr::null(),
             vendor: 0,
@@ -626,14 +623,11 @@ mod tests {
             timestamp_period_ns: 0.0,
         };
         unsafe {
-            assert_eq!(
-                alco_device_get_info(device.handle, &mut info),
-                AlcoStatus::OK
-            );
+            assert_eq!(device_get_info(device.handle, &mut info), Status::OK);
             assert_eq!(info.backend, ctx.backend);
             assert_eq!(
-                alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, std::ptr::null_mut()),
-                AlcoStatus::OK
+                device_poll(device.handle, TRUE, u64::MAX, std::ptr::null_mut()),
+                Status::OK
             );
         }
         drop(device);
@@ -719,7 +713,7 @@ mod tests {
         // Desired-optional features must not become selection requirements.
         assert!(!base.contains(wgt::Features::TIMESTAMP_QUERY));
         assert_eq!(
-            alco_features_to_wgpu(alco_features::TIMESTAMP_QUERY & supported_alco_features(base).0),
+            gpu_features_to_wgpu(gpu_features::TIMESTAMP_QUERY & supported_gpu_features(base).0),
             wgt::Features::empty()
         );
     }

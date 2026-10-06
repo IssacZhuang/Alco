@@ -7,24 +7,24 @@ namespace Alco.Graphics.AlcoGpu.Interop;
 /// (<c>Src/Alco.Graphics.Native/alco-gpu/src/abi.rs</c>). Layouts must stay
 /// field-order identical; bools are <see cref="uint"/>, enums are
 /// <see cref="uint"/> with Alco numeric values, optionals use
-/// <see cref="AlcoNone"/> sentinels and arrays are (pointer, count) pairs.
+/// <see cref="None"/> sentinels and arrays are (pointer, count) pairs.
 /// </summary>
 internal static unsafe partial class AlcoGpuAbi
 {
     /// <summary>ABI major version implemented by the native library.</summary>
-    public const uint AbiMajor = 2;
+    public const uint AbiMajor = 3;
 
     /// <summary>ABI minor version implemented by the native library.</summary>
-    public const uint AbiMinor = 3;
+    public const uint AbiMinor = 0;
 
     /// <summary>Sentinel for "no value" in optional uint fields.</summary>
-    public const uint AlcoNone = uint.MaxValue;
+    public const uint None = uint.MaxValue;
 
     /// <summary>Boolean true in u32 bool fields.</summary>
-    public const uint AlcoTrue = 1;
+    public const uint True = 1;
 
     /// <summary>Boolean false in u32 bool fields.</summary>
-    public const uint AlcoFalse = 0;
+    public const uint False = 0;
 
     /// <summary>Status codes returned by fallible native entry points.</summary>
     public static class Status
@@ -79,7 +79,7 @@ internal static unsafe partial class AlcoGpuAbi
         public const uint Metal = 4;
     }
 
-    /// <summary>Resolved backend values reported by <see cref="AlcoDeviceInfo"/>.</summary>
+    /// <summary>Resolved backend values reported by <see cref="DeviceInfo"/>.</summary>
     public static class BackendResolved
     {
         /// <summary>Gets or stores Vulkan.</summary>
@@ -94,7 +94,7 @@ internal static unsafe partial class AlcoGpuAbi
         public const uint Null = 6;
     }
 
-    /// <summary>Capability bits reported by <see cref="AlcoDeviceInfo.Caps"/>.</summary>
+    /// <summary>Capability bits reported by <see cref="DeviceInfo.Caps"/>.</summary>
     public static class Caps
     {
         /// <summary>Gets or stores PassthroughShaders.</summary>
@@ -107,7 +107,7 @@ internal static unsafe partial class AlcoGpuAbi
         public const ulong TimestampInsidePasses = 1ul << 3;
     }
 
-    /// <summary>Flag bits of <see cref="AlcoShaderModuleDesc.Flags"/> (mirror of shader_module_flags).</summary>
+    /// <summary>Flag bits of <see cref="ShaderModuleDesc.Flags"/> (mirror of shader_module_flags).</summary>
     public static class ShaderModuleFlags
     {
         /// <summary>
@@ -118,477 +118,13 @@ internal static unsafe partial class AlcoGpuAbi
     }
 }
 
-/// <summary>Opaque ABI2 pointer to an owned native Device wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoDeviceHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoDeviceHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoDeviceHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native Buffer wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoBufferHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoBufferHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoBufferHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native Texture wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoTextureHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoTextureHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoTextureHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native TextureView wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoTextureViewHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoTextureViewHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoTextureViewHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native Sampler wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoSamplerHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoSamplerHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoSamplerHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native ShaderModule wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoShaderModuleHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoShaderModuleHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoShaderModuleHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native BindGroupLayout wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoBindGroupLayoutHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoBindGroupLayoutHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoBindGroupLayoutHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native BindGroup wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoBindGroupHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoBindGroupHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoBindGroupHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native QuerySet wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoQuerySetHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoQuerySetHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoQuerySetHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native GraphicsPipeline wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoGraphicsPipelineHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoGraphicsPipelineHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoGraphicsPipelineHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native ComputePipeline wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoComputePipelineHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoComputePipelineHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoComputePipelineHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native Encoder wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoEncoderHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoEncoderHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoEncoderHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native CommandBuffer wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoCommandBufferHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoCommandBufferHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoCommandBufferHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native RenderPass wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoRenderPassHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoRenderPassHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoRenderPassHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native ComputePass wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoComputePassHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoComputePassHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoComputePassHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native BundleEncoder wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoBundleEncoderHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoBundleEncoderHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoBundleEncoderHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native RenderBundle wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoRenderBundleHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoRenderBundleHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoRenderBundleHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Opaque ABI2 pointer to an owned native Surface wrapper.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal readonly struct AlcoSurfaceHandle
-{
-    /// <summary>The native wrapper pointer; zero represents no object.</summary>
-    public readonly nint Value;
-
-    /// <summary>Wraps a native object pointer without changing its ownership.</summary>
-    /// <param name="value">The native wrapper pointer.</param>
-    public AlcoSurfaceHandle(nint value) => Value = value;
-
-    /// <summary>Gets the null native pointer.</summary>
-    public static AlcoSurfaceHandle Null => default;
-
-    /// <summary>Gets whether this pointer is null.</summary>
-    public bool IsNull => Value == 0;
-
-    /// <inheritdoc />
-    public override string ToString() => $"alco:0x{Value:X}";
-}
-
-/// <summary>Device creation descriptor (mirrors AlcoDeviceDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoDeviceDesc
-{
-    /// <summary>One of <see cref="AlcoGpuAbi.BackendRequest"/> values.</summary>
-    public uint Backend;
-
-    /// <summary><see cref="AlcoGpuAbi.AlcoTrue"/> to enable validation.</summary>
-    public uint Debug;
-
-    /// <summary>Required Alco feature bits (mirrors <see cref="GPUFeatures"/>).</summary>
-    public ulong RequiredFeatures;
-
-    /// <summary>Immediate buffer (push constants) size in bytes.</summary>
-    public uint PushConstantsSize;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Static device information returned at creation (mirrors AlcoDeviceInfo).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoDeviceInfo
-{
-    /// <summary>One of <see cref="AlcoGpuAbi.BackendResolved"/> values.</summary>
-    public uint Backend;
-
-    /// <summary>Borrowed adapter name, valid until device destroy.</summary>
-    public byte* AdapterName;
-
-    /// <summary>Gets or stores Vendor.</summary>
-    public uint Vendor;
-    /// <summary>Gets or stores Device.</summary>
-    public uint Device;
-
-    /// <summary>Supported Alco feature bits.</summary>
-    public ulong SupportedFeatures;
-
-    /// <summary>Capability bits (<see cref="AlcoGpuAbi.Caps"/>).</summary>
-    public ulong Caps;
-
-    /// <summary>Gets or stores MaxBindGroups.</summary>
-    public uint MaxBindGroups;
-    /// <summary>Gets or stores MaxImmediateSize.</summary>
-    public uint MaxImmediateSize;
-
-    /// <summary>Queue timestamp period in nanoseconds (1.0 when unsupported).</summary>
-    public float TimestampPeriodNs;
-}
-
-/// <summary>One queued device message (mirrors AlcoDeviceMessage).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoDeviceMessage
-{
-    /// <summary>0 = error, 1 = warning, 2 = info.</summary>
-    public uint Severity;
-
-    /// <summary>0 = generic, 1 = device lost.</summary>
-    public uint Kind;
-
-    /// <summary>Borrowed message, valid until the next pop on this device.</summary>
-    public byte* Message;
-}
-
-/// <summary>Build information (mirrors AlcoBuildInfo).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBuildInfo
-{
-    /// <summary>Numeric wgpu version: (major &lt;&lt; 16) | minor.</summary>
-    public uint WgpuVersion;
-
-    /// <summary>Borrowed build identifier string (process lifetime).</summary>
-    public byte* AlcoBuild;
-}
-
-/// <summary>Last-error record (mirrors AlcoErrorInfo).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoErrorInfo
-{
-    /// <summary>Matching status code for the failed call.</summary>
-    public uint Status;
-
-    /// <summary>Borrowed message, valid until the next failure on this thread.</summary>
-    public byte* Message;
-}
-
 /// <summary>
 /// Additional ABI constants: surface tags, acquire statuses, present modes and
 /// composite alpha modes (numeric values fixed by the native layer).
 /// </summary>
 internal static partial class AlcoGpuAbi
 {
-    /// <summary>Surface creation tags (mirrors AlcoSurfaceDesc::tag).</summary>
+    /// <summary>Surface creation tags (mirrors SurfaceDesc::tag).</summary>
     public static class SurfaceTag
     {
         /// <summary>Gets or stores Win32.</summary>
@@ -605,7 +141,7 @@ internal static partial class AlcoGpuAbi
         public const uint Android = 5;
     }
 
-    /// <summary>Acquire statuses reported by alco_surface_get_current_texture.</summary>
+    /// <summary>Acquire statuses reported by surface_get_current_texture.</summary>
     public static class AcquireStatus
     {
         /// <summary>Gets or stores SuccessOptimal.</summary>
@@ -622,7 +158,7 @@ internal static partial class AlcoGpuAbi
         public const uint Error = 5;
     }
 
-    /// <summary>Present mode values (mirrors AlcoSurfaceConfig::present_mode).</summary>
+    /// <summary>Present mode values (mirrors SurfaceConfig::present_mode).</summary>
     public static class PresentModeAbi
     {
         /// <summary>Gets or stores Fifo.</summary>
@@ -633,7 +169,7 @@ internal static partial class AlcoGpuAbi
         public const uint Mailbox = 2;
     }
 
-    /// <summary>Composite alpha mode values (mirrors AlcoSurfaceConfig::alpha_mode).</summary>
+    /// <summary>Composite alpha mode values (mirrors SurfaceConfig::alpha_mode).</summary>
     public static class AlphaModeAbi
     {
         /// <summary>Gets or stores Auto.</summary>
@@ -647,610 +183,1073 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores Inherit.</summary>
         public const uint Inherit = 4;
     }
-}
-
-/// <summary>Buffer creation descriptor (mirrors AlcoBufferDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBufferDesc
-{
-    /// <summary>Size in bytes.</summary>
-    public ulong Size;
-
-    /// <summary><see cref="BufferUsage"/> bits.</summary>
-    public uint Usage;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Texture creation descriptor (mirrors AlcoTextureDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoTextureDesc
-{
-    /// <summary><see cref="TextureDimension"/> value.</summary>
-    public uint Dimension;
-
-    /// <summary><see cref="PixelFormat"/> value.</summary>
-    public uint Format;
-
-    /// <summary><see cref="TextureUsage"/> bits.</summary>
-    public uint Usage;
-
-    /// <summary>Gets or stores Width.</summary>
-    public uint Width;
-    /// <summary>Gets or stores Height.</summary>
-    public uint Height;
-    /// <summary>Gets or stores DepthOrArrayLayers.</summary>
-    public uint DepthOrArrayLayers;
-    /// <summary>Gets or stores MipLevelCount.</summary>
-    public uint MipLevelCount;
-    /// <summary>Gets or stores SampleCount.</summary>
-    public uint SampleCount;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Texture introspection (mirrors AlcoTextureInfo).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoTextureInfo
-{
-    /// <summary>Gets or stores Width.</summary>
-    public uint Width;
-    /// <summary>Gets or stores Height.</summary>
-    public uint Height;
-    /// <summary>Gets or stores DepthOrArrayLayers.</summary>
-    public uint DepthOrArrayLayers;
-    /// <summary>Gets or stores MipLevelCount.</summary>
-    public uint MipLevelCount;
-
-    /// <summary><see cref="PixelFormat"/> value.</summary>
-    public uint Format;
-}
-
-/// <summary>Texture view creation descriptor (mirrors AlcoTextureViewDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoTextureViewDesc
-{
-    /// <summary><see cref="TextureViewDimension"/> value.</summary>
-    public uint Dimension;
-    /// <summary>Gets or stores BaseMipLevel.</summary>
-    public uint BaseMipLevel;
-    /// <summary>Gets or stores MipLevelCount.</summary>
-    public uint MipLevelCount;
-    /// <summary>Gets or stores BaseArrayLayer.</summary>
-    public uint BaseArrayLayer;
-    /// <summary>Gets or stores ArrayLayerCount.</summary>
-    public uint ArrayLayerCount;
-
-    /// <summary><see cref="TextureAspect"/> value.</summary>
-    public uint Aspect;
-
-    /// <summary><see cref="PixelFormat"/> value (0 keeps the texture format).</summary>
-    public uint Format;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Sampler creation descriptor (mirrors AlcoSamplerDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoSamplerDesc
-{
-    /// <summary><see cref="FilterMode"/> value.</summary>
-    public uint MinFilter;
-
-    /// <summary><see cref="FilterMode"/> value.</summary>
-    public uint MagFilter;
-
-    /// <summary><see cref="FilterMode"/> value.</summary>
-    public uint MipmapFilter;
-
-    /// <summary><see cref="AddressMode"/> values for U/V/W.</summary>
-    public uint AddressU;
-    /// <summary>Gets or stores AddressV.</summary>
-    public uint AddressV;
-    /// <summary>Gets or stores AddressW.</summary>
-    public uint AddressW;
-
-    /// <summary>Gets or stores LodMinClamp.</summary>
-    public float LodMinClamp;
-    /// <summary>Gets or stores LodMaxClamp.</summary>
-    public float LodMaxClamp;
-
-    /// <summary><see cref="CompareFunction"/> value; 0 disables comparison.</summary>
-    public uint Compare;
-
-    /// <summary>Max anisotropy (1 = disabled).</summary>
-    public ushort MaxAnisotropy;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Shader module creation descriptor (mirrors AlcoShaderModuleDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoShaderModuleDesc
-{
-    /// <summary><see cref="ShaderLanguage"/> value (SpirV/Wgsl/Dxil/Msl/MetalLib).</summary>
-    public uint Language;
-
-    /// <summary>Shader bytecode/data.</summary>
-    public byte* Data;
-
-    /// <summary>Byte count (SPIR-V is divided by 4 natively into dwords).</summary>
-    public uint Size;
-
-    /// <summary>NUL-terminated UTF-8 default entry point (may be null).</summary>
-    public byte* EntryPoint;
-
-    /// <summary>Gets or stores WorkgroupX.</summary>
-    public uint WorkgroupX;
-    /// <summary>Gets or stores WorkgroupY.</summary>
-    public uint WorkgroupY;
-    /// <summary>Gets or stores WorkgroupZ.</summary>
-    public uint WorkgroupZ;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-
-    /// <summary><see cref="ShaderModuleFlags"/> bit set; unknown bits are ignored.</summary>
-    public uint Flags;
-}
-
-/// <summary>One bind group layout entry (mirrors AlcoBindGroupLayoutEntry).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBindGroupLayoutEntry
-{
-    /// <summary>Gets or stores Binding.</summary>
-    public uint Binding;
-
-    /// <summary><see cref="ShaderStage"/> visibility bits.</summary>
-    public uint Visibility;
-
-    /// <summary><see cref="BindingType"/> value.</summary>
-    public uint Type;
-
-    /// <summary>Sampler bindings: 0 filtering, 1 non-filtering, 2 comparison.</summary>
-    public uint SamplerKind;
-
-    /// <summary>Texture bindings: <see cref="TextureSampleType"/> value.</summary>
-    public uint TextureSampleType;
-
-    /// <summary>Texture/storage bindings: <see cref="TextureViewDimension"/> value.</summary>
-    public uint ViewDimension;
-
-    /// <summary>Storage textures: <see cref="AccessMode"/> bits.</summary>
-    public uint StorageAccess;
-
-    /// <summary>Storage textures: <see cref="PixelFormat"/> value.</summary>
-    public uint StorageFormat;
-}
-
-/// <summary>Bind group layout descriptor (mirrors AlcoBindGroupLayoutDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBindGroupLayoutDesc
-{
-    /// <summary>Gets or stores Entries.</summary>
-    public AlcoBindGroupLayoutEntry* Entries;
-    /// <summary>Gets or stores EntryCount.</summary>
-    public uint EntryCount;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>One bind group entry (mirrors AlcoBindGroupEntry).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBindGroupEntry
-{
-    /// <summary>Gets or stores Binding.</summary>
-    public uint Binding;
-
-    /// <summary>Buffer, texture-view or sampler wrapper pointer.</summary>
-    public nint Resource;
-
-    /// <summary>Gets or stores Offset.</summary>
-    public ulong Offset;
-    /// <summary>Gets or stores Size.</summary>
-    public ulong Size;
-
-    /// <summary>Resource kind: 0 buffer, 1 texture view, 2 sampler. Determines the
-    /// concrete wrapper type behind the heterogeneous resource pointer.</summary>
-    public uint Kind;
-}
-
-/// <summary>Bind group descriptor (mirrors AlcoBindGroupDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBindGroupDesc
-{
-    /// <summary>Gets or stores Layout.</summary>
-    public AlcoBindGroupLayoutHandle Layout;
-    /// <summary>Gets or stores Entries.</summary>
-    public AlcoBindGroupEntry* Entries;
-    /// <summary>Gets or stores EntryCount.</summary>
-    public uint EntryCount;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>One vertex attribute (mirrors AlcoVertexElement).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoVertexElement
-{
-    /// <summary>Gets or stores Location.</summary>
-    public uint Location;
-    /// <summary>Gets or stores Offset.</summary>
-    public uint Offset;
-
-    /// <summary><see cref="VertexFormat"/> value.</summary>
-    public uint Format;
-}
-
-/// <summary>One vertex buffer layout (mirrors AlcoVertexLayout).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoVertexLayout
-{
-    /// <summary>Gets or stores Stride.</summary>
-    public uint Stride;
-
-    /// <summary><see cref="VertexStepMode"/> value.</summary>
-    public uint StepMode;
-
-    /// <summary>Gets or stores Elements.</summary>
-    public AlcoVertexElement* Elements;
-    /// <summary>Gets or stores ElementCount.</summary>
-    public uint ElementCount;
-}
-
-/// <summary>Blend factors+operation for one channel (mirrors AlcoBlendComponent).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBlendComponent
-{
-    /// <summary><see cref="BlendFactor"/> values.</summary>
-    public uint SrcFactor;
-    /// <summary>Gets or stores DstFactor.</summary>
-    public uint DstFactor;
-
-    /// <summary><see cref="BlendOperation"/> value.</summary>
-    public uint Operation;
-}
-
-/// <summary>Blend state for color+alpha channels (mirrors AlcoBlendState).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBlendState
-{
-    /// <summary>Gets or stores Color.</summary>
-    public AlcoBlendComponent Color;
-    /// <summary>Gets or stores Alpha.</summary>
-    public AlcoBlendComponent Alpha;
-}
-
-/// <summary>Stencil face state (mirrors AlcoStencilFace).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoStencilFace
-{
-    /// <summary><see cref="CompareFunction"/> value (0 = Always).</summary>
-    public uint Compare;
-
-    /// <summary><see cref="StencilOperation"/> values.</summary>
-    public uint StencilFailOp;
-    /// <summary>Gets or stores DepthFailOp.</summary>
-    public uint DepthFailOp;
-    /// <summary>Gets or stores PassOp.</summary>
-    public uint PassOp;
-}
-
-/// <summary>Depth-stencil state (mirrors AlcoDepthStencilState).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoDepthStencilState
-{
-    /// <summary>Boolean u32; depth writes enabled.</summary>
-    public uint DepthWriteEnabled;
-
-    /// <summary>Boolean u32; ignored by wgpu (no depth bounds test).</summary>
-    public uint DepthBoundsTestEnabled;
-
-    /// <summary><see cref="CompareFunction"/> value (0 disables depth test).</summary>
-    public uint DepthCompare;
-
-    /// <summary>Gets or stores Front.</summary>
-    public AlcoStencilFace Front;
-    /// <summary>Gets or stores Back.</summary>
-    public AlcoStencilFace Back;
-    /// <summary>Gets or stores StencilReadMask.</summary>
-    public uint StencilReadMask;
-    /// <summary>Gets or stores StencilWriteMask.</summary>
-    public uint StencilWriteMask;
-}
-
-/// <summary>Graphics pipeline descriptor (mirrors AlcoGraphicsPipelineDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoGraphicsPipelineDesc
-{
-    /// <summary>Gets or stores BindGroupLayouts.</summary>
-    public AlcoBindGroupLayoutHandle* BindGroupLayouts;
-    /// <summary>Gets or stores BindGroupLayoutCount.</summary>
-    public uint BindGroupLayoutCount;
-
-    /// <summary>Gets or stores VertexModule.</summary>
-    public AlcoShaderModuleHandle VertexModule;
-
-    /// <summary>NUL-terminated UTF-8 vertex entry point.</summary>
-    public byte* VertexEntry;
-
-    /// <summary>Gets or stores FragmentModule.</summary>
-    public AlcoShaderModuleHandle FragmentModule;
-
-    /// <summary>NUL-terminated UTF-8 fragment entry point.</summary>
-    public byte* FragmentEntry;
-
-    /// <summary>Gets or stores VertexLayouts.</summary>
-    public AlcoVertexLayout* VertexLayouts;
-    /// <summary>Gets or stores VertexLayoutCount.</summary>
-    public uint VertexLayoutCount;
-
-    /// <summary><see cref="FillMode"/> value (wireframe unsupported by wgpu).</summary>
-    public uint FillMode;
-
-    /// <summary><see cref="CullMode"/> value.</summary>
-    public uint CullMode;
-
-    /// <summary><see cref="FrontFace"/> value.</summary>
-    public uint FrontFace;
-
-    /// <summary>Gets or stores Blend.</summary>
-    public AlcoBlendState Blend;
-    /// <summary>Gets or stores DepthStencil.</summary>
-    public AlcoDepthStencilState DepthStencil;
-
-    /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGpuAbi.AlcoNone"/> when unused.</summary>
-    public uint DepthStencilFormat;
-
-    /// <summary><see cref="PrimitiveTopology"/> value.</summary>
-    public uint Topology;
-
-    /// <summary><see cref="PixelFormat"/> values, one per color target.</summary>
-    public uint* ColorFormats;
-    /// <summary>Gets or stores ColorFormatCount.</summary>
-    public uint ColorFormatCount;
-
-    /// <summary>Active color writes; <see cref="AlcoGpuAbi.AlcoNone"/> writes all.</summary>
-    public uint FragmentOutputCount;
-
-    /// <summary>Immediate (push constant) size in bytes.</summary>
-    public uint ImmediateSize;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Compute pipeline descriptor (mirrors AlcoComputePipelineDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoComputePipelineDesc
-{
-    /// <summary>Gets or stores BindGroupLayouts.</summary>
-    public AlcoBindGroupLayoutHandle* BindGroupLayouts;
-    /// <summary>Gets or stores BindGroupLayoutCount.</summary>
-    public uint BindGroupLayoutCount;
-
-    /// <summary>Gets or stores ComputeModule.</summary>
-    public AlcoShaderModuleHandle ComputeModule;
-
-    /// <summary>NUL-terminated UTF-8 compute entry point.</summary>
-    public byte* ComputeEntry;
-
-    /// <summary>Immediate (push constant) size in bytes.</summary>
-    public uint ImmediateSize;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>One color attachment of a render pass (mirrors AlcoColorAttachment).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoColorAttachment
-{
-    /// <summary>Gets or stores View.</summary>
-    public AlcoTextureViewHandle View;
-    /// <summary>Gets or stores ResolveView.</summary>
-    public AlcoTextureViewHandle ResolveView;
-
-    /// <summary><see cref="AttachmentLoadOp"/> value.</summary>
-    public uint LoadOp;
-
-    /// <summary>0 store, 1 discard.</summary>
-    public uint StoreOp;
-
-    /// <summary>Gets or stores the native ABI value.</summary>
-    public fixed float ClearColor[4];
-}
-
-/// <summary>Depth-stencil attachment of a render pass (mirrors AlcoDepthStencilAttachment).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoDepthStencilAttachment
-{
-    /// <summary>Gets or stores View.</summary>
-    public AlcoTextureViewHandle View;
-
-    /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGpuAbi.AlcoNone"/> = read-only.</summary>
-    public uint DepthLoadOp;
-
-    /// <summary>0 store, 1 discard; <see cref="AlcoGpuAbi.AlcoNone"/> = read-only.</summary>
-    public uint DepthStoreOp;
-
-    /// <summary>Gets or stores DepthClear.</summary>
-    public float DepthClear;
-
-    /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGpuAbi.AlcoNone"/> = read-only.</summary>
-    public uint StencilLoadOp;
-
-    /// <summary>0 store, 1 discard; <see cref="AlcoGpuAbi.AlcoNone"/> = read-only.</summary>
-    public uint StencilStoreOp;
-
-    /// <summary>Gets or stores StencilClear.</summary>
-    public uint StencilClear;
-}
-
-/// <summary>Pass timestamp writes (mirrors AlcoTimestampWrites).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoTimestampWrites
-{
-    /// <summary>Gets or stores QuerySet.</summary>
-    public AlcoQuerySetHandle QuerySet;
-
-    /// <summary>Query index; <see cref="AlcoGpuAbi.AlcoNone"/> skips the write.</summary>
-    public uint BeginningIndex;
-
-    /// <summary>Query index; <see cref="AlcoGpuAbi.AlcoNone"/> skips the write.</summary>
-    public uint EndIndex;
-}
-
-/// <summary>Render pass descriptor (mirrors AlcoRenderPassDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoRenderPassDesc
-{
-    /// <summary>Gets or stores ColorAttachments.</summary>
-    public AlcoColorAttachment* ColorAttachments;
-    /// <summary>Gets or stores ColorAttachmentCount.</summary>
-    public uint ColorAttachmentCount;
-    /// <summary>Gets or stores DepthStencil.</summary>
-    public AlcoDepthStencilAttachment* DepthStencil;
-    /// <summary>Gets or stores TimestampWrites.</summary>
-    public AlcoTimestampWrites* TimestampWrites;
-}
-
-/// <summary>Copy data layout (mirrors AlcoCopyLayout).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoCopyLayout
-{
-    /// <summary>Gets or stores Offset.</summary>
-    public ulong Offset;
-
-    /// <summary>Bytes per row; <see cref="AlcoGpuAbi.AlcoNone"/> = tightly packed.</summary>
-    public uint BytesPerRow;
-
-    /// <summary>Rows per image; <see cref="AlcoGpuAbi.AlcoNone"/> = tightly packed.</summary>
-    public uint RowsPerImage;
-}
-
-/// <summary>Copy origin (mirrors AlcoOrigin3D).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoOrigin3D
-{
-    /// <summary>Gets or stores X.</summary>
-    public uint X;
-    /// <summary>Gets or stores Y.</summary>
-    public uint Y;
-    /// <summary>Gets or stores Z.</summary>
-    public uint Z;
-}
-
-/// <summary>Copy extent (mirrors AlcoExtent3D).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoExtent3D
-{
-    /// <summary>Gets or stores Width.</summary>
-    public uint Width;
-    /// <summary>Gets or stores Height.</summary>
-    public uint Height;
-    /// <summary>Gets or stores DepthOrArrayLayers.</summary>
-    public uint DepthOrArrayLayers;
-}
-
-/// <summary>Texture subresource range for clears (mirrors AlcoSubresourceRange).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoSubresourceRange
-{
-    /// <summary><see cref="TextureAspect"/> value: 0/1 all, 2 stencil only, 3 depth only.</summary>
-    public uint Aspect;
-    /// <summary>First cleared mip level.</summary>
-    public uint BaseMipLevel;
-    /// <summary>Cleared mip level count; zero or <see cref="AlcoGpuAbi.AlcoNone"/> = the rest.</summary>
-    public uint MipLevelCount;
-    /// <summary>First cleared array layer.</summary>
-    public uint BaseArrayLayer;
-    /// <summary>Cleared array layer count; zero or <see cref="AlcoGpuAbi.AlcoNone"/> = the rest.</summary>
-    public uint ArrayLayerCount;
-}
-
-/// <summary>Render bundle encoder descriptor (mirrors AlcoBundleEncoderDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoBundleEncoderDesc
-{
-    /// <summary><see cref="PixelFormat"/> values, one per color target.</summary>
-    public uint* ColorFormats;
-    /// <summary>Gets or stores ColorFormatCount.</summary>
-    public uint ColorFormatCount;
-
-    /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGpuAbi.AlcoNone"/> when unused.</summary>
-    public uint DepthStencilFormat;
-
-    /// <summary>Boolean u32 flags for read-only depth/stencil.</summary>
-    public uint DepthReadOnly;
-    /// <summary>Gets or stores StencilReadOnly.</summary>
-    public uint StencilReadOnly;
-
-    /// <summary>Gets or stores SampleCount.</summary>
-    public uint SampleCount;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Surface creation descriptor (mirrors AlcoSurfaceDesc).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoSurfaceDesc
-{
-    /// <summary>One of <see cref="AlcoGpuAbi.SurfaceTag"/> values.</summary>
-    public uint Tag;
-
-    /// <summary>Platform window/surface handle.</summary>
-    public ulong Handle;
-
-    /// <summary>Platform display/connection handle (X11/Wayland).</summary>
-    public ulong Display;
-
-    /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
-    public byte* Name;
-}
-
-/// <summary>Surface capabilities (mirrors AlcoSurfaceCaps) with inline arrays.</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal unsafe struct AlcoSurfaceCaps
-{
-    /// <summary>Gets or stores the native ABI value.</summary>
-    public fixed uint Formats[64];
-    /// <summary>Gets or stores FormatCount.</summary>
-    public uint FormatCount;
-    /// <summary>Gets or stores the native ABI value.</summary>
-    public fixed uint PresentModes[8];
-    /// <summary>Gets or stores PresentModeCount.</summary>
-    public uint PresentModeCount;
-}
-
-/// <summary>Surface configuration (mirrors AlcoSurfaceConfig).</summary>
-[StructLayout(LayoutKind.Sequential)]
-internal struct AlcoSurfaceConfig
-{
-    /// <summary><see cref="TextureUsage"/> bits.</summary>
-    public uint Usage;
-
-    /// <summary><see cref="PixelFormat"/> value.</summary>
-    public uint Format;
-
-    /// <summary>Gets or stores Width.</summary>
-    public uint Width;
-    /// <summary>Gets or stores Height.</summary>
-    public uint Height;
-
-    /// <summary>One of <see cref="AlcoGpuAbi.PresentModeAbi"/> values.</summary>
-    public uint PresentMode;
-
-    /// <summary>One of <see cref="AlcoGpuAbi.AlphaModeAbi"/> values.</summary>
-    public uint AlphaMode;
-
-    /// <summary>Gets or stores DesiredFrameLatency.</summary>
-    public uint DesiredFrameLatency;
+    /// <summary>Opaque ABI3 pointer to an owned native Device wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct DeviceHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public DeviceHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static DeviceHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native Buffer wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct BufferHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public BufferHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static BufferHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native Texture wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct TextureHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public TextureHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static TextureHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native TextureView wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct TextureViewHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public TextureViewHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static TextureViewHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native Sampler wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct SamplerHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public SamplerHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static SamplerHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native ShaderModule wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct ShaderModuleHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public ShaderModuleHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static ShaderModuleHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native BindGroupLayout wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct BindGroupLayoutHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public BindGroupLayoutHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static BindGroupLayoutHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native BindGroup wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct BindGroupHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public BindGroupHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static BindGroupHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native QuerySet wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct QuerySetHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public QuerySetHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static QuerySetHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native GraphicsPipeline wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct GraphicsPipelineHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public GraphicsPipelineHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static GraphicsPipelineHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native ComputePipeline wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct ComputePipelineHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public ComputePipelineHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static ComputePipelineHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native Encoder wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct EncoderHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public EncoderHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static EncoderHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native CommandBuffer wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct CommandBufferHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public CommandBufferHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static CommandBufferHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native RenderPass wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct RenderPassHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public RenderPassHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static RenderPassHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native ComputePass wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct ComputePassHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public ComputePassHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static ComputePassHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native BundleEncoder wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct BundleEncoderHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public BundleEncoderHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static BundleEncoderHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native RenderBundle wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct RenderBundleHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public RenderBundleHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static RenderBundleHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Opaque ABI3 pointer to an owned native Surface wrapper.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal readonly struct SurfaceHandle
+    {
+        /// <summary>The native wrapper pointer; zero represents no object.</summary>
+        public readonly nint Value;
+
+        /// <summary>Wraps a native object pointer without changing its ownership.</summary>
+        /// <param name="value">The native wrapper pointer.</param>
+        public SurfaceHandle(nint value) => Value = value;
+
+        /// <summary>Gets the null native pointer.</summary>
+        public static SurfaceHandle Null => default;
+
+        /// <summary>Gets whether this pointer is null.</summary>
+        public bool IsNull => Value == 0;
+
+        /// <inheritdoc />
+        public override string ToString() => $"alco:0x{Value:X}";
+    }
+
+    /// <summary>Device creation descriptor (mirrors DeviceDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DeviceDesc
+    {
+        /// <summary>One of <see cref="AlcoGpuAbi.BackendRequest"/> values.</summary>
+        public uint Backend;
+
+        /// <summary><see cref="AlcoGpuAbi.True"/> to enable validation.</summary>
+        public uint Debug;
+
+        /// <summary>Required Alco feature bits (mirrors <see cref="GPUFeatures"/>).</summary>
+        public ulong RequiredFeatures;
+
+        /// <summary>Immediate buffer (push constants) size in bytes.</summary>
+        public uint PushConstantsSize;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Static device information returned at creation (mirrors DeviceInfo).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DeviceInfo
+    {
+        /// <summary>One of <see cref="AlcoGpuAbi.BackendResolved"/> values.</summary>
+        public uint Backend;
+
+        /// <summary>Borrowed adapter name, valid until device destroy.</summary>
+        public byte* AdapterName;
+
+        /// <summary>Gets or stores Vendor.</summary>
+        public uint Vendor;
+        /// <summary>Gets or stores Device.</summary>
+        public uint Device;
+
+        /// <summary>Supported Alco feature bits.</summary>
+        public ulong SupportedFeatures;
+
+        /// <summary>Capability bits (<see cref="AlcoGpuAbi.Caps"/>).</summary>
+        public ulong Caps;
+
+        /// <summary>Gets or stores MaxBindGroups.</summary>
+        public uint MaxBindGroups;
+        /// <summary>Gets or stores MaxImmediateSize.</summary>
+        public uint MaxImmediateSize;
+
+        /// <summary>Queue timestamp period in nanoseconds (1.0 when unsupported).</summary>
+        public float TimestampPeriodNs;
+    }
+
+    /// <summary>One queued device message (mirrors DeviceMessage).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DeviceMessage
+    {
+        /// <summary>0 = error, 1 = warning, 2 = info.</summary>
+        public uint Severity;
+
+        /// <summary>0 = generic, 1 = device lost.</summary>
+        public uint Kind;
+
+        /// <summary>Borrowed message, valid until the next pop on this device.</summary>
+        public byte* Message;
+    }
+
+    /// <summary>Build information (mirrors BuildInfo).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BuildInfo
+    {
+        /// <summary>Numeric wgpu version: (major &lt;&lt; 16) | minor.</summary>
+        public uint WgpuVersion;
+
+        /// <summary>Borrowed build identifier string (process lifetime).</summary>
+        public byte* BuildId;
+    }
+
+    /// <summary>Last-error record (mirrors ErrorInfo).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ErrorInfo
+    {
+        /// <summary>Matching status code for the failed call.</summary>
+        public uint Status;
+
+        /// <summary>Borrowed message, valid until the next failure on this thread.</summary>
+        public byte* Message;
+    }
+
+    /// <summary>Buffer creation descriptor (mirrors BufferDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BufferDesc
+    {
+        /// <summary>Size in bytes.</summary>
+        public ulong Size;
+
+        /// <summary><see cref="BufferUsage"/> bits.</summary>
+        public uint Usage;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Texture creation descriptor (mirrors TextureDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TextureDesc
+    {
+        /// <summary><see cref="TextureDimension"/> value.</summary>
+        public uint Dimension;
+
+        /// <summary><see cref="PixelFormat"/> value.</summary>
+        public uint Format;
+
+        /// <summary><see cref="TextureUsage"/> bits.</summary>
+        public uint Usage;
+
+        /// <summary>Gets or stores Width.</summary>
+        public uint Width;
+        /// <summary>Gets or stores Height.</summary>
+        public uint Height;
+        /// <summary>Gets or stores DepthOrArrayLayers.</summary>
+        public uint DepthOrArrayLayers;
+        /// <summary>Gets or stores MipLevelCount.</summary>
+        public uint MipLevelCount;
+        /// <summary>Gets or stores SampleCount.</summary>
+        public uint SampleCount;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Texture introspection (mirrors TextureInfo).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TextureInfo
+    {
+        /// <summary>Gets or stores Width.</summary>
+        public uint Width;
+        /// <summary>Gets or stores Height.</summary>
+        public uint Height;
+        /// <summary>Gets or stores DepthOrArrayLayers.</summary>
+        public uint DepthOrArrayLayers;
+        /// <summary>Gets or stores MipLevelCount.</summary>
+        public uint MipLevelCount;
+
+        /// <summary><see cref="PixelFormat"/> value.</summary>
+        public uint Format;
+    }
+
+    /// <summary>Texture view creation descriptor (mirrors TextureViewDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TextureViewDesc
+    {
+        /// <summary><see cref="TextureViewDimension"/> value.</summary>
+        public uint Dimension;
+        /// <summary>Gets or stores BaseMipLevel.</summary>
+        public uint BaseMipLevel;
+        /// <summary>Gets or stores MipLevelCount.</summary>
+        public uint MipLevelCount;
+        /// <summary>Gets or stores BaseArrayLayer.</summary>
+        public uint BaseArrayLayer;
+        /// <summary>Gets or stores ArrayLayerCount.</summary>
+        public uint ArrayLayerCount;
+
+        /// <summary><see cref="TextureAspect"/> value.</summary>
+        public uint Aspect;
+
+        /// <summary><see cref="PixelFormat"/> value (0 keeps the texture format).</summary>
+        public uint Format;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Sampler creation descriptor (mirrors SamplerDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SamplerDesc
+    {
+        /// <summary><see cref="FilterMode"/> value.</summary>
+        public uint MinFilter;
+
+        /// <summary><see cref="FilterMode"/> value.</summary>
+        public uint MagFilter;
+
+        /// <summary><see cref="FilterMode"/> value.</summary>
+        public uint MipmapFilter;
+
+        /// <summary><see cref="AddressMode"/> values for U/V/W.</summary>
+        public uint AddressU;
+        /// <summary>Gets or stores AddressV.</summary>
+        public uint AddressV;
+        /// <summary>Gets or stores AddressW.</summary>
+        public uint AddressW;
+
+        /// <summary>Gets or stores LodMinClamp.</summary>
+        public float LodMinClamp;
+        /// <summary>Gets or stores LodMaxClamp.</summary>
+        public float LodMaxClamp;
+
+        /// <summary><see cref="CompareFunction"/> value; 0 disables comparison.</summary>
+        public uint Compare;
+
+        /// <summary>Max anisotropy (1 = disabled).</summary>
+        public ushort MaxAnisotropy;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Shader module creation descriptor (mirrors ShaderModuleDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ShaderModuleDesc
+    {
+        /// <summary><see cref="ShaderLanguage"/> value (SpirV/Wgsl/Dxil/Msl/MetalLib).</summary>
+        public uint Language;
+
+        /// <summary>Shader bytecode/data.</summary>
+        public byte* Data;
+
+        /// <summary>Byte count (SPIR-V is divided by 4 natively into dwords).</summary>
+        public uint Size;
+
+        /// <summary>NUL-terminated UTF-8 default entry point (may be null).</summary>
+        public byte* EntryPoint;
+
+        /// <summary>Gets or stores WorkgroupX.</summary>
+        public uint WorkgroupX;
+        /// <summary>Gets or stores WorkgroupY.</summary>
+        public uint WorkgroupY;
+        /// <summary>Gets or stores WorkgroupZ.</summary>
+        public uint WorkgroupZ;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+
+        /// <summary><see cref="ShaderModuleFlags"/> bit set; unknown bits are ignored.</summary>
+        public uint Flags;
+    }
+
+    /// <summary>One bind group layout entry (mirrors BindGroupLayoutEntry).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BindGroupLayoutEntry
+    {
+        /// <summary>Gets or stores Binding.</summary>
+        public uint Binding;
+
+        /// <summary><see cref="ShaderStage"/> visibility bits.</summary>
+        public uint Visibility;
+
+        /// <summary><see cref="BindingType"/> value.</summary>
+        public uint Type;
+
+        /// <summary>Sampler bindings: 0 filtering, 1 non-filtering, 2 comparison.</summary>
+        public uint SamplerKind;
+
+        /// <summary>Texture bindings: <see cref="TextureSampleType"/> value.</summary>
+        public uint TextureSampleType;
+
+        /// <summary>Texture/storage bindings: <see cref="TextureViewDimension"/> value.</summary>
+        public uint ViewDimension;
+
+        /// <summary>Storage textures: <see cref="AccessMode"/> bits.</summary>
+        public uint StorageAccess;
+
+        /// <summary>Storage textures: <see cref="PixelFormat"/> value.</summary>
+        public uint StorageFormat;
+    }
+
+    /// <summary>Bind group layout descriptor (mirrors BindGroupLayoutDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BindGroupLayoutDesc
+    {
+        /// <summary>Gets or stores Entries.</summary>
+        public BindGroupLayoutEntry* Entries;
+        /// <summary>Gets or stores EntryCount.</summary>
+        public uint EntryCount;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>One bind group entry (mirrors BindGroupEntry).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BindGroupEntry
+    {
+        /// <summary>Gets or stores Binding.</summary>
+        public uint Binding;
+
+        /// <summary>Buffer, texture-view or sampler wrapper pointer.</summary>
+        public nint Resource;
+
+        /// <summary>Gets or stores Offset.</summary>
+        public ulong Offset;
+        /// <summary>Gets or stores Size.</summary>
+        public ulong Size;
+
+        /// <summary>Resource kind: 0 buffer, 1 texture view, 2 sampler. Determines the
+        /// concrete wrapper type behind the heterogeneous resource pointer.</summary>
+        public uint Kind;
+    }
+
+    /// <summary>Bind group descriptor (mirrors BindGroupDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BindGroupDesc
+    {
+        /// <summary>Gets or stores Layout.</summary>
+        public BindGroupLayoutHandle Layout;
+        /// <summary>Gets or stores Entries.</summary>
+        public BindGroupEntry* Entries;
+        /// <summary>Gets or stores EntryCount.</summary>
+        public uint EntryCount;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>One vertex attribute (mirrors VertexElement).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct VertexElement
+    {
+        /// <summary>Gets or stores Location.</summary>
+        public uint Location;
+        /// <summary>Gets or stores Offset.</summary>
+        public uint Offset;
+
+        /// <summary><see cref="VertexFormat"/> value.</summary>
+        public uint Format;
+    }
+
+    /// <summary>One vertex buffer layout (mirrors VertexLayout).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct VertexLayout
+    {
+        /// <summary>Gets or stores Stride.</summary>
+        public uint Stride;
+
+        /// <summary><see cref="VertexStepMode"/> value.</summary>
+        public uint StepMode;
+
+        /// <summary>Gets or stores Elements.</summary>
+        public VertexElement* Elements;
+        /// <summary>Gets or stores ElementCount.</summary>
+        public uint ElementCount;
+    }
+
+    /// <summary>Blend factors+operation for one channel (mirrors BlendComponent).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BlendComponent
+    {
+        /// <summary><see cref="BlendFactor"/> values.</summary>
+        public uint SrcFactor;
+        /// <summary>Gets or stores DstFactor.</summary>
+        public uint DstFactor;
+
+        /// <summary><see cref="BlendOperation"/> value.</summary>
+        public uint Operation;
+    }
+
+    /// <summary>Blend state for color+alpha channels (mirrors BlendState).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BlendState
+    {
+        /// <summary>Gets or stores Color.</summary>
+        public BlendComponent Color;
+        /// <summary>Gets or stores Alpha.</summary>
+        public BlendComponent Alpha;
+    }
+
+    /// <summary>Stencil face state (mirrors StencilFace).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct StencilFace
+    {
+        /// <summary><see cref="CompareFunction"/> value (0 = Always).</summary>
+        public uint Compare;
+
+        /// <summary><see cref="StencilOperation"/> values.</summary>
+        public uint StencilFailOp;
+        /// <summary>Gets or stores DepthFailOp.</summary>
+        public uint DepthFailOp;
+        /// <summary>Gets or stores PassOp.</summary>
+        public uint PassOp;
+    }
+
+    /// <summary>Depth-stencil state (mirrors DepthStencilState).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DepthStencilState
+    {
+        /// <summary>Boolean u32; depth writes enabled.</summary>
+        public uint DepthWriteEnabled;
+
+        /// <summary>Boolean u32; ignored by wgpu (no depth bounds test).</summary>
+        public uint DepthBoundsTestEnabled;
+
+        /// <summary><see cref="CompareFunction"/> value (0 disables depth test).</summary>
+        public uint DepthCompare;
+
+        /// <summary>Gets or stores Front.</summary>
+        public StencilFace Front;
+        /// <summary>Gets or stores Back.</summary>
+        public StencilFace Back;
+        /// <summary>Gets or stores StencilReadMask.</summary>
+        public uint StencilReadMask;
+        /// <summary>Gets or stores StencilWriteMask.</summary>
+        public uint StencilWriteMask;
+    }
+
+    /// <summary>Graphics pipeline descriptor (mirrors GraphicsPipelineDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct GraphicsPipelineDesc
+    {
+        /// <summary>Gets or stores BindGroupLayouts.</summary>
+        public BindGroupLayoutHandle* BindGroupLayouts;
+        /// <summary>Gets or stores BindGroupLayoutCount.</summary>
+        public uint BindGroupLayoutCount;
+
+        /// <summary>Gets or stores VertexModule.</summary>
+        public ShaderModuleHandle VertexModule;
+
+        /// <summary>NUL-terminated UTF-8 vertex entry point.</summary>
+        public byte* VertexEntry;
+
+        /// <summary>Gets or stores FragmentModule.</summary>
+        public ShaderModuleHandle FragmentModule;
+
+        /// <summary>NUL-terminated UTF-8 fragment entry point.</summary>
+        public byte* FragmentEntry;
+
+        /// <summary>Gets or stores VertexLayouts.</summary>
+        public VertexLayout* VertexLayouts;
+        /// <summary>Gets or stores VertexLayoutCount.</summary>
+        public uint VertexLayoutCount;
+
+        /// <summary><see cref="FillMode"/> value (wireframe unsupported by wgpu).</summary>
+        public uint FillMode;
+
+        /// <summary><see cref="CullMode"/> value.</summary>
+        public uint CullMode;
+
+        /// <summary><see cref="FrontFace"/> value.</summary>
+        public uint FrontFace;
+
+        /// <summary>Gets or stores Blend.</summary>
+        public BlendState Blend;
+        /// <summary>Gets or stores DepthStencil.</summary>
+        public DepthStencilState DepthStencil;
+
+        /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGpuAbi.None"/> when unused.</summary>
+        public uint DepthStencilFormat;
+
+        /// <summary><see cref="PrimitiveTopology"/> value.</summary>
+        public uint Topology;
+
+        /// <summary><see cref="PixelFormat"/> values, one per color target.</summary>
+        public uint* ColorFormats;
+        /// <summary>Gets or stores ColorFormatCount.</summary>
+        public uint ColorFormatCount;
+
+        /// <summary>Active color writes; <see cref="AlcoGpuAbi.None"/> writes all.</summary>
+        public uint FragmentOutputCount;
+
+        /// <summary>Immediate (push constant) size in bytes.</summary>
+        public uint ImmediateSize;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Compute pipeline descriptor (mirrors ComputePipelineDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ComputePipelineDesc
+    {
+        /// <summary>Gets or stores BindGroupLayouts.</summary>
+        public BindGroupLayoutHandle* BindGroupLayouts;
+        /// <summary>Gets or stores BindGroupLayoutCount.</summary>
+        public uint BindGroupLayoutCount;
+
+        /// <summary>Gets or stores ComputeModule.</summary>
+        public ShaderModuleHandle ComputeModule;
+
+        /// <summary>NUL-terminated UTF-8 compute entry point.</summary>
+        public byte* ComputeEntry;
+
+        /// <summary>Immediate (push constant) size in bytes.</summary>
+        public uint ImmediateSize;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>One color attachment of a render pass (mirrors ColorAttachment).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct ColorAttachment
+    {
+        /// <summary>Gets or stores View.</summary>
+        public TextureViewHandle View;
+        /// <summary>Gets or stores ResolveView.</summary>
+        public TextureViewHandle ResolveView;
+
+        /// <summary><see cref="AttachmentLoadOp"/> value.</summary>
+        public uint LoadOp;
+
+        /// <summary>0 store, 1 discard.</summary>
+        public uint StoreOp;
+
+        /// <summary>Gets or stores the native ABI value.</summary>
+        public fixed float ClearColor[4];
+    }
+
+    /// <summary>Depth-stencil attachment of a render pass (mirrors DepthStencilAttachment).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DepthStencilAttachment
+    {
+        /// <summary>Gets or stores View.</summary>
+        public TextureViewHandle View;
+
+        /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        public uint DepthLoadOp;
+
+        /// <summary>0 store, 1 discard; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        public uint DepthStoreOp;
+
+        /// <summary>Gets or stores DepthClear.</summary>
+        public float DepthClear;
+
+        /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        public uint StencilLoadOp;
+
+        /// <summary>0 store, 1 discard; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        public uint StencilStoreOp;
+
+        /// <summary>Gets or stores StencilClear.</summary>
+        public uint StencilClear;
+    }
+
+    /// <summary>Pass timestamp writes (mirrors TimestampWrites).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TimestampWrites
+    {
+        /// <summary>Gets or stores QuerySet.</summary>
+        public QuerySetHandle QuerySet;
+
+        /// <summary>Query index; <see cref="AlcoGpuAbi.None"/> skips the write.</summary>
+        public uint BeginningIndex;
+
+        /// <summary>Query index; <see cref="AlcoGpuAbi.None"/> skips the write.</summary>
+        public uint EndIndex;
+    }
+
+    /// <summary>Render pass descriptor (mirrors RenderPassDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct RenderPassDesc
+    {
+        /// <summary>Gets or stores ColorAttachments.</summary>
+        public ColorAttachment* ColorAttachments;
+        /// <summary>Gets or stores ColorAttachmentCount.</summary>
+        public uint ColorAttachmentCount;
+        /// <summary>Gets or stores DepthStencil.</summary>
+        public DepthStencilAttachment* DepthStencil;
+        /// <summary>Gets or stores TimestampWrites.</summary>
+        public TimestampWrites* TimestampWrites;
+    }
+
+    /// <summary>Copy data layout (mirrors CopyLayout).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct CopyLayout
+    {
+        /// <summary>Gets or stores Offset.</summary>
+        public ulong Offset;
+
+        /// <summary>Bytes per row; <see cref="AlcoGpuAbi.None"/> = tightly packed.</summary>
+        public uint BytesPerRow;
+
+        /// <summary>Rows per image; <see cref="AlcoGpuAbi.None"/> = tightly packed.</summary>
+        public uint RowsPerImage;
+    }
+
+    /// <summary>Copy origin (mirrors Origin3D).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Origin3D
+    {
+        /// <summary>Gets or stores X.</summary>
+        public uint X;
+        /// <summary>Gets or stores Y.</summary>
+        public uint Y;
+        /// <summary>Gets or stores Z.</summary>
+        public uint Z;
+    }
+
+    /// <summary>Copy extent (mirrors Extent3D).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Extent3D
+    {
+        /// <summary>Gets or stores Width.</summary>
+        public uint Width;
+        /// <summary>Gets or stores Height.</summary>
+        public uint Height;
+        /// <summary>Gets or stores DepthOrArrayLayers.</summary>
+        public uint DepthOrArrayLayers;
+    }
+
+    /// <summary>Texture subresource range for clears (mirrors SubresourceRange).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SubresourceRange
+    {
+        /// <summary><see cref="TextureAspect"/> value: 0/1 all, 2 stencil only, 3 depth only.</summary>
+        public uint Aspect;
+        /// <summary>First cleared mip level.</summary>
+        public uint BaseMipLevel;
+        /// <summary>Cleared mip level count; zero or <see cref="AlcoGpuAbi.None"/> = the rest.</summary>
+        public uint MipLevelCount;
+        /// <summary>First cleared array layer.</summary>
+        public uint BaseArrayLayer;
+        /// <summary>Cleared array layer count; zero or <see cref="AlcoGpuAbi.None"/> = the rest.</summary>
+        public uint ArrayLayerCount;
+    }
+
+    /// <summary>Render bundle encoder descriptor (mirrors BundleEncoderDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct BundleEncoderDesc
+    {
+        /// <summary><see cref="PixelFormat"/> values, one per color target.</summary>
+        public uint* ColorFormats;
+        /// <summary>Gets or stores ColorFormatCount.</summary>
+        public uint ColorFormatCount;
+
+        /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGpuAbi.None"/> when unused.</summary>
+        public uint DepthStencilFormat;
+
+        /// <summary>Boolean u32 flags for read-only depth/stencil.</summary>
+        public uint DepthReadOnly;
+        /// <summary>Gets or stores StencilReadOnly.</summary>
+        public uint StencilReadOnly;
+
+        /// <summary>Gets or stores SampleCount.</summary>
+        public uint SampleCount;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Surface creation descriptor (mirrors SurfaceDesc).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SurfaceDesc
+    {
+        /// <summary>One of <see cref="AlcoGpuAbi.SurfaceTag"/> values.</summary>
+        public uint Tag;
+
+        /// <summary>Platform window/surface handle.</summary>
+        public ulong Handle;
+
+        /// <summary>Platform display/connection handle (X11/Wayland).</summary>
+        public ulong Display;
+
+        /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
+        public byte* Name;
+    }
+
+    /// <summary>Surface capabilities (mirrors SurfaceCaps) with inline arrays.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe struct SurfaceCaps
+    {
+        /// <summary>Gets or stores the native ABI value.</summary>
+        public fixed uint Formats[64];
+        /// <summary>Gets or stores FormatCount.</summary>
+        public uint FormatCount;
+        /// <summary>Gets or stores the native ABI value.</summary>
+        public fixed uint PresentModes[8];
+        /// <summary>Gets or stores PresentModeCount.</summary>
+        public uint PresentModeCount;
+    }
+
+    /// <summary>Surface configuration (mirrors SurfaceConfig).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct SurfaceConfig
+    {
+        /// <summary><see cref="TextureUsage"/> bits.</summary>
+        public uint Usage;
+
+        /// <summary><see cref="PixelFormat"/> value.</summary>
+        public uint Format;
+
+        /// <summary>Gets or stores Width.</summary>
+        public uint Width;
+        /// <summary>Gets or stores Height.</summary>
+        public uint Height;
+
+        /// <summary>One of <see cref="AlcoGpuAbi.PresentModeAbi"/> values.</summary>
+        public uint PresentMode;
+
+        /// <summary>One of <see cref="AlcoGpuAbi.AlphaModeAbi"/> values.</summary>
+        public uint AlphaMode;
+
+        /// <summary>Gets or stores DesiredFrameLatency.</summary>
+        public uint DesiredFrameLatency;
+    }
 }

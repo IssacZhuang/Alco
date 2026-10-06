@@ -15,12 +15,12 @@ namespace Alco.Graphics.Test;
 [Category("AlcoGpu")]
 public unsafe class AlcoGpuAbiTests
 {
-    /// <summary>Verifies that both sides implement the ABI 2 version handshake.</summary>
+    /// <summary>Verifies that both sides implement the ABI 3 version handshake.</summary>
     [Test]
     public void AbiVersionMatches()
     {
-        Assert.That(AlcoGpuAbi.AbiMajor, Is.EqualTo(2));
-        Assert.That(AlcoGpuAbi.AbiMinor, Is.EqualTo(3));
+        Assert.That(AlcoGpuAbi.AbiMajor, Is.EqualTo(3));
+        Assert.That(AlcoGpuAbi.AbiMinor, Is.EqualTo(0));
         uint version = AlcoGpuNative.AbiVersion();
         Assert.That(version >> 16, Is.EqualTo(AlcoGpuAbi.AbiMajor));
         Assert.That(version & 0xFFFF, Is.GreaterThanOrEqualTo(AlcoGpuAbi.AbiMinor));
@@ -28,24 +28,24 @@ public unsafe class AlcoGpuAbiTests
 
     /// <summary>Verifies every typed handle contains exactly one native-sized pointer.</summary>
     /// <param name="handleType">The managed handle type whose native layout is checked.</param>
-    [TestCase(typeof(AlcoDeviceHandle))]
-    [TestCase(typeof(AlcoBufferHandle))]
-    [TestCase(typeof(AlcoTextureHandle))]
-    [TestCase(typeof(AlcoTextureViewHandle))]
-    [TestCase(typeof(AlcoSamplerHandle))]
-    [TestCase(typeof(AlcoShaderModuleHandle))]
-    [TestCase(typeof(AlcoBindGroupLayoutHandle))]
-    [TestCase(typeof(AlcoBindGroupHandle))]
-    [TestCase(typeof(AlcoQuerySetHandle))]
-    [TestCase(typeof(AlcoGraphicsPipelineHandle))]
-    [TestCase(typeof(AlcoComputePipelineHandle))]
-    [TestCase(typeof(AlcoEncoderHandle))]
-    [TestCase(typeof(AlcoCommandBufferHandle))]
-    [TestCase(typeof(AlcoRenderPassHandle))]
-    [TestCase(typeof(AlcoComputePassHandle))]
-    [TestCase(typeof(AlcoBundleEncoderHandle))]
-    [TestCase(typeof(AlcoRenderBundleHandle))]
-    [TestCase(typeof(AlcoSurfaceHandle))]
+    [TestCase(typeof(AlcoGpuAbi.DeviceHandle))]
+    [TestCase(typeof(AlcoGpuAbi.BufferHandle))]
+    [TestCase(typeof(AlcoGpuAbi.TextureHandle))]
+    [TestCase(typeof(AlcoGpuAbi.TextureViewHandle))]
+    [TestCase(typeof(AlcoGpuAbi.SamplerHandle))]
+    [TestCase(typeof(AlcoGpuAbi.ShaderModuleHandle))]
+    [TestCase(typeof(AlcoGpuAbi.BindGroupLayoutHandle))]
+    [TestCase(typeof(AlcoGpuAbi.BindGroupHandle))]
+    [TestCase(typeof(AlcoGpuAbi.QuerySetHandle))]
+    [TestCase(typeof(AlcoGpuAbi.GraphicsPipelineHandle))]
+    [TestCase(typeof(AlcoGpuAbi.ComputePipelineHandle))]
+    [TestCase(typeof(AlcoGpuAbi.EncoderHandle))]
+    [TestCase(typeof(AlcoGpuAbi.CommandBufferHandle))]
+    [TestCase(typeof(AlcoGpuAbi.RenderPassHandle))]
+    [TestCase(typeof(AlcoGpuAbi.ComputePassHandle))]
+    [TestCase(typeof(AlcoGpuAbi.BundleEncoderHandle))]
+    [TestCase(typeof(AlcoGpuAbi.RenderBundleHandle))]
+    [TestCase(typeof(AlcoGpuAbi.SurfaceHandle))]
     public void TypedHandlesHaveSinglePointerLayout(Type handleType)
     {
         FieldInfo[] fields = handleType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -65,28 +65,28 @@ public unsafe class AlcoGpuAbiTests
         static void FieldHasType(Type descriptor, string field, Type expected) =>
             Assert.That(descriptor.GetField(field)!.FieldType, Is.EqualTo(expected), $"{descriptor.Name}.{field}");
 
-        FieldHasType(typeof(AlcoBindGroupDesc), nameof(AlcoBindGroupDesc.Layout), typeof(AlcoBindGroupLayoutHandle));
-        FieldHasType(typeof(AlcoGraphicsPipelineDesc), nameof(AlcoGraphicsPipelineDesc.BindGroupLayouts), typeof(AlcoBindGroupLayoutHandle*));
-        FieldHasType(typeof(AlcoGraphicsPipelineDesc), nameof(AlcoGraphicsPipelineDesc.VertexModule), typeof(AlcoShaderModuleHandle));
-        FieldHasType(typeof(AlcoGraphicsPipelineDesc), nameof(AlcoGraphicsPipelineDesc.FragmentModule), typeof(AlcoShaderModuleHandle));
-        FieldHasType(typeof(AlcoComputePipelineDesc), nameof(AlcoComputePipelineDesc.BindGroupLayouts), typeof(AlcoBindGroupLayoutHandle*));
-        FieldHasType(typeof(AlcoComputePipelineDesc), nameof(AlcoComputePipelineDesc.ComputeModule), typeof(AlcoShaderModuleHandle));
-        FieldHasType(typeof(AlcoColorAttachment), nameof(AlcoColorAttachment.View), typeof(AlcoTextureViewHandle));
-        FieldHasType(typeof(AlcoColorAttachment), nameof(AlcoColorAttachment.ResolveView), typeof(AlcoTextureViewHandle));
-        FieldHasType(typeof(AlcoDepthStencilAttachment), nameof(AlcoDepthStencilAttachment.View), typeof(AlcoTextureViewHandle));
-        FieldHasType(typeof(AlcoTimestampWrites), nameof(AlcoTimestampWrites.QuerySet), typeof(AlcoQuerySetHandle));
-        FieldHasType(typeof(AlcoBindGroupEntry), nameof(AlcoBindGroupEntry.Resource), typeof(nint));
-        FieldHasType(typeof(AlcoBindGroupEntry), nameof(AlcoBindGroupEntry.Kind), typeof(uint));
+        FieldHasType(typeof(AlcoGpuAbi.BindGroupDesc), nameof(AlcoGpuAbi.BindGroupDesc.Layout), typeof(AlcoGpuAbi.BindGroupLayoutHandle));
+        FieldHasType(typeof(AlcoGpuAbi.GraphicsPipelineDesc), nameof(AlcoGpuAbi.GraphicsPipelineDesc.BindGroupLayouts), typeof(AlcoGpuAbi.BindGroupLayoutHandle*));
+        FieldHasType(typeof(AlcoGpuAbi.GraphicsPipelineDesc), nameof(AlcoGpuAbi.GraphicsPipelineDesc.VertexModule), typeof(AlcoGpuAbi.ShaderModuleHandle));
+        FieldHasType(typeof(AlcoGpuAbi.GraphicsPipelineDesc), nameof(AlcoGpuAbi.GraphicsPipelineDesc.FragmentModule), typeof(AlcoGpuAbi.ShaderModuleHandle));
+        FieldHasType(typeof(AlcoGpuAbi.ComputePipelineDesc), nameof(AlcoGpuAbi.ComputePipelineDesc.BindGroupLayouts), typeof(AlcoGpuAbi.BindGroupLayoutHandle*));
+        FieldHasType(typeof(AlcoGpuAbi.ComputePipelineDesc), nameof(AlcoGpuAbi.ComputePipelineDesc.ComputeModule), typeof(AlcoGpuAbi.ShaderModuleHandle));
+        FieldHasType(typeof(AlcoGpuAbi.ColorAttachment), nameof(AlcoGpuAbi.ColorAttachment.View), typeof(AlcoGpuAbi.TextureViewHandle));
+        FieldHasType(typeof(AlcoGpuAbi.ColorAttachment), nameof(AlcoGpuAbi.ColorAttachment.ResolveView), typeof(AlcoGpuAbi.TextureViewHandle));
+        FieldHasType(typeof(AlcoGpuAbi.DepthStencilAttachment), nameof(AlcoGpuAbi.DepthStencilAttachment.View), typeof(AlcoGpuAbi.TextureViewHandle));
+        FieldHasType(typeof(AlcoGpuAbi.TimestampWrites), nameof(AlcoGpuAbi.TimestampWrites.QuerySet), typeof(AlcoGpuAbi.QuerySetHandle));
+        FieldHasType(typeof(AlcoGpuAbi.BindGroupEntry), nameof(AlcoGpuAbi.BindGroupEntry.Resource), typeof(nint));
+        FieldHasType(typeof(AlcoGpuAbi.BindGroupEntry), nameof(AlcoGpuAbi.BindGroupEntry.Kind), typeof(uint));
     }
 
     /// <summary>Verifies native build information identifies the pinned wgpu version.</summary>
     [Test]
     public void BuildInfoCarriesWgpuVersion()
     {
-        AlcoBuildInfo info = default;
+        AlcoGpuAbi.BuildInfo info = default;
         AlcoGpuNative.BuildInfo(ref info);
         Assert.That(info.WgpuVersion >> 16, Is.EqualTo(30));
-        string? build = AlcoGpuMarshal.BorrowedString(info.AlcoBuild);
+        string? build = AlcoGpuMarshal.BorrowedString(info.BuildId);
         Assert.That(build, Is.Not.Null.And.Contains("alco-gpu"));
     }
 
@@ -94,11 +94,11 @@ public unsafe class AlcoGpuAbiTests
     [Test]
     public void DeviceCreateGetInfoDestroyRoundTrip()
     {
-        AlcoDeviceHandle device = CreateNativeDevice();
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
         Assert.That(device.IsNull, Is.False);
         try
         {
-            AlcoDeviceInfo info = default;
+            AlcoGpuAbi.DeviceInfo info = default;
             AlcoGpuNative.DeviceGetInfo(device, ref info);
             Assert.That(info.Backend, Is.EqualTo(AlcoGpuAbi.BackendResolved.Vulkan)
                 .Or.EqualTo(AlcoGpuAbi.BackendResolved.Dx12)
@@ -124,21 +124,21 @@ public unsafe class AlcoGpuAbiTests
     [Test]
     public void LastErrorRetainsLatestFailureAcrossSuccessAndNotReady()
     {
-        AlcoDeviceHandle device = CreateNativeDevice();
-        AlcoBufferHandle buffer = AlcoBufferHandle.Null;
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
+        AlcoGpuAbi.BufferHandle buffer = AlcoGpuAbi.BufferHandle.Null;
         try
         {
             GraphicsException nullError = Assert.Throws<GraphicsException>(
-                () => AlcoGpuNative.BufferDestroy(AlcoBufferHandle.Null))!;
+                () => AlcoGpuNative.BufferDestroy(AlcoGpuAbi.BufferHandle.Null))!;
             Assert.That(nullError.Message, Does.Contain("handle"));
-            AlcoErrorInfo error = default;
+            AlcoGpuAbi.ErrorInfo error = default;
             AlcoGpuNative.GetLastError(ref error);
             Assert.That(error.Status, Is.EqualTo(AlcoGpuAbi.Status.InvalidHandle));
             string? nullMessage = AlcoGpuMarshal.BorrowedString(error.Message);
             Assert.That(nullMessage, Is.Not.Null.And.Not.Empty);
             byte* nullMessagePointer = error.Message;
 
-            AlcoBufferDesc descriptor = new() { Size = 64, Usage = (uint)BufferUsage.CopyDst };
+            AlcoGpuAbi.BufferDesc descriptor = new() { Size = 64, Usage = (uint)BufferUsage.CopyDst };
             AlcoGpuNative.BufferCreate(device, in descriptor, out buffer);
             AlcoGpuNative.GetLastError(ref error);
             Assert.That(error.Status, Is.EqualTo(AlcoGpuAbi.Status.InvalidHandle));
@@ -156,10 +156,10 @@ public unsafe class AlcoGpuAbiTests
             byte* latestPointer = error.Message;
 
             uint queueEmpty = 0;
-            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoFalse, 0, &queueEmpty);
-            AlcoDeviceMessage message = default;
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.False, 0, &queueEmpty);
+            AlcoGpuAbi.DeviceMessage message = default;
             Assert.That(AlcoGpuNative.DevicePopMessage(device, ref message), Is.EqualTo(AlcoGpuAbi.Status.NotReady));
-            AlcoBuildInfo buildInfo = default;
+            AlcoGpuAbi.BuildInfo buildInfo = default;
             AlcoGpuNative.BuildInfo(ref buildInfo);
             AlcoGpuNative.GetLastError(ref error);
             Assert.That(error.Status, Is.EqualTo(AlcoGpuAbi.Status.Validation));
@@ -183,13 +183,13 @@ public unsafe class AlcoGpuAbiTests
         const int count = 32;
         const int rounds = 32;
         const int size = 64;
-        AlcoDeviceHandle device = CreateNativeDevice();
-        var sources = new AlcoBufferHandle[count];
-        var destinations = new AlcoBufferHandle[count];
-        AlcoEncoderHandle encoder = AlcoEncoderHandle.Null;
-        AlcoCommandBufferHandle commands = AlcoCommandBufferHandle.Null;
-        AlcoBufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.CopySrc | BufferUsage.CopyDst) };
-        AlcoBufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
+        var sources = new AlcoGpuAbi.BufferHandle[count];
+        var destinations = new AlcoGpuAbi.BufferHandle[count];
+        AlcoGpuAbi.EncoderHandle encoder = AlcoGpuAbi.EncoderHandle.Null;
+        AlcoGpuAbi.CommandBufferHandle commands = AlcoGpuAbi.CommandBufferHandle.Null;
+        AlcoGpuAbi.BufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.CopySrc | BufferUsage.CopyDst) };
+        AlcoGpuAbi.BufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
         byte* written = stackalloc byte[size];
         try
         {
@@ -213,11 +213,11 @@ public unsafe class AlcoGpuAbiTests
                     AlcoGpuNative.QueueWriteBuffer(device, sources[i], 0, written, size);
                     AlcoGpuNative.CopyBufferToBuffer(encoder, sources[i], 0, destinations[i], 0, size);
                 }
-                AlcoEncoderHandle finishedEncoder = encoder;
-                encoder = AlcoEncoderHandle.Null;
+                AlcoGpuAbi.EncoderHandle finishedEncoder = encoder;
+                encoder = AlcoGpuAbi.EncoderHandle.Null;
                 AlcoGpuNative.EncoderFinish(finishedEncoder, out commands);
-                AlcoCommandBufferHandle submitted = commands;
-                commands = AlcoCommandBufferHandle.Null;
+                AlcoGpuAbi.CommandBufferHandle submitted = commands;
+                commands = AlcoGpuAbi.CommandBufferHandle.Null;
                 ulong submissionIndex = 0;
                 AlcoGpuNative.QueueSubmit(device, submitted, &submissionIndex);
                 for (int i = 0; i < count; i++)
@@ -225,7 +225,7 @@ public unsafe class AlcoGpuAbiTests
                     AlcoGpuNative.BufferMapRead(destinations[i], 0, size);
                 }
                 uint queueEmpty = 0;
-                AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, submissionIndex, &queueEmpty);
+                AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.True, submissionIndex, &queueEmpty);
                 for (int i = 0; i < count; i++)
                 {
                     Assert.That(AlcoGpuNative.BufferMapPoll(destinations[i]), Is.EqualTo(AlcoGpuAbi.Status.Ok));
@@ -244,11 +244,11 @@ public unsafe class AlcoGpuAbiTests
                     {
                         AlcoGpuNative.BufferUnmap(destinations[i]);
                     }
-                    AlcoBufferHandle destination = destinations[i];
-                    destinations[i] = AlcoBufferHandle.Null;
+                    AlcoGpuAbi.BufferHandle destination = destinations[i];
+                    destinations[i] = AlcoGpuAbi.BufferHandle.Null;
                     AlcoGpuNative.BufferDestroy(destination);
-                    AlcoBufferHandle source = sources[i];
-                    sources[i] = AlcoBufferHandle.Null;
+                    AlcoGpuAbi.BufferHandle source = sources[i];
+                    sources[i] = AlcoGpuAbi.BufferHandle.Null;
                     AlcoGpuNative.BufferDestroy(source);
                 }
             }
@@ -284,18 +284,18 @@ public unsafe class AlcoGpuAbiTests
     {
         const int count = 4;
         const int size = 64;
-        AlcoDeviceHandle device = CreateNativeDevice();
-        var sources = new AlcoBufferHandle[count];
-        var destinations = new AlcoBufferHandle[count];
-        var encoders = new AlcoEncoderHandle[count];
-        var commands = new AlcoCommandBufferHandle[count];
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
+        var sources = new AlcoGpuAbi.BufferHandle[count];
+        var destinations = new AlcoGpuAbi.BufferHandle[count];
+        var encoders = new AlcoGpuAbi.EncoderHandle[count];
+        var commands = new AlcoGpuAbi.CommandBufferHandle[count];
         byte* written = stackalloc byte[size];
         try
         {
             for (int i = 0; i < count; i++)
             {
-                AlcoBufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.CopySrc | BufferUsage.CopyDst) };
-                AlcoBufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
+                AlcoGpuAbi.BufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.CopySrc | BufferUsage.CopyDst) };
+                AlcoGpuAbi.BufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
                 AlcoGpuNative.BufferCreate(device, in sourceDescriptor, out sources[i]);
                 AlcoGpuNative.BufferCreate(device, in destinationDescriptor, out destinations[i]);
                 AlcoGpuNative.EncoderCreate(device, null, out encoders[i]);
@@ -308,23 +308,23 @@ public unsafe class AlcoGpuAbiTests
             }
             for (int i = 0; i < count; i++)
             {
-                AlcoEncoderHandle encoder = encoders[i];
-                encoders[i] = AlcoEncoderHandle.Null;
+                AlcoGpuAbi.EncoderHandle encoder = encoders[i];
+                encoders[i] = AlcoGpuAbi.EncoderHandle.Null;
                 AlcoGpuNative.EncoderFinish(encoder, out commands[i]);
             }
             ulong submissionIndex = 0;
-            fixed (AlcoCommandBufferHandle* submitted = commands)
+            fixed (AlcoGpuAbi.CommandBufferHandle* submitted = commands)
             {
                 AlcoGpuNative.QueueSubmitBatch(device, submitted, count, &submissionIndex);
             }
             for (int i = 0; i < count; i++)
             {
                 // Submit consumed every wrapper; only the buffers remain to clean up.
-                commands[i] = AlcoCommandBufferHandle.Null;
+                commands[i] = AlcoGpuAbi.CommandBufferHandle.Null;
                 AlcoGpuNative.BufferMapRead(destinations[i], 0, size);
             }
             uint queueEmpty = 0;
-            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, submissionIndex, &queueEmpty);
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.True, submissionIndex, &queueEmpty);
             for (int i = 0; i < count; i++)
             {
                 Assert.That(AlcoGpuNative.BufferMapPoll(destinations[i]), Is.EqualTo(AlcoGpuAbi.Status.Ok));
@@ -375,20 +375,20 @@ public unsafe class AlcoGpuAbiTests
     public void WriteMappingRoundTripsThroughReadMapping()
     {
         const ulong size = 64;
-        AlcoDeviceHandle device = CreateNativeDevice();
-        AlcoBufferHandle source = AlcoBufferHandle.Null;
-        AlcoBufferHandle destination = AlcoBufferHandle.Null;
-        AlcoEncoderHandle encoder = AlcoEncoderHandle.Null;
-        AlcoCommandBufferHandle command = AlcoCommandBufferHandle.Null;
-        AlcoBufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapWrite | BufferUsage.CopySrc) };
-        AlcoBufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
+        AlcoGpuAbi.BufferHandle source = AlcoGpuAbi.BufferHandle.Null;
+        AlcoGpuAbi.BufferHandle destination = AlcoGpuAbi.BufferHandle.Null;
+        AlcoGpuAbi.EncoderHandle encoder = AlcoGpuAbi.EncoderHandle.Null;
+        AlcoGpuAbi.CommandBufferHandle command = AlcoGpuAbi.CommandBufferHandle.Null;
+        AlcoGpuAbi.BufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapWrite | BufferUsage.CopySrc) };
+        AlcoGpuAbi.BufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
         try
         {
             AlcoGpuNative.BufferCreate(device, in sourceDescriptor, out source);
             AlcoGpuNative.BufferCreate(device, in destinationDescriptor, out destination);
             AlcoGpuNative.BufferMapWrite(source, 0, size);
             uint queueEmpty = 0;
-            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, ulong.MaxValue, &queueEmpty);
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.True, ulong.MaxValue, &queueEmpty);
             Assert.That(AlcoGpuNative.BufferMapPoll(source), Is.EqualTo(AlcoGpuAbi.Status.Ok));
             void* mapped = null;
             AlcoGpuNative.BufferGetMappedRange(source, 0, size, &mapped);
@@ -401,18 +401,18 @@ public unsafe class AlcoGpuAbiTests
 
             AlcoGpuNative.EncoderCreate(device, null, out encoder);
             AlcoGpuNative.CopyBufferToBuffer(encoder, source, 0, destination, 0, size);
-            AlcoEncoderHandle finishedEncoder = encoder;
-            encoder = AlcoEncoderHandle.Null;
+            AlcoGpuAbi.EncoderHandle finishedEncoder = encoder;
+            encoder = AlcoGpuAbi.EncoderHandle.Null;
             AlcoGpuNative.EncoderFinish(finishedEncoder, out command);
             ulong submissionIndex = 0;
             AlcoGpuNative.QueueSubmit(device, command, &submissionIndex);
-            command = AlcoCommandBufferHandle.Null;
+            command = AlcoGpuAbi.CommandBufferHandle.Null;
             uint submitQueueEmpty = 0;
-            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, submissionIndex, &submitQueueEmpty);
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.True, submissionIndex, &submitQueueEmpty);
 
             AlcoGpuNative.BufferMapRead(destination, 0, size);
             uint readQueueEmpty = 0;
-            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, ulong.MaxValue, &readQueueEmpty);
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.True, ulong.MaxValue, &readQueueEmpty);
             Assert.That(AlcoGpuNative.BufferMapPoll(destination), Is.EqualTo(AlcoGpuAbi.Status.Ok));
             void* read = null;
             AlcoGpuNative.BufferGetMappedRange(destination, 0, size, &read);
@@ -458,16 +458,16 @@ public unsafe class AlcoGpuAbiTests
     [TestCase(false)]
     public void EmptyBindGroupsAcceptZeroEntries(bool useNullEntries)
     {
-        AlcoDeviceHandle device = CreateNativeDevice();
-        AlcoBindGroupLayoutHandle layout = AlcoBindGroupLayoutHandle.Null;
-        AlcoBindGroupHandle group = AlcoBindGroupHandle.Null;
-        AlcoBindGroupLayoutEntry layoutEntry = default;
-        AlcoBindGroupEntry groupEntry = default;
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
+        AlcoGpuAbi.BindGroupLayoutHandle layout = AlcoGpuAbi.BindGroupLayoutHandle.Null;
+        AlcoGpuAbi.BindGroupHandle group = AlcoGpuAbi.BindGroupHandle.Null;
+        AlcoGpuAbi.BindGroupLayoutEntry layoutEntry = default;
+        AlcoGpuAbi.BindGroupEntry groupEntry = default;
         try
         {
-            AlcoBindGroupLayoutDesc layoutDescriptor = new() { Entries = useNullEntries ? null : &layoutEntry };
+            AlcoGpuAbi.BindGroupLayoutDesc layoutDescriptor = new() { Entries = useNullEntries ? null : &layoutEntry };
             AlcoGpuNative.BindGroupLayoutCreate(device, in layoutDescriptor, out layout);
-            AlcoBindGroupDesc groupDescriptor = new() { Layout = layout, Entries = useNullEntries ? null : &groupEntry };
+            AlcoGpuAbi.BindGroupDesc groupDescriptor = new() { Layout = layout, Entries = useNullEntries ? null : &groupEntry };
             AlcoGpuNative.BindGroupCreate(device, in groupDescriptor, out group);
             layoutDescriptor.Entries = null;
             layoutDescriptor.EntryCount = 1;
@@ -498,14 +498,14 @@ public unsafe class AlcoGpuAbiTests
     [TestCase(false)]
     public void ValidationErrorsRetainRootCauses(bool invalidStencil)
     {
-        AlcoDeviceHandle device = CreateNativeDevice();
-        AlcoTextureHandle texture = AlcoTextureHandle.Null;
-        AlcoTextureViewHandle view = AlcoTextureViewHandle.Null;
-        AlcoEncoderHandle encoder = AlcoEncoderHandle.Null;
-        AlcoRenderPassHandle pass = AlcoRenderPassHandle.Null;
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
+        AlcoGpuAbi.TextureHandle texture = AlcoGpuAbi.TextureHandle.Null;
+        AlcoGpuAbi.TextureViewHandle view = AlcoGpuAbi.TextureViewHandle.Null;
+        AlcoGpuAbi.EncoderHandle encoder = AlcoGpuAbi.EncoderHandle.Null;
+        AlcoGpuAbi.RenderPassHandle pass = AlcoGpuAbi.RenderPassHandle.Null;
         try
         {
-            AlcoTextureDesc textureDescriptor = new()
+            AlcoGpuAbi.TextureDesc textureDescriptor = new()
             {
                 Dimension = (uint)TextureDimension.Texture2D,
                 Format = (uint)PixelFormat.Depth32Float,
@@ -519,23 +519,23 @@ public unsafe class AlcoGpuAbiTests
             AlcoGpuNative.TextureCreate(device, in textureDescriptor, out texture);
             AlcoGpuNative.TextureCreateView(texture, null, out view);
             AlcoGpuNative.EncoderCreate(device, null, out encoder);
-            AlcoDepthStencilAttachment depth = new()
+            AlcoGpuAbi.DepthStencilAttachment depth = new()
             {
                 View = view,
                 DepthLoadOp = 1,
                 DepthStoreOp = 0,
                 DepthClear = invalidStencil ? 1f : 2f,
-                StencilLoadOp = invalidStencil ? 0 : AlcoGpuAbi.AlcoNone,
-                StencilStoreOp = invalidStencil ? 0 : AlcoGpuAbi.AlcoNone,
+                StencilLoadOp = invalidStencil ? 0 : AlcoGpuAbi.None,
+                StencilStoreOp = invalidStencil ? 0 : AlcoGpuAbi.None,
             };
-            AlcoRenderPassDesc descriptor = new() { DepthStencil = &depth };
+            AlcoGpuAbi.RenderPassDesc descriptor = new() { DepthStencil = &depth };
             AlcoGpuNative.RenderPassBegin(encoder, in descriptor, out pass);
-            AlcoRenderPassHandle endedPass = pass;
-            pass = AlcoRenderPassHandle.Null;
+            AlcoGpuAbi.RenderPassHandle endedPass = pass;
+            pass = AlcoGpuAbi.RenderPassHandle.Null;
             AlcoGpuNative.RenderPassEnd(endedPass);
-            AlcoEncoderHandle finishedEncoder = encoder;
-            encoder = AlcoEncoderHandle.Null;
-            AlcoCommandBufferHandle buffer = AlcoCommandBufferHandle.Null;
+            AlcoGpuAbi.EncoderHandle finishedEncoder = encoder;
+            encoder = AlcoGpuAbi.EncoderHandle.Null;
+            AlcoGpuAbi.CommandBufferHandle buffer = AlcoGpuAbi.CommandBufferHandle.Null;
             GraphicsException finishError = Assert.Throws<GraphicsException>(
                 () => AlcoGpuNative.EncoderFinish(finishedEncoder, out buffer))!;
             Assert.That(finishError.Message, Does.Contain("validation"));
@@ -567,15 +567,15 @@ public unsafe class AlcoGpuAbiTests
         }
     }
 
-    private static AlcoDeviceHandle CreateNativeDevice()
+    private static AlcoGpuAbi.DeviceHandle CreateNativeDevice()
     {
-        AlcoDeviceDesc descriptor = new()
+        AlcoGpuAbi.DeviceDesc descriptor = new()
         {
             Backend = AlcoGpuAbi.BackendRequest.Auto,
-            Debug = AlcoGpuAbi.AlcoTrue,
+            Debug = AlcoGpuAbi.True,
             PushConstantsSize = 128,
         };
-        AlcoGpuNative.DeviceCreate(in descriptor, out AlcoDeviceHandle device);
+        AlcoGpuNative.DeviceCreate(in descriptor, out AlcoGpuAbi.DeviceHandle device);
         return device;
     }
 
@@ -583,12 +583,12 @@ public unsafe class AlcoGpuAbiTests
     [Test]
     public void PollAndEmptyMessageQueueAreSafe()
     {
-        AlcoDeviceHandle device = CreateNativeDevice();
+        AlcoGpuAbi.DeviceHandle device = CreateNativeDevice();
         try
         {
             uint queueEmpty = 0;
-            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoFalse, 0, &queueEmpty);
-            AlcoDeviceMessage message = default;
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.False, 0, &queueEmpty);
+            AlcoGpuAbi.DeviceMessage message = default;
             for (int poll = 0; poll < 2; poll++)
             {
                 Assert.That(AlcoGpuNative.DevicePopMessage(device, ref message), Is.EqualTo(AlcoGpuAbi.Status.NotReady));

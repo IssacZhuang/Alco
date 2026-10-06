@@ -22,13 +22,13 @@ use std::sync::OnceLock;
 /// Alco ABI version implemented by this library: `(major << 16) | minor`.
 /// The C# side rejects a major mismatch at load time.
 #[no_mangle]
-pub extern "C" fn alco_abi_version() -> u32 {
+pub extern "C" fn abi_version() -> u32 {
     (abi::ABI_MAJOR << 16) | abi::ABI_MINOR
 }
 
 /// Build identifier embedding the pinned wgpu-core version (kept in lockstep
 /// with the `=30.0.1` requirement in Cargo.toml).
-fn alco_build_id() -> &'static str {
+fn build_id() -> &'static str {
     static BUILD_ID: OnceLock<String> = OnceLock::new();
     BUILD_ID.get_or_init(|| {
         let profile = if cfg!(debug_assertions) {
@@ -46,22 +46,22 @@ fn alco_build_id() -> &'static str {
 /// pinned wgpu-core (30.0 → 0x001E_0000).
 ///
 /// # Safety
-/// `out` must be a valid `abi::AlcoBuildInfo` slot.
+/// `out` must be a valid `abi::BuildInfo` slot.
 #[no_mangle]
-pub unsafe extern "C" fn alco_build_info(out: *mut abi::AlcoBuildInfo) {
+pub unsafe extern "C" fn build_info(out: *mut abi::BuildInfo) {
     if out.is_null() {
         return;
     }
-    static ALCO_BUILD: OnceLock<CString> = OnceLock::new();
-    let build = ALCO_BUILD.get_or_init(|| CString::new(alco_build_id()).unwrap());
-    (*out).alco_build = build.as_ptr();
+    static BUILD: OnceLock<CString> = OnceLock::new();
+    let build = BUILD.get_or_init(|| CString::new(build_id()).unwrap());
+    (*out).build_id = build.as_ptr();
     (*out).wgpu_version = 30u32 << 16;
 }
 
 #[cfg(test)]
 pub(crate) mod test_support {
     use crate::abi::*;
-    use crate::device::{alco_device_create, alco_device_destroy};
+    use crate::device::{device_create, device_destroy};
     use std::ffi::CStr;
     use wgpu_core::global::Global;
     use wgpu_types as wgt;
@@ -69,7 +69,7 @@ pub(crate) mod test_support {
     /// Vulkan ABI device with deterministic teardown for native regression tests.
     pub(crate) struct TestDevice {
         /// Owned device handle, valid until the test device is dropped.
-        pub handle: AlcoDeviceHandle,
+        pub handle: DeviceHandle,
     }
 
     impl TestDevice {
@@ -79,7 +79,7 @@ pub(crate) mod test_support {
         }
 
         /// Creates a Vulkan device additionally desiring the given Alco feature
-        /// bits (`alco_features` values, e.g. `CLEAR_TEXTURE`).
+        /// bits (`gpu_features` values, e.g. `CLEAR_TEXTURE`).
         pub fn with_features(required_features: u64) -> Option<Self> {
             // Probe availability separately: a failure in Alco's creation policy
             // on an available Vulkan adapter must fail the test, not silently skip.
@@ -102,16 +102,16 @@ pub(crate) mod test_support {
                 return None;
             }
             drop(probe);
-            let desc = AlcoDeviceDesc {
+            let desc = DeviceDesc {
                 backend: backend::VULKAN,
-                debug: ALCO_FALSE,
+                debug: FALSE,
                 required_features,
                 push_constants_size: 16,
                 name: c"alco-regression".as_ptr(),
             };
-            let mut handle = AlcoDeviceHandle::NULL;
-            let status = unsafe { alco_device_create(&desc, &mut handle) };
-            assert_eq!(status, AlcoStatus::OK, "{}", last_error());
+            let mut handle = DeviceHandle::NULL;
+            let status = unsafe { device_create(&desc, &mut handle) };
+            assert_eq!(status, Status::OK, "{}", last_error());
             assert!(!handle.is_null());
             Some(Self { handle })
         }
@@ -119,19 +119,19 @@ pub(crate) mod test_support {
 
     impl Drop for TestDevice {
         fn drop(&mut self) {
-            let status = unsafe { alco_device_destroy(self.handle) };
-            assert_eq!(status, AlcoStatus::OK, "{}", last_error());
+            let status = unsafe { device_destroy(self.handle) };
+            assert_eq!(status, Status::OK, "{}", last_error());
         }
     }
 
     /// Copies the latest thread-local ABI failure before another failure replaces it.
     pub fn last_error() -> String {
-        let mut info = AlcoErrorInfo {
+        let mut info = ErrorInfo {
             status: 0,
             message: std::ptr::null(),
         };
         unsafe {
-            crate::entry::alco_get_last_error(&mut info);
+            crate::entry::get_last_error(&mut info);
             if info.message.is_null() {
                 String::new()
             } else {

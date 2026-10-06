@@ -17,20 +17,20 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     private readonly AlcoGpuDevice _device;
 
     // recreated every Begin()
-    private AlcoEncoderHandle _encoder;
+    private AlcoGpuAbi.EncoderHandle _encoder;
 
     // cached state create by internal, released on pass end
-    private AlcoRenderPassHandle _renderPass;
-    private AlcoComputePassHandle _computePass;
+    private AlcoGpuAbi.RenderPassHandle _renderPass;
+    private AlcoGpuAbi.ComputePassHandle _computePass;
 
     // cached state from outside
-    private UnsafeArray<AlcoColorAttachment> _colorAttachmentsCache;
-    private AlcoDepthStencilAttachment? _depthStencilAttachmentCache;
-    private AlcoGraphicsPipelineHandle _graphicsPipeline;
-    private AlcoComputePipelineHandle _computePipeline;
+    private UnsafeArray<AlcoGpuAbi.ColorAttachment> _colorAttachmentsCache;
+    private AlcoGpuAbi.DepthStencilAttachment? _depthStencilAttachmentCache;
+    private AlcoGpuAbi.GraphicsPipelineHandle _graphicsPipeline;
+    private AlcoGpuAbi.ComputePipelineHandle _computePipeline;
 
     // created on end(), consumed on submit
-    private AlcoCommandBufferHandle _buffer;
+    private AlcoGpuAbi.CommandBufferHandle _buffer;
 
     // borrowed from descriptor data, owned by this object
     private byte* _nativeName;
@@ -75,8 +75,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         InteropUtility.Free(name);
         _colorAttachmentsCache.Dispose();
         _depthStencilAttachmentCache = null;
-        _graphicsPipeline = AlcoGraphicsPipelineHandle.Null;
-        _computePipeline = AlcoComputePipelineHandle.Null;
+        _graphicsPipeline = AlcoGpuAbi.GraphicsPipelineHandle.Null;
+        _computePipeline = AlcoGpuAbi.ComputePipelineHandle.Null;
         _isRecording = _isRecordingRender = _isRecordingCompute = false;
         failure?.Throw();
     }
@@ -109,14 +109,14 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
                 // Finish consumes the encoder on success and validation failure alike,
                 // so the mirror handle is cleared before the call.
-                AlcoEncoderHandle encoder = _encoder;
-                _encoder = AlcoEncoderHandle.Null;
+                AlcoGpuAbi.EncoderHandle encoder = _encoder;
+                _encoder = AlcoGpuAbi.EncoderHandle.Null;
                 AlcoGpuNative.EncoderFinish(encoder, out _buffer);
             }
             finally
             {
-                _graphicsPipeline = AlcoGraphicsPipelineHandle.Null;
-                _computePipeline = AlcoComputePipelineHandle.Null;
+                _graphicsPipeline = AlcoGpuAbi.GraphicsPipelineHandle.Null;
+                _computePipeline = AlcoGpuAbi.ComputePipelineHandle.Null;
                 _depthStencilAttachmentCache = null;
             }
         }
@@ -149,7 +149,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         ReadOnlySpan<AttachmentOps> colorOps,
         AttachmentOps? depthOps)
     {
-        AlcoTimestampWrites timestampWrites = new()
+        AlcoGpuAbi.TimestampWrites timestampWrites = new()
         {
             QuerySet = ((AlcoGpuTimestampQuerySet)querySet).Native,
             BeginningIndex = ToTimestampIndex(beginningQueryIndex),
@@ -174,7 +174,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         uint? clearStencil,
         ReadOnlySpan<AttachmentOps> colorOps,
         AttachmentOps? depthOps,
-        AlcoTimestampWrites* timestampWrites)
+        AlcoGpuAbi.TimestampWrites* timestampWrites)
     {
         try
         {
@@ -183,7 +183,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             TryFinishCurrentRenderPass();
             TryFinishCurrentComputePass();
 
-            AlcoRenderPassDesc tmpDescriptor = nativeFrameBuffer.Native;
+            AlcoGpuAbi.RenderPassDesc tmpDescriptor = nativeFrameBuffer.Native;
             _colorAttachmentsCache.EnsureCapacity((int)tmpDescriptor.ColorAttachmentCount);
 
             // Setup color attachments with clear values
@@ -228,10 +228,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             // Setup depth stencil attachment with clear values
             if (tmpDescriptor.DepthStencil != null)
             {
-                AlcoDepthStencilAttachment attachment = *tmpDescriptor.DepthStencil;
-                AlcoDepthAttachmentInfo depthInfo = ((AlcoGpuAttachmentLayout)frameBuffer.AttachmentLayout).DepthInfo!.Value;
-                bool depthReadOnly = attachment.DepthLoadOp == AlcoGpuAbi.AlcoNone;
-                bool stencilReadOnly = attachment.StencilLoadOp == AlcoGpuAbi.AlcoNone;
+                AlcoGpuAbi.DepthStencilAttachment attachment = *tmpDescriptor.DepthStencil;
+                DepthAttachmentInfo depthInfo = ((AlcoGpuAttachmentLayout)frameBuffer.AttachmentLayout).DepthInfo!.Value;
+                bool depthReadOnly = attachment.DepthLoadOp == AlcoGpuAbi.None;
+                bool stencilReadOnly = attachment.StencilLoadOp == AlcoGpuAbi.None;
 
                 // Missing aspects are not user-declared read-only channels. Ignore their
                 // clear values and never synthesize operations for them from depthOps.
@@ -286,7 +286,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             }
 
             // Start the render pass
-            AlcoRenderPassDesc renderPassDesc = new()
+            AlcoGpuAbi.RenderPassDesc renderPassDesc = new()
             {
                 ColorAttachments = _colorAttachmentsCache.Ptr,
                 ColorAttachmentCount = tmpDescriptor.ColorAttachmentCount,
@@ -294,7 +294,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
                 TimestampWrites = timestampWrites,
             };
 
-            AlcoDepthStencilAttachment depthStencilAttachment = _depthStencilAttachmentCache.GetValueOrDefault();
+            AlcoGpuAbi.DepthStencilAttachment depthStencilAttachment = _depthStencilAttachmentCache.GetValueOrDefault();
             if (_depthStencilAttachmentCache.HasValue)
             {
                 renderPassDesc.DepthStencil = &depthStencilAttachment;
@@ -341,7 +341,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             TryFinishCurrentRenderPass();
             TryFinishCurrentComputePass();
 
-            AlcoTimestampWrites timestampWrites = new()
+            AlcoGpuAbi.TimestampWrites timestampWrites = new()
             {
                 QuerySet = ((AlcoGpuTimestampQuerySet)querySet).Native,
                 BeginningIndex = ToTimestampIndex(beginningQueryIndex),
@@ -361,7 +361,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     // WGPU_QUERY_SET_INDEX_UNDEFINED).
     private static uint ToTimestampIndex(uint? queryIndex)
     {
-        return queryIndex ?? AlcoGpuAbi.AlcoNone;
+        return queryIndex ?? AlcoGpuAbi.None;
     }
 
     protected override void EndComputeCore()
@@ -697,10 +697,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         {
             AlcoGpuTexture nativeDst = (AlcoGpuTexture)dst;
 
-            AlcoCopyLayout layout = AlcoGpuUtility.GetTextureDataLayout(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height);
+            AlcoGpuAbi.CopyLayout layout = AlcoGpuUtility.GetTextureDataLayout(nativeDst.PixelFormat, nativeDst.Width, nativeDst.Height);
             layout.Offset = offset;
 
-            AlcoExtent3D extent = new()
+            AlcoGpuAbi.Extent3D extent = new()
             {
                 Width = nativeDst.Width,
                 Height = nativeDst.Height,
@@ -730,7 +730,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             // Copy the full mip extent (adjusted for the source mip level).
             uint mipWidth = nativeSrc.GetMipWidth(srcMipLevel);
             uint mipHeight = nativeSrc.GetMipHeight(srcMipLevel);
-            AlcoExtent3D copySize = new()
+            AlcoGpuAbi.Extent3D copySize = new()
             {
                 Width = mipWidth,
                 Height = mipHeight,
@@ -755,7 +755,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     {
         try
         {
-            AlcoRenderBundleHandle native = ((AlcoGpuRenderBundle)bundle).Native;
+            AlcoGpuAbi.RenderBundleHandle native = ((AlcoGpuRenderBundle)bundle).Native;
             AlcoGpuNative.RenderPassExecuteBundles(_renderPass, &native, 1);
         }
         finally
@@ -770,14 +770,14 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     {
         try
         {
-            Span<AlcoRenderBundleHandle> nativeBundleStorage = bundle.Length <= 64
-                ? stackalloc AlcoRenderBundleHandle[bundle.Length] : new AlcoRenderBundleHandle[bundle.Length];
+            Span<AlcoGpuAbi.RenderBundleHandle> nativeBundleStorage = bundle.Length <= 64
+                ? stackalloc AlcoGpuAbi.RenderBundleHandle[bundle.Length] : new AlcoGpuAbi.RenderBundleHandle[bundle.Length];
             for (int i = 0; i < bundle.Length; i++)
             {
                 nativeBundleStorage[i] = ((AlcoGpuRenderBundle)bundle[i]).Native;
             }
 
-            fixed (AlcoRenderBundleHandle* nativeBundles = nativeBundleStorage)
+            fixed (AlcoGpuAbi.RenderBundleHandle* nativeBundles = nativeBundleStorage)
             {
                 AlcoGpuNative.RenderPassExecuteBundles(_renderPass, nativeBundles, (uint)bundle.Length);
             }
@@ -798,10 +798,10 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
     #region AlcoGpu Implementation
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal AlcoCommandBufferHandle TakeBuffer()
+    internal AlcoGpuAbi.CommandBufferHandle TakeBuffer()
     {
-        AlcoCommandBufferHandle buffer = _buffer;
-        _buffer = AlcoCommandBufferHandle.Null;
+        AlcoGpuAbi.CommandBufferHandle buffer = _buffer;
+        _buffer = AlcoGpuAbi.CommandBufferHandle.Null;
         return buffer;
     }
 
@@ -810,11 +810,11 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         Device = device;
         _device = device;
 
-        _buffer = AlcoCommandBufferHandle.Null;
-        _encoder = AlcoEncoderHandle.Null;
+        _buffer = AlcoGpuAbi.CommandBufferHandle.Null;
+        _encoder = AlcoGpuAbi.EncoderHandle.Null;
 
-        _renderPass = AlcoRenderPassHandle.Null;
-        _computePass = AlcoComputePassHandle.Null;
+        _renderPass = AlcoGpuAbi.RenderPassHandle.Null;
+        _computePass = AlcoGpuAbi.ComputePassHandle.Null;
 
         try
         {
@@ -825,7 +825,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
                 InteropUtility.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
             }
 
-            _colorAttachmentsCache = new UnsafeArray<AlcoColorAttachment>(8);
+            _colorAttachmentsCache = new UnsafeArray<AlcoGpuAbi.ColorAttachment>(8);
         }
         catch
         {
@@ -841,8 +841,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             if (!_encoder.IsNull)
             {
                 // Destroy consumes the handle; a stale handle is worthless either way.
-                AlcoEncoderHandle encoder = _encoder;
-                _encoder = AlcoEncoderHandle.Null;
+                AlcoGpuAbi.EncoderHandle encoder = _encoder;
+                _encoder = AlcoGpuAbi.EncoderHandle.Null;
                 AlcoGpuNative.EncoderDestroy(encoder);
             }
         }
@@ -858,8 +858,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         {
             if (!_buffer.IsNull)
             {
-                AlcoCommandBufferHandle buffer = _buffer;
-                _buffer = AlcoCommandBufferHandle.Null;
+                AlcoGpuAbi.CommandBufferHandle buffer = _buffer;
+                _buffer = AlcoGpuAbi.CommandBufferHandle.Null;
                 AlcoGpuNative.CommandBufferDestroy(buffer);
             }
         }
@@ -877,8 +877,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             if (!_renderPass.IsNull)
             {
                 // End consumes the pass handle on success and failure alike.
-                AlcoRenderPassHandle pass = _renderPass;
-                _renderPass = AlcoRenderPassHandle.Null;
+                AlcoGpuAbi.RenderPassHandle pass = _renderPass;
+                _renderPass = AlcoGpuAbi.RenderPassHandle.Null;
                 if (abandon)
                 {
                     AlcoGpuNative.RenderPassRelease(pass);
@@ -903,8 +903,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             if (!_computePass.IsNull)
             {
                 // End consumes the pass handle on success and failure alike.
-                AlcoComputePassHandle pass = _computePass;
-                _computePass = AlcoComputePassHandle.Null;
+                AlcoGpuAbi.ComputePassHandle pass = _computePass;
+                _computePass = AlcoGpuAbi.ComputePassHandle.Null;
                 if (abandon)
                 {
                     AlcoGpuNative.ComputePassRelease(pass);

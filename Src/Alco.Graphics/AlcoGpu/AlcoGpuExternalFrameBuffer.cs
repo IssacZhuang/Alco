@@ -23,10 +23,10 @@ internal sealed unsafe class AlcoGpuExternalFrameBuffer : AlcoGpuFrameBufferBase
     private readonly GPUTextureView? _stencilView;
 
     private readonly AlcoGpuAttachmentLayout _attachmentLayout;
-    private readonly AlcoRenderPassDesc _descriptor;
+    private readonly AlcoGpuAbi.RenderPassDesc _descriptor;
     // native memory, need to be manually released
-    private AlcoColorAttachment* _colorAttachments;
-    private AlcoDepthStencilAttachment* _depthAttachment;
+    private AlcoGpuAbi.ColorAttachment* _colorAttachments;
+    private AlcoGpuAbi.DepthStencilAttachment* _depthAttachment;
 
     private readonly PixelFormat[] _colors;
     private readonly PixelFormat? _depth;
@@ -103,10 +103,10 @@ internal sealed unsafe class AlcoGpuExternalFrameBuffer : AlcoGpuFrameBufferBase
     protected override void Dispose(bool disposing)
     {
         // External textures and views remain owned by the caller.
-        AlcoColorAttachment* colors = _colorAttachments;
+        AlcoGpuAbi.ColorAttachment* colors = _colorAttachments;
         _colorAttachments = null;
         Free(colors);
-        AlcoDepthStencilAttachment* depth = _depthAttachment;
+        AlcoGpuAbi.DepthStencilAttachment* depth = _depthAttachment;
         _depthAttachment = null;
         Free(depth);
     }
@@ -116,7 +116,7 @@ internal sealed unsafe class AlcoGpuExternalFrameBuffer : AlcoGpuFrameBufferBase
     #region AlcoGpu Implementation
 
     /// <inheritdoc />
-    public override AlcoRenderPassDesc Native
+    public override AlcoGpuAbi.RenderPassDesc Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _descriptor;
@@ -157,7 +157,7 @@ internal sealed unsafe class AlcoGpuExternalFrameBuffer : AlcoGpuFrameBufferBase
             _stencilView = descriptor.StencilView;
 
             _colorAttachments = AllocColorAttachments(descriptor.ColorViews, attachmentLayout.ColorInfos);
-            _descriptor = new AlcoRenderPassDesc
+            _descriptor = new AlcoGpuAbi.RenderPassDesc
             {
                 ColorAttachmentCount = (uint)descriptor.ColorViews.Length,
                 ColorAttachments = _colorAttachments,

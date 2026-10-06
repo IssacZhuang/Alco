@@ -86,7 +86,7 @@
 
 ## Third-Party Dependencies
 - Silk.NET (v2.22.0) - OpenAL audio and SPIR-V reflection
-- alco-gpu (Src/Alco.Graphics.Native/alco-gpu) - self-maintained Rust cdylib exposing the `alco_*` C ABI that Alco.Graphics P/Invokes; replaces wgpu-native and the native Vulkan backend
+- alco-gpu (Src/Alco.Graphics.Native/alco-gpu) - self-maintained Rust cdylib exposing the unprefixed parent-first C ABI (`device_create_buffer`, `buffer_destroy`, ...) that Alco.Graphics P/Invokes; replaces wgpu-native and the native Vulkan backend
 - wgpu-core (v30.0.1, via alco-gpu) - GPU abstraction layer over Vulkan/D3D12/Metal/GLES that alco-gpu is built on
 - DirectX Compiler - HLSL shader compilation
 - Slang (2026.19, `Src/Alco.Graphics/runtimes/**/native/slang*`) - shader language compiler bound in-process by Alco.Graphics for slang → SPIR-V/DXIL/MSL/MetalLib; DXIL validation via the bundled dxil.dll on Windows

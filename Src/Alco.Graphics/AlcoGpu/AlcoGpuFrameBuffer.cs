@@ -18,10 +18,10 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
     private readonly AlcoGpuTextureView? _depthView;
     private readonly AlcoGpuTextureView? _stencilView;
     private readonly AlcoGpuAttachmentLayout _attachmentLayout;
-    private readonly AlcoRenderPassDesc _descriptor;
+    private readonly AlcoGpuAbi.RenderPassDesc _descriptor;
     // native memory, need to be manually released
-    private AlcoColorAttachment* _colorAttachments;
-    private AlcoDepthStencilAttachment* _depthAttachment;
+    private AlcoGpuAbi.ColorAttachment* _colorAttachments;
+    private AlcoGpuAbi.DepthStencilAttachment* _depthAttachment;
 
     private readonly PixelFormat[] _colors;
     private readonly PixelFormat? _depth;
@@ -110,10 +110,10 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
         for (int i = 0; i < _colorTextures.Length; i++) { Release(_colorTextures[i]); }
         Release(_depthStencilTexture);
 
-        AlcoColorAttachment* colors = _colorAttachments;
+        AlcoGpuAbi.ColorAttachment* colors = _colorAttachments;
         _colorAttachments = null;
         Free(colors);
-        AlcoDepthStencilAttachment* depth = _depthAttachment;
+        AlcoGpuAbi.DepthStencilAttachment* depth = _depthAttachment;
         _depthAttachment = null;
         Free(depth);
         GC.KeepAlive(this);
@@ -125,7 +125,7 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
     #region AlcoGpu Implementation
 
     /// <inheritdoc />
-    public override AlcoRenderPassDesc Native
+    public override AlcoGpuAbi.RenderPassDesc Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _descriptor;
@@ -161,14 +161,14 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
 
             _colorTextures = new AlcoGpuTexture[attachmentLayout.ColorInfos.Length];
             _colorViews = new AlcoGpuTextureView[attachmentLayout.ColorInfos.Length];
-            _descriptor = new AlcoRenderPassDesc
+            _descriptor = new AlcoGpuAbi.RenderPassDesc
             {
                 ColorAttachmentCount = (uint)attachmentLayout.ColorInfos.Length,
             };
 
             for (int i = 0; i < attachmentLayout.ColorInfos.Length; i++)
             {
-                AlcoColorAttachmentInfo colorInfo = attachmentLayout.ColorInfos[i];
+                ColorAttachmentInfo colorInfo = attachmentLayout.ColorInfos[i];
                 _colorTextures[i] = new AlcoGpuTexture(
                     device,
                     BuildColorTextureDescriptor(colorInfo.Format, width, height), this);
@@ -180,7 +180,7 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
 
             if (attachmentLayout.DepthInfo.HasValue)
             {
-                AlcoDepthAttachmentInfo depthInfo = attachmentLayout.DepthInfo.Value;
+                DepthAttachmentInfo depthInfo = attachmentLayout.DepthInfo.Value;
 
                 _depthStencilTexture = new AlcoGpuTexture(
                     device,

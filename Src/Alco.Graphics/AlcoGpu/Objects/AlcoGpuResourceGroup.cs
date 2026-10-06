@@ -10,7 +10,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
 {
     #region Properties
-    private AlcoBindGroupHandle _native;
+    private AlcoGpuAbi.BindGroupHandle _native;
     private readonly IGPUBindableResource[] _resources;
     private readonly GPUBindGroup _layout;
 
@@ -30,8 +30,8 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
     {
         try
         {
-            AlcoBindGroupHandle handle = _native;
-            _native = AlcoBindGroupHandle.Null;
+            AlcoGpuAbi.BindGroupHandle handle = _native;
+            _native = AlcoGpuAbi.BindGroupHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -53,7 +53,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
 
     #region AlcoGpu Implementation
     /// <summary>Gets the native resource bind group handle.</summary>
-    public AlcoBindGroupHandle Native
+    public AlcoGpuAbi.BindGroupHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -72,12 +72,12 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
                 _resources[i] = descriptor.Resources[i].Resource;
             }
 
-            Span<AlcoBindGroupEntry> entryStorage = descriptor.Resources.Length <= 32
-                ? stackalloc AlcoBindGroupEntry[descriptor.Resources.Length] : new AlcoBindGroupEntry[descriptor.Resources.Length];
+            Span<AlcoGpuAbi.BindGroupEntry> entryStorage = descriptor.Resources.Length <= 32
+                ? stackalloc AlcoGpuAbi.BindGroupEntry[descriptor.Resources.Length] : new AlcoGpuAbi.BindGroupEntry[descriptor.Resources.Length];
             for (int i = 0; i < descriptor.Resources.Length; i++)
             {
                 ResourceBindingEntry entry = descriptor.Resources[i];
-                AlcoBindGroupEntry nativeEntry = new()
+                AlcoGpuAbi.BindGroupEntry nativeEntry = new()
                 {
                     Binding = entry.Binding,
                     Resource = default,
@@ -119,9 +119,9 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
 
             ReadOnlySpan<byte> name = Name.Utf8Z();
             fixed (byte* ptrName = name)
-            fixed (AlcoBindGroupEntry* entries = entryStorage)
+            fixed (AlcoGpuAbi.BindGroupEntry* entries = entryStorage)
             {
-                AlcoBindGroupDesc nativeDescriptor = new()
+                AlcoGpuAbi.BindGroupDesc nativeDescriptor = new()
                 {
                     Layout = ((AlcoGpuBindGroup)descriptor.Layout).Native,
                     Entries = entries,

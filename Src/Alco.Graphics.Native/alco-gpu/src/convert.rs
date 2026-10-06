@@ -1,12 +1,12 @@
 //! Single-point mapping between Alco C ABI enum values (numeric values mirror
 //! the C# enums in `Alco.Graphics/Enums`) and `wgpu-types` enums.
 
-use crate::abi::{AlcoStatus, ALCO_NONE};
+use crate::abi::{Status, NONE};
 use crate::entry::set_error;
 use wgpu_types as wgt;
 
 /// C# `PixelFormat` (0..95) → `wgt::TextureFormat`.
-pub(crate) fn pixel_format(v: u32) -> Result<wgt::TextureFormat, AlcoStatus> {
+pub(crate) fn pixel_format(v: u32) -> Result<wgt::TextureFormat, Status> {
     use wgt::TextureFormat as F;
     let f = match v {
         0 => return Err(invalid_enum_what("pixel format", 0)),
@@ -77,49 +77,133 @@ pub(crate) fn pixel_format(v: u32) -> Result<wgt::TextureFormat, AlcoStatus> {
         65 => F::EacR11Snorm,
         66 => F::EacRg11Unorm,
         67 => F::EacRg11Snorm,
-        68 => F::Astc { block: wgt::AstcBlock::B4x4, channel: wgt::AstcChannel::Unorm },
-        69 => F::Astc { block: wgt::AstcBlock::B4x4, channel: wgt::AstcChannel::UnormSrgb },
-        70 => F::Astc { block: wgt::AstcBlock::B5x4, channel: wgt::AstcChannel::Unorm },
-        71 => F::Astc { block: wgt::AstcBlock::B5x4, channel: wgt::AstcChannel::UnormSrgb },
-        72 => F::Astc { block: wgt::AstcBlock::B5x5, channel: wgt::AstcChannel::Unorm },
-        73 => F::Astc { block: wgt::AstcBlock::B5x5, channel: wgt::AstcChannel::UnormSrgb },
-        74 => F::Astc { block: wgt::AstcBlock::B6x5, channel: wgt::AstcChannel::Unorm },
-        75 => F::Astc { block: wgt::AstcBlock::B6x5, channel: wgt::AstcChannel::UnormSrgb },
-        76 => F::Astc { block: wgt::AstcBlock::B6x6, channel: wgt::AstcChannel::Unorm },
-        77 => F::Astc { block: wgt::AstcBlock::B6x6, channel: wgt::AstcChannel::UnormSrgb },
-        78 => F::Astc { block: wgt::AstcBlock::B8x5, channel: wgt::AstcChannel::Unorm },
-        79 => F::Astc { block: wgt::AstcBlock::B8x5, channel: wgt::AstcChannel::UnormSrgb },
-        80 => F::Astc { block: wgt::AstcBlock::B8x6, channel: wgt::AstcChannel::Unorm },
-        81 => F::Astc { block: wgt::AstcBlock::B8x6, channel: wgt::AstcChannel::UnormSrgb },
-        82 => F::Astc { block: wgt::AstcBlock::B8x8, channel: wgt::AstcChannel::Unorm },
-        83 => F::Astc { block: wgt::AstcBlock::B8x8, channel: wgt::AstcChannel::UnormSrgb },
-        84 => F::Astc { block: wgt::AstcBlock::B10x5, channel: wgt::AstcChannel::Unorm },
-        85 => F::Astc { block: wgt::AstcBlock::B10x5, channel: wgt::AstcChannel::UnormSrgb },
-        86 => F::Astc { block: wgt::AstcBlock::B10x6, channel: wgt::AstcChannel::Unorm },
-        87 => F::Astc { block: wgt::AstcBlock::B10x6, channel: wgt::AstcChannel::UnormSrgb },
-        88 => F::Astc { block: wgt::AstcBlock::B10x8, channel: wgt::AstcChannel::Unorm },
-        89 => F::Astc { block: wgt::AstcBlock::B10x8, channel: wgt::AstcChannel::UnormSrgb },
-        90 => F::Astc { block: wgt::AstcBlock::B10x10, channel: wgt::AstcChannel::Unorm },
-        91 => F::Astc { block: wgt::AstcBlock::B10x10, channel: wgt::AstcChannel::UnormSrgb },
-        92 => F::Astc { block: wgt::AstcBlock::B12x10, channel: wgt::AstcChannel::Unorm },
-        93 => F::Astc { block: wgt::AstcBlock::B12x10, channel: wgt::AstcChannel::UnormSrgb },
-        94 => F::Astc { block: wgt::AstcBlock::B12x12, channel: wgt::AstcChannel::Unorm },
-        95 => F::Astc { block: wgt::AstcBlock::B12x12, channel: wgt::AstcChannel::UnormSrgb },
+        68 => F::Astc {
+            block: wgt::AstcBlock::B4x4,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        69 => F::Astc {
+            block: wgt::AstcBlock::B4x4,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        70 => F::Astc {
+            block: wgt::AstcBlock::B5x4,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        71 => F::Astc {
+            block: wgt::AstcBlock::B5x4,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        72 => F::Astc {
+            block: wgt::AstcBlock::B5x5,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        73 => F::Astc {
+            block: wgt::AstcBlock::B5x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        74 => F::Astc {
+            block: wgt::AstcBlock::B6x5,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        75 => F::Astc {
+            block: wgt::AstcBlock::B6x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        76 => F::Astc {
+            block: wgt::AstcBlock::B6x6,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        77 => F::Astc {
+            block: wgt::AstcBlock::B6x6,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        78 => F::Astc {
+            block: wgt::AstcBlock::B8x5,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        79 => F::Astc {
+            block: wgt::AstcBlock::B8x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        80 => F::Astc {
+            block: wgt::AstcBlock::B8x6,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        81 => F::Astc {
+            block: wgt::AstcBlock::B8x6,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        82 => F::Astc {
+            block: wgt::AstcBlock::B8x8,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        83 => F::Astc {
+            block: wgt::AstcBlock::B8x8,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        84 => F::Astc {
+            block: wgt::AstcBlock::B10x5,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        85 => F::Astc {
+            block: wgt::AstcBlock::B10x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        86 => F::Astc {
+            block: wgt::AstcBlock::B10x6,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        87 => F::Astc {
+            block: wgt::AstcBlock::B10x6,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        88 => F::Astc {
+            block: wgt::AstcBlock::B10x8,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        89 => F::Astc {
+            block: wgt::AstcBlock::B10x8,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        90 => F::Astc {
+            block: wgt::AstcBlock::B10x10,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        91 => F::Astc {
+            block: wgt::AstcBlock::B10x10,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        92 => F::Astc {
+            block: wgt::AstcBlock::B12x10,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        93 => F::Astc {
+            block: wgt::AstcBlock::B12x10,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
+        94 => F::Astc {
+            block: wgt::AstcBlock::B12x12,
+            channel: wgt::AstcChannel::Unorm,
+        },
+        95 => F::Astc {
+            block: wgt::AstcBlock::B12x12,
+            channel: wgt::AstcChannel::UnormSrgb,
+        },
         other => return Err(invalid_enum_what("pixel format", other)),
     };
     Ok(f)
 }
 
-fn invalid_enum_what(what: &str, value: u32) -> AlcoStatus {
+fn invalid_enum_what(what: &str, value: u32) -> Status {
     set_error(
-        AlcoStatus::INVALID_ARGUMENT,
+        Status::INVALID_ARGUMENT,
         format!("invalid {what} value {value}"),
     );
-    AlcoStatus::INVALID_ARGUMENT
+    Status::INVALID_ARGUMENT
 }
 
 /// `wgt::TextureFormat` → C# `PixelFormat`.
-pub(crate) fn pixel_format_to_alco(f: wgt::TextureFormat) -> u32 {
+pub(crate) fn pixel_format_to_abi(f: wgt::TextureFormat) -> u32 {
     use wgt::TextureFormat as F;
     match f {
         F::R8Unorm => 1,
@@ -189,39 +273,123 @@ pub(crate) fn pixel_format_to_alco(f: wgt::TextureFormat) -> u32 {
         F::EacR11Snorm => 65,
         F::EacRg11Unorm => 66,
         F::EacRg11Snorm => 67,
-        F::Astc { block: wgt::AstcBlock::B4x4, channel: wgt::AstcChannel::Unorm } => 68,
-        F::Astc { block: wgt::AstcBlock::B4x4, channel: wgt::AstcChannel::UnormSrgb } => 69,
-        F::Astc { block: wgt::AstcBlock::B5x4, channel: wgt::AstcChannel::Unorm } => 70,
-        F::Astc { block: wgt::AstcBlock::B5x4, channel: wgt::AstcChannel::UnormSrgb } => 71,
-        F::Astc { block: wgt::AstcBlock::B5x5, channel: wgt::AstcChannel::Unorm } => 72,
-        F::Astc { block: wgt::AstcBlock::B5x5, channel: wgt::AstcChannel::UnormSrgb } => 73,
-        F::Astc { block: wgt::AstcBlock::B6x5, channel: wgt::AstcChannel::Unorm } => 74,
-        F::Astc { block: wgt::AstcBlock::B6x5, channel: wgt::AstcChannel::UnormSrgb } => 75,
-        F::Astc { block: wgt::AstcBlock::B6x6, channel: wgt::AstcChannel::Unorm } => 76,
-        F::Astc { block: wgt::AstcBlock::B6x6, channel: wgt::AstcChannel::UnormSrgb } => 77,
-        F::Astc { block: wgt::AstcBlock::B8x5, channel: wgt::AstcChannel::Unorm } => 78,
-        F::Astc { block: wgt::AstcBlock::B8x5, channel: wgt::AstcChannel::UnormSrgb } => 79,
-        F::Astc { block: wgt::AstcBlock::B8x6, channel: wgt::AstcChannel::Unorm } => 80,
-        F::Astc { block: wgt::AstcBlock::B8x6, channel: wgt::AstcChannel::UnormSrgb } => 81,
-        F::Astc { block: wgt::AstcBlock::B8x8, channel: wgt::AstcChannel::Unorm } => 82,
-        F::Astc { block: wgt::AstcBlock::B8x8, channel: wgt::AstcChannel::UnormSrgb } => 83,
-        F::Astc { block: wgt::AstcBlock::B10x5, channel: wgt::AstcChannel::Unorm } => 84,
-        F::Astc { block: wgt::AstcBlock::B10x5, channel: wgt::AstcChannel::UnormSrgb } => 85,
-        F::Astc { block: wgt::AstcBlock::B10x6, channel: wgt::AstcChannel::Unorm } => 86,
-        F::Astc { block: wgt::AstcBlock::B10x6, channel: wgt::AstcChannel::UnormSrgb } => 87,
-        F::Astc { block: wgt::AstcBlock::B10x8, channel: wgt::AstcChannel::Unorm } => 88,
-        F::Astc { block: wgt::AstcBlock::B10x8, channel: wgt::AstcChannel::UnormSrgb } => 89,
-        F::Astc { block: wgt::AstcBlock::B10x10, channel: wgt::AstcChannel::Unorm } => 90,
-        F::Astc { block: wgt::AstcBlock::B10x10, channel: wgt::AstcChannel::UnormSrgb } => 91,
-        F::Astc { block: wgt::AstcBlock::B12x10, channel: wgt::AstcChannel::Unorm } => 92,
-        F::Astc { block: wgt::AstcBlock::B12x10, channel: wgt::AstcChannel::UnormSrgb } => 93,
-        F::Astc { block: wgt::AstcBlock::B12x12, channel: wgt::AstcChannel::Unorm } => 94,
-        F::Astc { block: wgt::AstcBlock::B12x12, channel: wgt::AstcChannel::UnormSrgb } => 95,
+        F::Astc {
+            block: wgt::AstcBlock::B4x4,
+            channel: wgt::AstcChannel::Unorm,
+        } => 68,
+        F::Astc {
+            block: wgt::AstcBlock::B4x4,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 69,
+        F::Astc {
+            block: wgt::AstcBlock::B5x4,
+            channel: wgt::AstcChannel::Unorm,
+        } => 70,
+        F::Astc {
+            block: wgt::AstcBlock::B5x4,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 71,
+        F::Astc {
+            block: wgt::AstcBlock::B5x5,
+            channel: wgt::AstcChannel::Unorm,
+        } => 72,
+        F::Astc {
+            block: wgt::AstcBlock::B5x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 73,
+        F::Astc {
+            block: wgt::AstcBlock::B6x5,
+            channel: wgt::AstcChannel::Unorm,
+        } => 74,
+        F::Astc {
+            block: wgt::AstcBlock::B6x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 75,
+        F::Astc {
+            block: wgt::AstcBlock::B6x6,
+            channel: wgt::AstcChannel::Unorm,
+        } => 76,
+        F::Astc {
+            block: wgt::AstcBlock::B6x6,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 77,
+        F::Astc {
+            block: wgt::AstcBlock::B8x5,
+            channel: wgt::AstcChannel::Unorm,
+        } => 78,
+        F::Astc {
+            block: wgt::AstcBlock::B8x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 79,
+        F::Astc {
+            block: wgt::AstcBlock::B8x6,
+            channel: wgt::AstcChannel::Unorm,
+        } => 80,
+        F::Astc {
+            block: wgt::AstcBlock::B8x6,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 81,
+        F::Astc {
+            block: wgt::AstcBlock::B8x8,
+            channel: wgt::AstcChannel::Unorm,
+        } => 82,
+        F::Astc {
+            block: wgt::AstcBlock::B8x8,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 83,
+        F::Astc {
+            block: wgt::AstcBlock::B10x5,
+            channel: wgt::AstcChannel::Unorm,
+        } => 84,
+        F::Astc {
+            block: wgt::AstcBlock::B10x5,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 85,
+        F::Astc {
+            block: wgt::AstcBlock::B10x6,
+            channel: wgt::AstcChannel::Unorm,
+        } => 86,
+        F::Astc {
+            block: wgt::AstcBlock::B10x6,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 87,
+        F::Astc {
+            block: wgt::AstcBlock::B10x8,
+            channel: wgt::AstcChannel::Unorm,
+        } => 88,
+        F::Astc {
+            block: wgt::AstcBlock::B10x8,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 89,
+        F::Astc {
+            block: wgt::AstcBlock::B10x10,
+            channel: wgt::AstcChannel::Unorm,
+        } => 90,
+        F::Astc {
+            block: wgt::AstcBlock::B10x10,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 91,
+        F::Astc {
+            block: wgt::AstcBlock::B12x10,
+            channel: wgt::AstcChannel::Unorm,
+        } => 92,
+        F::Astc {
+            block: wgt::AstcBlock::B12x10,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 93,
+        F::Astc {
+            block: wgt::AstcBlock::B12x12,
+            channel: wgt::AstcChannel::Unorm,
+        } => 94,
+        F::Astc {
+            block: wgt::AstcBlock::B12x12,
+            channel: wgt::AstcChannel::UnormSrgb,
+        } => 95,
         _ => 0,
     }
 }
 
-pub(crate) fn texture_dimension(v: u32) -> Result<wgt::TextureDimension, AlcoStatus> {
+pub(crate) fn texture_dimension(v: u32) -> Result<wgt::TextureDimension, Status> {
     Ok(match v {
         0 => wgt::TextureDimension::D1,
         1 => wgt::TextureDimension::D2,
@@ -256,7 +424,7 @@ pub(crate) fn texture_usage(v: u32) -> wgt::TextureUsages {
 }
 
 /// C# `BufferUsage` bits (1:1 with WebGPU: MapRead..QueryResolve).
-pub(crate) fn buffer_usage(v: u32) -> Result<wgt::BufferUsages, AlcoStatus> {
+pub(crate) fn buffer_usage(v: u32) -> Result<wgt::BufferUsages, Status> {
     const MAP_READ: u32 = 1 << 0;
     const MAP_WRITE: u32 = 1 << 1;
     const COPY_SRC: u32 = 1 << 2;
@@ -301,7 +469,7 @@ pub(crate) fn buffer_usage(v: u32) -> Result<wgt::BufferUsages, AlcoStatus> {
     Ok(usage)
 }
 
-pub(crate) fn texture_view_dimension(v: u32) -> Result<wgt::TextureViewDimension, AlcoStatus> {
+pub(crate) fn texture_view_dimension(v: u32) -> Result<wgt::TextureViewDimension, Status> {
     Ok(match v {
         0 => wgt::TextureViewDimension::D1,
         1 => wgt::TextureViewDimension::D1,
@@ -316,7 +484,7 @@ pub(crate) fn texture_view_dimension(v: u32) -> Result<wgt::TextureViewDimension
     })
 }
 
-pub(crate) fn texture_aspect(v: u32) -> Result<wgt::TextureAspect, AlcoStatus> {
+pub(crate) fn texture_aspect(v: u32) -> Result<wgt::TextureAspect, Status> {
     Ok(match v {
         0 => wgt::TextureAspect::All,
         1 => wgt::TextureAspect::All,
@@ -326,7 +494,7 @@ pub(crate) fn texture_aspect(v: u32) -> Result<wgt::TextureAspect, AlcoStatus> {
     })
 }
 
-pub(crate) fn address_mode(v: u32) -> Result<wgt::AddressMode, AlcoStatus> {
+pub(crate) fn address_mode(v: u32) -> Result<wgt::AddressMode, Status> {
     Ok(match v {
         0 => wgt::AddressMode::Repeat,
         1 => wgt::AddressMode::MirrorRepeat,
@@ -335,7 +503,7 @@ pub(crate) fn address_mode(v: u32) -> Result<wgt::AddressMode, AlcoStatus> {
     })
 }
 
-pub(crate) fn filter_mode(v: u32) -> Result<wgt::FilterMode, AlcoStatus> {
+pub(crate) fn filter_mode(v: u32) -> Result<wgt::FilterMode, Status> {
     Ok(match v {
         1 => wgt::FilterMode::Nearest,
         2 => wgt::FilterMode::Linear,
@@ -343,7 +511,7 @@ pub(crate) fn filter_mode(v: u32) -> Result<wgt::FilterMode, AlcoStatus> {
     })
 }
 
-pub(crate) fn mipmap_filter_mode(v: u32) -> Result<wgt::MipmapFilterMode, AlcoStatus> {
+pub(crate) fn mipmap_filter_mode(v: u32) -> Result<wgt::MipmapFilterMode, Status> {
     Ok(match v {
         1 => wgt::MipmapFilterMode::Nearest,
         2 => wgt::MipmapFilterMode::Linear,
@@ -351,7 +519,7 @@ pub(crate) fn mipmap_filter_mode(v: u32) -> Result<wgt::MipmapFilterMode, AlcoSt
     })
 }
 
-pub(crate) fn compare_function(v: u32) -> Result<wgt::CompareFunction, AlcoStatus> {
+pub(crate) fn compare_function(v: u32) -> Result<wgt::CompareFunction, Status> {
     Ok(match v {
         1 => wgt::CompareFunction::Never,
         2 => wgt::CompareFunction::Less,
@@ -365,14 +533,14 @@ pub(crate) fn compare_function(v: u32) -> Result<wgt::CompareFunction, AlcoStatu
     })
 }
 
-pub(crate) fn optional_compare_function(v: u32) -> Result<Option<wgt::CompareFunction>, AlcoStatus> {
-    if v == 0 || v == ALCO_NONE {
+pub(crate) fn optional_compare_function(v: u32) -> Result<Option<wgt::CompareFunction>, Status> {
+    if v == 0 || v == NONE {
         return Ok(None);
     }
     compare_function(v).map(Some)
 }
 
-pub(crate) fn blend_factor(v: u32) -> Result<wgt::BlendFactor, AlcoStatus> {
+pub(crate) fn blend_factor(v: u32) -> Result<wgt::BlendFactor, Status> {
     use wgt::BlendFactor as B;
     Ok(match v {
         0 => B::Zero,
@@ -392,7 +560,7 @@ pub(crate) fn blend_factor(v: u32) -> Result<wgt::BlendFactor, AlcoStatus> {
     })
 }
 
-pub(crate) fn blend_operation(v: u32) -> Result<wgt::BlendOperation, AlcoStatus> {
+pub(crate) fn blend_operation(v: u32) -> Result<wgt::BlendOperation, Status> {
     Ok(match v {
         0 => wgt::BlendOperation::Add,
         1 => wgt::BlendOperation::Subtract,
@@ -403,7 +571,7 @@ pub(crate) fn blend_operation(v: u32) -> Result<wgt::BlendOperation, AlcoStatus>
     })
 }
 
-pub(crate) fn cull_mode(v: u32) -> Result<Option<wgt::Face>, AlcoStatus> {
+pub(crate) fn cull_mode(v: u32) -> Result<Option<wgt::Face>, Status> {
     Ok(match v {
         0 => None,
         1 => Some(wgt::Face::Front),
@@ -412,7 +580,7 @@ pub(crate) fn cull_mode(v: u32) -> Result<Option<wgt::Face>, AlcoStatus> {
     })
 }
 
-pub(crate) fn front_face(v: u32) -> Result<wgt::FrontFace, AlcoStatus> {
+pub(crate) fn front_face(v: u32) -> Result<wgt::FrontFace, Status> {
     Ok(match v {
         0 => wgt::FrontFace::Ccw,
         1 => wgt::FrontFace::Cw,
@@ -420,7 +588,7 @@ pub(crate) fn front_face(v: u32) -> Result<wgt::FrontFace, AlcoStatus> {
     })
 }
 
-pub(crate) fn primitive_topology(v: u32) -> Result<wgt::PrimitiveTopology, AlcoStatus> {
+pub(crate) fn primitive_topology(v: u32) -> Result<wgt::PrimitiveTopology, Status> {
     Ok(match v {
         0 => wgt::PrimitiveTopology::PointList,
         1 => wgt::PrimitiveTopology::LineList,
@@ -431,7 +599,7 @@ pub(crate) fn primitive_topology(v: u32) -> Result<wgt::PrimitiveTopology, AlcoS
     })
 }
 
-pub(crate) fn index_format(v: u32) -> Result<wgt::IndexFormat, AlcoStatus> {
+pub(crate) fn index_format(v: u32) -> Result<wgt::IndexFormat, Status> {
     Ok(match v {
         0 => wgt::IndexFormat::Uint16, // C# Undefined (only used with non-indexed draws)
         1 => wgt::IndexFormat::Uint16,
@@ -440,7 +608,7 @@ pub(crate) fn index_format(v: u32) -> Result<wgt::IndexFormat, AlcoStatus> {
     })
 }
 
-pub(crate) fn stencil_operation(v: u32) -> Result<wgt::StencilOperation, AlcoStatus> {
+pub(crate) fn stencil_operation(v: u32) -> Result<wgt::StencilOperation, Status> {
     Ok(match v {
         0 => wgt::StencilOperation::Keep,
         1 => wgt::StencilOperation::Zero,
@@ -454,7 +622,7 @@ pub(crate) fn stencil_operation(v: u32) -> Result<wgt::StencilOperation, AlcoSta
     })
 }
 
-pub(crate) fn vertex_format(v: u32) -> Result<wgt::VertexFormat, AlcoStatus> {
+pub(crate) fn vertex_format(v: u32) -> Result<wgt::VertexFormat, Status> {
     use wgt::VertexFormat as F;
     Ok(match v {
         0 => F::Float32, // Undefined never appears in real layouts
@@ -492,7 +660,7 @@ pub(crate) fn vertex_format(v: u32) -> Result<wgt::VertexFormat, AlcoStatus> {
     })
 }
 
-pub(crate) fn vertex_step_mode(v: u32) -> Result<wgt::VertexStepMode, AlcoStatus> {
+pub(crate) fn vertex_step_mode(v: u32) -> Result<wgt::VertexStepMode, Status> {
     Ok(match v {
         0 => wgt::VertexStepMode::Vertex,
         1 => wgt::VertexStepMode::Instance,
@@ -518,9 +686,7 @@ pub(crate) fn shader_stages(v: u32) -> wgt::ShaderStages {
 }
 
 /// C# `TextureSampleType` → bind-group texture binding sample type.
-pub(crate) fn texture_sample_type(
-    v: u32,
-) -> Result<wgt::TextureSampleType, AlcoStatus> {
+pub(crate) fn texture_sample_type(v: u32) -> Result<wgt::TextureSampleType, Status> {
     Ok(match v {
         1 => wgt::TextureSampleType::Float { filterable: true },
         2 => wgt::TextureSampleType::Float { filterable: false },
@@ -531,7 +697,7 @@ pub(crate) fn texture_sample_type(
     })
 }
 
-pub(crate) fn storage_texture_access(v: u32) -> Result<wgt::StorageTextureAccess, AlcoStatus> {
+pub(crate) fn storage_texture_access(v: u32) -> Result<wgt::StorageTextureAccess, Status> {
     Ok(match v & 0x3 {
         0b01 => wgt::StorageTextureAccess::ReadOnly,
         0b10 => wgt::StorageTextureAccess::WriteOnly,
@@ -540,7 +706,7 @@ pub(crate) fn storage_texture_access(v: u32) -> Result<wgt::StorageTextureAccess
     })
 }
 
-pub(crate) fn store_op(v: u32) -> Result<wgt::StoreOp, AlcoStatus> {
+pub(crate) fn store_op(v: u32) -> Result<wgt::StoreOp, Status> {
     Ok(match v {
         0 => wgt::StoreOp::Store,
         1 => wgt::StoreOp::Discard,
@@ -548,7 +714,7 @@ pub(crate) fn store_op(v: u32) -> Result<wgt::StoreOp, AlcoStatus> {
     })
 }
 
-pub(crate) fn present_mode_to_alco(m: wgt::PresentMode) -> u32 {
+pub(crate) fn present_mode_to_abi(m: wgt::PresentMode) -> u32 {
     match m {
         wgt::PresentMode::Fifo => 0,
         wgt::PresentMode::Immediate => 1,

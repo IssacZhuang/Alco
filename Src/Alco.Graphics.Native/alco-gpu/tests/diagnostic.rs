@@ -14,7 +14,11 @@ fn print_adapters() {
         display: None,
     };
     let global = Global::new("diag", desc, None);
-    for (i, adapter) in global.enumerate_adapters(wgt::Backends::PRIMARY, false).iter().enumerate() {
+    for (i, adapter) in global
+        .enumerate_adapters(wgt::Backends::PRIMARY, false)
+        .iter()
+        .enumerate()
+    {
         let info = global.adapter_get_info(*adapter);
         let features = global.adapter_features(*adapter);
         let limits = global.adapter_limits(*adapter);
