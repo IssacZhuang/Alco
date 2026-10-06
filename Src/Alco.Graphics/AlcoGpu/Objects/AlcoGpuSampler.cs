@@ -3,10 +3,11 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Describes AlcoGpuSampler.</summary>
 internal sealed unsafe class AlcoGpuSampler : GPUSampler
 {
     #region Properties
-    private readonly AlcoHandle _native;
+    private AlcoSamplerHandle _native;
 
     #endregion
 
@@ -15,16 +16,32 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
+        try
         {
-            AlcoGpuNative.SamplerDestroy(((AlcoGpuDevice)Device).Native, _native);
+            AlcoSamplerHandle handle = _native;
+            _native = AlcoSamplerHandle.Null;
+            if (!handle.IsNull)
+            {
+                try
+                {
+                    AlcoGpuNative.SamplerDestroy(handle);
+                }
+                finally
+                {
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
         }
     }
 
     #endregion
 
     #region AlcoGpu Implementation
-    public AlcoHandle Native
+    /// <summary>Gets or stores the native ABI value.</summary>
+    public AlcoSamplerHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -32,27 +49,42 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
 
     internal AlcoGpuSampler(AlcoGpuDevice device, in SamplerDescriptor descriptor) : base(descriptor)
     {
-        Device = device;
-
-        ReadOnlySpan<byte> name = Name.Utf8Z();
-        fixed (byte* ptrName = name)
+        try
         {
-            AlcoSamplerDesc desc = new()
-            {
-                AddressU = (uint)descriptor.AddressModeU,
-                AddressV = (uint)descriptor.AddressModeV,
-                AddressW = (uint)descriptor.AddressModeW,
-                MagFilter = (uint)descriptor.MagFilter,
-                MinFilter = (uint)descriptor.MinFilter,
-                MipmapFilter = (uint)descriptor.MipFilter,
-                LodMinClamp = descriptor.LodMinClamp,
-                LodMaxClamp = descriptor.LodMaxClamp,
-                Compare = (uint)descriptor.Compare,
-                MaxAnisotropy = descriptor.MaxAnisotropy,
-                Name = ptrName,
-            };
+            Device = device;
 
-            AlcoGpuNative.SamplerCreate(device.Native, in desc, out _native);
+            ReadOnlySpan<byte> name = Name.Utf8Z();
+            fixed (byte* ptrName = name)
+            {
+                AlcoSamplerDesc desc = new()
+                {
+                    AddressU = (uint)descriptor.AddressModeU,
+                    AddressV = (uint)descriptor.AddressModeV,
+                    AddressW = (uint)descriptor.AddressModeW,
+                    MagFilter = (uint)descriptor.MagFilter,
+                    MinFilter = (uint)descriptor.MinFilter,
+                    MipmapFilter = (uint)descriptor.MipFilter,
+                    LodMinClamp = descriptor.LodMinClamp,
+                    LodMaxClamp = descriptor.LodMaxClamp,
+                    Compare = (uint)descriptor.Compare,
+                    MaxAnisotropy = descriptor.MaxAnisotropy,
+                    Name = ptrName,
+                };
+
+                AlcoGpuNative.SamplerCreate(device.Native, in desc, out _native);
+            }
+
+        }
+        catch
+        {
+            try { Destroy(false); }
+            catch { /* Preserve the construction failure. */ }
+            throw;
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
         }
     }
 

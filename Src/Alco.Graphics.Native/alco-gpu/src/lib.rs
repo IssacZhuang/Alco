@@ -1,21 +1,21 @@
 //! alco-gpu: Alco-owned C ABI over wgpu-core, replacing wgpu-native for the
 //! Alco engine. See `Docs/AlcoGpuAbi.md` and `abi.rs` for the ABI contract.
 //!
-//! Every exported entry point is panic-guarded (see `entry.rs`) and objects are
-//! addressed through generational handles (see `handle.rs`). Sequential stale
-//! handles return `AlcoStatus`; callers order lifetimes and mutable object access.
+//! Fallible entry points contain Rust panics (see `entry.rs`). Typed opaque
+//! pointers address independently owned objects (see `handle.rs`); callers
+//! enforce pointer validity, same-context use and exclusive mutable access.
 
 pub mod abi;
 pub(crate) mod commands;
 pub(crate) mod convert;
 pub(crate) mod device;
+pub(crate) mod entry;
+pub(crate) mod handle;
 pub(crate) mod logging;
 pub(crate) mod objects;
 pub(crate) mod pipeline;
 pub(crate) mod shader_spirv;
 pub(crate) mod surface;
-pub(crate) mod entry;
-pub(crate) mod handle;
 
 use std::ffi::CString;
 use std::sync::OnceLock;
@@ -32,7 +32,11 @@ pub extern "C" fn alco_abi_version() -> u32 {
 fn alco_build_id() -> &'static str {
     static BUILD_ID: OnceLock<String> = OnceLock::new();
     BUILD_ID.get_or_init(|| {
-        let profile = if cfg!(debug_assertions) { "debug" } else { "release" };
+        let profile = if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        };
         let hash = option_env!("ALCO_GIT_HASH").unwrap_or("dev");
         format!("alco-gpu {profile} ({hash}) wgpu-core 30.0.1")
     })
@@ -66,7 +70,7 @@ pub(crate) mod test_support {
     /// Vulkan ABI device with deterministic teardown for native regression tests.
     pub(crate) struct TestDevice {
         /// Owned device handle, valid until the test device is dropped.
-        pub handle: AlcoHandle,
+        pub handle: AlcoDeviceHandle,
     }
 
     impl TestDevice {
@@ -74,14 +78,21 @@ pub(crate) mod test_support {
         pub fn new() -> Option<Self> {
             // Probe availability separately: a failure in Alco's creation policy
             // on an available Vulkan adapter must fail the test, not silently skip.
-            let probe = Global::new("alco-test-probe", wgt::InstanceDescriptor {
-                backends: wgt::Backends::VULKAN,
-                flags: wgt::InstanceFlags::empty(),
-                memory_budget_thresholds: wgt::MemoryBudgetThresholds::default(),
-                backend_options: wgt::BackendOptions::default(),
-                display: None,
-            }, None);
-            if probe.request_adapter(&Default::default(), wgt::Backends::VULKAN, None).is_err() {
+            let probe = Global::new(
+                "alco-test-probe",
+                wgt::InstanceDescriptor {
+                    backends: wgt::Backends::VULKAN,
+                    flags: wgt::InstanceFlags::empty(),
+                    memory_budget_thresholds: wgt::MemoryBudgetThresholds::default(),
+                    backend_options: wgt::BackendOptions::default(),
+                    display: None,
+                },
+                None,
+            );
+            if probe
+                .request_adapter(&Default::default(), wgt::Backends::VULKAN, None)
+                .is_err()
+            {
                 eprintln!("Skipping Vulkan regression: no Vulkan adapter available");
                 return None;
             }
@@ -93,7 +104,7 @@ pub(crate) mod test_support {
                 push_constants_size: 16,
                 name: c"alco-regression".as_ptr(),
             };
-            let mut handle = AlcoHandle::NULL;
+            let mut handle = AlcoDeviceHandle::NULL;
             let status = unsafe { alco_device_create(&desc, &mut handle) };
             assert_eq!(status, AlcoStatus::OK, "{}", last_error());
             assert!(!handle.is_null());
@@ -108,9 +119,12 @@ pub(crate) mod test_support {
         }
     }
 
-    /// Copies the thread-local ABI error before another ABI operation clears it.
+    /// Copies the latest thread-local ABI failure before another failure replaces it.
     pub fn last_error() -> String {
-        let mut info = AlcoErrorInfo { status: 0, message: std::ptr::null() };
+        let mut info = AlcoErrorInfo {
+            status: 0,
+            message: std::ptr::null(),
+        };
         unsafe {
             crate::entry::alco_get_last_error(&mut info);
             if info.message.is_null() {

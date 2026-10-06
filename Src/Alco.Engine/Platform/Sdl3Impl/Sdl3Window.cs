@@ -11,6 +11,13 @@ using System.Text;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Provides an SDL 3 window and its engine-owned rendering swapchain.
+/// </summary>
+/// <remarks>
+/// Create and explicitly dispose windows on the SDL main thread. Independently created GPU
+/// resources that retain the surface must be released before the window is disposed.
+/// </remarks>
 public unsafe partial class Sdl3Window : View
 {
     private static readonly byte* PropertyId_HWND = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.win32.hwnd");
@@ -23,6 +30,7 @@ public unsafe partial class Sdl3Window : View
     private static readonly byte* PropertyId_X11_WINDOW = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.x11.window");
 
 
+    private readonly GPUDevice _device;
     private readonly SDL_Window _window;
     private readonly GPUSwapchain _swapchain;
     private string _title;
@@ -124,51 +132,79 @@ public unsafe partial class Sdl3Window : View
         get => _swapchain;
     }
 
+    /// <summary>
+    /// Creates an SDL window and its swapchain on the SDL main thread.
+    /// </summary>
+    /// <param name="device">The device used to create and synchronously release the swapchain.</param>
+    /// <param name="setting">The window and presentation settings.</param>
     public Sdl3Window(GPUDevice device, ViewSetting setting)
     {
-        SDL_WindowFlags flags = ConvetWindowMode(setting.WindowMode);
-
-        if (setting.IsBorderless)
-        {
-            flags |= SDL_WindowFlags.Borderless;
-        }
-
-        if (setting.IsTransparent)
-        {
-            flags |= SDL_WindowFlags.Transparent;
-        }
-
-        _window = SDL_CreateWindow(setting.Title, setting.Width, setting.Height, flags);
+        _device = device;
         _title = setting.Title;
-        if (_window.IsNull)
+        try
         {
-            throw new Exception("Failed to create SDL window");
+            SDL_WindowFlags flags = ConvetWindowMode(setting.WindowMode);
+
+            if (setting.IsBorderless)
+            {
+                flags |= SDL_WindowFlags.Borderless;
+            }
+
+            if (setting.IsTransparent)
+            {
+                flags |= SDL_WindowFlags.Transparent;
+            }
+
+            _window = SDL_CreateWindow(setting.Title, setting.Width, setting.Height, flags);
+            if (_window.IsNull)
+            {
+                throw new Exception("Failed to create SDL window");
+            }
+
+            SwapchainDescriptor descriptor = new SwapchainDescriptor()
+            {
+                Name = $"{Title}_swapchain",
+                SurfaceSource = GetSurfaceSource(_window, setting.LinuxUseWayland),
+                Width = Size.X,
+                Height = Size.Y,
+                ColorFormat = device.PreferredSurfaceFormat,
+                IsVSyncEnabled = setting.VSync,
+            };
+
+            _swapchain = device.CreateSwapchain(descriptor);
         }
-
-        SwapchainDescriptor descriptor = new SwapchainDescriptor()
+        catch
         {
-            Name = $"{Title}_swapchain",
-            SurfaceSource = GetSurfaceSource(_window, setting.LinuxUseWayland),
-            Width = Size.X,
-            Height = Size.Y,
-            ColorFormat = device.PreferredSurfaceFormat,
-            IsVSyncEnabled = setting.VSync,
-        };
-
-        _swapchain = device.CreateSwapchain(descriptor);
+            GC.SuppressFinalize(this);
+            if (!_window.IsNull)
+            {
+                SDL_DestroyWindow(_window);
+            }
+            throw;
+        }
     }
 
     internal Sdl3Window(GPUDevice device, SDL_Window window)
     {
+        _device = device;
         _window = window;
-        _title = SDL_GetWindowTitle(window) ?? string.Empty;
-        _swapchain = device.CreateSwapchain(new SwapchainDescriptor()
+        try
         {
-            Name = $"{_title}_swapchain",
-            SurfaceSource = GetSurfaceSource(_window, false),
-            Width = Size.X,
-            Height = Size.Y,
-        });
+            _title = SDL_GetWindowTitle(window) ?? string.Empty;
+            _swapchain = device.CreateSwapchain(new SwapchainDescriptor()
+            {
+                Name = $"{_title}_swapchain",
+                SurfaceSource = GetSurfaceSource(_window, false),
+                Width = Size.X,
+                Height = Size.Y,
+            });
+        }
+        catch
+        {
+            GC.SuppressFinalize(this);
+            SDL_DestroyWindow(_window);
+            throw;
+        }
     }
 
     public override void SetTextInputArea(int x, int y, int width, int height, int cursor)
@@ -192,13 +228,25 @@ public unsafe partial class Sdl3Window : View
 
     }
 
+    /// <summary>
+    /// Releases the engine-owned swapchain before destroying the SDL window.
+    /// </summary>
+    /// <param name="disposing">Whether disposal was explicitly requested on the SDL main thread.</param>
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        try
         {
-            _swapchain.Dispose();
+            // The native window must outlive the surface and its acquired texture and view.
+            _device.DestroyImmediate(_swapchain);
         }
-        SDL_DestroyWindow(_window);
+        catch (Exception) when (!disposing)
+        {
+            // Native cleanup consumes its resources even when it reports an error.
+        }
+        finally
+        {
+            SDL_DestroyWindow(_window);
+        }
     }
 
     private SDL_WindowFlags ConvetWindowMode(WindowMode mode)

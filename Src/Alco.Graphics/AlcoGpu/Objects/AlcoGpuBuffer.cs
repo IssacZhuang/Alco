@@ -3,10 +3,11 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Describes AlcoGpuBuffer.</summary>
 internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
 {
     #region Properties
-    private readonly AlcoHandle _buffer;
+    private AlcoBufferHandle _buffer;
 
     #endregion
 
@@ -15,9 +16,24 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
 
     protected override void Dispose(bool disposing)
     {
-        if (!_buffer.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
+        try
         {
-            AlcoGpuNative.BufferDestroy(((AlcoGpuDevice)Device).Native, _buffer);
+            AlcoBufferHandle handle = _buffer;
+            _buffer = AlcoBufferHandle.Null;
+            if (!handle.IsNull)
+            {
+                try
+                {
+                    AlcoGpuNative.BufferDestroy(handle);
+                }
+                finally
+                {
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
         }
     }
 
@@ -25,27 +41,44 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
 
     #region AlcoGpu Implementation
 
-    public AlcoHandle Native
+    /// <summary>Gets or stores the native ABI value.</summary>
+    public AlcoBufferHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _buffer;
     }
 
+    /// <summary>Provides the AlcoGpuBuffer operation.</summary>
     public AlcoGpuBuffer(AlcoGpuDevice device, in BufferDescriptor descriptor) : base(descriptor)
     {
-        Device = device;
-
-        ReadOnlySpan<byte> name = Name.Utf8Z();
-        fixed (byte* ptrName = name)
+        try
         {
-            AlcoBufferDesc desc = new()
-            {
-                Size = Size,
-                Usage = (uint)descriptor.Usage,
-                Name = ptrName,
-            };
+            Device = device;
 
-            AlcoGpuNative.BufferCreate(device.Native, in desc, out _buffer);
+            ReadOnlySpan<byte> name = Name.Utf8Z();
+            fixed (byte* ptrName = name)
+            {
+                AlcoBufferDesc desc = new()
+                {
+                    Size = Size,
+                    Usage = (uint)descriptor.Usage,
+                    Name = ptrName,
+                };
+
+                AlcoGpuNative.BufferCreate(device.Native, in desc, out _buffer);
+            }
+
+        }
+        catch
+        {
+            try { Destroy(false); }
+            catch { /* Preserve the construction failure. */ }
+            throw;
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
         }
     }
 

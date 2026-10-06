@@ -62,75 +62,79 @@ internal static unsafe class AlcoGpuUtility
     /// Creates a native shader module from a slang-produced module. The returned
     /// handle is owned by the caller and must be destroyed after pipeline creation.
     /// </summary>
-    public static AlcoHandle CreateShaderModule(this AlcoGpuDevice device, in ShaderModule source)
+    public static AlcoShaderModuleHandle CreateShaderModule(this AlcoGpuDevice device, in ShaderModule source)
     {
-        if (source.Language is not (ShaderLanguage.SPIRV or ShaderLanguage.WGSL or ShaderLanguage.DXIL
-            or ShaderLanguage.MSL or ShaderLanguage.MetalLib))
+        try
         {
-            throw new GraphicsException(
-                $"Unsupported shader language {source.Language}, only SPIRV, DXIL, MSL, MetalLib and WGSL are supported.");
-        }
-
-        if (source.Language == ShaderLanguage.SPIRV && (source.Source.Length & 3) != 0)
-        {
-            throw new GraphicsException("SPIR-V shader bytecode length must be a multiple of four bytes.");
-        }
-
-        // DXIL/MSL/MetalLib have no translation fallback; fail with the actionable
-        // reason before crossing the ABI when passthrough is unavailable.
-        if (source.Language is ShaderLanguage.DXIL or ShaderLanguage.MSL or ShaderLanguage.MetalLib
-            && !device.ShaderPassthroughEnabled)
-        {
-            throw new GraphicsException(
-                $"{source.Language} shaders require the PassthroughShaders capability, which the active device does not expose.");
-        }
-
-        ReadOnlySpan<byte> code = source.Source.Span;
-        ReadOnlySpan<byte> entry = source.EntryPoint.Utf8Z();
-        fixed (byte* ptrCode = code)
-        fixed (byte* ptrEntry = entry)
-        {
-            AlcoShaderModuleDesc desc = new()
+            if (source.Language is not (ShaderLanguage.SPIRV or ShaderLanguage.WGSL or ShaderLanguage.DXIL
+                or ShaderLanguage.MSL or ShaderLanguage.MetalLib))
             {
-                Language = (uint)source.Language,
-                Data = ptrCode,
-                Size = (uint)code.Length,
-                EntryPoint = ptrEntry,
-                WorkgroupX = source.WorkgroupSize.X,
-                WorkgroupY = source.WorkgroupSize.Y,
-                WorkgroupZ = source.WorkgroupSize.Z,
-            };
+                throw new GraphicsException(
+                    $"Unsupported shader language {source.Language}, only SPIRV, DXIL, MSL, MetalLib and WGSL are supported.");
+            }
 
-            AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoHandle module);
-            return module;
+            if (source.Language == ShaderLanguage.SPIRV && (source.Source.Length & 3) != 0)
+            {
+                throw new GraphicsException("SPIR-V shader bytecode length must be a multiple of four bytes.");
+            }
+
+            // DXIL/MSL/MetalLib have no translation fallback; fail with the actionable
+            // reason before crossing the ABI when passthrough is unavailable.
+            if (source.Language is ShaderLanguage.DXIL or ShaderLanguage.MSL or ShaderLanguage.MetalLib
+                && !device.ShaderPassthroughEnabled)
+            {
+                throw new GraphicsException(
+                    $"{source.Language} shaders require the PassthroughShaders capability, which the active device does not expose.");
+            }
+
+            ReadOnlySpan<byte> code = source.Source.Span;
+            ReadOnlySpan<byte> entry = source.EntryPoint.Utf8Z();
+            fixed (byte* ptrCode = code)
+            fixed (byte* ptrEntry = entry)
+            {
+                AlcoShaderModuleDesc desc = new()
+                {
+                    Language = (uint)source.Language,
+                    Data = ptrCode,
+                    Size = (uint)code.Length,
+                    EntryPoint = ptrEntry,
+                    WorkgroupX = source.WorkgroupSize.X,
+                    WorkgroupY = source.WorkgroupSize.Y,
+                    WorkgroupZ = source.WorkgroupSize.Z,
+                };
+
+                AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoShaderModuleHandle module);
+                return module;
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(device);
         }
     }
 
     /// <summary>Destroys a shader module created through <see cref="CreateShaderModule"/>.</summary>
-    public static void DestroyShaderModule(this AlcoGpuDevice device, AlcoHandle module)
+    public static void DestroyShaderModule(this AlcoGpuDevice device, AlcoShaderModuleHandle module)
     {
-        if (module.IsNull || !device.IsNativeAlive)
+        try
         {
-            return;
-        }
+            if (module.IsNull)
+            {
+                return;
+            }
 
-        AlcoGpuNative.ShaderModuleDestroy(device.Native, module);
+            AlcoGpuNative.ShaderModuleDestroy(module);
+        }
+        finally
+        {
+            GC.KeepAlive(device);
+        }
     }
 
-    /// <summary>Allocates and fills native bind-group-layout entries from managed descriptors.</summary>
-    /// <returns>Native array pointer; caller frees with <see cref="InteropUtility.Free"/>.</returns>
-    public static AlcoBindGroupLayoutEntry* AllocBindGroupLayoutEntries(ReadOnlySpan<BindGroupEntry> bindings)
-    {
-        AlcoBindGroupLayoutEntry* entries = InteropUtility.Alloc<AlcoBindGroupLayoutEntry>(bindings.Length);
-        for (int i = 0; i < bindings.Length; i++)
-        {
-            entries[i] = ConvertEntry(bindings[i]);
-        }
-
-        return entries;
-    }
-
-    private static AlcoBindGroupLayoutEntry ConvertEntry(BindGroupEntry binding)
+    /// <summary>Converts one managed binding declaration into its ABI representation.</summary>
+    /// <param name="binding">The managed binding declaration.</param>
+    /// <returns>The native binding declaration.</returns>
+    public static AlcoBindGroupLayoutEntry ConvertBindGroupLayoutEntry(BindGroupEntry binding)
     {
         AlcoBindGroupLayoutEntry entry = new()
         {
@@ -158,6 +162,7 @@ internal static unsafe class AlcoGpuUtility
         return entry;
     }
 
+    /// <summary>Provides the LoadOpToAbi operation.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint LoadOpToAbi(AttachmentLoadOp loadOp)
     {
@@ -169,6 +174,7 @@ internal static unsafe class AlcoGpuUtility
         };
     }
 
+    /// <summary>Provides the StoreOpToAbi operation.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint StoreOpToAbi(AttachmentStoreOp storeOp)
     {

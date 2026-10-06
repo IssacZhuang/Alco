@@ -24,14 +24,16 @@ public abstract class GPUDevice
             this.delay = delay;
         }
     }
-    private readonly UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
+    private UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
     private readonly Lock _lock = new();
+    private bool _disposalClosed;
 
 
     protected readonly IGPUDeviceHost _host;
 
     private readonly uint _disposeDelay = 1;
 
+    /// <summary>Gets the preferred format of surface textures.</summary>
     public abstract PixelFormat PreferredSurfaceFormat { get; }
 
     /// <summary>
@@ -327,15 +329,23 @@ public abstract class GPUDevice
     }
 
     /// <summary>
-    /// Destroys the GPU object. The object will be destroyed at the end of the frame.
+    /// Schedules GPU object release after the configured frame delay, or releases it immediately
+    /// when the disposal queue is closed. Independent objects may be disposed concurrently.
     /// </summary>
-    /// <param name="obj"> The target GPU object to destroy.</param>
+    /// <param name="obj">The GPU object to release.</param>
     public virtual void Destroy(BaseGPUObject obj)
     {
         ArgumentNullException.ThrowIfNull(obj);
-        _lock.Enter();
-        _deferredDisposal.Add(new DeferredDisposalItem(obj, _disposeDelay));
-        _lock.Exit();
+        lock (_lock)
+        {
+            if (!_disposalClosed)
+            {
+                _deferredDisposal.Add(new DeferredDisposalItem(obj, _disposeDelay));
+                return;
+            }
+        }
+        // Release outside the queue lock: composite resources may dispose their children.
+        obj.Destroy();
     }
 
     /// <summary>
@@ -726,42 +736,102 @@ public abstract class GPUDevice
     /// <exclude />
     protected abstract void ProcessPendingReadbacksCore();
 
+    /// <summary>Processes backend work at the end of a frame and before device shutdown.</summary>
     protected abstract void OnEndFrameCore();
+
+    /// <summary>Releases backend device resources after the disposal queue has closed and drained.</summary>
     protected abstract void DisposeCore();
 
     private void OnEndFrame()
     {
         OnEndFrameCore();
-        _lock.Enter();
-        for (int i = 0; i < _deferredDisposal.Count; i++)
+        UnorderedList<DeferredDisposalItem>? ready = null;
+        lock (_lock)
         {
-            DeferredDisposalItem item = _deferredDisposal[i];
-            if (item.delay <= 0)
+            for (int i = 0; i < _deferredDisposal.Count; i++)
             {
-                try
+                DeferredDisposalItem item = _deferredDisposal[i];
+                if (item.delay == 0)
                 {
-                    item.@object.Destroy();
+                    // Allocate before removing any entries so extraction cannot lose them.
+                    ready ??= new UnorderedList<DeferredDisposalItem> { Capacity = _deferredDisposal.Count };
+                    ready.Add(item);
+                    _deferredDisposal.RemoveAt(i);
+                    i--;
+                    continue;
                 }
-                catch (Exception e)
-                {
-                    _host.LogError($"Error in destroying GPU object: {e}");
-                }
-                _deferredDisposal.RemoveAt(i);
-                i--;
-                continue;
+                item.delay--;
+                _deferredDisposal[i] = item;
             }
-            item.delay--;
-            _deferredDisposal[i] = item;
         }
-        _lock.Exit();
+        if (ready != null)
+        {
+            ReleaseObjects(ready);
+        }
+    }
+
+    private void ReleaseObjects(UnorderedList<DeferredDisposalItem> items)
+    {
+        List<Exception>? errors = null;
+        for (int i = 0; i < items.Count; i++)
+        {
+            try
+            {
+                items[i].@object.Destroy();
+            }
+            catch (Exception e)
+            {
+                (errors ??= new List<Exception>()).Add(e);
+            }
+        }
+        // Defer logging until all entries are released, even if the host logger throws.
+        if (errors != null)
+        {
+            for (int i = 0; i < errors.Count; i++)
+            {
+                _host.LogError($"Error in destroying GPU object: {errors[i]}");
+            }
+        }
     }
 
     private void Dispose()
     {
-        OnEndFrame();
-        DisposeCore();
-
-        _host.LogInfo("GPU device closed");
-        DetachHostEvents();
+        UnorderedList<DeferredDisposalItem> pending;
+        lock (_lock)
+        {
+            if (_disposalClosed)
+            {
+                return;
+            }
+            // Close before invoking callbacks or cleanup: recursive and racing disposal
+            // must release immediately instead of joining a queue that will never run again.
+            UnorderedList<DeferredDisposalItem> empty = new();
+            _disposalClosed = true;
+            pending = _deferredDisposal;
+            _deferredDisposal = empty;
+        }
+        try
+        {
+            try
+            {
+                OnEndFrameCore();
+            }
+            finally
+            {
+                try
+                {
+                    ReleaseObjects(pending);
+                }
+                finally
+                {
+                    DisposeCore();
+                }
+            }
+            _host.LogInfo("GPU device closed");
+        }
+        finally
+        {
+            DetachHostEvents();
+        }
     }
 }

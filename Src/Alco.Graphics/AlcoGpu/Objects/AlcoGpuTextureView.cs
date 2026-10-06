@@ -3,9 +3,11 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Describes AlcoGpuTextureViewBase.</summary>
 internal abstract class AlcoGpuTextureViewBase : GPUTextureView
 {
-    public abstract AlcoHandle Native { get; }
+    /// <summary>Gets the borrowed native pointer; ownership stays with this object.</summary>
+    public abstract AlcoTextureViewHandle Native { get; }
 
     protected AlcoGpuTextureViewBase(in TextureViewDescriptor descriptor) : base(descriptor)
     {
@@ -16,10 +18,11 @@ internal abstract class AlcoGpuTextureViewBase : GPUTextureView
     }
 }
 
+/// <summary>Describes AlcoGpuTextureView.</summary>
 internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
 {
     #region Properties
-    private readonly AlcoHandle _native;
+    private AlcoTextureViewHandle _native;
     private readonly AlcoGpuTextureBase _texture;
 
     #endregion
@@ -27,6 +30,7 @@ internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
     #region Abstract Implementation
     protected override GPUDevice Device { get; }
 
+    /// <inheritdoc />
     public override GPUTexture Texture
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,16 +39,32 @@ internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
+        try
         {
-            AlcoGpuNative.TextureViewDestroy(((AlcoGpuDevice)Device).Native, _native);
+            AlcoTextureViewHandle handle = _native;
+            _native = AlcoTextureViewHandle.Null;
+            if (!handle.IsNull)
+            {
+                try
+                {
+                    AlcoGpuNative.TextureViewDestroy(handle);
+                }
+                finally
+                {
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
         }
     }
 
     #endregion
 
     #region AlcoGpu Implementation
-    public override AlcoHandle Native
+    /// <inheritdoc />
+    public override AlcoTextureViewHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -52,26 +72,41 @@ internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
 
     internal AlcoGpuTextureView(AlcoGpuDevice device, in TextureViewDescriptor descriptor) : base(descriptor)
     {
-        Device = device;
-        _texture = (AlcoGpuTextureBase)descriptor.Texture;
-
-        ReadOnlySpan<byte> name = Name.Utf8Z();
-        fixed (byte* ptrName = name)
+        try
         {
-            AlcoTextureViewDesc desc = new()
-            {
-                Dimension = (uint)descriptor.Dimension,
-                BaseMipLevel = descriptor.BaseMipLevel,
-                MipLevelCount = descriptor.MipLevelCount,
-                BaseArrayLayer = descriptor.BaseArrayLayer,
-                ArrayLayerCount = descriptor.ArrayLayerCount,
-                Aspect = (uint)descriptor.Aspect,
-                // 0 (Undefined) inherits the texture format natively.
-                Format = 0,
-                Name = ptrName,
-            };
+            Device = device;
+            _texture = (AlcoGpuTextureBase)descriptor.Texture;
 
-            AlcoGpuNative.TextureCreateView(device.Native, _texture.Native, &desc, out _native);
+            ReadOnlySpan<byte> name = Name.Utf8Z();
+            fixed (byte* ptrName = name)
+            {
+                AlcoTextureViewDesc desc = new()
+                {
+                    Dimension = (uint)descriptor.Dimension,
+                    BaseMipLevel = descriptor.BaseMipLevel,
+                    MipLevelCount = descriptor.MipLevelCount,
+                    BaseArrayLayer = descriptor.BaseArrayLayer,
+                    ArrayLayerCount = descriptor.ArrayLayerCount,
+                    Aspect = (uint)descriptor.Aspect,
+                    // 0 (Undefined) inherits the texture format natively.
+                    Format = 0,
+                    Name = ptrName,
+                };
+
+                AlcoGpuNative.TextureCreateView(_texture.Native, &desc, out _native);
+            }
+
+        }
+        catch
+        {
+            try { Destroy(false); }
+            catch { /* Preserve the construction failure. */ }
+            throw;
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
         }
     }
 

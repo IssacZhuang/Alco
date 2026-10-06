@@ -1,50 +1,93 @@
-//! Device lifecycle: instance/adapter/device creation, info, polling and the
-//! per-device message queue that replaces wgpu-native's callback-based error
-//! delivery. All object tables for a device hang off [`DeviceCtx`].
+//! Device creation, polling and staged teardown. Children retain the cleanup
+//! context independently of the public device owner; ordinary operations borrow it.
 
 use crate::abi::*;
 use crate::entry::{set_error, set_error_from};
-use crate::handle::StableTable;
 use std::ffi::{c_char, CStr, CString};
 use std::sync::{Arc, Mutex};
 use wgpu_core as wgc;
 use wgpu_core::global::Global;
 use wgpu_types as wgt;
 
-#[allow(dead_code)]
-pub(crate) struct DeviceCtx {
-    pub global: Arc<Global>,
+/// Core registrations retained until the last independently owned child is released.
+pub struct DeviceCtx {
+    /// Core instance and resource registries.
+    pub global: Global,
+    /// Adapter registration released during final context cleanup.
     pub adapter_id: wgc::id::AdapterId,
+    /// Device registration retained for late resource cleanup.
     pub device_id: wgc::id::DeviceId,
+    /// The device's single queue registration.
     pub queue_id: wgc::id::QueueId,
-
     /// Resolved backend (`backend::RESOLVED_*`).
     pub backend: u32,
+    /// Adapter name backing borrowed device information.
     pub adapter_name: CString,
+    /// Adapter vendor identifier.
     pub vendor: u32,
+    /// Adapter device identifier.
     pub device: u32,
-    /// Alco feature bits supported by this device (mirrors C# `GPUFeatures`).
+    /// Alco feature bits supported by this device.
     pub supported_features: u64,
+    /// Native capability bits.
     pub caps: u64,
+    /// Maximum number of bind groups.
     pub max_bind_groups: u32,
+    /// Maximum immediate data size in bytes.
     pub max_immediate_size: u32,
+    /// Timestamp tick duration in nanoseconds.
     pub timestamp_period_ns: f32,
-
-    /// Per-device object tables for every native resource type.
-    pub objects: crate::objects::ObjectTables,
-    pub commands: crate::commands::CommandTables,
-    pub surfaces: crate::handle::HandleTable<crate::surface::SurfaceObj>,
-
-    /// Queued async messages (validation errors, device loss, native warnings)
-    /// drained by C# each frame via `alco_device_pop_message`.
+    /// Queued asynchronous messages drained by the host.
     pub messages: Mutex<Vec<DeviceMessage>>,
-    /// Scratch buffer backing the borrowed message pointer of the last pop.
+    /// Storage backing the borrowed message pointer of the last pop.
     pub message_scratch: Mutex<CString>,
 }
 
-pub(crate) struct DeviceMessage {
-    pub severity: u32, // 0 error, 1 warning, 2 info
-    pub kind: u32,     // 0 generic, 1 device lost
+/// Unique public device owner; children hold references only to its cleanup context.
+pub struct DeviceOwner {
+    /// Cleanup context shared with independently owned child objects.
+    pub ctx: Arc<DeviceCtx>,
+}
+
+impl Drop for DeviceOwner {
+    fn drop(&mut self) {
+        self.ctx.global.device_destroy(self.ctx.device_id);
+        if let Err(error) = self.ctx.global.device_poll(
+            self.ctx.device_id,
+            wgt::PollType::Wait {
+                submission_index: None,
+                timeout: None,
+            },
+        ) {
+            log::warn!("device teardown maintenance: {error}");
+        }
+    }
+}
+
+impl Drop for DeviceCtx {
+    fn drop(&mut self) {
+        if let Err(error) = self.global.device_poll(
+            self.device_id,
+            wgt::PollType::Wait {
+                submission_index: None,
+                timeout: None,
+            },
+        ) {
+            log::warn!("final device maintenance: {error}");
+        }
+        self.global.queue_drop(self.queue_id);
+        self.global.device_drop(self.device_id);
+        self.global.adapter_drop(self.adapter_id);
+    }
+}
+
+/// One asynchronously queued device diagnostic.
+pub struct DeviceMessage {
+    /// Severity: zero error, one warning, two information.
+    pub severity: u32,
+    /// Kind: zero generic, one device lost.
+    pub kind: u32,
+    /// Owned message text.
     pub message: CString,
 }
 
@@ -56,12 +99,13 @@ impl DeviceCtx {
     pub fn push_message(&self, severity: u32, kind: u32, message: impl Into<String>) {
         let text = CString::new(message.into().replace('\0', "\\0"))
             .unwrap_or_else(|_| CString::new("invalid message").unwrap());
-        self.messages.lock().unwrap().push(DeviceMessage { severity, kind, message: text });
+        self.messages.lock().unwrap().push(DeviceMessage {
+            severity,
+            kind,
+            message: text,
+        });
     }
 }
-
-/// Stable device registry; callers order teardown after all context uses.
-pub(crate) static DEVICES: StableTable<DeviceCtx> = StableTable::new();
 
 /// Alco feature bits — numeric values mirror C# `GPUFeatures` exactly.
 mod alco_features {
@@ -215,7 +259,10 @@ fn select_adapter(
     let Some(reason) = rejection(preferred) else {
         return Ok(preferred);
     };
-    let mut reasons = vec![format!("{}: {reason}", global.adapter_get_info(preferred).name)];
+    let mut reasons = vec![format!(
+        "{}: {reason}",
+        global.adapter_get_info(preferred).name
+    )];
     global.adapter_drop(preferred);
 
     // RequestAdapterOptions has no feature/limit filter in v30. Enumerate only
@@ -238,7 +285,10 @@ fn select_adapter(
     selected.ok_or_else(|| {
         set_error(
             AlcoStatus::UNSUPPORTED,
-            format!("no adapter supports the engine requirements: {}", reasons.join("; ")),
+            format!(
+                "no adapter supports the engine requirements: {}",
+                reasons.join("; ")
+            ),
         );
         AlcoStatus::UNSUPPORTED
     })
@@ -255,19 +305,23 @@ unsafe fn borrow_str(ptr: *const c_char) -> String {
 /// ABI: creates a device (instance → adapter → device) synchronously.
 ///
 /// # Safety
-/// `desc` must be valid; `out` must be a valid `AlcoHandle` slot.
+/// `desc` must be valid; `out` must be a valid `AlcoDeviceHandle` slot.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_device_create(
     desc: *const AlcoDeviceDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoDeviceHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         if desc.is_null() || out.is_null() {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor or out pointer");
+            set_error(
+                AlcoStatus::INVALID_ARGUMENT,
+                "null descriptor or out pointer",
+            );
             return AlcoStatus::INVALID_ARGUMENT;
         }
         let desc = &*desc;
-        *out = AlcoHandle::NULL;
+        *out = AlcoDeviceHandle::NULL;
+        crate::entry::initialize();
 
         let backends = request_backends(desc.backend);
         let debug = desc.debug == ALCO_TRUE;
@@ -283,7 +337,7 @@ pub unsafe extern "C-unwind" fn alco_device_create(
             backend_options: wgt::BackendOptions::default(),
             display: None,
         };
-        let global = Arc::new(Global::new("alco-gpu", instance_desc, None));
+        let global = Global::new("alco-gpu", instance_desc, None);
 
         let adapter_id = match select_adapter(&global, backends, desc.push_constants_size) {
             Ok(id) => id,
@@ -354,12 +408,11 @@ pub unsafe extern "C-unwind" fn alco_device_create(
                 }
             };
 
-        let timestamp_period_ns =
-            if adapter_features.contains(wgt::Features::TIMESTAMP_QUERY) {
-                global.queue_get_timestamp_period(queue_id)
-            } else {
-                1.0
-            };
+        let timestamp_period_ns = if adapter_features.contains(wgt::Features::TIMESTAMP_QUERY) {
+            global.queue_get_timestamp_period(queue_id)
+        } else {
+            1.0
+        };
 
         let mut supported = supported;
         if device_caps & caps::METALLIB != 0 {
@@ -381,51 +434,41 @@ pub unsafe extern "C-unwind" fn alco_device_create(
             max_bind_groups: adapter_limits.max_bind_groups,
             max_immediate_size: desc.push_constants_size,
             timestamp_period_ns,
-            objects: Default::default(),
             messages: Mutex::new(Vec::new()),
-            commands: crate::commands::CommandTables::default(),
-            surfaces: crate::handle::HandleTable::new(),
             message_scratch: Mutex::new(CString::new("").unwrap()),
         };
 
-        *out = DEVICES.insert(ctx);
+        *out = AlcoDeviceHandle::new(DeviceOwner { ctx: Arc::new(ctx) });
         AlcoStatus::OK
     })
 }
 
-/// ABI: destroys a device after its final use. Stale handles fail with
-/// `INVALID_HANDLE`.
+/// ABI: consumes the public owner, invalidates the device, and waits for teardown maintenance.
+///
+/// Children retain only a cleanup context and may be released after this call.
 ///
 /// # Safety
-/// The caller must complete all calls using this device or its resources before
-/// teardown and must not start further uses. No device-context borrow may overlap
-/// destruction.
+/// The pointer must identify a live unique device owner. All ordinary device and
+/// child operations must finish before teardown; the consumed pointer cannot be reused.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoHandle) -> AlcoStatus {
-    crate::entry::guard(|| {
-        let ctx = match DEVICES.remove(device) {
-            Ok(ctx) => ctx,
-            Err(status) => {
-                set_error(status, "device handle is invalid or already destroyed");
-                return status;
-            }
-        };
-        // Explicit destroy before dropping the Global so pending work is
-        // observed by wgpu-core's own teardown.
-        ctx.global.device_destroy(ctx.device_id);
-        drop(ctx);
-        AlcoStatus::OK
+pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoDeviceHandle) -> AlcoStatus {
+    crate::entry::guard(|| match device.take() {
+        Ok(owner) => {
+            drop(owner);
+            AlcoStatus::OK
+        }
+        Err(status) => status,
     })
 }
 
-/// ABI: fills static device info. Borrowed strings stay valid until destroy.
+/// ABI: fills static device information.
 ///
 /// # Safety
-/// `out` must be a valid `AlcoDeviceInfo` slot. Device teardown must not overlap
-/// this call or any use of the returned borrowed strings.
+/// `out` must be writable. The device owner must remain alive through this call
+/// and every use of its borrowed adapter name.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_device_get_info(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     out: *mut AlcoDeviceInfo,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
@@ -433,23 +476,21 @@ pub unsafe extern "C-unwind" fn alco_device_get_info(
             set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
             return AlcoStatus::INVALID_ARGUMENT;
         }
-        match DEVICES.with(device, |ctx| {
-            (*out).backend = ctx.backend;
-            (*out).adapter_name = ctx.adapter_name.as_ptr();
-            (*out).vendor = ctx.vendor;
-            (*out).device = ctx.device;
-            (*out).supported_features = ctx.supported_features;
-            (*out).caps = ctx.caps;
-            (*out).max_bind_groups = ctx.max_bind_groups;
-            (*out).max_immediate_size = ctx.max_immediate_size;
-            (*out).timestamp_period_ns = ctx.timestamp_period_ns;
-        }) {
-            Ok(()) => AlcoStatus::OK,
-            Err(_) => {
-                set_error(AlcoStatus::INVALID_HANDLE, "invalid device handle");
-                AlcoStatus::INVALID_HANDLE
-            }
-        }
+        let owner = match device.get() {
+            Ok(owner) => owner,
+            Err(status) => return status,
+        };
+        let ctx = &owner.ctx;
+        (*out).backend = ctx.backend;
+        (*out).adapter_name = ctx.adapter_name.as_ptr();
+        (*out).vendor = ctx.vendor;
+        (*out).device = ctx.device;
+        (*out).supported_features = ctx.supported_features;
+        (*out).caps = ctx.caps;
+        (*out).max_bind_groups = ctx.max_bind_groups;
+        (*out).max_immediate_size = ctx.max_immediate_size;
+        (*out).timestamp_period_ns = ctx.timestamp_period_ns;
+        AlcoStatus::OK
     })
 }
 
@@ -468,54 +509,55 @@ pub unsafe extern "C-unwind" fn alco_device_get_info(
 /// `out_queue_empty` if non-null is a valid `u32` slot.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_device_poll(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     wait: u32,
     submit_index: u64,
     out_queue_empty: *mut u32,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| {
-                let poll_type = if wait == ALCO_TRUE {
-                    if submit_index == u64::MAX {
-                        wgt::PollType::Wait { submission_index: None, timeout: None }
-                    } else {
-                        wgt::PollType::Wait {
-                            submission_index: Some(submit_index),
-                            timeout: None,
-                        }
-                    }
-                } else {
-                    wgt::PollType::Wait {
-                        submission_index: None,
-                        timeout: Some(core::time::Duration::ZERO),
-                    }
-                };
-                match ctx.global.device_poll(ctx.device_id, poll_type) {
-                    Ok(status) => {
-                        if !out_queue_empty.is_null() {
-                            *out_queue_empty = matches!(status, wgt::PollStatus::QueueEmpty) as u32;
-                        }
-                        AlcoStatus::OK
-                    }
-                    // A zero-timeout poll with work still in flight reports Timeout;
-                    // that is the expected "not done yet" outcome, not a device fault.
-                    Err(wgc::device::WaitIdleError::Timeout) => {
-                        if !out_queue_empty.is_null() {
-                            *out_queue_empty = 0;
-                        }
-                        AlcoStatus::OK
-                    }
-                    Err(e) => {
-                        set_error_from(AlcoStatus::DEVICE_LOST, &e);
-                        AlcoStatus::DEVICE_LOST
-                    }
+        let owner = match device.get() {
+            Ok(owner) => owner,
+            Err(status) => return status,
+        };
+        let ctx = &owner.ctx;
+        let poll_type = if wait == ALCO_TRUE {
+            if submit_index == u64::MAX {
+                wgt::PollType::Wait {
+                    submission_index: None,
+                    timeout: None,
                 }
-            })
-            .unwrap_or_else(|_| {
-                set_error(AlcoStatus::INVALID_HANDLE, "invalid device handle");
-                AlcoStatus::INVALID_HANDLE
-            })
+            } else {
+                wgt::PollType::Wait {
+                    submission_index: Some(submit_index),
+                    timeout: None,
+                }
+            }
+        } else {
+            wgt::PollType::Wait {
+                submission_index: None,
+                timeout: Some(core::time::Duration::ZERO),
+            }
+        };
+        match ctx.global.device_poll(ctx.device_id, poll_type) {
+            Ok(status) => {
+                if !out_queue_empty.is_null() {
+                    *out_queue_empty = matches!(status, wgt::PollStatus::QueueEmpty) as u32;
+                }
+                AlcoStatus::OK
+            }
+            // A zero-timeout poll with work still in flight reports Timeout;
+            // that is the expected "not done yet" outcome, not a device fault.
+            Err(wgc::device::WaitIdleError::Timeout) => {
+                if !out_queue_empty.is_null() {
+                    *out_queue_empty = 0;
+                }
+                AlcoStatus::OK
+            }
+            Err(e) => {
+                set_error_from(AlcoStatus::DEVICE_LOST, &e);
+                AlcoStatus::DEVICE_LOST
+            }
+        }
     })
 }
 
@@ -526,7 +568,7 @@ pub unsafe extern "C-unwind" fn alco_device_poll(
 /// `out` must be a valid `AlcoDeviceMessage` slot.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_device_pop_message(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     out: *mut AlcoDeviceMessage,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
@@ -534,25 +576,23 @@ pub unsafe extern "C-unwind" fn alco_device_pop_message(
             set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
             return AlcoStatus::INVALID_ARGUMENT;
         }
-        DEVICES
-            .with(device, |ctx| {
-                let message = ctx.messages.lock().unwrap().pop();
-                match message {
-                    Some(message) => {
-                        let mut scratch = ctx.message_scratch.lock().unwrap();
-                        *scratch = message.message;
-                        (*out).severity = message.severity;
-                        (*out).kind = message.kind;
-                        (*out).message = scratch.as_ptr();
-                        AlcoStatus::OK
-                    }
-                    None => AlcoStatus::NOT_READY,
-                }
-            })
-            .unwrap_or_else(|_| {
-                set_error(AlcoStatus::INVALID_HANDLE, "invalid device handle");
-                AlcoStatus::INVALID_HANDLE
-            })
+        let owner = match device.get() {
+            Ok(owner) => owner,
+            Err(status) => return status,
+        };
+        let ctx = &owner.ctx;
+        let message = ctx.messages.lock().unwrap().pop();
+        match message {
+            Some(message) => {
+                let mut scratch = ctx.message_scratch.lock().unwrap();
+                *scratch = message.message;
+                (*out).severity = message.severity;
+                (*out).kind = message.kind;
+                (*out).message = scratch.as_ptr();
+                AlcoStatus::OK
+            }
+            None => AlcoStatus::NOT_READY,
+        }
     })
 }
 
@@ -561,11 +601,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vulkan_ordered_device_teardown_invalidates_handle() {
+    fn vulkan_public_teardown_preserves_cleanup_context_until_last_owner() {
         let Some(device) = crate::test_support::TestDevice::new() else {
             return;
         };
-        let handle = device.handle;
+        let ctx = unsafe { device.handle.get().unwrap().ctx.clone() };
+        let weak = Arc::downgrade(&ctx);
         let mut info = AlcoDeviceInfo {
             backend: 0,
             adapter_name: std::ptr::null(),
@@ -578,31 +619,29 @@ mod tests {
             timestamp_period_ns: 0.0,
         };
         unsafe {
-            DEVICES
-                .with(handle, |ctx| {
-                    assert_eq!(alco_device_get_info(handle, &mut info), AlcoStatus::OK);
-                    assert_eq!(info.backend, ctx.backend);
-                    assert_eq!(std::ffi::CStr::from_ptr(info.adapter_name),
-                        ctx.adapter_name.as_c_str());
-                })
-                .unwrap();
-            assert_eq!(alco_device_poll(handle, ALCO_TRUE, u64::MAX, std::ptr::null_mut()),
-                AlcoStatus::OK);
+            assert_eq!(
+                alco_device_get_info(device.handle, &mut info),
+                AlcoStatus::OK
+            );
+            assert_eq!(info.backend, ctx.backend);
+            assert_eq!(
+                alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, std::ptr::null_mut()),
+                AlcoStatus::OK
+            );
         }
-        // TestDevice drops only after the final borrow and ABI call have returned.
         drop(device);
-        info.adapter_name = std::ptr::null();
-        unsafe {
-            assert!(matches!(DEVICES.with(handle, |_| ()), Err(AlcoStatus::INVALID_HANDLE)));
-            assert_eq!(alco_device_get_info(handle, &mut info), AlcoStatus::INVALID_HANDLE);
-            assert_eq!(alco_device_destroy(handle), AlcoStatus::INVALID_HANDLE);
-        }
+        assert!(weak.upgrade().is_some());
+        drop(ctx);
+        assert!(weak.upgrade().is_none());
     }
 
     #[test]
     fn adapter_request_preserves_high_performance_and_backend_masks() {
         let options = high_performance_options();
-        assert_eq!(options.power_preference, wgt::PowerPreference::HighPerformance);
+        assert_eq!(
+            options.power_preference,
+            wgt::PowerPreference::HighPerformance
+        );
         assert!(!options.force_fallback_adapter);
         assert!(!options.apply_limit_buckets);
         assert!(options.compatible_surface.is_none());
@@ -615,34 +654,66 @@ mod tests {
     #[test]
     fn fallback_ranking_matches_core_high_performance_order_and_is_stable() {
         use wgt::DeviceType::*;
-        let mut candidates = [(Cpu, 0), (IntegratedGpu, 1), (DiscreteGpu, 2),
-            (Other, 3), (VirtualGpu, 4), (DiscreteGpu, 5)];
+        let mut candidates = [
+            (Cpu, 0),
+            (IntegratedGpu, 1),
+            (DiscreteGpu, 2),
+            (Other, 3),
+            (VirtualGpu, 4),
+            (DiscreteGpu, 5),
+        ];
         candidates.sort_by_key(|&(ty, _)| high_performance_rank(ty));
-        assert_eq!(candidates, [(DiscreteGpu, 2), (DiscreteGpu, 5),
-            (IntegratedGpu, 1), (Other, 3), (VirtualGpu, 4), (Cpu, 0)]);
+        assert_eq!(
+            candidates,
+            [
+                (DiscreteGpu, 2),
+                (DiscreteGpu, 5),
+                (IntegratedGpu, 1),
+                (Other, 3),
+                (VirtualGpu, 4),
+                (Cpu, 0)
+            ]
+        );
     }
 
     #[test]
     fn unsupported_preferred_adapter_does_not_hide_supported_candidates() {
         let base = base_adapter_features(wgt::Backend::Vulkan);
         let mut candidates = [
-            (wgt::DeviceType::IntegratedGpu, wgt::Backend::Vulkan, base, 256),
-            (wgt::DeviceType::DiscreteGpu, wgt::Backend::Vulkan,
-                base - wgt::Features::VERTEX_WRITABLE_STORAGE, 256),
+            (
+                wgt::DeviceType::IntegratedGpu,
+                wgt::Backend::Vulkan,
+                base,
+                256,
+            ),
+            (
+                wgt::DeviceType::DiscreteGpu,
+                wgt::Backend::Vulkan,
+                base - wgt::Features::VERTEX_WRITABLE_STORAGE,
+                256,
+            ),
             (wgt::DeviceType::DiscreteGpu, wgt::Backend::Vulkan, base, 8),
         ];
         candidates.sort_by_key(|&(ty, ..)| high_performance_rank(ty));
-        let selected = candidates.iter().find(|&&(_, backend, features, limit)|
-            adapter_rejection(backend, features, limit, 16).is_none());
+        let selected = candidates.iter().find(|&&(_, backend, features, limit)| {
+            adapter_rejection(backend, features, limit, 16).is_none()
+        });
         assert_eq!(selected.unwrap().0, wgt::DeviceType::IntegratedGpu);
         assert!(adapter_rejection(wgt::Backend::Vulkan, base, 16, 16).is_none());
         assert!(adapter_rejection(wgt::Backend::Dx12, base, 16, 16).is_none());
         assert!(adapter_rejection(wgt::Backend::Metal, base, 16, 16).is_some());
-        assert!(adapter_rejection(wgt::Backend::Metal,
-            base | wgt::Features::PASSTHROUGH_SHADERS, 16, 16).is_none());
+        assert!(adapter_rejection(
+            wgt::Backend::Metal,
+            base | wgt::Features::PASSTHROUGH_SHADERS,
+            16,
+            16
+        )
+        .is_none());
         // Desired-optional features must not become selection requirements.
         assert!(!base.contains(wgt::Features::TIMESTAMP_QUERY));
-        assert_eq!(alco_features_to_wgpu(alco_features::TIMESTAMP_QUERY &
-            supported_alco_features(base).0), wgt::Features::empty());
+        assert_eq!(
+            alco_features_to_wgpu(alco_features::TIMESTAMP_QUERY & supported_alco_features(base).0),
+            wgt::Features::empty()
+        );
     }
 }

@@ -4,12 +4,10 @@
 //! FFI boundary (an abort would kill the host process before the C# runtime
 //! could react). The crate MUST be built with `panic = "unwind"`.
 //!
-//! Failure protocol: a body that returns a failure status (anything but
-//! OK/NOT_READY) should first record a message via [`set_error`]; if it does
-//! not, [`guard`] stores a generic message for that status. OK and NOT_READY
-//! are control-flow values and never synthesize an error. The thread-local
-//! slot is cleared at guard entry so every failure carries a fresh message;
-//! C# reads it with `alco_get_last_error` (which deliberately bypasses the guard).
+//! Failure protocol: a body returning a failure must record its own fresh
+//! diagnostic through [`set_error`], [`set_error_from`] or [`fail`]. Success and
+//! NOT_READY never touch diagnostic storage. `alco_get_last_error` exposes the
+//! latest failure on this thread, not the outcome of a later successful call.
 //!
 //! Error callback: a host may register a callback with
 //! [`alco_set_error_callback`]. [`guard`] invokes it synchronously — strictly
@@ -21,7 +19,7 @@
 //! swallowed into an opaque payload and resume unwinding at an unspecified
 //! point). Exports are declared `extern "C-unwind"` so a foreign unwind
 //! passing through their frames is defined behavior. The callback must not
-//! call back into the library: any alco call on the same thread replaces the
+//! call back into the library: a failure on the same thread replaces the
 //! thread-local message the callback still holds a pointer to.
 
 use crate::abi::{AlcoErrorInfo, AlcoStatus};
@@ -44,17 +42,17 @@ static ERROR_CALLBACK: AtomicPtr<()> = AtomicPtr::new(std::ptr::null_mut());
 static ERROR_CALLBACK_USERDATA: AtomicPtr<c_void> = AtomicPtr::new(std::ptr::null_mut());
 
 /// ABI: registers a process-wide error callback (pass null to unregister).
-/// The callback is invoked synchronously on the calling thread when a fallible
-/// ABI entry fails; `message` is borrowed until the next alco call on the
-/// thread. See the module docs for the throwing-host contract.
+/// The message is borrowed until the next failure on this thread.
 ///
 /// # Safety
-/// `callback`, when non-null, must remain valid to call until unregistered.
+/// Registration changes require quiescent calls. A non-null callback must
+/// remain valid until unregistered and must not reenter the library.
 #[no_mangle]
 pub unsafe extern "C" fn alco_set_error_callback(
     callback: Option<AlcoErrorCallback>,
     userdata: *mut c_void,
 ) {
+    initialize();
     ERROR_CALLBACK.store(
         callback.map_or_else(std::ptr::null_mut, |f| f as *mut ()),
         Ordering::Release,
@@ -66,6 +64,7 @@ pub unsafe extern "C" fn alco_set_error_callback(
 /// NOT_READY are control-flow values and never fire. The thread-local message
 /// borrow is released before the call so a re-entering alco call cannot hit
 /// an active `RefCell` borrow.
+#[cold]
 fn fire_error_callback(status: AlcoStatus) {
     if status.is_ok() || status.0 == AlcoStatus::NOT_READY.0 {
         return;
@@ -85,17 +84,15 @@ fn fire_error_callback(status: AlcoStatus) {
     callback(status.0, message, userdata);
 }
 
-/// Installs a process-wide panic hook (once) that silences the default stderr
-/// "thread panicked" report. Panic payloads are recovered from
-/// `catch_unwind`'s `Err` value instead. Once completed, `call_once` uses a
-/// read-only fast path; concurrent first callers wait for hook installation.
-fn install_silencing_hook() {
+/// Installs the panic hook during device or callback initialization.
+pub(crate) fn initialize() {
     HOOK_INSTALLED.call_once(|| {
         std::panic::set_hook(Box::new(|_info| {}));
     });
 }
 
 /// Records a failure with a human-readable message on the current thread.
+#[cold]
 pub(crate) fn set_error(status: AlcoStatus, message: impl Into<String>) {
     let msg = message.into();
     LAST_ERROR.with(|slot| {
@@ -109,6 +106,7 @@ pub(crate) fn set_error(status: AlcoStatus, message: impl Into<String>) {
 }
 
 /// Records the complete error source chain, retaining context and root causes.
+#[cold]
 pub(crate) fn set_error_from(status: AlcoStatus, error: &dyn std::error::Error) {
     let mut message = error.to_string();
     let mut source = error.source();
@@ -120,8 +118,8 @@ pub(crate) fn set_error_from(status: AlcoStatus, error: &dyn std::error::Error) 
     set_error(status, message);
 }
 
-/// ABI export: copies the thread-local last error into `out`. The message is
-/// borrowed until the next alco call on this thread.
+/// ABI export: copies the latest thread-local failure into `out`.
+/// The message is borrowed until the next failure on this thread.
 ///
 /// # Safety
 /// `out` must be a valid pointer to an `AlcoErrorInfo`.
@@ -130,36 +128,24 @@ pub unsafe extern "C" fn alco_get_last_error(out: *mut AlcoErrorInfo) {
     if out.is_null() {
         return;
     }
-    LAST_ERROR.with(|slot| {
-        match slot.borrow().as_ref() {
-            Some((status, message)) => {
-                (*out).status = status.0;
-                (*out).message = message.as_ptr();
-            }
-            None => {
-                (*out).status = AlcoStatus::OK.0;
-                (*out).message = std::ptr::null();
-            }
+    LAST_ERROR.with(|slot| match slot.borrow().as_ref() {
+        Some((status, message)) => {
+            (*out).status = status.0;
+            (*out).message = message.as_ptr();
+        }
+        None => {
+            (*out).status = AlcoStatus::OK.0;
+            (*out).message = std::ptr::null();
         }
     });
 }
 
 /// Runs an ABI entry body under panic protection. See the module docs for the
 /// failure protocol.
-pub(crate) fn guard(body: impl FnOnce() -> AlcoStatus + std::panic::UnwindSafe) -> AlcoStatus {
-    install_silencing_hook();
-    LAST_ERROR.with(|slot| *slot.borrow_mut() = None);
-
-    let status = match std::panic::catch_unwind(body) {
-        Ok(status) => {
-            if !status.is_ok() && status.0 != AlcoStatus::NOT_READY.0 {
-                let clean = LAST_ERROR.with(|slot| slot.borrow().is_none());
-                if clean {
-                    set_error(status, default_message(status));
-                }
-            }
-            status
-        }
+pub(crate) fn guard(body: impl FnOnce() -> AlcoStatus) -> AlcoStatus {
+    // Panic containment does not promise that interrupted recording remains reusable.
+    let status = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)) {
+        Ok(status) => status,
         Err(payload) => {
             let message = payload
                 .downcast_ref::<String>()
@@ -173,7 +159,9 @@ pub(crate) fn guard(body: impl FnOnce() -> AlcoStatus + std::panic::UnwindSafe) 
     // Fired strictly after catch_unwind has returned; nothing on this frame
     // needs cleanup, so a foreign unwind from the callback passes straight
     // through to the host caller. See the module docs.
-    fire_error_callback(status);
+    if !status.is_ok() && status != AlcoStatus::NOT_READY {
+        fire_error_callback(status);
+    }
     status
 }
 
@@ -186,9 +174,16 @@ pub(crate) fn guard_unit(body: impl FnOnce() + std::panic::UnwindSafe) -> AlcoSt
     })
 }
 
+/// Records a fresh default diagnostic and returns the supplied failure status.
+#[cold]
+pub(crate) fn fail(status: AlcoStatus) -> AlcoStatus {
+    set_error(status, default_message(status));
+    status
+}
+
 fn default_message(status: AlcoStatus) -> &'static str {
     match status {
-        AlcoStatus::INVALID_HANDLE => "invalid or destroyed object handle",
+        AlcoStatus::INVALID_HANDLE => "null object handle",
         AlcoStatus::INVALID_ARGUMENT => "invalid argument",
         AlcoStatus::VALIDATION => "operation failed validation",
         AlcoStatus::OUT_OF_MEMORY => "out of memory",
@@ -224,21 +219,33 @@ mod tests {
     }
 
     fn last_error() -> (u32, String) {
-        let mut info = AlcoErrorInfo { status: 0, message: std::ptr::null() };
+        let mut info = AlcoErrorInfo {
+            status: 0,
+            message: std::ptr::null(),
+        };
         unsafe {
             alco_get_last_error(&mut info);
-            (info.status, CStr::from_ptr(info.message).to_string_lossy().into_owned())
+            (
+                info.status,
+                CStr::from_ptr(info.message).to_string_lossy().into_owned(),
+            )
         }
     }
 
     #[test]
     fn complete_error_chain_is_preserved_through_abi() {
-        for root in ["Depth32Float has no stencil aspect", "Rgba8Unorm has no depth aspect"] {
+        for root in [
+            "Depth32Float has no stencil aspect",
+            "Rgba8Unorm has no depth aspect",
+        ] {
             let error = TestError {
                 message: "In a pass parameter",
                 source: Some(Box::new(TestError {
                     message: "attachment validation",
-                    source: Some(Box::new(TestError { message: root, source: None })),
+                    source: Some(Box::new(TestError {
+                        message: root,
+                        source: None,
+                    })),
                 })),
             };
             let status = guard(|| {
@@ -246,18 +253,29 @@ mod tests {
                 AlcoStatus::VALIDATION
             });
             assert_eq!(status, AlcoStatus::VALIDATION);
-            assert_eq!(last_error(), (
-                status.0,
-                format!("In a pass parameter\nCaused by: attachment validation\nCaused by: {root}"),
-            ));
+            assert_eq!(
+                last_error(),
+                (
+                    status.0,
+                    format!(
+                        "In a pass parameter\nCaused by: attachment validation\nCaused by: {root}"
+                    ),
+                )
+            );
         }
     }
 
     #[test]
     fn leaf_errors_and_interior_nuls_retain_their_details() {
-        let error = TestError { message: "resource\0name", source: None };
+        let error = TestError {
+            message: "resource\0name",
+            source: None,
+        };
         set_error_from(AlcoStatus::UNSUPPORTED, &error);
-        assert_eq!(last_error(), (AlcoStatus::UNSUPPORTED.0, "resource\\0name".into()));
+        assert_eq!(
+            last_error(),
+            (AlcoStatus::UNSUPPORTED.0, "resource\\0name".into())
+        );
     }
 
     // Records callbacks fired on this thread only: guard calls from
@@ -272,11 +290,17 @@ mod tests {
     /// thread-local and flake the "must not fire" assertions.
     static CALLBACK_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    extern "C-unwind" fn record_callback(status: u32, message: *const c_char, _userdata: *mut c_void) {
+    extern "C-unwind" fn record_callback(
+        status: u32,
+        message: *const c_char,
+        _userdata: *mut c_void,
+    ) {
         let text = if message.is_null() {
             String::new()
         } else {
-            unsafe { CStr::from_ptr(message) }.to_string_lossy().into_owned()
+            unsafe { CStr::from_ptr(message) }
+                .to_string_lossy()
+                .into_owned()
         };
         FIRED.with(|fired| *fired.borrow_mut() = Some((status, text)));
     }
@@ -313,16 +337,19 @@ mod tests {
         assert_eq!(status, AlcoStatus::INVALID_HANDLE);
         assert_eq!(
             FIRED.with(|fired| fired.borrow().clone()),
-            Some((AlcoStatus::INVALID_HANDLE.0, "device handle is invalid".into()))
+            Some((
+                AlcoStatus::INVALID_HANDLE.0,
+                "device handle is invalid".into()
+            ))
         );
     }
 
     #[test]
-    fn error_callback_receives_default_message_when_body_set_none() {
+    fn error_callback_receives_fresh_default_failure_message() {
         let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
         let _registration = CallbackRegistration::install();
 
-        let status = guard(|| AlcoStatus::OUT_OF_MEMORY);
+        let status = guard(|| fail(AlcoStatus::OUT_OF_MEMORY));
         assert_eq!(status, AlcoStatus::OUT_OF_MEMORY);
         assert_eq!(
             FIRED.with(|fired| fired.borrow().clone()),
@@ -342,24 +369,36 @@ mod tests {
     }
 
     #[test]
-    fn not_ready_clears_stale_errors_without_recording_or_notifying() {
+    fn success_and_not_ready_preserve_latest_failure_without_notifying() {
         let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
         let _registration = CallbackRegistration::install();
         FIRED.with(|fired| *fired.borrow_mut() = None);
-        set_error(AlcoStatus::VALIDATION, "stale validation failure");
-
+        set_error(AlcoStatus::VALIDATION, "latest validation failure");
+        let mut initial = AlcoErrorInfo {
+            status: 0,
+            message: std::ptr::null(),
+        };
+        unsafe { alco_get_last_error(&mut initial) };
         for _ in 0..32 {
+            assert_eq!(guard(|| AlcoStatus::OK), AlcoStatus::OK);
             assert_eq!(guard(|| AlcoStatus::NOT_READY), AlcoStatus::NOT_READY);
-            assert!(LAST_ERROR.with(|slot| slot.borrow().is_none()));
             let mut info = AlcoErrorInfo {
-                status: AlcoStatus::VALIDATION.0,
+                status: 0,
                 message: std::ptr::null(),
             };
             unsafe { alco_get_last_error(&mut info) };
-            assert_eq!(info.status, AlcoStatus::OK.0);
-            assert!(info.message.is_null());
+            assert_eq!(info.status, AlcoStatus::VALIDATION.0);
+            assert_eq!(info.message, initial.message);
             assert_eq!(FIRED.with(|fired| fired.borrow().clone()), None);
         }
+        assert_eq!(
+            guard(|| fail(AlcoStatus::OUT_OF_MEMORY)),
+            AlcoStatus::OUT_OF_MEMORY
+        );
+        assert_eq!(
+            last_error(),
+            (AlcoStatus::OUT_OF_MEMORY.0, "out of memory".into())
+        );
     }
 
     #[test]
@@ -377,13 +416,20 @@ mod tests {
                 }
             });
             assert_eq!(status, AlcoStatus::PANIC);
-            let expected = (AlcoStatus::PANIC.0, "panic context\nCaused by: root\\0cause".into());
+            let expected = (
+                AlcoStatus::PANIC.0,
+                "panic context\nCaused by: root\\0cause".into(),
+            );
             assert_eq!(last_error(), expected);
             assert_eq!(FIRED.with(|fired| fired.borrow().clone()), Some(expected));
         }
     }
 
-    extern "C-unwind" fn unwinding_callback(status: u32, message: *const c_char, userdata: *mut c_void) {
+    extern "C-unwind" fn unwinding_callback(
+        status: u32,
+        message: *const c_char,
+        userdata: *mut c_void,
+    ) {
         record_callback(status, message, userdata);
         // Concurrent tests share registration, but must not inherit this unwind.
         if UNWIND_CALLBACK.with(|unwind| unwind.get()) {
@@ -398,9 +444,12 @@ mod tests {
         FIRED.with(|fired| *fired.borrow_mut() = None);
         UNWIND_CALLBACK.with(|unwind| unwind.set(true));
 
-        let payload = std::panic::catch_unwind(|| guard(|| AlcoStatus::INVALID_ARGUMENT))
+        let payload = std::panic::catch_unwind(|| guard(|| fail(AlcoStatus::INVALID_ARGUMENT)))
             .expect_err("callback unwind must not become AlcoStatus::PANIC");
-        assert_eq!(payload.downcast_ref::<&str>(), Some(&"callback unwind must reach the caller"));
+        assert_eq!(
+            payload.downcast_ref::<&str>(),
+            Some(&"callback unwind must reach the caller")
+        );
         let expected = (AlcoStatus::INVALID_ARGUMENT.0, "invalid argument".into());
         assert_eq!(last_error(), expected);
         assert_eq!(FIRED.with(|fired| fired.borrow().clone()), Some(expected));
@@ -420,9 +469,14 @@ mod tests {
                 .env(CHILD, "1")
                 .output()
                 .unwrap();
-            assert!(output.status.success(), "hook test subprocess failed: {output:?}");
-            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"),
-                "hook test subprocess did not run its test: {output:?}");
+            assert!(
+                output.status.success(),
+                "hook test subprocess failed: {output:?}"
+            );
+            assert!(
+                String::from_utf8_lossy(&output.stdout).contains("1 passed"),
+                "hook test subprocess did not run its test: {output:?}"
+            );
             return;
         }
 
@@ -441,9 +495,13 @@ mod tests {
             let barrier = Arc::clone(&barrier);
             threads.push(std::thread::spawn(move || {
                 barrier.wait();
+                initialize();
                 assert_eq!(guard(|| panic!("initial guarded panic")), AlcoStatus::PANIC);
                 assert!(HOOK_INSTALLED.is_completed());
-                assert_eq!(last_error(), (AlcoStatus::PANIC.0, "initial guarded panic".into()));
+                assert_eq!(
+                    last_error(),
+                    (AlcoStatus::PANIC.0, "initial guarded panic".into())
+                );
             }));
         }
         for thread in threads {
@@ -457,7 +515,10 @@ mod tests {
             hook_calls.fetch_add(1, Ordering::Relaxed);
         }));
         for _ in 0..8 {
-            assert_eq!(guard(|| panic!("subsequent guarded panic")), AlcoStatus::PANIC);
+            assert_eq!(
+                guard(|| panic!("subsequent guarded panic")),
+                AlcoStatus::PANIC
+            );
         }
         assert_eq!(calls.load(Ordering::Relaxed), 8);
     }
@@ -466,7 +527,10 @@ mod tests {
     fn error_callback_does_not_fire_once_unregistered() {
         let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
         FIRED.with(|fired| *fired.borrow_mut() = None);
-        assert_eq!(guard(|| AlcoStatus::VALIDATION), AlcoStatus::VALIDATION);
+        assert_eq!(
+            guard(|| fail(AlcoStatus::VALIDATION)),
+            AlcoStatus::VALIDATION
+        );
         assert_eq!(FIRED.with(|fired| fired.borrow().clone()), None);
     }
 }

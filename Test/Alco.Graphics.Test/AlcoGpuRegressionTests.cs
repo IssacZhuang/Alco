@@ -32,11 +32,13 @@ public sealed class AlcoGpuRegressionTests
                 OnEndFrame?.Invoke();
             }
         }
+        /// <summary>Disposes the device without first draining its frame-driven readbacks.</summary>
+        public void Shutdown() => OnDispose?.Invoke();
         /// <inheritdoc />
         public void Dispose()
         {
             Drain();
-            OnDispose?.Invoke();
+            Shutdown();
         }
         /// <inheritdoc />
         public void LogInfo(ReadOnlySpan<char> message) => InfoLogCount++;
@@ -293,17 +295,56 @@ public sealed class AlcoGpuRegressionTests
         Assert.That(error!.Message, Does.Contain("validation").And.Not.Contain("invalid encoder handle"));
         Assert.That(commands.IsRecording, Is.False);
         Assert.That(commands.HasBuffer, Is.False);
-        Assert.That(GetHandle(commands, "_encoder").IsNull, Is.True);
+        Assert.That(IsHandleNull(commands, "_encoder"), Is.True);
         commands.Begin();
         using (commands.BeginCompute()) { }
         commands.CopyBuffer(source, destination, 0, 0, 4);
         commands.End();
         device.Submit(commands);
-        Assert.DoesNotThrow(commands.Destroy);
+        Assert.DoesNotThrow(() => commands.Destroy());
         Assert.DoesNotThrow(commands.Dispose);
     }
 
-    /// <summary>Failed render-pass end consumes its handle and restores public pass state.</summary>
+    /// <summary>Failed submission consumes the live command buffer even when a recorded core resource was destroyed.</summary>
+    [Test]
+    public void FailedSubmissionClearsConsumedBufferAndAllowsIndependentRerecording()
+    {
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host);
+        using GPUBuffer source = device.CreateBuffer(new BufferDescriptor(64, BufferUsage.CopySrc | BufferUsage.CopyDst));
+        using GPUBuffer destination = device.CreateBuffer(new BufferDescriptor(64, BufferUsage.CopyDst | BufferUsage.CopySrc));
+        using GPUCommandBuffer commands = device.CreateCommandBuffer();
+        commands.Begin();
+        commands.CopyBuffer(source, destination);
+        commands.End();
+        Assert.That(commands.HasBuffer, Is.True);
+
+        // Submit receives only a live command buffer. Core detects its destroyed recorded
+        // resource; the ABI never dereferences the already released source wrapper.
+        source.Destroy();
+        Assert.That(((AlcoGpuBuffer)source).Native.IsNull, Is.True);
+        GraphicsException error = Assert.Throws<GraphicsException>(() => device.Submit(commands))!;
+        Assert.That(error.Message, Does.Contain("validation"));
+        Assert.That(commands.HasBuffer, Is.False);
+        Assert.That(IsHandleNull(commands, "_buffer"), Is.True);
+        Assert.That(commands.IsRecording, Is.False);
+
+        using GPUBuffer replacement = device.CreateBuffer(new BufferDescriptor(64, BufferUsage.CopySrc | BufferUsage.CopyDst));
+        byte[] expected = new byte[64];
+        new Random(9876).NextBytes(expected);
+        device.WriteBuffer(replacement, expected);
+        commands.Begin();
+        commands.CopyBuffer(replacement, destination);
+        commands.End();
+        device.Submit(commands);
+        byte[] readback = new byte[expected.Length];
+        device.ReadBuffer(destination, readback);
+        Assert.That(readback, Is.EqualTo(expected));
+        Assert.DoesNotThrow(() => commands.Destroy());
+        Assert.DoesNotThrow(commands.Dispose);
+    }
+
+    /// <summary>Render-pass end consumes its pointer before deferred validation fails at encoder finish.</summary>
     [Test]
     public void InvalidRenderPassEndRestoresRecordingState()
     {
@@ -321,16 +362,16 @@ public sealed class AlcoGpuRegressionTests
         pass.Draw(3, 1, 0, 0);
         // Pass end consumes the handle; validation is reported by encoder finish.
         pass.Dispose();
-        Assert.That(GetHandle(commands, "_renderPass").IsNull, Is.True);
+        Assert.That(IsHandleNull(commands, "_renderPass"), Is.True);
         Assert.That(GetRecordingFlag(commands, "_isRecordingRender"), Is.False);
         GraphicsException? error = Assert.Throws<GraphicsException>(commands.End);
         Assert.That(error!.Message, Does.Contain("validation").And.Not.Contain("invalid render pass handle"));
         Assert.That(commands.IsRecording, Is.False);
-        Assert.That(GetHandle(commands, "_encoder").IsNull, Is.True);
+        Assert.That(IsHandleNull(commands, "_encoder"), Is.True);
         commands.Begin();
         using (commands.BeginRender(frameBuffer)) { }
         commands.End();
-        Assert.DoesNotThrow(commands.Destroy);
+        Assert.DoesNotThrow(() => commands.Destroy());
     }
 
     /// <summary>Failed bundle finish preserves validation instead of destroying the consumed encoder again.</summary>
@@ -351,13 +392,13 @@ public sealed class AlcoGpuRegressionTests
         Assert.That(error!.Message, Does.Contain("validation").And.Not.Contain("invalid bundle encoder handle"));
         Assert.That(bundle.IsRecording, Is.False);
         Assert.That(bundle.HasBuffer, Is.False);
-        Assert.That(GetHandle(bundle, "_bundleEncoder").IsNull, Is.True);
+        Assert.That(IsHandleNull(bundle, "_bundleEncoder"), Is.True);
         bundle.Begin(colorLayout);
         bundle.SetGraphicsPipeline(pipeline);
         bundle.Draw(3, 1, 0, 0);
         bundle.End();
         Assert.That(bundle.HasBuffer, Is.True);
-        Assert.DoesNotThrow(bundle.Destroy);
+        Assert.DoesNotThrow(() => bundle.Destroy());
         Assert.DoesNotThrow(bundle.Dispose);
     }
 
@@ -381,12 +422,12 @@ public sealed class AlcoGpuRegressionTests
         // End implicitly consumes the still-open pass, then exposes its validation error.
         GraphicsException? error = Assert.Throws<GraphicsException>(commands.End);
         Assert.That(error!.Message, Does.Contain("validation").And.Not.Contain("invalid render pass handle"));
-        Assert.DoesNotThrow(commands.Destroy);
+        Assert.DoesNotThrow(() => commands.Destroy());
         Assert.That(commands.IsRecording, Is.False);
-        Assert.That(GetHandle(commands, "_renderPass").IsNull, Is.True);
-        Assert.That(GetHandle(commands, "_encoder").IsNull, Is.True);
+        Assert.That(IsHandleNull(commands, "_renderPass"), Is.True);
+        Assert.That(IsHandleNull(commands, "_encoder"), Is.True);
         AssertAllocationBalance(before);
-        Assert.DoesNotThrow(commands.Destroy);
+        Assert.DoesNotThrow(() => commands.Destroy());
         Assert.DoesNotThrow(commands.Dispose);
     }
 
@@ -409,7 +450,7 @@ public sealed class AlcoGpuRegressionTests
         AssertAllocationBalance(before);
         GPUBindGroup valid = device.CreateBindGroup(new BindGroupDescriptor([
             new BindGroupEntry(0, ShaderStage.Vertex, BindingType.UniformBuffer)]));
-        Assert.DoesNotThrow(valid.Destroy);
+        Assert.DoesNotThrow(() => valid.Destroy());
         AssertAllocationBalance(before);
     }
 
@@ -432,11 +473,157 @@ public sealed class AlcoGpuRegressionTests
         }
         AssertAllocationBalance(before);
         GPUPipeline valid = device.CreateGraphicsPipeline(PipelineDescriptor(depthOnly: false));
-        Assert.DoesNotThrow(valid.Destroy);
+        Assert.DoesNotThrow(() => valid.Destroy());
         AssertAllocationBalance(before);
     }
 
-    /// <summary>Late immediate destruction clears open passes and finished buffers without calling a dead device.</summary>
+    /// <summary>Device shutdown retires both pending texture readbacks and drains every managed staging ticket.</summary>
+    [Test]
+    public unsafe void DeviceShutdownRetiresMultiplePendingReadbacksAndStagingTickets()
+    {
+        const uint size = 32;
+        using var host = new Host();
+        long before = AllocationCount();
+        AlcoGpuDevice device = CreateDevice(host);
+        using GPUTexture first = device.CreateTexture(new TextureDescriptor(
+            TextureDimension.Texture2D, PixelFormat.RGBA8Unorm, size, size, usage: TextureUsage.Standard));
+        using GPUTexture second = device.CreateTexture(new TextureDescriptor(
+            TextureDimension.Texture2D, PixelFormat.RGBA8Unorm, size, size, usage: TextureUsage.Standard));
+        byte[] expectedFirst = new byte[size * size * 4];
+        byte[] expectedSecond = new byte[expectedFirst.Length];
+        Array.Fill(expectedFirst, (byte)0x43);
+        Array.Fill(expectedSecond, (byte)0xa7);
+        fixed (byte* pointer = expectedFirst)
+        {
+            device.WriteTexture(first, pointer, (uint)expectedFirst.Length);
+        }
+        fixed (byte* pointer = expectedSecond)
+        {
+            device.WriteTexture(second, pointer, (uint)expectedSecond.Length);
+        }
+
+        byte[] readbackFirst = new byte[expectedFirst.Length];
+        byte[] readbackSecond = new byte[expectedSecond.Length];
+        var requestFirst = new GPUTextureReadbackRequest();
+        var requestSecond = new GPUTextureReadbackRequest();
+        fixed (byte* firstPointer = readbackFirst)
+        fixed (byte* secondPointer = readbackSecond)
+        {
+            try
+            {
+                device.BeginReadTexture(first, firstPointer, (uint)readbackFirst.Length, requestFirst);
+                device.BeginReadTexture(second, secondPointer, (uint)readbackSecond.Length, requestSecond);
+                Assert.That(requestFirst.IsPending, Is.True);
+                Assert.That(requestSecond.IsPending, Is.True);
+                AssertStagingState(device, pending: 2, idle: 0);
+                // Shutdown itself may deliver completed maps before failing any remaining ones.
+                Assert.DoesNotThrow(host.Shutdown);
+            }
+            finally
+            {
+                // Never unpin destinations while a native copy/map still has a pending request.
+                if (device.IsNativeAlive)
+                {
+                    host.Shutdown();
+                }
+            }
+        }
+
+        GPUTextureReadbackRequest[] requests = [requestFirst, requestSecond];
+        byte[][] readbacks = [readbackFirst, readbackSecond];
+        byte[][] expected = [expectedFirst, expectedSecond];
+        for (int i = 0; i < requests.Length; i++)
+        {
+            Assert.That(requests[i].IsCompleted, Is.True, $"Readback {i} was stranded during shutdown.");
+            if (requests[i].Status == GPUTextureReadbackStatus.Completed)
+            {
+                Assert.DoesNotThrow(requests[i].ThrowIfFailed);
+                Assert.That(readbacks[i], Is.EqualTo(expected[i]));
+            }
+            else
+            {
+                Assert.That(requests[i].Status, Is.EqualTo(GPUTextureReadbackStatus.Failed));
+                Assert.That(requests[i].Error, Is.TypeOf<ObjectDisposedException>());
+            }
+        }
+        Assert.That(device.IsNativeAlive, Is.False);
+        AssertStagingState(device, pending: 0, idle: 0);
+        Assert.DoesNotThrow(device.ProcessPendingReadbacks);
+        Assert.DoesNotThrow(first.Dispose);
+        Assert.DoesNotThrow(second.Dispose);
+        Assert.That(((AlcoGpuTexture)first).Native.IsNull, Is.True);
+        Assert.That(((AlcoGpuTexture)second).Native.IsNull, Is.True);
+        AssertAllocationBalance(before);
+    }
+
+    /// <summary>Core validation releases an acquired readback ticket before an independent readback repopulates the cache.</summary>
+    [Test]
+    public unsafe void FailedReadbackReleasesStagingTicketAndIndependentReadbackRecoversCache()
+    {
+        const uint size = 32;
+        using var host = new Host();
+        long before = AllocationCount();
+        AlcoGpuDevice device = CreateDevice(host);
+        using GPUTexture valid = device.CreateTexture(new TextureDescriptor(
+            TextureDimension.Texture2D, PixelFormat.RGBA8Unorm, size, size, usage: TextureUsage.Standard));
+        using GPUTexture unreadable = device.CreateTexture(new TextureDescriptor(
+            TextureDimension.Texture2D, PixelFormat.RGBA8Unorm, size, size, usage: TextureUsage.TextureBinding));
+        byte[] expected = new byte[size * size * 4];
+        new Random(2468).NextBytes(expected);
+        fixed (byte* pointer = expected)
+        {
+            device.WriteTexture(valid, pointer, (uint)expected.Length);
+        }
+        byte[] readback = new byte[expected.Length];
+        var request = new GPUTextureReadbackRequest();
+        fixed (byte* pointer = readback)
+        {
+            try
+            {
+                // Prime an idle ticket, then acquire it in a real core-invalid copy operation.
+                device.ReadTexture(valid, pointer, (uint)readback.Length);
+                Assert.That(readback, Is.EqualTo(expected));
+                AssertStagingState(device, pending: 0, idle: 1);
+                nint destination = (nint)pointer;
+                GraphicsException error = Assert.Throws<GraphicsException>(() =>
+                    device.BeginReadTexture(unreadable, (byte*)destination, (uint)readback.Length, request))!;
+                Assert.That(error.Message, Does.Contain("validation"));
+                Assert.That(((AlcoGpuTexture)unreadable).Native.IsNull, Is.False,
+                    "The failure uses a live texture with incompatible copy usage, not a freed pointer.");
+                Assert.That(request.Status, Is.EqualTo(GPUTextureReadbackStatus.Idle));
+                AssertStagingState(device, pending: 0, idle: 0);
+
+                Array.Clear(readback);
+                device.BeginReadTexture(valid, pointer, (uint)readback.Length, request);
+                for (int poll = 0; poll < 100 && request.IsPending; poll++)
+                {
+                    device.ProcessPendingReadbacks();
+                    if (request.IsPending)
+                    {
+                        Thread.Sleep(15);
+                    }
+                }
+                Assert.That(request.Status, Is.EqualTo(GPUTextureReadbackStatus.Completed));
+                Assert.DoesNotThrow(request.ThrowIfFailed);
+                Assert.That(readback, Is.EqualTo(expected));
+                AssertStagingState(device, pending: 0, idle: 1);
+            }
+            finally
+            {
+                // A failing assertion must still retire the request before unpinning its destination.
+                if (device.IsNativeAlive)
+                {
+                    host.Shutdown();
+                }
+            }
+        }
+        AssertStagingState(device, pending: 0, idle: 0);
+        Assert.DoesNotThrow(valid.Dispose);
+        Assert.DoesNotThrow(unreadable.Dispose);
+        AssertAllocationBalance(before);
+    }
+
+    /// <summary>Late immediate destruction releases open pass, encoder, and finished buffer wrappers after device invalidation.</summary>
     /// <param name="compute">Whether the open command buffer records a compute pass instead of a render pass.</param>
     [TestCase(false)]
     [TestCase(true)]
@@ -458,8 +645,8 @@ public sealed class AlcoGpuRegressionTests
         {
             commands.BeginRender(frameBuffer);
         }
-        Assert.That(GetHandle(commands, compute ? "_computePass" : "_renderPass").IsNull, Is.False);
-        Assert.That(GetHandle(commands, "_encoder").IsNull, Is.False);
+        Assert.That(IsHandleNull(commands, compute ? "_computePass" : "_renderPass"), Is.False);
+        Assert.That(IsHandleNull(commands, "_encoder"), Is.False);
         Assert.That(commands.IsRecording, Is.True);
         Assert.That(GetRecordingFlag(commands, compute ? "_isRecordingCompute" : "_isRecordingRender"), Is.True);
 
@@ -467,33 +654,185 @@ public sealed class AlcoGpuRegressionTests
         finished.Begin();
         finished.End();
         Assert.That(finished.HasBuffer, Is.True);
+        using GPURenderBundle openBundle = device.CreateRenderBundle();
+        openBundle.Begin(layout);
+        using GPURenderBundle finishedBundle = device.CreateRenderBundle();
+        finishedBundle.Begin(layout);
+        finishedBundle.End();
         host.Dispose();
         Assert.That(device.IsNativeAlive, Is.False);
+        Assert.That(IsHandleNull(commands, compute ? "_computePass" : "_renderPass"), Is.False,
+            "Device invalidation must not bulk-free independently owned child wrappers.");
+        Assert.That(finished.HasBuffer, Is.True);
+        Assert.That(IsHandleNull(openBundle, "_bundleEncoder"), Is.False);
+        Assert.That(finishedBundle.HasBuffer, Is.True);
 
         Assert.DoesNotThrow(() => device.DestroyImmediate(commands));
         Assert.DoesNotThrow(() => device.DestroyImmediate(finished));
+        Assert.DoesNotThrow(openBundle.Dispose);
+        Assert.DoesNotThrow(finishedBundle.Dispose);
         Assert.Multiple(() =>
         {
             Assert.That(commands.IsDisposed, Is.True);
             Assert.That(commands.IsRecording, Is.False);
             Assert.That(GetRecordingFlag(commands, "_isRecordingRender"), Is.False);
             Assert.That(GetRecordingFlag(commands, "_isRecordingCompute"), Is.False);
-            Assert.That(GetHandle(commands, "_renderPass").IsNull, Is.True);
-            Assert.That(GetHandle(commands, "_computePass").IsNull, Is.True);
-            Assert.That(GetHandle(commands, "_encoder").IsNull, Is.True);
-            Assert.That(GetHandle(commands, "_buffer").IsNull, Is.True);
+            Assert.That(IsHandleNull(commands, "_renderPass"), Is.True);
+            Assert.That(IsHandleNull(commands, "_computePass"), Is.True);
+            Assert.That(IsHandleNull(commands, "_encoder"), Is.True);
+            Assert.That(IsHandleNull(commands, "_buffer"), Is.True);
             Assert.That(finished.HasBuffer, Is.False);
-            Assert.That(GetHandle(finished, "_buffer").IsNull, Is.True);
+            Assert.That(IsHandleNull(finished, "_buffer"), Is.True);
+            Assert.That(openBundle.IsRecording, Is.False);
+            Assert.That(IsHandleNull(openBundle, "_bundleEncoder"), Is.True);
+            Assert.That(finishedBundle.HasBuffer, Is.False);
+            Assert.That(IsHandleNull(finishedBundle, "_bundle"), Is.True);
         });
         AssertAllocationBalance(before);
         Assert.DoesNotThrow(() => device.DestroyImmediate(commands));
         Assert.DoesNotThrow(commands.Dispose);
     }
 
+    /// <summary>A borrowed owned attachment keeps its framebuffer alive through collection and remains readable.</summary>
+    [Test]
+    public unsafe void BorrowedOwnedAttachmentRetainsFramebufferAcrossGarbageCollection()
+    {
+        const uint size = 16;
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host);
+        using GPUAttachmentLayout layout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment(PixelFormat.RGBA8Unorm)], null));
+        long before = AllocationCount();
+        GPUTexture texture = BorrowOwnedColorAttachment(device, layout, out WeakReference parent);
+        try
+        {
+            byte[] expected = new byte[size * size * 4];
+            new Random(1357).NextBytes(expected);
+            fixed (byte* pointer = expected)
+            {
+                device.WriteTexture(texture, pointer, (uint)expected.Length);
+            }
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+            Assert.That(parent.IsAlive, Is.True, "The borrowed attachment must retain its owning framebuffer.");
+            Assert.That(texture.IsDisposed, Is.False);
+            byte[] readback = new byte[expected.Length];
+            fixed (byte* pointer = readback)
+            {
+                device.ReadTexture(texture, pointer, (uint)readback.Length);
+            }
+            Assert.That(readback, Is.EqualTo(expected));
+            GC.KeepAlive(texture);
+        }
+        finally
+        {
+            (parent.Target as GPUFrameBuffer)?.Destroy();
+            host.Drain();
+        }
+        Assert.That(texture.IsDisposed, Is.True);
+        AssertAllocationBalance(before);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static GPUTexture BorrowOwnedColorAttachment(AlcoGpuDevice device, GPUAttachmentLayout layout,
+        out WeakReference parent)
+    {
+        GPUFrameBuffer frameBuffer = device.CreateFrameBuffer(new FrameBufferDescriptor(layout, 16, 16));
+        parent = new WeakReference(frameBuffer, trackResurrection: true);
+        return frameBuffer.Colors[0];
+    }
+
+    /// <summary>Late disposal clears independently owned resource pointers, including both pipeline kinds and nested attachments.</summary>
+    [Test]
+    public void DeviceFirstDisposalReleasesEveryOwnedResourceWrapper()
+    {
+        const string computeWgsl = "@compute @workgroup_size(1) fn cs_main() { }";
+        using var host = new Host();
+        long before = AllocationCount();
+        AlcoGpuDevice device = CreateDevice(host);
+        var resources = new List<BaseGPUObject>();
+        T Own<T>(T resource) where T : BaseGPUObject
+        {
+            resources.Add(resource);
+            return resource;
+        }
+
+        try
+        {
+            GPUBuffer buffer = Own(device.CreateBuffer(new BufferDescriptor(64,
+                BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.CopySrc)));
+            GPUTexture texture = Own(device.CreateTexture(new TextureDescriptor(
+                TextureDimension.Texture2D, PixelFormat.RGBA8Unorm, 16, 16)));
+            Own(device.CreateTextureView(new TextureViewDescriptor(texture)));
+            Own(device.CreateSampler(new SamplerDescriptor(FilterMode.Nearest, FilterMode.Nearest, FilterMode.Nearest,
+                AddressMode.ClampToEdge, AddressMode.ClampToEdge, AddressMode.ClampToEdge)));
+            GPUBindGroup bindings = Own(device.CreateBindGroup(new BindGroupDescriptor([
+                new BindGroupEntry(0, ShaderStage.Vertex, BindingType.UniformBuffer)])));
+            Own(device.CreateResourceGroup(new ResourceGroupDescriptor(bindings, [new ResourceBindingEntry(0, buffer)])));
+            Own(device.CreateGraphicsPipeline(PipelineDescriptor(depthOnly: false)));
+            Own(device.CreateComputePipeline(new ComputePipelineDescriptor(
+                new ShaderModule(ShaderStage.Compute, ShaderLanguage.WGSL, Encoding.UTF8.GetBytes(computeWgsl), "cs_main"), [])));
+            if (device.SupportedFeatures.HasFlag(GPUFeatures.TimestampQuery))
+            {
+                Own(device.CreateTimestampQuerySet(2, "late_queries"));
+            }
+            GPUAttachmentLayout layout = Own(device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+                [new ColorAttachment(PixelFormat.RGBA8Unorm)], new DepthAttachment(PixelFormat.Depth32Float))));
+            GPUFrameBuffer frameBuffer = Own(device.CreateFrameBuffer(new FrameBufferDescriptor(layout, 16, 16)));
+            GPUTexture color = frameBuffer.Colors[0];
+            GPUTextureView colorView = frameBuffer.ColorViews[0];
+            GPUTexture depth = frameBuffer.DepthStencil!;
+            GPUTextureView depthView = frameBuffer.DepthStencilView!;
+            BaseGPUObject[] nestedAttachments = [color, colorView, depth, depthView];
+
+            // Populate the managed staging cache before device teardown; it must also release its wrappers.
+            byte[] expected = new byte[64];
+            Array.Fill(expected, (byte)0x39);
+            device.WriteBuffer(buffer, expected);
+            byte[] readback = new byte[64];
+            device.ReadBuffer(buffer, readback);
+            Assert.That(readback, Is.EqualTo(expected));
+            host.Dispose();
+            Assert.That(device.IsNativeAlive, Is.False);
+
+            for (int i = resources.Count - 1; i >= 0; i--)
+            {
+                BaseGPUObject resource = resources[i];
+                if (resource is not GPUFrameBuffer && resource is not GPUAttachmentLayout)
+                {
+                    Assert.That(IsNativeResourceNull(resource), Is.False,
+                        $"{resource.GetType().Name} owns its pointer until explicitly released.");
+                }
+                Assert.DoesNotThrow(resource.Dispose);
+                Assert.DoesNotThrow(resource.Dispose);
+                Assert.DoesNotThrow(() => device.DestroyImmediate(resource));
+                Assert.That(resource.IsDisposed, Is.True);
+                if (resource is not GPUFrameBuffer && resource is not GPUAttachmentLayout)
+                {
+                    Assert.That(IsNativeResourceNull(resource), Is.True, resource.GetType().Name);
+                }
+            }
+            for (int i = 0; i < nestedAttachments.Length; i++)
+            {
+                Assert.That(IsNativeResourceNull(nestedAttachments[i]), Is.True,
+                    "Late framebuffer disposal must release its nested attachment wrappers.");
+            }
+            Assert.DoesNotThrow(host.Drain);
+            AssertAllocationBalance(before);
+        }
+        finally
+        {
+            for (int i = resources.Count - 1; i >= 0; i--)
+            {
+                resources[i].Destroy();
+            }
+        }
+    }
+
     /// <summary>
-    /// Children outliving the device stay silent: device destruction drops the
-    /// native registry with every resource in it, so explicit late disposal and
-    /// late finalizers must skip their native destroy calls without errors.
+    /// Children retain native cleanup ownership after public device invalidation;
+    /// late explicit disposal and finalizers release their wrappers without errors.
     /// </summary>
     [Test]
     public void LateDisposalsAfterDeviceDestroyStaySilent()
@@ -504,7 +843,7 @@ public sealed class AlcoGpuRegressionTests
         using GPUAttachmentLayout layout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null));
         using GPUFrameBuffer frameBuffer = device.CreateFrameBuffer(new FrameBufferDescriptor(layout, 16, 16));
-        CreateOrphanChildren(device);
+        WeakReference[] orphanChildren = CreateOrphanChildren(device);
 
         // Capture before releasing the open-pass commands so even automatic GC is observed.
         WeakReference[] openPasses;
@@ -517,18 +856,23 @@ public sealed class AlcoGpuRegressionTests
             openPasses = CreateOrphanOpenPassCommands(device, frameBuffer, host);
             Assert.That(device.IsNativeAlive, Is.False);
 
-            // Explicit late paths must not poke native handles into the destroyed
-            // device: deferred queueing, the drained-but-detached frame end, and the
-            // immediate destroy that mirrors device-shutdown cleanup.
+            Assert.That(((AlcoGpuBuffer)explicitBuffer).Native.IsNull, Is.False,
+                "The child owns its wrapper until late disposal releases it.");
+            // Late cleanup uses the child's retained context, not the freed public device pointer.
             Assert.DoesNotThrow(explicitBuffer.Dispose);
             Assert.DoesNotThrow(host.Drain);
             Assert.DoesNotThrow(() => device.DestroyImmediate(explicitBuffer));
+            Assert.DoesNotThrow(explicitBuffer.Dispose);
+            Assert.That(((AlcoGpuBuffer)explicitBuffer).Native.IsNull, Is.True);
 
-            // Finalizers of the never-disposed orphans run against the dead device.
+            // Finalizers release retained child contexts after public device invalidation.
+            // Finalizable views/groups can retain other finalizable children for another GC cycle.
+            for (int collection = 0; collection < 8; collection++)
+            {
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+            }
             GC.Collect();
-            GC.WaitForPendingFinalizers();
-            GC.Collect();
-            GC.WaitForPendingFinalizers();
         }
         finally
         {
@@ -536,6 +880,11 @@ public sealed class AlcoGpuRegressionTests
         }
 
         Assert.That(console.ToString(), Does.Not.Contain("Error in GPUObject"));
+        for (int i = 0; i < orphanChildren.Length; i++)
+        {
+            Assert.That(orphanChildren[i].IsAlive, Is.False,
+                "The orphan resource wrapper must be collected after its finalizer runs.");
+        }
         for (int i = 0; i < openPasses.Length; i++)
         {
             Assert.That(openPasses[i].IsAlive, Is.False,
@@ -552,8 +901,8 @@ public sealed class AlcoGpuRegressionTests
         GPUCommandBuffer compute = device.CreateCommandBuffer();
         compute.Begin();
         compute.BeginCompute();
-        Assert.That(GetHandle(render, "_renderPass").IsNull, Is.False);
-        Assert.That(GetHandle(compute, "_computePass").IsNull, Is.False);
+        Assert.That(IsHandleNull(render, "_renderPass"), Is.False);
+        Assert.That(IsHandleNull(compute, "_computePass"), Is.False);
         WeakReference[] references = [new(render, trackResurrection: true), new(compute, trackResurrection: true)];
         host.Dispose();
         GC.KeepAlive(render);
@@ -562,7 +911,7 @@ public sealed class AlcoGpuRegressionTests
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static void CreateOrphanChildren(AlcoGpuDevice device)
+    private static WeakReference[] CreateOrphanChildren(AlcoGpuDevice device)
     {
         GPUBuffer buffer = device.CreateBuffer(new BufferDescriptor(128, BufferUsage.Uniform));
         GPUTexture texture = device.CreateTexture(new TextureDescriptor(
@@ -579,17 +928,45 @@ public sealed class AlcoGpuRegressionTests
             Resources = [new ResourceBindingEntry(0, buffer)],
         });
         // All locals become garbage once this method returns; nothing is disposed.
-        GC.KeepAlive(view);
-        GC.KeepAlive(sampler);
-        GC.KeepAlive(group);
+        return [new(buffer, trackResurrection: true), new(texture, trackResurrection: true),
+            new(view, trackResurrection: true), new(sampler, trackResurrection: true),
+            new(layout, trackResurrection: true), new(group, trackResurrection: true)];
     }
 
     private static AlcoDepthStencilAttachment GetDepthCache(GPUCommandBuffer commands) =>
         (AlcoDepthStencilAttachment)typeof(AlcoGpuCommandBuffer).GetField("_depthStencilAttachmentCache",
             BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(commands)!;
 
-    private static AlcoHandle GetHandle(BaseGPUObject instance, string field) =>
-        (AlcoHandle)instance.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(instance)!;
+    private static bool IsHandleNull(BaseGPUObject instance, string field)
+    {
+        object handle = instance.GetType().GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(instance)!;
+        return (bool)handle.GetType().GetProperty("IsNull")!.GetValue(handle)!;
+    }
+
+    private static void AssertStagingState(AlcoGpuDevice device, int pending, int idle)
+    {
+        static object Field(AlcoGpuDevice instance, string name) =>
+            typeof(AlcoGpuDevice).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(instance)!;
+        var requests = (System.Collections.ICollection)Field(device, "_pendingTextureReadbacks");
+        var evicted = (System.Collections.ICollection)Field(device, "_stagingCacheEvicted");
+        object cache = Field(device, "_stagingCache");
+        Assert.Multiple(() =>
+        {
+            Assert.That(requests.Count, Is.EqualTo(pending), "Unexpected pending staging ownership.");
+            Assert.That(cache.GetType().GetProperty("IdleCount")!.GetValue(cache), Is.EqualTo(idle));
+            Assert.That(evicted.Count, Is.Zero, "Evicted tickets must be detached and consumed before returning.");
+            if (idle == 0)
+            {
+                Assert.That(cache.GetType().GetProperty("IdleCapacityBytes")!.GetValue(cache), Is.EqualTo(0UL));
+            }
+        });
+    }
+
+    private static bool IsNativeResourceNull(BaseGPUObject resource)
+    {
+        object handle = resource.GetType().GetProperty("Native")!.GetValue(resource)!;
+        return (bool)handle.GetType().GetProperty("IsNull")!.GetValue(handle)!;
+    }
 
     private static bool GetRecordingFlag(GPUCommandBuffer commands, string field) =>
         (bool)typeof(GPUCommandBuffer).GetField(field, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(commands)!;

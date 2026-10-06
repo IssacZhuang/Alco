@@ -25,19 +25,26 @@ internal static unsafe class AlcoGpuLogRouter
     /// <param name="device">The device that receives subsequent records.</param>
     public static void Attach(AlcoGpuDevice device)
     {
-        _attached = device;
-        if (Interlocked.Exchange(ref _forwardingEnabled, 1) == 1)
-        {
-            return;
-        }
-
         try
         {
-            AlcoGpuNative.SetLogCallback(&AlcoGpuMarshal.OnNativeLog, null);
+            _attached = device;
+            if (Interlocked.Exchange(ref _forwardingEnabled, 1) == 1)
+            {
+                return;
+            }
+
+            try
+            {
+                AlcoGpuNative.SetLogCallback(&AlcoGpuMarshal.OnNativeLog, null);
+            }
+            catch (GraphicsException e)
+            {
+                Debug.WriteLine($"[alco-gpu] native log forwarding unavailable: {e.Message}");
+            }
         }
-        catch (GraphicsException e)
+        finally
         {
-            Debug.WriteLine($"[alco-gpu] native log forwarding unavailable: {e.Message}");
+            GC.KeepAlive(device);
         }
     }
 

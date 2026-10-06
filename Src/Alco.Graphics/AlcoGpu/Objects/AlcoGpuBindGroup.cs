@@ -11,7 +11,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 {
     #region Properties
-    private readonly AlcoHandle _native;
+    private AlcoBindGroupLayoutHandle _native;
     private readonly BindGroupEntry[] _bindings;
 
     #endregion
@@ -26,9 +26,24 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
+        try
         {
-            AlcoGpuNative.BindGroupLayoutDestroy(((AlcoGpuDevice)Device).Native, _native);
+            AlcoBindGroupLayoutHandle handle = _native;
+            _native = AlcoBindGroupLayoutHandle.Null;
+            if (!handle.IsNull)
+            {
+                try
+                {
+                    AlcoGpuNative.BindGroupLayoutDestroy(handle);
+                }
+                finally
+                {
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
         }
     }
 
@@ -36,7 +51,7 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 
     #region AlcoGpu Implementation
     /// <summary>Gets the native bind group layout handle.</summary>
-    public AlcoHandle Native
+    public AlcoBindGroupLayoutHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -46,33 +61,48 @@ internal sealed unsafe class AlcoGpuBindGroup : GPUBindGroup
 
     internal AlcoGpuBindGroup(AlcoGpuDevice device, BindGroupDescriptor descriptor) : base(descriptor)
     {
-        Device = device;
-
-        BindGroupEntry[] entries = descriptor.Bindings;
-        AlcoBindGroupLayoutEntry* nativeEntries = AlcoGpuUtility.AllocBindGroupLayoutEntries(entries);
-
         try
         {
-            ReadOnlySpan<byte> name = Name.Utf8Z();
-            fixed (byte* ptrName = name)
-            {
-                AlcoBindGroupLayoutDesc nativeDescriptor = new()
-                {
-                    Entries = nativeEntries,
-                    EntryCount = (uint)entries.Length,
-                    Name = ptrName,
-                };
+            Device = device;
 
-                AlcoGpuNative.BindGroupLayoutCreate(device.Native, in nativeDescriptor, out _native);
+            BindGroupEntry[] entries = descriptor.Bindings;
+            _bindings = (BindGroupEntry[])entries.Clone();
+            Span<AlcoBindGroupLayoutEntry> nativeEntryStorage = entries.Length <= 32
+                ? stackalloc AlcoBindGroupLayoutEntry[entries.Length] : new AlcoBindGroupLayoutEntry[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                nativeEntryStorage[i] = AlcoGpuUtility.ConvertBindGroupLayoutEntry(entries[i]);
             }
+
+            ReadOnlySpan<byte> name = Name.Utf8Z();
+            fixed (AlcoBindGroupLayoutEntry* nativeEntries = nativeEntryStorage)
+            {
+                fixed (byte* ptrName = name)
+                {
+                    AlcoBindGroupLayoutDesc nativeDescriptor = new()
+                    {
+                        Entries = nativeEntries,
+                        EntryCount = (uint)entries.Length,
+                        Name = ptrName,
+                    };
+
+                    AlcoGpuNative.BindGroupLayoutCreate(device.Native, in nativeDescriptor, out _native);
+                }
+            }
+
+
+        }
+        catch
+        {
+            try { Destroy(false); }
+            catch { /* Preserve the construction failure. */ }
+            throw;
         }
         finally
         {
-            Free(nativeEntries);
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
         }
-
-        _bindings = new BindGroupEntry[entries.Length];
-        Array.Copy(entries, _bindings, entries.Length);
     }
 
     #endregion

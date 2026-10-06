@@ -7,7 +7,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 {
     #region Properties
-    private readonly AlcoHandle _native;
+    private AlcoComputePipelineHandle _native;
     #endregion
 
     #region Abstract Implementation
@@ -15,9 +15,24 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 
     protected override void Dispose(bool disposing)
     {
-        if (!_native.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
+        try
         {
-            AlcoGpuNative.PipelineDestroy(((AlcoGpuDevice)Device).Native, _native);
+            AlcoComputePipelineHandle handle = _native;
+            _native = AlcoComputePipelineHandle.Null;
+            if (!handle.IsNull)
+            {
+                try
+                {
+                    AlcoGpuNative.ComputePipelineDestroy(handle);
+                }
+                finally
+                {
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
         }
     }
 
@@ -25,7 +40,7 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 
     #region AlcoGpu Implementation
     /// <summary>Gets the native compute pipeline handle.</summary>
-    public AlcoHandle Native
+    public AlcoComputePipelineHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -33,43 +48,62 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 
     internal AlcoGpuComputePipeline(AlcoGpuDevice device, in ComputePipelineDescriptor descriptor) : base(descriptor)
     {
-        Device = device;
-        AlcoHandle nativeDevice = device.Native;
-
-        ReadOnlySpan<byte> entryPoint = descriptor.Source.EntryPoint.Utf8Z();
-        ReadOnlySpan<byte> name = Name.Utf8Z();
-
-        fixed (byte* ptrEntry = entryPoint)
-        fixed (byte* ptrName = name)
+        try
         {
-            AlcoHandle module = device.CreateShaderModule(descriptor.Source);
+            Device = device;
+            AlcoDeviceHandle nativeDevice = device.Native;
 
-            GPUBindGroup[] bindGroups = descriptor.BindGroups;
-            AlcoHandle* bindGroupLayouts = stackalloc AlcoHandle[bindGroups.Length];
-            for (int i = 0; i < bindGroups.Length; i++)
+            ReadOnlySpan<byte> entryPoint = descriptor.Source.EntryPoint.Utf8Z();
+            ReadOnlySpan<byte> name = Name.Utf8Z();
+
+            fixed (byte* ptrEntry = entryPoint)
+            fixed (byte* ptrName = name)
             {
-                bindGroupLayouts[i] = ((AlcoGpuBindGroup)bindGroups[i]).Native;
+                AlcoShaderModuleHandle module = device.CreateShaderModule(descriptor.Source);
+
+                try
+                {
+                    GPUBindGroup[] bindGroups = descriptor.BindGroups;
+                    Span<AlcoBindGroupLayoutHandle> bindGroupLayoutStorage = bindGroups.Length <= 64
+                        ? stackalloc AlcoBindGroupLayoutHandle[bindGroups.Length] : new AlcoBindGroupLayoutHandle[bindGroups.Length];
+                    for (int i = 0; i < bindGroups.Length; i++)
+                    {
+                        bindGroupLayoutStorage[i] = ((AlcoGpuBindGroup)bindGroups[i]).Native;
+                    }
+
+                    fixed (AlcoBindGroupLayoutHandle* bindGroupLayouts = bindGroupLayoutStorage)
+                    {
+                    AlcoComputePipelineDesc desc = new()
+                    {
+                        BindGroupLayouts = bindGroupLayouts,
+                        BindGroupLayoutCount = (uint)bindGroups.Length,
+                        ComputeModule = module,
+                        ComputeEntry = ptrEntry,
+                        ImmediateSize = descriptor.PushConstantsSize,
+                        Name = ptrName,
+                    };
+
+                    AlcoGpuNative.ComputePipelineCreate(nativeDevice, in desc, out _native);
+                    }
+                }
+                finally
+                {
+                    device.DestroyShaderModule(module);
+                }
             }
 
-            AlcoComputePipelineDesc desc = new()
-            {
-                BindGroupLayouts = bindGroupLayouts,
-                BindGroupLayoutCount = (uint)bindGroups.Length,
-                ComputeModule = module,
-                ComputeEntry = ptrEntry,
-                ImmediateSize = descriptor.PushConstantsSize,
-                Name = ptrName,
-            };
-
-            try
-            {
-                AlcoGpuNative.ComputePipelineCreate(nativeDevice, in desc, out _native);
-                GC.KeepAlive(bindGroups);
-            }
-            finally
-            {
-                device.DestroyShaderModule(module);
-            }
+        }
+        catch
+        {
+            try { Destroy(false); }
+            catch { /* Preserve the construction failure. */ }
+            throw;
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
+            GC.KeepAlive(descriptor.BindGroups);
         }
     }
 

@@ -2,15 +2,17 @@
 
 `alco-gpu` is the engine's self-maintained Rust layer over **wgpu-core** (the same
 architecture wgpu-native uses). It replaces wgpu-native and the hand-written native
-Vulkan backend: Alco.Graphics P/Invokes a small, Alco-shaped C ABI, and every failure
-surfaces as a catchable `GraphicsException` instead of a process-killing panic.
+Vulkan backend: Alco.Graphics P/Invokes a small, Alco-shaped C ABI. Reported native
+failures surface as catchable `GraphicsException`s; invalid non-null pointers and
+violations of the caller lifetime contract are unsupported, not recoverable errors.
 
 - Crate: `Src/Alco.Graphics.Native/alco-gpu` (cdylib `alco_gpu`, committed binaries in
   `Src/Alco.Graphics/runtimes/<RID>/native/`, provenance in `runtimes/alco-gpu-manifest.json`)
 - C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
   callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
   `Interop/AlcoGpuMarshal.cs` throwing error callback)
-- Current ABI version: **1.4** (`ABI_MAJOR=1`, `ABI_MINOR=4`)
+- Current ABI version: **2.0** (`ABI_MAJOR=2`, `ABI_MINOR=0`). ABI 1 generational
+  handles and device-first object method signatures are not binary-compatible.
 
 ## Conventions
 
@@ -18,15 +20,15 @@ surfaces as a catchable `GraphicsException` instead of a process-killing panic.
 | --- | --- |
 | Exports | `#[no_mangle] extern "C-unwind"`, `alco_` prefix, C symbol per function (identical symbol names to plain `C`; `C-unwind` defines foreign-exception unwinding through the frame, see *Error callback*) |
 | Status | Every fallible export returns `AlcoStatus (u32)`; `0` = OK |
-| Errors | Synchronous failures write a thread-local last-error (`alco_get_last_error`) **and** fire the registered error callback, which throws at the native call site (see *Error callback*) |
+| Errors | Synchronous failures replace the thread-local latest failure (`alco_get_last_error`) **and** fire the registered error callback. Successful and `NotReady` calls leave that failure untouched (see *Error callback*) |
 | Async events | Device-lost / validation / native warnings queue per device; drained via `alco_device_pop_message` (severity 0 error, 1 warning, 2 info) |
-| Handles | `AlcoHandle = u64` (`generation << 32 \| index`), one generational table per object type; sequential stale-handle use / double-destroy returns `InvalidHandle`, never panics |
+| Handles | Typed opaque native pointers; each C# `Alco*Handle` is a sequential readonly struct containing one `nint`. Null required handles return `InvalidHandle`; other pointer validity is a caller precondition |
 | Panics | Every export body is wrapped in `catch_unwind`; a panic becomes status `Panic` + message |
 | Structs | `#[repr(C)]` ↔ `[StructLayout(LayoutKind.Sequential)]`, mirrored field-by-field in `AlcoGpuStructs.cs` |
 | Bools | `u32` (`ALCO_TRUE = 1`) |
 | Enums | `u32` with the same numeric values as the C# enums (identity cast — see `convert.rs`) |
 | Sentinels | `ALCO_NONE = u32::MAX` (optional depth format, read-only load/store ops, timestamp index none, fragment output count = all writes); `u64::MAX` submit index in `alco_device_poll` = "latest" |
-| Strings | In: NUL-terminated UTF-8; out: borrowed until the next call on that thread/device |
+| Strings | In: NUL-terminated UTF-8, borrowed for the call. Out: export-specific borrowed lifetimes; latest-error text lasts until the next failure on that thread, device info until public device destruction, message text until the next pop on that device, build info for process lifetime |
 
 ### AlcoStatus codes
 
@@ -55,22 +57,30 @@ Contract:
   frames is defined behavior under the Rust `C-unwind` ABI (symbol names are
   unchanged). The callback type itself is `extern "C-unwind" fn(u32, *const c_char, *mut c_void)`.
 - Failures are every status except `OK` and `NOT_READY` (`NOT_READY` is control
-  flow and must never fire). `message` is the thread-local last-error (borrowed
-  until the next alco call on the thread); statuses a body failed to annotate carry
-  a generic default message, and Rust panics fire with status `Panic`. `NOT_READY`
-  clears stale errors without formatting or allocating an error message. Panic-hook
-  installation uses one-time initialization with a read-only completed fast path.
-- The callback **must not call back into the library**: any alco call on the same
-  thread replaces the thread-local message the callback still holds a pointer to.
-- Unregistered (the default) behavior is unchanged: failures simply return their
-  status and the host may poll `alco_get_last_error` — the callback is purely
-  additive, which is why this is an ABI minor bump.
+  flow and must never fire). `message` is the thread-local latest failure (borrowed
+  until the next failure on that thread). Every failure path must explicitly record
+  a fresh diagnostic with `set_error`, `set_error_from`, or `fail`; `fail` supplies
+  a generic default message. The guard does not inspect old TLS state or invent
+  a fallback; returning a failure without recording its diagnostic violates this
+  internal protocol. Rust panics record fresh text with status `Panic`.
+- `OK` and `NOT_READY` do not clear, replace, format, or allocate TLS error text.
+  `alco_get_last_error` observes the latest failure, not the status of the most
+  recent call; it returns `OK` with null text if that thread has never failed.
+  Copy the message when it must survive a later failure. Panic-hook installation
+  uses one-time initialization with a read-only completed fast path.
+- The callback **must not call back into the library**: a reentrant failure could
+  replace the message while the callback still holds its pointer, and reentry
+  could violate the exclusive borrow of the object being operated on.
+- Unregistered (the default) behavior simply returns the failure status. The host
+  may poll `alco_get_last_error`; registering the callback adds synchronous
+  notification, not a different ownership or consumption contract.
 
 Verification: `entry.rs` unit tests cover firing with status + message, the
 default-message path, silence for `OK`/`NOT_READY`, and unregistration;
-`AlcoGpuAbiTests`/`AlcoGpuIntegrationTests` exercise the throwing path end-to-end
-(double-destroy throws, validation chains retain root causes, `NOT_READY` still
-returns normally).
+`AlcoGpuAbiTests`/`AlcoGpuRegressionTests` exercise null-handle failures, real-buffer
+operation validation, retained latest-error text across success/`NOT_READY`,
+validation root causes, and failed consuming operations. Raw double-destroy and
+stale-pointer tests are deliberately excluded because those calls violate ABI 2.
 
 ## Log callback
 
@@ -107,7 +117,7 @@ Verification: `logging.rs` unit tests cover level+message delivery, filtering,
 unregistration, idempotent registration and unknown-level rejection;
 `AlcoGpuAbiTests` assert the `SetLogLevel`/`SetLogCallback` contracts.
 
-## Export groups (66 exports)
+## Export groups
 
 **Meta** — `alco_abi_version`, `alco_build_info` (wgpu version, build id),
 `alco_get_last_error`, `alco_set_error_callback`, `alco_set_log_callback`,
@@ -145,18 +155,22 @@ the call.
 layouts, per-stage `{module, entry point}`, rasterizer/blend/depth-stencil value structs,
 topology, color formats, optional depth format, fragment output count, push constants
 size — the pipeline layout is built internally and is not visible to C#),
-`alco_compute_pipeline_create`, `alco_pipeline_destroy`.
+`alco_compute_pipeline_create`, `alco_graphics_pipeline_destroy`, and
+`alco_compute_pipeline_destroy`. Graphics and compute pipeline pointers are
+separate types; the shared ABI 1 `alco_pipeline_destroy` export is removed.
 
 **Bind group layout (C# `GPUBindGroup`) and bind group (C# `GPUResourceGroup`)** —
 create/destroy pairs. Layout entries carry binding/visibility/type plus a type-specific
 payload; **bind group entries carry an explicit resource kind tag (0 buffer, 1 texture
-view, 2 sampler)** — handles from different per-type tables can collide numerically, so
-the kind must never be recovered by probing tables.
+view, 2 sampler)** alongside a pointer-sized heterogeneous `resource` (`nint` in
+C#). The kind declares the exact pointee type; there is no runtime type-probing or
+wrong-kind recovery. All homogeneous descriptor fields and handle arrays use the
+appropriate typed handle.
 
 **Command encoding** — encoder create/finish/destroy (finish consumes the encoder on
-both success and failure); render pass begin/end + setters (pipeline, bind group, vertex
+both success and failure); render pass begin/end/release + setters (pipeline, bind group, vertex
 / index buffer, scissor, stencil reference, immediates, draw, draw indexed, indirect
-variants, multi-draw indirect, write timestamp, execute bundles); compute pass begin/end
+variants, multi-draw indirect, write timestamp, execute bundles); compute pass begin/end/release
 + setters; copies (`buffer_to_buffer`, `buffer_to_texture`, `texture_to_buffer`,
 `texture_to_texture`); `alco_resolve_query_set`.
 
@@ -174,39 +188,107 @@ acquired texture's descriptor from the surface configuration, so the values reco
 `alco_surface_configure` time are authoritative (and resize is signaled through the
 acquire status, not through size drift).
 
+## Typed pointers and call context
+
+The ABI has no Alco handle registry, generation counter, slot lookup, address
+quarantine, or runtime type discovery. Each non-null handle points to one
+independently owned native wrapper. C# mirrors are `AlcoDeviceHandle`,
+`AlcoBufferHandle`, `AlcoTextureHandle`, `AlcoTextureViewHandle`, `AlcoSamplerHandle`,
+`AlcoShaderModuleHandle`, `AlcoBindGroupLayoutHandle`, `AlcoBindGroupHandle`,
+`AlcoQuerySetHandle`, `AlcoGraphicsPipelineHandle`, `AlcoComputePipelineHandle`,
+`AlcoEncoderHandle`, `AlcoCommandBufferHandle`, `AlcoRenderPassHandle`,
+`AlcoComputePassHandle`, `AlcoBundleEncoderHandle`, `AlcoRenderBundleHandle`, and
+`AlcoSurfaceHandle`. Each contains exactly one native-sized `nint`; copying the
+value copies a borrowed identity, not ownership or a reference count.
+
+- Device creation has no device parameter. Other top-level object creation takes
+  a live typed device pointer. Texture-view creation is texture-only: it derives
+  its context from the texture.
+- Queue writes and submission still take the live device plus the typed target
+  buffer/texture/command buffer. These supplied objects must belong to that device.
+- All object methods and destruction/release derive the context from their object;
+  they omit the redundant device parameter. Copies and query resolution are
+  encoder-first. Pipeline destruction is split by graphics/compute pointer type.
+- Render/compute pass begin is encoder-only. Pass end/release, setters, and
+  draw/dispatch are pass-only. Bundle recording is bundle-encoder-only.
+- Every supplied non-null pointer must be live, correctly aligned, of the exact
+  declared type, and from the same device context as the controlling object.
+  Heterogeneous bindings require the corresponding `resource` pointer and `kind`.
+  These are caller preconditions, not dynamic validation promises.
+
+Null required handles are recoverable `InvalidHandle` failures. A null optional
+handle retains its export-specific meaning (for example, no resolve view). A
+non-null freed, fabricated, incorrectly typed, or concurrently released pointer is
+unsupported and can cause undefined behavior; `catch_unwind` cannot make it safe.
+Address reuse after release is unconstrained. Only simultaneously live wrapper
+identities are distinct; callers must not interpret pointer bits as indices or
+assert reuse/non-reuse of released addresses.
+
 ## Threading and ownership
 
-Device and mutable recording registries use stable segmented slots. Generation and
-occupancy checks use atomic loads; slot publication and removal use atomic stores.
-Allocation and vacant-slot reuse use a short allocator mutex; removed payloads are
-returned before cleanup, while slot storage stays allocated until registry teardown.
-There is no per-call device pin or exclusive recording claim: these atomics publish
-slot state, not protection against overlapping use, end, or destruction.
+Ordinary ABI operations borrow the live wrapper and its retained cleanup context
+directly. They do not clone an `Arc<DeviceCtx>` or acquire an Alco registry lock to
+resolve each argument. Creation establishes each child's retained context owner;
+destruction/consumption drops it. Surface ownership and genuine asynchronous map
+completion use their required shared ownership, not a per-call device pin.
+wgpu-core still has its own resource registries and internal synchronization.
 
-Immutable resource registries still use short shared `RwLock` read locks for
-snapshots or copy-only ID projections; these locks are released before core
-operations. Buffer ID lookups do not clone mapping state. Different command buffers
-may be recorded in parallel, with no device-wide recording lock. Resource creation
-and destruction on different objects are safe to run concurrently, subject to the
-lifetime requirements below. The ABI representation, including the generation/index
-handle format, and sequential stale-handle rejection are unchanged.
+Different command buffers may be recorded in parallel without a device-wide
+recording lock. Independent resources may be created/destroyed concurrently.
+These guarantees require callers to keep the public device and supplied resources
+alive until each operation completes, including callbacks and GPU waits. Serialize
+use, end/finish, submission, and destroy/release of the same mutable object;
+order resource destruction against every call borrowing that resource. Device
+teardown must not overlap active operations. A retained cleanup context does not
+permit normal GPU work after public device invalidation.
 
-As with wgpu-native, callers must keep the device and every supplied resource alive
-until the call completes, including callbacks and GPU waits. Callers must serialize
-use, end/finish, submission, and destroy/release of the same mutable object, and
-order resource destruction against all uses of that resource. Device teardown must
-not overlap any active operation. Violating these requirements is unsupported;
-overlapping calls are not guaranteed to return `InvalidArgument` or leave a handle
-intact. Mapped pointers must not outlive unmap or buffer release; borrowed strings
-retain the lifetimes documented by their exports. Error handling and managed GC
-lifetime guards remain unchanged and do not enforce caller synchronization.
+Surface configuration/acquisition/presentation state retains a per-surface mutex.
+Map callbacks retain completion state independently of the buffer wrapper, publish
+completion atomically, and protect error text with its completion-local mutex.
+These real async/state locks remain necessary; they are not handle-validation
+locks. The independent-resource/recording contract is not a blanket thread-safety
+guarantee for queue operations (including initial-data uploads), readbacks,
+mapping/unmapping, polling, or surfaces. Follow operation-specific synchronization.
+Mapped pointers must not outlive unmap or buffer release; borrowed strings retain
+the lifetimes documented by their exports. Acquired surface textures and their
+views retain the parent surface independently of its public handle; the platform
+window/display/layer must outlive the last retained child owner, not just
+`alco_surface_destroy`. Managed `GC.KeepAlive` guards protect call-scoped wrapper
+lifetimes, not synchronization against explicit disposal.
 
-Surface configuration/acquisition/presentation metadata still uses a per-surface
-mutex; map completion state uses a buffer-local mutex, separate from ordinary
-buffer uploads and command recording. These internal locks and the independent
-resource/recording contract do not imply a general concurrency guarantee for queue
-operations (including initial-data uploads), readbacks, mapping/unmapping, polling,
-or surface operations; follow their operation-specific synchronization requirements.
+### Consumption and device-first cleanup
+
+Destroy/release transfers the unique owner back to native code exactly once. For
+a valid input, encoder finish, bundle encoder finish, pass end, and queue submit
+consume their input on success **and on validation/core failure**; the error
+callback fires only after that cleanup. Hosts must clear owned mirrors before
+calling a consuming export, even if the call later throws. Missing required
+arguments are precondition failures, not a promise that other inputs were consumed.
+
+`alco_render_pass_release` and `alco_compute_pass_release` abandon a live pass
+without calling End or reporting deferred pass validation. They consume the pass
+wrapper and allow cleanup of open recordings, including after device invalidation.
+Release is not a way to recover and continue a valid recording; abandon its parent
+encoder as well. End is the normal recording path; its recorded validation may be
+reported only by encoder finish.
+
+Public `alco_device_destroy` invalidates and releases the unique device owner and
+shuts down normal device work. It does **not** bulk-free independently owned child
+wrappers. Each child retains the context needed for later cleanup. Final core
+queue/device/adapter registrations and the context are reclaimed after the last
+retained child owner is released. A destroyed device pointer must never be used
+again, even while children keep that internal context alive.
+
+The .NET layer separates public device liveness from native child ownership.
+`Dispose` may defer release while the device is active; shutdown drains owned
+staging/default resources and invalidates the public device. Late explicit disposal
+or finalization still releases each child's pointer, rather than skipping native
+cleanup because the public device is dead. Late open passes are abandoned with
+Release. `BaseGPUObject` ownership makes repeated managed `Dispose`/`Destroy`
+idempotent and clears consumed pointers before native calls; raw repeated native
+destruction is **not** idempotent. Framebuffers also release their nested texture
+and view owners. No production pointer registry or counter ABI is needed for this
+ownership model.
 
 **wgpu-core 30.0.1 still has a texture-upload/submission lock-order inversion.**
 `Queue::write_texture` holds the texture initialization write lock while acquiring
@@ -247,14 +329,30 @@ Texture=4, StorageTexture=5, SamplerComparison=6), `ShaderStage` bits
 Indirect=1<<8, QueryResolve=1<<9), `TextureUsage` bits (Read=1<<0, Write=1<<1,
 TextureBinding=1<<2, StorageBinding=1<<3, ColorAttachment=1<<4, DepthAttachment=1<<5).
 
-## Error containment
+## Error containment and verification
 
-Sequential double-destroy and stale-handle use-after-destroy of any object throw
-`GraphicsException` ("invalid handle") from the native call via the error callback
-(verified by `DoubleDestroyThrowsInvalidHandleAndKeepsProcessAlive` /
-`DoubleDestroyThrowsInvalidHandleInsteadOfCrashing`); the device remains usable
-afterwards. This is the core reason the layer exists: the same scenario under
-wgpu-native aborted the process.
+Recoverable argument errors, null required handles, core validation failures,
+unsupported operations, and caught Rust panics use the status/TLS/error-callback
+contract. Full error source chains retain their validation root causes. Raw stale
+pointer access, double-free, fabricated pointers, wrong pointee types, and invalid
+device-context combinations are caller contract violations; they are not tested
+by executing unsafe calls and carry no recoverable-error guarantee.
+
+Managed coverage verifies all typed pointer layouts and homogeneous descriptor
+fields, simultaneous live identities, many independent allocation/destruction
+rounds with real buffer copies, render pixels, validation chains, and independent
+resource/recording outputs. Texture upload/submission tests retain the managed
+upload gate. Failed encoder/bundle finishes and a submission referencing a
+destroyed **core** resource verify consumption without dereferencing a freed
+wrapper. Device-first tests verify late owned-pointer clearing, open recording
+abandonment, idempotent managed disposal, nested attachment cleanup, staging cleanup,
+and silent orphan finalization. Existing Debug allocation accounting checks
+managed unmanaged-temporary balance; it is not a count of Rust wrappers.
+
+Native tests verify deeper wrapper/context reclamation using existing core reports,
+weak context ownership, and reference-count checks. These test-only observations
+do not introduce a production registry or live-counter export. ABI 2 tests must
+run against a freshly built ABI 2 library, never an ABI 1 delivered binary.
 
 ## Building / updating the binary
 

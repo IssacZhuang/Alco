@@ -4,6 +4,7 @@ using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Describes AlcoGpuFrameBufferBase.</summary>
 internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
 {
     /// <summary>The pre-baked render pass descriptor (attachment views are refreshed per frame).</summary>
@@ -57,12 +58,14 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
         ReadOnlySpan<AlcoColorAttachmentInfo> colorInfos)
     {
         AlcoColorAttachment* colorAttachments = Alloc<AlcoColorAttachment>(colorViews.Length);
+        try
+        {
         for (int i = 0; i < colorViews.Length; i++)
         {
             AlcoColorAttachment attachment = new()
             {
                 View = ((AlcoGpuTextureViewBase)colorViews[i]).Native,
-                ResolveView = AlcoHandle.Null,
+                ResolveView = AlcoTextureViewHandle.Null,
                 LoadOp = 0, // load
                 StoreOp = 0, // store
             };
@@ -73,6 +76,12 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
             colorAttachments[i] = attachment;
         }
         return colorAttachments;
+        }
+        catch
+        {
+            Free(colorAttachments);
+            throw;
+        }
     }
 
     /// <summary>
@@ -84,6 +93,8 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
         in AlcoDepthAttachmentInfo depthInfo)
     {
         AlcoDepthStencilAttachment* depthAttachment = Alloc<AlcoDepthStencilAttachment>(1);
+        try
+        {
         *depthAttachment = new AlcoDepthStencilAttachment
         {
             View = ((AlcoGpuTextureViewBase)depthStencilView).Native,
@@ -95,6 +106,12 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
             StencilClear = depthInfo.ClearStencil,
         };
         return depthAttachment;
+        }
+        catch
+        {
+            Free(depthAttachment);
+            throw;
+        }
     }
 
     protected static PixelFormat[] GetNativeColorFormats(AlcoGpuAttachmentLayout attachmentLayout)

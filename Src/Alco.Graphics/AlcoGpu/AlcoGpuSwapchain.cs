@@ -3,11 +3,12 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Describes AlcoGpuSwapchain.</summary>
 internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
 {
     private readonly AlcoGpuDevice _device;
     private readonly AlcoGpuAttachmentLayout _attachmentLayout;
-    private readonly AlcoHandle _surface;
+    private AlcoSurfaceHandle _surface;
     private readonly AlcoGpuSurfaceFrameBuffer _frameBuffer;
 
     private readonly PixelFormat _surfaceFormat;
@@ -23,159 +24,185 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
     /// </summary>
     internal AlcoGpuSwapchain(AlcoGpuDevice device, in SwapchainDescriptor descriptor) : base(descriptor)
     {
-        _device = device;
-
-        _surface = CreateSurface(device, descriptor.SurfaceSource);
-
-        // check compatibility
-        AlcoSurfaceCaps caps = default;
-        AlcoGpuNative.SurfaceGetCapabilities(device.Native, _surface, ref caps);
-
-        // get supported present modes (ABI present-mode values)
-        _supportedPresentModes = new uint[caps.PresentModeCount];
-        for (uint i = 0; i < caps.PresentModeCount; i++)
+        try
         {
-            _supportedPresentModes[i] = caps.PresentModes[i];
-        }
-
-        // get supported formats
-        _supportedSurfaceFormats = new PixelFormat[caps.FormatCount];
-        for (uint i = 0; i < caps.FormatCount; i++)
-        {
-            _supportedSurfaceFormats[i] = (PixelFormat)caps.Formats[i];
-        }
-
-        _surfaceFormat = descriptor.ColorFormat;
-        bool isFormatSupported = false;
-        for (int i = 0; i < _supportedSurfaceFormats.Length; i++)
-        {
-            if (_supportedSurfaceFormats[i] == _surfaceFormat)
+            try
             {
-                isFormatSupported = true;
-                break;
+                _device = device;
+
+                _surface = CreateSurface(device, descriptor.SurfaceSource);
+
+                // check compatibility
+                AlcoSurfaceCaps caps = default;
+                AlcoGpuNative.SurfaceGetCapabilities(_surface, ref caps);
+
+                // get supported present modes (ABI present-mode values)
+                _supportedPresentModes = new uint[caps.PresentModeCount];
+                for (uint i = 0; i < caps.PresentModeCount; i++)
+                {
+                    _supportedPresentModes[i] = caps.PresentModes[i];
+                }
+
+                // get supported formats
+                _supportedSurfaceFormats = new PixelFormat[caps.FormatCount];
+                for (uint i = 0; i < caps.FormatCount; i++)
+                {
+                    _supportedSurfaceFormats[i] = (PixelFormat)caps.Formats[i];
+                }
+
+                _surfaceFormat = descriptor.ColorFormat;
+                bool isFormatSupported = false;
+                for (int i = 0; i < _supportedSurfaceFormats.Length; i++)
+                {
+                    if (_supportedSurfaceFormats[i] == _surfaceFormat)
+                    {
+                        isFormatSupported = true;
+                        break;
+                    }
+                }
+                if (!isFormatSupported)
+                {
+                    PixelFormat oldFormat = _surfaceFormat;
+                    _surfaceFormat = _supportedSurfaceFormats[0];
+                    _device.LogInfo($"Surface format {oldFormat} is not supported, using {_surfaceFormat} instead");
+                }
+
+                //create attachment layout
+                DepthAttachment? depth = null;
+                if (descriptor.DepthFormat.HasValue)
+                {
+                    _depthFormat = descriptor.DepthFormat.Value;
+                    depth = new DepthAttachment()
+                    {
+                        Format = descriptor.DepthFormat.Value,
+                        ClearDepth = 1.0f,
+                        ClearStencil = 0,
+                    };
+                }
+
+                AttachmentLayoutDescriptor attachmentLayoutDescriptor = new AttachmentLayoutDescriptor(
+                    new ColorAttachment[]
+                    {
+                        new ColorAttachment()
+                        {
+                            Format = _surfaceFormat,
+                            ClearColor = descriptor.ClearColor,
+                        },
+                    },
+                    depth,
+                    "surface_render_pass"
+                );
+
+                _attachmentLayout = new AlcoGpuAttachmentLayout(device, attachmentLayoutDescriptor);
+
+                _config.Format = (uint)_attachmentLayout.ColorInfos[0].Format;
+                // DX12 surface textures cannot be sampled: capture copies them into a sampleable
+                // texture instead. Other backends retain the direct surface-sampling path.
+                _config.Usage = (uint)(TextureUsage.ColorAttachment |
+                    (device.Backend == GraphicsBackend.WGPUDx12 ? TextureUsage.Read : TextureUsage.TextureBinding));
+                _config.PresentMode = GetPresentMode(descriptor.IsVSyncEnabled);
+                _isVSyncEnabled = descriptor.IsVSyncEnabled;
+                _config.AlphaMode = AlcoGpuAbi.AlphaModeAbi.Auto;
+
+                _config.Width = descriptor.Width;
+                _config.Height = descriptor.Height;
+                _config.DesiredFrameLatency = 2;
+
+                // the life cycle of the surface is managed by the AlcoGpuSurfaceFrameBuffer
+                // because it must be dropped after the last surface texture is released
+                _frameBuffer = new AlcoGpuSurfaceFrameBuffer(this, _device, _attachmentLayout, ref _surface, _config);
+            }
+            catch
+            {
+                try { Destroy(false); }
+                catch { /* Preserve the construction failure. */ }
+                throw;
             }
         }
-        if (!isFormatSupported)
+        finally
         {
-            PixelFormat oldFormat = _surfaceFormat;
-            _surfaceFormat = _supportedSurfaceFormats[0];
-            _device.LogInfo($"Surface format {oldFormat} is not supported, using {_surfaceFormat} instead");
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
         }
-
-        //create attachment layout
-        DepthAttachment? depth = null;
-        if (descriptor.DepthFormat.HasValue)
-        {
-            _depthFormat = descriptor.DepthFormat.Value;
-            depth = new DepthAttachment()
-            {
-                Format = descriptor.DepthFormat.Value,
-                ClearDepth = 1.0f,
-                ClearStencil = 0,
-            };
-        }
-
-        AttachmentLayoutDescriptor attachmentLayoutDescriptor = new AttachmentLayoutDescriptor(
-            new ColorAttachment[]
-            {
-                new ColorAttachment()
-                {
-                    Format = _surfaceFormat,
-                    ClearColor = descriptor.ClearColor,
-                },
-            },
-            depth,
-            "surface_render_pass"
-        );
-
-        _attachmentLayout = new AlcoGpuAttachmentLayout(device, attachmentLayoutDescriptor);
-
-        _config.Format = (uint)_attachmentLayout.ColorInfos[0].Format;
-        // DX12 surface textures cannot be sampled: capture copies them into a sampleable
-        // texture instead. Other backends retain the direct surface-sampling path.
-        _config.Usage = (uint)(TextureUsage.ColorAttachment |
-            (device.Backend == GraphicsBackend.WGPUDx12 ? TextureUsage.Read : TextureUsage.TextureBinding));
-        _config.PresentMode = GetPresentMode(descriptor.IsVSyncEnabled);
-        _isVSyncEnabled = descriptor.IsVSyncEnabled;
-        _config.AlphaMode = AlcoGpuAbi.AlphaModeAbi.Auto;
-
-        _config.Width = descriptor.Width;
-        _config.Height = descriptor.Height;
-        _config.DesiredFrameLatency = 2;
-
-        // the life cycle of the surface is managed by the AlcoGpuSurfaceFrameBuffer
-        // because it must be dropped after the last surface texture is released
-        _frameBuffer = new AlcoGpuSurfaceFrameBuffer(_device, _attachmentLayout, _surface, _config);
     }
 
-    private static AlcoHandle CreateSurface(AlcoGpuDevice device, SurfaceSource surface)
+    private static AlcoSurfaceHandle CreateSurface(AlcoGpuDevice device, SurfaceSource surface)
     {
-        AlcoSurfaceDesc desc = default;
-        switch (surface)
+        try
         {
-            case Win32SurfaceSource win32Surface:
-                desc.Tag = AlcoGpuAbi.SurfaceTag.Win32;
-                desc.Handle = (ulong)win32Surface.Hwnd;
-                desc.Display = (ulong)win32Surface.HInstance;
-                break;
-            case MetalLayerSurfaceHandle metalLayerSurface:
-                desc.Tag = AlcoGpuAbi.SurfaceTag.MetalLayer;
-                desc.Handle = (ulong)metalLayerSurface.Layer;
-                break;
-            case WaylandSurfaceSource waylandSurface:
-                desc.Tag = AlcoGpuAbi.SurfaceTag.Wayland;
-                desc.Display = (ulong)waylandSurface.Display;
-                desc.Handle = (ulong)waylandSurface.Surface;
-                break;
-            case XcbWindowSurfaceSource xcbWindowSurface:
-                desc.Tag = AlcoGpuAbi.SurfaceTag.Xcb;
-                desc.Display = (ulong)xcbWindowSurface.Connection;
-                desc.Handle = xcbWindowSurface.Window;
-                break;
-            case XlibWindowSurfaceSource xlibWindowSurface:
-                desc.Tag = AlcoGpuAbi.SurfaceTag.Xlib;
-                desc.Display = (ulong)xlibWindowSurface.Display;
-                desc.Handle = xlibWindowSurface.Window;
-                break;
-            case AndroidWindowSurfaceSource androidWindowSurface:
-                desc.Tag = AlcoGpuAbi.SurfaceTag.Android;
-                desc.Handle = (ulong)androidWindowSurface.Window;
-                break;
-            default:
-                throw new GraphicsException($"Unsupported surface source {surface?.GetType().Name} for the alco-gpu backend");
-        }
+            AlcoSurfaceDesc desc = default;
+            switch (surface)
+            {
+                case Win32SurfaceSource win32Surface:
+                    desc.Tag = AlcoGpuAbi.SurfaceTag.Win32;
+                    desc.Handle = (ulong)win32Surface.Hwnd;
+                    desc.Display = (ulong)win32Surface.HInstance;
+                    break;
+                case MetalLayerSurfaceHandle metalLayerSurface:
+                    desc.Tag = AlcoGpuAbi.SurfaceTag.MetalLayer;
+                    desc.Handle = (ulong)metalLayerSurface.Layer;
+                    break;
+                case WaylandSurfaceSource waylandSurface:
+                    desc.Tag = AlcoGpuAbi.SurfaceTag.Wayland;
+                    desc.Display = (ulong)waylandSurface.Display;
+                    desc.Handle = (ulong)waylandSurface.Surface;
+                    break;
+                case XcbWindowSurfaceSource xcbWindowSurface:
+                    desc.Tag = AlcoGpuAbi.SurfaceTag.Xcb;
+                    desc.Display = (ulong)xcbWindowSurface.Connection;
+                    desc.Handle = xcbWindowSurface.Window;
+                    break;
+                case XlibWindowSurfaceSource xlibWindowSurface:
+                    desc.Tag = AlcoGpuAbi.SurfaceTag.Xlib;
+                    desc.Display = (ulong)xlibWindowSurface.Display;
+                    desc.Handle = xlibWindowSurface.Window;
+                    break;
+                case AndroidWindowSurfaceSource androidWindowSurface:
+                    desc.Tag = AlcoGpuAbi.SurfaceTag.Android;
+                    desc.Handle = (ulong)androidWindowSurface.Window;
+                    break;
+                default:
+                    throw new GraphicsException($"Unsupported surface source {surface?.GetType().Name} for the alco-gpu backend");
+            }
 
-        ReadOnlySpan<byte> name = "swapchain_surface".Utf8Z();
-        fixed (byte* ptrName = name)
+            ReadOnlySpan<byte> name = "swapchain_surface\u0000"u8;
+            fixed (byte* ptrName = name)
+            {
+                desc.Name = ptrName;
+                AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoSurfaceHandle handle);
+                return handle;
+            }
+        }
+        finally
         {
-            desc.Name = ptrName;
-            AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoHandle handle);
-            return handle;
+            GC.KeepAlive(device);
         }
     }
 
     #region Abstract Implementation
 
+    /// <inheritdoc />
     public override GPUFrameBuffer FrameBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _frameBuffer;
     }
 
+    /// <inheritdoc />
     public override bool IsVSyncEnabled
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _isVSyncEnabled;
         set
         {
-            if (_isVSyncEnabled == value)
+            try
             {
-                return;
+                if (_isVSyncEnabled == value) { return; }
+                _isVSyncEnabled = value;
+                _config.PresentMode = GetPresentMode(value);
+                _frameBuffer.UpdateSurfaceConfig(_config);
             }
-
-            _isVSyncEnabled = value;
-            _config.PresentMode = GetPresentMode(value);
-            _frameBuffer.UpdateSurfaceConfig(_config);
+            finally { GC.KeepAlive(this); }
         }
     }
 
@@ -185,27 +212,55 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
         get => _device;
     }
 
+    /// <inheritdoc />
     public override bool RequestSurfaceTexture()
     {
-        return _frameBuffer.RequestSurfaceTexture();
+        try { return _frameBuffer.RequestSurfaceTexture(); }
+        finally { GC.KeepAlive(this); }
     }
 
+    /// <inheritdoc />
     public override void Present()
     {
-        _frameBuffer.Present();
+        try { _frameBuffer.Present(); }
+        finally { GC.KeepAlive(this); }
     }
 
+    /// <inheritdoc />
     public override void Resize(uint width, uint height)
     {
-        _config.Width = width;
-        _config.Height = height;
-        _frameBuffer.UpdateSurfaceConfig(_config);
+        try
+        {
+            _config.Width = width;
+            _config.Height = height;
+            _frameBuffer.UpdateSurfaceConfig(_config);
+        }
+        finally { GC.KeepAlive(this); }
     }
 
     protected override void Dispose(bool disposing)
     {
-        // The frame buffer owns the native surface (dropped after its textures).
-        _frameBuffer.Dispose();
+        try
+        {
+            try
+            {
+                _frameBuffer?.Destroy(disposing);
+            }
+            finally
+            {
+                try { _attachmentLayout?.Destroy(disposing); }
+                finally
+                {
+                    AlcoSurfaceHandle surface = _surface;
+                    _surface = AlcoSurfaceHandle.Null;
+                    if (!surface.IsNull) { AlcoGpuNative.SurfaceDestroy(surface); }
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
     }
 
     #endregion

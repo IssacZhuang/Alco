@@ -9,8 +9,8 @@ namespace Alco.Graphics.Test;
 
 /// <summary>
 /// End-to-end tests for the alco-gpu backend: device creation, WGSL rendering with
-/// pixel validation, buffer readback, async texture readbacks, double-destroy error
-/// containment and queue concurrency.
+/// pixel validation, buffer readback, async texture readbacks, idempotent managed
+/// ownership and queue concurrency.
 /// </summary>
 [TestFixture]
 [NonParallelizable]
@@ -19,7 +19,9 @@ public sealed class AlcoGpuIntegrationTests
 {
     private sealed class Host : IGPUDeviceHost, IDisposable
     {
+        /// <inheritdoc />
         public event Action? OnEndFrame;
+        /// <inheritdoc />
         public event Action? OnDispose;
 
         /// <summary>Runs deferred resource disposal and readback processing.</summary>
@@ -223,34 +225,32 @@ public sealed class AlcoGpuIntegrationTests
         texture.Destroy();
     }
 
-    /// <summary>
-    /// Double-destroy at the ABI level throws a managed GraphicsException from
-    /// the native call instead of killing the process — the core reason the
-    /// alco-gpu layer exists.
-    /// </summary>
+    /// <summary>Repeated managed disposal releases one native pointer and leaves replacement resources usable.</summary>
     [Test]
-    public unsafe void DoubleDestroyThrowsInvalidHandleAndKeepsProcessAlive()
+    public void RepeatedManagedBufferDisposalIsIdempotentAndKeepsDeviceUsable()
     {
         using var host = new Host();
         AlcoGpuDevice device = CreateDevice(host);
+        GPUBuffer buffer = device.CreateBuffer(new BufferDescriptor(64, BufferUsage.CopyDst | BufferUsage.CopySrc));
+        Assert.That(((AlcoGpuBuffer)buffer).Native.IsNull, Is.False);
 
-        AlcoBufferDesc desc = new()
-        {
-            Size = 64,
-            Usage = (uint)BufferUsage.Uniform,
-        };
+        Assert.DoesNotThrow(buffer.Dispose);
+        Assert.DoesNotThrow(buffer.Dispose);
+        host.EndFrame();
+        host.EndFrame();
+        Assert.DoesNotThrow(() => buffer.Destroy());
+        Assert.DoesNotThrow(buffer.Dispose);
+        Assert.That(buffer.IsDisposed, Is.True);
+        Assert.That(((AlcoGpuBuffer)buffer).Native.IsNull, Is.True);
 
-        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle buffer);
-        Assert.That(buffer.IsNull, Is.False);
-
-        AlcoGpuNative.BufferDestroy(device.Native, buffer);
-        GraphicsException second = Assert.Throws<GraphicsException>(
-            () => AlcoGpuNative.BufferDestroy(device.Native, buffer))!;
-        Assert.That(second.Message, Does.Contain("invalid handle"));
-
-        // The device still works after the contained failure.
-        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle replacement);
-        AlcoGpuNative.BufferDestroy(device.Native, replacement);
+        // Managed ownership, not repeated raw native destroy, provides idempotence.
+        using GPUBuffer replacement = device.CreateBuffer(new BufferDescriptor(64, BufferUsage.CopyDst | BufferUsage.CopySrc));
+        byte[] written = new byte[64];
+        new Random(4321).NextBytes(written);
+        device.WriteBuffer(replacement, written);
+        byte[] readback = new byte[written.Length];
+        device.ReadBuffer(replacement, readback);
+        Assert.That(readback, Is.EqualTo(written));
     }
 
     /// <summary>The QueryResolve usage bit survives the ABI conversion (bit 9 regression).</summary>
@@ -270,11 +270,12 @@ public sealed class AlcoGpuIntegrationTests
             Usage = (uint)(BufferUsage.QueryResolve | BufferUsage.CopyDst | BufferUsage.CopySrc),
         };
 
-        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoHandle buffer);
-        AlcoGpuNative.BufferDestroy(device.Native, buffer);
+        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoBufferHandle buffer);
+        AlcoGpuNative.BufferDestroy(buffer);
     }
 
     /// <summary>Exercises texture streaming concurrently with native queue submissions.</summary>
+    /// <param name="updateBuffers">Whether to interleave independent buffer writes with submissions.</param>
     [TestCase(false)]
     [TestCase(true)]
     public unsafe void StreamingUploadsAndSubmissionsCompleteWithCorrectPixels(bool updateBuffers)
@@ -461,7 +462,7 @@ public sealed class AlcoGpuIntegrationTests
                     layout.Destroy();
                     if (!submit)
                     {
-                        // Dispose defers native release, so use Destroy to exercise registry removal here.
+                        // Dispose defers native release, so use Destroy to exercise wrapper reclamation here.
                         destination.Destroy();
                         source.Destroy();
                     }

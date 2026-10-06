@@ -4,14 +4,16 @@ using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Describes AlcoGpuSurfaceFrameBuffer.</summary>
 internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 {
     #region Properties
     // use list for the abstraction but only one element inside
-    private readonly AlcoHandle _surface;
+    private readonly AlcoGpuSwapchain _owner;
+    private AlcoSurfaceHandle _surface;
     private readonly AlcoRenderPassDesc _descriptor;
-    private readonly AlcoGpuSurfaceTexture[] _colorTextures; // the surface texture has a per-frame view
-    private readonly AlcoGpuTextureViewWrapper[] _colorViewsWrapper; // only one element but use list for the abstraction
+    private readonly AlcoGpuSurfaceTexture[] _colorTextures = []; // the surface texture has a per-frame view
+    private readonly AlcoGpuTextureViewWrapper[] _colorViewsWrapper = []; // only one element but use list for the abstraction
     private readonly AlcoGpuAttachmentLayout _attachmentLayout;
     private AlcoGpuTexture? _depthStencilTexture;
     private AlcoGpuTextureView? _depthStencilView;
@@ -22,8 +24,8 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
     private readonly PixelFormat? _depth;
 
     // native memory, need to be manually released
-    private readonly AlcoColorAttachment* _colorAttachments;
-    private readonly AlcoDepthStencilAttachment* _depthAttachment;
+    private AlcoColorAttachment* _colorAttachments;
+    private AlcoDepthStencilAttachment* _depthAttachment;
 
     // dynamic
     private AlcoSurfaceConfig _config;
@@ -37,53 +39,62 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
     #region Abstract Implementation
     protected override GPUDevice Device { get; }
+    /// <inheritdoc />
     public override GPUAttachmentLayout AttachmentLayout
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _attachmentLayout;
     }
+    /// <inheritdoc />
     public override ReadOnlySpan<GPUTexture> Colors
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorTextures;
     }
 
+    /// <inheritdoc />
     public override GPUTexture? DepthStencil
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _depthStencilTexture;
     }
 
+    /// <inheritdoc />
     public override uint Width
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _width;
     }
 
+    /// <inheritdoc />
     public override uint Height
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _height;
     }
 
+    /// <inheritdoc />
     public override ReadOnlySpan<GPUTextureView> ColorViews
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorViewsWrapper;
     }
 
+    /// <inheritdoc />
     public override GPUTextureView? DepthStencilView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _depthStencilView;
     }
 
+    /// <inheritdoc />
     public override GPUTextureView? DepthView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _depthView;
     }
 
+    /// <inheritdoc />
     public override GPUTextureView? StencilView
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -92,32 +103,41 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
     protected override void Dispose(bool disposing)
     {
-        foreach (var texture in _colorTextures)
+        try
         {
-            texture.Dispose();
-        }
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+            void Release(BaseGPUObject? resource)
+            {
+                try { resource?.Destroy(disposing); }
+                catch (Exception error) { failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error); }
+            }
+            for (int i = 0; i < _colorTextures.Length; i++) { Release(_colorTextures[i]); }
+            for (int i = 0; i < _colorViewsWrapper.Length; i++) { Release(_colorViewsWrapper[i]); }
+            Release(_depthStencilView);
+            Release(_depthView);
+            Release(_stencilView);
+            Release(_depthStencilTexture);
 
-        Free(_colorAttachments);
-        if (_depthAttachment != null)
-        {
-            Free(_depthAttachment);
-        }
+            AlcoColorAttachment* colors = _colorAttachments;
+            _colorAttachments = null;
+            Free(colors);
+            AlcoDepthStencilAttachment* depth = _depthAttachment;
+            _depthAttachment = null;
+            Free(depth);
 
-        if (disposing)
-        {
-            _depthStencilTexture?.Dispose();
-            _depthStencilView?.Dispose();
-            _depthView?.Dispose();
-            _stencilView?.Dispose();
+            // Acquired texture/view wrappers must be consumed before the owning surface.
+            AlcoSurfaceHandle surface = _surface;
+            _surface = AlcoSurfaceHandle.Null;
+            if (!surface.IsNull)
+            {
+                try { AlcoGpuNative.SurfaceDestroy(surface); }
+                catch (Exception error) { failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error); }
+            }
+            failure?.Throw();
         }
-
-        // The surface must outlive every acquired texture; dropping it last also
-        // destroys any texture the caller forgot to release. Skipped when the
-        // native device is already gone: it dropped the surface with itself.
-        AlcoGpuDevice device = (AlcoGpuDevice)Device;
-        if (device.IsNativeAlive)
+        finally
         {
-            AlcoGpuNative.SurfaceDestroy(device.Native, _surface);
+            GC.KeepAlive(this);
         }
     }
 
@@ -125,25 +145,28 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
     #region AlcoGpu Implementation
 
+    /// <inheritdoc />
     public override AlcoRenderPassDesc Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _descriptor;
     }
 
+    /// <inheritdoc />
     public override ReadOnlySpan<PixelFormat> NativeColorFormats
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colors;
     }
 
+    /// <inheritdoc />
     public override PixelFormat? NativeDepthFormat
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _depth;
     }
 
-    internal AlcoGpuSurfaceFrameBuffer(AlcoGpuDevice device, AlcoGpuAttachmentLayout attachmentLayout, AlcoHandle surface, AlcoSurfaceConfig config) : base(
+    internal AlcoGpuSurfaceFrameBuffer(AlcoGpuSwapchain owner, AlcoGpuDevice device, AlcoGpuAttachmentLayout attachmentLayout, ref AlcoSurfaceHandle surface, AlcoSurfaceConfig config) : base(
         new FrameBufferDescriptor(
             attachmentLayout,
             config.Width,
@@ -152,79 +175,100 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         )
     )
     {
-        Device = device;
-        _attachmentLayout = attachmentLayout;
-        _surface = surface;
-
-        // configure the surface
-        AlcoGpuNative.SurfaceConfigure(device.Native, surface, in config);
-        _config = config;
-
-        _descriptor = new AlcoRenderPassDesc
+        try
         {
-            ColorAttachmentCount = 1,
-            ColorAttachments = null,
-            DepthStencil = null,
-        };
-        _colorAttachments = null;
-        _depthAttachment = null;
-
-        AlcoGpuSurfaceTexture surfaceTexture = AlcoGpuSurfaceTexture.Create(Device, surface, (TextureUsage)config.Usage);
-        _colorTextures = new AlcoGpuSurfaceTexture[1];
-        _colorTextures[0] = surfaceTexture;
-
-        AlcoColorAttachmentInfo colorInfo = attachmentLayout.ColorInfos[0];
-
-        // pointer attention !!
-        _colorAttachments = Alloc<AlcoColorAttachment>(1);
-        AlcoColorAttachment attachment = new()
-        {
-            View = surfaceTexture.DefaultView,
-            ResolveView = AlcoHandle.Null,
-            LoadOp = 0, // load
-            StoreOp = 0, // store
-        };
-        attachment.ClearColor[0] = colorInfo.ClearColor.X;
-        attachment.ClearColor[1] = colorInfo.ClearColor.Y;
-        attachment.ClearColor[2] = colorInfo.ClearColor.Z;
-        attachment.ClearColor[3] = colorInfo.ClearColor.W;
-        *_colorAttachments = attachment;
-
-        _colorViewsWrapper = new AlcoGpuTextureViewWrapper[1];
-        _colorViewsWrapper[0] = new AlcoGpuTextureViewWrapper(Device, surfaceTexture, surfaceTexture.DefaultView);
-
-        _descriptor.ColorAttachments = _colorAttachments;
-
-        _width = surfaceTexture.Width;
-        _height = surfaceTexture.Height;
-
-        if (attachmentLayout.DepthInfo.HasValue)
-        {
-            AlcoDepthAttachmentInfo depthInfo = attachmentLayout.DepthInfo.Value;
-            _depthStencilTexture = new AlcoGpuTexture(
-                (AlcoGpuDevice)Device,
-                BuildDepthTextureDescriptor(depthInfo.Format, _width, _height));
-
-            _depthStencilView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
-            _depthView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            if (PixelFormatUtility.HasStencil(_depthStencilTexture.PixelFormat))
+            try
             {
-                _stencilView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+                _owner = owner;
+                Device = device;
+                _attachmentLayout = attachmentLayout;
+                _surface = surface;
+                surface = AlcoSurfaceHandle.Null;
+
+                // Configure only after ownership transfers into this wrapper.
+                AlcoGpuNative.SurfaceConfigure(_surface, in config);
+                _config = config;
+
+                _descriptor = new AlcoRenderPassDesc
+                {
+                    ColorAttachmentCount = 1,
+                    ColorAttachments = null,
+                    DepthStencil = null,
+                };
+                _colorAttachments = null;
+                _depthAttachment = null;
+
+                _colorTextures = new AlcoGpuSurfaceTexture[1];
+                AlcoGpuSurfaceTexture surfaceTexture = new AlcoGpuSurfaceTexture(this, device, _surface, (PixelFormat)config.Format, (TextureUsage)config.Usage);
+                _colorTextures[0] = surfaceTexture;
+
+                AlcoColorAttachmentInfo colorInfo = attachmentLayout.ColorInfos[0];
+
+                // pointer attention !!
+                _colorAttachments = Alloc<AlcoColorAttachment>(1);
+                AlcoColorAttachment attachment = new()
+                {
+                    View = surfaceTexture.DefaultView,
+                    ResolveView = AlcoTextureViewHandle.Null,
+                    LoadOp = 0, // load
+                    StoreOp = 0, // store
+                };
+                attachment.ClearColor[0] = colorInfo.ClearColor.X;
+                attachment.ClearColor[1] = colorInfo.ClearColor.Y;
+                attachment.ClearColor[2] = colorInfo.ClearColor.Z;
+                attachment.ClearColor[3] = colorInfo.ClearColor.W;
+                *_colorAttachments = attachment;
+
+                _colorViewsWrapper = new AlcoGpuTextureViewWrapper[1];
+                _colorViewsWrapper[0] = new AlcoGpuTextureViewWrapper(Device, surfaceTexture, surfaceTexture.DefaultView);
+
+                _descriptor.ColorAttachments = _colorAttachments;
+
+                _width = surfaceTexture.Width;
+                _height = surfaceTexture.Height;
+
+                if (attachmentLayout.DepthInfo.HasValue)
+                {
+                    AlcoDepthAttachmentInfo depthInfo = attachmentLayout.DepthInfo.Value;
+                    _depthStencilTexture = new AlcoGpuTexture(
+                        (AlcoGpuDevice)Device,
+                        BuildDepthTextureDescriptor(depthInfo.Format, _width, _height), this);
+
+                    _depthStencilView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
+                    _depthView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
+                    if (PixelFormatUtility.HasStencil(_depthStencilTexture.PixelFormat))
+                    {
+                        _stencilView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
+                    }
+
+                    _depthAttachment = AllocDepthAttachment(_depthStencilView, depthInfo);
+                    _descriptor.DepthStencil = _depthAttachment;
+                }
+
+                _colors = new PixelFormat[1];
+                _colors[0] = colorInfo.Format;
+
+                if (attachmentLayout.DepthInfo.HasValue)
+                {
+                    _depth = attachmentLayout.DepthInfo.Value.Format;
+                }
             }
-
-            _depthAttachment = AllocDepthAttachment(_depthStencilView, depthInfo);
-            _descriptor.DepthStencil = _depthAttachment;
+            catch
+            {
+                try { Destroy(false); }
+                catch { /* Preserve the construction failure. */ }
+                throw;
+            }
         }
-
-        _colors = new PixelFormat[1];
-        _colors[0] = colorInfo.Format;
-
-        if (attachmentLayout.DepthInfo.HasValue)
+        finally
         {
-            _depth = attachmentLayout.DepthInfo.Value.Format;
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
+            GC.KeepAlive(attachmentLayout);
         }
     }
 
+    /// <summary>Provides the UpdateSurfaceConfig operation.</summary>
     public void UpdateSurfaceConfig(AlcoSurfaceConfig config)
     {
         // Size changes are reconfigured lazily through the texture-size mismatch check in
@@ -240,48 +284,59 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         _height = config.Height;
     }
 
+    /// <summary>Provides the RequestSurfaceTexture operation.</summary>
     public bool RequestSurfaceTexture()
     {
-        bool isTextureUsable = _colorTextures[0].GetNewOutputTexture(&(*_colorAttachments).View, out bool shouldResize);
-
-        if (isTextureUsable)
+        try
         {
-            // Keep the managed color-view wrapper pointing at this frame's view: the
-            // surface texture (and its default view) is recreated per frame, so without
-            // this the wrapper keeps the first frame's (long-released) view.
-            _colorViewsWrapper[0].UpdateTextureAndView(_colorTextures[0], _colorTextures[0].DefaultView);
-        }
+            bool isTextureUsable = _colorTextures[0].GetNewOutputTexture(&(*_colorAttachments).View, out bool shouldResize);
 
-        // Some GPU drivers (e.g. Intel Vulkan) may return SuccessOptimal
-        // with a surface texture at the old resolution after a window resize.
-        // Detect this mismatch and force a surface reconfigure.
-        if (isTextureUsable && (_colorTextures[0].Width != _config.Width || _colorTextures[0].Height != _config.Height))
-        {
-            _colorTextures[0].Drop();
-            shouldResize = true;
-            isTextureUsable = false;
-        }
+            if (isTextureUsable)
+            {
+                // Keep the managed color-view wrapper pointing at this frame's view: the
+                // surface texture (and its default view) is recreated per frame, so without
+                // this the wrapper keeps the first frame's (long-released) view.
+                _colorViewsWrapper[0].UpdateTextureAndView(_colorTextures[0], _colorTextures[0].DefaultView);
+            }
 
-        // A pending non-size configuration change (e.g. present mode) also needs a native
-        // reconfigure, which is only valid while no surface texture is acquired: drop the freshly
-        // acquired texture and skip this frame. The next acquire picks up the new configuration.
-        if (isTextureUsable && !shouldResize && _isConfigDirty)
-        {
-            _colorTextures[0].Drop();
-            shouldResize = true;
-            isTextureUsable = false;
-        }
+            // Some GPU drivers (e.g. Intel Vulkan) may return SuccessOptimal
+            // with a surface texture at the old resolution after a window resize.
+            // Detect this mismatch and force a surface reconfigure.
+            if (isTextureUsable && (_colorTextures[0].Width != _config.Width || _colorTextures[0].Height != _config.Height))
+            {
+                _colorTextures[0].Drop();
+                (*_colorAttachments).View = AlcoTextureViewHandle.Null;
+                shouldResize = true;
+                isTextureUsable = false;
+            }
 
-        if (shouldResize)
-        {
-            AlcoSurfaceConfig config = _config;
-            AlcoGpuNative.SurfaceConfigure(((AlcoGpuDevice)Device).Native, _surface, in config);
-            ResizeDepthTexture();
-            _isConfigDirty = false;
+            // A pending non-size configuration change (e.g. present mode) also needs a native
+            // reconfigure, which is only valid while no surface texture is acquired: drop the freshly
+            // acquired texture and skip this frame. The next acquire picks up the new configuration.
+            if (isTextureUsable && !shouldResize && _isConfigDirty)
+            {
+                _colorTextures[0].Drop();
+                (*_colorAttachments).View = AlcoTextureViewHandle.Null;
+                shouldResize = true;
+                isTextureUsable = false;
+            }
+
+            if (shouldResize)
+            {
+                AlcoSurfaceConfig config = _config;
+                AlcoGpuNative.SurfaceConfigure(_surface, in config);
+                ResizeDepthTexture();
+                _isConfigDirty = false;
+            }
+            return isTextureUsable;
         }
-        return isTextureUsable;
+        finally
+        {
+            GC.KeepAlive(this);
+        }
     }
 
+    /// <summary>Provides the Present operation.</summary>
     public void Present()
     {
         _colorTextures[0].PresentAndDrop();
@@ -289,34 +344,76 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
     private void ResizeDepthTexture()
     {
-        if (_attachmentLayout.DepthInfo.HasValue)
+        if (!_attachmentLayout.DepthInfo.HasValue)
         {
-            _depthStencilTexture?.Dispose();
-            _depthStencilView?.Dispose();
-            _depthView?.Dispose();
-            _stencilView?.Dispose();
-            _depthStencilTexture = new AlcoGpuTexture(
-                (AlcoGpuDevice)Device,
-                BuildDepthTextureDescriptor(_attachmentLayout.DepthInfo.Value.Format, _width, _height));
-            _depthStencilView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture));
-            _depthView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.DepthOnly));
-            if (PixelFormatUtility.HasStencil(_depthStencilTexture.PixelFormat))
-            {
-                _stencilView = (AlcoGpuTextureView)((AlcoGpuDevice)Device).CreateTextureView(new TextureViewDescriptor(_depthStencilTexture, aspect: TextureAspect.StencilOnly));
-            }
-            (*_depthAttachment).View = _depthStencilView.Native;
+            return;
         }
+
+        AlcoGpuTexture? texture = null;
+        AlcoGpuTextureView? fullView = null;
+        AlcoGpuTextureView? depthView = null;
+        AlcoGpuTextureView? stencilView = null;
+        try
+        {
+            AlcoGpuDevice device = (AlcoGpuDevice)Device;
+            texture = new AlcoGpuTexture(device,
+                BuildDepthTextureDescriptor(_attachmentLayout.DepthInfo.Value.Format, _width, _height), this);
+            fullView = (AlcoGpuTextureView)device.CreateTextureView(new TextureViewDescriptor(texture));
+            depthView = (AlcoGpuTextureView)device.CreateTextureView(new TextureViewDescriptor(texture, aspect: TextureAspect.DepthOnly));
+            if (PixelFormatUtility.HasStencil(texture.PixelFormat))
+            {
+                stencilView = (AlcoGpuTextureView)device.CreateTextureView(new TextureViewDescriptor(texture, aspect: TextureAspect.StencilOnly));
+            }
+        }
+        catch
+        {
+            void Release(BaseGPUObject? resource)
+            {
+                try { resource?.Destroy(false); }
+                catch { /* Preserve the replacement creation failure. */ }
+            }
+            Release(fullView);
+            Release(depthView);
+            Release(stencilView);
+            Release(texture);
+            throw;
+        }
+
+        AlcoGpuTexture? previousTexture = _depthStencilTexture;
+        AlcoGpuTextureView? previousFullView = _depthStencilView;
+        AlcoGpuTextureView? previousDepthView = _depthView;
+        AlcoGpuTextureView? previousStencilView = _stencilView;
+        _depthStencilTexture = texture;
+        _depthStencilView = fullView;
+        _depthView = depthView;
+        _stencilView = stencilView;
+        (*_depthAttachment).View = fullView.Native;
+
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+        void Retire(BaseGPUObject? resource)
+        {
+            try { resource?.Dispose(); }
+            catch (Exception error) { failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error); }
+        }
+        // Normal replacement remains deferred so already submitted frames keep their resources.
+        Retire(previousFullView);
+        Retire(previousDepthView);
+        Retire(previousStencilView);
+        Retire(previousTexture);
+        GC.KeepAlive(this);
+        failure?.Throw();
     }
 
     #endregion
 
+    /// <summary>Describes AlcoGpuSurfaceTexture.</summary>
     internal sealed unsafe class AlcoGpuSurfaceTexture : AlcoGpuTextureBase
     {
         #region Properties
-        private readonly AlcoHandle _surface;
+        private AlcoSurfaceHandle _surface;
         // Update every frame
-        private AlcoHandle _texture;
-        private AlcoHandle _defaultView;
+        private AlcoTextureHandle _texture;
+        private AlcoTextureViewHandle _defaultView;
         //Changed when the surface is resized
         private uint _width;
         private uint _height;
@@ -325,58 +422,54 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
         #region Abstract Implementation
 
+        /// <inheritdoc />
         public override uint Width
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _width;
         }
 
+        /// <inheritdoc />
         public override uint Height
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _height;
         }
 
+        /// <inheritdoc />
         public override uint Depth
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => 1;
         }
 
+        /// <inheritdoc />
         public override PixelFormat PixelFormat { get; }
 
         protected override void Dispose(bool disposing)
         {
-            // Surface textures are only released (never destroyed); the surface
-            // itself is dropped by the owning AlcoGpuSurfaceFrameBuffer.
-            if (!_texture.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
-            {
-                AlcoGpuNative.TextureRelease(((AlcoGpuDevice)Device).Native, _texture);
-                _texture = AlcoHandle.Null;
-            }
-            if (!_defaultView.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
-            {
-                AlcoGpuNative.TextureViewDestroy(((AlcoGpuDevice)Device).Native, _defaultView);
-                _defaultView = AlcoHandle.Null;
-            }
+            Drop();
         }
 
         #endregion
 
         #region AlcoGpu Implementation
 
-        public override AlcoHandle Native
+        /// <inheritdoc />
+        public override AlcoTextureHandle Native
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _texture;
         }
 
-        public AlcoHandle DefaultView
+        /// <summary>Gets or stores the native ABI value.</summary>
+        public AlcoTextureViewHandle DefaultView
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get => _defaultView;
         }
 
+        /// <inheritdoc />
         public override uint MipLevelCount
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -385,128 +478,173 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
         protected override GPUDevice Device { get; }
 
-        /// <summary>
-        /// Acquires a surface texture whose managed usage matches the surface configuration.
-        /// </summary>
-        /// <param name="device">The graphics device that owns the surface.</param>
-        /// <param name="surface">The configured native surface.</param>
-        /// <param name="usage">The usage flags enabled by the surface configuration.</param>
-        /// <returns>The managed wrapper for the acquired surface texture.</returns>
-        public static AlcoGpuSurfaceTexture Create(GPUDevice device, AlcoHandle surface, TextureUsage usage)
-        {
-            AlcoGpuDevice alcoDevice = (AlcoGpuDevice)device;
-            uint acquireStatus;
-            AlcoGpuNative.SurfaceGetCurrentTexture(alcoDevice.Native, surface, out AlcoHandle texture, &acquireStatus);
-            return new AlcoGpuSurfaceTexture(alcoDevice, surface, texture, (PixelFormat)GetTextureInfo(alcoDevice, texture).Format, usage, acquireStatus);
-        }
+        private readonly AlcoGpuSurfaceFrameBuffer _owner;
 
-        private static AlcoTextureInfo GetTextureInfo(AlcoGpuDevice device, AlcoHandle texture)
+        private static AlcoTextureInfo GetTextureInfo(AlcoTextureHandle texture)
         {
             AlcoTextureInfo info = default;
-            AlcoGpuNative.TextureGetInfo(device.Native, texture, ref info);
+            AlcoGpuNative.TextureGetInfo(texture, ref info);
             return info;
         }
 
         internal AlcoGpuSurfaceTexture(
+            AlcoGpuSurfaceFrameBuffer owner,
             AlcoGpuDevice device,
-            AlcoHandle surface,
-            AlcoHandle texture,
+            AlcoSurfaceHandle surface,
             PixelFormat format,
-            TextureUsage usage,
-            uint acquireStatus
-        ) : base(
-            new TextureDescriptor( // Surface dimensions are read from the acquired native texture.
-                TextureDimension.Texture2D,
-                format,
-                1,
-                1,
-                1,
-                1,
-                usage,
-                1,
-                "swapchain_texture"
-            )
-        )
+            TextureUsage usage
+        ) : base(new TextureDescriptor(TextureDimension.Texture2D, format, 1, 1, 1, 1, usage, 1, "swapchain_texture"))
         {
-            Device = device;
-            _surface = surface;
-            PixelFormat = format;
-
-            AlcoTextureInfo info = GetTextureInfo(device, texture);
-            _texture = texture;
-            _width = info.Width;
-            _height = info.Height;
-
-            // Create the default full view.
-            AlcoGpuNative.TextureCreateView(device.Native, _texture, null, out _defaultView);
+            try
+            {
+                Device = device;
+                _owner = owner; // Root the surface owner while externally borrowed textures exist.
+                _surface = surface;
+                PixelFormat = format;
+                try
+                {
+                    uint acquireStatus;
+                    AlcoGpuNative.SurfaceGetCurrentTexture(_surface, out _texture, &acquireStatus);
+                    if (_texture.IsNull)
+                    {
+                        throw new GraphicsException($"Initial surface texture acquisition returned status {acquireStatus}.");
+                    }
+                    AlcoTextureInfo info = GetTextureInfo(_texture);
+                    _width = info.Width;
+                    _height = info.Height;
+                    AlcoGpuNative.TextureCreateView(_texture, null, out _defaultView);
+                }
+                catch
+                {
+                    try { Destroy(false); }
+                    catch { /* Preserve the construction failure. */ }
+                    throw;
+                }
+                finally
+                {
+                }
+            }
+            finally
+            {
+                GC.KeepAlive(this);
+                GC.KeepAlive(owner);
+                GC.KeepAlive(device);
+            }
         }
 
+        /// <summary>Presents and then releases the acquired texture and its default view.</summary>
         public void PresentAndDrop()
         {
-            uint presentStatus;
-            AlcoGpuNative.SurfacePresent(((AlcoGpuDevice)Device).Native, _surface, &presentStatus);
-            Drop();
+            try
+            {
+                try
+                {
+                    uint presentStatus;
+                    AlcoGpuNative.SurfacePresent(_surface, &presentStatus);
+                }
+                finally
+                {
+                    Drop();
+                }
+            }
+            finally
+            {
+                GC.KeepAlive(this);
+            }
         }
 
-        /// <summary>
-        /// Releases the current surface texture without presenting it.
-        /// </summary>
+        /// <summary>Releases the current acquired texture and view without presenting.</summary>
         public void Drop()
         {
-            if (!_texture.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
+            try
             {
-                AlcoGpuNative.TextureRelease(((AlcoGpuDevice)Device).Native, _texture);
-                _texture = AlcoHandle.Null;
+                AlcoTextureViewHandle view = _defaultView;
+                _defaultView = AlcoTextureViewHandle.Null;
+                AlcoTextureHandle texture = _texture;
+                _texture = AlcoTextureHandle.Null;
+                try
+                {
+                    if (!view.IsNull) { AlcoGpuNative.TextureViewDestroy(view); }
+                }
+                finally
+                {
+                    try
+                    {
+                        if (!texture.IsNull) { AlcoGpuNative.TextureRelease(texture); }
+                    }
+                    finally
+                    {
+                        GC.KeepAlive(_owner);
+                    }
+                }
             }
-            if (!_defaultView.IsNull && ((AlcoGpuDevice)Device).IsNativeAlive)
+            finally
             {
-                AlcoGpuNative.TextureViewDestroy(((AlcoGpuDevice)Device).Native, _defaultView);
-                _defaultView = AlcoHandle.Null;
+                GC.KeepAlive(this);
             }
         }
 
         /// <summary>
         /// Returns true if the newly acquired texture is usable.
         /// </summary>
-        public unsafe bool GetNewOutputTexture(AlcoHandle* view, out bool shouldResize)
+        public unsafe bool GetNewOutputTexture(AlcoTextureViewHandle* view, out bool shouldResize)
         {
-            if (!_texture.IsNull)
+            try
             {
-                //already acquired
-                PresentAndDrop();
-            }
+                if (!_texture.IsNull)
+                {
+                    //already acquired
+                    PresentAndDrop();
+                }
 
-            AlcoGpuDevice device = (AlcoGpuDevice)Device;
-            uint acquireStatus;
-            AlcoGpuNative.SurfaceGetCurrentTexture(device.Native, _surface, out AlcoHandle texture, &acquireStatus);
-            switch (acquireStatus)
+                uint acquireStatus;
+                AlcoGpuNative.SurfaceGetCurrentTexture(_surface, out _texture, &acquireStatus);
+                switch (acquireStatus)
+                {
+                    case AlcoGpuAbi.AcquireStatus.SuccessOptimal:
+                    case AlcoGpuAbi.AcquireStatus.SuccessSuboptimal:
+                        // All good
+                        break;
+                    case AlcoGpuAbi.AcquireStatus.Timeout:
+                    case AlcoGpuAbi.AcquireStatus.Outdated:
+                    case AlcoGpuAbi.AcquireStatus.Lost:
+                        // Skip this frame and reconfigure without leaving a stale view pointer.
+                        Drop();
+                        *view = AlcoTextureViewHandle.Null;
+                        shouldResize = true;
+                        return false;
+                    default:
+                        // Consume any acquired wrapper before reporting an unexpected status.
+                        Drop();
+                        *view = AlcoTextureViewHandle.Null;
+                        throw new GraphicsException($"{nameof(AlcoGpuNative.SurfaceGetCurrentTexture)} status = {acquireStatus}");
+                }
+
+                try
+                {
+                    AlcoTextureInfo info = GetTextureInfo(_texture);
+                    _width = info.Width;
+                    _height = info.Height;
+                    AlcoGpuNative.TextureCreateView(_texture, null, out _defaultView);
+                    *view = _defaultView;
+                }
+                catch
+                {
+                    try { Drop(); }
+                    catch { /* Preserve the acquisition failure. */ }
+                    throw;
+                }
+                finally
+                {
+                }
+
+                shouldResize = false;
+                return true;
+            }
+            finally
             {
-                case AlcoGpuAbi.AcquireStatus.SuccessOptimal:
-                case AlcoGpuAbi.AcquireStatus.SuccessSuboptimal:
-                    // All good
-                    break;
-                case AlcoGpuAbi.AcquireStatus.Timeout:
-                case AlcoGpuAbi.AcquireStatus.Outdated:
-                case AlcoGpuAbi.AcquireStatus.Lost:
-                    // Skip this frame, and re-configure surface.
-                    shouldResize = true;
-                    return false;
-                default:
-                    // Fatal error
-                    throw new GraphicsException($"{nameof(AlcoGpuNative.SurfaceGetCurrentTexture)} status = {acquireStatus}");
+                GC.KeepAlive(this);
             }
-
-            _texture = texture;
-            AlcoTextureInfo info = GetTextureInfo(device, _texture);
-            _width = info.Width;
-            _height = info.Height;
-
-            //refresh the view
-            AlcoGpuNative.TextureCreateView(device.Native, _texture, null, out _defaultView);
-            *view = _defaultView;
-
-            shouldResize = false;
-            return true;
         }
         #endregion
     }
@@ -521,14 +659,16 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
     internal sealed class AlcoGpuTextureViewWrapper : AlcoGpuTextureViewBase
     {
         private AlcoGpuTextureBase _texture;
-        private AlcoHandle _view;
+        private AlcoTextureViewHandle _view;
 
-        public override AlcoHandle Native
+        /// <inheritdoc />
+        public override AlcoTextureViewHandle Native
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get => _view;
+            get => _texture is AlcoGpuSurfaceTexture surface ? surface.DefaultView : _view;
         }
 
+        /// <inheritdoc />
         public override GPUTexture Texture
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -537,14 +677,16 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
         protected override GPUDevice Device { get; }
 
-        public AlcoGpuTextureViewWrapper(GPUDevice device, AlcoGpuTextureBase texture, AlcoHandle view) : base(texture.Name)
+        /// <summary>Provides the AlcoGpuTextureViewWrapper operation.</summary>
+        public AlcoGpuTextureViewWrapper(GPUDevice device, AlcoGpuTextureBase texture, AlcoTextureViewHandle view) : base(texture.Name)
         {
             Device = device;
             _texture = texture;
             _view = view;
         }
 
-        public void UpdateTextureAndView(AlcoGpuTextureBase texture, AlcoHandle view)
+        /// <summary>Provides the UpdateTextureAndView operation.</summary>
+        public void UpdateTextureAndView(AlcoGpuTextureBase texture, AlcoTextureViewHandle view)
         {
             _texture = texture;
             _view = view;

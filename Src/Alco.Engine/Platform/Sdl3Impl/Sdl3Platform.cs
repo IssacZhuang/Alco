@@ -64,13 +64,14 @@ public unsafe class Sdl3Platform : Platform
     }
 
     /// <inheritdoc/>
+    /// <remarks>Must be called on the SDL main thread while the native window is still valid.</remarks>
     public override void CloseView(View window)
     {
         if (window is Sdl3Window sdl3Window)
         {
             _input.ReleaseRelativeMouseWindow(sdl3Window);
-            sdl3Window.Dispose();
             _windows.Remove(sdl3Window.WindowId);
+            sdl3Window.Dispose();
             return;
         }
 

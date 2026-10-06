@@ -1,41 +1,51 @@
-//! Resource objects: buffers, textures, views, samplers, shader modules,
-//! bind-group layouts/instances and query sets. Every object lives in a
-//! per-device handle table so stale handles fail with `INVALID_HANDLE`.
-//! Object destroy functions take the device handle first for uniform error
-//! attribution.
+//! Box-owned resource objects addressed through typed ABI pointers.
+//! Each object retains its device context and unregisters its core identity
+//! before releasing that context. Callers order access against destruction.
 
 use crate::abi::*;
 use crate::convert::*;
-use crate::device::{DeviceCtx, DEVICES};
+use crate::device::DeviceCtx;
 use crate::entry::{set_error, set_error_from};
-use crate::handle::HandleTable;
-use std::ffi::{c_char, CStr, CString};
+use crate::handle::Handle;
+use std::borrow::Cow;
+use std::ffi::{c_char, c_void, CStr, CString};
+use std::mem::MaybeUninit;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use wgpu_core as wgc;
 use wgpu_types as wgt;
 
-/// Shared map-completion cell owned by both the buffer object and the native
-/// map callback, so completion is recorded safely even if the buffer is
-/// destroyed before the callback fires.
-pub(crate) struct MapCompletion {
-    /// 0 = pending, 1 = mapped, 2 = failed.
+/// Completion state shared by a buffer and its asynchronous map callback.
+/// The callback remains safe even when the buffer is destroyed first.
+pub struct MapCompletion {
+    /// Published state: zero pending, one mapped, two failed.
     pub state: AtomicU32,
-    pub error: Mutex<CString>,
+    /// Lazily allocated failure text, published before the failed state.
+    pub error: Mutex<Option<CString>>,
 }
 
-#[derive(Clone)]
-pub(crate) struct BufferObj {
+/// Owned core buffer registration and its optional map-completion cell.
+pub struct BufferObj {
+    /// Core buffer identity.
     pub id: wgc::id::BufferId,
-    /// Mapping state is shared across registry snapshots, independently of uploads.
-    pub map_completion: Arc<Mutex<Option<Arc<MapCompletion>>>>,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
+    /// Completion holder changed only through caller-exclusive mapping access.
+    pub map_completion: Option<Arc<MapCompletion>>,
+}
+
+impl Drop for BufferObj {
+    fn drop(&mut self) {
+        self.ctx.global.buffer_drop(self.id);
+    }
 }
 
 /// Core texture registration and the metadata reported through the ABI.
-#[derive(Clone, Copy)]
-pub(crate) struct TextureObj {
+pub struct TextureObj {
     /// Core texture identity.
     pub id: wgc::id::TextureId,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
     /// Texture width in texels.
     pub width: u32,
     /// Texture height in texels.
@@ -46,97 +56,190 @@ pub(crate) struct TextureObj {
     pub mip_level_count: u32,
     /// C# pixel-format value.
     pub format: u32,
-    /// True when this texture is an acquired surface texture: it must be
-    /// released (never destroyed) — matching the old backend's contract.
+    /// Whether this acquired texture must be released instead of destroyed.
     pub is_surface_texture: bool,
-    /// Parent surface handle for acquired textures; absent for regular textures.
-    /// Its generation prevents a stale texture from discarding a replacement surface.
-    pub surface: Option<AlcoHandle>,
+    /// Shared parent surface state retained by an acquired texture.
+    pub surface: Option<Arc<crate::surface::SurfaceObj>>,
 }
 
-#[derive(Clone, Copy)]
-pub(crate) struct TextureViewObj {
-    pub id: wgc::id::TextureViewId,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct SamplerObj {
-    pub id: wgc::id::SamplerId,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct ShaderModuleObj {
-    pub id: wgc::id::ShaderModuleId,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct BindGroupLayoutObj {
-    pub id: wgc::id::BindGroupLayoutId,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct BindGroupObj {
-    pub id: wgc::id::BindGroupId,
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct QuerySetObj {
-    pub id: wgc::id::QuerySetId,
-}
-
-/// Per-device handle tables for resource objects.
-#[derive(Default)]
-pub(crate) struct ObjectTables {
-    pub buffers: HandleTable<BufferObj>,
-    pub textures: HandleTable<TextureObj>,
-    pub views: HandleTable<TextureViewObj>,
-    pub samplers: HandleTable<SamplerObj>,
-    pub shader_modules: HandleTable<ShaderModuleObj>,
-    pub bind_group_layouts: HandleTable<BindGroupLayoutObj>,
-    pub bind_groups: HandleTable<BindGroupObj>,
-    pub query_sets: HandleTable<QuerySetObj>,
-    pub pipelines: HandleTable<crate::pipeline::PipelineObj>,
-}
-
-macro_rules! table_accessors {
-    ($($method:ident => $table:ident => $ty:ty),* $(,)?) => {
-        impl DeviceCtx {
-            $(pub fn $method(&self) -> &HandleTable<$ty> {
-                &self.objects.$table
-            })*
+impl Drop for TextureObj {
+    fn drop(&mut self) {
+        if self.is_surface_texture {
+            let _ = crate::surface::cleanup_texture(self);
+        } else {
+            self.ctx.global.texture_drop(self.id);
         }
-    };
-}
-
-table_accessors! {
-    buffers => buffers => BufferObj,
-    textures => textures => TextureObj,
-    views => views => TextureViewObj,
-    samplers => samplers => SamplerObj,
-    shader_modules => shader_modules => ShaderModuleObj,
-    bind_group_layouts => bind_group_layouts => BindGroupLayoutObj,
-    bind_groups => bind_groups => BindGroupObj,
-    query_sets => query_sets => QuerySetObj,
-    pipelines => pipelines => crate::pipeline::PipelineObj,
-}
-
-pub(crate) unsafe fn borrow_label(ptr: *const c_char) -> String {
-    if ptr.is_null() {
-        String::new()
-    } else {
-        CStr::from_ptr(ptr).to_string_lossy().into_owned()
     }
 }
 
-/// Converts an ABI name pointer into a wgpu `Label` (`Option<Cow<str>>`).
-pub(crate) unsafe fn label(ptr: *const c_char) -> Option<std::borrow::Cow<'static, str>> {
+/// Owned core texture-view registration.
+pub struct TextureViewObj {
+    /// Core texture-view identity.
+    pub id: wgc::id::TextureViewId,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
+    /// Parent surface retained until the view core identity is unregistered.
+    pub surface: Option<Arc<crate::surface::SurfaceObj>>,
+}
+
+impl Drop for TextureViewObj {
+    fn drop(&mut self) {
+        self.ctx.global.texture_view_drop(self.id);
+    }
+}
+
+/// Owned core sampler registration.
+pub struct SamplerObj {
+    /// Core sampler identity.
+    pub id: wgc::id::SamplerId,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
+}
+
+impl Drop for SamplerObj {
+    fn drop(&mut self) {
+        self.ctx.global.sampler_drop(self.id);
+    }
+}
+
+/// Owned core shader-module registration.
+pub struct ShaderModuleObj {
+    /// Core shader-module identity.
+    pub id: wgc::id::ShaderModuleId,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
+}
+
+impl Drop for ShaderModuleObj {
+    fn drop(&mut self) {
+        self.ctx.global.shader_module_drop(self.id);
+    }
+}
+
+/// Owned core bind-group-layout registration.
+pub struct BindGroupLayoutObj {
+    /// Core bind-group-layout identity.
+    pub id: wgc::id::BindGroupLayoutId,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
+}
+
+impl Drop for BindGroupLayoutObj {
+    fn drop(&mut self) {
+        self.ctx.global.bind_group_layout_drop(self.id);
+    }
+}
+
+/// Owned core bind-group registration.
+pub struct BindGroupObj {
+    /// Core bind-group identity.
+    pub id: wgc::id::BindGroupId,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
+}
+
+impl Drop for BindGroupObj {
+    fn drop(&mut self) {
+        self.ctx.global.bind_group_drop(self.id);
+    }
+}
+
+/// Owned core query-set registration.
+pub struct QuerySetObj {
+    /// Core query-set identity.
+    pub id: wgc::id::QuerySetId,
+    /// Device context retained until core cleanup completes.
+    pub ctx: Arc<DeviceCtx>,
+}
+
+impl Drop for QuerySetObj {
+    fn drop(&mut self) {
+        self.ctx.global.query_set_drop(self.id);
+    }
+}
+
+/// Borrows a call-scoped UTF-8 name, replacing malformed UTF-8 only when needed.
+///
+/// # Safety
+/// A non-null pointer must reference a NUL-terminated string valid for `'a`.
+pub(crate) unsafe fn borrow_label<'a>(ptr: *const c_char) -> Cow<'a, str> {
+    if ptr.is_null() {
+        Cow::Borrowed("")
+    } else {
+        CStr::from_ptr(ptr).to_string_lossy()
+    }
+}
+
+/// Converts an ABI name pointer into a call-scoped wgpu label.
+///
+/// # Safety
+/// A non-null pointer must reference a NUL-terminated string valid for `'a`.
+pub(crate) unsafe fn label<'a>(ptr: *const c_char) -> Option<Cow<'a, str>> {
     if ptr.is_null() {
         None
     } else {
-        Some(std::borrow::Cow::Owned(
-            CStr::from_ptr(ptr).to_string_lossy().into_owned(),
-        ))
+        Some(borrow_label(ptr))
     }
+}
+
+/// Call-scoped descriptor storage using an inline array for common counts.
+pub(crate) struct DescriptorStorage<T, const N: usize> {
+    inline: [MaybeUninit<T>; N],
+    len: usize,
+    overflow: Option<Vec<T>>,
+}
+
+impl<T, const N: usize> DescriptorStorage<T, N> {
+    /// Reserves heap storage only when the requested count exceeds the inline capacity.
+    pub(crate) fn new(count: usize) -> Self {
+        Self {
+            inline: std::array::from_fn(|_| MaybeUninit::uninit()),
+            len: 0,
+            overflow: (count > N).then(|| Vec::with_capacity(count)),
+        }
+    }
+
+    /// Appends one converted descriptor entry.
+    pub(crate) fn push(&mut self, value: T) {
+        if let Some(values) = self.overflow.as_mut() {
+            values.push(value);
+        } else {
+            assert!(self.len < N, "descriptor inline capacity exceeded");
+            self.inline[self.len].write(value);
+            self.len += 1;
+        }
+    }
+
+    /// Borrows all initialized entries for the synchronous core call.
+    pub(crate) fn as_slice(&self) -> &[T] {
+        match self.overflow.as_ref() {
+            Some(values) => values,
+            // SAFETY: push initializes exactly the prefix tracked by len;
+            // MaybeUninit<T> has T's layout and no mutation occurs during this borrow.
+            None => unsafe { std::slice::from_raw_parts(self.inline.as_ptr().cast(), self.len) },
+        }
+    }
+}
+
+impl<T, const N: usize> Drop for DescriptorStorage<T, N> {
+    fn drop(&mut self) {
+        for index in 0..self.len {
+            // SAFETY: only the initialized inline prefix is counted in len.
+            unsafe { self.inline[index].assume_init_drop() };
+        }
+    }
+}
+
+macro_rules! object_ref {
+    ($handle:expr, $message:expr) => {
+        match $handle.get() {
+            Ok(obj) => obj,
+            Err(status) => {
+                set_error(status, $message);
+                return status;
+            }
+        }
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -146,63 +249,97 @@ pub(crate) unsafe fn label(ptr: *const c_char) -> Option<std::borrow::Cow<'stati
 /// C# `BufferDescriptor`.
 #[repr(C)]
 pub struct AlcoBufferDesc {
+    /// Buffer allocation size in bytes.
     pub size: u64,
     /// C# `BufferUsage` bits.
     pub usage: u32,
+    /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
 /// C# `TextureDescriptor`.
 #[repr(C)]
 pub struct AlcoTextureDesc {
+    /// C# texture or view dimension discriminant.
     pub dimension: u32,
+    /// C# pixel-format discriminant.
     pub format: u32,
     /// C# `TextureUsage` bits.
     pub usage: u32,
+    /// Width in texels.
     pub width: u32,
+    /// Height in texels.
     pub height: u32,
+    /// Depth in texels or array-layer count.
     pub depth_or_array_layers: u32,
+    /// Number of mip levels in the texture.
     pub mip_level_count: u32,
+    /// Number of samples per texel.
     pub sample_count: u32,
+    /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
 /// Result of `alco_texture_get_info`.
 #[repr(C)]
 pub struct AlcoTextureInfo {
+    /// Width in texels.
     pub width: u32,
+    /// Height in texels.
     pub height: u32,
+    /// Depth in texels or array-layer count.
     pub depth_or_array_layers: u32,
+    /// Number of mip levels in the texture.
     pub mip_level_count: u32,
+    /// C# pixel-format discriminant.
     pub format: u32,
 }
 
 /// C# `TextureViewDescriptor`.
 #[repr(C)]
 pub struct AlcoTextureViewDesc {
+    /// C# texture or view dimension discriminant.
     pub dimension: u32,
+    /// First mip level included in the view.
     pub base_mip_level: u32,
+    /// Number of mip levels; zero selects the remaining view range.
     pub mip_level_count: u32,
+    /// First array layer included in the view.
     pub base_array_layer: u32,
+    /// Number of array layers; zero selects the remaining range.
     pub array_layer_count: u32,
+    /// C# texture-aspect discriminant.
     pub aspect: u32,
+    /// C# pixel-format discriminant.
     pub format: u32,
+    /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
 /// C# `SamplerDescriptor`.
 #[repr(C)]
 pub struct AlcoSamplerDesc {
+    /// C# minification filter discriminant.
     pub min_filter: u32,
+    /// C# magnification filter discriminant.
     pub mag_filter: u32,
+    /// C# mipmap filter discriminant.
     pub mipmap_filter: u32,
+    /// C# address mode for the U coordinate.
     pub address_u: u32,
+    /// C# address mode for the V coordinate.
     pub address_v: u32,
+    /// C# address mode for the W coordinate.
     pub address_w: u32,
+    /// Minimum sampled level of detail.
     pub lod_min_clamp: f32,
+    /// Maximum sampled level of detail.
     pub lod_max_clamp: f32,
+    /// C# comparison function; zero disables comparison sampling.
     pub compare: u32,
+    /// Maximum anisotropy; values below one are clamped to one.
     pub max_anisotropy: u16,
+    /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
@@ -218,20 +355,28 @@ pub mod shader_language {
 /// C# `ShaderModule` (bytes + entry point + workgroup size).
 #[repr(C)]
 pub struct AlcoShaderModuleDesc {
+    /// Shader-language discriminant from shader_language.
     pub language: u32,
+    /// Call-scoped pointer to shader source bytes.
     pub data: *const u8,
     /// Byte count. For SPIR-V the native side divides by 4 (dword count).
     pub size: u32,
+    /// NUL-terminated UTF-8 entry-point name borrowed for the call.
     pub entry_point: *const c_char,
+    /// Declared workgroup width for passthrough shaders.
     pub workgroup_x: u32,
+    /// Declared workgroup height for passthrough shaders.
     pub workgroup_y: u32,
+    /// Declared workgroup depth for passthrough shaders.
     pub workgroup_z: u32,
+    /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
 /// One entry of C# `BindGroupDescriptor.Bindings`.
 #[repr(C)]
 pub struct AlcoBindGroupLayoutEntry {
+    /// Shader binding index.
     pub binding: u32,
     /// C# `ShaderStage` bits.
     pub visibility: u32,
@@ -249,32 +394,43 @@ pub struct AlcoBindGroupLayoutEntry {
     pub storage_format: u32,
 }
 
+/// Bind-group-layout entries and their optional debug name.
 #[repr(C)]
 pub struct AlcoBindGroupLayoutDesc {
+    /// Pointer to entry_count initialized descriptor entries.
     pub entries: *const AlcoBindGroupLayoutEntry,
+    /// Number of initialized entries; zero permits a null array.
     pub entry_count: u32,
+    /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
 /// One entry of C# `ResourceGroupDescriptor.Resources`.
 #[repr(C)]
 pub struct AlcoBindGroupEntry {
+    /// Shader binding index.
     pub binding: u32,
     /// Buffer, texture-view or sampler handle.
-    pub resource: AlcoHandle,
+    pub resource: *mut c_void,
+    /// Byte offset within a bound buffer.
     pub offset: u64,
+    /// Byte size of the buffer or bound range; zero selects the remaining binding range.
     pub size: u64,
-    /// Resource kind: 0 buffer, 1 texture view, 2 sampler. Required because
-    /// handles from different per-type tables may collide numerically, so the
-    /// kind cannot be recovered by probing tables.
+    /// Resource kind: zero buffer, one texture view, two sampler. The pointer
+    /// must reference the corresponding live object type.
     pub kind: u32,
 }
 
+/// Typed bind-group layout and the resources to bind.
 #[repr(C)]
 pub struct AlcoBindGroupDesc {
-    pub layout: AlcoHandle,
+    /// Live typed bind-group-layout pointer.
+    pub layout: AlcoBindGroupLayoutHandle,
+    /// Pointer to entry_count initialized descriptor entries.
     pub entries: *const AlcoBindGroupEntry,
+    /// Number of initialized entries; zero permits a null array.
     pub entry_count: u32,
+    /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
@@ -283,181 +439,166 @@ pub struct AlcoBindGroupDesc {
 // ---------------------------------------------------------------------------
 
 /// ABI: creates a buffer.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_buffer_create(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     desc: *const AlcoBufferDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoBufferHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor or out pointer");
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    "null descriptor or out pointer",
+                );
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
-        DEVICES
-            .with(device, move |ctx| {
-                let usage = match buffer_usage(desc.usage) {
-                    Ok(u) => u,
-                    Err(s) => return (s, AlcoHandle::NULL),
-                };
-                let wdesc = wgt::BufferDescriptor {
-                    label: label(desc.name),
-                    size: desc.size,
-                    usage,
-                    mapped_at_creation: false,
-                };
-                let (id, err) = ctx.global.device_create_buffer(ctx.device_id, &wdesc, None);
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    ctx.global.buffer_drop(id);
-                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
-                }
-                let handle = ctx.buffers().insert(BufferObj {
-                    id,
-                    map_completion: Arc::new(Mutex::new(None)),
-                });
-                (AlcoStatus::OK, handle)
-            })
-            .map(|(status, handle)| {
-                if status.is_ok() {
-                    *out = handle;
-                }
-                status
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let ctx = &object_ref!(device, "invalid device handle").ctx;
+        let usage = match buffer_usage(desc.usage) {
+            Ok(u) => u,
+            Err(s) => return s,
+        };
+        let wdesc = wgt::BufferDescriptor {
+            label: label(desc.name),
+            size: desc.size,
+            usage,
+            mapped_at_creation: false,
+        };
+        let (id, err) = ctx.global.device_create_buffer(ctx.device_id, &wdesc, None);
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            ctx.global.buffer_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        let handle = AlcoBufferHandle::new(BufferObj {
+            id,
+            ctx: Arc::clone(ctx),
+            map_completion: None,
+        });
+        *out = handle;
+        AlcoStatus::OK
     })
 }
 
-/// ABI: destroys a buffer (generational — double destroy returns INVALID_HANDLE).
+/// ABI: consumes a buffer handle, destroying its allocation before unregistering it.
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_destroy(device: AlcoHandle, buffer: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_buffer_destroy(buffer: AlcoBufferHandle) -> AlcoStatus {
     crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| match ctx.buffers().remove(buffer) {
-                Ok(obj) => {
-                    ctx.global.buffer_destroy(obj.id);
-                    ctx.global.buffer_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let obj = match buffer.take() {
+            Ok(obj) => obj,
+            Err(status) => {
+                set_error(status, "invalid buffer handle");
+                return status;
+            }
+        };
+        obj.ctx.global.buffer_destroy(obj.id);
+        drop(obj);
+        AlcoStatus::OK
     })
 }
 
 /// ABI: initiates a read map. Completion is poll-driven via
 /// `alco_buffer_map_poll`; the native callback only records the outcome into
 /// a shared cell that stays valid regardless of object lifetime.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_buffer_map_read(
-    device: AlcoHandle,
-    buffer: AlcoHandle,
+    buffer: AlcoBufferHandle,
     offset: u64,
     size: u64,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| {
-                let buffer_id = match ctx.buffers().get_copy(buffer, |obj| obj.id) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
-                        return AlcoStatus::INVALID_HANDLE;
-                    }
-                };
-                let completion = Arc::new(MapCompletion {
-                    state: AtomicU32::new(0),
-                    error: Mutex::new(CString::new("").unwrap()),
-                });
-                let callback_cell = completion.clone();
-                let callback = Box::new(move |result: wgc::resource::BufferAccessResult| match result {
-                    Ok(()) => callback_cell.state.store(1, Ordering::Release),
-                    Err(err) => {
-                        *callback_cell.error.lock().unwrap() = CString::new(err.to_string()).unwrap();
-                        callback_cell.state.store(2, Ordering::Release);
-                    }
-                }) as wgc::resource::BufferMapCallback;
-                let operation = wgc::resource::BufferMapOperation {
-                    host: wgc::device::HostMap::Read,
-                    callback: Some(callback),
-                };
-                match ctx.global.buffer_map_async(buffer_id, offset, Some(size), operation) {
-                    Ok(_) => {
-                        ctx.buffers()
-                            .with(buffer, |obj| *obj.map_completion.lock().unwrap() = Some(completion))
-                            .ok();
-                        AlcoStatus::OK
-                    }
-                    Err(e) => {
-                        set_error_from(AlcoStatus::VALIDATION, &e);
-                        AlcoStatus::VALIDATION
-                    }
+        let obj = match buffer.get_mut() {
+            Ok(obj) => obj,
+            Err(status) => {
+                set_error(status, "invalid buffer handle");
+                return status;
+            }
+        };
+        let completion = Arc::new(MapCompletion {
+            state: AtomicU32::new(0),
+            error: Mutex::new(None),
+        });
+        let callback_cell = Arc::clone(&completion);
+        let callback = Box::new(
+            move |result: wgc::resource::BufferAccessResult| match result {
+                Ok(()) => callback_cell.state.store(1, Ordering::Release),
+                Err(err) => {
+                    *callback_cell.error.lock().unwrap() =
+                        Some(CString::new(err.to_string().replace('\0', "\\0")).unwrap());
+                    callback_cell.state.store(2, Ordering::Release);
                 }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+            },
+        ) as wgc::resource::BufferMapCallback;
+        let operation = wgc::resource::BufferMapOperation {
+            host: wgc::device::HostMap::Read,
+            callback: Some(callback),
+        };
+        match obj
+            .ctx
+            .global
+            .buffer_map_async(obj.id, offset, Some(size), operation)
+        {
+            Ok(_) => {
+                obj.map_completion = Some(completion);
+                AlcoStatus::OK
+            }
+            Err(e) => {
+                set_error_from(AlcoStatus::VALIDATION, &e);
+                AlcoStatus::VALIDATION
+            }
+        }
     })
 }
 
 /// ABI: polls a pending map. `NOT_READY` = still mapping, `OK` = mapped
 /// (range available via `alco_buffer_get_mapped_range`), `VALIDATION` = failed.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_map_poll(
-    device: AlcoHandle,
-    buffer: AlcoHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_buffer_map_poll(buffer: AlcoBufferHandle) -> AlcoStatus {
     crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| {
-                let completion = match ctx.buffers().with(buffer, |obj| {
-                    obj.map_completion.lock().unwrap().clone()
-                }) {
-                    Ok(Some(completion)) => completion,
-                    Ok(None) => return AlcoStatus::NOT_READY,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
-                        return AlcoStatus::INVALID_HANDLE;
-                    }
-                };
-                match completion.state.load(Ordering::Acquire) {
-                    1 => AlcoStatus::OK,
-                    2 => {
-                        let message = completion.error.lock().unwrap().clone();
-                        set_error(AlcoStatus::VALIDATION, message.to_string_lossy().into_owned());
-                        AlcoStatus::VALIDATION
-                    }
-                    _ => AlcoStatus::NOT_READY,
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let obj = object_ref!(buffer, "invalid buffer handle");
+        let Some(completion) = obj.map_completion.as_ref() else {
+            return AlcoStatus::NOT_READY;
+        };
+        match completion.state.load(Ordering::Acquire) {
+            1 => AlcoStatus::OK,
+            2 => {
+                let error = completion.error.lock().unwrap();
+                let message = error.as_ref().expect("failed map must publish its error");
+                set_error(AlcoStatus::VALIDATION, message.to_string_lossy());
+                AlcoStatus::VALIDATION
+            }
+            _ => AlcoStatus::NOT_READY,
+        }
     })
 }
 
 /// ABI: returns the mapped read range pointer.
 ///
 /// # Safety
+/// All live typed handles must outlive the call; destruction must not overlap access.
 /// `out` must be a valid `*const u8` slot; the range is valid until unmap.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_buffer_get_mapped_range(
-    device: AlcoHandle,
-    buffer: AlcoHandle,
+    buffer: AlcoBufferHandle,
     offset: u64,
     size: u64,
     out: *mut *const u8,
@@ -467,68 +608,52 @@ pub unsafe extern "C-unwind" fn alco_buffer_get_mapped_range(
             set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
             return AlcoStatus::INVALID_ARGUMENT;
         }
-        DEVICES
-            .with(device, |ctx| {
-                match ctx.buffers().get_copy(buffer, |obj| obj.id) {
-                    Ok(id) => {
-                        let range = ctx
-                            .global
-                            .buffer_get_mapped_range(id, offset, Some(size));
-                        match range {
-                            Ok((ptr, len)) if len >= size => {
-                                *out = ptr.as_ptr();
-                                AlcoStatus::OK
-                            }
-                            Ok(_) => {
-                                set_error(AlcoStatus::VALIDATION, "mapped range smaller than requested");
-                                AlcoStatus::VALIDATION
-                            }
-                            Err(e) => {
-                                set_error_from(AlcoStatus::VALIDATION, &e);
-                                AlcoStatus::VALIDATION
-                            }
-                        }
-                    }
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
-                        AlcoStatus::INVALID_HANDLE
-                    }
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let obj = object_ref!(buffer, "invalid buffer handle");
+        match obj
+            .ctx
+            .global
+            .buffer_get_mapped_range(obj.id, offset, Some(size))
+        {
+            Ok((ptr, len)) if len >= size => {
+                *out = ptr.as_ptr();
+                AlcoStatus::OK
+            }
+            Ok(_) => {
+                set_error(
+                    AlcoStatus::VALIDATION,
+                    "mapped range smaller than requested",
+                );
+                AlcoStatus::VALIDATION
+            }
+            Err(e) => {
+                set_error_from(AlcoStatus::VALIDATION, &e);
+                AlcoStatus::VALIDATION
+            }
+        }
     })
 }
 
 /// ABI: unmaps the buffer and resets the map state machine.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_buffer_unmap(device: AlcoHandle, buffer: AlcoHandle) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_buffer_unmap(buffer: AlcoBufferHandle) -> AlcoStatus {
     crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| {
-                match ctx.buffers().get_copy(buffer, |obj| obj.id) {
-                    Ok(id) => {
-                        if let Err(e) = ctx.global.buffer_unmap(id) {
-                            set_error_from(AlcoStatus::VALIDATION, &e);
-                            return AlcoStatus::VALIDATION;
-                        }
-                        ctx.buffers()
-                            .with(buffer, |obj| *obj.map_completion.lock().unwrap() = None)
-                            .ok();
-                        AlcoStatus::OK
-                    }
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
-                        AlcoStatus::INVALID_HANDLE
-                    }
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let obj = match buffer.get_mut() {
+            Ok(obj) => obj,
+            Err(status) => {
+                set_error(status, "invalid buffer handle");
+                return status;
+            }
+        };
+        if let Err(e) = obj.ctx.global.buffer_unmap(obj.id) {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            return AlcoStatus::VALIDATION;
+        }
+        obj.map_completion = None;
+        AlcoStatus::OK
     })
 }
 
@@ -537,123 +662,111 @@ pub unsafe extern "C-unwind" fn alco_buffer_unmap(device: AlcoHandle, buffer: Al
 // ---------------------------------------------------------------------------
 
 /// ABI: creates a texture.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_texture_create(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     desc: *const AlcoTextureDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoTextureHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor or out pointer");
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    "null descriptor or out pointer",
+                );
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
-        DEVICES
-            .with(device, move |ctx| {
-                let format = match pixel_format(desc.format) {
-                    Ok(f) => f,
-                    Err(s) => return (s, AlcoHandle::NULL),
-                };
-                let dimension = match texture_dimension(desc.dimension) {
-                    Ok(d) => d,
-                    Err(s) => return (s, AlcoHandle::NULL),
-                };
-                let wdesc = wgt::TextureDescriptor {
-                    label: label(desc.name),
-                    size: wgt::Extent3d {
-                        width: desc.width,
-                        height: desc.height,
-                        depth_or_array_layers: desc.depth_or_array_layers,
-                    },
-                    mip_level_count: desc.mip_level_count,
-                    sample_count: desc.sample_count,
-                    dimension,
-                    format,
-                    usage: texture_usage(desc.usage),
-                    view_formats: Vec::new(),
-                };
-                let (id, err) = ctx.global.device_create_texture(ctx.device_id, &wdesc, None);
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    ctx.global.texture_drop(id);
-                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
-                }
-                let handle = ctx.textures().insert(TextureObj {
-                    id,
-                    width: desc.width,
-                    height: desc.height,
-                    depth_or_array_layers: desc.depth_or_array_layers,
-                    mip_level_count: desc.mip_level_count,
-                    format: desc.format,
-                    is_surface_texture: false,
-                    surface: None,
-                });
-                (AlcoStatus::OK, handle)
-            })
-            .map(|(status, handle)| {
-                if status.is_ok() {
-                    *out = handle;
-                }
-                status
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let ctx = &object_ref!(device, "invalid device handle").ctx;
+        let format = match pixel_format(desc.format) {
+            Ok(f) => f,
+            Err(s) => return s,
+        };
+        let dimension = match texture_dimension(desc.dimension) {
+            Ok(d) => d,
+            Err(s) => return s,
+        };
+        let wdesc = wgt::TextureDescriptor {
+            label: label(desc.name),
+            size: wgt::Extent3d {
+                width: desc.width,
+                height: desc.height,
+                depth_or_array_layers: desc.depth_or_array_layers,
+            },
+            mip_level_count: desc.mip_level_count,
+            sample_count: desc.sample_count,
+            dimension,
+            format,
+            usage: texture_usage(desc.usage),
+            view_formats: Vec::new(),
+        };
+        let (id, err) = ctx
+            .global
+            .device_create_texture(ctx.device_id, &wdesc, None);
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            ctx.global.texture_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        let handle = AlcoTextureHandle::new(TextureObj {
+            id,
+            ctx: Arc::clone(ctx),
+            width: desc.width,
+            height: desc.height,
+            depth_or_array_layers: desc.depth_or_array_layers,
+            mip_level_count: desc.mip_level_count,
+            format: desc.format,
+            is_surface_texture: false,
+            surface: None,
+        });
+        *out = handle;
+        AlcoStatus::OK
     })
 }
 
 /// ABI: destroys a texture; surface textures are rejected (release-only).
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_texture_destroy(
-    device: AlcoHandle,
-    texture: AlcoHandle,
-) -> AlcoStatus {
+pub unsafe extern "C-unwind" fn alco_texture_destroy(texture: AlcoTextureHandle) -> AlcoStatus {
     crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| {
-                // Reject the wrong lifecycle operation without consuming the handle.
-                match ctx.textures().with(texture, |obj| obj.is_surface_texture) {
-                    Ok(true) => {
-                        set_error(
-                            AlcoStatus::INVALID_ARGUMENT,
-                            "surface textures must be released, not destroyed",
-                        );
-                        return AlcoStatus::INVALID_ARGUMENT;
-                    }
-                    Ok(false) => {}
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
-                        return AlcoStatus::INVALID_HANDLE;
-                    }
-                }
-                match ctx.textures().remove(texture) {
-                    Ok(obj) => {
-                        ctx.global.texture_destroy(obj.id);
-                        ctx.global.texture_drop(obj.id);
-                        AlcoStatus::OK
-                    }
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
-                        AlcoStatus::INVALID_HANDLE
-                    }
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        // Reject the wrong lifecycle operation without consuming the handle.
+        if object_ref!(texture, "invalid texture handle").is_surface_texture {
+            set_error(
+                AlcoStatus::INVALID_ARGUMENT,
+                "surface textures must be released, not destroyed",
+            );
+            return AlcoStatus::INVALID_ARGUMENT;
+        }
+        let obj = match texture.take() {
+            Ok(obj) => obj,
+            Err(status) => {
+                set_error(status, "invalid texture handle");
+                return status;
+            }
+        };
+        obj.ctx.global.texture_destroy(obj.id);
+        drop(obj);
+        AlcoStatus::OK
     })
 }
 
 /// ABI: fills texture info (used for acquired surface textures).
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_texture_get_info(
-    device: AlcoHandle,
-    texture: AlcoHandle,
+    texture: AlcoTextureHandle,
     out: *mut AlcoTextureInfo,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
@@ -661,138 +774,116 @@ pub unsafe extern "C-unwind" fn alco_texture_get_info(
             set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
             return AlcoStatus::INVALID_ARGUMENT;
         }
-        DEVICES
-            .with(device, |ctx| {
-                match ctx.textures().with(texture, |obj| {
-                    (*out).width = obj.width;
-                    (*out).height = obj.height;
-                    (*out).depth_or_array_layers = obj.depth_or_array_layers;
-                    (*out).mip_level_count = obj.mip_level_count;
-                    (*out).format = obj.format;
-                }) {
-                    Ok(()) => AlcoStatus::OK,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
-                        AlcoStatus::INVALID_HANDLE
-                    }
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let obj = object_ref!(texture, "invalid texture handle");
+        *out = AlcoTextureInfo {
+            width: obj.width,
+            height: obj.height,
+            depth_or_array_layers: obj.depth_or_array_layers,
+            mip_level_count: obj.mip_level_count,
+            format: obj.format,
+        };
+        AlcoStatus::OK
     })
 }
 
 /// ABI: creates a texture view. Pass a null `desc` for the default view
 /// (used for per-frame surface textures).
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_texture_create_view(
-    device: AlcoHandle,
-    texture: AlcoHandle,
+    texture: AlcoTextureHandle,
     desc: *const AlcoTextureViewDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoTextureViewHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         if out.is_null() {
             set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer");
             return AlcoStatus::INVALID_ARGUMENT;
         }
-        DEVICES
-            .with(device, |ctx| {
-                let texture_id = match ctx.textures().with(texture, |obj| obj.id) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid texture handle");
-                        return AlcoStatus::INVALID_HANDLE;
-                    }
+        let obj = object_ref!(texture, "invalid texture handle");
+        let ctx = &obj.ctx;
+        let wdesc = match desc.as_ref() {
+            Some(d) => {
+                let dimension = match texture_view_dimension(d.dimension) {
+                    Ok(v) => v,
+                    Err(s) => return s,
                 };
-                let wdesc = match desc.as_ref() {
-                    Some(d) => {
-                        let dimension = match texture_view_dimension(d.dimension) {
-                            Ok(v) => v,
-                            Err(s) => return s,
-                        };
-                        let aspect = match texture_aspect(d.aspect) {
-                            Ok(v) => v,
-                            Err(s) => return s,
-                        };
-                        // Format 0 (C# Undefined) inherits the texture format.
-                        let format = match d.format {
-                            0 => None,
-                            v => match pixel_format(v) {
-                                Ok(f) => Some(f),
-                                Err(s) => return s,
-                            },
-                        };
-                        wgc::resource::TextureViewDescriptor {
-                            label: label(d.name),
-                            format,
-                            dimension: Some(dimension),
-                            usage: None,
-                            range: wgt::ImageSubresourceRange {
-                                aspect,
-                                base_mip_level: d.base_mip_level,
-                                mip_level_count: plain_or_none(d.mip_level_count),
-                                base_array_layer: d.base_array_layer,
-                                array_layer_count: plain_or_none(d.array_layer_count),
-                            },
-                        }
-                    }
-                    None => wgc::resource::TextureViewDescriptor {
-                        label: None,
-                        format: None,
-                        dimension: None,
-                        usage: None,
-                        range: wgt::ImageSubresourceRange {
-                            aspect: wgt::TextureAspect::All,
-                            base_mip_level: 0,
-                            mip_level_count: None,
-                            base_array_layer: 0,
-                            array_layer_count: None,
-                        },
+                let aspect = match texture_aspect(d.aspect) {
+                    Ok(v) => v,
+                    Err(s) => return s,
+                };
+                // Format 0 (C# Undefined) inherits the texture format.
+                let format = match d.format {
+                    0 => None,
+                    v => match pixel_format(v) {
+                        Ok(f) => Some(f),
+                        Err(s) => return s,
                     },
                 };
-                let (id, err) = ctx
-                    .global
-                    .texture_create_view(texture_id, &wdesc, None);
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    ctx.global.texture_view_drop(id);
-                    return AlcoStatus::VALIDATION;
+                wgc::resource::TextureViewDescriptor {
+                    label: label(d.name),
+                    format,
+                    dimension: Some(dimension),
+                    usage: None,
+                    range: wgt::ImageSubresourceRange {
+                        aspect,
+                        base_mip_level: d.base_mip_level,
+                        mip_level_count: plain_or_none(d.mip_level_count),
+                        base_array_layer: d.base_array_layer,
+                        array_layer_count: plain_or_none(d.array_layer_count),
+                    },
                 }
-                *out = ctx.views().insert(TextureViewObj { id });
-                AlcoStatus::OK
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+            }
+            None => wgc::resource::TextureViewDescriptor {
+                label: None,
+                format: None,
+                dimension: None,
+                usage: None,
+                range: wgt::ImageSubresourceRange {
+                    aspect: wgt::TextureAspect::All,
+                    base_mip_level: 0,
+                    mip_level_count: None,
+                    base_array_layer: 0,
+                    array_layer_count: None,
+                },
+            },
+        };
+        let (id, err) = ctx.global.texture_create_view(obj.id, &wdesc, None);
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            ctx.global.texture_view_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        *out = AlcoTextureViewHandle::new(TextureViewObj {
+            id,
+            ctx: Arc::clone(ctx),
+            surface: obj.surface.clone(),
+        });
+        AlcoStatus::OK
     })
 }
 
 /// ABI: destroys a texture view.
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_texture_view_destroy(
-    device: AlcoHandle,
-    view: AlcoHandle,
+    view: AlcoTextureViewHandle,
 ) -> AlcoStatus {
-    crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| match ctx.views().remove(view) {
-                Ok(obj) => {
-                    ctx.global.texture_view_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid texture view handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+    crate::entry::guard(|| match view.take() {
+        Ok(obj) => {
+            drop(obj);
+            AlcoStatus::OK
+        }
+        Err(status) => {
+            set_error(status, "invalid texture view handle");
+            status
+        }
     })
 }
 
@@ -809,108 +900,102 @@ fn plain_or_none(v: u32) -> Option<u32> {
 // ---------------------------------------------------------------------------
 
 /// ABI: creates a sampler.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_sampler_create(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     desc: *const AlcoSamplerDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoSamplerHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor or out pointer");
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    "null descriptor or out pointer",
+                );
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
-        DEVICES
-            .with(device, move |ctx| {
-                let min_filter = match filter_mode(desc.min_filter) {
-                    Ok(f) => f,
-                    Err(s) => return (s, AlcoHandle::NULL),
-                };
-                let mag_filter = match filter_mode(desc.mag_filter) {
-                    Ok(f) => f,
-                    Err(s) => return (s, AlcoHandle::NULL),
-                };
-                let mipmap_filter = match mipmap_filter_mode(desc.mipmap_filter) {
-                    Ok(f) => f,
-                    Err(s) => return (s, AlcoHandle::NULL),
-                };
-                let address_mode = |v: u32| address_mode(v).ok();
-                let address_u = match address_mode(desc.address_u) {
-                    Some(f) => f,
-                    None => return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL),
-                };
-                let address_v = match address_mode(desc.address_v) {
-                    Some(f) => f,
-                    None => return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL),
-                };
-                let address_w = match address_mode(desc.address_w) {
-                    Some(f) => f,
-                    None => return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL),
-                };
-                let compare = match optional_compare_function(desc.compare) {
-                    Ok(c) => c,
-                    Err(_) => return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL),
-                };
-                let wdesc = wgc::resource::SamplerDescriptor {
-                    label: label(desc.name),
-                    address_modes: [address_u, address_v, address_w],
-                    mag_filter,
-                    min_filter,
-                    mipmap_filter,
-                    lod_min_clamp: desc.lod_min_clamp,
-                    lod_max_clamp: desc.lod_max_clamp,
-                    compare,
-                    // wgpu expects a clamp >= 1, where 1 means "no anisotropy".
-                    anisotropy_clamp: desc.max_anisotropy.max(1),
-                    border_color: None,
-                };
-                let (id, err) = ctx.global.device_create_sampler(ctx.device_id, &wdesc, None);
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    ctx.global.sampler_drop(id);
-                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
-                }
-                let handle = ctx.samplers().insert(SamplerObj { id });
-                (AlcoStatus::OK, handle)
-            })
-            .map(|(status, handle)| {
-                if status.is_ok() {
-                    *out = handle;
-                }
-                status
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let ctx = &object_ref!(device, "invalid device handle").ctx;
+        let min_filter = match filter_mode(desc.min_filter) {
+            Ok(f) => f,
+            Err(s) => return s,
+        };
+        let mag_filter = match filter_mode(desc.mag_filter) {
+            Ok(f) => f,
+            Err(s) => return s,
+        };
+        let mipmap_filter = match mipmap_filter_mode(desc.mipmap_filter) {
+            Ok(f) => f,
+            Err(s) => return s,
+        };
+        let address_u = match address_mode(desc.address_u) {
+            Ok(f) => f,
+            Err(s) => return s,
+        };
+        let address_v = match address_mode(desc.address_v) {
+            Ok(f) => f,
+            Err(s) => return s,
+        };
+        let address_w = match address_mode(desc.address_w) {
+            Ok(f) => f,
+            Err(s) => return s,
+        };
+        let compare = match optional_compare_function(desc.compare) {
+            Ok(c) => c,
+            Err(s) => return s,
+        };
+        let wdesc = wgc::resource::SamplerDescriptor {
+            label: label(desc.name),
+            address_modes: [address_u, address_v, address_w],
+            mag_filter,
+            min_filter,
+            mipmap_filter,
+            lod_min_clamp: desc.lod_min_clamp,
+            lod_max_clamp: desc.lod_max_clamp,
+            compare,
+            // wgpu expects a clamp >= 1, where 1 means "no anisotropy".
+            anisotropy_clamp: desc.max_anisotropy.max(1),
+            border_color: None,
+        };
+        let (id, err) = ctx
+            .global
+            .device_create_sampler(ctx.device_id, &wdesc, None);
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            ctx.global.sampler_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        let handle = AlcoSamplerHandle::new(SamplerObj {
+            id,
+            ctx: Arc::clone(ctx),
+        });
+        *out = handle;
+        AlcoStatus::OK
     })
 }
 
 /// ABI: destroys a sampler.
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_sampler_destroy(
-    device: AlcoHandle,
-    sampler: AlcoHandle,
-) -> AlcoStatus {
-    crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| match ctx.samplers().remove(sampler) {
-                Ok(obj) => {
-                    ctx.global.sampler_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid sampler handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+pub unsafe extern "C-unwind" fn alco_sampler_destroy(sampler: AlcoSamplerHandle) -> AlcoStatus {
+    crate::entry::guard(|| match sampler.take() {
+        Ok(obj) => {
+            drop(obj);
+            AlcoStatus::OK
+        }
+        Err(status) => {
+            set_error(status, "invalid sampler handle");
+            status
+        }
     })
 }
 
@@ -929,138 +1014,149 @@ pub unsafe extern "C-unwind" fn alco_sampler_destroy(
 /// <returns>The creation status.</returns>
 ///
 /// # Safety
+/// All live typed handles must outlive the call; destruction must not overlap access.
 /// `desc` and its source bytes must be readable for the duration of the call;
 /// non-null name and entry-point pointers must reference null-terminated strings.
 /// `out` must point to a writable handle slot.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_shader_module_create(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     desc: *const AlcoShaderModuleDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoShaderModuleHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() && !d.data.is_null() && d.size > 0 => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor, out pointer or empty source");
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    "null descriptor, out pointer or empty source",
+                );
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
-        DEVICES
-            .with(device, move |ctx| {
-                let data = std::slice::from_raw_parts(desc.data, desc.size as usize);
-                let entry_point = borrow_label(desc.entry_point);
-                let module_label = label(desc.name);
-                let workgroup = [desc.workgroup_x, desc.workgroup_y, desc.workgroup_z];
+        let ctx = &object_ref!(device, "invalid device handle").ctx;
+        let data = std::slice::from_raw_parts(desc.data, desc.size as usize);
+        let entry_point = borrow_label(desc.entry_point);
+        let module_label = label(desc.name);
+        let workgroup = [desc.workgroup_x, desc.workgroup_y, desc.workgroup_z];
 
-                let (id, err): (wgc::id::ShaderModuleId, Option<Box<dyn std::error::Error + Send + Sync>>) =
-                    match desc.language {
-                        shader_language::SPIRV => {
-                            let mut words = spirv_words(data);
-                            if ctx.backend == backend::RESOLVED_DX12 {
-                                if let Err(message) = crate::shader_spirv::normalize(words.to_mut()) {
-                                    set_error(AlcoStatus::VALIDATION, message);
-                                    return AlcoStatus::VALIDATION;
-                                }
-                            }
-                            if ctx.caps & caps::PASSTHROUGH_SHADERS != 0 && ctx.backend != backend::RESOLVED_DX12 {
-                                let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                    p.spirv = Some(words);
-                                });
-                                let (id, err) = ctx
-                                    .global
-                                    .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
-                                (id, err.map(|e| Box::new(e) as _))
-                            } else {
-                                let source = wgc::pipeline::ShaderModuleSource::SpirV(
-                                    words,
-                                    wgc::naga::front::spv::Options {
-                                        adjust_coordinate_space: ctx.backend != backend::RESOLVED_DX12,
-                                        ..Default::default()
-                                    },
-                                );
-                                let sdesc = wgc::pipeline::ShaderModuleDescriptor {
-                                    label: module_label.clone(),
-                                    runtime_checks: wgt::ShaderRuntimeChecks::checked(),
-                                };
-                                let (id, err) =
-                                    ctx.global
-                                        .device_create_shader_module(ctx.device_id, &sdesc, source, None);
-                                (id, err.map(|e| Box::new(e) as _))
-                            }
-                        }
-                        shader_language::DXIL => {
-                            match require_passthrough(ctx) {
-                                Ok(()) => {}
-                                Err(s) => return s,
-                            }
-                            let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                p.dxil = Some(std::borrow::Cow::Borrowed(data));
-                            });
-                            let (id, err) = ctx
-                                .global
-                                .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
-                            (id, err.map(|e| Box::new(e) as _))
-                        }
-                        shader_language::MSL => {
-                            match require_passthrough(ctx) {
-                                Ok(()) => {}
-                                Err(s) => return s,
-                            }
-                            let source = String::from_utf8_lossy(data);
-                            let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                p.msl = Some(source);
-                            });
-                            let (id, err) = ctx
-                                .global
-                                .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
-                            (id, err.map(|e| Box::new(e) as _))
-                        }
-                        shader_language::METALLIB => {
-                            match require_passthrough(ctx) {
-                                Ok(()) => {}
-                                Err(s) => return s,
-                            }
-                            let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                p.metallib = Some(std::borrow::Cow::Borrowed(data));
-                            });
-                            let (id, err) = ctx
-                                .global
-                                .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
-                            (id, err.map(|e| Box::new(e) as _))
-                        }
-                        shader_language::WGSL => {
-                            let source = String::from_utf8_lossy(data);
-                            let sdesc = wgc::pipeline::ShaderModuleDescriptor {
-                                label: module_label.clone(),
-                                runtime_checks: wgt::ShaderRuntimeChecks::checked(),
-                            };
-                            let (id, err) = ctx.global.device_create_shader_module(
-                                ctx.device_id,
-                                &sdesc,
-                                wgc::pipeline::ShaderModuleSource::Wgsl(source),
-                                None,
-                            );
-                            (id, err.map(|e| Box::new(e) as _))
-                        }
-                        other => {
-                            set_error(AlcoStatus::INVALID_ARGUMENT, format!("unsupported shader language {other}"));
-                            return AlcoStatus::INVALID_ARGUMENT;
-                        }
-                    };
-
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, e.as_ref());
-                    ctx.global.shader_module_drop(id);
-                    return AlcoStatus::VALIDATION;
+        let (id, err): (
+            wgc::id::ShaderModuleId,
+            Option<Box<dyn std::error::Error + Send + Sync>>,
+        ) = match desc.language {
+            shader_language::SPIRV => {
+                let mut words = spirv_words(data);
+                if ctx.backend == backend::RESOLVED_DX12 {
+                    if let Err(message) = crate::shader_spirv::normalize(words.to_mut()) {
+                        set_error(AlcoStatus::VALIDATION, message);
+                        return AlcoStatus::VALIDATION;
+                    }
                 }
-                *out = ctx.shader_modules().insert(ShaderModuleObj { id });
-                AlcoStatus::OK
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+                if ctx.caps & caps::PASSTHROUGH_SHADERS != 0
+                    && ctx.backend != backend::RESOLVED_DX12
+                {
+                    let pdesc =
+                        passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
+                            p.spirv = Some(words);
+                        });
+                    let (id, err) = ctx.global.device_create_shader_module_passthrough(
+                        ctx.device_id,
+                        &pdesc,
+                        None,
+                    );
+                    (id, err.map(|e| Box::new(e) as _))
+                } else {
+                    let source = wgc::pipeline::ShaderModuleSource::SpirV(
+                        words,
+                        wgc::naga::front::spv::Options {
+                            adjust_coordinate_space: ctx.backend != backend::RESOLVED_DX12,
+                            ..Default::default()
+                        },
+                    );
+                    let sdesc = wgc::pipeline::ShaderModuleDescriptor {
+                        label: module_label.clone(),
+                        runtime_checks: wgt::ShaderRuntimeChecks::checked(),
+                    };
+                    let (id, err) =
+                        ctx.global
+                            .device_create_shader_module(ctx.device_id, &sdesc, source, None);
+                    (id, err.map(|e| Box::new(e) as _))
+                }
+            }
+            shader_language::DXIL => {
+                match require_passthrough(ctx) {
+                    Ok(()) => {}
+                    Err(s) => return s,
+                }
+                let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
+                    p.dxil = Some(std::borrow::Cow::Borrowed(data));
+                });
+                let (id, err) =
+                    ctx.global
+                        .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
+                (id, err.map(|e| Box::new(e) as _))
+            }
+            shader_language::MSL => {
+                match require_passthrough(ctx) {
+                    Ok(()) => {}
+                    Err(s) => return s,
+                }
+                let source = String::from_utf8_lossy(data);
+                let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
+                    p.msl = Some(source);
+                });
+                let (id, err) =
+                    ctx.global
+                        .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
+                (id, err.map(|e| Box::new(e) as _))
+            }
+            shader_language::METALLIB => {
+                match require_passthrough(ctx) {
+                    Ok(()) => {}
+                    Err(s) => return s,
+                }
+                let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
+                    p.metallib = Some(std::borrow::Cow::Borrowed(data));
+                });
+                let (id, err) =
+                    ctx.global
+                        .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
+                (id, err.map(|e| Box::new(e) as _))
+            }
+            shader_language::WGSL => {
+                let source = String::from_utf8_lossy(data);
+                let sdesc = wgc::pipeline::ShaderModuleDescriptor {
+                    label: module_label.clone(),
+                    runtime_checks: wgt::ShaderRuntimeChecks::checked(),
+                };
+                let (id, err) = ctx.global.device_create_shader_module(
+                    ctx.device_id,
+                    &sdesc,
+                    wgc::pipeline::ShaderModuleSource::Wgsl(source),
+                    None,
+                );
+                (id, err.map(|e| Box::new(e) as _))
+            }
+            other => {
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    format!("unsupported shader language {other}"),
+                );
+                return AlcoStatus::INVALID_ARGUMENT;
+            }
+        };
+
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, e.as_ref());
+            ctx.global.shader_module_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        *out = AlcoShaderModuleHandle::new(ShaderModuleObj {
+            id,
+            ctx: Arc::clone(ctx),
+        });
+        AlcoStatus::OK
     })
 }
 
@@ -1120,27 +1216,23 @@ fn passthrough_desc<'a>(
 }
 
 /// ABI: destroys a shader module.
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_shader_module_destroy(
-    device: AlcoHandle,
-    module: AlcoHandle,
+    module: AlcoShaderModuleHandle,
 ) -> AlcoStatus {
-    crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| match ctx.shader_modules().remove(module) {
-                Ok(obj) => {
-                    ctx.global.shader_module_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid shader module handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+    crate::entry::guard(|| match module.take() {
+        Ok(obj) => {
+            drop(obj);
+            AlcoStatus::OK
+        }
+        Err(status) => {
+            set_error(status, "invalid shader module handle");
+            status
+        }
     })
 }
 
@@ -1185,7 +1277,10 @@ fn bind_group_layout_entry(
         // SamplerComparison
         6 => wgt::BindingType::Sampler(wgt::SamplerBindingType::Comparison),
         other => {
-            set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid binding type {other}"));
+            set_error(
+                AlcoStatus::INVALID_ARGUMENT,
+                format!("invalid binding type {other}"),
+            );
             return Err(AlcoStatus::INVALID_ARGUMENT);
         }
     };
@@ -1201,86 +1296,78 @@ fn bind_group_layout_entry(
 /// a valid empty layout when `entry_count` is zero.
 ///
 /// # Safety
+/// All live typed handles must outlive the call; destruction must not overlap access.
 /// `desc` and `out` must be valid pointers. For a positive entry count,
 /// `entries` must point to that many initialized layout entries.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_bind_group_layout_create(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     desc: *const AlcoBindGroupLayoutDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoBindGroupLayoutHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() && (d.entry_count == 0 || !d.entries.is_null()) => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor, out pointer or nonempty entry array");
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    "null descriptor, out pointer or nonempty entry array",
+                );
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
-        DEVICES
-            .with(device, move |ctx| {
-                let entries = if desc.entry_count == 0 {
-                    &[][..]
-                } else {
-                    std::slice::from_raw_parts(desc.entries, desc.entry_count as usize)
-                };
-                let mut wentries = Vec::with_capacity(entries.len());
-                for entry in entries {
-                    match bind_group_layout_entry(entry) {
-                        Ok(e) => wentries.push(e),
-                        Err(s) => return (s, AlcoHandle::NULL),
-                    }
-                }
-                let wdesc = wgc::binding_model::BindGroupLayoutDescriptor {
-                    label: label(desc.name),
-                    entries: std::borrow::Cow::Owned(wentries),
-                };
-                let (id, err) =
-                    ctx.global
-                        .device_create_bind_group_layout(ctx.device_id, &wdesc, None);
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    ctx.global.bind_group_layout_drop(id);
-                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
-                }
-                let handle = ctx.bind_group_layouts().insert(BindGroupLayoutObj { id });
-                (AlcoStatus::OK, handle)
-            })
-            .map(|(status, handle)| {
-                if status.is_ok() {
-                    *out = handle;
-                }
-                status
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let ctx = &object_ref!(device, "invalid device handle").ctx;
+        let entries = if desc.entry_count == 0 {
+            &[][..]
+        } else {
+            std::slice::from_raw_parts(desc.entries, desc.entry_count as usize)
+        };
+        let mut wentries = DescriptorStorage::<_, 16>::new(entries.len());
+        for entry in entries {
+            match bind_group_layout_entry(entry) {
+                Ok(e) => wentries.push(e),
+                Err(s) => return s,
+            }
+        }
+        let wdesc = wgc::binding_model::BindGroupLayoutDescriptor {
+            label: label(desc.name),
+            entries: Cow::Borrowed(wentries.as_slice()),
+        };
+        let (id, err) = ctx
+            .global
+            .device_create_bind_group_layout(ctx.device_id, &wdesc, None);
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            ctx.global.bind_group_layout_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        let handle = AlcoBindGroupLayoutHandle::new(BindGroupLayoutObj {
+            id,
+            ctx: Arc::clone(ctx),
+        });
+        *out = handle;
+        AlcoStatus::OK
     })
 }
 
 /// ABI: destroys a bind group layout.
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_bind_group_layout_destroy(
-    device: AlcoHandle,
-    layout: AlcoHandle,
+    layout: AlcoBindGroupLayoutHandle,
 ) -> AlcoStatus {
-    crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| match ctx.bind_group_layouts().remove(layout) {
-                Ok(obj) => {
-                    ctx.global.bind_group_layout_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid bind group layout handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+    crate::entry::guard(|| match layout.take() {
+        Ok(obj) => {
+            drop(obj);
+            AlcoStatus::OK
+        }
+        Err(status) => {
+            set_error(status, "invalid bind group layout handle");
+            status
+        }
     })
 }
 
@@ -1288,132 +1375,127 @@ pub unsafe extern "C-unwind" fn alco_bind_group_layout_destroy(
 /// allowing zero entries for an empty layout.
 ///
 /// # Safety
+/// All live typed handles must outlive the call; destruction must not overlap access.
 /// `desc` and `out` must be valid pointers. For a positive entry count,
 /// `entries` must point to that many initialized binding entries.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_bind_group_create(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     desc: *const AlcoBindGroupDesc,
-    out: *mut AlcoHandle,
+    out: *mut AlcoBindGroupHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         let desc = match desc.as_ref() {
             Some(d) if !out.is_null() && (d.entry_count == 0 || !d.entries.is_null()) => d,
             _ => {
-                set_error(AlcoStatus::INVALID_ARGUMENT, "null descriptor, out pointer or nonempty entry array");
+                set_error(
+                    AlcoStatus::INVALID_ARGUMENT,
+                    "null descriptor, out pointer or nonempty entry array",
+                );
                 return AlcoStatus::INVALID_ARGUMENT;
             }
         };
-        DEVICES
-            .with(device, move |ctx| {
-                let layout_id = match ctx.bind_group_layouts().with(desc.layout, |obj| obj.id) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid bind group layout handle");
-                        return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
-                    }
-                };
-                let entries = if desc.entry_count == 0 {
-                    &[][..]
-                } else {
-                    std::slice::from_raw_parts(desc.entries, desc.entry_count as usize)
-                };
-                let mut wentries = Vec::with_capacity(entries.len());
-                for entry in entries {
-                    let resource = match entry.kind {
-                        0 => {
-                            let id = match ctx.buffers().get_copy(entry.resource, |obj| obj.id) {
-                                Ok(id) => id,
-                                Err(_) => {
-                                    set_error(AlcoStatus::INVALID_HANDLE, format!("invalid buffer handle in binding {}", entry.binding));
-                                    return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
-                                }
-                            };
-                            wgc::binding_model::BindingResource::Buffer(wgc::binding_model::BufferBinding {
-                                buffer: id,
-                                offset: entry.offset,
-                                size: if entry.size == 0 { None } else { Some(entry.size) },
-                            })
-                        }
-                        1 => {
-                            let id = match ctx.views().with(entry.resource, |obj| obj.id) {
-                                Ok(id) => id,
-                                Err(_) => {
-                                    set_error(AlcoStatus::INVALID_HANDLE, format!("invalid texture view handle in binding {}", entry.binding));
-                                    return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
-                                }
-                            };
-                            wgc::binding_model::BindingResource::TextureView(id)
-                        }
-                        2 => {
-                            let id = match ctx.samplers().with(entry.resource, |obj| obj.id) {
-                                Ok(id) => id,
-                                Err(_) => {
-                                    set_error(AlcoStatus::INVALID_HANDLE, format!("invalid sampler handle in binding {}", entry.binding));
-                                    return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
-                                }
-                            };
-                            wgc::binding_model::BindingResource::Sampler(id)
-                        }
-                        other => {
-                            set_error(AlcoStatus::INVALID_ARGUMENT, format!("invalid resource kind {other} in binding {}", entry.binding));
-                            return (AlcoStatus::INVALID_ARGUMENT, AlcoHandle::NULL);
-                        }
-                    };
-                    wentries.push(wgc::binding_model::BindGroupEntry {
-                        binding: entry.binding,
-                        resource,
-                    });
+        let ctx = &object_ref!(device, "invalid device handle").ctx;
+        let layout = object_ref!(desc.layout, "invalid bind group layout handle");
+        debug_assert!(Arc::ptr_eq(ctx, &layout.ctx));
+        let layout_id = layout.id;
+        let entries = if desc.entry_count == 0 {
+            &[][..]
+        } else {
+            std::slice::from_raw_parts(desc.entries, desc.entry_count as usize)
+        };
+        let mut wentries = DescriptorStorage::<_, 16>::new(entries.len());
+        for entry in entries {
+            let resource = match entry.kind {
+                0 => {
+                    let handle = Handle::<BufferObj>(entry.resource.cast());
+                    let obj = object_ref!(
+                        handle,
+                        format!("invalid buffer handle in binding {}", entry.binding)
+                    );
+                    debug_assert!(Arc::ptr_eq(ctx, &obj.ctx));
+                    let id = obj.id;
+                    wgc::binding_model::BindingResource::Buffer(wgc::binding_model::BufferBinding {
+                        buffer: id,
+                        offset: entry.offset,
+                        size: if entry.size == 0 {
+                            None
+                        } else {
+                            Some(entry.size)
+                        },
+                    })
                 }
-                let wdesc = wgc::binding_model::BindGroupDescriptor {
-                    label: label(desc.name),
-                    layout: layout_id,
-                    entries: std::borrow::Cow::Owned(wentries),
-                };
-                let (id, err) = ctx.global.device_create_bind_group(ctx.device_id, &wdesc, None);
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    ctx.global.bind_group_drop(id);
-                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
+                1 => {
+                    let handle = Handle::<TextureViewObj>(entry.resource.cast());
+                    let obj = object_ref!(
+                        handle,
+                        format!("invalid texture view handle in binding {}", entry.binding)
+                    );
+                    debug_assert!(Arc::ptr_eq(ctx, &obj.ctx));
+                    let id = obj.id;
+                    wgc::binding_model::BindingResource::TextureView(id)
                 }
-                let handle = ctx.bind_groups().insert(BindGroupObj { id });
-                (AlcoStatus::OK, handle)
-            })
-            .map(|(status, handle)| {
-                if status.is_ok() {
-                    *out = handle;
+                2 => {
+                    let handle = Handle::<SamplerObj>(entry.resource.cast());
+                    let obj = object_ref!(
+                        handle,
+                        format!("invalid sampler handle in binding {}", entry.binding)
+                    );
+                    debug_assert!(Arc::ptr_eq(ctx, &obj.ctx));
+                    let id = obj.id;
+                    wgc::binding_model::BindingResource::Sampler(id)
                 }
-                status
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+                other => {
+                    set_error(
+                        AlcoStatus::INVALID_ARGUMENT,
+                        format!("invalid resource kind {other} in binding {}", entry.binding),
+                    );
+                    return AlcoStatus::INVALID_ARGUMENT;
+                }
+            };
+            wentries.push(wgc::binding_model::BindGroupEntry {
+                binding: entry.binding,
+                resource,
+            });
+        }
+        let wdesc = wgc::binding_model::BindGroupDescriptor {
+            label: label(desc.name),
+            layout: layout_id,
+            entries: Cow::Borrowed(wentries.as_slice()),
+        };
+        let (id, err) = ctx
+            .global
+            .device_create_bind_group(ctx.device_id, &wdesc, None);
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            ctx.global.bind_group_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        let handle = AlcoBindGroupHandle::new(BindGroupObj {
+            id,
+            ctx: Arc::clone(ctx),
+        });
+        *out = handle;
+        AlcoStatus::OK
     })
 }
 
 /// ABI: destroys a bind group.
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
-pub unsafe extern "C-unwind" fn alco_bind_group_destroy(
-    device: AlcoHandle,
-    group: AlcoHandle,
-) -> AlcoStatus {
-    crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| match ctx.bind_groups().remove(group) {
-                Ok(obj) => {
-                    ctx.global.bind_group_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid bind group handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+pub unsafe extern "C-unwind" fn alco_bind_group_destroy(group: AlcoBindGroupHandle) -> AlcoStatus {
+    crate::entry::guard(|| match group.take() {
+        Ok(obj) => {
+            drop(obj);
+            AlcoStatus::OK
+        }
+        Err(status) => {
+            set_error(status, "invalid bind group handle");
+            status
+        }
     })
 }
 
@@ -1422,69 +1504,66 @@ pub unsafe extern "C-unwind" fn alco_bind_group_destroy(
 // ---------------------------------------------------------------------------
 
 /// ABI: creates a timestamp query set.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_query_set_create(
-    device: AlcoHandle,
+    device: AlcoDeviceHandle,
     count: u32,
     name: *const c_char,
-    out: *mut AlcoHandle,
+    out: *mut AlcoQuerySetHandle,
 ) -> AlcoStatus {
     crate::entry::guard(|| {
         if out.is_null() || count == 0 {
-            set_error(AlcoStatus::INVALID_ARGUMENT, "null out pointer or zero count");
+            set_error(
+                AlcoStatus::INVALID_ARGUMENT,
+                "null out pointer or zero count",
+            );
             return AlcoStatus::INVALID_ARGUMENT;
         }
-        DEVICES
-            .with(device, move |ctx| {
-                let wdesc = wgt::QuerySetDescriptor {
-                    label: label(name),
-                    ty: wgt::QueryType::Timestamp,
-                    count,
-                };
-                let (id, err) = ctx.global.device_create_query_set(ctx.device_id, &wdesc, None);
-                if let Some(e) = err {
-                    set_error_from(AlcoStatus::VALIDATION, &e);
-                    ctx.global.query_set_drop(id);
-                    return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
-                }
-                let handle = ctx.query_sets().insert(QuerySetObj { id });
-                (AlcoStatus::OK, handle)
-            })
-            .map(|(status, handle)| {
-                if status.is_ok() {
-                    *out = handle;
-                }
-                status
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+        let ctx = &object_ref!(device, "invalid device handle").ctx;
+        let wdesc = wgt::QuerySetDescriptor {
+            label: label(name),
+            ty: wgt::QueryType::Timestamp,
+            count,
+        };
+        let (id, err) = ctx
+            .global
+            .device_create_query_set(ctx.device_id, &wdesc, None);
+        if let Some(e) = err {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            ctx.global.query_set_drop(id);
+            return AlcoStatus::VALIDATION;
+        }
+        let handle = AlcoQuerySetHandle::new(QuerySetObj {
+            id,
+            ctx: Arc::clone(ctx),
+        });
+        *out = handle;
+        AlcoStatus::OK
     })
 }
 
 /// ABI: destroys a query set (drop only — destroy+drop double-removes in wgpu).
+///
+/// # Safety
+/// The typed handle must be live, consumed exactly once, and not borrowed during destruction.
+/// Non-null invalid or previously freed pointers violate the ABI contract.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_query_set_destroy(
-    device: AlcoHandle,
-    query_set: AlcoHandle,
+    query_set: AlcoQuerySetHandle,
 ) -> AlcoStatus {
-    crate::entry::guard(|| {
-        DEVICES
-            .with(device, |ctx| match ctx.query_sets().remove(query_set) {
-                Ok(obj) => {
-                    ctx.global.query_set_drop(obj.id);
-                    AlcoStatus::OK
-                }
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid query set handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
-            })
-            .unwrap_or_else(|s| {
-                set_error(s, "invalid device handle");
-                s
-            })
+    crate::entry::guard(|| match query_set.take() {
+        Ok(obj) => {
+            drop(obj);
+            AlcoStatus::OK
+        }
+        Err(status) => {
+            set_error(status, "invalid query set handle");
+            status
+        }
     })
 }
 
@@ -1530,10 +1609,17 @@ mod tests {
         // No new length or magic validation: complete words are retained and
         // incomplete trailing bytes are ignored, exactly as before.
         let aligned = AlignedShaderBytes([0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xaa, 0xbb, 0xcc]);
-        let unaligned = AlignedShaderBytes([0x11, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xaa, 0xbb, 0xcc]);
+        let unaligned =
+            AlignedShaderBytes([0x11, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xaa, 0xbb, 0xcc]);
         for trailing in 0..=3 {
-            assert_eq!(spirv_words(&aligned.0[..8 + trailing]).as_ref(), &[0, u32::MAX]);
-            assert_eq!(spirv_words(&unaligned.0[1..9 + trailing]).as_ref(), &[0, u32::MAX]);
+            assert_eq!(
+                spirv_words(&aligned.0[..8 + trailing]).as_ref(),
+                &[0, u32::MAX]
+            );
+            assert_eq!(
+                spirv_words(&unaligned.0[1..9 + trailing]).as_ref(),
+                &[0, u32::MAX]
+            );
             assert!(spirv_words(&aligned.0[..trailing]).is_empty());
             assert!(spirv_words(&unaligned.0[1..1 + trailing]).is_empty());
         }
@@ -1583,7 +1669,9 @@ mod tests {
             assert_eq!(matches!(msl, std::borrow::Cow::Borrowed(_)), borrowed);
             let wgc::pipeline::ShaderModuleSource::Wgsl(wgsl) =
                 wgc::pipeline::ShaderModuleSource::Wgsl(String::from_utf8_lossy(bytes))
-            else { unreachable!() };
+            else {
+                unreachable!()
+            };
             assert_eq!(wgsl.as_ref(), expected);
             assert_eq!(matches!(&wgsl, std::borrow::Cow::Borrowed(_)), borrowed);
             if borrowed {
@@ -1597,55 +1685,301 @@ mod tests {
     fn positive_binding_counts_require_non_null_arrays_before_device_lookup() {
         unsafe {
             let layout = AlcoBindGroupLayoutDesc {
-                entries: ptr::null(), entry_count: 1, name: ptr::null(),
+                entries: ptr::null(),
+                entry_count: 1,
+                name: ptr::null(),
             };
             let group = AlcoBindGroupDesc {
-                layout: AlcoHandle::NULL, entries: ptr::null(), entry_count: 1, name: ptr::null(),
+                layout: AlcoBindGroupLayoutHandle::NULL,
+                entries: ptr::null(),
+                entry_count: 1,
+                name: ptr::null(),
             };
-            let mut out = AlcoHandle::NULL;
-            assert_eq!(alco_bind_group_layout_create(AlcoHandle::NULL, &layout, &mut out),
-                AlcoStatus::INVALID_ARGUMENT);
-            assert_eq!(alco_bind_group_create(AlcoHandle::NULL, &group, &mut out),
-                AlcoStatus::INVALID_ARGUMENT);
+            let mut layout_out = AlcoBindGroupLayoutHandle::NULL;
+            let mut group_out = AlcoBindGroupHandle::NULL;
+            assert_eq!(
+                alco_bind_group_layout_create(AlcoDeviceHandle::NULL, &layout, &mut layout_out),
+                AlcoStatus::INVALID_ARGUMENT
+            );
+            assert_eq!(
+                alco_bind_group_create(AlcoDeviceHandle::NULL, &group, &mut group_out),
+                AlcoStatus::INVALID_ARGUMENT
+            );
         }
     }
 
     #[test]
     fn vulkan_empty_bindings_accept_null_and_valid_zero_length_arrays() {
-        let Some(device) = TestDevice::new() else { return };
+        let Some(device) = TestDevice::new() else {
+            return;
+        };
         let layout_placeholder = AlcoBindGroupLayoutEntry {
-            binding: 0, visibility: 0, ty: 0, sampler_kind: 0, texture_sample_type: 0,
-            view_dimension: 0, storage_access: 0, storage_format: 0,
+            binding: 0,
+            visibility: 0,
+            ty: 0,
+            sampler_kind: 0,
+            texture_sample_type: 0,
+            view_dimension: 0,
+            storage_access: 0,
+            storage_format: 0,
         };
         let group_placeholder = AlcoBindGroupEntry {
-            binding: 0, resource: AlcoHandle::NULL, offset: 0, size: 0, kind: 0,
+            binding: 0,
+            resource: ptr::null_mut(),
+            offset: 0,
+            size: 0,
+            kind: 0,
         };
         unsafe {
             for entries in [ptr::null(), &layout_placeholder] {
-                let desc = AlcoBindGroupLayoutDesc { entries, entry_count: 0, name: ptr::null() };
-                let mut layout = AlcoHandle::NULL;
-                assert_eq!(alco_bind_group_layout_create(device.handle, &desc, &mut layout),
-                    AlcoStatus::OK, "{}", last_error());
+                let desc = AlcoBindGroupLayoutDesc {
+                    entries,
+                    entry_count: 0,
+                    name: ptr::null(),
+                };
+                let mut layout = AlcoBindGroupLayoutHandle::NULL;
+                assert_eq!(
+                    alco_bind_group_layout_create(device.handle, &desc, &mut layout),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
                 assert!(!layout.is_null());
                 for entries in [ptr::null(), &group_placeholder] {
                     let desc = AlcoBindGroupDesc {
-                        layout, entries, entry_count: 0, name: ptr::null(),
+                        layout,
+                        entries,
+                        entry_count: 0,
+                        name: ptr::null(),
                     };
-                    let mut group = AlcoHandle::NULL;
-                    assert_eq!(alco_bind_group_create(device.handle, &desc, &mut group),
-                        AlcoStatus::OK, "{}", last_error());
+                    let mut group = AlcoBindGroupHandle::NULL;
+                    assert_eq!(
+                        alco_bind_group_create(device.handle, &desc, &mut group),
+                        AlcoStatus::OK,
+                        "{}",
+                        last_error()
+                    );
                     assert!(!group.is_null());
-                    let report = DEVICES.with(device.handle, |ctx|
-                        ctx.global.generate_report().hub.bind_groups).unwrap();
+                    let report = device
+                        .handle
+                        .get()
+                        .unwrap()
+                        .ctx
+                        .global
+                        .generate_report()
+                        .hub
+                        .bind_groups;
                     assert_eq!(report.num_allocated, 1);
                     assert_eq!(report.num_kept_from_user, 1);
-                    assert_eq!(alco_bind_group_destroy(device.handle, group), AlcoStatus::OK);
+                    assert_eq!(alco_bind_group_destroy(group), AlcoStatus::OK);
                 }
-                assert_eq!(alco_bind_group_layout_destroy(device.handle, layout), AlcoStatus::OK);
+                assert_eq!(alco_bind_group_layout_destroy(layout), AlcoStatus::OK);
             }
-            let report = DEVICES.with(device.handle, |ctx| ctx.global.generate_report().hub).unwrap();
+            let report = device
+                .handle
+                .get()
+                .unwrap()
+                .ctx
+                .global
+                .generate_report()
+                .hub;
             assert_eq!(report.bind_groups.num_allocated, 0);
             assert_eq!(report.bind_group_layouts.num_allocated, 0);
+        }
+    }
+
+    #[test]
+    fn labels_borrow_valid_utf8_and_preserve_lossy_conversion() {
+        unsafe {
+            assert!(label(ptr::null()).is_none());
+            assert!(matches!(borrow_label(ptr::null()), Cow::Borrowed("")));
+            let source = c"call-scoped label";
+            let converted = label(source.as_ptr()).unwrap();
+            assert!(matches!(&converted, Cow::Borrowed(_)));
+            assert_eq!(converted.as_ptr(), source.as_ptr().cast());
+            let malformed = CString::new(vec![b'a', 255]).unwrap();
+            let converted = borrow_label(malformed.as_ptr());
+            assert!(matches!(&converted, Cow::Owned(_)));
+            assert_eq!(converted, format!("a{}", char::REPLACEMENT_CHARACTER));
+        }
+    }
+
+    #[test]
+    fn descriptor_storage_drops_inline_and_overflow_entries_once() {
+        struct Tracked(Arc<AtomicU32>);
+        impl Drop for Tracked {
+            fn drop(&mut self) {
+                self.0.fetch_add(1, Ordering::Relaxed);
+            }
+        }
+        for count in [0, 2, 3] {
+            let drops = Arc::new(AtomicU32::new(0));
+            let mut values = DescriptorStorage::<_, 2>::new(count);
+            assert_eq!(values.overflow.is_some(), count > 2);
+            for _ in 0..count {
+                values.push(Tracked(Arc::clone(&drops)));
+            }
+            assert_eq!(values.as_slice().len(), count);
+            assert_eq!(drops.load(Ordering::Relaxed), 0);
+            drop(values);
+            assert_eq!(drops.load(Ordering::Relaxed), count as u32);
+        }
+    }
+
+    #[test]
+    fn resource_null_handles_fail_without_accessing_a_device() {
+        unsafe {
+            assert_eq!(
+                alco_buffer_destroy(AlcoBufferHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_buffer_map_read(AlcoBufferHandle::NULL, 0, 4),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_buffer_map_poll(AlcoBufferHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_buffer_unmap(AlcoBufferHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_texture_destroy(AlcoTextureHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_texture_view_destroy(AlcoTextureViewHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_sampler_destroy(AlcoSamplerHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_shader_module_destroy(AlcoShaderModuleHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_bind_group_layout_destroy(AlcoBindGroupLayoutHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_bind_group_destroy(AlcoBindGroupHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(
+                alco_query_set_destroy(AlcoQuerySetHandle::NULL),
+                AlcoStatus::INVALID_HANDLE
+            );
+        }
+    }
+
+    #[test]
+    fn vulkan_map_poll_borrows_completion_without_arc_cloning() {
+        let Some(device) = TestDevice::new() else {
+            return;
+        };
+        unsafe {
+            let desc = AlcoBufferDesc {
+                size: 16,
+                usage: 1 | 8,
+                name: ptr::null(),
+            };
+            let mut buffer = AlcoBufferHandle::NULL;
+            assert_eq!(
+                alco_buffer_create(device.handle, &desc, &mut buffer),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::NOT_READY);
+            let completion = Arc::new(MapCompletion {
+                state: AtomicU32::new(0),
+                error: Mutex::new(None),
+            });
+            buffer.get_mut().unwrap().map_completion = Some(Arc::clone(&completion));
+            let count = Arc::strong_count(&completion);
+            for _ in 0..32 {
+                assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::NOT_READY);
+                assert_eq!(Arc::strong_count(&completion), count);
+            }
+            assert!(completion.error.lock().unwrap().is_none());
+            completion.state.store(1, Ordering::Release);
+            assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::OK);
+            *completion.error.lock().unwrap() = Some(CString::new("map failure").unwrap());
+            completion.state.store(2, Ordering::Release);
+            assert_eq!(alco_buffer_map_poll(buffer), AlcoStatus::VALIDATION);
+            assert_eq!(last_error(), "map failure");
+            assert_eq!(Arc::strong_count(&completion), count);
+            assert_eq!(alco_buffer_destroy(buffer), AlcoStatus::OK);
+            assert_eq!(Arc::strong_count(&completion), 1);
+        }
+    }
+
+    #[test]
+    fn vulkan_resources_retain_context_after_device_owner_is_destroyed() {
+        let Some(device) = TestDevice::new() else {
+            return;
+        };
+        unsafe {
+            let weak = Arc::downgrade(&device.handle.get().unwrap().ctx);
+            let buffer_desc = AlcoBufferDesc {
+                size: 16,
+                usage: 8,
+                name: ptr::null(),
+            };
+            let mut buffer = AlcoBufferHandle::NULL;
+            assert_eq!(
+                alco_buffer_create(device.handle, &buffer_desc, &mut buffer),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(weak.strong_count(), 2);
+            let texture_desc = AlcoTextureDesc {
+                dimension: 1,
+                format: 18,
+                usage: 4,
+                width: 4,
+                height: 4,
+                depth_or_array_layers: 1,
+                mip_level_count: 1,
+                sample_count: 1,
+                name: ptr::null(),
+            };
+            let mut texture = AlcoTextureHandle::NULL;
+            assert_eq!(
+                alco_texture_create(device.handle, &texture_desc, &mut texture),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut view = AlcoTextureViewHandle::NULL;
+            assert_eq!(
+                alco_texture_create_view(texture, ptr::null(), &mut view),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(weak.strong_count(), 4);
+            drop(device);
+            assert_eq!(weak.strong_count(), 3);
+            let mut info = AlcoTextureInfo {
+                width: 0,
+                height: 0,
+                depth_or_array_layers: 0,
+                mip_level_count: 0,
+                format: 0,
+            };
+            assert_eq!(alco_texture_get_info(texture, &mut info), AlcoStatus::OK);
+            assert_eq!((info.width, info.height, info.format), (4, 4, 18));
+            assert_eq!(alco_buffer_destroy(buffer), AlcoStatus::OK);
+            assert_eq!(alco_texture_destroy(texture), AlcoStatus::OK);
+            assert_eq!(weak.strong_count(), 1);
+            assert_eq!(alco_texture_view_destroy(view), AlcoStatus::OK);
+            assert!(weak.upgrade().is_none());
         }
     }
 }

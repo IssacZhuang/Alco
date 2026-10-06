@@ -2,50 +2,34 @@ using System.Runtime.InteropServices;
 
 namespace Alco.Graphics.AlcoGpu.Interop;
 
-/// <summary>
-/// Loads the alco-gpu shared library by probing the application directory with
-/// platform-mapped file names before falling back to the default probe (the
-/// bare-name probe fails on Linux/macOS where dlopen does not search the
-/// application directory).
-/// </summary>
+/// <summary>Resolves the alco-gpu library from the application directory before default probing.</summary>
 internal static class AlcoGpuNativeLibrary
 {
-    private static int _loaded;
+    private static readonly Lock LoadLock = new();
+    private static nint _library;
+    private static bool _resolverRegistered;
 
-    /// <summary>Attempts to preload the library so exports resolve deterministically.</summary>
+    /// <summary>Loads the library once and registers the resolver only after a successful load.</summary>
     public static void EnsureLoaded()
     {
-        if (Interlocked.Exchange(ref _loaded, 1) == 1)
+        lock (LoadLock)
         {
-            return;
-        }
-
-        foreach (string fileName in CandidateFileNames())
-        {
-            string path = Path.Combine(AppContext.BaseDirectory, fileName);
-            if (NativeLibrary.TryLoad(path, out nint _))
+            if (_resolverRegistered)
             {
                 return;
             }
-        }
 
-        // Let the default P/Invoke probe report a load error on demand.
-        NativeLibrary.TryLoad("alco_gpu", out nint _);
-    }
+            string fileName = OperatingSystem.IsWindows() ? "alco_gpu.dll"
+                : OperatingSystem.IsMacOS() ? "libalco_gpu.dylib" : "libalco_gpu.so";
+            if (_library == 0 && !NativeLibrary.TryLoad(Path.Combine(AppContext.BaseDirectory, fileName), out _library))
+            {
+                // A failed load remains retryable; never publish initialized state early.
+                _library = NativeLibrary.Load("alco_gpu", typeof(AlcoGpuNativeLibrary).Assembly, null);
+            }
 
-    private static IEnumerable<string> CandidateFileNames()
-    {
-        if (OperatingSystem.IsWindows())
-        {
-            yield return "alco_gpu.dll";
-        }
-        else if (OperatingSystem.IsMacOS())
-        {
-            yield return "libalco_gpu.dylib";
-        }
-        else
-        {
-            yield return "libalco_gpu.so";
+            NativeLibrary.SetDllImportResolver(typeof(AlcoGpuNativeLibrary).Assembly,
+                static (name, assembly, searchPath) => name == "alco_gpu" ? _library : 0);
+            _resolverRegistered = true;
         }
     }
 }

@@ -12,13 +12,13 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 
     #region Properties
     private readonly AlcoGpuDevice _device;
-    private AlcoHandle _bundleEncoder;
-    private AlcoHandle _bundle;
+    private AlcoBundleEncoderHandle _bundleEncoder;
+    private AlcoRenderBundleHandle _bundle;
 
-    private AlcoHandle _graphicsPipeline;
+    private AlcoGraphicsPipelineHandle _graphicsPipeline;
 
     // owned by this object, released on dispose
-    private readonly byte* _nativeName;
+    private byte* _nativeName;
 
     #endregion
 
@@ -31,7 +31,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         get => !_bundle.IsNull;
     }
 
-    internal AlcoHandle Native
+    internal AlcoRenderBundleHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _bundle;
@@ -60,8 +60,10 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         }
         finally
         {
-            InteropUtility.Free(_nativeName);
-            _graphicsPipeline = AlcoHandle.Null;
+            byte* name = _nativeName;
+            _nativeName = null;
+            InteropUtility.Free(name);
+            _graphicsPipeline = AlcoGraphicsPipelineHandle.Null;
             _isRecording = false;
         }
         failure?.Throw();
@@ -70,132 +72,206 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
     /// <summary>Begins the native render bundle encoder.</summary>
     protected unsafe override void BeginCore(GPUAttachmentLayout attachmentLayout)
     {
-        _isRecording = false;
-        ReleaseRenderBundleEncoder();
-        AlcoGpuAttachmentLayout nativeAttachmentLayout = (AlcoGpuAttachmentLayout)attachmentLayout;
-
-        int colorCount = nativeAttachmentLayout.ColorInfos.Length;
-        uint* colors = stackalloc uint[colorCount];
-        for (int i = 0; i < colorCount; i++)
+        try
         {
-            colors[i] = (uint)nativeAttachmentLayout.ColorInfos[i].Format;
+            _isRecording = false;
+            ReleaseRenderBundleEncoder();
+            AlcoGpuAttachmentLayout nativeAttachmentLayout = (AlcoGpuAttachmentLayout)attachmentLayout;
+
+            int colorCount = nativeAttachmentLayout.ColorInfos.Length;
+            Span<uint> colorStorage = colorCount <= 64 ? stackalloc uint[colorCount] : new uint[colorCount];
+            for (int i = 0; i < colorCount; i++)
+            {
+                colorStorage[i] = (uint)nativeAttachmentLayout.ColorInfos[i].Format;
+            }
+
+            AlcoDepthAttachmentInfo? depthInfo = nativeAttachmentLayout.DepthInfo;
+            AlcoBundleEncoderDesc descriptor = new()
+            {
+                ColorFormats = null,
+                ColorFormatCount = (uint)colorCount,
+                DepthStencilFormat = depthInfo.HasValue ? (uint)depthInfo.Value.Format : AlcoGpuAbi.AlcoNone,
+                // Missing aspects must be read-only too, matching pass channels with
+                // omitted operations under core 30's bundle/pass compatibility rules.
+                DepthReadOnly = depthInfo.HasValue && depthInfo.Value.IsDepthReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
+                StencilReadOnly = depthInfo.HasValue && depthInfo.Value.IsStencilReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
+                SampleCount = 1,
+                Name = _nativeName,
+            };
+
+            fixed (uint* colors = colorStorage)
+            {
+                descriptor.ColorFormats = colors;
+                AlcoGpuNative.BundleEncoderCreate(_device.Native, in descriptor, out _bundleEncoder);
+            }
+            _isRecording = true;
         }
-
-        AlcoDepthAttachmentInfo? depthInfo = nativeAttachmentLayout.DepthInfo;
-        AlcoBundleEncoderDesc descriptor = new()
+        finally
         {
-            ColorFormats = colors,
-            ColorFormatCount = (uint)colorCount,
-            DepthStencilFormat = depthInfo.HasValue ? (uint)depthInfo.Value.Format : AlcoGpuAbi.AlcoNone,
-            // Missing aspects must be read-only too, matching pass channels with
-            // omitted operations under core 30's bundle/pass compatibility rules.
-            DepthReadOnly = depthInfo.HasValue && depthInfo.Value.IsDepthReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
-            StencilReadOnly = depthInfo.HasValue && depthInfo.Value.IsStencilReadOnly ? AlcoGpuAbi.AlcoTrue : AlcoGpuAbi.AlcoFalse,
-            SampleCount = 1,
-            Name = _nativeName,
-        };
-
-        AlcoGpuNative.BundleEncoderCreate(_device.Native, in descriptor, out _bundleEncoder);
-        _isRecording = true;
+            GC.KeepAlive(this);
+            GC.KeepAlive(attachmentLayout);
+        }
     }
 
     /// <summary>Ends the render bundle encoder and finishes the encoded bundle.</summary>
     protected unsafe override void EndCore()
     {
-        ReleaseRenderBundle();
+        try
+        {
+            ReleaseRenderBundle();
 
-        // Finish consumes the encoder even when validation fails. Do not issue a
-        // second destroy that would replace the actionable validation error.
-        AlcoHandle bundleEncoder = _bundleEncoder;
-        _bundleEncoder = AlcoHandle.Null;
-        _graphicsPipeline = AlcoHandle.Null;
-        AlcoGpuNative.BundleEncoderFinish(_device.Native, bundleEncoder, out _bundle);
+            // Finish consumes the encoder even when validation fails. Do not issue a
+            // second destroy that would replace the actionable validation error.
+            AlcoBundleEncoderHandle bundleEncoder = _bundleEncoder;
+            _bundleEncoder = AlcoBundleEncoderHandle.Null;
+            _graphicsPipeline = AlcoGraphicsPipelineHandle.Null;
+            AlcoGpuNative.BundleEncoderFinish(bundleEncoder, out _bundle);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
     }
 
     /// <inheritdoc />
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
-        _graphicsPipeline = ((AlcoGpuGraphicsPipeline)pipeline).Native;
-        AlcoGpuNative.BundleSetPipeline(_device.Native, _bundleEncoder, _graphicsPipeline);
-        // The base recording list retains the resources while this encoder is alive.
-        GC.KeepAlive(this);
+        try
+        {
+            _graphicsPipeline = ((AlcoGpuGraphicsPipeline)pipeline).Native;
+            AlcoGpuNative.BundleSetPipeline(_bundleEncoder, _graphicsPipeline);
+            // The base recording list retains the resources while this encoder is alive.
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(pipeline);
+        }
     }
 
     /// <inheritdoc />
     protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleSetBindGroup(
-            _device.Native, _bundleEncoder, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleSetBindGroup(_bundleEncoder, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(resourceGroup);
+        }
     }
 
     /// <inheritdoc />
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleSetVertexBuffer(
-            _device.Native, _bundleEncoder, slot, ((AlcoGpuBuffer)buffer).Native, offset, size);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleSetVertexBuffer(_bundleEncoder, slot, ((AlcoGpuBuffer)buffer).Native, offset, size);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(buffer);
+        }
     }
 
     /// <inheritdoc />
     protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleSetIndexBuffer(
-            _device.Native, _bundleEncoder, ((AlcoGpuBuffer)buffer).Native, (uint)format, offset, size);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleSetIndexBuffer(_bundleEncoder, ((AlcoGpuBuffer)buffer).Native, (uint)format, offset, size);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(buffer);
+        }
     }
 
     /// <inheritdoc />
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleDraw(_device.Native, _bundleEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleDraw(_bundleEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
     }
 
     /// <inheritdoc />
     protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleDrawIndexed(_device.Native, _bundleEncoder, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleDrawIndexed(_bundleEncoder, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
     }
 
     /// <inheritdoc />
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleDrawIndirect(
-            _device.Native, _bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleDrawIndirect(_bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(indirectBuffer);
+        }
     }
 
     /// <inheritdoc />
     protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleDrawIndexedIndirect(
-            _device.Native, _bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleDrawIndexedIndirect(_bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(indirectBuffer);
+        }
     }
 
     /// <inheritdoc />
     protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
-        ValidateGraphicsPipeline();
+        try
+        {
+            ValidateGraphicsPipeline();
 
-        AlcoGpuNative.BundleSetImmediates(_device.Native, _bundleEncoder, bufferOffset, data, size);
-        GC.KeepAlive(this);
+            AlcoGpuNative.BundleSetImmediates(_bundleEncoder, bufferOffset, data, size);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
     }
 
     #endregion
@@ -207,36 +283,57 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         Device = device;
         _device = device;
 
-        _bundle = AlcoHandle.Null;
-        _bundleEncoder = AlcoHandle.Null;
+        _bundle = AlcoRenderBundleHandle.Null;
+        _bundleEncoder = AlcoBundleEncoderHandle.Null;
 
-        ReadOnlySpan<byte> nameSpan = Name.Utf8Z();
-        fixed (byte* ptr = nameSpan)
+        try
         {
-            _nativeName = InteropUtility.Alloc<byte>(nameSpan.Length);
-            InteropUtility.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            ReadOnlySpan<byte> nameSpan = Name.Utf8Z();
+            fixed (byte* ptr = nameSpan)
+            {
+                _nativeName = InteropUtility.Alloc<byte>(nameSpan.Length);
+                InteropUtility.Copy(ptr, _nativeName, (uint)nameSpan.Length, (uint)nameSpan.Length);
+            }
+        }
+        catch
+        {
+            try { Destroy(false); }
+            catch { /* Preserve the construction failure. */ }
+            throw;
         }
     }
 
     private void ReleaseRenderBundle()
     {
-        if (!_bundle.IsNull && _device.IsNativeAlive)
+        try
         {
-            AlcoHandle bundle = _bundle;
-            _bundle = AlcoHandle.Null;
-            AlcoGpuNative.RenderBundleDestroy(_device.Native, bundle);
+            if (!_bundle.IsNull)
+            {
+                AlcoRenderBundleHandle bundle = _bundle;
+                _bundle = AlcoRenderBundleHandle.Null;
+                AlcoGpuNative.RenderBundleDestroy(bundle);
+            }
+        }
+        finally
+        {
             GC.KeepAlive(this);
         }
     }
 
     private void ReleaseRenderBundleEncoder()
     {
-        if (!_bundleEncoder.IsNull && _device.IsNativeAlive)
+        try
         {
-            // An unfinished bundle encoder is simply destroyed without finishing.
-            AlcoHandle bundleEncoder = _bundleEncoder;
-            _bundleEncoder = AlcoHandle.Null;
-            AlcoGpuNative.BundleEncoderDestroy(_device.Native, bundleEncoder);
+            if (!_bundleEncoder.IsNull)
+            {
+                // An unfinished bundle encoder is simply destroyed without finishing.
+                AlcoBundleEncoderHandle bundleEncoder = _bundleEncoder;
+                _bundleEncoder = AlcoBundleEncoderHandle.Null;
+                AlcoGpuNative.BundleEncoderDestroy(bundleEncoder);
+            }
+        }
+        finally
+        {
             GC.KeepAlive(this);
         }
     }
