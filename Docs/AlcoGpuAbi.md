@@ -11,7 +11,7 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 - C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
   callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
   `Interop/AlcoGpuMarshal.cs` throwing error callback)
-- Current ABI version: **2.0** (`ABI_MAJOR=2`, `ABI_MINOR=0`). ABI 1 generational
+- Current ABI version: **2.1** (`ABI_MAJOR=2`, `ABI_MINOR=1`). ABI 1 generational
   handles and device-first object method signatures are not binary-compatible.
 
 ## Conventions
@@ -134,7 +134,9 @@ side blanket-requests optional features and gates on the reported bits.
 
 **Queue** — `alco_queue_write_buffer`, `alco_queue_write_texture` (all mips + optional
 region), `alco_queue_submit` (consumes the command buffer handle, returns the submission
-index used by blocking polls).
+index used by blocking polls), `alco_queue_submit_batch` (consumes an array of command
+buffer handles as one submission in array order — the wgpu-native array submit shape;
+count must be non-zero and the array non-null).
 
 **Buffer** — create / destroy / `alco_buffer_map_read` / `alco_buffer_map_poll` /
 `alco_buffer_get_mapped_range` / `alco_buffer_unmap`.

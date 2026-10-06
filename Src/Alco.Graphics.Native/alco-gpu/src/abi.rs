@@ -9,7 +9,7 @@
 /// ABI major version. Increment on any breaking layout/semantic change.
 pub const ABI_MAJOR: u32 = 2;
 /// ABI minor version. Increment on additive changes.
-pub const ABI_MINOR: u32 = 0;
+pub const ABI_MINOR: u32 = 1;
 
 /// Sentinel for "no value" in optional `u32` fields.
 pub const ALCO_NONE: u32 = u32::MAX;

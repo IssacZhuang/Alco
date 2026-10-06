@@ -15,7 +15,7 @@ internal static unsafe partial class AlcoGpuAbi
     public const uint AbiMajor = 2;
 
     /// <summary>ABI minor version implemented by the native library.</summary>
-    public const uint AbiMinor = 0;
+    public const uint AbiMinor = 1;
 
     /// <summary>Sentinel for "no value" in optional uint fields.</summary>
     public const uint AlcoNone = uint.MaxValue;

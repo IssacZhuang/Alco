@@ -1461,6 +1461,86 @@ pub unsafe extern "C-unwind" fn alco_queue_submit(
     })
 }
 
+/// ABI: submits an array of command buffers through the device's sole queue as
+/// one core submission, in array order. Every wrapper and core registration is
+/// consumed on success or core failure; an invalid entry after partial
+/// consumption releases the already-consumed buffers without executing them.
+/// `out_index` receives the submission index usable with `alco_device_poll`.
+///
+/// # Safety
+/// `device` and every entry of `command_buffers[0..count]` must be live and from
+/// the same context. No command-buffer access may overlap submission. `out_index`,
+/// if non-null, must point to a writable `u64`. Device destruction must not
+/// overlap this call.
+#[no_mangle]
+pub unsafe extern "C-unwind" fn alco_queue_submit_batch(
+    device: AlcoDeviceHandle,
+    command_buffers: *const AlcoCommandBufferHandle,
+    count: u32,
+    out_index: *mut u64,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        command_status(|| {
+            let ctx = &borrow(device, "device")?.ctx;
+            if command_buffers.is_null() {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "null command buffer array");
+                return Err(AlcoStatus::INVALID_ARGUMENT);
+            }
+            if count == 0 {
+                set_error(AlcoStatus::INVALID_ARGUMENT, "zero command buffer count");
+                return Err(AlcoStatus::INVALID_ARGUMENT);
+            }
+            let handles = std::slice::from_raw_parts(command_buffers, count as usize);
+            // Consume every wrapper before submitting so any invalid entry
+            // releases the already-consumed buffers instead of orphaning them.
+            let mut objects = Vec::with_capacity(handles.len());
+            for &handle in handles {
+                let obj = consume(handle, "command buffer")?;
+                debug_assert!(Arc::ptr_eq(ctx, &obj.ctx));
+                objects.push(obj);
+            }
+            // Typical frame submissions stay on the stack; larger batches are
+            // preserved so core validates the complete array in order.
+            let count = handles.len();
+            let result = {
+                let inline: [wgc::id::CommandBufferId; 8];
+                let overflow: Vec<wgc::id::CommandBufferId>;
+                let ids = if count <= 8 {
+                    let first = objects[0].id;
+                    let mut buffer = [first; 8];
+                    for index in 1..count {
+                        buffer[index] = objects[index].id;
+                    }
+                    inline = buffer;
+                    &inline[..count]
+                } else {
+                    overflow = objects.iter().map(|obj| obj.id).collect();
+                    &overflow[..]
+                };
+                ctx.global.queue_submit(ctx.queue_id, ids)
+            };
+            // Core consumes contents, not the registry entries; Drop releases
+            // them on either outcome before the error callback may unwind.
+            drop(objects);
+            match result {
+                Ok(index) => {
+                    if !out_index.is_null() {
+                        *out_index = index;
+                    }
+                    Ok(())
+                }
+                Err((index, e)) => {
+                    if !out_index.is_null() {
+                        *out_index = index;
+                    }
+                    set_error_from(AlcoStatus::VALIDATION, &e);
+                    Err(AlcoStatus::VALIDATION)
+                }
+            }
+        })
+    })
+}
+
 // ---------------------------------------------------------------------------
 // Render bundles
 // ---------------------------------------------------------------------------
@@ -1974,6 +2054,127 @@ mod tests {
             let mut index = u64::MAX;
             let status = alco_queue_submit(device.handle, command, &mut index);
             assert_eq!(status, AlcoStatus::VALIDATION, "{}", last_error());
+            assert!(last_error().contains("destroyed"), "{}", last_error());
+            assert_ne!(index, u64::MAX);
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            assert_eq!(Arc::strong_count(ctx), baseline + 1);
+            assert_eq!(alco_buffer_destroy(destination), AlcoStatus::OK);
+            assert_eq!(Arc::strong_count(ctx), baseline);
+        }
+    }
+
+    #[test]
+    fn vulkan_batch_submissions_release_core_registry_entries() {
+        let Some(device) = TestDevice::new() else {
+            return;
+        };
+        unsafe {
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            // A batch spanning the inline stack storage and the overflow path.
+            let mut previous_index = 0;
+            for batch_size in [1usize, 3, 8, 9, 17] {
+                let commands: Vec<AlcoCommandBufferHandle> = (0..batch_size)
+                    .map(|_| finish(encoder(device.handle)))
+                    .collect();
+                assert_eq!(registry_counts(device.handle), (batch_size, batch_size, 0));
+                let mut index = 0;
+                assert_eq!(
+                    alco_queue_submit_batch(
+                        device.handle,
+                        commands.as_ptr(),
+                        commands.len() as u32,
+                        &mut index,
+                    ),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+                assert!(index > previous_index);
+                previous_index = index;
+                assert_eq!(registry_counts(device.handle), (0, 0, 0));
+                assert_eq!(
+                    alco_device_poll(device.handle, ALCO_TRUE, index, ptr::null_mut()),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+            }
+            // The optional output pointer must not alter cleanup semantics.
+            let commands: Vec<AlcoCommandBufferHandle> =
+                (0..2).map(|_| finish(encoder(device.handle))).collect();
+            assert_eq!(
+                alco_queue_submit_batch(
+                    device.handle,
+                    commands.as_ptr(),
+                    commands.len() as u32,
+                    ptr::null_mut(),
+                ),
+                AlcoStatus::OK
+            );
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+            // Rejected arguments must not consume any wrapper.
+            let command = finish(encoder(device.handle));
+            assert_eq!(
+                alco_queue_submit_batch(device.handle, ptr::null(), 2, ptr::null_mut()),
+                AlcoStatus::INVALID_ARGUMENT
+            );
+            assert_eq!(
+                alco_queue_submit_batch(
+                    device.handle,
+                    &command,
+                    0,
+                    ptr::null_mut(),
+                ),
+                AlcoStatus::INVALID_ARGUMENT
+            );
+            assert_eq!(registry_counts(device.handle), (1, 1, 0));
+            assert_eq!(
+                alco_command_buffer_destroy(command),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+        }
+    }
+
+    #[test]
+    fn vulkan_failed_batch_submission_consumes_every_handle() {
+        let Some(device) = TestDevice::new() else {
+            return;
+        };
+        unsafe {
+            // The middle buffer references a destroyed resource, detected by
+            // core at submission after every wrapper was already consumed.
+            let ctx = &device.handle.get().unwrap().ctx;
+            let baseline = Arc::strong_count(ctx);
+            let source = buffer(device.handle, 1 << 2);
+            let destination = buffer(device.handle, 1 << 3);
+            let first = finish(encoder(device.handle));
+            let failing_encoder = encoder(device.handle);
+            assert_eq!(
+                alco_copy_buffer_to_buffer(failing_encoder, source, 0, destination, 0, 4),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let middle = finish(failing_encoder);
+            let last = finish(encoder(device.handle));
+            let commands = [first, middle, last];
+            assert_eq!(registry_counts(device.handle), (3, 3, 0));
+            assert_eq!(alco_buffer_destroy(source), AlcoStatus::OK);
+            let mut index = u64::MAX;
+            assert_eq!(
+                alco_queue_submit_batch(
+                    device.handle,
+                    commands.as_ptr(),
+                    commands.len() as u32,
+                    &mut index,
+                ),
+                AlcoStatus::VALIDATION,
+                "{}",
+                last_error()
+            );
             assert!(last_error().contains("destroyed"), "{}", last_error());
             assert_ne!(index, u64::MAX);
             assert_eq!(registry_counts(device.handle), (0, 0, 0));

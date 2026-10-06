@@ -384,6 +384,10 @@ internal static unsafe partial class AlcoGpuNative
     [LibraryImport(LibraryName, EntryPoint = "alco_queue_submit")]
     public static partial uint QueueSubmit(AlcoDeviceHandle device, AlcoCommandBufferHandle commandBuffer, ulong* outIndex);
 
+    /// <summary>Submits an array of command buffers as one submission; the native side consumes every handle.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_queue_submit_batch")]
+    public static partial uint QueueSubmitBatch(AlcoDeviceHandle device, AlcoCommandBufferHandle* commandBuffers, uint count, ulong* outIndex);
+
     // ------------------------------------------------------------------
     // Render bundles
     // ------------------------------------------------------------------

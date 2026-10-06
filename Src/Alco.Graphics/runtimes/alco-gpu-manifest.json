@@ -5,7 +5,7 @@
     "path": "Src/Alco.Graphics.Native/alco-gpu",
     "version": "0.1.0",
     "rustToolchain": "1.97.1",
-    "abiVersion": "1.4",
+    "abiVersion": "2.1",
     "wgpuCore": "=30.0.1",
     "features": [
       "wgsl",
@@ -20,9 +20,9 @@
   "binaries": {
     "win-x64": {
       "file": "runtimes/win-x64/native/alco_gpu.dll",
-      "sha256": "3a65b141d83d02c18ec7caa1acfc129999fedb80acddd2ea99f31324bbeaf596",
-      "sourceSha256": "a74e566ece82972c0d0184b36c61c62bf5138137fcf14a73f8226d6d86cbbe71",
-      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+      "sha256": "192be7a806f80a2c8dfbe1a269dd06fa3bf5408598ebcc0ba1ee9dbf6a872350",
+      "sourceSha256": "ce16b82f0606c1af5c3ba5fe1688a98c9406993936ebc410f9d0ea2f281920a2",
+      "builtFrom": "local build 2026-10-06 (cargo --locked --release, Rust 1.97.1, x86_64-pc-windows-msvc)"
     },
     "win-arm64": {
       "file": "runtimes/win-arm64/native/alco_gpu.dll",
@@ -124,5 +124,5 @@
       }
     }
   },
-  "note": "All eight RID libraries were built from the same recorded native source fingerprint by successful native-alco-gpu workflow jobs. Artifacts were assembled from two runs because unrelated hosted-runner allocation failures prevented the combined delivery job. Per-RID run, job and artifact IDs are recorded above. Delivery is validated by adjacent .source.sha256 sidecars containing source and binary fingerprints. Local dotnet builds automatically compile missing or stale selected-RID libraries with Cargo --locked --release; use -p:AlcoGpuBuildNative=true to select a source build. Compilation success does not imply GPU runtime validation on every platform. See Docs/AlcoGpuAbi.md and Docs/AlcoGpuRefactorReview.md."
+  "note": "All eight RID libraries were built from the same recorded native source fingerprint by successful native-alco-gpu workflow jobs. Artifacts were assembled from two runs because unrelated hosted-runner allocation failures prevented the combined delivery job. win-x64 was refreshed locally on 2026-10-06 from source fingerprint ce16b82f0606c1af5c3ba5fe1688a98c9406993936ebc410f9d0ea2f281920a2; its delivery/artifacts entries below are superseded. Per-RID run, job and artifact IDs are recorded above. Delivery is validated by adjacent .source.sha256 sidecars containing source and binary fingerprints. Local dotnet builds automatically compile missing or stale selected-RID libraries with Cargo --locked --release; use -p:AlcoGpuBuildNative=true to select a source build. Compilation success does not imply GPU runtime validation on every platform. See Docs/AlcoGpuAbi.md and Docs/AlcoGpuRefactorReview.md."
 }
