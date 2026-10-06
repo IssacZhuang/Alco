@@ -4,11 +4,12 @@
 //! FFI boundary (an abort would kill the host process before the C# runtime
 //! could react). The crate MUST be built with `panic = "unwind"`.
 //!
-//! Failure protocol: a body that returns a non-OK status should first record a
-//! message via [`set_error`]; if it does not, [`guard`] stores a generic
-//! message for that status. The thread-local slot is cleared at guard entry so
-//! every failure carries a fresh message; C# reads it with
-//! `alco_get_last_error` (which deliberately bypasses the guard).
+//! Failure protocol: a body that returns a failure status (anything but
+//! OK/NOT_READY) should first record a message via [`set_error`]; if it does
+//! not, [`guard`] stores a generic message for that status. OK and NOT_READY
+//! are control-flow values and never synthesize an error. The thread-local
+//! slot is cleared at guard entry so every failure carries a fresh message;
+//! C# reads it with `alco_get_last_error` (which deliberately bypasses the guard).
 //!
 //! Error callback: a host may register a callback with
 //! [`alco_set_error_callback`]. [`guard`] invokes it synchronously — strictly
@@ -26,13 +27,14 @@
 use crate::abi::{AlcoErrorInfo, AlcoStatus};
 use std::cell::RefCell;
 use std::ffi::{c_char, c_void, CString};
-use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
+use std::sync::atomic::{AtomicPtr, Ordering};
+use std::sync::Once;
 
 thread_local! {
     static LAST_ERROR: RefCell<Option<(AlcoStatus, CString)>> = const { RefCell::new(None) };
 }
 
-static HOOK_INSTALLED: AtomicBool = AtomicBool::new(false);
+static HOOK_INSTALLED: Once = Once::new();
 
 /// Host error callback: `(status, NUL-terminated message, host userdata)`.
 /// Declared `C-unwind` because the host throws from it to abort the alco call.
@@ -85,11 +87,12 @@ fn fire_error_callback(status: AlcoStatus) {
 
 /// Installs a process-wide panic hook (once) that silences the default stderr
 /// "thread panicked" report. Panic payloads are recovered from
-/// `catch_unwind`'s `Err` value instead.
+/// `catch_unwind`'s `Err` value instead. Once completed, `call_once` uses a
+/// read-only fast path; concurrent first callers wait for hook installation.
 fn install_silencing_hook() {
-    if !HOOK_INSTALLED.swap(true, Ordering::Relaxed) {
+    HOOK_INSTALLED.call_once(|| {
         std::panic::set_hook(Box::new(|_info| {}));
-    }
+    });
 }
 
 /// Records a failure with a human-readable message on the current thread.
@@ -149,7 +152,7 @@ pub(crate) fn guard(body: impl FnOnce() -> AlcoStatus + std::panic::UnwindSafe) 
 
     let status = match std::panic::catch_unwind(body) {
         Ok(status) => {
-            if !status.is_ok() {
+            if !status.is_ok() && status.0 != AlcoStatus::NOT_READY.0 {
                 let clean = LAST_ERROR.with(|slot| slot.borrow().is_none());
                 if clean {
                     set_error(status, default_message(status));
@@ -191,7 +194,6 @@ fn default_message(status: AlcoStatus) -> &'static str {
         AlcoStatus::OUT_OF_MEMORY => "out of memory",
         AlcoStatus::DEVICE_LOST => "device lost",
         AlcoStatus::UNSUPPORTED => "operation unsupported on this device",
-        AlcoStatus::NOT_READY => "operation still pending",
         _ => "operation failed",
     }
 }
@@ -262,6 +264,7 @@ mod tests {
     // concurrently running tests land on their own thread-locals.
     thread_local! {
         static FIRED: RefCell<Option<(u32, String)>> = const { RefCell::new(None) };
+        static UNWIND_CALLBACK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     }
 
     /// Serializes the callback tests: registration is process-wide, so a
@@ -283,13 +286,18 @@ mod tests {
     struct CallbackRegistration;
     impl CallbackRegistration {
         fn install() -> Self {
-            unsafe { alco_set_error_callback(Some(record_callback), std::ptr::null_mut()) };
+            Self::install_with(record_callback)
+        }
+
+        fn install_with(callback: AlcoErrorCallback) -> Self {
+            unsafe { alco_set_error_callback(Some(callback), std::ptr::null_mut()) };
             CallbackRegistration
         }
     }
     impl Drop for CallbackRegistration {
         fn drop(&mut self) {
             unsafe { alco_set_error_callback(None, std::ptr::null_mut()) };
+            UNWIND_CALLBACK.with(|unwind| unwind.set(false));
         }
     }
 
@@ -331,6 +339,127 @@ mod tests {
         assert_eq!(guard(|| AlcoStatus::OK), AlcoStatus::OK);
         assert_eq!(guard(|| AlcoStatus::NOT_READY), AlcoStatus::NOT_READY);
         assert_eq!(FIRED.with(|fired| fired.borrow().clone()), None);
+    }
+
+    #[test]
+    fn not_ready_clears_stale_errors_without_recording_or_notifying() {
+        let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
+        let _registration = CallbackRegistration::install();
+        FIRED.with(|fired| *fired.borrow_mut() = None);
+        set_error(AlcoStatus::VALIDATION, "stale validation failure");
+
+        for _ in 0..32 {
+            assert_eq!(guard(|| AlcoStatus::NOT_READY), AlcoStatus::NOT_READY);
+            assert!(LAST_ERROR.with(|slot| slot.borrow().is_none()));
+            let mut info = AlcoErrorInfo {
+                status: AlcoStatus::VALIDATION.0,
+                message: std::ptr::null(),
+            };
+            unsafe { alco_get_last_error(&mut info) };
+            assert_eq!(info.status, AlcoStatus::OK.0);
+            assert!(info.message.is_null());
+            assert_eq!(FIRED.with(|fired| fired.borrow().clone()), None);
+        }
+    }
+
+    #[test]
+    fn panic_payloads_are_preserved_in_error_records_and_callbacks() {
+        let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
+        let _registration = CallbackRegistration::install();
+
+        for owned in [false, true] {
+            FIRED.with(|fired| *fired.borrow_mut() = None);
+            let status = guard(|| {
+                if owned {
+                    std::panic::panic_any(String::from("panic context\nCaused by: root\0cause"));
+                } else {
+                    std::panic::panic_any("panic context\nCaused by: root\0cause");
+                }
+            });
+            assert_eq!(status, AlcoStatus::PANIC);
+            let expected = (AlcoStatus::PANIC.0, "panic context\nCaused by: root\\0cause".into());
+            assert_eq!(last_error(), expected);
+            assert_eq!(FIRED.with(|fired| fired.borrow().clone()), Some(expected));
+        }
+    }
+
+    extern "C-unwind" fn unwinding_callback(status: u32, message: *const c_char, userdata: *mut c_void) {
+        record_callback(status, message, userdata);
+        // Concurrent tests share registration, but must not inherit this unwind.
+        if UNWIND_CALLBACK.with(|unwind| unwind.get()) {
+            panic!("callback unwind must reach the caller");
+        }
+    }
+
+    #[test]
+    fn callback_unwind_escapes_the_guard_panic_boundary() {
+        let _lock = CALLBACK_TEST_LOCK.lock().unwrap();
+        let _registration = CallbackRegistration::install_with(unwinding_callback);
+        FIRED.with(|fired| *fired.borrow_mut() = None);
+        UNWIND_CALLBACK.with(|unwind| unwind.set(true));
+
+        let payload = std::panic::catch_unwind(|| guard(|| AlcoStatus::INVALID_ARGUMENT))
+            .expect_err("callback unwind must not become AlcoStatus::PANIC");
+        assert_eq!(payload.downcast_ref::<&str>(), Some(&"callback unwind must reach the caller"));
+        let expected = (AlcoStatus::INVALID_ARGUMENT.0, "invalid argument".into());
+        assert_eq!(last_error(), expected);
+        assert_eq!(FIRED.with(|fired| fired.borrow().clone()), Some(expected));
+    }
+
+    #[test]
+    fn panic_hook_is_installed_once_across_threads() {
+        // Hooks and Once state are process-wide: isolate both from parallel tests.
+        const CHILD: &str = "ALCO_GPU_ENTRY_HOOK_TEST_CHILD";
+        if std::env::var_os(CHILD).is_none() {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "entry::tests::panic_hook_is_installed_once_across_threads",
+                    "--test-threads=1",
+                ])
+                .env(CHILD, "1")
+                .output()
+                .unwrap();
+            assert!(output.status.success(), "hook test subprocess failed: {output:?}");
+            assert!(String::from_utf8_lossy(&output.stdout).contains("1 passed"),
+                "hook test subprocess did not run its test: {output:?}");
+            return;
+        }
+
+        use std::sync::atomic::AtomicUsize;
+        use std::sync::{Arc, Barrier};
+
+        assert!(!HOOK_INSTALLED.is_completed());
+        let calls = Arc::new(AtomicUsize::new(0));
+        let hook_calls = Arc::clone(&calls);
+        std::panic::set_hook(Box::new(move |_| {
+            hook_calls.fetch_add(1, Ordering::Relaxed);
+        }));
+        let barrier = Arc::new(Barrier::new(8));
+        let mut threads = Vec::new();
+        for _ in 0..8 {
+            let barrier = Arc::clone(&barrier);
+            threads.push(std::thread::spawn(move || {
+                barrier.wait();
+                assert_eq!(guard(|| panic!("initial guarded panic")), AlcoStatus::PANIC);
+                assert!(HOOK_INSTALLED.is_completed());
+                assert_eq!(last_error(), (AlcoStatus::PANIC.0, "initial guarded panic".into()));
+            }));
+        }
+        for thread in threads {
+            thread.join().unwrap();
+        }
+        assert_eq!(calls.load(Ordering::Relaxed), 0);
+
+        // A host replacement after initialization must survive later guard calls.
+        let hook_calls = Arc::clone(&calls);
+        std::panic::set_hook(Box::new(move |_| {
+            hook_calls.fetch_add(1, Ordering::Relaxed);
+        }));
+        for _ in 0..8 {
+            assert_eq!(guard(|| panic!("subsequent guarded panic")), AlcoStatus::PANIC);
+        }
+        assert_eq!(calls.load(Ordering::Relaxed), 8);
     }
 
     #[test]

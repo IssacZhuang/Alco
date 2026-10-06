@@ -655,7 +655,7 @@ render_pass_fn!(
 render_pass_fn!(
     /// ABI: binds a vertex buffer slot.
     alco_render_pass_set_vertex_buffer(slot: u32, buffer: AlcoHandle, offset: u64, size: u64) |ctx, pass, slot, buffer, offset, size| {
-        let id = ctx.buffers().with(buffer, |obj| obj.id);
+        let id = ctx.buffers().get_copy(buffer, |obj| obj.id);
         match id {
             Ok(id) => record_result(ctx.global.render_pass_set_vertex_buffer(
                 pass,
@@ -675,7 +675,7 @@ render_pass_fn!(
 render_pass_fn!(
     /// ABI: binds the index buffer.
     alco_render_pass_set_index_buffer(buffer: AlcoHandle, format: u32, offset: u64, size: u64) |ctx, pass, buffer, format, offset, size| {
-        let id = ctx.buffers().with(buffer, |obj| obj.id);
+        let id = ctx.buffers().get_copy(buffer, |obj| obj.id);
         let wformat = index_format(format);
         match (id, wformat) {
             (Ok(id), Ok(format)) => record_result(ctx.global.render_pass_set_index_buffer(
@@ -741,7 +741,7 @@ render_pass_fn!(
 render_pass_fn!(
     /// ABI: indirect non-indexed draw.
     alco_render_pass_draw_indirect(buffer: AlcoHandle, offset: u64) |ctx, pass, buffer, offset| {
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => record_result(ctx.global.render_pass_draw_indirect(pass, id, offset)),
             Err(_) => {
                 set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
@@ -754,7 +754,7 @@ render_pass_fn!(
 render_pass_fn!(
     /// ABI: indirect indexed draw.
     alco_render_pass_draw_indexed_indirect(buffer: AlcoHandle, offset: u64) |ctx, pass, buffer, offset| {
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => record_result(ctx.global.render_pass_draw_indexed_indirect(pass, id, offset)),
             Err(_) => {
                 set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
@@ -767,7 +767,7 @@ render_pass_fn!(
 render_pass_fn!(
     /// ABI: multi-draw indexed indirect.
     alco_render_pass_multi_draw_indexed_indirect(buffer: AlcoHandle, offset: u64, count: u32) |ctx, pass, buffer, offset, count| {
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => record_result(ctx.global.render_pass_multi_draw_indexed_indirect(pass, id, offset, count)),
             Err(_) => {
                 set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
@@ -1027,7 +1027,7 @@ compute_pass_fn!(
 compute_pass_fn!(
     /// ABI: indirect compute dispatch.
     alco_compute_pass_dispatch_workgroups_indirect(buffer: AlcoHandle, offset: u64) |ctx, pass, buffer, offset| {
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => record_result(ctx.global.compute_pass_dispatch_workgroups_indirect(pass, id, offset)),
             Err(_) => {
                 set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
@@ -1096,7 +1096,7 @@ fn lookup_encoder(ctx: &DeviceCtx, handle: AlcoHandle) -> Result<wgc::id::Comman
 }
 
 fn lookup_buffer(ctx: &DeviceCtx, handle: AlcoHandle) -> Result<wgc::id::BufferId, AlcoStatus> {
-    ctx.buffers().with(handle, |obj| obj.id).map_err(|_| {
+    ctx.buffers().get_copy(handle, |obj| obj.id).map_err(|_| {
         set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
         AlcoStatus::INVALID_HANDLE
     })
@@ -1709,7 +1709,7 @@ bundle_fn!(
 bundle_fn!(
     /// ABI: binds a vertex buffer slot.
     alco_bundle_set_vertex_buffer(slot: u32, buffer: AlcoHandle, offset: u64, size: u64) |ctx, bundle, slot, buffer, offset, size| {
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => record_result(ctx.global.render_bundle_encoder_set_vertex_buffer(
                 bundle,
                 slot,
@@ -1729,7 +1729,7 @@ bundle_fn!(
     /// ABI: binds the index buffer.
     alco_bundle_set_index_buffer(buffer: AlcoHandle, format: u32, offset: u64, size: u64) |ctx, bundle, buffer, format, offset, size| {
         let wformat = index_format(format);
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => match wformat {
                 Ok(format) => record_result(ctx.global.render_bundle_encoder_set_index_buffer(
                     bundle,
@@ -1781,7 +1781,7 @@ bundle_fn!(
 bundle_fn!(
     /// ABI: indirect non-indexed draw.
     alco_bundle_draw_indirect(buffer: AlcoHandle, offset: u64) |ctx, bundle, buffer, offset| {
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => record_result(ctx.global.render_bundle_encoder_draw_indirect(bundle, id, offset)),
             Err(_) => {
                 set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
@@ -1794,7 +1794,7 @@ bundle_fn!(
 bundle_fn!(
     /// ABI: indirect indexed draw.
     alco_bundle_draw_indexed_indirect(buffer: AlcoHandle, offset: u64) |ctx, bundle, buffer, offset| {
-        match ctx.buffers().with(buffer, |obj| obj.id) {
+        match ctx.buffers().get_copy(buffer, |obj| obj.id) {
             Ok(id) => record_result(ctx.global.render_bundle_encoder_draw_indexed_indirect(bundle, id, offset)),
             Err(_) => {
                 set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");

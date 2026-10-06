@@ -4,14 +4,14 @@
 
 use crate::abi::*;
 use crate::entry::{set_error, set_error_from};
-use crate::handle::HandleTable;
+use crate::handle::StableTable;
 use std::ffi::{c_char, CStr, CString};
 use std::sync::{Arc, Mutex};
 use wgpu_core as wgc;
 use wgpu_core::global::Global;
 use wgpu_types as wgt;
 
-#[allow(dead_code)] // adapter_id/queue_id/push_message consumed from M2+ modules
+#[allow(dead_code)]
 pub(crate) struct DeviceCtx {
     pub global: Arc<Global>,
     pub adapter_id: wgc::id::AdapterId,
@@ -60,9 +60,8 @@ impl DeviceCtx {
     }
 }
 
-/// Top-level device registry (typically exactly one device per process, but
-/// the table keeps teardown order and stale-handle semantics uniform).
-pub(crate) static DEVICES: HandleTable<Arc<DeviceCtx>> = HandleTable::new();
+/// Stable device registry; call-scoped pins prevent teardown during active uses.
+pub(crate) static DEVICES: StableTable<DeviceCtx> = StableTable::new();
 
 /// Alco feature bits — numeric values mirror C# `GPUFeatures` exactly.
 mod alco_features {
@@ -367,7 +366,7 @@ pub unsafe extern "C-unwind" fn alco_device_create(
             supported |= alco_features::METALLIB_PASSTHROUGH;
         }
 
-        let ctx = Arc::new(DeviceCtx {
+        let ctx = DeviceCtx {
             global,
             adapter_id,
             device_id,
@@ -387,31 +386,36 @@ pub unsafe extern "C-unwind" fn alco_device_create(
             commands: crate::commands::CommandTables::default(),
             surfaces: crate::handle::HandleTable::new(),
             message_scratch: Mutex::new(CString::new("").unwrap()),
-        });
+        };
 
         *out = DEVICES.insert(ctx);
         AlcoStatus::OK
     })
 }
 
-/// ABI: destroys a device. Stale handles fail with `INVALID_HANDLE`.
+/// ABI: destroys an idle device. Stale handles fail with `INVALID_HANDLE`;
+/// active calls reject teardown with `INVALID_ARGUMENT` without consuming the handle.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         let ctx = match DEVICES.remove(device) {
             Ok(ctx) => ctx,
-            Err(_) => {
+            Err(status) => {
                 set_error(
-                    AlcoStatus::INVALID_HANDLE,
-                    "device handle is invalid or already destroyed",
+                    status,
+                    if status == AlcoStatus::INVALID_ARGUMENT {
+                        "device has active calls"
+                    } else {
+                        "device handle is invalid or already destroyed"
+                    },
                 );
-                return AlcoStatus::INVALID_HANDLE;
+                return status;
             }
         };
         // Explicit destroy before dropping the Global so pending work is
         // observed by wgpu-core's own teardown.
         ctx.global.device_destroy(ctx.device_id);
-        drop(ctx); // Arc drop → Global drop
+        drop(ctx);
         AlcoStatus::OK
     })
 }
@@ -556,6 +560,39 @@ pub unsafe extern "C-unwind" fn alco_device_pop_message(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vulkan_active_device_call_rejects_teardown_without_consuming_handle() {
+        let Some(device) = crate::test_support::TestDevice::new() else {
+            return;
+        };
+        DEVICES
+            .with(device.handle, |ctx| {
+                assert_eq!(
+                    unsafe { alco_device_destroy(device.handle) },
+                    AlcoStatus::INVALID_ARGUMENT
+                );
+                assert!(crate::test_support::last_error().contains("active calls"));
+                let mut info = AlcoDeviceInfo {
+                    backend: 0,
+                    adapter_name: std::ptr::null(),
+                    vendor: 0,
+                    device: 0,
+                    supported_features: 0,
+                    caps: 0,
+                    max_bind_groups: 0,
+                    max_immediate_size: 0,
+                    timestamp_period_ns: 0.0,
+                };
+                assert_eq!(
+                    unsafe { alco_device_get_info(device.handle, &mut info) },
+                    AlcoStatus::OK
+                );
+                assert_eq!(info.backend, ctx.backend);
+            })
+            .unwrap();
+        assert!(DEVICES.with(device.handle, |_| ()).is_ok());
+    }
 
     #[test]
     fn adapter_request_preserves_high_performance_and_backend_masks() {

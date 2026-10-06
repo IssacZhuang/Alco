@@ -57,7 +57,9 @@ Contract:
 - Failures are every status except `OK` and `NOT_READY` (`NOT_READY` is control
   flow and must never fire). `message` is the thread-local last-error (borrowed
   until the next alco call on the thread); statuses a body failed to annotate carry
-  a generic default message, and Rust panics fire with status `Panic`.
+  a generic default message, and Rust panics fire with status `Panic`. `NOT_READY`
+  clears stale errors without formatting or allocating an error message. Panic-hook
+  installation uses one-time initialization with a read-only completed fast path.
 - The callback **must not call back into the library**: any alco call on the same
   thread replaces the thread-local message the callback still holds a pointer to.
 - Unregistered (the default) behavior is unchanged: failures simply return their
@@ -131,9 +133,13 @@ index used by blocking polls).
 `alco_texture_create_view` (null descriptor = default view, used for surface textures) /
 `alco_texture_release` (surface textures are released, never destroyed) / sampler pair.
 
-**Shader modules** — create / destroy. Language enum covers WGSL / SPIR-V (4-byte
-aligned) / DXIL / MSL / MetalLib; passthrough languages require the
-`PassthroughShaders` capability, gated C#-side by `ShaderPassthroughEnabled`.
+**Shader modules** — create / destroy. Language enum covers WGSL / SPIR-V / DXIL /
+MSL / MetalLib; passthrough languages require the `PassthroughShaders` capability,
+gated C#-side by `ShaderPassthroughEnabled`. Synchronous creation borrows binary
+payloads and valid UTF-8 text. Aligned little-endian SPIR-V borrows the input words;
+unaligned sources are decoded once. DX12 normalization owns its mutable words.
+Callers retain source storage until creation returns; no borrowed source escapes
+the call.
 
 **Pipelines** — `alco_graphics_pipeline_create` (bind group layout handles, vertex
 layouts, per-stage `{module, entry point}`, rasterizer/blend/depth-stencil value structs,
@@ -170,12 +176,19 @@ acquire status, not through size drift).
 
 ## Threading and ownership
 
-Handle registries use short shared read locks to resolve owned device references or
-immutable resource snapshots; registry locks are released before core operations,
-callbacks, GPU waits, and resource cleanup. Independent command encoders, passes,
-and bundle encoders can therefore be recorded concurrently without a device-wide
-recording lock. The generation/index handle format and sequential stale-handle
-rejection are unchanged.
+Device and mutable recording registries use stable segmented slots. Calls claim the
+slot's generation and access state atomically, without registry read locks or
+per-call `Arc` cloning. A shared device pin keeps the context alive through core
+operations, callbacks, and GPU waits; teardown rejects active calls without waiting
+or consuming the device handle. Recording slots are caller-exclusive. Allocation
+and vacant-slot reuse use a short allocator mutex; removed payloads are returned
+before cleanup, while slot storage stays allocated until registry teardown.
+
+Immutable resource registries still use short shared read locks for snapshots or
+copy-only ID projections; these locks are released before core operations. Buffer
+ID lookups do not clone mapping state. Independent encoders, passes, and bundle
+encoders have no device-wide recording lock. The generation/index handle format
+and sequential stale-handle rejection are unchanged.
 
 As with wgpu-native, callers must keep the device and every supplied resource alive
 until the call completes. Destroy/release, encoder finish, submission of the same

@@ -370,7 +370,7 @@ pub unsafe extern "C-unwind" fn alco_buffer_map_read(
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| {
-                let buffer_id = match ctx.buffers().with(buffer, |obj| obj.id) {
+                let buffer_id = match ctx.buffers().get_copy(buffer, |obj| obj.id) {
                     Ok(id) => id,
                     Err(_) => {
                         set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
@@ -469,7 +469,7 @@ pub unsafe extern "C-unwind" fn alco_buffer_get_mapped_range(
         }
         DEVICES
             .with(device, |ctx| {
-                match ctx.buffers().with(buffer, |obj| obj.id) {
+                match ctx.buffers().get_copy(buffer, |obj| obj.id) {
                     Ok(id) => {
                         let range = ctx
                             .global
@@ -508,7 +508,7 @@ pub unsafe extern "C-unwind" fn alco_buffer_unmap(device: AlcoHandle, buffer: Al
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| {
-                match ctx.buffers().with(buffer, |obj| obj.id) {
+                match ctx.buffers().get_copy(buffer, |obj| obj.id) {
                     Ok(id) => {
                         if let Err(e) = ctx.global.buffer_unmap(id) {
                             set_error_from(AlcoStatus::VALIDATION, &e);
@@ -918,8 +918,20 @@ pub unsafe extern "C-unwind" fn alco_sampler_destroy(
 // Shader module
 // ---------------------------------------------------------------------------
 
+/// <summary>
 /// ABI: creates a shader module. DX12 SPIR-V and WGSL go through Naga;
-/// other supported native shader formats use passthrough.
+/// other supported native shader formats use passthrough. Source payloads are
+/// borrowed only for this synchronous call.
+/// </summary>
+/// <param name="device">The device handle that will own the shader module.</param>
+/// <param name="desc">The shader source and entry-point descriptor.</param>
+/// <param name="out">Receives the shader module handle on success.</param>
+/// <returns>The creation status.</returns>
+///
+/// # Safety
+/// `desc` and its source bytes must be readable for the duration of the call;
+/// non-null name and entry-point pointers must reference null-terminated strings.
+/// `out` must point to a writable handle slot.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_shader_module_create(
     device: AlcoHandle,
@@ -944,19 +956,16 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                 let (id, err): (wgc::id::ShaderModuleId, Option<Box<dyn std::error::Error + Send + Sync>>) =
                     match desc.language {
                         shader_language::SPIRV => {
-                            let mut words = Vec::with_capacity(data.len() / 4);
-                            for chunk in data.chunks_exact(4) {
-                                words.push(u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
-                            }
+                            let mut words = spirv_words(data);
                             if ctx.backend == backend::RESOLVED_DX12 {
-                                if let Err(message) = crate::shader_spirv::normalize(&mut words) {
+                                if let Err(message) = crate::shader_spirv::normalize(words.to_mut()) {
                                     set_error(AlcoStatus::VALIDATION, message);
                                     return AlcoStatus::VALIDATION;
                                 }
                             }
                             if ctx.caps & caps::PASSTHROUGH_SHADERS != 0 && ctx.backend != backend::RESOLVED_DX12 {
                                 let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                    p.spirv = Some(std::borrow::Cow::Owned(words.clone()));
+                                    p.spirv = Some(words);
                                 });
                                 let (id, err) = ctx
                                     .global
@@ -964,7 +973,7 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                                 (id, err.map(|e| Box::new(e) as _))
                             } else {
                                 let source = wgc::pipeline::ShaderModuleSource::SpirV(
-                                    std::borrow::Cow::Owned(words.clone()),
+                                    words,
                                     wgc::naga::front::spv::Options {
                                         adjust_coordinate_space: ctx.backend != backend::RESOLVED_DX12,
                                         ..Default::default()
@@ -986,7 +995,7 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                                 Err(s) => return s,
                             }
                             let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                p.dxil = Some(std::borrow::Cow::Owned(data.to_vec()));
+                                p.dxil = Some(std::borrow::Cow::Borrowed(data));
                             });
                             let (id, err) = ctx
                                 .global
@@ -998,9 +1007,9 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                                 Ok(()) => {}
                                 Err(s) => return s,
                             }
-                            let source = String::from_utf8_lossy(data).into_owned();
+                            let source = String::from_utf8_lossy(data);
                             let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                p.msl = Some(std::borrow::Cow::Owned(source));
+                                p.msl = Some(source);
                             });
                             let (id, err) = ctx
                                 .global
@@ -1013,7 +1022,7 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                                 Err(s) => return s,
                             }
                             let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                                p.metallib = Some(std::borrow::Cow::Owned(data.to_vec()));
+                                p.metallib = Some(std::borrow::Cow::Borrowed(data));
                             });
                             let (id, err) = ctx
                                 .global
@@ -1021,7 +1030,7 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                             (id, err.map(|e| Box::new(e) as _))
                         }
                         shader_language::WGSL => {
-                            let source = String::from_utf8_lossy(data).into_owned();
+                            let source = String::from_utf8_lossy(data);
                             let sdesc = wgc::pipeline::ShaderModuleDescriptor {
                                 label: module_label.clone(),
                                 runtime_checks: wgt::ShaderRuntimeChecks::checked(),
@@ -1029,7 +1038,7 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                             let (id, err) = ctx.global.device_create_shader_module(
                                 ctx.device_id,
                                 &sdesc,
-                                wgc::pipeline::ShaderModuleSource::Wgsl(std::borrow::Cow::Owned(source)),
+                                wgc::pipeline::ShaderModuleSource::Wgsl(source),
                                 None,
                             );
                             (id, err.map(|e| Box::new(e) as _))
@@ -1055,6 +1064,26 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
     })
 }
 
+fn spirv_words(data: &[u8]) -> std::borrow::Cow<'_, [u32]> {
+    // Preserve the existing chunks_exact(4) behavior for incomplete trailing words.
+    let data = &data[..data.len() / 4 * 4];
+    #[cfg(target_endian = "little")]
+    {
+        // SAFETY: Every u32 bit pattern is valid. align_to checks alignment, and
+        // borrowing is allowed only when the entire complete-word slice is aligned.
+        // Native words match the existing little-endian decode on this target.
+        let (prefix, words, suffix) = unsafe { data.align_to::<u32>() };
+        if prefix.is_empty() && suffix.is_empty() {
+            return std::borrow::Cow::Borrowed(words);
+        }
+    }
+    let mut words = Vec::with_capacity(data.len() / 4);
+    for chunk in data.chunks_exact(4) {
+        words.push(u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+    }
+    std::borrow::Cow::Owned(words)
+}
+
 fn require_passthrough(ctx: &DeviceCtx) -> Result<(), AlcoStatus> {
     if ctx.caps & caps::PASSTHROUGH_SHADERS == 0 {
         set_error(
@@ -1066,18 +1095,16 @@ fn require_passthrough(ctx: &DeviceCtx) -> Result<(), AlcoStatus> {
     Ok(())
 }
 
-fn passthrough_desc(
-    module_label: Option<std::borrow::Cow<'static, str>>,
-    entry_point: &str,
+fn passthrough_desc<'a>(
+    module_label: Option<std::borrow::Cow<'a, str>>,
+    entry_point: &'a str,
     workgroup: [u32; 3],
-    fill: impl FnOnce(
-        &mut wgt::CreateShaderModuleDescriptorPassthrough<'static, Option<std::borrow::Cow<'static, str>>>,
-    ),
-) -> wgt::CreateShaderModuleDescriptorPassthrough<'static, Option<std::borrow::Cow<'static, str>>> {
+    fill: impl FnOnce(&mut wgc::pipeline::ShaderModuleDescriptorPassthrough<'a>),
+) -> wgc::pipeline::ShaderModuleDescriptorPassthrough<'a> {
     let mut passthrough = wgt::CreateShaderModuleDescriptorPassthrough {
         label: module_label,
         entry_points: std::borrow::Cow::Owned(vec![wgt::PassthroughShaderEntryPoint {
-            name: std::borrow::Cow::Owned(entry_point.to_string()),
+            name: std::borrow::Cow::Borrowed(entry_point),
             workgroup_size: (workgroup[0], workgroup[1], workgroup[2]),
         }]),
         spirv: None,
@@ -1295,7 +1322,7 @@ pub unsafe extern "C-unwind" fn alco_bind_group_create(
                 for entry in entries {
                     let resource = match entry.kind {
                         0 => {
-                            let id = match ctx.buffers().with(entry.resource, |obj| obj.id) {
+                            let id = match ctx.buffers().get_copy(entry.resource, |obj| obj.id) {
                                 Ok(id) => id,
                                 Err(_) => {
                                     set_error(AlcoStatus::INVALID_HANDLE, format!("invalid buffer handle in binding {}", entry.binding));
@@ -1466,6 +1493,105 @@ mod tests {
     use super::*;
     use crate::test_support::{last_error, TestDevice};
     use std::ptr;
+
+    #[repr(align(4))]
+    struct AlignedShaderBytes<const N: usize>([u8; N]);
+
+    #[test]
+    fn spirv_aligned_payload_matches_little_endian_words() {
+        let data = AlignedShaderBytes([0x03, 0x02, 0x23, 0x07, 0x44, 0x33, 0x22, 0x11]);
+        let words = spirv_words(&data.0);
+        assert_eq!(words.as_ref(), &[0x0723_0203, 0x1122_3344]);
+        #[cfg(target_endian = "little")]
+        {
+            assert!(matches!(&words, std::borrow::Cow::Borrowed(_)));
+            assert_eq!(words.as_ptr().cast::<u8>(), data.0.as_ptr());
+        }
+        #[cfg(target_endian = "big")]
+        assert!(matches!(&words, std::borrow::Cow::Owned(_)));
+    }
+
+    #[test]
+    fn spirv_unaligned_payload_is_decoded_once_and_moved() {
+        let data = AlignedShaderBytes([0xff, 0x03, 0x02, 0x23, 0x07, 0x44, 0x33, 0x22, 0x11]);
+        let mut words = spirv_words(&data.0[1..]);
+        assert!(matches!(&words, std::borrow::Cow::Owned(_)));
+        assert_eq!(words.as_ref(), &[0x0723_0203, 0x1122_3344]);
+        let allocation = words.as_ptr();
+        assert_eq!(words.to_mut().as_ptr(), allocation);
+        let descriptor = passthrough_desc(None, "main", [1, 2, 3], |p| {
+            p.spirv = Some(words);
+        });
+        assert_eq!(descriptor.spirv.as_ref().unwrap().as_ptr(), allocation);
+    }
+
+    #[test]
+    fn spirv_incomplete_or_malformed_payloads_preserve_word_decoding() {
+        // No new length or magic validation: complete words are retained and
+        // incomplete trailing bytes are ignored, exactly as before.
+        let aligned = AlignedShaderBytes([0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xaa, 0xbb, 0xcc]);
+        let unaligned = AlignedShaderBytes([0x11, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xaa, 0xbb, 0xcc]);
+        for trailing in 0..=3 {
+            assert_eq!(spirv_words(&aligned.0[..8 + trailing]).as_ref(), &[0, u32::MAX]);
+            assert_eq!(spirv_words(&unaligned.0[1..9 + trailing]).as_ref(), &[0, u32::MAX]);
+            assert!(spirv_words(&aligned.0[..trailing]).is_empty());
+            assert!(spirv_words(&unaligned.0[1..1 + trailing]).is_empty());
+        }
+    }
+
+    #[test]
+    fn spirv_mutation_owns_storage_without_changing_source() {
+        let data = AlignedShaderBytes([0x03, 0x02, 0x23, 0x07, 0x44, 0x33, 0x22, 0x11]);
+        let mut words = spirv_words(&data.0);
+        words.to_mut()[1] = 0x5566_7788;
+        assert!(matches!(&words, std::borrow::Cow::Owned(_)));
+        assert_eq!(words.as_ref(), &[0x0723_0203, 0x5566_7788]);
+        assert_eq!(spirv_words(&data.0).as_ref(), &[0x0723_0203, 0x1122_3344]);
+        assert_ne!(words.as_ptr().cast::<u8>(), data.0.as_ptr());
+    }
+
+    #[test]
+    fn passthrough_descriptor_borrows_call_scoped_binary_payloads() {
+        let entry_point = String::from("main");
+        let payload = [0x44, 0x58, 0x49, 0x4c];
+        let descriptor = passthrough_desc(None, &entry_point, [1, 2, 3], |p| {
+            p.dxil = Some(std::borrow::Cow::Borrowed(&payload));
+            p.metallib = Some(std::borrow::Cow::Borrowed(&payload));
+        });
+        for binary in [&descriptor.dxil, &descriptor.metallib] {
+            let binary = binary.as_ref().unwrap();
+            assert!(matches!(binary, std::borrow::Cow::Borrowed(_)));
+            assert_eq!(binary.as_ptr(), payload.as_ptr());
+        }
+        let entry = &descriptor.entry_points[0];
+        assert!(matches!(&entry.name, std::borrow::Cow::Borrowed(_)));
+        assert_eq!(entry.name.as_ptr(), entry_point.as_ptr());
+        assert_eq!(entry.workgroup_size, (1, 2, 3));
+    }
+
+    #[test]
+    fn text_shader_payloads_preserve_lossy_utf8_and_borrow_valid_text() {
+        for (bytes, expected, borrowed) in [
+            (&b"shader source"[..], "shader source", true),
+            (&b"shader \xff source"[..], "shader \u{fffd} source", false),
+        ] {
+            let descriptor = passthrough_desc(None, "main", [1, 1, 1], |p| {
+                p.msl = Some(String::from_utf8_lossy(bytes));
+            });
+            let msl = descriptor.msl.as_ref().unwrap();
+            assert_eq!(msl.as_ref(), expected);
+            assert_eq!(matches!(msl, std::borrow::Cow::Borrowed(_)), borrowed);
+            let wgc::pipeline::ShaderModuleSource::Wgsl(wgsl) =
+                wgc::pipeline::ShaderModuleSource::Wgsl(String::from_utf8_lossy(bytes))
+            else { unreachable!() };
+            assert_eq!(wgsl.as_ref(), expected);
+            assert_eq!(matches!(&wgsl, std::borrow::Cow::Borrowed(_)), borrowed);
+            if borrowed {
+                assert_eq!(msl.as_ptr(), bytes.as_ptr());
+                assert_eq!(wgsl.as_ptr(), bytes.as_ptr());
+            }
+        }
+    }
 
     #[test]
     fn positive_binding_counts_require_non_null_arrays_before_device_lookup() {
