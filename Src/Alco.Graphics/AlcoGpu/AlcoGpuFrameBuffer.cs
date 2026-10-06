@@ -18,10 +18,10 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
     private readonly AlcoGpuTextureView? _depthView;
     private readonly AlcoGpuTextureView? _stencilView;
     private readonly AlcoGpuAttachmentLayout _attachmentLayout;
-    private readonly AlcoGpuAbi.RenderPassDesc _descriptor;
+    private readonly AlcoGPU.RenderPassDesc _descriptor;
     // native memory, need to be manually released
-    private AlcoGpuAbi.ColorAttachment* _colorAttachments;
-    private AlcoGpuAbi.DepthStencilAttachment* _depthAttachment;
+    private AlcoGPU.ColorAttachment* _colorAttachments;
+    private AlcoGPU.DepthStencilAttachment* _depthAttachment;
 
     private readonly PixelFormat[] _colors;
     private readonly PixelFormat? _depth;
@@ -110,10 +110,10 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
         for (int i = 0; i < _colorTextures.Length; i++) { Release(_colorTextures[i]); }
         Release(_depthStencilTexture);
 
-        AlcoGpuAbi.ColorAttachment* colors = _colorAttachments;
+        AlcoGPU.ColorAttachment* colors = _colorAttachments;
         _colorAttachments = null;
         Free(colors);
-        AlcoGpuAbi.DepthStencilAttachment* depth = _depthAttachment;
+        AlcoGPU.DepthStencilAttachment* depth = _depthAttachment;
         _depthAttachment = null;
         Free(depth);
         GC.KeepAlive(this);
@@ -125,7 +125,7 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
     #region AlcoGpu Implementation
 
     /// <inheritdoc />
-    public override AlcoGpuAbi.RenderPassDesc Native
+    public override AlcoGPU.RenderPassDesc Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _descriptor;
@@ -161,7 +161,7 @@ internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
 
             _colorTextures = new AlcoGpuTexture[attachmentLayout.ColorInfos.Length];
             _colorViews = new AlcoGpuTextureView[attachmentLayout.ColorInfos.Length];
-            _descriptor = new AlcoGpuAbi.RenderPassDesc
+            _descriptor = new AlcoGPU.RenderPassDesc
             {
                 ColorAttachmentCount = (uint)attachmentLayout.ColorInfos.Length,
             };

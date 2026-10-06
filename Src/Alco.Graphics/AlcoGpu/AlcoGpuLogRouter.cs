@@ -62,7 +62,7 @@ internal static unsafe class AlcoGpuLogRouter
     }
 
     /// <summary>Routes one native record; must never throw (native frames).</summary>
-    /// <param name="level">The <see cref="AlcoGpuAbi.LogLevel"/> of the record.</param>
+    /// <param name="level">The <see cref="AlcoGPU.LogLevel"/> of the record.</param>
     /// <param name="message">The record text.</param>
     internal static void Route(uint level, string message)
     {

@@ -7,7 +7,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuSampler : GPUSampler
 {
     #region Properties
-    private AlcoGpuAbi.SamplerHandle _native;
+    private AlcoGPU.SamplerHandle _native;
 
     #endregion
 
@@ -18,8 +18,8 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
     {
         try
         {
-            AlcoGpuAbi.SamplerHandle handle = _native;
-            _native = AlcoGpuAbi.SamplerHandle.Null;
+            AlcoGPU.SamplerHandle handle = _native;
+            _native = AlcoGPU.SamplerHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -41,7 +41,7 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
 
     #region AlcoGpu Implementation
     /// <summary>Gets or stores the native ABI value.</summary>
-    public AlcoGpuAbi.SamplerHandle Native
+    public AlcoGPU.SamplerHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _native;
@@ -56,7 +56,7 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
             ReadOnlySpan<byte> name = Name.Utf8Z();
             fixed (byte* ptrName = name)
             {
-                AlcoGpuAbi.SamplerDesc desc = new()
+                AlcoGPU.SamplerDesc desc = new()
                 {
                     AddressU = (uint)descriptor.AddressModeU,
                     AddressV = (uint)descriptor.AddressModeV,

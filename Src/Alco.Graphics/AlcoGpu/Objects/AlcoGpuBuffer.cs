@@ -7,7 +7,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
 {
     #region Properties
-    private AlcoGpuAbi.BufferHandle _buffer;
+    private AlcoGPU.BufferHandle _buffer;
 
     #endregion
 
@@ -18,8 +18,8 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
     {
         try
         {
-            AlcoGpuAbi.BufferHandle handle = _buffer;
-            _buffer = AlcoGpuAbi.BufferHandle.Null;
+            AlcoGPU.BufferHandle handle = _buffer;
+            _buffer = AlcoGPU.BufferHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -42,7 +42,7 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
     #region AlcoGpu Implementation
 
     /// <summary>Gets or stores the native ABI value.</summary>
-    public AlcoGpuAbi.BufferHandle Native
+    public AlcoGPU.BufferHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _buffer;
@@ -58,7 +58,7 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
             ReadOnlySpan<byte> name = Name.Utf8Z();
             fixed (byte* ptrName = name)
             {
-                AlcoGpuAbi.BufferDesc desc = new()
+                AlcoGPU.BufferDesc desc = new()
                 {
                     Size = Size,
                     Usage = (uint)descriptor.Usage,

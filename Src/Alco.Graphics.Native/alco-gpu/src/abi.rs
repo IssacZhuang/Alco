@@ -108,7 +108,7 @@ pub mod caps {
 }
 
 /// `LogLevel` values for the log callback — same numeric values as
-/// wgpu-native's `WGPULogLevel` and the C# `AlcoGpuAbi.LogLevel` constants.
+/// wgpu-native's `WGPULogLevel` and the C# `AlcoGPU.LogLevel` constants.
 pub mod log_level {
     /// Disables forwarding entirely (argument to `set_log_level`).
     pub const OFF: u32 = 0;

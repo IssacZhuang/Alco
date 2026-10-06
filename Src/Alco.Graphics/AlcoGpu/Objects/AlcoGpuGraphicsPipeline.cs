@@ -8,7 +8,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
 {
     #region Properties
-    private AlcoGpuAbi.GraphicsPipelineHandle _pipeline;
+    private AlcoGPU.GraphicsPipelineHandle _pipeline;
 
     #endregion
 
@@ -19,8 +19,8 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
     {
         try
         {
-            AlcoGpuAbi.GraphicsPipelineHandle handle = _pipeline;
-            _pipeline = AlcoGpuAbi.GraphicsPipelineHandle.Null;
+            AlcoGPU.GraphicsPipelineHandle handle = _pipeline;
+            _pipeline = AlcoGPU.GraphicsPipelineHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -43,7 +43,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
     #region AlcoGpu Implementation
 
     /// <summary>Gets the native graphics pipeline handle.</summary>
-    public AlcoGpuAbi.GraphicsPipelineHandle Native
+    public AlcoGPU.GraphicsPipelineHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _pipeline;
@@ -54,15 +54,15 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
         try
         {
             Device = device;
-            AlcoGpuAbi.DeviceHandle nativeDevice = device.Native;
+            AlcoGPU.DeviceHandle nativeDevice = device.Native;
 
             // === Create transient shader modules ===============================
 
             DescriptorUtility.GetVertexAndPixelModules(descriptor.ShaderModules, out ShaderModule vertex, out ShaderModule pixel);
 
-            AlcoGpuAbi.ShaderModuleHandle vertexShader = device.CreateShaderModule(vertex);
-            AlcoGpuAbi.ShaderModuleHandle pixelShader = AlcoGpuAbi.ShaderModuleHandle.Null;
-            AlcoGpuAbi.VertexElement* vertexElements = null;
+            AlcoGPU.ShaderModuleHandle vertexShader = device.CreateShaderModule(vertex);
+            AlcoGPU.ShaderModuleHandle pixelShader = AlcoGPU.ShaderModuleHandle.Null;
+            AlcoGPU.VertexElement* vertexElements = null;
 
             try
             {
@@ -77,13 +77,13 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                 }
 
                 // One contiguous block of attributes; each layout points into it.
-                vertexElements = Alloc<AlcoGpuAbi.VertexElement>(Math.Max(vertexElementCount, 1));
-                Span<AlcoGpuAbi.VertexLayout> vertexLayoutStorage = vertexInputLayouts.Length <= 32
-                    ? stackalloc AlcoGpuAbi.VertexLayout[vertexInputLayouts.Length] : new AlcoGpuAbi.VertexLayout[vertexInputLayouts.Length];
-                AlcoGpuAbi.VertexElement* elementCursor = vertexElements;
+                vertexElements = Alloc<AlcoGPU.VertexElement>(Math.Max(vertexElementCount, 1));
+                Span<AlcoGPU.VertexLayout> vertexLayoutStorage = vertexInputLayouts.Length <= 32
+                    ? stackalloc AlcoGPU.VertexLayout[vertexInputLayouts.Length] : new AlcoGPU.VertexLayout[vertexInputLayouts.Length];
+                AlcoGPU.VertexElement* elementCursor = vertexElements;
                 for (int i = 0; i < vertexInputLayouts.Length; i++)
                 {
-                    vertexLayoutStorage[i] = new AlcoGpuAbi.VertexLayout
+                    vertexLayoutStorage[i] = new AlcoGPU.VertexLayout
                     {
                         Stride = vertexInputLayouts[i].Stride,
                         StepMode = (uint)vertexInputLayouts[i].StepMode,
@@ -93,7 +93,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
 
                     for (int j = 0; j < vertexInputLayouts[i].Elements.Length; j++)
                     {
-                        elementCursor[j] = new AlcoGpuAbi.VertexElement
+                        elementCursor[j] = new AlcoGPU.VertexElement
                         {
                             Location = vertexInputLayouts[i].Elements[j].Location,
                             Offset = vertexInputLayouts[i].Elements[j].Offset,
@@ -107,8 +107,8 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                 // === Bind group layouts ======================================
 
                 GPUBindGroup[] bindGroups = descriptor.BindGroups;
-                Span<AlcoGpuAbi.BindGroupLayoutHandle> bindGroupLayoutStorage = bindGroups.Length <= 64
-                    ? stackalloc AlcoGpuAbi.BindGroupLayoutHandle[bindGroups.Length] : new AlcoGpuAbi.BindGroupLayoutHandle[bindGroups.Length];
+                Span<AlcoGPU.BindGroupLayoutHandle> bindGroupLayoutStorage = bindGroups.Length <= 64
+                    ? stackalloc AlcoGPU.BindGroupLayoutHandle[bindGroups.Length] : new AlcoGPU.BindGroupLayoutHandle[bindGroups.Length];
                 for (int i = 0; i < bindGroups.Length; i++)
                 {
                     bindGroupLayoutStorage[i] = ((AlcoGpuBindGroup)bindGroups[i]).Native;
@@ -127,7 +127,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                 // above the target count writes all targets; the native side masks
                 // the extra targets' color writes otherwise.
                 uint fragmentOutputCount = descriptor.FragmentOutputCount >= descriptor.ColorFormats.Length
-                    ? AlcoGpuAbi.None
+                    ? AlcoGPU.None
                     : (uint)descriptor.FragmentOutputCount;
 
                 ReadOnlySpan<byte> vertexEntry = vertex.EntryPoint.Utf8Z();
@@ -137,11 +137,11 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                 fixed (byte* pVertexEntry = vertexEntry)
                 fixed (byte* pPixelEntry = pixelEntry)
                 fixed (byte* pName = nameSpan)
-                fixed (AlcoGpuAbi.VertexLayout* vertexBufferLayouts = vertexLayoutStorage)
-                fixed (AlcoGpuAbi.BindGroupLayoutHandle* bindGroupLayouts = bindGroupLayoutStorage)
+                fixed (AlcoGPU.VertexLayout* vertexBufferLayouts = vertexLayoutStorage)
+                fixed (AlcoGPU.BindGroupLayoutHandle* bindGroupLayouts = bindGroupLayoutStorage)
                 fixed (uint* colorFormats = colorFormatStorage)
                 {
-                    AlcoGpuAbi.GraphicsPipelineDesc desc = new()
+                    AlcoGPU.GraphicsPipelineDesc desc = new()
                     {
                         BindGroupLayouts = bindGroupLayouts,
                         BindGroupLayoutCount = (uint)bindGroups.Length,
@@ -154,15 +154,15 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                         FillMode = (uint)descriptor.RasterizerState.FillMode,
                         CullMode = (uint)descriptor.RasterizerState.CullMode,
                         FrontFace = (uint)descriptor.RasterizerState.FrontFace,
-                        Blend = new AlcoGpuAbi.BlendState
+                        Blend = new AlcoGPU.BlendState
                         {
                             Color = ToAbi(descriptor.BlendState.Color),
                             Alpha = ToAbi(descriptor.BlendState.Alpha),
                         },
-                        DepthStencil = new AlcoGpuAbi.DepthStencilState
+                        DepthStencil = new AlcoGPU.DepthStencilState
                         {
-                            DepthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled ? AlcoGpuAbi.True : AlcoGpuAbi.False,
-                            DepthBoundsTestEnabled = descriptor.DepthStencilState.DepthBoundsTestEnabled ? AlcoGpuAbi.True : AlcoGpuAbi.False,
+                            DepthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled ? AlcoGPU.True : AlcoGPU.False,
+                            DepthBoundsTestEnabled = descriptor.DepthStencilState.DepthBoundsTestEnabled ? AlcoGPU.True : AlcoGPU.False,
                             DepthCompare = (uint)descriptor.DepthStencilState.DepthCompare,
                             Front = ToAbi(descriptor.DepthStencilState.FrontFace),
                             Back = ToAbi(descriptor.DepthStencilState.BackFace),
@@ -171,7 +171,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                         },
                         DepthStencilFormat = descriptor.DepthStencilFormat.HasValue
                             ? (uint)descriptor.DepthStencilFormat.Value
-                            : AlcoGpuAbi.None,
+                            : AlcoGPU.None,
                         Topology = (uint)descriptor.PrimitiveTopology,
                         ColorFormats = colorFormats,
                         ColorFormatCount = (uint)descriptor.ColorFormats.Length,
@@ -214,9 +214,9 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
         }
     }
 
-    private static AlcoGpuAbi.BlendComponent ToAbi(BlendComponent component)
+    private static AlcoGPU.BlendComponent ToAbi(BlendComponent component)
     {
-        return new AlcoGpuAbi.BlendComponent
+        return new AlcoGPU.BlendComponent
         {
             SrcFactor = (uint)component.SrcFactor,
             DstFactor = (uint)component.DstFactor,
@@ -224,9 +224,9 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
         };
     }
 
-    private static AlcoGpuAbi.StencilFace ToAbi(StencilFaceState face)
+    private static AlcoGPU.StencilFace ToAbi(StencilFaceState face)
     {
-        return new AlcoGpuAbi.StencilFace
+        return new AlcoGPU.StencilFace
         {
             Compare = (uint)face.Compare,
             StencilFailOp = (uint)face.StencilFailOperation,

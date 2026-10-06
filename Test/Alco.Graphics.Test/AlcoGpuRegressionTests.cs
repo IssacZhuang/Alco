@@ -119,7 +119,7 @@ public sealed class AlcoGpuRegressionTests
             BindingFlags.Static | BindingFlags.NonPublic)!.GetValue(null), Is.Null);
 
         int delivered = host.InfoLogCount;
-        Assert.DoesNotThrow(() => AlcoGpuLogRouter.Route(AlcoGpuAbi.LogLevel.Info, "late construction log"));
+        Assert.DoesNotThrow(() => AlcoGpuLogRouter.Route(AlcoGPU.LogLevel.Info, "late construction log"));
         Assert.That(host.InfoLogCount, Is.EqualTo(delivered));
         Assert.DoesNotThrow(host.Drain);
         AssertAllocationBalance(before);
@@ -141,7 +141,7 @@ public sealed class AlcoGpuRegressionTests
         using GPUAttachmentLayout layout = CreateDepthLayout(device, format, readOnly);
         using GPUFrameBuffer frameBuffer = device.CreateFrameBuffer(new FrameBufferDescriptor(layout, 16, 16));
         DepthAttachmentInfo info = ((AlcoGpuAttachmentLayout)layout).DepthInfo!.Value;
-        AlcoGpuAbi.DepthStencilAttachment attachment = *((AlcoGpuFrameBufferBase)frameBuffer).Native.DepthStencil;
+        AlcoGPU.DepthStencilAttachment attachment = *((AlcoGpuFrameBufferBase)frameBuffer).Native.DepthStencil;
         bool hasStencil = PixelFormatUtility.HasStencil(format);
         Assert.Multiple(() =>
         {
@@ -149,10 +149,10 @@ public sealed class AlcoGpuRegressionTests
             Assert.That(info.HasStencil, Is.EqualTo(hasStencil));
             Assert.That(info.IsDepthReadOnly, Is.EqualTo(readOnly));
             Assert.That(info.IsStencilReadOnly, Is.EqualTo(readOnly || !hasStencil));
-            Assert.That(attachment.DepthLoadOp, Is.EqualTo(readOnly ? AlcoGpuAbi.None : 0u));
-            Assert.That(attachment.DepthStoreOp, Is.EqualTo(readOnly ? AlcoGpuAbi.None : 0u));
-            Assert.That(attachment.StencilLoadOp, Is.EqualTo(readOnly || !hasStencil ? AlcoGpuAbi.None : 0u));
-            Assert.That(attachment.StencilStoreOp, Is.EqualTo(readOnly || !hasStencil ? AlcoGpuAbi.None : 0u));
+            Assert.That(attachment.DepthLoadOp, Is.EqualTo(readOnly ? AlcoGPU.None : 0u));
+            Assert.That(attachment.DepthStoreOp, Is.EqualTo(readOnly ? AlcoGPU.None : 0u));
+            Assert.That(attachment.StencilLoadOp, Is.EqualTo(readOnly || !hasStencil ? AlcoGPU.None : 0u));
+            Assert.That(attachment.StencilStoreOp, Is.EqualTo(readOnly || !hasStencil ? AlcoGPU.None : 0u));
         });
     }
 
@@ -182,11 +182,11 @@ public sealed class AlcoGpuRegressionTests
             _ => commands.BeginRender(frameBuffer, ReadOnlySpan<ClearColorData>.Empty, clearDepth: 0.5f, clearStencil: 2,
                 depthOps: new AttachmentOps { LoadOp = AttachmentLoadOp.Load, StoreOp = AttachmentStoreOp.Discard }),
         };
-        AlcoGpuAbi.DepthStencilAttachment attachment = GetDepthCache(commands);
+        AlcoGPU.DepthStencilAttachment attachment = GetDepthCache(commands);
         Assert.Multiple(() =>
         {
-            Assert.That(attachment.StencilLoadOp, Is.EqualTo(AlcoGpuAbi.None));
-            Assert.That(attachment.StencilStoreOp, Is.EqualTo(AlcoGpuAbi.None));
+            Assert.That(attachment.StencilLoadOp, Is.EqualTo(AlcoGPU.None));
+            Assert.That(attachment.StencilStoreOp, Is.EqualTo(AlcoGPU.None));
             Assert.That(attachment.DepthLoadOp, Is.EqualTo(mode is 1 or 3 or 4 ? 1u : 0u));
             // Explicit clears preserve the existing clear/store precedence.
             Assert.That(attachment.DepthStoreOp, Is.EqualTo(mode == 3 ? 1u : 0u));
@@ -210,7 +210,7 @@ public sealed class AlcoGpuRegressionTests
         using (commands.BeginRender(frameBuffer, ReadOnlySpan<ClearColorData>.Empty,
             depthOps: new AttachmentOps { LoadOp = AttachmentLoadOp.Clear, StoreOp = AttachmentStoreOp.Discard }))
         {
-            AlcoGpuAbi.DepthStencilAttachment attachment = GetDepthCache(commands);
+            AlcoGPU.DepthStencilAttachment attachment = GetDepthCache(commands);
             Assert.That(attachment.DepthLoadOp, Is.EqualTo(1u));
             Assert.That(attachment.StencilLoadOp, Is.EqualTo(1u));
             Assert.That(attachment.DepthStoreOp, Is.EqualTo(1u));
@@ -933,8 +933,8 @@ public sealed class AlcoGpuRegressionTests
             new(layout, trackResurrection: true), new(group, trackResurrection: true)];
     }
 
-    private static AlcoGpuAbi.DepthStencilAttachment GetDepthCache(GPUCommandBuffer commands) =>
-        (AlcoGpuAbi.DepthStencilAttachment)typeof(AlcoGpuCommandBuffer).GetField("_depthStencilAttachmentCache",
+    private static AlcoGPU.DepthStencilAttachment GetDepthCache(GPUCommandBuffer commands) =>
+        (AlcoGPU.DepthStencilAttachment)typeof(AlcoGpuCommandBuffer).GetField("_depthStencilAttachmentCache",
             BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(commands)!;
 
     private static bool IsHandleNull(BaseGPUObject instance, string field)

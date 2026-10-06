@@ -7,7 +7,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal abstract class AlcoGpuTextureBase : GPUTexture
 {
     /// <summary>Gets the borrowed native pointer; ownership stays with this object.</summary>
-    public abstract AlcoGpuAbi.TextureHandle Native { get; }
+    public abstract AlcoGPU.TextureHandle Native { get; }
 
     protected AlcoGpuTextureBase(in TextureDescriptor descriptor) : base(descriptor)
     {
@@ -18,7 +18,7 @@ internal abstract class AlcoGpuTextureBase : GPUTexture
 internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
 {
     #region Properties
-    private AlcoGpuAbi.TextureHandle _nativeTexture;
+    private AlcoGPU.TextureHandle _nativeTexture;
     // A borrowed owned attachment must retain its parent through managed native calls.
     private readonly BaseGPUObject? _owner;
     private readonly uint _width;
@@ -59,8 +59,8 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
     {
         try
         {
-            AlcoGpuAbi.TextureHandle handle = _nativeTexture;
-            _nativeTexture = AlcoGpuAbi.TextureHandle.Null;
+            AlcoGPU.TextureHandle handle = _nativeTexture;
+            _nativeTexture = AlcoGPU.TextureHandle.Null;
             if (!handle.IsNull)
             {
                 try
@@ -82,7 +82,7 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
 
     #region AlcoGpu Implementation
     /// <inheritdoc />
-    public override AlcoGpuAbi.TextureHandle Native
+    public override AlcoGPU.TextureHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _nativeTexture;
@@ -111,7 +111,7 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
             ReadOnlySpan<byte> name = Name.Utf8Z();
             fixed (byte* ptrName = name)
             {
-                AlcoGpuAbi.TextureDesc desc = new()
+                AlcoGPU.TextureDesc desc = new()
                 {
                     Dimension = (uint)descriptor.Dimension,
                     Format = (uint)descriptor.Format,

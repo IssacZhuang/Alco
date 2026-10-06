@@ -8,7 +8,7 @@ namespace Alco.Graphics.AlcoGpu;
 internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
 {
     /// <summary>The pre-baked render pass descriptor (attachment views are refreshed per frame).</summary>
-    public abstract AlcoGpuAbi.RenderPassDesc Native { get; }
+    public abstract AlcoGPU.RenderPassDesc Native { get; }
     /// <summary>Gets the native color attachment formats.</summary>
     public abstract ReadOnlySpan<PixelFormat> NativeColorFormats { get; }
     /// <summary>Gets the native depth-stencil attachment format, if present.</summary>
@@ -53,19 +53,19 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
     /// implementations. Load op defaults to Load; the command buffer overrides clears.
     /// </summary>
     /// <returns>The pointer to native memory owned by the caller and must be freed manually.</returns>
-    protected static unsafe AlcoGpuAbi.ColorAttachment* AllocColorAttachments(
+    protected static unsafe AlcoGPU.ColorAttachment* AllocColorAttachments(
         ReadOnlySpan<GPUTextureView> colorViews,
         ReadOnlySpan<ColorAttachmentInfo> colorInfos)
     {
-        AlcoGpuAbi.ColorAttachment* colorAttachments = Alloc<AlcoGpuAbi.ColorAttachment>(colorViews.Length);
+        AlcoGPU.ColorAttachment* colorAttachments = Alloc<AlcoGPU.ColorAttachment>(colorViews.Length);
         try
         {
         for (int i = 0; i < colorViews.Length; i++)
         {
-            AlcoGpuAbi.ColorAttachment attachment = new()
+            AlcoGPU.ColorAttachment attachment = new()
             {
                 View = ((AlcoGpuTextureViewBase)colorViews[i]).Native,
-                ResolveView = AlcoGpuAbi.TextureViewHandle.Null,
+                ResolveView = AlcoGPU.TextureViewHandle.Null,
                 LoadOp = 0, // load
                 StoreOp = 0, // store
             };
@@ -86,23 +86,23 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
 
     /// <summary>
     /// Allocates and bakes the pass depth-stencil attachment. Missing and read-only channels
-    /// use the AlcoGpuAbi.None sentinel; only present, writable aspects receive load/store ops.
+    /// use the AlcoGPU.None sentinel; only present, writable aspects receive load/store ops.
     /// </summary>
-    protected static unsafe AlcoGpuAbi.DepthStencilAttachment* AllocDepthAttachment(
+    protected static unsafe AlcoGPU.DepthStencilAttachment* AllocDepthAttachment(
         GPUTextureView depthStencilView,
         in DepthAttachmentInfo depthInfo)
     {
-        AlcoGpuAbi.DepthStencilAttachment* depthAttachment = Alloc<AlcoGpuAbi.DepthStencilAttachment>(1);
+        AlcoGPU.DepthStencilAttachment* depthAttachment = Alloc<AlcoGPU.DepthStencilAttachment>(1);
         try
         {
-        *depthAttachment = new AlcoGpuAbi.DepthStencilAttachment
+        *depthAttachment = new AlcoGPU.DepthStencilAttachment
         {
             View = ((AlcoGpuTextureViewBase)depthStencilView).Native,
-            DepthLoadOp = depthInfo.IsDepthReadOnly ? AlcoGpuAbi.None : 0,
-            DepthStoreOp = depthInfo.IsDepthReadOnly ? AlcoGpuAbi.None : 0,
+            DepthLoadOp = depthInfo.IsDepthReadOnly ? AlcoGPU.None : 0,
+            DepthStoreOp = depthInfo.IsDepthReadOnly ? AlcoGPU.None : 0,
             DepthClear = depthInfo.ClearDepth,
-            StencilLoadOp = depthInfo.IsStencilReadOnly ? AlcoGpuAbi.None : 0,
-            StencilStoreOp = depthInfo.IsStencilReadOnly ? AlcoGpuAbi.None : 0,
+            StencilLoadOp = depthInfo.IsStencilReadOnly ? AlcoGPU.None : 0,
+            StencilStoreOp = depthInfo.IsStencilReadOnly ? AlcoGPU.None : 0,
             StencilClear = depthInfo.ClearStencil,
         };
         return depthAttachment;

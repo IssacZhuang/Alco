@@ -9,7 +9,7 @@ namespace Alco.Graphics.AlcoGpu.Interop;
 /// <see cref="uint"/> with Alco numeric values, optionals use
 /// <see cref="None"/> sentinels and arrays are (pointer, count) pairs.
 /// </summary>
-internal static unsafe partial class AlcoGpuAbi
+internal static unsafe partial class AlcoGPU
 {
     /// <summary>ABI major version implemented by the native library.</summary>
     public const uint AbiMajor = 3;
@@ -122,7 +122,7 @@ internal static unsafe partial class AlcoGpuAbi
 /// Additional ABI constants: surface tags, acquire statuses, present modes and
 /// composite alpha modes (numeric values fixed by the native layer).
 /// </summary>
-internal static partial class AlcoGpuAbi
+internal static partial class AlcoGPU
 {
     /// <summary>Surface creation tags (mirrors SurfaceDesc::tag).</summary>
     public static class SurfaceTag
@@ -159,7 +159,7 @@ internal static partial class AlcoGpuAbi
     }
 
     /// <summary>Present mode values (mirrors SurfaceConfig::present_mode).</summary>
-    public static class PresentModeAbi
+    public static class PresentMode
     {
         /// <summary>Gets or stores Fifo.</summary>
         public const uint Fifo = 0;
@@ -170,7 +170,7 @@ internal static partial class AlcoGpuAbi
     }
 
     /// <summary>Composite alpha mode values (mirrors SurfaceConfig::alpha_mode).</summary>
-    public static class AlphaModeAbi
+    public static class AlphaMode
     {
         /// <summary>Gets or stores Auto.</summary>
         public const uint Auto = 0;
@@ -565,10 +565,10 @@ internal static partial class AlcoGpuAbi
     [StructLayout(LayoutKind.Sequential)]
     internal struct DeviceDesc
     {
-        /// <summary>One of <see cref="AlcoGpuAbi.BackendRequest"/> values.</summary>
+        /// <summary>One of <see cref="AlcoGPU.BackendRequest"/> values.</summary>
         public uint Backend;
 
-        /// <summary><see cref="AlcoGpuAbi.True"/> to enable validation.</summary>
+        /// <summary><see cref="AlcoGPU.True"/> to enable validation.</summary>
         public uint Debug;
 
         /// <summary>Required Alco feature bits (mirrors <see cref="GPUFeatures"/>).</summary>
@@ -585,7 +585,7 @@ internal static partial class AlcoGpuAbi
     [StructLayout(LayoutKind.Sequential)]
     internal struct DeviceInfo
     {
-        /// <summary>One of <see cref="AlcoGpuAbi.BackendResolved"/> values.</summary>
+        /// <summary>One of <see cref="AlcoGPU.BackendResolved"/> values.</summary>
         public uint Backend;
 
         /// <summary>Borrowed adapter name, valid until device destroy.</summary>
@@ -599,7 +599,7 @@ internal static partial class AlcoGpuAbi
         /// <summary>Supported Alco feature bits.</summary>
         public ulong SupportedFeatures;
 
-        /// <summary>Capability bits (<see cref="AlcoGpuAbi.Caps"/>).</summary>
+        /// <summary>Capability bits (<see cref="AlcoGPU.Caps"/>).</summary>
         public ulong Caps;
 
         /// <summary>Gets or stores MaxBindGroups.</summary>
@@ -1003,7 +1003,7 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores DepthStencil.</summary>
         public DepthStencilState DepthStencil;
 
-        /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGpuAbi.None"/> when unused.</summary>
+        /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGPU.None"/> when unused.</summary>
         public uint DepthStencilFormat;
 
         /// <summary><see cref="PrimitiveTopology"/> value.</summary>
@@ -1014,7 +1014,7 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores ColorFormatCount.</summary>
         public uint ColorFormatCount;
 
-        /// <summary>Active color writes; <see cref="AlcoGpuAbi.None"/> writes all.</summary>
+        /// <summary>Active color writes; <see cref="AlcoGPU.None"/> writes all.</summary>
         public uint FragmentOutputCount;
 
         /// <summary>Immediate (push constant) size in bytes.</summary>
@@ -1072,19 +1072,19 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores View.</summary>
         public TextureViewHandle View;
 
-        /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGPU.None"/> = read-only.</summary>
         public uint DepthLoadOp;
 
-        /// <summary>0 store, 1 discard; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        /// <summary>0 store, 1 discard; <see cref="AlcoGPU.None"/> = read-only.</summary>
         public uint DepthStoreOp;
 
         /// <summary>Gets or stores DepthClear.</summary>
         public float DepthClear;
 
-        /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGPU.None"/> = read-only.</summary>
         public uint StencilLoadOp;
 
-        /// <summary>0 store, 1 discard; <see cref="AlcoGpuAbi.None"/> = read-only.</summary>
+        /// <summary>0 store, 1 discard; <see cref="AlcoGPU.None"/> = read-only.</summary>
         public uint StencilStoreOp;
 
         /// <summary>Gets or stores StencilClear.</summary>
@@ -1098,10 +1098,10 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores QuerySet.</summary>
         public QuerySetHandle QuerySet;
 
-        /// <summary>Query index; <see cref="AlcoGpuAbi.None"/> skips the write.</summary>
+        /// <summary>Query index; <see cref="AlcoGPU.None"/> skips the write.</summary>
         public uint BeginningIndex;
 
-        /// <summary>Query index; <see cref="AlcoGpuAbi.None"/> skips the write.</summary>
+        /// <summary>Query index; <see cref="AlcoGPU.None"/> skips the write.</summary>
         public uint EndIndex;
     }
 
@@ -1126,10 +1126,10 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores Offset.</summary>
         public ulong Offset;
 
-        /// <summary>Bytes per row; <see cref="AlcoGpuAbi.None"/> = tightly packed.</summary>
+        /// <summary>Bytes per row; <see cref="AlcoGPU.None"/> = tightly packed.</summary>
         public uint BytesPerRow;
 
-        /// <summary>Rows per image; <see cref="AlcoGpuAbi.None"/> = tightly packed.</summary>
+        /// <summary>Rows per image; <see cref="AlcoGPU.None"/> = tightly packed.</summary>
         public uint RowsPerImage;
     }
 
@@ -1165,11 +1165,11 @@ internal static partial class AlcoGpuAbi
         public uint Aspect;
         /// <summary>First cleared mip level.</summary>
         public uint BaseMipLevel;
-        /// <summary>Cleared mip level count; zero or <see cref="AlcoGpuAbi.None"/> = the rest.</summary>
+        /// <summary>Cleared mip level count; zero or <see cref="AlcoGPU.None"/> = the rest.</summary>
         public uint MipLevelCount;
         /// <summary>First cleared array layer.</summary>
         public uint BaseArrayLayer;
-        /// <summary>Cleared array layer count; zero or <see cref="AlcoGpuAbi.None"/> = the rest.</summary>
+        /// <summary>Cleared array layer count; zero or <see cref="AlcoGPU.None"/> = the rest.</summary>
         public uint ArrayLayerCount;
     }
 
@@ -1182,7 +1182,7 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores ColorFormatCount.</summary>
         public uint ColorFormatCount;
 
-        /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGpuAbi.None"/> when unused.</summary>
+        /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGPU.None"/> when unused.</summary>
         public uint DepthStencilFormat;
 
         /// <summary>Boolean u32 flags for read-only depth/stencil.</summary>
@@ -1201,7 +1201,7 @@ internal static partial class AlcoGpuAbi
     [StructLayout(LayoutKind.Sequential)]
     internal struct SurfaceDesc
     {
-        /// <summary>One of <see cref="AlcoGpuAbi.SurfaceTag"/> values.</summary>
+        /// <summary>One of <see cref="AlcoGPU.SurfaceTag"/> values.</summary>
         public uint Tag;
 
         /// <summary>Platform window/surface handle.</summary>
@@ -1243,10 +1243,10 @@ internal static partial class AlcoGpuAbi
         /// <summary>Gets or stores Height.</summary>
         public uint Height;
 
-        /// <summary>One of <see cref="AlcoGpuAbi.PresentModeAbi"/> values.</summary>
+        /// <summary>One of <see cref="AlcoGPU.PresentMode"/> values.</summary>
         public uint PresentMode;
 
-        /// <summary>One of <see cref="AlcoGpuAbi.AlphaModeAbi"/> values.</summary>
+        /// <summary>One of <see cref="AlcoGPU.AlphaMode"/> values.</summary>
         public uint AlphaMode;
 
         /// <summary>Gets or stores DesiredFrameLatency.</summary>

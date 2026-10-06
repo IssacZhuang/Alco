@@ -51,18 +51,18 @@ internal static unsafe class AlcoGpuMarshal
         }
     }
 
-    /// <summary>Maps an <see cref="AlcoGpuAbi.Status"/> value to its short name.</summary>
+    /// <summary>Maps an <see cref="AlcoGPU.Status"/> value to its short name.</summary>
     internal static string StatusKind(uint status)
     {
         return status switch
         {
-            AlcoGpuAbi.Status.InvalidHandle => "invalid handle",
-            AlcoGpuAbi.Status.InvalidArgument => "invalid argument",
-            AlcoGpuAbi.Status.Validation => "validation",
-            AlcoGpuAbi.Status.OutOfMemory => "out of memory",
-            AlcoGpuAbi.Status.DeviceLost => "device lost",
-            AlcoGpuAbi.Status.Panic => "native panic",
-            AlcoGpuAbi.Status.Unsupported => "unsupported",
+            AlcoGPU.Status.InvalidHandle => "invalid handle",
+            AlcoGPU.Status.InvalidArgument => "invalid argument",
+            AlcoGPU.Status.Validation => "validation",
+            AlcoGPU.Status.OutOfMemory => "out of memory",
+            AlcoGPU.Status.DeviceLost => "device lost",
+            AlcoGPU.Status.Panic => "native panic",
+            AlcoGPU.Status.Unsupported => "unsupported",
             _ => "failure",
         };
     }

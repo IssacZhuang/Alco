@@ -264,13 +264,13 @@ public sealed class AlcoGpuIntegrationTests
             Assert.Ignore("adapter has no timestamp query support");
         }
 
-        AlcoGpuAbi.BufferDesc desc = new()
+        AlcoGPU.BufferDesc desc = new()
         {
             Size = 256,
             Usage = (uint)(BufferUsage.QueryResolve | BufferUsage.CopyDst | BufferUsage.CopySrc),
         };
 
-        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoGpuAbi.BufferHandle buffer);
+        AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoGPU.BufferHandle buffer);
         AlcoGpuNative.BufferDestroy(buffer);
     }
 

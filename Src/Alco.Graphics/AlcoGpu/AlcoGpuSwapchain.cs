@@ -8,7 +8,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
 {
     private readonly AlcoGpuDevice _device;
     private readonly AlcoGpuAttachmentLayout _attachmentLayout;
-    private AlcoGpuAbi.SurfaceHandle _surface;
+    private AlcoGPU.SurfaceHandle _surface;
     private readonly AlcoGpuSurfaceFrameBuffer _frameBuffer;
 
     private readonly PixelFormat _surfaceFormat;
@@ -16,7 +16,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
     private readonly PixelFormat[] _supportedSurfaceFormats;
     private readonly uint[] _supportedPresentModes;
 
-    private AlcoGpuAbi.SurfaceConfig _config;
+    private AlcoGPU.SurfaceConfig _config;
     private bool _isVSyncEnabled;
 
     /// <summary>
@@ -33,7 +33,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
                 _surface = CreateSurface(device, descriptor.SurfaceSource);
 
                 // check compatibility
-                AlcoGpuAbi.SurfaceCaps caps = default;
+                AlcoGPU.SurfaceCaps caps = default;
                 AlcoGpuNative.SurfaceGetCapabilities(_surface, ref caps);
 
                 // get supported present modes (ABI present-mode values)
@@ -102,7 +102,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
                     (device.Backend == GraphicsBackend.WGPUDx12 ? TextureUsage.Read : TextureUsage.TextureBinding));
                 _config.PresentMode = GetPresentMode(descriptor.IsVSyncEnabled);
                 _isVSyncEnabled = descriptor.IsVSyncEnabled;
-                _config.AlphaMode = AlcoGpuAbi.AlphaModeAbi.Auto;
+                _config.AlphaMode = AlcoGPU.AlphaMode.Auto;
 
                 _config.Width = descriptor.Width;
                 _config.Height = descriptor.Height;
@@ -126,39 +126,39 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
         }
     }
 
-    private static AlcoGpuAbi.SurfaceHandle CreateSurface(AlcoGpuDevice device, SurfaceSource surface)
+    private static AlcoGPU.SurfaceHandle CreateSurface(AlcoGpuDevice device, SurfaceSource surface)
     {
         try
         {
-            AlcoGpuAbi.SurfaceDesc desc = default;
+            AlcoGPU.SurfaceDesc desc = default;
             switch (surface)
             {
                 case Win32SurfaceSource win32Surface:
-                    desc.Tag = AlcoGpuAbi.SurfaceTag.Win32;
+                    desc.Tag = AlcoGPU.SurfaceTag.Win32;
                     desc.Handle = (ulong)win32Surface.Hwnd;
                     desc.Display = (ulong)win32Surface.HInstance;
                     break;
                 case MetalLayerSurfaceHandle metalLayerSurface:
-                    desc.Tag = AlcoGpuAbi.SurfaceTag.MetalLayer;
+                    desc.Tag = AlcoGPU.SurfaceTag.MetalLayer;
                     desc.Handle = (ulong)metalLayerSurface.Layer;
                     break;
                 case WaylandSurfaceSource waylandSurface:
-                    desc.Tag = AlcoGpuAbi.SurfaceTag.Wayland;
+                    desc.Tag = AlcoGPU.SurfaceTag.Wayland;
                     desc.Display = (ulong)waylandSurface.Display;
                     desc.Handle = (ulong)waylandSurface.Surface;
                     break;
                 case XcbWindowSurfaceSource xcbWindowSurface:
-                    desc.Tag = AlcoGpuAbi.SurfaceTag.Xcb;
+                    desc.Tag = AlcoGPU.SurfaceTag.Xcb;
                     desc.Display = (ulong)xcbWindowSurface.Connection;
                     desc.Handle = xcbWindowSurface.Window;
                     break;
                 case XlibWindowSurfaceSource xlibWindowSurface:
-                    desc.Tag = AlcoGpuAbi.SurfaceTag.Xlib;
+                    desc.Tag = AlcoGPU.SurfaceTag.Xlib;
                     desc.Display = (ulong)xlibWindowSurface.Display;
                     desc.Handle = xlibWindowSurface.Window;
                     break;
                 case AndroidWindowSurfaceSource androidWindowSurface:
-                    desc.Tag = AlcoGpuAbi.SurfaceTag.Android;
+                    desc.Tag = AlcoGPU.SurfaceTag.Android;
                     desc.Handle = (ulong)androidWindowSurface.Window;
                     break;
                 default:
@@ -169,7 +169,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
             fixed (byte* ptrName = name)
             {
                 desc.Name = ptrName;
-                AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoGpuAbi.SurfaceHandle handle);
+                AlcoGpuNative.SurfaceCreate(device.Native, in desc, out AlcoGPU.SurfaceHandle handle);
                 return handle;
             }
         }
@@ -251,8 +251,8 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
                 try { _attachmentLayout?.Destroy(disposing); }
                 finally
                 {
-                    AlcoGpuAbi.SurfaceHandle surface = _surface;
-                    _surface = AlcoGpuAbi.SurfaceHandle.Null;
+                    AlcoGPU.SurfaceHandle surface = _surface;
+                    _surface = AlcoGPU.SurfaceHandle.Null;
                     if (!surface.IsNull) { AlcoGpuNative.SurfaceDestroy(surface); }
                 }
             }
@@ -271,20 +271,20 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
     {
         if (!vsync)
         {
-            if (IsPresentModeSupported(AlcoGpuAbi.PresentModeAbi.Immediate))
+            if (IsPresentModeSupported(AlcoGPU.PresentMode.Immediate))
             {
-                return AlcoGpuAbi.PresentModeAbi.Immediate;
+                return AlcoGPU.PresentMode.Immediate;
             }
-            else if (IsPresentModeSupported(AlcoGpuAbi.PresentModeAbi.Mailbox))
+            else if (IsPresentModeSupported(AlcoGPU.PresentMode.Mailbox))
             {
-                return AlcoGpuAbi.PresentModeAbi.Mailbox;
+                return AlcoGPU.PresentMode.Mailbox;
             }
             else
             {
                 _device.LogWarning("VSync is off but no supported present mode found, using FIFO");
             }
         }
-        return AlcoGpuAbi.PresentModeAbi.Fifo;
+        return AlcoGPU.PresentMode.Fifo;
     }
 
     private bool IsPresentModeSupported(uint mode)

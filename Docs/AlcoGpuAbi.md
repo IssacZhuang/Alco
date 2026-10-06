@@ -14,7 +14,7 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 - Current ABI version: **3.0** (`ABI_MAJOR=3`, `ABI_MINOR=0`). ABI 3 dropped the
   `alco_` symbol prefix: entry points follow the wgpu-core parent-first convention
   (`device_create_buffer`, `encoder_begin_render_pass`, `buffer_destroy`), and the
-  C# interop structs moved to short names nested in `AlcoGpuAbi`. ABI 2 and earlier
+  C# interop structs moved to short names nested in `AlcoGPU`. ABI 2 and earlier
   are not binary-compatible.
 
 ## Conventions
@@ -25,7 +25,7 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 | Status | Every fallible export returns `Status (u32)`; `0` = OK |
 | Errors | Synchronous failures replace the thread-local latest failure (`get_last_error`) **and** fire the registered error callback. Successful and `NotReady` calls leave that failure untouched (see *Error callback*) |
 | Async events | Device-lost / validation / native warnings queue per device; drained via `device_pop_message` (severity 0 error, 1 warning, 2 info) |
-| Handles | Typed opaque native pointers; each C# `AlcoGpuAbi.*Handle` is a sequential readonly struct containing one `nint`. Null required handles return `InvalidHandle`; other pointer validity is a caller precondition |
+| Handles | Typed opaque native pointers; each C# `AlcoGPU.*Handle` is a sequential readonly struct containing one `nint`. Null required handles return `InvalidHandle`; other pointer validity is a caller precondition |
 | Panics | Every export body is wrapped in `catch_unwind`; a panic becomes status `Panic` + message |
 | Structs | `#[repr(C)]` ↔ `[StructLayout(LayoutKind.Sequential)]`, mirrored field-by-field in `AlcoGpuStructs.cs` |
 | Bools | `u32` (`TRUE = 1`) |
@@ -80,7 +80,7 @@ Contract:
 
 Verification: `entry.rs` unit tests cover firing with status + message, the
 default-message path, silence for `OK`/`NOT_READY`, and unregistration;
-`AlcoGpuAbiTests`/`AlcoGpuRegressionTests` exercise null-handle failures, real-buffer
+`AlcoGPUTests`/`AlcoGpuRegressionTests` exercise null-handle failures, real-buffer
 operation validation, retained latest-error text across success/`NOT_READY`,
 validation root causes, and failed consuming operations. Raw double-destroy and
 stale-pointer tests are deliberately excluded because those calls violate the ABI
@@ -119,7 +119,7 @@ through the error callback).
 
 Verification: `logging.rs` unit tests cover level+message delivery, filtering,
 unregistration, idempotent registration and unknown-level rejection;
-`AlcoGpuAbiTests` assert the `SetLogLevel`/`SetLogCallback` contracts.
+`AlcoGPUTests` assert the `SetLogLevel`/`SetLogCallback` contracts.
 
 ## Export groups
 
@@ -211,7 +211,7 @@ acquire status, not through size drift).
 
 The ABI has no Alco handle registry, generation counter, slot lookup, address
 quarantine, or runtime type discovery. Each non-null handle points to one
-independently owned native wrapper. C# mirrors are `AlcoGpuAbi.DeviceHandle`,
+independently owned native wrapper. C# mirrors are `AlcoGPU.DeviceHandle`,
 `BufferHandle`, `TextureHandle`, `TextureViewHandle`, `SamplerHandle`,
 `ShaderModuleHandle`, `BindGroupLayoutHandle`, `BindGroupHandle`,
 `QuerySetHandle`, `GraphicsPipelineHandle`, `ComputePipelineHandle`,
