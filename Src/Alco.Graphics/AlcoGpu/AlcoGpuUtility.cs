@@ -101,6 +101,9 @@ internal static unsafe class AlcoGpuUtility
                     WorkgroupX = source.WorkgroupSize.X,
                     WorkgroupY = source.WorkgroupSize.Y,
                     WorkgroupZ = source.WorkgroupSize.Z,
+                    Flags = source.SpirvAdjustedCoordinates
+                        ? AlcoGpuAbi.ShaderModuleFlags.SpirvAdjustedCoordinates
+                        : 0,
                 };
 
                 AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoShaderModuleHandle module);

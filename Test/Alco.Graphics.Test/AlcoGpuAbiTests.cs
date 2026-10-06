@@ -20,7 +20,7 @@ public unsafe class AlcoGpuAbiTests
     public void AbiVersionMatches()
     {
         Assert.That(AlcoGpuAbi.AbiMajor, Is.EqualTo(2));
-        Assert.That(AlcoGpuAbi.AbiMinor, Is.EqualTo(2));
+        Assert.That(AlcoGpuAbi.AbiMinor, Is.EqualTo(3));
         uint version = AlcoGpuNative.AbiVersion();
         Assert.That(version >> 16, Is.EqualTo(AlcoGpuAbi.AbiMajor));
         Assert.That(version & 0xFFFF, Is.GreaterThanOrEqualTo(AlcoGpuAbi.AbiMinor));

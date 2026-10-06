@@ -31,7 +31,10 @@ public partial class RenderingSystem
         SlangCodeTarget target = GraphicsDevice.Backend switch
         {
             // DX12 consumes SPIR-V through wgpu's standard Naga path. Direct DXIL
-            // passthrough cannot apply the HAL's binding and builtin remapping.
+            // passthrough cannot apply the HAL's binding and builtin remapping,
+            // so the compiler additionally normalizes Slang's default-only switch
+            // wrappers that Naga's SPIR-V frontend miscompiles (the producer-side
+            // workaround keeps alco-gpu agnostic of the shader origin).
             GraphicsBackend.WGPUDx12 => SlangCodeTarget.Spirv,
             GraphicsBackend.WGPUMetal => metalLib ? SlangCodeTarget.MetalLib : SlangCodeTarget.Msl,
             _ => SlangCodeTarget.Spirv,
@@ -46,6 +49,7 @@ public partial class RenderingSystem
         {
             Resolver = moduleResolver,
             Target = target,
+            NormalizeSpirvForNaga = GraphicsDevice.Backend == GraphicsBackend.WGPUDx12,
             // Forwards slang cache/compile hit-miss events with timings.
             Log = message => Log.Info(message),
         }, slangCacheDirectory);

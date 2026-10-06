@@ -11,7 +11,7 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 - C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
   callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
   `Interop/AlcoGpuMarshal.cs` throwing error callback)
-- Current ABI version: **2.2** (`ABI_MAJOR=2`, `ABI_MINOR=2`). ABI 1 generational
+- Current ABI version: **2.3** (`ABI_MAJOR=2`, `ABI_MINOR=3`). ABI 1 generational
   handles and device-first object method signatures are not binary-compatible.
 
 ## Conventions
@@ -150,7 +150,14 @@ count must be non-zero and the array non-null).
 MSL / MetalLib; passthrough languages require the `PassthroughShaders` capability,
 gated C#-side by `ShaderPassthroughEnabled`. Synchronous creation borrows binary
 payloads and valid UTF-8 text. Aligned little-endian SPIR-V borrows the input words;
-unaligned sources are decoded once. DX12 normalization owns its mutable words.
+unaligned sources are decoded once. The library is producer-agnostic: it performs no
+Slang-specific SPIR-V post-processing (the managed compile pipeline normalizes
+Slang's default-only switch wrappers before submission, see
+`Alco.Graphics/Compiler/Spirv/SpirvNormalizer.cs`), and the trailing `flags` field
+of `AlcoShaderModuleDesc` declares input properties — bit
+`shader_module_flags::SPIRV_ADJUSTED_COORDINATES` skips Naga's GL-style Y
+adjustment for SPIR-V that already matches its coordinate convention (Slang's
+direct emission). Unknown flag bits are ignored.
 Callers retain source storage until creation returns; no borrowed source escapes
 the call.
 

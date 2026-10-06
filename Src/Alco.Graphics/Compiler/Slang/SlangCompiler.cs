@@ -15,8 +15,9 @@ namespace Alco.Graphics;
 // link → ProgramLayout + per-entry target code (SPIR-V / DXIL / MSL, one
 // format per session, selected by the runtime backend for wgpu's shader
 // passthrough). Reflection is materialized into the engine's
-// ShaderReflection by SlangReflectionReader; no target-code
-// post-processing happens here.
+// ShaderReflection by SlangReflectionReader; the only target-code
+// post-processing is the SPIR-V normalization for Naga consumption
+// (see <see cref="SlangCompilerOptions.NormalizeSpirvForNaga"/>).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>Options describing one slang session (search paths, macros, target).</summary>
@@ -42,6 +43,17 @@ public sealed class SlangCompilerOptions
     /// <see cref="SlangCodeTarget"/>.
     /// </summary>
     public SlangCodeTarget Target { get; init; } = SlangCodeTarget.Spirv;
+
+    /// <summary>
+    /// Normalizes each SPIR-V entry blob through <see cref="SpirvNormalizer"/>
+    /// before it is cached or handed to the GPU library. Required when the
+    /// SPIR-V is consumed through Naga translation (the D3D12 path): Naga 30's
+    /// SPIR-V frontend miscompiles enclosing-loop breaks through Slang's
+    /// default-only switch wrappers, so the redundant wrappers are removed
+    /// while the bytes are still under the compiler's control. Leave false for
+    /// backends that pass slang's SPIR-V through untouched (Vulkan).
+    /// </summary>
+    public bool NormalizeSpirvForNaga { get; init; }
 
     /// <summary>
     /// Optional profile override for the target (e.g. "spirv_1_5", "sm_6_6").
@@ -195,6 +207,7 @@ public sealed class SlangCompileSession : IDisposable
     private readonly SlangGlobalSession _globalSession;
     private readonly SlangSession _session;
     private readonly SlangFileSystemExt? _fileSystem;
+    private readonly bool _normalizeSpirv;
     private readonly Lock _lock = new();
     private bool _disposed;
 
@@ -209,6 +222,7 @@ public sealed class SlangCompileSession : IDisposable
     {
         _globalSession = globalSession;
         _fileSystem = options.Resolver != null ? new SlangFileSystemExt(options.Resolver, options.Exists) : null;
+        _normalizeSpirv = options.NormalizeSpirvForNaga && options.Target == SlangCodeTarget.Spirv;
 
         unsafe
         {
@@ -750,7 +764,21 @@ public sealed class SlangCompileSession : IDisposable
 
                     byte[][] code = new byte[entryCount][];
                     for (int i = 0; i < entryCount; i++)
+                    {
                         code[i] = linked.GetEntryPointCode(i, out _);
+                        if (_normalizeSpirv)
+                        {
+                            try
+                            {
+                                code[i] = SpirvNormalizer.Normalize(code[i]);
+                            }
+                            catch (ShaderCompilationException ex)
+                            {
+                                throw new ShaderCompilationException(
+                                    $"normalizing SPIR-V for '{moduleName}' entry {i}: {ex.Message}");
+                            }
+                        }
+                    }
 
                     ShaderReflection reflection = SlangReflectionReader.BuildReflectionInfo(layout);
                     List<(string, int)> entries = SlangReflectionReader.GetEntryPoints(layout);

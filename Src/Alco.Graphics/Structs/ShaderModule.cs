@@ -53,5 +53,14 @@ namespace Alco.Graphics
         /// that cannot reflect it from submitted code (DXIL/MSL). Graphics stages ignore it.
         /// </summary>
         public (uint X, uint Y, uint Z) WorkgroupSize { get; init; } = (1, 1, 1);
+
+        /// <summary>
+        /// SPIR-V words already match Naga's internal coordinate convention (Slang's
+        /// direct emission), so translation must skip Naga's GL-style Y adjustment.
+        /// Only meaningful for SPIR-V consumed through translation (D3D12); defaults
+        /// to false, which keeps externally produced GLSL-style SPIR-V behaving like
+        /// stock wgpu.
+        /// </summary>
+        public bool SpirvAdjustedCoordinates { get; init; }
     }
 }

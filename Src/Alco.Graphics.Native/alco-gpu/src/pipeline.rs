@@ -675,6 +675,7 @@ mod tests {
                 workgroup_y: 1,
                 workgroup_z: 1,
                 name: ptr::null(),
+                flags: 0,
             };
             let mut module = AlcoShaderModuleHandle::NULL;
             assert_eq!(

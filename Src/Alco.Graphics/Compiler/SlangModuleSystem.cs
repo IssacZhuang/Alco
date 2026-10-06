@@ -96,6 +96,7 @@ public sealed class SlangModuleSystem : IDisposable
                 OptimizationLevel = _options.OptimizationLevel,
                 Target = _options.Target,
                 TargetProfile = _options.TargetProfile,
+                NormalizeSpirvForNaga = _options.NormalizeSpirvForNaga,
             };
         _session = _compiler.CreateSession(sessionOptions);
     }
@@ -620,6 +621,7 @@ public sealed class SlangModuleSystem : IDisposable
         writer.Write(BuildTag);
         writer.Write(_options.OptimizationLevel);
         writer.Write((int)_options.Target);
+        writer.Write(_options.NormalizeSpirvForNaga);
         writer.Write(_options.EffectiveTargetProfile);
         writer.Write(moduleName);
         writer.Write(irHash);
@@ -644,6 +646,7 @@ public sealed class SlangModuleSystem : IDisposable
         writer.Write(BuildTag);
         writer.Write(_options.OptimizationLevel);
         writer.Write((int)_options.Target);
+        writer.Write(_options.NormalizeSpirvForNaga);
         writer.Write(_options.EffectiveTargetProfile);
         writer.Write("composed");
         writer.Write(templateKey);

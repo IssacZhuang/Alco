@@ -352,6 +352,13 @@ pub mod shader_language {
     pub const METALLIB: u32 = 6;
 }
 
+/// Flag bits of `AlcoShaderModuleDesc::flags`; unknown bits are ignored.
+pub mod shader_module_flags {
+    /// SPIR-V input already matches Naga's coordinate convention (Slang's
+    /// direct emission): skip the GL-style Y adjustment during translation.
+    pub const SPIRV_ADJUSTED_COORDINATES: u32 = 1 << 0;
+}
+
 /// C# `ShaderModule` (bytes + entry point + workgroup size).
 #[repr(C)]
 pub struct AlcoShaderModuleDesc {
@@ -371,6 +378,8 @@ pub struct AlcoShaderModuleDesc {
     pub workgroup_z: u32,
     /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
+    /// shader_module_flags bit set; unknown bits are ignored.
+    pub flags: u32,
 }
 
 /// One entry of C# `BindGroupDescriptor.Bindings`.
@@ -1072,13 +1081,7 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
             Option<Box<dyn std::error::Error + Send + Sync>>,
         ) = match desc.language {
             shader_language::SPIRV => {
-                let mut words = spirv_words(data);
-                if ctx.backend == backend::RESOLVED_DX12 {
-                    if let Err(message) = crate::shader_spirv::normalize(words.to_mut()) {
-                        set_error(AlcoStatus::VALIDATION, message);
-                        return AlcoStatus::VALIDATION;
-                    }
-                }
+                let words = spirv_words(data);
                 if ctx.caps & caps::PASSTHROUGH_SHADERS != 0
                     && ctx.backend != backend::RESOLVED_DX12
                 {
@@ -1093,10 +1096,15 @@ pub unsafe extern "C-unwind" fn alco_shader_module_create(
                     );
                     (id, err.map(|e| Box::new(e) as _))
                 } else {
+                    // The coordinate convention is a property of the submitted
+                    // bytes (Slang's direct SPIR-V is already adjusted), not of
+                    // this backend; the caller declares it through the flag.
                     let source = wgc::pipeline::ShaderModuleSource::SpirV(
                         words,
                         wgc::naga::front::spv::Options {
-                            adjust_coordinate_space: ctx.backend != backend::RESOLVED_DX12,
+                            adjust_coordinate_space: desc.flags
+                                & shader_module_flags::SPIRV_ADJUSTED_COORDINATES
+                                == 0,
                             ..Default::default()
                         },
                     );

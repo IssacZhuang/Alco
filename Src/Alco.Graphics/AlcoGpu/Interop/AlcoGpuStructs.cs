@@ -15,7 +15,7 @@ internal static unsafe partial class AlcoGpuAbi
     public const uint AbiMajor = 2;
 
     /// <summary>ABI minor version implemented by the native library.</summary>
-    public const uint AbiMinor = 2;
+    public const uint AbiMinor = 3;
 
     /// <summary>Sentinel for "no value" in optional uint fields.</summary>
     public const uint AlcoNone = uint.MaxValue;
@@ -105,6 +105,16 @@ internal static unsafe partial class AlcoGpuAbi
         public const ulong MultiDrawIndirect = 1ul << 2;
         /// <summary>Gets or stores TimestampInsidePasses.</summary>
         public const ulong TimestampInsidePasses = 1ul << 3;
+    }
+
+    /// <summary>Flag bits of <see cref="AlcoShaderModuleDesc.Flags"/> (mirror of shader_module_flags).</summary>
+    public static class ShaderModuleFlags
+    {
+        /// <summary>
+        /// SPIR-V input already matches Naga's coordinate convention (Slang's direct
+        /// emission): skip the GL-style Y adjustment during translation.
+        /// </summary>
+        public const uint SpirvAdjustedCoordinates = 1u << 0;
     }
 }
 
@@ -783,6 +793,9 @@ internal struct AlcoShaderModuleDesc
 
     /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
     public byte* Name;
+
+    /// <summary><see cref="ShaderModuleFlags"/> bit set; unknown bits are ignored.</summary>
+    public uint Flags;
 }
 
 /// <summary>One bind group layout entry (mirrors AlcoBindGroupLayoutEntry).</summary>

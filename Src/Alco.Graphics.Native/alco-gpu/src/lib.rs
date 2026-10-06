@@ -14,7 +14,6 @@ pub(crate) mod handle;
 pub(crate) mod logging;
 pub(crate) mod objects;
 pub(crate) mod pipeline;
-pub(crate) mod shader_spirv;
 pub(crate) mod surface;
 
 use std::ffi::CString;
