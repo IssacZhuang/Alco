@@ -1,10 +1,9 @@
-//! Generational registries keep lookup locks separate from object operations.
-//! Recording objects reject overlapping mutation instead of blocking unrelated
-//! passes. Callers retain resource ownership until all uses have finished.
+//! Generational registries keep allocation synchronization separate from object
+//! operations. Callers order object removal against access and exclusively own
+//! mutable recording state while independent objects can be used concurrently.
 
 use crate::abi::{AlcoHandle, AlcoStatus};
 use std::cell::UnsafeCell;
-use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock, RwLock};
 
@@ -142,8 +141,6 @@ impl<T> Default for HandleTable<T> {
 
 const SEGMENT_COUNT: usize = 32;
 const OCCUPIED: u64 = 1 << 31;
-const EXCLUSIVE: u64 = 1 << 30;
-const READERS: u64 = EXCLUSIVE - 1;
 // Geometric segments cover indices 0..u32::MAX, excluding u32::MAX itself.
 const STABLE_CAPACITY: usize = u32::MAX as usize;
 
@@ -154,9 +151,8 @@ struct StableSlot<T> {
     free_next: UnsafeCell<Option<usize>>,
 }
 
-// Exclusive claims serialize all payload mutation. Shared access is available
-// only for T: Sync and holds a reader pin; removal cannot consume a pinned value.
-// Segment storage stays allocated for the lifetime of the borrowed table.
+// Payload access is unsafe and caller-ordered; safe insertion only touches vacant
+// slots under the allocation mutex. Segment storage never moves or shrinks.
 unsafe impl<T: Send> Sync for StableSlot<T> {}
 
 impl<T> StableSlot<T> {
@@ -175,100 +171,6 @@ impl<T> StableSlot<T> {
             Ok(())
         }
     }
-
-    fn claim_shared(&self, handle: AlcoHandle) -> Result<SharedPin<'_, T>, AlcoStatus>
-    where
-        T: Sync,
-    {
-        let mut state = self.state.load(Ordering::Acquire);
-        loop {
-            Self::validate(state, handle)?;
-            if state & EXCLUSIVE != 0 || state & READERS == READERS {
-                return Err(AlcoStatus::INVALID_ARGUMENT);
-            }
-            match self.state.compare_exchange(
-                state,
-                state + 1,
-                Ordering::Acquire,
-                Ordering::Acquire,
-            ) {
-                Ok(_) => {
-                    return Ok(SharedPin {
-                        slot: self,
-                        marker: PhantomData,
-                    })
-                }
-                Err(current) => state = current,
-            }
-        }
-    }
-
-    fn claim_exclusive(&self, handle: AlcoHandle) -> Result<ExclusiveClaim<'_, T>, AlcoStatus> {
-        let state = self.state.load(Ordering::Acquire);
-        Self::validate(state, handle)?;
-        if state & (EXCLUSIVE | READERS) != 0 {
-            return Err(AlcoStatus::INVALID_ARGUMENT);
-        }
-        self.state
-            .compare_exchange(
-                state,
-                state | EXCLUSIVE,
-                Ordering::Acquire,
-                Ordering::Acquire,
-            )
-            .map_err(|current| {
-                Self::validate(current, handle)
-                    .err()
-                    .unwrap_or(AlcoStatus::INVALID_ARGUMENT)
-            })?;
-        Ok(ExclusiveClaim {
-            slot: self,
-            release_state: state,
-            marker: PhantomData,
-        })
-    }
-}
-
-struct SharedPin<'a, T: Sync> {
-    slot: &'a StableSlot<T>,
-    // Do not inherit the slot's more permissive T: Send auto-trait bounds.
-    marker: PhantomData<&'a T>,
-}
-
-impl<T: Sync> SharedPin<'_, T> {
-    fn value(&self) -> &T {
-        // The pin excludes mutation/removal, and the reference cannot outlive it.
-        unsafe { &*self.slot.value.get() }
-            .as_ref()
-            .expect("pinned slot must be occupied")
-    }
-}
-
-impl<T: Sync> Drop for SharedPin<'_, T> {
-    fn drop(&mut self) {
-        self.slot.state.fetch_sub(1, Ordering::Release);
-    }
-}
-
-struct ExclusiveClaim<'a, T> {
-    slot: &'a StableSlot<T>,
-    release_state: u64,
-    marker: PhantomData<&'a mut T>,
-}
-
-impl<T> ExclusiveClaim<'_, T> {
-    fn value_mut(&mut self) -> &mut T {
-        // Full-state CAS excludes every other payload borrow and removal.
-        unsafe { &mut *self.slot.value.get() }
-            .as_mut()
-            .expect("claimed slot must be occupied")
-    }
-}
-
-impl<T> Drop for ExclusiveClaim<'_, T> {
-    fn drop(&mut self) {
-        self.slot.state.store(self.release_state, Ordering::Release);
-    }
 }
 
 struct StableAllocation {
@@ -276,11 +178,11 @@ struct StableAllocation {
     free_head: Option<usize>,
 }
 
-/// Stable generational slots with guarded borrows and no lookup registry lock.
+/// Stable generational slots with caller-ordered access and no lookup registry lock.
 ///
 /// Segments are published once and never reclaimed until table destruction.
-/// Allocation and free-list changes use a short mutex; payload operations use
-/// per-slot atomic claims, keeping callbacks and native work outside that mutex.
+/// Allocation and free-list changes use a short mutex; object access only reads
+/// the published generation and occupancy without changing slot state.
 pub(crate) struct StableTable<T> {
     segments: [OnceLock<Box<[StableSlot<T>]>>; SEGMENT_COUNT],
     allocation: Mutex<StableAllocation>,
@@ -344,14 +246,14 @@ impl<T: Send> StableTable<T> {
         });
         let slot = &slots[offset];
         let state = slot.state.load(Ordering::Acquire);
-        debug_assert_eq!(state & (OCCUPIED | EXCLUSIVE | READERS), 0);
+        debug_assert_eq!(state & OCCUPIED, 0);
         if allocation.free_head.is_some() {
             // The allocation mutex exclusively owns the free-list links.
             allocation.free_head = unsafe { *slot.free_next.get() };
         } else {
             allocation.len += 1;
         }
-        // Vacant slots cannot be claimed, and no previous claim survives removal.
+        // Removal is caller-ordered against access before a slot can be reused.
         unsafe {
             *slot.free_next.get() = None;
             *slot.value.get() = Some(value);
@@ -360,48 +262,62 @@ impl<T: Send> StableTable<T> {
         AlcoHandle((state & !0xFFFF_FFFF) | index as u64)
     }
 
-    /// Borrows an immutable object without cloning it or holding a registry lock.
+    /// Borrows an immutable object without cloning it or changing slot state.
     ///
-    /// The reader pin keeps the payload alive through the operation, including
-    /// waits and callbacks. Overlapping removal or exclusive access is rejected.
-    pub fn with<R>(&self, handle: AlcoHandle, f: impl FnOnce(&T) -> R) -> Result<R, AlcoStatus>
+    /// # Safety
+    /// The caller must prevent removal or mutable access to this object until
+    /// the closure returns, including during callbacks and waits.
+    pub unsafe fn with<R>(
+        &self,
+        handle: AlcoHandle,
+        f: impl FnOnce(&T) -> R,
+    ) -> Result<R, AlcoStatus>
     where
         T: Sync,
     {
-        let pin = self.slot(handle)?.claim_shared(handle)?;
-        Ok(f(pin.value()))
+        let slot = self.slot(handle)?;
+        StableSlot::<T>::validate(slot.state.load(Ordering::Acquire), handle)?;
+        let value = unsafe { &*slot.value.get() }
+            .as_ref()
+            .expect("occupied slot must contain a value");
+        Ok(f(value))
     }
 
-    /// Mutates one object under a nonblocking, generation-checked exclusive claim.
+    /// Mutates one caller-exclusive object without changing slot state.
     ///
-    /// Rejected overlap leaves the handle intact; independent objects do not
-    /// wait for this operation, and the claim is released even during unwinding.
-    pub fn with_mut<R>(
+    /// # Safety
+    /// The caller must prevent every other borrow and removal of this object
+    /// until the closure returns, including reentrant access.
+    pub unsafe fn with_mut<R>(
         &self,
         handle: AlcoHandle,
         f: impl FnOnce(&mut T) -> R,
     ) -> Result<R, AlcoStatus> {
-        let mut claim = self.slot(handle)?.claim_exclusive(handle)?;
-        Ok(f(claim.value_mut()))
+        let slot = self.slot(handle)?;
+        StableSlot::<T>::validate(slot.state.load(Ordering::Acquire), handle)?;
+        let value = unsafe { &mut *slot.value.get() }
+            .as_mut()
+            .expect("occupied slot must contain a value");
+        Ok(f(value))
     }
 
-    /// Consumes an idle object and invalidates its generation before reuse.
+    /// Consumes an object and invalidates its generation before reuse.
     ///
-    /// Active reader pins or exclusive claims return `INVALID_ARGUMENT` without
-    /// consuming the object. Cleanup of the returned value runs outside locks.
-    pub fn remove(&self, handle: AlcoHandle) -> Result<T, AlcoStatus> {
+    /// Cleanup of the returned value runs outside the allocation mutex.
+    ///
+    /// # Safety
+    /// The caller must order removal after all borrows of this object finish.
+    pub unsafe fn remove(&self, handle: AlcoHandle) -> Result<T, AlcoStatus> {
         let mut allocation = self.allocation.lock().unwrap();
         let slot = self.slot(handle)?;
-        let mut claim = slot.claim_exclusive(handle)?;
-        // The exclusive claim protects the payload; the mutex protects links.
+        StableSlot::<T>::validate(slot.state.load(Ordering::Acquire), handle)?;
         let value = unsafe { &mut *slot.value.get() }
             .take()
-            .expect("claimed slot must be occupied");
+            .expect("occupied slot must contain a value");
         let generation = handle.generation().wrapping_add(1).max(1);
         unsafe { *slot.free_next.get() = allocation.free_head };
-        claim.release_state = (generation as u64) << 32;
-        // Publish vacancy before putting the slot on the free list.
-        drop(claim);
+        slot.state
+            .store((generation as u64) << 32, Ordering::Release);
         allocation.free_head = Some(handle.index());
         Ok(value)
     }
@@ -428,23 +344,30 @@ impl<T> RecordingTable<T> {
 }
 
 impl<T: Send> RecordingTable<T> {
-    /// Registers a mutable object with independent exclusive access.
+    /// Registers a mutable object for caller-exclusive access.
     pub fn insert(&self, value: T) -> AlcoHandle {
         self.entries.insert(value)
     }
 
-    /// Mutates one object without holding a registry lock or waiting on other objects.
-    pub fn with<R>(
+    /// Mutates one object without holding a registry lock or changing slot state.
+    ///
+    /// # Safety
+    /// The caller must exclusively own access to this object until the closure
+    /// returns and must not remove it during that access.
+    pub unsafe fn with<R>(
         &self,
         handle: AlcoHandle,
         f: impl FnOnce(&mut T) -> R,
     ) -> Result<R, AlcoStatus> {
-        self.entries.with_mut(handle, f)
+        unsafe { self.entries.with_mut(handle, f) }
     }
 
-    /// Consumes an idle object; rejected overlapping operations leave its handle intact.
-    pub fn remove(&self, handle: AlcoHandle) -> Result<T, AlcoStatus> {
-        self.entries.remove(handle)
+    /// Consumes a recording object and invalidates its handle.
+    ///
+    /// # Safety
+    /// The caller must order removal after all access to this object finishes.
+    pub unsafe fn remove(&self, handle: AlcoHandle) -> Result<T, AlcoStatus> {
+        unsafe { self.entries.remove(handle) }
     }
 }
 
@@ -562,15 +485,21 @@ mod tests {
     }
 
     #[test]
-    fn independent_recordings_progress_and_overlap_is_rejected() {
+    fn independent_recordings_progress_during_allocation_and_removal() {
         let table = RecordingTable::new();
         let first = table.insert(1);
         let second = table.insert(2);
+        let first_state = table
+            .entries
+            .slot(first)
+            .unwrap()
+            .state
+            .load(Ordering::Acquire);
         let (entered_tx, entered_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
         std::thread::scope(|scope| {
             let table_ref = &table;
-            scope.spawn(move || {
+            scope.spawn(move || unsafe {
                 table_ref
                     .with(first, |value| {
                         entered_tx.send(()).unwrap();
@@ -580,40 +509,58 @@ mod tests {
                     .unwrap()
             });
             entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-            let result = table.with(second, |value| *value += 1);
-            let overlap = table.with(first, |_| ());
-            let consume = table.remove(first);
+            assert_eq!(
+                table
+                    .entries
+                    .slot(first)
+                    .unwrap()
+                    .state
+                    .load(Ordering::Acquire),
+                first_state
+            );
+            let allocation = table.entries.allocation.try_lock().unwrap();
+            drop(allocation);
+            unsafe {
+                assert_eq!(table.with(second, |value| *value += 1), Ok(()));
+                assert_eq!(table.remove(second).unwrap(), 3);
+                for value in 0..130 {
+                    let handle = table.insert(value);
+                    assert_eq!(table.remove(handle).unwrap(), value);
+                }
+            }
             release_tx.send(()).unwrap();
-            assert_eq!(result, Ok(()));
-            assert_eq!(overlap, Err(AlcoStatus::INVALID_ARGUMENT));
-            assert_eq!(consume, Err(AlcoStatus::INVALID_ARGUMENT));
         });
-        assert_eq!(table.remove(first).unwrap(), 2);
-        assert_eq!(table.remove(second).unwrap(), 3);
-        assert_eq!(
-            table.with(first, |_| ()).unwrap_err(),
-            AlcoStatus::INVALID_HANDLE
-        );
+        unsafe {
+            assert_eq!(table.remove(first).unwrap(), 2);
+            assert_eq!(
+                table.with(first, |_| ()).unwrap_err(),
+                AlcoStatus::INVALID_HANDLE
+            );
+        }
     }
 
     #[test]
-    fn recording_claim_is_released_after_panic_and_consumption() {
+    fn recording_can_be_consumed_after_panic() {
         let table = RecordingTable::new();
         let handle = table.insert(7);
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            table.with(handle, |_| panic!("recording failed")).unwrap();
-        }))
-        .is_err());
-        assert_eq!(table.remove(handle).unwrap(), 7);
-        let replacement = table.insert(9);
-        assert_eq!(replacement.index(), handle.index());
-        assert_ne!(replacement.generation(), handle.generation());
-        assert_eq!(
-            table.with(handle, |_| ()).unwrap_err(),
-            AlcoStatus::INVALID_HANDLE
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                table.with(handle, |_| panic!("recording failed")).unwrap();
+            }))
+            .is_err()
         );
-        assert_eq!(table.remove(handle), Err(AlcoStatus::INVALID_HANDLE));
-        assert_eq!(table.remove(replacement).unwrap(), 9);
+        unsafe {
+            assert_eq!(table.remove(handle).unwrap(), 7);
+            let replacement = table.insert(9);
+            assert_eq!(replacement.index(), handle.index());
+            assert_ne!(replacement.generation(), handle.generation());
+            assert_eq!(
+                table.with(handle, |_| ()).unwrap_err(),
+                AlcoStatus::INVALID_HANDLE
+            );
+            assert_eq!(table.remove(handle), Err(AlcoStatus::INVALID_HANDLE));
+            assert_eq!(table.remove(replacement).unwrap(), 9);
+        }
     }
 
     #[test]
@@ -653,41 +600,43 @@ mod tests {
     }
 
     #[test]
-    fn stable_shared_pins_reject_removal_without_consuming() {
+    fn stable_shared_access_leaves_slot_state_unchanged() {
         let table = StableTable::new();
         let handle = table.insert(7);
         let unrelated = table.insert(9);
-        table
-            .with(handle, |value| {
-                assert_eq!(*value, 7);
-                // Reentrant removal must reject immediately rather than self-deadlock.
-                assert_eq!(table.remove(handle), Err(AlcoStatus::INVALID_ARGUMENT));
-                assert_eq!(
-                    table.with_mut(handle, |_| ()),
-                    Err(AlcoStatus::INVALID_ARGUMENT)
-                );
-                assert_eq!(table.with(handle, |nested| *nested).unwrap(), 7);
-                assert_eq!(table.remove(unrelated).unwrap(), 9);
-                let replacement = table.insert(11);
-                assert_eq!(replacement.index(), unrelated.index());
-                assert_eq!(table.remove(replacement).unwrap(), 11);
-                assert_eq!(*value, 7);
-            })
-            .unwrap();
-        assert_eq!(table.remove(handle).unwrap(), 7);
-        assert_eq!(table.remove(handle), Err(AlcoStatus::INVALID_HANDLE));
+        let state = table.slot(handle).unwrap().state.load(Ordering::Acquire);
+        unsafe {
+            table
+                .with(handle, |value| {
+                    assert_eq!(*value, 7);
+                    assert_eq!(
+                        table.slot(handle).unwrap().state.load(Ordering::Acquire),
+                        state
+                    );
+                    assert_eq!(table.with(handle, |nested| *nested).unwrap(), 7);
+                    assert_eq!(table.remove(unrelated).unwrap(), 9);
+                    let replacement = table.insert(11);
+                    assert_eq!(replacement.index(), unrelated.index());
+                    assert_eq!(table.remove(replacement).unwrap(), 11);
+                    assert_eq!(*value, 7);
+                })
+                .unwrap();
+            assert_eq!(table.remove(handle).unwrap(), 7);
+            assert_eq!(table.remove(handle), Err(AlcoStatus::INVALID_HANDLE));
+        }
     }
 
     #[test]
-    fn stable_shared_pin_survives_cross_thread_remove_attempt() {
+    fn stable_shared_access_allows_independent_cross_thread_removal() {
         let table = StableTable::new();
         let first = table.insert(1);
         let second = table.insert(2);
+        let state = table.slot(first).unwrap().state.load(Ordering::Acquire);
         let (entered_tx, entered_rx) = mpsc::channel();
         let (release_tx, release_rx) = mpsc::channel();
         std::thread::scope(|scope| {
             let table_ref = &table;
-            scope.spawn(move || {
+            scope.spawn(move || unsafe {
                 table_ref
                     .with(first, |value| {
                         entered_tx.send(()).unwrap();
@@ -697,30 +646,36 @@ mod tests {
                     .unwrap();
             });
             entered_rx.recv_timeout(Duration::from_secs(5)).unwrap();
-            let remove = table.remove(first);
-            let share = table.with(first, |value| *value);
-            let independent = table.remove(second);
-            let inserted = table.insert(3);
+            assert_eq!(
+                table.slot(first).unwrap().state.load(Ordering::Acquire),
+                state
+            );
+            unsafe {
+                assert_eq!(table.with(first, |value| *value), Ok(1));
+                assert_eq!(table.remove(second), Ok(2));
+                let inserted = table.insert(3);
+                assert_eq!(inserted.index(), second.index());
+                assert_eq!(table.remove(inserted).unwrap(), 3);
+            }
             release_tx.send(()).unwrap();
-            assert_eq!(remove, Err(AlcoStatus::INVALID_ARGUMENT));
-            assert_eq!(share, Ok(1));
-            assert_eq!(independent, Ok(2));
-            assert_eq!(inserted.index(), second.index());
-            assert_eq!(table.remove(inserted).unwrap(), 3);
         });
-        assert_eq!(table.remove(first).unwrap(), 1);
+        assert_eq!(unsafe { table.remove(first) }.unwrap(), 1);
     }
 
     #[test]
-    fn stable_shared_pin_is_released_after_panic() {
+    fn stable_access_can_resume_after_panic() {
         let table = StableTable::new();
         let handle = table.insert(7);
-        assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            table.with(handle, |_| panic!("borrow failed")).unwrap();
-        }))
-        .is_err());
-        assert_eq!(table.with_mut(handle, |value| *value += 1), Ok(()));
-        assert_eq!(table.remove(handle).unwrap(), 8);
+        assert!(
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| unsafe {
+                table.with(handle, |_| panic!("borrow failed")).unwrap();
+            }))
+            .is_err()
+        );
+        unsafe {
+            assert_eq!(table.with_mut(handle, |value| *value += 1), Ok(()));
+            assert_eq!(table.remove(handle).unwrap(), 8);
+        }
     }
 
     #[test]
@@ -728,25 +683,27 @@ mod tests {
         let table = StableTable::new();
         let first = table.insert(7);
         let mut inserted = Vec::new();
-        table
-            .with(first, |value| {
-                let address = value as *const i32;
-                for index in 1..130 {
-                    let handle = table.insert(index);
-                    assert_eq!(handle.index(), index as usize);
-                    inserted.push(handle);
-                }
-                assert_eq!(
-                    table.with(first, |other| other as *const i32).unwrap(),
-                    address
-                );
-                assert_eq!(*value, 7);
-            })
-            .unwrap();
-        for (index, handle) in inserted.into_iter().enumerate() {
-            assert_eq!(table.remove(handle).unwrap(), index as i32 + 1);
+        unsafe {
+            table
+                .with(first, |value| {
+                    let address = value as *const i32;
+                    for index in 1..130 {
+                        let handle = table.insert(index);
+                        assert_eq!(handle.index(), index as usize);
+                        inserted.push(handle);
+                    }
+                    assert_eq!(
+                        table.with(first, |other| other as *const i32).unwrap(),
+                        address
+                    );
+                    assert_eq!(*value, 7);
+                })
+                .unwrap();
+            for (index, handle) in inserted.into_iter().enumerate() {
+                assert_eq!(table.remove(handle).unwrap(), index as i32 + 1);
+            }
+            assert_eq!(table.remove(first).unwrap(), 7);
         }
-        assert_eq!(table.remove(first).unwrap(), 7);
         for segment in 0..8 {
             assert_eq!(
                 table.segments[segment].get().unwrap().len(),
@@ -770,30 +727,34 @@ mod tests {
             let stale = handles.clone();
             let stride = (round * 2 + 1) % BATCH;
             let order: Vec<_> = (0..BATCH).map(|i| (i * stride) % BATCH).collect();
-            for &index in &order {
-                assert_eq!(table.remove(handles[index]).unwrap(), index);
-            }
-            for &index in order.iter().rev() {
-                let handle = table.insert(index);
-                assert_eq!(handle.index(), stale[index].index());
-                assert_eq!(handle.generation(), stale[index].generation() + 1);
-                assert_eq!(table.with(handle, |v| *v).unwrap(), index);
-                handles[index] = handle;
+            unsafe {
+                for &index in &order {
+                    assert_eq!(table.remove(handles[index]).unwrap(), index);
+                }
+                for &index in order.iter().rev() {
+                    let handle = table.insert(index);
+                    assert_eq!(handle.index(), stale[index].index());
+                    assert_eq!(handle.generation(), stale[index].generation() + 1);
+                    assert_eq!(table.with(handle, |v| *v).unwrap(), index);
+                    handles[index] = handle;
+                }
             }
             let allocation = table.allocation.lock().unwrap();
             assert_eq!(allocation.len, BATCH);
             assert!(allocation.free_head.is_none());
             drop(allocation);
             for old in stale {
-                assert_eq!(
-                    table.with(old, |_| ()).unwrap_err(),
-                    AlcoStatus::INVALID_HANDLE
-                );
-                assert_eq!(
-                    table.with_mut(old, |_| ()).unwrap_err(),
-                    AlcoStatus::INVALID_HANDLE
-                );
-                assert_eq!(table.remove(old).unwrap_err(), AlcoStatus::INVALID_HANDLE);
+                unsafe {
+                    assert_eq!(
+                        table.with(old, |_| ()).unwrap_err(),
+                        AlcoStatus::INVALID_HANDLE
+                    );
+                    assert_eq!(
+                        table.with_mut(old, |_| ()).unwrap_err(),
+                        AlcoStatus::INVALID_HANDLE
+                    );
+                    assert_eq!(table.remove(old).unwrap_err(), AlcoStatus::INVALID_HANDLE);
+                }
             }
         }
     }
@@ -802,102 +763,77 @@ mod tests {
     fn stable_partial_reuse_preserves_live_slots_and_free_chain() {
         let table = StableTable::new();
         let handles: Vec<_> = (0..8).map(|i| table.insert(i)).collect();
-        for index in [0, 2, 4, 6] {
-            table.remove(handles[index]).unwrap();
-        }
-        let replacements: Vec<_> = (0..2).map(|i| table.insert(10 + i)).collect();
-        assert_eq!(replacements[0].index(), 6);
-        assert_eq!(replacements[1].index(), 4);
-        table.remove(replacements[0]).unwrap();
-        for expected in [6, 2, 0] {
-            assert_eq!(table.insert(99).index(), expected);
-        }
-        for index in [1, 3, 5, 7] {
-            assert_eq!(table.with(handles[index], |value| *value).unwrap(), index);
+        unsafe {
+            for index in [0, 2, 4, 6] {
+                table.remove(handles[index]).unwrap();
+            }
+            let replacements: Vec<_> = (0..2).map(|i| table.insert(10 + i)).collect();
+            assert_eq!(replacements[0].index(), 6);
+            assert_eq!(replacements[1].index(), 4);
+            table.remove(replacements[0]).unwrap();
+            for expected in [6, 2, 0] {
+                assert_eq!(table.insert(99).index(), expected);
+            }
+            for index in [1, 3, 5, 7] {
+                assert_eq!(table.with(handles[index], |value| *value).unwrap(), index);
+            }
         }
         assert_eq!(table.allocation.lock().unwrap().len, 8);
     }
 
     #[test]
-    fn stale_occupied_cas_cannot_claim_reused_payload() {
+    fn stable_invalid_and_reused_handles_are_rejected() {
         let table = StableTable::new();
-        let original = table.insert(7);
-        let slot = table.slot(original).unwrap();
-        let old_state = slot.state.load(Ordering::Acquire);
-        assert_eq!(table.remove(original).unwrap(), 7);
-        let replacement = table.insert(9);
-        assert_eq!(replacement.index(), original.index());
-        // Model a lookup paused after loading an occupied state but before CAS.
-        let current = slot
-            .state
-            .compare_exchange(
-                old_state,
-                old_state | EXCLUSIVE,
-                Ordering::Acquire,
-                Ordering::Acquire,
-            )
-            .unwrap_err();
-        assert_eq!(
-            StableSlot::<i32>::validate(current, original),
-            Err(AlcoStatus::INVALID_HANDLE)
-        );
-        assert!(slot
-            .state
-            .compare_exchange(
-                old_state,
-                old_state + 1,
-                Ordering::Acquire,
-                Ordering::Acquire,
-            )
-            .is_err());
-        assert_eq!(
-            table.with(original, |_| ()),
-            Err(AlcoStatus::INVALID_HANDLE)
-        );
-        assert_eq!(
-            table.with_mut(original, |_| ()),
-            Err(AlcoStatus::INVALID_HANDLE)
-        );
-        assert_eq!(table.remove(replacement).unwrap(), 9);
+        unsafe {
+            for handle in [
+                AlcoHandle::NULL,
+                AlcoHandle(1),
+                AlcoHandle((1u64 << 32) | u32::MAX as u64),
+            ] {
+                assert_eq!(table.with(handle, |_| ()), Err(AlcoStatus::INVALID_HANDLE));
+                assert_eq!(
+                    table.with_mut(handle, |_| ()),
+                    Err(AlcoStatus::INVALID_HANDLE)
+                );
+                assert_eq!(table.remove(handle), Err(AlcoStatus::INVALID_HANDLE));
+            }
+            let original = table.insert(7);
+            assert_eq!(table.remove(original).unwrap(), 7);
+            let replacement = table.insert(9);
+            assert_eq!(replacement.index(), original.index());
+            assert_eq!(
+                table.with(original, |_| ()),
+                Err(AlcoStatus::INVALID_HANDLE)
+            );
+            assert_eq!(
+                table.with_mut(original, |_| ()),
+                Err(AlcoStatus::INVALID_HANDLE)
+            );
+            assert_eq!(table.remove(original), Err(AlcoStatus::INVALID_HANDLE));
+            assert_eq!(table.remove(replacement).unwrap(), 9);
+        }
     }
 
     #[test]
-    fn stable_invalid_handles_and_stale_busy_epoch_are_rejected() {
+    fn stable_concurrent_independent_allocation_and_removal() {
         let table = StableTable::new();
-        for handle in [
-            AlcoHandle::NULL,
-            AlcoHandle(1),
-            AlcoHandle((1u64 << 32) | u32::MAX as u64),
-        ] {
-            assert_eq!(table.with(handle, |_| ()), Err(AlcoStatus::INVALID_HANDLE));
-            assert_eq!(
-                table.with_mut(handle, |_| ()),
-                Err(AlcoStatus::INVALID_HANDLE)
-            );
-            assert_eq!(table.remove(handle), Err(AlcoStatus::INVALID_HANDLE));
-        }
-        let original = table.insert(7);
-        table.remove(original).unwrap();
-        let replacement = table.insert(9);
-        table
-            .with_mut(replacement, |_| {
-                assert_eq!(
-                    table.with(original, |_| ()),
-                    Err(AlcoStatus::INVALID_HANDLE)
-                );
-                assert_eq!(
-                    table.with_mut(original, |_| ()),
-                    Err(AlcoStatus::INVALID_HANDLE)
-                );
-                assert_eq!(table.remove(original), Err(AlcoStatus::INVALID_HANDLE));
-                assert_eq!(
-                    table.with(replacement, |_| ()),
-                    Err(AlcoStatus::INVALID_ARGUMENT)
-                );
-                assert_eq!(table.remove(replacement), Err(AlcoStatus::INVALID_ARGUMENT));
-            })
-            .unwrap();
-        assert_eq!(table.remove(replacement).unwrap(), 9);
+        std::thread::scope(|scope| {
+            for worker in 0..8 {
+                let table = &table;
+                scope.spawn(move || unsafe {
+                    for round in 0..256 {
+                        let value = worker * 256 + round;
+                        let handle = table.insert(value);
+                        assert_eq!(table.with(handle, |value| *value).unwrap(), value);
+                        assert_eq!(table.with_mut(handle, |value| *value += 1), Ok(()));
+                        assert_eq!(table.remove(handle).unwrap(), value + 1);
+                        assert_eq!(table.with(handle, |_| ()), Err(AlcoStatus::INVALID_HANDLE));
+                    }
+                });
+            }
+        });
+        let allocation = table.allocation.lock().unwrap();
+        assert!(allocation.len <= 8);
     }
 
     #[test]
@@ -912,13 +848,13 @@ mod tests {
         let table = StableTable::new();
         let first = table.insert(DropTracked(drops.clone()));
         let second = table.insert(DropTracked(drops.clone()));
-        let removed = table.remove(first).unwrap();
+        let removed = unsafe { table.remove(first) }.unwrap();
         assert_eq!(drops.load(Ordering::Relaxed), 0);
         drop(removed);
         assert_eq!(drops.load(Ordering::Relaxed), 1);
         let replacement = table.insert(DropTracked(drops.clone()));
         assert_eq!(replacement.index(), first.index());
-        table.with(second, |_| ()).unwrap();
+        unsafe { table.with(second, |_| ()) }.unwrap();
         drop(table);
         assert_eq!(drops.load(Ordering::Relaxed), 3);
     }
@@ -928,8 +864,8 @@ mod tests {
         let table = RecordingTable::new();
         let handle = table.insert(Cell::new(7));
         std::thread::scope(|scope| {
-            scope.spawn(|| table.with(handle, |value| value.set(9)).unwrap());
+            scope.spawn(|| unsafe { table.with(handle, |value| value.set(9)) }.unwrap());
         });
-        assert_eq!(table.remove(handle).unwrap().get(), 9);
+        assert_eq!(unsafe { table.remove(handle) }.unwrap().get(), 9);
     }
 }

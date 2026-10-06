@@ -60,7 +60,7 @@ impl DeviceCtx {
     }
 }
 
-/// Stable device registry; call-scoped pins prevent teardown during active uses.
+/// Stable device registry; callers order teardown after all context uses.
 pub(crate) static DEVICES: StableTable<DeviceCtx> = StableTable::new();
 
 /// Alco feature bits — numeric values mirror C# `GPUFeatures` exactly.
@@ -393,22 +393,20 @@ pub unsafe extern "C-unwind" fn alco_device_create(
     })
 }
 
-/// ABI: destroys an idle device. Stale handles fail with `INVALID_HANDLE`;
-/// active calls reject teardown with `INVALID_ARGUMENT` without consuming the handle.
+/// ABI: destroys a device after its final use. Stale handles fail with
+/// `INVALID_HANDLE`.
+///
+/// # Safety
+/// The caller must complete all calls using this device or its resources before
+/// teardown and must not start further uses. No device-context borrow may overlap
+/// destruction.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
         let ctx = match DEVICES.remove(device) {
             Ok(ctx) => ctx,
             Err(status) => {
-                set_error(
-                    status,
-                    if status == AlcoStatus::INVALID_ARGUMENT {
-                        "device has active calls"
-                    } else {
-                        "device handle is invalid or already destroyed"
-                    },
-                );
+                set_error(status, "device handle is invalid or already destroyed");
                 return status;
             }
         };
@@ -423,7 +421,8 @@ pub unsafe extern "C-unwind" fn alco_device_destroy(device: AlcoHandle) -> AlcoS
 /// ABI: fills static device info. Borrowed strings stay valid until destroy.
 ///
 /// # Safety
-/// `out` must be a valid `AlcoDeviceInfo` slot.
+/// `out` must be a valid `AlcoDeviceInfo` slot. Device teardown must not overlap
+/// this call or any use of the returned borrowed strings.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_device_get_info(
     device: AlcoHandle,
@@ -562,36 +561,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn vulkan_active_device_call_rejects_teardown_without_consuming_handle() {
+    fn vulkan_ordered_device_teardown_invalidates_handle() {
         let Some(device) = crate::test_support::TestDevice::new() else {
             return;
         };
-        DEVICES
-            .with(device.handle, |ctx| {
-                assert_eq!(
-                    unsafe { alco_device_destroy(device.handle) },
-                    AlcoStatus::INVALID_ARGUMENT
-                );
-                assert!(crate::test_support::last_error().contains("active calls"));
-                let mut info = AlcoDeviceInfo {
-                    backend: 0,
-                    adapter_name: std::ptr::null(),
-                    vendor: 0,
-                    device: 0,
-                    supported_features: 0,
-                    caps: 0,
-                    max_bind_groups: 0,
-                    max_immediate_size: 0,
-                    timestamp_period_ns: 0.0,
-                };
-                assert_eq!(
-                    unsafe { alco_device_get_info(device.handle, &mut info) },
-                    AlcoStatus::OK
-                );
-                assert_eq!(info.backend, ctx.backend);
-            })
-            .unwrap();
-        assert!(DEVICES.with(device.handle, |_| ()).is_ok());
+        let handle = device.handle;
+        let mut info = AlcoDeviceInfo {
+            backend: 0,
+            adapter_name: std::ptr::null(),
+            vendor: 0,
+            device: 0,
+            supported_features: 0,
+            caps: 0,
+            max_bind_groups: 0,
+            max_immediate_size: 0,
+            timestamp_period_ns: 0.0,
+        };
+        unsafe {
+            DEVICES
+                .with(handle, |ctx| {
+                    assert_eq!(alco_device_get_info(handle, &mut info), AlcoStatus::OK);
+                    assert_eq!(info.backend, ctx.backend);
+                    assert_eq!(std::ffi::CStr::from_ptr(info.adapter_name),
+                        ctx.adapter_name.as_c_str());
+                })
+                .unwrap();
+            assert_eq!(alco_device_poll(handle, ALCO_TRUE, u64::MAX, std::ptr::null_mut()),
+                AlcoStatus::OK);
+        }
+        // TestDevice drops only after the final borrow and ABI call have returned.
+        drop(device);
+        info.adapter_name = std::ptr::null();
+        unsafe {
+            assert!(matches!(DEVICES.with(handle, |_| ()), Err(AlcoStatus::INVALID_HANDLE)));
+            assert_eq!(alco_device_get_info(handle, &mut info), AlcoStatus::INVALID_HANDLE);
+            assert_eq!(alco_device_destroy(handle), AlcoStatus::INVALID_HANDLE);
+        }
     }
 
     #[test]

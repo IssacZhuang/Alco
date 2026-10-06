@@ -6,6 +6,11 @@
 //! appends the recorded pass to its parent encoder. `alco_queue_submit`
 //! consumes the command-buffer handle, mirroring the old backend's
 //! take-buffer-on-submit semantics.
+//!
+//! The caller keeps the device and referenced resources alive for each call and
+//! orders their use, finish/end and destruction. Each mutable recording object
+//! is caller-exclusive; different recording objects and resource lifecycles may
+//! run concurrently on the same device. Device teardown follows all such calls.
 
 use crate::abi::*;
 use crate::convert::*;
@@ -78,7 +83,11 @@ impl DeviceCtx {
 
 /// Runs a fallible body with the device context; the body reports failures as
 /// `Err(status)` (after recording a message), enabling `?` on lookups.
-pub(crate) fn run_with_device(
+///
+/// # Safety
+/// The caller must keep the device alive until `body` returns, including across
+/// nested calls. Device teardown must not overlap any context use.
+pub(crate) unsafe fn run_with_device(
     device: AlcoHandle,
     body: impl FnOnce(&DeviceCtx) -> Result<(), AlcoStatus>,
 ) -> AlcoStatus {
@@ -544,7 +553,11 @@ fn pass_channel_u32(
     })
 }
 
-/// ABI: ends a render pass, consuming the handle unless overlapping access is rejected.
+/// ABI: ends a render pass, consuming the handle even if core validation fails.
+///
+/// # Safety
+/// The caller must have exclusive access to the pass and keep the device alive
+/// until this call returns. All pass recording must complete before ending it.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_render_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
@@ -572,6 +585,11 @@ pub unsafe extern "C-unwind" fn alco_render_pass_end(device: AlcoHandle, pass: A
 macro_rules! render_pass_fn {
     ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
         $(#[$doc])*
+        ///
+        /// # Safety
+        /// The caller must have exclusive access to the pass, keep the device and
+        /// referenced resources alive, and order pass end after this call returns.
+        /// Pointer arguments must be valid for the accesses this call performs.
         #[no_mangle]
         pub unsafe extern "C-unwind" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
             crate::entry::guard(|| {
@@ -598,11 +616,7 @@ macro_rules! render_pass_fn {
 }
 
 fn recording_error(status: AlcoStatus, kind: &str) -> AlcoStatus {
-    if status == AlcoStatus::INVALID_ARGUMENT {
-        set_error(status, format!("concurrent access to {kind}"));
-    } else {
-        set_error(status, format!("invalid {kind} handle"));
-    }
+    set_error(status, format!("invalid {kind} handle"));
     status
 }
 
@@ -791,6 +805,11 @@ render_pass_fn!(
 );
 
 /// ABI: executes render bundles in the open pass.
+///
+/// # Safety
+/// `bundles` must identify `bundle_count` readable handles unless the count is
+/// zero. The caller must have exclusive access to the pass and keep the device
+/// and bundles alive until this call returns, before ending the pass.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_render_pass_execute_bundles(
     device: AlcoHandle,
@@ -914,7 +933,11 @@ pub unsafe extern "C-unwind" fn alco_compute_pass_begin(
     })
 }
 
-/// ABI: ends a compute pass, consuming the handle unless overlapping access is rejected.
+/// ABI: ends a compute pass, consuming the handle even if core validation fails.
+///
+/// # Safety
+/// The caller must have exclusive access to the pass and keep the device alive
+/// until this call returns. All pass recording must complete before ending it.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_compute_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
@@ -942,6 +965,11 @@ pub unsafe extern "C-unwind" fn alco_compute_pass_end(device: AlcoHandle, pass: 
 macro_rules! compute_pass_fn {
     ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
         $(#[$doc])*
+        ///
+        /// # Safety
+        /// The caller must have exclusive access to the pass, keep the device and
+        /// referenced resources alive, and order pass end after this call returns.
+        /// Pointer arguments must be valid for the accesses this call performs.
         #[no_mangle]
         pub unsafe extern "C-unwind" fn $name(device: AlcoHandle, pass: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
             crate::entry::guard(|| {
@@ -1556,7 +1584,11 @@ pub unsafe extern "C-unwind" fn alco_bundle_encoder_create(
     })
 }
 
-/// ABI: finishes a bundle encoder, consuming it unless overlapping access is rejected.
+/// ABI: finishes a bundle encoder, consuming it even if core validation fails.
+///
+/// # Safety
+/// `out` must point to a writable handle slot. The caller must have exclusive
+/// access to the bundle encoder and keep the device alive until this call returns.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_bundle_encoder_finish(
     device: AlcoHandle,
@@ -1598,7 +1630,11 @@ pub unsafe extern "C-unwind" fn alco_bundle_encoder_finish(
     })
 }
 
-/// ABI: destroys an unfinished bundle encoder; overlapping access leaves the handle intact.
+/// ABI: destroys an unfinished bundle encoder, consuming its handle.
+///
+/// # Safety
+/// The caller must complete all recording on this bundle encoder before
+/// destruction and keep the device alive until this call returns.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_bundle_encoder_destroy(
     device: AlcoHandle,
@@ -1647,6 +1683,11 @@ pub unsafe extern "C-unwind" fn alco_render_bundle_destroy(
 macro_rules! bundle_fn {
     ($(#[$doc:meta])* $name:ident($($arg:ident: $ty:ty),*) $body:expr) => {
         $(#[$doc])*
+        ///
+        /// # Safety
+        /// The caller must have exclusive access to the bundle encoder, keep the
+        /// device and referenced resources alive, and order finish/destruction
+        /// after this call returns. Pointer arguments must be valid for all accesses.
         #[no_mangle]
         pub unsafe extern "C-unwind" fn $name(device: AlcoHandle, bundle_encoder: AlcoHandle, $($arg: $ty),*) -> AlcoStatus {
             crate::entry::guard(|| {
@@ -1812,7 +1853,7 @@ mod tests {
     use crate::test_support::{last_error, TestDevice};
     use std::ptr;
 
-    fn registry_counts(device: AlcoHandle) -> (usize, usize, usize) {
+    unsafe fn registry_counts(device: AlcoHandle) -> (usize, usize, usize) {
         DEVICES.with(device, |ctx| {
             let report = ctx.global.generate_report().hub;
             assert_eq!(report.command_buffers.num_allocated,
@@ -1843,6 +1884,51 @@ mod tests {
         assert_eq!(alco_buffer_create(device, &desc, &mut handle), AlcoStatus::OK,
             "{}", last_error());
         handle
+    }
+
+    #[test]
+    fn vulkan_independent_recording_and_resource_lifetimes_run_concurrently() {
+        let Some(device) = TestDevice::new() else { return };
+        const WORKERS: usize = 4;
+        let start = std::sync::Barrier::new(WORKERS);
+        let handle = device.handle;
+        std::thread::scope(|scope| {
+            for _ in 0..WORKERS {
+                let start = &start;
+                scope.spawn(move || {
+                    start.wait();
+                    unsafe {
+                        for _ in 0..32 {
+                            let encoder = encoder(handle);
+                            let mut pass = AlcoHandle::NULL;
+                            assert_eq!(alco_compute_pass_begin(handle, encoder, ptr::null(), &mut pass),
+                                AlcoStatus::OK, "{}", last_error());
+                            for _ in 0..8 {
+                                let buffer = buffer(handle, 1 << 3);
+                                assert_eq!(alco_compute_pass_set_immediates(handle, pass, 0,
+                                    ptr::null(), 0), AlcoStatus::OK, "{}", last_error());
+                                assert_eq!(alco_buffer_destroy(handle, buffer), AlcoStatus::OK,
+                                    "{}", last_error());
+                            }
+                            assert_eq!(alco_compute_pass_end(handle, pass), AlcoStatus::OK,
+                                "{}", last_error());
+                            assert_eq!(alco_compute_pass_end(handle, pass), AlcoStatus::INVALID_HANDLE);
+                            // Discard the pass without requiring a compute pipeline or dispatch.
+                            assert_eq!(alco_encoder_destroy(handle, encoder), AlcoStatus::OK,
+                                "{}", last_error());
+                        }
+                    }
+                });
+            }
+        });
+        unsafe {
+            assert_eq!(registry_counts(handle), (0, 0, 0));
+            DEVICES.with(handle, |ctx| {
+                let report = ctx.global.generate_report().hub.buffers;
+                assert_eq!(report.num_allocated, 0, "{report:?}");
+                assert_eq!(report.num_kept_from_user, 0, "{report:?}");
+            }).unwrap();
+        }
     }
 
     #[test]
@@ -2056,11 +2142,11 @@ mod tests {
     #[test]
     fn vulkan_failed_encoder_creation_releases_core_registry_entries() {
         let Some(device) = TestDevice::new() else { return };
-        DEVICES.with(device.handle, |ctx| {
-            // Lose the core device while keeping the ABI context valid for retries.
-            ctx.global.device_destroy(ctx.device_id);
-        }).unwrap();
         unsafe {
+            DEVICES.with(device.handle, |ctx| {
+                // Lose the core device while keeping the ABI context valid for retries.
+                ctx.global.device_destroy(ctx.device_id);
+            }).unwrap();
             for _ in 0..32 {
                 let mut handle = AlcoHandle::NULL;
                 assert_eq!(alco_encoder_create(device.handle, ptr::null(), &mut handle),

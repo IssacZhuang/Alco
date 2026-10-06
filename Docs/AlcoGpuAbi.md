@@ -20,7 +20,7 @@ surfaces as a catchable `GraphicsException` instead of a process-killing panic.
 | Status | Every fallible export returns `AlcoStatus (u32)`; `0` = OK |
 | Errors | Synchronous failures write a thread-local last-error (`alco_get_last_error`) **and** fire the registered error callback, which throws at the native call site (see *Error callback*) |
 | Async events | Device-lost / validation / native warnings queue per device; drained via `alco_device_pop_message` (severity 0 error, 1 warning, 2 info) |
-| Handles | `AlcoHandle = u64` (`generation << 32 \| index`), one generational table per object type; stale / double-destroy returns `InvalidHandle`, never panics |
+| Handles | `AlcoHandle = u64` (`generation << 32 \| index`), one generational table per object type; sequential stale-handle use / double-destroy returns `InvalidHandle`, never panics |
 | Panics | Every export body is wrapped in `catch_unwind`; a panic becomes status `Panic` + message |
 | Structs | `#[repr(C)]` ↔ `[StructLayout(LayoutKind.Sequential)]`, mirrored field-by-field in `AlcoGpuStructs.cs` |
 | Bools | `u32` (`ALCO_TRUE = 1`) |
@@ -176,32 +176,37 @@ acquire status, not through size drift).
 
 ## Threading and ownership
 
-Device and mutable recording registries use stable segmented slots. Calls claim the
-slot's generation and access state atomically, without registry read locks or
-per-call `Arc` cloning. A shared device pin keeps the context alive through core
-operations, callbacks, and GPU waits; teardown rejects active calls without waiting
-or consuming the device handle. Recording slots are caller-exclusive. Allocation
-and vacant-slot reuse use a short allocator mutex; removed payloads are returned
-before cleanup, while slot storage stays allocated until registry teardown.
+Device and mutable recording registries use stable segmented slots. Generation and
+occupancy checks use atomic loads; slot publication and removal use atomic stores.
+Allocation and vacant-slot reuse use a short allocator mutex; removed payloads are
+returned before cleanup, while slot storage stays allocated until registry teardown.
+There is no per-call device pin or exclusive recording claim: these atomics publish
+slot state, not protection against overlapping use, end, or destruction.
 
-Immutable resource registries still use short shared read locks for snapshots or
-copy-only ID projections; these locks are released before core operations. Buffer
-ID lookups do not clone mapping state. Independent encoders, passes, and bundle
-encoders have no device-wide recording lock. The generation/index handle format
-and sequential stale-handle rejection are unchanged.
+Immutable resource registries still use short shared `RwLock` read locks for
+snapshots or copy-only ID projections; these locks are released before core
+operations. Buffer ID lookups do not clone mapping state. Different command buffers
+may be recorded in parallel, with no device-wide recording lock. Resource creation
+and destruction on different objects are safe to run concurrently, subject to the
+lifetime requirements below. The ABI representation, including the generation/index
+handle format, and sequential stale-handle rejection are unchanged.
 
 As with wgpu-native, callers must keep the device and every supplied resource alive
-until the call completes. Destroy/release, encoder finish, submission of the same
-command buffer, mapping/unmapping, and device teardown must be ordered against
-other uses of the affected object. Mapped pointers must not outlive unmap or buffer
-release; borrowed strings retain the lifetimes documented by their exports.
+until the call completes, including callbacks and GPU waits. Callers must serialize
+use, end/finish, submission, and destroy/release of the same mutable object, and
+order resource destruction against all uses of that resource. Device teardown must
+not overlap any active operation. Violating these requirements is unsupported;
+overlapping calls are not guaranteed to return `InvalidArgument` or leave a handle
+intact. Mapped pointers must not outlive unmap or buffer release; borrowed strings
+retain the lifetimes documented by their exports. Error handling and managed GC
+lifetime guards remain unchanged and do not enforce caller synchronization.
 
-Each render/compute pass and bundle encoder has caller-exclusive mutable state.
-A nonblocking atomic claim rejects overlapping recording/end calls with
-`InvalidArgument`, leaving an unsuccessfully consumed handle intact. Independent
-objects do not wait on one another. Surface configuration/acquisition/presentation
-metadata uses a per-surface mutex; map completion state uses a buffer-local mutex,
-separate from ordinary buffer uploads and command recording.
+Surface configuration/acquisition/presentation metadata still uses a per-surface
+mutex; map completion state uses a buffer-local mutex, separate from ordinary
+buffer uploads and command recording. These internal locks and the independent
+resource/recording contract do not imply a general concurrency guarantee for queue
+operations (including initial-data uploads), readbacks, mapping/unmapping, polling,
+or surface operations; follow their operation-specific synchronization requirements.
 
 **wgpu-core 30.0.1 still has a texture-upload/submission lock-order inversion.**
 `Queue::write_texture` holds the texture initialization write lock while acquiring
@@ -244,9 +249,9 @@ TextureBinding=1<<2, StorageBinding=1<<3, ColorAttachment=1<<4, DepthAttachment=
 
 ## Error containment
 
-Double-destroy and use-after-destroy of any object throw `GraphicsException`
-("invalid handle") from the native call via the error callback (verified by
-`DoubleDestroyThrowsInvalidHandleAndKeepsProcessAlive` /
+Sequential double-destroy and stale-handle use-after-destroy of any object throw
+`GraphicsException` ("invalid handle") from the native call via the error callback
+(verified by `DoubleDestroyThrowsInvalidHandleAndKeepsProcessAlive` /
 `DoubleDestroyThrowsInvalidHandleInsteadOfCrashing`); the device remains usable
 afterwards. This is the core reason the layer exists: the same scenario under
 wgpu-native aborted the process.

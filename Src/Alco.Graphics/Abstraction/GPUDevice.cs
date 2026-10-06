@@ -3,9 +3,14 @@ using System.Runtime.CompilerServices;
 namespace Alco.Graphics;
 
 /// <summary>
-/// The low-level interface to do the operations on the GPU. It is the entry point to create the GPU resources and submit the commands to the GPU.
-/// <br/> !Attention: The GPUDevice is not thread-safe, it should only be used in the main thread or use the synchronization mechanism to protect the access.
-/// </summary> 
+/// Provides low-level GPU resource creation and command submission.
+/// Creation and destruction of independent resources may run concurrently, and different command buffers
+/// may be recorded in parallel. Callers must keep the device and all supplied resources alive until each
+/// operation completes, serialize use, end, and destruction of the same mutable object, and ensure device
+/// teardown never overlaps active operations. This is not a blanket thread-safety guarantee for queue
+/// operations (including initial-data uploads), readbacks, mapping, polling, or surface operations;
+/// follow their individual thread and synchronization requirements.
+/// </summary>
 public abstract class GPUDevice
 {
     private struct DeferredDisposalItem

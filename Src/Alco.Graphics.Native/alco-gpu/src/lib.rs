@@ -2,8 +2,8 @@
 //! Alco engine. See `Docs/AlcoGpuAbi.md` and `abi.rs` for the ABI contract.
 //!
 //! Every exported entry point is panic-guarded (see `entry.rs`) and objects are
-//! addressed through generational handles (see `handle.rs`) so misuse from C#
-//! surfaces as `AlcoStatus` + message rather than a process abort.
+//! addressed through generational handles (see `handle.rs`). Sequential stale
+//! handles return `AlcoStatus`; callers order lifetimes and mutable object access.
 
 pub mod abi;
 pub(crate) mod commands;

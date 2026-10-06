@@ -397,6 +397,107 @@ public sealed class AlcoGpuIntegrationTests
         RunConcurrentRecordingAndUploads(independentDevices, useBundles: true);
     }
 
+    /// <summary>
+    /// Creates and destroys independent resources concurrently on one device and validates worker-local buffer copies.
+    /// </summary>
+    [Test]
+    public void ConcurrentResourceCreationAndDestructionPreservesBufferCopies()
+    {
+        const int workerCount = 2;
+        const int iterations = 32;
+        const uint bufferSize = 256;
+        var ownedResources = new List<BaseGPUObject>[workerCount];
+        var outputs = new GPUBuffer[workerCount];
+        var expected = new byte[workerCount][];
+        var workers = new Action<Barrier, CancellationToken>[workerCount];
+        var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host);
+
+        for (int worker = 0; worker < workerCount; worker++)
+        {
+            int index = worker;
+            ownedResources[index] = new List<BaseGPUObject>();
+            expected[index] = new byte[bufferSize];
+            for (int element = 0; element < expected[index].Length; element++)
+            {
+                expected[index][element] = (byte)(index * 37 + element);
+            }
+            workers[index] = (start, cancellation) =>
+            {
+                T Own<T>(T resource) where T : BaseGPUObject
+                {
+                    // Each list is written by its worker only and cleaned up after all workers exit.
+                    ownedResources[index].Add(resource);
+                    return resource;
+                }
+
+                for (int iteration = 0; iteration < iterations; iteration++)
+                {
+                    WaitForConcurrentRound(start, cancellation);
+                    GPUBuffer source = Own(device.CreateBuffer(new BufferDescriptor(bufferSize,
+                        BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.CopySrc)));
+                    GPUBuffer destination = Own(device.CreateBuffer(new BufferDescriptor(bufferSize,
+                        BufferUsage.CopyDst | BufferUsage.CopySrc)));
+                    GPUBindGroup layout = Own(device.CreateBindGroup(new BindGroupDescriptor(
+                        new[] { new BindGroupEntry(0, ShaderStage.Compute, BindingType.UniformBuffer) })));
+                    GPUCommandBuffer commands = Own(device.CreateCommandBuffer());
+                    bool submit = iteration == iterations - 1;
+                    if (submit)
+                    {
+                        device.WriteBuffer(source, expected[index]);
+                    }
+                    commands.Begin();
+                    commands.CopyBuffer(source, destination);
+                    commands.End();
+                    WaitForConcurrentRound(start, cancellation);
+
+                    if (submit)
+                    {
+                        // Keep submitted resources alive; managed submission preserves core's upload guard.
+                        device.Submit(commands);
+                        outputs[index] = destination;
+                    }
+                    commands.Destroy();
+                    layout.Destroy();
+                    if (!submit)
+                    {
+                        // Dispose defers native release, so use Destroy to exercise registry removal here.
+                        destination.Destroy();
+                        source.Destroy();
+                    }
+                }
+            };
+        }
+
+        RunConcurrentWorkers(workers, () =>
+        {
+            // Readbacks use shared staging state and are deliberately serialized after the join.
+            for (int worker = 0; worker < workerCount; worker++)
+            {
+                byte[] readback = new byte[bufferSize];
+                device.ReadBuffer(outputs[worker], readback);
+                Assert.That(readback, Is.EqualTo(expected[worker]), $"Worker {worker}, buffer copy");
+            }
+        }, () =>
+        {
+            try
+            {
+                for (int worker = 0; worker < workerCount; worker++)
+                {
+                    for (int resource = ownedResources[worker].Count - 1; resource >= 0; resource--)
+                    {
+                        ownedResources[worker][resource].Destroy();
+                    }
+                }
+            }
+            finally
+            {
+                // The helper also defers this cleanup on timeout until native-blocked workers exit.
+                host.Dispose();
+            }
+        });
+    }
+
     private static unsafe void RunConcurrentRecordingAndUploads(bool independentDevices, bool useBundles)
     {
         const int recordingWorkers = 2;
