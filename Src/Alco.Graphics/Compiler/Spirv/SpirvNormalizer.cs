@@ -25,17 +25,6 @@ namespace Alco.Graphics;
 /// </summary>
 public static class SpirvNormalizer
 {
-    private const uint Magic = 0x0723_0203;
-    private const ushort OpTypeInt = 21;
-    private const ushort OpFunction = 54;
-    private const ushort OpFunctionEnd = 56;
-    private const ushort OpLoopMerge = 246;
-    private const ushort OpSelectionMerge = 247;
-    private const ushort OpLabel = 248;
-    private const ushort OpBranch = 249;
-    private const ushort OpBranchConditional = 250;
-    private const ushort OpSwitch = 251;
-
     /// <summary>
     /// Removes redundant default-only switch wrappers inside loops; returns
     /// the normalized bytes (the input reference itself when nothing changed).
@@ -57,7 +46,7 @@ public static class SpirvNormalizer
     /// </exception>
     public static byte[] Normalize(byte[] spirv, out int wrappersRemoved)
     {
-        uint[] words = ToWords(spirv);
+        uint[] words = SpirvCodec.BytesToWords(spirv);
         uint[] output = words;
         int total = 0;
         // First erase wrappers without restructuring. Later passes can then
@@ -77,23 +66,19 @@ public static class SpirvNormalizer
         }
         NormalizePass(output, true, true, out _);
         wrappersRemoved = total;
-        return total == 0 ? spirv : ToBytes(output);
+        return total == 0 ? spirv : SpirvCodec.WordsToBytes(output);
     }
 
     /// <summary>Decodes one SPIR-V instruction header at the given word offset.</summary>
-    private static Instruction DecodeInstruction(uint[] words, int offset)
+    private static SpirvInstruction DecodeInstruction(uint[] words, int offset)
     {
         if (offset >= words.Length)
         {
             throw Fail("truncated SPIR-V instruction");
         }
-        uint word = words[offset];
-        int count = (int)(word >> 16);
-        if (count == 0 || count > words.Length - offset)
-        {
-            throw Fail("invalid SPIR-V instruction word count");
-        }
-        return new Instruction(offset, count, (ushort)word);
+        return SpirvCodec.TryDecodeInstruction(words, offset, out SpirvInstruction instruction)
+            ? instruction
+            : throw Fail("invalid SPIR-V instruction word count");
     }
 
     private static ShaderCompilationException Fail(string message) => new(message);
@@ -287,7 +272,7 @@ public static class SpirvNormalizer
         {
             Block block = blocks[predecessor];
             if (!region[predecessor]
-                || block.Terminator != OpBranch
+                || block.Terminator != SpirvOp.Branch
                 || block.Successors.Count != 1
                 || block.Successors[0] != mergeLabel)
             {
@@ -337,7 +322,7 @@ public static class SpirvNormalizer
                     if (!allowTailSelections
                         || blocks[merge].HasPhi
                         || value.Continuing != null
-                        || blocks[nested].Terminator != OpBranchConditional
+                        || blocks[nested].Terminator != SpirvOp.BranchConditional
                         || !region[value.Merge]
                         || blocks[value.Merge].HasPhi
                         || !ContainsBit(dom[value.Merge], nested))
@@ -419,7 +404,7 @@ public static class SpirvNormalizer
                     continue;
                 }
                 // Do not expand through a genuine switch or a loop boundary.
-                if (value.Continuing != null || blocks[ancestor].Terminator != OpBranchConditional)
+                if (value.Continuing != null || blocks[ancestor].Terminator != SpirvOp.BranchConditional)
                 {
                     return null;
                 }
@@ -449,7 +434,7 @@ public static class SpirvNormalizer
                 }
                 foreach (int predecessor in blocks[destination].Predecessors)
                 {
-                    if (ContainsBit(dom[predecessor], nested) && blocks[predecessor].Terminator != OpBranch)
+                    if (ContainsBit(dom[predecessor], nested) && blocks[predecessor].Terminator != SpirvOp.Branch)
                     {
                         return null;
                     }
@@ -546,7 +531,7 @@ public static class SpirvNormalizer
 
     /// <summary>CFG construction and the per-function rewrite plan for all wrappers.</summary>
     private static Rewrites FunctionRewrites(
-        uint[] words, Instruction[] instructions, Dictionary<uint, uint> integerWidths,
+        uint[] words, SpirvInstruction[] instructions, Dictionary<uint, uint> integerWidths,
         bool allowTailSelections, bool checkHazards, ref uint nextId)
     {
         List<Block> blocks = [];
@@ -554,14 +539,14 @@ public static class SpirvNormalizer
         List<(uint Merge, uint? Continuing)?> merges = [];
         for (int position = 0; position < instructions.Length; position++)
         {
-            Instruction inst = instructions[position];
-            if (inst.Op == OpLabel)
+            SpirvInstruction inst = instructions[position];
+            if (inst.Op == SpirvOp.Label)
             {
-                if (inst.Count != 2 || indices.ContainsKey(words[inst.Offset + 1]))
+                if (inst.WordCount != 2 || indices.ContainsKey(words[inst.Offset + 1]))
                 {
                     throw Fail("invalid or duplicate SPIR-V block label");
                 }
-                if (blocks.Count > 0 && blocks[^1].Terminator == 0)
+                if (blocks.Count > 0 && blocks[^1].Terminator == default)
                 {
                     throw Fail("SPIR-V block has no terminator");
                 }
@@ -575,40 +560,40 @@ public static class SpirvNormalizer
                 continue;
             }
             Block block = blocks[^1];
-            if (inst.Op is not (OpBranch or 0 or 8 or 317))
+            if (inst.Op is not (SpirvOp.Branch or SpirvOp.Nop or SpirvOp.Line or SpirvOp.NoLine))
             {
                 block.BranchOnly = false;
             }
-            if (inst.Op == 245)
+            if (inst.Op == SpirvOp.Phi)
             {
                 block.HasPhi = true;
             }
-            if (inst.Op == OpLoopMerge || inst.Op == OpSelectionMerge)
+            if (inst.Op == SpirvOp.LoopMerge || inst.Op == SpirvOp.SelectionMerge)
             {
                 block.MergeOffset = inst.Offset;
-                if (inst.Count < (inst.Op == OpLoopMerge ? 4 : 3) || merges[^1] != null)
+                if (inst.WordCount < (inst.Op == SpirvOp.LoopMerge ? 4 : 3) || merges[^1] != null)
                 {
                     throw Fail("invalid SPIR-V merge instruction");
                 }
-                merges[^1] = (words[inst.Offset + 1], inst.Op == OpLoopMerge ? words[inst.Offset + 2] : null);
+                merges[^1] = (words[inst.Offset + 1], inst.Op == SpirvOp.LoopMerge ? words[inst.Offset + 2] : null);
             }
             switch (inst.Op)
             {
-                case OpBranch when inst.Count == 2:
+                case SpirvOp.Branch when inst.WordCount == 2:
                     block.Successors.Add(words[inst.Offset + 1]);
                     break;
-                case OpBranchConditional when inst.Count >= 4:
+                case SpirvOp.BranchConditional when inst.WordCount >= 4:
                     block.Successors.Add(words[inst.Offset + 2]);
                     block.Successors.Add(words[inst.Offset + 3]);
                     break;
-                case OpSwitch when inst.Count >= 3:
+                case SpirvOp.Switch when inst.WordCount >= 3:
                     block.Successors.Add(words[inst.Offset + 2]);
-                    if (inst.Count == 3)
+                    if (inst.WordCount == 3)
                     {
                         if (position > 0)
                         {
-                            Instruction previous = instructions[position - 1];
-                            if (previous.Op == OpSelectionMerge && previous.Count == 3)
+                            SpirvInstruction previous = instructions[position - 1];
+                            if (previous.Op == SpirvOp.SelectionMerge && previous.WordCount == 3)
                             {
                                 block.Candidate = (previous.Offset, inst.Offset, words[inst.Offset + 2]);
                             }
@@ -621,29 +606,31 @@ public static class SpirvNormalizer
                             throw Fail("unknown SPIR-V switch selector width");
                         }
                         int stride = width == 64 ? 3 : 2;
-                        if ((inst.Count - 3) % stride != 0)
+                        if ((inst.WordCount - 3) % stride != 0)
                         {
                             throw Fail("invalid SPIR-V switch cases");
                         }
-                        for (int start = inst.Offset + 3; start + stride <= inst.Offset + inst.Count; start += stride)
+                        for (int start = inst.Offset + 3; start + stride <= inst.Offset + inst.WordCount; start += stride)
                         {
                             block.Successors.Add(words[start + stride - 1]);
                         }
                     }
                     break;
-                case 252 or 253 or 254 or 255 or 4416 or 4448 or 4449 or 5294:
+                case SpirvOp.Kill or SpirvOp.Return or SpirvOp.ReturnValue or SpirvOp.Unreachable
+                    or SpirvOp.TerminateInvocation or SpirvOp.IgnoreIntersectionKHR
+                    or SpirvOp.TerminateRayKHR or SpirvOp.EmitMeshTasksEXT:
                     break;
                 default:
                     continue;
             }
-            if (block.Terminator != 0)
+            if (block.Terminator != default)
             {
                 throw Fail("multiple SPIR-V block terminators");
             }
             block.Terminator = inst.Op;
             block.TerminatorOffset = inst.Offset;
         }
-        if (blocks.Count == 0 || blocks[^1].Terminator == 0)
+        if (blocks.Count == 0 || blocks[^1].Terminator == default)
         {
             throw Fail("SPIR-V function has no terminated block");
         }
@@ -875,23 +862,23 @@ public static class SpirvNormalizer
     /// <summary>One module-level pass; returns the wrapper count and the rewritten words.</summary>
     private static int NormalizePass(uint[] words, bool allowTailSelections, bool checkHazards, out uint[] output)
     {
-        if (words.Length < 5 || words[0] != Magic)
+        if (words.Length < 5 || words[0] != SpirvCodec.Magic)
         {
             throw Fail("invalid SPIR-V header");
         }
         int offset = 5;
-        Instruction previous = default;
+        SpirvInstruction previous = default;
         bool hasPrevious = false;
         bool hasCandidate = false;
         while (offset < words.Length)
         {
-            Instruction inst = DecodeInstruction(words, offset);
-            hasCandidate |= inst.Op == OpSwitch
-                && inst.Count == 3
+            SpirvInstruction inst = DecodeInstruction(words, offset);
+            hasCandidate |= inst.Op == SpirvOp.Switch
+                && inst.WordCount == 3
                 && hasPrevious
-                && previous.Op == OpSelectionMerge
-                && previous.Count == 3;
-            offset += inst.Count;
+                && previous.Op == SpirvOp.SelectionMerge
+                && previous.WordCount == 3;
+            offset += inst.WordCount;
             previous = inst;
             hasPrevious = true;
         }
@@ -901,18 +888,18 @@ public static class SpirvNormalizer
             return 0;
         }
 
-        List<Instruction> instructions = [];
+        List<SpirvInstruction> instructions = [];
         offset = 5;
         while (offset < words.Length)
         {
-            Instruction inst = DecodeInstruction(words, offset);
-            offset += inst.Count;
+            SpirvInstruction inst = DecodeInstruction(words, offset);
+            offset += inst.WordCount;
             instructions.Add(inst);
         }
         Dictionary<uint, uint> integerTypes = [];
-        foreach (Instruction inst in instructions)
+        foreach (SpirvInstruction inst in instructions)
         {
-            if (inst.Op == OpTypeInt && inst.Count == 4)
+            if (inst.Op == SpirvOp.TypeInt && inst.WordCount == 4)
             {
                 integerTypes[words[inst.Offset + 1]] = words[inst.Offset + 2];
             }
@@ -922,10 +909,10 @@ public static class SpirvNormalizer
         List<(int Start, int End)> functions = [];
         for (int index = 0; index < instructions.Count; index++)
         {
-            Instruction inst = instructions[index];
-            if (inst.Op == OpFunction)
+            SpirvInstruction inst = instructions[index];
+            if (inst.Op == SpirvOp.Function)
             {
-                if (inst.Count != 5 || functionStart != null)
+                if (inst.WordCount != 5 || functionStart != null)
                 {
                     throw Fail("invalid SPIR-V function start");
                 }
@@ -934,15 +921,17 @@ public static class SpirvNormalizer
             // In valid SPIR-V, an integer type ID in the first operand of a
             // function instruction identifies a typed result. Global constants
             // are the other possible integer switch selectors.
-            if (inst.Count >= 3
-                && (functionStart != null || inst.Op == 1 || (inst.Op >= 41 && inst.Op <= 52)))
+            if (inst.WordCount >= 3
+                && (functionStart != null
+                    || inst.Op == SpirvOp.Undef
+                    || ((uint)inst.Op >= 41 && (uint)inst.Op <= 52)))
             {
                 if (integerTypes.TryGetValue(words[inst.Offset + 1], out uint width))
                 {
                     integerWidths[words[inst.Offset + 2]] = width;
                 }
             }
-            if (inst.Op == OpFunctionEnd)
+            if (inst.Op == SpirvOp.FunctionEnd)
             {
                 if (functionStart is not int start)
                 {
@@ -963,10 +952,10 @@ public static class SpirvNormalizer
             bool adjacent = false;
             for (int i = start; i + 1 < end; i++)
             {
-                if (instructions[i].Op == OpSelectionMerge
-                    && instructions[i].Count == 3
-                    && instructions[i + 1].Op == OpSwitch
-                    && instructions[i + 1].Count == 3)
+                if (instructions[i].Op == SpirvOp.SelectionMerge
+                    && instructions[i].WordCount == 3
+                    && instructions[i + 1].Op == SpirvOp.Switch
+                    && instructions[i + 1].WordCount == 3)
                 {
                     adjacent = true;
                     break;
@@ -976,7 +965,7 @@ public static class SpirvNormalizer
             {
                 continue;
             }
-            Instruction[] body = new Instruction[end - start];
+            SpirvInstruction[] body = new SpirvInstruction[end - start];
             for (int i = start; i < end; i++)
             {
                 body[i - start] = instructions[i];
@@ -1017,9 +1006,9 @@ public static class SpirvNormalizer
             {
                 foreach ((uint label, uint target) in inserted)
                 {
-                    rewritten.Add((2u << 16) | OpLabel);
+                    rewritten.Add((2u << 16) | (uint)SpirvOp.Label);
                     rewritten.Add(label);
-                    rewritten.Add((2u << 16) | OpBranch);
+                    rewritten.Add((2u << 16) | (uint)SpirvOp.Branch);
                     rewritten.Add(target);
                 }
             }
@@ -1028,58 +1017,23 @@ public static class SpirvNormalizer
                 (int mergeOffset, int switchOffset, uint defaultTarget) = rewrites.Wrappers[wrapperIndex];
                 if (offset == mergeOffset)
                 {
-                    rewritten.Add((2u << 16) | OpBranch);
+                    rewritten.Add((2u << 16) | (uint)SpirvOp.Branch);
                     rewritten.Add(defaultTarget);
                     offset = switchOffset + 3;
                     wrapperIndex++;
                     continue;
                 }
             }
-            Instruction inst = DecodeInstruction(words, offset);
-            for (int index = 0; index < inst.Count; index++)
+            SpirvInstruction inst = DecodeInstruction(words, offset);
+            for (int index = 0; index < inst.WordCount; index++)
             {
                 int wordOffset = offset + index;
                 rewritten.Add(operands.TryGetValue(wordOffset, out uint word) ? word : words[wordOffset]);
             }
-            offset += inst.Count;
+            offset += inst.WordCount;
         }
         output = rewritten.ToArray();
         return rewrites.Wrappers.Count;
-    }
-
-    /// <summary>Decodes little-endian bytes to words, dropping an incomplete trailing word.</summary>
-    private static uint[] ToWords(byte[] bytes)
-    {
-        uint[] words = new uint[bytes.Length / 4];
-        for (int i = 0; i < words.Length; i++)
-        {
-            int b = i * 4;
-            words[i] = (uint)(bytes[b] | (bytes[b + 1] << 8) | (bytes[b + 2] << 16) | (bytes[b + 3] << 24));
-        }
-        return words;
-    }
-
-    /// <summary>Encodes words back to little-endian bytes.</summary>
-    private static byte[] ToBytes(uint[] words)
-    {
-        byte[] bytes = new byte[words.Length * 4];
-        for (int i = 0; i < words.Length; i++)
-        {
-            uint word = words[i];
-            int b = i * 4;
-            bytes[b] = (byte)word;
-            bytes[b + 1] = (byte)(word >> 8);
-            bytes[b + 2] = (byte)(word >> 16);
-            bytes[b + 3] = (byte)(word >> 24);
-        }
-        return bytes;
-    }
-
-    private readonly struct Instruction(int offset, int count, ushort op)
-    {
-        public readonly int Offset = offset;
-        public readonly int Count = count;
-        public readonly ushort Op = op;
     }
 
     private readonly struct Construct(int merge, int? continuing)
@@ -1094,7 +1048,7 @@ public static class SpirvNormalizer
         public List<uint> Successors { get; } = [];
         public List<int> Predecessors { get; } = [];
         public Construct? Construct { get; set; }
-        public ushort Terminator { get; set; }
+        public SpirvOp Terminator { get; set; }
         public int TerminatorOffset { get; set; }
         public int LabelOffset { get; init; }
         public int? MergeOffset { get; set; }
