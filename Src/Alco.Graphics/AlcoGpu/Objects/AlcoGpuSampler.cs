@@ -58,15 +58,15 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
             {
                 AlcoGPU.SamplerDesc desc = new()
                 {
-                    AddressU = (uint)descriptor.AddressModeU,
-                    AddressV = (uint)descriptor.AddressModeV,
-                    AddressW = (uint)descriptor.AddressModeW,
-                    MagFilter = (uint)descriptor.MagFilter,
-                    MinFilter = (uint)descriptor.MinFilter,
-                    MipmapFilter = (uint)descriptor.MipFilter,
+                    AddressU = descriptor.AddressModeU,
+                    AddressV = descriptor.AddressModeV,
+                    AddressW = descriptor.AddressModeW,
+                    MagFilter = descriptor.MagFilter,
+                    MinFilter = descriptor.MinFilter,
+                    MipmapFilter = descriptor.MipFilter,
                     LodMinClamp = descriptor.LodMinClamp,
                     LodMaxClamp = descriptor.LodMaxClamp,
-                    Compare = (uint)descriptor.Compare,
+                    Compare = descriptor.Compare,
                     MaxAnisotropy = descriptor.MaxAnisotropy,
                     Name = ptrName,
                 };

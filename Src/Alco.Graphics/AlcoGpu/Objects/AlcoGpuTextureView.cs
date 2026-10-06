@@ -82,12 +82,12 @@ internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
             {
                 AlcoGPU.TextureViewDesc desc = new()
                 {
-                    Dimension = (uint)descriptor.Dimension,
+                    Dimension = descriptor.Dimension,
                     BaseMipLevel = descriptor.BaseMipLevel,
                     MipLevelCount = descriptor.MipLevelCount,
                     BaseArrayLayer = descriptor.BaseArrayLayer,
                     ArrayLayerCount = descriptor.ArrayLayerCount,
-                    Aspect = (uint)descriptor.Aspect,
+                    Aspect = descriptor.Aspect,
                     // 0 (Undefined) inherits the texture format natively.
                     Format = 0,
                     Name = ptrName,

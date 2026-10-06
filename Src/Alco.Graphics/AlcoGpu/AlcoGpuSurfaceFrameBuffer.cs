@@ -199,7 +199,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
                 _depthAttachment = null;
 
                 _colorTextures = new AlcoGpuSurfaceTexture[1];
-                AlcoGpuSurfaceTexture surfaceTexture = new AlcoGpuSurfaceTexture(this, device, _surface, (PixelFormat)config.Format, (TextureUsage)config.Usage);
+                AlcoGpuSurfaceTexture surfaceTexture = new AlcoGpuSurfaceTexture(this, device, _surface, config.Format, config.Usage);
                 _colorTextures[0] = surfaceTexture;
 
                 ColorAttachmentInfo colorInfo = attachmentLayout.ColorInfos[0];

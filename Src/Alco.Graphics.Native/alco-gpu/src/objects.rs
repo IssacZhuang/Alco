@@ -54,7 +54,7 @@ pub struct TextureObj {
     pub depth_or_array_layers: u32,
     /// Number of mip levels.
     pub mip_level_count: u32,
-    /// C# pixel-format value.
+    /// Pixel-format value.
     pub format: u32,
     /// Whether this acquired texture must be released instead of destroyed.
     pub is_surface_texture: bool,
@@ -246,25 +246,25 @@ macro_rules! object_ref {
 // ABI descriptor structs
 // ---------------------------------------------------------------------------
 
-/// C# `BufferDescriptor`.
+/// Buffer creation descriptor.
 #[repr(C)]
 pub struct BufferDesc {
     /// Buffer allocation size in bytes.
     pub size: u64,
-    /// C# `BufferUsage` bits.
+    /// Buffer usage bits.
     pub usage: u32,
     /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
-/// C# `TextureDescriptor`.
+/// Texture creation descriptor.
 #[repr(C)]
 pub struct TextureDesc {
-    /// C# texture or view dimension discriminant.
+    /// Texture or view dimension discriminant.
     pub dimension: u32,
-    /// C# pixel-format discriminant.
+    /// Pixel-format discriminant.
     pub format: u32,
-    /// C# `TextureUsage` bits.
+    /// Texture usage bits.
     pub usage: u32,
     /// Width in texels.
     pub width: u32,
@@ -291,14 +291,14 @@ pub struct TextureInfo {
     pub depth_or_array_layers: u32,
     /// Number of mip levels in the texture.
     pub mip_level_count: u32,
-    /// C# pixel-format discriminant.
+    /// Pixel-format discriminant.
     pub format: u32,
 }
 
-/// C# `TextureViewDescriptor`.
+/// Texture view creation descriptor.
 #[repr(C)]
 pub struct TextureViewDesc {
-    /// C# texture or view dimension discriminant.
+    /// Texture or view dimension discriminant.
     pub dimension: u32,
     /// First mip level included in the view.
     pub base_mip_level: u32,
@@ -308,48 +308,39 @@ pub struct TextureViewDesc {
     pub base_array_layer: u32,
     /// Number of array layers; zero selects the remaining range.
     pub array_layer_count: u32,
-    /// C# texture-aspect discriminant.
+    /// Texture aspect discriminant.
     pub aspect: u32,
-    /// C# pixel-format discriminant.
+    /// Pixel-format discriminant.
     pub format: u32,
     /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
 }
 
-/// C# `SamplerDescriptor`.
+/// Sampler creation descriptor.
 #[repr(C)]
 pub struct SamplerDesc {
-    /// C# minification filter discriminant.
+    /// Minification filter discriminant.
     pub min_filter: u32,
-    /// C# magnification filter discriminant.
+    /// Magnification filter discriminant.
     pub mag_filter: u32,
-    /// C# mipmap filter discriminant.
+    /// Mipmap filter discriminant.
     pub mipmap_filter: u32,
-    /// C# address mode for the U coordinate.
+    /// Address mode for the U coordinate.
     pub address_u: u32,
-    /// C# address mode for the V coordinate.
+    /// Address mode for the V coordinate.
     pub address_v: u32,
-    /// C# address mode for the W coordinate.
+    /// Address mode for the W coordinate.
     pub address_w: u32,
     /// Minimum sampled level of detail.
     pub lod_min_clamp: f32,
     /// Maximum sampled level of detail.
     pub lod_max_clamp: f32,
-    /// C# comparison function; zero disables comparison sampling.
+    /// Comparison function; zero disables comparison sampling.
     pub compare: u32,
     /// Maximum anisotropy; values below one are clamped to one.
     pub max_anisotropy: u16,
     /// Optional NUL-terminated UTF-8 debug name borrowed for the call.
     pub name: *const c_char,
-}
-
-/// C# `ShaderLanguage`: 2 SpirV, 3 Wgsl, 4 Dxil, 5 Msl, 6 MetalLib.
-pub mod shader_language {
-    pub const SPIRV: u32 = 2;
-    pub const WGSL: u32 = 3;
-    pub const DXIL: u32 = 4;
-    pub const MSL: u32 = 5;
-    pub const METALLIB: u32 = 6;
 }
 
 /// Flag bits of `ShaderModuleDesc::flags`; unknown bits are ignored.
@@ -359,10 +350,10 @@ pub mod shader_module_flags {
     pub const SPIRV_ADJUSTED_COORDINATES: u32 = 1 << 0;
 }
 
-/// C# `ShaderModule` (bytes + entry point + workgroup size).
+/// Shader module (bytes + entry point + workgroup size).
 #[repr(C)]
 pub struct ShaderModuleDesc {
-    /// Shader-language discriminant from shader_language.
+    /// `ShaderLanguage` discriminant.
     pub language: u32,
     /// Call-scoped pointer to shader source bytes.
     pub data: *const u8,
@@ -382,24 +373,24 @@ pub struct ShaderModuleDesc {
     pub flags: u32,
 }
 
-/// One entry of C# `BindGroupDescriptor.Bindings`.
+/// One bind-group entry descriptor.
 #[repr(C)]
 pub struct BindGroupLayoutEntry {
     /// Shader binding index.
     pub binding: u32,
-    /// C# `ShaderStage` bits.
+    /// Shader stage visibility bits.
     pub visibility: u32,
-    /// C# `BindingType` value.
+    /// `BindingType` value.
     pub ty: u32,
     /// For sampler bindings: 0 filtering, 1 non-filtering, 2 comparison.
     pub sampler_kind: u32,
-    /// For texture bindings: C# `TextureSampleType`.
+    /// For texture bindings: `TextureSampleType`.
     pub texture_sample_type: u32,
-    /// For texture/storage bindings: C# `TextureViewDimension`.
+    /// For texture/storage bindings: `TextureViewDimension`.
     pub view_dimension: u32,
-    /// For storage textures: C# `AccessMode` bits (1 read, 2 write).
+    /// For storage textures: `AccessMode` value (1 read, 2 write).
     pub storage_access: u32,
-    /// For storage textures: C# `PixelFormat`.
+    /// For storage textures: `PixelFormat`.
     pub storage_format: u32,
 }
 
@@ -414,7 +405,7 @@ pub struct BindGroupLayoutDesc {
     pub name: *const c_char,
 }
 
-/// One entry of C# `ResourceGroupDescriptor.Resources`.
+/// One bind-group resource entry.
 #[repr(C)]
 pub struct BindGroupEntry {
     /// Shader binding index.
@@ -841,7 +832,7 @@ pub unsafe extern "C-unwind" fn texture_create_view(
                     Ok(v) => v,
                     Err(s) => return s,
                 };
-                // Format 0 (C# Undefined) inherits the texture format.
+                // Format `PixelFormat::Undefined` inherits the texture format.
                 let format = match d.format {
                     0 => None,
                     v => match pixel_format(v) {
@@ -1062,11 +1053,21 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
         let module_label = label(desc.name);
         let workgroup = [desc.workgroup_x, desc.workgroup_y, desc.workgroup_z];
 
+        let language = match ShaderLanguage::try_from(desc.language) {
+            Ok(l) => l,
+            Err(v) => {
+                set_error(
+                    Status::INVALID_ARGUMENT,
+                    format!("unsupported shader language {v}"),
+                );
+                return Status::INVALID_ARGUMENT;
+            }
+        };
         let (id, err): (
             wgc::id::ShaderModuleId,
             Option<Box<dyn std::error::Error + Send + Sync>>,
-        ) = match desc.language {
-            shader_language::SPIRV => {
+        ) = match language {
+            ShaderLanguage::SPIRV => {
                 let words = spirv_words(data);
                 if ctx.capabilities & capabilities::PASSTHROUGH_SHADERS != 0
                     && ctx.backend != backend::RESOLVED_DX12
@@ -1104,7 +1105,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                     (id, err.map(|e| Box::new(e) as _))
                 }
             }
-            shader_language::DXIL => {
+            ShaderLanguage::DXIL => {
                 match require_passthrough(ctx) {
                     Ok(()) => {}
                     Err(s) => return s,
@@ -1117,7 +1118,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                         .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
                 (id, err.map(|e| Box::new(e) as _))
             }
-            shader_language::MSL => {
+            ShaderLanguage::MSL => {
                 match require_passthrough(ctx) {
                     Ok(()) => {}
                     Err(s) => return s,
@@ -1131,7 +1132,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                         .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
                 (id, err.map(|e| Box::new(e) as _))
             }
-            shader_language::METALLIB => {
+            ShaderLanguage::MetalLib => {
                 match require_passthrough(ctx) {
                     Ok(()) => {}
                     Err(s) => return s,
@@ -1144,7 +1145,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                         .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
                 (id, err.map(|e| Box::new(e) as _))
             }
-            shader_language::WGSL => {
+            ShaderLanguage::WGSL => {
                 let source = String::from_utf8_lossy(data);
                 let sdesc = wgc::pipeline::ShaderModuleDescriptor {
                     label: module_label.clone(),
@@ -1158,10 +1159,10 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                 );
                 (id, err.map(|e| Box::new(e) as _))
             }
-            other => {
+            ShaderLanguage::Undefined | ShaderLanguage::SLANG => {
                 set_error(
                     Status::INVALID_ARGUMENT,
-                    format!("unsupported shader language {other}"),
+                    format!("unsupported shader language {}", desc.language),
                 );
                 return Status::INVALID_ARGUMENT;
             }
@@ -1255,51 +1256,50 @@ pub unsafe extern "C-unwind" fn shader_module_destroy(module: ShaderModuleHandle
 }
 
 // ---------------------------------------------------------------------------
-// Bind group layout (C# GPUBindGroup) and bind group (C# GPUResourceGroup)
+// Bind group layout and bind group
 // ---------------------------------------------------------------------------
 
 fn bind_group_layout_entry(
     entry: &BindGroupLayoutEntry,
 ) -> Result<wgt::BindGroupLayoutEntry, Status> {
-    let ty = match entry.ty {
+    let t = BindingType::try_from(entry.ty).map_err(|v| invalid_enum_what("binding type", v))?;
+    let ty = match t {
         // UniformBuffer
-        1 => wgt::BindingType::Buffer {
+        BindingType::UniformBuffer => wgt::BindingType::Buffer {
             ty: wgt::BufferBindingType::Uniform,
             has_dynamic_offset: false,
             min_binding_size: None,
         },
         // StorageBuffer
-        2 => wgt::BindingType::Buffer {
+        BindingType::StorageBuffer => wgt::BindingType::Buffer {
             ty: wgt::BufferBindingType::Storage { read_only: false },
             has_dynamic_offset: false,
             min_binding_size: None,
         },
         // Sampler
-        3 => wgt::BindingType::Sampler(match entry.sampler_kind {
+        BindingType::Sampler => wgt::BindingType::Sampler(match entry.sampler_kind {
             1 => wgt::SamplerBindingType::NonFiltering,
             2 => wgt::SamplerBindingType::Comparison,
             _ => wgt::SamplerBindingType::Filtering,
         }),
         // Texture
-        4 => wgt::BindingType::Texture {
+        BindingType::Texture => wgt::BindingType::Texture {
             sample_type: texture_sample_type(entry.texture_sample_type)?,
             view_dimension: texture_view_dimension(entry.view_dimension)?,
             multisampled: false,
         },
         // StorageTexture
-        5 => wgt::BindingType::StorageTexture {
+        BindingType::StorageTexture => wgt::BindingType::StorageTexture {
             access: storage_texture_access(entry.storage_access)?,
             format: pixel_format(entry.storage_format)?,
             view_dimension: texture_view_dimension(entry.view_dimension)?,
         },
         // SamplerComparison
-        6 => wgt::BindingType::Sampler(wgt::SamplerBindingType::Comparison),
-        other => {
-            set_error(
-                Status::INVALID_ARGUMENT,
-                format!("invalid binding type {other}"),
-            );
-            return Err(Status::INVALID_ARGUMENT);
+        BindingType::SamplerComparison => {
+            wgt::BindingType::Sampler(wgt::SamplerBindingType::Comparison)
+        }
+        BindingType::Undefined => {
+            return Err(invalid_enum_what("binding type", entry.ty));
         }
     };
     Ok(wgt::BindGroupLayoutEntry {
@@ -1310,7 +1310,7 @@ fn bind_group_layout_entry(
     })
 }
 
-/// ABI: creates a bind group layout (the C# GPUBindGroup object), including
+/// ABI: creates a bind group layout, including
 /// a valid empty layout when `entry_count` is zero.
 ///
 /// # Safety
@@ -1387,7 +1387,7 @@ pub unsafe extern "C-unwind" fn bind_group_layout_destroy(layout: BindGroupLayou
     })
 }
 
-/// ABI: creates a bind group instance (the C# GPUResourceGroup object),
+/// ABI: creates a bind group instance,
 /// allowing zero entries for an empty layout.
 ///
 /// # Safety

@@ -113,9 +113,9 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
             {
                 AlcoGPU.TextureDesc desc = new()
                 {
-                    Dimension = (uint)descriptor.Dimension,
-                    Format = (uint)descriptor.Format,
-                    Usage = (uint)descriptor.Usage,
+                    Dimension = descriptor.Dimension,
+                    Format = descriptor.Format,
+                    Usage = descriptor.Usage,
                     Width = descriptor.Width,
                     Height = descriptor.Height,
                     DepthOrArrayLayers = descriptor.DepthOrArrayLayer,

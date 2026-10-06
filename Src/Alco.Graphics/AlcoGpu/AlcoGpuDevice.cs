@@ -852,7 +852,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             AlcoGPU.BufferDesc descriptor = new()
             {
                 Size = capacity,
-                Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst),
+                Usage = (BufferUsage.MapRead | BufferUsage.CopyDst),
             };
 
             AlcoGpuNative.BufferCreate(Native, in descriptor, out AlcoGPU.BufferHandle handle);
@@ -1199,7 +1199,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                     {
                         Backend = BackendToRequest(descriptor.Backend),
                         Debug = descriptor.Debug ? AlcoGPU.True : AlcoGPU.False,
-                        RequiredFeatures = (ulong)requestedFeatures,
+                        RequiredFeatures = requestedFeatures,
                         PushConstantsSize = descriptor.PushConstantsSize,
                         Name = ptrName,
                     };
@@ -1225,7 +1225,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                 _host.LogSuccess($"Graphics backend: {Backend}");
 
                 _maxBindGroups = (int)info.MaxBindGroups;
-                SupportedFeatures = (GPUFeatures)info.SupportedFeatures;
+                SupportedFeatures = info.SupportedFeatures;
 
                 if (SupportedFeatures.HasFlag(GPUFeatures.TextureCompressionBC))
                 {

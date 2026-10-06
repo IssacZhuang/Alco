@@ -20,7 +20,7 @@
   "binaries": {
     "win-x64": {
       "file": "runtimes/win-x64/native/alco_gpu.dll",
-      "sha256": "41cd039ae0d3245afc49e2a8ec622d3f6a19bbef85317808cf1883818bd5e0d6",
+      "sha256": "605f1bb428efee5546f881e059ca7f2e8a3e12e6bf8b0eca3fc4171473730438",
       "sourceSha256": "e1a9dafa783eee84ec2cd1928f518292e318799388447bbee3d7b6e7d7e98d1a",
       "builtFrom": "local build 2026-10-06 (cargo --locked --release, Rust 1.97.1, x86_64-pc-windows-msvc)"
     },

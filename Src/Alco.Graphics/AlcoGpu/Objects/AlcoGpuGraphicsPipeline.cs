@@ -86,7 +86,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                     vertexLayoutStorage[i] = new AlcoGPU.VertexLayout
                     {
                         Stride = vertexInputLayouts[i].Stride,
-                        StepMode = (uint)vertexInputLayouts[i].StepMode,
+                        StepMode = vertexInputLayouts[i].StepMode,
                         Elements = elementCursor,
                         ElementCount = (uint)vertexInputLayouts[i].Elements.Length,
                     };
@@ -97,7 +97,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                         {
                             Location = vertexInputLayouts[i].Elements[j].Location,
                             Offset = vertexInputLayouts[i].Elements[j].Offset,
-                            Format = (uint)vertexInputLayouts[i].Elements[j].Format,
+                            Format = vertexInputLayouts[i].Elements[j].Format,
                         };
                     }
 
@@ -151,9 +151,9 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                         FragmentEntry = pPixelEntry,
                         VertexLayouts = vertexBufferLayouts,
                         VertexLayoutCount = (uint)vertexInputLayouts.Length,
-                        FillMode = (uint)descriptor.RasterizerState.FillMode,
-                        CullMode = (uint)descriptor.RasterizerState.CullMode,
-                        FrontFace = (uint)descriptor.RasterizerState.FrontFace,
+                        FillMode = descriptor.RasterizerState.FillMode,
+                        CullMode = descriptor.RasterizerState.CullMode,
+                        FrontFace = descriptor.RasterizerState.FrontFace,
                         Blend = new AlcoGPU.BlendState
                         {
                             Color = ToAbi(descriptor.BlendState.Color),
@@ -163,7 +163,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                         {
                             DepthWriteEnabled = descriptor.DepthStencilState.DepthWriteEnabled ? AlcoGPU.True : AlcoGPU.False,
                             DepthBoundsTestEnabled = descriptor.DepthStencilState.DepthBoundsTestEnabled ? AlcoGPU.True : AlcoGPU.False,
-                            DepthCompare = (uint)descriptor.DepthStencilState.DepthCompare,
+                            DepthCompare = descriptor.DepthStencilState.DepthCompare,
                             Front = ToAbi(descriptor.DepthStencilState.FrontFace),
                             Back = ToAbi(descriptor.DepthStencilState.BackFace),
                             StencilReadMask = descriptor.DepthStencilState.StencilReadMask,
@@ -172,7 +172,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                         DepthStencilFormat = descriptor.DepthStencilFormat.HasValue
                             ? (uint)descriptor.DepthStencilFormat.Value
                             : AlcoGPU.None,
-                        Topology = (uint)descriptor.PrimitiveTopology,
+                        Topology = descriptor.PrimitiveTopology,
                         ColorFormats = colorFormats,
                         ColorFormatCount = (uint)descriptor.ColorFormats.Length,
                         FragmentOutputCount = fragmentOutputCount,
@@ -218,9 +218,9 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
     {
         return new AlcoGPU.BlendComponent
         {
-            SrcFactor = (uint)component.SrcFactor,
-            DstFactor = (uint)component.DstFactor,
-            Operation = (uint)component.Operation,
+            SrcFactor = component.SrcFactor,
+            DstFactor = component.DstFactor,
+            Operation = component.Operation,
         };
     }
 
@@ -228,10 +228,10 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
     {
         return new AlcoGPU.StencilFace
         {
-            Compare = (uint)face.Compare,
-            StencilFailOp = (uint)face.StencilFailOperation,
-            DepthFailOp = (uint)face.DepthFailOperation,
-            PassOp = (uint)face.PassOperation,
+            Compare = face.Compare,
+            StencilFailOp = face.StencilFailOperation,
+            DepthFailOp = face.DepthFailOperation,
+            PassOp = face.PassOperation,
         };
     }
 

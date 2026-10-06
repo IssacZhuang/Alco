@@ -29,7 +29,7 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 | Panics | Every export body is wrapped in `catch_unwind`; a panic becomes status `Panic` + message |
 | Structs | `#[repr(C)]` ↔ `[StructLayout(LayoutKind.Sequential)]`, mirrored field-by-field in `AlcoGpuStructs.cs` |
 | Bools | `u32` (`TRUE = 1`) |
-| Enums | `u32` with the same numeric values as the C# enums (identity cast — see `convert.rs`) |
+| Enums | Raw `u32`. Non-flags enums are canonically defined in `abi.rs` (`abi_enum!`, `#[repr(u32)]` + `TryFrom<u32>` validation) and mirrored by the C# enums; flags enums stay raw bit fields. C# interop struct fields carry the matching enum type |
 | Sentinels | `NONE = u32::MAX` (optional depth format, read-only load/store ops, timestamp index none, fragment output count = all writes); `u64::MAX` submit index in `device_poll` = "latest" |
 | Strings | In: NUL-terminated UTF-8, borrowed for the call. Out: export-specific borrowed lifetimes; latest-error text lasts until the next failure on that thread, device info until public device destruction, message text until the next pop on that device, build info for process lifetime |
 
@@ -340,13 +340,32 @@ blocking poll and reports "still in flight" as status OK (`Timeout` is swallowed
 
 ## Enum passthrough table
 
-All enums cross the ABI as raw `u32` casts of the C# values; `convert.rs` is the single
-mapping point on the Rust side. Notable value ranges: `PixelFormat` 1..95,
-`VertexFormat` 0..30, `BindingType` 1..6 (UniformBuffer=1, StorageBuffer=2, Sampler=3,
-Texture=4, StorageTexture=5, SamplerComparison=6), `ShaderStage` bits
-(Vertex=1<<0, Fragment=1<<4, Compute=1<<5), `BufferUsage` bits (MapRead=1<<0 ...
-Indirect=1<<8, QueryResolve=1<<9), `TextureUsage` bits (Read=1<<0, Write=1<<1,
-TextureBinding=1<<2, StorageBinding=1<<3, ColorAttachment=1<<4, DepthAttachment=1<<5).
+All enum values cross the ABI as raw `u32`; `convert.rs` is the single mapping
+point on the Rust side. alco-gpu is the lower layer: non-flags enums are canonically
+defined in `abi.rs` by the `abi_enum!` macro (`#[repr(u32)]` with explicit
+discriminants plus a `TryFrom<u32>` that rejects unknown values), and the C# enums
+in `Alco.Graphics/Enums` mirror these definitions (variant names verbatim) and must
+be kept in lockstep. ABI struct fields stay plain `u32` on the Rust side (an
+out-of-range discriminant in a `repr(u32)` enum field over FFI is UB), so the enums
+are only materialized after validation in `convert.rs`, followed by exhaustive
+variant matches — adding an enum member is a single-point change. On the C# side,
+interop struct fields carry the enum type directly (layout-neutral: same 4-byte
+backing).
+
+Defined in `abi.rs` (mirrored by C#): `PixelFormat`, `TextureDimension`,
+`TextureViewDimension`, `TextureAspect`, `AddressMode`, `FilterMode`,
+`CompareFunction`, `BlendFactor`, `BlendOperation`, `CullMode`, `FrontFace`,
+`PrimitiveTopology`, `IndexFormat`, `StencilOperation`, `VertexFormat`,
+`VertexStepMode`, `TextureSampleType`, `BindingType`, `AccessMode`,
+`ShaderLanguage`, `AttachmentLoadOp`, `AttachmentStoreOp`.
+
+Flags enums (raw bits on both sides, no Rust enum; C# fields typed):
+`ShaderStage` bits (Vertex=1<<0, Fragment=1<<4, Compute=1<<5), `BufferUsage` bits
+(MapRead=1<<0 ... Indirect=1<<8, QueryResolve=1<<9), `TextureUsage` bits (Read=1<<0,
+Write=1<<1, TextureBinding=1<<2, StorageBinding=1<<3, ColorAttachment=1<<4,
+DepthAttachment=1<<5), `GPUFeatures` (u64-backed). Notable ranges:
+`PixelFormat` 1..95, `VertexFormat` 0..30, `BindingType` 1..6 (UniformBuffer=1,
+StorageBuffer=2, Sampler=3, Texture=4, StorageTexture=5, SamplerComparison=6).
 
 ## Error containment and verification
 

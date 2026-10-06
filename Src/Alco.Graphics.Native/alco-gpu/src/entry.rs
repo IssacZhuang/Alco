@@ -1,8 +1,8 @@
 //! Entry-point guard machinery: every exported ABI function runs its body
 //! through [`guard`], which wraps it in `catch_unwind` so a Rust panic becomes
 //! `Status::PANIC` plus a thread-local message instead of an abort at the
-//! FFI boundary (an abort would kill the host process before the C# runtime
-//! could react). The crate MUST be built with `panic = "unwind"`.
+//! FFI boundary (an abort would kill the host process before the host
+//! runtime could react). The crate MUST be built with `panic = "unwind"`.
 //!
 //! Failure protocol: a body returning a failure must record its own fresh
 //! diagnostic through [`set_error`], [`set_error_from`] or [`fail`]. Success and
@@ -13,7 +13,7 @@
 //! [`set_error_callback`]. [`guard`] invokes it synchronously — strictly
 //! AFTER `catch_unwind` has returned, on the calling thread — for every
 //! failure status (anything but OK/NOT_READY), passing the thread-local
-//! message. The C# host's callback throws a managed exception to unwind out
+//! message. A host callback throws a foreign exception to unwind out
 //! of the alco call; firing after `catch_unwind` guarantees the foreign
 //! exception is never captured by it (a captured foreign exception would be
 //! swallowed into an opaque payload and resume unwinding at an unspecified

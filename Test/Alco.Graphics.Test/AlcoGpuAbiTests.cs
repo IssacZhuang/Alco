@@ -138,7 +138,7 @@ public unsafe class AlcoGPUTests
             Assert.That(nullMessage, Is.Not.Null.And.Not.Empty);
             byte* nullMessagePointer = error.Message;
 
-            AlcoGPU.BufferDesc descriptor = new() { Size = 64, Usage = (uint)BufferUsage.CopyDst };
+            AlcoGPU.BufferDesc descriptor = new() { Size = 64, Usage = BufferUsage.CopyDst };
             AlcoGpuNative.BufferCreate(device, in descriptor, out buffer);
             AlcoGpuNative.GetLastError(ref error);
             Assert.That(error.Status, Is.EqualTo(AlcoGPU.Status.InvalidHandle));
@@ -188,8 +188,8 @@ public unsafe class AlcoGPUTests
         var destinations = new AlcoGPU.BufferHandle[count];
         AlcoGPU.EncoderHandle encoder = AlcoGPU.EncoderHandle.Null;
         AlcoGPU.CommandBufferHandle commands = AlcoGPU.CommandBufferHandle.Null;
-        AlcoGPU.BufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.CopySrc | BufferUsage.CopyDst) };
-        AlcoGPU.BufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
+        AlcoGPU.BufferDesc sourceDescriptor = new() { Size = size, Usage = (BufferUsage.CopySrc | BufferUsage.CopyDst) };
+        AlcoGPU.BufferDesc destinationDescriptor = new() { Size = size, Usage = (BufferUsage.MapRead | BufferUsage.CopyDst) };
         byte* written = stackalloc byte[size];
         try
         {
@@ -294,8 +294,8 @@ public unsafe class AlcoGPUTests
         {
             for (int i = 0; i < count; i++)
             {
-                AlcoGPU.BufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.CopySrc | BufferUsage.CopyDst) };
-                AlcoGPU.BufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
+                AlcoGPU.BufferDesc sourceDescriptor = new() { Size = size, Usage = (BufferUsage.CopySrc | BufferUsage.CopyDst) };
+                AlcoGPU.BufferDesc destinationDescriptor = new() { Size = size, Usage = (BufferUsage.MapRead | BufferUsage.CopyDst) };
                 AlcoGpuNative.BufferCreate(device, in sourceDescriptor, out sources[i]);
                 AlcoGpuNative.BufferCreate(device, in destinationDescriptor, out destinations[i]);
                 AlcoGpuNative.EncoderCreate(device, null, out encoders[i]);
@@ -380,8 +380,8 @@ public unsafe class AlcoGPUTests
         AlcoGPU.BufferHandle destination = AlcoGPU.BufferHandle.Null;
         AlcoGPU.EncoderHandle encoder = AlcoGPU.EncoderHandle.Null;
         AlcoGPU.CommandBufferHandle command = AlcoGPU.CommandBufferHandle.Null;
-        AlcoGPU.BufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapWrite | BufferUsage.CopySrc) };
-        AlcoGPU.BufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
+        AlcoGPU.BufferDesc sourceDescriptor = new() { Size = size, Usage = (BufferUsage.MapWrite | BufferUsage.CopySrc) };
+        AlcoGPU.BufferDesc destinationDescriptor = new() { Size = size, Usage = (BufferUsage.MapRead | BufferUsage.CopyDst) };
         try
         {
             AlcoGpuNative.BufferCreate(device, in sourceDescriptor, out source);
@@ -507,9 +507,9 @@ public unsafe class AlcoGPUTests
         {
             AlcoGPU.TextureDesc textureDescriptor = new()
             {
-                Dimension = (uint)TextureDimension.Texture2D,
-                Format = (uint)PixelFormat.Depth32Float,
-                Usage = (uint)TextureUsage.DepthAttachment,
+                Dimension = TextureDimension.Texture2D,
+                Format = PixelFormat.Depth32Float,
+                Usage = TextureUsage.DepthAttachment,
                 Width = 16,
                 Height = 16,
                 DepthOrArrayLayers = 1,

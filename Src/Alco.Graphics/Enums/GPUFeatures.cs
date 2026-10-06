@@ -4,7 +4,7 @@ namespace Alco.Graphics;
 /// The optional GPU features an adapter may support. Query them with <see cref="GPUDevice.IsFeatureSupported"/>.
 /// </summary>
 [Flags]
-public enum GPUFeatures
+public enum GPUFeatures : ulong
 {
     None = 0,
 

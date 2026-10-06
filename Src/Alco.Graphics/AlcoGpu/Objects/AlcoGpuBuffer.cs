@@ -61,7 +61,7 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
                 AlcoGPU.BufferDesc desc = new()
                 {
                     Size = Size,
-                    Usage = (uint)descriptor.Usage,
+                    Usage = descriptor.Usage,
                     Name = ptrName,
                 };
 

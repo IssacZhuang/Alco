@@ -20,7 +20,7 @@ use std::ffi::CString;
 use std::sync::OnceLock;
 
 /// Alco ABI version implemented by this library: `(major << 16) | minor`.
-/// The C# side rejects a major mismatch at load time.
+/// Consumers reject a major mismatch at load time.
 #[no_mangle]
 pub extern "C" fn abi_version() -> u32 {
     (abi::ABI_MAJOR << 16) | abi::ABI_MINOR

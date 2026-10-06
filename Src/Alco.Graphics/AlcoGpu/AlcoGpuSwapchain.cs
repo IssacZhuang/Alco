@@ -95,10 +95,10 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
 
                 _attachmentLayout = new AlcoGpuAttachmentLayout(device, attachmentLayoutDescriptor);
 
-                _config.Format = (uint)_attachmentLayout.ColorInfos[0].Format;
+                _config.Format = _attachmentLayout.ColorInfos[0].Format;
                 // DX12 surface textures cannot be sampled: capture copies them into a sampleable
                 // texture instead. Other backends retain the direct surface-sampling path.
-                _config.Usage = (uint)(TextureUsage.ColorAttachment |
+                _config.Usage = (TextureUsage.ColorAttachment |
                     (device.Backend == GraphicsBackend.WGPUDx12 ? TextureUsage.Read : TextureUsage.TextureBinding));
                 _config.PresentMode = GetPresentMode(descriptor.IsVSyncEnabled);
                 _isVSyncEnabled = descriptor.IsVSyncEnabled;

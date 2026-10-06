@@ -1,200 +1,203 @@
-//! Single-point mapping between Alco C ABI enum values (numeric values mirror
-//! the C# enums in `Alco.Graphics/Enums`) and `wgpu-types` enums.
+//! Single-point mapping between Alco C ABI enum values and `wgpu-types` enums:
+//! raw `u32` values are validated into the ABI enums in `crate::abi`
+//! (`TryFrom<u32>`), then mapped with exhaustive variant matches.
 
 use crate::abi::{Status, NONE};
 use crate::entry::set_error;
 use wgpu_types as wgt;
 
-/// C# `PixelFormat` (0..95) → `wgt::TextureFormat`.
+/// `abi::PixelFormat` (0..95) -> `wgt::TextureFormat`.
 pub(crate) fn pixel_format(v: u32) -> Result<wgt::TextureFormat, Status> {
+    use crate::abi::PixelFormat as P;
     use wgt::TextureFormat as F;
-    let f = match v {
-        0 => return Err(invalid_enum_what("pixel format", 0)),
-        1 => F::R8Unorm,
-        2 => F::R8Snorm,
-        3 => F::R8Uint,
-        4 => F::R8Sint,
-        5 => F::R16Uint,
-        6 => F::R16Sint,
-        7 => F::R16Float,
-        8 => F::Rg8Unorm,
-        9 => F::Rg8Snorm,
-        10 => F::Rg8Uint,
-        11 => F::Rg8Sint,
-        12 => F::R32Float,
-        13 => F::R32Uint,
-        14 => F::R32Sint,
-        15 => F::Rg16Uint,
-        16 => F::Rg16Sint,
-        17 => F::Rg16Float,
-        18 => F::Rgba8Unorm,
-        19 => F::Rgba8UnormSrgb,
-        20 => F::Rgba8Snorm,
-        21 => F::Rgba8Uint,
-        22 => F::Rgba8Sint,
-        23 => F::Bgra8Unorm,
-        24 => F::Bgra8UnormSrgb,
-        25 => F::Rgb10a2Uint,
-        26 => F::Rgb10a2Unorm,
-        27 => F::Rg11b10Ufloat,
-        28 => F::Rgb9e5Ufloat,
-        29 => F::Rg32Float,
-        30 => F::Rg32Uint,
-        31 => F::Rg32Sint,
-        32 => F::Rgba16Uint,
-        33 => F::Rgba16Sint,
-        34 => F::Rgba16Float,
-        35 => F::Rgba32Float,
-        36 => F::Rgba32Uint,
-        37 => F::Rgba32Sint,
-        38 => F::Stencil8, // C# marks unsupported; wgpu still defines it
-        39 => F::Depth16Unorm,
-        40 => F::Depth24Plus,
-        41 => F::Depth24PlusStencil8,
-        42 => F::Depth32Float,
-        43 => F::Depth32FloatStencil8,
-        44 => F::Bc1RgbaUnorm,
-        45 => F::Bc1RgbaUnormSrgb,
-        46 => F::Bc2RgbaUnorm,
-        47 => F::Bc2RgbaUnormSrgb,
-        48 => F::Bc3RgbaUnorm,
-        49 => F::Bc3RgbaUnormSrgb,
-        50 => F::Bc4RUnorm,
-        51 => F::Bc4RSnorm,
-        52 => F::Bc5RgUnorm,
-        53 => F::Bc5RgSnorm,
-        54 => F::Bc6hRgbUfloat,
-        55 => F::Bc6hRgbFloat,
-        56 => F::Bc7RgbaUnorm,
-        57 => F::Bc7RgbaUnormSrgb,
-        58 => F::Etc2Rgb8Unorm,
-        59 => F::Etc2Rgb8UnormSrgb,
-        60 => F::Etc2Rgb8A1Unorm,
-        61 => F::Etc2Rgb8A1UnormSrgb,
-        62 => F::Etc2Rgba8Unorm,
-        63 => F::Etc2Rgba8UnormSrgb,
-        64 => F::EacR11Unorm,
-        65 => F::EacR11Snorm,
-        66 => F::EacRg11Unorm,
-        67 => F::EacRg11Snorm,
-        68 => F::Astc {
+    let p = P::try_from(v).map_err(|v| invalid_enum_what("pixel format", v))?;
+    let f = match p {
+        P::Undefined => return Err(invalid_enum_what("pixel format", v)),
+        P::R8Unorm => F::R8Unorm,
+        P::R8Snorm => F::R8Snorm,
+        P::R8Uint => F::R8Uint,
+        P::R8Sint => F::R8Sint,
+        P::R16Uint => F::R16Uint,
+        P::R16Sint => F::R16Sint,
+        P::R16Float => F::R16Float,
+        P::RG8Unorm => F::Rg8Unorm,
+        P::RG8Snorm => F::Rg8Snorm,
+        P::RG8Uint => F::Rg8Uint,
+        P::RG8Sint => F::Rg8Sint,
+        P::R32Float => F::R32Float,
+        P::R32Uint => F::R32Uint,
+        P::R32Sint => F::R32Sint,
+        P::RG16Uint => F::Rg16Uint,
+        P::RG16Sint => F::Rg16Sint,
+        P::RG16Float => F::Rg16Float,
+        P::RGBA8Unorm => F::Rgba8Unorm,
+        P::RGBA8UnormSrgb => F::Rgba8UnormSrgb,
+        P::RGBA8Snorm => F::Rgba8Snorm,
+        P::RGBA8Uint => F::Rgba8Uint,
+        P::RGBA8Sint => F::Rgba8Sint,
+        P::BGRA8Unorm => F::Bgra8Unorm,
+        P::BGRA8UnormSrgb => F::Bgra8UnormSrgb,
+        P::RGB10A2Uint => F::Rgb10a2Uint,
+        P::RGB10A2Unorm => F::Rgb10a2Unorm,
+        P::RG11B10Ufloat => F::Rg11b10Ufloat,
+        P::RGB9E5Ufloat => F::Rgb9e5Ufloat,
+        P::RG32Float => F::Rg32Float,
+        P::RG32Uint => F::Rg32Uint,
+        P::RG32Sint => F::Rg32Sint,
+        P::RGBA16Uint => F::Rgba16Uint,
+        P::RGBA16Sint => F::Rgba16Sint,
+        P::RGBA16Float => F::Rgba16Float,
+        P::RGBA32Float => F::Rgba32Float,
+        P::RGBA32Uint => F::Rgba32Uint,
+        P::RGBA32Sint => F::Rgba32Sint,
+        P::Stencil8 => F::Stencil8, // unsupported format; wgpu still defines it
+        P::Depth16Unorm => F::Depth16Unorm,
+        P::Depth24Plus => F::Depth24Plus,
+        P::Depth24PlusStencil8 => F::Depth24PlusStencil8,
+        P::Depth32Float => F::Depth32Float,
+        P::Depth32FloatStencil8 => F::Depth32FloatStencil8,
+        P::BC1RGBAUnorm => F::Bc1RgbaUnorm,
+        P::BC1RGBAUnormSrgb => F::Bc1RgbaUnormSrgb,
+        P::BC2RGBAUnorm => F::Bc2RgbaUnorm,
+        P::BC2RGBAUnormSrgb => F::Bc2RgbaUnormSrgb,
+        P::BC3RGBAUnorm => F::Bc3RgbaUnorm,
+        P::BC3RGBAUnormSrgb => F::Bc3RgbaUnormSrgb,
+        P::BC4RUnorm => F::Bc4RUnorm,
+        P::BC4RSnorm => F::Bc4RSnorm,
+        P::BC5RGUnorm => F::Bc5RgUnorm,
+        P::BC5RGSnorm => F::Bc5RgSnorm,
+        P::BC6HRGBUfloat => F::Bc6hRgbUfloat,
+        P::BC6HRGBFloat => F::Bc6hRgbFloat,
+        P::BC7RGBAUnorm => F::Bc7RgbaUnorm,
+        P::BC7RGBAUnormSrgb => F::Bc7RgbaUnormSrgb,
+        P::ETC2RGB8Unorm => F::Etc2Rgb8Unorm,
+        P::ETC2RGB8UnormSrgb => F::Etc2Rgb8UnormSrgb,
+        P::ETC2RGB8A1Unorm => F::Etc2Rgb8A1Unorm,
+        P::ETC2RGB8A1UnormSrgb => F::Etc2Rgb8A1UnormSrgb,
+        P::ETC2RGBA8Unorm => F::Etc2Rgba8Unorm,
+        P::ETC2RGBA8UnormSrgb => F::Etc2Rgba8UnormSrgb,
+        P::EACR11Unorm => F::EacR11Unorm,
+        P::EACR11Snorm => F::EacR11Snorm,
+        P::EACRG11Unorm => F::EacRg11Unorm,
+        P::EACRG11Snorm => F::EacRg11Snorm,
+        P::ASTC4x4Unorm => F::Astc {
             block: wgt::AstcBlock::B4x4,
             channel: wgt::AstcChannel::Unorm,
         },
-        69 => F::Astc {
+        P::ASTC4x4UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B4x4,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        70 => F::Astc {
+        P::ASTC5x4Unorm => F::Astc {
             block: wgt::AstcBlock::B5x4,
             channel: wgt::AstcChannel::Unorm,
         },
-        71 => F::Astc {
+        P::ASTC5x4UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B5x4,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        72 => F::Astc {
+        P::ASTC5x5Unorm => F::Astc {
             block: wgt::AstcBlock::B5x5,
             channel: wgt::AstcChannel::Unorm,
         },
-        73 => F::Astc {
+        P::ASTC5x5UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B5x5,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        74 => F::Astc {
+        P::ASTC6x5Unorm => F::Astc {
             block: wgt::AstcBlock::B6x5,
             channel: wgt::AstcChannel::Unorm,
         },
-        75 => F::Astc {
+        P::ASTC6x5UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B6x5,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        76 => F::Astc {
+        P::ASTC6x6Unorm => F::Astc {
             block: wgt::AstcBlock::B6x6,
             channel: wgt::AstcChannel::Unorm,
         },
-        77 => F::Astc {
+        P::ASTC6x6UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B6x6,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        78 => F::Astc {
+        P::ASTC8x5Unorm => F::Astc {
             block: wgt::AstcBlock::B8x5,
             channel: wgt::AstcChannel::Unorm,
         },
-        79 => F::Astc {
+        P::ASTC8x5UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B8x5,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        80 => F::Astc {
+        P::ASTC8x6Unorm => F::Astc {
             block: wgt::AstcBlock::B8x6,
             channel: wgt::AstcChannel::Unorm,
         },
-        81 => F::Astc {
+        P::ASTC8x6UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B8x6,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        82 => F::Astc {
+        P::ASTC8x8Unorm => F::Astc {
             block: wgt::AstcBlock::B8x8,
             channel: wgt::AstcChannel::Unorm,
         },
-        83 => F::Astc {
+        P::ASTC8x8UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B8x8,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        84 => F::Astc {
+        P::ASTC10x5Unorm => F::Astc {
             block: wgt::AstcBlock::B10x5,
             channel: wgt::AstcChannel::Unorm,
         },
-        85 => F::Astc {
+        P::ASTC10x5UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B10x5,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        86 => F::Astc {
+        P::ASTC10x6Unorm => F::Astc {
             block: wgt::AstcBlock::B10x6,
             channel: wgt::AstcChannel::Unorm,
         },
-        87 => F::Astc {
+        P::ASTC10x6UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B10x6,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        88 => F::Astc {
+        P::ASTC10x8Unorm => F::Astc {
             block: wgt::AstcBlock::B10x8,
             channel: wgt::AstcChannel::Unorm,
         },
-        89 => F::Astc {
+        P::ASTC10x8UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B10x8,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        90 => F::Astc {
+        P::ASTC10x10Unorm => F::Astc {
             block: wgt::AstcBlock::B10x10,
             channel: wgt::AstcChannel::Unorm,
         },
-        91 => F::Astc {
+        P::ASTC10x10UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B10x10,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        92 => F::Astc {
+        P::ASTC12x10Unorm => F::Astc {
             block: wgt::AstcBlock::B12x10,
             channel: wgt::AstcChannel::Unorm,
         },
-        93 => F::Astc {
+        P::ASTC12x10UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B12x10,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        94 => F::Astc {
+        P::ASTC12x12Unorm => F::Astc {
             block: wgt::AstcBlock::B12x12,
             channel: wgt::AstcChannel::Unorm,
         },
-        95 => F::Astc {
+        P::ASTC12x12UnormSrgb => F::Astc {
             block: wgt::AstcBlock::B12x12,
             channel: wgt::AstcChannel::UnormSrgb,
         },
-        other => return Err(invalid_enum_what("pixel format", other)),
     };
     Ok(f)
 }
 
-fn invalid_enum_what(what: &str, value: u32) -> Status {
+/// Records an `INVALID_ARGUMENT` diagnostic for an unmapped enum value.
+pub(crate) fn invalid_enum_what(what: &str, value: u32) -> Status {
     set_error(
         Status::INVALID_ARGUMENT,
         format!("invalid {what} value {value}"),
@@ -202,203 +205,205 @@ fn invalid_enum_what(what: &str, value: u32) -> Status {
     Status::INVALID_ARGUMENT
 }
 
-/// `wgt::TextureFormat` → C# `PixelFormat`.
-pub(crate) fn pixel_format_to_abi(f: wgt::TextureFormat) -> u32 {
+/// `wgt::TextureFormat` -> `abi::PixelFormat`; cast at the ABI boundary.
+pub(crate) fn pixel_format_to_abi(f: wgt::TextureFormat) -> crate::abi::PixelFormat {
+    use crate::abi::PixelFormat as P;
     use wgt::TextureFormat as F;
     match f {
-        F::R8Unorm => 1,
-        F::R8Snorm => 2,
-        F::R8Uint => 3,
-        F::R8Sint => 4,
-        F::R16Uint => 5,
-        F::R16Sint => 6,
-        F::R16Float => 7,
-        F::Rg8Unorm => 8,
-        F::Rg8Snorm => 9,
-        F::Rg8Uint => 10,
-        F::Rg8Sint => 11,
-        F::R32Float => 12,
-        F::R32Uint => 13,
-        F::R32Sint => 14,
-        F::Rg16Uint => 15,
-        F::Rg16Sint => 16,
-        F::Rg16Float => 17,
-        F::Rgba8Unorm => 18,
-        F::Rgba8UnormSrgb => 19,
-        F::Rgba8Snorm => 20,
-        F::Rgba8Uint => 21,
-        F::Rgba8Sint => 22,
-        F::Bgra8Unorm => 23,
-        F::Bgra8UnormSrgb => 24,
-        F::Rgb10a2Uint => 25,
-        F::Rgb10a2Unorm => 26,
-        F::Rg11b10Ufloat => 27,
-        F::Rgb9e5Ufloat => 28,
-        F::Rg32Float => 29,
-        F::Rg32Uint => 30,
-        F::Rg32Sint => 31,
-        F::Rgba16Uint => 32,
-        F::Rgba16Sint => 33,
-        F::Rgba16Float => 34,
-        F::Rgba32Float => 35,
-        F::Rgba32Uint => 36,
-        F::Rgba32Sint => 37,
-        F::Stencil8 => 38,
-        F::Depth16Unorm => 39,
-        F::Depth24Plus => 40,
-        F::Depth24PlusStencil8 => 41,
-        F::Depth32Float => 42,
-        F::Depth32FloatStencil8 => 43,
-        F::Bc1RgbaUnorm => 44,
-        F::Bc1RgbaUnormSrgb => 45,
-        F::Bc2RgbaUnorm => 46,
-        F::Bc2RgbaUnormSrgb => 47,
-        F::Bc3RgbaUnorm => 48,
-        F::Bc3RgbaUnormSrgb => 49,
-        F::Bc4RUnorm => 50,
-        F::Bc4RSnorm => 51,
-        F::Bc5RgUnorm => 52,
-        F::Bc5RgSnorm => 53,
-        F::Bc6hRgbUfloat => 54,
-        F::Bc6hRgbFloat => 55,
-        F::Bc7RgbaUnorm => 56,
-        F::Bc7RgbaUnormSrgb => 57,
-        F::Etc2Rgb8Unorm => 58,
-        F::Etc2Rgb8UnormSrgb => 59,
-        F::Etc2Rgb8A1Unorm => 60,
-        F::Etc2Rgb8A1UnormSrgb => 61,
-        F::Etc2Rgba8Unorm => 62,
-        F::Etc2Rgba8UnormSrgb => 63,
-        F::EacR11Unorm => 64,
-        F::EacR11Snorm => 65,
-        F::EacRg11Unorm => 66,
-        F::EacRg11Snorm => 67,
+        F::R8Unorm => P::R8Unorm,
+        F::R8Snorm => P::R8Snorm,
+        F::R8Uint => P::R8Uint,
+        F::R8Sint => P::R8Sint,
+        F::R16Uint => P::R16Uint,
+        F::R16Sint => P::R16Sint,
+        F::R16Float => P::R16Float,
+        F::Rg8Unorm => P::RG8Unorm,
+        F::Rg8Snorm => P::RG8Snorm,
+        F::Rg8Uint => P::RG8Uint,
+        F::Rg8Sint => P::RG8Sint,
+        F::R32Float => P::R32Float,
+        F::R32Uint => P::R32Uint,
+        F::R32Sint => P::R32Sint,
+        F::Rg16Uint => P::RG16Uint,
+        F::Rg16Sint => P::RG16Sint,
+        F::Rg16Float => P::RG16Float,
+        F::Rgba8Unorm => P::RGBA8Unorm,
+        F::Rgba8UnormSrgb => P::RGBA8UnormSrgb,
+        F::Rgba8Snorm => P::RGBA8Snorm,
+        F::Rgba8Uint => P::RGBA8Uint,
+        F::Rgba8Sint => P::RGBA8Sint,
+        F::Bgra8Unorm => P::BGRA8Unorm,
+        F::Bgra8UnormSrgb => P::BGRA8UnormSrgb,
+        F::Rgb10a2Uint => P::RGB10A2Uint,
+        F::Rgb10a2Unorm => P::RGB10A2Unorm,
+        F::Rg11b10Ufloat => P::RG11B10Ufloat,
+        F::Rgb9e5Ufloat => P::RGB9E5Ufloat,
+        F::Rg32Float => P::RG32Float,
+        F::Rg32Uint => P::RG32Uint,
+        F::Rg32Sint => P::RG32Sint,
+        F::Rgba16Uint => P::RGBA16Uint,
+        F::Rgba16Sint => P::RGBA16Sint,
+        F::Rgba16Float => P::RGBA16Float,
+        F::Rgba32Float => P::RGBA32Float,
+        F::Rgba32Uint => P::RGBA32Uint,
+        F::Rgba32Sint => P::RGBA32Sint,
+        F::Stencil8 => P::Stencil8,
+        F::Depth16Unorm => P::Depth16Unorm,
+        F::Depth24Plus => P::Depth24Plus,
+        F::Depth24PlusStencil8 => P::Depth24PlusStencil8,
+        F::Depth32Float => P::Depth32Float,
+        F::Depth32FloatStencil8 => P::Depth32FloatStencil8,
+        F::Bc1RgbaUnorm => P::BC1RGBAUnorm,
+        F::Bc1RgbaUnormSrgb => P::BC1RGBAUnormSrgb,
+        F::Bc2RgbaUnorm => P::BC2RGBAUnorm,
+        F::Bc2RgbaUnormSrgb => P::BC2RGBAUnormSrgb,
+        F::Bc3RgbaUnorm => P::BC3RGBAUnorm,
+        F::Bc3RgbaUnormSrgb => P::BC3RGBAUnormSrgb,
+        F::Bc4RUnorm => P::BC4RUnorm,
+        F::Bc4RSnorm => P::BC4RSnorm,
+        F::Bc5RgUnorm => P::BC5RGUnorm,
+        F::Bc5RgSnorm => P::BC5RGSnorm,
+        F::Bc6hRgbUfloat => P::BC6HRGBUfloat,
+        F::Bc6hRgbFloat => P::BC6HRGBFloat,
+        F::Bc7RgbaUnorm => P::BC7RGBAUnorm,
+        F::Bc7RgbaUnormSrgb => P::BC7RGBAUnormSrgb,
+        F::Etc2Rgb8Unorm => P::ETC2RGB8Unorm,
+        F::Etc2Rgb8UnormSrgb => P::ETC2RGB8UnormSrgb,
+        F::Etc2Rgb8A1Unorm => P::ETC2RGB8A1Unorm,
+        F::Etc2Rgb8A1UnormSrgb => P::ETC2RGB8A1UnormSrgb,
+        F::Etc2Rgba8Unorm => P::ETC2RGBA8Unorm,
+        F::Etc2Rgba8UnormSrgb => P::ETC2RGBA8UnormSrgb,
+        F::EacR11Unorm => P::EACR11Unorm,
+        F::EacR11Snorm => P::EACR11Snorm,
+        F::EacRg11Unorm => P::EACRG11Unorm,
+        F::EacRg11Snorm => P::EACRG11Snorm,
         F::Astc {
             block: wgt::AstcBlock::B4x4,
             channel: wgt::AstcChannel::Unorm,
-        } => 68,
+        } => P::ASTC4x4Unorm,
         F::Astc {
             block: wgt::AstcBlock::B4x4,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 69,
+        } => P::ASTC4x4UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B5x4,
             channel: wgt::AstcChannel::Unorm,
-        } => 70,
+        } => P::ASTC5x4Unorm,
         F::Astc {
             block: wgt::AstcBlock::B5x4,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 71,
+        } => P::ASTC5x4UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B5x5,
             channel: wgt::AstcChannel::Unorm,
-        } => 72,
+        } => P::ASTC5x5Unorm,
         F::Astc {
             block: wgt::AstcBlock::B5x5,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 73,
+        } => P::ASTC5x5UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B6x5,
             channel: wgt::AstcChannel::Unorm,
-        } => 74,
+        } => P::ASTC6x5Unorm,
         F::Astc {
             block: wgt::AstcBlock::B6x5,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 75,
+        } => P::ASTC6x5UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B6x6,
             channel: wgt::AstcChannel::Unorm,
-        } => 76,
+        } => P::ASTC6x6Unorm,
         F::Astc {
             block: wgt::AstcBlock::B6x6,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 77,
+        } => P::ASTC6x6UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B8x5,
             channel: wgt::AstcChannel::Unorm,
-        } => 78,
+        } => P::ASTC8x5Unorm,
         F::Astc {
             block: wgt::AstcBlock::B8x5,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 79,
+        } => P::ASTC8x5UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B8x6,
             channel: wgt::AstcChannel::Unorm,
-        } => 80,
+        } => P::ASTC8x6Unorm,
         F::Astc {
             block: wgt::AstcBlock::B8x6,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 81,
+        } => P::ASTC8x6UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B8x8,
             channel: wgt::AstcChannel::Unorm,
-        } => 82,
+        } => P::ASTC8x8Unorm,
         F::Astc {
             block: wgt::AstcBlock::B8x8,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 83,
+        } => P::ASTC8x8UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B10x5,
             channel: wgt::AstcChannel::Unorm,
-        } => 84,
+        } => P::ASTC10x5Unorm,
         F::Astc {
             block: wgt::AstcBlock::B10x5,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 85,
+        } => P::ASTC10x5UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B10x6,
             channel: wgt::AstcChannel::Unorm,
-        } => 86,
+        } => P::ASTC10x6Unorm,
         F::Astc {
             block: wgt::AstcBlock::B10x6,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 87,
+        } => P::ASTC10x6UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B10x8,
             channel: wgt::AstcChannel::Unorm,
-        } => 88,
+        } => P::ASTC10x8Unorm,
         F::Astc {
             block: wgt::AstcBlock::B10x8,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 89,
+        } => P::ASTC10x8UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B10x10,
             channel: wgt::AstcChannel::Unorm,
-        } => 90,
+        } => P::ASTC10x10Unorm,
         F::Astc {
             block: wgt::AstcBlock::B10x10,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 91,
+        } => P::ASTC10x10UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B12x10,
             channel: wgt::AstcChannel::Unorm,
-        } => 92,
+        } => P::ASTC12x10Unorm,
         F::Astc {
             block: wgt::AstcBlock::B12x10,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 93,
+        } => P::ASTC12x10UnormSrgb,
         F::Astc {
             block: wgt::AstcBlock::B12x12,
             channel: wgt::AstcChannel::Unorm,
-        } => 94,
+        } => P::ASTC12x12Unorm,
         F::Astc {
             block: wgt::AstcBlock::B12x12,
             channel: wgt::AstcChannel::UnormSrgb,
-        } => 95,
-        _ => 0,
+        } => P::ASTC12x12UnormSrgb,
+        _ => P::Undefined,
     }
 }
 
 pub(crate) fn texture_dimension(v: u32) -> Result<wgt::TextureDimension, Status> {
-    Ok(match v {
-        0 => wgt::TextureDimension::D1,
-        1 => wgt::TextureDimension::D2,
-        2 => wgt::TextureDimension::D3,
-        other => return Err(invalid_enum_what("texture dimension", other)),
+    use crate::abi::TextureDimension;
+    let d = TextureDimension::try_from(v).map_err(|v| invalid_enum_what("texture dimension", v))?;
+    Ok(match d {
+        TextureDimension::Texture1D => wgt::TextureDimension::D1,
+        TextureDimension::Texture2D => wgt::TextureDimension::D2,
+        TextureDimension::Texture3D => wgt::TextureDimension::D3,
     })
 }
 
-/// C# `TextureUsage` bits: Read=1<<0, Write=1<<1, TextureBinding=1<<2,
+/// Texture usage bits: Read=1<<0, Write=1<<1, TextureBinding=1<<2,
 /// StorageBinding=1<<3, ColorAttachment=1<<4, DepthAttachment=1<<5.
 pub(crate) fn texture_usage(v: u32) -> wgt::TextureUsages {
     let mut usage = wgt::TextureUsages::empty();
@@ -423,7 +428,7 @@ pub(crate) fn texture_usage(v: u32) -> wgt::TextureUsages {
     usage
 }
 
-/// C# `BufferUsage` bits (1:1 with WebGPU: MapRead..QueryResolve).
+/// Buffer usage bits, 1:1 with WebGPU: MapRead..QueryResolve.
 pub(crate) fn buffer_usage(v: u32) -> Result<wgt::BufferUsages, Status> {
     const MAP_READ: u32 = 1 << 0;
     const MAP_WRITE: u32 = 1 << 1;
@@ -470,66 +475,76 @@ pub(crate) fn buffer_usage(v: u32) -> Result<wgt::BufferUsages, Status> {
 }
 
 pub(crate) fn texture_view_dimension(v: u32) -> Result<wgt::TextureViewDimension, Status> {
-    Ok(match v {
-        0 => wgt::TextureViewDimension::D1,
-        1 => wgt::TextureViewDimension::D1,
-        // C# Texture1DArray (2) is unsupported by wgpu; treat as D1.
-        2 => wgt::TextureViewDimension::D1,
-        3 => wgt::TextureViewDimension::D2,
-        4 => wgt::TextureViewDimension::D2Array,
-        5 => wgt::TextureViewDimension::D3,
-        6 => wgt::TextureViewDimension::Cube,
-        7 => wgt::TextureViewDimension::CubeArray,
-        other => return Err(invalid_enum_what("texture view dimension", other)),
+    use crate::abi::TextureViewDimension;
+    let d = TextureViewDimension::try_from(v)
+        .map_err(|v| invalid_enum_what("texture view dimension", v))?;
+    Ok(match d {
+        TextureViewDimension::Undefined => wgt::TextureViewDimension::D1,
+        TextureViewDimension::Texture1D => wgt::TextureViewDimension::D1,
+        // Texture1DArray is unsupported by wgpu; treat as D1.
+        TextureViewDimension::Texture1DArray => wgt::TextureViewDimension::D1,
+        TextureViewDimension::Texture2D => wgt::TextureViewDimension::D2,
+        TextureViewDimension::Texture2DArray => wgt::TextureViewDimension::D2Array,
+        TextureViewDimension::Texture3D => wgt::TextureViewDimension::D3,
+        TextureViewDimension::Cube => wgt::TextureViewDimension::Cube,
+        TextureViewDimension::CubeArray => wgt::TextureViewDimension::CubeArray,
     })
 }
 
 pub(crate) fn texture_aspect(v: u32) -> Result<wgt::TextureAspect, Status> {
-    Ok(match v {
-        0 => wgt::TextureAspect::All,
-        1 => wgt::TextureAspect::All,
-        2 => wgt::TextureAspect::StencilOnly,
-        3 => wgt::TextureAspect::DepthOnly,
-        other => return Err(invalid_enum_what("texture aspect", other)),
+    use crate::abi::TextureAspect;
+    let a = TextureAspect::try_from(v).map_err(|v| invalid_enum_what("texture aspect", v))?;
+    Ok(match a {
+        // None reads as All (lenient default).
+        TextureAspect::None | TextureAspect::All => wgt::TextureAspect::All,
+        TextureAspect::StencilOnly => wgt::TextureAspect::StencilOnly,
+        TextureAspect::DepthOnly => wgt::TextureAspect::DepthOnly,
     })
 }
 
 pub(crate) fn address_mode(v: u32) -> Result<wgt::AddressMode, Status> {
-    Ok(match v {
-        0 => wgt::AddressMode::Repeat,
-        1 => wgt::AddressMode::MirrorRepeat,
-        2 => wgt::AddressMode::ClampToEdge,
-        other => return Err(invalid_enum_what("address mode", other)),
+    use crate::abi::AddressMode;
+    let m = AddressMode::try_from(v).map_err(|v| invalid_enum_what("address mode", v))?;
+    Ok(match m {
+        AddressMode::Repeat => wgt::AddressMode::Repeat,
+        AddressMode::MirrorRepeat => wgt::AddressMode::MirrorRepeat,
+        AddressMode::ClampToEdge => wgt::AddressMode::ClampToEdge,
     })
 }
 
 pub(crate) fn filter_mode(v: u32) -> Result<wgt::FilterMode, Status> {
-    Ok(match v {
-        1 => wgt::FilterMode::Nearest,
-        2 => wgt::FilterMode::Linear,
-        other => return Err(invalid_enum_what("filter mode", other)),
+    use crate::abi::FilterMode;
+    let m = FilterMode::try_from(v).map_err(|v| invalid_enum_what("filter mode", v))?;
+    Ok(match m {
+        FilterMode::None => return Err(invalid_enum_what("filter mode", v)),
+        FilterMode::Nearest => wgt::FilterMode::Nearest,
+        FilterMode::Linear => wgt::FilterMode::Linear,
     })
 }
 
 pub(crate) fn mipmap_filter_mode(v: u32) -> Result<wgt::MipmapFilterMode, Status> {
-    Ok(match v {
-        1 => wgt::MipmapFilterMode::Nearest,
-        2 => wgt::MipmapFilterMode::Linear,
-        other => return Err(invalid_enum_what("mipmap filter mode", other)),
+    use crate::abi::FilterMode;
+    let m = FilterMode::try_from(v).map_err(|v| invalid_enum_what("mipmap filter mode", v))?;
+    Ok(match m {
+        FilterMode::None => return Err(invalid_enum_what("mipmap filter mode", v)),
+        FilterMode::Nearest => wgt::MipmapFilterMode::Nearest,
+        FilterMode::Linear => wgt::MipmapFilterMode::Linear,
     })
 }
 
 pub(crate) fn compare_function(v: u32) -> Result<wgt::CompareFunction, Status> {
-    Ok(match v {
-        1 => wgt::CompareFunction::Never,
-        2 => wgt::CompareFunction::Less,
-        3 => wgt::CompareFunction::LessEqual,
-        4 => wgt::CompareFunction::Equal,
-        5 => wgt::CompareFunction::Greater,
-        6 => wgt::CompareFunction::NotEqual,
-        7 => wgt::CompareFunction::GreaterEqual,
-        8 => wgt::CompareFunction::Always,
-        other => return Err(invalid_enum_what("compare function", other)),
+    use crate::abi::CompareFunction;
+    let c = CompareFunction::try_from(v).map_err(|v| invalid_enum_what("compare function", v))?;
+    Ok(match c {
+        CompareFunction::Undefined => return Err(invalid_enum_what("compare function", v)),
+        CompareFunction::Never => wgt::CompareFunction::Never,
+        CompareFunction::Less => wgt::CompareFunction::Less,
+        CompareFunction::LessEqual => wgt::CompareFunction::LessEqual,
+        CompareFunction::Equal => wgt::CompareFunction::Equal,
+        CompareFunction::Greater => wgt::CompareFunction::Greater,
+        CompareFunction::NotEqual => wgt::CompareFunction::NotEqual,
+        CompareFunction::GreaterEqual => wgt::CompareFunction::GreaterEqual,
+        CompareFunction::Always => wgt::CompareFunction::Always,
     })
 }
 
@@ -541,136 +556,148 @@ pub(crate) fn optional_compare_function(v: u32) -> Result<Option<wgt::CompareFun
 }
 
 pub(crate) fn blend_factor(v: u32) -> Result<wgt::BlendFactor, Status> {
-    use wgt::BlendFactor as B;
-    Ok(match v {
-        0 => B::Zero,
-        1 => B::One,
-        2 => B::Src,
-        3 => B::OneMinusSrc,
-        4 => B::SrcAlpha,
-        5 => B::OneMinusSrcAlpha,
-        6 => B::Dst,
-        7 => B::OneMinusDst,
-        8 => B::DstAlpha,
-        9 => B::OneMinusDstAlpha,
-        10 => B::SrcAlphaSaturated,
-        11 => B::Constant,
-        12 => B::OneMinusConstant,
-        other => return Err(invalid_enum_what("blend factor", other)),
+    use crate::abi::BlendFactor as B;
+    let f = B::try_from(v).map_err(|v| invalid_enum_what("blend factor", v))?;
+    Ok(match f {
+        B::Zero => wgt::BlendFactor::Zero,
+        B::One => wgt::BlendFactor::One,
+        B::Src => wgt::BlendFactor::Src,
+        B::OneMinusSrc => wgt::BlendFactor::OneMinusSrc,
+        B::SrcAlpha => wgt::BlendFactor::SrcAlpha,
+        B::OneMinusSrcAlpha => wgt::BlendFactor::OneMinusSrcAlpha,
+        B::Dst => wgt::BlendFactor::Dst,
+        B::OneMinusDst => wgt::BlendFactor::OneMinusDst,
+        B::DstAlpha => wgt::BlendFactor::DstAlpha,
+        B::OneMinusDstAlpha => wgt::BlendFactor::OneMinusDstAlpha,
+        B::SrcAlphaSaturated => wgt::BlendFactor::SrcAlphaSaturated,
+        B::Constant => wgt::BlendFactor::Constant,
+        B::OneMinusConstant => wgt::BlendFactor::OneMinusConstant,
     })
 }
 
 pub(crate) fn blend_operation(v: u32) -> Result<wgt::BlendOperation, Status> {
-    Ok(match v {
-        0 => wgt::BlendOperation::Add,
-        1 => wgt::BlendOperation::Subtract,
-        2 => wgt::BlendOperation::ReverseSubtract,
-        3 => wgt::BlendOperation::Min,
-        4 => wgt::BlendOperation::Max,
-        other => return Err(invalid_enum_what("blend operation", other)),
+    use crate::abi::BlendOperation;
+    let op = BlendOperation::try_from(v).map_err(|v| invalid_enum_what("blend operation", v))?;
+    Ok(match op {
+        BlendOperation::Add => wgt::BlendOperation::Add,
+        BlendOperation::Subtract => wgt::BlendOperation::Subtract,
+        BlendOperation::ReverseSubtract => wgt::BlendOperation::ReverseSubtract,
+        BlendOperation::Min => wgt::BlendOperation::Min,
+        BlendOperation::Max => wgt::BlendOperation::Max,
     })
 }
 
 pub(crate) fn cull_mode(v: u32) -> Result<Option<wgt::Face>, Status> {
-    Ok(match v {
-        0 => None,
-        1 => Some(wgt::Face::Front),
-        2 => Some(wgt::Face::Back),
-        other => return Err(invalid_enum_what("cull mode", other)),
+    use crate::abi::CullMode;
+    let m = CullMode::try_from(v).map_err(|v| invalid_enum_what("cull mode", v))?;
+    Ok(match m {
+        CullMode::None => None,
+        CullMode::Front => Some(wgt::Face::Front),
+        CullMode::Back => Some(wgt::Face::Back),
     })
 }
 
 pub(crate) fn front_face(v: u32) -> Result<wgt::FrontFace, Status> {
-    Ok(match v {
-        0 => wgt::FrontFace::Ccw,
-        1 => wgt::FrontFace::Cw,
-        other => return Err(invalid_enum_what("front face", other)),
+    use crate::abi::FrontFace;
+    let f = FrontFace::try_from(v).map_err(|v| invalid_enum_what("front face", v))?;
+    Ok(match f {
+        FrontFace::CounterClockwise => wgt::FrontFace::Ccw,
+        FrontFace::Clockwise => wgt::FrontFace::Cw,
     })
 }
 
 pub(crate) fn primitive_topology(v: u32) -> Result<wgt::PrimitiveTopology, Status> {
-    Ok(match v {
-        0 => wgt::PrimitiveTopology::PointList,
-        1 => wgt::PrimitiveTopology::LineList,
-        2 => wgt::PrimitiveTopology::LineStrip,
-        3 => wgt::PrimitiveTopology::TriangleList,
-        4 => wgt::PrimitiveTopology::TriangleStrip,
-        other => return Err(invalid_enum_what("primitive topology", other)),
+    use crate::abi::PrimitiveTopology;
+    let t =
+        PrimitiveTopology::try_from(v).map_err(|v| invalid_enum_what("primitive topology", v))?;
+    Ok(match t {
+        PrimitiveTopology::PointList => wgt::PrimitiveTopology::PointList,
+        PrimitiveTopology::LineList => wgt::PrimitiveTopology::LineList,
+        PrimitiveTopology::LineStrip => wgt::PrimitiveTopology::LineStrip,
+        PrimitiveTopology::TriangleList => wgt::PrimitiveTopology::TriangleList,
+        PrimitiveTopology::TriangleStrip => wgt::PrimitiveTopology::TriangleStrip,
     })
 }
 
 pub(crate) fn index_format(v: u32) -> Result<wgt::IndexFormat, Status> {
-    Ok(match v {
-        0 => wgt::IndexFormat::Uint16, // C# Undefined (only used with non-indexed draws)
-        1 => wgt::IndexFormat::Uint16,
-        2 => wgt::IndexFormat::Uint32,
-        other => return Err(invalid_enum_what("index format", other)),
+    use crate::abi::IndexFormat;
+    let f = IndexFormat::try_from(v).map_err(|v| invalid_enum_what("index format", v))?;
+    Ok(match f {
+        // Undefined is only valid with non-indexed draws; wgpu still wants a format.
+        IndexFormat::Undefined => wgt::IndexFormat::Uint16,
+        IndexFormat::UInt16 => wgt::IndexFormat::Uint16,
+        IndexFormat::UInt32 => wgt::IndexFormat::Uint32,
     })
 }
 
 pub(crate) fn stencil_operation(v: u32) -> Result<wgt::StencilOperation, Status> {
-    Ok(match v {
-        0 => wgt::StencilOperation::Keep,
-        1 => wgt::StencilOperation::Zero,
-        2 => wgt::StencilOperation::Replace,
-        3 => wgt::StencilOperation::Invert,
-        4 => wgt::StencilOperation::IncrementClamp,
-        5 => wgt::StencilOperation::DecrementClamp,
-        6 => wgt::StencilOperation::IncrementWrap,
-        7 => wgt::StencilOperation::DecrementWrap,
-        other => return Err(invalid_enum_what("stencil operation", other)),
+    use crate::abi::StencilOperation;
+    let op =
+        StencilOperation::try_from(v).map_err(|v| invalid_enum_what("stencil operation", v))?;
+    Ok(match op {
+        StencilOperation::Keep => wgt::StencilOperation::Keep,
+        StencilOperation::Zero => wgt::StencilOperation::Zero,
+        StencilOperation::Replace => wgt::StencilOperation::Replace,
+        StencilOperation::Invert => wgt::StencilOperation::Invert,
+        StencilOperation::IncrementClamp => wgt::StencilOperation::IncrementClamp,
+        StencilOperation::DecrementClamp => wgt::StencilOperation::DecrementClamp,
+        StencilOperation::IncrementWrap => wgt::StencilOperation::IncrementWrap,
+        StencilOperation::DecrementWrap => wgt::StencilOperation::DecrementWrap,
     })
 }
 
 pub(crate) fn vertex_format(v: u32) -> Result<wgt::VertexFormat, Status> {
+    use crate::abi::VertexFormat as VF;
     use wgt::VertexFormat as F;
-    Ok(match v {
-        0 => F::Float32, // Undefined never appears in real layouts
-        1 => F::Uint8x2,
-        2 => F::Uint8x4,
-        3 => F::Sint8x2,
-        4 => F::Sint8x4,
-        5 => F::Unorm8x2,
-        6 => F::Unorm8x4,
-        7 => F::Snorm8x2,
-        8 => F::Snorm8x4,
-        9 => F::Uint16x2,
-        10 => F::Uint16x4,
-        11 => F::Sint16x2,
-        12 => F::Sint16x4,
-        13 => F::Unorm16x2,
-        14 => F::Unorm16x4,
-        15 => F::Snorm16x2,
-        16 => F::Snorm16x4,
-        17 => F::Float16x2,
-        18 => F::Float16x4,
-        19 => F::Float32,
-        20 => F::Float32x2,
-        21 => F::Float32x3,
-        22 => F::Float32x4,
-        23 => F::Uint32,
-        24 => F::Uint32x2,
-        25 => F::Uint32x3,
-        26 => F::Uint32x4,
-        27 => F::Sint32,
-        28 => F::Sint32x2,
-        29 => F::Sint32x3,
-        30 => F::Sint32x4,
-        other => return Err(invalid_enum_what("vertex format", other)),
+    let f = VF::try_from(v).map_err(|v| invalid_enum_what("vertex format", v))?;
+    Ok(match f {
+        // Undefined never appears in real layouts; degrade to Float32.
+        VF::Undefined => F::Float32,
+        VF::Uint8x2 => F::Uint8x2,
+        VF::Uint8x4 => F::Uint8x4,
+        VF::Sint8x2 => F::Sint8x2,
+        VF::Sint8x4 => F::Sint8x4,
+        VF::Unorm8x2 => F::Unorm8x2,
+        VF::Unorm8x4 => F::Unorm8x4,
+        VF::Snorm8x2 => F::Snorm8x2,
+        VF::Snorm8x4 => F::Snorm8x4,
+        VF::Uint16x2 => F::Uint16x2,
+        VF::Uint16x4 => F::Uint16x4,
+        VF::Sint16x2 => F::Sint16x2,
+        VF::Sint16x4 => F::Sint16x4,
+        VF::Unorm16x2 => F::Unorm16x2,
+        VF::Unorm16x4 => F::Unorm16x4,
+        VF::Snorm16x2 => F::Snorm16x2,
+        VF::Snorm16x4 => F::Snorm16x4,
+        VF::Float16x2 => F::Float16x2,
+        VF::Float16x4 => F::Float16x4,
+        VF::Float32 => F::Float32,
+        VF::Float32x2 => F::Float32x2,
+        VF::Float32x3 => F::Float32x3,
+        VF::Float32x4 => F::Float32x4,
+        VF::Uint32 => F::Uint32,
+        VF::Uint32x2 => F::Uint32x2,
+        VF::Uint32x3 => F::Uint32x3,
+        VF::Uint32x4 => F::Uint32x4,
+        VF::Sint32 => F::Sint32,
+        VF::Sint32x2 => F::Sint32x2,
+        VF::Sint32x3 => F::Sint32x3,
+        VF::Sint32x4 => F::Sint32x4,
     })
 }
 
 pub(crate) fn vertex_step_mode(v: u32) -> Result<wgt::VertexStepMode, Status> {
-    Ok(match v {
-        0 => wgt::VertexStepMode::Vertex,
-        1 => wgt::VertexStepMode::Instance,
-        // C# NotUsed (2) has no wgpu counterpart; treat as Vertex.
-        2 => wgt::VertexStepMode::Vertex,
-        other => return Err(invalid_enum_what("vertex step mode", other)),
+    use crate::abi::VertexStepMode;
+    let m = VertexStepMode::try_from(v).map_err(|v| invalid_enum_what("vertex step mode", v))?;
+    Ok(match m {
+        VertexStepMode::Vertex => wgt::VertexStepMode::Vertex,
+        VertexStepMode::Instance => wgt::VertexStepMode::Instance,
+        // NotUsed has no wgpu counterpart; treat as Vertex.
+        VertexStepMode::NotUsed => wgt::VertexStepMode::Vertex,
     })
 }
 
-/// C# `ShaderStage` bits → `wgt::ShaderStages`.
+/// Shader stage visibility bits → `wgt::ShaderStages`.
 pub(crate) fn shader_stages(v: u32) -> wgt::ShaderStages {
     let mut stages = wgt::ShaderStages::empty();
     if v & (1 << 0) != 0 {
@@ -685,15 +712,19 @@ pub(crate) fn shader_stages(v: u32) -> wgt::ShaderStages {
     stages
 }
 
-/// C# `TextureSampleType` → bind-group texture binding sample type.
+/// `TextureSampleType` -> bind-group texture binding sample type.
+/// Lenient: `None` and unmapped raw values fall back to filterable Float.
 pub(crate) fn texture_sample_type(v: u32) -> Result<wgt::TextureSampleType, Status> {
-    Ok(match v {
-        1 => wgt::TextureSampleType::Float { filterable: true },
-        2 => wgt::TextureSampleType::Float { filterable: false },
-        3 => wgt::TextureSampleType::Depth,
-        4 => wgt::TextureSampleType::Sint,
-        5 => wgt::TextureSampleType::Uint,
-        _ => wgt::TextureSampleType::Float { filterable: true },
+    use crate::abi::TextureSampleType;
+    let t = TextureSampleType::try_from(v).unwrap_or(TextureSampleType::Float);
+    Ok(match t {
+        TextureSampleType::None | TextureSampleType::Float => {
+            wgt::TextureSampleType::Float { filterable: true }
+        }
+        TextureSampleType::UnfilterableFloat => wgt::TextureSampleType::Float { filterable: false },
+        TextureSampleType::Depth => wgt::TextureSampleType::Depth,
+        TextureSampleType::Sint => wgt::TextureSampleType::Sint,
+        TextureSampleType::Uint => wgt::TextureSampleType::Uint,
     })
 }
 
@@ -706,11 +737,13 @@ pub(crate) fn storage_texture_access(v: u32) -> Result<wgt::StorageTextureAccess
     })
 }
 
+/// `abi::AttachmentStoreOp` -> `wgt::StoreOp`.
 pub(crate) fn store_op(v: u32) -> Result<wgt::StoreOp, Status> {
-    Ok(match v {
-        0 => wgt::StoreOp::Store,
-        1 => wgt::StoreOp::Discard,
-        other => return Err(invalid_enum_what("store op", other)),
+    use crate::abi::AttachmentStoreOp;
+    let op = AttachmentStoreOp::try_from(v).map_err(|v| invalid_enum_what("store op", v))?;
+    Ok(match op {
+        AttachmentStoreOp::Store => wgt::StoreOp::Store,
+        AttachmentStoreOp::Discard => wgt::StoreOp::Discard,
     })
 }
 

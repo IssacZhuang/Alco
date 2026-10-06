@@ -123,9 +123,9 @@ pub struct ColorAttachment {
     pub view: TextureViewHandle,
     /// Resolve target view, `TextureViewHandle::NULL` when unused.
     pub resolve_view: TextureViewHandle,
-    /// C# `AttachmentLoadOp`: 0 Load, 1 Clear.
+    /// `AttachmentLoadOp`: 0 Load, 1 Clear.
     pub load_op: u32,
-    /// C# `AttachmentStoreOp`: 0 Store, 1 Discard.
+    /// `AttachmentStoreOp`: 0 Store, 1 Discard.
     pub store_op: u32,
     /// RGBA clear value used by the Clear load operation.
     pub clear_color: [f32; 4],
@@ -175,8 +175,8 @@ pub struct RenderPassDesc {
     pub timestamp_writes: *const TimestampWrites,
 }
 
-/// Full-mip source layout for texture copies/writes (computed C#-side, which
-/// owns the row-pitch rules per format).
+/// Full-mip source layout for texture copies/writes (computed by the
+/// caller, which owns the row-pitch rules per format).
 #[repr(C)]
 pub struct CopyLayout {
     /// Byte offset of the first copied texel in the buffer.
@@ -377,18 +377,18 @@ pub unsafe extern "C-unwind" fn encoder_begin_render_pass(
                     debug_assert!(Arc::ptr_eq(ctx, &resolve.ctx));
                     Some(resolve.id)
                 };
-                let load_op = match attachment.load_op {
-                    0 => wgt::LoadOp::Load,
-                    1 => wgt::LoadOp::Clear(wgt::Color {
+                let load_op = match AttachmentLoadOp::try_from(attachment.load_op) {
+                    Ok(AttachmentLoadOp::Load) => wgt::LoadOp::Load,
+                    Ok(AttachmentLoadOp::Clear) => wgt::LoadOp::Clear(wgt::Color {
                         r: attachment.clear_color[0] as f64,
                         g: attachment.clear_color[1] as f64,
                         b: attachment.clear_color[2] as f64,
                         a: attachment.clear_color[3] as f64,
                     }),
-                    other => {
+                    Err(v) => {
                         set_error(
                             Status::INVALID_ARGUMENT,
-                            format!("invalid color load op {other}"),
+                            format!("invalid color load op {v}"),
                         );
                         return Err(Status::INVALID_ARGUMENT);
                     }
@@ -481,13 +481,13 @@ fn pass_channel(
     let load = if read_only {
         None
     } else {
-        Some(match load_op {
-            0 => wgt::LoadOp::Load,
-            1 => wgt::LoadOp::Clear(Some(clear)),
-            other => {
+        Some(match AttachmentLoadOp::try_from(load_op) {
+            Ok(AttachmentLoadOp::Load) => wgt::LoadOp::Load,
+            Ok(AttachmentLoadOp::Clear) => wgt::LoadOp::Clear(Some(clear)),
+            Err(v) => {
                 set_error(
                     Status::INVALID_ARGUMENT,
-                    format!("invalid {what} load op {other}"),
+                    format!("invalid {what} load op {v}"),
                 );
                 return Err(Status::INVALID_ARGUMENT);
             }
@@ -515,13 +515,13 @@ fn pass_channel_u32(
     let load = if read_only {
         None
     } else {
-        Some(match load_op {
-            0 => wgt::LoadOp::Load,
-            1 => wgt::LoadOp::Clear(Some(clear)),
-            other => {
+        Some(match AttachmentLoadOp::try_from(load_op) {
+            Ok(AttachmentLoadOp::Load) => wgt::LoadOp::Load,
+            Ok(AttachmentLoadOp::Clear) => wgt::LoadOp::Clear(Some(clear)),
+            Err(v) => {
                 set_error(
                     Status::INVALID_ARGUMENT,
-                    format!("invalid {what} load op {other}"),
+                    format!("invalid {what} load op {v}"),
                 );
                 return Err(Status::INVALID_ARGUMENT);
             }
@@ -1811,7 +1811,7 @@ pub unsafe extern "C-unwind" fn queue_submit_batch(
 // Render bundles
 // ---------------------------------------------------------------------------
 
-/// C# `RenderBundleDescriptor`.
+/// Render bundle descriptor.
 #[repr(C)]
 pub struct BundleEncoderDesc {
     /// Readable color format array, nullable when its count is zero.

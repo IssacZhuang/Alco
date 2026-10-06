@@ -326,7 +326,10 @@ struct Surface<'w> {
 }
 
 impl<'w> Surface<'w> {
-    fn new(device: &Device, window: &'w HiddenWindow) -> (Self, SurfaceCapabilities, SurfaceConfig) {
+    fn new(
+        device: &Device,
+        window: &'w HiddenWindow,
+    ) -> (Self, SurfaceCapabilities, SurfaceConfig) {
         let desc = SurfaceDesc {
             tag: 0, // Win32
             handle: window.handle as usize as u64,
@@ -445,7 +448,7 @@ impl Acquired<'_> {
     }
 
     fn release(mut self) {
-        // Match C# Drop: release the texture while its default view is still alive.
+        // Release the texture while its default view is still alive.
         expect_ok(self.release_texture(), "surface texture release");
         self.release_view();
     }

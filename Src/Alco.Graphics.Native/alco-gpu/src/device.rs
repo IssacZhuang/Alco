@@ -107,7 +107,7 @@ impl DeviceCtx {
     }
 }
 
-/// Alco feature bits — numeric values mirror C# `GPUFeatures` exactly.
+/// Alco feature bits (the `DeviceDesc::required_features` space).
 pub(crate) mod gpu_features {
     pub const TEXTURE_COMPRESSION_BC: u64 = 1 << 0;
     pub const TIMESTAMP_QUERY: u64 = 1 << 1;
@@ -360,9 +360,8 @@ pub unsafe extern "C-unwind" fn device_create(
         let (supported, mut device_caps) = supported_gpu_features(adapter_features);
 
         // Requested Alco features are desired-optional: intersect with adapter
-        // support instead of failing, so the C# side can blanket-request the
-        // optional set without a probe round trip (mirrors the old WebGPUDevice
-        // behavior of only requesting probed features).
+        // support instead of failing, so callers can blanket-request the
+        // optional set without a probe round trip.
         let mut required = base_adapter_features(adapter_info.backend)
             | gpu_features_to_wgpu(desc.required_features & supported);
         if adapter_info.backend == wgt::Backend::Dx12 {
@@ -376,9 +375,8 @@ pub unsafe extern "C-unwind" fn device_create(
         // MetalLib passthrough is an Apple-platform source kind.
         if resolved == backend::RESOLVED_METAL && passthrough_available {
             device_caps |= capabilities::METALLIB;
-            // Surface it as a supported Alco feature: the C# shader system
-            // keys its Metal code target on this bit.
-            // (folded into `supported` below via `device_caps` re-check)
+            // Surface it as a supported Alco feature (folded into `supported`
+            // below via `device_caps` re-check).
         }
 
         let missing = required - adapter_features;

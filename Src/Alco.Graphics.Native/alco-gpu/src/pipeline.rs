@@ -1,7 +1,6 @@
 //! Graphics and compute pipelines. The pipeline layout (bind-group-layout
 //! handles + immediate size) is built internally and dropped right after
-//! pipeline creation — it is never visible through the ABI, matching the old
-//! backend where C# released the layout immediately after pipeline creation.
+//! pipeline creation; it is never visible through the ABI.
 
 use crate::abi::*;
 use crate::convert::*;
@@ -54,23 +53,23 @@ macro_rules! object_ref {
     };
 }
 
-/// One C# `VertexElement`.
+/// One vertex attribute.
 #[repr(C)]
 pub struct VertexElement {
     /// Shader vertex-input location.
     pub location: u32,
     /// Byte offset of this attribute within a vertex.
     pub offset: u32,
-    /// C# `VertexFormat`.
+    /// `VertexFormat`.
     pub format: u32,
 }
 
-/// One C# `VertexInputLayout` (a vertex buffer slot).
+/// One vertex buffer slot layout.
 #[repr(C)]
 pub struct VertexLayout {
     /// Byte stride between vertices.
     pub stride: u32,
-    /// C# `VertexStepMode`.
+    /// `VertexStepMode`.
     pub step_mode: u32,
     /// Pointer to element_count initialized vertex elements.
     pub elements: *const VertexElement,
@@ -78,18 +77,18 @@ pub struct VertexLayout {
     pub element_count: u32,
 }
 
-/// C# `BlendComponent`.
+/// Blend factors and operation for one channel.
 #[repr(C)]
 pub struct BlendComponent {
-    /// C# source blend-factor discriminant.
+    /// Source blend factor.
     pub src_factor: u32,
-    /// C# destination blend-factor discriminant.
+    /// Destination blend factor.
     pub dst_factor: u32,
-    /// C# blend-operation discriminant.
+    /// Blend operation.
     pub operation: u32,
 }
 
-/// C# `BlendState`.
+/// Blend state for the color and alpha channels.
 #[repr(C)]
 pub struct BlendState {
     /// Blend component applied to color channels.
@@ -98,10 +97,10 @@ pub struct BlendState {
     pub alpha: BlendComponent,
 }
 
-/// C# `StencilFaceState`.
+/// Stencil face state.
 #[repr(C)]
 pub struct StencilFace {
-    /// C# comparison-function discriminant used by stencil tests.
+    /// Comparison function used by stencil tests.
     pub compare: u32,
     /// Stencil operation when the stencil test fails.
     pub stencil_fail_op: u32,
@@ -111,14 +110,14 @@ pub struct StencilFace {
     pub pass_op: u32,
 }
 
-/// C# `DepthStencilState`.
+/// Depth-stencil state.
 #[repr(C)]
 pub struct DepthStencilState {
     /// Whether successful depth tests write the depth attachment.
     pub depth_write_enabled: u32,
-    /// Present in the C# struct but unsupported by WebGPU; kept for layout parity.
+    /// Unsupported by WebGPU; kept for layout parity.
     pub depth_bounds_test_enabled: u32,
-    /// C# comparison function used for depth tests.
+    /// Comparison function used for depth tests.
     pub depth_compare: u32,
     /// Stencil state for front-facing primitives.
     pub front: StencilFace,
@@ -130,10 +129,10 @@ pub struct DepthStencilState {
     pub stencil_write_mask: u32,
 }
 
-/// C# `GraphicsPipelineDescriptor`.
+/// Graphics pipeline descriptor.
 #[repr(C)]
 pub struct GraphicsPipelineDesc {
-    /// Typed bind-group-layout pointers (C# `GPUBindGroup`).
+    /// Typed bind-group-layout pointers.
     pub bind_group_layouts: *const BindGroupLayoutHandle,
     /// Number of layout handles; zero permits a null array.
     pub bind_group_layout_count: u32,
@@ -149,22 +148,22 @@ pub struct GraphicsPipelineDesc {
     pub vertex_layouts: *const VertexLayout,
     /// Number of vertex-buffer layouts; zero permits a null array.
     pub vertex_layout_count: u32,
-    /// C# `FillMode` (Solid/Wireframe). Wireframe is accepted but rasterized
+    /// Fill mode (Solid/Wireframe). Wireframe is accepted but rasterized
     /// solid, matching the old backend (no POLYGON_MODE_LINE feature request).
     pub fill_mode: u32,
-    /// C# `CullMode`.
+    /// `CullMode`.
     pub cull_mode: u32,
-    /// C# `FrontFace`.
+    /// `FrontFace`.
     pub front_face: u32,
     /// Blend state shared by writable color targets.
     pub blend: BlendState,
     /// Depth and stencil state when an attachment format is present.
     pub depth_stencil: DepthStencilState,
-    /// C# `PixelFormat` value or `NONE` for no depth attachment.
+    /// `PixelFormat` value or `NONE` for no depth attachment.
     pub depth_stencil_format: u32,
-    /// C# `PrimitiveTopology`.
+    /// `PrimitiveTopology`.
     pub topology: u32,
-    /// Pointer to color_format_count C# pixel-format values.
+    /// Pointer to `color_format_count` `PixelFormat` values.
     pub color_formats: *const u32,
     /// Number of color targets; zero permits a null array.
     pub color_format_count: u32,
@@ -177,7 +176,7 @@ pub struct GraphicsPipelineDesc {
     pub name: *const c_char,
 }
 
-/// C# `ComputePipelineDescriptor`.
+/// Compute pipeline descriptor.
 #[repr(C)]
 pub struct ComputePipelineDesc {
     /// Pointer to bind_group_layout_count typed layout handles.
@@ -631,9 +630,7 @@ pub unsafe extern "C-unwind" fn compute_pipeline_destroy(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::objects::{
-        device_create_shader_module, shader_language, shader_module_destroy, ShaderModuleDesc,
-    };
+    use crate::objects::{device_create_shader_module, shader_module_destroy, ShaderModuleDesc};
     use crate::test_support::{last_error, TestDevice};
     use std::ptr;
 
@@ -659,7 +656,7 @@ mod tests {
         unsafe {
             let source = b"@compute @workgroup_size(1) fn main() {}";
             let module_desc = ShaderModuleDesc {
-                language: shader_language::WGSL,
+                language: ShaderLanguage::WGSL as u32,
                 data: source.as_ptr(),
                 size: source.len() as u32,
                 entry_point: c"main".as_ptr(),

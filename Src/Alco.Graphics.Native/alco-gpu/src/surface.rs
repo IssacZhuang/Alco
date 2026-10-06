@@ -65,7 +65,7 @@ struct SurfaceState {
     acquired_texture: Option<wgc::id::TextureId>,
 }
 
-/// C# `SurfaceSource` discriminant (mirrors `SurfaceHandle.cs`).
+/// Surface creation tag discriminant.
 pub mod surface_tag {
     /// Win32 HWND (+ optional HINSTANCE in `display`).
     pub const WIN32: u32 = 0;
@@ -81,7 +81,7 @@ pub mod surface_tag {
     pub const ANDROID: u32 = 5;
 }
 
-/// C# acquire-status codes (wgpu-native compatible).
+/// Acquire-status codes (wgpu-native compatible).
 pub mod acquire_status {
     /// A usable texture with an optimal surface configuration.
     pub const SUCCESS_OPTIMAL: u32 = 0;
@@ -113,11 +113,11 @@ pub struct SurfaceDesc {
 /// Supported surface formats and present modes returned through the C ABI.
 #[repr(C)]
 pub struct SurfaceCapabilities {
-    /// Supported C# pixel-format values, limited to `format_count` entries.
+    /// Supported pixel-format values, limited to `format_count` entries.
     pub formats: [u32; 64],
     /// Number of initialized entries in `formats`.
     pub format_count: u32,
-    /// C# present modes: 0 Fifo, 1 Immediate, 2 Mailbox.
+    /// Present modes: 0 Fifo, 1 Immediate, 2 Mailbox.
     pub present_modes: [u32; 8],
     /// Number of initialized entries in `present_modes`.
     pub present_mode_count: u32,
@@ -126,17 +126,17 @@ pub struct SurfaceCapabilities {
 /// Swapchain configuration accepted by the C ABI.
 #[repr(C)]
 pub struct SurfaceConfig {
-    /// C# `TextureUsage` bits (RenderAttachment and optionally TextureBinding).
+    /// Texture usage bits (RenderAttachment and optionally TextureBinding).
     pub usage: u32,
-    /// C# pixel-format value.
+    /// Pixel-format value.
     pub format: u32,
     /// Requested texture width in texels, clamped to at least one.
     pub width: u32,
     /// Requested texture height in texels, clamped to at least one.
     pub height: u32,
-    /// C# `PresentMode`: 0 Fifo, 1 Immediate, 2 Mailbox.
+    /// Present mode: 0 Fifo, 1 Immediate, 2 Mailbox.
     pub present_mode: u32,
-    /// C# `CompositeAlphaMode`.
+    /// Composite alpha mode.
     pub alpha_mode: u32,
     /// Desired maximum number of frames in flight, clamped to at least one.
     pub desired_frame_latency: u32,
@@ -420,7 +420,7 @@ pub unsafe extern "C-unwind" fn surface_get_capabilities(
             Ok(caps) => {
                 (*out).format_count = caps.formats.len().min(64) as u32;
                 for index in 0..(*out).format_count as usize {
-                    (*out).formats[index] = pixel_format_to_abi(caps.formats[index]);
+                    (*out).formats[index] = pixel_format_to_abi(caps.formats[index]) as u32;
                 }
                 (*out).present_mode_count = caps.present_modes.len().min(8) as u32;
                 for index in 0..(*out).present_mode_count as usize {

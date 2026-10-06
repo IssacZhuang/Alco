@@ -94,7 +94,7 @@ internal static unsafe class AlcoGpuUtility
             {
                 AlcoGPU.ShaderModuleDesc desc = new()
                 {
-                    Language = (uint)source.Language,
+                    Language = source.Language,
                     Data = ptrCode,
                     Size = (uint)code.Length,
                     EntryPoint = ptrEntry,
@@ -142,20 +142,20 @@ internal static unsafe class AlcoGpuUtility
         AlcoGPU.BindGroupLayoutEntry entry = new()
         {
             Binding = binding.Binding,
-            Visibility = (uint)binding.Stage,
-            Type = (uint)binding.Type,
+            Visibility = binding.Stage,
+            Type = binding.Type,
         };
 
         switch (binding.Type)
         {
             case BindingType.Texture:
-                entry.TextureSampleType = (uint)binding.TextureInfo.SampleType;
-                entry.ViewDimension = (uint)binding.TextureInfo.ViewDimension;
+                entry.TextureSampleType = binding.TextureInfo.SampleType;
+                entry.ViewDimension = binding.TextureInfo.ViewDimension;
                 break;
             case BindingType.StorageTexture:
-                entry.StorageAccess = (uint)binding.StorageTextureInfo.Access;
-                entry.StorageFormat = (uint)binding.StorageTextureInfo.Format;
-                entry.ViewDimension = (uint)binding.StorageTextureInfo.ViewDimension;
+                entry.StorageAccess = binding.StorageTextureInfo.Access;
+                entry.StorageFormat = binding.StorageTextureInfo.Format;
+                entry.ViewDimension = binding.StorageTextureInfo.ViewDimension;
                 break;
             case BindingType.SamplerComparison:
                 entry.SamplerKind = 2;

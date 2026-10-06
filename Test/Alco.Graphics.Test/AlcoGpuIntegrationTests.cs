@@ -267,7 +267,7 @@ public sealed class AlcoGpuIntegrationTests
         AlcoGPU.BufferDesc desc = new()
         {
             Size = 256,
-            Usage = (uint)(BufferUsage.QueryResolve | BufferUsage.CopyDst | BufferUsage.CopySrc),
+            Usage = (BufferUsage.QueryResolve | BufferUsage.CopyDst | BufferUsage.CopySrc),
         };
 
         AlcoGpuNative.BufferCreate(device.Native, in desc, out AlcoGPU.BufferHandle buffer);

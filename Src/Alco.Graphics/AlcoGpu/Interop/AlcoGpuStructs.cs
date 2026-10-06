@@ -571,8 +571,8 @@ internal static partial class AlcoGPU
         /// <summary><see cref="AlcoGPU.True"/> to enable validation.</summary>
         public uint Debug;
 
-        /// <summary>Required Alco feature bits (mirrors <see cref="GPUFeatures"/>).</summary>
-        public ulong RequiredFeatures;
+        /// <summary>Required Alco feature bits (<see cref="GPUFeatures"/>).</summary>
+        public GPUFeatures RequiredFeatures;
 
         /// <summary>Immediate buffer (push constants) size in bytes.</summary>
         public uint PushConstantsSize;
@@ -596,8 +596,8 @@ internal static partial class AlcoGPU
         /// <summary>Gets or stores Device.</summary>
         public uint Device;
 
-        /// <summary>Supported Alco feature bits.</summary>
-        public ulong SupportedFeatures;
+        /// <summary>Supported Alco feature bits (<see cref="GPUFeatures"/>).</summary>
+        public GPUFeatures SupportedFeatures;
 
         /// <summary>Capability bits (<see cref="AlcoGPU.Capabilities"/>).</summary>
         public ulong Capabilities;
@@ -655,7 +655,7 @@ internal static partial class AlcoGPU
         public ulong Size;
 
         /// <summary><see cref="BufferUsage"/> bits.</summary>
-        public uint Usage;
+        public BufferUsage Usage;
 
         /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
         public byte* Name;
@@ -666,13 +666,13 @@ internal static partial class AlcoGPU
     internal struct TextureDesc
     {
         /// <summary><see cref="TextureDimension"/> value.</summary>
-        public uint Dimension;
+        public TextureDimension Dimension;
 
         /// <summary><see cref="PixelFormat"/> value.</summary>
-        public uint Format;
+        public PixelFormat Format;
 
         /// <summary><see cref="TextureUsage"/> bits.</summary>
-        public uint Usage;
+        public TextureUsage Usage;
 
         /// <summary>Gets or stores Width.</summary>
         public uint Width;
@@ -703,7 +703,7 @@ internal static partial class AlcoGPU
         public uint MipLevelCount;
 
         /// <summary><see cref="PixelFormat"/> value.</summary>
-        public uint Format;
+        public PixelFormat Format;
     }
 
     /// <summary>Texture view creation descriptor (mirrors TextureViewDesc).</summary>
@@ -711,7 +711,7 @@ internal static partial class AlcoGPU
     internal struct TextureViewDesc
     {
         /// <summary><see cref="TextureViewDimension"/> value.</summary>
-        public uint Dimension;
+        public TextureViewDimension Dimension;
         /// <summary>Gets or stores BaseMipLevel.</summary>
         public uint BaseMipLevel;
         /// <summary>Gets or stores MipLevelCount.</summary>
@@ -722,10 +722,10 @@ internal static partial class AlcoGPU
         public uint ArrayLayerCount;
 
         /// <summary><see cref="TextureAspect"/> value.</summary>
-        public uint Aspect;
+        public TextureAspect Aspect;
 
-        /// <summary><see cref="PixelFormat"/> value (0 keeps the texture format).</summary>
-        public uint Format;
+        /// <summary><see cref="PixelFormat"/> value; <see cref="PixelFormat.Undefined"/> keeps the texture format.</summary>
+        public PixelFormat Format;
 
         /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
         public byte* Name;
@@ -736,28 +736,28 @@ internal static partial class AlcoGPU
     internal struct SamplerDesc
     {
         /// <summary><see cref="FilterMode"/> value.</summary>
-        public uint MinFilter;
+        public FilterMode MinFilter;
 
         /// <summary><see cref="FilterMode"/> value.</summary>
-        public uint MagFilter;
+        public FilterMode MagFilter;
 
         /// <summary><see cref="FilterMode"/> value.</summary>
-        public uint MipmapFilter;
+        public FilterMode MipmapFilter;
 
-        /// <summary><see cref="AddressMode"/> values for U/V/W.</summary>
-        public uint AddressU;
-        /// <summary>Gets or stores AddressV.</summary>
-        public uint AddressV;
-        /// <summary>Gets or stores AddressW.</summary>
-        public uint AddressW;
+        /// <summary><see cref="AddressMode"/> value for U.</summary>
+        public AddressMode AddressU;
+        /// <summary><see cref="AddressMode"/> value for V.</summary>
+        public AddressMode AddressV;
+        /// <summary><see cref="AddressMode"/> value for W.</summary>
+        public AddressMode AddressW;
 
         /// <summary>Gets or stores LodMinClamp.</summary>
         public float LodMinClamp;
         /// <summary>Gets or stores LodMaxClamp.</summary>
         public float LodMaxClamp;
 
-        /// <summary><see cref="CompareFunction"/> value; 0 disables comparison.</summary>
-        public uint Compare;
+        /// <summary><see cref="CompareFunction"/> value; <see cref="CompareFunction.Undefined"/> disables comparison.</summary>
+        public CompareFunction Compare;
 
         /// <summary>Max anisotropy (1 = disabled).</summary>
         public ushort MaxAnisotropy;
@@ -771,7 +771,7 @@ internal static partial class AlcoGPU
     internal struct ShaderModuleDesc
     {
         /// <summary><see cref="ShaderLanguage"/> value (SpirV/Wgsl/Dxil/Msl/MetalLib).</summary>
-        public uint Language;
+        public ShaderLanguage Language;
 
         /// <summary>Shader bytecode/data.</summary>
         public byte* Data;
@@ -804,25 +804,25 @@ internal static partial class AlcoGPU
         public uint Binding;
 
         /// <summary><see cref="ShaderStage"/> visibility bits.</summary>
-        public uint Visibility;
+        public ShaderStage Visibility;
 
         /// <summary><see cref="BindingType"/> value.</summary>
-        public uint Type;
+        public BindingType Type;
 
         /// <summary>Sampler bindings: 0 filtering, 1 non-filtering, 2 comparison.</summary>
         public uint SamplerKind;
 
         /// <summary>Texture bindings: <see cref="TextureSampleType"/> value.</summary>
-        public uint TextureSampleType;
+        public TextureSampleType TextureSampleType;
 
         /// <summary>Texture/storage bindings: <see cref="TextureViewDimension"/> value.</summary>
-        public uint ViewDimension;
+        public TextureViewDimension ViewDimension;
 
-        /// <summary>Storage textures: <see cref="AccessMode"/> bits.</summary>
-        public uint StorageAccess;
+        /// <summary>Storage textures: <see cref="AccessMode"/> value.</summary>
+        public AccessMode StorageAccess;
 
         /// <summary>Storage textures: <see cref="PixelFormat"/> value.</summary>
-        public uint StorageFormat;
+        public PixelFormat StorageFormat;
     }
 
     /// <summary>Bind group layout descriptor (mirrors BindGroupLayoutDesc).</summary>
@@ -883,7 +883,7 @@ internal static partial class AlcoGPU
         public uint Offset;
 
         /// <summary><see cref="VertexFormat"/> value.</summary>
-        public uint Format;
+        public VertexFormat Format;
     }
 
     /// <summary>One vertex buffer layout (mirrors VertexLayout).</summary>
@@ -894,7 +894,7 @@ internal static partial class AlcoGPU
         public uint Stride;
 
         /// <summary><see cref="VertexStepMode"/> value.</summary>
-        public uint StepMode;
+        public VertexStepMode StepMode;
 
         /// <summary>Gets or stores Elements.</summary>
         public VertexElement* Elements;
@@ -906,13 +906,13 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct BlendComponent
     {
-        /// <summary><see cref="BlendFactor"/> values.</summary>
-        public uint SrcFactor;
-        /// <summary>Gets or stores DstFactor.</summary>
-        public uint DstFactor;
+        /// <summary><see cref="BlendFactor"/> value (source).</summary>
+        public BlendFactor SrcFactor;
+        /// <summary><see cref="BlendFactor"/> value (destination).</summary>
+        public BlendFactor DstFactor;
 
         /// <summary><see cref="BlendOperation"/> value.</summary>
-        public uint Operation;
+        public BlendOperation Operation;
     }
 
     /// <summary>Blend state for color+alpha channels (mirrors BlendState).</summary>
@@ -930,14 +930,14 @@ internal static partial class AlcoGPU
     internal struct StencilFace
     {
         /// <summary><see cref="CompareFunction"/> value (0 = Always).</summary>
-        public uint Compare;
+        public CompareFunction Compare;
 
-        /// <summary><see cref="StencilOperation"/> values.</summary>
-        public uint StencilFailOp;
-        /// <summary>Gets or stores DepthFailOp.</summary>
-        public uint DepthFailOp;
-        /// <summary>Gets or stores PassOp.</summary>
-        public uint PassOp;
+        /// <summary><see cref="StencilOperation"/> value (stencil fail).</summary>
+        public StencilOperation StencilFailOp;
+        /// <summary><see cref="StencilOperation"/> value (depth fail).</summary>
+        public StencilOperation DepthFailOp;
+        /// <summary><see cref="StencilOperation"/> value (pass).</summary>
+        public StencilOperation PassOp;
     }
 
     /// <summary>Depth-stencil state (mirrors DepthStencilState).</summary>
@@ -950,8 +950,8 @@ internal static partial class AlcoGPU
         /// <summary>Boolean u32; ignored by wgpu (no depth bounds test).</summary>
         public uint DepthBoundsTestEnabled;
 
-        /// <summary><see cref="CompareFunction"/> value (0 disables depth test).</summary>
-        public uint DepthCompare;
+        /// <summary><see cref="CompareFunction"/> value; <see cref="CompareFunction.Undefined"/> disables the depth test.</summary>
+        public CompareFunction DepthCompare;
 
         /// <summary>Gets or stores Front.</summary>
         public StencilFace Front;
@@ -990,13 +990,13 @@ internal static partial class AlcoGPU
         public uint VertexLayoutCount;
 
         /// <summary><see cref="FillMode"/> value (wireframe unsupported by wgpu).</summary>
-        public uint FillMode;
+        public FillMode FillMode;
 
         /// <summary><see cref="CullMode"/> value.</summary>
-        public uint CullMode;
+        public CullMode CullMode;
 
         /// <summary><see cref="FrontFace"/> value.</summary>
-        public uint FrontFace;
+        public FrontFace FrontFace;
 
         /// <summary>Gets or stores Blend.</summary>
         public BlendState Blend;
@@ -1007,7 +1007,7 @@ internal static partial class AlcoGPU
         public uint DepthStencilFormat;
 
         /// <summary><see cref="PrimitiveTopology"/> value.</summary>
-        public uint Topology;
+        public PrimitiveTopology Topology;
 
         /// <summary><see cref="PixelFormat"/> values, one per color target.</summary>
         public uint* ColorFormats;
@@ -1161,8 +1161,8 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct SubresourceRange
     {
-        /// <summary><see cref="TextureAspect"/> value: 0/1 all, 2 stencil only, 3 depth only.</summary>
-        public uint Aspect;
+        /// <summary><see cref="TextureAspect"/> value (None reads as all).</summary>
+        public TextureAspect Aspect;
         /// <summary>First cleared mip level.</summary>
         public uint BaseMipLevel;
         /// <summary>Cleared mip level count; zero or <see cref="AlcoGPU.None"/> = the rest.</summary>
@@ -1233,10 +1233,10 @@ internal static partial class AlcoGPU
     internal struct SurfaceConfig
     {
         /// <summary><see cref="TextureUsage"/> bits.</summary>
-        public uint Usage;
+        public TextureUsage Usage;
 
         /// <summary><see cref="PixelFormat"/> value.</summary>
-        public uint Format;
+        public PixelFormat Format;
 
         /// <summary>Gets or stores Width.</summary>
         public uint Width;
