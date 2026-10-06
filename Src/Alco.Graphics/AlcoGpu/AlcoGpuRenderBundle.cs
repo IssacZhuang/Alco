@@ -5,6 +5,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Records reusable native rendering commands with call-scoped managed resource lifetimes.</summary>
 internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
 {
     private static readonly Exception ExceptionNoGraphicsPipeline = new("No graphics pipeline is set before drawing or set resources");
@@ -111,71 +112,90 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         AlcoGpuNative.BundleEncoderFinish(_device.Native, bundleEncoder, out _bundle);
     }
 
+    /// <inheritdoc />
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
         _graphicsPipeline = ((AlcoGpuGraphicsPipeline)pipeline).Native;
         AlcoGpuNative.BundleSetPipeline(_device.Native, _bundleEncoder, _graphicsPipeline);
+        // The base recording list retains the resources while this encoder is alive.
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleSetBindGroup(
             _device.Native, _bundleEncoder, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleSetVertexBuffer(
             _device.Native, _bundleEncoder, slot, ((AlcoGpuBuffer)buffer).Native, offset, size);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleSetIndexBuffer(
             _device.Native, _bundleEncoder, ((AlcoGpuBuffer)buffer).Native, (uint)format, offset, size);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleDraw(_device.Native, _bundleEncoder, vertexCount, instanceCount, firstVertex, firstInstance);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleDrawIndexed(_device.Native, _bundleEncoder, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleDrawIndirect(
             _device.Native, _bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleDrawIndexedIndirect(
             _device.Native, _bundleEncoder, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.BundleSetImmediates(_device.Native, _bundleEncoder, bufferOffset, data, size);
+        GC.KeepAlive(this);
     }
 
     #endregion
@@ -205,6 +225,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
             AlcoHandle bundle = _bundle;
             _bundle = AlcoHandle.Null;
             AlcoGpuNative.RenderBundleDestroy(_device.Native, bundle);
+            GC.KeepAlive(this);
         }
     }
 
@@ -216,6 +237,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
             AlcoHandle bundleEncoder = _bundleEncoder;
             _bundleEncoder = AlcoHandle.Null;
             AlcoGpuNative.BundleEncoderDestroy(_device.Native, bundleEncoder);
+            GC.KeepAlive(this);
         }
     }
 

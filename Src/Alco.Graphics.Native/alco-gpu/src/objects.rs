@@ -24,13 +24,15 @@ pub(crate) struct MapCompletion {
     pub error: Mutex<CString>,
 }
 
+#[derive(Clone)]
 pub(crate) struct BufferObj {
     pub id: wgc::id::BufferId,
-    /// Present while a map is pending/mapped; taken by unmap.
-    pub map_completion: Option<Arc<MapCompletion>>,
+    /// Mapping state is shared across registry snapshots, independently of uploads.
+    pub map_completion: Arc<Mutex<Option<Arc<MapCompletion>>>>,
 }
 
 /// Core texture registration and the metadata reported through the ABI.
+#[derive(Clone, Copy)]
 pub(crate) struct TextureObj {
     /// Core texture identity.
     pub id: wgc::id::TextureId,
@@ -52,26 +54,32 @@ pub(crate) struct TextureObj {
     pub surface: Option<AlcoHandle>,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct TextureViewObj {
     pub id: wgc::id::TextureViewId,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct SamplerObj {
     pub id: wgc::id::SamplerId,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct ShaderModuleObj {
     pub id: wgc::id::ShaderModuleId,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct BindGroupLayoutObj {
     pub id: wgc::id::BindGroupLayoutId,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct BindGroupObj {
     pub id: wgc::id::BindGroupId,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct QuerySetObj {
     pub id: wgc::id::QuerySetId,
 }
@@ -307,7 +315,10 @@ pub unsafe extern "C-unwind" fn alco_buffer_create(
                     ctx.global.buffer_drop(id);
                     return (AlcoStatus::VALIDATION, AlcoHandle::NULL);
                 }
-                let handle = ctx.buffers().insert(BufferObj { id, map_completion: None });
+                let handle = ctx.buffers().insert(BufferObj {
+                    id,
+                    map_completion: Arc::new(Mutex::new(None)),
+                });
                 (AlcoStatus::OK, handle)
             })
             .map(|(status, handle)| {
@@ -374,8 +385,8 @@ pub unsafe extern "C-unwind" fn alco_buffer_map_read(
                 let callback = Box::new(move |result: wgc::resource::BufferAccessResult| match result {
                     Ok(()) => callback_cell.state.store(1, Ordering::Release),
                     Err(err) => {
-                        callback_cell.state.store(2, Ordering::Release);
                         *callback_cell.error.lock().unwrap() = CString::new(err.to_string()).unwrap();
+                        callback_cell.state.store(2, Ordering::Release);
                     }
                 }) as wgc::resource::BufferMapCallback;
                 let operation = wgc::resource::BufferMapOperation {
@@ -385,7 +396,7 @@ pub unsafe extern "C-unwind" fn alco_buffer_map_read(
                 match ctx.global.buffer_map_async(buffer_id, offset, Some(size), operation) {
                     Ok(_) => {
                         ctx.buffers()
-                            .with(buffer, |obj| obj.map_completion = Some(completion))
+                            .with(buffer, |obj| *obj.map_completion.lock().unwrap() = Some(completion))
                             .ok();
                         AlcoStatus::OK
                     }
@@ -412,34 +423,24 @@ pub unsafe extern "C-unwind" fn alco_buffer_map_poll(
     crate::entry::guard(|| {
         DEVICES
             .with(device, |ctx| {
-                let state = ctx.buffers().with(buffer, |obj| {
-                    obj.map_completion
-                        .as_ref()
-                        .map(|c| c.state.load(Ordering::Acquire))
-                });
-                match state {
-                    Ok(Some(0)) | Ok(None) | Ok(Some(3..)) => AlcoStatus::NOT_READY,
-                    Ok(Some(1)) => AlcoStatus::OK,
-                    Ok(Some(2)) => {
-                        let message = ctx
-                            .buffers()
-                            .with(buffer, |obj| {
-                                obj.map_completion
-                                    .as_ref()
-                                    .unwrap()
-                                    .error
-                                    .lock()
-                                    .unwrap()
-                                    .clone()
-                            })
-                            .unwrap_or_default();
+                let completion = match ctx.buffers().with(buffer, |obj| {
+                    obj.map_completion.lock().unwrap().clone()
+                }) {
+                    Ok(Some(completion)) => completion,
+                    Ok(None) => return AlcoStatus::NOT_READY,
+                    Err(_) => {
+                        set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                        return AlcoStatus::INVALID_HANDLE;
+                    }
+                };
+                match completion.state.load(Ordering::Acquire) {
+                    1 => AlcoStatus::OK,
+                    2 => {
+                        let message = completion.error.lock().unwrap().clone();
                         set_error(AlcoStatus::VALIDATION, message.to_string_lossy().into_owned());
                         AlcoStatus::VALIDATION
                     }
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
-                        AlcoStatus::INVALID_HANDLE
-                    }
+                    _ => AlcoStatus::NOT_READY,
                 }
             })
             .unwrap_or_else(|s| {
@@ -514,7 +515,7 @@ pub unsafe extern "C-unwind" fn alco_buffer_unmap(device: AlcoHandle, buffer: Al
                             return AlcoStatus::VALIDATION;
                         }
                         ctx.buffers()
-                            .with(buffer, |obj| obj.map_completion = None)
+                            .with(buffer, |obj| *obj.map_completion.lock().unwrap() = None)
                             .ok();
                         AlcoStatus::OK
                     }

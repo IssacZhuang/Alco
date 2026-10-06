@@ -16,6 +16,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
     #endregion
 
     #region Abstract Implementation
+    /// <inheritdoc />
     public override IReadOnlyList<IGPUBindableResource> Resources
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,6 +36,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
     #endregion
 
     #region AlcoGpu Implementation
+    /// <summary>Gets the native resource bind group handle.</summary>
     public AlcoHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -107,6 +109,7 @@ internal sealed unsafe class AlcoGpuResourceGroup : GPUResourceGroup
             };
 
             AlcoGpuNative.BindGroupCreate(device.Native, in nativeDescriptor, out _native);
+            GC.KeepAlive(descriptor.Layout);
         }
     }
 

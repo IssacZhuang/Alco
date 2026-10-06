@@ -12,6 +12,7 @@ use std::ffi::c_char;
 use wgpu_core as wgc;
 use wgpu_types as wgt;
 
+#[derive(Clone, Copy)]
 pub(crate) enum PipelineObj {
     Graphics(wgc::id::RenderPipelineId),
     Compute(wgc::id::ComputePipelineId),

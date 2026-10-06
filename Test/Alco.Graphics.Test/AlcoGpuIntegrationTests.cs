@@ -377,6 +377,392 @@ public sealed class AlcoGpuIntegrationTests
 
     }
 
+    /// <summary>Records independent render and compute commands while uploading buffers concurrently.</summary>
+    /// <param name="independentDevices">Whether each recording/upload pair uses its own device.</param>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ConcurrentRenderComputeRecordingAndBufferUploadsProduceExpectedResults(bool independentDevices)
+    {
+        RunConcurrentRecordingAndUploads(independentDevices, useBundles: false);
+    }
+
+    /// <summary>
+    /// Records and executes independent render bundles alongside buffer uploads and partial first-use texture writes.
+    /// </summary>
+    /// <param name="independentDevices">Whether each recording/upload pair uses its own device.</param>
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ConcurrentBundleRecordingAndPartialFirstUseUploadsProduceExpectedPixels(bool independentDevices)
+    {
+        RunConcurrentRecordingAndUploads(independentDevices, useBundles: true);
+    }
+
+    private static unsafe void RunConcurrentRecordingAndUploads(bool independentDevices, bool useBundles)
+    {
+        const int recordingWorkers = 2;
+        const int iterations = 32;
+        const int bufferElements = 64;
+        const uint size = 64;
+        const uint regionOffset = 16;
+        const uint regionSize = 32;
+        const uint bytesPerRow = 256;
+        const string computeWgsl = """
+            @group(0) @binding(0) var<storage, read_write> values: array<u32>;
+
+            @compute @workgroup_size(64)
+            fn cs_main(@builtin(global_invocation_id) id: vec3<u32>)
+            {
+                values[id.x] = values[id.x] + 3u;
+            }
+            """;
+
+        var ownedResources = new List<IDisposable>();
+        T Own<T>(T resource) where T : IDisposable
+        {
+            ownedResources.Add(resource);
+            return resource;
+        }
+        void Cleanup()
+        {
+            List<Exception>? failures = null;
+            for (int i = ownedResources.Count - 1; i >= 0; i--)
+            {
+                try
+                {
+                    ownedResources[i].Dispose();
+                }
+                catch (Exception error)
+                {
+                    (failures ??= new()).Add(error);
+                }
+            }
+            if (failures != null)
+            {
+                throw new AggregateException(failures);
+            }
+        }
+
+        var devices = new AlcoGpuDevice[recordingWorkers];
+        var pipelines = new GPUPipeline[recordingWorkers];
+        var layouts = new GPUAttachmentLayout[recordingWorkers];
+        var computeLayouts = new GPUBindGroup?[recordingWorkers];
+        var computePipelines = new GPUPipeline?[recordingWorkers];
+        var computeOutputs = new GPUBuffer?[recordingWorkers];
+        var computeResources = new GPUResourceGroup?[recordingWorkers];
+        var frameBuffers = new GPUFrameBuffer[recordingWorkers];
+        var commands = new GPUCommandBuffer[recordingWorkers];
+        var bundles = new GPURenderBundle?[recordingWorkers];
+        var uploadBuffers = new GPUBuffer[recordingWorkers];
+        var uploadData = new byte[recordingWorkers][];
+        var streamedTextures = new GPUTexture[recordingWorkers][];
+        var copyDestinations = new GPUTexture?[recordingWorkers];
+        var regionData = new byte[recordingWorkers][];
+        bool cleanupTransferred = false;
+        try
+        {
+            // Creation is deliberately single-threaded. Only immutable pipelines/layouts are
+            // shared; each worker exclusively owns its encoder, passes, bundle and framebuffer.
+            byte[] code = Encoding.UTF8.GetBytes(FullscreenTriangleWgsl);
+            for (int worker = 0; worker < recordingWorkers; worker++)
+            {
+                if (worker != 0 && !independentDevices)
+                {
+                    devices[worker] = devices[0];
+                    pipelines[worker] = pipelines[0];
+                    layouts[worker] = layouts[0];
+                    computeLayouts[worker] = computeLayouts[0];
+                    computePipelines[worker] = computePipelines[0];
+                }
+                else
+                {
+                    devices[worker] = CreateDevice(Own(new Host()));
+                    pipelines[worker] = Own(devices[worker].CreateGraphicsPipeline(new GraphicsPipelineDescriptor(
+                        Array.Empty<GPUBindGroup>(),
+                        new[]
+                        {
+                            new ShaderModule(ShaderStage.Vertex, ShaderLanguage.WGSL, code, "vs_main"),
+                            new ShaderModule(ShaderStage.Fragment, ShaderLanguage.WGSL, code, "fs_main"),
+                        },
+                        Array.Empty<VertexInputLayout>(), RasterizerState.CullNone, BlendState.Opaque,
+                        DepthStencilState.None, PrimitiveTopology.TriangleList, new[] { PixelFormat.RGBA8Unorm }, null)));
+                    layouts[worker] = Own(devices[worker].CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+                        new[] { new ColorAttachment { Format = PixelFormat.RGBA8Unorm, ClearColor = new(0, 0, 0, 1) } },
+                        null)));
+                    if (!useBundles)
+                    {
+                        computeLayouts[worker] = Own(devices[worker].CreateBindGroup(new BindGroupDescriptor(
+                            new[] { new BindGroupEntry(0, ShaderStage.Compute, BindingType.StorageBuffer) })));
+                        computePipelines[worker] = Own(devices[worker].CreateComputePipeline(new ComputePipelineDescriptor(
+                            new ShaderModule(ShaderStage.Compute, ShaderLanguage.WGSL,
+                                Encoding.UTF8.GetBytes(computeWgsl), "cs_main"),
+                            new[] { computeLayouts[worker]! })));
+                    }
+                }
+
+                AlcoGpuDevice device = devices[worker];
+                frameBuffers[worker] = Own(device.CreateFrameBuffer(new FrameBufferDescriptor(layouts[worker], size, size)));
+                commands[worker] = Own(device.CreateCommandBuffer());
+                uploadBuffers[worker] = Own(device.CreateBuffer(new BufferDescriptor(bufferElements * sizeof(uint),
+                    BufferUsage.CopyDst | BufferUsage.CopySrc)));
+                uploadData[worker] = new byte[bufferElements * sizeof(uint)];
+                Array.Fill(uploadData[worker], (byte)(0x37 + worker * 0x21));
+                if (useBundles)
+                {
+                    bundles[worker] = Own(device.CreateRenderBundle());
+                    var descriptor = new TextureDescriptor(TextureDimension.Texture2D, PixelFormat.RGBA8Unorm,
+                        size, size, usage: TextureUsage.Standard);
+                    streamedTextures[worker] = new GPUTexture[iterations];
+                    for (int iteration = 0; iteration < iterations; iteration++)
+                    {
+                        streamedTextures[worker][iteration] = Own(device.CreateTexture(descriptor));
+                    }
+                    copyDestinations[worker] = Own(device.CreateTexture(descriptor));
+                    regionData[worker] = new byte[bytesPerRow * regionSize];
+                    Array.Fill(regionData[worker], (byte)(0x5a + worker * 0x23));
+                }
+                else
+                {
+                    computeOutputs[worker] = Own(device.CreateBuffer(new BufferDescriptor(bufferElements * sizeof(uint),
+                        BufferUsage.Storage | BufferUsage.CopyDst | BufferUsage.CopySrc)));
+                    computeResources[worker] = Own(device.CreateResourceGroup(new ResourceGroupDescriptor(
+                        computeLayouts[worker]!, new[] { new ResourceBindingEntry(0, computeOutputs[worker]!) })));
+                    var initial = new uint[bufferElements];
+                    for (int element = 0; element < initial.Length; element++)
+                    {
+                        initial[element] = (uint)(worker * 1000 + element);
+                    }
+                    device.WriteBuffer(computeOutputs[worker]!, initial);
+                }
+            }
+
+            var workers = new Action<Barrier, CancellationToken>[recordingWorkers * 2];
+            for (int worker = 0; worker < recordingWorkers; worker++)
+            {
+                int index = worker;
+                workers[worker] = (start, cancellation) =>
+                {
+                    GPUCommandBuffer recording = commands[index];
+                    for (int iteration = 0; iteration < iterations; iteration++)
+                    {
+                        WaitForConcurrentRound(start, cancellation);
+                        if (useBundles)
+                        {
+                            GPURenderBundle bundle = bundles[index]!;
+                            bundle.Begin(layouts[index]);
+                            bundle.SetGraphicsPipeline(pipelines[index]);
+                            for (int draw = 0; draw < 8; draw++)
+                            {
+                                bundle.Draw(3, 1, 0, 0);
+                            }
+                            bundle.End();
+                        }
+                        recording.Begin();
+                        if (!useBundles)
+                        {
+                            using var computePass = recording.BeginCompute();
+                            computePass.SetPipeline(computePipelines[index]!);
+                            computePass.SetResources(0, computeResources[index]!);
+                            computePass.DispatchCompute(1, 1, 1);
+                        }
+                        using (var renderPass = recording.BeginRender(frameBuffers[index]))
+                        {
+                            if (useBundles)
+                            {
+                                renderPass.ExecuteBundle(bundles[index]!);
+                            }
+                            else
+                            {
+                                renderPass.SetPipeline(pipelines[index]);
+                                for (int draw = 0; draw < 8; draw++)
+                                {
+                                    renderPass.Draw(3, 1, 0, 0);
+                                }
+                            }
+                        }
+                        if (useBundles)
+                        {
+                            recording.CopyTexture(streamedTextures[index][iteration], copyDestinations[index]!);
+                        }
+                        recording.End();
+                        // Managed submission retains the texture-upload guard required by core 30.
+                        devices[index].Submit(recording);
+                        WaitForConcurrentRound(start, cancellation);
+                    }
+                };
+                workers[recordingWorkers + worker] = (start, cancellation) =>
+                {
+                    for (int iteration = 0; iteration < iterations; iteration++)
+                    {
+                        WaitForConcurrentRound(start, cancellation);
+                        for (int write = 0; write < 16; write++)
+                        {
+                            devices[index].WriteBuffer(uploadBuffers[index], uploadData[index]);
+                        }
+                        if (useBundles)
+                        {
+                            // Each texture is untouched until this partial first-use write. Use the
+                            // managed guard rather than the raw ABI to avoid core's lock inversion.
+                            fixed (byte* pointer = regionData[index])
+                            {
+                                devices[index].WriteTextureRegion(streamedTextures[index][iteration], pointer,
+                                    (uint)regionData[index].Length, bytesPerRow,
+                                    regionOffset, regionOffset, regionSize, regionSize);
+                            }
+                        }
+                        WaitForConcurrentRound(start, cancellation);
+                    }
+                };
+            }
+
+            cleanupTransferred = true;
+            RunConcurrentWorkers(workers, () =>
+            {
+                // The managed staging cache assumes broader ownership than command recording:
+                // all readbacks happen on the test thread only after every worker has exited.
+                byte[] expectedPixels = new byte[size * size * 4];
+                for (int pixel = 0; pixel < expectedPixels.Length; pixel += 4)
+                {
+                    expectedPixels[pixel] = 64;
+                    expectedPixels[pixel + 1] = 128;
+                    expectedPixels[pixel + 2] = 191;
+                    expectedPixels[pixel + 3] = 255;
+                }
+                for (int worker = 0; worker < recordingWorkers; worker++)
+                {
+                    byte[] pixels = new byte[expectedPixels.Length];
+                    fixed (byte* pointer = pixels)
+                    {
+                        devices[worker].ReadTexture(frameBuffers[worker].Colors[0], pointer, (uint)pixels.Length);
+                    }
+                    Assert.That(pixels, Is.EqualTo(expectedPixels), $"Worker {worker}, rendered pixels");
+                    byte[] bufferReadback = new byte[uploadData[worker].Length];
+                    devices[worker].ReadBuffer(uploadBuffers[worker], bufferReadback);
+                    Assert.That(bufferReadback, Is.EqualTo(uploadData[worker]), $"Worker {worker}, buffer upload");
+                    if (!useBundles)
+                    {
+                        uint[] computed = new uint[bufferElements];
+                        devices[worker].ReadBuffer(computeOutputs[worker]!, computed);
+                        for (int element = 0; element < computed.Length; element++)
+                        {
+                            Assert.That(computed[element], Is.EqualTo((uint)(worker * 1000 + element + iterations * 3)),
+                                $"Worker {worker}, compute element {element}");
+                        }
+                    }
+                    else
+                    {
+                        byte[] expected = new byte[pixels.Length];
+                        for (uint y = regionOffset; y < regionOffset + regionSize; y++)
+                        {
+                            expected.AsSpan((int)((y * size + regionOffset) * 4), (int)(regionSize * 4))
+                                .Fill(regionData[worker][0]);
+                        }
+                        // Concurrent submission may precede a given upload. Copy again after all
+                        // workers finish to check deterministic pixels and untouched zeroed texels.
+                        for (int sample = 0; sample < 2; sample++)
+                        {
+                            commands[worker].Begin();
+                            commands[worker].CopyTexture(streamedTextures[worker][sample == 0 ? 0 : iterations - 1],
+                                copyDestinations[worker]!);
+                            commands[worker].End();
+                            devices[worker].Submit(commands[worker]);
+                            fixed (byte* pointer = pixels)
+                            {
+                                devices[worker].ReadTexture(copyDestinations[worker]!, pointer, (uint)pixels.Length);
+                            }
+                            Assert.That(pixels, Is.EqualTo(expected), $"Worker {worker}, partial first-use sample {sample}");
+                        }
+                    }
+                }
+            }, Cleanup);
+        }
+        finally
+        {
+            if (!cleanupTransferred)
+            {
+                Cleanup();
+            }
+        }
+    }
+
+    private static void WaitForConcurrentRound(Barrier start, CancellationToken cancellation)
+    {
+        if (!start.SignalAndWait(TimeSpan.FromSeconds(10), cancellation))
+        {
+            throw new TimeoutException("Concurrent GPU workers did not reach the barrier within 10 seconds.");
+        }
+    }
+
+    private static void RunConcurrentWorkers(Action<Barrier, CancellationToken>[] workers, Action validate, Action cleanup)
+    {
+        var start = new Barrier(workers.Length);
+        var cancellation = new CancellationTokenSource();
+        var tasks = new List<Task>(workers.Length);
+        void CleanupAfterWorkers()
+        {
+            try
+            {
+                cleanup();
+            }
+            finally
+            {
+                start.Dispose();
+                cancellation.Dispose();
+            }
+        }
+        try
+        {
+            for (int i = 0; i < workers.Length; i++)
+            {
+                Action<Barrier, CancellationToken> worker = workers[i];
+                tasks.Add(Task.Factory.StartNew(() =>
+                {
+                    try
+                    {
+                        worker(start, cancellation.Token);
+                    }
+                    catch
+                    {
+                        cancellation.Cancel();
+                        throw;
+                    }
+                }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default));
+            }
+            Task completion = Task.WhenAll(tasks);
+            if (Task.WhenAny(completion, Task.Delay(TimeSpan.FromSeconds(60))).GetAwaiter().GetResult() != completion)
+            {
+                throw new TimeoutException("Concurrent GPU workers did not exit within 60 seconds.");
+            }
+            completion.GetAwaiter().GetResult();
+            validate();
+        }
+        finally
+        {
+            cancellation.Cancel();
+            Task completion = Task.WhenAll(tasks);
+            if (completion.IsCompleted)
+            {
+                CleanupAfterWorkers();
+            }
+            else
+            {
+                // A native-blocked worker cannot be aborted safely. Never destroy its resources
+                // or device, or synchronously wait on cleanup, while reporting a timeout/failure.
+                _ = completion.ContinueWith(finished =>
+                {
+                    _ = finished.Exception;
+                    try
+                    {
+                        CleanupAfterWorkers();
+                    }
+                    catch (Exception error)
+                    {
+                        Console.WriteLine($"Deferred concurrent GPU test cleanup failed: {error}");
+                    }
+                }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default);
+            }
+        }
+    }
+
     /// <summary>Creates empty binding layouts and resource groups through the managed API.</summary>
     [Test]
     public void EmptyManagedResourceGroupsCanBeCreated()

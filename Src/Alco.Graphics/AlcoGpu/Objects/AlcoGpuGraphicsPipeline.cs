@@ -88,10 +88,11 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
 
             // === Bind group layouts ======================================
 
-            AlcoHandle* bindGroupLayouts = stackalloc AlcoHandle[descriptor.BindGroups.Length];
-            for (int i = 0; i < descriptor.BindGroups.Length; i++)
+            GPUBindGroup[] bindGroups = descriptor.BindGroups;
+            AlcoHandle* bindGroupLayouts = stackalloc AlcoHandle[bindGroups.Length];
+            for (int i = 0; i < bindGroups.Length; i++)
             {
-                bindGroupLayouts[i] = ((AlcoGpuBindGroup)descriptor.BindGroups[i]).Native;
+                bindGroupLayouts[i] = ((AlcoGpuBindGroup)bindGroups[i]).Native;
             }
 
             // === Color formats ======================================
@@ -120,7 +121,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                 AlcoGraphicsPipelineDesc desc = new()
                 {
                     BindGroupLayouts = bindGroupLayouts,
-                    BindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
+                    BindGroupLayoutCount = (uint)bindGroups.Length,
                     VertexModule = vertexShader,
                     VertexEntry = pVertexEntry,
                     FragmentModule = pixelShader,
@@ -157,6 +158,7 @@ internal sealed unsafe class AlcoGpuGraphicsPipeline : GPUPipeline
                 };
 
                 AlcoGpuNative.GraphicsPipelineCreate(nativeDevice, in desc, out _pipeline);
+                GC.KeepAlive(bindGroups);
             }
         }
         finally

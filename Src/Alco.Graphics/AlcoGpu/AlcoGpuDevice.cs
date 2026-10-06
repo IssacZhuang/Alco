@@ -5,6 +5,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Provides GPU operations through the alco-gpu native backend.</summary>
 internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 {
     #region Properties
@@ -18,11 +19,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     private const ulong StagingCacheOversizeReuseThreshold = 4UL * 1024 * 1024;
 
     private readonly DeviceDescriptor _descriptor;
-    // Serializes texture uploads with every submission (including readbacks).
-    // wgpu-core historically took texture-initialization and device-tracker locks
-    // in opposite orders in write_texture and submit; this lock prevents a
-    // first-use deadlock. Buffer writes hold no initialization lock and need no
-    // extra synchronization.
+    // wgpu-core 30.0.1 still takes texture initialization and device trackers in
+    // opposite orders during texture writes and submissions, including readbacks.
+    // Buffer writes release trackers before acquiring initialization and need no gate.
     private readonly Lock _textureUploadLock = new();
     private readonly List<PendingTextureReadback> _pendingTextureReadbacks = new(capacity: 4);
 
@@ -61,6 +60,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     /// </summary>
     internal bool IsNativeAlive { get; private set; }
 
+    /// <summary>Gets whether native debugging and validation are enabled.</summary>
     public bool IsDebug { get; }
 
     /// <summary>
@@ -132,6 +132,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         get => _maxBindGroups;
     }
 
+    /// <inheritdoc />
     protected override void SubmitCore(GPUCommandBuffer commandBuffer)
     {
         AlcoHandle buffer = ((AlcoGpuCommandBuffer)commandBuffer).TakeBuffer();
@@ -140,6 +141,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             // The native side consumes the command-buffer handle on submit.
             AlcoGpuNative.QueueSubmit(Native, buffer, null);
         }
+        GC.KeepAlive(commandBuffer);
+        GC.KeepAlive(this);
     }
 
     protected unsafe override void DisposeCore()
@@ -251,12 +254,16 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         return new AlcoGpuSwapchain(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
     {
         AlcoHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
         AlcoGpuNative.QueueWriteBuffer(Native, nativeBuffer, bufferOffset, data, size);
+        GC.KeepAlive(buffer);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
     {
         AlcoHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
@@ -266,6 +273,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         try
         {
             ulong submissionIndex = CopyBufferToStaging(nativeBuffer, bufferOffset, tmpBuffer.Handle, size);
+            GC.KeepAlive(buffer);
 
             AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, size);
             PollAndWait(submissionIndex);
@@ -295,6 +303,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         }
     }
 
+    /// <inheritdoc />
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
     {
         AlcoHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
@@ -317,8 +326,11 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             AlcoGpuNative.QueueWriteTexture(
                 Native, nativeTexture, mipLevel, origin, (uint)TextureAspect.All, data, dataSize, in layout, writeSize);
         }
+        GC.KeepAlive(texture);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override unsafe void WriteTextureRegionCore(
         GPUTexture texture,
         byte* data,
@@ -355,8 +367,11 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
             AlcoGpuNative.QueueWriteTexture(
                 Native, nativeTexture, mipLevel, origin, (uint)TextureAspect.All, data, dataSize, in layout, writeSize);
         }
+        GC.KeepAlive(texture);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
     {
         // AlcoGpuTextureBase, not AlcoGpuTexture: swapchain surface textures are readable too.
@@ -374,6 +389,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
             ulong submissionIndex = CopyTextureToStaging(
                 nativeTexture, mipLevel, tmpBuffer.Handle, in layout.BufferLayout, layout.CopySize);
+            GC.KeepAlive(texture);
 
             AlcoGpuNative.BufferMapRead(Native, tmpBuffer.Handle, 0, layout.StagingDataSize);
             PollAndWait(submissionIndex);
@@ -422,6 +438,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         }
     }
 
+    /// <inheritdoc />
     protected override unsafe void BeginReadTextureCore(
         GPUTexture texture,
         byte* dest,
@@ -436,6 +453,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         try
         {
             CopyTextureToStaging(nativeTexture, mipLevel, tmpBuffer.Handle, in layout.BufferLayout, layout.CopySize);
+            GC.KeepAlive(texture);
 
             // The map completes when the submission finishes; polled each frame
             // from ProcessPendingReadbacksCore.

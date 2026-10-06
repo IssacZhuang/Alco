@@ -168,6 +168,37 @@ acquired texture's descriptor from the surface configuration, so the values reco
 `alco_surface_configure` time are authoritative (and resize is signaled through the
 acquire status, not through size drift).
 
+## Threading and ownership
+
+Handle registries use short shared read locks to resolve owned device references or
+immutable resource snapshots; registry locks are released before core operations,
+callbacks, GPU waits, and resource cleanup. Independent command encoders, passes,
+and bundle encoders can therefore be recorded concurrently without a device-wide
+recording lock. The generation/index handle format and sequential stale-handle
+rejection are unchanged.
+
+As with wgpu-native, callers must keep the device and every supplied resource alive
+until the call completes. Destroy/release, encoder finish, submission of the same
+command buffer, mapping/unmapping, and device teardown must be ordered against
+other uses of the affected object. Mapped pointers must not outlive unmap or buffer
+release; borrowed strings retain the lifetimes documented by their exports.
+
+Each render/compute pass and bundle encoder has caller-exclusive mutable state.
+A nonblocking atomic claim rejects overlapping recording/end calls with
+`InvalidArgument`, leaving an unsuccessfully consumed handle intact. Independent
+objects do not wait on one another. Surface configuration/acquisition/presentation
+metadata uses a per-surface mutex; map completion state uses a buffer-local mutex,
+separate from ordinary buffer uploads and command recording.
+
+**wgpu-core 30.0.1 still has a texture-upload/submission lock-order inversion.**
+`Queue::write_texture` holds the texture initialization write lock while acquiring
+`device.trackers`; `Queue::submit` holds `device.trackers` while initializing the
+same texture. Full writes are also affected when initialization actions were
+recorded before the upload. Alco.Graphics retains `_textureUploadLock` per device
+around texture writes and every queue submission, including readbacks. It does not
+cover recording, buffer writes, mapping, polling, or GPU waits. Direct C ABI users
+must provide the same synchronization when racing texture writes with submissions.
+
 ## Map / readback model
 
 Buffer mapping remains poll-driven (the error callback above is only for failures;

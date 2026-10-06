@@ -3,6 +3,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Owns a native compute pipeline created from managed shader and bind group descriptors.</summary>
 internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
 {
     #region Properties
@@ -23,6 +24,7 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
     #endregion
 
     #region AlcoGpu Implementation
+    /// <summary>Gets the native compute pipeline handle.</summary>
     public AlcoHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -42,16 +44,17 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
         {
             AlcoHandle module = device.CreateShaderModule(descriptor.Source);
 
-            AlcoHandle* bindGroupLayouts = stackalloc AlcoHandle[descriptor.BindGroups.Length];
-            for (int i = 0; i < descriptor.BindGroups.Length; i++)
+            GPUBindGroup[] bindGroups = descriptor.BindGroups;
+            AlcoHandle* bindGroupLayouts = stackalloc AlcoHandle[bindGroups.Length];
+            for (int i = 0; i < bindGroups.Length; i++)
             {
-                bindGroupLayouts[i] = ((AlcoGpuBindGroup)descriptor.BindGroups[i]).Native;
+                bindGroupLayouts[i] = ((AlcoGpuBindGroup)bindGroups[i]).Native;
             }
 
             AlcoComputePipelineDesc desc = new()
             {
                 BindGroupLayouts = bindGroupLayouts,
-                BindGroupLayoutCount = (uint)descriptor.BindGroups.Length,
+                BindGroupLayoutCount = (uint)bindGroups.Length,
                 ComputeModule = module,
                 ComputeEntry = ptrEntry,
                 ImmediateSize = descriptor.PushConstantsSize,
@@ -61,6 +64,7 @@ internal sealed unsafe class AlcoGpuComputePipeline : GPUPipeline
             try
             {
                 AlcoGpuNative.ComputePipelineCreate(nativeDevice, in desc, out _native);
+                GC.KeepAlive(bindGroups);
             }
             finally
             {

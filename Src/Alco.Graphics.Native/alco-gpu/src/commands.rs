@@ -11,16 +11,18 @@ use crate::abi::*;
 use crate::convert::*;
 use crate::device::{DeviceCtx, DEVICES};
 use crate::entry::{set_error, set_error_from};
-use crate::handle::HandleTable;
+use crate::handle::{HandleTable, RecordingTable};
 use crate::objects::label;
 use std::ffi::c_char;
 use wgpu_core as wgc;
 use wgpu_types as wgt;
 
+#[derive(Clone, Copy)]
 pub(crate) struct EncoderObj {
     pub id: wgc::id::CommandEncoderId,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct CommandBufferObj {
     pub id: wgc::id::CommandBufferId,
 }
@@ -37,6 +39,7 @@ pub(crate) struct BundleEncoderObj {
     pub encoder: Box<wgc::command::RenderBundleEncoder>,
 }
 
+#[derive(Clone, Copy)]
 pub(crate) struct RenderBundleObj {
     pub id: wgc::id::RenderBundleId,
 }
@@ -46,9 +49,9 @@ pub(crate) struct RenderBundleObj {
 pub(crate) struct CommandTables {
     pub encoders: HandleTable<EncoderObj>,
     pub command_buffers: HandleTable<CommandBufferObj>,
-    pub render_passes: HandleTable<RenderPassObj>,
-    pub compute_passes: HandleTable<ComputePassObj>,
-    pub bundle_encoders: HandleTable<BundleEncoderObj>,
+    pub render_passes: RecordingTable<RenderPassObj>,
+    pub compute_passes: RecordingTable<ComputePassObj>,
+    pub bundle_encoders: RecordingTable<BundleEncoderObj>,
     pub render_bundles: HandleTable<RenderBundleObj>,
 }
 
@@ -59,13 +62,13 @@ impl DeviceCtx {
     pub fn command_buffers(&self) -> &HandleTable<CommandBufferObj> {
         &self.commands.command_buffers
     }
-    pub fn render_passes(&self) -> &HandleTable<RenderPassObj> {
+    pub fn render_passes(&self) -> &RecordingTable<RenderPassObj> {
         &self.commands.render_passes
     }
-    pub fn compute_passes(&self) -> &HandleTable<ComputePassObj> {
+    pub fn compute_passes(&self) -> &RecordingTable<ComputePassObj> {
         &self.commands.compute_passes
     }
-    pub fn bundle_encoders(&self) -> &HandleTable<BundleEncoderObj> {
+    pub fn bundle_encoders(&self) -> &RecordingTable<BundleEncoderObj> {
         &self.commands.bundle_encoders
     }
     pub fn render_bundles(&self) -> &HandleTable<RenderBundleObj> {
@@ -541,7 +544,7 @@ fn pass_channel_u32(
     })
 }
 
-/// ABI: ends a render pass (consumes the pass handle).
+/// ABI: ends a render pass, consuming the handle unless overlapping access is rejected.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_render_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
@@ -549,10 +552,7 @@ pub unsafe extern "C-unwind" fn alco_render_pass_end(device: AlcoHandle, pass: A
             .with(device, |ctx| {
                 let mut obj = match ctx.render_passes().remove(pass) {
                     Ok(obj) => obj,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid render pass handle");
-                        return AlcoStatus::INVALID_HANDLE;
-                    }
+                    Err(status) => return recording_error(status, "render pass"),
                 };
                 match ctx.global.render_pass_end(&mut obj.pass) {
                     Ok(()) => AlcoStatus::OK,
@@ -585,10 +585,7 @@ macro_rules! render_pass_fn {
                         match result {
                             Ok(Ok(())) => AlcoStatus::OK,
                             Ok(Err(status)) => status,
-                            Err(_) => {
-                                set_error(AlcoStatus::INVALID_HANDLE, "invalid render pass handle");
-                                AlcoStatus::INVALID_HANDLE
-                            }
+                            Err(status) => recording_error(status, "render pass"),
                         }
                     })
                     .unwrap_or_else(|s| {
@@ -598,6 +595,15 @@ macro_rules! render_pass_fn {
             })
         }
     };
+}
+
+fn recording_error(status: AlcoStatus, kind: &str) -> AlcoStatus {
+    if status == AlcoStatus::INVALID_ARGUMENT {
+        set_error(status, format!("concurrent access to {kind}"));
+    } else {
+        set_error(status, format!("invalid {kind} handle"));
+    }
+    status
 }
 
 fn record_result(
@@ -820,10 +826,7 @@ pub unsafe extern "C-unwind" fn alco_render_pass_execute_bundles(
                 match result {
                     Ok(Ok(())) => AlcoStatus::OK,
                     Ok(Err(status)) => status,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid render pass handle");
-                        AlcoStatus::INVALID_HANDLE
-                    }
+                    Err(status) => recording_error(status, "render pass"),
                 }
             })
             .unwrap_or_else(|s| {
@@ -911,7 +914,7 @@ pub unsafe extern "C-unwind" fn alco_compute_pass_begin(
     })
 }
 
-/// ABI: ends a compute pass (consumes the pass handle).
+/// ABI: ends a compute pass, consuming the handle unless overlapping access is rejected.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_compute_pass_end(device: AlcoHandle, pass: AlcoHandle) -> AlcoStatus {
     crate::entry::guard(|| {
@@ -919,10 +922,7 @@ pub unsafe extern "C-unwind" fn alco_compute_pass_end(device: AlcoHandle, pass: 
             .with(device, |ctx| {
                 let mut obj = match ctx.compute_passes().remove(pass) {
                     Ok(obj) => obj,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid compute pass handle");
-                        return AlcoStatus::INVALID_HANDLE;
-                    }
+                    Err(status) => return recording_error(status, "compute pass"),
                 };
                 match ctx.global.compute_pass_end(&mut obj.pass) {
                     Ok(()) => AlcoStatus::OK,
@@ -955,10 +955,7 @@ macro_rules! compute_pass_fn {
                         match result {
                             Ok(Ok(())) => AlcoStatus::OK,
                             Ok(Err(status)) => status,
-                            Err(_) => {
-                                set_error(AlcoStatus::INVALID_HANDLE, "invalid compute pass handle");
-                                AlcoStatus::INVALID_HANDLE
-                            }
+                            Err(status) => recording_error(status, "compute pass"),
                         }
                     })
                     .unwrap_or_else(|s| {
@@ -1559,7 +1556,7 @@ pub unsafe extern "C-unwind" fn alco_bundle_encoder_create(
     })
 }
 
-/// ABI: finishes a bundle encoder into a render bundle (consumes the encoder handle).
+/// ABI: finishes a bundle encoder, consuming it unless overlapping access is rejected.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_bundle_encoder_finish(
     device: AlcoHandle,
@@ -1575,10 +1572,7 @@ pub unsafe extern "C-unwind" fn alco_bundle_encoder_finish(
             .with(device, |ctx| {
                 let mut obj = match ctx.bundle_encoders().remove(bundle_encoder) {
                     Ok(obj) => obj,
-                    Err(_) => {
-                        set_error(AlcoStatus::INVALID_HANDLE, "invalid bundle encoder handle");
-                        return (AlcoStatus::INVALID_HANDLE, AlcoHandle::NULL);
-                    }
+                    Err(status) => return (recording_error(status, "bundle encoder"), AlcoHandle::NULL),
                 };
                 let wdesc = wgc::command::RenderBundleDescriptor { label: None };
                 let (id, err) = ctx
@@ -1604,7 +1598,7 @@ pub unsafe extern "C-unwind" fn alco_bundle_encoder_finish(
     })
 }
 
-/// ABI: destroys a bundle encoder that was never finished.
+/// ABI: destroys an unfinished bundle encoder; overlapping access leaves the handle intact.
 #[no_mangle]
 pub unsafe extern "C-unwind" fn alco_bundle_encoder_destroy(
     device: AlcoHandle,
@@ -1616,10 +1610,7 @@ pub unsafe extern "C-unwind" fn alco_bundle_encoder_destroy(
                 // Dropping the boxed encoder is the whole cleanup (wgpu-core has
                 // no separate unfinished-encoder drop entry point).
                 Ok(_obj) => AlcoStatus::OK,
-                Err(_) => {
-                    set_error(AlcoStatus::INVALID_HANDLE, "invalid bundle encoder handle");
-                    AlcoStatus::INVALID_HANDLE
-                }
+                Err(status) => recording_error(status, "bundle encoder"),
             })
             .unwrap_or_else(|s| {
                 set_error(s, "invalid device handle");
@@ -1669,10 +1660,7 @@ macro_rules! bundle_fn {
                         match result {
                             Ok(Ok(())) => AlcoStatus::OK,
                             Ok(Err(status)) => status,
-                            Err(_) => {
-                                set_error(AlcoStatus::INVALID_HANDLE, "invalid bundle encoder handle");
-                                AlcoStatus::INVALID_HANDLE
-                            }
+                            Err(status) => recording_error(status, "bundle encoder"),
                         }
                     })
                     .unwrap_or_else(|s| {

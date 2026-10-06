@@ -6,6 +6,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
+/// <summary>Records native GPU commands while keeping borrowed managed resources alive during calls.</summary>
 internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 {
     private static readonly Exception ExceptionNoFramebuffer = new("No framebuffer is set before set the graphics pipeline");
@@ -119,6 +120,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         BeginRenderInternal(frameBuffer, clearColors, clearDepth, clearStencil, colorOps, depthOps, timestampWrites: null);
     }
 
+    /// <inheritdoc />
     protected override void BeginRenderTimestampCore(
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
@@ -137,6 +139,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             EndIndex = ToTimestampIndex(endQueryIndex),
         };
         BeginRenderInternal(frameBuffer, clearColors, clearDepth, clearStencil, colorOps, depthOps, &timestampWrites);
+        GC.KeepAlive(querySet);
     }
 
     private void BeginRenderInternal(
@@ -272,6 +275,8 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         }
 
         AlcoGpuNative.RenderPassBegin(_device.Native, _encoder, in renderPassDesc, out _renderPass);
+        // The framebuffer owns the attachment wrappers and unmanaged descriptor storage.
+        GC.KeepAlive(frameBuffer);
     }
 
     protected override void EndRenderCore()
@@ -287,6 +292,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         AlcoGpuNative.ComputePassBegin(_device.Native, _encoder, null, out _computePass);
     }
 
+    /// <inheritdoc />
     protected override void BeginComputeTimestampCore(
         GPUTimestampQuerySet querySet,
         uint? beginningQueryIndex,
@@ -303,6 +309,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         };
 
         AlcoGpuNative.ComputePassBegin(_device.Native, _encoder, &timestampWrites, out _computePass);
+        GC.KeepAlive(querySet);
     }
 
     // An absent timestamp write is marked with the all-ones sentinel (mirrors
@@ -317,6 +324,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         TryFinishCurrentComputePass();
     }
 
+    /// <inheritdoc />
     protected override void WriteTimestampInsidePassCore(
         GPUTimestampQuerySet querySet,
         uint queryIndex)
@@ -331,8 +339,11 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             AlcoGpuNative.RenderPassWriteTimestamp(
                 _device.Native, _renderPass, ((AlcoGpuTimestampQuerySet)querySet).Native, queryIndex);
         }
+        GC.KeepAlive(querySet);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void ResolveTimestampsCore(
         GPUTimestampQuerySet querySet,
         uint firstQuery,
@@ -348,125 +359,173 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             queryCount,
             ((AlcoGpuBuffer)destination).Native,
             destinationOffset);
+        GC.KeepAlive(querySet);
+        GC.KeepAlive(destination);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetScissorRectCore(uint x, uint y, uint width, uint height)
     {
         AlcoGpuNative.RenderPassSetScissorRect(_device.Native, _renderPass, x, y, width, height);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetGraphicsPipelineCore(GPUPipeline pipeline)
     {
         _graphicsPipeline = ((AlcoGpuGraphicsPipeline)pipeline).Native;
         AlcoGpuNative.RenderPassSetPipeline(_device.Native, _renderPass, _graphicsPipeline);
+        GC.KeepAlive(pipeline);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetStencilReferenceCore(uint value)
     {
         AlcoGpuNative.RenderPassSetStencilReference(_device.Native, _renderPass, value);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetGraphicsResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassSetBindGroup(
             _device.Native, _renderPass, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
+        GC.KeepAlive(resourceGroup);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetVertexBufferCore(uint slot, GPUBuffer buffer, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassSetVertexBuffer(
             _device.Native, _renderPass, slot, ((AlcoGpuBuffer)buffer).Native, offset, size);
+        GC.KeepAlive(buffer);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetIndexBufferCore(GPUBuffer buffer, IndexFormat format, ulong offset, ulong size)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassSetIndexBuffer(
             _device.Native, _renderPass, ((AlcoGpuBuffer)buffer).Native, (uint)format, offset, size);
+        GC.KeepAlive(buffer);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawCore(uint vertexCount, uint instanceCount, uint firstVertex, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassDraw(_device.Native, _renderPass, vertexCount, instanceCount, firstVertex, firstInstance);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawIndexedCore(uint indexCount, uint instanceCount, uint firstIndex, int vertexOffset, uint firstInstance)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassDrawIndexed(_device.Native, _renderPass, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassDrawIndirect(
             _device.Native, _renderPass, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
+        GC.KeepAlive(indirectBuffer);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassDrawIndexedIndirect(
             _device.Native, _renderPass, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
+        GC.KeepAlive(indirectBuffer);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void MultiDrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount)
     {
         ValidateGraphicsPipeline();
 
         AlcoGpuNative.RenderPassMultiDrawIndexedIndirect(
             _device.Native, _renderPass, ((AlcoGpuBuffer)indirectBuffer).Native, offset, drawCount);
+        GC.KeepAlive(indirectBuffer);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override unsafe void PushGraphicsConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         AlcoGpuNative.RenderPassSetImmediates(_device.Native, _renderPass, bufferOffset, data, size);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override unsafe void PushComputeConstantsCore(uint bufferOffset, byte* data, uint size)
     {
         AlcoGpuNative.ComputePassSetImmediates(_device.Native, _computePass, bufferOffset, data, size);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetComputePipelineCore(GPUPipeline pipeline)
     {
         _computePipeline = ((AlcoGpuComputePipeline)pipeline).Native;
         AlcoGpuNative.ComputePassSetPipeline(_device.Native, _computePass, _computePipeline);
+        GC.KeepAlive(pipeline);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void SetComputeResourcesCore(uint slot, GPUResourceGroup resourceGroup)
     {
         ValidateComputePipeline();
 
         AlcoGpuNative.ComputePassSetBindGroup(
             _device.Native, _computePass, slot, ((AlcoGpuResourceGroup)resourceGroup).Native);
+        GC.KeepAlive(resourceGroup);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DispatchComputeCore(uint x, uint y, uint z)
     {
         ValidateComputePipeline();
 
         AlcoGpuNative.ComputePassDispatchWorkgroups(_device.Native, _computePass, x, y, z);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void DispatchComputeIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         ValidateComputePipeline();
 
         AlcoGpuNative.ComputePassDispatchWorkgroupsIndirect(
             _device.Native, _computePass, ((AlcoGpuBuffer)indirectBuffer).Native, offset);
+        GC.KeepAlive(indirectBuffer);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void CopyBufferCore(GPUBuffer src, GPUBuffer dst, ulong srcOffset, ulong dstOffset, ulong size)
     {
         AlcoGpuNative.CopyBufferToBuffer(
@@ -474,8 +533,12 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             ((AlcoGpuBuffer)src).Native, srcOffset,
             ((AlcoGpuBuffer)dst).Native, dstOffset,
             size);
+        GC.KeepAlive(src);
+        GC.KeepAlive(dst);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void CopyBufferToTextureCore(GPUBuffer src, GPUTexture dst, uint mipLevel, uint offset, TextureAspect aspect)
     {
         AlcoGpuTexture nativeDst = (AlcoGpuTexture)dst;
@@ -494,8 +557,12 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             _device.Native, _encoder,
             ((AlcoGpuBuffer)src).Native, in layout,
             nativeDst.Native, mipLevel, (uint)aspect, extent);
+        GC.KeepAlive(src);
+        GC.KeepAlive(dst);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void CopyTextureCore(GPUTexture src, GPUTexture dst, uint srcMipLevel, uint dstMipLevel, TextureAspect aspect)
     {
         AlcoGpuTextureBase nativeSrc = (AlcoGpuTextureBase)src;
@@ -516,14 +583,21 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             nativeSrc.Native, srcMipLevel,
             nativeDst.Native, dstMipLevel,
             (uint)aspect, copySize);
+        GC.KeepAlive(src);
+        GC.KeepAlive(dst);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void ExecuteBundleCore(GPURenderBundle bundle)
     {
         AlcoHandle native = ((AlcoGpuRenderBundle)bundle).Native;
         AlcoGpuNative.RenderPassExecuteBundles(_device.Native, _renderPass, &native, 1);
+        GC.KeepAlive(bundle);
+        GC.KeepAlive(this);
     }
 
+    /// <inheritdoc />
     protected override void ExecuteBundleCore(ReadOnlySpan<GPURenderBundle> bundle)
     {
         AlcoHandle* nativeBundles = stackalloc AlcoHandle[bundle.Length];
@@ -533,6 +607,12 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         }
 
         AlcoGpuNative.RenderPassExecuteBundles(_device.Native, _renderPass, nativeBundles, (uint)bundle.Length);
+        // The native handle array does not retain the managed bundle wrappers.
+        for (int i = 0; i < bundle.Length; i++)
+        {
+            GC.KeepAlive(bundle[i]);
+        }
+        GC.KeepAlive(this);
     }
 
     #endregion
@@ -578,6 +658,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             if (_device.IsNativeAlive)
             {
                 AlcoGpuNative.EncoderDestroy(_device.Native, encoder);
+                GC.KeepAlive(this);
             }
         }
     }
@@ -591,6 +672,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             if (_device.IsNativeAlive)
             {
                 AlcoGpuNative.CommandBufferDestroy(_device.Native, buffer);
+                GC.KeepAlive(this);
             }
         }
     }
@@ -606,6 +688,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             if (_device.IsNativeAlive)
             {
                 AlcoGpuNative.RenderPassEnd(_device.Native, pass);
+                GC.KeepAlive(this);
             }
         }
     }
@@ -621,6 +704,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             if (_device.IsNativeAlive)
             {
                 AlcoGpuNative.ComputePassEnd(_device.Native, pass);
+                GC.KeepAlive(this);
             }
         }
     }
