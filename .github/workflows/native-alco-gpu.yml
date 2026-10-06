@@ -194,8 +194,8 @@ jobs:
               echo "$lib is only $size bytes"
               exit 1
             fi
-            nm -gU "$lib" | grep -q ' _alco_abi_version$' || {
-              echo "$lib does not export alco_abi_version"
+            nm -gU "$lib" | grep -q ' _abi_version$' || {
+              echo "$lib does not export abi_version"
               exit 1
             }
           done
@@ -277,8 +277,8 @@ jobs:
               echo "$lib is only $size bytes"
               exit 1
             fi
-            nm -D "$lib" | grep -q ' T alco_abi_version$' || {
-              echo "$lib does not export alco_abi_version"
+            nm -D "$lib" | grep -q ' T abi_version$' || {
+              echo "$lib does not export abi_version"
               exit 1
             }
           done
