@@ -1068,7 +1068,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
         ) = match desc.language {
             shader_language::SPIRV => {
                 let words = spirv_words(data);
-                if ctx.caps & caps::PASSTHROUGH_SHADERS != 0
+                if ctx.capabilities & capabilities::PASSTHROUGH_SHADERS != 0
                     && ctx.backend != backend::RESOLVED_DX12
                 {
                     let pdesc =
@@ -1201,7 +1201,7 @@ fn spirv_words(data: &[u8]) -> std::borrow::Cow<'_, [u32]> {
 }
 
 fn require_passthrough(ctx: &DeviceCtx) -> Result<(), Status> {
-    if ctx.caps & caps::PASSTHROUGH_SHADERS == 0 {
+    if ctx.capabilities & capabilities::PASSTHROUGH_SHADERS == 0 {
         set_error(
             Status::UNSUPPORTED,
             "this device does not support passthrough shaders",

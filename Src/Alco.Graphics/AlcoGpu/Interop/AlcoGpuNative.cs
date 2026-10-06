@@ -534,7 +534,7 @@ internal static unsafe partial class AlcoGpuNative
 
     /// <summary>Provides the SurfaceGetCapabilities operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "surface_get_capabilities")]
-    public static partial uint SurfaceGetCapabilities(AlcoGPU.SurfaceHandle surface, ref AlcoGPU.SurfaceCaps caps);
+    public static partial uint SurfaceGetCapabilities(AlcoGPU.SurfaceHandle surface, ref AlcoGPU.SurfaceCapabilities caps);
 
     /// <summary>Provides the SurfaceConfigure operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "surface_configure")]

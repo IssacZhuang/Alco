@@ -71,7 +71,7 @@ struct SurfaceDesc {
 }
 
 #[repr(C)]
-struct SurfaceCaps {
+struct SurfaceCapabilities {
     formats: [u32; 64],
     format_count: u32,
     present_modes: [u32; 8],
@@ -123,7 +123,7 @@ extern "C-unwind" {
         desc: *const SurfaceDesc,
         out: *mut SurfaceHandle,
     ) -> Status;
-    fn surface_get_capabilities(surface: SurfaceHandle, out: *mut SurfaceCaps) -> Status;
+    fn surface_get_capabilities(surface: SurfaceHandle, out: *mut SurfaceCapabilities) -> Status;
     fn surface_configure(surface: SurfaceHandle, config: *const SurfaceConfig) -> Status;
     fn surface_get_current_texture(
         surface: SurfaceHandle,
@@ -326,7 +326,7 @@ struct Surface<'w> {
 }
 
 impl<'w> Surface<'w> {
-    fn new(device: &Device, window: &'w HiddenWindow) -> (Self, SurfaceCaps, SurfaceConfig) {
+    fn new(device: &Device, window: &'w HiddenWindow) -> (Self, SurfaceCapabilities, SurfaceConfig) {
         let desc = SurfaceDesc {
             tag: 0, // Win32
             handle: window.handle as usize as u64,
@@ -339,7 +339,7 @@ impl<'w> Surface<'w> {
             "surface create",
         );
         let surface = Self { window, handle };
-        let mut caps = SurfaceCaps {
+        let mut caps = SurfaceCapabilities {
             formats: [0; 64],
             format_count: 0,
             present_modes: [0; 8],

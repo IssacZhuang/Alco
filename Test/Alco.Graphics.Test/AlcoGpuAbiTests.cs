@@ -103,11 +103,11 @@ public unsafe class AlcoGPUTests
             Assert.That(info.Backend, Is.EqualTo(AlcoGPU.BackendResolved.Vulkan)
                 .Or.EqualTo(AlcoGPU.BackendResolved.Dx12)
                 .Or.EqualTo(AlcoGPU.BackendResolved.Metal));
-            Assert.That(info.Caps & AlcoGPU.Caps.PassthroughShaders, Is.Not.Zero,
+            Assert.That(info.Capabilities & AlcoGPU.Capabilities.PassthroughShaders, Is.Not.Zero,
                 "passthrough shaders expected on desktop adapters");
             if (OperatingSystem.IsMacOS())
             {
-                Assert.That(info.Caps & AlcoGPU.Caps.MetalLib, Is.Not.Zero,
+                Assert.That(info.Capabilities & AlcoGPU.Capabilities.MetalLib, Is.Not.Zero,
                     "MetalLib passthrough expected on Apple platforms");
             }
             Assert.That(info.MaxBindGroups, Is.GreaterThan(0));

@@ -112,7 +112,7 @@ pub struct SurfaceDesc {
 
 /// Supported surface formats and present modes returned through the C ABI.
 #[repr(C)]
-pub struct SurfaceCaps {
+pub struct SurfaceCapabilities {
     /// Supported C# pixel-format values, limited to `format_count` entries.
     pub formats: [u32; 64],
     /// Number of initialized entries in `formats`.
@@ -398,7 +398,7 @@ pub unsafe extern "C-unwind" fn device_create_surface(
 #[no_mangle]
 pub unsafe extern "C-unwind" fn surface_get_capabilities(
     surface: SurfaceHandle,
-    out: *mut SurfaceCaps,
+    out: *mut SurfaceCapabilities,
 ) -> Status {
     crate::entry::guard(|| {
         if out.is_null() {

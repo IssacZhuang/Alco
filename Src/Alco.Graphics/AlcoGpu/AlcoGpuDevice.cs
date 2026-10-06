@@ -1245,7 +1245,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                         "Non-zero indirect firstInstance is unavailable; batched indirect draws that address per-draw data through firstInstance will not render correctly.");
                 }
 
-                ShaderPassthroughEnabled = (info.Caps & AlcoGPU.Caps.PassthroughShaders) != 0;
+                ShaderPassthroughEnabled = (info.Capabilities & AlcoGPU.Capabilities.PassthroughShaders) != 0;
                 if (Backend == GraphicsBackend.WGPUDx12)
                 {
                     _host.LogSuccess("DX12 SPIR-V shader translation is enabled");

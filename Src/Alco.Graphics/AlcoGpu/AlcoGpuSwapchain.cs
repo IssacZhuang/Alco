@@ -33,7 +33,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
                 _surface = CreateSurface(device, descriptor.SurfaceSource);
 
                 // check compatibility
-                AlcoGPU.SurfaceCaps caps = default;
+                AlcoGPU.SurfaceCapabilities caps = default;
                 AlcoGpuNative.SurfaceGetCapabilities(_surface, ref caps);
 
                 // get supported present modes (ABI present-mode values)

@@ -94,9 +94,9 @@ pub mod backend {
     pub const RESOLVED_NULL: u32 = 6;
 }
 
-/// `DeviceCaps` bits — mirrors C# capability probing that today pokes
-/// wgpu-native features/exports directly.
-pub mod caps {
+/// Device capability bits — mirrors the C# capability probing that
+/// pokes wgpu-native features/exports directly.
+pub mod capabilities {
     /// Adapter/device supports PASSTHROUGH_SHADERS (required for DXIL/MSL/MetalLib).
     pub const PASSTHROUGH_SHADERS: u64 = 1 << 0;
     /// MetalLib passthrough source accepted by this build (Apple platforms).
@@ -147,8 +147,8 @@ pub struct DeviceInfo {
     pub device: u32,
     /// Supported Alco feature bits (subset of `DeviceDesc::required_features` space).
     pub supported_features: u64,
-    /// Capability bits (`caps::*`).
-    pub caps: u64,
+    /// Capability bits (`capabilities::*`).
+    pub capabilities: u64,
     pub max_bind_groups: u32,
     pub max_immediate_size: u32,
     /// Queue timestamp period in nanoseconds (1.0 when unsupported).

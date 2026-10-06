@@ -30,7 +30,7 @@ pub struct DeviceCtx {
     /// Alco feature bits supported by this device.
     pub supported_features: u64,
     /// Native capability bits.
-    pub caps: u64,
+    pub capabilities: u64,
     /// Maximum number of bind groups.
     pub max_bind_groups: u32,
     /// Maximum immediate data size in bytes.
@@ -140,7 +140,7 @@ fn resolved_backend_value(backend: wgt::Backend) -> u32 {
 }
 
 /// Converts Alco feature bits to wgpu `Features`. `METALLIB_PASSTHROUGH` has no
-/// wgpu counterpart (it is a build/platform capability reported via caps).
+/// wgpu counterpart (it is a build/platform capability reported via capabilities).
 fn gpu_features_to_wgpu(bits: u64) -> wgt::Features {
     let mut features = wgt::Features::empty();
     if bits & gpu_features::TEXTURE_COMPRESSION_BC != 0 {
@@ -163,7 +163,7 @@ fn gpu_features_to_wgpu(bits: u64) -> wgt::Features {
     features
 }
 
-/// Computes the Alco feature bits and caps supported by an adapter.
+/// Computes the Alco feature bits and capabilities supported by an adapter.
 fn supported_gpu_features(adapter_features: wgt::Features) -> (u64, u64) {
     let mut features = 0u64;
     let mut caps = 0u64;
@@ -175,7 +175,7 @@ fn supported_gpu_features(adapter_features: wgt::Features) -> (u64, u64) {
     }
     if adapter_features.contains(wgt::Features::TIMESTAMP_QUERY_INSIDE_PASSES) {
         features |= gpu_features::TIMESTAMP_QUERY_INSIDE_PASSES;
-        caps |= caps::TIMESTAMP_INSIDE_PASSES;
+        caps |= capabilities::TIMESTAMP_INSIDE_PASSES;
     }
     if adapter_features.contains(wgt::Features::INDIRECT_FIRST_INSTANCE) {
         features |= gpu_features::INDIRECT_FIRST_INSTANCE;
@@ -187,7 +187,7 @@ fn supported_gpu_features(adapter_features: wgt::Features) -> (u64, u64) {
     // backends, emulating with per-record draws when no native path exists.
     features |= gpu_features::MULTI_DRAW_INDIRECT;
     if adapter_features.contains(wgt::Features::PASSTHROUGH_SHADERS) {
-        caps |= caps::PASSTHROUGH_SHADERS;
+        caps |= capabilities::PASSTHROUGH_SHADERS;
     }
     (features, caps)
 }
@@ -371,11 +371,11 @@ pub unsafe extern "C-unwind" fn device_create(
         let passthrough_available = adapter_features.contains(wgt::Features::PASSTHROUGH_SHADERS);
         if passthrough_available {
             required |= wgt::Features::PASSTHROUGH_SHADERS;
-            device_caps |= caps::PASSTHROUGH_SHADERS;
+            device_caps |= capabilities::PASSTHROUGH_SHADERS;
         }
         // MetalLib passthrough is an Apple-platform source kind.
         if resolved == backend::RESOLVED_METAL && passthrough_available {
-            device_caps |= caps::METALLIB;
+            device_caps |= capabilities::METALLIB;
             // Surface it as a supported Alco feature: the C# shader system
             // keys its Metal code target on this bit.
             // (folded into `supported` below via `device_caps` re-check)
@@ -419,7 +419,7 @@ pub unsafe extern "C-unwind" fn device_create(
         };
 
         let mut supported = supported;
-        if device_caps & caps::METALLIB != 0 {
+        if device_caps & capabilities::METALLIB != 0 {
             supported |= gpu_features::METALLIB_PASSTHROUGH;
         }
 
@@ -434,7 +434,7 @@ pub unsafe extern "C-unwind" fn device_create(
             vendor: adapter_info.vendor,
             device: adapter_info.device,
             supported_features: supported,
-            caps: device_caps,
+            capabilities: device_caps,
             max_bind_groups: adapter_limits.max_bind_groups,
             max_immediate_size: desc.push_constants_size,
             timestamp_period_ns,
@@ -490,7 +490,7 @@ pub unsafe extern "C-unwind" fn device_get_info(
         (*out).vendor = ctx.vendor;
         (*out).device = ctx.device;
         (*out).supported_features = ctx.supported_features;
-        (*out).caps = ctx.caps;
+        (*out).capabilities = ctx.capabilities;
         (*out).max_bind_groups = ctx.max_bind_groups;
         (*out).max_immediate_size = ctx.max_immediate_size;
         (*out).timestamp_period_ns = ctx.timestamp_period_ns;
@@ -617,7 +617,7 @@ mod tests {
             vendor: 0,
             device: 0,
             supported_features: 0,
-            caps: 0,
+            capabilities: 0,
             max_bind_groups: 0,
             max_immediate_size: 0,
             timestamp_period_ns: 0.0,

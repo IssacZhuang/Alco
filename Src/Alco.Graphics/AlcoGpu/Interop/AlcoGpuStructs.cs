@@ -94,8 +94,8 @@ internal static unsafe partial class AlcoGPU
         public const uint Null = 6;
     }
 
-    /// <summary>Capability bits reported by <see cref="DeviceInfo.Caps"/>.</summary>
-    public static class Caps
+    /// <summary>Capability bits reported by <see cref="DeviceInfo.Capabilities"/>.</summary>
+    public static class Capabilities
     {
         /// <summary>Gets or stores PassthroughShaders.</summary>
         public const ulong PassthroughShaders = 1ul << 0;
@@ -599,8 +599,8 @@ internal static partial class AlcoGPU
         /// <summary>Supported Alco feature bits.</summary>
         public ulong SupportedFeatures;
 
-        /// <summary>Capability bits (<see cref="AlcoGPU.Caps"/>).</summary>
-        public ulong Caps;
+        /// <summary>Capability bits (<see cref="AlcoGPU.Capabilities"/>).</summary>
+        public ulong Capabilities;
 
         /// <summary>Gets or stores MaxBindGroups.</summary>
         public uint MaxBindGroups;
@@ -1214,9 +1214,9 @@ internal static partial class AlcoGPU
         public byte* Name;
     }
 
-    /// <summary>Surface capabilities (mirrors SurfaceCaps) with inline arrays.</summary>
+    /// <summary>Surface capabilities (mirrors SurfaceCapabilities) with inline arrays.</summary>
     [StructLayout(LayoutKind.Sequential)]
-    internal unsafe struct SurfaceCaps
+    internal unsafe struct SurfaceCapabilities
     {
         /// <summary>Gets or stores the native ABI value.</summary>
         public fixed uint Formats[64];
