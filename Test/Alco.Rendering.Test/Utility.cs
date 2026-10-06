@@ -1,7 +1,6 @@
 using Alco.Graphics;
 using Alco.Graphics.NoGPU;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 
 namespace Alco.Rendering.Test;
 

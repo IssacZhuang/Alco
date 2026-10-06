@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 
 namespace Alco.World3D.Test;
 

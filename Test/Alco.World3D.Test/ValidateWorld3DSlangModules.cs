@@ -1,7 +1,7 @@
 #nullable enable
 
 using NUnit.Framework;
-using Alco.ShaderCompiler;
+using Alco.Graphics;
 
 namespace Alco.World3D.Test;
 
@@ -67,7 +67,7 @@ public class ValidateWorld3DSlangModules
     /// ShaderModuleResolver convention — 'AlcoRendering_Core' answers to
     /// 'Libs/AlcoRendering_Core.slang' wherever it sits in the tree).
     /// </summary>
-    private static Alco.ShaderCompiler.SlangFileResolver CreateResolver()
+    private static SlangFileResolver CreateResolver()
     {
         List<string> assets = EnumerateSlangAssets();
         return path =>

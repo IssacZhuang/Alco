@@ -6,7 +6,6 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.ShaderCompiler;
 
 /// <summary>
 /// The facility to manage global rendering resource and provide the factory to create rendering resource.

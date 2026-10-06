@@ -1,7 +1,7 @@
 #nullable enable
 
 using NUnit.Framework;
-using Alco.ShaderCompiler;
+using Alco.Graphics;
 
 namespace Alco.Rendering.Test;
 

@@ -11,7 +11,7 @@ namespace Alco.Graphics;
 /// operations (including initial-data uploads), readbacks, mapping, polling, or surface operations;
 /// follow their individual thread and synchronization requirements.
 /// </summary>
-public abstract class GPUDevice
+public abstract partial class GPUDevice
 {
     private struct DeferredDisposalItem
     {

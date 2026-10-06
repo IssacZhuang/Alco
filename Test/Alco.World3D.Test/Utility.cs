@@ -1,7 +1,6 @@
 using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 
 namespace Alco.World3D.Test;
 

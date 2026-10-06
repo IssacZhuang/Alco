@@ -10,14 +10,13 @@
 ### Main Source (Src/)
 - **Alco/** - Base library including math, spatial, threading, and utilities
 - **Alco.Engine/** - Main engine implementation
-- **Alco.Graphics/** - Graphics abstraction layer
+- **Alco.Graphics/** - Graphics abstraction layer and self-contained GPU library: the alco-gpu native backend plus the integrated Slang shader compiler (`Compiler/`, former Alco.ShaderCompiler project) — runtime slang compilation (SPIR-V/DXIL/MSL/MetalLib targets), reflection, disk caches, and reflection-driven pipeline creation over `GPUDevice`
 - **Alco.Rendering/** - Rendering pipeline (render graph, render pipeline framework, shared GPU resource facades) and its built-in shaders (Assets/Shaders)
 - **Alco.World3D/** - 3D PBR rendering module (deferred render nodes, scene environment, preset factory, PBR shaders); references only Alco.Rendering and is consumed on demand — neither Alco.Engine nor Alco.Rendering references it
 - **Alco.Effects/** - GPU visual-effect systems, consumed on demand (sandboxes 36/37/38); references only Alco.Rendering and Alco.IO — neither Alco.Engine nor Alco.Rendering references it. Two subsystems sharing the effect→instance model and the template-plus-surface material design: the GPU particle system (particle effect assets with emitter groups, slang behavior modules composed through interface specialization, visuals from .amat material assets whose slang surface composes into the render pass templates — groups derive their own texture over the material's "texture" slot, shared buffer pools, indirect-instanced rendering, optional per-group over-life color-gradient/size-curve lookup textures baked CPU-side and sampled by age in the render vertex shader, velocity-stretched billboards via flag bits in EmitterParams) and the GPU trail renderer (GpuTrailSystem2D/3D: GPU-resident ribbon trails over shared sliced point ring buffers, material-batched multi-draw-indirect, TrailEffect/TrailEffectInstance data types)
 - **Alco.Audio/** - Audio system
 - **Alco.GUI/** - GUI framework
 - **Alco.IO/** - Input/Output handling
-- **Alco.ShaderCompiler/** - Shader compilation tools
 - **Alco.AgentControlProtocol/** - External agent control plane: tool registry (attribute-discovered agent functions with main-thread marshaling), localhost HTTP API server (Kestrel), built-in ExecuteScript (Roslyn C# scripting) and CaptureScreenshot tools; depends only on Alco.Engine — referencing this project gives a game full external AI-agent control
 - **Alco.LLM/** - In-game LLM agent framework (LLMAgent/LLMSession over Microsoft.Extensions.AI with OpenAI/Anthropic/Gemini providers); depends on Alco.AgentControlProtocol and reuses its tool registry
 
@@ -90,6 +89,7 @@
 - alco-gpu (Src/Alco.Graphics.Native/alco-gpu) - self-maintained Rust cdylib exposing the `alco_*` C ABI that Alco.Graphics P/Invokes; replaces wgpu-native and the native Vulkan backend
 - wgpu-core (v30.0.1, via alco-gpu) - GPU abstraction layer over Vulkan/D3D12/Metal/GLES that alco-gpu is built on
 - DirectX Compiler - HLSL shader compilation
+- Slang (2026.19, `Src/Alco.Graphics/runtimes/**/native/slang*`) - shader language compiler bound in-process by Alco.Graphics for slang → SPIR-V/DXIL/MSL/MetalLib; DXIL validation via the bundled dxil.dll on Windows
 - System.IO.Hashing (v9.0.0) - High-performance hashing
 - StbSharp - Image and font processing (embedded as source code and modified)
 - ImGui - Immediate Mode Graphical User Interface (embedded as source code and modified)

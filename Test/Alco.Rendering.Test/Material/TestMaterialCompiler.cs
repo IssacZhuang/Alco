@@ -3,7 +3,6 @@
 using System.Numerics;
 using System.Text;
 using Alco.Graphics;
-using Alco.ShaderCompiler;
 using NUnit.Framework;
 
 namespace Alco.Rendering.Test;

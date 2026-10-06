@@ -3,7 +3,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Alco.Graphics;
 using Alco.Engine;
-using Alco.ShaderCompiler;
 
 public class Game : GameEngine
 {

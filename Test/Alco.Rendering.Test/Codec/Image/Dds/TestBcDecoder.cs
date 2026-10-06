@@ -2,7 +2,6 @@ using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
 using Alco.Graphics.AlcoGpu;
-using Alco.ShaderCompiler;
 using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
