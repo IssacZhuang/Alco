@@ -40,6 +40,8 @@ public class Game : GameEngine
 
     private GPUPipeline _pipeline;
     private Texture2D _texWhite;
+    private GPUBindGroup _textureGroup;
+    private GPUResourceGroup _textureResources;
 
     private Transform2D _transform1;
     private float _timer = 0.0f;
@@ -66,6 +68,18 @@ public class Game : GameEngine
         _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
 
         _texWhite = RenderingSystem.CreateTexture2D(16, 16, new ColorFloat(1, 1, 1, 1));
+
+        // The shader's material block is the two-entry layout {texture@0, sampler@1};
+        // the sampler is supplied from the rendering system's shared bank
+        // (see 3-TextureBinding for the same pattern).
+        _textureResources = GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor(
+            _textureGroup,
+            new ResourceBindingEntry[]
+            {
+                new ResourceBindingEntry(0, _texWhite.View),
+                new ResourceBindingEntry(1, RenderingSystem.Samplers.LinearRepeat),
+            },
+            "texture_sampler_resources"));
 
         camera = new CameraData2D();
         camera.Transform.Position = new Vector2(0, 2);
@@ -106,7 +120,7 @@ public class Game : GameEngine
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
 
-            renderPass.SetResources(1, _texWhite.EntryReadonly);
+            renderPass.SetResources(1, _textureResources);
             renderPass.SetResources(2, _positionsBuffer.EntryReadonly);
             renderPass.PushConstants(_transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
@@ -146,6 +160,9 @@ public class Game : GameEngine
         {
             bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor("bind_group_" + i));
         }
+
+        // Set 1 is the material block {image, imageSampler}.
+        _textureGroup = bindGroups[1];
 
         RasterizerState rasterizer = RasterizerState.CullNone;
         BlendState blend = BlendState.NonPremultipliedAlpha;
