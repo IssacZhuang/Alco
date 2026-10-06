@@ -165,7 +165,7 @@ internal static unsafe class AlcoGpuUtility
         return entry;
     }
 
-    /// <summary>Provides the LoadOpToAbi operation.</summary>
+    /// <summary>Converts an attachment load op to its ABI value.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint LoadOpToAbi(AttachmentLoadOp loadOp)
     {
@@ -177,7 +177,7 @@ internal static unsafe class AlcoGpuUtility
         };
     }
 
-    /// <summary>Provides the StoreOpToAbi operation.</summary>
+    /// <summary>Converts an attachment store op to its ABI value.</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static uint StoreOpToAbi(AttachmentStoreOp storeOp)
     {

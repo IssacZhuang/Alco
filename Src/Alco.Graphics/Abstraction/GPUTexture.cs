@@ -3,14 +3,14 @@ using System.Runtime.CompilerServices;
 namespace Alco.Graphics;
 
 /// <summary>
-/// The texture in the VRAM
+/// A block of GPU memory holding an image that can be sampled, stored to, or rendered into.
 /// </summary>
 public abstract class GPUTexture : BaseGPUObject
 {
-    //it might be a dynamic texture so the width, height and pixel format might be changed
+    // May be a dynamic (surface) texture: its width, height, and pixel format may change when the surface is resized or reconfigured.
 
     /// <summary>
-    /// The usage of the texture
+    /// Gets the usage flags the texture was created with; governs which operations (sampling, storage access, rendering, copying) are legal on it.
     /// </summary>
     public TextureUsage Usage { get; }
 

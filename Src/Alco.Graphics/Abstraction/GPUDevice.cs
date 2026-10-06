@@ -88,11 +88,11 @@ public abstract partial class GPUDevice
 
     // Default bind groups, those are the most common bind groups used in the graphics pipeline.
     /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the uniform buffer, which only contains a entry of the uniform buffer.
+    /// The <see cref="GPUBindGroup"/> for the uniform buffer, which only contains an entry of the uniform buffer.
     /// </summary> 
     public abstract GPUBindGroup BindGroupUniformBuffer { get; }
     /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the storage buffer, which only contains a entry of the storage buffer.
+    /// The <see cref="GPUBindGroup"/> for the storage buffer, which only contains an entry of the storage buffer.
     /// </summary>
     public abstract GPUBindGroup BindGroupStorageBuffer { get; }
 
@@ -206,10 +206,10 @@ public abstract partial class GPUDevice
 
 
     /// <summary>
-    /// Creates a GPU resuable render buffer with the descriptor.
+    /// Creates a GPU render bundle with the descriptor.
     /// </summary>
-    /// <param name="descriptor">The descriptor for the GPU resuable render buffer.</param>
-    /// <returns>The created GPU resuable render buffer.</returns>
+    /// <param name="descriptor">The descriptor for the GPU render bundle.</param>
+    /// <returns>The created GPU render bundle.</returns>
     public GPURenderBundle CreateRenderBundle(in RenderBundleDescriptor? descriptor = null)
     {
         return CreateRenderBundleCore(descriptor);
@@ -228,10 +228,10 @@ public abstract partial class GPUDevice
 
 
     /// <summary>
-    /// Creates a GPU frame buffer with the attachment layout, width, and height.
+    /// Creates a GPU frame buffer with the descriptor.
     /// </summary>
-    /// <param name="attachmentLayout"> The attachment layout of the frame buffer.</param>
-    /// <returns></returns>
+    /// <param name="descriptor">The descriptor for the GPU frame buffer, carrying the attachment layout, width, and height.</param>
+    /// <returns>The created GPU frame buffer.</returns>
     public GPUFrameBuffer CreateFrameBuffer(in FrameBufferDescriptor descriptor)
     {
         return CreateFrameBufferCore(descriptor);
@@ -322,7 +322,7 @@ public abstract partial class GPUDevice
     /// Creates a GPU swap chain with the descriptor.
     /// </summary>
     /// <param name="descriptor">The descriptor for the GPU swap chain.</param>
-    /// <returns></returns>
+    /// <returns>The created GPU swap chain.</returns>
     public GPUSwapchain CreateSwapchain(in SwapchainDescriptor descriptor)
     {
         return CreateSwapchainCore(descriptor);
@@ -514,7 +514,7 @@ public abstract partial class GPUDevice
     }
 
     /// <summary>
-    /// = Writes the data to the GPU buffer at the offset 0.
+    /// Writes the data to the GPU buffer at the offset 0.
     /// </summary>
     /// <param name="buffer">The target GPU buffer.</param>
     /// <param name="data">The data to write to the buffer.</param>
@@ -551,7 +551,7 @@ public abstract partial class GPUDevice
     }
 
     /// <summary>
-    /// Reads the data from the GPU buffer at the offset 0.
+    /// Reads the data from the GPU buffer at the given byte offset.
     /// </summary>
     /// <param name="buffer">The target GPU buffer.</param>
     /// <param name="bufferOffset">The offset in the GPU buffer. (unit: byte)</param>
@@ -626,7 +626,7 @@ public abstract partial class GPUDevice
     /// Writes a sub-rectangle of texels to the GPU texture at the mip level. The source data holds
     /// <paramref name="height"/> rows of <paramref name="width"/> texels each, packed at
     /// <paramref name="bytesPerRow"/> bytes per row; the row stride must be 256-byte aligned when
-    /// <paramref name="height"/> exceeds one (a WebGPU queue-write requirement). Texels outside the
+    /// <paramref name="height"/> exceeds one (a wgpu-core queue-write requirement). Texels outside the
     /// rectangle are left untouched.
     /// </summary>
     /// <param name="texture">The target GPU texture.</param>

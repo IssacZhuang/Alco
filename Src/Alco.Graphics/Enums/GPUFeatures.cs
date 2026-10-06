@@ -18,8 +18,9 @@ public enum GPUFeatures : ulong
     TimestampQueryInsidePasses = 1 << 2,
 
     /// <summary>
-    /// The device can consume precompiled Metal libraries: wgpu-native was
-    /// built with the metallib passthrough entry and the backend is Metal.
+    /// The device can consume precompiled Metal libraries: the alco-gpu library
+    /// (wgpu-core) was built with the metallib passthrough entry and the backend
+    /// is Metal.
     /// </summary>
     MetalLibPassthrough = 1 << 3,
 
@@ -31,7 +32,7 @@ public enum GPUFeatures : ulong
     IndirectFirstInstance = 1 << 4,
 
     /// <summary>
-    /// One command draws many indirect records: wgpu-native's MultiDrawIndirect.
+    /// One command draws many indirect records: wgpu-core's MultiDrawIndirect.
     /// Requires <see cref="IndirectFirstInstance"/> in practice (the records of a
     /// batch address data through firstInstance).
     /// </summary>

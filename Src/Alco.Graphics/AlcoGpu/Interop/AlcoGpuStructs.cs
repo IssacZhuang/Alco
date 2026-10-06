@@ -29,81 +29,55 @@ internal static unsafe partial class AlcoGPU
     /// <summary>Status codes returned by fallible native entry points.</summary>
     public static class Status
     {
-        /// <summary>Gets or stores Ok.</summary>
         public const uint Ok = 0;
-        /// <summary>Gets or stores InvalidHandle.</summary>
         public const uint InvalidHandle = 1;
-        /// <summary>Gets or stores InvalidArgument.</summary>
         public const uint InvalidArgument = 2;
-        /// <summary>Gets or stores Validation.</summary>
         public const uint Validation = 3;
-        /// <summary>Gets or stores OutOfMemory.</summary>
         public const uint OutOfMemory = 4;
-        /// <summary>Gets or stores DeviceLost.</summary>
         public const uint DeviceLost = 5;
-        /// <summary>Gets or stores Panic.</summary>
         public const uint Panic = 6;
-        /// <summary>Gets or stores Unsupported.</summary>
         public const uint Unsupported = 7;
         /// <summary>A polled operation is still in flight.</summary>
         public const uint NotReady = 8;
     }
 
-    /// <summary>Log levels crossing the native log callback (mirror of wgpu-native WGPULogLevel).</summary>
+    /// <summary>Log levels crossing the native log callback (mirror of the native log level values).</summary>
     public static class LogLevel
     {
         /// <summary>Disables native log forwarding entirely.</summary>
         public const uint Off = 0;
-        /// <summary>Gets or stores Error.</summary>
         public const uint Error = 1;
-        /// <summary>Gets or stores Warn.</summary>
         public const uint Warn = 2;
-        /// <summary>Gets or stores Info.</summary>
         public const uint Info = 3;
-        /// <summary>Gets or stores Debug.</summary>
         public const uint Debug = 4;
-        /// <summary>Gets or stores Trace.</summary>
         public const uint Trace = 5;
     }
 
     /// <summary>Backend request values (mirror of GraphicsBackend native subset).</summary>
     public static class BackendRequest
     {
-        /// <summary>Gets or stores Auto.</summary>
         public const uint Auto = 1;
-        /// <summary>Gets or stores Vulkan.</summary>
         public const uint Vulkan = 2;
-        /// <summary>Gets or stores Dx12.</summary>
         public const uint Dx12 = 3;
-        /// <summary>Gets or stores Metal.</summary>
         public const uint Metal = 4;
     }
 
     /// <summary>Resolved backend values reported by <see cref="DeviceInfo"/>.</summary>
     public static class BackendResolved
     {
-        /// <summary>Gets or stores Vulkan.</summary>
         public const uint Vulkan = 2;
-        /// <summary>Gets or stores Dx12.</summary>
         public const uint Dx12 = 3;
-        /// <summary>Gets or stores Metal.</summary>
         public const uint Metal = 4;
-        /// <summary>Gets or stores Gl.</summary>
         public const uint Gl = 5;
-        /// <summary>Gets or stores Null.</summary>
         public const uint Null = 6;
     }
 
     /// <summary>Capability bits reported by <see cref="DeviceInfo.Capabilities"/>.</summary>
     public static class Capabilities
     {
-        /// <summary>Gets or stores PassthroughShaders.</summary>
         public const ulong PassthroughShaders = 1ul << 0;
-        /// <summary>Gets or stores MetalLib.</summary>
         public const ulong MetalLib = 1ul << 1;
-        /// <summary>Gets or stores MultiDrawIndirect.</summary>
         public const ulong MultiDrawIndirect = 1ul << 2;
-        /// <summary>Gets or stores TimestampInsidePasses.</summary>
         public const ulong TimestampInsidePasses = 1ul << 3;
     }
 
@@ -127,60 +101,40 @@ internal static partial class AlcoGPU
     /// <summary>Surface creation tags (mirrors SurfaceDesc::tag).</summary>
     public static class SurfaceTag
     {
-        /// <summary>Gets or stores Win32.</summary>
         public const uint Win32 = 0;
-        /// <summary>Gets or stores MetalLayer.</summary>
         public const uint MetalLayer = 1;
-        /// <summary>Gets or stores Wayland.</summary>
         public const uint Wayland = 2;
-        /// <summary>Gets or stores Xcb.</summary>
         public const uint Xcb = 3;
-        /// <summary>Gets or stores Xlib.</summary>
         public const uint Xlib = 4;
-        /// <summary>Gets or stores Android.</summary>
         public const uint Android = 5;
     }
 
     /// <summary>Acquire statuses reported by surface_get_current_texture.</summary>
     public static class AcquireStatus
     {
-        /// <summary>Gets or stores SuccessOptimal.</summary>
         public const uint SuccessOptimal = 0;
-        /// <summary>Gets or stores SuccessSuboptimal.</summary>
         public const uint SuccessSuboptimal = 1;
-        /// <summary>Gets or stores Timeout.</summary>
         public const uint Timeout = 2;
-        /// <summary>Gets or stores Outdated.</summary>
         public const uint Outdated = 3;
-        /// <summary>Gets or stores Lost.</summary>
         public const uint Lost = 4;
-        /// <summary>Gets or stores Error.</summary>
         public const uint Error = 5;
     }
 
     /// <summary>Present mode values (mirrors SurfaceConfig::present_mode).</summary>
     public static class PresentMode
     {
-        /// <summary>Gets or stores Fifo.</summary>
         public const uint Fifo = 0;
-        /// <summary>Gets or stores Immediate.</summary>
         public const uint Immediate = 1;
-        /// <summary>Gets or stores Mailbox.</summary>
         public const uint Mailbox = 2;
     }
 
     /// <summary>Composite alpha mode values (mirrors SurfaceConfig::alpha_mode).</summary>
     public static class AlphaMode
     {
-        /// <summary>Gets or stores Auto.</summary>
         public const uint Auto = 0;
-        /// <summary>Gets or stores Opaque.</summary>
         public const uint Opaque = 1;
-        /// <summary>Gets or stores PreMultiplied.</summary>
         public const uint PreMultiplied = 2;
-        /// <summary>Gets or stores PostMultiplied.</summary>
         public const uint PostMultiplied = 3;
-        /// <summary>Gets or stores Inherit.</summary>
         public const uint Inherit = 4;
     }
     /// <summary>Opaque ABI3 pointer to an owned native Device wrapper.</summary>
@@ -591,9 +545,9 @@ internal static partial class AlcoGPU
         /// <summary>Borrowed adapter name, valid until device destroy.</summary>
         public byte* AdapterName;
 
-        /// <summary>Gets or stores Vendor.</summary>
+        /// <summary>Adapter vendor identifier.</summary>
         public uint Vendor;
-        /// <summary>Gets or stores Device.</summary>
+        /// <summary>Adapter device identifier.</summary>
         public uint Device;
 
         /// <summary>Supported Alco feature bits (<see cref="GPUFeatures"/>).</summary>
@@ -602,9 +556,9 @@ internal static partial class AlcoGPU
         /// <summary>Capability bits (<see cref="AlcoGPU.Capabilities"/>).</summary>
         public ulong Capabilities;
 
-        /// <summary>Gets or stores MaxBindGroups.</summary>
+        /// <summary>Maximum number of bind groups.</summary>
         public uint MaxBindGroups;
-        /// <summary>Gets or stores MaxImmediateSize.</summary>
+        /// <summary>Maximum immediate data size in bytes.</summary>
         public uint MaxImmediateSize;
 
         /// <summary>Queue timestamp period in nanoseconds (1.0 when unsupported).</summary>
@@ -674,15 +628,10 @@ internal static partial class AlcoGPU
         /// <summary><see cref="TextureUsage"/> bits.</summary>
         public TextureUsage Usage;
 
-        /// <summary>Gets or stores Width.</summary>
         public uint Width;
-        /// <summary>Gets or stores Height.</summary>
         public uint Height;
-        /// <summary>Gets or stores DepthOrArrayLayers.</summary>
         public uint DepthOrArrayLayers;
-        /// <summary>Gets or stores MipLevelCount.</summary>
         public uint MipLevelCount;
-        /// <summary>Gets or stores SampleCount.</summary>
         public uint SampleCount;
 
         /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
@@ -693,13 +642,9 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct TextureInfo
     {
-        /// <summary>Gets or stores Width.</summary>
         public uint Width;
-        /// <summary>Gets or stores Height.</summary>
         public uint Height;
-        /// <summary>Gets or stores DepthOrArrayLayers.</summary>
         public uint DepthOrArrayLayers;
-        /// <summary>Gets or stores MipLevelCount.</summary>
         public uint MipLevelCount;
 
         /// <summary><see cref="PixelFormat"/> value.</summary>
@@ -712,13 +657,13 @@ internal static partial class AlcoGPU
     {
         /// <summary><see cref="TextureViewDimension"/> value.</summary>
         public TextureViewDimension Dimension;
-        /// <summary>Gets or stores BaseMipLevel.</summary>
+        /// <summary>First mip level included in the view.</summary>
         public uint BaseMipLevel;
-        /// <summary>Gets or stores MipLevelCount.</summary>
+        /// <summary>Mip level count; zero selects the remaining view range.</summary>
         public uint MipLevelCount;
-        /// <summary>Gets or stores BaseArrayLayer.</summary>
+        /// <summary>First array layer included in the view.</summary>
         public uint BaseArrayLayer;
-        /// <summary>Gets or stores ArrayLayerCount.</summary>
+        /// <summary>Array layer count; zero selects the remaining range.</summary>
         public uint ArrayLayerCount;
 
         /// <summary><see cref="TextureAspect"/> value.</summary>
@@ -751,9 +696,7 @@ internal static partial class AlcoGPU
         /// <summary><see cref="AddressMode"/> value for W.</summary>
         public AddressMode AddressW;
 
-        /// <summary>Gets or stores LodMinClamp.</summary>
         public float LodMinClamp;
-        /// <summary>Gets or stores LodMaxClamp.</summary>
         public float LodMaxClamp;
 
         /// <summary><see cref="CompareFunction"/> value; <see cref="CompareFunction.Undefined"/> disables comparison.</summary>
@@ -782,11 +725,11 @@ internal static partial class AlcoGPU
         /// <summary>NUL-terminated UTF-8 default entry point (may be null).</summary>
         public byte* EntryPoint;
 
-        /// <summary>Gets or stores WorkgroupX.</summary>
+        /// <summary>Declared workgroup width for passthrough shaders.</summary>
         public uint WorkgroupX;
-        /// <summary>Gets or stores WorkgroupY.</summary>
+        /// <summary>Declared workgroup height for passthrough shaders.</summary>
         public uint WorkgroupY;
-        /// <summary>Gets or stores WorkgroupZ.</summary>
+        /// <summary>Declared workgroup depth for passthrough shaders.</summary>
         public uint WorkgroupZ;
 
         /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
@@ -800,7 +743,7 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct BindGroupLayoutEntry
     {
-        /// <summary>Gets or stores Binding.</summary>
+        /// <summary>Shader binding index.</summary>
         public uint Binding;
 
         /// <summary><see cref="ShaderStage"/> visibility bits.</summary>
@@ -829,9 +772,7 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct BindGroupLayoutDesc
     {
-        /// <summary>Gets or stores Entries.</summary>
         public BindGroupLayoutEntry* Entries;
-        /// <summary>Gets or stores EntryCount.</summary>
         public uint EntryCount;
 
         /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
@@ -842,15 +783,15 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct BindGroupEntry
     {
-        /// <summary>Gets or stores Binding.</summary>
+        /// <summary>Shader binding index.</summary>
         public uint Binding;
 
         /// <summary>Buffer, texture-view or sampler wrapper pointer.</summary>
         public nint Resource;
 
-        /// <summary>Gets or stores Offset.</summary>
+        /// <summary>Byte offset within a bound buffer.</summary>
         public ulong Offset;
-        /// <summary>Gets or stores Size.</summary>
+        /// <summary>Byte size of the buffer or bound range; zero selects the remaining range.</summary>
         public ulong Size;
 
         /// <summary>Resource kind: 0 buffer, 1 texture view, 2 sampler. Determines the
@@ -862,11 +803,8 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct BindGroupDesc
     {
-        /// <summary>Gets or stores Layout.</summary>
         public BindGroupLayoutHandle Layout;
-        /// <summary>Gets or stores Entries.</summary>
         public BindGroupEntry* Entries;
-        /// <summary>Gets or stores EntryCount.</summary>
         public uint EntryCount;
 
         /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
@@ -877,9 +815,9 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct VertexElement
     {
-        /// <summary>Gets or stores Location.</summary>
+        /// <summary>Shader vertex-input location.</summary>
         public uint Location;
-        /// <summary>Gets or stores Offset.</summary>
+        /// <summary>Byte offset of this attribute within a vertex.</summary>
         public uint Offset;
 
         /// <summary><see cref="VertexFormat"/> value.</summary>
@@ -890,15 +828,13 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct VertexLayout
     {
-        /// <summary>Gets or stores Stride.</summary>
+        /// <summary>Byte stride between vertices.</summary>
         public uint Stride;
 
         /// <summary><see cref="VertexStepMode"/> value.</summary>
         public VertexStepMode StepMode;
 
-        /// <summary>Gets or stores Elements.</summary>
         public VertexElement* Elements;
-        /// <summary>Gets or stores ElementCount.</summary>
         public uint ElementCount;
     }
 
@@ -919,9 +855,7 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct BlendState
     {
-        /// <summary>Gets or stores Color.</summary>
         public BlendComponent Color;
-        /// <summary>Gets or stores Alpha.</summary>
         public BlendComponent Alpha;
     }
 
@@ -953,13 +887,9 @@ internal static partial class AlcoGPU
         /// <summary><see cref="CompareFunction"/> value; <see cref="CompareFunction.Undefined"/> disables the depth test.</summary>
         public CompareFunction DepthCompare;
 
-        /// <summary>Gets or stores Front.</summary>
         public StencilFace Front;
-        /// <summary>Gets or stores Back.</summary>
         public StencilFace Back;
-        /// <summary>Gets or stores StencilReadMask.</summary>
         public uint StencilReadMask;
-        /// <summary>Gets or stores StencilWriteMask.</summary>
         public uint StencilWriteMask;
     }
 
@@ -967,26 +897,20 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct GraphicsPipelineDesc
     {
-        /// <summary>Gets or stores BindGroupLayouts.</summary>
         public BindGroupLayoutHandle* BindGroupLayouts;
-        /// <summary>Gets or stores BindGroupLayoutCount.</summary>
         public uint BindGroupLayoutCount;
 
-        /// <summary>Gets or stores VertexModule.</summary>
         public ShaderModuleHandle VertexModule;
 
         /// <summary>NUL-terminated UTF-8 vertex entry point.</summary>
         public byte* VertexEntry;
 
-        /// <summary>Gets or stores FragmentModule.</summary>
         public ShaderModuleHandle FragmentModule;
 
         /// <summary>NUL-terminated UTF-8 fragment entry point.</summary>
         public byte* FragmentEntry;
 
-        /// <summary>Gets or stores VertexLayouts.</summary>
         public VertexLayout* VertexLayouts;
-        /// <summary>Gets or stores VertexLayoutCount.</summary>
         public uint VertexLayoutCount;
 
         /// <summary><see cref="FillMode"/> value (wireframe unsupported by wgpu).</summary>
@@ -998,9 +922,7 @@ internal static partial class AlcoGPU
         /// <summary><see cref="FrontFace"/> value.</summary>
         public FrontFace FrontFace;
 
-        /// <summary>Gets or stores Blend.</summary>
         public BlendState Blend;
-        /// <summary>Gets or stores DepthStencil.</summary>
         public DepthStencilState DepthStencil;
 
         /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGPU.None"/> when unused.</summary>
@@ -1011,7 +933,6 @@ internal static partial class AlcoGPU
 
         /// <summary><see cref="PixelFormat"/> values, one per color target.</summary>
         public uint* ColorFormats;
-        /// <summary>Gets or stores ColorFormatCount.</summary>
         public uint ColorFormatCount;
 
         /// <summary>Active color writes; <see cref="AlcoGPU.None"/> writes all.</summary>
@@ -1028,12 +949,9 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct ComputePipelineDesc
     {
-        /// <summary>Gets or stores BindGroupLayouts.</summary>
         public BindGroupLayoutHandle* BindGroupLayouts;
-        /// <summary>Gets or stores BindGroupLayoutCount.</summary>
         public uint BindGroupLayoutCount;
 
-        /// <summary>Gets or stores ComputeModule.</summary>
         public ShaderModuleHandle ComputeModule;
 
         /// <summary>NUL-terminated UTF-8 compute entry point.</summary>
@@ -1050,9 +968,8 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct ColorAttachment
     {
-        /// <summary>Gets or stores View.</summary>
         public TextureViewHandle View;
-        /// <summary>Gets or stores ResolveView.</summary>
+        /// <summary>Resolve target view; a null handle when unused.</summary>
         public TextureViewHandle ResolveView;
 
         /// <summary><see cref="AttachmentLoadOp"/> value.</summary>
@@ -1061,7 +978,7 @@ internal static partial class AlcoGPU
         /// <summary>0 store, 1 discard.</summary>
         public uint StoreOp;
 
-        /// <summary>Gets or stores the native ABI value.</summary>
+        /// <summary>RGBA clear value used by the Clear load operation.</summary>
         public fixed float ClearColor[4];
     }
 
@@ -1069,7 +986,6 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct DepthStencilAttachment
     {
-        /// <summary>Gets or stores View.</summary>
         public TextureViewHandle View;
 
         /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGPU.None"/> = read-only.</summary>
@@ -1078,7 +994,6 @@ internal static partial class AlcoGPU
         /// <summary>0 store, 1 discard; <see cref="AlcoGPU.None"/> = read-only.</summary>
         public uint DepthStoreOp;
 
-        /// <summary>Gets or stores DepthClear.</summary>
         public float DepthClear;
 
         /// <summary><see cref="AttachmentLoadOp"/> value; <see cref="AlcoGPU.None"/> = read-only.</summary>
@@ -1087,7 +1002,6 @@ internal static partial class AlcoGPU
         /// <summary>0 store, 1 discard; <see cref="AlcoGPU.None"/> = read-only.</summary>
         public uint StencilStoreOp;
 
-        /// <summary>Gets or stores StencilClear.</summary>
         public uint StencilClear;
     }
 
@@ -1095,7 +1009,6 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct TimestampWrites
     {
-        /// <summary>Gets or stores QuerySet.</summary>
         public QuerySetHandle QuerySet;
 
         /// <summary>Query index; <see cref="AlcoGPU.None"/> skips the write.</summary>
@@ -1109,13 +1022,9 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct RenderPassDesc
     {
-        /// <summary>Gets or stores ColorAttachments.</summary>
         public ColorAttachment* ColorAttachments;
-        /// <summary>Gets or stores ColorAttachmentCount.</summary>
         public uint ColorAttachmentCount;
-        /// <summary>Gets or stores DepthStencil.</summary>
         public DepthStencilAttachment* DepthStencil;
-        /// <summary>Gets or stores TimestampWrites.</summary>
         public TimestampWrites* TimestampWrites;
     }
 
@@ -1123,7 +1032,7 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct CopyLayout
     {
-        /// <summary>Gets or stores Offset.</summary>
+        /// <summary>Byte offset of the first copied texel in the buffer.</summary>
         public ulong Offset;
 
         /// <summary>Bytes per row; <see cref="AlcoGPU.None"/> = tightly packed.</summary>
@@ -1137,11 +1046,8 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct Origin3D
     {
-        /// <summary>Gets or stores X.</summary>
         public uint X;
-        /// <summary>Gets or stores Y.</summary>
         public uint Y;
-        /// <summary>Gets or stores Z.</summary>
         public uint Z;
     }
 
@@ -1149,11 +1055,8 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal struct Extent3D
     {
-        /// <summary>Gets or stores Width.</summary>
         public uint Width;
-        /// <summary>Gets or stores Height.</summary>
         public uint Height;
-        /// <summary>Gets or stores DepthOrArrayLayers.</summary>
         public uint DepthOrArrayLayers;
     }
 
@@ -1179,7 +1082,6 @@ internal static partial class AlcoGPU
     {
         /// <summary><see cref="PixelFormat"/> values, one per color target.</summary>
         public uint* ColorFormats;
-        /// <summary>Gets or stores ColorFormatCount.</summary>
         public uint ColorFormatCount;
 
         /// <summary><see cref="PixelFormat"/> value; <see cref="AlcoGPU.None"/> when unused.</summary>
@@ -1187,10 +1089,8 @@ internal static partial class AlcoGPU
 
         /// <summary>Boolean u32 flags for read-only depth/stencil.</summary>
         public uint DepthReadOnly;
-        /// <summary>Gets or stores StencilReadOnly.</summary>
         public uint StencilReadOnly;
 
-        /// <summary>Gets or stores SampleCount.</summary>
         public uint SampleCount;
 
         /// <summary>NUL-terminated UTF-8 debug label (may be null).</summary>
@@ -1218,13 +1118,9 @@ internal static partial class AlcoGPU
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct SurfaceCapabilities
     {
-        /// <summary>Gets or stores the native ABI value.</summary>
         public fixed uint Formats[64];
-        /// <summary>Gets or stores FormatCount.</summary>
         public uint FormatCount;
-        /// <summary>Gets or stores the native ABI value.</summary>
         public fixed uint PresentModes[8];
-        /// <summary>Gets or stores PresentModeCount.</summary>
         public uint PresentModeCount;
     }
 
@@ -1238,9 +1134,7 @@ internal static partial class AlcoGPU
         /// <summary><see cref="PixelFormat"/> value.</summary>
         public PixelFormat Format;
 
-        /// <summary>Gets or stores Width.</summary>
         public uint Width;
-        /// <summary>Gets or stores Height.</summary>
         public uint Height;
 
         /// <summary>One of <see cref="AlcoGPU.PresentMode"/> values.</summary>
@@ -1249,7 +1143,7 @@ internal static partial class AlcoGPU
         /// <summary>One of <see cref="AlcoGPU.AlphaMode"/> values.</summary>
         public uint AlphaMode;
 
-        /// <summary>Gets or stores DesiredFrameLatency.</summary>
+        /// <summary>Desired maximum number of frames in flight, clamped to at least one.</summary>
         public uint DesiredFrameLatency;
     }
 }

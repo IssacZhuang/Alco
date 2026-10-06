@@ -29,7 +29,7 @@ public static class SpirvCodec
     /// Decodes little-endian bytes to SPIR-V words, dropping an incomplete
     /// trailing word.
     /// </summary>
-    /// <param name="bytes">Module bytes (a multiple of four words per word).</param>
+    /// <param name="bytes">Module bytes (four bytes per word); any trailing partial word is dropped.</param>
     public static uint[] BytesToWords(ReadOnlySpan<byte> bytes)
     {
         uint[] words = new uint[bytes.Length / 4];

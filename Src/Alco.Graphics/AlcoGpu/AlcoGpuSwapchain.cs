@@ -3,7 +3,10 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuSwapchain.</summary>
+/// <summary>
+/// Swapchain that creates the native surface from a platform window source and drives
+/// the per-frame surface frame buffer that owns the surface.
+/// </summary>
 internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
 {
     private readonly AlcoGpuDevice _device;
@@ -267,6 +270,11 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
 
     #region AlcoGpu Implementation
 
+    /// <summary>
+    /// Selects the best supported present mode for the requested vsync setting: FIFO for
+    /// vsync, otherwise Immediate or Mailbox, falling back to FIFO (with a warning) when
+    /// neither is supported.
+    /// </summary>
     internal uint GetPresentMode(bool vsync)
     {
         if (!vsync)

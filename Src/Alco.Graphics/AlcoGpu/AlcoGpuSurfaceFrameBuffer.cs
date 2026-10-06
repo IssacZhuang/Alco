@@ -4,7 +4,10 @@ using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuSurfaceFrameBuffer.</summary>
+/// <summary>
+/// Frame buffer over a swapchain surface: owns the native surface, re-acquires the color
+/// attachment texture each frame and reconfigures the surface when the size or configuration changes.
+/// </summary>
 internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 {
     #region Properties
@@ -204,7 +207,8 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
                 ColorAttachmentInfo colorInfo = attachmentLayout.ColorInfos[0];
 
-                // pointer attention !!
+                // The stored view handle is owned and dropped by the surface texture each
+                // frame; RequestSurfaceTexture refreshes it on every acquire.
                 _colorAttachments = Alloc<AlcoGPU.ColorAttachment>(1);
                 AlcoGPU.ColorAttachment attachment = new()
                 {
@@ -268,7 +272,11 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         }
     }
 
-    /// <summary>Provides the UpdateSurfaceConfig operation.</summary>
+    /// <summary>
+    /// Adopts a new surface configuration. Size changes are applied lazily at the next
+    /// acquire; any other change (e.g. present mode) is flagged and reaches the native
+    /// surface at the next safe reconfigure point.
+    /// </summary>
     public void UpdateSurfaceConfig(AlcoGPU.SurfaceConfig config)
     {
         // Size changes are reconfigured lazily through the texture-size mismatch check in
@@ -284,7 +292,13 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         _height = config.Height;
     }
 
-    /// <summary>Provides the RequestSurfaceTexture operation.</summary>
+    /// <summary>
+    /// Acquires this frame's surface texture and refreshes the color attachment view.
+    /// Returns true when the acquired texture is usable for the frame; returns false —
+    /// after reconfiguring the surface — when the frame must be skipped because the
+    /// acquire failed, the acquired size no longer matches the configuration, or a
+    /// pending non-size configuration change requires a reconfigure first.
+    /// </summary>
     public bool RequestSurfaceTexture()
     {
         try
@@ -336,7 +350,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         }
     }
 
-    /// <summary>Provides the Present operation.</summary>
+    /// <summary>Presents the acquired frame and releases the surface texture and its view.</summary>
     public void Present()
     {
         _colorTextures[0].PresentAndDrop();
@@ -406,7 +420,10 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
     #endregion
 
-    /// <summary>Describes AlcoGpuSurfaceTexture.</summary>
+    /// <summary>
+    /// Texture wrapper for the surface texture acquired for the current frame; the native
+    /// texture and its default view are reacquired every frame and dropped on present.
+    /// </summary>
     internal sealed unsafe class AlcoGpuSurfaceTexture : AlcoGpuTextureBase
     {
         #region Properties
@@ -462,7 +479,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
             get => _texture;
         }
 
-        /// <summary>Gets or stores the native ABI value.</summary>
+        /// <summary>Gets the default view of the currently acquired surface texture; refreshed on every acquire and invalid once the texture is presented or dropped.</summary>
         public AlcoGPU.TextureViewHandle DefaultView
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -661,7 +678,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
         private AlcoGpuTextureBase _texture;
         private AlcoGPU.TextureViewHandle _view;
 
-        /// <inheritdoc />
+        /// <summary>Gets the borrowed native view handle; ownership stays with the wrapped texture, never with this wrapper.</summary>
         public override AlcoGPU.TextureViewHandle Native
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -677,7 +694,6 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
         protected override GPUDevice Device { get; }
 
-        /// <summary>Provides the AlcoGpuTextureViewWrapper operation.</summary>
         public AlcoGpuTextureViewWrapper(GPUDevice device, AlcoGpuTextureBase texture, AlcoGPU.TextureViewHandle view) : base(texture.Name)
         {
             Device = device;
@@ -685,7 +701,7 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
             _view = view;
         }
 
-        /// <summary>Provides the UpdateTextureAndView operation.</summary>
+        /// <summary>Points the wrapper at the current frame's surface texture and its default view.</summary>
         public void UpdateTextureAndView(AlcoGpuTextureBase texture, AlcoGPU.TextureViewHandle view)
         {
             _texture = texture;

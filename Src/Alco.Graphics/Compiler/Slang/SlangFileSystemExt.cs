@@ -7,8 +7,8 @@ namespace Alco.Graphics;
 // A managed ISlangFileSystemExt COM object that serves slang's module loads
 // (`import`, `#include`) from a managed resolver delegate, so pak files,
 // embedded assets and directory watchers keep working — slang imports are
-// fully virtualizable. Uses the same hand-built-vtable pattern as the other
-// include handler. Slang holds the pointer for the session's lifetime.
+// fully virtualizable. Uses the same hand-built-vtable pattern used for the
+// native callbacks. Slang holds the pointer for the session's lifetime.
 //
 // Vtable layout (ISlangFileSystemExt):
 //   0 queryInterface      1 addRef        2 release         3 castAs

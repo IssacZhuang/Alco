@@ -9,8 +9,8 @@ public abstract partial class GPUDevice
     /// <summary>
     /// Creates a GPU graphics pipeline from a linked shader program's reflection: bind group
     /// layouts, push-constant size, fragment output count and (unless overridden) the vertex
-    /// input layouts are all derived from <paramref name="reflection"/>. The transient bind
-    /// group layouts consumed by pipeline creation are released before returning.
+    /// input layouts are all derived from <paramref name="reflection"/>. The temporary bind
+    /// groups used for layout creation are disposed before returning.
     /// </summary>
     /// <param name="reflection">The reflection of the linked shader program providing the pipeline interface.</param>
     /// <param name="vertexShader">The compiled vertex shader module.</param>
@@ -86,7 +86,7 @@ public abstract partial class GPUDevice
     /// <summary>
     /// Creates a GPU compute pipeline from a linked shader program's reflection: bind group
     /// layouts and the push-constant size are derived from <paramref name="reflection"/>. The
-    /// transient bind group layouts consumed by pipeline creation are released before returning.
+    /// temporary bind groups used for layout creation are disposed before returning.
     /// </summary>
     /// <param name="reflection">The reflection of the linked shader program providing the pipeline interface.</param>
     /// <param name="computeShader">The compiled compute shader module.</param>

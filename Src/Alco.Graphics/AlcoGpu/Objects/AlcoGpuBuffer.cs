@@ -3,7 +3,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuBuffer.</summary>
+/// <summary>A GPU memory block wrapping a native alco-gpu buffer.</summary>
 internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
 {
     #region Properties
@@ -41,14 +41,14 @@ internal sealed unsafe class AlcoGpuBuffer : GPUBuffer
 
     #region AlcoGpu Implementation
 
-    /// <summary>Gets or stores the native ABI value.</summary>
+    /// <summary>Gets the native buffer handle.</summary>
     public AlcoGPU.BufferHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _buffer;
     }
 
-    /// <summary>Provides the AlcoGpuBuffer operation.</summary>
+    /// <summary>Creates a native buffer.</summary>
     public AlcoGpuBuffer(AlcoGpuDevice device, in BufferDescriptor descriptor) : base(descriptor)
     {
         try

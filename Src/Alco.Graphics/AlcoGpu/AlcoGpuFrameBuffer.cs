@@ -4,7 +4,10 @@ using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuFrameBuffer.</summary>
+/// <summary>
+/// Fixed-size offscreen frame buffer that owns its color and depth-stencil attachment
+/// textures and bakes a static render pass descriptor over them.
+/// </summary>
 internal sealed unsafe class AlcoGpuFrameBuffer : AlcoGpuFrameBufferBase
 {
     #region Properties

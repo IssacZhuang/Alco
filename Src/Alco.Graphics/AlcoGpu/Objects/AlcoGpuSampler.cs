@@ -3,7 +3,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuSampler.</summary>
+/// <summary>A texture sampler wrapping a native alco-gpu sampler.</summary>
 internal sealed unsafe class AlcoGpuSampler : GPUSampler
 {
     #region Properties
@@ -40,7 +40,7 @@ internal sealed unsafe class AlcoGpuSampler : GPUSampler
     #endregion
 
     #region AlcoGpu Implementation
-    /// <summary>Gets or stores the native ABI value.</summary>
+    /// <summary>Gets the native sampler handle.</summary>
     public AlcoGPU.SamplerHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -2,7 +2,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuTimestampQuerySet.</summary>
+/// <summary>A timestamp query set wrapping a native alco-gpu query set.</summary>
 internal sealed unsafe class AlcoGpuTimestampQuerySet : GPUTimestampQuerySet
 {
     private AlcoGPU.QuerySetHandle _querySet;

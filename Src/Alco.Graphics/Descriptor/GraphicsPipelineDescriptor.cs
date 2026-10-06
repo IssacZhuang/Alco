@@ -1,5 +1,9 @@
 namespace Alco.Graphics;
 
+/// <summary>
+/// The creation information for a graphics pipeline: shaders, vertex input,
+/// rasterization, blending, depth-stencil state and the target attachment formats.
+/// </summary>
 public struct GraphicsPipelineDescriptor
 {
     public GraphicsPipelineDescriptor(
@@ -54,19 +58,49 @@ public struct GraphicsPipelineDescriptor
         Name = name;
     }
 
+    /// <summary>
+    /// The bind group layouts the pipeline was created with; resource groups used
+    /// with it must match these layouts.
+    /// </summary>
     public GPUBindGroup[] BindGroups { get; init; }
+    /// <summary>
+    /// The shader modules feeding the pipeline stages (vertex, fragment, ...).
+    /// </summary>
     public ShaderModule[] ShaderModules { get; init; }
+    /// <summary>
+    /// The vertex input layouts describing vertex buffer bindings.
+    /// </summary>
     public VertexInputLayout[] VertexInputLayouts { get; init; }
+    /// <summary>
+    /// The rasterization state (fill mode, culling, front-face winding).
+    /// </summary>
     public RasterizerState RasterizerState { get; init; } = RasterizerState.CullNone;
+    /// <summary>
+    /// How vertices are assembled into primitives (triangles, lines, ...).
+    /// </summary>
     public PrimitiveTopology PrimitiveTopology { get; init; } = PrimitiveTopology.TriangleList;
+    /// <summary>
+    /// The blending applied to color targets.
+    /// </summary>
     public BlendState BlendState { get; init; }
+    /// <summary>
+    /// The depth and stencil test configuration.
+    /// </summary>
     public DepthStencilState DepthStencilState { get; init; } = DepthStencilState.None;
+    /// <summary>
+    /// The pixel formats of the color targets the pipeline renders to, in
+    /// render-target order.
+    /// </summary>
     public PixelFormat[] ColorFormats { get; init; }
+    /// <summary>
+    /// The pixel format of the depth-stencil target, or null when the render pass
+    /// has no depth attachment.
+    /// </summary>
     public PixelFormat? DepthStencilFormat { get; init; }
     /// <summary>
     /// The number of color targets the fragment shader writes to. Color targets at or
     /// beyond this index have no matching fragment output and are created with a zero
-    /// write mask, which WebGPU requires instead of failing pipeline validation.
+    /// write mask, which wgpu-core requires instead of failing pipeline validation.
     /// Defaults to writing every target.
     /// </summary>
     public int FragmentOutputCount { get; init; } = int.MaxValue;
@@ -75,5 +109,8 @@ public struct GraphicsPipelineDescriptor
     /// Per-stage visibility is declared by the shaders themselves.
     /// </summary>
     public uint PushConstantsSize { get; init; }
+    /// <summary>
+    /// Diagnostic name shown in errors and debuggers.
+    /// </summary>
     public string Name { get; init; } = "unnamed_graphics_pipeline";
 }

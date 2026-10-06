@@ -56,12 +56,14 @@ internal sealed class AlcoGpuAttachmentLayout : GPUAttachmentLayout
 
     #region AlcoGpu Implementation
 
+    /// <summary>Gets the color attachment infos (format and default clear value) in attachment order.</summary>
     internal ReadOnlySpan<ColorAttachmentInfo> ColorInfos
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _colorInfos;
     }
 
+    /// <summary>Gets the depth-stencil attachment info, or null when the layout has no depth attachment.</summary>
     internal DepthAttachmentInfo? DepthInfo
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

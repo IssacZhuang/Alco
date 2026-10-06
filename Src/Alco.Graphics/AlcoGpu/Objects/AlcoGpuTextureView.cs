@@ -3,10 +3,10 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuTextureViewBase.</summary>
+/// <summary>Base class for alco-gpu texture views, exposing the native view handle.</summary>
 internal abstract class AlcoGpuTextureViewBase : GPUTextureView
 {
-    /// <summary>Gets the borrowed native pointer; ownership stays with this object.</summary>
+    /// <summary>Gets the native view handle, borrowed for native calls; ownership is defined by the concrete type.</summary>
     public abstract AlcoGPU.TextureViewHandle Native { get; }
 
     protected AlcoGpuTextureViewBase(in TextureViewDescriptor descriptor) : base(descriptor)
@@ -18,7 +18,7 @@ internal abstract class AlcoGpuTextureViewBase : GPUTextureView
     }
 }
 
-/// <summary>Describes AlcoGpuTextureView.</summary>
+/// <summary>A texture view over a selected mip/array/aspect range of a texture; owns its native view handle.</summary>
 internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
 {
     #region Properties
@@ -63,7 +63,7 @@ internal sealed unsafe class AlcoGpuTextureView : AlcoGpuTextureViewBase
     #endregion
 
     #region AlcoGpu Implementation
-    /// <inheritdoc />
+    /// <summary>Gets the native view handle; owned by this object and destroyed on dispose.</summary>
     public override AlcoGPU.TextureViewHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

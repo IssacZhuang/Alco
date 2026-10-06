@@ -31,6 +31,7 @@ internal sealed unsafe partial class AlcoGpuRenderBundle : GPURenderBundle
         get => !_bundle.IsNull;
     }
 
+    /// <summary>Gets the native render bundle handle.</summary>
     internal AlcoGPU.RenderBundleHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

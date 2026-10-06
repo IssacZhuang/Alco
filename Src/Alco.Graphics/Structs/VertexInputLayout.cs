@@ -8,10 +8,22 @@ namespace Alco.Graphics;
 /// </summary>
 public struct VertexInputLayout
 {
+    /// <summary>
+    /// Bytes between consecutive vertices (or instances) in the buffer.
+    /// </summary>
     public uint Stride;
+    /// <summary>
+    /// How often the binding advances to its next element.
+    /// </summary>
     public VertexStepMode StepMode;
+    /// <summary>
+    /// The attributes fetched from one vertex of the buffer.
+    /// </summary>
     public VertexElement[] Elements;
 
+    /// <summary>
+    /// Initializes the layout with its attributes, stride and step mode.
+    /// </summary>
     public VertexInputLayout(VertexElement[] elements, uint stride, VertexStepMode stepMode)
     {
         Elements = elements;

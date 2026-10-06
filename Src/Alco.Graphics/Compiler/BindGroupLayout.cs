@@ -4,11 +4,14 @@ namespace Alco.Graphics;
 
 
 /// <summary>
-///  The layout used for the shader reflection
+/// One bind group (set) of a reflected program: its set index and the binding
+/// entries it owns.
 /// </summary>
 public struct BindGroupLayout
 {
+    /// <summary>The set index this group occupies.</summary>
     public uint Group { get; init; }
+    /// <summary>The binding entries of the set.</summary>
     public IReadOnlyList<BindGroupEntryInfo> Bindings { get; init; }
 
     public override string ToString()
@@ -23,6 +26,13 @@ public struct BindGroupLayout
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Builds a bind-group descriptor from the reflected entries. The entries
+    /// carry layout facts only (binding numbers, stages, types, names) — no real
+    /// resources are attached; the caller binds those.
+    /// </summary>
+    /// <param name="name">The debug name of the descriptor.</param>
+    /// <returns>The bind-group descriptor built from the reflected entries.</returns>
     public BindGroupDescriptor ToDescriptor(string name = "unnamed_bind_group")
     {
         BindGroupEntry[] entries = new BindGroupEntry[Bindings.Count];

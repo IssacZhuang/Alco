@@ -5,7 +5,7 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Provides GPU operations through the alco-gpu native backend.</summary>
+/// <summary>GPU device over the alco-gpu native backend: creates GPU resources, submits command buffers and services texture readbacks.</summary>
 internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 {
     #region Properties
@@ -30,12 +30,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     // _stagingCacheLock; native calls (create/destroy) are made outside the lock.
     private readonly struct StagingTicket
     {
-        /// <summary>Gets or stores Handle.</summary>
         public readonly AlcoGPU.BufferHandle Handle;
-        /// <summary>Gets or stores Capacity.</summary>
         public readonly ulong Capacity;
 
-        /// <summary>Provides the StagingTicket operation.</summary>
         public StagingTicket(AlcoGPU.BufferHandle handle, ulong capacity)
         {
             Handle = handle;
@@ -78,43 +75,28 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
     private struct PendingTextureReadback
     {
-        /// <summary>Gets or stores Request.</summary>
         public GPUTextureReadbackRequest Request;
-        /// <summary>Gets or stores Buffer.</summary>
         public StagingTicket Buffer;
-        /// <summary>Gets or stores StagingDataSize.</summary>
         public ulong StagingDataSize;
-        /// <summary>Gets or stores DataSize.</summary>
         public uint DataSize;
-        /// <summary>Gets or stores TightBytesPerRow.</summary>
         public uint TightBytesPerRow;
-        /// <summary>Gets or stores AlignedBytesPerRow.</summary>
         public uint AlignedBytesPerRow;
-        /// <summary>Gets or stores Height.</summary>
         public uint Height;
-        /// <summary>Gets or stores Depth.</summary>
         public uint Depth;
-        /// <summary>Gets or stores Destination.</summary>
+        // Caller-provided pointer the completed readback copies its data into.
         public byte* Destination;
     }
 
     private struct TextureReadbackLayout
     {
-        /// <summary>Gets or stores BufferLayout.</summary>
         public AlcoGPU.CopyLayout BufferLayout;
-        /// <summary>Gets or stores CopySize.</summary>
         public AlcoGPU.Extent3D CopySize;
-        /// <summary>Gets or stores StagingDataSize.</summary>
         public ulong StagingDataSize;
-        /// <summary>Gets or stores DataSize.</summary>
         public uint DataSize;
-        /// <summary>Gets or stores TightBytesPerRow.</summary>
+        // Tight = packed rows expected in the destination; aligned = 256-byte copy-aligned rows in the staging buffer.
         public uint TightBytesPerRow;
-        /// <summary>Gets or stores AlignedBytesPerRow.</summary>
         public uint AlignedBytesPerRow;
-        /// <summary>Gets or stores Height.</summary>
         public uint Height;
-        /// <summary>Gets or stores Depth.</summary>
         public uint Depth;
     }
 
@@ -127,9 +109,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         get => _preferredSurfaceFormat;
     }
 
-    /// <summary>
-    /// The default bind groups shared across the entire device.
-    /// </summary>
+    /// <summary>The default uniform-buffer bind group shared across the entire device.</summary>
     public override GPUBindGroup BindGroupUniformBuffer { get; }
     /// <inheritdoc />
     public override GPUBindGroup BindGroupStorageBuffer { get; }
@@ -218,71 +198,85 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         }
     }
 
+    /// <inheritdoc />
     protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
     {
         return new AlcoGpuBuffer(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name)
     {
         return new AlcoGpuTimestampQuerySet(this, count, name);
     }
 
+    /// <inheritdoc />
     protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
     {
         return new AlcoGpuCommandBuffer(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor)
     {
         return new AlcoGpuRenderBundle(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUTexture CreateTextureCore(in TextureDescriptor descriptor)
     {
         return new AlcoGpuTexture(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUAttachmentLayout CreateAttachmentLayoutCore(in AttachmentLayoutDescriptor descriptor)
     {
         return new AlcoGpuAttachmentLayout(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
     {
         return new AlcoGpuFrameBuffer(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUFrameBuffer CreateExternalFrameBufferCore(in ExternalFrameBufferDescriptor descriptor)
     {
         return new AlcoGpuExternalFrameBuffer(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
     {
         return new AlcoGpuGraphicsPipeline(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)
     {
         return new AlcoGpuComputePipeline(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
     {
         return new AlcoGpuBindGroup(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor)
     {
         return new AlcoGpuResourceGroup(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor)
     {
         return new AlcoGpuTextureView(this, descriptor);
     }
 
+    /// <inheritdoc />
     protected override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
     {
         return new AlcoGpuSampler(this, descriptor);
@@ -1102,7 +1096,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
     /// <summary>
     /// Drains the per-device message queue (validation errors, native warnings) and
-    /// turns them into log calls or exceptions, mirroring the old wgpu log callback.
+    /// turns them into log calls or exceptions.
     /// </summary>
     private unsafe void PollMessages()
     {
@@ -1382,6 +1376,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
         _host.LogInfo(message);
     }
 
+    /// <summary>
+    /// Logging channel reserved for internal alco-gpu object usage.
+    /// </summary>
     internal void LogWarning(ReadOnlySpan<char> message)
     {
         _host.LogWarning(message);

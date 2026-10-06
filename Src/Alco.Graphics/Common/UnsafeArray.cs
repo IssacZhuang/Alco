@@ -7,7 +7,6 @@ internal unsafe struct UnsafeArray<T> : IDisposable where T : unmanaged
     private T* _ptr = null;
     private int _length;
 
-    //indexer
     public ref T this[int index]
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

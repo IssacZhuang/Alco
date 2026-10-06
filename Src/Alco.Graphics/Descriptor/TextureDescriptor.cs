@@ -6,7 +6,7 @@ namespace Alco.Graphics;
 public struct TextureDescriptor
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="TextureDescriptor"/> struct.
+    /// Initializes the descriptor with dimension, format, size and usage.
     /// </summary>
     /// <param name="dimension">The dimension of the texture.</param>
     /// <param name="format">The pixel format of the texture.</param>
@@ -52,47 +52,48 @@ public struct TextureDescriptor
     }
 
     /// <summary>
-    /// The dimension of the texture.
+    /// The dimensionality of the texture (1D, 2D or 3D).
     /// </summary>
     public TextureDimension Dimension { get; set; } = TextureDimension.Texture2D;
 
     /// <summary>
-    /// The pixel format of the texture.
+    /// The pixel format of the texels.
     /// </summary>
     public PixelFormat Format { get; set; } = PixelFormat.RGBA8Unorm;
 
     /// <summary>
-    /// The usage of the texture.
+    /// How the texture may be used by the GPU.
     /// </summary>
     public TextureUsage Usage { get; set; } = TextureUsage.TextureBinding | TextureUsage.Write;
 
     /// <summary>
-    /// The width of the texture.
+    /// The width of the texture in texels.
     /// </summary>
     public uint Width { get; set; } = 1;
 
     /// <summary>
-    /// The height of the texture.
+    /// The height of the texture in texels.
     /// </summary>
     public uint Height { get; set; } = 1;
 
     /// <summary>
-    /// The depth or array layer of the texture.
+    /// Depth for 3D textures; array layer count otherwise.
     /// </summary>
     public uint DepthOrArrayLayer { get; set; } = 1;
 
     /// <summary>
-    /// The number of mip levels of the texture.
+    /// The number of mip levels; must be at least 1 (a full mip chain is not
+    /// created implicitly).
     /// </summary>
     public uint MipLevels { get; set; } = 1;
 
     /// <summary>
-    /// The sample count of the texture.
+    /// MSAA sample count; 1 = no multisampling.
     /// </summary>
     public uint SampleCount { get; set; } = 1;
 
     /// <summary>
-    /// The name of the texture.
+    /// Diagnostic name shown in errors and debuggers.
     /// </summary>
     public string Name { get; set; } = "Unnamed GPU texture";
 }

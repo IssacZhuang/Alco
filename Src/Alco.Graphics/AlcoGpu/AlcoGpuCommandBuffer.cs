@@ -39,6 +39,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
 
     #region Abstract Implementation
 
+    /// <inheritdoc />
     protected override GPUDevice Device { get; }
 
     /// <summary>Gets whether a finished native command buffer is available for submission.</summary>
@@ -48,6 +49,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         get => !_buffer.IsNull;
     }
 
+    /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
         ExceptionDispatchInfo? failure = null;
@@ -126,6 +128,7 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         }
     }
 
+    /// <inheritdoc />
     protected override void BeginRenderCore(
         GPUFrameBuffer frameBuffer,
         ReadOnlySpan<ClearColorData> clearColors,
@@ -310,11 +313,13 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         }
     }
 
+    /// <inheritdoc />
     protected override void EndRenderCore()
     {
         TryFinishCurrentRenderPass();
     }
 
+    /// <inheritdoc />
     protected override void BeginComputeCore()
     {
         try
@@ -357,13 +362,14 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
         }
     }
 
-    // An absent timestamp write is marked with the all-ones sentinel (mirrors
-    // WGPU_QUERY_SET_INDEX_UNDEFINED).
+    // The all-ones sentinel marks an absent timestamp write, mirroring
+    // wgpu-core's QUERY_SET_INDEX_UNDEFINED.
     private static uint ToTimestampIndex(uint? queryIndex)
     {
         return queryIndex ?? AlcoGPU.None;
     }
 
+    /// <inheritdoc />
     protected override void EndComputeCore()
     {
         TryFinishCurrentComputePass();
@@ -780,10 +786,6 @@ internal sealed unsafe partial class AlcoGpuCommandBuffer : GPUCommandBuffer
             fixed (AlcoGPU.RenderBundleHandle* nativeBundles = nativeBundleStorage)
             {
                 AlcoGpuNative.RenderPassExecuteBundles(_renderPass, nativeBundles, (uint)bundle.Length);
-            }
-            // The native handle array does not retain the managed bundle wrappers.
-            for (int i = 0; i < bundle.Length; i++)
-            {
             }
         }
         finally

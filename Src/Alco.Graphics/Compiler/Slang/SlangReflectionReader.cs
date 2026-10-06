@@ -9,8 +9,9 @@ namespace Alco.Graphics;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// One member of a slang uniform block is <see cref="ShaderUniformMember"/> in
-/// Alco.Graphics — the engine-shaped reflection vocabulary this reader fills in.
+/// Reads slang program/module layout pointers into the engine's reflection
+/// vocabulary (<see cref="ShaderReflection"/> and
+/// <see cref="ShaderLibraryReflection"/>).
 /// </summary>
 public static class SlangReflectionReader
 {
@@ -29,9 +30,9 @@ public static class SlangReflectionReader
 
         // Every binding gets the engine's Standard (V|F|C) visibility — the
         // Conservative visibility for parameters Slang reports outside an entry-point layout.
-        // (ResolveEffectiveStage): pipeline layouts must stay supersets of the
-        // device's default bind groups (e.g. default_bind_group_buffer), which
-        // are created with Standard visibility.
+        // Pipeline layouts must stay supersets of the device's default bind
+        // groups (e.g. default_bind_group_buffer), which are created with
+        // Standard visibility.
         ShaderStage visibility = ShaderStage.None;
         ThreadGroupSize threadGroupSize = ThreadGroupSize.Default;
         nuint entryPointCount = SlangNative.spReflection_getEntryPointCount(reflection);
@@ -966,9 +967,10 @@ public static class SlangReflectionReader
             }
             List<BindGroupEntryInfo> group = groups[spaces[i]];
             group.Sort((a, b) => a.Entry.Binding.CompareTo(b.Entry.Binding));
-            // Bindings must be an array: post-processing (depth-texture and
-            // comparison-sampler marking) mutates entries in place through the
-            // Array pattern match for reflected aggregate resources.
+            // Entries are sorted by binding index and frozen into an array:
+            // their positions are stable resource ids
+            // (ShaderResourceLocation.EntryIndex) that bind-time lookups index
+            // into, so the snapshot must not change afterwards.
             bindGroups.Add(new BindGroupLayout { Group = (uint)i, Bindings = group.ToArray() });
         }
         return bindGroups;
@@ -1177,11 +1179,6 @@ public static class SlangReflectionReader
         return false;
     }
 
-    /// <summary>
-    /// The float component count of a scalar/vector type; matrices report their
-    /// total float count (e.g. float4x4 → 16) so uniform harvesting over general
-    /// constant buffers (camera matrices) tolerates them.
-    /// </summary>
     /// <summary>
     /// The member type facts of a reflection type: the component count (1
     /// scalar, N vector, rows×columns matrix) and the 32-bit scalar type the

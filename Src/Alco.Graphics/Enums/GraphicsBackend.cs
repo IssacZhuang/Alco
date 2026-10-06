@@ -3,7 +3,7 @@ namespace Alco.Graphics;
 /// <summary>The graphics backend a device should run on.</summary>
 public enum GraphicsBackend
 {
-    /// <summary>No GPU: the virtual device for logic development without real graphics.</summary>
+    /// <summary>Uses the NoGPU null backend — a virtual device for developing game logic without real graphics output.</summary>
     None = 0,
 
     /// <summary>wgpu with its own backend choice for the current platform.</summary>

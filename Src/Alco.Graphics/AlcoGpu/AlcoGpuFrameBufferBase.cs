@@ -4,10 +4,10 @@ using static Alco.Graphics.InteropUtility;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuFrameBufferBase.</summary>
+/// <summary>Base class for alco-gpu frame buffers, exposing the pre-baked native render pass descriptor used to begin render passes.</summary>
 internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
 {
-    /// <summary>The pre-baked render pass descriptor (attachment views are refreshed per frame).</summary>
+    /// <summary>The pre-baked render pass descriptor (surface frame buffers refresh the attachment view each frame).</summary>
     public abstract AlcoGPU.RenderPassDesc Native { get; }
     /// <summary>Gets the native color attachment formats.</summary>
     public abstract ReadOnlySpan<PixelFormat> NativeColorFormats { get; }
@@ -18,6 +18,7 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
     {
     }
 
+    /// <summary>Builds the texture descriptor for a color attachment sized to the frame buffer.</summary>
     protected TextureDescriptor BuildColorTextureDescriptor(in PixelFormat format, uint width, uint height)
     {
         return new TextureDescriptor(
@@ -33,6 +34,7 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
         );
     }
 
+    /// <summary>Builds the texture descriptor for the depth-stencil attachment sized to the frame buffer.</summary>
     protected TextureDescriptor BuildDepthTextureDescriptor(in PixelFormat format, uint width, uint height)
     {
         return new TextureDescriptor(
@@ -114,6 +116,7 @@ internal abstract class AlcoGpuFrameBufferBase : GPUFrameBuffer
         }
     }
 
+    /// <summary>Returns the color attachment formats of the layout in attachment order.</summary>
     protected static PixelFormat[] GetNativeColorFormats(AlcoGpuAttachmentLayout attachmentLayout)
     {
         PixelFormat[] colors = new PixelFormat[attachmentLayout.ColorInfos.Length];

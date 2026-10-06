@@ -6,20 +6,25 @@ using Alco.Graphics.AlcoGpu;
 
 namespace Alco.Graphics;
 
+/// <summary>
+/// Provides factory methods to create GPU devices.
+/// </summary>
 public static class GraphicsDeviceFactory
 {
     /// <summary>
-    /// The virtual GPU device that does not support any GPU operations but keep the object not null. Can be used for the development of the game logic without the need for a real GPU.
+    /// The virtual GPU device that does not support any GPU operations but keeps a non-null device instance, for developing game logic without the need for a real GPU.
     /// </summary>
+    /// <returns>The null GPU device.</returns>
     public static GPUDevice GetNoGPUDevice()
     {
         return new NoDevice();
     }
 
     /// <summary>
-    /// Creates the alco-gpu device: the self-maintained Rust layer over wgpu-core
-    /// exposing the alco_* C ABI.
+    /// Creates a GPU device backed by alco-gpu, the self-maintained Rust layer over wgpu-core.
     /// </summary>
+    /// <param name="descriptor">The descriptor for the GPU device.</param>
+    /// <returns>The created alco-gpu GPU device.</returns>
     public static GPUDevice CreateAlcoGpuDevice(DeviceDescriptor descriptor)
     {
 #if USE_ALCO_GPU

@@ -5,10 +5,14 @@ namespace Alco.Graphics
     /// </summary>
     public struct ShaderModule
     {
+        /// <summary>
+        /// An empty module representing "no shader" for a stage.
+        /// </summary>
         public static readonly ShaderModule Empty = new(ShaderStage.None, ShaderLanguage.Undefined, Array.Empty<byte>(), string.Empty);
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="ShaderModule"/> struct.
+        /// Initializes the module with its stage, language, source bytes and entry
+        /// point name.
         /// </summary>
         /// <param name="stage">The shader stage.</param>
         /// <param name="language">The shader language.</param>
@@ -22,6 +26,9 @@ namespace Alco.Graphics
             EntryPoint = entryPoint;
         }
 
+        /// <summary>
+        /// Validates that the module carries a non-empty source and entry point.
+        /// </summary>
         public readonly void Validate()
         {
             AssetUtility.IsTrue(Source.Length > 0, "Shader source must not be null or empty");
@@ -29,22 +36,22 @@ namespace Alco.Graphics
         }
 
         /// <summary>
-        /// The shader stage.
+        /// The pipeline stage this module feeds (Vertex, Fragment, Compute).
         /// </summary>
         public ShaderStage Stage { get; init; }
 
         /// <summary>
-        /// The shader language.
+        /// The language or IR of <see cref="Source"/> (HLSL, WGSL, SPIR-V...).
         /// </summary>
         public ShaderLanguage Language { get; init; }
 
         /// <summary>
-        /// The shader source, could be code(hlsl, wgsl) or IR(spirv)
+        /// The shader source bytes: source code (HLSL, WGSL) or IR (SPIR-V).
         /// </summary>
         public ReadOnlyMemory<byte> Source { get; init; }
 
         /// <summary>
-        /// The entry point function name.
+        /// The entry function name inside the module.
         /// </summary>
         public string EntryPoint { get; init; }
 
@@ -55,11 +62,11 @@ namespace Alco.Graphics
         public (uint X, uint Y, uint Z) WorkgroupSize { get; init; } = (1, 1, 1);
 
         /// <summary>
-        /// SPIR-V words already match Naga's internal coordinate convention (Slang's
-        /// direct emission), so translation must skip Naga's GL-style Y adjustment.
-        /// Only meaningful for SPIR-V consumed through translation (D3D12); defaults
-        /// to false, which keeps externally produced GLSL-style SPIR-V behaving like
-        /// stock wgpu.
+        /// Whether the SPIR-V source already uses Naga's internal coordinate
+        /// convention (Slang's direct emission), so the GL-style Y adjustment must
+        /// be skipped when translating it. Only meaningful for SPIR-V consumed
+        /// through translation (D3D12); defaults to false, which keeps externally
+        /// produced GLSL-style SPIR-V behaving like stock wgpu.
         /// </summary>
         public bool SpirvAdjustedCoordinates { get; init; }
     }

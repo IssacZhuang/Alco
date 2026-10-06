@@ -3,10 +3,10 @@ using Alco.Graphics.AlcoGpu.Interop;
 
 namespace Alco.Graphics.AlcoGpu;
 
-/// <summary>Describes AlcoGpuTextureBase.</summary>
+/// <summary>Base class for alco-gpu textures, exposing the native texture handle; implemented by owned textures and the per-frame surface texture.</summary>
 internal abstract class AlcoGpuTextureBase : GPUTexture
 {
-    /// <summary>Gets the borrowed native pointer; ownership stays with this object.</summary>
+    /// <summary>Gets the native texture handle, borrowed for native calls; ownership is defined by the concrete type.</summary>
     public abstract AlcoGPU.TextureHandle Native { get; }
 
     protected AlcoGpuTextureBase(in TextureDescriptor descriptor) : base(descriptor)
@@ -14,7 +14,7 @@ internal abstract class AlcoGpuTextureBase : GPUTexture
     }
 }
 
-/// <summary>Describes AlcoGpuTexture.</summary>
+/// <summary>A texture that owns its native handle; attachment textures retain the frame buffer that created them.</summary>
 internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
 {
     #region Properties
@@ -81,7 +81,7 @@ internal sealed unsafe class AlcoGpuTexture : AlcoGpuTextureBase
     #endregion
 
     #region AlcoGpu Implementation
-    /// <inheritdoc />
+    /// <summary>Gets the native texture handle; owned by this object and destroyed on dispose.</summary>
     public override AlcoGPU.TextureHandle Native
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

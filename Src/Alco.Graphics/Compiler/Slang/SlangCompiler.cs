@@ -23,6 +23,7 @@ namespace Alco.Graphics;
 /// <summary>Options describing one slang session (search paths, macros, target).</summary>
 public sealed class SlangCompilerOptions
 {
+    /// <summary>Options with every setting at its default: no search paths, the OS file system, SPIR-V target.</summary>
     public static readonly SlangCompilerOptions Default = new();
 
     /// <summary>Virtual search paths passed to slang ('/'-separated, relative to the file system root).</summary>
@@ -89,9 +90,13 @@ public readonly record struct SlangEntryPointRequest(string Name, ShaderStage St
 /// <summary>The result of one linked slang program: per-entry target code plus materialized reflection.</summary>
 public sealed class SlangProgram : IDisposable
 {
+    /// <summary>The name of the compiled module in the slang session.</summary>
     public required string ModuleName { get; init; }
+    /// <summary>The compiled target code (SPIR-V/DXIL/MSL/metallib), one blob per entry point, in entry-point order.</summary>
     public required byte[][] EntryCode { get; init; }
+    /// <summary>The materialized reflection of the linked program.</summary>
     public required ShaderReflection Reflection { get; init; }
+    /// <summary>The names and stages of every entry point of the linked program.</summary>
     public required IReadOnlyList<(string Name, int Stage)> EntryPoints { get; init; }
 
     internal SlangComponentType? Linked { get; set; }
@@ -118,6 +123,10 @@ public sealed class SlangProgram : IDisposable
     public IReadOnlyList<ShaderUniformMember> GetUniformMembers(string cbufferName)
         => Reflection.GetUniformMembers(cbufferName);
 
+    /// <summary>
+    /// Releases the program's native linked component; a cache-restored program
+    /// holds none.
+    /// </summary>
     public void Dispose()
     {
         Owner?.NotifyProgramDisposed(this);
@@ -144,6 +153,7 @@ public sealed class SlangCompiler : IDisposable
     /// <summary>The pinned slang release's build tag (e.g. "2026.19..."), for cache key stamping.</summary>
     public string BuildTag { get; }
 
+    /// <summary>Creates a compiler over the process-wide slang global session, capturing its build tag.</summary>
     public SlangCompiler()
     {
         BuildTag = GlobalSession.GetBuildTagString();
@@ -854,6 +864,7 @@ public sealed class SlangCompileSession : IDisposable
         return null;
     }
 
+    /// <summary>Releases the native session and its file-system callback object.</summary>
     public void Dispose()
     {
         lock (_lock)
@@ -873,7 +884,9 @@ public sealed class SlangCompileSession : IDisposable
 public sealed class SlangModuleHandle
 {
     internal SlangModule Native { get; }
+    /// <summary>The module's name in the slang session; empty when slang reports none.</summary>
     public string Name => Native.Name ?? string.Empty;
+    /// <summary>The module's source file path; null when slang reports none.</summary>
     public string? FilePath => Native.FilePath;
 
     /// <summary>File paths this module depends on (its own source plus every transitively included file).</summary>

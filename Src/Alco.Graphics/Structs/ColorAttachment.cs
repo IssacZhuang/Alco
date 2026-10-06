@@ -2,23 +2,37 @@ using System.Numerics;
 
 namespace Alco.Graphics;
 
+/// <summary>
+/// Declares one color attachment of a frame buffer layout: its format and the
+/// color the attachment is cleared to.
+/// </summary>
 public struct ColorAttachment
 {
+    /// <summary>
+    /// Initializes the attachment with a format and the default clear color.
+    /// </summary>
     public ColorAttachment(PixelFormat format)
     {
         Format = format;
     }
-    
+
+    /// <summary>
+    /// Initializes the attachment with a format and an explicit clear color.
+    /// </summary>
     public ColorAttachment(PixelFormat format, Vector4 clearColor)
     {
         Format = format;
         ClearColor = clearColor;
     }
 
+    /// <summary>
+    /// The texel format of the attachment.
+    /// </summary>
     public PixelFormat Format { get; init; }
+    /// <summary>
+    /// The RGBA value the attachment is cleared to at pass start.
+    /// </summary>
     public Vector4 ClearColor { get; init; } = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
-
-    //override operator == and !=
 
     public static bool operator ==(ColorAttachment left, ColorAttachment right)
     {

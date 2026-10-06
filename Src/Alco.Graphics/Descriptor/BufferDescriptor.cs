@@ -6,7 +6,7 @@ namespace Alco.Graphics;
 public struct BufferDescriptor
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="BufferDescriptor"/> struct.
+    /// Initializes the descriptor with a size, usage and diagnostic name.
     /// </summary>
     /// <param name="size">The size of the buffer.</param>
     /// <param name="usage">The usage flags for the buffer.</param>
@@ -19,18 +19,18 @@ public struct BufferDescriptor
     }
 
     /// <summary>
-    /// The size of the buffer.
+    /// Size in bytes.
     /// </summary>
     public uint Size { get; init; }
 
 
     /// <summary>
-    /// The usage flags for the buffer.
+    /// How the buffer will be used (copy source/destination, vertex/index/uniform/storage).
     /// </summary>
     public BufferUsage Usage { get; init; } = BufferUsage.MapRead | BufferUsage.MapWrite;
 
     /// <summary>
-    /// The name of the buffer.
+    /// Diagnostic name shown in errors and debuggers.
     /// </summary>
     public string Name { get; init; } = "unnamed_gpu_buffer";
 }

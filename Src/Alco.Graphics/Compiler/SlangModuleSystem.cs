@@ -16,9 +16,9 @@ namespace Alco.Graphics;
 //       every FILE dependency's content hash. The module's own path identity
 //       is deliberately not a recorded dependency: an extension-less module
 //       name resolves to nothing through the file resolver, and validating it
-//       through it made every cache read miss. For the same reason
-//       isBinaryModuleUpToDate is bypassed — it accepts source-less blobs
-//       without validation (the plan's explicit caveat).
+    //       through it made every cache read miss. For the same reason
+    //       isBinaryModuleUpToDate is bypassed — it accepts source-less blobs
+    //       without validation.
 //   (b) programs/<hash>.bin — linked programs (per-entry target code +
 //       materialized reflection + uniform members), keyed by module IR hash,
 //       entry set, specialization, code target and build tag.
@@ -67,6 +67,11 @@ public sealed class SlangModuleSystem : IDisposable
     /// <summary>Raised after modules were dropped due to source changes; carries the affected module names.</summary>
     public event Action<IReadOnlyList<string>>? ModulesInvalidated;
 
+    /// <summary>
+    /// Creates the module system: one slang compile session for the given options
+    /// and, when a cache directory is given, the module and program disk caches
+    /// beneath it.
+    /// </summary>
     /// <param name="options">Session options (resolver doubles as the content source for staleness hashing).</param>
     /// <param name="cacheDirectory">Disk-cache root; null disables all disk caching.</param>
     public SlangModuleSystem(SlangCompilerOptions options, string? cacheDirectory)
@@ -771,6 +776,9 @@ public sealed class SlangModuleSystem : IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases the compile session and every live program's linked component.
+    /// </summary>
     public void Dispose()
     {
         lock (_lock)

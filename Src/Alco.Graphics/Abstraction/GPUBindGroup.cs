@@ -1,10 +1,11 @@
 namespace Alco.Graphics;
 
 /// <summary>
-/// The group to describe the binding of resources to a shader.
+/// Binds a set of resources (buffers, texture views, samplers) to a shader's bind group.
 /// </summary>
 public abstract class GPUBindGroup : BaseGPUObject
 {
+    /// <summary>Gets the entries bound in this group, one per shader binding.</summary>
     public abstract IReadOnlyList<BindGroupEntry> Bindings { get; }
 
     public GPUBindGroup(in BindGroupDescriptor descriptor) : base(descriptor.Name)

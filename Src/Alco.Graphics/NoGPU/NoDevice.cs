@@ -212,14 +212,10 @@ internal class NoDevice : GPUDevice
 
     public override void Destroy(BaseGPUObject obj)
     {
-        //do nothing
-        // base.Destroy(obj);
     }
 
     public override void DestroyImmediate(BaseGPUObject obj)
     {
-        //do nothing
-        // base.DestroyImmediate(obj);
     }
 
     protected override void DisposeCore()

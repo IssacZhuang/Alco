@@ -13,8 +13,11 @@ namespace Alco.Graphics;
 /// <summary>A fully linked program in serializable form.</summary>
 public sealed record SlangCachedProgram
 {
+    /// <summary>The compiled target code, one blob per entry point, in entry-point order.</summary>
     public required byte[][] EntryCode { get; init; }
+    /// <summary>The names and stages of every entry point of the cached program.</summary>
     public required (string Name, int Stage)[] EntryPoints { get; init; }
+    /// <summary>The materialized reflection restored with the cached program.</summary>
     public required ShaderReflection Reflection { get; init; }
 }
 

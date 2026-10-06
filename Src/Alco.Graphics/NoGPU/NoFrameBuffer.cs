@@ -25,9 +25,10 @@ internal class NoFrameBuffer : GPUFrameBuffer
 
     public override ReadOnlySpan<GPUTextureView> ColorViews => NoColorViews; // at least one element to prevent out of range exception
 
-    // Mirrors the WebGPU frame buffer ownership: created from a FrameBufferDescriptor
-    // the attachments are owned and disposed with the frame buffer; composed from an
-    // ExternalFrameBufferDescriptor they are externally owned and never disposed here.
+    // Mirrors the ownership rules of the real GPU backends: created from a
+    // FrameBufferDescriptor the attachments are owned and disposed with the frame
+    // buffer; composed from an ExternalFrameBufferDescriptor they are externally
+    // owned and never disposed here.
     private readonly bool _ownsAttachments;
 
     public NoFrameBuffer(in FrameBufferDescriptor descriptor): base("no_gpu_frame_buffer")
