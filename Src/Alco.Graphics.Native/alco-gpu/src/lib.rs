@@ -76,6 +76,12 @@ pub(crate) mod test_support {
     impl TestDevice {
         /// Creates a real Vulkan device, skipping only when Vulkan is unavailable.
         pub fn new() -> Option<Self> {
+            Self::with_features(0)
+        }
+
+        /// Creates a Vulkan device additionally desiring the given Alco feature
+        /// bits (`alco_features` values, e.g. `CLEAR_TEXTURE`).
+        pub fn with_features(required_features: u64) -> Option<Self> {
             // Probe availability separately: a failure in Alco's creation policy
             // on an available Vulkan adapter must fail the test, not silently skip.
             let probe = Global::new(
@@ -100,7 +106,7 @@ pub(crate) mod test_support {
             let desc = AlcoDeviceDesc {
                 backend: backend::VULKAN,
                 debug: ALCO_FALSE,
-                required_features: 0,
+                required_features,
                 push_constants_size: 16,
                 name: c"alco-regression".as_ptr(),
             };

@@ -508,6 +508,57 @@ pub unsafe extern "C-unwind" fn alco_buffer_destroy(buffer: AlcoBufferHandle) ->
     })
 }
 
+/// Shared read/write map initiation. Completion is poll-driven via
+/// `alco_buffer_map_poll`; the native callback only records the outcome into
+/// a shared cell that stays valid regardless of object lifetime.
+unsafe fn map_buffer(
+    buffer: AlcoBufferHandle,
+    offset: u64,
+    size: u64,
+    host: wgc::device::HostMap,
+) -> AlcoStatus {
+    let obj = match buffer.get_mut() {
+        Ok(obj) => obj,
+        Err(status) => {
+            set_error(status, "invalid buffer handle");
+            return status;
+        }
+    };
+    let completion = Arc::new(MapCompletion {
+        state: AtomicU32::new(0),
+        error: Mutex::new(None),
+    });
+    let callback_cell = Arc::clone(&completion);
+    let callback = Box::new(
+        move |result: wgc::resource::BufferAccessResult| match result {
+            Ok(()) => callback_cell.state.store(1, Ordering::Release),
+            Err(err) => {
+                *callback_cell.error.lock().unwrap() =
+                    Some(CString::new(err.to_string().replace('\0', "\\0")).unwrap());
+                callback_cell.state.store(2, Ordering::Release);
+            }
+        },
+    ) as wgc::resource::BufferMapCallback;
+    let operation = wgc::resource::BufferMapOperation {
+        host,
+        callback: Some(callback),
+    };
+    match obj
+        .ctx
+        .global
+        .buffer_map_async(obj.id, offset, Some(size), operation)
+    {
+        Ok(_) => {
+            obj.map_completion = Some(completion);
+            AlcoStatus::OK
+        }
+        Err(e) => {
+            set_error_from(AlcoStatus::VALIDATION, &e);
+            AlcoStatus::VALIDATION
+        }
+    }
+}
+
 /// ABI: initiates a read map. Completion is poll-driven via
 /// `alco_buffer_map_poll`; the native callback only records the outcome into
 /// a shared cell that stays valid regardless of object lifetime.
@@ -521,48 +572,22 @@ pub unsafe extern "C-unwind" fn alco_buffer_map_read(
     offset: u64,
     size: u64,
 ) -> AlcoStatus {
-    crate::entry::guard(|| {
-        let obj = match buffer.get_mut() {
-            Ok(obj) => obj,
-            Err(status) => {
-                set_error(status, "invalid buffer handle");
-                return status;
-            }
-        };
-        let completion = Arc::new(MapCompletion {
-            state: AtomicU32::new(0),
-            error: Mutex::new(None),
-        });
-        let callback_cell = Arc::clone(&completion);
-        let callback = Box::new(
-            move |result: wgc::resource::BufferAccessResult| match result {
-                Ok(()) => callback_cell.state.store(1, Ordering::Release),
-                Err(err) => {
-                    *callback_cell.error.lock().unwrap() =
-                        Some(CString::new(err.to_string().replace('\0', "\\0")).unwrap());
-                    callback_cell.state.store(2, Ordering::Release);
-                }
-            },
-        ) as wgc::resource::BufferMapCallback;
-        let operation = wgc::resource::BufferMapOperation {
-            host: wgc::device::HostMap::Read,
-            callback: Some(callback),
-        };
-        match obj
-            .ctx
-            .global
-            .buffer_map_async(obj.id, offset, Some(size), operation)
-        {
-            Ok(_) => {
-                obj.map_completion = Some(completion);
-                AlcoStatus::OK
-            }
-            Err(e) => {
-                set_error_from(AlcoStatus::VALIDATION, &e);
-                AlcoStatus::VALIDATION
-            }
-        }
-    })
+    crate::entry::guard(|| map_buffer(buffer, offset, size, wgc::device::HostMap::Read))
+}
+
+/// ABI: initiates a write map. The mapped range from
+/// `alco_buffer_get_mapped_range` is writable until `alco_buffer_unmap`.
+///
+/// # Safety
+/// All non-null pointers and typed handles must remain valid for the call.
+/// Callers must order object destruction and exclusively own mutable mapping access.
+#[no_mangle]
+pub unsafe extern "C-unwind" fn alco_buffer_map_write(
+    buffer: AlcoBufferHandle,
+    offset: u64,
+    size: u64,
+) -> AlcoStatus {
+    crate::entry::guard(|| map_buffer(buffer, offset, size, wgc::device::HostMap::Write))
 }
 
 /// ABI: polls a pending map. `NOT_READY` = still mapping, `OK` = mapped
@@ -591,7 +616,8 @@ pub unsafe extern "C-unwind" fn alco_buffer_map_poll(buffer: AlcoBufferHandle) -
     })
 }
 
-/// ABI: returns the mapped read range pointer.
+/// ABI: returns the mapped range pointer — read-only after a read map,
+/// writable after a write map until `alco_buffer_unmap`.
 ///
 /// # Safety
 /// All live typed handles must outlive the call; destruction must not overlap access.
@@ -887,7 +913,7 @@ pub unsafe extern "C-unwind" fn alco_texture_view_destroy(
     })
 }
 
-fn plain_or_none(v: u32) -> Option<u32> {
+pub(crate) fn plain_or_none(v: u32) -> Option<u32> {
     if v == 0 || v == ALCO_NONE {
         None
     } else {
@@ -1570,6 +1596,10 @@ pub unsafe extern "C-unwind" fn alco_query_set_destroy(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::commands::{
+        alco_copy_buffer_to_buffer, alco_encoder_create, alco_encoder_finish,
+    };
+    use crate::device::alco_device_poll;
     use crate::test_support::{last_error, TestDevice};
     use std::ptr;
 
@@ -1980,6 +2010,135 @@ mod tests {
             assert_eq!(weak.strong_count(), 1);
             assert_eq!(alco_texture_view_destroy(view), AlcoStatus::OK);
             assert!(weak.upgrade().is_none());
+        }
+    }
+
+    #[test]
+    fn vulkan_write_mapping_round_trips_through_read_mapping() {
+        let Some(device) = TestDevice::new() else {
+            return;
+        };
+        const SIZE: u64 = 64;
+        unsafe {
+            let source_desc = AlcoBufferDesc {
+                size: SIZE,
+                usage: (1 << 1) | (1 << 2), // MAP_WRITE | COPY_SRC
+                name: ptr::null(),
+            };
+            let destination_desc = AlcoBufferDesc {
+                size: SIZE,
+                usage: (1 << 0) | (1 << 3), // MAP_READ | COPY_DST
+                name: ptr::null(),
+            };
+            let mut source = AlcoBufferHandle::NULL;
+            assert_eq!(
+                alco_buffer_create(device.handle, &source_desc, &mut source),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut destination = AlcoBufferHandle::NULL;
+            assert_eq!(
+                alco_buffer_create(device.handle, &destination_desc, &mut destination),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            // The write map completes during blocking device maintenance; the
+            // mapped range is writable for the requested size.
+            assert_eq!(alco_buffer_map_write(source, 0, SIZE), AlcoStatus::OK);
+            assert_eq!(
+                alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, ptr::null_mut()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_buffer_map_poll(source),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut range = std::ptr::null();
+            assert_eq!(
+                alco_buffer_get_mapped_range(source, 0, SIZE, &mut range),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mapped = range as *mut u8;
+            for element in 0..SIZE as usize {
+                *mapped.add(element) = (element * 5 % 251) as u8;
+            }
+            assert_eq!(alco_buffer_unmap(source), AlcoStatus::OK);
+            let mut enc = AlcoEncoderHandle::NULL;
+            assert_eq!(
+                alco_encoder_create(device.handle, ptr::null(), &mut enc),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_copy_buffer_to_buffer(enc, source, 0, destination, 0, SIZE),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut command = AlcoCommandBufferHandle::NULL;
+            assert_eq!(
+                alco_encoder_finish(enc, &mut command),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut index = 0;
+            assert_eq!(
+                crate::commands::alco_queue_submit(device.handle, command, &mut index),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_device_poll(device.handle, ALCO_TRUE, index, ptr::null_mut()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_buffer_map_read(destination, 0, SIZE),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, ptr::null_mut()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_buffer_map_poll(destination),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut read = std::ptr::null();
+            assert_eq!(
+                alco_buffer_get_mapped_range(destination, 0, SIZE, &mut read),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            for element in 0..SIZE as usize {
+                assert_eq!(
+                    *read.add(element),
+                    (element * 5 % 251) as u8,
+                    "element {element}"
+                );
+            }
+            assert_eq!(alco_buffer_unmap(destination), AlcoStatus::OK);
+            assert_eq!(alco_buffer_destroy(source), AlcoStatus::OK);
+            assert_eq!(alco_buffer_destroy(destination), AlcoStatus::OK);
         }
     }
 }

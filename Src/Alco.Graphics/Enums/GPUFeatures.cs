@@ -36,4 +36,10 @@ public enum GPUFeatures
     /// batch address data through firstInstance).
     /// </summary>
     MultiDrawIndirect = 1 << 5,
+
+    /// <summary>
+    /// Command-buffer texture clearing (encoder-level ClearTexture). Buffer
+    /// clearing needs no feature.
+    /// </summary>
+    ClearTexture = 1 << 6,
 }

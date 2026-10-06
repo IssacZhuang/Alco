@@ -11,7 +11,7 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 - C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
   callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
   `Interop/AlcoGpuMarshal.cs` throwing error callback)
-- Current ABI version: **2.1** (`ABI_MAJOR=2`, `ABI_MINOR=1`). ABI 1 generational
+- Current ABI version: **2.2** (`ABI_MAJOR=2`, `ABI_MINOR=2`). ABI 1 generational
   handles and device-first object method signatures are not binary-compatible.
 
 ## Conventions
@@ -138,8 +138,9 @@ index used by blocking polls), `alco_queue_submit_batch` (consumes an array of c
 buffer handles as one submission in array order — the wgpu-native array submit shape;
 count must be non-zero and the array non-null).
 
-**Buffer** — create / destroy / `alco_buffer_map_read` / `alco_buffer_map_poll` /
-`alco_buffer_get_mapped_range` / `alco_buffer_unmap`.
+**Buffer** — create / destroy / `alco_buffer_map_read` / `alco_buffer_map_write`
+(mapped range from `alco_buffer_get_mapped_range` is writable after a write map) /
+`alco_buffer_map_poll` / `alco_buffer_get_mapped_range` / `alco_buffer_unmap`.
 
 **Texture / View / Sampler** — create / destroy / `alco_texture_get_info` /
 `alco_texture_create_view` (null descriptor = default view, used for surface textures) /
@@ -171,12 +172,17 @@ appropriate typed handle.
 
 **Command encoding** — encoder create/finish/destroy (finish consumes the encoder on
 both success and failure); render pass begin/end/release + setters (pipeline, bind group, vertex
-/ index buffer, scissor, stencil reference, immediates, draw, draw indexed, indirect
-variants, multi-draw indirect, write timestamp, execute bundles); compute pass begin/end/release
-+ setters; copies (`buffer_to_buffer`, `buffer_to_texture`, `texture_to_buffer`,
-`texture_to_texture`); `alco_resolve_query_set`.
+/ index buffer, scissor, **viewport**, **blend constant**, stencil reference, immediates, draw,
+draw indexed, indirect variants, the full multi-draw family (indirect, indirect count, indexed
+variants), **debug markers / debug groups**, write timestamp, execute bundles); compute pass
+begin/end/release + setters including **debug markers / debug groups**; copies
+(`buffer_to_buffer`, `buffer_to_texture`, `texture_to_buffer`, `texture_to_texture`);
+`alco_encoder_clear_buffer` (size zero = to the end) and `alco_encoder_clear_texture`
+(`AlcoSubresourceRange`, counts zero/`ALCO_NONE` = the rest; needs the `ClearTexture`
+feature); `alco_resolve_query_set`; encoder-level **debug markers / debug groups**.
 
-**Render bundles** — bundle encoder create/destroy/finish + the subset of setters above.
+**Render bundles** — bundle encoder create/destroy/finish + the subset of setters above,
+including debug markers / debug groups recorded into the bundle.
 
 **Query sets** — create / destroy (type is always timestamp).
 

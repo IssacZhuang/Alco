@@ -112,6 +112,10 @@ internal static unsafe partial class AlcoGpuNative
     [LibraryImport(LibraryName, EntryPoint = "alco_buffer_map_read")]
     public static partial uint BufferMapRead(AlcoBufferHandle buffer, ulong offset, ulong size);
 
+    /// <summary>Provides the BufferMapWrite operation; the mapped range is writable until unmap.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_buffer_map_write")]
+    public static partial uint BufferMapWrite(AlcoBufferHandle buffer, ulong offset, ulong size);
+
     /// <summary>Provides the BufferMapPoll operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "alco_buffer_map_poll")]
     public static partial uint BufferMapPoll(AlcoBufferHandle buffer);
@@ -264,6 +268,14 @@ internal static unsafe partial class AlcoGpuNative
     [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_scissor_rect")]
     public static partial uint RenderPassSetScissorRect(AlcoRenderPassHandle renderPass, uint x, uint y, uint width, uint height);
 
+    /// <summary>Provides the RenderPassSetViewport operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_viewport")]
+    public static partial uint RenderPassSetViewport(AlcoRenderPassHandle renderPass, float x, float y, float width, float height, float depthMin, float depthMax);
+
+    /// <summary>Provides the RenderPassSetBlendConstant operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_blend_constant")]
+    public static partial uint RenderPassSetBlendConstant(AlcoRenderPassHandle renderPass, float r, float g, float b, float a);
+
     /// <summary>Provides the RenderPassSetStencilReference operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_set_stencil_reference")]
     public static partial uint RenderPassSetStencilReference(AlcoRenderPassHandle renderPass, uint reference);
@@ -291,6 +303,30 @@ internal static unsafe partial class AlcoGpuNative
     /// <summary>Provides the RenderPassMultiDrawIndexedIndirect operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indexed_indirect")]
     public static partial uint RenderPassMultiDrawIndexedIndirect(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, uint count);
+
+    /// <summary>Provides the RenderPassMultiDrawIndirect operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indirect")]
+    public static partial uint RenderPassMultiDrawIndirect(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, uint count);
+
+    /// <summary>Provides the RenderPassMultiDrawIndirectCount operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indirect_count")]
+    public static partial uint RenderPassMultiDrawIndirectCount(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, AlcoBufferHandle countBuffer, ulong countBufferOffset, uint maxCount);
+
+    /// <summary>Provides the RenderPassMultiDrawIndexedIndirectCount operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_multi_draw_indexed_indirect_count")]
+    public static partial uint RenderPassMultiDrawIndexedIndirectCount(AlcoRenderPassHandle renderPass, AlcoBufferHandle buffer, ulong offset, AlcoBufferHandle countBuffer, ulong countBufferOffset, uint maxCount);
+
+    /// <summary>Provides the RenderPassInsertDebugMarker operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_insert_debug_marker")]
+    public static partial uint RenderPassInsertDebugMarker(AlcoRenderPassHandle renderPass, byte* label);
+
+    /// <summary>Provides the RenderPassPushDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_push_debug_group")]
+    public static partial uint RenderPassPushDebugGroup(AlcoRenderPassHandle renderPass, byte* label);
+
+    /// <summary>Provides the RenderPassPopDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_pop_debug_group")]
+    public static partial uint RenderPassPopDebugGroup(AlcoRenderPassHandle renderPass);
 
     /// <summary>Provides the RenderPassWriteTimestamp operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "alco_render_pass_write_timestamp")]
@@ -336,6 +372,18 @@ internal static unsafe partial class AlcoGpuNative
     [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_write_timestamp")]
     public static partial uint ComputePassWriteTimestamp(AlcoComputePassHandle computePass, AlcoQuerySetHandle querySet, uint queryIndex);
 
+    /// <summary>Provides the ComputePassInsertDebugMarker operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_insert_debug_marker")]
+    public static partial uint ComputePassInsertDebugMarker(AlcoComputePassHandle computePass, byte* label);
+
+    /// <summary>Provides the ComputePassPushDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_push_debug_group")]
+    public static partial uint ComputePassPushDebugGroup(AlcoComputePassHandle computePass, byte* label);
+
+    /// <summary>Provides the ComputePassPopDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_compute_pass_pop_debug_group")]
+    public static partial uint ComputePassPopDebugGroup(AlcoComputePassHandle computePass);
+
     // ------------------------------------------------------------------
     // Copies / queries
     // ------------------------------------------------------------------
@@ -359,6 +407,26 @@ internal static unsafe partial class AlcoGpuNative
     /// <summary>Provides the ResolveQuerySet operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "alco_resolve_query_set")]
     public static partial uint ResolveQuerySet(AlcoEncoderHandle encoder, AlcoQuerySetHandle querySet, uint firstQuery, uint queryCount, AlcoBufferHandle destination, ulong destinationOffset);
+
+    /// <summary>Provides the EncoderClearBuffer operation; a size of zero clears to the end of the buffer.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_clear_buffer")]
+    public static partial uint EncoderClearBuffer(AlcoEncoderHandle encoder, AlcoBufferHandle buffer, ulong offset, ulong size);
+
+    /// <summary>Provides the EncoderClearTexture operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_clear_texture")]
+    public static partial uint EncoderClearTexture(AlcoEncoderHandle encoder, AlcoTextureHandle texture, AlcoSubresourceRange range);
+
+    /// <summary>Provides the EncoderInsertDebugMarker operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_insert_debug_marker")]
+    public static partial uint EncoderInsertDebugMarker(AlcoEncoderHandle encoder, byte* label);
+
+    /// <summary>Provides the EncoderPushDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_push_debug_group")]
+    public static partial uint EncoderPushDebugGroup(AlcoEncoderHandle encoder, byte* label);
+
+    /// <summary>Provides the EncoderPopDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_encoder_pop_debug_group")]
+    public static partial uint EncoderPopDebugGroup(AlcoEncoderHandle encoder);
 
     /// <summary>Provides the QuerySetCreate operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "alco_query_set_create")]
@@ -443,6 +511,18 @@ internal static unsafe partial class AlcoGpuNative
     /// <summary>Provides the BundleDrawIndexedIndirect operation.</summary>
     [LibraryImport(LibraryName, EntryPoint = "alco_bundle_draw_indexed_indirect")]
     public static partial uint BundleDrawIndexedIndirect(AlcoBundleEncoderHandle bundleEncoder, AlcoBufferHandle buffer, ulong offset);
+
+    /// <summary>Provides the BundleInsertDebugMarker operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_insert_debug_marker")]
+    public static partial uint BundleInsertDebugMarker(AlcoBundleEncoderHandle bundleEncoder, byte* label);
+
+    /// <summary>Provides the BundlePushDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_push_debug_group")]
+    public static partial uint BundlePushDebugGroup(AlcoBundleEncoderHandle bundleEncoder, byte* label);
+
+    /// <summary>Provides the BundlePopDebugGroup operation.</summary>
+    [LibraryImport(LibraryName, EntryPoint = "alco_bundle_pop_debug_group")]
+    public static partial uint BundlePopDebugGroup(AlcoBundleEncoderHandle bundleEncoder);
 
     // ------------------------------------------------------------------
     // Surfaces

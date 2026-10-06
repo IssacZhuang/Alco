@@ -16,7 +16,8 @@ use crate::convert::*;
 use crate::device::DeviceCtx;
 use crate::entry::{set_error, set_error_from};
 use crate::handle::Handle;
-use crate::objects::label;
+use crate::objects::{borrow_label, label, plain_or_none};
+use std::borrow::Cow;
 use std::ffi::c_char;
 use std::sync::Arc;
 use wgpu_core as wgc;
@@ -595,6 +596,15 @@ fn recording_error(status: AlcoStatus, kind: &str) -> AlcoStatus {
     status
 }
 
+/// Rejects null debug labels; `borrow_label` would silently record an empty one.
+unsafe fn debug_label<'a>(ptr: *const c_char) -> Result<Cow<'a, str>, AlcoStatus> {
+    if ptr.is_null() {
+        set_error(AlcoStatus::INVALID_ARGUMENT, "null label");
+        return Err(AlcoStatus::INVALID_ARGUMENT);
+    }
+    Ok(borrow_label(ptr))
+}
+
 fn record_result(result: Result<(), impl std::error::Error>) -> Result<(), AlcoStatus> {
     match result {
         Ok(()) => Ok(()),
@@ -678,6 +688,28 @@ render_pass_fn!(
 );
 
 render_pass_fn!(
+    /// ABI: sets the viewport rectangle and depth range.
+    alco_render_pass_set_viewport(x: f32, y: f32, width: f32, height: f32, depth_min: f32, depth_max: f32) |ctx, pass, x, y, width, height, depth_min, depth_max| {
+        record_result(ctx.global.render_pass_set_viewport(pass, x, y, width, height, depth_min, depth_max))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: sets the dynamic blend constant.
+    alco_render_pass_set_blend_constant(r: f32, g: f32, b: f32, a: f32) |ctx, pass, r, g, b, a| {
+        record_result(ctx.global.render_pass_set_blend_constant(
+            pass,
+            wgt::Color {
+                r: r as f64,
+                g: g as f64,
+                b: b as f64,
+                a: a as f64,
+            },
+        ))
+    }
+);
+
+render_pass_fn!(
     /// ABI: sets the stencil reference value.
     alco_render_pass_set_stencil_reference(reference: u32) |ctx, pass, reference| {
         record_result(ctx.global.render_pass_set_stencil_reference(pass, reference))
@@ -754,6 +786,45 @@ render_pass_fn!(
 );
 
 render_pass_fn!(
+    /// ABI: multi-draw indirect.
+    alco_render_pass_multi_draw_indirect(buffer: AlcoBufferHandle, offset: u64, count: u32) |ctx, pass, buffer, offset, count| {
+        match lookup_buffer(ctx, buffer) {
+            Ok(id) => record_result(ctx.global.render_pass_multi_draw_indirect(pass, id, offset, count)),
+            Err(_) => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: multi-draw indirect with a GPU-resident draw count.
+    alco_render_pass_multi_draw_indirect_count(buffer: AlcoBufferHandle, offset: u64, count_buffer: AlcoBufferHandle, count_buffer_offset: u64, max_count: u32) |ctx, pass, buffer, offset, count_buffer, count_buffer_offset, max_count| {
+        match (lookup_buffer(ctx, buffer), lookup_buffer(ctx, count_buffer)) {
+            (Ok(id), Ok(count_id)) => record_result(ctx.global.render_pass_multi_draw_indirect_count(pass, id, offset, count_id, count_buffer_offset, max_count)),
+            _ => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: multi-draw indexed indirect with a GPU-resident draw count.
+    alco_render_pass_multi_draw_indexed_indirect_count(buffer: AlcoBufferHandle, offset: u64, count_buffer: AlcoBufferHandle, count_buffer_offset: u64, max_count: u32) |ctx, pass, buffer, offset, count_buffer, count_buffer_offset, max_count| {
+        match (lookup_buffer(ctx, buffer), lookup_buffer(ctx, count_buffer)) {
+            (Ok(id), Ok(count_id)) => record_result(ctx.global.render_pass_multi_draw_indexed_indirect_count(pass, id, offset, count_id, count_buffer_offset, max_count)),
+            _ => {
+                set_error(AlcoStatus::INVALID_HANDLE, "invalid buffer handle");
+                Err(AlcoStatus::INVALID_HANDLE)
+            }
+        }
+    }
+);
+
+render_pass_fn!(
     /// ABI: writes a timestamp inside the pass.
     alco_render_pass_write_timestamp(query_set: AlcoQuerySetHandle, query_index: u32) |ctx, pass, query_set, query_index| {
         match lookup_query_set(ctx, query_set) {
@@ -763,6 +834,29 @@ render_pass_fn!(
                 Err(AlcoStatus::INVALID_HANDLE)
             }
         }
+    }
+);
+
+render_pass_fn!(
+    /// ABI: inserts a debug marker label.
+    alco_render_pass_insert_debug_marker(label_text: *const c_char) |ctx, pass, label_text| {
+        let text = debug_label(label_text)?;
+        record_result(ctx.global.render_pass_insert_debug_marker(pass, &text, 0))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: opens a debug group.
+    alco_render_pass_push_debug_group(label_text: *const c_char) |ctx, pass, label_text| {
+        let text = debug_label(label_text)?;
+        record_result(ctx.global.render_pass_push_debug_group(pass, &text, 0))
+    }
+);
+
+render_pass_fn!(
+    /// ABI: closes the current debug group.
+    alco_render_pass_pop_debug_group() |ctx, pass| {
+        record_result(ctx.global.render_pass_pop_debug_group(pass))
     }
 );
 
@@ -994,6 +1088,29 @@ compute_pass_fn!(
                 Err(AlcoStatus::INVALID_HANDLE)
             }
         }
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: inserts a debug marker label.
+    alco_compute_pass_insert_debug_marker(label_text: *const c_char) |ctx, pass, label_text| {
+        let text = debug_label(label_text)?;
+        record_result(ctx.global.compute_pass_insert_debug_marker(pass, &text, 0))
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: opens a debug group.
+    alco_compute_pass_push_debug_group(label_text: *const c_char) |ctx, pass, label_text| {
+        let text = debug_label(label_text)?;
+        record_result(ctx.global.compute_pass_push_debug_group(pass, &text, 0))
+    }
+);
+
+compute_pass_fn!(
+    /// ABI: closes the current debug group.
+    alco_compute_pass_pop_debug_group() |ctx, pass| {
+        record_result(ctx.global.compute_pass_pop_debug_group(pass))
     }
 );
 
@@ -1312,6 +1429,156 @@ pub unsafe extern "C-unwind" fn alco_resolve_query_set(
                     Err(AlcoStatus::VALIDATION)
                 }
             }
+        })
+    })
+}
+
+/// Subresource range of a texture clear; counts of zero or `ALCO_NONE` mean
+/// "the rest" from the base level or layer.
+#[repr(C)]
+pub struct AlcoSubresourceRange {
+    /// `TextureAspect` value: 0/1 all, 2 stencil only, 3 depth only.
+    pub aspect: u32,
+    /// First cleared mip level.
+    pub base_mip_level: u32,
+    /// Cleared mip level count; zero or `ALCO_NONE` = the rest.
+    pub mip_level_count: u32,
+    /// First cleared array layer.
+    pub base_array_layer: u32,
+    /// Cleared array layer count; zero or `ALCO_NONE` = the rest.
+    pub array_layer_count: u32,
+}
+
+/// ABI: zeroes a buffer range on the open encoder; a `size` of zero clears
+/// from `offset` to the end of the buffer.
+///
+/// # Safety
+/// The encoder and buffer must be live, caller-exclusive, and from the same
+/// context. Finish and destruction must be ordered after this call returns.
+#[no_mangle]
+pub unsafe extern "C-unwind" fn alco_encoder_clear_buffer(
+    encoder: AlcoEncoderHandle,
+    buffer: AlcoBufferHandle,
+    offset: u64,
+    size: u64,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        command_status(|| {
+            let encoder = borrow(encoder, "encoder")?;
+            let ctx = &encoder.ctx;
+            let encoder_id = encoder.id;
+            let destination = lookup_buffer(ctx, buffer)?;
+            let size = if size == 0 { None } else { Some(size) };
+            record_result(
+                ctx.global
+                    .command_encoder_clear_buffer(encoder_id, destination, offset, size),
+            )
+        })
+    })
+}
+
+/// ABI: zeroes texture subresources on the open encoder to the format's zero
+/// value.
+///
+/// # Safety
+/// The encoder and texture must be live, caller-exclusive, and from the same
+/// context. Finish and destruction must be ordered after this call returns.
+#[no_mangle]
+pub unsafe extern "C-unwind" fn alco_encoder_clear_texture(
+    encoder: AlcoEncoderHandle,
+    texture: AlcoTextureHandle,
+    range: AlcoSubresourceRange,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        command_status(|| {
+            let encoder = borrow(encoder, "encoder")?;
+            let ctx = &encoder.ctx;
+            let encoder_id = encoder.id;
+            let destination = lookup_texture(ctx, texture)?;
+            let aspect = texture_aspect(range.aspect)?;
+            let wrange = wgt::ImageSubresourceRange {
+                aspect,
+                base_mip_level: range.base_mip_level,
+                mip_level_count: plain_or_none(range.mip_level_count),
+                base_array_layer: range.base_array_layer,
+                array_layer_count: plain_or_none(range.array_layer_count),
+            };
+            record_result(
+                ctx.global
+                    .command_encoder_clear_texture(encoder_id, destination, &wrange),
+            )
+        })
+    })
+}
+
+/// ABI: inserts a debug marker label into the encoded stream.
+///
+/// # Safety
+/// The encoder must be live and caller-exclusive; `label_text` must reference
+/// a NUL-terminated UTF-8 string for the call. Finish and destruction must be
+/// ordered after this call returns.
+#[no_mangle]
+pub unsafe extern "C-unwind" fn alco_encoder_insert_debug_marker(
+    encoder: AlcoEncoderHandle,
+    label_text: *const c_char,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        command_status(|| {
+            let text = debug_label(label_text)?;
+            let encoder = borrow(encoder, "encoder")?;
+            record_result(
+                encoder
+                    .ctx
+                    .global
+                    .command_encoder_insert_debug_marker(encoder.id, &text),
+            )
+        })
+    })
+}
+
+/// ABI: opens a debug group in the encoded stream.
+///
+/// # Safety
+/// The encoder must be live and caller-exclusive; `label_text` must reference
+/// a NUL-terminated UTF-8 string for the call. Finish and destruction must be
+/// ordered after this call returns.
+#[no_mangle]
+pub unsafe extern "C-unwind" fn alco_encoder_push_debug_group(
+    encoder: AlcoEncoderHandle,
+    label_text: *const c_char,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        command_status(|| {
+            let text = debug_label(label_text)?;
+            let encoder = borrow(encoder, "encoder")?;
+            record_result(
+                encoder
+                    .ctx
+                    .global
+                    .command_encoder_push_debug_group(encoder.id, &text),
+            )
+        })
+    })
+}
+
+/// ABI: closes the current debug group in the encoded stream.
+///
+/// # Safety
+/// The encoder must be live and caller-exclusive. Finish and destruction must
+/// be ordered after this call returns.
+#[no_mangle]
+pub unsafe extern "C-unwind" fn alco_encoder_pop_debug_group(
+    encoder: AlcoEncoderHandle,
+) -> AlcoStatus {
+    crate::entry::guard(|| {
+        command_status(|| {
+            let encoder = borrow(encoder, "encoder")?;
+            record_result(
+                encoder
+                    .ctx
+                    .global
+                    .command_encoder_pop_debug_group(encoder.id),
+            )
         })
     })
 }
@@ -1841,6 +2108,29 @@ bundle_fn!(
 );
 
 bundle_fn!(
+    /// ABI: inserts a debug marker label recorded into the bundle.
+    alco_bundle_insert_debug_marker(label_text: *const c_char) |ctx, bundle, label_text| {
+        let text = debug_label(label_text)?;
+        record_result(ctx.global.render_bundle_encoder_insert_debug_marker(bundle, &text))
+    }
+);
+
+bundle_fn!(
+    /// ABI: opens a debug group recorded into the bundle.
+    alco_bundle_push_debug_group(label_text: *const c_char) |ctx, bundle, label_text| {
+        let text = debug_label(label_text)?;
+        record_result(ctx.global.render_bundle_encoder_push_debug_group(bundle, &text))
+    }
+);
+
+bundle_fn!(
+    /// ABI: closes the current debug group recorded into the bundle.
+    alco_bundle_pop_debug_group() |ctx, bundle| {
+        record_result(ctx.global.render_bundle_encoder_pop_debug_group(bundle))
+    }
+);
+
+bundle_fn!(
     /// ABI: indirect indexed draw.
     alco_bundle_draw_indexed_indirect(buffer: AlcoBufferHandle, offset: u64) |ctx, bundle, buffer, offset| {
         match lookup_buffer(ctx, buffer) {
@@ -2181,6 +2471,418 @@ mod tests {
             assert_eq!(Arc::strong_count(ctx), baseline + 1);
             assert_eq!(alco_buffer_destroy(destination), AlcoStatus::OK);
             assert_eq!(Arc::strong_count(ctx), baseline);
+        }
+    }
+
+    #[test]
+    fn vulkan_dynamic_pass_state_and_debug_markers_record_cleanly() {
+        let Some(device) = TestDevice::new() else {
+            return;
+        };
+        unsafe {
+            // A pass needs at least one attachment to survive finish
+            // validation; the viewport matches this 64x32 target.
+            let texture_desc = AlcoTextureDesc {
+                dimension: 1,
+                format: 18,
+                usage: 1 << 4, // ColorAttachment
+                width: 64,
+                height: 32,
+                depth_or_array_layers: 1,
+                mip_level_count: 1,
+                sample_count: 1,
+                name: ptr::null(),
+            };
+            let mut target = AlcoTextureHandle::NULL;
+            assert_eq!(
+                alco_texture_create(device.handle, &texture_desc, &mut target),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut view = AlcoTextureViewHandle::NULL;
+            assert_eq!(
+                alco_texture_create_view(target, ptr::null(), &mut view),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let attachment = AlcoColorAttachment {
+                view,
+                resolve_view: AlcoTextureViewHandle::NULL,
+                load_op: 1,
+                store_op: 0,
+                clear_color: [0.0; 4],
+            };
+            let pass_desc = AlcoRenderPassDesc {
+                color_attachments: &attachment,
+                color_attachment_count: 1,
+                depth_stencil: ptr::null(),
+                timestamp_writes: ptr::null(),
+            };
+            let render_encoder = encoder(device.handle);
+            let mut render = AlcoRenderPassHandle::NULL;
+            assert_eq!(
+                alco_render_pass_begin(render_encoder, &pass_desc, &mut render),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_render_pass_set_viewport(render, 0.0, 0.0, 64.0, 32.0, 0.0, 1.0),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_render_pass_set_blend_constant(render, 0.25, 0.5, 0.75, 1.0),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            // Every multi-draw export rejects null buffers before touching core.
+            for status in [
+                alco_render_pass_multi_draw_indirect(render, AlcoBufferHandle::NULL, 0, 0),
+                alco_render_pass_multi_draw_indirect_count(
+                    render,
+                    AlcoBufferHandle::NULL,
+                    0,
+                    AlcoBufferHandle::NULL,
+                    0,
+                    0,
+                ),
+                alco_render_pass_multi_draw_indexed_indirect_count(
+                    render,
+                    AlcoBufferHandle::NULL,
+                    0,
+                    AlcoBufferHandle::NULL,
+                    0,
+                    0,
+                ),
+            ] {
+                assert_eq!(status, AlcoStatus::INVALID_HANDLE, "{}", last_error());
+            }
+            assert_eq!(
+                alco_render_pass_insert_debug_marker(render, c"marker".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_render_pass_push_debug_group(render, c"group".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_render_pass_pop_debug_group(render),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_render_pass_insert_debug_marker(render, ptr::null()),
+                AlcoStatus::INVALID_ARGUMENT
+            );
+            assert_eq!(alco_render_pass_end(render), AlcoStatus::OK);
+            assert_eq!(
+                alco_encoder_insert_debug_marker(render_encoder, c"marker".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_encoder_push_debug_group(render_encoder, c"group".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_encoder_pop_debug_group(render_encoder),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_encoder_insert_debug_marker(render_encoder, ptr::null()),
+                AlcoStatus::INVALID_ARGUMENT
+            );
+            let mut command = AlcoCommandBufferHandle::NULL;
+            assert_eq!(
+                alco_encoder_finish(render_encoder, &mut command),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut index = 0;
+            assert_eq!(
+                alco_queue_submit(device.handle, command, &mut index),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_device_poll(device.handle, ALCO_TRUE, index, ptr::null_mut()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+
+            let compute_encoder = encoder(device.handle);
+            let mut compute = AlcoComputePassHandle::NULL;
+            assert_eq!(
+                alco_compute_pass_begin(compute_encoder, ptr::null(), &mut compute),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_compute_pass_insert_debug_marker(compute, c"marker".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_compute_pass_push_debug_group(compute, c"group".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_compute_pass_pop_debug_group(compute),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_compute_pass_insert_debug_marker(compute, ptr::null()),
+                AlcoStatus::INVALID_ARGUMENT
+            );
+            assert_eq!(alco_compute_pass_end(compute), AlcoStatus::OK);
+            assert_eq!(alco_encoder_destroy(compute_encoder), AlcoStatus::OK);
+
+            let bundle_desc = AlcoBundleEncoderDesc {
+                color_formats: ptr::null(),
+                color_format_count: 0,
+                depth_stencil_format: 42,
+                depth_read_only: ALCO_TRUE,
+                stencil_read_only: ALCO_TRUE,
+                sample_count: 1,
+                name: ptr::null(),
+            };
+            let mut bundle = AlcoBundleEncoderHandle::NULL;
+            assert_eq!(
+                alco_bundle_encoder_create(device.handle, &bundle_desc, &mut bundle),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_bundle_insert_debug_marker(bundle, c"marker".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_bundle_push_debug_group(bundle, c"group".as_ptr()),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_bundle_pop_debug_group(bundle),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_bundle_insert_debug_marker(bundle, ptr::null()),
+                AlcoStatus::INVALID_ARGUMENT
+            );
+            assert_eq!(alco_bundle_encoder_destroy(bundle), AlcoStatus::OK);
+            assert_eq!(alco_texture_view_destroy(view), AlcoStatus::OK);
+            assert_eq!(alco_texture_destroy(target), AlcoStatus::OK);
+            assert_eq!(registry_counts(device.handle), (0, 0, 0));
+        }
+    }
+
+    #[test]
+    fn vulkan_clear_operations_zero_buffer_contents() {
+        // Clearing textures needs the CLEAR_TEXTURE device feature; the buffer
+        // clear below needs no feature.
+        let Some(device) =
+            TestDevice::with_features(crate::device::alco_features::CLEAR_TEXTURE)
+        else {
+            return;
+        };
+        const SIZE: u64 = 64;
+        unsafe {
+            let target_desc = AlcoBufferDesc {
+                size: SIZE,
+                usage: (1 << 2) | (1 << 3), // COPY_SRC | COPY_DST
+                name: ptr::null(),
+            };
+            let readback_desc = AlcoBufferDesc {
+                size: SIZE,
+                usage: (1 << 0) | (1 << 3), // MAP_READ | COPY_DST
+                name: ptr::null(),
+            };
+            let mut target = AlcoBufferHandle::NULL;
+            assert_eq!(
+                alco_buffer_create(device.handle, &target_desc, &mut target),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let mut readback = AlcoBufferHandle::NULL;
+            assert_eq!(
+                alco_buffer_create(device.handle, &readback_desc, &mut readback),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let pattern = [0x5Au8; SIZE as usize];
+            let read_contents = |readback: AlcoBufferHandle| {
+                assert_eq!(
+                    alco_buffer_map_read(readback, 0, SIZE),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+                assert_eq!(
+                    alco_device_poll(device.handle, ALCO_TRUE, u64::MAX, ptr::null_mut()),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+                assert_eq!(
+                    alco_buffer_map_poll(readback),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+                let mut mapped = std::ptr::null();
+                assert_eq!(
+                    alco_buffer_get_mapped_range(readback, 0, SIZE, &mut mapped),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+                let bytes = std::slice::from_raw_parts(mapped, SIZE as usize);
+                let copy = bytes.to_vec();
+                assert_eq!(alco_buffer_unmap(readback), AlcoStatus::OK);
+                copy
+            };
+            let run = |encoder: AlcoEncoderHandle| {
+                let mut command = AlcoCommandBufferHandle::NULL;
+                assert_eq!(
+                    alco_encoder_finish(encoder, &mut command),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+                let mut index = 0;
+                assert_eq!(
+                    alco_queue_submit(device.handle, command, &mut index),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+                assert_eq!(
+                    alco_device_poll(device.handle, ALCO_TRUE, index, ptr::null_mut()),
+                    AlcoStatus::OK,
+                    "{}",
+                    last_error()
+                );
+            };
+            // Whole-buffer clear: size zero clears from the offset to the end.
+            assert_eq!(
+                alco_queue_write_buffer(device.handle, target, 0, pattern.as_ptr(), SIZE as u32),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let whole_encoder = encoder(device.handle);
+            assert_eq!(
+                alco_encoder_clear_buffer(whole_encoder, target, 0, 0),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_copy_buffer_to_buffer(whole_encoder, target, 0, readback, 0, SIZE),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            run(whole_encoder);
+            let whole_contents = read_contents(readback);
+            assert!(whole_contents.iter().all(|&b| b == 0));
+
+            // Partial clear: only bytes 8..16 are zeroed.
+            assert_eq!(
+                alco_queue_write_buffer(device.handle, target, 0, pattern.as_ptr(), SIZE as u32),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let partial_encoder = encoder(device.handle);
+            assert_eq!(
+                alco_encoder_clear_buffer(partial_encoder, target, 8, 8),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            assert_eq!(
+                alco_copy_buffer_to_buffer(partial_encoder, target, 0, readback, 0, SIZE),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            run(partial_encoder);
+            let contents = read_contents(readback);
+            for (element, &byte) in contents.iter().enumerate() {
+                let expected = if (8..16).contains(&element) { 0 } else { 0x5A };
+                assert_eq!(byte, expected, "element {element}");
+            }
+
+            // Clearing a texture with COPY_DST usage records and executes.
+            let texture_desc = AlcoTextureDesc {
+                dimension: 1,
+                format: 18,
+                usage: (1 << 0) | (1 << 1), // COPY_SRC | COPY_DST
+                width: 4,
+                height: 4,
+                depth_or_array_layers: 1,
+                mip_level_count: 1,
+                sample_count: 1,
+                name: ptr::null(),
+            };
+            let mut texture = AlcoTextureHandle::NULL;
+            assert_eq!(
+                alco_texture_create(device.handle, &texture_desc, &mut texture),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            let texture_encoder = encoder(device.handle);
+            let whole_range = AlcoSubresourceRange {
+                aspect: 0,
+                base_mip_level: 0,
+                mip_level_count: 0,
+                base_array_layer: 0,
+                array_layer_count: 0,
+            };
+            assert_eq!(
+                alco_encoder_clear_texture(texture_encoder, texture, whole_range),
+                AlcoStatus::OK,
+                "{}",
+                last_error()
+            );
+            run(texture_encoder);
+            assert_eq!(alco_texture_destroy(texture), AlcoStatus::OK);
+            assert_eq!(alco_buffer_destroy(target), AlcoStatus::OK);
+            assert_eq!(alco_buffer_destroy(readback), AlcoStatus::OK);
         }
     }
 

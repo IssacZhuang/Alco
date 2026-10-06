@@ -20,7 +20,7 @@ public unsafe class AlcoGpuAbiTests
     public void AbiVersionMatches()
     {
         Assert.That(AlcoGpuAbi.AbiMajor, Is.EqualTo(2));
-        Assert.That(AlcoGpuAbi.AbiMinor, Is.EqualTo(1));
+        Assert.That(AlcoGpuAbi.AbiMinor, Is.EqualTo(2));
         uint version = AlcoGpuNative.AbiVersion();
         Assert.That(version >> 16, Is.EqualTo(AlcoGpuAbi.AbiMajor));
         Assert.That(version & 0xFFFF, Is.GreaterThanOrEqualTo(AlcoGpuAbi.AbiMinor));
@@ -365,6 +365,88 @@ public unsafe class AlcoGpuAbiTests
                 {
                     AlcoGpuNative.BufferDestroy(sources[i]);
                 }
+            }
+            AlcoGpuNative.DeviceDestroy(device);
+        }
+    }
+
+    /// <summary>Writes through a write map, copies to a read-mapped buffer and verifies every byte.</summary>
+    [Test]
+    public void WriteMappingRoundTripsThroughReadMapping()
+    {
+        const ulong size = 64;
+        AlcoDeviceHandle device = CreateNativeDevice();
+        AlcoBufferHandle source = AlcoBufferHandle.Null;
+        AlcoBufferHandle destination = AlcoBufferHandle.Null;
+        AlcoEncoderHandle encoder = AlcoEncoderHandle.Null;
+        AlcoCommandBufferHandle command = AlcoCommandBufferHandle.Null;
+        AlcoBufferDesc sourceDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapWrite | BufferUsage.CopySrc) };
+        AlcoBufferDesc destinationDescriptor = new() { Size = size, Usage = (uint)(BufferUsage.MapRead | BufferUsage.CopyDst) };
+        try
+        {
+            AlcoGpuNative.BufferCreate(device, in sourceDescriptor, out source);
+            AlcoGpuNative.BufferCreate(device, in destinationDescriptor, out destination);
+            AlcoGpuNative.BufferMapWrite(source, 0, size);
+            uint queueEmpty = 0;
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, ulong.MaxValue, &queueEmpty);
+            Assert.That(AlcoGpuNative.BufferMapPoll(source), Is.EqualTo(AlcoGpuAbi.Status.Ok));
+            void* mapped = null;
+            AlcoGpuNative.BufferGetMappedRange(source, 0, size, &mapped);
+            Assert.That((nint)mapped, Is.Not.EqualTo(nint.Zero));
+            for (int element = 0; element < (int)size; element++)
+            {
+                ((byte*)mapped)[element] = (byte)(element * 3 % 251);
+            }
+            AlcoGpuNative.BufferUnmap(source);
+
+            AlcoGpuNative.EncoderCreate(device, null, out encoder);
+            AlcoGpuNative.CopyBufferToBuffer(encoder, source, 0, destination, 0, size);
+            AlcoEncoderHandle finishedEncoder = encoder;
+            encoder = AlcoEncoderHandle.Null;
+            AlcoGpuNative.EncoderFinish(finishedEncoder, out command);
+            ulong submissionIndex = 0;
+            AlcoGpuNative.QueueSubmit(device, command, &submissionIndex);
+            command = AlcoCommandBufferHandle.Null;
+            uint submitQueueEmpty = 0;
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, submissionIndex, &submitQueueEmpty);
+
+            AlcoGpuNative.BufferMapRead(destination, 0, size);
+            uint readQueueEmpty = 0;
+            AlcoGpuNative.DevicePoll(device, AlcoGpuAbi.AlcoTrue, ulong.MaxValue, &readQueueEmpty);
+            Assert.That(AlcoGpuNative.BufferMapPoll(destination), Is.EqualTo(AlcoGpuAbi.Status.Ok));
+            void* read = null;
+            AlcoGpuNative.BufferGetMappedRange(destination, 0, size, &read);
+            Assert.That((nint)read, Is.Not.EqualTo(nint.Zero));
+            try
+            {
+                for (int element = 0; element < (int)size; element++)
+                {
+                    Assert.That(((byte*)read)[element], Is.EqualTo((byte)(element * 3 % 251)),
+                        $"Element {element}");
+                }
+            }
+            finally
+            {
+                AlcoGpuNative.BufferUnmap(destination);
+            }
+        }
+        finally
+        {
+            if (!command.IsNull)
+            {
+                AlcoGpuNative.CommandBufferDestroy(command);
+            }
+            if (!encoder.IsNull)
+            {
+                AlcoGpuNative.EncoderDestroy(encoder);
+            }
+            if (!source.IsNull)
+            {
+                AlcoGpuNative.BufferDestroy(source);
+            }
+            if (!destination.IsNull)
+            {
+                AlcoGpuNative.BufferDestroy(destination);
             }
             AlcoGpuNative.DeviceDestroy(device);
         }

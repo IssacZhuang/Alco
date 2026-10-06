@@ -15,7 +15,7 @@ internal static unsafe partial class AlcoGpuAbi
     public const uint AbiMajor = 2;
 
     /// <summary>ABI minor version implemented by the native library.</summary>
-    public const uint AbiMinor = 1;
+    public const uint AbiMinor = 2;
 
     /// <summary>Sentinel for "no value" in optional uint fields.</summary>
     public const uint AlcoNone = uint.MaxValue;
@@ -1144,6 +1144,22 @@ internal struct AlcoExtent3D
     public uint Height;
     /// <summary>Gets or stores DepthOrArrayLayers.</summary>
     public uint DepthOrArrayLayers;
+}
+
+/// <summary>Texture subresource range for clears (mirrors AlcoSubresourceRange).</summary>
+[StructLayout(LayoutKind.Sequential)]
+internal struct AlcoSubresourceRange
+{
+    /// <summary><see cref="TextureAspect"/> value: 0/1 all, 2 stencil only, 3 depth only.</summary>
+    public uint Aspect;
+    /// <summary>First cleared mip level.</summary>
+    public uint BaseMipLevel;
+    /// <summary>Cleared mip level count; zero or <see cref="AlcoGpuAbi.AlcoNone"/> = the rest.</summary>
+    public uint MipLevelCount;
+    /// <summary>First cleared array layer.</summary>
+    public uint BaseArrayLayer;
+    /// <summary>Cleared array layer count; zero or <see cref="AlcoGpuAbi.AlcoNone"/> = the rest.</summary>
+    public uint ArrayLayerCount;
 }
 
 /// <summary>Render bundle encoder descriptor (mirrors AlcoBundleEncoderDesc).</summary>

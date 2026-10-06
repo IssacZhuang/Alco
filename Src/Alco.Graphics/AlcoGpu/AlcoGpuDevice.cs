@@ -1189,7 +1189,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                     GPUFeatures.TextureCompressionBC
                     | GPUFeatures.TimestampQuery
                     | GPUFeatures.TimestampQueryInsidePasses
-                    | GPUFeatures.IndirectFirstInstance;
+                    | GPUFeatures.IndirectFirstInstance
+                    | GPUFeatures.ClearTexture;
 
                 ReadOnlySpan<byte> nameSpan = descriptor.Name.Utf8Z();
                 fixed (byte* ptrName = nameSpan)

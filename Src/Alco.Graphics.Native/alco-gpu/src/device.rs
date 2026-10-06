@@ -108,13 +108,14 @@ impl DeviceCtx {
 }
 
 /// Alco feature bits — numeric values mirror C# `GPUFeatures` exactly.
-mod alco_features {
+pub(crate) mod alco_features {
     pub const TEXTURE_COMPRESSION_BC: u64 = 1 << 0;
     pub const TIMESTAMP_QUERY: u64 = 1 << 1;
     pub const TIMESTAMP_QUERY_INSIDE_PASSES: u64 = 1 << 2;
     pub const METALLIB_PASSTHROUGH: u64 = 1 << 3;
     pub const INDIRECT_FIRST_INSTANCE: u64 = 1 << 4;
     pub const MULTI_DRAW_INDIRECT: u64 = 1 << 5;
+    pub const CLEAR_TEXTURE: u64 = 1 << 6;
 }
 
 /// Maps Alco request-backend values to wgpu backend masks.
@@ -154,6 +155,9 @@ fn alco_features_to_wgpu(alco: u64) -> wgt::Features {
     if alco & alco_features::INDIRECT_FIRST_INSTANCE != 0 {
         features |= wgt::Features::INDIRECT_FIRST_INSTANCE;
     }
+    if alco & alco_features::CLEAR_TEXTURE != 0 {
+        features |= wgt::Features::CLEAR_TEXTURE;
+    }
     // MULTI_DRAW_INDIRECT needs no wgpu feature in wgpu 30: multi-draw is
     // always available and emulated when the native path is absent.
     features
@@ -175,6 +179,9 @@ fn supported_alco_features(adapter_features: wgt::Features) -> (u64, u64) {
     }
     if adapter_features.contains(wgt::Features::INDIRECT_FIRST_INSTANCE) {
         features |= alco_features::INDIRECT_FIRST_INSTANCE;
+    }
+    if adapter_features.contains(wgt::Features::CLEAR_TEXTURE) {
+        features |= alco_features::CLEAR_TEXTURE;
     }
     // Multi-draw is always claimed: wgpu 30 supports multi_draw_* on all
     // backends, emulating with per-record draws when no native path exists.
