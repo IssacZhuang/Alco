@@ -18,7 +18,6 @@
   </Folder>
   <Folder Name="/Generator/">
     <Project Path="Generator/AlcoGenerator/AlcoGenerator.csproj" />
-    <Project Path="Generator/WebGPUBindingGenerator/WebGPUBindingGenerator.csproj" />
   </Folder>
   <Folder Name="/Sandbox/">
     <Project Path="Sandbox/0-BasicWindow/0-BasicWindow.csproj" />
