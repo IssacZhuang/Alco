@@ -89,7 +89,7 @@ internal static unsafe class AlcoGpuUtility
             }
 
             if (source.Passthrough && source.Language is not ShaderLanguage.WGSL
-                && !device.ShaderPassthroughEnabled)
+                && !device.IsCapabilitySupported(GPUCapabilities.ShaderPassthrough))
             {
                 throw new GraphicsException(
                     $"Passthrough consumption requires the PassthroughShaders capability, which the active device does not expose ({source.Language}).");

@@ -39,29 +39,20 @@ public abstract partial class GPUDevice
     /// <summary>
     /// The backend the active adapter selected (an <c>Auto</c> request resolves per
     /// platform). Shader consumption keys off this together with
-    /// <see cref="ShaderPassthroughEnabled"/>: the engine submits slang SPIR-V on
-    /// every backend, consumed natively (passthrough) on Vulkan and through Naga
-    /// translation elsewhere.
+    /// <see cref="Capabilities"/>: the engine submits slang SPIR-V on every backend,
+    /// consumed natively (passthrough) on Vulkan and through Naga translation elsewhere.
     /// </summary>
     public abstract GraphicsBackend Backend { get; }
-
-    /// <summary>
-    /// Whether the device exposes the passthrough shader capability: submitted
-    /// DXIL/MSL/MetalLib (and SPIR-V on Vulkan) can be consumed by the backend
-    /// as-is, without Naga translation. DXIL/MSL/MetalLib have no translation
-    /// fallback; SPIR-V translates through Naga on every backend otherwise.
-    /// </summary>
-    public abstract bool ShaderPassthroughEnabled { get; }
-
-    /// <summary>
-    /// The maximum number of bind groups (descriptor sets / <c>@group</c>) supported by this device.
-    /// </summary>
-    public abstract int MaxBindGroups { get; }
 
     /// <summary>
     /// The optional GPU features supported by the active adapter.
     /// </summary>
     public abstract GPUFeatures SupportedFeatures { get; }
+
+    /// <summary>
+    /// The maximum number of bind groups (descriptor sets / <c>@group</c>) supported by this device.
+    /// </summary>
+    public abstract int MaxBindGroups { get; }
 
     /// <summary>
     /// Checks whether the active adapter supports the optional GPU feature.
@@ -72,6 +63,24 @@ public abstract partial class GPUDevice
     public bool IsFeatureSupported(GPUFeatures feature)
     {
         return (SupportedFeatures & feature) != 0;
+    }
+
+    /// <summary>
+    /// The reported device capabilities: backend/adapter/build facts that cannot
+    /// be requested (unlike <see cref="SupportedFeatures"/>), enabled
+    /// unconditionally whenever available.
+    /// </summary>
+    public abstract GPUCapabilities Capabilities { get; }
+
+    /// <summary>
+    /// Checks whether the device reports the capability. A combination of
+    /// capabilities matches when at least one of them is reported.
+    /// </summary>
+    /// <param name="capability">The capability or capability combination to check.</param>
+    /// <returns>Whether the capability is available.</returns>
+    public bool IsCapabilitySupported(GPUCapabilities capability)
+    {
+        return (Capabilities & capability) != 0;
     }
 
     /// <summary>Gets nanoseconds represented by one timestamp tick.</summary>

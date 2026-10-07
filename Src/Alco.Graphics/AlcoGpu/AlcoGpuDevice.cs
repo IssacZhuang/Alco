@@ -60,14 +60,6 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     /// <summary>Gets whether native debugging and validation are enabled.</summary>
     public bool IsDebug { get; }
 
-    /// <summary>
-    /// Whether the device exposes passthrough shaders: slang's SPIR-V (Vulkan),
-    /// DXIL (D3D12) and MSL/metallib (Metal) reach the backend as-is. Required
-    /// for DXIL/MSL/MetalLib (no translation fallback exists); SPIR-V falls
-    /// back to Naga import natively when unavailable.
-    /// </summary>
-    public override bool ShaderPassthroughEnabled { get; }
-
     /// <summary>The backend the adapter actually selected (Auto resolves per platform).</summary>
     public override GraphicsBackend Backend { get; }
 
@@ -124,6 +116,12 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
     /// <inheritdoc />
     public override GPUFeatures SupportedFeatures { get; }
+
+    /// <summary>
+    /// The reported device capabilities (backend/adapter/build facts that
+    /// cannot be requested), mirrored from the native capability bits.
+    /// </summary>
+    public override GPUCapabilities Capabilities { get; }
 
     /// <inheritdoc />
     public override float TimestampPeriodNanoseconds { get; }
@@ -1239,12 +1237,12 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                         "Non-zero indirect firstInstance is unavailable; batched indirect draws that address per-draw data through firstInstance will not render correctly.");
                 }
 
-                ShaderPassthroughEnabled = (info.Capabilities & AlcoGPU.Capabilities.PassthroughShaders) != 0;
+                Capabilities = (GPUCapabilities)info.Capabilities;
                 if (Backend == GraphicsBackend.WGPUDx12)
                 {
                     _host.LogSuccess("DX12 SPIR-V shader translation is enabled");
                 }
-                else if (ShaderPassthroughEnabled)
+                else if (Capabilities.HasFlag(GPUCapabilities.ShaderPassthrough))
                 {
                     _host.LogSuccess($"Native {Backend} shader passthrough is enabled");
                 }
@@ -1253,7 +1251,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                     _host.LogWarning("Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
                 }
 
-                if (SupportedFeatures.HasFlag(GPUFeatures.MetalLibPassthrough))
+                if (Capabilities.HasFlag(GPUCapabilities.MetalLib))
                 {
                     _host.LogSuccess("Precompiled metallib shader passthrough is enabled");
                 }

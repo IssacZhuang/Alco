@@ -18,13 +18,6 @@ public enum GPUFeatures : ulong
     TimestampQueryInsidePasses = 1 << 2,
 
     /// <summary>
-    /// The device can consume precompiled Metal libraries: the alco-gpu library
-    /// (wgpu-core) was built with the metallib passthrough entry and the backend
-    /// is Metal.
-    /// </summary>
-    MetalLibPassthrough = 1 << 3,
-
-    /// <summary>
     /// Indirect draw records may carry a non-zero firstInstance field (wgpu's
     /// IndirectFirstInstance). Required by instance-step vertex-buffer draws that
     /// address their per-draw data through firstInstance.

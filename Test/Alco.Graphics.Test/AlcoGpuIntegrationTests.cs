@@ -83,7 +83,8 @@ public sealed class AlcoGpuIntegrationTests
         {
             Passthrough = true,
         };
-        if (device.Backend == GraphicsBackend.WGPUDx12 && device.ShaderPassthroughEnabled)
+        if (device.Backend == GraphicsBackend.WGPUDx12
+            && device.IsCapabilitySupported(GPUCapabilities.ShaderPassthrough))
         {
             AlcoGPU.ShaderModuleHandle handle = device.CreateShaderModule(passthrough);
             Assert.That(handle.IsNull, Is.False);

@@ -112,7 +112,6 @@ pub(crate) mod gpu_features {
     pub const TEXTURE_COMPRESSION_BC: u64 = 1 << 0;
     pub const TIMESTAMP_QUERY: u64 = 1 << 1;
     pub const TIMESTAMP_QUERY_INSIDE_PASSES: u64 = 1 << 2;
-    pub const METALLIB_PASSTHROUGH: u64 = 1 << 3;
     pub const INDIRECT_FIRST_INSTANCE: u64 = 1 << 4;
     pub const MULTI_DRAW_INDIRECT: u64 = 1 << 5;
     pub const CLEAR_TEXTURE: u64 = 1 << 6;
@@ -139,8 +138,7 @@ fn resolved_backend_value(backend: wgt::Backend) -> u32 {
     }
 }
 
-/// Converts Alco feature bits to wgpu `Features`. `METALLIB_PASSTHROUGH` has no
-/// wgpu counterpart (it is a build/platform capability reported via capabilities).
+/// Converts Alco feature bits to wgpu `Features`.
 fn gpu_features_to_wgpu(bits: u64) -> wgt::Features {
     let mut features = wgt::Features::empty();
     if bits & gpu_features::TEXTURE_COMPRESSION_BC != 0 {
@@ -374,11 +372,10 @@ pub unsafe extern "C-unwind" fn device_create(
             required |= wgt::Features::PASSTHROUGH_SHADERS;
             device_caps |= capabilities::PASSTHROUGH_SHADERS;
         }
-        // MetalLib passthrough is an Apple-platform source kind.
+        // MetalLib passthrough is an Apple-platform source kind, reported as a
+        // capability (never as a requestable feature).
         if resolved == backend::RESOLVED_METAL && passthrough_available {
             device_caps |= capabilities::METALLIB;
-            // Surface it as a supported Alco feature (folded into `supported`
-            // below via `device_caps` re-check).
         }
 
         let missing = required - adapter_features;
@@ -417,11 +414,6 @@ pub unsafe extern "C-unwind" fn device_create(
         } else {
             1.0
         };
-
-        let mut supported = supported;
-        if device_caps & capabilities::METALLIB != 0 {
-            supported |= gpu_features::METALLIB_PASSTHROUGH;
-        }
 
         let ctx = DeviceCtx {
             global,

@@ -60,8 +60,8 @@ internal class NoDevice : GPUDevice
 
     public override GraphicsBackend Backend => GraphicsBackend.None;
 
-    /// <summary>NoGPU mode never exposes passthrough shader consumption.</summary>
-    public override bool ShaderPassthroughEnabled => false;
+    /// <summary>NoGPU mode reports no device capabilities.</summary>
+    public override GPUCapabilities Capabilities => GPUCapabilities.None;
 
     public override GPUFeatures SupportedFeatures => GPUFeatures.None;
 

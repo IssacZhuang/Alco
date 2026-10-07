@@ -203,7 +203,7 @@ public sealed class ShaderSystem : IDisposable
                 // exposes the capability; every other backend translates through Naga.
                 Passthrough = target == SlangCodeTarget.Spirv
                     ? renderingSystem.GraphicsDevice.Backend == GraphicsBackend.WGPUVulkan
-                        && renderingSystem.GraphicsDevice.ShaderPassthroughEnabled
+                        && renderingSystem.GraphicsDevice.IsCapabilitySupported(GPUCapabilities.ShaderPassthrough)
                     : true,
             };
             switch (module.Stage)

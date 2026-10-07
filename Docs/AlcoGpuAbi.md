@@ -165,8 +165,9 @@ alco-gpu never infers a path, it only enforces the per-language contract:
 | MSL / MetalLib | passthrough; requires capability **and** the Metal backend (`Unsupported`) | `InvalidArgument` |
 | WGSL | switch ignored — always Naga translation | same |
 
-DXIL/MSL/MetalLib passthrough is additionally gated C#-side by
-`ShaderPassthroughEnabled` before crossing the ABI. Synchronous creation borrows
+DXIL/MSL/MetalLib passthrough is additionally gated C#-side by the
+`ShaderPassthrough` capability (`GPUDevice.IsCapabilitySupported`) before
+crossing the ABI. Synchronous creation borrows
 binary payloads and valid UTF-8 text. Aligned little-endian SPIR-V borrows the
 input words; unaligned sources are decoded once. The library is
 producer-agnostic: it performs no Slang-specific SPIR-V post-processing (the
