@@ -6,22 +6,58 @@ namespace Alco.Graphics.AlcoGpu.Interop;
 
 /// <summary>
 /// Marshals native failures into managed exceptions. The process-wide error
-/// callback registered by <see cref="AlcoGpuNative"/> throws directly from
-/// the native call site, so every alco-gpu failure becomes a
-/// <see cref="GraphicsException"/> without per-call status checks.
+/// callback registered by <see cref="AlcoGpuNative"/> records each failure,
+/// and the facade rethrows it as a <see cref="GraphicsException"/> once the
+/// native call has returned: throwing from inside the callback would have to
+/// unwind through native frames, which aborts the process on Unix runtimes.
 /// </summary>
 internal static unsafe class AlcoGpuMarshal
 {
+    /// <summary>Failure recorded by the error callback for the native call
+    /// currently in flight on this thread; consumed by the facade.</summary>
+    [ThreadStatic]
+    private static (uint Status, string Message)? _pendingError;
+
     /// <summary>
-    /// Native error callback (C-unwind): invoked synchronously by alco-gpu on
-    /// the calling thread when an entry point fails. Thrown exceptions unwind
-    /// through the native frames back into the managed caller, mirroring the
-    /// former wgpu-native uncaptured-error handling.
+    /// Native error callback: invoked synchronously by alco-gpu on the calling
+    /// thread when an entry point fails. Records the failure for the
+    /// <see cref="AlcoGpuNative"/> facade to throw after the call returns —
+    /// it must never throw through native frames.
     /// </summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     internal static void OnNativeError(uint status, byte* message, void* userdata)
     {
         string text = BorrowedString(message) ?? "<no native message>";
+        _pendingError = (status, text);
+    }
+
+    /// <summary>
+    /// Returns <paramref name="status"/> for control-flow values and throws the
+    /// failure recorded during the call (falling back to the thread-local last
+    /// error) as a <see cref="GraphicsException"/>. Mirrors the native guard,
+    /// which fires the callback for every status except OK and NOT_READY.
+    /// </summary>
+    /// <param name="status">Status returned by the native entry point.</param>
+    /// <returns>The unchanged status code.</returns>
+    internal static uint ThrowIfFailure(uint status)
+    {
+        if (status == AlcoGPU.Status.Ok || status == AlcoGPU.Status.NotReady)
+        {
+            return status;
+        }
+
+        (uint recordedStatus, string message)? pending = _pendingError;
+        _pendingError = null;
+        if (pending is not null)
+        {
+            throw new GraphicsException($"[alco-gpu:{StatusKind(pending.Value.recordedStatus)}] {pending.Value.message}");
+        }
+
+        // Defensive fallback: a failure without a recorded callback message
+        // still carries the thread-local last error in the native library.
+        AlcoGPU.ErrorInfo info = default;
+        AlcoGpuRaw.GetLastError(ref info);
+        string text = info.Message != null ? BorrowedString(info.Message) ?? "<no native message>" : "<no native message>";
         throw new GraphicsException($"[alco-gpu:{StatusKind(status)}] {text}");
     }
 
