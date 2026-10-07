@@ -70,11 +70,11 @@ public static class FakeParallelToolFunctions
     }
 
     [AgentFunction(IsOnAgentThread = true)]
-    [Description("Tracks concurrency while sleeping on a thread pool thread")]
-    public static string Tracked(string id, int milliseconds)
+    [Description("Tracks concurrency while delaying on the thread pool without blocking a thread")]
+    public static async Task<string> Tracked(string id, int milliseconds)
     {
         Enter(id);
-        Thread.Sleep(milliseconds);
+        await Task.Delay(milliseconds);
         Exit(id);
         return id;
     }
@@ -89,10 +89,13 @@ public static class FakeParallelToolFunctions
     }
 
     [AgentFunction(IsOnAgentThread = true)]
-    [Description("Sleeps on a thread pool thread without tracking")]
-    public static string AgentSlow(int milliseconds)
+    [Description("Delays without blocking a thread pool thread")]
+    public static async Task<string> AgentSlow(int milliseconds)
     {
-        Thread.Sleep(milliseconds);
+        // Async delay on purpose: abandoned timeout invocations must not leave
+        // blocked pool threads behind, or starved CI runners can miss the
+        // session's timeout timer callbacks entirely.
+        await Task.Delay(milliseconds);
         return "slow-done";
     }
 
