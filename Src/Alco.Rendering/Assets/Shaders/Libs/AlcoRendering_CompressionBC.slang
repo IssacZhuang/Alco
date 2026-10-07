@@ -10,24 +10,27 @@
 #language slang 2025
 module AlcoRendering_CompressionBC;
 
-public half linearToSrgbBranchingChannel(half lin)
+// float (not half) throughout: the SPIR-V must validate on adapters without
+// shader-f16 support (software rasterizers like WARP); the 565/BC quantization
+// is far below float precision anyway.
+public float linearToSrgbBranchingChannel(float lin)
 {
     if (lin < 0.00313067)
         return lin * 12.92;
     return pow(lin, (1.0 / 2.4)) * 1.055 - 0.055;
 }
-public half3 linearToSrgbBranching(half3 lin)
+public float3 linearToSrgbBranching(float3 lin)
 {
-    return half3(
+    return float3(
 		linearToSrgbBranchingChannel(lin.r),
 		linearToSrgbBranchingChannel(lin.g),
 		linearToSrgbBranchingChannel(lin.b));
 }
 
-public half3 linearToSrgb(half3 lin)
+public float3 linearToSrgb(float3 lin)
 {
-	// Branching is faster than branchless on AMD on PC.
-	return linearToSrgbBranching(lin);
+    // Branching is faster than branchless on AMD on PC.
+    return linearToSrgbBranching(lin);
 }
 
 // Simple convert float3 color to 565 uint using 'round' arithmetic
