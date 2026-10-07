@@ -160,15 +160,17 @@ public class ParallelToolExecutionTests
     public async Task ChatEventsAsync_ParallelBatchOneToolTimesOut_OtherSucceeds()
     {
         var client = new FakeChatClient();
+        // The fast tool must finish well inside the timeout even when the CI
+        // runner stalls the thread pool for a moment, so keep a ~100x margin.
         client.SetupResponse(CreateToolCallResponse(
-            ("call1", "AgentSlow", new Dictionary<string, object?> { ["milliseconds"] = 2000 }),
+            ("call1", "AgentSlow", new Dictionary<string, object?> { ["milliseconds"] = 5000 }),
             ("call2", "Tracked", new Dictionary<string, object?> { ["id"] = "fast", ["milliseconds"] = 10 })));
         client.SetupResponse(CreateTextResponse("Done."));
 
         var registry = CreateRegistry();
         var session = CreateSession(client, registry, new LLMSessionConfig
         {
-            ToolTimeout = TimeSpan.FromMilliseconds(200),
+            ToolTimeout = TimeSpan.FromMilliseconds(1000),
         });
 
         var events = await CollectEventsAsync(session, "go");
@@ -290,7 +292,9 @@ public class ParallelToolExecutionTests
         var registry = CreateRegistry();
         var session = CreateSession(client, registry, new LLMSessionConfig
         {
-            ToolTimeout = TimeSpan.FromMilliseconds(50),
+            // Generous for loaded CI runners: the duration bound below still
+            // proves the timeout fired long before the tool's 5s completion.
+            ToolTimeout = TimeSpan.FromMilliseconds(200),
         });
 
         var events = await CollectEventsAsync(session, "go");

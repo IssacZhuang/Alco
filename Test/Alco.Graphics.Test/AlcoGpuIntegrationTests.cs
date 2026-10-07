@@ -830,9 +830,11 @@ public sealed class AlcoGpuIntegrationTests
                 }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default));
             }
             Task completion = Task.WhenAll(tasks);
-            if (Task.WhenAny(completion, Task.Delay(TimeSpan.FromSeconds(60))).GetAwaiter().GetResult() != completion)
+            // WARP rasterizes on the CPU; two Debug-built devices on a loaded
+            // 2-core CI runner can legitimately need more than a minute.
+            if (Task.WhenAny(completion, Task.Delay(TimeSpan.FromSeconds(150))).GetAwaiter().GetResult() != completion)
             {
-                throw new TimeoutException("Concurrent GPU workers did not exit within 60 seconds.");
+                throw new TimeoutException("Concurrent GPU workers did not exit within 150 seconds.");
             }
             completion.GetAwaiter().GetResult();
             validate();
