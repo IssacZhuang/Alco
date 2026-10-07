@@ -67,11 +67,13 @@ jobs:
 
     # Rebuild from source even on Windows so native changes cannot be hidden by a
     # committed DLL. Other RIDs also exercise the missing-library integration.
+    # No solution-level -r: the SDK rejects RID-specific solution builds (NETSDK1134);
+    # Directory.Build.props derives the matching RID from the runner OS.
     - name: Build
-      run: dotnet build --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }} -p:AlcoGpuBuildNative=true
-    
+      run: dotnet build --configuration ${{ matrix.configuration }} -p:AlcoGpuBuildNative=true
+
     - name: Test
-      run: dotnet test --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }} --no-build --no-restore --logger trx --results-directory "TestResults-${{ matrix.runtime }}-${{ matrix.configuration }}"
+      run: dotnet test --configuration ${{ matrix.configuration }} --no-build --no-restore --logger trx --results-directory "TestResults-${{ matrix.runtime }}-${{ matrix.configuration }}"
 
     - name: Upload dotnet test results
       uses: actions/upload-artifact@v4
