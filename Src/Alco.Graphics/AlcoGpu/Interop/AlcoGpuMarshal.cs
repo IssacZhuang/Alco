@@ -5,37 +5,20 @@ using System.Text;
 namespace Alco.Graphics.AlcoGpu.Interop;
 
 /// <summary>
-/// Marshals native failures into managed exceptions. The process-wide error
-/// callback registered by <see cref="AlcoGpuNative"/> records each failure,
-/// and the facade rethrows it as a <see cref="GraphicsException"/> once the
-/// native call has returned: throwing from inside the callback would have to
-/// unwind through native frames, which aborts the process on Unix runtimes.
+/// Marshals native failures into managed exceptions. Fallible native entries
+/// return a <see cref="AlcoGPU.Status"/> code; a failed call has recorded a
+/// fresh diagnostic in its thread-local last error, which this helper reads
+/// and throws as a <see cref="GraphicsException"/> once the call has
+/// returned — throwing from inside a native callback would unwind through
+/// native frames, which aborts the process on Unix runtimes.
 /// </summary>
 internal static unsafe class AlcoGpuMarshal
 {
-    /// <summary>Failure recorded by the error callback for the native call
-    /// currently in flight on this thread; consumed by the facade.</summary>
-    [ThreadStatic]
-    private static (uint Status, string Message)? _pendingError;
-
     /// <summary>
-    /// Native error callback: invoked synchronously by alco-gpu on the calling
-    /// thread when an entry point fails. Records the failure for the
-    /// <see cref="AlcoGpuNative"/> facade to throw after the call returns —
-    /// it must never throw through native frames.
-    /// </summary>
-    [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    internal static void OnNativeError(uint status, byte* message, void* userdata)
-    {
-        string text = BorrowedString(message) ?? "<no native message>";
-        _pendingError = (status, text);
-    }
-
-    /// <summary>
-    /// Returns <paramref name="status"/> for control-flow values and throws the
-    /// failure recorded during the call (falling back to the thread-local last
-    /// error) as a <see cref="GraphicsException"/>. Mirrors the native guard,
-    /// which fires the callback for every status except OK and NOT_READY.
+    /// Returns <paramref name="status"/> for control-flow values (OK and
+    /// NOT_READY) and throws any other status as a
+    /// <see cref="GraphicsException"/> carrying the message the failed call
+    /// recorded in the thread-local last error.
     /// </summary>
     /// <param name="status">Status returned by the native entry point.</param>
     /// <returns>The unchanged status code.</returns>
@@ -46,27 +29,17 @@ internal static unsafe class AlcoGpuMarshal
             return status;
         }
 
-        (uint recordedStatus, string message)? pending = _pendingError;
-        _pendingError = null;
-        if (pending is not null)
-        {
-            throw new GraphicsException($"[alco-gpu:{StatusKind(pending.Value.recordedStatus)}] {pending.Value.message}");
-        }
-
-        // Defensive fallback: a failure without a recorded callback message
-        // still carries the thread-local last error in the native library.
         AlcoGPU.ErrorInfo info = default;
         AlcoGpuRaw.GetLastError(ref info);
-        string text = info.Message != null ? BorrowedString(info.Message) ?? "<no native message>" : "<no native message>";
-        throw new GraphicsException($"[alco-gpu:{StatusKind(status)}] {text}");
+        string message = info.Message != null ? BorrowedString(info.Message) ?? "<no native message>" : "<no native message>";
+        throw new GraphicsException($"[alco-gpu:{StatusKind(status)}] {message}");
     }
 
     /// <summary>
     /// Native log callback: invoked synchronously by alco-gpu from inside
-    /// wgpu-core for every record at or below the configured level. Unlike
-    /// <see cref="OnNativeError"/> it must never throw — records fire through
-    /// native frames that do not permit unwinding — so failures of the
-    /// managed sink are swallowed here.
+    /// wgpu-core for every record at or below the configured level. It must
+    /// never throw — records fire through native frames that do not permit
+    /// unwinding — so failures of the managed sink are swallowed here.
     /// </summary>
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
     internal static void OnNativeLog(uint level, byte* message, void* userdata)

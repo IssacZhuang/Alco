@@ -1,36 +1,18 @@
-using System.Runtime.InteropServices;
-
 namespace Alco.Graphics.AlcoGpu.Interop;
 
 /// <summary>
 /// Managed facade over the raw alco-gpu P/Invoke surface. Every fallible entry
-/// returns a <see cref="AlcoGPU.Status"/> code; the process-wide error callback
-/// recorded during the call is rethrown here as a <see cref="GraphicsException"/>
-/// once control is back in managed code — the callback itself never throws,
-/// because managed exceptions cannot unwind through native frames on Unix
-/// runtimes (the process would abort instead).
+/// returns a <see cref="AlcoGPU.Status"/> code; failures are converted to
+/// <see cref="GraphicsException"/> by <see cref="AlcoGpuMarshal.ThrowIfFailure"/>
+/// once control is back in managed code, never from inside the native calls.
 /// </summary>
 internal static unsafe partial class AlcoGpuNative
 {
-    static AlcoGpuNative()
-    {
-        // Triggers AlcoGpuRaw's loader (native path probe + ABI version check)
-        // and installs the recording error callback before any call goes through.
-        AlcoGpuRaw.SetErrorCallback(&AlcoGpuMarshal.OnNativeError, null);
-    }
-
     public static uint AbiVersion() => AlcoGpuRaw.AbiVersion();
 
     public static void BuildInfo(ref AlcoGPU.BuildInfo info) => AlcoGpuRaw.BuildInfo(ref info);
 
     public static void GetLastError(ref AlcoGPU.ErrorInfo info) => AlcoGpuRaw.GetLastError(ref info);
-
-    /// <summary>
-    /// Registers the process-wide error callback; null unregisters. The
-    /// callback fires synchronously on the calling thread for every failure
-    /// status, with the message borrowed until the next failure on the same thread.
-    /// </summary>
-    public static void SetErrorCallback(delegate* unmanaged[Cdecl]<uint, byte*, void*, void> callback, void* userdata) => AlcoGpuRaw.SetErrorCallback(callback, userdata);
 
     /// <summary>
     /// Registers the process-wide native log callback (null unregisters) and
@@ -46,8 +28,7 @@ internal static unsafe partial class AlcoGpuNative
 
     /// <summary>
     /// Sets the maximum level forwarded to the native log callback; invalid
-    /// values throw <see cref="GraphicsException"/> through the error
-    /// callback.
+    /// values throw <see cref="GraphicsException"/>.
     /// </summary>
     public static uint SetLogLevel(uint level) =>
         AlcoGpuMarshal.ThrowIfFailure(AlcoGpuRaw.SetLogLevel(level));

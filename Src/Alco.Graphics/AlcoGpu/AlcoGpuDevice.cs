@@ -730,8 +730,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                     }
                     else
                     {
-                        // Failure statuses throw from the native error callback at the
-                        // poll call above; reaching here means the map succeeded.
+                        // Failure statuses throw from ThrowIfFailure at the poll
+                        // call above; reaching here means the map succeeded.
                         wasMapped = true;
                         void* pointer = GetMappedRange(readback.Buffer.Handle, readback.StagingDataSize);
                         CopyCompletedTextureReadback(readback.Destination, pointer, readback);
@@ -1139,7 +1139,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     /// native log callback. Unlike <see cref="PollMessages"/>,
     /// error-severity records do not throw: they can fire from the middle of
     /// a native operation where an unwind is undefined, and synchronous
-    /// failures already throw through the error callback.
+    /// failures already throw through the facade.
     /// </summary>
     /// <param name="level">The <see cref="AlcoGPU.LogLevel"/> of the record.</param>
     /// <param name="message">The record text.</param>

@@ -38,16 +38,6 @@ internal static unsafe partial class AlcoGpuRaw
     public static partial void GetLastError(ref AlcoGPU.ErrorInfo info);
 
     /// <summary>
-    /// Registers the process-wide error callback; null unregisters. The
-    /// callback fires synchronously on the calling thread for every failure
-    /// status, with the message borrowed until the next failure on the same thread.
-    /// </summary>
-    [LibraryImport(LibraryName, EntryPoint = "set_error_callback")]
-    public static partial void SetErrorCallback(
-        delegate* unmanaged[Cdecl]<uint, byte*, void*, void> callback,
-        void* userdata);
-
-    /// <summary>
     /// Registers the process-wide native log callback (null unregisters) and
     /// installs the native log forwarder on first use. Records fire
     /// synchronously from inside wgpu-core, so the callback must never throw;
@@ -63,8 +53,7 @@ internal static unsafe partial class AlcoGpuRaw
 
     /// <summary>
     /// Sets the maximum level forwarded to the native log callback; invalid
-    /// values throw <see cref="GraphicsException"/> through the error
-    /// callback.
+    /// values throw <see cref="GraphicsException"/>.
     /// </summary>
     [LibraryImport(LibraryName, EntryPoint = "set_log_level")]
     public static partial uint SetLogLevel(uint level);
