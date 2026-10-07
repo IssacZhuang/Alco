@@ -341,6 +341,9 @@ public class Game : GameEngine
     private readonly Vector3? _fixedCameraPosition;
     private readonly Vector3? _fixedCameraLook;
     private int _frameCount;
+    private RGNode_Capture? _screenshotCaptureNode;
+    private PngReadbackPipeline? _screenshotReadback;
+    private bool _screenshotArmed;
 
     private float _time;
 
@@ -716,19 +719,19 @@ public class Game : GameEngine
 
         // Bloom is a chain transform node on the pipeline's post chain;
         // registered before tonemap, so boosted emissive surfaces get
-        // a natural glow.
-        float bloomThreshold = float.TryParse(GetArgValue(args, "--bloom-threshold="), out float parsedBloomThreshold)
-            ? parsedBloomThreshold
-            : 1f;
-        float bloomIntensity = float.TryParse(GetArgValue(args, "--bloom-intensity="), out float parsedBloomIntensity)
-            ? parsedBloomIntensity
-            : 0.35f;
+        // a natural glow. The node keeps the factory's default tunables;
+        // CLI overrides land on the node, never the shared factory asset.
         var bloomFactory = LoadRenderNodeFactory<RGNodeFactory_Bloom>("RenderNodes/Bloom.rnfact");
         _bloom = bloomFactory.CreateNode<RGNode_Bloom>(nodeFactoryContext);
-        // CLI overrides land on the node, never the shared factory asset.
         _bloom.IsEnabled = !args.Contains("--no-bloom");
-        _bloom.Threshold = bloomThreshold;
-        _bloom.Intensity = bloomIntensity;
+        if (float.TryParse(GetArgValue(args, "--bloom-threshold="), out float bloomThreshold))
+        {
+            _bloom.Threshold = bloomThreshold;
+        }
+        if (float.TryParse(GetArgValue(args, "--bloom-intensity="), out float bloomIntensity))
+        {
+            _bloom.Intensity = bloomIntensity;
+        }
         _preset.Pipeline.Use(_bloom);
 
         // HDR tone mapping node (registered after bloom).
@@ -827,19 +830,18 @@ public class Game : GameEngine
         // G-buffer depth attachment.
         _forwardRenderer!.IsEnabled = _forwardRenderer.HasContent;
 
+        // Screenshot mode: arm the chain-tail capture before the render so the node's
+        // blit records into this frame's command buffer; the async readback and PNG
+        // encode then complete on the following frames.
+        if (_screenshotPath != null && !_screenshotArmed && _frameCount >= _screenshotFrames)
+        {
+            ArmScreenshot(_screenshotPath);
+        }
+
         // Render resolves the frame through the forward chain onto the swapchain.
         _preset.Pipeline.Render(MainPresenter.FrameBuffer);
 
-        // Capture here: after Render the forward render texture still holds the last
-        // completed frame's HDR image. Bloom is composited into the swapchain by the
-        // chain and is not part of the capture. Texture content streams in place, so
-        // a local scene is fully populated within the first few frames — pick
-        // --frames accordingly.
-        if (_screenshotPath != null && _frameCount >= _screenshotFrames)
-        {
-            CaptureScreenshot(_screenshotPath);
-            Stop();
-        }
+        PollScreenshot();
     }
 
     protected override void OnStop()
@@ -853,6 +855,7 @@ public class Game : GameEngine
         // ownership note on RGNode_GeometryPass/RGNode_ShadowPass): dispose them here.
         _gbufferRenderer.Dispose();
         _shadowRenderer.Dispose();
+        _screenshotReadback?.Dispose();
         _preset.Dispose();
         // The compiled materials live in the renderers' per-asset caches (weakly
         // held, following each asset's lifetime) and finalize themselves with
@@ -1360,49 +1363,75 @@ public class Game : GameEngine
     }
 
     /// <summary>
-    /// Read back the HDR scene texture, tonemap and save it as a PNG screenshot.
+    /// Arms the chain-tail screenshot: a <see cref="RGNode_Capture"/> is inserted before
+    /// the final blit and copies the fully post-processed frame (bloom and the chain's
+    /// tonemap included — the real presented look, not the raw HDR scene texture) into
+    /// its RGBA8 texture. The asynchronous readback and PNG encode then run on the
+    /// following frames via <see cref="PngReadbackPipeline"/>; the content is fully
+    /// populated within the first few frames — pick --frames accordingly.
     /// </summary>
-    private unsafe void CaptureScreenshot(string path)
+    private void ArmScreenshot(string path)
     {
-        Texture2D color = _preset.ForwardRenderTexture.ColorTextures[0];
-        int width = (int)color.Width;
-        int height = (int)color.Height;
-        int pixelCount = width * height;
+        _screenshotArmed = true;
+        _screenshotCaptureNode = new RGNode_Capture(
+            RenderingSystem,
+            _preset.Pipeline.Graph,
+            _preset.Pipeline.Chain,
+            _preset.Pipeline.BlitShader);
+        _preset.Pipeline.Use(_screenshotCaptureNode);
+        _screenshotReadback = new PngReadbackPipeline(GraphicsDevice);
+        _screenshotCaptureNode.Submit();
+    }
 
-        // The HDR scene texture is RGBA16Float.
-        var raw = new byte[pixelCount * 8];
-        fixed (byte* rawPointer = raw)
+    /// <summary>
+    /// Pumps the armed screenshot: submits the readback once the capture node's blit
+    /// has landed; the result is written and the sandbox stops from the completion
+    /// callback.
+    /// </summary>
+    private void PollScreenshot()
+    {
+        if (!_screenshotArmed)
         {
-            GraphicsDevice.ReadTexture(color.NativeTexture, rawPointer, (uint)raw.Length);
+            return;
         }
 
-        var rgba = new byte[pixelCount * 4];
-        for (int i = 0; i < pixelCount; i++)
+        if (_screenshotCaptureNode!.TryTakeCompleted())
         {
-            for (int c = 0; c < 4; c++)
+            if (!_screenshotReadback!.TryBeginRead(_screenshotCaptureNode.CaptureTexture, OnScreenshotCompleted, out RenderCaptureResult? beginFailure))
             {
-                ushort bits = BitConverter.ToUInt16(raw, (i * 4 + c) * 2);
-                float value = (float)BitConverter.UInt16BitsToHalf(bits);
-                // Reinhard tonemap + sRGB encode, matching what the eye expects.
-                value = value / (1.0f + value);
-                value = value <= 0.0031308f ? value * 12.92f : 1.055f * MathF.Pow(value, 1.0f / 2.4f) - 0.055f;
-                rgba[i * 4 + c] = (byte)Math.Clamp(value * 255.0f + 0.5f, 0, 255);
+                Console.WriteLine($"Screenshot failed: {beginFailure!.Error}");
+                Stop();
+                return;
             }
         }
 
-        byte[] png = ImageEncodeUtility.EncodePng(rgba, width, height);
-        File.WriteAllBytes(path, png);
-        Console.WriteLine($"Screenshot saved to {path}");
-        if (_voxelGI != null)
+        _screenshotReadback?.Pump();
+    }
+
+    /// <summary>Writes the finished capture to disk and stops the sandbox.</summary>
+    private void OnScreenshotCompleted(RenderCaptureResult result)
+    {
+        if (result.Success && result.PngBytes != null)
         {
-            VoxelGiStatistics statistics = _voxelGI.Statistics;
-            Console.WriteLine(
-                $"GI stats: static={statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks}, " +
-                $"dynamic={statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks}, " +
-                $"queued={statistics.PendingStaticBricks}, dropped={statistics.DroppedBricks}, " +
-                $"attribute={statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
-                $"radiance={statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1}MiB");
+            File.WriteAllBytes(_screenshotPath!, result.PngBytes);
+            Console.WriteLine($"Screenshot saved to {_screenshotPath}");
+            if (_voxelGI != null)
+            {
+                VoxelGiStatistics statistics = _voxelGI.Statistics;
+                Console.WriteLine(
+                    $"GI stats: static={statistics.StaticResidentBricks}/{statistics.StaticCapacityBricks}, " +
+                    $"dynamic={statistics.DynamicResidentBricks}/{statistics.DynamicCapacityBricks}, " +
+                    $"queued={statistics.PendingStaticBricks}, dropped={statistics.DroppedBricks}, " +
+                    $"attribute={statistics.AttributeMemoryBytes / (1024.0 * 1024.0):F1}MiB, " +
+                    $"radiance={statistics.RadianceMemoryBytes / (1024.0 * 1024.0):F1}MiB");
+            }
         }
+        else
+        {
+            Console.WriteLine($"Screenshot failed: {result.Error}");
+        }
+
+        Stop();
     }
 
     private void DrawImGuiPanel()

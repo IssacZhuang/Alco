@@ -1,0 +1,5 @@
+{
+    "Name": "Editor Demo",
+    "AssetsPaths": [ "DemoAssets" ],
+    "ReferencedAssets": [ "configs/game.json" ]
+}

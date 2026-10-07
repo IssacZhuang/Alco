@@ -47,7 +47,10 @@ public sealed class RenderGraph : AutoDisposable
 
     // The frame-shared command buffer: every node's passes are recorded into it and
     // submitted once at the end of Execute (see docs/RenderContext_Refactor.md).
+    // Shared between graphs only when the caller injected it (see the constructor):
+    // in that case this graph does not own or dispose it.
     private readonly RenderContext _sharedContext;
+    private readonly bool _ownsSharedContext;
 
     // Allocation-walk working sets, reused across frames (indices into _resources,
     // sorted by first touch; the still-live assignments with their last touch).
@@ -73,7 +76,13 @@ public sealed class RenderGraph : AutoDisposable
     /// <param name="width">The initial viewport width in pixels (drives graph-relative transient sizes).</param>
     /// <param name="height">The initial viewport height in pixels.</param>
     /// <param name="name">A diagnostic name for the graph.</param>
-    public RenderGraph(RenderingSystem rendering, uint width, uint height, string name = "unnamed_render_graph")
+    /// <param name="sharedContext">An externally owned render context to execute with
+    /// instead of a graph-private one, so consumers that bind to one context (e.g. a
+    /// canvas bound to a pipeline's context) work across several graphs. The graphs
+    /// sharing it must alternate frames: each <see cref="Execute"/> performs exactly
+    /// one frame open/submit on the context. The caller keeps ownership; the graph
+    /// never disposes it. When null, the graph creates and owns its context.</param>
+    public RenderGraph(RenderingSystem rendering, uint width, uint height, string name = "unnamed_render_graph", RenderContext? sharedContext = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         _rendering = rendering;
@@ -82,7 +91,16 @@ public sealed class RenderGraph : AutoDisposable
         _width = width;
         _height = height;
         _pool = new RenderGraphTexturePool(CreatePooledAttachment);
-        _sharedContext = rendering.CreateRenderContext(name + "_shared");
+        if (sharedContext != null)
+        {
+            _sharedContext = sharedContext;
+            _ownsSharedContext = false;
+        }
+        else
+        {
+            _sharedContext = rendering.CreateRenderContext(name + "_shared");
+            _ownsSharedContext = true;
+        }
         _context = new RenderGraphContext(rendering, null, _sharedContext);
     }
 
@@ -93,7 +111,8 @@ public sealed class RenderGraph : AutoDisposable
     /// The frame-shared context every node's passes are recorded into. Exposed so
     /// long-lived consumers (e.g. a canvas whose renderers bind a scope at construction)
     /// can attach to the same context the graph executes with. The graph owns its
-    /// lifecycle: never call its internal open/submit APIs or dispose it.
+    /// lifecycle (unless the context was shared in through the constructor): never
+    /// call its internal open/submit APIs or dispose it.
     /// </summary>
     public RenderContext RenderContext => _sharedContext;
 
@@ -767,7 +786,10 @@ public sealed class RenderGraph : AutoDisposable
             }
             _resources.Clear();
             _pool.Dispose();
-            _sharedContext.Dispose();
+            if (_ownsSharedContext)
+            {
+                _sharedContext.Dispose();
+            }
         }
     }
 }

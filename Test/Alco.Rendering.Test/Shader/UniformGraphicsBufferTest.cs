@@ -1,6 +1,5 @@
 using System.Numerics;
 using Alco.Graphics;
-using Alco.ShaderCompiler;
 #nullable enable
 
 using NUnit.Framework;

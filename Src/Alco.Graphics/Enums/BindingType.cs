@@ -1,25 +1,28 @@
 namespace Alco.Graphics;
 
 /// <summary>
-/// The binding type for the shader
+/// The kind of resource a bind-group entry declares, as the shader sees it.
 /// </summary>
 public enum BindingType
 {
+    /// <summary>
+    /// No binding type declared.
+    /// </summary>
     Undefined = 0,
     /// <summary>
-    /// The uniform buffer
+    /// Read-only uniform buffer.
     /// </summary>
     UniformBuffer = 1,
     /// <summary>
-    /// The storage buffer
+    /// Read-write storage buffer.
     /// </summary>
     StorageBuffer = 2,
     /// <summary>
-    /// The sampler for sampling textures
+    /// Texture sampler (filtering state).
     /// </summary>
     Sampler = 3,
     /// <summary>
-    /// The texture for sampling
+    /// Sampled (read-only) texture.
     /// </summary>
     Texture = 4,
     /// <summary>

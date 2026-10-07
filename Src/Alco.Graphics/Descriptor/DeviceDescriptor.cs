@@ -26,28 +26,37 @@ public struct DeviceDescriptor
         DisposeDelay = disposeDelay;
     }
     /// <summary>
-    /// The loop provider of the GPU
+    /// The application host that owns the device loop and receives logging and
+    /// lifetime events.
     /// </summary>
-    /// <value>The loop provider of the GPU</value>
     public IGPUDeviceHost Host { get; init; }
 
     /// <summary>
-    /// The backend of the GPU
+    /// The graphics backend to create the device on; Auto lets the runtime choose
+    /// per platform.
     /// </summary>
-    /// <value></value>
     public GraphicsBackend Backend { get; init; } = GraphicsBackend.Auto;
-    
+
     /// <summary>
-    /// Whether to enable the debug mode
+    /// Whether to enable debug validation and extra error reporting.
     /// </summary>
-    /// <value>Whether to enable the debug mode</value>
     public bool Debug { get; init; } = false;
     /// <summary>
     /// The size of the push constants buffer in bytes. Put 0 to disable.
-    /// </summary> 
+    /// </summary>
     public uint PushConstantsSize { get; init; } = 128;
-    
+
+    /// <summary>
+    /// How many frames a destroyed GPU object is kept alive before its native
+    /// resources are released, so in-flight frames can finish using it.
+    /// </summary>
     public uint DisposeDelay { get; init; } = 0;
+    /// <summary>
+    /// The texture format requested for swapchain surfaces.
+    /// </summary>
     public PixelFormat PreferredSurfaceFormat { get; init; } = PixelFormat.BGRA8Unorm;
+    /// <summary>
+    /// Diagnostic name of the device.
+    /// </summary>
     public string Name { get; init; } = "Alco Graphics Device";
 }

@@ -41,7 +41,7 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// Initializes a new instance of the <see cref="TextureCompressorBC3"/> class.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance.</param>
-    /// <param name="shader">The texture-compress-bc3 shader (MainCS&lt;let IsSRGB&gt;;
+    /// <param name="shader">The TextureCompressBc3 shader (MainCS&lt;let IsSRGB&gt;;
     /// the linear/sRGB dispatchers are its specializations).</param>
     /// <param name="defaultBufferSize">Initial capacity of the block staging buffer.</param>
     internal TextureCompressorBC3(RenderingSystem renderingSystem, Shader shader,
@@ -76,7 +76,7 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// </remarks>
     public bool TryCompress(Texture2D source, [NotNullWhen(true)] out Texture2D? texture)
     {
-        if (!_device.TextureCompressBC3Supported)
+        if (!_device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
         {
             texture = null;
             return false;
@@ -103,12 +103,12 @@ public sealed class TextureCompressorBC3 : AutoDisposable
     /// <remarks>
     /// This method performs BC3 compression using a compute shader.
     /// The resulting texture will have the same dimensions as the source but will use the BC3RGBAUnorm format.
-    /// An exception will be thrown if BC3 compression is not supported by the device. Use <see cref="GPUDevice.TextureCompressBC3Supported"/> to check for support
+    /// An exception will be thrown if BC3 compression is not supported by the device. Use <see cref="GPUDevice.IsFeatureSupported"/> with <see cref="GPUFeatures.TextureCompressionBC"/> to check for support
     /// or use <see cref="TryCompress"/> method to avoid exceptions.
     /// </remarks>
     public Texture2D Compress(Texture2D source)
     {
-        if (!_device.TextureCompressBC3Supported)
+        if (!_device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
         {
             throw new InvalidOperationException("Texture compression BC3 is not supported");
         }
@@ -156,6 +156,57 @@ public sealed class TextureCompressorBC3 : AutoDisposable
         _commandCopy.End();
         _device.Submit(_commandCopy);
 
+    }
+
+    /// <summary>
+    /// Compress the source texture on the GPU and read the BC3 blocks back to CPU
+    /// memory, without creating an intermediate block-compressed GPU texture.
+    /// </summary>
+    /// <param name="source">The source texture; both dimensions must be multiples of 4.</param>
+    /// <param name="destination">The destination span; must hold at least
+    /// <c>blocksX * blocksY * 16</c> bytes.</param>
+    /// <returns>The number of block bytes written (one uint4 per 4x4 block, row-major).</returns>
+    /// <exception cref="InvalidOperationException">BC compression is not supported by
+    /// the device, or the source dimensions are not multiples of 4.</exception>
+    /// <exception cref="ArgumentException">The destination span is too small.</exception>
+    public unsafe int CompressBlocks(Texture2D source, Span<byte> destination)
+    {
+        if (!_device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
+        {
+            throw new InvalidOperationException("Texture compression BC3 is not supported");
+        }
+
+        if (source.Width % 4 != 0 || source.Height % 4 != 0)
+        {
+            throw new InvalidOperationException("Texture width and height must be divisible by 4");
+        }
+
+        uint blocksX = source.Width / 4;
+        uint blocksY = source.Height / 4;
+        int byteCount = (int)(blocksX * blocksY * (uint)sizeof(uint4));
+
+        EnsureBufferSize(blocksX, blocksY);
+
+        _material.SetTexture(ShaderResourceId.Input, source);
+
+        _commandCompress.Begin();
+        using (var computePass = _commandCompress.BeginCompute())
+        {
+            _material.DispatchBySizeWithConstant(computePass, blocksX, blocksY, 1, new uint2(blocksX, blocksY));
+        }
+        _commandCompress.End();
+        _device.Submit(_commandCompress);
+
+        if (destination.Length < byteCount)
+        {
+            throw new ArgumentException($"The destination span holds {destination.Length} bytes but the compressed blocks need {byteCount}.");
+        }
+
+        fixed (byte* dest = destination)
+        {
+            _device.ReadBuffer(_blocks.NativeBuffer, dest, 0, (uint)byteCount);
+        }
+        return byteCount;
     }
 
     private void EnsureBufferSize(uint blocksX, uint blocksY)

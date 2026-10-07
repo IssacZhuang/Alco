@@ -7,7 +7,8 @@ namespace Alco.Graphics;
 public struct StencilFaceState
 {
     /// <summary>
-    /// Initializes a new instance of the StencilFaceState structure.
+    /// Initializes the face state with its stencil comparison and the operations
+    /// for each test outcome.
     /// </summary>
     /// <param name="compare">The comparison function used for stencil testing.</param>
     /// <param name="passOperation">The operation to perform when both stencil and depth tests pass.</param>

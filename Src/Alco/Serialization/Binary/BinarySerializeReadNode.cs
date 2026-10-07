@@ -269,6 +269,22 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <summary>
+    /// Reads a nullable unmanaged value; a missing key, a non-value payload or a
+    /// mismatched payload length all yield <c>null</c>.
+    /// </summary>
+    /// <typeparam name="T">The unmanaged value type to read.</typeparam>
+    /// <param name="key">The key identifier for the value in the serialization format.</param>
+    /// <returns>The nullable value, or <c>null</c> when the entry is absent or unreadable.</returns>
+    public override T? GetNullableValue<T>(string key)
+    {
+        if (_content.TryGetNullableValue(key, out T? value))
+        {
+            return value;
+        }
+        return null;
+    }
+
     public override T GetEnum<T>(string key, T @default = default)
     {
         if (_content.TryGetEnum(key, out T v))

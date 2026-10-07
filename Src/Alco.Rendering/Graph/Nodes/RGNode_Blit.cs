@@ -15,6 +15,7 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
     private readonly RenderChain _chain;
     private readonly Mesh _fullScreenMesh;
     private readonly GraphicsMaterial _blitMaterial;
+    private readonly Shader _blitShader;
 
     // The resource to blit, captured during Setup (it is the chain tail by the time
     // this node — registered last — runs its Setup).
@@ -48,7 +49,13 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
         _chain = chain;
         _fullScreenMesh = rendering.MeshFullScreen;
         _blitMaterial = rendering.CreateGraphicsMaterial(descriptor.BlitShader);
+        _blitShader = descriptor.BlitShader;
     }
+
+    /// <summary>The shader the plain copy draws with. Capture nodes
+    /// (<see cref="RGNode_Capture"/>) build their copy material from the same
+    /// shader, so a chain-tail capture matches the final blit's output.</summary>
+    public Shader BlitShader => _blitShader;
 
     /// <inheritdoc />
     public bool IsEnabled => _graph.HasDestinationThisFrame;

@@ -9,7 +9,7 @@ namespace Alco.Rendering;
 /// the mip chain stored in the file. Uncompressed DDS pixel formats are not supported.
 /// <br/>All methods are thread-safe (pure read-only span access, no allocations).
 /// </summary>
-internal static class DdsDecoder
+public static class DdsDecoder
 {
     /// <summary>The "DDS " file magic, little endian.</summary>
     private const uint Magic = 0x20534444;
@@ -44,7 +44,7 @@ internal static class DdsDecoder
     private const uint DxgiBc7UnormSrgb = 99;
 
     /// <summary>The BC compression family of a DDS pixel payload.</summary>
-    internal enum BcFamily
+    public enum BcFamily
     {
         BC1,
         BC2,
@@ -74,6 +74,7 @@ internal static class DdsDecoder
     /// decides because legacy headers carry no color space information; ignored for
     /// BC4-BC6H which have no sRGB variants.
     /// </param>
+    /// <param name="family">The BC compression family of the payload.</param>
     /// <param name="format">The engine pixel format matching the file's BC blocks.</param>
     /// <param name="width">Level-0 width in pixels.</param>
     /// <param name="height">Level-0 height in pixels.</param>
@@ -89,13 +90,14 @@ internal static class DdsDecoder
     public static void Decode(
         ReadOnlySpan<byte> data,
         bool srgb,
+        out BcFamily family,
         out PixelFormat format,
         out int width,
         out int height,
         out int mipLevels,
         out int dataOffset)
     {
-        ParseHeader(data, srgb, out BcFamily family, out format, out width, out height, out mipLevels, out dataOffset);
+        ParseHeader(data, srgb, out family, out format, out width, out height, out mipLevels, out dataOffset);
 
         // The file must hold the whole used mip chain.
         uint blockBytes = GetBlockBytes(family);

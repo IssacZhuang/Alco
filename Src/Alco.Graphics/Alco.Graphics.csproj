@@ -4,29 +4,212 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <UseVulkan>false</UseVulkan>
-    <UseWebGPU>true</UseWebGPU>
+    <UseAlcoGpu>true</UseAlcoGpu>
 
-    <DefineConstants Condition="'$(UseVulkan)' == 'true'">$(DefineConstants);USE_VULKAN</DefineConstants>
-    <DefineConstants Condition="'$(UseWebGPU)' == 'true'">$(DefineConstants);USE_WEBGPU</DefineConstants>
+    <DefineConstants Condition="'$(UseAlcoGpu)' == 'true'">$(DefineConstants);USE_ALCO_GPU</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Vulkan\**\*" Condition="'$(UseVulkan)' != 'true'" />
-    <Compile Remove="WGPU\**\*" Condition="'$(UseWebGPU)' != 'true'" />
+    <Compile Remove="AlcoGpu\**\*" Condition="'$(UseAlcoGpu)' != 'true'" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.Vulkan" Version="1.8.5" />
-    <PackageReference Condition="'$(UseVulkan)' == 'true'" Include="Vortice.VulkanMemoryAllocator" Version="1.4.3" />
+    <PackageReference Include="System.IO.Hashing" Version="9.0.0" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(UseWebGPU)' == 'true'">
-    <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
+  <ItemGroup>
+    <!-- Slang compiler natives; dxil.dll (DXC target validator) ships on Windows RIDs only.
+         The alco-gpu library is delivered separately by the IncludeAlcoGpuNative target. -->
+    <Content Include="$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\slang*;$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\libslang*">
       <Link>%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Pack>true</Pack>
+      <PackagePath>runtimes/$(RuntimeIdentifier)/native/</PackagePath>
+      <Visible>False</Visible>
+    </Content>
+    <!-- A literal include must not exist on non-Windows RIDs (MSB3030), so it is gated. -->
+    <Content Include="$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\dxil.dll"
+             Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Pack>true</Pack>
+      <PackagePath>runtimes/$(RuntimeIdentifier)/native/</PackagePath>
       <Visible>False</Visible>
     </Content>
   </ItemGroup>
+
+  <!-- Normalize source line endings so delivery fingerprints survive checkout
+       on another OS. Validate the library hash as well as its source fingerprint. -->
+  <UsingTask TaskName="AlcoGpuCheckDelivery" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <CrateDirectory ParameterType="System.String" Required="true" />
+      <Library ParameterType="System.String" Required="true" />
+      <SourceHash ParameterType="System.String" Output="true" />
+      <BinaryHash ParameterType="System.String" Output="true" />
+      <IsCurrent ParameterType="System.Boolean" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Using Namespace="System.Text" />
+      <Using Namespace="System.Security.Cryptography" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var files = new System.Collections.Generic.List<string>();
+        foreach (var relative in new[] { "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "build.rs", ".cargo/config.toml" })
+        {
+            var path = Path.Combine(CrateDirectory, relative);
+            if (File.Exists(path)) files.Add(relative);
+        }
+        var sourceDirectory = Path.Combine(CrateDirectory, "src");
+        if (Directory.Exists(sourceDirectory))
+        {
+            foreach (var path in Directory.GetFiles(sourceDirectory, "*.rs", SearchOption.AllDirectories))
+                files.Add(path.Substring(CrateDirectory.TrimEnd('/', '\\').Length + 1).Replace('\\', '/'));
+        }
+        files.Sort(StringComparer.Ordinal);
+        using (var sha = SHA256.Create())
+        {
+            var entries = new StringBuilder();
+            foreach (var relative in files)
+            {
+                var text = File.ReadAllText(Path.Combine(CrateDirectory, relative)).Replace("\r\n", "\n").Replace("\r", "\n");
+                var hash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(text))).Replace("-", "").ToLowerInvariant();
+                entries.Append(relative).Append('\0').Append(hash).Append('\n');
+            }
+            SourceHash = BitConverter.ToString(sha.ComputeHash(Encoding.UTF8.GetBytes(entries.ToString()))).Replace("-", "").ToLowerInvariant();
+            BinaryHash = "";
+            IsCurrent = false;
+            if (File.Exists(Library))
+            {
+                using (var stream = File.OpenRead(Library))
+                    BinaryHash = BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+                var stamp = Library + ".source.sha256";
+                if (File.Exists(stamp))
+                {
+                    var lines = File.ReadAllLines(stamp);
+                    IsCurrent = lines.Length == 2 && lines[0] == SourceHash && lines[1] == BinaryHash;
+                }
+            }
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <!-- Delivered binaries need no Rust installation. Opt in to source builds when
+       changing Rust code or validating the native layer in CI. -->
+  <PropertyGroup Condition="'$(UseAlcoGpu)' == 'true'">
+    <AlcoGpuBuildNative Condition="'$(AlcoGpuBuildNative)' == ''">false</AlcoGpuBuildNative>
+    <AlcoGpuCargoExecutable Condition="'$(AlcoGpuCargoExecutable)' == ''">cargo</AlcoGpuCargoExecutable>
+    <AlcoGpuCargoTargetDirectory Condition="'$(AlcoGpuCargoTargetDirectory)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(BaseIntermediateOutputPath)alco-gpu'))</AlcoGpuCargoTargetDirectory>
+    <_AlcoGpuCrateDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/../Alco.Graphics.Native/alco-gpu'))</_AlcoGpuCrateDirectory>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'win-x64'">x86_64-pc-windows-msvc</_AlcoGpuRustTarget>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'win-arm64'">aarch64-pc-windows-msvc</_AlcoGpuRustTarget>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'linux-x64'">x86_64-unknown-linux-gnu</_AlcoGpuRustTarget>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'linux-arm64'">aarch64-unknown-linux-gnu</_AlcoGpuRustTarget>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'osx-x64'">x86_64-apple-darwin</_AlcoGpuRustTarget>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">aarch64-apple-darwin</_AlcoGpuRustTarget>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'android-x64'">x86_64-linux-android</_AlcoGpuRustTarget>
+    <_AlcoGpuRustTarget Condition="'$(RuntimeIdentifier)' == 'android-arm64'">aarch64-linux-android</_AlcoGpuRustTarget>
+    <_AlcoGpuLibraryName Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">alco_gpu.dll</_AlcoGpuLibraryName>
+    <_AlcoGpuLibraryName Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(RuntimeIdentifier)' == 'linux-arm64' or '$(RuntimeIdentifier)' == 'android-x64' or '$(RuntimeIdentifier)' == 'android-arm64'">libalco_gpu.so</_AlcoGpuLibraryName>
+    <_AlcoGpuLibraryName Condition="'$(RuntimeIdentifier)' == 'osx-x64' or '$(RuntimeIdentifier)' == 'osx-arm64'">libalco_gpu.dylib</_AlcoGpuLibraryName>
+    <_AlcoGpuCommittedLibrary>$(MSBuildProjectDirectory)/runtimes/$(RuntimeIdentifier)/native/$(_AlcoGpuLibraryName)</_AlcoGpuCommittedLibrary>
+    <_AlcoGpuBuiltLibrary>$(AlcoGpuCargoTargetDirectory)/$(_AlcoGpuRustTarget)/release/$(_AlcoGpuLibraryName)</_AlcoGpuBuiltLibrary>
+    <_AlcoGpuNativeLibrary>$(_AlcoGpuBuiltLibrary)</_AlcoGpuNativeLibrary>
+  </PropertyGroup>
+
+  <!-- This target is also a toolchain-free way to inspect the RID mapping. -->
+  <Target Name="ResolveAlcoGpuNative" Condition="'$(UseAlcoGpu)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="'$(_AlcoGpuRustTarget)' == ''" Code="ALCOGPU001"
+           Text="Unsupported alco-gpu RuntimeIdentifier '$(RuntimeIdentifier)'. Select win-x64, win-arm64, linux-x64, linux-arm64, osx-x64, osx-arm64, android-x64 or android-arm64." />
+    <ItemGroup>
+      <_AlcoGpuNativeInputs Include="$(_AlcoGpuCrateDirectory)/Cargo.toml;$(_AlcoGpuCrateDirectory)/Cargo.lock;$(_AlcoGpuCrateDirectory)/rust-toolchain.toml;$(MSBuildProjectFullPath);$(_AlcoGpuCrateDirectory)/src/**/*.rs" />
+      <_AlcoGpuNativeInputs Include="$(_AlcoGpuCrateDirectory)/build.rs" Condition="Exists('$(_AlcoGpuCrateDirectory)/build.rs')" />
+      <_AlcoGpuNativeInputs Include="$(_AlcoGpuCrateDirectory)/.cargo/config.toml" Condition="Exists('$(_AlcoGpuCrateDirectory)/.cargo/config.toml')" />
+    </ItemGroup>
+    <AlcoGpuCheckDelivery CrateDirectory="$(_AlcoGpuCrateDirectory)" Library="$(_AlcoGpuCommittedLibrary)">
+      <Output TaskParameter="SourceHash" PropertyName="_AlcoGpuSourceHash" />
+      <Output TaskParameter="IsCurrent" PropertyName="_AlcoGpuDeliveryIsCurrent" />
+    </AlcoGpuCheckDelivery>
+    <PropertyGroup>
+      <_AlcoGpuNativeLibrary Condition="'$(AlcoGpuBuildNative)' != 'true' and '$(_AlcoGpuDeliveryIsCurrent)' == 'true'">$(_AlcoGpuCommittedLibrary)</_AlcoGpuNativeLibrary>
+      <_AlcoGpuNeedsBuild Condition="'$(_AlcoGpuNativeLibrary)' == '$(_AlcoGpuBuiltLibrary)'">true</_AlcoGpuNeedsBuild>
+    </PropertyGroup>
+    <AlcoGpuCheckDelivery CrateDirectory="$(_AlcoGpuCrateDirectory)" Library="$(_AlcoGpuBuiltLibrary)" Condition="'$(_AlcoGpuNeedsBuild)' == 'true'">
+      <Output TaskParameter="IsCurrent" PropertyName="_AlcoGpuBuiltIsCurrent" />
+    </AlcoGpuCheckDelivery>
+    <Message Importance="Normal" Condition="Exists('$(_AlcoGpuCommittedLibrary)') and '$(_AlcoGpuDeliveryIsCurrent)' != 'true'"
+             Text="The delivered alco-gpu library for $(RuntimeIdentifier) has missing/stale source or binary provenance; using a source build in obj. Refresh the native library and its .source.sha256 sidecar to build without Rust (Docs/AlcoGpuAbi.md)." />
+    <Message Importance="Normal" Text="alco-gpu: $(RuntimeIdentifier) -> $(_AlcoGpuRustTarget), $(_AlcoGpuNativeLibrary); source SHA256 $(_AlcoGpuSourceHash)" />
+  </Target>
+
+  <Target Name="PrepareAlcoGpuNativeBuild" DependsOnTargets="ResolveAlcoGpuNative"
+          Condition="'$(_AlcoGpuNeedsBuild)' == 'true'">
+    <!-- Invalidating the stamp also detects deleted sources or preserved timestamps. -->
+    <Delete Files="$(_AlcoGpuBuiltLibrary).source.sha256" Condition="'$(_AlcoGpuBuiltIsCurrent)' != 'true'" />
+  </Target>
+
+  <!-- Only locally built libraries track source timestamps. A fresh checkout with
+       a validated delivery must not require Cargo because git reset timestamps. -->
+  <Target Name="BuildAlcoGpuNative" DependsOnTargets="PrepareAlcoGpuNativeBuild"
+          Condition="'$(UseAlcoGpu)' == 'true' and '$(DesignTimeBuild)' != 'true' and '$(_AlcoGpuNeedsBuild)' == 'true'"
+          Inputs="@(_AlcoGpuNativeInputs)"
+          Outputs="$(_AlcoGpuBuiltLibrary);$(_AlcoGpuBuiltLibrary).source.sha256">
+    <Error Condition="!Exists('$(_AlcoGpuCrateDirectory)/Cargo.toml') or !Exists('$(_AlcoGpuCrateDirectory)/Cargo.lock')" Code="ALCOGPU002"
+           Text="Cannot build alco-gpu for $(RuntimeIdentifier): the native crate or Cargo.lock is missing from '$(_AlcoGpuCrateDirectory)'. Use a complete source checkout or supply '$(_AlcoGpuCommittedLibrary)'." />
+    <Exec Command="&quot;$(AlcoGpuCargoExecutable)&quot; --version" WorkingDirectory="$(_AlcoGpuCrateDirectory)"
+          EnvironmentVariables="RUSTUP_AUTO_INSTALL=0"
+          IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true">
+      <Output TaskParameter="ExitCode" PropertyName="_AlcoGpuCargoCheckExitCode" />
+    </Exec>
+    <Error Condition="'$(_AlcoGpuCargoCheckExitCode)' != '0'" Code="ALCOGPU003"
+           Text="Cannot build alco-gpu for $(RuntimeIdentifier): Cargo/Rust 1.97.1 is unavailable. Install Rust with rustup, run 'rustup target add --toolchain 1.97.1 $(_AlcoGpuRustTarget)', and install the target linker/SDK (see Docs/AlcoGpuAbi.md). Put cargo on PATH or set AlcoGpuCargoExecutable. A delivered '$(_AlcoGpuCommittedLibrary)' needs no Rust installation." />
+    <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'osx-x64' or '$(RuntimeIdentifier)' == 'osx-arm64'">
+      <_AlcoGpuMacDeploymentTarget>$(MACOSX_DEPLOYMENT_TARGET)</_AlcoGpuMacDeploymentTarget>
+      <_AlcoGpuMacDeploymentTarget Condition="'$(_AlcoGpuMacDeploymentTarget)' == ''">10.15</_AlcoGpuMacDeploymentTarget>
+      <_AlcoGpuCargoEnvironment>MACOSX_DEPLOYMENT_TARGET=$(_AlcoGpuMacDeploymentTarget);RUSTFLAGS=$(RUSTFLAGS) -C link-args=-Wl,-install_name,@rpath/libalco_gpu.dylib</_AlcoGpuCargoEnvironment>
+    </PropertyGroup>
+    <Message Importance="High" Text="Building alco-gpu for $(RuntimeIdentifier) ($(_AlcoGpuRustTarget)); requires installed Rust and a target linker/SDK." />
+    <Exec Command="&quot;$(AlcoGpuCargoExecutable)&quot; build --locked --release --target $(_AlcoGpuRustTarget) --target-dir &quot;$(AlcoGpuCargoTargetDirectory)&quot;"
+          WorkingDirectory="$(_AlcoGpuCrateDirectory)" EnvironmentVariables="RUSTUP_AUTO_INSTALL=0;$(_AlcoGpuCargoEnvironment)"
+          IgnoreExitCode="true" IgnoreStandardErrorWarningFormat="true">
+      <Output TaskParameter="ExitCode" PropertyName="_AlcoGpuCargoBuildExitCode" />
+    </Exec>
+    <Error Condition="'$(_AlcoGpuCargoBuildExitCode)' != '0'" Code="ALCOGPU004"
+           Text="Cargo failed to build alco-gpu for $(RuntimeIdentifier). See the Cargo output above; install Rust 1.97.1, run 'rustup target add --toolchain 1.97.1 $(_AlcoGpuRustTarget)', and configure the target linker/SDK. Windows needs MSVC C++ Build Tools and Windows SDK for the selected architecture; Linux needs a C linker/sysroot; macOS needs Xcode command-line tools; Android needs NDK API-21 clang. Cross-compilation needs the matching cross linker. See Docs/AlcoGpuAbi.md. No native library will be silently omitted." />
+    <Error Condition="!Exists('$(_AlcoGpuBuiltLibrary)')" Code="ALCOGPU005" Text="Cargo did not produce '$(_AlcoGpuBuiltLibrary)'. Check the native linker/SDK and Cargo output (Docs/AlcoGpuAbi.md)." />
+    <AlcoGpuCheckDelivery CrateDirectory="$(_AlcoGpuCrateDirectory)" Library="$(_AlcoGpuBuiltLibrary)">
+      <Output TaskParameter="SourceHash" PropertyName="_AlcoGpuBuiltSourceHash" />
+      <Output TaskParameter="BinaryHash" PropertyName="_AlcoGpuBuiltBinaryHash" />
+    </AlcoGpuCheckDelivery>
+    <WriteLinesToFile File="$(_AlcoGpuBuiltLibrary).source.sha256" Lines="$(_AlcoGpuBuiltSourceHash);$(_AlcoGpuBuiltBinaryHash)" Overwrite="true" />
+    <Touch Files="$(_AlcoGpuBuiltLibrary)" />
+  </Target>
+
+  <Target Name="ReportAlcoGpuPackageRid" BeforeTargets="_GetPackageFiles"
+          Condition="'$(UseAlcoGpu)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Message Importance="High" Text="Packing alco-gpu for selected RID $(RuntimeIdentifier) only; other RID libraries are not included." />
+  </Target>
+
+  <!-- Add Content after Cargo runs, before output/publish path assignment and
+       NuGet collection, including packing and publishing without a managed build. -->
+  <Target Name="IncludeAlcoGpuNative" BeforeTargets="AssignTargetPaths;_GetPackageFiles"
+          DependsOnTargets="ResolveAlcoGpuNative;BuildAlcoGpuNative"
+          Condition="'$(UseAlcoGpu)' == 'true' and '$(DesignTimeBuild)' != 'true'">
+    <Error Condition="!Exists('$(_AlcoGpuNativeLibrary)')" Code="ALCOGPU005"
+           Text="The required alco-gpu library '$(_AlcoGpuNativeLibrary)' was not produced for $(RuntimeIdentifier). Check the native toolchain and Cargo output (Docs/AlcoGpuAbi.md)." />
+    <ItemGroup>
+      <Content Include="$(_AlcoGpuNativeLibrary)">
+        <Link>$(_AlcoGpuLibraryName)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <Pack>true</Pack>
+        <PackagePath>runtimes/$(RuntimeIdentifier)/native/</PackagePath>
+        <Visible>False</Visible>
+      </Content>
+    </ItemGroup>
+  </Target>
 
 </Project>

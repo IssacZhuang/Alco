@@ -1,7 +1,14 @@
 namespace Alco.Graphics;
 
+/// <summary>
+/// Declares the depth-stencil attachment of a frame buffer layout: its format,
+/// clear values and whether it is read-only during passes.
+/// </summary>
 public struct DepthAttachment
 {
+    /// <summary>
+    /// Initializes the attachment with a format and depth/stencil clear values.
+    /// </summary>
     public DepthAttachment(PixelFormat format, float clearDepth = 1.0f, uint clearStencil = 0)
     {
         Format = format;
@@ -10,8 +17,17 @@ public struct DepthAttachment
         ReadOnly = false;
     }
 
+    /// <summary>
+    /// The texel format of the attachment.
+    /// </summary>
     public PixelFormat Format { get; set; }
+    /// <summary>
+    /// The depth value the attachment is cleared to at pass start.
+    /// </summary>
     public float ClearDepth { get; init; } = 1.0f;
+    /// <summary>
+    /// The stencil value the attachment is cleared to at pass start.
+    /// </summary>
     public uint ClearStencil { get; init; } = 0;
 
     /// <summary>
@@ -24,7 +40,6 @@ public struct DepthAttachment
     /// </summary>
     public bool ReadOnly { get; init; }
 
-    //override operator == and !=
     public static bool operator ==(DepthAttachment left, DepthAttachment right)
     {
         return left.Equals(right);

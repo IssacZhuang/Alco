@@ -266,6 +266,144 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
+    /// The <see cref="DrawIndexedIndirect{T}"/> variant for materials without push constants:
+    /// draws a mesh with the draw arguments read from an indirect buffer, pushing nothing. The
+    /// record at <paramref name="indirectOffset"/> must follow the
+    /// <see cref="Alco.Graphics.IndexedIndirectData"/> layout; the shader still fetches instance
+    /// data by instance id, offset by the record's firstInstance field. Available while
+    /// recording render bundles, so bundles recorded against a persistent indirect buffer replay
+    /// whatever the buffer holds at execute time.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from the indirect record).</param>
+    /// <param name="material">The material to use for drawing; its pipeline must declare no push constants.</param>
+    /// <param name="indirectBuffer">The buffer holding the indirect draw record.</param>
+    /// <param name="indirectOffset">The byte offset of the record in the indirect buffer.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void DrawIndexedIndirect(in Mesh mesh, in GraphicsMaterial material, GraphicsBuffer indirectBuffer, uint indirectOffset, in int subMeshIndex = 0)
+    {
+        ThrowIfInactive();
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
+        if (pipelineContext.PushConstantsSize > 0)
+        {
+            throw new InvalidOperationException($"The material's pipeline requires {pipelineContext.PushConstantsSize} bytes of push constants; use the generic {nameof(DrawIndexedIndirect)} overload.");
+        }
+        SetPipeline(pipelineContext.Pipeline!);
+        SetMesh(mesh, subMeshIndex);
+        PushResources(material);
+        if (_bundle != null)
+        {
+            _bundle.DrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset);
+        }
+        else
+        {
+            _pass.DrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset);
+        }
+    }
+
+    /// <summary>
+    /// Draws many sub-draws of one mesh with one command: the multi-draw indirect
+    /// records (one <see cref="Alco.Graphics.IndexedIndirectData"/> per sub-draw,
+    /// 20-byte stride) are read consecutively from <paramref name="indirectBuffer"/>
+    /// starting at <paramref name="indirectOffset"/>. Every record's firstInstance
+    /// field addresses <paramref name="drawDataBuffer"/>, the per-draw instance-step
+    /// vertex buffer (vertex slot 1) the vertex shader's "drawData" input fetches
+    /// through — all sub-draws share the bound pipeline, mesh and material, so the
+    /// batch must be homogeneous by material. Backends without multi-draw support
+    /// fall back to one indexed-indirect draw per record.
+    /// </summary>
+    /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from each indirect record).</param>
+    /// <param name="material">The material of every sub-draw.</param>
+    /// <param name="indirectBuffer">The buffer holding the consecutive indirect draw records.</param>
+    /// <param name="indirectOffset">The byte offset of the first record.</param>
+    /// <param name="drawCount">The number of consecutive records.</param>
+    /// <param name="drawDataBuffer">The per-draw instance-step vertex buffer (bound at vertex slot 1).</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void MultiDrawIndexedIndirect(
+        in Mesh mesh,
+        in GraphicsMaterial material,
+        GraphicsBuffer indirectBuffer,
+        uint indirectOffset,
+        uint drawCount,
+        GraphicsBuffer drawDataBuffer,
+        in int subMeshIndex = 0)
+    {
+        ThrowIfInactive();
+        ThrowIfBundle(nameof(MultiDrawIndexedIndirect));
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
+        SetPipeline(pipelineContext.Pipeline!);
+        SetMesh(mesh, subMeshIndex);
+        SetDrawDataBuffer(drawDataBuffer);
+        PushResources(material);
+        _pass.MultiDrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset, drawCount);
+    }
+
+    /// <summary>
+    /// The <see cref="MultiDrawIndexedIndirect(in Mesh, in GraphicsMaterial, GraphicsBuffer, uint, uint, GraphicsBuffer, in int)"/>
+    /// variant without a draw-data buffer: the per-draw identity travels through each
+    /// record's firstInstance field instead, which the vertex stage reads with the
+    /// Vulkan-semantic instance-id builtin (SV_VulkanInstanceID — absolute, unlike
+    /// the D3D12-semantic per-draw counter). For consumers whose sub-draw identity
+    /// needs no per-draw vertex fetch, e.g. <c>GpuTrailSystem2D</c> (Alco.Effects).
+    /// </summary>
+    /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from each indirect record).</param>
+    /// <param name="material">The material of every sub-draw.</param>
+    /// <param name="indirectBuffer">The buffer holding the consecutive indirect draw records.</param>
+    /// <param name="indirectOffset">The byte offset of the first record.</param>
+    /// <param name="drawCount">The number of consecutive records.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void MultiDrawIndexedIndirect(
+        in Mesh mesh,
+        in GraphicsMaterial material,
+        GraphicsBuffer indirectBuffer,
+        uint indirectOffset,
+        uint drawCount,
+        in int subMeshIndex = 0)
+    {
+        ThrowIfInactive();
+        ThrowIfBundle(nameof(MultiDrawIndexedIndirect));
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
+        SetPipeline(pipelineContext.Pipeline!);
+        SetMesh(mesh, subMeshIndex);
+        PushResources(material);
+        _pass.MultiDrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset, drawCount);
+    }
+
+    /// <summary>
+    /// Draws many sub-draws of one mesh with one command and one shared push
+    /// constant (per-draw data must travel through the draw-data buffer, see
+    /// <see cref="MultiDrawIndexedIndirect"/>).
+    /// </summary>
+    /// <typeparam name="T">The type of the constant data.</typeparam>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="material">The material of every sub-draw.</param>
+    /// <param name="indirectBuffer">The buffer holding the consecutive indirect draw records.</param>
+    /// <param name="indirectOffset">The byte offset of the first record.</param>
+    /// <param name="drawCount">The number of consecutive records.</param>
+    /// <param name="drawDataBuffer">The per-draw instance-step vertex buffer (bound at vertex slot 1).</param>
+    /// <param name="constant">The constant data shared by every sub-draw.</param>
+    /// <param name="subMeshIndex">The index of the sub-mesh to draw. Default is 0.</param>
+    public void MultiDrawIndexedIndirectWithConstant<T>(
+        in Mesh mesh,
+        in GraphicsMaterial material,
+        GraphicsBuffer indirectBuffer,
+        uint indirectOffset,
+        uint drawCount,
+        GraphicsBuffer drawDataBuffer,
+        in T constant,
+        in int subMeshIndex = 0) where T : unmanaged
+    {
+        ThrowIfInactive();
+        ThrowIfBundle(nameof(MultiDrawIndexedIndirectWithConstant));
+        GraphicsPipelineContext pipelineContext = material.GetPipelineContext(CurrentLayout);
+        SetPipeline(pipelineContext.Pipeline!);
+        SetMesh(mesh, subMeshIndex);
+        SetDrawDataBuffer(drawDataBuffer);
+        PushResources(material);
+        PushConstantSafe(constant, pipelineContext.PushConstantsSize);
+        _pass.MultiDrawIndexedIndirect(indirectBuffer.NativeBuffer, indirectOffset, drawCount);
+    }
+
+    /// <summary>
     /// Executes the commands recorded in the <see cref="SubRenderContext"/>.
     /// Not available while recording a render bundle (bundles cannot be nested).
     /// </summary>
@@ -423,6 +561,13 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
         _indexCount = _bundle != null
             ? _bundle.SetMesh(mesh, subMeshIndex)
             : _pass.SetMesh(mesh, subMeshIndex);
+    }
+
+    /// <summary>Binds the per-draw instance-step vertex buffer at vertex slot 1.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SetDrawDataBuffer(GraphicsBuffer drawDataBuffer)
+    {
+        _pass.SetVertexBuffer(1, drawDataBuffer.NativeBuffer);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

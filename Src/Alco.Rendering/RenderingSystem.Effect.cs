@@ -4,9 +4,17 @@ namespace Alco.Rendering;
 
 public partial class RenderingSystem
 {
-    public Bloom CreateBloom(Shader blitShader, Shader clampShader, Shader downSampleShader, Shader upSampleShader, uint targetDownSampleHeight)
+    /// <summary>
+    /// Creates a sum-of-gaussians bloom processor.
+    /// </summary>
+    /// <param name="blitShader">The additive composite shader.</param>
+    /// <param name="setupShader">The threshold setup shader.</param>
+    /// <param name="downsampleShader">The downsample chain shader.</param>
+    /// <param name="gaussianShader">The separable gaussian stage shader.</param>
+    /// <returns>A new bloom processor instance.</returns>
+    public Bloom CreateBloom(Shader blitShader, Shader setupShader, Shader downsampleShader, Shader gaussianShader)
     {
-        return new Bloom(this, blitShader, clampShader, downSampleShader, upSampleShader, targetDownSampleHeight);
+        return new Bloom(this, blitShader, setupShader, downsampleShader, gaussianShader);
     }
 
     public GaussianBlur CreateGaussianBlur(ComputeMaterial material, int kernelSizeX, int kernelSizeY, ReadOnlySpan<float> kernel)
@@ -27,8 +35,9 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a new FXAA (Fast Approximate Anti-Aliasing) post-processing effect
-    /// from the fxaa module: each quality preset resolves as its own generic
-    /// value specialization (MainPS&lt;let Quality : int&gt;).
+    /// from the fxaa module: each (quality, mode) pair resolves as its own
+    /// generic value specialization (MainPS&lt;let Quality : int,
+    /// let Mode : int&gt;).
     /// </summary>
     /// <param name="blitShader">The blit shader to use for copying the result to the final target</param>
     /// <param name="fxaaModule">The fxaa module library.</param>

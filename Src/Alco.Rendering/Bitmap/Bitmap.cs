@@ -115,6 +115,33 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         _data.AsSpan().Fill(value);
     }
 
+    /// <summary>
+    /// Sets all pixels in the specified rectangular region to the given value, filling row by row.
+    /// </summary>
+    /// <param name="x">The x origin of the region (inclusive).</param>
+    /// <param name="y">The y origin of the region (inclusive).</param>
+    /// <param name="width">The width of the region.</param>
+    /// <param name="height">The height of the region.</param>
+    /// <param name="value">The value to set for all pixels in the region.</param>
+    public void Fill(int x, int y, int width, int height, T value)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(x);
+        ArgumentOutOfRangeException.ThrowIfNegative(y);
+        ArgumentOutOfRangeException.ThrowIfNegative(width);
+        ArgumentOutOfRangeException.ThrowIfNegative(height);
+        if (x + width > Width || y + height > Height)
+        {
+            throw new ArgumentOutOfRangeException($"The region ({x}, {y}, {width}, {height}) exceeds the bitmap size ({Width}, {Height})");
+        }
+
+        T* data = _data.UnsafePointer;
+        for (int row = 0; row < height; row++)
+        {
+            T* line = data + (long)(y + row) * Width + x;
+            new Span<T>(line, width).Fill(value);
+        }
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set(int x, int y, T value)
     {

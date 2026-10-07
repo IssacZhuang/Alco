@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>_38_SmokeTrail</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.Effects\Alco.Effects.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.World3D\Alco.World3D.csproj" />
+    <ProjectReference Include="..\..\Sandbox\~SandboxUtils\~SandboxUtils.csproj" />
+  </ItemGroup>
+</Project>

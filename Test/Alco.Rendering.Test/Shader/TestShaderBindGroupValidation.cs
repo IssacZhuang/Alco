@@ -1,6 +1,5 @@
 using Alco.Graphics;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 using NUnit.Framework;
 
 namespace Alco.Rendering.Test;

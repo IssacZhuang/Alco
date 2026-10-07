@@ -99,6 +99,11 @@ internal class NoCommandBuffer : GPUCommandBuffer
         
     }
 
+    protected override void MultiDrawIndexedIndirectCore(GPUBuffer indirectBuffer, uint offset, uint drawCount)
+    {
+        
+    }
+
     protected override void DrawIndirectCore(GPUBuffer indirectBuffer, uint offset)
     {
         

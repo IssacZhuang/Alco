@@ -2,7 +2,6 @@ using System.Numerics;
 using NUnit.Framework;
 using Alco.Graphics;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 using Alco.World3D;
 
 namespace Alco.Rendering.Test;

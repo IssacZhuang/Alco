@@ -5,7 +5,6 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 
 public class Game : GameEngine
 {

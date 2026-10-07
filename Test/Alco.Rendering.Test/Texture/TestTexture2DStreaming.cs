@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO;
 using Alco.Graphics;
 using NUnit.Framework;
 
@@ -9,7 +10,8 @@ namespace Alco.Rendering.Test;
 // texture at the file-dictated specification and UploadTexture2DContent uploads the
 // decoded content in place, so the texture's identity never changes. Runs on the
 // NoGPU device: specification and identity are verifiable, pixel content is not
-// (NoTexture discards writes).
+// (NoTexture discards writes). The NoGPU device reports no BC support, so the DDS
+// tests cover the CPU fallback path; BcCapableNoDevice covers the verbatim BC path.
 // ─────────────────────────────────────────────────────────────────────────────
 [TestFixture]
 public class TestTexture2DStreaming
@@ -52,7 +54,7 @@ public class TestTexture2DStreaming
     }
 
     [Test]
-    public void CreateFromHeader_Dds_UsesFileSpecOverOption()
+    public void CreateFromHeader_Dds_WithoutBcSupport_FallsBackToRgba()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
@@ -61,6 +63,26 @@ public class TestTexture2DStreaming
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
         Assert.That(info.MipLevels, Is.EqualTo(2));
+
+        using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+
+        // The NoGPU device has no BC support: the texture pre-creates as
+        // uncompressed RGBA8 with a single level (the fallback decodes level 0).
+        Assert.That(texture.Width, Is.EqualTo(8));
+        Assert.That(texture.Height, Is.EqualTo(8));
+        Assert.That(texture.MipLevels, Is.EqualTo(1));
+        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
+    }
+
+    [Test]
+    public void CreateFromHeader_Dds_WithBcSupport_UsesFileSpec()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: new BcCapableNoDevice());
+        RenderingSystem rendering = host.RenderingSystem;
+
+        // 8x8 BC1, header claims 3 levels but only 8x8 and 4x4 are block-aligned.
+        byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
 
         using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
 
@@ -87,7 +109,7 @@ public class TestTexture2DStreaming
     }
 
     [Test]
-    public void UploadContent_Dds_UploadsMipChainKeepsIdentity()
+    public void UploadContent_Dds_WithoutBcSupport_DecodesLevel0AndMarksLoaded()
     {
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
@@ -95,10 +117,33 @@ public class TestTexture2DStreaming
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
         using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
+        Assert.That(texture.IsContentLoaded, Is.False);
+        GPUTexture native = texture.NativeTexture;
+
+        // The NoGPU device has no BC support: the upload decodes level 0 to RGBA8
+        // (NoTexture discards the write, so only spec and identity are verifiable).
+        Assert.DoesNotThrow(() => rendering.UploadTexture2DContent(texture, data));
+
+        Assert.That(texture.IsContentLoaded, Is.True);
+        Assert.That(texture.NativeTexture, Is.SameAs(native));
+    }
+
+    [Test]
+    public void UploadContent_Dds_WithBcSupport_UploadsMipChainKeepsIdentity()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: new BcCapableNoDevice());
+        RenderingSystem rendering = host.RenderingSystem;
+
+        byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
+        using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.BC1RGBAUnorm));
         GPUTexture native = texture.NativeTexture;
 
         Assert.DoesNotThrow(() => rendering.UploadTexture2DContent(texture, data));
 
+        Assert.That(texture.IsContentLoaded, Is.True);
         Assert.That(texture.NativeTexture, Is.SameAs(native));
     }
 
@@ -132,9 +177,10 @@ public class TestTexture2DStreaming
     }
 
     /// <summary>
+    /// <summary>
     /// A read-only stream over bytes that records disposal — the streaming contract
-    /// disposes the stream when the upload task finishes, which is how tests observe
-    /// completion without any state on the texture.
+    /// disposes the stream when the upload task finishes, which cross-checks the
+    /// texture's own ContentArrival completion signal.
     /// </summary>
     private sealed class TrackingStream : MemoryStream
     {
@@ -182,5 +228,51 @@ public class TestTexture2DStreaming
         // Probe failure left the stream ownership with the caller.
         Assert.That(stream.Disposed, Is.False);
         Assert.DoesNotThrow(() => stream.Dispose());
+    }
+
+    [Test]
+    public void CreateFromHeader_Png_ContentNotLoadedUntilUpload()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+
+        byte[] data = LoadTestFile("Png", "basn6a08.png");
+        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
+        using Texture2D texture = rendering.CreateTexture2DFromHeader(info);
+
+        // Header-created textures await their content; no upload task is attached,
+        // so ContentArrival is already completed and carries no information.
+        Assert.That(texture.IsContentLoaded, Is.False);
+        Assert.That(texture.ContentArrival.IsCompleted, Is.True);
+
+        rendering.UploadTexture2DContent(texture, data);
+        Assert.That(texture.IsContentLoaded, Is.True);
+    }
+
+    [Test]
+    public void CreateFromColor_ReportsContentLoadedByDefault()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+
+        using Texture2D texture = rendering.CreateTexture2D(4, 4, Color32.White);
+
+        // Textures created with their content are loaded from the start.
+        Assert.That(texture.IsContentLoaded, Is.True);
+        Assert.That(texture.ContentArrival.IsCompleted, Is.True);
+    }
+
+    [Test]
+    public void CreateStreaming_Png_ContentArrivalCompletesAndMarksContentLoaded()
+    {
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+
+        byte[] data = LoadTestFile("Png", "basn6a08.png");
+        using Texture2D texture = rendering.CreateTexture2DStreaming(new MemoryStream(data));
+
+        Assert.That(texture.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        Assert.That(texture.ContentArrival.IsCompletedSuccessfully, Is.True);
+        Assert.That(texture.IsContentLoaded, Is.True);
     }
 }

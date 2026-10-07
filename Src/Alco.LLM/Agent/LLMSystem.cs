@@ -1,16 +1,17 @@
 using System;
-using System.Collections.Concurrent;
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
+using Alco.AgentControlProtocol;
 using Alco.Engine;
 
 namespace Alco.LLM;
 
 /// <summary>
-/// Engine system that provides main-thread marshaling for tool function invocations.
-/// Drains the <see cref="ToolRegistry"/> main thread queue on each tick.
+/// Factory for in-process LLM agents: provides the agent-facing JSON options and
+/// creates <see cref="LLMAgent"/> instances that share an external
+/// <see cref="ToolRegistry"/> — typically the one owned by the agent control host,
+/// whose main-thread queue is drained there.
 /// </summary>
-public class LLMSystem : BaseEngineSystem
+public sealed class LLMSystem
 {
     private readonly JsonSerializerOptions _jsonOptions;
     private ToolRegistry? _registry;
@@ -21,8 +22,10 @@ public class LLMSystem : BaseEngineSystem
     public JsonSerializerOptions JsonOptions => _jsonOptions;
 
     /// <summary>
-    /// Gets or sets the tool registry whose main thread queue is drained on each tick.
-    /// Set after the LLM agent is created.
+    /// Gets or sets the tool registry shared by created agents. Set to the agent
+    /// control host's registry so a single main-thread queue backs both the HTTP API
+    /// and in-process agents; when left unset, <see cref="CreateAgent"/> builds one
+    /// from the options.
     /// </summary>
     public ToolRegistry? Registry
     {
@@ -36,51 +39,24 @@ public class LLMSystem : BaseEngineSystem
     /// <param name="engine">The game engine used to create JSON converters for engine types.</param>
     public LLMSystem(GameEngine engine)
     {
-        _jsonOptions = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
-        };
-
-        foreach (var converter in engine.CreateDefaultJsonConverters())
-        {
-            _jsonOptions.Converters.Add(converter);
-        }
+        ArgumentNullException.ThrowIfNull(engine);
+        _jsonOptions = engine.CreateAgentJsonOptions();
     }
 
     /// <summary>
-    /// Creates an LLMAgent with the specified options.
-    /// The agent's registry reference is wired up for main-thread queue draining.
+    /// Creates an LLMAgent with the specified options, reusing the shared registry
+    /// when one is set (see <see cref="Registry"/>) so agents and the agent control
+    /// API share a single tool set.
     /// </summary>
     /// <param name="options">The options for creating the agent.</param>
     /// <returns>A new instance of <see cref="LLMAgent"/>.</returns>
     public LLMAgent CreateAgent(LLMAgentOptions options)
     {
-        // Reuse the shared registry (built once by the engine) so the HTTP API and the chat agent
-        // share a single main-thread queue that this system drains each tick. Fall back to building
-        // one from the options if no shared registry was provided.
-        if (_registry == null)
-        {
-            _registry = new ToolRegistry(
-                options.ToolTypes ?? Array.Empty<Type>(),
-                options.ToolInstances,
-                _jsonOptions);
-        }
+        _registry ??= new ToolRegistry(
+            options.ToolTypes ?? Array.Empty<Type>(),
+            options.ToolInstances,
+            _jsonOptions);
 
         return LLMAgent.Create(options, _jsonOptions, _registry);
-    }
-
-    /// <inheritdoc/>
-    public override void OnTick(float delta)
-    {
-        if (_registry != null)
-        {
-            _registry.DrainMainThreadQueue();
-        }
-    }
-
-    /// <inheritdoc/>
-    public override void Dispose()
-    {
     }
 }

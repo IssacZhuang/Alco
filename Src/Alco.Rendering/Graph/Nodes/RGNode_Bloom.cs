@@ -1,11 +1,13 @@
 
+using System.Numerics;
 using Alco.Graphics;
 
 namespace Alco.Rendering;
 
 /// <summary>
-/// Chain transform node that adds a bloom glow: the input is first copied into the
-/// output, then the bloom pyramid is composited additively on top.
+/// Chain transform node that adds a sum-of-gaussians bloom: the input
+/// is first copied into the output, then the bloom pyramid is composited
+/// additively on top, before tone mapping.
 /// </summary>
 public sealed class RGNode_Bloom : RGNode_ChainTransform
 {
@@ -14,7 +16,8 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
     private readonly GraphicsMaterial _blitMaterial;
 
     /// <summary>
-    /// Only pixels above this brightness contribute to the bloom effect.
+    /// The brightness cutoff of the bloom setup pass; negative values disable
+    /// the threshold so the whole image blooms.
     /// </summary>
     public float Threshold
     {
@@ -23,16 +26,7 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
     }
 
     /// <summary>
-    /// How far the bloom spreads across the pyramid.
-    /// </summary>
-    public float Spread
-    {
-        get => _bloom.Spread;
-        set => _bloom.Spread = value;
-    }
-
-    /// <summary>
-    /// The final output strength of the bloom effect.
+    /// The overall bloom strength.
     /// </summary>
     public float Intensity
     {
@@ -41,13 +35,22 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
     }
 
     /// <summary>
-    /// The gamma correction value for bloom blending. Default is 2.2.
+    /// A multiplier on every gaussian radius.
     /// </summary>
-    public float Gamma
+    public float SizeScale
     {
-        get => _bloom.Gamma;
-        set => _bloom.Gamma = value;
+        get => _bloom.SizeScale;
+        set => _bloom.SizeScale = value;
     }
+
+    /// <summary>
+    /// The per-stage gaussian sizes in Bloom1..6 order, as percents of the screen
+    /// width; a stage with a size of zero is skipped.
+    /// </summary>
+    public float[] Sizes => _bloom.Sizes;
+
+    /// <summary>The per-stage gaussian tints in Bloom1..6 order.</summary>
+    public Vector3[] Tints => _bloom.Tints;
 
     /// <summary>
     /// The node's construction data: the bloom effect's four shaders, the chain
@@ -57,27 +60,27 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
     /// </summary>
     public readonly struct Descriptor
     {
-        /// <summary>The bloom pyramid's plain-copy shader.</summary>
+        /// <summary>The additive composite shader.</summary>
         public required Shader BlitShader { get; init; }
-        /// <summary>The threshold pre-pass shader.</summary>
-        public required Shader ClampShader { get; init; }
-        /// <summary>The pyramid downsample shader.</summary>
+        /// <summary>The threshold setup shader.</summary>
+        public required Shader SetupShader { get; init; }
+        /// <summary>The downsample chain shader.</summary>
         public required Shader DownsampleShader { get; init; }
-        /// <summary>The pyramid upsample shader.</summary>
-        public required Shader UpsampleShader { get; init; }
+        /// <summary>The separable gaussian stage shader.</summary>
+        public required Shader GaussianShader { get; init; }
         /// <summary>The chain node's scene-copy shader.</summary>
         public required Shader SceneCopyShader { get; init; }
 
-        /// <summary>The pyramid's target downsample height in pixels.</summary>
-        public uint TargetDownsampleHeight { get; init; } = 11;
-        /// <summary>Only pixels above this brightness contribute to the bloom effect.</summary>
-        public float Threshold { get; init; } = 1f;
-        /// <summary>The final output strength of the bloom effect.</summary>
-        public float Intensity { get; init; } = 0.35f;
-        /// <summary>How far the bloom spreads across the pyramid.</summary>
-        public float Spread { get; init; } = 1f;
-        /// <summary>The gamma correction value for bloom blending.</summary>
-        public float Gamma { get; init; } = 2.2f;
+        /// <summary>The brightness cutoff (linear ramp, full at cutoff+2); negative disables the threshold (whole image blooms). Defaults to 0.</summary>
+        public float Threshold { get; init; } = 0f;
+        /// <summary>The overall bloom strength. Defaults to 1.</summary>
+        public float Intensity { get; init; } = 1f;
+        /// <summary>A multiplier on every gaussian radius.</summary>
+        public float SizeScale { get; init; } = 1f;
+        /// <summary>The per-stage gaussian sizes in Bloom1..6 order, as percents of the screen width.</summary>
+        public float[] Sizes { get; init; } = [0.3f, 1f, 2f, 10f, 30f, 64f];
+        /// <summary>The per-stage gaussian tints in Bloom1..6 order.</summary>
+        public Vector3[] Tints { get; init; } = [Vector3.One, Vector3.One, Vector3.One, Vector3.One, Vector3.One, Vector3.One];
 
         /// <summary>Required so the property initializers run (C# struct rule).</summary>
         public Descriptor() { }
@@ -100,16 +103,22 @@ public sealed class RGNode_Bloom : RGNode_ChainTransform
         _bloom = new Bloom(
             rendering,
             descriptor.BlitShader,
-            descriptor.ClampShader,
+            descriptor.SetupShader,
             descriptor.DownsampleShader,
-            descriptor.UpsampleShader,
-            descriptor.TargetDownsampleHeight)
+            descriptor.GaussianShader)
         {
             Threshold = descriptor.Threshold,
             Intensity = descriptor.Intensity,
-            Spread = descriptor.Spread,
-            Gamma = descriptor.Gamma,
+            SizeScale = descriptor.SizeScale,
         };
+        for (int i = 0; i < descriptor.Sizes.Length && i < 6; i++)
+        {
+            _bloom.Sizes[i] = descriptor.Sizes[i];
+        }
+        for (int i = 0; i < descriptor.Tints.Length && i < 6; i++)
+        {
+            _bloom.Tints[i] = descriptor.Tints[i];
+        }
         _fullScreenMesh = rendering.MeshFullScreen;
         _blitMaterial = rendering.CreateGraphicsMaterial(descriptor.SceneCopyShader);
     }

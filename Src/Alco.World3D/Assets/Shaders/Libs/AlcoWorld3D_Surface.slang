@@ -63,9 +63,12 @@ public struct SurfaceInput
 
 /// Vertex deformation, applied after the instance transform and before
 /// projection in every pass, so silhouettes stay consistent across passes.
+/// Each getter receives the pre-surface base position and normal; override
+/// only what the surface deforms (the defaults keep both unchanged).
 public interface IVertexSurface
 {
-    void modifyVertex(inout float3 worldPos, inout float3 normalWS, float2 uv) { }
+    float3 getWorldPosition(float3 worldPos, float3 normalWS, float2 uv) { return worldPos; }
+    float3 getWorldNormal(float3 worldPos, float3 normalWS, float2 uv) { return normalWS; }
 }
 
 /// Base color: linear albedo (rgb) and coverage alpha (a) - one fetch.

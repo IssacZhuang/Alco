@@ -6,11 +6,8 @@
 #language slang 2025
 module BloomBlit;
 
-import AlcoRendering_Core;
 
-struct Constants {
-    float gamma;
-};
+import AlcoRendering_Core;
 
 public struct PassParams
 {
@@ -18,7 +15,6 @@ public struct PassParams
 };
 
 public ParameterBlock<PassParams> pass;
-[[vk::push_constant]] Constants constants;
 
 struct Vertex {
   float3 position : POSITION;
@@ -38,13 +34,9 @@ V2F MainVS(Vertex input) {
   return output;
 }
 
+// The accumulated bloom pyramid at half resolution, composited onto the scene
+// image through the material's additive blend state.
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-    // Sample the bloom texture (this is the processed bloom result from upsampling)
-    float4 bloomColor = pass.texture.Sample(samplers.linearClamp, input.uv);
-
-    float a = max(0.0, bloomColor.a); 
-    a = pow(a, 1.0 / constants.gamma);
-    // Apply intensity and return the bloom color for additive blending
-    return float4(bloomColor.rgb, a);
+    return float4(pass.texture.Sample(samplers.linearClamp, input.uv).rgb, 1.0);
 }

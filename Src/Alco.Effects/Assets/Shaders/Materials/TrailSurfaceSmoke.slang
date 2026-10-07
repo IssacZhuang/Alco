@@ -1,0 +1,124 @@
+// file "TrailSurfaceSmoke.slang" - module "TrailSurfaceSmoke"
+//
+// The shared 2D/3D smoke trail surface: the trail pass templates supply the
+// ribbon geometry, the width envelope and the fade alpha; this surface adds
+// age-amplified turbulence, optional buoyant rise and width noise along the
+// arc. The fragment stage erodes the body with fbm noise as it dissipates.
+// Wider parts read fainter, necks denser - density conservation compensates
+// the width scale in the fragment alpha. The pass supplies the ribbon axes
+// and up direction, and the 2D pass keeps offsets within its rendering plane.
+//
+// The look constants are material parameters ([MaterialParams]), authored in
+// the .amat's parameter table; the per-trail opacity rides the template's
+// envelope alpha (input.color.a), so one material serves every projectile's
+// tuned trail.
+
+#language slang 2025
+module TrailSurfaceSmoke;
+
+import AlcoRendering_Core; // [MaterialParams]
+import AlcoRendering_TrailNoise; // TrailFbm2D
+import AlcoRendering_TrailSurface; // ITrailSurface, TrailSurfaceInput, TrailVertexInput, TrailVertexResult
+
+// The smoke look constants (static per material, packed from the .amat's
+// parameter table).
+public struct SmokeParamsData
+{
+    public float4 smokeColor; // rgb: color, a: global opacity
+    public float4 shape;      // x: noiseScale, y: noiseDrift, z: turbAmp, w: turbFreq
+    public float4 width;      // x: widthVar, y: widthFreq
+    public float4 edge;       // x: edgeStart, y: edgePow, z: start fade distance (world units, 0 disables)
+    public float4 motion;     // x: buoyant rise speed (world units/s at full age), y: rise onset (age01); omitted parameters disable rise
+};
+
+[MaterialParams]
+public ParameterBlock<SmokeParamsData> smokeParams;
+
+float hash1(float n) { return frac(sin(n) * 43758.5453123); }
+
+float vnoise1(float x)
+{
+    float i = floor(x), f = frac(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return lerp(hash1(i), hash1(i + 1.0), f);
+}
+
+public struct Surface : ITrailSurface
+{
+    public override TrailVertexResult getVertexAdjustment(TrailVertexInput input)
+    {
+        TrailVertexResult result;
+        result.worldOffset = float3(0.0, 0.0, 0.0);
+        result.widthScale = 1.0;
+        result.data = float4(input.distanceFromStart, 0.0, 0.0, 0.0);
+
+        float seed = input.seed;
+        float u = input.uv.x;
+        float age01 = input.age01;
+
+        // Non-uniform width along the ribbon (two-octave noise): bulges and
+        // necks. The fragment stage compensates alpha by 1/widthScale so
+        // narrow parts look denser.
+        float widthFreq = smokeParams.width.y;
+        float widthVar = smokeParams.width.x;
+        float wn = vnoise1(u * widthFreq + seed) * 0.65 + vnoise1(u * widthFreq * 2.7 + seed * 1.7) * 0.35;
+        result.widthScale = lerp(1.0 - widthVar, 1.0 + widthVar, wn);
+        result.data.w = result.widthScale;
+
+        // Turbulence wander, amplified by age: older smoke wanders further.
+        // Two decorrelated noise reads move along the width axis and out of
+        // the ribbon plane. The 2D pass discards the latter's depth offset.
+        float3 lift = cross(input.side, input.tangent);
+        float turbFreq = smokeParams.shape.w;
+        float turbAmp = smokeParams.shape.z;
+        float wander = turbAmp * smoothstep(0.0, 1.0, input.age);
+        result.worldOffset += input.side * (vnoise1(u * turbFreq + seed) - 0.5) * wander;
+        result.worldOffset += lift * (vnoise1(u * turbFreq + seed * 3.1 + 17.0) - 0.5) * wander;
+
+        // Buoyant rise follows the pass's up direction, delayed so the fresh
+        // head stays on the flight path. Missing motion parameters mean no rise.
+        float rise = smokeParams.motion.x;
+        float onset = smokeParams.motion.y;
+        if (rise > 0.0)
+        {
+            float t = smoothstep(onset, 1.0, age01) * input.age;
+            result.worldOffset += input.upDirection * (rise * t);
+        }
+        return result;
+    }
+
+    public override float4 getColor(TrailSurfaceInput input)
+    {
+        // Edge gradient: edgeStart shifts where the falloff begins, edgePow
+        // shapes the curve.
+        float edge = pow(1.0 - smoothstep(smokeParams.edge.x, 1.0, abs(input.uv.y)), smokeParams.edge.y);
+
+        // Soften the start of the retained ribbon, independently of the
+        // age envelope. Evaluate per fragment so sparse points keep a smooth ramp.
+        float startFade = smokeParams.edge.z <= 0.0 ? 1.0 : smoothstep(0.0, smokeParams.edge.z, input.data.x);
+
+        // Smoke density field, slowly crawling along the ribbon over time.
+        float2 nc = float2(input.uv.x * smokeParams.shape.x - input.time * smokeParams.shape.y,
+                           input.uv.y * 0.6 + input.seed);
+        float m = TrailFbm2D(nc);
+
+        // Erosion: as the point ages the threshold rises and the body breaks
+        // into wisps (age-relative, like every envelope of the template).
+        float erosion = smoothstep(0.3, 0.95, input.age01);
+        float cut = clamp((m - erosion * 0.9) / 0.3, 0.0, 1.0);
+
+        // Density conservation: wider (noise-bulged) parts are fainter, necks
+        // are denser. input.color.a carries the template's envelope alpha
+        // (opacity x fade in/out).
+        float dens = input.color.a / max(input.data.w, 0.35);
+
+        float a = edge * startFade * dens * cut * lerp(0.55, 1.0, m) * smokeParams.smokeColor.a;
+        if (a < 0.003) discard;
+
+        // Slightly brighter core fakes volumetric thickness; the trail's
+        // color gradient tints on top (identity white by default).
+        float3 col = smokeParams.smokeColor.rgb * lerp(0.82, 1.0, edge * m) * input.color.rgb;
+        // Premultiplied alpha (the trail pass's blend state).
+        return float4(col * a, a);
+    }
+}

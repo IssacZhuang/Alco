@@ -10,7 +10,6 @@ import AlcoRendering_Core;
 
 struct Constants {
     float2 invTextureSize;
-    float spread;
 };
 
 public struct PassParams
@@ -39,19 +38,17 @@ V2F MainVS(Vertex input) {
   return output;
 }
 
+// High-quality downsample: four bilinear taps on the diagonal texel corners,
+// averaging to a 4x4 box footprint. Negative results are clamped away so the
+// bloom chain never feeds NaNs or negative energy downward.
 [shader("fragment")]
 float4 MainPS(V2F input) : SV_TARGET {
-  float2 sampleOffset = constants.invTextureSize * constants.spread;
-  float4 sum = float4(0, 0, 0, 0);
-  float weights[5] = {0.06136, 0.24477, 0.38774, 0.24477, 0.06136}; // Normalized Gaussian weights for a 5x5 kernel
+  float2 texel = constants.invTextureSize;
 
-  // Apply the weights from the Gaussian kernel
-  for (int i = -2; i <= 2; ++i) {
-    for (int j = -2; j <= 2; ++j) {
-        float weight = weights[i + 2] * weights[j + 2];
-        sum += weight * pass.texture.Sample(samplers.linearClamp, input.uv + float2(i, j) * sampleOffset);
-    }
-  }
+  float3 color = pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(-1, -1)).rgb;
+  color += pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(1, -1)).rgb;
+  color += pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(-1, 1)).rgb;
+  color += pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(1, 1)).rgb;
 
-  return float4(sum.rgb, 1.0);
+  return float4(max(color * 0.25, 0.0), 1.0);
 }

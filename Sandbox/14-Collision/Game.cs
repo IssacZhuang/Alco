@@ -32,12 +32,13 @@ public class Game : GameEngine
 
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new RenderPipeline(
-            RenderingSystem,
-            RenderingSystem.PreferredHDRPass,
-            BuiltInAssets.Shader_Blit,
-            MainView.Size.X,
-            MainView.Size.Y);
+        _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
+        {
+            SceneLayout = RenderingSystem.PreferredHDRPass,
+            BlitShader = BuiltInAssets.Shader_Blit,
+            Width = MainView.Size.X,
+            Height = MainView.Size.Y,
+        });
 
         _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
 
@@ -49,10 +50,9 @@ public class Game : GameEngine
             new RGNode_Bloom.Descriptor
             {
                 BlitShader = BuiltInAssets.Shader_BloomBlit,
-                ClampShader = BuiltInAssets.Shader_BloomClamp,
+                SetupShader = BuiltInAssets.Shader_BloomSetup,
                 DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
-                UpsampleShader = BuiltInAssets.Shader_BloomUpsample,
-                TargetDownsampleHeight = 11,
+                GaussianShader = BuiltInAssets.Shader_BloomGaussian,
                 SceneCopyShader = BuiltInAssets.Shader_Blit,
             }));
 

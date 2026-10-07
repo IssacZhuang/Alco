@@ -1,7 +1,18 @@
 namespace Alco.Graphics;
 
+/// <summary>
+/// Texel memory formats for textures and render attachments. Names follow the
+/// pattern channels + bits-per-channel + component type: R/RG/RGB/RGBA list the
+/// channels, a number gives the bits per channel (packed formats spell out each,
+/// e.g. RGB10A2 or RG11B10), and Unorm/Snorm/Uint/Sint/Float select the encoding
+/// of each component. The <c>Srgb</c> suffix marks gamma-encoded variants whose
+/// sampled values are linearized by the hardware. Depth-stencil formats are
+/// prefixed <c>Depth</c>/<c>Stencil</c>; BC/ETC2/EAC/ASTC families are block
+/// compressed. Query sizes and properties with <see cref="PixelFormatUtility"/>.
+/// </summary>
 public enum PixelFormat
 {
+    /// <summary>No format declared.</summary>
     Undefined = 0,
     // 8-bit
     R8Unorm = 1,
@@ -47,7 +58,7 @@ public enum PixelFormat
     RGBA32Uint = 36,
     RGBA32Sint = 37,
     // Depth-stencil
-    Stencil8 = 38,//not supported
+    Stencil8 = 38,// Not supported by the current backends.
     Depth16Unorm = 39,
     Depth24Plus = 40,
     Depth24PlusStencil8 = 41,

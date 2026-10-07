@@ -76,7 +76,9 @@ public GlassV2F MainVS<T : ISurface>(GlassVertex input)
     float3 worldTangent = mul((float3x3)glassConstants.model, input.tangent.xyz);
     // The surface may deform the vertex; every pass applies this identically.
     T surface = T();
-    surface.modifyVertex(worldPosition, worldNormal, input.uv);
+    float3 surfaceWorldPosition = surface.getWorldPosition(worldPosition, worldNormal, input.uv);
+    worldNormal = surface.getWorldNormal(worldPosition, worldNormal, input.uv);
+    worldPosition = surfaceWorldPosition;
     output.position = mul(camera.viewProjection, float4(worldPosition, 1.0f));
     output.worldPosition = worldPosition;
     output.normal = worldNormal;

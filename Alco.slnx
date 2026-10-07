@@ -7,6 +7,10 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
+  <Folder Name="/Editor/">
+    <Project Path="Editor/Alco.Editor/Alco.Editor.csproj" />
+    <Project Path="Editor/Alco.Editor.App/Alco.Editor.App.csproj" />
+  </Folder>
   <Folder Name="/Benchmark/">
     <Project Path="Benchmark/Alco.Benchmark/Alco.Benchmark.csproj" />
     <Project Path="Benchmark/Alco.Engine.Benchmark/Alco.Engine.Benchmark.csproj" />
@@ -14,7 +18,6 @@
   </Folder>
   <Folder Name="/Generator/">
     <Project Path="Generator/AlcoGenerator/AlcoGenerator.csproj" />
-    <Project Path="Generator/WebGPUBindingGenerator/WebGPUBindingGenerator.csproj" />
   </Folder>
   <Folder Name="/Sandbox/">
     <Project Path="Sandbox/0-BasicWindow/0-BasicWindow.csproj" />
@@ -47,6 +50,9 @@
     <Project Path="Sandbox/33-LLM/33-LLM.csproj" />
     <Project Path="Sandbox/34-PBRDeferred/34-PBRDeferred.csproj" />
     <Project Path="Sandbox/35-ShaderSystem/35-ShaderSystem.csproj" />
+    <Project Path="Sandbox/36-GpuParticles2D/36-GpuParticles2D.csproj" />
+    <Project Path="Sandbox/37-GpuParticles3D/37-GpuParticles3D.csproj" />
+    <Project Path="Sandbox/38-SmokeTrail/38-SmokeTrail.csproj" />
     <Project Path="Sandbox/4-ComputeShader/4-ComputeShader.csproj" />
     <Project Path="Sandbox/5-Transform2D/5-Transform2D.csproj" />
     <Project Path="Sandbox/6-PushConstants/6-PushConstants.csproj" />
@@ -56,6 +62,7 @@
     <Project Path="Sandbox/~SandboxUtils/~SandboxUtils.csproj" />
   </Folder>
   <Folder Name="/Src/">
+    <Project Path="Src/Alco.AgentControlProtocol/Alco.AgentControlProtocol.csproj" />
     <Project Path="Src/Alco.Audio/Alco.Audio.csproj" />
     <Project Path="Src/Alco.Engine/Alco.Engine.csproj" />
     <Project Path="Src/Alco.Graphics/Alco.Graphics.csproj" />
@@ -64,16 +71,19 @@
     <Project Path="Src/Alco.IO/Alco.IO.csproj" />
     <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
     <Project Path="Src/Alco.Profiler/Alco.Profiler.csproj" />
+    <Project Path="Src/Alco.Effects/Alco.Effects.csproj" />
     <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
     <Project Path="Src/Alco.World3D/Alco.World3D.csproj" />
-    <Project Path="Src/Alco.ShaderCompiler/Alco.ShaderCompiler.csproj" />
     <Project Path="Src/Alco/Alco.csproj" />
   </Folder>
   <Folder Name="/Test/">
     <Project Path="Test/Alco.Profiler.Test/Alco.Profiler.Test.csproj" />
+    <Project Path="Test/Alco.Effects.Test/Alco.Effects.Test.csproj" />
     <Project Path="Test/Alco.Profiler.BuildTool.Fixture/Alco.Profiler.BuildTool.Fixture.csproj" />
     <Project Path="Test/Alco.Profiler.BuildTool.Test/Alco.Profiler.BuildTool.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
+    <Project Path="Test/Alco.AgentControlProtocol.Test/Alco.AgentControlProtocol.Test.csproj" />
+    <Project Path="Test/Alco.Editor.Test/Alco.Editor.Test.csproj" />
     <Project Path="Test/Alco.Graphics.Test/Alco.Graphics.Test.csproj" />
     <Project Path="Test/Alco.LLM.Test/Alco.LLM.Test.csproj" />
     <Project Path="Test/Alco.ImGUI.Test/Alco.ImGUI.Test.csproj" />
@@ -82,7 +92,6 @@
     <Project Path="Test/Alco.World3D.Test/Alco.World3D.Test.csproj" />
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
     <Project Path="Test/TestFramework/TestFramework.csproj" />
-    <Project Path="Test/Alco.ShaderCompiler.Test/Alco.ShaderCompiler.Test.csproj" />
   </Folder>
   <Folder Name="/Tool/">
     <Project Path="Tool/Alco.Profiler.BuildTool/Alco.Profiler.BuildTool.csproj" />

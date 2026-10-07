@@ -4,7 +4,6 @@ using System.Text;
 using Alco.Graphics;
 using Alco.Engine;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 using Alco;
 using Alco.GUI;
 
@@ -43,6 +42,11 @@ public class Game : GameEngine
     private Texture2D _texRed;
     private Texture2D _texGreen;
 
+    private GPUBindGroup _materialBindGroup;
+    private GPUResourceGroup _texGreenGroup;
+    private GPUResourceGroup _texRedGroup;
+    private GPUResourceGroup _texBlueGroup;
+
     private Transform2D _transform1;
     private Transform2D _transform2;
     private Transform2D _transform3;
@@ -75,6 +79,14 @@ public class Game : GameEngine
         _texBlue = RenderingSystem.CreateTexture2D(16, 16, 0x0000FF);
         _texRed = RenderingSystem.CreateTexture2D(16, 16, 0xFF0000);
         _texGreen = RenderingSystem.CreateTexture2D(16, 16, 0x00FF00);
+
+        // The material group declares {texture@0, sampler@1} (MaterialParams);
+        // Texture2D.EntryReadonly only fills a texture, so bind explicit
+        // material groups instead. The sampler comes from the rendering
+        // system's shared bank, like Sandbox 4's texture group.
+        _texGreenGroup = CreateMaterialGroup(_texGreen);
+        _texRedGroup = CreateMaterialGroup(_texRed);
+        _texBlueGroup = CreateMaterialGroup(_texBlue);
 
         camera = new CameraData2D();
         camera.Transform.Position = new Vector2(0, 2);
@@ -124,15 +136,15 @@ public class Game : GameEngine
             renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
             renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
 
-            renderPass.SetResources(1, _texGreen.EntryReadonly);
+            renderPass.SetResources(1, _texGreenGroup);
             renderPass.PushConstants(_transform1.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-            renderPass.SetResources(1, _texRed.EntryReadonly);
+            renderPass.SetResources(1, _texRedGroup);
             renderPass.PushConstants(_transform2.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
 
-            renderPass.SetResources(1, _texBlue.EntryReadonly);
+            renderPass.SetResources(1, _texBlueGroup);
             renderPass.PushConstants(_transform3.Matrix);
             renderPass.DrawIndexed((uint)Indices.Length, 1, 0, 0, 0);
         }
@@ -144,9 +156,23 @@ public class Game : GameEngine
     protected override void OnStop()
     {
         _commandBuffer.Dispose();
+        _texBlueGroup.Dispose();
+        _texRedGroup.Dispose();
+        _texGreenGroup.Dispose();
         _texBlue.Dispose();
         _texRed.Dispose();
         _texGreen.Dispose();
+    }
+
+    private GPUResourceGroup CreateMaterialGroup(Texture2D texture)
+    {
+        return GraphicsDevice.CreateResourceGroup(new ResourceGroupDescriptor(
+            _materialBindGroup,
+            new ResourceBindingEntry[]
+            {
+                new ResourceBindingEntry(0, texture.View),
+                new ResourceBindingEntry(1, RenderingSystem.Samplers.LinearRepeat),
+            }));
     }
 
     private unsafe GPUPipeline CreatePipeline()
@@ -173,6 +199,10 @@ public class Game : GameEngine
         {
             bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor());
         }
+
+        // Group 1 is the material block {texture@0, sampler@1}; the material
+        // resource groups for the three textures are created from this layout.
+        _materialBindGroup = bindGroups[1];
 
         RasterizerState rasterizer = RasterizerState.CullNone;
         BlendState blend = BlendState.NonPremultipliedAlpha;

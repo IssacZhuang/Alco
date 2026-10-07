@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using Alco.Graphics;
 
@@ -20,6 +21,19 @@ public abstract class Mesh : AutoDisposable
     /// Gets the name of the mesh.
     /// </summary>
     public string Name { get; }
+
+    /// <summary>
+    /// Gets the minimum corner of the mesh's local-space axis-aligned bounds. Loaders that
+    /// hold the decoded vertices fill it; the huge default makes consumers that derive
+    /// conservative culling bounds treat unknown meshes as never culled.
+    /// </summary>
+    public Vector3 LocalBoundsMin { get; protected set; } = new(-1e6f);
+
+    /// <summary>
+    /// Gets the maximum corner of the mesh's local-space axis-aligned bounds; see
+    /// <see cref="LocalBoundsMin"/> for the default sentinel's meaning.
+    /// </summary>
+    public Vector3 LocalBoundsMax { get; protected set; } = new(1e6f);
 
     //high frequency access, use AggressiveInlining to optimize
 

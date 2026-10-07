@@ -49,11 +49,31 @@ jobs:
         dotnet-version: '10.0.x'
         dotnet-quality: 'preview'
         
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@1.97.1
+      with:
+        targets: ${{ matrix.runtime == 'win-x64' && 'x86_64-pc-windows-msvc' || matrix.runtime == 'linux-x64' && 'x86_64-unknown-linux-gnu' || 'aarch64-apple-darwin' }}
+
+    - name: Install Linux native build and software Vulkan dependencies
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential pkg-config libvulkan1 mesa-vulkan-drivers libx11-dev libxkbcommon0 libwayland-dev
+
+    - name: Cache native build
+      uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: Src/Alco.Graphics.Native/alco-gpu -> ../../Alco.Graphics/obj/alco-gpu
+
+    # Rebuild from source even on Windows so native changes cannot be hidden by a
+    # committed DLL. Other RIDs also exercise the missing-library integration.
+    # No solution-level -r: the SDK rejects RID-specific solution builds (NETSDK1134);
+    # Directory.Build.props derives the matching RID from the runner OS.
     - name: Build
-      run: dotnet build --configuration ${{ matrix.configuration }}
-    
+      run: dotnet build --configuration ${{ matrix.configuration }} -p:AlcoGpuBuildNative=true
+
     - name: Test
-      run: dotnet test --configuration ${{ matrix.configuration }} -r ${{ matrix.runtime }} --logger trx --results-directory "TestResults-${{ matrix.runtime }}-${{ matrix.configuration }}"
+      run: dotnet test --configuration ${{ matrix.configuration }} --no-build --no-restore --logger trx --results-directory "TestResults-${{ matrix.runtime }}-${{ matrix.configuration }}"
 
     - name: Upload dotnet test results
       uses: actions/upload-artifact@v4

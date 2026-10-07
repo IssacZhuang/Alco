@@ -12,4 +12,9 @@ public struct GlobalRenderData
     public float deltaTime;
     public float sinTime;
     public float cosTime;
+    // xy: cursor in screen pixels (top-left, SV_Position space); zw reserved.
+    public float4 cursor;
+    // x: cutout radius in pixels (0 disables); y: soft-ring width in pixels;
+    // z: max discard density in the core (1 fully clears, 0.5 = semi-transparent).
+    public float4 cursorParams;
 };

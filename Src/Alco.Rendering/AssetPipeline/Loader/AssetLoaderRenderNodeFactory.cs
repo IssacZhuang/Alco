@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Alco.IO;
 
 namespace Alco.Rendering;
@@ -17,9 +18,9 @@ public class AssetLoaderRenderNodeFactory : BaseAssetLoader<RenderNodeFactory>
 {
     private readonly JsonSerializerOptions _options;
 
-    public AssetLoaderRenderNodeFactory(ShaderSystem shaderSystem)
+    public AssetLoaderRenderNodeFactory(ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
-        _options = CreateJsonOptions(shaderSystem);
+        _options = CreateJsonOptions(shaderSystem, typeInfoResolver);
     }
 
     /// <inheritdoc />
@@ -35,14 +36,14 @@ public class AssetLoaderRenderNodeFactory : BaseAssetLoader<RenderNodeFactory>
     /// resolving through the shader system, enums as strings. Exposed for tests
     /// and tooling that parse factory files outside the asset system.
     /// </summary>
-    public static JsonSerializerOptions CreateJsonOptions(ShaderSystem shaderSystem)
+    public static JsonSerializerOptions CreateJsonOptions(ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
-            TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(RenderNodeFactory)]),
+            TypeInfoResolver = new PolymorphicJsonTypeResolver([typeof(RenderNodeFactory)], typeInfoResolver),
         };
         options.Converters.Add(new JsonConverterShader(shaderSystem));
         options.Converters.Add(new JsonConverterShaderLibrary(shaderSystem));

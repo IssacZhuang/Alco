@@ -1,0 +1,2 @@
+Sample notes for the Alco editor demo project.
+编辑器示例项目的示例笔记。

@@ -10,24 +10,27 @@
 #language slang 2025
 module AlcoRendering_CompressionBC;
 
-public half linearToSrgbBranchingChannel(half lin)
+// float (not half) throughout: the SPIR-V must validate on adapters without
+// shader-f16 support (software rasterizers like WARP); the 565/BC quantization
+// is far below float precision anyway.
+public float linearToSrgbBranchingChannel(float lin)
 {
     if (lin < 0.00313067)
         return lin * 12.92;
     return pow(lin, (1.0 / 2.4)) * 1.055 - 0.055;
 }
-public half3 linearToSrgbBranching(half3 lin)
+public float3 linearToSrgbBranching(float3 lin)
 {
-    return half3(
+    return float3(
 		linearToSrgbBranchingChannel(lin.r),
 		linearToSrgbBranchingChannel(lin.g),
 		linearToSrgbBranchingChannel(lin.b));
 }
 
-public half3 linearToSrgb(half3 lin)
+public float3 linearToSrgb(float3 lin)
 {
-	// Branching is faster than branchless on AMD on PC.
-	return linearToSrgbBranching(lin);
+    // Branching is faster than branchless on AMD on PC.
+    return linearToSrgbBranching(lin);
 }
 
 // Simple convert float3 color to 565 uint using 'round' arithmetic
@@ -40,24 +43,12 @@ public uint float3ToUint565(in float3 color)
     return colorPacked;
 }
 
-// Convert float3 color to 565 uint using 'ceil' arithmetic
+// Convert float3 color to 565 uint using 'round' arithmetic
 // color parameter is inout and is modified to match the converted value
-uint float3ToUint565Ceil(inout float3 color)
+uint float3ToUint565Round(inout float3 color)
 {
     float3 scale = float3(31.f, 63.f, 31.f);
-    float3 colorScaled = ceil(saturate(color) * scale);
-    uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5) | (uint) colorScaled.b;
-    color = colorScaled / scale;
-
-    return colorPacked;
-}
-
-// Convert float3 color to 565 uint using 'floor' arithmetic
-// color parameter is inout and is modified to match the converted value
-uint float3ToUint565Floor(inout float3 color)
-{
-    float3 scale = float3(31.f, 63.f, 31.f);
-    float3 colorScaled = floor(saturate(color) * scale);
+    float3 colorScaled = round(saturate(color) * scale);
     uint colorPacked = ((uint) colorScaled.r << 11) | ((uint) colorScaled.g << 5) | (uint) colorScaled.b;
     color = colorScaled / scale;
 
@@ -107,6 +98,19 @@ void getMinMax(in float3 Block[16], out float3 outMin, out float3 outMax)
     }
 }
 
+// BC palettes store both endpoints before the interpolated entries.
+uint getColorPaletteIndex(float projection)
+{
+    uint index = (uint)clamp(round(projection), 0.f, 3.f);
+    return index == 0u ? 0u : (index == 3u ? 1u : index + 1u);
+}
+
+uint getAlphaPaletteIndex(float projection)
+{
+    uint index = (uint)clamp(round(projection), 0.f, 7.f);
+    return index == 0u ? 0u : (index == 7u ? 1u : index + 1u);
+}
+
 // Calculate the final packed indices for a color block
 uint getPackedColorBlockIndices(in float3 Block[16], in float3 minColor, in float3 maxColor)
 {
@@ -120,10 +124,7 @@ uint getPackedColorBlockIndices(in float3 Block[16], in float3 minColor, in floa
 	
     for (int i = 15; i >= 0; --i)
     {
-		// Compute the distance index for this element
-        uint index = round(dot(Block[i], scaledRange) + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (3 * (index == 3));
+        uint index = getColorPaletteIndex(dot(Block[i], scaledRange) + bias);
 		// OR into the final packedIndices
         packedIndices = (packedIndices << 2) | index;
     }
@@ -146,10 +147,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
 	// The first 5 elements of the block will go into the top 16 bits of the x component
     for (i = 0; i < 5; ++i)
     {
-		// Compute the distance index for this element
-        uint index = round(Block[i] * scale + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (7 * (index == 7));
+        uint index = getAlphaPaletteIndex(Block[i] * scale + bias);
 		// OR into the final packedIndices
         packedIndices.x |= (index << (i * 3 + 16));
     }
@@ -157,8 +155,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
 	// The 6th element is split across the x and y components
 	{
         i = 5;
-        uint index = round(Block[i] * scale + bias);
-        index += (index > 0) - (7 * (index == 7));
+        uint index = getAlphaPaletteIndex(Block[i] * scale + bias);
         packedIndices.x |= (index << 31);
         packedIndices.y |= (index >> 1);
     }
@@ -166,8 +163,7 @@ uint2 getPackedAlphaBlockIndices(in float Block[16], in float minAlpha, in float
 	// The rest of the elements fill the y component
     for (i = 6; i < 16; ++i)
     {
-        uint index = round(Block[i] * scale + bias);
-        index += (index > 0) - (7 * (index == 7 ? 1 : 0));
+        uint index = getAlphaPaletteIndex(Block[i] * scale + bias);
         packedIndices.y |= (index << (i * 3 - 16));
     }
 
@@ -180,8 +176,18 @@ public uint2 compressBC1Block(in float3 Block[16])
     float3 minColor, maxColor;
     getMinMax(Block, minColor, maxColor);
 
-    uint minColor565 = float3ToUint565Floor(minColor);
-    uint maxColor565 = float3ToUint565Ceil(maxColor);
+    // Inset the bounding box by 1/16 of its extent, then round-quantize both
+    // endpoints to 565. Rounding (instead of flooring min / ceiling max, which
+    // spreads the palette outward) keeps the 4-entry palette steps tight on
+    // low-contrast blocks; the inset additionally pulls the endpoints toward
+    // the bulk of the block. Quantized endpoints are written back so the index
+    // projection matches the palette the decoder reconstructs.
+    float3 inset = (maxColor - minColor) / 16.f;
+    minColor = saturate(minColor + inset);
+    maxColor = saturate(maxColor - inset);
+
+    uint minColor565 = float3ToUint565Round(minColor);
+    uint maxColor565 = float3ToUint565Round(maxColor);
 
     uint indices = 0;
     if (minColor565 < maxColor565)
@@ -217,8 +223,13 @@ public uint4 compressBC3Block(in float3 BlockRGB[16], in float blockA[16])
     float3 minColor, maxColor;
     getMinMax(BlockRGB, minColor, maxColor);
 
-    uint minColor565 = float3ToUint565Floor(minColor);
-    uint maxColor565 = float3ToUint565Ceil(maxColor);
+    // Same inset + round-quantized endpoints as compressBC1Block.
+    float3 inset = (maxColor - minColor) / 16.f;
+    minColor = saturate(minColor + inset);
+    maxColor = saturate(maxColor - inset);
+
+    uint minColor565 = float3ToUint565Round(minColor);
+    uint maxColor565 = float3ToUint565Round(maxColor);
 
     float minAlpha, maxAlpha;
     getMinMax(blockA, minAlpha, maxAlpha);
@@ -402,10 +413,7 @@ uint getPackedCoCgBlockIndices(in float3 Block[16], in float2 minCoCg, in float2
 
     for (int i = 15; i >= 0; --i)
     {
-		// Compute the distance index for this element
-        uint index = round(dot(Block[i].yz, scaledRange) + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (3 * (index == 3));
+        uint index = getColorPaletteIndex(dot(Block[i].yz, scaledRange) + bias);
 		// OR into the final packedIndices
         packedIndices = (packedIndices << 2) | index;
     }
@@ -427,10 +435,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
 	// The first 5 elements of the block will go into the top 16 bits of the x component
     for (i = 0; i < 5; ++i)
     {
-		// Compute the distance index for this element
-        uint index = round(Block[i].x * scale + bias);
-		// Convert distance index into the BC index
-        index += (index > 0) - (7 * (index == 7));
+        uint index = getAlphaPaletteIndex(Block[i].x * scale + bias);
 		// OR into the final packedIndices
         packedIndices.x |= (index << (i * 3 + 16));
     }
@@ -438,8 +443,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
 	// The 6th element is split across the x and y components
 	{
         i = 5;
-        uint index = round(Block[i].x * scale + bias);
-        index += (index > 0) - (7 * (index == 7));
+        uint index = getAlphaPaletteIndex(Block[i].x * scale + bias);
         packedIndices.x |= (index << 31);
         packedIndices.y |= (index >> 1);
     }
@@ -447,8 +451,7 @@ uint2 getPackedLumaBlockIndices(in float3 Block[16], in float minAlpha, in float
 	// The rest of the elements fill the y component
     for (i = 6; i < 16; ++i)
     {
-        uint index = round(Block[i].x * scale + bias);
-        index += (index > 0) - (7 * (index == 7 ? 1 : 0));
+        uint index = getAlphaPaletteIndex(Block[i].x * scale + bias);
         packedIndices.y |= (index << (i * 3 - 16));
     }
 

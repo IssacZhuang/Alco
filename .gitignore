@@ -385,6 +385,9 @@ test-results/
 # Mac bundle stuff
 *.dmg
 *.app
+# Alco editor app project must stay tracked (the *.app rule above matches
+# case-insensitively on Windows and would swallow this directory)
+!Editor/Alco.Editor.App/
 
 # content below from: https://github.com/github/gitignore/blob/master/Global/macOS.gitignore
 # General
@@ -453,3 +456,6 @@ $RECYCLE.BIN/
 Docs/Spec/
 # Large third-party test assets (Lumberyard Bistro, downloaded separately)
 Sandbox/34-PBRDeferred/Assets/Bistro/
+
+# Dear ImGui window layout cache (generated at runtime)
+imgui.ini

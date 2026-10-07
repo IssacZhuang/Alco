@@ -1,0 +1,92 @@
+using System.Runtime.CompilerServices;
+using Alco.Graphics.AlcoGpu.Interop;
+
+namespace Alco.Graphics.AlcoGpu;
+
+/// <summary>A texture sampler wrapping a native alco-gpu sampler.</summary>
+internal sealed unsafe class AlcoGpuSampler : GPUSampler
+{
+    #region Properties
+    private AlcoGPU.SamplerHandle _native;
+
+    #endregion
+
+    #region Abstract Implementation
+    protected override GPUDevice Device { get; }
+
+    protected override void Dispose(bool disposing)
+    {
+        try
+        {
+            AlcoGPU.SamplerHandle handle = _native;
+            _native = AlcoGPU.SamplerHandle.Null;
+            if (!handle.IsNull)
+            {
+                try
+                {
+                    AlcoGpuNative.SamplerDestroy(handle);
+                }
+                finally
+                {
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    #endregion
+
+    #region AlcoGpu Implementation
+    /// <summary>Gets the native sampler handle.</summary>
+    public AlcoGPU.SamplerHandle Native
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _native;
+    }
+
+    internal AlcoGpuSampler(AlcoGpuDevice device, in SamplerDescriptor descriptor) : base(descriptor)
+    {
+        try
+        {
+            Device = device;
+
+            ReadOnlySpan<byte> name = Name.Utf8Z();
+            fixed (byte* ptrName = name)
+            {
+                AlcoGPU.SamplerDesc desc = new()
+                {
+                    AddressU = descriptor.AddressModeU,
+                    AddressV = descriptor.AddressModeV,
+                    AddressW = descriptor.AddressModeW,
+                    MagFilter = descriptor.MagFilter,
+                    MinFilter = descriptor.MinFilter,
+                    MipmapFilter = descriptor.MipFilter,
+                    LodMinClamp = descriptor.LodMinClamp,
+                    LodMaxClamp = descriptor.LodMaxClamp,
+                    Compare = descriptor.Compare,
+                    MaxAnisotropy = descriptor.MaxAnisotropy,
+                    Name = ptrName,
+                };
+
+                AlcoGpuNative.SamplerCreate(device.Native, in desc, out _native);
+            }
+
+        }
+        catch
+        {
+            try { Destroy(false); }
+            catch { /* Preserve the construction failure. */ }
+            throw;
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(device);
+        }
+    }
+
+    #endregion
+}

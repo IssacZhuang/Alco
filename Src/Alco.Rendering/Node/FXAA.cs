@@ -30,27 +30,59 @@ public enum FXAAQuality
 }
 
 /// <summary>
+/// FXAA edge-detection modes. The axis is a generic value specialization of
+/// the shader's MainPS entry point (like the quality axis): switching modes
+/// selects another precompiled specialization, never a recompile.
+/// </summary>
+public enum FXAAMode
+{
+    /// <summary>
+    /// Classic FXAA 3.11 luma-only edge detection. No depth sampling.
+    /// </summary>
+    Luma = 0,
+
+    /// <summary>
+    /// Depth-assisted: depth discontinuities rescue edges the luma gate
+    /// rejects (dark-on-dark silhouettes) and steer the edge walk on
+    /// geometric edges; luma detection remains the fallback for shader and
+    /// alpha-tested edges. Requires a bound depth source.
+    /// </summary>
+    DepthAssisted = 1,
+
+    /// <summary>
+    /// Depth-gated: only depth-detected geometric edges are anti-aliased;
+    /// shader/specular aliasing passes through untouched. Requires a bound
+    /// depth source.
+    /// </summary>
+    DepthOnly = 2
+}
+
+/// <summary>
 /// Fast Approximate Anti-Aliasing (FXAA) post-processing effect.
 /// Provides screen-space anti-aliasing with minimal performance cost.
 /// FXAA 3.11's luma-based edge detection assumes tone-mapped input: register
 /// the node after the tonemap node — on linear HDR the bright regions dominate
 /// the luma range and edges in the darks get missed or over-blurred.
+/// <br/>The mode axis selects the edge detector (see <see cref="FXAAMode"/>);
+/// the depth-aware modes sample <see cref="DepthSource"/>'s depth attachment.
 /// </summary>
 public class FXAA : TextureProcessor
 {
     // Shader resource identifiers
     public const string ShaderId_texture = "texture";
+    public const string ShaderId_depthTexture = "depthTexture";
     public const string ShaderId_fxaaData = "fxaaData";
 
     private readonly GPUDevice _device;
     private readonly RenderingSystem _renderingSystem;
 
-    // The fxaa material: each quality preset is a generic value specialization of
-    // the shader's MainPS<let Quality : int> entry, compiled lazily and cached
-    // inside the shader — switching presets is a cache-hit pipeline build, never
-    // a recompile of a previously used preset.
+    // The fxaa material: each (quality, mode) pair is a generic value
+    // specialization of the shader's MainPS<let Quality, let Mode> entry,
+    // compiled lazily and cached inside the shader — switching either axis is
+    // a cache-hit pipeline build, never a recompile of a used variant.
     private readonly GraphicsMaterial _fxaaMaterial;
     private FXAAQuality _quality;
+    private FXAAMode _mode;
 
     // Blit material for the final copy.
     private readonly GraphicsMaterial _blitMaterial;
@@ -59,12 +91,30 @@ public class FXAA : TextureProcessor
     private float _threshold = 0.125f;
     // Subpixel AA amount, likewise mirrored (see Threshold).
     private float _subpix = 0.75f;
+    // Depth edge detection thresholds, likewise mirrored (see Threshold).
+    private float _depthThresholdMin = 1.0f / 4096.0f;
+    private float _depthThresholdRel = 1.0f / 64.0f;
     // Reflection-driven uniform buffer over the shader's fxaaData block — no
     // hand-written CPU twin (the alignment padding lives in the reflected layout).
     private readonly UniformGraphicsBuffer _fxaaShaderData;
 
     private RenderTexture? _intermediateTexture;
     private GPUAttachmentLayout? _intermediateLayout;
+
+    // Fallback depth binding when no DepthSource is set: the shader's
+    // ParameterBlock keeps the depth slot in every specialization's layout
+    // (fields are not pruned per specialization), so the slot must always be
+    // bound even in luma mode, which never samples it. 1x1, never rendered
+    // into — a bind-only placeholder.
+    private RenderTexture? _placeholderDepthTexture;
+    private GPUAttachmentLayout? _placeholderDepthLayout;
+
+    /// <summary>
+    /// The depth-aware modes' scene depth source; its depth attachment is
+    /// bound as the shader's depth texture. Null falls back to a 1x1
+    /// placeholder (valid but meaningless — use luma mode then).
+    /// </summary>
+    public RenderTexture? DepthSource { get; set; }
 
     /// <summary>
     /// Gets or sets the FXAA quality preset.
@@ -78,7 +128,24 @@ public class FXAA : TextureProcessor
             if (_quality != value)
             {
                 _quality = value;
-                ApplyQuality();
+                ApplySpecialization();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the edge-detection mode. Changes switch to the mode's
+    /// specialized material and rebuild the pipeline.
+    /// </summary>
+    public FXAAMode Mode
+    {
+        get => _mode;
+        set
+        {
+            if (_mode != value)
+            {
+                _mode = value;
+                ApplySpecialization();
             }
         }
     }
@@ -116,32 +183,70 @@ public class FXAA : TextureProcessor
     }
 
     /// <summary>
+    /// Gets or sets the depth edge detection absolute floor (depth modes):
+    /// neighbor depth differences below it never count as geometric edges.
+    /// Valid range: 0 - 0.01, Default: 1/4096
+    /// </summary>
+    public float DepthThresholdMin
+    {
+        get => _depthThresholdMin;
+        set
+        {
+            _depthThresholdMin = Math.Clamp(value, 0.0f, 0.01f);
+            _fxaaShaderData.SetValue("depthThresholdMin", _depthThresholdMin);
+            _fxaaShaderData.Flush();
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the depth edge detection relative threshold (depth modes):
+    /// a neighbor counts as across an edge when its depth differs from the
+    /// center by this fraction of the center depth. Valid range: 0 - 0.25,
+    /// Default: 1/64
+    /// </summary>
+    public float DepthThresholdRel
+    {
+        get => _depthThresholdRel;
+        set
+        {
+            _depthThresholdRel = Math.Clamp(value, 0.0f, 0.25f);
+            _fxaaShaderData.SetValue("depthThresholdRel", _depthThresholdRel);
+            _fxaaShaderData.Flush();
+        }
+    }
+
+    /// <summary>
     /// Initializes a new instance of the FXAA post-processing effect.
     /// </summary>
     /// <param name="renderingSystem">The rendering system instance</param>
     /// <param name="blitShader">The blit shader for final copy</param>
-    /// <param name="fxaaShader">The fxaa shader (MainPS&lt;let Quality : int&gt;);
-    /// each preset is a specialization requested on demand.</param>
+    /// <param name="fxaaShader">The fxaa shader (MainPS&lt;let Quality : int,
+    /// let Mode : int&gt;); each (preset, mode) pair is a specialization
+    /// requested on demand.</param>
     internal FXAA(RenderingSystem renderingSystem, Shader blitShader, Shader fxaaShader) : base(renderingSystem)
     {
         _device = renderingSystem.GraphicsDevice;
         _renderingSystem = renderingSystem;
 
         _quality = FXAAQuality.Medium;
-        _fxaaMaterial = renderingSystem.CreateGraphicsMaterial(fxaaShader, "fxaa_material", (int)_quality);
+        _mode = FXAAMode.Luma;
+        _fxaaMaterial = renderingSystem.CreateGraphicsMaterial(fxaaShader, "fxaa_material", (int)_quality, (int)_mode);
 
         _blitMaterial = renderingSystem.CreateGraphicsMaterial(blitShader, "fxaa_blit_material");
 
         // Create the reflection-driven data buffer over the shader's fxaaData
         // block; members land by name at their reflected offsets. The entry
-        // points are Quality-generic, so the reflected module is the current
-        // preset's specialization (the block layout is quality-independent).
+        // points are (Quality, Mode)-generic, so the reflected module is the
+        // current pair's specialization (the block layout is specialization-
+        // independent — see FxaaModeSpecializationTest).
         _fxaaShaderData = renderingSystem.CreateUniformGraphicsBuffer(
-            fxaaShader.GetShaderModules((int)_quality).ReflectionInfo.UniformBlocks.First(block => block.Name == ShaderId_fxaaData),
+            fxaaShader.GetShaderModules((int)_quality, (int)_mode).ReflectionInfo.UniformBlocks.First(block => block.Name == ShaderId_fxaaData),
             "fxaa_data");
         _fxaaShaderData.SetValue("invFrameSize", Vector2.One);
         _fxaaShaderData.SetValue("threshold", _threshold);
         _fxaaShaderData.SetValue("subpix", _subpix);
+        _fxaaShaderData.SetValue("depthThresholdMin", _depthThresholdMin);
+        _fxaaShaderData.SetValue("depthThresholdRel", _depthThresholdRel);
         _fxaaShaderData.Flush();
         _fxaaMaterial.SetBuffer(ShaderId_fxaaData, _fxaaShaderData);
     }
@@ -193,6 +298,25 @@ public class FXAA : TextureProcessor
         _fxaaShaderData.Flush();
     }
 
+    // The 1x1 depth placeholder for the always-present depth slot (see the
+    // field remarks) — created lazily on the first blit without a DepthSource.
+    private RenderTexture EnsurePlaceholderDepth()
+    {
+        if (_placeholderDepthTexture != null)
+        {
+            return _placeholderDepthTexture;
+        }
+
+        _placeholderDepthLayout ??= _device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [],
+            new DepthAttachment(PixelFormat.Depth32Float),
+            "fxaa_placeholder_depth"
+        ));
+        _placeholderDepthTexture = _renderingSystem.CreateRenderTexture(
+            _placeholderDepthLayout, 1, 1, "fxaa_placeholder_depth");
+        return _placeholderDepthTexture;
+    }
+
     /// <summary>
     /// GPU timing span for the current blit, set by the wrapping graph node on
     /// sample frames (null = no timing). The first pass writes the begin
@@ -219,6 +343,9 @@ public class FXAA : TextureProcessor
 
         // EnsureIntermediate guarantees the intermediate texture exists.
         _fxaaMaterial.SetRenderTexture(ShaderId_texture, input);
+        // The depth slot exists in every specialization's layout; bind the
+        // source's depth attachment, or the placeholder when none is set.
+        _fxaaMaterial.SetRenderTextureDepth(ShaderId_depthTexture, DepthSource ?? EnsurePlaceholderDepth());
         _blitMaterial.SetRenderTexture(ShaderId_texture, _intermediateTexture!);
 
         GpuTimestampSampler? timestamps = TimestampSampler;
@@ -246,16 +373,16 @@ public class FXAA : TextureProcessor
     }
 
     /// <summary>
-    /// Switches to the current quality preset's specialized material. The quality
-    /// axis is a generic value specialization (MainPS&lt;let Quality : int&gt;):
-    /// the shader compiles each preset once and caches it, so switching back to
-    /// a used preset is a cache hit.
+    /// Switches to the current (quality, mode) pair's specialized material.
+    /// Both axes are generic value specializations (MainPS&lt;let Quality : int,
+    /// let Mode : int&gt;): the shader compiles each pair once and caches it,
+    /// so switching back to a used pair is a cache hit.
     /// </summary>
-    private void ApplyQuality()
+    private void ApplySpecialization()
     {
         // SetSpecializations rebuilds the variant's parameter set with bindings
-        // carried over by name, so the texture/data buffer bindings survive.
-        _fxaaMaterial.SetSpecializations((int)_quality);
+        // carried over by name, so the texture/depth/data buffer bindings survive.
+        _fxaaMaterial.SetSpecializations((int)_quality, (int)_mode);
     }
 
     /// <summary>
@@ -269,6 +396,8 @@ public class FXAA : TextureProcessor
             _fxaaShaderData.Dispose();
             _intermediateTexture?.Dispose();
             _intermediateLayout?.Dispose();
+            _placeholderDepthTexture?.Dispose();
+            _placeholderDepthLayout?.Dispose();
             _fxaaMaterial.Dispose();
             _blitMaterial.Dispose();
         }

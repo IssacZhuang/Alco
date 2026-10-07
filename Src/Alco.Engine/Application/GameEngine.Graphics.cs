@@ -40,6 +40,25 @@ public partial class GameEngine
         return null;
     }
 
+    /// <summary>
+    /// Resolves the font atlas on-disk cache directory, or null when
+    /// the setting disables font caching.
+    /// </summary>
+    public virtual string? CreateFontCacheDirectory(GraphicsSetting setting)
+    {
+        if (setting.IsFontCacheEnabled)
+        {
+            if (setting.FontCachePath == null)
+            {
+                Log.Warning("Font cache is enabled but path is not set");
+                return null;
+            }
+            Log.Info("Font cache is enabled, path: ", setting.FontCachePath);
+            return setting.FontCachePath;
+        }
+        return null;
+    }
+
     private GPUDevice CreateGraphicsDevice(GraphicsSetting setting, uint disposeDelay)
     {
         if (setting.Backend == GraphicsBackend.None)
@@ -58,7 +77,9 @@ public partial class GameEngine
             Name = "graphics_device"
         };
 
-        return GraphicsDeviceFactory.CreateWebGPUDevice(deviceDescriptor);
+        // every backend runs through the alco-gpu Rust layer over wgpu-core;
+        // the device maps the requested backend onto its adapter selection
+        return GraphicsDeviceFactory.CreateAlcoGpuDevice(deviceDescriptor);
     }
 
 }

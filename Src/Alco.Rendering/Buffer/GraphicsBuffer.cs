@@ -179,6 +179,30 @@ public class GraphicsBuffer : AutoDisposable
     }
 
     /// <summary>
+    /// Creates a buffer with an explicit usage mask, for buffers that live outside
+    /// the uniform/storage/indirect pattern (e.g. the GPU particle system's
+    /// instance-step vertex buffer, which compute writes as storage and the render
+    /// pass fetches as vertex data).
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system.</param>
+    /// <param name="size">The size of the buffer in bytes.</param>
+    /// <param name="usage">The usage mask.</param>
+    /// <param name="name">The name of the buffer.</param>
+    internal GraphicsBuffer(RenderingSystem renderingSystem, uint size, BufferUsage usage, string name)
+    {
+        _device = renderingSystem.GraphicsDevice;
+
+        _buffer = _device.CreateBuffer(new BufferDescriptor
+        {
+            Usage = usage,
+            Size = size,
+            Name = name
+        });
+
+        Name = name;
+    }
+
+    /// <summary>
     /// Update the data to GPU immediately.
     /// </summary>
     /// <param name="data">The data to update. </param>

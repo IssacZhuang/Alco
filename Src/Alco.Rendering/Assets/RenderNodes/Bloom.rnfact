@@ -4,15 +4,13 @@
     "$type": "Alco.Rendering.RGNodeFactory_Bloom",
     "descriptor": {
         "blitShader": "BloomBlit",
-        "clampShader": "BloomClamp",
+        "setupShader": "BloomSetup",
         "downsampleShader": "BloomDownsample",
-        "upsampleShader": "BloomUpsample",
+        "gaussianShader": "BloomGaussian",
         "sceneCopyShader": "Blit",
-        "targetDownsampleHeight": 11,
-        "threshold": 1.0,
-        "intensity": 0.35,
-        "spread": 1.0,
-        "gamma": 2.2
+        "threshold": 0.0,
+        "intensity": 1.0,
+        "sizeScale": 1.0
     },
     "enabled": true
 }

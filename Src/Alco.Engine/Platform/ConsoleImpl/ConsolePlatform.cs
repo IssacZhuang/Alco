@@ -12,6 +12,17 @@ public class ConsolePlatform : Platform
     private bool _isStopped;
 
     /// <inheritdoc/>
+    public override int TargetFrameRate
+    {
+        get => base.TargetFrameRate;
+        set
+        {
+            base.TargetFrameRate = value;
+            _timer.SetTargetFrameRate(value);
+        }
+    }
+
+    /// <inheritdoc/>
     public override Input Input => _input;
 
     /// <summary>

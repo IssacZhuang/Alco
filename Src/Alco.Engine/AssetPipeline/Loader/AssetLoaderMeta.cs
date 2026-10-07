@@ -32,11 +32,11 @@ public class AssetLoaderMeta : IAssetLoader
         _jsonSerializerOptions = jsonSerializerOptions;
     }
 
-    public AssetLoaderMeta(IEnumerable<JsonConverter> jsonConverters)
+    public AssetLoaderMeta(IEnumerable<JsonConverter> jsonConverters, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         _jsonSerializerOptions = new JsonSerializerOptions
         {
-            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+            TypeInfoResolver = typeInfoResolver ?? new DefaultJsonTypeInfoResolver(),
             AllowTrailingCommas = true,
         };
 

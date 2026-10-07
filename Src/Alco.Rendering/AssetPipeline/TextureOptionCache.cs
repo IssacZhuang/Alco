@@ -21,7 +21,16 @@ public class TextureOptionCache : DirectoryOptionCache<Texture2DMeta>
     /// Initializes a new instance with the given <see cref="AssetSystem"/>.
     /// </summary>
     /// <param name="assetSystem">The asset system used for file discovery and loading.</param>
-    public TextureOptionCache(AssetSystem assetSystem) : base(assetSystem) { }
+    /// <param name="typeInfoResolver">
+    /// Optional resolver supplying type metadata (a source generated JsonSerializerContext
+    /// under NativeAOT); defaults to reflection.
+    /// </param>
+    public TextureOptionCache(AssetSystem assetSystem, IJsonTypeInfoResolver? typeInfoResolver = null) : base(assetSystem)
+    {
+        _typeInfoResolver = typeInfoResolver;
+    }
+
+    private readonly IJsonTypeInfoResolver? _typeInfoResolver;
 
     /// <inheritdoc/>
     protected override Texture2DMeta MergeOptions(Texture2DMeta parent, Texture2DMeta child)
@@ -36,7 +45,7 @@ public class TextureOptionCache : DirectoryOptionCache<Texture2DMeta>
     {
         var options = new JsonSerializerOptions
         {
-            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+            TypeInfoResolver = _typeInfoResolver ?? new DefaultJsonTypeInfoResolver(),
             AllowTrailingCommas = true,
         };
         options.Converters.Add(new JsonStringEnumConverter());

@@ -153,7 +153,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
         _staticBundle = rendering.CreateSubRenderContext("pbr_forward_static");
         _dynamicBundle = rendering.CreateSubRenderContext("pbr_forward_dynamic");
 
-        if (rendering.GraphicsDevice.TimestampQuerySupported)
+        if (rendering.GraphicsDevice.IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             _gpuTimestamps = new GpuTimestampSampler(rendering.GraphicsDevice, 2, "forward_pass");
         }
@@ -178,7 +178,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
                 $"Material '{asset.Name}' is not a blend material; the forward transparency pass draws glass only.");
         }
         return _materials.GetValue(asset, a => _materialCompiler.Compile(
-            a, _template, valueSpecArgs: null, (_, shader)
+            a, _template, (_, shader)
                 => CreateGlassMaterial(shader, asset.DoubleSided, $"{asset.Name}_glass")));
     }
 

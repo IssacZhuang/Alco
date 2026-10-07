@@ -14,17 +14,51 @@ public class ComputeMaterial : AutoDisposable
     protected readonly ShaderParameterSet _parameterSet;
     protected ComputePipelineContext _pipelineContext;
 
-    // Construction-bound (immutable for the dispatcher's lifetime): the shader
-    // handle and the specialization that pins its variant — the compute-side
-    // twin of GraphicsMaterial's construction binding.
-    private readonly string[] _specializations;
+    // The dispatcher's current variant state: it starts at construction and can
+    // be swapped later through SetSpecializations — the compute-side twin of
+    // GraphicsMaterial's variant state.
+    private string[] _specializations;
 
     protected bool _isPipelineDirty = true;
 
     /// <summary>
-    /// The specialization arguments the dispatcher was constructed for (its pinned variant).
+    /// The specialization arguments of the dispatcher's current variant.
     /// </summary>
     public IReadOnlyList<string> Specializations => _specializations;
+
+    /// <summary>
+    /// Switches the dispatcher to another specialization of its shader module:
+    /// the new variant's pipeline compiles lazily on the next dispatch, and
+    /// every resource binding carries over by resource name. A no-op when the
+    /// arguments are unchanged.
+    /// </summary>
+    /// <param name="specializations">The specialization arguments of the new
+    /// variant — C# values (<c>false</c>, <c>3</c>) or slang expressions,
+    /// normalized internally.</param>
+    public void SetSpecializations(params ReadOnlySpan<object> specializations)
+        => SetSpecializations(Shader.NormalizeSpecializations(specializations));
+
+    /// <summary>
+    /// Canonical-string core the compile paths use: the positional literals
+    /// <see cref="MaterialCompiler.BuildSpecializationLiterals"/> produces are
+    /// already normalized, so they land here without the object-typed wrapper.
+    /// </summary>
+    internal void SetSpecializations(string[] specializations)
+    {
+        ArgumentNullException.ThrowIfNull(specializations);
+        if (specializations.AsSpan().SequenceEqual(_specializations))
+        {
+            return;
+        }
+
+        _specializations = specializations;
+        // The next dispatch sees the dirty flag, compiles the variant's modules
+        // through the shader handle and rebuilds the pipeline; the parameter
+        // set re-resolves its slots from the new reflection info, carrying
+        // bound values over by name.
+        _pipelineContext.Specializations = specializations;
+        _isPipelineDirty = true;
+    }
 
     /// <summary>
     /// Gets the number of resource groups in the compute pipeline.

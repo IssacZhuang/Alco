@@ -6,7 +6,6 @@ using NUnit.Framework;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.Rendering;
-using Alco.ShaderCompiler;
 
 namespace Alco.World3D.Test;
 
@@ -165,16 +164,16 @@ public class TestSlangMaterialCompiler
 
         // The shadow template's alpha test is a value specialization parameter of
         // its fragment entry (<let AlphaTest : bool>) — the SHADOW_CUTOUT define's
-        // replacement. Distinct values are distinct composed shaders.
+        // replacement. Distinct values are distinct variants of one composed handle.
         MaterialAsset asset = new() { Name = "parameterized", Surface = Library(engine, ParameterizedSurfaceModule) };
-        Shader opaque = compiler.ComposeSurfaceShader(asset, Library(engine, "ShadowDepth"), ["false"]);
-        Shader cutout = compiler.ComposeSurfaceShader(asset, Library(engine, "ShadowDepth"), ["true"]);
-        ShaderModulesInfo plain = opaque.GetShaderModules();
-        ShaderModulesInfo alphaTested = cutout.GetShaderModules();
+        ShaderLibrary shadowTemplate = Library(engine, "ShadowDepth");
+        Shader shader = compiler.ComposeGraphics(shadowTemplate, asset.Surface!);
+        ShaderModulesInfo plain = shader.GetShaderModules("false");
+        ShaderModulesInfo alphaTested = shader.GetShaderModules("true");
 
         Assert.Multiple(() =>
         {
-            Assert.That(cutout, Is.Not.SameAs(opaque));
+            Assert.That(plain, Is.Not.SameAs(alphaTested));
 
             // The shadow template carries its cascade index as a push constant; the
             // engine reflects one range covering the float4 payload.
@@ -258,7 +257,7 @@ public class TestSlangMaterialCompiler
             Surface = Library(engine, ParameterizedSurfaceModule),
         };
         GraphicsMaterial glassMaterial = compiler.Compile(glassAsset,
-            Library(engine, "Glass"), valueSpecArgs: null,
+            Library(engine, "Glass"),
             (a, shader) => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{a.Name}_glass"));
         Assert.That(glassMaterial.TryGetResourceId(ShaderResourceId.Camera, out _), Is.True,
             "The glass template declares the camera binding.");

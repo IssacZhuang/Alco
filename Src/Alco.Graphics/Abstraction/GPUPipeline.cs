@@ -2,6 +2,9 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.Graphics
 {
+    /// <summary>
+    /// A configured shader program plus fixed-function state, ready for dispatch in a pass.
+    /// </summary>
     public abstract class GPUPipeline : BaseGPUObject
     {
         /// <summary>
@@ -11,9 +14,8 @@ namespace Alco.Graphics
         public ShaderStage Stages { get; }
 
         /// <summary>
-        /// Is the pipeline a compute pipeline
+        /// Gets whether this pipeline was created for compute (as opposed to graphics).
         /// </summary>
-        /// <value>Is the pipeline a compute pipeline</value>
         public bool IsComputePipeline
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]

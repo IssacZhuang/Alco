@@ -33,10 +33,17 @@ public sealed class NoView : View
 
     public override int2 Position { get; set; }
 
-    public override Vector2 MousePosition
-    {
-        get => Vector2.Zero;
-    }
+    private Vector2 _mousePosition;
+
+    /// <summary>
+    /// The injected cursor position (stays <c>Vector2.Zero</c> until
+    /// <see cref="SetMousePosition"/> is called) — headless hosts have no real
+    /// cursor, so tests and agents drive it explicitly.
+    /// </summary>
+    public override Vector2 MousePosition => _mousePosition;
+
+    /// <summary>Sets the cursor position <see cref="MousePosition"/> reports.</summary>
+    public void SetMousePosition(Vector2 position) => _mousePosition = position;
 
     protected override void Dispose(bool disposing)
     {

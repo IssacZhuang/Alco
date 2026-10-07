@@ -48,6 +48,26 @@ public sealed class RenderNodeFactoryServices
 }
 
 /// <summary>
+/// A graph resource role for the factory service blackboard: the resource
+/// whose depth attachment is the scene depth render nodes may sample — the
+/// pipeline's scene color resource. Composers that offer scene depth to
+/// factories register this role; nodes consuming scene depth request it by
+/// type and fall back gracefully when it is absent.
+/// </summary>
+public sealed class SceneDepthSource
+{
+    /// <summary>Creates the role over the scene color resource.</summary>
+    /// <param name="resource">The resource; its depth attachment is the sampleable scene depth.</param>
+    public SceneDepthSource(RenderGraphTexture resource)
+    {
+        Resource = resource ?? throw new ArgumentNullException(nameof(resource));
+    }
+
+    /// <summary>The scene color resource; its depth attachment is the sampleable scene depth.</summary>
+    public RenderGraphTexture Resource { get; }
+}
+
+/// <summary>
 /// The environment a <see cref="RenderNodeFactory"/> creates its node in: the
 /// rendering system, the target render graph, and the composer's service
 /// blackboard. It never grows feature-specific members — resources a node depends

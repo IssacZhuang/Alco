@@ -19,6 +19,9 @@ public sealed class Texture2D : Texture
     private readonly GPUResourceGroup?[] _resourcesReadMip;
     private readonly GPUTextureView?[] _mipViews;
 
+    private volatile Task? _contentUpload;
+    private volatile int _contentPresent = 1;
+
     /// <summary>
     /// The number of mip levels of the texture.
     /// </summary>
@@ -49,6 +52,48 @@ public sealed class Texture2D : Texture
     }
 
     public Padding SlicePadding { get; }
+
+    /// <summary>
+    /// A task that completes when streamed content has been issued to the GPU queue,
+    /// or is already completed for textures created with their content. It completes
+    /// even when the upload failed — check <see cref="IsContentLoaded"/> to distinguish —
+    /// and never faults. Completion covers the CPU-side queue write only: backends
+    /// order queue operations, so work submitted afterwards observes the content.
+    /// </summary>
+    public Task ContentArrival => _contentUpload ?? Task.CompletedTask;
+
+    /// <summary>
+    /// Whether the texture's content is present on the GPU. False only between a
+    /// streaming load's creation and its successful in-place upload; sampling the
+    /// texture meanwhile yields transparent black.
+    /// </summary>
+    public bool IsContentLoaded => _contentPresent != 0;
+
+    /// <summary>
+    /// Marks the texture as awaiting streamed content: <see cref="IsContentLoaded"/>
+    /// stays false until <see cref="MarkContentLoaded"/> follows a successful upload.
+    /// </summary>
+    internal void MarkContentPending()
+    {
+        _contentPresent = 0;
+    }
+
+    /// <summary>
+    /// Attaches the streaming upload task exposed through <see cref="ContentArrival"/>.
+    /// </summary>
+    /// <param name="upload">The upload task; it must never fault.</param>
+    internal void SetContentUpload(Task upload)
+    {
+        _contentUpload = upload;
+    }
+
+    /// <summary>
+    /// Marks the texture's content as present after a successful full upload.
+    /// </summary>
+    internal void MarkContentLoaded()
+    {
+        _contentPresent = 1;
+    }
 
     internal Texture2D(
         GPUDevice device,
@@ -216,8 +261,67 @@ public sealed class Texture2D : Texture
             throw new ArgumentException("The size of the bitmap does not match the size of the texture");
         }
 
-        _device.WriteTexture(_texture, bitmap); ;
+        _device.WriteTexture(_texture, bitmap);
+        MarkContentLoaded();
     }
+
+    /// <summary>
+    /// Uploads a sub-rectangle of a same-sized CPU bitmap into this texture, leaving texels outside
+    /// the rectangle untouched. Rows are repacked into a grow-only scratch buffer at a 256-byte
+    /// aligned stride (a queue-write requirement), so steady-state region uploads allocate nothing.
+    /// </summary>
+    /// <typeparam name="T">The pixel type; must match the texture's format, as in <see cref="SetPixels{T}(Bitmap{T})"/>.</typeparam>
+    /// <param name="bitmap">The CPU bitmap holding the region's source data.</param>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    public unsafe void SetPixels<T>(Bitmap<T> bitmap, int x, int y, int width, int height) where T : unmanaged
+    {
+        ArgumentNullException.ThrowIfNull(bitmap);
+        if (!IsWriteable)
+        {
+            throw new InvalidOperationException("The texture is not writeable");
+        }
+        ArgumentOutOfRangeException.ThrowIfNegative(x);
+        ArgumentOutOfRangeException.ThrowIfNegative(y);
+        ArgumentOutOfRangeException.ThrowIfNegative(width);
+        ArgumentOutOfRangeException.ThrowIfNegative(height);
+        if (x + width > Width || y + height > Height || x + width > bitmap.Width || y + height > bitmap.Height)
+        {
+            throw new ArgumentOutOfRangeException($"The region ({x}, {y}, {width}, {height}) exceeds the texture size ({Width}, {Height}) or the bitmap size ({bitmap.Width}, {bitmap.Height})");
+        }
+        if (width == 0 || height == 0)
+        {
+            return;
+        }
+
+        uint pixelSize = (uint)sizeof(T);
+        uint tightRow = (uint)width * pixelSize;
+        uint alignedRow = (tightRow + 255u) & ~255u;
+        uint dataSize = alignedRow * ((uint)height - 1) + tightRow;
+
+        if (_regionScratch is null || _regionScratch.Length < dataSize)
+        {
+            _regionScratch = new byte[dataSize];
+        }
+
+        T* src = bitmap.UnsafePointer;
+        int srcStride = bitmap.Width;
+        fixed (byte* scratch = _regionScratch)
+        {
+            for (int row = 0; row < height; row++)
+            {
+                T* srcLine = src + (long)(y + row) * srcStride + x;
+                Buffer.MemoryCopy(srcLine, scratch + (long)row * alignedRow, tightRow, tightRow);
+            }
+
+            _device.WriteTextureRegion(_texture, scratch, dataSize, alignedRow, (uint)x, (uint)y, (uint)width, (uint)height);
+        }
+        MarkContentLoaded();
+    }
+
+    private byte[]? _regionScratch;
 
     public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)
     {

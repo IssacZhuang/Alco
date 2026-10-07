@@ -1,0 +1,1388 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using Alco.Graphics.AlcoGpu.Interop;
+
+namespace Alco.Graphics.AlcoGpu;
+
+/// <summary>GPU device over the alco-gpu native backend: creates GPU resources, submits command buffers and services texture readbacks.</summary>
+internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
+{
+    #region Properties
+
+    private const int MaxPendingTextureReadbacks = 16;
+
+    // Staging-buffer cache constants. See Docs/Spec/2026-06-13-gpu-readback-staging-buffer-cache-design.md.
+    private const ulong StagingCacheIdleBudget = 64UL * 1024 * 1024;
+    private const ulong StagingCacheSingleBufferMax = 64UL * 1024 * 1024;
+    private static readonly long _stagingCacheIdleExpirationTicks = (long)(10.0 * Stopwatch.Frequency); // 10 seconds
+    private const ulong StagingCacheOversizeReuseThreshold = 4UL * 1024 * 1024;
+
+    private readonly DeviceDescriptor _descriptor;
+    // wgpu-core 30.0.1 still takes texture initialization and device trackers in
+    // opposite orders during texture writes and submissions, including readbacks.
+    // Buffer writes release trackers before acquiring initialization and need no gate.
+    private readonly Lock _textureUploadLock = new();
+    private readonly List<PendingTextureReadback> _pendingTextureReadbacks = new(capacity: 4);
+
+    // Native staging-buffer cache. The policy holds no native handles; the ticket
+    // carries the alco buffer handle plus its capacity. All list access is under
+    // _stagingCacheLock; native calls (create/destroy) are made outside the lock.
+    private readonly struct StagingTicket
+    {
+        public readonly AlcoGPU.BufferHandle Handle;
+        public readonly ulong Capacity;
+
+        public StagingTicket(AlcoGPU.BufferHandle handle, ulong capacity)
+        {
+            Handle = handle;
+            Capacity = capacity;
+        }
+    }
+
+    private readonly ReadbackStagingBufferCachePolicy<StagingTicket> _stagingCache =
+        new(StagingCacheIdleBudget, StagingCacheSingleBufferMax, _stagingCacheIdleExpirationTicks, StagingCacheOversizeReuseThreshold);
+    private readonly Lock _stagingCacheLock = new();
+    private readonly List<StagingTicket> _stagingCacheEvicted = new(capacity: 4);
+
+    private readonly PixelFormat _preferredSurfaceFormat;
+    private readonly int _maxBindGroups;
+
+    private AlcoGPU.DeviceHandle _native;
+
+    /// <summary>Gets the owned native device pointer.</summary>
+    internal AlcoGPU.DeviceHandle Native => _native;
+
+    /// <summary>Gets whether operational calls can still use the native device context.</summary>
+    /// <remarks>Children retain their native context and always release their own wrappers.</remarks>
+    internal bool IsNativeAlive => !_native.IsNull;
+
+    /// <summary>Gets whether native debugging and validation are enabled.</summary>
+    public bool IsDebug { get; }
+
+    /// <summary>
+    /// Whether the device exposes passthrough shaders: slang's SPIR-V (Vulkan),
+    /// DXIL (D3D12) and MSL/metallib (Metal) reach the backend as-is. Required
+    /// for DXIL/MSL/MetalLib (no translation fallback exists); SPIR-V falls
+    /// back to Naga import natively when unavailable.
+    /// </summary>
+    internal bool ShaderPassthroughEnabled { get; }
+
+    /// <summary>The backend the adapter actually selected (Auto resolves per platform).</summary>
+    public override GraphicsBackend Backend { get; }
+
+    #endregion
+
+    private struct PendingTextureReadback
+    {
+        public GPUTextureReadbackRequest Request;
+        public StagingTicket Buffer;
+        public ulong StagingDataSize;
+        public uint DataSize;
+        public uint TightBytesPerRow;
+        public uint AlignedBytesPerRow;
+        public uint Height;
+        public uint Depth;
+        // Caller-provided pointer the completed readback copies its data into.
+        public byte* Destination;
+    }
+
+    private struct TextureReadbackLayout
+    {
+        public AlcoGPU.CopyLayout BufferLayout;
+        public AlcoGPU.Extent3D CopySize;
+        public ulong StagingDataSize;
+        public uint DataSize;
+        // Tight = packed rows expected in the destination; aligned = 256-byte copy-aligned rows in the staging buffer.
+        public uint TightBytesPerRow;
+        public uint AlignedBytesPerRow;
+        public uint Height;
+        public uint Depth;
+    }
+
+    #region Abstract Implementation
+
+    /// <inheritdoc />
+    public override PixelFormat PreferredSurfaceFormat
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _preferredSurfaceFormat;
+    }
+
+    /// <summary>The default uniform-buffer bind group shared across the entire device.</summary>
+    public override GPUBindGroup BindGroupUniformBuffer { get; }
+    /// <inheritdoc />
+    public override GPUBindGroup BindGroupStorageBuffer { get; }
+    /// <inheritdoc />
+    public override GPUBindGroup BindGroupStorageBufferWithCounter { get; }
+    /// <inheritdoc />
+    public override GPUBindGroup BindGroupTexture2DRead { get; }
+    /// <inheritdoc />
+    public override GPUBindGroup BindGroupTexture2DStorage { get; }
+    /// <inheritdoc />
+    public override GPUBindGroup BindGroupTexture3DRead { get; }
+
+    /// <inheritdoc />
+    public override GPUFeatures SupportedFeatures { get; }
+
+    /// <inheritdoc />
+    public override float TimestampPeriodNanoseconds { get; }
+
+    /// <summary>
+    /// The maximum number of bind groups supported by the adapter.
+    /// </summary>
+    public override int MaxBindGroups
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _maxBindGroups;
+    }
+
+    /// <inheritdoc />
+    protected override void SubmitCore(GPUCommandBuffer commandBuffer)
+    {
+        try
+        {
+            AlcoGPU.CommandBufferHandle buffer = ((AlcoGpuCommandBuffer)commandBuffer).TakeBuffer();
+            lock (_textureUploadLock)
+            {
+                // The native side consumes the command-buffer handle on submit.
+                AlcoGpuNative.QueueSubmit(Native, buffer, null);
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(commandBuffer);
+        }
+    }
+
+    /// <inheritdoc />
+    protected unsafe override void DisposeCore()
+    {
+        try
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+            void Cleanup(Action release)
+            {
+                try { release(); }
+                catch (Exception error) { failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error); }
+            }
+
+            Cleanup(() => FailPendingTextureReadbacks(
+                new ObjectDisposedException(nameof(AlcoGpuDevice), "GPU device was disposed before texture readback completed.")));
+            lock (_stagingCacheLock)
+            {
+                _stagingCache.Drain(_stagingCacheEvicted);
+            }
+            Cleanup(DestroyEvicted);
+
+            Cleanup(() => BindGroupUniformBuffer?.Destroy());
+            Cleanup(() => BindGroupStorageBuffer?.Destroy());
+            Cleanup(() => BindGroupStorageBufferWithCounter?.Destroy());
+            Cleanup(() => BindGroupTexture2DRead?.Destroy());
+            Cleanup(() => BindGroupTexture2DStorage?.Destroy());
+            Cleanup(() => BindGroupTexture3DRead?.Destroy());
+
+            AlcoGPU.DeviceHandle device = _native;
+            _native = AlcoGPU.DeviceHandle.Null;
+            if (!device.IsNull)
+            {
+                Cleanup(() => AlcoGpuNative.DeviceDestroy(device));
+            }
+            AlcoGpuLogRouter.Detach(this);
+            failure?.Throw();
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override GPUBuffer CreateBufferCore(in BufferDescriptor descriptor)
+    {
+        return new AlcoGpuBuffer(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUTimestampQuerySet CreateTimestampQuerySetCore(uint count, string name)
+    {
+        return new AlcoGpuTimestampQuerySet(this, count, name);
+    }
+
+    /// <inheritdoc />
+    protected override GPUCommandBuffer CreateCommandBufferCore(in CommandBufferDescriptor? descriptor = null)
+    {
+        return new AlcoGpuCommandBuffer(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPURenderBundle CreateRenderBundleCore(in RenderBundleDescriptor? descriptor)
+    {
+        return new AlcoGpuRenderBundle(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUTexture CreateTextureCore(in TextureDescriptor descriptor)
+    {
+        return new AlcoGpuTexture(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUAttachmentLayout CreateAttachmentLayoutCore(in AttachmentLayoutDescriptor descriptor)
+    {
+        return new AlcoGpuAttachmentLayout(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUFrameBuffer CreateFrameBufferCore(in FrameBufferDescriptor descriptor)
+    {
+        return new AlcoGpuFrameBuffer(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUFrameBuffer CreateExternalFrameBufferCore(in ExternalFrameBufferDescriptor descriptor)
+    {
+        return new AlcoGpuExternalFrameBuffer(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUPipeline CreateGraphicsPipelineCore(in GraphicsPipelineDescriptor descriptor)
+    {
+        return new AlcoGpuGraphicsPipeline(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUPipeline CreateComputePipelineCore(in ComputePipelineDescriptor descriptor)
+    {
+        return new AlcoGpuComputePipeline(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUBindGroup CreateBindGroupCore(in BindGroupDescriptor descriptor)
+    {
+        return new AlcoGpuBindGroup(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUResourceGroup CreateResourceGroupCore(in ResourceGroupDescriptor descriptor)
+    {
+        return new AlcoGpuResourceGroup(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUTextureView CreateTextureViewCore(in TextureViewDescriptor descriptor)
+    {
+        return new AlcoGpuTextureView(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override GPUSampler CreateSamplerCore(in SamplerDescriptor descriptor)
+    {
+        return new AlcoGpuSampler(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    public override GPUSwapchain CreateSwapchainCore(in SwapchainDescriptor descriptor)
+    {
+        return new AlcoGpuSwapchain(this, descriptor);
+    }
+
+    /// <inheritdoc />
+    protected override unsafe void WriteBufferCore(GPUBuffer buffer, uint bufferOffset, byte* data, uint size)
+    {
+        try
+        {
+            AlcoGPU.BufferHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
+            AlcoGpuNative.QueueWriteBuffer(Native, nativeBuffer, bufferOffset, data, size);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(buffer);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override unsafe void ReadBufferCore(GPUBuffer buffer, byte* dest, uint bufferOffset, uint size)
+    {
+        try
+        {
+            AlcoGPU.BufferHandle nativeBuffer = ((AlcoGpuBuffer)buffer).Native;
+            StagingTicket tmpBuffer = AcquireStagingBuffer(size);
+            bool succeeded = false;
+            bool wasMapped = false;
+            try
+            {
+                ulong submissionIndex = CopyBufferToStaging(nativeBuffer, bufferOffset, tmpBuffer.Handle, size);
+
+                AlcoGpuNative.BufferMapRead(tmpBuffer.Handle, 0, size);
+                PollAndWait(submissionIndex);
+                AlcoGpuNative.BufferMapPoll(tmpBuffer.Handle);
+                wasMapped = true;
+
+                void* pointer = GetMappedRange(tmpBuffer.Handle, size);
+                Unsafe.CopyBlock(dest, pointer, size);
+
+                succeeded = true;
+            }
+            finally
+            {
+                try
+                {
+                    if (wasMapped)
+                    {
+                        try { AlcoGpuNative.BufferUnmap(tmpBuffer.Handle); }
+                        catch { succeeded = false; throw; }
+                    }
+                }
+                finally
+                {
+                    if (succeeded) { ReturnStagingBuffer(ref tmpBuffer); }
+                    else { ReleaseReadbackBuffer(ref tmpBuffer); }
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(buffer);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
+    {
+        try
+        {
+            AlcoGPU.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+
+            // The write covers exactly the given mip level's extent, not the level-0 size.
+            uint mipWidth = Math.Max(1u, texture.Width >> (int)mipLevel);
+            uint mipHeight = Math.Max(1u, texture.Height >> (int)mipLevel);
+
+            AlcoGPU.CopyLayout layout = AlcoGpuUtility.GetTextureDataLayout(texture.PixelFormat, mipWidth, mipHeight);
+            AlcoGPU.Extent3D writeSize = new()
+            {
+                Width = mipWidth,
+                Height = mipHeight,
+                DepthOrArrayLayers = texture.Depth,
+            };
+            AlcoGPU.Origin3D origin = default;
+
+            lock (_textureUploadLock)
+            {
+                AlcoGpuNative.QueueWriteTexture(
+                    Native, nativeTexture, mipLevel, origin, (uint)TextureAspect.All, data, dataSize, in layout, writeSize);
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(texture);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override unsafe void WriteTextureRegionCore(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel)
+    {
+        try
+        {
+            AlcoGPU.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+
+            // The source layout is caller-controlled: rows are packed at bytesPerRow
+            // (256-byte aligned for multi-row regions), so the copy reads exactly the
+            // rectangle's rows.
+            AlcoGPU.CopyLayout layout = new()
+            {
+                Offset = 0,
+                BytesPerRow = bytesPerRow,
+                RowsPerImage = height,
+            };
+
+            AlcoGPU.Origin3D origin = new() { X = x, Y = y, Z = 0 };
+            AlcoGPU.Extent3D writeSize = new()
+            {
+                Width = width,
+                Height = height,
+                DepthOrArrayLayers = 1,
+            };
+
+            lock (_textureUploadLock)
+            {
+                AlcoGpuNative.QueueWriteTexture(
+                    Native, nativeTexture, mipLevel, origin, (uint)TextureAspect.All, data, dataSize, in layout, writeSize);
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(texture);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
+    {
+        try
+        {
+            // AlcoGpuTextureBase, not AlcoGpuTexture: swapchain surface textures are readable too.
+            AlcoGPU.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+            TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
+
+            StagingTicket tmpBuffer = default;
+            bool acquired = false;
+            bool wasMapped = false;
+
+            try
+            {
+                tmpBuffer = AcquireStagingBuffer(layout.StagingDataSize);
+                acquired = true;
+
+                ulong submissionIndex = CopyTextureToStaging(
+                    nativeTexture, mipLevel, tmpBuffer.Handle, in layout.BufferLayout, layout.CopySize);
+
+                AlcoGpuNative.BufferMapRead(tmpBuffer.Handle, 0, layout.StagingDataSize);
+                PollAndWait(submissionIndex);
+                AlcoGpuNative.BufferMapPoll(tmpBuffer.Handle);
+                wasMapped = true;
+
+                void* pointer = GetMappedRange(tmpBuffer.Handle, layout.StagingDataSize);
+                CopyCompletedTextureReadback(dest, pointer, layout);
+            }
+            catch
+            {
+                // On any failure the buffer must not be returned to the cache; unmap (if
+                // needed) and destroy it instead.
+                if (wasMapped && acquired)
+                {
+                    try
+                    {
+                        AlcoGpuNative.BufferUnmap(tmpBuffer.Handle);
+                    }
+                    catch
+                    {
+                        // Best-effort unmap; the original failure is the actionable one.
+                    }
+                    wasMapped = false;
+                }
+
+                if (acquired)
+                {
+                    acquired = false;
+                    try { ReleaseReadbackBuffer(ref tmpBuffer); }
+                    catch { /* Preserve the original readback failure. */ }
+                }
+
+                throw;
+            }
+            finally
+            {
+                bool unmapped = !wasMapped;
+                try
+                {
+                    if (wasMapped)
+                    {
+                        AlcoGpuNative.BufferUnmap(tmpBuffer.Handle);
+                        unmapped = true;
+                    }
+                }
+                finally
+                {
+                    if (acquired)
+                    {
+                        acquired = false;
+                        if (unmapped) { ReturnStagingBuffer(ref tmpBuffer); }
+                        else { ReleaseReadbackBuffer(ref tmpBuffer); }
+                    }
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(texture);
+        }
+    }
+
+    /// <inheritdoc />
+    protected override unsafe void BeginReadTextureCore(
+        GPUTexture texture,
+        byte* dest,
+        uint dataSize,
+        GPUTextureReadbackRequest request,
+        uint mipLevel = 0)
+    {
+        try
+        {
+            AlcoGPU.TextureHandle nativeTexture = ((AlcoGpuTextureBase)texture).Native;
+            TextureReadbackLayout layout = GetTextureReadbackLayout(texture, dataSize, mipLevel);
+
+            StagingTicket tmpBuffer = AcquireStagingBuffer(layout.StagingDataSize);
+            try
+            {
+                CopyTextureToStaging(nativeTexture, mipLevel, tmpBuffer.Handle, in layout.BufferLayout, layout.CopySize);
+
+                // The map completes when the submission finishes; polled each frame
+                // from ProcessPendingReadbacksCore.
+                AlcoGpuNative.BufferMapRead(tmpBuffer.Handle, 0, layout.StagingDataSize);
+
+                _pendingTextureReadbacks.Add(new PendingTextureReadback
+                {
+                    Request = request,
+                    Buffer = tmpBuffer,
+                    StagingDataSize = layout.StagingDataSize,
+                    DataSize = layout.DataSize,
+                    TightBytesPerRow = layout.TightBytesPerRow,
+                    AlignedBytesPerRow = layout.AlignedBytesPerRow,
+                    Height = layout.Height,
+                    Depth = layout.Depth,
+                    Destination = dest,
+                });
+                tmpBuffer = default;
+            }
+            catch
+            {
+                try { ReleaseReadbackBuffer(ref tmpBuffer); }
+                catch { /* Preserve the copy/map/list-insertion failure. */ }
+                throw;
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+            GC.KeepAlive(texture);
+            GC.KeepAlive(request);
+        }
+    }
+
+    private static TextureReadbackLayout GetTextureReadbackLayout(GPUTexture texture, uint dataSize, uint mipLevel)
+    {
+        if (mipLevel >= texture.MipLevelCount)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(mipLevel),
+                mipLevel,
+                $"Texture only has {texture.MipLevelCount} mip levels.");
+        }
+
+        uint width = texture.GetMipWidth(mipLevel);
+        uint height = texture.GetMipHeight(mipLevel);
+        uint depth = texture.GetMipDepth(mipLevel);
+
+        AlcoGPU.CopyLayout bufferLayout;
+        ulong stagingDataSize = dataSize;
+        uint tightBytesPerRow = 0;
+        uint alignedBytesPerRow = 0;
+
+        if (PixelFormatUtility.TryGetPixelSize(texture.PixelFormat, out uint pixelSize))
+        {
+            tightBytesPerRow = checked(width * pixelSize);
+            alignedBytesPerRow = AlignTextureBytesPerRow(tightBytesPerRow);
+            ulong expectedDataSize = (ulong)tightBytesPerRow * height * depth;
+            if (dataSize < expectedDataSize)
+            {
+                throw new GraphicsException(
+                    $"The destination buffer is too small for texture readback. Required: {expectedDataSize}, provided: {dataSize}.");
+            }
+
+            bufferLayout = new AlcoGPU.CopyLayout
+            {
+                Offset = 0,
+                BytesPerRow = alignedBytesPerRow,
+                RowsPerImage = height,
+            };
+            stagingDataSize = (ulong)alignedBytesPerRow * height * depth;
+        }
+        else
+        {
+            bufferLayout = AlcoGpuUtility.GetTextureDataLayout(texture.PixelFormat, width, height);
+        }
+
+        return new TextureReadbackLayout
+        {
+            BufferLayout = bufferLayout,
+            CopySize = new AlcoGPU.Extent3D
+            {
+                Width = width,
+                Height = height,
+                DepthOrArrayLayers = depth,
+            },
+            StagingDataSize = stagingDataSize,
+            DataSize = dataSize,
+            TightBytesPerRow = tightBytesPerRow,
+            AlignedBytesPerRow = alignedBytesPerRow,
+            Height = height,
+            Depth = depth,
+        };
+    }
+
+    private static uint AlignTextureBytesPerRow(uint bytesPerRow)
+    {
+        const uint TextureCopyBytesPerRowAlignment = 256;
+        return checked((bytesPerRow + TextureCopyBytesPerRowAlignment - 1) & ~(TextureCopyBytesPerRowAlignment - 1));
+    }
+
+    private static unsafe void CopyTextureReadbackData(
+        byte* destination,
+        byte* source,
+        uint tightBytesPerRow,
+        uint alignedBytesPerRow,
+        uint height,
+        uint depth)
+    {
+        if (tightBytesPerRow == alignedBytesPerRow)
+        {
+            Unsafe.CopyBlock(destination, source, checked(tightBytesPerRow * height * depth));
+            return;
+        }
+
+        for (uint layer = 0; layer < depth; layer++)
+        {
+            ulong sourceLayerOffset = (ulong)layer * height * alignedBytesPerRow;
+            ulong destinationLayerOffset = (ulong)layer * height * tightBytesPerRow;
+
+            for (uint row = 0; row < height; row++)
+            {
+                byte* sourceRow = source + (nint)(sourceLayerOffset + (ulong)row * alignedBytesPerRow);
+                byte* destinationRow = destination + (nint)(destinationLayerOffset + (ulong)row * tightBytesPerRow);
+                Unsafe.CopyBlock(destinationRow, sourceRow, tightBytesPerRow);
+            }
+        }
+    }
+
+    private static unsafe void CopyCompletedTextureReadback(byte* destination, void* mappedPointer, in TextureReadbackLayout layout)
+    {
+        if (mappedPointer == null)
+        {
+            throw new GraphicsException("Texture readback returned a null mapped range.");
+        }
+
+        if (layout.TightBytesPerRow != 0)
+        {
+            CopyTextureReadbackData(
+                destination,
+                (byte*)mappedPointer,
+                layout.TightBytesPerRow,
+                layout.AlignedBytesPerRow,
+                layout.Height,
+                layout.Depth);
+            return;
+        }
+
+        Unsafe.CopyBlock(destination, mappedPointer, layout.DataSize);
+    }
+
+    private static unsafe void CopyCompletedTextureReadback(byte* destination, void* mappedPointer, in PendingTextureReadback readback)
+    {
+        if (mappedPointer == null)
+        {
+            throw new GraphicsException("Texture readback returned a null mapped range.");
+        }
+
+        if (readback.TightBytesPerRow != 0)
+        {
+            CopyTextureReadbackData(
+                destination,
+                (byte*)mappedPointer,
+                readback.TightBytesPerRow,
+                readback.AlignedBytesPerRow,
+                readback.Height,
+                readback.Depth);
+            return;
+        }
+
+        Unsafe.CopyBlock(destination, mappedPointer, readback.DataSize);
+    }
+
+    private unsafe void ProcessPendingTextureReadbacks()
+    {
+        try
+        {
+            // Pump the native queue without blocking so in-flight maps can complete.
+            if (_pendingTextureReadbacks.Count > 0)
+            {
+                AlcoGpuNative.DevicePoll(Native, AlcoGPU.False, ulong.MaxValue, null);
+            }
+
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo? cleanupFailure = null;
+            for (int i = 0; i < _pendingTextureReadbacks.Count; i++)
+            {
+                PendingTextureReadback readback = _pendingTextureReadbacks[i];
+                bool succeeded = false;
+                bool stillPending = false;
+                bool wasMapped = false;
+                try
+                {
+                    uint pollStatus = AlcoGpuNative.BufferMapPoll(readback.Buffer.Handle);
+                    if (pollStatus == AlcoGPU.Status.NotReady)
+                    {
+                        stillPending = true;
+                    }
+                    else
+                    {
+                        // Failure statuses throw from the native error callback at the
+                        // poll call above; reaching here means the map succeeded.
+                        wasMapped = true;
+                        void* pointer = GetMappedRange(readback.Buffer.Handle, readback.StagingDataSize);
+                        CopyCompletedTextureReadback(readback.Destination, pointer, readback);
+                        succeeded = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    readback.Request.Fail(ex);
+                }
+                finally
+                {
+                    if (wasMapped)
+                    {
+                        try
+                        {
+                            AlcoGpuNative.BufferUnmap(readback.Buffer.Handle);
+                        }
+                        catch (Exception error)
+                        {
+                            readback.Request.Fail(error);
+                            succeeded = false;
+                            // A buffer whose unmap failed cannot reenter the staging cache.
+                        }
+                    }
+                }
+
+                if (stillPending)
+                {
+                    continue;
+                }
+
+                // Retire the managed ticket before a consuming native cleanup can throw.
+                _pendingTextureReadbacks.RemoveAt(i);
+                i--;
+                // A buffer may be returned to the cache only after a successful readback and unmap;
+                // failures must destroy the native resource instead.
+                if (succeeded) { readback.Request.Complete(); }
+                try
+                {
+                    if (succeeded) { ReturnStagingBuffer(ref readback.Buffer); }
+                    else { ReleaseReadbackBuffer(ref readback.Buffer); }
+                }
+                catch (Exception error)
+                {
+                    cleanupFailure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error);
+                }
+            }
+            cleanupFailure?.Throw();
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    private void FailPendingTextureReadbacks(Exception error)
+    {
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+        while (_pendingTextureReadbacks.Count > 0)
+        {
+            int index = _pendingTextureReadbacks.Count - 1;
+            PendingTextureReadback readback = _pendingTextureReadbacks[index];
+            _pendingTextureReadbacks.RemoveAt(index);
+            try { readback.Request.Fail(error); }
+            catch (Exception reportingError) { failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(reportingError); }
+            try { ReleaseReadbackBuffer(ref readback.Buffer); }
+            catch (Exception cleanupError) { failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanupError); }
+        }
+        failure?.Throw();
+    }
+
+    private void ReleaseReadbackBuffer(ref StagingTicket buffer)
+    {
+        // Native destruction consumes the wrapper even when it reports an error.
+        AlcoGPU.BufferHandle handle = buffer.Handle;
+        buffer = default;
+        try
+        {
+            if (!handle.IsNull)
+            {
+                AlcoGpuNative.BufferDestroy(handle);
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    /// <summary>
+    /// Acquires a reusable staging buffer for a readback of <paramref name="requiredSize"/>
+    /// bytes, creating a new native buffer only when no suitable idle buffer is cached. The
+    /// returned buffer must later be passed to <see cref="ReturnStagingBuffer"/> or
+    /// <see cref="ReleaseReadbackBuffer"/>. Native buffer creation is performed outside the
+    /// staging-cache lock.
+    /// </summary>
+    private StagingTicket AcquireStagingBuffer(ulong requiredSize)
+    {
+        try
+        {
+            lock (_stagingCacheLock)
+            {
+                if (_stagingCache.TryAcquire(requiredSize, out StagingTicket cached))
+                {
+                    return cached;
+                }
+            }
+
+            // Miss: create a new buffer at a reuse-friendly bucket size. Done outside the lock.
+            ulong capacity = _stagingCache.Bucketize(requiredSize);
+            AlcoGPU.BufferDesc descriptor = new()
+            {
+                Size = capacity,
+                Usage = (BufferUsage.MapRead | BufferUsage.CopyDst),
+            };
+
+            AlcoGpuNative.BufferCreate(Native, in descriptor, out AlcoGPU.BufferHandle handle);
+            return new StagingTicket(handle, capacity);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    /// <summary>
+    /// Returns a staging buffer to the cache after its mapped data has been copied and it has
+    /// been unmapped, or destroys it when it is oversized or when trimming evicts it. This is
+    /// the single return-or-destroy decision point for all readback paths. Native destroy is
+    /// performed outside the staging-cache lock.
+    /// </summary>
+    private void ReturnStagingBuffer(ref StagingTicket buffer)
+    {
+        // Relinquish the caller ticket before transfer or consuming native cleanup.
+        StagingTicket returning = buffer;
+        buffer = default;
+        if (returning.Handle.IsNull)
+        {
+            return;
+        }
+
+        if (!ShouldCacheStagingBuffer(returning.Capacity))
+        {
+            ReleaseReadbackBuffer(ref returning);
+            return;
+        }
+
+        lock (_stagingCacheLock)
+        {
+            _stagingCache.Return(returning, returning.Capacity, Stopwatch.GetTimestamp(), _stagingCacheEvicted);
+        }
+
+        // Destroy any entries evicted by this return (expired or over-budget), outside the lock.
+        DestroyEvicted();
+    }
+
+    /// <summary>
+    /// Checks whether a buffer of <paramref name="capacity"/> is eligible for the idle cache
+    /// without touching the cache state.
+    /// </summary>
+    private bool ShouldCacheStagingBuffer(ulong capacity)
+    {
+        return capacity <= StagingCacheSingleBufferMax;
+    }
+
+    /// <summary>
+    /// Destroys every buffer whose ticket is currently in <see cref="_stagingCacheEvicted"/>
+    /// and clears the list. Called outside the staging-cache lock.
+    /// </summary>
+    private void DestroyEvicted()
+    {
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo? failure = null;
+        while (_stagingCacheEvicted.Count > 0)
+        {
+            int index = _stagingCacheEvicted.Count - 1;
+            StagingTicket buffer = _stagingCacheEvicted[index];
+            _stagingCacheEvicted.RemoveAt(index);
+            try { ReleaseReadbackBuffer(ref buffer); }
+            catch (Exception error) { failure ??= System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error); }
+        }
+        failure?.Throw();
+    }
+
+    /// <summary>
+    /// Runs idle-cache maintenance: trims expired and over-budget buffers. Called from
+    /// <see cref="OnEndFrameCore"/> so idle memory is reclaimed even after readback activity
+    /// has stopped. Native destroy of evicted buffers happens outside the lock.
+    /// </summary>
+    private void TrimStagingCache()
+    {
+        lock (_stagingCacheLock)
+        {
+            _stagingCache.Trim(Stopwatch.GetTimestamp(), _stagingCacheEvicted);
+        }
+
+        DestroyEvicted();
+    }
+
+    /// <summary>
+    /// Retires finished texture readbacks and drains queued native messages. Idempotent and
+    /// submit-free, so it is safe to call outside the frame loop (e.g. draining captures at
+    /// shutdown) in addition to the end-of-frame call.
+    /// </summary>
+    protected unsafe override void ProcessPendingReadbacksCore()
+    {
+        if (_pendingTextureReadbacks.Count > 0)
+        {
+            ProcessPendingTextureReadbacks();
+        }
+    }
+
+    protected unsafe override void OnEndFrameCore()
+    {
+        ProcessPendingReadbacksCore();
+        PollMessages();
+
+        // Trim the idle staging cache even when no readbacks are pending, so that the last
+        // returned buffer does not stay cached forever after readback activity stops.
+        int idleCount;
+        lock (_stagingCacheLock)
+        {
+            idleCount = _stagingCache.IdleCount;
+        }
+
+        if (idleCount > 0)
+        {
+            TrimStagingCache();
+        }
+    }
+
+    #endregion
+
+    #region AlcoGpu Implementation
+
+    /// <summary>
+    /// Copies a buffer region into a staging buffer and submits it, returning the
+    /// submission index the caller can poll/wait on.
+    /// </summary>
+    private ulong CopyBufferToStaging(AlcoGPU.BufferHandle source, uint sourceOffset, AlcoGPU.BufferHandle staging, ulong size)
+    {
+        try
+        {
+            AlcoGPU.EncoderHandle encoder = CreateEncoder();
+            try
+            {
+                AlcoGpuNative.CopyBufferToBuffer(encoder, source, sourceOffset, staging, 0, size);
+            }
+            catch
+            {
+                try { AlcoGpuNative.EncoderDestroy(encoder); }
+                catch { /* Preserve the encoding failure. */ }
+                throw;
+            }
+
+            return SubmitEncoder(encoder);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    /// <summary>
+    /// Copies a texture mip into a staging buffer and submits it, returning the
+    /// submission index the caller can poll/wait on.
+    /// </summary>
+    private unsafe ulong CopyTextureToStaging(
+        AlcoGPU.TextureHandle source,
+        uint mipLevel,
+        AlcoGPU.BufferHandle staging,
+        in AlcoGPU.CopyLayout layout,
+        AlcoGPU.Extent3D copySize)
+    {
+        try
+        {
+            AlcoGPU.EncoderHandle encoder = CreateEncoder();
+            try
+            {
+                AlcoGpuNative.CopyTextureToBuffer(encoder, source, mipLevel, (uint)TextureAspect.All, staging, in layout, copySize);
+            }
+            catch
+            {
+                try { AlcoGpuNative.EncoderDestroy(encoder); }
+                catch { /* Preserve the encoding failure. */ }
+                throw;
+            }
+
+            return SubmitEncoder(encoder);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    private AlcoGPU.EncoderHandle CreateEncoder()
+    {
+        try
+        {
+            ReadOnlySpan<byte> nameSpan = "readback_encoder\u0000"u8;
+            fixed (byte* ptrName = nameSpan)
+            {
+                AlcoGpuNative.EncoderCreate(Native, ptrName, out AlcoGPU.EncoderHandle encoder);
+                return encoder;
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    private ulong SubmitEncoder(AlcoGPU.EncoderHandle encoder)
+    {
+        try
+        {
+            // finish consumes the encoder handle on both success and failure.
+            AlcoGpuNative.EncoderFinish(encoder, out AlcoGPU.CommandBufferHandle commandBuffer);
+
+            lock (_textureUploadLock)
+            {
+                ulong index;
+                // QueueSubmit consumes the command buffer on both success and failure.
+                AlcoGpuNative.QueueSubmit(Native, commandBuffer, &index);
+
+                return index;
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    /// <summary>Blocks until the given submission (and its map callbacks) completes.</summary>
+    private void PollAndWait(ulong submissionIndex)
+    {
+        try
+        {
+            AlcoGpuNative.DevicePoll(Native, AlcoGPU.True, submissionIndex, null);
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    private void* GetMappedRange(AlcoGPU.BufferHandle buffer, ulong size)
+    {
+        try
+        {
+            void* pointer = null;
+            AlcoGpuNative.BufferGetMappedRange(buffer, 0, size, &pointer);
+            return pointer;
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    /// <summary>
+    /// Drains the per-device message queue (validation errors, native warnings) and
+    /// turns them into log calls or exceptions.
+    /// </summary>
+    private unsafe void PollMessages()
+    {
+        try
+        {
+            while (true)
+            {
+                AlcoGPU.DeviceMessage message = default;
+                uint status = AlcoGpuNative.DevicePopMessage(Native, ref message);
+                if (status != AlcoGPU.Status.Ok)
+                {
+                    break;
+                }
+
+                string text = AlcoGpuMarshal.BorrowedString(message.Message) ?? "<empty native message>";
+                switch (message.Severity)
+                {
+                    case 0: // error
+                        throw new GraphicsException("[alco-gpu] " + text);
+                    case 1: // warning
+                        if (IsDebug)
+                        {
+                            _host.LogWarning(text);
+                        }
+                        break;
+                    default:
+                        _host.LogInfo(text);
+                        break;
+                }
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    /// <summary>
+    /// Routes one wgpu-core log record delivered through the process-wide
+    /// native log callback. Unlike <see cref="PollMessages"/>,
+    /// error-severity records do not throw: they can fire from the middle of
+    /// a native operation where an unwind is undefined, and synchronous
+    /// failures already throw through the error callback.
+    /// </summary>
+    /// <param name="level">The <see cref="AlcoGPU.LogLevel"/> of the record.</param>
+    /// <param name="message">The record text.</param>
+    internal void RouteNativeLog(uint level, string message)
+    {
+        switch (level)
+        {
+            case AlcoGPU.LogLevel.Error:
+                _host.LogError("[alco-gpu] " + message);
+                break;
+            case AlcoGPU.LogLevel.Warn:
+                if (IsDebug)
+                {
+                    _host.LogWarning(message);
+                }
+                break;
+            default:
+                _host.LogInfo(message);
+                break;
+        }
+    }
+
+    internal AlcoGpuDevice(in DeviceDescriptor descriptor) : base(descriptor)
+    {
+        try
+        {
+            try
+            {
+                IsDebug = descriptor.Debug;
+                _descriptor = descriptor;
+                _preferredSurfaceFormat = descriptor.PreferredSurfaceFormat;
+
+                // Forwarding must be active before the native device exists: the
+                // root causes of device-creation failures are only reported
+                // through wgpu-core log records.
+                AlcoGpuLogRouter.Attach(this);
+
+                // All optional features are blanket-requested; the native side intersects
+                // them with adapter support and reports the supported set back.
+                GPUFeatures requestedFeatures =
+                    GPUFeatures.TextureCompressionBC
+                    | GPUFeatures.TimestampQuery
+                    | GPUFeatures.TimestampQueryInsidePasses
+                    | GPUFeatures.IndirectFirstInstance
+                    | GPUFeatures.ClearTexture;
+
+                ReadOnlySpan<byte> nameSpan = descriptor.Name.Utf8Z();
+                fixed (byte* ptrName = nameSpan)
+                {
+                    AlcoGPU.DeviceDesc desc = new()
+                    {
+                        Backend = BackendToRequest(descriptor.Backend),
+                        Debug = descriptor.Debug ? AlcoGPU.True : AlcoGPU.False,
+                        RequiredFeatures = requestedFeatures,
+                        PushConstantsSize = descriptor.PushConstantsSize,
+                        Name = ptrName,
+                    };
+
+                    AlcoGPU.DeviceHandle deviceHandle;
+                    AlcoGpuNative.DeviceCreate(in desc, out deviceHandle);
+                    _native = deviceHandle;
+                }
+
+                AlcoGPU.DeviceInfo info = default;
+                AlcoGpuNative.DeviceGetInfo(Native, ref info);
+
+                Backend = info.Backend switch
+                {
+                    AlcoGPU.BackendResolved.Vulkan => GraphicsBackend.WGPUVulkan,
+                    AlcoGPU.BackendResolved.Dx12 => GraphicsBackend.WGPUDx12,
+                    AlcoGPU.BackendResolved.Metal => GraphicsBackend.WGPUMetal,
+                    _ => GraphicsBackend.Auto,
+                };
+
+                string adapterName = AlcoGpuMarshal.BorrowedString(info.AdapterName) ?? "unknown";
+                _host.LogSuccess($"Adapter name: {adapterName}");
+                _host.LogSuccess($"Graphics backend: {Backend}");
+
+                _maxBindGroups = (int)info.MaxBindGroups;
+                SupportedFeatures = info.SupportedFeatures;
+
+                if (SupportedFeatures.HasFlag(GPUFeatures.TextureCompressionBC))
+                {
+                    _host.LogSuccess("Texture compression BC is supported");
+                }
+                if (SupportedFeatures.HasFlag(GPUFeatures.TimestampQuery))
+                {
+                    _host.LogSuccess("GPU timestamp queries are supported");
+                }
+                if (SupportedFeatures.HasFlag(GPUFeatures.TimestampQueryInsidePasses))
+                {
+                    _host.LogSuccess("GPU timestamp queries inside passes are supported");
+                }
+                if (!SupportedFeatures.HasFlag(GPUFeatures.IndirectFirstInstance))
+                {
+                    _host.LogWarning(
+                        "Non-zero indirect firstInstance is unavailable; batched indirect draws that address per-draw data through firstInstance will not render correctly.");
+                }
+
+                ShaderPassthroughEnabled = (info.Capabilities & AlcoGPU.Capabilities.PassthroughShaders) != 0;
+                if (Backend == GraphicsBackend.WGPUDx12)
+                {
+                    _host.LogSuccess("DX12 SPIR-V shader translation is enabled");
+                }
+                else if (ShaderPassthroughEnabled)
+                {
+                    _host.LogSuccess($"Native {Backend} shader passthrough is enabled");
+                }
+                else if (Backend == GraphicsBackend.WGPUVulkan)
+                {
+                    _host.LogWarning("Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
+                }
+
+                if (SupportedFeatures.HasFlag(GPUFeatures.MetalLibPassthrough))
+                {
+                    _host.LogSuccess("Precompiled metallib shader passthrough is enabled");
+                }
+
+                TimestampPeriodNanoseconds = SupportedFeatures.HasFlag(GPUFeatures.TimestampQuery)
+                    ? info.TimestampPeriodNs
+                    : 0.0f;
+
+                // create default bind groups
+                BindGroupUniformBuffer = CreateBindGroup(new BindGroupDescriptor
+                {
+                    Name = "default_bind_group_buffer",
+                    Bindings = new BindGroupEntry[]
+                    {
+                        new BindGroupEntry(0, ShaderStage.Standard, BindingType.UniformBuffer),
+                    },
+                });
+
+                BindGroupStorageBuffer = CreateBindGroup(new BindGroupDescriptor
+                {
+                    Name = "default_bind_group_storage_buffer",
+                    Bindings = new BindGroupEntry[]
+                    {
+                        new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+                    },
+                });
+
+                BindGroupStorageBufferWithCounter = CreateBindGroup(new BindGroupDescriptor
+                {
+                    Name = "default_bind_group_storage_buffer_with_counter",
+                    Bindings = new BindGroupEntry[]
+                    {
+                        new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageBuffer),
+                        new BindGroupEntry(1, ShaderStage.Standard, BindingType.StorageBuffer),
+                    },
+                });
+
+                BindGroupTexture3DRead = CreateBindGroup(new BindGroupDescriptor
+                {
+                    Name = "default_bind_group_texture_3d_read",
+                    Bindings = new BindGroupEntry[]
+                    {
+                        new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture3D)),
+                    },
+                });
+
+                BindGroupTexture2DRead = CreateBindGroup(new BindGroupDescriptor
+                {
+                    Name = "default_bind_group_texture_read",
+                    Bindings = new BindGroupEntry[]
+                    {
+                        new BindGroupEntry(0, ShaderStage.Standard, BindingType.Texture, new TextureBindingInfo(TextureViewDimension.Texture2D)),
+                    },
+                });
+
+                BindGroupTexture2DStorage = CreateBindGroup(new BindGroupDescriptor
+                {
+                    Name = "default_bind_group_storage_texture",
+                    Bindings = new BindGroupEntry[]
+                    {
+                        new BindGroupEntry(0, ShaderStage.Standard, BindingType.StorageTexture, null, new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D, PixelFormat.RGBA8Unorm)),
+                    },
+                });
+            }
+            catch
+            {
+                // The base constructor subscribes before native creation. Roll back without
+                // replacing the original creation error with failures from partial cleanup.
+                AlcoGpuLogRouter.Detach(this);
+                DetachHostEvents();
+                void ReleaseLayout(GPUBindGroup? layout)
+                {
+                    try
+                    {
+                        layout?.Destroy();
+                    }
+                    catch
+                    {
+                        // Keep releasing independently owned wrappers even if another cleanup failed.
+                    }
+                }
+                ReleaseLayout(BindGroupUniformBuffer);
+                ReleaseLayout(BindGroupStorageBuffer);
+                ReleaseLayout(BindGroupStorageBufferWithCounter);
+                ReleaseLayout(BindGroupTexture3DRead);
+                ReleaseLayout(BindGroupTexture2DRead);
+                ReleaseLayout(BindGroupTexture2DStorage);
+                if (!Native.IsNull)
+                {
+                    AlcoGPU.DeviceHandle device = _native;
+                    _native = AlcoGPU.DeviceHandle.Null;
+                    try { AlcoGpuNative.DeviceDestroy(device); }
+                    catch { /* Preserve the construction failure. */ }
+                }
+                throw;
+            }
+        }
+        finally
+        {
+            GC.KeepAlive(this);
+        }
+    }
+
+    private static uint BackendToRequest(GraphicsBackend backend)
+    {
+        return backend switch
+        {
+            GraphicsBackend.WGPUVulkan => AlcoGPU.BackendRequest.Vulkan,
+            GraphicsBackend.WGPUDx12 => AlcoGPU.BackendRequest.Dx12,
+            GraphicsBackend.WGPUMetal => AlcoGPU.BackendRequest.Metal,
+            _ => AlcoGPU.BackendRequest.Auto,
+        };
+    }
+
+    /// <summary>
+    /// Logging channel reserved for internal alco-gpu object usage.
+    /// </summary>
+    internal void LogInfo(ReadOnlySpan<char> message)
+    {
+        _host.LogInfo(message);
+    }
+
+    /// <summary>
+    /// Logging channel reserved for internal alco-gpu object usage.
+    /// </summary>
+    internal void LogWarning(ReadOnlySpan<char> message)
+    {
+        _host.LogWarning(message);
+    }
+
+    #endregion
+}

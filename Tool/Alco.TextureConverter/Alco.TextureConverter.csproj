@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<RootNamespace>Alco.TextureConverter</RootNamespace>
+		<AssemblyName>Alco.TextureConverter</AssemblyName>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
+		<ProjectReference Include="..\..\Src\Alco.Rendering\Alco.Rendering.csproj" />
+	</ItemGroup>
+
+</Project>

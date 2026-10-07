@@ -6,7 +6,9 @@ namespace Alco.Graphics;
 public struct DepthStencilState
 {
     /// <summary>
-    /// A depth-stencil state with depth testing disabled and stencil disabled.
+    /// Depth compare is <see cref="CompareFunction.Never"/> with no writes: every
+    /// fragment is rejected while a depth attachment is present. Use
+    /// <see cref="Default"/> to disable depth testing instead.
     /// </summary>
     public static readonly DepthStencilState None = new(false, CompareFunction.Never);
 
@@ -34,12 +36,14 @@ public struct DepthStencilState
     public static readonly DepthStencilState ReadReverseZ = new(false, CompareFunction.GreaterEqual);
 
     /// <summary>
-    /// The default depth-stencil state, the depth test is always pass.
+    /// The default depth-stencil state: the depth test always passes and nothing
+    /// is written.
     /// </summary>
     public static readonly DepthStencilState Default = new(false, CompareFunction.Always);
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DepthStencilState"/> struct.
+    /// Initializes the state with a depth comparison and optional writing; stencil
+    /// faces are left at their defaults.
     /// </summary>
     /// <param name="depthWriteEnabled">Whether depth writing is enabled.</param>
     /// <param name="depthCompare">The depth comparison function.</param>
@@ -53,7 +57,8 @@ public struct DepthStencilState
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DepthStencilState"/> struct.
+    /// Initializes the state with a depth comparison, optional writing and depth
+    /// bounds testing, and explicit front/back stencil face states.
     /// </summary>
     /// <param name="depthWriteEnabled">Whether depth writing is enabled.</param>
     /// <param name="depthBoundsTestEnabled">Whether depth bounds test is enabled.</param>

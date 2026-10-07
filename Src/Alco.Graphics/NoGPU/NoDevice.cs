@@ -60,13 +60,7 @@ internal class NoDevice : GPUDevice
 
     public override GraphicsBackend Backend => GraphicsBackend.None;
 
-    public override bool TextureCompressBC3Supported => false;
-
-    public override bool TimestampQuerySupported => false;
-
-    public override bool MetalLibPassthroughSupported => false;
-
-    public override bool TimestampQueryInsidePassesSupported => false;
+    public override GPUFeatures SupportedFeatures => GPUFeatures.None;
 
     public override float TimestampPeriodNanoseconds => 0.0f;
 
@@ -218,14 +212,10 @@ internal class NoDevice : GPUDevice
 
     public override void Destroy(BaseGPUObject obj)
     {
-        //do nothing
-        // base.Destroy(obj);
     }
 
     public override void DestroyImmediate(BaseGPUObject obj)
     {
-        //do nothing
-        // base.DestroyImmediate(obj);
     }
 
     protected override void DisposeCore()
@@ -250,7 +240,21 @@ internal class NoDevice : GPUDevice
 
     protected override unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel)
     {
-        
+
+    }
+
+    protected override unsafe void WriteTextureRegionCore(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel)
+    {
+
     }
 
     protected override unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0)
@@ -268,8 +272,13 @@ internal class NoDevice : GPUDevice
         request.Complete();
     }
 
+    protected override void ProcessPendingReadbacksCore()
+    {
+        // NoGPU readbacks complete synchronously in BeginReadTextureCore; nothing to deliver.
+    }
+
     protected override void OnEndFrameCore()
     {
-        
+
     }
 }

@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using Alco.Graphics;
+using Alco.Graphics.NoGPU;
 using Alco.IO;
 using Alco.Rendering;
 using NUnit.Framework;
@@ -57,6 +58,16 @@ public class TestModelGltfTextures
         public void LogSuccess(ReadOnlySpan<char> message) { }
         public void LogWarning(ReadOnlySpan<char> message) { }
         void IAssetSystemHost.PostToMainThread(Action action) { }
+    }
+
+    /// <summary>
+    /// A NoGPU device that reports BC texture compression support, so the DDS
+    /// test exercises the native block-compressed creation and streaming paths
+    /// (the CPU fallback path is covered by Alco.Rendering.Test).
+    /// </summary>
+    private sealed class BcCapableDevice : NoDevice
+    {
+        public override GPUFeatures SupportedFeatures => GPUFeatures.TextureCompressionBC;
     }
 
     /// <summary>A stream that records disposal — the streaming contract disposes the
@@ -184,7 +195,7 @@ public class TestModelGltfTextures
         _renderingHost = new RenderingHost();
         _renderingSystem = new RenderingSystem(
             _renderingHost,
-            GraphicsDeviceFactory.GetNoGPUDevice(),
+            new BcCapableDevice(),
             PixelFormat.RGBA16Float,
             PixelFormat.Depth24PlusStencil8);
 

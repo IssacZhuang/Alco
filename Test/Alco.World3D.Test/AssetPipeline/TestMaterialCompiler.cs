@@ -97,7 +97,7 @@ public class TestMaterialCompiler
             // factory beneath it compiles fresh materials per call.
             Assert.That(gbuffer.GetMaterial(opaque), Is.SameAs(material));
             Assert.That(compiler.Compile(opaque,
-                engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"), valueSpecArgs: null,
+                engine.RenderingSystem.ShaderSystem.GetLibrary("GBuffer"),
                 (a, shader) => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{a.Name}_gbuffer")),
                 Is.Not.SameAs(material),
                 "The stateless factory compiles a fresh material per call; the renderer's cache shares per asset.");
@@ -200,7 +200,7 @@ public class TestMaterialCompiler
         PbrMaterialAsset opaque = new() { Name = "opaque" };
         PbrMaterialAsset blend = new() { Name = "blend", AlphaMode = MeshAlphaMode.Blend };
 
-        Assert.That(compiler.Compile(blend, glass, valueSpecArgs: null, CompileGlass), Is.Not.Null);
+        Assert.That(compiler.Compile(blend, glass, CompileGlass), Is.Not.Null);
     }
 
     [Test]
@@ -216,17 +216,18 @@ public class TestMaterialCompiler
             => engine.RenderingSystem.CreateGraphicsMaterial(shader, $"{asset.Name}_shadow");
 
         GraphicsMaterial opaque = compiler.Compile(new PbrMaterialAsset { Name = "opaque" },
-            shadow, ["false"], CompileShadow);
+            shadow, new Dictionary<string, ShaderValue> { ["AlphaTest"] = false }, CompileShadow);
         GraphicsMaterial mask = compiler.Compile(
             new PbrMaterialAsset { Name = "mask", AlphaMode = MeshAlphaMode.Mask },
-            shadow, ["true"], CompileShadow);
+            shadow, new Dictionary<string, ShaderValue> { ["AlphaTest"] = true }, CompileShadow);
 
         Assert.Multiple(() =>
         {
-            Assert.That(opaque.Shader, Is.Not.SameAs(mask.Shader),
-                "Distinct specializations compile distinct shaders.");
-            Assert.That(opaque.Shader.Name, Does.Contain("[false]"));
-            Assert.That(mask.Shader.Name, Does.Contain("[true]"));
+            Assert.That(opaque.Shader, Is.SameAs(mask.Shader),
+                "The pair's variants live in one composed handle, not one shader per value.");
+            Assert.That(opaque.Specializations, Is.EqualTo(new[] { "false" }));
+            Assert.That(mask.Specializations, Is.EqualTo(new[] { "true" }),
+                "The variant is the material's state, selected by the compile's table.");
         });
     }
 

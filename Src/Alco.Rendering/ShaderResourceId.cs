@@ -38,4 +38,8 @@ public static class ShaderResourceId
     public const string GaussianKernel = "gaussianKernel";
 
     public const string PointLights = "pointLights";
+
+    public const string TrailPoints = "trailPoints";
+    public const string TrailParams = "trailParams";
+    public const string TrailGlobals = "trailGlobals";
 }

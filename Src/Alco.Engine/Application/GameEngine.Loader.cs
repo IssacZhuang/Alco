@@ -1,4 +1,6 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using Alco.Rendering;
 using Alco.IO;
 
@@ -13,21 +15,21 @@ public partial class GameEngine
         var jsonConvertersList = jsonConverters.ToList();
 
         // material
-        yield return new AssetLoaderMaterialAsset(AssetSystem, RenderingSystem.ShaderSystem);
+        yield return new AssetLoaderMaterialAsset(AssetSystem, RenderingSystem.ShaderSystem, Setting.TypeInfoResolver);
 
         // render node factories (shader bindings for render nodes)
-        yield return new AssetLoaderRenderNodeFactory(RenderingSystem.ShaderSystem);
+        yield return new AssetLoaderRenderNodeFactory(RenderingSystem.ShaderSystem, Setting.TypeInfoResolver);
 
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
-            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSdf, generateSdf: false);
-            yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem);
+            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSdf, generateSdf: false, cacheDirectory: CreateFontCacheDirectory(Setting.Graphics));
+            yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
         else
         {
             yield return new AssetLoaderFontTTFNoGPU(RenderingSystem);
-            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem);
+            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
 
         // audio
@@ -43,7 +45,7 @@ public partial class GameEngine
         }
 
         //meta
-        yield return new AssetLoaderMeta(jsonConvertersList);
+        yield return new AssetLoaderMeta(jsonConvertersList, Setting.TypeInfoResolver);
     }
 
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
@@ -59,6 +61,24 @@ public partial class GameEngine
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()
     {
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
+        // Deployed engine built-ins (shaders, fonts, render nodes) sit next to the
+        // executable: serve them as a low-priority fallback so name resolution still
+        // works when the working directory differs from the output directory
+        // (dotnet run, IDE default debug CWD). Same-named assets in the primary
+        // asset root shadow the fallback.
+        yield return new DeployedAssetFileSource();
+    }
+
+    /// <summary>Read-only source over the executable-adjacent built-in assets directory.</summary>
+    private sealed class DeployedAssetFileSource : DirectoryFileSource
+    {
+        public DeployedAssetFileSource()
+            : base(Path.Combine(AppContext.BaseDirectory, "Assets"))
+        {
+        }
+
+        /// <summary>Below the primary asset root (5): fills gaps, never shadows it.</summary>
+        public override int Priority => 1;
     }
 
     public virtual IEnumerable<JsonConverter> CreateDefaultJsonConverters()
@@ -83,11 +103,34 @@ public partial class GameEngine
         yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterShader(RenderingSystem.ShaderSystem);
         yield return new JsonConverterShaderLibrary(RenderingSystem.ShaderSystem);
+        yield return new JsonConverterMaterialAsset(AssetSystem);
         yield return new JsonConverterDepthStencilState();
         yield return new JsonConverterBlendState();
         yield return new JsonConverterPivot();
         yield return new JsonStringEnumConverter();
         yield return new JsonConverterPadding();
         yield return new JsonConverterCurvePointFactory();
+    }
+
+    /// <summary>
+    /// Creates the JSON serializer options shared by agent-facing surfaces (tool
+    /// argument deserialization, HTTP responses): camelCase naming configured with the
+    /// engine's default JSON converters. Hosts and the agent control protocol use this
+    /// so every surface serializes engine types identically.
+    /// </summary>
+    public JsonSerializerOptions CreateAgentJsonOptions()
+    {
+        var options = new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+        };
+
+        foreach (var converter in CreateDefaultJsonConverters())
+        {
+            options.Converters.Add(converter);
+        }
+
+        return options;
     }
 }

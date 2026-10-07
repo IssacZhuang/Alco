@@ -42,7 +42,7 @@ public class BenchmarkLock
         }
     }
 
-    [Benchmark(Description = ".Net 9 lock single thread")]
+    [Benchmark(Description = ".NET Lock single thread")]
     public void DotNetLock()
     {
         using (_lock.EnterScope())
@@ -77,7 +77,7 @@ public class BenchmarkLock
     }
 
     
-    [Benchmark(Description = ".Net 9 lock 8 threads")]
+    [Benchmark(Description = ".NET Lock 8 threads")]
     public void DotNetLock8Threads()
     {
         Parallel.For(0, 1000, _options8Threads, (i) =>
@@ -119,7 +119,7 @@ public class BenchmarkLock
         });
     }
 
-    [Benchmark(Description = ".Net 9 lock 16 threads")]
+    [Benchmark(Description = ".NET Lock 16 threads")]
     public void DotNetLock16Threads()
     {
         Parallel.For(0, 1000, _options16Threads, (i) =>
@@ -159,6 +159,7 @@ public class BenchmarkLockAdd
     private AtomicSpinLock _atomicSpinLock;
     private AtomicSpinLockObject _atomicSpinLockObject;
 
+    private ParallelOptions _options1Thread;
     private ParallelOptions _options8Threads;
     private ParallelOptions _options16Threads;
 
@@ -171,6 +172,9 @@ public class BenchmarkLockAdd
         _lock = new Lock();
         _atomicSpinLock = new AtomicSpinLock();
         _atomicSpinLockObject = new AtomicSpinLockObject();
+        _options1Thread = new ParallelOptions();
+        _options1Thread.MaxDegreeOfParallelism = 1;
+
         _options8Threads = new ParallelOptions();
         _options8Threads.MaxDegreeOfParallelism = 8;
 
@@ -180,6 +184,61 @@ public class BenchmarkLockAdd
         _list = new List<int>();
     }
 
+
+    [Benchmark(Baseline = true, Description = "No lock 1 thread add")]
+    public void NoLock1ThreadAdd()
+    {
+        Parallel.For(0, 1000, _options1Thread, (i) =>
+        {
+            _list.Add(1);
+        });
+    }
+
+    [Benchmark(Description = "Lock 1 thread add")]
+    public void Lock1ThreadAdd()
+    {
+        Parallel.For(0, 1000, _options1Thread, (i) =>
+        {
+            lock (_lockObj)
+            {
+                _list.Add(1);
+            }
+        });
+    }
+
+    [Benchmark(Description = ".NET Lock 1 thread add")]
+    public void DotNetLock1ThreadAdd()
+    {
+        Parallel.For(0, 1000, _options1Thread, (i) =>
+        {
+            using (_lock.EnterScope())
+            {
+                _list.Add(1);
+            }
+        });
+    }
+
+    [Benchmark(Description = "AtomicSpinLock 1 thread add")]
+    public void AtomicSpinLock1ThreadAdd()
+    {
+        Parallel.For(0, 1000, _options1Thread, (i) =>
+        {
+            _atomicSpinLock.Lock();
+            _list.Add(1);
+            _atomicSpinLock.Unlock();
+        });
+    }
+
+    [Benchmark(Description = "AtomicSpinLockObject 1 thread add")]
+    public void AtomicSpinLockObject1ThreadAdd()
+    {
+        Parallel.For(0, 1000, _options1Thread, (i) =>
+        {
+            _atomicSpinLockObject.Lock();
+            _list.Add(1);
+            _atomicSpinLockObject.Unlock();
+        });
+    }
 
     [Benchmark(Description = "Lock 8 threads add")]
     public void Lock8ThreadsAdd()
@@ -193,7 +252,7 @@ public class BenchmarkLockAdd
         });
     }
 
-    [Benchmark(Description = ".Net 9 lock 8 threads add")]
+    [Benchmark(Description = ".NET Lock 8 threads add")]
     public void DotNetLock8ThreadsAdd()
     {
         Parallel.For(0, 1000, _options8Threads, (i) =>
@@ -239,7 +298,7 @@ public class BenchmarkLockAdd
         });
     }
 
-    [Benchmark(Description = ".Net 9 lock 16 threads add")]
+    [Benchmark(Description = ".NET Lock 16 threads add")]
     public void DotNetLock16ThreadsAdd()
     {
         Parallel.For(0, 1000, _options16Threads, (i) =>

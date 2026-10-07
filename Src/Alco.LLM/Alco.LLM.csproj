@@ -8,11 +8,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Alco.AgentControlProtocol\Alco.AgentControlProtocol.csproj" />
     <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="10.6.0" />
     <PackageReference Include="Anthropic" Version="12.11.0" />
     <PackageReference Include="Google_GenerativeAI" Version="3.6.6" />
     <PackageReference Include="Google_GenerativeAI.Microsoft" Version="3.6.6" />
-    <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 </Project>

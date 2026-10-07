@@ -4,21 +4,20 @@ namespace Alco.Graphics;
 
 
 /// <summary>
-/// The buffer in the VRAM
-/// </summary> 
+/// A block of GPU memory for vertex, index, uniform, or storage data.
+/// </summary>
 public unsafe abstract class GPUBuffer : BaseGPUObject, IGPUBindableResource
 {
     /// <summary>
     /// The size of the buffer
     /// </summary>
-    /// <value></value>
     public uint Size { get; }
     /// <summary>
-    /// The usage of the buffer
-    /// </summary> 
+    /// Gets the usage flags the buffer was created with; governs which operations (copy source/destination, binding, indexing) are legal on it.
+    /// </summary>
     public BufferUsage Usage { get; }
     /// <summary>
-    /// The type of the resource
+    /// Gets the bindable-resource discriminator; always <see cref="BindableResourceType.Buffer"/>.
     /// </summary>
     public BindableResourceType ResourceType { get; }
 

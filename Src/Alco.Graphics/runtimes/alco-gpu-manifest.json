@@ -1,0 +1,133 @@
+{
+  "schemaVersion": 1,
+  "package": "alco-gpu",
+  "crate": {
+    "path": "Src/Alco.Graphics.Native/alco-gpu",
+    "version": "0.1.0",
+    "rustToolchain": "1.97.1",
+    "abiVersion": "2.3",
+    "wgpuCore": "=30.0.1",
+    "features": [
+      "wgsl",
+      "spirv",
+      "glsl",
+      "gles",
+      "vulkan",
+      "metal",
+      "dx12"
+    ]
+  },
+  "binaries": {
+    "win-x64": {
+      "file": "runtimes/win-x64/native/alco_gpu.dll",
+      "sha256": "d3cecd4839b2fe353d55a8435de9f3824120ed7ede4e325e7c9f7b6951ffe5b0",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "win-arm64": {
+      "file": "runtimes/win-arm64/native/alco_gpu.dll",
+      "sha256": "1a80f1f58b4372a210165b2eb2a6e69f2bbcb4acb0472da0263231fd5febaf0a",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "linux-x64": {
+      "file": "runtimes/linux-x64/native/libalco_gpu.so",
+      "sha256": "8f23ce83a4e26d6d2d52f6f2aab91b93a927d86be7bceb56343d1cb23863c414",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "linux-arm64": {
+      "file": "runtimes/linux-arm64/native/libalco_gpu.so",
+      "sha256": "6ac3856da7c3b61db64b25011d4852fff6f81785c04f2f4383bb20eab6e42ce1",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "osx-x64": {
+      "file": "runtimes/osx-x64/native/libalco_gpu.dylib",
+      "sha256": "64a377545ea9e6d7879066aa0fd4efbeaf2d451fd0436c1a7bc360a62dc2227f",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "osx-arm64": {
+      "file": "runtimes/osx-arm64/native/libalco_gpu.dylib",
+      "sha256": "1ba83563b88685dee2c8e14555e9027c3208b24e5ba41eac6e2dae8bebcc270b",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "android-x64": {
+      "file": "runtimes/android-x64/native/libalco_gpu.so",
+      "sha256": "b3169b7f3bcfedfa85108760b435fdc0b6915e3c299ce7c7eda24e68ff730505",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    },
+    "android-arm64": {
+      "file": "runtimes/android-arm64/native/libalco_gpu.so",
+      "sha256": "05c331ca9ffe625661f12e970eb511e77379a786cbfd9b2f5e2a0b38da3aa064",
+      "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+      "builtFrom": "native-alco-gpu GitHub Actions pipeline"
+    }
+  },
+  "delivery": {
+    "sourceSha256": "30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0",
+    "runs": [
+      {
+        "commit": "c3cfa7f984b7d0cba2154765dcbed8d63f8764f5",
+        "runId": 37367554748,
+        "url": "https://github.com/IssacZhuang/Alco/actions/runs/37367554748"
+      },
+      {
+        "commit": "51aff36ca1eea3d0add2645a7cbee28571130987",
+        "runId": 37372709768,
+        "url": "https://github.com/IssacZhuang/Alco/actions/runs/37372709768"
+      },
+      {
+        "commit": "541ab483fc5577a3f542f064b40df4f8f470c4ca",
+        "runId": 37513674419,
+        "url": "https://github.com/IssacZhuang/Alco/actions/runs/37513674419"
+      }
+    ],
+    "artifacts": {
+      "win-x64": {
+        "runId": 37513674419,
+        "artifactId": 11436371558,
+        "jobId": 112441613319
+      },
+      "win-arm64": {
+        "runId": 37513674419,
+        "artifactId": 11436721372,
+        "jobId": 112441613319
+      },
+      "linux-x64": {
+        "runId": 37513674419,
+        "artifactId": 11436811232,
+        "jobId": 112441613444
+      },
+      "linux-arm64": {
+        "runId": 37513674419,
+        "artifactId": 11436074889,
+        "jobId": 112441613387
+      },
+      "osx-x64": {
+        "runId": 37513674419,
+        "artifactId": 11436820949,
+        "jobId": 112441613362
+      },
+      "osx-arm64": {
+        "runId": 37513674419,
+        "artifactId": 11436661117,
+        "jobId": 112441613362
+      },
+      "android-x64": {
+        "runId": 37513674419,
+        "artifactId": 11435854605,
+        "jobId": 112441612964
+      },
+      "android-arm64": {
+        "runId": 37513674419,
+        "artifactId": 11436806280,
+        "jobId": 112441612964
+      }
+    }
+  },
+  "note": "Purely provenance metadata; not consumed at build time. All eight RID libraries were built from source fingerprint 30263de9ee4da9e8e54d509d61ed43e58458e0b720bd0ea085b4af10ed6c25a0 by the single successful native-alco-gpu run 37513674419 (commit 541ab483fc55), including the fixed abi_version export verification; per-RID run, job and artifact IDs are recorded in delivery.artifacts. Delivery is validated by adjacent .source.sha256 sidecars containing source and binary fingerprints. Local dotnet builds automatically compile missing or stale selected-RID libraries with Cargo --locked --release; use -p:AlcoGpuBuildNative=true to force a source build. Compilation success does not imply GPU runtime validation on every platform. See Docs/AlcoGpuAbi.md and Docs/AlcoGpuRefactorReview.md."
+}

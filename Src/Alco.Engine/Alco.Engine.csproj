@@ -12,7 +12,7 @@
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <DefineConstants>DIAGHUB_ENABLE_TRACE_SYSTEM</DefineConstants>
   </PropertyGroup>
-  
+
   <ItemGroup>
     <ProjectReference Include="..\Alco.Profiler\Alco.Profiler.csproj" />
     <ProjectReference Include="..\Alco\Alco.csproj" />
@@ -24,9 +24,11 @@
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.UserMarks"
-      Version="17.13.35606.1" Condition="$(DefineConstants.Contains('DIAGHUB_ENABLE_TRACE_SYSTEM'))"
-      PrivateAssets="all" />
+    <!-- Unconditional: NuGet restore writes a single configuration-uniform assets
+         graph, so a Debug-only condition here breaks Debug builds after any
+         Release restore. The Debug-only define above keeps the code out of
+         Release builds; PrivateAssets keeps the assembly out of outputs. -->
+    <PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.UserMarks" Version="17.13.35606.1" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)Assets\**\*.*">

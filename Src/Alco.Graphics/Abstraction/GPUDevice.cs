@@ -3,10 +3,15 @@ using System.Runtime.CompilerServices;
 namespace Alco.Graphics;
 
 /// <summary>
-/// The low-level interface to do the operations on the GPU. It is the entry point to create the GPU resources and submit the commands to the GPU.
-/// <br/> !Attention: The GPUDevice is not thread-safe, it should only be used in the main thread or use the synchronization mechanism to protect the access.
-/// </summary> 
-public abstract class GPUDevice
+/// Provides low-level GPU resource creation and command submission.
+/// Creation and destruction of independent resources may run concurrently, and different command buffers
+/// may be recorded in parallel. Callers must keep the device and all supplied resources alive until each
+/// operation completes, serialize use, end, and destruction of the same mutable object, and ensure device
+/// teardown never overlaps active operations. This is not a blanket thread-safety guarantee for queue
+/// operations (including initial-data uploads), readbacks, mapping, polling, or surface operations;
+/// follow their individual thread and synchronization requirements.
+/// </summary>
+public abstract partial class GPUDevice
 {
     private struct DeferredDisposalItem
     {
@@ -19,16 +24,17 @@ public abstract class GPUDevice
             this.delay = delay;
         }
     }
-    private readonly UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
+    private UnorderedList<DeferredDisposalItem> _deferredDisposal = new();
     private readonly Lock _lock = new();
+    private bool _disposalClosed;
 
 
     protected readonly IGPUDeviceHost _host;
 
     private readonly uint _disposeDelay = 1;
 
+    /// <summary>Gets the preferred format of surface textures.</summary>
     public abstract PixelFormat PreferredSurfaceFormat { get; }
-    public abstract bool TextureCompressBC3Supported { get; }
 
     /// <summary>
     /// The backend the active adapter selected (an <c>Auto</c> request resolves per
@@ -42,27 +48,27 @@ public abstract class GPUDevice
     /// </summary>
     public abstract int MaxBindGroups { get; }
 
-    /// <summary>Gets whether the active adapter supports GPU timestamp queries.</summary>
-    public abstract bool TimestampQuerySupported { get; }
+    /// <summary>
+    /// The optional GPU features supported by the active adapter.
+    /// </summary>
+    public abstract GPUFeatures SupportedFeatures { get; }
 
     /// <summary>
-    /// Gets whether the active device can consume precompiled Metal libraries:
-    /// wgpu-native was built with the metallib passthrough entry and the
-    /// backend is Metal. The shader factory picks the slang
-    /// metallib target only when this is true; everything else stays on MSL.
+    /// Checks whether the active adapter supports the optional GPU feature.
+    /// A combination of features matches when at least one of them is supported.
     /// </summary>
-    public abstract bool MetalLibPassthroughSupported { get; }
-
-    /// <summary>
-    /// Gets whether timestamp writes are allowed inside an open compute pass
-    /// (wgpu-native <c>TimestampQueryInsidePasses</c>). When false, timestamps
-    /// can only be written at pass boundaries.
-    /// </summary>
-    public abstract bool TimestampQueryInsidePassesSupported { get; }
+    /// <param name="feature">The feature or feature combination to check.</param>
+    /// <returns>Whether the feature is supported.</returns>
+    public bool IsFeatureSupported(GPUFeatures feature)
+    {
+        return (SupportedFeatures & feature) != 0;
+    }
 
     /// <summary>Gets nanoseconds represented by one timestamp tick.</summary>
     public abstract float TimestampPeriodNanoseconds { get; }
 
+    /// <summary>Initializes the device's host lifecycle subscriptions.</summary>
+    /// <param name="descriptor">The device configuration and lifecycle host.</param>
     public GPUDevice(in DeviceDescriptor descriptor)
     {
         _disposeDelay = descriptor.DisposeDelay;
@@ -73,13 +79,20 @@ public abstract class GPUDevice
         host.OnDispose += Dispose;
     }
 
+    /// <summary>Detaches lifecycle handlers when device construction fails or disposal completes.</summary>
+    protected void DetachHostEvents()
+    {
+        _host.OnDispose -= Dispose;
+        _host.OnEndFrame -= OnEndFrame;
+    }
+
     // Default bind groups, those are the most common bind groups used in the graphics pipeline.
     /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the uniform buffer, which only contains a entry of the uniform buffer.
+    /// The <see cref="GPUBindGroup"/> for the uniform buffer, which only contains an entry of the uniform buffer.
     /// </summary> 
     public abstract GPUBindGroup BindGroupUniformBuffer { get; }
     /// <summary>
-    /// The <see cref="GPUBindGroup"/> for the storage buffer, which only contains a entry of the storage buffer.
+    /// The <see cref="GPUBindGroup"/> for the storage buffer, which only contains an entry of the storage buffer.
     /// </summary>
     public abstract GPUBindGroup BindGroupStorageBuffer { get; }
 
@@ -180,7 +193,7 @@ public abstract class GPUDevice
     /// <exception cref="NotSupportedException">The active adapter does not support timestamp queries.</exception>
     public GPUTimestampQuerySet CreateTimestampQuerySet(uint count, string name)
     {
-        if (!TimestampQuerySupported)
+        if (!IsFeatureSupported(GPUFeatures.TimestampQuery))
         {
             throw new NotSupportedException("GPU timestamp queries are not supported by the active adapter.");
         }
@@ -193,10 +206,10 @@ public abstract class GPUDevice
 
 
     /// <summary>
-    /// Creates a GPU resuable render buffer with the descriptor.
+    /// Creates a GPU render bundle with the descriptor.
     /// </summary>
-    /// <param name="descriptor">The descriptor for the GPU resuable render buffer.</param>
-    /// <returns>The created GPU resuable render buffer.</returns>
+    /// <param name="descriptor">The descriptor for the GPU render bundle.</param>
+    /// <returns>The created GPU render bundle.</returns>
     public GPURenderBundle CreateRenderBundle(in RenderBundleDescriptor? descriptor = null)
     {
         return CreateRenderBundleCore(descriptor);
@@ -215,10 +228,10 @@ public abstract class GPUDevice
 
 
     /// <summary>
-    /// Creates a GPU frame buffer with the attachment layout, width, and height.
+    /// Creates a GPU frame buffer with the descriptor.
     /// </summary>
-    /// <param name="attachmentLayout"> The attachment layout of the frame buffer.</param>
-    /// <returns></returns>
+    /// <param name="descriptor">The descriptor for the GPU frame buffer, carrying the attachment layout, width, and height.</param>
+    /// <returns>The created GPU frame buffer.</returns>
     public GPUFrameBuffer CreateFrameBuffer(in FrameBufferDescriptor descriptor)
     {
         return CreateFrameBufferCore(descriptor);
@@ -309,22 +322,30 @@ public abstract class GPUDevice
     /// Creates a GPU swap chain with the descriptor.
     /// </summary>
     /// <param name="descriptor">The descriptor for the GPU swap chain.</param>
-    /// <returns></returns>
+    /// <returns>The created GPU swap chain.</returns>
     public GPUSwapchain CreateSwapchain(in SwapchainDescriptor descriptor)
     {
         return CreateSwapchainCore(descriptor);
     }
 
     /// <summary>
-    /// Destroys the GPU object. The object will be destroyed at the end of the frame.
+    /// Schedules GPU object release after the configured frame delay, or releases it immediately
+    /// when the disposal queue is closed. Independent objects may be disposed concurrently.
     /// </summary>
-    /// <param name="obj"> The target GPU object to destroy.</param>
+    /// <param name="obj">The GPU object to release.</param>
     public virtual void Destroy(BaseGPUObject obj)
     {
         ArgumentNullException.ThrowIfNull(obj);
-        _lock.Enter();
-        _deferredDisposal.Add(new DeferredDisposalItem(obj, _disposeDelay));
-        _lock.Exit();
+        lock (_lock)
+        {
+            if (!_disposalClosed)
+            {
+                _deferredDisposal.Add(new DeferredDisposalItem(obj, _disposeDelay));
+                return;
+            }
+        }
+        // Release outside the queue lock: composite resources may dispose their children.
+        obj.Destroy();
     }
 
     /// <summary>
@@ -454,6 +475,18 @@ public abstract class GPUDevice
         }
     }
 
+    /// <summary>
+    /// Processes pending asynchronous texture readbacks on the main thread: delivers completed
+    /// GPU readbacks to their requests so observers (e.g. PNG readback pipelines) can consume
+    /// them. Runs automatically at end of frame; also safe to call manually while the frame
+    /// loop is not running (e.g. to drain in-flight captures at engine shutdown), because the
+    /// GPU executes the queue independently and only the completion delivery needs this call.
+    /// </summary>
+    public void ProcessPendingReadbacks()
+    {
+        ProcessPendingReadbacksCore();
+    }
+
 
     // polymorphism
 
@@ -481,7 +514,7 @@ public abstract class GPUDevice
     }
 
     /// <summary>
-    /// = Writes the data to the GPU buffer at the offset 0.
+    /// Writes the data to the GPU buffer at the offset 0.
     /// </summary>
     /// <param name="buffer">The target GPU buffer.</param>
     /// <param name="data">The data to write to the buffer.</param>
@@ -518,7 +551,7 @@ public abstract class GPUDevice
     }
 
     /// <summary>
-    /// Reads the data from the GPU buffer at the offset 0.
+    /// Reads the data from the GPU buffer at the given byte offset.
     /// </summary>
     /// <param name="buffer">The target GPU buffer.</param>
     /// <param name="bufferOffset">The offset in the GPU buffer. (unit: byte)</param>
@@ -589,6 +622,37 @@ public abstract class GPUDevice
         }
     }
 
+    /// <summary>
+    /// Writes a sub-rectangle of texels to the GPU texture at the mip level. The source data holds
+    /// <paramref name="height"/> rows of <paramref name="width"/> texels each, packed at
+    /// <paramref name="bytesPerRow"/> bytes per row; the row stride must be 256-byte aligned when
+    /// <paramref name="height"/> exceeds one (a wgpu-core queue-write requirement). Texels outside the
+    /// rectangle are left untouched.
+    /// </summary>
+    /// <param name="texture">The target GPU texture.</param>
+    /// <param name="data">The pointer to the region data.</param>
+    /// <param name="dataSize">The total size of the region data. (unit: byte)</param>
+    /// <param name="bytesPerRow">The source row stride in bytes; 256-byte aligned for multi-row writes.</param>
+    /// <param name="x">The x origin of the region, in texels.</param>
+    /// <param name="y">The y origin of the region, in texels.</param>
+    /// <param name="width">The width of the region, in texels.</param>
+    /// <param name="height">The height of the region, in texels.</param>
+    /// <param name="mipLevel">The target mip level of the texture.</param>
+    public unsafe void WriteTextureRegion(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel = 0)
+    {
+        GraphicsException.ThrowIfDisposed(texture);
+        WriteTextureRegionCore(texture, data, dataSize, bytesPerRow, x, y, width, height, mipLevel);
+    }
+
     /// <exclude />
     protected abstract GPUBuffer CreateBufferCore(in BufferDescriptor descriptor);
 
@@ -647,6 +711,18 @@ public abstract class GPUDevice
     protected abstract unsafe void WriteTextureCore(GPUTexture texture, byte* data, uint dataSize, uint mipLevel);
 
     /// <exclude />
+    protected abstract unsafe void WriteTextureRegionCore(
+        GPUTexture texture,
+        byte* data,
+        uint dataSize,
+        uint bytesPerRow,
+        uint x,
+        uint y,
+        uint width,
+        uint height,
+        uint mipLevel);
+
+    /// <exclude />
     protected abstract unsafe void ReadTextureCore(GPUTexture texture, byte* dest, uint dataSize, uint mipLevel = 0);
 
     /// <exclude />
@@ -657,43 +733,105 @@ public abstract class GPUDevice
         GPUTextureReadbackRequest request,
         uint mipLevel = 0);
 
+    /// <exclude />
+    protected abstract void ProcessPendingReadbacksCore();
+
+    /// <summary>Processes backend work at the end of a frame and before device shutdown.</summary>
     protected abstract void OnEndFrameCore();
+
+    /// <summary>Releases backend device resources after the disposal queue has closed and drained.</summary>
     protected abstract void DisposeCore();
 
     private void OnEndFrame()
     {
         OnEndFrameCore();
-        _lock.Enter();
-        for (int i = 0; i < _deferredDisposal.Count; i++)
+        UnorderedList<DeferredDisposalItem>? ready = null;
+        lock (_lock)
         {
-            DeferredDisposalItem item = _deferredDisposal[i];
-            if (item.delay <= 0)
+            for (int i = 0; i < _deferredDisposal.Count; i++)
             {
-                try
+                DeferredDisposalItem item = _deferredDisposal[i];
+                if (item.delay == 0)
                 {
-                    item.@object.Destroy();
+                    // Allocate before removing any entries so extraction cannot lose them.
+                    ready ??= new UnorderedList<DeferredDisposalItem> { Capacity = _deferredDisposal.Count };
+                    ready.Add(item);
+                    _deferredDisposal.RemoveAt(i);
+                    i--;
+                    continue;
                 }
-                catch (Exception e)
-                {
-                    _host.LogError($"Error in destroying GPU object: {e}");
-                }
-                _deferredDisposal.RemoveAt(i);
-                i--;
-                continue;
+                item.delay--;
+                _deferredDisposal[i] = item;
             }
-            item.delay--;
-            _deferredDisposal[i] = item;
         }
-        _lock.Exit();
+        if (ready != null)
+        {
+            ReleaseObjects(ready);
+        }
+    }
+
+    private void ReleaseObjects(UnorderedList<DeferredDisposalItem> items)
+    {
+        List<Exception>? errors = null;
+        for (int i = 0; i < items.Count; i++)
+        {
+            try
+            {
+                items[i].@object.Destroy();
+            }
+            catch (Exception e)
+            {
+                (errors ??= new List<Exception>()).Add(e);
+            }
+        }
+        // Defer logging until all entries are released, even if the host logger throws.
+        if (errors != null)
+        {
+            for (int i = 0; i < errors.Count; i++)
+            {
+                _host.LogError($"Error in destroying GPU object: {errors[i]}");
+            }
+        }
     }
 
     private void Dispose()
     {
-        OnEndFrame();
-        DisposeCore();
-
-        _host.LogInfo("GPU device closed");
-        _host.OnDispose -= Dispose;
-        _host.OnEndFrame -= OnEndFrame;
+        UnorderedList<DeferredDisposalItem> pending;
+        lock (_lock)
+        {
+            if (_disposalClosed)
+            {
+                return;
+            }
+            // Close before invoking callbacks or cleanup: recursive and racing disposal
+            // must release immediately instead of joining a queue that will never run again.
+            UnorderedList<DeferredDisposalItem> empty = new();
+            _disposalClosed = true;
+            pending = _deferredDisposal;
+            _deferredDisposal = empty;
+        }
+        try
+        {
+            try
+            {
+                OnEndFrameCore();
+            }
+            finally
+            {
+                try
+                {
+                    ReleaseObjects(pending);
+                }
+                finally
+                {
+                    DisposeCore();
+                }
+            }
+            _host.LogInfo("GPU device closed");
+        }
+        finally
+        {
+            DetachHostEvents();
+        }
     }
 }

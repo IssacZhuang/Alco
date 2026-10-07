@@ -1,7 +1,7 @@
 #nullable enable
 
 using NUnit.Framework;
-using Alco.ShaderCompiler;
+using Alco.Graphics;
 
 namespace Alco.Rendering.Test;
 
@@ -12,6 +12,7 @@ namespace Alco.Rendering.Test;
 // the engine's asset resolver conventions (module-name matching).
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Validates engine shader modules and their material compositions.</summary>
 public class ValidateSlangModules
 {
     private static string RepoRoot()
@@ -24,15 +25,19 @@ public class ValidateSlangModules
         return dir?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
 
+    /// <summary>Returns every engine shader module that owns entry points.</summary>
     public static IEnumerable<TestCaseData> ModuleCases()
     {
         string root = Path.Combine(RepoRoot(), "Src", "Alco.Rendering", "Assets", "Shaders");
         foreach (string file in Directory.GetFiles(root, "*.slang", SearchOption.AllDirectories))
         {
-            // Libs are imported, not entry modules — only pass modules own
-            // entry points; their file base name is the module identity.
+            // Libs are imported and materials are composed, not entry modules —
+            // only pass modules own entry points; their file base name is the
+            // module identity (materials get their link coverage through
+            // TemplateSurfaces composition instead).
             string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-            if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase))
+            if (relative.StartsWith("Libs/", StringComparison.OrdinalIgnoreCase) ||
+                relative.StartsWith("Materials/", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -51,19 +56,25 @@ public class ValidateSlangModules
     // only differ in how already-validated IR constant-folds. What the single
     // link proves is the stages after the front-end: specialization argument
     // matching (arity/type), linking, layout validation and target codegen.
-    //   FXAA: <let Quality : int>, Sprite: <let Repeated : bool>,
-    //   TextureCompressBc3: <let IsSRGB : bool>,
+    //   FXAA: <let Quality : int, let Mode : int> — each mode linked: the mode
+    //   axis changes which branches stay live after constant folding, so every
+    //   mode's codegen is distinct, Sprite: <let Repeated : bool>,
+    //   TextureCompressBc1/TextureCompressBc3: <let IsSRGB : bool>,
     //   TileInstanced: VertexMain<let IsFacade : bool>, PixelMain<let Bombing :
     //   bool> — args map to entry points in definition order.
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
         new Dictionary<string, string[][]>
         {
-            ["FXAA"] = [["1"]],
+            ["FXAA"] = [["1", "0"], ["1", "1"], ["1", "2"]],
             ["Sprite"] = [["false"]],
+            ["TextureCompressBc1"] = [["false"]],
             ["TextureCompressBc3"] = [["false"]],
             ["TileInstanced"] = [["false", "false"]],
         };
 
+    /// <summary>Compiles every entry point with representative specialization arguments.</summary>
+    /// <param name="moduleName">The shader module name.</param>
+    /// <param name="file">The source file represented by the test case.</param>
     [Test]
     [TestCaseSource(nameof(ModuleCases))]
     public void Module_CompilesAllEntryPoints(string moduleName, string file)
@@ -97,7 +108,7 @@ public class ValidateSlangModules
             Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
             foreach (ReadOnlyMemory<byte> code in program.EntryCode)
             {
-                Assert.That(code.Length, Is.GreaterThan(4), "empty SPIR-V blob");
+                Assert.That(code.Length, Is.GreaterThan(4), $"{moduleName}: empty SPIR-V blob");
             }
         }
         _ = file;

@@ -1,4 +1,4 @@
-using _33_LLM;
+﻿using _33_LLM;
 using Alco;
 using Alco.Engine;
 using Alco.Graphics;
@@ -9,7 +9,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(1000, 700, "LLM System"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.Vulkan
+        Backend = GraphicsBackend.WGPUVulkan
     },
 };
 

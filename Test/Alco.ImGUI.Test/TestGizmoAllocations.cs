@@ -69,6 +69,34 @@ public class TestGizmoAllocations
         Assert.That(allocated, Is.EqualTo(0), "per-frame core path must not allocate");
     }
 
+    [Test]
+    public void BoundsDrag_CoreFrames_AllocateNothing()
+    {
+        (Matrix4x4 view, Matrix4x4 projection) = CreatePerspectiveCamera(new Vector3(-10f, 0.5f, 0.5f), new Vector3(0f, 0.5f, 0.5f), Vector3.UnitY);
+        GizmoContext ctx = CreateContext();
+        BoundingBox3D bounds = new BoundingBox3D(Vector3.Zero, Vector3.One);
+
+        Frame(ctx, new Vector2(5f, 5f), false, view, projection, ref bounds);
+        Vector2 grab = ToScreen(Vector3.Zero, view, projection);
+        Frame(ctx, grab, true, view, projection, ref bounds);
+        Frame(ctx, grab + new Vector2(20f, 10f), true, view, projection, ref bounds);
+
+        long allocated = MeasureBoundsDrag(ctx, grab, view, projection, ref bounds);
+
+        Assert.That(allocated, Is.EqualTo(0), "per-frame core path must not allocate");
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
+    private static long MeasureBoundsDrag(GizmoContext ctx, Vector2 grab, in Matrix4x4 view, in Matrix4x4 projection, ref BoundingBox3D bounds)
+    {
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 16; i++)
+        {
+            Frame(ctx, grab + new Vector2(20f + i, 10f), true, view, projection, ref bounds);
+        }
+        return GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+    }
+
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveOptimization)]
     private static long MeasureRotateDrag(GizmoContext ctx, Vector2 grab, in Matrix4x4 view, in Matrix4x4 projection, ref Matrix4x4 model)
     {

@@ -15,6 +15,8 @@ namespace Alco.Rendering;
 
 public partial class RenderingSystem
 {
+    /// <summary>Whether the active device supports BC-family compressed textures.</summary>
+    private bool BcSupported => _device.IsFeatureSupported(GPUFeatures.TextureCompressionBC);
     /// <summary>
     /// Creates a Texture2D from a stream.
     /// </summary>
@@ -96,9 +98,11 @@ public partial class RenderingSystem
 
     /// <summary>
     /// Creates a Texture2D from a DDS file holding block-compressed data (BC1-BC7).
-    /// No pixel decoding happens; the mip chain stored in the file is uploaded as-is,
-    /// overriding <see cref="ImageLoadOption.MipLevels"/>. The sRGB-ness of the BC format
-    /// follows <see cref="ImageLoadOption.Format"/>.
+    /// With device BC support no pixel decoding happens: the mip chain stored in the
+    /// file is uploaded as-is, overriding <see cref="ImageLoadOption.MipLevels"/>. The
+    /// sRGB-ness of the BC format follows <see cref="ImageLoadOption.Format"/>.
+    /// Without <see cref="GPUFeatures.TextureCompressionBC"/> the file's level 0 is
+    /// decoded to RGBA8 on the CPU (BC1-BC3 only) and the mip chain is dropped.
     /// </summary>
     /// <param name="fileBytes">The complete DDS file bytes.</param>
     /// <param name="option">Image load options.</param>
@@ -111,7 +115,21 @@ public partial class RenderingSystem
     {
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
         bool srgb = PixelFormatUtility.IsSrgbFormat(optionReal.Format);
-        DdsDecoder.Decode(fileBytes, srgb, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+        DdsDecoder.Decode(fileBytes, srgb, out DdsDecoder.BcFamily family, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+
+        // Fallback for devices without BC support: CPU-decode level 0 to RGBA8.
+        if (!BcSupported)
+        {
+            byte* pixels = BcDecoder.DecodeLevel(fileBytes, dataOffset, family, width, height, level: 0);
+            try
+            {
+                return CreateTexture2D(pixels, (uint)(width * height * 4), (uint)width, (uint)height, option);
+            }
+            finally
+            {
+                NativeMemory.Free(pixels);
+            }
+        }
 
         if (!PixelFormatUtility.TryGetCompressedBlockSize(format, out uint blockBytes))
         {
@@ -163,7 +181,8 @@ public partial class RenderingSystem
     /// loads: the texture's identity and specification are final from creation, and its
     /// content is uploaded in place later via <see cref="UploadTexture2DContent"/>.
     /// The backend zero-initializes the content, so until the upload arrives sampling
-    /// yields transparent black.
+    /// yields transparent black, and <see cref="Texture2D.IsContentLoaded"/> reports
+    /// false until the upload succeeds.
     /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
     /// public creation path.
     /// </summary>
@@ -176,7 +195,18 @@ public partial class RenderingSystem
     {
         if (!info.IsBlockCompressed)
         {
-            return CreateTexture2D((uint)info.Width, (uint)info.Height, option);
+            Texture2D plain = CreateTexture2D((uint)info.Width, (uint)info.Height, option);
+            plain.MarkContentPending();
+            return plain;
+        }
+
+        // Without device BC support the texture pre-creates as uncompressed RGBA8;
+        // the content upload later decodes level 0 on the CPU (BC1-BC3 only).
+        if (!BcSupported)
+        {
+            Texture2D plain = CreateTexture2D((uint)info.Width, (uint)info.Height, option);
+            plain.MarkContentPending();
+            return plain;
         }
 
         ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
@@ -201,12 +231,14 @@ public partial class RenderingSystem
         );
         GPUTextureView textureView = _device.CreateTextureView(textureViewDescriptor);
 
-        return new Texture2D(
+        Texture2D result = new Texture2D(
             _device,
             texture,
             textureView,
             optionReal.SlicePadding
         );
+        result.MarkContentPending();
+        return result;
     }
 
     /// <summary>
@@ -214,7 +246,10 @@ public partial class RenderingSystem
     /// preserving its identity: the native texture, its views and every bind group
     /// built from them stay valid. Pair with <see cref="CreateTexture2DFromHeader"/>
     /// for streaming loads. DDS files (BC1-BC7) upload their blocks and mip chain
-    /// verbatim; other formats (PNG/JPEG) decode to RGBA8 and upload mip 0.
+    /// verbatim onto BC textures, or decode level 0 to RGBA8 on uncompressed fallback
+    /// textures (devices without <see cref="GPUFeatures.TextureCompressionBC"/>,
+    /// BC1-BC3 only); other formats (PNG/JPEG) decode to RGBA8 and upload mip 0.
+    /// On success <see cref="Texture2D.IsContentLoaded"/> turns true.
     /// <br/>There is no thread constraint: the upload may run on any thread.
     /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
     /// public upload path.
@@ -240,7 +275,31 @@ public partial class RenderingSystem
         if (DdsDecoder.IsDds(fileBytes))
         {
             // Full validation, including the mip chain length.
-            DdsDecoder.Decode(fileBytes, srgb, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+            DdsDecoder.Decode(fileBytes, srgb, out DdsDecoder.BcFamily family, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+
+            // Fallback texture (uncompressed, pre-created on devices without BC
+            // support): CPU-decode level 0 to RGBA8; the mip chain is dropped.
+            if (!PixelFormatUtility.TryGetCompressedBlockSize(texture.NativeTexture.PixelFormat, out _))
+            {
+                if (width != (int)texture.Width || height != (int)texture.Height || texture.MipLevels != 1)
+                {
+                    throw new ImageDecodeException(
+                        $"DDS fallback specification {width}x{height} x1 does not match the target texture " +
+                        $"{texture.Width}x{texture.Height} x{texture.MipLevels}.");
+                }
+
+                byte* fallbackPixels = BcDecoder.DecodeLevel(fileBytes, dataOffset, family, width, height, level: 0);
+                try
+                {
+                    _device.WriteTexture(texture.NativeTexture, fallbackPixels, (uint)(width * height * 4));
+                }
+                finally
+                {
+                    NativeMemory.Free(fallbackPixels);
+                }
+                texture.MarkContentLoaded();
+                return;
+            }
 
             if (width != (int)texture.Width || height != (int)texture.Height
                 || format != texture.NativeTexture.PixelFormat || mipLevels != (int)texture.MipLevels)
@@ -265,6 +324,7 @@ public partial class RenderingSystem
                     pointer += byteCount;
                 }
             }
+            texture.MarkContentLoaded();
             return;
         }
 
@@ -287,6 +347,8 @@ public partial class RenderingSystem
         {
             NativeMemory.Free(pixels);
         }
+
+        texture.MarkContentLoaded();
     }
 
     /// <summary>
@@ -312,9 +374,9 @@ public partial class RenderingSystem
         try
         {
             Texture2D texture = CreateTexture2DFromHeader(info, optionReal);
-            // Fire-and-forget: the task captures everything it needs, observes its own
-            // failures, and is referenced by nothing once it completes.
-            _ = StreamTexture2DContentAsync(texture, stream, optionReal);
+            // Fire-and-forget: the task captures everything it needs and observes its
+            // own failures; the texture is its only reference, via ContentArrival.
+            texture.SetContentUpload(StreamTexture2DContentAsync(texture, stream, optionReal));
             return texture;
         }
         catch
@@ -531,15 +593,27 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a BC3 texture compressor from the texture-compress-bc3 shader
+    /// Creates a BC3 texture compressor from the TextureCompressBc3 shader
     /// (MainCS&lt;let IsSRGB&gt;): the linear (false) and sRGB (true) compression
     /// dispatchers are the shader's specializations, construction-bound per variant.
     /// </summary>
-    /// <param name="shader">The texture-compress-bc3 shader.</param>
+    /// <param name="shader">The TextureCompressBc3 shader.</param>
     /// <returns>A new TextureCompressorBC3 instance.</returns>
     public TextureCompressorBC3 CreateTextureCompressorBC3(Shader shader)
     {
         return new TextureCompressorBC3(this, shader);
+    }
+
+    /// <summary>
+    /// Creates a BC1 texture compressor from the TextureCompressBc1 shader
+    /// (MainCS&lt;let IsSRGB&gt;): the linear (false) and sRGB (true) compression
+    /// dispatchers are the shader's specializations, construction-bound per variant.
+    /// </summary>
+    /// <param name="shader">The TextureCompressBc1 shader.</param>
+    /// <returns>A new TextureCompressorBC1 instance.</returns>
+    public TextureCompressorBC1 CreateTextureCompressorBC1(Shader shader)
+    {
+        return new TextureCompressorBC1(this, shader);
     }
 
     /// <summary>
@@ -573,6 +647,8 @@ public partial class RenderingSystem
                 _device.WriteTexture(texture, pixels, (uint)(w * h * 4));
                 texture2D.UnsafeHotReload(texture, textureView);
             }
+
+            texture2D.MarkContentLoaded();
         }
         finally
         {

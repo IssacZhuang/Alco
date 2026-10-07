@@ -338,6 +338,18 @@ public class TestSerialize
         }
     }
 
+    private class TestObjectNullable : ISerializable
+    {
+        public int? intValue;
+        public float? floatValue;
+
+        public void OnSerialize(SerializeNode node, SerializeMode mode)
+        {
+            node.BindValue(nameof(intValue), ref intValue);
+            node.BindValue(nameof(floatValue), ref floatValue);
+        }
+    }
+
     [Test]
     public void TestSerializeNormal()
     {
@@ -662,5 +674,47 @@ public class TestSerialize
 
         // Verify empty array is still empty
         Assert.That(obj2.emptyBinaryData.IsEmpty, Is.True);
+    }
+
+    [Test]
+    public void TestBindNullableValue_RoundTrip()
+    {
+        TestObjectNullable obj = new TestObjectNullable();
+        obj.intValue = 42;
+        obj.floatValue = null;
+
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        TestObjectNullable obj2 = BinaryParser.Decode<TestObjectNullable>(data, null, new ReferenceContext());
+
+        Assert.That(obj2.intValue, Is.EqualTo(42));
+        Assert.That(obj2.floatValue, Is.Null);
+    }
+
+    [Test]
+    public void TestBindNullableValue_AllMissingKeys_LoadNull()
+    {
+        // Encode an unrelated object so the nullable container's keys are entirely absent.
+        TestObjectEnum obj = new TestObjectEnum();
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(obj, null, new ReferenceContext());
+        TestObjectNullable obj2 = BinaryParser.Decode<TestObjectNullable>(data, null, new ReferenceContext());
+
+        Assert.That(obj2.intValue, Is.Null);
+        Assert.That(obj2.floatValue, Is.Null);
+    }
+
+    [Test]
+    public void TestBindNullableValue_OverwrittenNull_StaysNull()
+    {
+        // A destination holding a stale value must be reset to null when the saved flag is false.
+        TestObjectNullable src = new TestObjectNullable();
+        ReadOnlyMemory<byte> data = BinaryParser.Encode(src, null, new ReferenceContext());
+        TestObjectNullable obj2 = BinaryParser.Decode<TestObjectNullable>(
+            data,
+            static (SerializeReadNode _) => new TestObjectNullable { intValue = 99, floatValue = 1.5f },
+            null,
+            new ReferenceContext());
+
+        Assert.That(obj2.intValue, Is.Null);
+        Assert.That(obj2.floatValue, Is.Null);
     }
 }

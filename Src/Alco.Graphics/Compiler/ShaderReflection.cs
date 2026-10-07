@@ -17,19 +17,20 @@ public sealed class ShaderReflection
     private readonly string[] _idToName;
 
     /// <summary>
-    /// The vertex input layouts for the shader
+    /// The vertex input layouts, one per vertex buffer: the mesh attribute buffer
+    /// and, when the shader declares drawData fields, the instance-step buffer.
     /// </summary>
     public IReadOnlyList<VertexInputLayout> VertexLayouts { get;}
     /// <summary>
-    /// The bind groups for the shader
+    /// The reflected bind groups (sets) with their binding entries, ordered by set index.
     /// </summary>
     public IReadOnlyList<BindGroupLayout> BindGroups { get; }
     /// <summary>
-    /// Push constants ranges
+    /// The reflected push-constant byte ranges of the linked program.
     /// </summary>
     public IReadOnlyList<PushConstantsRange> PushConstantsRanges { get; }
     /// <summary>
-    /// The size of the push constants
+    /// Total push-constant bytes (the end of the highest range); 0 when the program uses none.
     /// </summary>
     public int PushConstantsSize { get; }
 
@@ -41,7 +42,8 @@ public sealed class ShaderReflection
     public int FragmentOutputCount { get; }
 
     /// <summary>
-    /// Thread group size for compute shader
+    /// The [numthreads] size of the compute entry point;
+    /// <see cref="ThreadGroupSize.Default"/> for non-compute programs.
     /// </summary>
     public ThreadGroupSize Size { get; }
 
@@ -54,6 +56,18 @@ public sealed class ShaderReflection
     /// </summary>
     public IReadOnlyList<ShaderUniformBlock> UniformBlocks { get; }
 
+    /// <summary>
+    /// Builds the reflection from the linked program's reflected parts. Resource
+    /// ids are assigned here by position: bind groups and their bindings are
+    /// walked in order and every settable resource (buffer or texture) takes the
+    /// next id, so ids are indices into <see cref="ResourceLocations"/>.
+    /// </summary>
+    /// <param name="vertexLayouts">The vertex input layouts, one per vertex buffer.</param>
+    /// <param name="bindGroups">The bind groups with their binding entries, ordered by set index.</param>
+    /// <param name="pushConstantsRanges">The push-constant byte ranges of the program.</param>
+    /// <param name="size">The compute thread group size; <see cref="ThreadGroupSize.Default"/> for non-compute programs.</param>
+    /// <param name="fragmentOutputCount">The number of color attachments the fragment stage writes to.</param>
+    /// <param name="uniformBlocks">The linked uniform blocks; null is treated as none.</param>
     public ShaderReflection(
         IReadOnlyList<VertexInputLayout> vertexLayouts,
         IReadOnlyList<BindGroupLayout> bindGroups,
@@ -109,7 +123,7 @@ public sealed class ShaderReflection
 
     /// <param name="name">The name of the resource.</param>
     /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
-    /// <returns>True if the resource sID was found, false otherwise.</returns>
+    /// <returns>True if the resource id was found, false otherwise.</returns>
     public bool TryGetResourceId(string name, out uint resourceId)
     {
         return _resourceIds.TryGetValue(name, out resourceId);
@@ -120,7 +134,7 @@ public sealed class ShaderReflection
     /// <br/> <c>thread safe.</c>
     /// </summary>
     /// <param name="name">The name of the resource.</param>
-    /// <throws>KeyNotFoundException if the resource is not found.</throws>
+    /// <exception cref="KeyNotFoundException">Thrown when the resource is not found.</exception>
     /// <returns>The resource ID.</returns>
     public uint GetResourceId(string name)
     {
@@ -169,7 +183,7 @@ public sealed class ShaderReflection
     /// <br/> <c>thread safe.</c>
     /// </summary>
     /// <param name="id">The resource ID.</param>
-    /// <throws>ArgumentOutOfRangeException if the resource ID is out of range.</throws>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the resource ID is out of range.</exception>
     /// <returns>The resource location.</returns>
     public ShaderResourceLocation GetResourceLocation(uint id)
     {

@@ -48,6 +48,14 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     }
 
     /// <summary>
+    /// No-op for post-load: nullable values are not read or written.
+    /// </summary>
+    public override void BindValue<T>(string key, ref T? value)
+    {
+        // Intentionally empty: no serialization during post-load
+    }
+
+    /// <summary>
     /// No-op for post-load: enums are not read or written.
     /// </summary>
     public override void BindEnum<T>(string key, ref T value, T @default = default)

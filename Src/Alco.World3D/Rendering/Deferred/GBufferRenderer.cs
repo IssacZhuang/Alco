@@ -123,7 +123,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
                 $"Blend material '{asset.Name}' belongs to the forward transparency pass, not the G-buffer.");
         }
         return _materials.GetValue(asset, a => _materialCompiler.Compile(
-            a, _template, valueSpecArgs: null, (_, shader)
+            a, _template, (_, shader)
                 => CreateMaterial(shader, asset.DoubleSided, $"{asset.Name}_gbuffer")));
     }
 

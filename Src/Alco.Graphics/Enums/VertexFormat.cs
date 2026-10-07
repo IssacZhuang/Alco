@@ -1,7 +1,12 @@
 namespace Alco.Graphics;
 
+/// <summary>
+/// The memory layout of one vertex attribute: component type (u/i/f, with
+/// optional normalized variants), bit width and component count.
+/// </summary>
 public enum VertexFormat
 {
+    /// <summary>No format declared.</summary>
     Undefined = 0,
     Uint8x2 = 1,
     Uint8x4 = 2,

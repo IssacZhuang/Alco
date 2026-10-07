@@ -329,56 +329,17 @@ public sealed class Shader : AutoDisposable
                 throw new InvalidOperationException("Trying to create a graphics pipeline from a non-graphics shader modules.");
             }
 
-            ShaderReflection reflectionInfo = modulesInfo.ReflectionInfo;
-            GPUDevice device = _renderingSystem.GraphicsDevice;
-
-            IReadOnlyList<BindGroupLayout> bindGroupLayouts = reflectionInfo.BindGroups;
-
-            GPUBindGroup[] bindGroups = new GPUBindGroup[bindGroupLayouts.Count];
-            for (int i = 0; i < bindGroupLayouts.Count; i++)
-            {
-                bindGroups[i] = device.CreateBindGroup(bindGroupLayouts[i].ToDescriptor());
-            }
-
-            GPUPipeline pipelineNew;
-
-
-            PixelFormat[] colors = new PixelFormat[attachmentLayout.Colors.Length];
-            for (int i = 0; i < attachmentLayout.Colors.Length; i++)
-            {
-                colors[i] = attachmentLayout.Colors[i].Format;
-            }
-            PixelFormat? depthStencilFormat = attachmentLayout.Depth?.Format;
-
-            IReadOnlyList<VertexInputLayout> vertexInputLayouts = _customVertexLayouts ?? reflectionInfo.VertexLayouts;
-
-            GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
-                bindGroups,
-                new ShaderModule[] {
-                    modulesInfo.VertexShader!.Value,
-                    modulesInfo.FragmentShader!.Value
-                    },
-                vertexInputLayouts.ToArray(),
+            GPUPipeline pipelineNew = _renderingSystem.GraphicsDevice.CreateGraphicsPipeline(
+                modulesInfo.ReflectionInfo,
+                modulesInfo.VertexShader!.Value,
+                modulesInfo.FragmentShader!.Value,
+                attachmentLayout,
                 rasterizer,
                 blend,
                 depthStencil,
                 primitiveTopology,
-                colors,
-                depthStencilFormat,
-                (uint)reflectionInfo.PushConstantsSize,
-                Name)
-            {
-                FragmentOutputCount = reflectionInfo.FragmentOutputCount,
-            };
-
-
-            pipelineNew = device.CreateGraphicsPipeline(descriptor);
-
-
-            foreach (var bindGroup in bindGroups)
-            {
-                bindGroup.Dispose();
-            }
+                _customVertexLayouts,
+                Name);
 
             _graphicsPipelineCache[hash] = pipelineNew;
 
@@ -406,27 +367,10 @@ public sealed class Shader : AutoDisposable
                 throw new InvalidOperationException("Trying to create a compute pipeline from a non-compute shader modules.");
             }
 
-            ShaderReflection reflectionInfo = modulesInfo.ReflectionInfo;
-            GPUDevice device = _renderingSystem.GraphicsDevice;
-
-            GPUBindGroup[] bindGroups = new GPUBindGroup[reflectionInfo.BindGroups.Count];
-            for (int i = 0; i < reflectionInfo.BindGroups.Count; i++)
-            {
-                bindGroups[i] = device.CreateBindGroup(reflectionInfo.BindGroups[i].ToDescriptor());
-            }
-
-            ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
+            GPUPipeline pipelineNew = _renderingSystem.GraphicsDevice.CreateComputePipeline(
+                modulesInfo.ReflectionInfo,
                 modulesInfo.ComputeShader!.Value,
-                bindGroups,
-                (uint)reflectionInfo.PushConstantsSize,
                 Name);
-
-            GPUPipeline pipelineNew = device.CreateComputePipeline(descriptor);
-
-            foreach (var bindGroup in bindGroups)
-            {
-                bindGroup.Dispose();
-            }
 
             _computePipelineCache[modulesInfo] = pipelineNew;
             return pipelineNew;

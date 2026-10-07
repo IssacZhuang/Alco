@@ -57,6 +57,70 @@ public class TestAStarPathFinder
     }
 
     [Test]
+    public void FractionalGoal_LastWaypointIsExactEndPosition()
+    {
+        var pf = new GridPathFinder(5, 5);
+        var path = new List<Vector2>();
+
+        bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(3.3f, 2.7f), ignoreEndPoint: false);
+
+        Assert.That(ok, Is.True);
+        Assert.That(path.Count, Is.GreaterThan(0));
+        var steps = path.ToArray();
+        Assert.That(steps[steps.Length - 1], Is.EqualTo(new Vector2(3.3f, 2.7f)),
+            "The final waypoint must be the exact requested end, not the goal cell center");
+        for (int i = 0; i < steps.Length - 1; i++)
+        {
+            Assert.That(steps[i], Is.EqualTo(new Vector2((int)steps[i].X, (int)steps[i].Y)),
+                "Waypoints before the last must stay on cell centers");
+        }
+    }
+
+    [Test]
+    public void SameCell_FractionalGoal_ReturnsSingleExactWaypoint()
+    {
+        var pf = new GridPathFinder(3, 3);
+        var path = new List<Vector2>();
+
+        bool ok = pf.TryGetPath(path, new Vector2(1.1f, 1.2f), new Vector2(1.4f, 1.8f), ignoreEndPoint: false);
+
+        Assert.That(ok, Is.True);
+        Assert.That(path.Count, Is.EqualTo(1));
+        Assert.That(path[0], Is.EqualTo(new Vector2(1.4f, 1.8f)));
+    }
+
+    [Test]
+    public void SameCell_NearlyIdenticalGoal_ReturnsEmptyPath()
+    {
+        var pf = new GridPathFinder(3, 3);
+        var path = new List<Vector2>();
+
+        bool ok = pf.TryGetPath(path, new Vector2(1.2f, 1.2f), new Vector2(1.2f, 1.2f), ignoreEndPoint: false);
+
+        Assert.That(ok, Is.True);
+        Assert.That(path.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void IgnoreEndPoint_True_FractionalGoal_EndsAtAdjacentCellCenter()
+    {
+        var pf = new GridPathFinder(5, 5);
+        var path = new List<Vector2>();
+
+        bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(2.3f, 2.6f), ignoreEndPoint: true);
+
+        Assert.That(ok, Is.True);
+        Assert.That(path.Count, Is.GreaterThan(0));
+        var last = path[path.Count - 1];
+        Assert.That(last, Is.EqualTo(new Vector2((int)last.X, (int)last.Y)),
+            "ignoreEndPoint paths end on a cell center, never on the fractional end");
+        int2 lastCell = new((int)last.X, (int)last.Y);
+        int2 goalCell = math.round(new Vector2(2.3f, 2.6f));
+        Assert.That(math.abs(lastCell.X - goalCell.X) + math.abs(lastCell.Y - goalCell.Y), Is.EqualTo(1),
+            "The path must end orthogonally adjacent to the goal cell");
+    }
+
+    [Test]
     public void GoalBlocked_ReturnsFalse()
     {
         var pf = new GridPathFinder(3, 3, blocked: new[] { new int2(2, 2) });
@@ -66,6 +130,26 @@ public class TestAStarPathFinder
 
         Assert.That(ok, Is.False);
         Assert.That(path.Count, Is.EqualTo(0));
+    }
+
+    [Test]
+    public void BlockedStart_CanPathOut()
+    {
+        // A search may start inside a blocked cell (e.g. a pawn standing in an obstacle);
+        // the start cell is never traversability-checked so the search can lead out of it.
+        var pf = new GridPathFinder(3, 3, blocked: new[] { new int2(0, 0) });
+        var path = new List<Vector2>();
+
+        bool ok = pf.TryGetPath(path, new Vector2(0, 0), new Vector2(2, 2), ignoreEndPoint: false);
+
+        Assert.That(ok, Is.True);
+        Assert.That(path.Count, Is.GreaterThan(0));
+        Assert.That(path[path.Count - 1], Is.EqualTo(new Vector2(2, 2)));
+        foreach (var step in path)
+        {
+            Assert.That(step, Is.Not.EqualTo(new Vector2(0, 0)),
+                "the blocked start cell must not appear in the emitted path");
+        }
     }
 
     [Test]

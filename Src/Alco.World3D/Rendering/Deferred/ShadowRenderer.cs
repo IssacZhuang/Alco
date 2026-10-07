@@ -176,9 +176,11 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
             throw new InvalidDataException(
                 $"Blend material '{asset.Name}' casts no shadows.");
         }
+        // The shadow template's AlphaTest axis derives from the material's alpha
+        // mode — a facility-mandated variant, passed as the compile's table.
         return _shadowMaterials.GetValue(asset, a => _materialCompiler.Compile(
             a, _template,
-            [a.AlphaMode == MeshAlphaMode.Mask ? "true" : "false"],
+            new Dictionary<string, ShaderValue> { ["AlphaTest"] = a.AlphaMode == MeshAlphaMode.Mask },
             (_, shader) => CreateShadowMaterial(shader, asset.DoubleSided, $"{asset.Name}_shadow")));
     }
 
@@ -198,7 +200,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
                 $"Blend material '{asset.Name}' contributes no sun bounce.");
         }
         return _rsmMaterials.GetValue(asset, a => _materialCompiler.Compile(
-            a, _rsmTemplate, valueSpecArgs: null,
+            a, _rsmTemplate,
             (_, shader) => CreateRsmMaterial(shader, asset.DoubleSided, $"{asset.Name}_rsm")));
     }
 

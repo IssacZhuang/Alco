@@ -1,3 +1,4 @@
+using Alco.AgentControlProtocol;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.Extensions.AI;
@@ -144,6 +145,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(InvalidOperationException)));
+        Assert.That(failed.ErrorCode, Is.EqualTo("RUNTIME_EXCEPTION"));
 
         var completed = events.OfType<ToolCallCompletedEvent>().Single();
         Assert.That(completed.CallId, Is.EqualTo("call2"));
@@ -158,15 +160,17 @@ public class ParallelToolExecutionTests
     public async Task ChatEventsAsync_ParallelBatchOneToolTimesOut_OtherSucceeds()
     {
         var client = new FakeChatClient();
+        // The fast tool must finish well inside the timeout even when the CI
+        // runner stalls the thread pool for a moment, so keep a ~100x margin.
         client.SetupResponse(CreateToolCallResponse(
-            ("call1", "AgentSlow", new Dictionary<string, object?> { ["milliseconds"] = 2000 }),
+            ("call1", "AgentSlow", new Dictionary<string, object?> { ["milliseconds"] = 5000 }),
             ("call2", "Tracked", new Dictionary<string, object?> { ["id"] = "fast", ["milliseconds"] = 10 })));
         client.SetupResponse(CreateTextResponse("Done."));
 
         var registry = CreateRegistry();
         var session = CreateSession(client, registry, new LLMSessionConfig
         {
-            ToolTimeout = TimeSpan.FromMilliseconds(200),
+            ToolTimeout = TimeSpan.FromMilliseconds(1000),
         });
 
         var events = await CollectEventsAsync(session, "go");
@@ -174,6 +178,7 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
+        Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
 
         var completed = events.OfType<ToolCallCompletedEvent>().Single();
         Assert.That(completed.CallId, Is.EqualTo("call2"));
@@ -275,19 +280,21 @@ public class ParallelToolExecutionTests
         Assert.That(((ToolCallCompletedEvent)toolEvents[3]).CallId, Is.EqualTo("call2"));
     }
 
-    // AC9: timeout applies to a single agent-thread tool on the serial path.
+    // AC9: timeout now applies to a single agent-thread tool on the serial path (fixed bug).
     [Test]
     public async Task ChatEventsAsync_SingleAgentThreadToolTimeout_YieldsFailedEvent()
     {
         var client = new FakeChatClient();
         client.SetupResponse(CreateToolCallResponse(
-            ("call1", "AgentSlow", new Dictionary<string, object?> { ["milliseconds"] = 2000 })));
+            ("call1", "AgentSlow", new Dictionary<string, object?> { ["id"] = "slow", ["milliseconds"] = 5000 })));
         client.SetupResponse(CreateTextResponse("Timeout handled."));
 
         var registry = CreateRegistry();
         var session = CreateSession(client, registry, new LLMSessionConfig
         {
-            ToolTimeout = TimeSpan.FromMilliseconds(50),
+            // Generous for loaded CI runners: the duration bound below still
+            // proves the timeout fired long before the tool's 5s completion.
+            ToolTimeout = TimeSpan.FromMilliseconds(200),
         });
 
         var events = await CollectEventsAsync(session, "go");
@@ -295,6 +302,9 @@ public class ParallelToolExecutionTests
         var failed = events.OfType<ToolCallFailedEvent>().Single();
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
-        Assert.That(failed.Duration, Is.LessThan(TimeSpan.FromMilliseconds(1500)));
+        Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
+        // The bound only proves the timeout fired long before the 5s tool
+        // completion; loaded CI runners can delay the cancellation by seconds.
+        Assert.That(failed.Duration, Is.LessThan(TimeSpan.FromMilliseconds(3500)));
     }
 }

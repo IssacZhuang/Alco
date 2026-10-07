@@ -18,7 +18,7 @@ struct Vertex {
 struct V2F {
     float4 position : SV_POSITION;
     float2 uv : TEXCOORD0;
-    uint instanceID : TEXCOORD1;
+    nointerpolation uint instanceID : TEXCOORD1;
     float4 color : COLOR0;
 };
 

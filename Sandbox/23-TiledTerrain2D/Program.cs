@@ -1,4 +1,4 @@
-using Alco;
+﻿using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 
@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(640, 360, "Tiled Terrain 2D"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.Vulkan
+        Backend = GraphicsBackend.WGPUVulkan
     },
 };
 

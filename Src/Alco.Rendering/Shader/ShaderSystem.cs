@@ -1,5 +1,4 @@
 using Alco.Graphics;
-using Alco.ShaderCompiler;
 
 namespace Alco.Rendering;
 
@@ -195,6 +194,9 @@ public sealed class ShaderSystem : IDisposable
                 WorkgroupSize = engineStage == ShaderStage.Compute
                     ? (program.Reflection.Size.X, program.Reflection.Size.Y, program.Reflection.Size.Z)
                     : (1u, 1u, 1u),
+                // Slang's SPIR-V already matches Naga's coordinate convention; the
+                // property travels with the bytes, not with the destination backend.
+                SpirvAdjustedCoordinates = target == SlangCodeTarget.Spirv,
             };
             switch (module.Stage)
             {
