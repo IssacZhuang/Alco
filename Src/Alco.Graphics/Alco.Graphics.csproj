@@ -20,7 +20,17 @@
   <ItemGroup>
     <!-- Slang compiler natives; dxil.dll (DXC target validator) ships on Windows RIDs only.
          The alco-gpu library is delivered separately by the IncludeAlcoGpuNative target. -->
-    <Content Include="$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\slang*;$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\libslang*;$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\dxil.dll">
+    <Content Include="$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\slang*;$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\libslang*">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <Pack>true</Pack>
+      <PackagePath>runtimes/$(RuntimeIdentifier)/native/</PackagePath>
+      <Visible>False</Visible>
+    </Content>
+    <!-- A literal include must not exist on non-Windows RIDs (MSB3030), so it is gated. -->
+    <Content Include="$(MSBuildThisFileDirectory)runtimes\$(RuntimeIdentifier)\native\dxil.dll"
+             Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">
       <Link>%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
