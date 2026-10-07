@@ -197,8 +197,10 @@ fn base_adapter_features(backend: wgt::Backend) -> wgt::Features {
     let mut required = wgt::Features::IMMEDIATES
         | wgt::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES
         | wgt::Features::VERTEX_WRITABLE_STORAGE;
-    // Vulkan and DX12 can compile SPIR-V through Naga; Metal needs passthrough.
-    if backend != wgt::Backend::Vulkan && backend != wgt::Backend::Dx12 {
+    // Vulkan, DX12 and Metal all compile SPIR-V through Naga; other backends
+    // would need native passthrough for the engine's SPIR-V pipeline.
+    if backend != wgt::Backend::Vulkan && backend != wgt::Backend::Dx12 && backend != wgt::Backend::Metal
+    {
         required |= wgt::Features::PASSTHROUGH_SHADERS;
     }
     required

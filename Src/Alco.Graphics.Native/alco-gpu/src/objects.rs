@@ -1069,8 +1069,11 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
         ) = match language {
             ShaderLanguage::SPIRV => {
                 let words = spirv_words(data);
+                // Native SPIR-V passthrough exists on Vulkan only; Dx12 and Metal
+                // consume the bytes through Naga's SPIR-V frontend instead, so the
+                // engine's single slang->SPIR-V pipeline serves every backend.
                 if ctx.capabilities & capabilities::PASSTHROUGH_SHADERS != 0
-                    && ctx.backend != backend::RESOLVED_DX12
+                    && ctx.backend == backend::RESOLVED_VULKAN
                 {
                     let pdesc =
                         passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {

@@ -27,29 +27,22 @@ public partial class RenderingSystem
     /// <param name="slangCacheDirectory">Disk-cache root for slang modules/programs; null disables caching.</param>
     private ShaderSystem CreateShaderSystem(SlangFileResolver? moduleResolver, string? slangCacheDirectory)
     {
-        bool metalLib = MetalLibTargetEnabled(GraphicsDevice.Backend, GraphicsDevice.IsFeatureSupported(GPUFeatures.MetalLibPassthrough));
-        SlangCodeTarget target = GraphicsDevice.Backend switch
-        {
-            // DX12 consumes SPIR-V through wgpu's standard Naga path. Direct DXIL
-            // passthrough cannot apply the HAL's binding and builtin remapping,
-            // so the compiler additionally normalizes Slang's default-only switch
-            // wrappers that Naga's SPIR-V frontend miscompiles (the producer-side
-            // workaround keeps alco-gpu agnostic of the shader origin).
-            GraphicsBackend.WGPUDx12 => SlangCodeTarget.Spirv,
-            GraphicsBackend.WGPUMetal => metalLib ? SlangCodeTarget.MetalLib : SlangCodeTarget.Msl,
-            _ => SlangCodeTarget.Spirv,
-        };
-        if (GraphicsDevice.Backend == GraphicsBackend.WGPUMetal)
-        {
-            Log.Info(metalLib
-                ? "Metal shaders compile to precompiled metallib (Apple toolchain + wgpu metallib passthrough present)"
-                : "Metal shaders compile to MSL source (metallib toolchain or wgpu metallib passthrough unavailable)");
-        }
+        // Every backend consumes the same slang->SPIR-V bytes: Vulkan through
+        // native SPIR-V passthrough, DX12 and Metal through wgpu's standard
+        // Naga path (naga owns the per-backend resource layout translation, so
+        // direct DXIL/MSL/metallib passthrough is not used by the engine). The
+        // compiler additionally normalizes Slang's default-only switch wrappers
+        // that Naga's SPIR-V frontend miscompiles on every Naga-consuming
+        // backend (the producer-side workaround keeps alco-gpu agnostic of the
+        // shader origin).
+        SlangCodeTarget target = SlangCodeTarget.Spirv;
+        bool nagaConsumesSpirv = GraphicsDevice.Backend
+            is GraphicsBackend.WGPUDx12 or GraphicsBackend.WGPUMetal;
         return new ShaderSystem(this, new SlangCompilerOptions
         {
             Resolver = moduleResolver,
             Target = target,
-            NormalizeSpirvForNaga = GraphicsDevice.Backend == GraphicsBackend.WGPUDx12,
+            NormalizeSpirvForNaga = nagaConsumesSpirv,
             // Forwards slang cache/compile hit-miss events with timings.
             Log = message => Log.Info(message),
         }, slangCacheDirectory);
@@ -60,27 +53,5 @@ public partial class RenderingSystem
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _shaderSystem;
-    }
-
-    /// <summary>
-    /// Whether the Metal backend compiles shaders to precompiled metallib containers:
-    /// both sides must agree — slang's metallib codegen (Apple's external Metal
-    /// toolchain present) and wgpu-native's metallib passthrough entry (the third
-    /// Alco patch). Probed once per rendering system; falls back to MSL source.
-    /// </summary>
-    internal static bool MetalLibTargetEnabled(GraphicsBackend backend, bool metalLibPassthrough)
-    {
-        if (backend != GraphicsBackend.WGPUMetal || !metalLibPassthrough)
-        {
-            return false;
-        }
-        try
-        {
-            return new SlangCompiler().MetalLibSupported;
-        }
-        catch
-        {
-            return false;
-        }
     }
 }

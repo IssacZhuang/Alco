@@ -884,7 +884,17 @@ public sealed class AlcoGpuIntegrationTests
     {
         using var window = new HiddenWindow();
         using var host = new Host();
-        AlcoGpuDevice device = CreateDevice(host, backend);
+        AlcoGpuDevice device;
+        try
+        {
+            device = CreateDevice(host, backend);
+        }
+        catch (GraphicsException error) when (backend != GraphicsBackend.Auto)
+        {
+            // An explicitly requested backend may have no driver on this
+            // machine (e.g. CI Windows runners without Vulkan).
+            throw new IgnoreException($"The {backend} backend is unavailable on this machine ({error.Message}).");
+        }
         using GPUSwapchain swapchain = device.CreateSwapchain(new SwapchainDescriptor(
             SurfaceSource.CreateWin32Window(window.Handle, window.Instance), device.PreferredSurfaceFormat,
             PixelFormat.Depth32Float, 64, 64, true));

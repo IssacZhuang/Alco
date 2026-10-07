@@ -284,7 +284,7 @@ public class ParallelToolExecutionTests
     {
         var client = new FakeChatClient();
         client.SetupResponse(CreateToolCallResponse(
-            ("call1", "AgentSlow", new Dictionary<string, object?> { ["milliseconds"] = 2000 })));
+            ("call1", "AgentSlow", new Dictionary<string, object?> { ["id"] = "slow", ["milliseconds"] = 5000 })));
         client.SetupResponse(CreateTextResponse("Timeout handled."));
 
         var registry = CreateRegistry();
@@ -299,6 +299,8 @@ public class ParallelToolExecutionTests
         Assert.That(failed.CallId, Is.EqualTo("call1"));
         Assert.That(failed.ErrorType, Is.EqualTo(nameof(TimeoutException)));
         Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
-        Assert.That(failed.Duration, Is.LessThan(TimeSpan.FromMilliseconds(1500)));
+        // The bound only proves the timeout fired long before the 5s tool
+        // completion; loaded CI runners can delay the cancellation by seconds.
+        Assert.That(failed.Duration, Is.LessThan(TimeSpan.FromMilliseconds(3500)));
     }
 }

@@ -963,7 +963,10 @@ public static class SlangReflectionReader
             // The engine requires set indices contiguous from 0.
             if (spaces[i] != (uint)i)
             {
-                throw new InvalidOperationException($"Slang assigned a binding to non-contiguous set {spaces[i]}.");
+                string detail = string.Join("; ", entries.Select(e =>
+                    $"{e.Entry.Entry.Name}: space {e.Space}, binding {e.Entry.Entry.Binding}, {e.Entry.Entry.Type}"));
+                throw new InvalidOperationException(
+                    $"Slang assigned a binding to non-contiguous set {spaces[i]}. Entries: {detail}.");
             }
             List<BindGroupEntryInfo> group = groups[spaces[i]];
             group.Sort((a, b) => a.Entry.Binding.CompareTo(b.Entry.Binding));
