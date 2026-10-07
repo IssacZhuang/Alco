@@ -9,7 +9,8 @@
 
 /// ABI major version. Increment on any breaking layout/semantic change.
 /// v3: entry-point symbols lost the `alco_` prefix (parent-first naming).
-pub const ABI_MAJOR: u32 = 3;
+/// v4: ShaderModuleDesc gained the caller-owned `passthrough` consumption switch.
+pub const ABI_MAJOR: u32 = 4;
 /// ABI minor version. Increment on additive changes.
 pub const ABI_MINOR: u32 = 0;
 

@@ -78,13 +78,21 @@ internal static unsafe class AlcoGpuUtility
                 throw new GraphicsException("SPIR-V shader bytecode length must be a multiple of four bytes.");
             }
 
-            // DXIL/MSL/MetalLib have no translation fallback; fail with the actionable
-            // reason before crossing the ABI when passthrough is unavailable.
+            // The passthrough decision is caller-owned; fail with the actionable
+            // reason before crossing the ABI when the request cannot be honored.
+            // WGSL is unaffected by the switch and always translates.
             if (source.Language is ShaderLanguage.DXIL or ShaderLanguage.MSL or ShaderLanguage.MetalLib
+                && !source.Passthrough)
+            {
+                throw new GraphicsException(
+                    $"{source.Language} shaders have no translation path; they are only consumable through passthrough (set {nameof(ShaderModule.Passthrough)} to true).");
+            }
+
+            if (source.Passthrough && source.Language is not ShaderLanguage.WGSL
                 && !device.ShaderPassthroughEnabled)
             {
                 throw new GraphicsException(
-                    $"{source.Language} shaders require the PassthroughShaders capability, which the active device does not expose.");
+                    $"Passthrough consumption requires the PassthroughShaders capability, which the active device does not expose ({source.Language}).");
             }
 
             ReadOnlySpan<byte> code = source.Source.Span;
@@ -104,6 +112,7 @@ internal static unsafe class AlcoGpuUtility
                     Flags = source.SpirvAdjustedCoordinates
                         ? AlcoGPU.ShaderModuleFlags.SpirvAdjustedCoordinates
                         : 0,
+                    Passthrough = source.Passthrough ? AlcoGPU.True : AlcoGPU.False,
                 };
 
                 AlcoGpuNative.ShaderModuleCreate(device.Native, in desc, out AlcoGPU.ShaderModuleHandle module);

@@ -371,6 +371,11 @@ pub struct ShaderModuleDesc {
     pub name: *const c_char,
     /// shader_module_flags bit set; unknown bits are ignored.
     pub flags: u32,
+    /// TRUE to consume the bytes through passthrough, FALSE to consume them
+    /// through Naga translation. The caller owns this decision; only the
+    /// per-language contract (capability, backend match, translatability) is
+    /// enforced here (see `resolve_module_path`).
+    pub passthrough: u32,
 }
 
 /// One bind-group entry descriptor.
@@ -1063,56 +1068,55 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                 return Status::INVALID_ARGUMENT;
             }
         };
+        let path = match resolve_module_path(
+            language,
+            desc.passthrough != 0,
+            ctx.backend,
+            ctx.capabilities,
+        ) {
+            Ok(path) => path,
+            Err(status) => return status,
+        };
         let (id, err): (
             wgc::id::ShaderModuleId,
             Option<Box<dyn std::error::Error + Send + Sync>>,
-        ) = match language {
-            ShaderLanguage::SPIRV => {
+        ) = match (language, path) {
+            (ShaderLanguage::SPIRV, ModulePath::Passthrough) => {
                 let words = spirv_words(data);
-                // Native SPIR-V passthrough exists on Vulkan only; Dx12 and Metal
-                // consume the bytes through Naga's SPIR-V frontend instead, so the
-                // engine's single slang->SPIR-V pipeline serves every backend.
-                if ctx.capabilities & capabilities::PASSTHROUGH_SHADERS != 0
-                    && ctx.backend == backend::RESOLVED_VULKAN
-                {
-                    let pdesc =
-                        passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
-                            p.spirv = Some(words);
-                        });
-                    let (id, err) = ctx.global.device_create_shader_module_passthrough(
-                        ctx.device_id,
-                        &pdesc,
-                        None,
-                    );
-                    (id, err.map(|e| Box::new(e) as _))
-                } else {
-                    // The coordinate convention is a property of the submitted
-                    // bytes (Slang's direct SPIR-V is already adjusted), not of
-                    // this backend; the caller declares it through the flag.
-                    let source = wgc::pipeline::ShaderModuleSource::SpirV(
-                        words,
-                        wgc::naga::front::spv::Options {
-                            adjust_coordinate_space: desc.flags
-                                & shader_module_flags::SPIRV_ADJUSTED_COORDINATES
-                                == 0,
-                            ..Default::default()
-                        },
-                    );
-                    let sdesc = wgc::pipeline::ShaderModuleDescriptor {
-                        label: module_label.clone(),
-                        runtime_checks: wgt::ShaderRuntimeChecks::checked(),
-                    };
-                    let (id, err) =
-                        ctx.global
-                            .device_create_shader_module(ctx.device_id, &sdesc, source, None);
-                    (id, err.map(|e| Box::new(e) as _))
-                }
+                let pdesc =
+                    passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
+                        p.spirv = Some(words);
+                    });
+                let (id, err) = ctx.global.device_create_shader_module_passthrough(
+                    ctx.device_id,
+                    &pdesc,
+                    None,
+                );
+                (id, err.map(|e| Box::new(e) as _))
             }
-            ShaderLanguage::DXIL => {
-                match require_passthrough(ctx) {
-                    Ok(()) => {}
-                    Err(s) => return s,
-                }
+            (ShaderLanguage::SPIRV, ModulePath::Translate) => {
+                // The coordinate convention is a property of the submitted
+                // bytes (Slang's direct SPIR-V is already adjusted), not of
+                // this backend; the caller declares it through the flag.
+                let source = wgc::pipeline::ShaderModuleSource::SpirV(
+                    spirv_words(data),
+                    wgc::naga::front::spv::Options {
+                        adjust_coordinate_space: desc.flags
+                            & shader_module_flags::SPIRV_ADJUSTED_COORDINATES
+                            == 0,
+                        ..Default::default()
+                    },
+                );
+                let sdesc = wgc::pipeline::ShaderModuleDescriptor {
+                    label: module_label.clone(),
+                    runtime_checks: wgt::ShaderRuntimeChecks::checked(),
+                };
+                let (id, err) =
+                    ctx.global
+                        .device_create_shader_module(ctx.device_id, &sdesc, source, None);
+                (id, err.map(|e| Box::new(e) as _))
+            }
+            (ShaderLanguage::DXIL, ModulePath::Passthrough) => {
                 let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
                     p.dxil = Some(std::borrow::Cow::Borrowed(data));
                 });
@@ -1121,11 +1125,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                         .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
                 (id, err.map(|e| Box::new(e) as _))
             }
-            ShaderLanguage::MSL => {
-                match require_passthrough(ctx) {
-                    Ok(()) => {}
-                    Err(s) => return s,
-                }
+            (ShaderLanguage::MSL, ModulePath::Passthrough) => {
                 let source = String::from_utf8_lossy(data);
                 let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
                     p.msl = Some(source);
@@ -1135,11 +1135,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                         .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
                 (id, err.map(|e| Box::new(e) as _))
             }
-            ShaderLanguage::MetalLib => {
-                match require_passthrough(ctx) {
-                    Ok(()) => {}
-                    Err(s) => return s,
-                }
+            (ShaderLanguage::MetalLib, ModulePath::Passthrough) => {
                 let pdesc = passthrough_desc(module_label.clone(), &entry_point, workgroup, |p| {
                     p.metallib = Some(std::borrow::Cow::Borrowed(data));
                 });
@@ -1148,7 +1144,7 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                         .device_create_shader_module_passthrough(ctx.device_id, &pdesc, None);
                 (id, err.map(|e| Box::new(e) as _))
             }
-            ShaderLanguage::WGSL => {
+            (ShaderLanguage::WGSL, ModulePath::Translate) => {
                 let source = String::from_utf8_lossy(data);
                 let sdesc = wgc::pipeline::ShaderModuleDescriptor {
                     label: module_label.clone(),
@@ -1162,13 +1158,16 @@ pub unsafe extern "C-unwind" fn device_create_shader_module(
                 );
                 (id, err.map(|e| Box::new(e) as _))
             }
-            ShaderLanguage::Undefined | ShaderLanguage::SLANG => {
-                set_error(
-                    Status::INVALID_ARGUMENT,
-                    format!("unsupported shader language {}", desc.language),
-                );
-                return Status::INVALID_ARGUMENT;
-            }
+            // resolve_module_path rejects every other combination.
+            (ShaderLanguage::WGSL, ModulePath::Passthrough)
+            | (
+                ShaderLanguage::DXIL | ShaderLanguage::MSL | ShaderLanguage::MetalLib,
+                ModulePath::Translate,
+            )
+            | (
+                ShaderLanguage::Undefined | ShaderLanguage::SLANG,
+                ModulePath::Passthrough | ModulePath::Translate,
+            ) => unreachable!("resolve_module_path accepted {language:?} on path {path:?}"),
         };
 
         if let Some(e) = err {
@@ -1204,15 +1203,96 @@ fn spirv_words(data: &[u8]) -> std::borrow::Cow<'_, [u32]> {
     std::borrow::Cow::Owned(words)
 }
 
-fn require_passthrough(ctx: &DeviceCtx) -> Result<(), Status> {
-    if ctx.capabilities & capabilities::PASSTHROUGH_SHADERS == 0 {
+/// Consumption path of a submitted shader module.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ModulePath {
+    /// Bytes are handed to the backend as-is through wgpu passthrough.
+    Passthrough,
+    /// Bytes are parsed by Naga and translated to the backend's language.
+    Translate,
+}
+
+/// Resolves the caller-declared consumption path of a shader module. The
+/// passthrough decision belongs to the caller through `ShaderModuleDesc::
+/// passthrough`; this enforces only the per-language contract: passthrough
+/// requires the PassthroughShaders capability and the backend that natively
+/// consumes the language, while translation requires a Naga frontend for the
+/// language (SPIR-V or WGSL).
+fn resolve_module_path(
+    language: ShaderLanguage,
+    passthrough: bool,
+    backend: u32,
+    capabilities: u64,
+) -> Result<ModulePath, Status> {
+    match language {
+        ShaderLanguage::Undefined | ShaderLanguage::SLANG => {
+            set_error(
+                Status::INVALID_ARGUMENT,
+                format!("unsupported shader language {language:?}"),
+            );
+            Err(Status::INVALID_ARGUMENT)
+        }
+        // WGSL has no passthrough consumer in this ABI; the switch is ignored.
+        ShaderLanguage::WGSL => Ok(ModulePath::Translate),
+        ShaderLanguage::SPIRV => {
+            if passthrough {
+                require_passthrough(language, backend::RESOLVED_VULKAN, "Vulkan", backend, capabilities)
+            } else {
+                // Translated SPIR-V is consumed through Naga on every backend.
+                Ok(ModulePath::Translate)
+            }
+        }
+        ShaderLanguage::DXIL | ShaderLanguage::MSL | ShaderLanguage::MetalLib => {
+            if !passthrough {
+                set_error(
+                    Status::INVALID_ARGUMENT,
+                    format!(
+                        "{language:?} has no translation frontend; it is only consumable \
+                         through passthrough (set passthrough = TRUE)"
+                    ),
+                );
+                return Err(Status::INVALID_ARGUMENT);
+            }
+            let (required_backend, backend_label) = if language == ShaderLanguage::DXIL {
+                (backend::RESOLVED_DX12, "D3D12")
+            } else {
+                (backend::RESOLVED_METAL, "Metal")
+            };
+            require_passthrough(
+                language,
+                required_backend,
+                backend_label,
+                backend,
+                capabilities,
+            )
+        }
+    }
+}
+
+/// Validates the passthrough prerequisites of one language: the
+/// PassthroughShaders capability plus the backend that natively consumes it.
+fn require_passthrough(
+    language: ShaderLanguage,
+    required_backend: u32,
+    backend_label: &str,
+    backend: u32,
+    capabilities: u64,
+) -> Result<ModulePath, Status> {
+    if capabilities & capabilities::PASSTHROUGH_SHADERS == 0 {
         set_error(
             Status::UNSUPPORTED,
             "this device does not support passthrough shaders",
         );
         return Err(Status::UNSUPPORTED);
     }
-    Ok(())
+    if backend != required_backend {
+        set_error(
+            Status::UNSUPPORTED,
+            format!("{language:?} passthrough requires the {backend_label} backend"),
+        );
+        return Err(Status::UNSUPPORTED);
+    }
+    Ok(ModulePath::Passthrough)
 }
 
 fn passthrough_desc<'a>(
@@ -1694,6 +1774,131 @@ mod tests {
                 assert_eq!(msl.as_ptr(), bytes.as_ptr());
                 assert_eq!(wgsl.as_ptr(), bytes.as_ptr());
             }
+        }
+    }
+
+    #[test]
+    fn module_path_follows_the_caller_passthrough_switch() {
+        // SPIR-V translates through Naga on every backend unless the caller
+        // explicitly requests passthrough; WGSL is unaffected by the switch.
+        for resolved in [
+            backend::RESOLVED_VULKAN,
+            backend::RESOLVED_DX12,
+            backend::RESOLVED_METAL,
+            backend::RESOLVED_GL,
+            backend::RESOLVED_NULL,
+        ] {
+            assert_eq!(
+                resolve_module_path(
+                    ShaderLanguage::SPIRV,
+                    false,
+                    resolved,
+                    capabilities::PASSTHROUGH_SHADERS
+                )
+                .unwrap(),
+                ModulePath::Translate
+            );
+        }
+        assert_eq!(
+            resolve_module_path(
+                ShaderLanguage::SPIRV,
+                true,
+                backend::RESOLVED_VULKAN,
+                capabilities::PASSTHROUGH_SHADERS
+            )
+            .unwrap(),
+            ModulePath::Passthrough
+        );
+        assert_eq!(
+            resolve_module_path(ShaderLanguage::WGSL, true, backend::RESOLVED_VULKAN, 0).unwrap(),
+            ModulePath::Translate
+        );
+        assert_eq!(
+            resolve_module_path(ShaderLanguage::WGSL, false, backend::RESOLVED_GL, 0).unwrap(),
+            ModulePath::Translate
+        );
+    }
+
+    #[test]
+    fn spirv_passthrough_requires_capability_and_vulkan() {
+        assert_eq!(
+            resolve_module_path(
+                ShaderLanguage::SPIRV,
+                true,
+                backend::RESOLVED_DX12,
+                capabilities::PASSTHROUGH_SHADERS
+            )
+            .unwrap_err(),
+            Status::UNSUPPORTED
+        );
+        assert_eq!(
+            resolve_module_path(ShaderLanguage::SPIRV, true, backend::RESOLVED_VULKAN, 0)
+                .unwrap_err(),
+            Status::UNSUPPORTED
+        );
+    }
+
+    #[test]
+    fn native_bytecode_languages_require_passthrough_and_their_backend() {
+        for language in [
+            ShaderLanguage::DXIL,
+            ShaderLanguage::MSL,
+            ShaderLanguage::MetalLib,
+        ] {
+            // Translation has no frontend for these languages.
+            assert_eq!(
+                resolve_module_path(language, false, backend::RESOLVED_VULKAN, u64::MAX)
+                    .unwrap_err(),
+                Status::INVALID_ARGUMENT
+            );
+        }
+        let passthrough = capabilities::PASSTHROUGH_SHADERS;
+        assert_eq!(
+            resolve_module_path(ShaderLanguage::DXIL, true, backend::RESOLVED_DX12, passthrough)
+                .unwrap(),
+            ModulePath::Passthrough
+        );
+        assert_eq!(
+            resolve_module_path(ShaderLanguage::MSL, true, backend::RESOLVED_METAL, passthrough)
+                .unwrap(),
+            ModulePath::Passthrough
+        );
+        assert_eq!(
+            resolve_module_path(
+                ShaderLanguage::MetalLib,
+                true,
+                backend::RESOLVED_METAL,
+                passthrough
+            )
+            .unwrap(),
+            ModulePath::Passthrough
+        );
+        // A wrong backend or a missing capability fails as UNSUPPORTED.
+        assert_eq!(
+            resolve_module_path(ShaderLanguage::DXIL, true, backend::RESOLVED_METAL, passthrough)
+                .unwrap_err(),
+            Status::UNSUPPORTED
+        );
+        assert_eq!(
+            resolve_module_path(ShaderLanguage::MSL, true, backend::RESOLVED_METAL, 0)
+                .unwrap_err(),
+            Status::UNSUPPORTED
+        );
+    }
+
+    #[test]
+    fn invalid_languages_reject_both_paths() {
+        for language in [ShaderLanguage::Undefined, ShaderLanguage::SLANG] {
+            assert_eq!(
+                resolve_module_path(language, false, backend::RESOLVED_VULKAN, u64::MAX)
+                    .unwrap_err(),
+                Status::INVALID_ARGUMENT
+            );
+            assert_eq!(
+                resolve_module_path(language, true, backend::RESOLVED_VULKAN, u64::MAX)
+                    .unwrap_err(),
+                Status::INVALID_ARGUMENT
+            );
         }
     }
 

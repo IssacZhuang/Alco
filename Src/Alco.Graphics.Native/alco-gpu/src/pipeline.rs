@@ -665,6 +665,7 @@ mod tests {
                 workgroup_z: 1,
                 name: ptr::null(),
                 flags: 0,
+                passthrough: crate::abi::FALSE,
             };
             let mut module = ShaderModuleHandle::NULL;
             assert_eq!(

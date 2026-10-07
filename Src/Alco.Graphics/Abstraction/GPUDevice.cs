@@ -38,10 +38,20 @@ public abstract partial class GPUDevice
 
     /// <summary>
     /// The backend the active adapter selected (an <c>Auto</c> request resolves per
-    /// platform). Shader compilation keys off this: Vulkan consumes slang SPIR-V,
-    /// D3D12 DXIL and Metal MSL.
+    /// platform). Shader consumption keys off this together with
+    /// <see cref="ShaderPassthroughEnabled"/>: the engine submits slang SPIR-V on
+    /// every backend, consumed natively (passthrough) on Vulkan and through Naga
+    /// translation elsewhere.
     /// </summary>
     public abstract GraphicsBackend Backend { get; }
+
+    /// <summary>
+    /// Whether the device exposes the passthrough shader capability: submitted
+    /// DXIL/MSL/MetalLib (and SPIR-V on Vulkan) can be consumed by the backend
+    /// as-is, without Naga translation. DXIL/MSL/MetalLib have no translation
+    /// fallback; SPIR-V translates through Naga on every backend otherwise.
+    /// </summary>
+    public abstract bool ShaderPassthroughEnabled { get; }
 
     /// <summary>
     /// The maximum number of bind groups (descriptor sets / <c>@group</c>) supported by this device.

@@ -30,11 +30,13 @@ public partial class RenderingSystem
         // Every backend consumes the same slang->SPIR-V bytes: Vulkan through
         // native SPIR-V passthrough, DX12 and Metal through wgpu's standard
         // Naga path (naga owns the per-backend resource layout translation, so
-        // direct DXIL/MSL/metallib passthrough is not used by the engine). The
-        // compiler additionally normalizes Slang's default-only switch wrappers
-        // that Naga's SPIR-V frontend miscompiles on every Naga-consuming
-        // backend (the producer-side workaround keeps alco-gpu agnostic of the
-        // shader origin).
+        // direct DXIL/MSL/metallib passthrough is not used by the engine).
+        // The passthrough choice is declared per module in BuildModulesInfo —
+        // alco-gpu validates and executes the caller's decision, it never
+        // infers one. The compiler additionally normalizes Slang's default-only
+        // switch wrappers that Naga's SPIR-V frontend miscompiles on every
+        // Naga-consuming backend (the producer-side workaround keeps alco-gpu
+        // agnostic of the shader origin).
         SlangCodeTarget target = SlangCodeTarget.Spirv;
         bool nagaConsumesSpirv = GraphicsDevice.Backend
             is GraphicsBackend.WGPUDx12 or GraphicsBackend.WGPUMetal;

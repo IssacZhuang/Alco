@@ -62,6 +62,40 @@ public sealed class AlcoGpuIntegrationTests
         }
         """;
 
+    /// <summary>
+    /// Verifies the caller-owned passthrough switch: DXIL without the switch is
+    /// rejected before crossing the ABI (no translation path exists), while DXIL
+    /// with the switch either succeeds on a passthrough-capable DX12 device or
+    /// fails with the capability/backend reason.
+    /// </summary>
+    [Test]
+    public void CreateShaderModuleHonorsCallerOwnedPassthroughSwitch()
+    {
+        using var host = new Host();
+        AlcoGpuDevice device = CreateDevice(host);
+        byte[] payload = [0x44, 0x58, 0x49, 0x4c];
+
+        var untranslated = new ShaderModule(ShaderStage.Vertex, ShaderLanguage.DXIL, payload, "main");
+        Assert.That(() => device.CreateShaderModule(untranslated),
+            Throws.TypeOf<GraphicsException>(), "DXIL must declare passthrough explicitly.");
+
+        var passthrough = new ShaderModule(ShaderStage.Vertex, ShaderLanguage.DXIL, payload, "main")
+        {
+            Passthrough = true,
+        };
+        if (device.Backend == GraphicsBackend.WGPUDx12 && device.ShaderPassthroughEnabled)
+        {
+            AlcoGPU.ShaderModuleHandle handle = device.CreateShaderModule(passthrough);
+            Assert.That(handle.IsNull, Is.False);
+            device.DestroyShaderModule(handle);
+        }
+        else
+        {
+            Assert.That(() => device.CreateShaderModule(passthrough),
+                Throws.TypeOf<GraphicsException>(), "passthrough needs the capability and matching backend.");
+        }
+    }
+
     /// <summary>Renders a fullscreen WGSL triangle and validates the read-back pixels.</summary>
     /// <param name="backend">The requested graphics backend.</param>
     /// <param name="debug">Whether to enable native debugging and validation.</param>

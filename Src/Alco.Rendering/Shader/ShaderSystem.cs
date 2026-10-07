@@ -197,6 +197,14 @@ public sealed class ShaderSystem : IDisposable
                 // Slang's SPIR-V already matches Naga's coordinate convention; the
                 // property travels with the bytes, not with the destination backend.
                 SpirvAdjustedCoordinates = target == SlangCodeTarget.Spirv,
+                // The consumption path is declared here, not decided natively:
+                // DXIL/MSL/MetalLib are only consumable through passthrough, while
+                // slang SPIR-V passthroughs natively on Vulkan when the device
+                // exposes the capability; every other backend translates through Naga.
+                Passthrough = target == SlangCodeTarget.Spirv
+                    ? renderingSystem.GraphicsDevice.Backend == GraphicsBackend.WGPUVulkan
+                        && renderingSystem.GraphicsDevice.ShaderPassthroughEnabled
+                    : true,
             };
             switch (module.Stage)
             {

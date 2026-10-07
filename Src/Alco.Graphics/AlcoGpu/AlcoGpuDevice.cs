@@ -66,7 +66,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     /// for DXIL/MSL/MetalLib (no translation fallback exists); SPIR-V falls
     /// back to Naga import natively when unavailable.
     /// </summary>
-    internal bool ShaderPassthroughEnabled { get; }
+    public override bool ShaderPassthroughEnabled { get; }
 
     /// <summary>The backend the adapter actually selected (Auto resolves per platform).</summary>
     public override GraphicsBackend Backend { get; }

@@ -69,5 +69,16 @@ namespace Alco.Graphics
         /// produced GLSL-style SPIR-V behaving like stock wgpu.
         /// </summary>
         public bool SpirvAdjustedCoordinates { get; init; }
+
+        /// <summary>
+        /// Whether the native layer must consume <see cref="Source"/> through
+        /// passthrough (bytes handed to the backend as-is) instead of Naga
+        /// translation. The decision is caller-owned: DXIL/MSL/MetalLib have no
+        /// translation path and require this to be true, while SPIR-V translates
+        /// through Naga on every backend unless this is set (passthrough SPIR-V
+        /// additionally requires the Vulkan backend and the PassthroughShaders
+        /// capability). WGSL ignores this property.
+        /// </summary>
+        public bool Passthrough { get; init; }
     }
 }

@@ -15,11 +15,11 @@ namespace Alco.Graphics.Test;
 [Category("AlcoGpu")]
 public unsafe class AlcoGPUTests
 {
-    /// <summary>Verifies that both sides implement the ABI 3 version handshake.</summary>
+    /// <summary>Verifies that both sides implement the ABI 4 version handshake.</summary>
     [Test]
     public void AbiVersionMatches()
     {
-        Assert.That(AlcoGPU.AbiMajor, Is.EqualTo(3));
+        Assert.That(AlcoGPU.AbiMajor, Is.EqualTo(4));
         Assert.That(AlcoGPU.AbiMinor, Is.EqualTo(0));
         uint version = AlcoGpuNative.AbiVersion();
         Assert.That(version >> 16, Is.EqualTo(AlcoGPU.AbiMajor));

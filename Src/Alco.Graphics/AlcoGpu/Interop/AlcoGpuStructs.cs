@@ -12,7 +12,7 @@ namespace Alco.Graphics.AlcoGpu.Interop;
 internal static unsafe partial class AlcoGPU
 {
     /// <summary>ABI major version implemented by the native library.</summary>
-    public const uint AbiMajor = 3;
+    public const uint AbiMajor = 4;
 
     /// <summary>ABI minor version implemented by the native library.</summary>
     public const uint AbiMinor = 0;
@@ -737,6 +737,9 @@ internal static partial class AlcoGPU
 
         /// <summary><see cref="ShaderModuleFlags"/> bit set; unknown bits are ignored.</summary>
         public uint Flags;
+
+        /// <summary>TRUE to consume the bytes through passthrough, FALSE to consume them through Naga translation (mirrors passthrough).</summary>
+        public uint Passthrough;
     }
 
     /// <summary>One bind group layout entry (mirrors BindGroupLayoutEntry).</summary>

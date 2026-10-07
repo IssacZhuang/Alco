@@ -11,10 +11,12 @@ violations of the caller lifetime contract are unsupported, not recoverable erro
 - C# side: `Src/Alco.Graphics/AlcoGpu/` (`Interop/AlcoGpuNative.cs` P/Invokes + error
   callback registration, `Interop/AlcoGpuStructs.cs` struct mirrors,
   `Interop/AlcoGpuMarshal.cs` throwing error callback)
-- Current ABI version: **3.0** (`ABI_MAJOR=3`, `ABI_MINOR=0`). ABI 3 dropped the
+- Current ABI version: **4.0** (`ABI_MAJOR=4`, `ABI_MINOR=0`). ABI 4 added the
+  caller-owned `passthrough` switch to `ShaderModuleDesc` (see *Shader modules*).
+  ABI 3 dropped the
   `alco_` symbol prefix: entry points follow the wgpu-core parent-first convention
   (`device_create_buffer`, `encoder_begin_render_pass`, `buffer_destroy`), and the
-  C# interop structs moved to short names nested in `AlcoGPU`. ABI 2 and earlier
+  C# interop structs moved to short names nested in `AlcoGPU`. ABI 3 and earlier
   are not binary-compatible.
 
 ## Conventions
@@ -151,14 +153,26 @@ count must be non-zero and the array non-null).
 `texture_release` (surface textures are released, never destroyed) / sampler pair.
 
 **Shader modules** — create / destroy. Language enum covers WGSL / SPIR-V / DXIL /
-MSL / MetalLib; passthrough languages require the `PassthroughShaders` capability,
-gated C#-side by `ShaderPassthroughEnabled`. Synchronous creation borrows binary
-payloads and valid UTF-8 text. Aligned little-endian SPIR-V borrows the input words;
-unaligned sources are decoded once. The library is producer-agnostic: it performs no
-Slang-specific SPIR-V post-processing (the managed compile pipeline normalizes
-Slang's default-only switch wrappers before submission, see
-`Alco.Graphics/Compiler/Spirv/SpirvNormalizer.cs`), and the trailing `flags` field
-of `ShaderModuleDesc` declares input properties — bit
+MSL / MetalLib. Whether a module is consumed through **passthrough** (bytes handed
+to the backend as-is, no Naga parsing/validation) or through **Naga translation**
+is caller-owned: `ShaderModuleDesc::passthrough` (`u32` bool) declares it and
+alco-gpu never infers a path, it only enforces the per-language contract:
+
+| Language | `passthrough = TRUE` | `passthrough = FALSE` (default) |
+| --- | --- | --- |
+| SPIR-V | passthrough; requires `PassthroughShaders` capability **and** the Vulkan backend (`Unsupported` otherwise) | Naga translation, available on every backend |
+| DXIL | passthrough; requires capability **and** the DX12 backend (`Unsupported`) | `InvalidArgument` (no translation frontend) |
+| MSL / MetalLib | passthrough; requires capability **and** the Metal backend (`Unsupported`) | `InvalidArgument` |
+| WGSL | switch ignored — always Naga translation | same |
+
+DXIL/MSL/MetalLib passthrough is additionally gated C#-side by
+`ShaderPassthroughEnabled` before crossing the ABI. Synchronous creation borrows
+binary payloads and valid UTF-8 text. Aligned little-endian SPIR-V borrows the
+input words; unaligned sources are decoded once. The library is
+producer-agnostic: it performs no Slang-specific SPIR-V post-processing (the
+managed compile pipeline normalizes Slang's default-only switch wrappers before
+submission, see `Alco.Graphics/Compiler/Spirv/SpirvNormalizer.cs`), and the
+trailing `flags` field of `ShaderModuleDesc` declares input properties — bit
 `shader_module_flags::SPIRV_ADJUSTED_COORDINATES` skips Naga's GL-style Y
 adjustment for SPIR-V that already matches its coordinate convention (Slang's
 direct emission). Unknown flag bits are ignored.
@@ -389,8 +403,8 @@ managed unmanaged-temporary balance; it is not a count of Rust wrappers.
 
 Native tests verify deeper wrapper/context reclamation using existing core reports,
 weak context ownership, and reference-count checks. These test-only observations
-do not introduce a production registry or live-counter export. ABI 3 tests must
-run against a freshly built ABI 3 library, never an ABI 2 (or older) delivered
+do not introduce a production registry or live-counter export. ABI 4 tests must
+run against a freshly built ABI 4 library, never an ABI 3 (or older) delivered
 binary.
 
 ## Building / updating the binary

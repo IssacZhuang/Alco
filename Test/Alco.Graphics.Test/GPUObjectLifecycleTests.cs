@@ -504,6 +504,8 @@ public sealed class GPUObjectLifecycleTests
         public override PixelFormat PreferredSurfaceFormat => PixelFormat.RGBA8Unorm;
         /// <summary>Gets the synthetic backend.</summary>
         public override GraphicsBackend Backend => GraphicsBackend.None;
+        /// <summary>Gets the synthetic passthrough availability (never available).</summary>
+        public override bool ShaderPassthroughEnabled => false;
         /// <summary>Gets the synthetic bind-group limit.</summary>
         public override int MaxBindGroups => 0;
         /// <summary>Gets the synthetic feature set.</summary>
