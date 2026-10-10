@@ -106,6 +106,9 @@ public sealed class ShaderParameterSet
 
     private readonly GPUDevice _device;
     private readonly SharedSamplers _samplers;
+    // Descendants may validate the same fallback concurrently. Publish recorded
+    // texture versions and the resulting parameter version as one synchronized step.
+    private readonly Lock _renderTextureVersionLock = new();
     // Material-bound custom samplers by shader entry name. These serve only
     // module-declared sampler entries; shared sampler bank members are immutable
     // engine constants resolved from the library and are never bound here.
@@ -1104,23 +1107,24 @@ public sealed class ShaderParameterSet
     /// last call. Identical contents are served from a per-group cache, so repeated
     /// updates (e.g. double buffered ping-pong) do not recreate bind groups.
     /// <br/>A group is skipped entirely when neither its own slots (dirty flag) nor
-    /// any value of the fallback chain (version sum) changed, which makes the steady
-    /// state a few integer comparisons per group with no allocation.
+    /// any value of the fallback chain (version sum) changed. Steady-state validation
+    /// and group reuse do not allocate.
     /// <br/>Groups with texture slots additionally validate the recorded
     /// <see cref="RenderTexture.Version"/> of their render textures: an in-place
     /// <see cref="RenderTexture.Resize"/> keeps the slot reference intact but replaces
-    /// the underlying GPU textures, which is detected here and marks the group dirty
-    /// (bumping this set's version, so dependent sets re-resolve through the fallback
-    /// chain as with any other value change).
+    /// the underlying GPU textures. Versions are validated for this set and every
+    /// fallback ancestor before any group is reused, even when an ancestor is dirty
+    /// or has never assembled its own groups. Validation only marks affected groups
+    /// dirty and bumps their set's version; ancestor GPU groups are not assembled.
     /// </summary>
     public void FlushResourceGroups()
     {
-        // Every set version is monotonically increasing, so the sum strictly
-        // increases whenever any value of the fallback chain changes.
+        ValidateRenderTextureVersions();
+
         int fallbackVersion = 0;
         for (ShaderParameterSet? set = _fallback; set != null; set = set._fallback)
         {
-            fallbackVersion += set._version;
+            fallbackVersion += set.ValidateRenderTextureVersions();
         }
 
         for (int i = 0; i < _groups.Length; i++)
@@ -1134,31 +1138,6 @@ public sealed class ShaderParameterSet
                 continue;
             }
 
-            // A render texture resized in place keeps its object identity, so the slot
-            // values look unchanged; the recorded version is the only signal that the
-            // assembled group still references the destroyed textures.
-            if (!group.dirty && group.hasTextureSlots)
-            {
-                EntryPlan[] plans = group.plans;
-                for (int p = 0; p < plans.Length; p++)
-                {
-                    if (plans[p].kind != EntryKind.Resource)
-                    {
-                        // Sampler entries have no slot.
-                        continue;
-                    }
-
-                    ref Slot slot = ref _slots[plans[p].slotIndex];
-                    RenderTexture? renderTexture = slot.renderTexture;
-                    if (renderTexture != null && renderTexture.Version != slot.renderTextureVersion)
-                    {
-                        slot.renderTextureVersion = renderTexture.Version;
-                        MarkDirty(i);
-                        break;
-                    }
-                }
-            }
-
             if (!group.dirty && group.fallbackVersion == fallbackVersion)
             {
                 continue;
@@ -1168,6 +1147,48 @@ public sealed class ShaderParameterSet
             group.fallbackVersion = fallbackVersion;
             group.current = AssembleGroup(i, group);
             _resourceGroups[i] = group.current;
+        }
+    }
+
+    private int ValidateRenderTextureVersions()
+    {
+        lock (_renderTextureVersionLock)
+        {
+            for (int i = 0; i < _groups.Length; i++)
+            {
+                GroupState group = _groups[i];
+                if (!group.hasTextureSlots)
+                {
+                    continue;
+                }
+
+                bool changed = false;
+                EntryPlan[] plans = group.plans;
+                for (int p = 0; p < plans.Length; p++)
+                {
+                    if (plans[p].kind != EntryKind.Resource)
+                    {
+                        continue;
+                    }
+
+                    ref Slot slot = ref _slots[plans[p].slotIndex];
+                    RenderTexture? renderTexture = slot.renderTexture;
+                    if (renderTexture == null || renderTexture.Version == slot.renderTextureVersion)
+                    {
+                        continue;
+                    }
+
+                    slot.renderTextureVersion = renderTexture.Version;
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    MarkDirty(i);
+                }
+            }
+
+            return _version;
         }
     }
 

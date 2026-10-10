@@ -371,6 +371,95 @@ public class ShaderSystemTest
         Assert.That(result, Is.EqualTo(new uint4(4, 32, 2, 4)));
     }
 
+    /// <summary>Checks resized inherited textures are refreshed when a nested material's bundle is re-recorded.</summary>
+    [Test]
+    [Category("AlcoGpu")]
+    [NonParallelizable]
+    public unsafe void Graphics_RenderTextureResize_RerecordedGrandchildBundleSamplesNewTexture()
+    {
+        using GpuHost gpuHost = new();
+        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.Auto, debug: true));
+        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: device);
+        RenderingSystem rendering = host.RenderingSystem;
+        Shader shader = rendering.ShaderSystem.GetShaderFromModule(
+            "inherited_resize_bundle", "inherited_resize_bundle.slang", """
+                cbuffer masks : register(b0, space0)
+                {
+                    Texture2D<float4> visionMask;
+                };
+                [shader("vertex")]
+                float4 MainVS(uint vertex : SV_VulkanVertexID) : SV_POSITION
+                {
+                    float2 positions[3] = { float2(-1, -1), float2(3, -1), float2(-1, 3) };
+                    return float4(positions[vertex], 0, 1);
+                }
+                [shader("fragment")]
+                float4 MainPS() : SV_TARGET
+                {
+                    return visionMask.Load(int3(0, 0, 0));
+                }
+                """);
+        using GPUAttachmentLayout layout = device.CreateAttachmentLayout(new AttachmentLayoutDescriptor(
+            [new ColorAttachment { Format = PixelFormat.RGBA8Unorm, ClearColor = new(0, 0, 0, 1) }], null));
+        using RenderTexture source = rendering.CreateRenderTexture(layout, 4, 4, "vision_mask");
+        using RenderTexture output = rendering.CreateRenderTexture(layout, 4, 4, "resize_output");
+        using GraphicsMaterial root = rendering.CreateGraphicsMaterial(shader);
+        root.DepthStencilState = DepthStencilState.None;
+        root.SetRenderTexture("visionMask", source);
+        using GraphicsMaterialInstance child = root.CreateInstance();
+        using GraphicsMaterialInstance grandchild = child.CreateInstance();
+        GraphicsPipelineContext context = grandchild.GetPipelineContext(layout);
+        using GPURenderBundle bundle = device.CreateRenderBundle();
+        using GPUCommandBuffer commands = device.CreateCommandBuffer();
+        byte[] pixels = new byte[4 * 4 * 4];
+        GPUResourceGroup? previous = null;
+
+        for (int frame = 0; frame < 2; frame++)
+        {
+            if (frame == 1)
+            {
+                source.Resize(8, 8);
+            }
+
+            bundle.Begin(layout);
+            bundle.SetGraphicsPipeline(context.Pipeline!);
+            grandchild.PushResources(bundle);
+            bundle.Draw(3, 1, 0, 0);
+            bundle.End();
+            GPUResourceGroup current = grandchild.Parameters.ResourceGroups[0]!;
+            Assert.That(current.Resources[0], Is.SameAs(source.ColorTextures[0].View));
+            if (previous != null)
+            {
+                Assert.That(current, Is.Not.SameAs(previous));
+            }
+            previous = current;
+
+            commands.Begin();
+            using (commands.BeginRender(source.FrameBuffer, frame == 0
+                ? new System.Numerics.Vector4(1, 0, 0, 1)
+                : new System.Numerics.Vector4(0, 1, 0, 1))) { }
+            using (GPUCommandBuffer.RenderPass pass = commands.BeginRender(output.FrameBuffer))
+            {
+                pass.ExecuteBundle(bundle);
+            }
+            commands.End();
+            device.Submit(commands);
+            fixed (byte* destination = pixels)
+            {
+                device.ReadTexture(output.FrameBuffer.Colors[0], destination, (uint)pixels.Length);
+            }
+            byte[] expected = frame == 0 ? [255, 0, 0, 255] : [0, 255, 0, 255];
+            for (int pixel = 0; pixel < pixels.Length; pixel += 4)
+            {
+                Assert.That(pixels[pixel..(pixel + 4)], Is.EqualTo(expected), $"Frame {frame}, pixel {pixel / 4}");
+            }
+            Assert.That(root.Parameters.ResourceGroups[0], Is.Null,
+                "Validating inherited texture versions must not assemble the unused root's GPU group.");
+            Assert.That(child.Parameters.ResourceGroups[0], Is.Null,
+                "The unused intermediate instance must remain unassembled too.");
+        }
+    }
+
     /// <summary>Compiles a module and its imports through the shader provider.</summary>
     [Test]
     public void GetShader_CompilesModuleWithImports()
