@@ -42,6 +42,15 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
     /// </summary>
     public bool IsLeftStickCursor { get; set; } = false;
 
+    /// <summary>
+    /// Optional game-layer modifier invoked each frame after the stick velocity is computed and
+    /// before it is accumulated, letting gameplay adjust cursor speed contextually (e.g. aim
+    /// assist). Arguments: current view-local cursor position in pixels, requested cursor
+    /// velocity in pixels per second. Returns the adjusted velocity. <see langword="null"/>
+    /// (default) leaves the velocity unchanged.
+    /// </summary>
+    public Func<Vector2, Vector2, Vector2>? VelocityModifier { get; set; }
+
     public GamepadCursorSystem(Input input, View view, float deadZone, float sensitivity)
     {
         _input = input;
@@ -85,6 +94,10 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
         Vector2 axis = new Vector2(sx, -sy);
         axis = _curve(axis);
         Vector2 velocity = axis * speed * VelocityMultiplier * ScreenHeightMultiplier * _view.Size.Y;
+        if (VelocityModifier != null)
+        {
+            velocity = VelocityModifier(_view.MousePosition, velocity);
+        }
         Vector2 deltaPixels = velocity * delta;
 
         // Accumulate sub-pixel movement and apply whole-pixel steps only
