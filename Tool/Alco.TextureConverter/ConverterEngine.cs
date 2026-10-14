@@ -20,8 +20,15 @@ internal sealed class ConverterEngine : GameEngine
 	private static GameEngineSetting CreateSetting()
 	{
 		GameEngineSetting setting = GameEngineSetting.CreateGPUWithoutView();
-		// Match the proven headless configuration of the game application.
-		setting.Graphics = GraphicsSetting.Default with { Backend = GraphicsBackend.Vulkan };
+		// Pick the backend every host can serve headlessly: D3D12 falls back to
+		// the WARP software adapter on GPU-less CI Windows, Vulkan needs a
+		// driver (lavapipe on CI Linux) and does not exist on macOS at all.
+		setting.Graphics = GraphicsSetting.Default with
+		{
+			Backend = OperatingSystem.IsMacOS() ? GraphicsBackend.Metal
+				: OperatingSystem.IsWindows() ? GraphicsBackend.Dx12
+				: GraphicsBackend.Vulkan,
+		};
 		setting.Audio = AudioSetting.NoAudio;
 		return setting;
 	}
