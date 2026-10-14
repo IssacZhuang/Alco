@@ -7,7 +7,7 @@ GameEngineSetting setting = new GameEngineSetting
     StopWhenError = true,
     View = new ViewSetting(800, 450, "Canvas UI"),
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.WGPUVulkan,
+        Backend = GraphicsBackend.Vulkan,
     }
 };
 

@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(1280, 720, "Particle Batching"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.WGPUVulkan
+        Backend = GraphicsBackend.Vulkan
     },
 };
 

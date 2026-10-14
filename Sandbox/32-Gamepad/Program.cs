@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(1000, 700, "Gamepad Tester (ImGUI)"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.WGPUVulkan
+        Backend = GraphicsBackend.Vulkan
     },
 };
 

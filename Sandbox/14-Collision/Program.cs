@@ -7,7 +7,7 @@ GameEngineSetting setting = new GameEngineSetting
     StopWhenError = true,
     View = new ViewSetting(640, 360, "Collision"),
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.WGPUVulkan
+        Backend = GraphicsBackend.Vulkan
     },
 };
 

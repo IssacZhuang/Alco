@@ -39,7 +39,7 @@ public partial class RenderingSystem
         // agnostic of the shader origin).
         SlangCodeTarget target = SlangCodeTarget.Spirv;
         bool nagaConsumesSpirv = GraphicsDevice.Backend
-            is GraphicsBackend.WGPUDx12 or GraphicsBackend.WGPUMetal;
+            is GraphicsBackend.Dx12 or GraphicsBackend.Metal;
         return new ShaderSystem(this, new SlangCompilerOptions
         {
             Resolver = moduleResolver,

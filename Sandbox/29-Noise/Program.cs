@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(800, 600, "Noise Generator"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.WGPUVulkan
+        Backend = GraphicsBackend.Vulkan
     },
 };
 

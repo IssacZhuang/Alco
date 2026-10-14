@@ -202,15 +202,15 @@ public unsafe class TestBcDecoder
     [TestCase(DdsDecoder.BcFamily.BC3, false, GraphicsBackend.Auto)]
     [TestCase(DdsDecoder.BcFamily.BC1, true, GraphicsBackend.Auto)]
     [TestCase(DdsDecoder.BcFamily.BC3, true, GraphicsBackend.Auto)]
-    [TestCase(DdsDecoder.BcFamily.BC1, false, GraphicsBackend.WGPUDx12)]
-    [TestCase(DdsDecoder.BcFamily.BC3, false, GraphicsBackend.WGPUDx12)]
-    [TestCase(DdsDecoder.BcFamily.BC1, true, GraphicsBackend.WGPUDx12)]
-    [TestCase(DdsDecoder.BcFamily.BC3, true, GraphicsBackend.WGPUDx12)]
+    [TestCase(DdsDecoder.BcFamily.BC1, false, GraphicsBackend.Dx12)]
+    [TestCase(DdsDecoder.BcFamily.BC3, false, GraphicsBackend.Dx12)]
+    [TestCase(DdsDecoder.BcFamily.BC1, true, GraphicsBackend.Dx12)]
+    [TestCase(DdsDecoder.BcFamily.BC3, true, GraphicsBackend.Dx12)]
     [Category("AlcoGpu")]
     [NonParallelizable]
     public void GpuCompression_UsesEndpointFirstPalette(DdsDecoder.BcFamily family, bool solid, GraphicsBackend backend)
     {
-        if (backend == GraphicsBackend.WGPUDx12 && !OperatingSystem.IsWindows())
+        if (backend == GraphicsBackend.Dx12 && !OperatingSystem.IsWindows())
         {
             Assert.Ignore("Direct3D 12 requires Windows.");
         }

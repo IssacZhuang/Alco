@@ -202,7 +202,7 @@ public sealed class ShaderSystem : IDisposable
                 // slang SPIR-V passthroughs natively on Vulkan when the device
                 // exposes the capability; every other backend translates through Naga.
                 Passthrough = target == SlangCodeTarget.Spirv
-                    ? renderingSystem.GraphicsDevice.Backend == GraphicsBackend.WGPUVulkan
+                    ? renderingSystem.GraphicsDevice.Backend == GraphicsBackend.Vulkan
                         && renderingSystem.GraphicsDevice.IsCapabilitySupported(GPUCapabilities.ShaderPassthrough)
                     : true,
             };

@@ -8,7 +8,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(720, 405, "Multi window"),
 
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.WGPUVulkan,
+        Backend = GraphicsBackend.Vulkan,
     }
 };
 

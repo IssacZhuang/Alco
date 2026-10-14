@@ -7,7 +7,7 @@ GameEngineSetting setting = new GameEngineSetting
     StopWhenError = true,
     View = new ViewSetting(960, 540, "Bloom HDR"),
     Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.WGPUVulkan
+        Backend = GraphicsBackend.Vulkan
     },
 };
 

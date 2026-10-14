@@ -21,7 +21,7 @@ internal sealed class ConverterEngine : GameEngine
 	{
 		GameEngineSetting setting = GameEngineSetting.CreateGPUWithoutView();
 		// Match the proven headless configuration of the game application.
-		setting.Graphics = GraphicsSetting.Default with { Backend = GraphicsBackend.WGPUVulkan };
+		setting.Graphics = GraphicsSetting.Default with { Backend = GraphicsBackend.Vulkan };
 		setting.Audio = AudioSetting.NoAudio;
 		return setting;
 	}

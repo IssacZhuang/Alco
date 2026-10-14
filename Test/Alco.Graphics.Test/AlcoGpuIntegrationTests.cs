@@ -83,7 +83,7 @@ public sealed class AlcoGpuIntegrationTests
         {
             Passthrough = true,
         };
-        if (device.Backend == GraphicsBackend.WGPUDx12
+        if (device.Backend == GraphicsBackend.Dx12
             && device.IsCapabilitySupported(GPUCapabilities.ShaderPassthrough))
         {
             AlcoGPU.ShaderModuleHandle handle = device.CreateShaderModule(passthrough);
@@ -101,11 +101,11 @@ public sealed class AlcoGpuIntegrationTests
     /// <param name="backend">The requested graphics backend.</param>
     /// <param name="debug">Whether to enable native debugging and validation.</param>
     [TestCase(GraphicsBackend.Auto, false)]
-    [TestCase(GraphicsBackend.WGPUDx12, false)]
-    [TestCase(GraphicsBackend.WGPUDx12, true)]
+    [TestCase(GraphicsBackend.Dx12, false)]
+    [TestCase(GraphicsBackend.Dx12, true)]
     public unsafe void RenderQuadAndReadbackMatchesExpectedPixels(GraphicsBackend backend, bool debug)
     {
-        if (backend == GraphicsBackend.WGPUDx12 && !OperatingSystem.IsWindows())
+        if (backend == GraphicsBackend.Dx12 && !OperatingSystem.IsWindows())
         {
             Assert.Ignore("Direct3D 12 requires Windows.");
         }
@@ -190,10 +190,10 @@ public sealed class AlcoGpuIntegrationTests
     /// <summary>Empty public buffer writes leave existing data intact and the device usable.</summary>
     /// <param name="backend">The requested graphics backend.</param>
     [TestCase(GraphicsBackend.Auto)]
-    [TestCase(GraphicsBackend.WGPUDx12)]
+    [TestCase(GraphicsBackend.Dx12)]
     public unsafe void EmptyBufferWritesPreserveContents(GraphicsBackend backend)
     {
-        if (backend == GraphicsBackend.WGPUDx12 && !OperatingSystem.IsWindows())
+        if (backend == GraphicsBackend.Dx12 && !OperatingSystem.IsWindows())
         {
             Assert.Ignore("Direct3D 12 requires Windows.");
         }
@@ -914,8 +914,8 @@ public sealed class AlcoGpuIntegrationTests
 
     /// <summary>Reconfigures an acquired swapchain before presentation and renders subsequent frames.</summary>
     /// <param name="backend">The requested Windows graphics backend.</param>
-    [TestCase(GraphicsBackend.WGPUVulkan)]
-    [TestCase(GraphicsBackend.WGPUDx12)]
+    [TestCase(GraphicsBackend.Vulkan)]
+    [TestCase(GraphicsBackend.Dx12)]
     [Platform("Win")]
     public void SwapchainResizeAndVSyncRecoverUnpresentedAcquisitions(GraphicsBackend backend)
     {
@@ -951,7 +951,7 @@ public sealed class AlcoGpuIntegrationTests
             Assert.That(swapchain.FrameBuffer.Width, Is.EqualTo(width));
             Assert.That(swapchain.FrameBuffer.Height, Is.EqualTo(height));
             TextureUsage expectedUsage = TextureUsage.ColorAttachment |
-                (backend == GraphicsBackend.WGPUDx12 ? TextureUsage.Read : TextureUsage.TextureBinding);
+                (backend == GraphicsBackend.Dx12 ? TextureUsage.Read : TextureUsage.TextureBinding);
             Assert.That(swapchain.FrameBuffer.Colors[0].Usage, Is.EqualTo(expectedUsage));
 
             commands.Begin();

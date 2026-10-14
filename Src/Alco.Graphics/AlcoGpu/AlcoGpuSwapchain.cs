@@ -102,7 +102,7 @@ internal sealed unsafe class AlcoGpuSwapchain : GPUSwapchain
                 // DX12 surface textures cannot be sampled: capture copies them into a sampleable
                 // texture instead. Other backends retain the direct surface-sampling path.
                 _config.Usage = (TextureUsage.ColorAttachment |
-                    (device.Backend == GraphicsBackend.WGPUDx12 ? TextureUsage.Read : TextureUsage.TextureBinding));
+                    (device.Backend == GraphicsBackend.Dx12 ? TextureUsage.Read : TextureUsage.TextureBinding));
                 _config.PresentMode = GetPresentMode(descriptor.IsVSyncEnabled);
                 _isVSyncEnabled = descriptor.IsVSyncEnabled;
                 _config.AlphaMode = AlcoGPU.AlphaMode.Auto;

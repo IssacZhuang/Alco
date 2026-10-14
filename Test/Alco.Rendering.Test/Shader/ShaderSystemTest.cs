@@ -92,7 +92,7 @@ public class ShaderSystemTest
     private sealed class Dx12NoDevice : NoDevice
     {
         /// <inheritdoc />
-        public override GraphicsBackend Backend => GraphicsBackend.WGPUDx12;
+        public override GraphicsBackend Backend => GraphicsBackend.Dx12;
     }
 
     private sealed class GpuHost : IGPUDeviceHost, IDisposable
@@ -155,7 +155,7 @@ public class ShaderSystemTest
             Assert.Ignore("Direct3D 12 requires Windows.");
         }
         using GpuHost gpuHost = new();
-        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.WGPUDx12, debug: debug));
+        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.Dx12, debug: debug));
         Assert.That(device.IsFeatureSupported(GPUFeatures.IndirectFirstInstance), Is.True,
             "The translated shader must preserve a nonzero indirect firstInstance.");
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: device);
@@ -241,7 +241,7 @@ public class ShaderSystemTest
             Assert.Ignore("Direct3D 12 requires Windows.");
         }
         using GpuHost gpuHost = new();
-        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.WGPUDx12, debug: debug));
+        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.Dx12, debug: debug));
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: device);
         Shader shader = host.RenderingSystem.ShaderSystem.GetShaderFromModule(
             "dx12_asymmetric_scissor", "dx12_asymmetric_scissor.slang", """
@@ -302,7 +302,7 @@ public class ShaderSystemTest
             Assert.Ignore("Direct3D 12 requires Windows.");
         }
         using GpuHost gpuHost = new();
-        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.WGPUDx12, debug: debug));
+        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, GraphicsBackend.Dx12, debug: debug));
         using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(device: device);
         Shader shader = host.RenderingSystem.ShaderSystem.GetShaderFromModule(
             "dx12_compute_loop_exits", "dx12_compute_loop_exits.slang", """

@@ -45,7 +45,7 @@ public sealed class TestSdl3WindowLifecycle
     /// </summary>
     /// <param name="backend">The graphics backend used for the real SDL surfaces.</param>
     [TestCase(GraphicsBackend.Auto)]
-    [TestCase(GraphicsBackend.WGPUDx12)]
+    [TestCase(GraphicsBackend.Dx12)]
     public void CloseUnpresentedWindowReleasesOwnedResourcesAndKeepsDeviceUsable(GraphicsBackend backend)
     {
         SDL_SetMainReady();

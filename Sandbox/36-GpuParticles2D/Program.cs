@@ -2,7 +2,7 @@ using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 
-GraphicsBackend backend = GraphicsBackend.WGPUVulkan;
+GraphicsBackend backend = GraphicsBackend.Vulkan;
 for (int i = 0; i < args.Length; i++)
 {
     string arg = args[i];

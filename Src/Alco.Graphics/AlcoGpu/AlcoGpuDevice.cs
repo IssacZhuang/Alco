@@ -1206,9 +1206,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
 
                 Backend = info.Backend switch
                 {
-                    AlcoGPU.BackendResolved.Vulkan => GraphicsBackend.WGPUVulkan,
-                    AlcoGPU.BackendResolved.Dx12 => GraphicsBackend.WGPUDx12,
-                    AlcoGPU.BackendResolved.Metal => GraphicsBackend.WGPUMetal,
+                    AlcoGPU.BackendResolved.Vulkan => GraphicsBackend.Vulkan,
+                    AlcoGPU.BackendResolved.Dx12 => GraphicsBackend.Dx12,
+                    AlcoGPU.BackendResolved.Metal => GraphicsBackend.Metal,
                     _ => GraphicsBackend.Auto,
                 };
 
@@ -1238,7 +1238,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                 }
 
                 Capabilities = (GPUCapabilities)info.Capabilities;
-                if (Backend == GraphicsBackend.WGPUDx12)
+                if (Backend == GraphicsBackend.Dx12)
                 {
                     _host.LogSuccess("DX12 SPIR-V shader translation is enabled");
                 }
@@ -1246,7 +1246,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
                 {
                     _host.LogSuccess($"Native {Backend} shader passthrough is enabled");
                 }
-                else if (Backend == GraphicsBackend.WGPUVulkan)
+                else if (Backend == GraphicsBackend.Vulkan)
                 {
                     _host.LogWarning("Native Vulkan SPIR-V passthrough is unavailable; using wgpu shader translation");
                 }
@@ -1359,9 +1359,9 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     {
         return backend switch
         {
-            GraphicsBackend.WGPUVulkan => AlcoGPU.BackendRequest.Vulkan,
-            GraphicsBackend.WGPUDx12 => AlcoGPU.BackendRequest.Dx12,
-            GraphicsBackend.WGPUMetal => AlcoGPU.BackendRequest.Metal,
+            GraphicsBackend.Vulkan => AlcoGPU.BackendRequest.Vulkan,
+            GraphicsBackend.Dx12 => AlcoGPU.BackendRequest.Dx12,
+            GraphicsBackend.Metal => AlcoGPU.BackendRequest.Metal,
             _ => AlcoGPU.BackendRequest.Auto,
         };
     }

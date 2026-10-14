@@ -40,7 +40,7 @@ internal static class Program
             View = new ViewSetting(1600, 900, title),
             Graphics = GraphicsSetting.Default with
             {
-                Backend = GraphicsBackend.WGPUVulkan,
+                Backend = GraphicsBackend.Vulkan,
             },
         };
 

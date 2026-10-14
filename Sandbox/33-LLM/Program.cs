@@ -9,7 +9,7 @@ GameEngineSetting setting = new GameEngineSetting
     View = new ViewSetting(1000, 700, "LLM System"),
     Graphics = GraphicsSetting.Default with
     {
-        Backend = GraphicsBackend.WGPUVulkan
+        Backend = GraphicsBackend.Vulkan
     },
 };
 
