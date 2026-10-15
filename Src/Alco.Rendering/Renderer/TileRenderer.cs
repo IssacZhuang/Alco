@@ -330,7 +330,14 @@ public sealed class TileRenderer : AutoDisposable
     /// </summary>
     public bool GpuDriven => _gpuDriven;
 
+    /// <summary>Gets the dimensions of the row-major tile map.</summary>
     public int2 Size => new int2(_width, _height);
+
+    /// <summary>
+    /// Gets the renderer-owned tile ID buffer for dependent material passes.
+    /// The buffer is updated by the normal tile upload path and must not be disposed by consumers.
+    /// </summary>
+    public GraphicsBuffer TileMapBuffer => _tileMapBuffer;
 
     /// <summary>
     /// Gets whether a viewport is currently set.
@@ -674,6 +681,36 @@ public sealed class TileRenderer : AutoDisposable
     }
 
     /// <summary>
+    /// Uploads pending tile map changes and refreshes dirty CPU batches before dependent
+    /// passes read <see cref="TileMapBuffer"/>. GPU-driven group counts and visibility
+    /// are still updated by <see cref="RecordCull"/>.
+    /// </summary>
+    public void Prepare()
+    {
+        if (_gpuDriven)
+        {
+            if (_uploadFirstRow < 0)
+            {
+                return;
+            }
+
+            int rowCount = _uploadLastRow - _uploadFirstRow + 1;
+            _tileMapBuffer.UpdateBuffer(
+                _tileMap.AsSpan(_uploadFirstRow * _width, rowCount * _width),
+                (uint)(_uploadFirstRow * _width * sizeof(int)));
+            _uploadFirstRow = -1;
+            _uploadLastRow = -1;
+            return;
+        }
+
+        if (TryUpdateDirtyBatches())
+        {
+            ReadOnlySpan<int> span = _tileMap;
+            _tileMapBuffer.UpdateBuffer(span);
+        }
+    }
+
+    /// <summary>
     /// Renders all batches. Only updates dirty batches for better performance.
     /// Uses viewport culling to only render visible batches.
     /// The GPU-driven path instead records one indirect draw per non-empty tile id; visibility
@@ -687,11 +724,7 @@ public sealed class TileRenderer : AutoDisposable
             return;
         }
 
-        if (TryUpdateDirtyBatches())
-        {
-            ReadOnlySpan<int> span = _tileMap;
-            _tileMapBuffer.UpdateBuffer(span);
-        }
+        Prepare();
 
         // Render only visible batches
         Transform3D transform = Transform;
@@ -770,15 +803,7 @@ public sealed class TileRenderer : AutoDisposable
             return;
         }
 
-        if (_uploadFirstRow >= 0)
-        {
-            int rowCount = _uploadLastRow - _uploadFirstRow + 1;
-            _tileMapBuffer.UpdateBuffer(
-                _tileMap.AsSpan(_uploadFirstRow * _width, rowCount * _width),
-                (uint)(_uploadFirstRow * _width * sizeof(int)));
-            _uploadFirstRow = -1;
-            _uploadLastRow = -1;
-        }
+        Prepare();
 
         if (_dataDirty)
         {
