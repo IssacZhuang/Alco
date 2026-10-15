@@ -9,7 +9,7 @@
   <ItemGroup>
     <Content Include="$(MSBuildThisFileDirectory)\runtimes\$(RuntimeIdentifier)\native\**">
       <Link>%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>IfDifferent</CopyToOutputDirectory>
       <Visible>False</Visible>
     </Content>
 
