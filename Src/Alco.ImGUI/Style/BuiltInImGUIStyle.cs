@@ -162,10 +162,9 @@ public static class BuiltInImGUIStyle
     }
 
     /// <summary>
-    /// Applies an Alco dark theme to the current ImGui style.
-    /// The look is aligned with the Infernux editor: a near-black neutral
-    /// palette with square, flat frames, thin borders, and a teal accent
-    /// (#35C2A1) used for checks, sliders, selections, and hover feedback.
+    /// Applies a borderless Alco dark theme with rounded surfaces to the current ImGui style.
+    /// Layered neutral backgrounds distinguish controls, while the teal accent (#35C2A1)
+    /// highlights checks, sliders, selections, and interaction feedback.
     /// </summary>
     public static void ApplyAlcoStyle()
     {
@@ -176,7 +175,6 @@ public static class BuiltInImGUIStyle
 
         ImGuiStylePtr style = ImGui.GetStyle();
 
-        // Flat, square layout language.
         style.WindowPadding = new Vector2(10.0f, 10.0f);
         style.FramePadding = new Vector2(8.0f, 3.0f);
         style.CellPadding = new Vector2(4.0f, 4.0f);
@@ -184,31 +182,30 @@ public static class BuiltInImGUIStyle
         style.ItemInnerSpacing = new Vector2(6.0f, 4.0f);
         style.IndentSpacing = 18.0f;
         style.ScrollbarSize = 8.0f;
-        style.GrabMinSize = 6.0f;
+        style.GrabMinSize = 8.0f;
 
-        style.WindowRounding = 0.0f;
-        style.ChildRounding = 0.0f;
-        style.FrameRounding = 0.0f;
-        style.PopupRounding = 0.0f;
-        style.ScrollbarRounding = 0.0f;
-        style.GrabRounding = 0.0f;
-        style.TabRounding = 0.0f;
+        style.WindowRounding = 8.0f;
+        style.ChildRounding = 6.0f;
+        style.FrameRounding = 4.0f;
+        style.PopupRounding = 6.0f;
+        style.ScrollbarRounding = 4.0f;
+        style.GrabRounding = 4.0f;
+        style.TabRounding = 4.0f;
 
-        style.WindowBorderSize = 1.0f;
-        style.ChildBorderSize = 1.0f;
-        style.PopupBorderSize = 1.0f;
-        style.FrameBorderSize = 1.0f;
+        style.WindowBorderSize = 0.0f;
+        style.ChildBorderSize = 0.0f;
+        style.PopupBorderSize = 0.0f;
+        style.FrameBorderSize = 0.0f;
         style.TabBorderSize = 0.0f;
-        style.TabBarBorderSize = 1.0f;
+        style.TabBarBorderSize = 0.0f;
 
-        // Semantic roles; every widget color below is composed from these.
-        Vector4 accent = new(0.208f, 0.761f, 0.631f, 1.00f); // Alco teal #35C2A1
+        Vector4 accent = new(0.208f, 0.761f, 0.631f, 1.00f);
         Vector4 bg = new(0.098f, 0.098f, 0.098f, 1.00f);
-        Vector4 surf = new(0.125f, 0.125f, 0.125f, 1.00f);
-        Vector4 raised = new(0.150f, 0.150f, 0.150f, 1.00f);
-        Vector4 hover = new(0.165f, 0.165f, 0.165f, 1.00f);
-        Vector4 text = new(0.812f, 0.812f, 0.812f, 1.00f);
-        Vector4 border = new(0.184f, 0.184f, 0.184f, 1.00f);
+        Vector4 surf = new(0.145f, 0.145f, 0.145f, 1.00f);
+        Vector4 raised = new(0.205f, 0.205f, 0.205f, 1.00f);
+        Vector4 hover = new(0.255f, 0.255f, 0.255f, 1.00f);
+        Vector4 text = new(0.870f, 0.870f, 0.870f, 1.00f);
+        Vector4 separator = new(0.205f, 0.205f, 0.205f, 1.00f);
         Vector4 transparent = new(0.0f, 0.0f, 0.0f, 0.0f);
 
         // Text
@@ -220,16 +217,16 @@ public static class BuiltInImGUIStyle
         // Backgrounds
         style.Colors[(int)ImGuiCol.WindowBg] = bg;
         style.Colors[(int)ImGuiCol.ChildBg] = surf;
-        style.Colors[(int)ImGuiCol.PopupBg] = WithAlpha(raised, 0.98f);
+        style.Colors[(int)ImGuiCol.PopupBg] = Mix(surf, raised, 0.50f);
         style.Colors[(int)ImGuiCol.FrameBg] = raised;
         style.Colors[(int)ImGuiCol.FrameBgHovered] = Mix(hover, accent, 0.12f);
-        style.Colors[(int)ImGuiCol.FrameBgActive] = Mix(surf, accent, 0.22f);
+        style.Colors[(int)ImGuiCol.FrameBgActive] = Mix(hover, accent, 0.24f);
 
         // Title / menu
-        style.Colors[(int)ImGuiCol.TitleBg] = bg;
-        style.Colors[(int)ImGuiCol.TitleBgActive] = bg;
-        style.Colors[(int)ImGuiCol.TitleBgCollapsed] = WithAlpha(bg, 0.75f);
-        style.Colors[(int)ImGuiCol.MenuBarBg] = bg;
+        style.Colors[(int)ImGuiCol.TitleBg] = surf;
+        style.Colors[(int)ImGuiCol.TitleBgActive] = Mix(surf, raised, 0.35f);
+        style.Colors[(int)ImGuiCol.TitleBgCollapsed] = surf;
+        style.Colors[(int)ImGuiCol.MenuBarBg] = surf;
 
         // Scrollbar
         style.Colors[(int)ImGuiCol.ScrollbarBg] = transparent;
@@ -241,22 +238,22 @@ public static class BuiltInImGUIStyle
         style.Colors[(int)ImGuiCol.CheckMark] = accent;
         style.Colors[(int)ImGuiCol.SliderGrab] = WithAlpha(accent, 0.88f);
         style.Colors[(int)ImGuiCol.SliderGrabActive] = accent;
-        style.Colors[(int)ImGuiCol.NavCursor] = transparent;
+        style.Colors[(int)ImGuiCol.NavCursor] = accent;
 
         // Buttons — surface with an accent-tinted hover/active for clear feedback.
-        style.Colors[(int)ImGuiCol.Button] = surf;
-        style.Colors[(int)ImGuiCol.ButtonHovered] = Mix(surf, accent, 0.26f);
-        style.Colors[(int)ImGuiCol.ButtonActive] = Mix(surf, accent, 0.40f);
+        style.Colors[(int)ImGuiCol.Button] = raised;
+        style.Colors[(int)ImGuiCol.ButtonHovered] = Mix(hover, accent, 0.26f);
+        style.Colors[(int)ImGuiCol.ButtonActive] = Mix(hover, accent, 0.40f);
 
         // Headers / selectables — the primary "pick an item" feedback.
-        style.Colors[(int)ImGuiCol.Header] = hover;
+        style.Colors[(int)ImGuiCol.Header] = Mix(raised, accent, 0.12f);
         style.Colors[(int)ImGuiCol.HeaderHovered] = Mix(hover, accent, 0.28f);
         style.Colors[(int)ImGuiCol.HeaderActive] = Mix(hover, accent, 0.42f);
 
         // Borders / separators
-        style.Colors[(int)ImGuiCol.Border] = border;
+        style.Colors[(int)ImGuiCol.Border] = transparent;
         style.Colors[(int)ImGuiCol.BorderShadow] = transparent;
-        style.Colors[(int)ImGuiCol.Separator] = border;
+        style.Colors[(int)ImGuiCol.Separator] = separator;
         style.Colors[(int)ImGuiCol.SeparatorHovered] = WithAlpha(accent, 0.60f);
         style.Colors[(int)ImGuiCol.SeparatorActive] = WithAlpha(accent, 0.80f);
 
@@ -266,12 +263,12 @@ public static class BuiltInImGUIStyle
         style.Colors[(int)ImGuiCol.ResizeGripActive] = WithAlpha(accent, 0.50f);
 
         // Tabs
-        style.Colors[(int)ImGuiCol.Tab] = bg;
-        style.Colors[(int)ImGuiCol.TabHovered] = hover;
-        style.Colors[(int)ImGuiCol.TabSelected] = surf;
+        style.Colors[(int)ImGuiCol.Tab] = surf;
+        style.Colors[(int)ImGuiCol.TabHovered] = Mix(hover, accent, 0.20f);
+        style.Colors[(int)ImGuiCol.TabSelected] = Mix(raised, accent, 0.12f);
         style.Colors[(int)ImGuiCol.TabSelectedOverline] = accent;
-        style.Colors[(int)ImGuiCol.TabDimmed] = bg;
-        style.Colors[(int)ImGuiCol.TabDimmedSelected] = surf;
+        style.Colors[(int)ImGuiCol.TabDimmed] = surf;
+        style.Colors[(int)ImGuiCol.TabDimmedSelected] = raised;
         style.Colors[(int)ImGuiCol.TabDimmedSelectedOverline] = WithAlpha(accent, 0.60f);
 
         // Docking
@@ -293,11 +290,11 @@ public static class BuiltInImGUIStyle
         style.Colors[(int)ImGuiCol.ModalWindowDimBg] = new Vector4(0.0f, 0.0f, 0.0f, 0.56f);
 
         // Tables
-        style.Colors[(int)ImGuiCol.TableHeaderBg] = surf;
-        style.Colors[(int)ImGuiCol.TableBorderStrong] = border;
-        style.Colors[(int)ImGuiCol.TableBorderLight] = Mix(bg, border, 0.50f);
+        style.Colors[(int)ImGuiCol.TableHeaderBg] = raised;
+        style.Colors[(int)ImGuiCol.TableBorderStrong] = transparent;
+        style.Colors[(int)ImGuiCol.TableBorderLight] = transparent;
         style.Colors[(int)ImGuiCol.TableRowBg] = transparent;
-        style.Colors[(int)ImGuiCol.TableRowBgAlt] = new Vector4(1.0f, 1.0f, 1.0f, 0.02f);
+        style.Colors[(int)ImGuiCol.TableRowBgAlt] = new Vector4(1.0f, 1.0f, 1.0f, 0.04f);
     }
 
     /// <summary>Linearly interpolates two colors component-wise, including alpha.</summary>
