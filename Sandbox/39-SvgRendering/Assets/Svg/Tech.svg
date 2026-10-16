@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 科技 / Technology: flask -->
+  <g fill="#FFFFFF">
+    <path d="M48 16h32v14h-9v26l23 46a10 10 0 0 1-9 14H43a10 10 0 0 1-9-14l23-46V30h-9z"/>
+    <path d="M46 82h36l10 20a6 6 0 0 1-5 9H41a6 6 0 0 1-5-9z" opacity="0.5"/>
+  </g>
+</svg>

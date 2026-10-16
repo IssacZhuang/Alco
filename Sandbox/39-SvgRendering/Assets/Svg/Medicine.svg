@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- First-aid kit silhouette, white on transparent, matching the flat UI icon style of Ammo.png.
+       Artwork is optically centered: content bounding box y=22..106 (center 64). -->
+  <!-- Handle on top of the case -->
+  <path fill="#ffffff" d="M48 38 V30 a8 8 0 0 1 8 -8 h16 a8 8 0 0 1 8 8 v8 h-10 v-6 a2 2 0 0 0 -2 -2 h-8 a2 2 0 0 0 -2 2 v6 Z"/>
+  <!-- Case body with a cross-shaped hole (even-odd fill rule) -->
+  <path fill="#ffffff" fill-rule="evenodd" d="M28 34 H100 A12 12 0 0 1 112 46 V94 A12 12 0 0 1 100 106 H28 A12 12 0 0 1 16 94 V46 A12 12 0 0 1 28 34 Z M56 48 h16 v14 h14 v16 h-14 v14 h-16 v-14 h-14 v-16 h14 Z"/>
+</svg>

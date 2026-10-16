@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Flat monochrome tactical vest, front view: collar tab, shoulders, torso tapering to the hem -->
+  <path fill="#FFFFFF"
+        d="M29 4 L35 4 L35 11 L58 11 L58 33 C58 45 44 55 32 59 C20 55 6 45 6 33 L6 11 L29 11 Z"/>
+</svg>

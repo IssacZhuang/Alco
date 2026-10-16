@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Flat monochrome thermometer: outlined tube, mercury column, solid bulb -->
+  <path fill="#FFFFFF" fill-rule="evenodd"
+        d="M23 15 A9 9 0 0 1 41 15 L41 46 L23 46 Z
+           M29 18 L35 18 L35 46 L29 46 Z"/>
+  <rect x="29" y="30" width="6" height="18" fill="#FFFFFF"/>
+  <circle cx="32" cy="46" r="13" fill="#FFFFFF"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Flat monochrome helmet, side view: dome with a front brim and a chin-strap tab -->
+  <path fill="#FFFFFF"
+        d="M5 37 C5 20 18 8 32 8 C45 8 53 20 53 37 Z"/>
+  <path fill="#FFFFFF"
+        d="M32 38.5 L58 38.5 L58 45 L42 45 Z"/>
+  <path fill="#FFFFFF"
+        d="M9 48.5 L28.5 48.5 L28.5 55 L16 55 Z"/>
+</svg>

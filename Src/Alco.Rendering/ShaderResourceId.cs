@@ -42,4 +42,11 @@ public static class ShaderResourceId
     public const string TrailPoints = "trailPoints";
     public const string TrailParams = "trailParams";
     public const string TrailGlobals = "trailGlobals";
+
+    public const string SvgEdges = "edges";
+    public const string SvgBboxes = "shapeBboxes";
+    public const string SvgMeta = "shapeMeta";
+    public const string SvgColors = "shapeColors";
+    public const string SvgGradientXforms = "gradientXforms";
+    public const string SvgRamps = "gradientRamps";
 }

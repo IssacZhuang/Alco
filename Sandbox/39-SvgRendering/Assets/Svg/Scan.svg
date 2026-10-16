@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- 信号扫描 / Outpost scan: radar ring + sweep + center dot -->
+  <g fill="#FFFFFF">
+    <path fill-rule="evenodd" d="M64 14a50 50 0 1 0 0 100 50 50 0 0 0 0-100zm0 14a36 36 0 1 1 0 72 36 36 0 0 1 0-72z"/>
+    <path d="M64 52a12 12 0 1 0 0 24 12 12 0 0 0 0-24z"/>
+    <path d="M64 40a24 24 0 0 1 24 24h-10a14 14 0 0 0-14-14z"/>
+    <path d="M69 59l34-34 8 8-34 34z"/>
+  </g>
+</svg>

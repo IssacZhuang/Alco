@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <!-- Flat monochrome wind: three flowing streaks, top and bottom ends curled.
+       Glyph height matches the other HUD weather icons (about 50px at this 64px viewBox). -->
+  <g stroke="#FFFFFF" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M9 21 H36 A5 5 0 1 0 31 14"/>
+    <path d="M7 32 H49"/>
+    <path d="M11 43 H34 A5 5 0 1 1 29 50"/>
+  </g>
+</svg>
