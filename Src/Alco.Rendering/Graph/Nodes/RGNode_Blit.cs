@@ -53,8 +53,9 @@ public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>The shader the plain copy draws with. Capture nodes
-    /// (<see cref="RGNode_Capture"/>) build their copy material from the same
-    /// shader, so a chain-tail capture matches the final blit's output.</summary>
+    /// (<see cref="RGNode_Capture"/>) typically copy with an opaque variant of it
+    /// (e.g. <c>BlitOpaque</c>): screenshots are opaque, and the blit forcing alpha
+    /// to 1 on the GPU matches what an opaque presentation shows.</summary>
     public Shader BlitShader => _blitShader;
 
     /// <inheritdoc />

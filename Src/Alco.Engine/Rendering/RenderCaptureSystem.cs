@@ -167,7 +167,10 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
             return node;
         }
 
-        node = new RGNode_Capture(_engine.RenderingSystem, pipeline.Graph, pipeline.Chain, pipeline.BlitShader);
+        // The capture blit forces alpha to 1 on the GPU (screenshots are opaque;
+        // the chain's alpha channel is unauthored), so the readback needs no CPU
+        // alpha pass and RGB still matches the final blit's output.
+        node = new RGNode_Capture(_engine.RenderingSystem, pipeline.Graph, pipeline.Chain, _engine.BuiltInAssets.Shader_BlitOpaque);
         pipeline.Use(node);
         _captureNodes.Add(pipeline, node);
         return node;

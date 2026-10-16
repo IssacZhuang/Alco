@@ -17,7 +17,8 @@ namespace Alco.Engine;
 /// (<see cref="IGPUDeviceHost.OnEndFrame"/>): a surface that cannot be sampled is first
 /// copied into a same-format sampleable texture, then blitted into an RGBA8 staging
 /// texture with a full-screen GPU draw (any surface format is converted by the blit —
-/// no CPU-side pixel processing). The shared <see cref="PngReadbackPipeline"/> then
+/// no CPU-side pixel processing; the blit also forces alpha to 1, the presented
+/// surface's alpha being unauthored). The shared <see cref="PngReadbackPipeline"/> then
 /// performs the asynchronous GPU readback and a thread-pool PNG encode, completing the
 /// request a couple of frames later. When another capture system holds the shared
 /// pipeline, the staged capture waits and begins its readback on a later update.
@@ -67,7 +68,9 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         if (engine.Setting.Graphics.Backend != GraphicsBackend.None)
         {
             _renderContext = engine.RenderingSystem.CreateRenderContext("swapchain_capture_context");
-            _blitMaterial = engine.RenderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_Blit, "swapchain_capture_blit");
+            // The opaque blit forces alpha to 1 on the GPU — the presented surface's
+            // alpha channel is unauthored — so the readback needs no CPU alpha pass.
+            _blitMaterial = engine.RenderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_BlitOpaque, "swapchain_capture_blit");
         }
 
         ((IGPUDeviceHost)engine).OnEndFrame += OnEndFrame;

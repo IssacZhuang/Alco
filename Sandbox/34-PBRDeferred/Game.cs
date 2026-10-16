@@ -1377,7 +1377,7 @@ public class Game : GameEngine
             RenderingSystem,
             _preset.Pipeline.Graph,
             _preset.Pipeline.Chain,
-            _preset.Pipeline.BlitShader);
+            BuiltInAssets.Shader_BlitOpaque);
         _preset.Pipeline.Use(_screenshotCaptureNode);
         _screenshotReadback = new PngReadbackPipeline(GraphicsDevice);
         _screenshotCaptureNode.Submit();

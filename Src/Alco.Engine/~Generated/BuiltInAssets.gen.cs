@@ -14,15 +14,15 @@ public partial class BuiltInAssets
     
     public Font Font_Default => GetFont("Fonts/Default.ttf");
 
-    public Shader Shader_TrailSurfaceDefault => GetShader("TrailSurfaceDefault");
-
-    public Shader Shader_TrailSurfaceSmoke => GetShader("TrailSurfaceSmoke");
-
     public Shader Shader_Blit => GetShader("Blit");
 
     public Shader Shader_BlitDepth => GetShader("BlitDepth");
 
+    public Shader Shader_BlitOpaque => GetShader("BlitOpaque");
+
     public Shader Shader_BlitRegion => GetShader("BlitRegion");
+
+    public Shader Shader_BlitRegionOpaque => GetShader("BlitRegionOpaque");
 
     public Shader Shader_BlitWithColor => GetShader("BlitWithColor");
 
@@ -65,10 +65,6 @@ public partial class BuiltInAssets
     public Shader Shader_ReinhardLuminanceTonemap => GetShader("ReinhardLuminanceTonemap");
 
     public Shader Shader_Uncharted2Tonemap => GetShader("Uncharted2Tonemap");
-
-    public Shader Shader_GpuTrail2D => GetShader("GpuTrail2D");
-
-    public Shader Shader_GpuTrail3D => GetShader("GpuTrail3D");
 
     public Shader Shader_Particle2D => GetShader("Particle2D");
 

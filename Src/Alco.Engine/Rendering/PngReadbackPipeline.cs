@@ -13,8 +13,10 @@ namespace Alco.Engine;
 /// offscreen map snapshots, ...): the owner renders into its own
 /// <see cref="RenderTexture"/>, calls <see cref="TryBeginRead"/> with a completion
 /// callback when the pixels are ready, and the pipeline's pumper delivers the result
-/// to that callback. The encoded PNG is always opaque (alpha is forced to 255 during
-/// encode).
+/// to that callback. The pipeline is a pure transport: the PNG encodes exactly the
+/// texture's RGBA, alpha included — alpha semantics belong to the producing pass
+/// (opaque captures blit through <c>BlitOpaque</c>/<c>BlitRegionOpaque</c>, which
+/// force alpha to 1 on the GPU; transparent captures blit with alpha passthrough).
 /// <br/>Readbacks only complete on the main thread's frame pump, so
 /// <b>callers must not block-await their completion task on the main thread</b> — that
 /// would stall the very pump this pipeline depends on. All methods are main-thread only.
@@ -260,16 +262,8 @@ public sealed class PngReadbackPipeline
         double readbackTimeMs = _readbackTimeMs;
 
         long encodeStartTimestamp = Stopwatch.GetTimestamp();
-        // Screenshots are opaque: chain-tail blits may write non-1 alpha (the PBR deferred
-        // blit writes ~0.74), and PNG viewers composite that transparency over their own
-        // background, washing the colors out. Force every pixel's alpha to 255.
-        byte* pixels = (byte*)pixelAddress;
-        for (int i = 3; i < width * height * 4; i += 4)
-        {
-            pixels[i] = 255;
-        }
 
-        byte[] png = ImageEncodeUtility.EncodePng(pixels, width, height);
+        byte[] png = ImageEncodeUtility.EncodePng((byte*)pixelAddress, width, height);
         double encodeTimeMs = GetElapsedMilliseconds(encodeStartTimestamp);
         return RenderCaptureResult.CreateSuccess(png, width, height, capturedAtUtc, readbackTimeMs, encodeTimeMs);
     }
