@@ -188,8 +188,8 @@ public unsafe class TestSvgRendererGpu
         Assert.That(right.R, Is.EqualTo(0));
     }
 
-    /// <summary>The weak cache returns the live texture instance, and re-rasterizes
-    /// after the caller disposes it.</summary>
+    /// <summary>The weak cache returns the live texture instance, re-rasterizes
+    /// after the caller disposes it, and answers cache hits without allocating.</summary>
     [Test]
     public void Cache_ReusesLiveTextureAndRebuildsAfterDispose()
     {
@@ -200,6 +200,35 @@ public unsafe class TestSvgRendererGpu
         Texture2D first = renderer.GetTexture(svg);
         Texture2D second = renderer.GetTexture(svg);
         Assert.That(second, Is.SameAs(first), "a live texture is reused");
+
+        // Hot-path contract: hits resolve without allocating (no re-parse, no byte[]
+        // for hashing). Raw asserts inside the loop would allocate, so the loop only
+        // accumulates references and everything is checked after the measurement.
+        Texture2D hit = first;
+        Texture2D explicitHit = first;
+        for (int i = 0; i < 10; i++)
+        {
+            hit = renderer.GetTexture(svg);
+            explicitHit = renderer.GetTexture(svg, 8, 8);
+        }
+        long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 100; i++)
+        {
+            hit = renderer.GetTexture(svg);
+        }
+        long intrinsicDelta = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 100; i++)
+        {
+            explicitHit = renderer.GetTexture(svg, 8, 8);
+        }
+        long explicitDelta = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+        TestContext.Progress.WriteLine($"intrinsic loop: {intrinsicDelta} bytes, explicit loop: {explicitDelta} bytes");
+        Assert.That(ReferenceEquals(hit, first), Is.True, "hot-path calls return the cached instance");
+        Assert.That(ReferenceEquals(explicitHit, first), Is.True,
+            "explicit dimensions matching the intrinsic size share the cache entry");
+        Assert.That(intrinsicDelta + explicitDelta, Is.EqualTo(0),
+            "cache hits allocate nothing");
 
         first.Dispose();
         Texture2D third = renderer.GetTexture(svg);

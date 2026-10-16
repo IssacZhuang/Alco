@@ -15,9 +15,11 @@ namespace Alco.Rendering;
 /// The output is a premultiplied-alpha RGBA8 texture.
 /// </summary>
 /// <remarks>
-/// Results are cached weakly per (document, size): a texture stays alive only as long
-/// as the caller holds a reference to it, and a collected or disposed texture is
-/// re-rasterized on the next request. Cache lookups are safe from any thread; the
+/// Results are cached weakly per (document hash, requested size): a texture stays alive
+/// only as long as the caller holds a reference to it, and a collected or disposed
+/// texture is re-rasterized on the next request. A cache hit hashes the document and
+/// resolves the weak reference without any allocation — parsing, geometry and GPU work
+/// happen on the first request only. Cache lookups are safe from any thread; the
 /// rasterization itself is serialized internally. The returned textures are owned by
 /// the callers — disposing the renderer does not invalidate them.
 /// </remarks>
@@ -146,31 +148,36 @@ public sealed class SvgRenderer : AutoDisposable
 
     private bool TryGetOrCreate(string svg, uint requestedWidth, uint requestedHeight, out Texture2D? texture)
     {
+        // Hash and probe the cache before parsing: repeated requests for a live
+        // texture (the hot path) must not allocate, so the document DOM is only
+        // built on a miss. A key of 0 keeps the requested size: it means
+        // "intrinsic size", resolved after parsing on the miss path.
+        ulong hash = XxHash3.HashToUInt64(MemoryMarshal.AsBytes(svg.AsSpan()));
+        CacheKey key = new CacheKey(
+            hash,
+            requestedWidth == 0 ? 0 : Math.Clamp(requestedWidth, 1u, MaxTextureSize),
+            requestedHeight == 0 ? 0 : Math.Clamp(requestedHeight, 1u, MaxTextureSize));
+        if (_cache.TryGetValue(key, out WeakReference<Texture2D>? cached) &&
+            cached.TryGetTarget(out Texture2D? alive) && !alive.IsDisposed)
+        {
+            texture = alive;
+            return true;
+        }
+
         if (!NanoSvg.TryParse(svg, out NanoSvgImage? image) || image == null)
         {
             texture = null;
             return false;
         }
 
-        uint width = requestedWidth;
-        uint height = requestedHeight;
+        uint width = key.Width;
+        uint height = key.Height;
         if (width == 0 || height == 0)
         {
             uint intrinsicWidth = ClampSize(image.Width);
             uint intrinsicHeight = ClampSize(image.Height);
             width = width == 0 ? intrinsicWidth : width;
             height = height == 0 ? intrinsicHeight : height;
-        }
-        width = Math.Clamp(width, 1u, MaxTextureSize);
-        height = Math.Clamp(height, 1u, MaxTextureSize);
-
-        ulong hash = XxHash3.HashToUInt64(System.Text.Encoding.UTF8.GetBytes(svg));
-        CacheKey key = new CacheKey(hash, width, height);
-        if (_cache.TryGetValue(key, out WeakReference<Texture2D>? cached) &&
-            cached.TryGetTarget(out Texture2D? alive) && !alive.IsDisposed)
-        {
-            texture = alive;
-            return true;
         }
 
         SvgRasterizeData data = SvgGeometryUtility.Build(image, width, height);
@@ -183,7 +190,14 @@ public sealed class SvgRenderer : AutoDisposable
 
         Rasterize(data, result);
 
-        _cache[key] = new WeakReference<Texture2D>(result);
+        WeakReference<Texture2D> reference = new(result);
+        _cache[key] = reference;
+        if (key.Width == 0 || key.Height == 0)
+        {
+            // An intrinsic-size rasterization also answers explicit requests for the
+            // resolved dimensions, preserving entry sharing with the resolved-size key.
+            _cache[new CacheKey(hash, width, height)] = reference;
+        }
         MaybeSweep();
 
         texture = result;
