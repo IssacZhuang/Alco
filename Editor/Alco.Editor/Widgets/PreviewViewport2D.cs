@@ -52,7 +52,12 @@ public sealed class PreviewViewport2D : PreviewViewport
     protected override float PixelsPerUnit => (float)Target.Width / _camera.ViewSize.X;
 
     /// <inheritdoc />
-    protected override string CameraStatus => $"zoom {_zoom:0.##}x";
+    protected override void AppendCameraStatus(FixedString256 status)
+    {
+        status.Append("zoom ");
+        AppendRounded(status, _zoom);
+        status.Append('x');
+    }
 
     /// <inheritdoc />
     protected override string InputHint => "2D — left-drag pans, wheel zooms";

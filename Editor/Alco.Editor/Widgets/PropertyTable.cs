@@ -66,7 +66,7 @@ public ref struct PropertyTable : IDisposable
     /// cell manually.
     /// </summary>
     /// <param name="label">Row label; also scopes the ids of the row's widgets.</param>
-    public void BeginCell(string label)
+    public void BeginCell(ReadOnlySpan<char> label)
     {
         ImGui.PushID(label);
         if (!_open)

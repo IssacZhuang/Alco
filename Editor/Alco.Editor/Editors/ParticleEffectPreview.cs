@@ -83,8 +83,8 @@ public sealed class ParticleEffectPreview : AutoDisposable
         _viewport.ToolbarLeading = DrawTransportControls;
         _viewport.ToolbarTrailing = DrawShapesToggle;
         _viewport.OverlayExtras = DrawEmitterShapes;
-        _viewport.StatusPrefix = GetStatusPrefix;
-        _viewport.StatusSuffix = GetStatusSuffix;
+        _viewport.StatusPrefix = AppendStatusPrefix;
+        _viewport.StatusSuffix = AppendStatusSuffix;
     }
 
     /// <summary>Whether the simulation is frozen (the instance timeline still exists).</summary>
@@ -258,17 +258,24 @@ public sealed class ParticleEffectPreview : AutoDisposable
     }
 
     /// <summary>The leading diagnostics: simulation time and group count.</summary>
-    private string GetStatusPrefix()
+    private void AppendStatusPrefix(FixedString256 status)
     {
         int groups = _instance2D?.GroupCount ?? _instance3D?.GroupCount ?? 0;
         float time = _instance2D?.Time ?? _instance3D?.Time ?? 0f;
-        return $"t={time:0.00}s | {groups} group(s)";
+        status.Append("t=");
+        status.Append(time, 2);
+        status.Append("s | ");
+        status.Append(groups);
+        status.Append(" group(s)");
     }
 
     /// <summary>The trailing diagnostics: the paused marker.</summary>
-    private string GetStatusSuffix()
+    private void AppendStatusSuffix(FixedString256 status)
     {
-        return _paused ? " | paused" : string.Empty;
+        if (_paused)
+        {
+            status.Append(" | paused");
+        }
     }
 
     /// <summary>The simulation step recorded ahead of the scene pass each frame.</summary>

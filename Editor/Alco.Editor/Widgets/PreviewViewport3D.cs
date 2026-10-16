@@ -57,7 +57,11 @@ public sealed class PreviewViewport3D : PreviewViewport
     protected override float PixelsPerUnit => (float)Target.Height / (2f * _orbitDistance * MathF.Tan(_camera.FieldOfView * 0.5f));
 
     /// <inheritdoc />
-    protected override string CameraStatus => $"dist {_orbitDistance:0.##}";
+    protected override void AppendCameraStatus(FixedString256 status)
+    {
+        status.Append("dist ");
+        AppendRounded(status, _orbitDistance);
+    }
 
     /// <inheritdoc />
     protected override string InputHint => "3D — left-drag orbits, middle-drag pans, wheel zooms";

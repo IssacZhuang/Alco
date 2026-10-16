@@ -73,9 +73,14 @@ public sealed partial class ParticleEffectDocument
                 MarkDirty();
             }
         }
-        ImGui.TextDisabled($"Type: {(_is3D ? "3D" : "2D")} — {EffectGroupCount} group(s); rendered in list order");
-
         int count = EffectGroupCount;
+        var info = new FixedString64("Type: ");
+        info.Append(_is3D ? "3D" : "2D");
+        info.Append(" — ");
+        info.Append(count);
+        info.Append(" group(s); rendered in list order");
+        ImGui.TextDisabled(info);
+
         int removeGroup = -1;
         for (int i = 0; i < count; i++)
         {
@@ -177,7 +182,9 @@ public sealed partial class ParticleEffectDocument
         float actionsWidth = (iconSize * 4f) + (actionGap * 3f);
         float rowRightX = ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X;
         ImGui.SetNextItemAllowOverlap();
-        bool open = ImGui.CollapsingHeader($"{group.Name}##header");
+        var header = new FixedString256(group.Name);
+        header.Append("##header");
+        bool open = ImGui.CollapsingHeader(header);
 
         // Group list actions, right-aligned on the header row.
         ImGui.SameLine();
@@ -261,7 +268,15 @@ public sealed partial class ParticleEffectDocument
     /// with the frame.</summary>
     private static bool GroupActionButton(GroupActionIcon icon, Vector2 size)
     {
-        bool clicked = ImGui.Button($"##{icon}", size);
+        // Fixed ids: building them from the enum would allocate every frame.
+        string id = icon switch
+        {
+            GroupActionIcon.MoveUp => "##moveUp",
+            GroupActionIcon.MoveDown => "##moveDown",
+            GroupActionIcon.Duplicate => "##duplicate",
+            _ => "##delete",
+        };
+        bool clicked = ImGui.Button(id, size);
         Vector2 center = ImGui.GetItemRectMin() + (size * 0.5f);
         float half = size.X * 0.2f; // glyph half-extent inside the button
         ImDrawListPtr drawList = ImGui.GetWindowDrawList();
@@ -413,7 +428,9 @@ public sealed partial class ParticleEffectDocument
         int removeBurst = -1;
         for (int b = 0; b < group.Bursts.Count; b++)
         {
-            DrawBurstRow(table, group.Bursts[b], b, ref removeBurst);
+            var burstLabel = new FixedString32("Burst ");
+            burstLabel.Append(b + 1);
+            DrawBurstRow(table, group.Bursts[b], burstLabel, b, ref removeBurst);
         }
         if (removeBurst >= 0)
         {
@@ -433,10 +450,10 @@ public sealed partial class ParticleEffectDocument
     /// whole groups when the value column is too narrow; the trailing square button
     /// removes the burst (recorded into <paramref name="removeBurst"/> for the caller
     /// to apply after the draw pass).</summary>
-    private void DrawBurstRow(PropertyTable table, ParticleBurst burst, int burstIndex, ref int removeBurst)
+    private void DrawBurstRow(PropertyTable table, ParticleBurst burst, ReadOnlySpan<char> label, int burstIndex, ref int removeBurst)
     {
         ImGui.PushID(burstIndex);
-        table.BeginCell($"Burst {burstIndex + 1}");
+        table.BeginCell(label);
 
         float spacing = ImGui.GetStyle().ItemSpacing.X;
         const float timeWidth = 84f;
@@ -743,14 +760,30 @@ public sealed partial class ParticleEffectDocument
             if (_is3D)
             {
                 var group3D = (ParticleGroup3D)group;
-                DrawAngleRangeRow(table, index, "Start Rotation (deg)", group3D.StartRotation, v => group3D.StartRotation = v);
-                DrawAngleRangeRow(table, index, "Angular Velocity (deg/s)", group3D.AngularVelocity, v => group3D.AngularVelocity = v);
+                if (AngleRangeRow(table, "Start Rotation (deg)", group3D.StartRotation, out ParticleRange startRotation))
+                {
+                    group3D.StartRotation = startRotation;
+                    OnLiveEdit(index);
+                }
+                if (AngleRangeRow(table, "Angular Velocity (deg/s)", group3D.AngularVelocity, out ParticleRange angularVelocity))
+                {
+                    group3D.AngularVelocity = angularVelocity;
+                    OnLiveEdit(index);
+                }
             }
             else
             {
                 var group2D = (ParticleGroup2D)group;
-                DrawAngleRangeRow(table, index, "Start Rotation (deg)", group2D.StartRotation, v => group2D.StartRotation = v);
-                DrawAngleRangeRow(table, index, "Angular Velocity (deg/s)", group2D.AngularVelocity, v => group2D.AngularVelocity = v);
+                if (AngleRangeRow(table, "Start Rotation (deg)", group2D.StartRotation, out ParticleRange startRotation))
+                {
+                    group2D.StartRotation = startRotation;
+                    OnLiveEdit(index);
+                }
+                if (AngleRangeRow(table, "Angular Velocity (deg/s)", group2D.AngularVelocity, out ParticleRange angularVelocity))
+                {
+                    group2D.AngularVelocity = angularVelocity;
+                    OnLiveEdit(index);
+                }
             }
 
             // Size curve (structural: the lookup texture rebakes).
@@ -950,12 +983,26 @@ public sealed partial class ParticleEffectDocument
             float averageLifetime = (group.Lifetime.Min + group.Lifetime.Max) * 0.5f;
             float animFrames = framesPerAnim > 0 ? framesPerAnim : frames;
             float effectiveFps = averageLifetime > 1e-5f ? animFrames * flipbook.Cycles / averageLifetime : 0f;
-            string animHint = framesPerAnim > 0
-                ? $"{frames / Math.Max(framesPerAnim, 1)} anims of {framesPerAnim} frames — one random anim per particle"
-                : "the whole sheet is one animation";
+            var hint = new FixedString128();
+            if (framesPerAnim > 0)
+            {
+                hint.Append(frames / Math.Max(framesPerAnim, 1));
+                hint.Append(" anims of ");
+                hint.Append(framesPerAnim);
+                hint.Append(" frames — one random anim per particle");
+            }
+            else
+            {
+                hint.Append("the whole sheet is one animation");
+            }
+            hint.Append("; ");
+            hint.Append(flipbook.Cycles, 2);
+            hint.Append("x, ~");
+            hint.Append(effectiveFps, 1);
+            hint.Append(" fps");
             table.BeginCell(string.Empty);
             ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X);
-            ImGui.TextDisabled($"{animHint}; {flipbook.Cycles:0.##}x, ~{effectiveFps:0.#} fps");
+            ImGui.TextDisabled(hint);
             ImGui.PopTextWrapPos();
             table.EndCell();
 
@@ -1207,15 +1254,11 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>An angle range row (degrees in the UI, radians in the asset).</summary>
-    private void DrawAngleRangeRow(PropertyTable table, int index, string label, ParticleRange radians, Action<ParticleRange> set)
+    private static bool AngleRangeRow(PropertyTable table, string label, ParticleRange radians, out ParticleRange result)
     {
-        float min = radians.Min * math.RadToDeg;
-        float max = radians.Max * math.RadToDeg;
-        if (table.Range(label, ref min, ref max, 0.5f))
-        {
-            set(new ParticleRange(min * math.DegToRad, max * math.DegToRad));
-            OnLiveEdit(index);
-        }
+        bool changed = RangeRow(table, label, new ParticleRange(radians.Min * math.RadToDeg, radians.Max * math.RadToDeg), 0.5f, out ParticleRange degrees);
+        result = new ParticleRange(degrees.Min * math.DegToRad, degrees.Max * math.DegToRad);
+        return changed;
     }
 
     /// <summary>A scalar range row over a <see cref="ParticleRange"/> value.</summary>

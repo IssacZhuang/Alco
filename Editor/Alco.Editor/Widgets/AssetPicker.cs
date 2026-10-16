@@ -18,6 +18,10 @@ namespace Alco.Editor;
 /// </summary>
 public sealed class AssetPicker
 {
+    private const string InputId = "##path";
+    private const string BrowseId = "...##browse";
+    private const string PopupId = "picker_popup";
+
     private string _search = string.Empty;
     private int _lastAssetVersion = -1;
     private Type? _lastAssetType;
@@ -30,8 +34,7 @@ public sealed class AssetPicker
     /// calling this method (the input field is the first widget drawn).
     /// </summary>
     /// <param name="context">Editor context providing the asset system.</param>
-    /// <param name="id">ImGui id of the input field (e.g. <c>"##path"</c>); the other
-    /// picker widget ids are derived from it, so it must be unique in scope.</param>
+    /// <param name="id">ImGui id scope for the picker's widgets; must be unique in scope.</param>
     /// <param name="assetPath">The selected asset path, edited in place.</param>
     /// <param name="assetType">Target asset type; only assets a registered loader can
     /// load as this type are offered. Null offers every asset (minus .meta sidecars).
@@ -39,31 +42,39 @@ public sealed class AssetPicker
     /// <returns>True when the path changed this frame.</returns>
     public bool Draw(EditorContext context, string id, ref string assetPath, Type? assetType = null)
     {
-        bool changed = ImGui.InputText(id, ref assetPath, 256);
-        if (EditorDragDrop.TryAcceptAsset(out string dropped))
+        ImGui.PushID(id);
+        try
         {
-            // Same assignment path as a popup pick.
-            assetPath = dropped;
-            changed = true;
-        }
+            bool changed = ImGui.InputText(InputId, ref assetPath, 256);
+            if (EditorDragDrop.TryAcceptAsset(out string dropped))
+            {
+                // Same assignment path as a popup pick.
+                assetPath = dropped;
+                changed = true;
+            }
 
-        ImGui.SameLine();
-        if (ImGui.SmallButton("...##" + id))
-        {
-            OpenPopupUnderLastItem(id);
-        }
-        if (!changed && EditorDragDrop.TryAcceptAsset(out dropped))
-        {
-            assetPath = dropped;
-            changed = true;
-        }
+            ImGui.SameLine();
+            if (ImGui.SmallButton(BrowseId))
+            {
+                OpenPopupUnderLastItem();
+            }
+            if (!changed && EditorDragDrop.TryAcceptAsset(out dropped))
+            {
+                assetPath = dropped;
+                changed = true;
+            }
 
-        changed |= DrawPopup(context, id, ref assetPath, assetType);
-        return changed;
+            changed |= DrawPopup(context, ref assetPath, assetType);
+            return changed;
+        }
+        finally
+        {
+            ImGui.PopID();
+        }
     }
 
     /// <summary>Anchors the popup just below the browse button, clamped to the viewport work area.</summary>
-    private static void OpenPopupUnderLastItem(string id)
+    private static void OpenPopupUnderLastItem()
     {
         Vector2 itemMin = ImGui.GetItemRectMin();
         Vector2 itemMax = ImGui.GetItemRectMax();
@@ -84,13 +95,13 @@ public sealed class AssetPicker
 
         ImGui.SetNextWindowPos(pos);
         ImGui.SetNextWindowSize(new Vector2(width, height), ImGuiCond.Appearing);
-        ImGui.OpenPopup(id + "_popup");
+        ImGui.OpenPopup(PopupId);
     }
 
     /// <summary>Draws the search box and the file browser; returns true when an entry was picked.</summary>
-    private bool DrawPopup(EditorContext context, string id, ref string assetPath, Type? assetType)
+    private bool DrawPopup(EditorContext context, ref string assetPath, Type? assetType)
     {
-        if (!ImGui.BeginPopup(id + "_popup", ImGuiWindowFlags.NoMove))
+        if (!ImGui.BeginPopup(PopupId, ImGuiWindowFlags.NoMove))
         {
             return false;
         }

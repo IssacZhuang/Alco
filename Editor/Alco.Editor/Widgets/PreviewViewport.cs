@@ -111,11 +111,11 @@ public abstract class PreviewViewport : AutoDisposable
     /// </summary>
     public Action<ImDrawListPtr, Matrix4x4, Vector2, Vector2>? OverlayExtras { get; set; }
 
-    /// <summary>Diagnostics shown before the camera readout in the status line.</summary>
-    public Func<string>? StatusPrefix { get; set; }
+    /// <summary>Appends diagnostics before the camera readout into the status line buffer.</summary>
+    public Action<FixedString256>? StatusPrefix { get; set; }
 
-    /// <summary>Diagnostics appended to the status line (e.g. "paused").</summary>
-    public Func<string>? StatusSuffix { get; set; }
+    /// <summary>Appends diagnostics to the end of the status line buffer (e.g. "paused").</summary>
+    public Action<FixedString256>? StatusSuffix { get; set; }
 
     /// <summary>A failure of the owner's content, shown in red under the viewport.</summary>
     public string Error { get; set; } = string.Empty;
@@ -133,8 +133,8 @@ public abstract class PreviewViewport : AutoDisposable
     /// <summary>The screen density at the camera's focus point, in pixels per world unit.</summary>
     protected abstract float PixelsPerUnit { get; }
 
-    /// <summary>The camera readout in the status line (e.g. "zoom 1x", "dist 8").</summary>
-    protected abstract string CameraStatus { get; }
+    /// <summary>Appends the camera readout into the status line buffer (e.g. "zoom 1x", "dist 8").</summary>
+    protected abstract void AppendCameraStatus(FixedString256 status);
 
     /// <summary>The input hint in the status line.</summary>
     protected abstract string InputHint { get; }
@@ -368,15 +368,35 @@ public abstract class PreviewViewport : AutoDisposable
         drawList.AddLine(start, end, color, 1.5f);
         drawList.AddLine(start, start + new Vector2(0f, -5f), color, 1.5f);
         drawList.AddLine(end, end + new Vector2(0f, -5f), color, 1.5f);
-        string label = UnitsLabel(length);
+        var label = new FixedString256();
+        AppendUnits(label, length);
         Vector2 textSize = ImGui.CalcTextSize(label);
         drawList.AddText(new Vector2((start.X + end.X - textSize.X) * 0.5f, start.Y - 6f - textSize.Y), color, label);
     }
 
-    /// <summary>Formats a world-unit length for the grid readout and the scale bar ("0.5u").</summary>
-    private static string UnitsLabel(float units)
+    /// <summary>Appends a value rounded to two decimals with trailing zeros trimmed
+    /// ("2", "2.5", "2.25"), matching the "0.##" formatting of the status readouts.</summary>
+    protected static void AppendRounded(FixedString256 status, float value)
     {
-        return $"{units:0.##}u";
+        int start = status.Length;
+        status.Append(value, 2);
+        int end = status.Length - 1;
+        while (end > start && status[end] == '0')
+        {
+            end--;
+        }
+        if (end >= start && status[end] == '.')
+        {
+            end--;
+        }
+        status.Length = end + 1;
+    }
+
+    /// <summary>Appends a world-unit length for the grid readout and the scale bar ("0.5u").</summary>
+    private static void AppendUnits(FixedString256 status, float units)
+    {
+        AppendRounded(status, units);
+        status.Append('u');
     }
 
     /// <summary>The diagnostics line under the viewport.</summary>
@@ -384,17 +404,22 @@ public abstract class PreviewViewport : AutoDisposable
     {
         // The camera readout doubles as an input diagnostic: it must change on
         // every wheel tick and drag.
-        string prefix = StatusPrefix?.Invoke() ?? string.Empty;
-        if (prefix.Length > 0)
+        var status = new FixedString256();
+        StatusPrefix?.Invoke(status);
+        if (status.Length > 0)
         {
-            prefix += " | ";
+            status.Append(" | ");
         }
-        string camera = CameraStatus;
+        AppendCameraStatus(status);
         if (_showGrid)
         {
-            camera += $" | grid {UnitsLabel(_gridStep)}";
+            status.Append(" | grid ");
+            AppendUnits(status, _gridStep);
         }
-        ImGui.TextDisabled($"{prefix}{camera} | {InputHint}{StatusSuffix?.Invoke() ?? string.Empty}");
+        status.Append(" | ");
+        status.Append(InputHint);
+        StatusSuffix?.Invoke(status);
+        ImGui.TextDisabled(status);
     }
 
     /// <summary>Snaps a raw grid spacing to a 1-2-5 decade step.</summary>
