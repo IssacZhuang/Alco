@@ -64,12 +64,14 @@ public sealed partial class ParticleEffectDocument
     {
         ImGui.SeparatorText("Effect");
 
-        string name = _effect.Name;
-        ImGui.SetNextItemWidth(-120f);
-        if (ImGui.InputText("Name", ref name, 128))
+        using (var effect = new PropertyTable("effect"))
         {
-            _effect.Name = name;
-            MarkDirty();
+            string name = _effect.Name;
+            if (effect.TextField("Name", ref name, 128))
+            {
+                _effect.Name = name;
+                MarkDirty();
+            }
         }
         ImGui.TextDisabled($"Type: {(_is3D ? "3D" : "2D")} — {EffectGroupCount} group(s); rendered in list order");
 
@@ -357,8 +359,8 @@ public sealed partial class ParticleEffectDocument
     private void DrawGroupName(ParticleGroup group)
     {
         string name = group.Name;
-        ImGui.SetNextItemWidth(-120f);
-        if (ImGui.InputText("Group Name", ref name, 128))
+        using var table = new PropertyTable("groupname");
+        if (table.TextField("Group Name", ref name, 128))
         {
             group.Name = name;
             MarkDirty();
@@ -369,16 +371,17 @@ public sealed partial class ParticleEffectDocument
     private void DrawEmissionSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Emission");
+        using var table = new PropertyTable("emission");
 
         float rate = group.EmissionRate;
-        if (DragRow("Rate (per s)", ref rate, 0.5f, 0f, 100000f))
+        if (table.Drag("Rate (per s)", ref rate, 0.5f, 0f, 100000f))
         {
             group.EmissionRate = rate;
             OnLiveEdit(index);
         }
 
         int maxParticles = group.MaxParticles;
-        if (DragRow("Max Particles", ref maxParticles, 8, 1, 1 << 20))
+        if (table.Drag("Max Particles", ref maxParticles, 8, 1, 1 << 20))
         {
             group.MaxParticles = maxParticles;
             OnStructuralEdit();
@@ -389,7 +392,7 @@ public sealed partial class ParticleEffectDocument
         }
 
         float duration = group.Duration;
-        if (DragRow("Duration (s)", ref duration, 0.05f, 0f, 120f))
+        if (table.Drag("Duration (s)", ref duration, 0.05f, 0f, 120f))
         {
             group.Duration = duration;
             OnStructuralEdit();
@@ -400,7 +403,7 @@ public sealed partial class ParticleEffectDocument
         }
 
         bool looping = group.Looping;
-        if (ImGui.Checkbox("Looping", ref looping))
+        if (table.Checkbox("Looping", ref looping))
         {
             group.Looping = looping;
             OnStructuralEdit();
@@ -410,52 +413,75 @@ public sealed partial class ParticleEffectDocument
         int removeBurst = -1;
         for (int b = 0; b < group.Bursts.Count; b++)
         {
-            ParticleBurst burst = group.Bursts[b];
-            ImGui.PushID(b);
-            Caption("Burst");
-            Caption("at");
-            float time = burst.Time;
-            ImGui.SetNextItemWidth(70f);
-            if (ImGui.DragFloat("##time", ref time, 0.02f, 0f, 300f))
-            {
-                burst.Time = time;
-                OnStructuralEdit();
-            }
-            ImGui.SameLine();
-            Caption("min");
-            int countMin = burst.CountMin;
-            ImGui.SetNextItemWidth(60f);
-            if (ImGui.DragInt("##countmin", ref countMin, 0.2f, 0, 100000))
-            {
-                burst.CountMin = countMin;
-                OnStructuralEdit();
-            }
-            ImGui.SameLine();
-            Caption("max");
-            int countMax = burst.CountMax;
-            ImGui.SetNextItemWidth(60f);
-            if (ImGui.DragInt("##countmax", ref countMax, 0.2f, 0, 100000))
-            {
-                burst.CountMax = countMax;
-                OnStructuralEdit();
-            }
-            ImGui.SameLine();
-            if (ImGui.SmallButton("X"))
-            {
-                removeBurst = b;
-            }
-            ImGui.PopID();
+            DrawBurstRow(table, group.Bursts[b], b, ref removeBurst);
         }
         if (removeBurst >= 0)
         {
             group.Bursts.RemoveAt(removeBurst);
             OnStructuralEdit();
         }
+        table.BeginCell(string.Empty);
         if (ImGui.SmallButton("Add Burst"))
         {
             group.Bursts.Add(new ParticleBurst());
             OnStructuralEdit();
         }
+        table.EndCell();
+    }
+
+    /// <summary>One burst row: the time and count fields flow onto extra lines as
+    /// whole groups when the value column is too narrow; the trailing square button
+    /// removes the burst (recorded into <paramref name="removeBurst"/> for the caller
+    /// to apply after the draw pass).</summary>
+    private void DrawBurstRow(PropertyTable table, ParticleBurst burst, int burstIndex, ref int removeBurst)
+    {
+        ImGui.PushID(burstIndex);
+        table.BeginCell($"Burst {burstIndex + 1}");
+
+        float spacing = ImGui.GetStyle().ItemSpacing.X;
+        const float timeWidth = 84f;
+        const float countWidth = 68f;
+        float removeWidth = ImGui.GetFrameHeight() + spacing;
+
+        PropertyTable.WrapWhenFull(
+            PropertyTable.CaptionWidth("at") + timeWidth + spacing + PropertyTable.CaptionWidth("min") + countWidth);
+        PropertyTable.Caption("at");
+        float time = burst.Time;
+        ImGui.SetNextItemWidth(timeWidth);
+        if (ImGui.DragFloat("##time", ref time, 0.02f, 0f, 300f))
+        {
+            burst.Time = time;
+            OnStructuralEdit();
+        }
+        PropertyTable.Caption("min");
+        int countMin = burst.CountMin;
+        ImGui.SetNextItemWidth(countWidth);
+        if (ImGui.DragInt("##countmin", ref countMin, 0.2f, 0, 100000))
+        {
+            burst.CountMin = countMin;
+            OnStructuralEdit();
+        }
+        PropertyTable.WrapWhenFull(PropertyTable.CaptionWidth("max") + countWidth + removeWidth);
+        PropertyTable.Caption("max");
+        int countMax = burst.CountMax;
+        ImGui.SetNextItemWidth(countWidth);
+        if (ImGui.DragInt("##countmax", ref countMax, 0.2f, 0, 100000))
+        {
+            burst.CountMax = countMax;
+            OnStructuralEdit();
+        }
+        ImGui.SameLine(0, spacing);
+        if (ImGui.Button("X##remove", new Vector2(ImGui.GetFrameHeight())))
+        {
+            removeBurst = burstIndex;
+        }
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip("Remove this burst");
+        }
+
+        table.EndCell();
+        ImGui.PopID();
     }
 
     /// <summary>Shape: the 2D/3D emission shape with per-type fields and the fixed
@@ -463,12 +489,13 @@ public sealed partial class ParticleEffectDocument
     private void DrawShapeSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Shape");
+        using var table = new PropertyTable("shape");
 
         if (group is ParticleGroup2D group2D)
         {
             ParticleShape2D shape = group2D.Shape;
             ParticleShape2DType type = shape.Type;
-            if (ImGui.Combo("Type", ref type))
+            if (table.Combo("Type", ref type))
             {
                 shape.Type = type;
                 OnLiveEdit(index);
@@ -476,13 +503,13 @@ public sealed partial class ParticleEffectDocument
             if (shape.Type == ParticleShape2DType.Circle)
             {
                 float radius = shape.Radius;
-                if (DragRow("Radius", ref radius, 0.1f, 0f))
+                if (table.Drag("Radius", ref radius, 0.1f, 0f))
                 {
                     shape.Radius = radius;
                     OnLiveEdit(index);
                 }
                 float inner = shape.InnerRadius;
-                if (SliderRow("Inner Radius", ref inner, 0f, 1f))
+                if (table.Slider("Inner Radius", ref inner, 0f, 1f))
                 {
                     shape.InnerRadius = inner;
                     OnLiveEdit(index);
@@ -491,14 +518,14 @@ public sealed partial class ParticleEffectDocument
             else if (shape.Type == ParticleShape2DType.Box)
             {
                 Vector2 extents = shape.Extents;
-                if (DragRow("Extents", ref extents, 0.1f, 0f))
+                if (table.Drag("Extents", ref extents, 0.1f, 0f))
                 {
                     shape.Extents = extents;
                     OnLiveEdit(index);
                 }
             }
             Vector2 positionOffset = group2D.PositionOffset;
-            if (DragRow("Position Offset", ref positionOffset, 0.02f))
+            if (table.Drag("Position Offset", ref positionOffset, 0.02f))
             {
                 group2D.PositionOffset = positionOffset;
                 OnLiveEdit(index);
@@ -512,7 +539,7 @@ public sealed partial class ParticleEffectDocument
         {
             ParticleShape3D shape = ((ParticleGroup3D)group).Shape;
             ParticleShape3DType type = shape.Type;
-            if (ImGui.Combo("Type", ref type))
+            if (table.Combo("Type", ref type))
             {
                 shape.Type = type;
                 OnLiveEdit(index);
@@ -520,13 +547,13 @@ public sealed partial class ParticleEffectDocument
             if (shape.Type is ParticleShape3DType.Sphere or ParticleShape3DType.Hemisphere)
             {
                 float radius = shape.Radius;
-                if (DragRow("Radius", ref radius, 0.05f, 0f))
+                if (table.Drag("Radius", ref radius, 0.05f, 0f))
                 {
                     shape.Radius = radius;
                     OnLiveEdit(index);
                 }
                 float inner = shape.InnerRadius;
-                if (SliderRow("Inner Radius", ref inner, 0f, 1f))
+                if (table.Slider("Inner Radius", ref inner, 0f, 1f))
                 {
                     shape.InnerRadius = inner;
                     OnLiveEdit(index);
@@ -535,14 +562,14 @@ public sealed partial class ParticleEffectDocument
             else if (shape.Type == ParticleShape3DType.Box)
             {
                 Vector3 extents = shape.Extents;
-                if (DragRow("Extents", ref extents, 0.05f, 0f))
+                if (table.Drag("Extents", ref extents, 0.05f, 0f))
                 {
                     shape.Extents = extents;
                     OnLiveEdit(index);
                 }
             }
             Vector3 positionOffset = ((ParticleGroup3D)group).PositionOffset;
-            if (DragRow("Position Offset", ref positionOffset, 0.02f))
+            if (table.Drag("Position Offset", ref positionOffset, 0.02f))
             {
                 ((ParticleGroup3D)group).PositionOffset = positionOffset;
                 OnLiveEdit(index);
@@ -558,24 +585,25 @@ public sealed partial class ParticleEffectDocument
     private void DrawMotionSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Motion");
+        using var table = new PropertyTable("motion");
 
         if (_is3D)
         {
             var group3D = (ParticleGroup3D)group;
             ParticleDirectionMode mode = group3D.DirectionMode;
-            if (ImGui.Combo("Direction Mode", ref mode))
+            if (table.Combo("Direction Mode", ref mode))
             {
                 group3D.DirectionMode = mode;
                 OnLiveEdit(index);
             }
             Vector3 direction = group3D.Direction;
-            if (DragRow("Direction", ref direction, 0.02f))
+            if (table.Drag("Direction", ref direction, 0.02f))
             {
                 group3D.Direction = direction;
                 OnLiveEdit(index);
             }
             float spread = group3D.SpreadAngle * math.RadToDeg;
-            if (DragRow("Spread (deg)", ref spread, 0.5f, 0f, 360f))
+            if (table.Drag("Spread (deg)", ref spread, 0.5f, 0f, 360f))
             {
                 group3D.SpreadAngle = spread * math.DegToRad;
                 OnLiveEdit(index);
@@ -585,26 +613,26 @@ public sealed partial class ParticleEffectDocument
         {
             var group2D = (ParticleGroup2D)group;
             ParticleDirectionMode mode = group2D.DirectionMode;
-            if (ImGui.Combo("Direction Mode", ref mode))
+            if (table.Combo("Direction Mode", ref mode))
             {
                 group2D.DirectionMode = mode;
                 OnLiveEdit(index);
             }
             Vector2 direction = group2D.Direction;
-            if (DragRow("Direction", ref direction, 0.02f))
+            if (table.Drag("Direction", ref direction, 0.02f))
             {
                 group2D.Direction = direction;
                 OnLiveEdit(index);
             }
             float spread = group2D.SpreadAngle * math.RadToDeg;
-            if (DragRow("Spread (deg)", ref spread, 0.5f, 0f, 360f))
+            if (table.Drag("Spread (deg)", ref spread, 0.5f, 0f, 360f))
             {
                 group2D.SpreadAngle = spread * math.DegToRad;
                 OnLiveEdit(index);
             }
         }
 
-        if (DrawRangeRow("Speed", group.Speed, out ParticleRange speed, 0.1f))
+        if (RangeRow(table, "Speed", group.Speed, 0.1f, out ParticleRange speed))
         {
             group.Speed = speed;
             OnLiveEdit(index);
@@ -613,7 +641,7 @@ public sealed partial class ParticleEffectDocument
         if (_is3D)
         {
             Vector3 gravity = ((ParticleGroup3D)group).Gravity;
-            if (DragRow("Gravity", ref gravity, 0.05f))
+            if (table.Drag("Gravity", ref gravity, 0.05f))
             {
                 ((ParticleGroup3D)group).Gravity = gravity;
                 OnLiveEdit(index);
@@ -623,23 +651,23 @@ public sealed partial class ParticleEffectDocument
         {
             var group2D = (ParticleGroup2D)group;
             Vector2 gravity = group2D.Gravity;
-            if (DragRow("Gravity", ref gravity, 0.05f))
+            if (table.Drag("Gravity", ref gravity, 0.05f))
             {
                 group2D.Gravity = gravity;
                 OnLiveEdit(index);
             }
-            if (DrawRangeRow("Start Height", group2D.StartHeight, out ParticleRange startHeight, 0.05f))
+            if (RangeRow(table, "Start Height", group2D.StartHeight, 0.05f, out ParticleRange startHeight))
             {
                 group2D.StartHeight = startHeight;
                 OnLiveEdit(index);
             }
-            if (DrawRangeRow("Height Velocity", group2D.HeightVelocity, out ParticleRange heightVelocity, 0.05f))
+            if (RangeRow(table, "Height Velocity", group2D.HeightVelocity, 0.05f, out ParticleRange heightVelocity))
             {
                 group2D.HeightVelocity = heightVelocity;
                 OnLiveEdit(index);
             }
             float heightAcceleration = group2D.HeightAcceleration;
-            if (DragRow("Height Acceleration", ref heightAcceleration, 0.05f))
+            if (table.Drag("Height Acceleration", ref heightAcceleration, 0.05f))
             {
                 group2D.HeightAcceleration = heightAcceleration;
                 OnLiveEdit(index);
@@ -647,7 +675,7 @@ public sealed partial class ParticleEffectDocument
         }
 
         float drag = group.Drag;
-        if (DragRow("Drag", ref drag, 0.02f, 0f))
+        if (table.Drag("Drag", ref drag, 0.02f, 0f))
         {
             group.Drag = drag;
             OnLiveEdit(index);
@@ -658,80 +686,86 @@ public sealed partial class ParticleEffectDocument
     private void DrawLifeAndSizeSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Lifetime & Size");
-
-        if (DrawRangeRow("Lifetime (s)", group.Lifetime, out ParticleRange lifetime, 0.05f))
-        {
-            group.Lifetime = lifetime;
-            OnLiveEdit(index);
-        }
-
-        float fadeIn = group.FadeIn;
-        if (SliderRow("Fade In", ref fadeIn, 0f, 1f))
-        {
-            group.FadeIn = fadeIn;
-            OnLiveEdit(index);
-        }
-        float fadeOut = group.FadeOut;
-        if (SliderRow("Fade Out", ref fadeOut, 0f, 1f))
-        {
-            group.FadeOut = fadeOut;
-            OnLiveEdit(index);
-        }
-
-        if (_is3D)
-        {
-            var group3D = (ParticleGroup3D)group;
-            if (DrawRangeRow("Size", group3D.Size, out ParticleRange size, 0.02f))
-            {
-                group3D.Size = size;
-                OnLiveEdit(index);
-            }
-        }
-        else
-        {
-            var group2D = (ParticleGroup2D)group;
-            if (DrawRangeRow("Size", group2D.Size, out ParticleVector2Range size, 0.02f))
-            {
-                group2D.Size = size;
-                OnLiveEdit(index);
-            }
-        }
-
-        float endScale = group.EndScale;
-        if (DragRow("End Scale", ref endScale, 0.01f, 0f))
-        {
-            group.EndScale = endScale;
-            OnLiveEdit(index);
-        }
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip("Ignored while a size curve is set.");
-        }
-
-        if (_is3D)
-        {
-            var group3D = (ParticleGroup3D)group;
-            DrawAngleRangeRow(index, "Start Rotation (deg)", group3D.StartRotation, v => group3D.StartRotation = v);
-            DrawAngleRangeRow(index, "Angular Velocity (deg/s)", group3D.AngularVelocity, v => group3D.AngularVelocity = v);
-        }
-        else
-        {
-            var group2D = (ParticleGroup2D)group;
-            DrawAngleRangeRow(index, "Start Rotation (deg)", group2D.StartRotation, v => group2D.StartRotation = v);
-            DrawAngleRangeRow(index, "Angular Velocity (deg/s)", group2D.AngularVelocity, v => group2D.AngularVelocity = v);
-        }
-
-        // Size curve (structural: the lookup texture rebakes).
         bool hasCurve = group.SizeCurve is { Count: > 0 };
-        if (ImGui.Checkbox("Size Curve", ref hasCurve))
+        using (var table = new PropertyTable("lifesize"))
         {
-            group.SizeCurve = hasCurve
-                ? [new ParticleScalarKey { Time = 0f, Value = 1f }, new ParticleScalarKey { Time = 1f, Value = MathF.Max(group.EndScale, 0f) }]
-                : null;
-            OnStructuralEdit();
+            if (RangeRow(table, "Lifetime (s)", group.Lifetime, 0.05f, out ParticleRange lifetime))
+            {
+                group.Lifetime = lifetime;
+                OnLiveEdit(index);
+            }
+
+            float fadeIn = group.FadeIn;
+            if (table.Slider("Fade In", ref fadeIn, 0f, 1f))
+            {
+                group.FadeIn = fadeIn;
+                OnLiveEdit(index);
+            }
+            float fadeOut = group.FadeOut;
+            if (table.Slider("Fade Out", ref fadeOut, 0f, 1f))
+            {
+                group.FadeOut = fadeOut;
+                OnLiveEdit(index);
+            }
+
+            if (_is3D)
+            {
+                var group3D = (ParticleGroup3D)group;
+                if (RangeRow(table, "Size", group3D.Size, 0.02f, out ParticleRange size))
+                {
+                    group3D.Size = size;
+                    OnLiveEdit(index);
+                }
+            }
+            else
+            {
+                var group2D = (ParticleGroup2D)group;
+                Vector2 sizeMin = group2D.Size.Min;
+                Vector2 sizeMax = group2D.Size.Max;
+                if (table.Range("Size", ref sizeMin, ref sizeMax, 0.02f))
+                {
+                    group2D.Size = new ParticleVector2Range { Min = sizeMin, Max = sizeMax };
+                    OnLiveEdit(index);
+                }
+            }
+
+            float endScale = group.EndScale;
+            if (table.Drag("End Scale", ref endScale, 0.01f, 0f))
+            {
+                group.EndScale = endScale;
+                OnLiveEdit(index);
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Ignored while a size curve is set.");
+            }
+
+            if (_is3D)
+            {
+                var group3D = (ParticleGroup3D)group;
+                DrawAngleRangeRow(table, index, "Start Rotation (deg)", group3D.StartRotation, v => group3D.StartRotation = v);
+                DrawAngleRangeRow(table, index, "Angular Velocity (deg/s)", group3D.AngularVelocity, v => group3D.AngularVelocity = v);
+            }
+            else
+            {
+                var group2D = (ParticleGroup2D)group;
+                DrawAngleRangeRow(table, index, "Start Rotation (deg)", group2D.StartRotation, v => group2D.StartRotation = v);
+                DrawAngleRangeRow(table, index, "Angular Velocity (deg/s)", group2D.AngularVelocity, v => group2D.AngularVelocity = v);
+            }
+
+            // Size curve (structural: the lookup texture rebakes).
+            if (table.Checkbox("Size Curve", ref hasCurve))
+            {
+                group.SizeCurve = hasCurve
+                    ? [new ParticleScalarKey { Time = 0f, Value = 1f }, new ParticleScalarKey { Time = 1f, Value = MathF.Max(group.EndScale, 0f) }]
+                    : null;
+                OnStructuralEdit();
+            }
         }
+
         if (hasCurve && group.SizeCurve != null)
         {
+            // Full width below the rows: dragging keys benefits from the extra width.
             if (CurveEditor.Draw("##sizecurve", group.SizeCurve))
             {
                 OnStructuralEdit();
@@ -743,47 +777,51 @@ public sealed partial class ParticleEffectDocument
     private void DrawColorSection(int index, ParticleGroup group)
     {
         ImGui.SeparatorText("Color");
-
-        ColorFloat startMin = group.StartColor.Min;
-        if (ImGui.ColorEdit4("Start Color Min", ref startMin))
-        {
-            group.StartColor = new ParticleColorRange { Min = startMin, Max = group.StartColor.Max };
-            OnLiveEdit(index);
-        }
-        ColorFloat startMax = group.StartColor.Max;
-        if (ImGui.ColorEdit4("Start Color Max", ref startMax))
-        {
-            group.StartColor = new ParticleColorRange { Min = group.StartColor.Min, Max = startMax };
-            OnLiveEdit(index);
-        }
-        ColorFloat endColor = group.EndColor;
-        if (ImGui.ColorEdit4("End Color", ref endColor))
-        {
-            group.EndColor = endColor;
-            OnLiveEdit(index);
-        }
-        ColorFloat tint = group.Tint;
-        if (ImGui.ColorEdit4("Tint", ref tint))
-        {
-            group.Tint = tint;
-            OnLiveEdit(index);
-        }
-
-        // Color gradient (structural: the lookup texture rebakes).
         bool hasGradient = group.ColorGradient is { Count: > 0 };
-        if (ImGui.Checkbox("Color Gradient", ref hasGradient))
+        using (var table = new PropertyTable("color"))
         {
-            group.ColorGradient = hasGradient
-                ? [new ParticleColorKey { Time = 0f, Color = group.StartColor.Min }, new ParticleColorKey { Time = 1f, Color = group.EndColor }]
-                : null;
-            OnStructuralEdit();
-        }
-        if (hasGradient && group.ColorGradient != null)
-        {
-            if (ImGui.IsItemHovered())
+            ColorFloat startMin = group.StartColor.Min;
+            if (table.Color("Start Color Min", ref startMin))
+            {
+                group.StartColor = new ParticleColorRange { Min = startMin, Max = group.StartColor.Max };
+                OnLiveEdit(index);
+            }
+            ColorFloat startMax = group.StartColor.Max;
+            if (table.Color("Start Color Max", ref startMax))
+            {
+                group.StartColor = new ParticleColorRange { Min = group.StartColor.Min, Max = startMax };
+                OnLiveEdit(index);
+            }
+            ColorFloat endColor = group.EndColor;
+            if (table.Color("End Color", ref endColor))
+            {
+                group.EndColor = endColor;
+                OnLiveEdit(index);
+            }
+            ColorFloat tint = group.Tint;
+            if (table.Color("Tint", ref tint))
+            {
+                group.Tint = tint;
+                OnLiveEdit(index);
+            }
+
+            // Color gradient (structural: the lookup texture rebakes).
+            if (table.Checkbox("Color Gradient", ref hasGradient))
+            {
+                group.ColorGradient = hasGradient
+                    ? [new ParticleColorKey { Time = 0f, Color = group.StartColor.Min }, new ParticleColorKey { Time = 1f, Color = group.EndColor }]
+                    : null;
+                OnStructuralEdit();
+            }
+            if (hasGradient && ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Replaces the start → end color lerp; fades still apply.");
             }
+        }
+
+        if (hasGradient && group.ColorGradient != null)
+        {
+            // Full width below the rows: dragging keys benefits from the extra width.
             if (GradientEditor.Draw("##colorgradient", group.ColorGradient))
             {
                 OnStructuralEdit();
@@ -794,12 +832,20 @@ public sealed partial class ParticleEffectDocument
     /// <summary>Velocity stretch (2D also requires rotation alignment; all live).</summary>
     private void DrawStretchSection(int index, ParticleGroup group)
     {
-        if (group is ParticleGroup2D group2D)
+        if (group is ParticleGroup2D)
         {
             ImGui.SeparatorText("Rotation & Stretch");
+        }
+        else
+        {
+            ImGui.SeparatorText("Stretch");
+        }
+        using var table = new PropertyTable("stretch");
 
+        if (group is ParticleGroup2D group2D)
+        {
             bool align = group2D.AlignRotationToVelocity;
-            if (ImGui.Checkbox("Align Rotation To Velocity", ref align))
+            if (table.Checkbox("Align Rotation To Velocity", ref align))
             {
                 group2D.AlignRotationToVelocity = align;
                 OnLiveEdit(index);
@@ -807,25 +853,25 @@ public sealed partial class ParticleEffectDocument
 
             bool stretch = group2D.VelocityStretch;
             ImGui.BeginDisabled(!group2D.AlignRotationToVelocity);
-            if (ImGui.Checkbox("Velocity Stretch", ref stretch))
+            if (table.Checkbox("Velocity Stretch", ref stretch))
             {
                 group2D.VelocityStretch = stretch;
                 OnLiveEdit(index);
             }
             ImGui.EndDisabled();
-            if (ImGui.IsItemHovered())
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             {
                 ImGui.SetTooltip("2D stretch requires Align Rotation To Velocity.");
             }
 
             float lengthScale = group2D.StretchLengthScale;
-            if (DragRow("Stretch Length Scale", ref lengthScale, 0.02f, 0f))
+            if (table.Drag("Stretch Length Scale", ref lengthScale, 0.02f, 0f))
             {
                 group2D.StretchLengthScale = lengthScale;
                 OnLiveEdit(index);
             }
             float speedScale = group2D.StretchSpeedScale;
-            if (DragRow("Stretch Speed Scale", ref speedScale, 0.005f, 0f))
+            if (table.Drag("Stretch Speed Scale", ref speedScale, 0.005f, 0f))
             {
                 group2D.StretchSpeedScale = speedScale;
                 OnLiveEdit(index);
@@ -837,19 +883,19 @@ public sealed partial class ParticleEffectDocument
 
             var group3D = (ParticleGroup3D)group;
             bool stretch = group3D.VelocityStretch;
-            if (ImGui.Checkbox("Velocity Stretch", ref stretch))
+            if (table.Checkbox("Velocity Stretch", ref stretch))
             {
                 group3D.VelocityStretch = stretch;
                 OnLiveEdit(index);
             }
             float lengthScale = group3D.StretchLengthScale;
-            if (DragRow("Stretch Length Scale", ref lengthScale, 0.02f, 0f))
+            if (table.Drag("Stretch Length Scale", ref lengthScale, 0.02f, 0f))
             {
                 group3D.StretchLengthScale = lengthScale;
                 OnLiveEdit(index);
             }
             float speedScale = group3D.StretchSpeedScale;
-            if (DragRow("Stretch Speed Scale", ref speedScale, 0.005f, 0f))
+            if (table.Drag("Stretch Speed Scale", ref speedScale, 0.005f, 0f))
             {
                 group3D.StretchSpeedScale = speedScale;
                 OnLiveEdit(index);
@@ -861,76 +907,86 @@ public sealed partial class ParticleEffectDocument
     private void DrawFlipbookSection(int index, ParticleGroup group)
     {
         bool enabled = group.Flipbook != null;
-        if (ImGui.Checkbox("Flipbook", ref enabled))
+        using (var table = new PropertyTable("flipbook"))
         {
-            group.Flipbook = enabled ? new ParticleFlipbook() : null;
-            OnLiveEdit(index);
-        }
-        if (group.Flipbook == null)
-        {
-            return;
-        }
+            if (table.Checkbox("Flipbook", ref enabled))
+            {
+                group.Flipbook = enabled ? new ParticleFlipbook() : null;
+                OnLiveEdit(index);
+            }
+            if (group.Flipbook == null)
+            {
+                return;
+            }
 
-        ParticleFlipbook flipbook = group.Flipbook!;
-        ImGui.Indent();
-        int rows = flipbook.Rows;
-        if (DragRow("Rows", ref rows, 0.1f, 1, 64))
-        {
-            flipbook.Rows = rows;
-            OnLiveEdit(index);
+            ParticleFlipbook flipbook = group.Flipbook!;
+            int rows = flipbook.Rows;
+            if (table.Drag("Rows", ref rows, 0.1f, 1, 64))
+            {
+                flipbook.Rows = rows;
+                OnLiveEdit(index);
+            }
+            int cols = flipbook.Cols;
+            if (table.Drag("Columns", ref cols, 0.1f, 1, 64))
+            {
+                flipbook.Cols = cols;
+                OnLiveEdit(index);
+            }
+            int framesPerAnim = flipbook.FramesPerAnim;
+            if (table.Drag("Frames/Anim", ref framesPerAnim, 0.1f, 0, flipbook.Rows * flipbook.Cols))
+            {
+                flipbook.FramesPerAnim = framesPerAnim;
+                OnLiveEdit(index);
+            }
+            float cycles = flipbook.Cycles;
+            if (table.Drag("Cycles", ref cycles, 0.02f, 0f, 64f))
+            {
+                flipbook.Cycles = cycles;
+                OnLiveEdit(index);
+            }
+
+            // The usage hint wraps inside the value column, aligned with the fields.
+            int frames = flipbook.Rows * flipbook.Cols;
+            float averageLifetime = (group.Lifetime.Min + group.Lifetime.Max) * 0.5f;
+            float animFrames = framesPerAnim > 0 ? framesPerAnim : frames;
+            float effectiveFps = averageLifetime > 1e-5f ? animFrames * flipbook.Cycles / averageLifetime : 0f;
+            string animHint = framesPerAnim > 0
+                ? $"{frames / Math.Max(framesPerAnim, 1)} anims of {framesPerAnim} frames — one random anim per particle"
+                : "the whole sheet is one animation";
+            table.BeginCell(string.Empty);
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X);
+            ImGui.TextDisabled($"{animHint}; {flipbook.Cycles:0.##}x, ~{effectiveFps:0.#} fps");
+            ImGui.PopTextWrapPos();
+            table.EndCell();
+
+            bool reverse = flipbook.Reverse;
+            if (table.Checkbox("Reverse", ref reverse))
+            {
+                flipbook.Reverse = reverse;
+                OnLiveEdit(index);
+            }
         }
-        int cols = flipbook.Cols;
-        if (DragRow("Columns", ref cols, 0.1f, 1, 64))
-        {
-            flipbook.Cols = cols;
-            OnLiveEdit(index);
-        }
-        int framesPerAnim = flipbook.FramesPerAnim;
-        if (DragRow("Frames/Anim", ref framesPerAnim, 0.1f, 0, flipbook.Rows * flipbook.Cols))
-        {
-            flipbook.FramesPerAnim = framesPerAnim;
-            OnLiveEdit(index);
-        }
-        float cycles = flipbook.Cycles;
-        if (DragRow("Cycles", ref cycles, 0.02f, 0f, 64f))
-        {
-            flipbook.Cycles = cycles;
-            OnLiveEdit(index);
-        }
-        int frames = flipbook.Rows * flipbook.Cols;
-        float averageLifetime = (group.Lifetime.Min + group.Lifetime.Max) * 0.5f;
-        float animFrames = framesPerAnim > 0 ? framesPerAnim : frames;
-        float effectiveFps = averageLifetime > 1e-5f ? animFrames * flipbook.Cycles / averageLifetime : 0f;
-        string animHint = framesPerAnim > 0
-            ? $"{frames / Math.Max(framesPerAnim, 1)} anims of {framesPerAnim} frames — one random anim per particle"
-            : "the whole sheet is one animation";
-        ImGui.TextDisabled($"{animHint}; {flipbook.Cycles:0.##}x, ~{effectiveFps:0.#} fps");
-        bool reverse = flipbook.Reverse;
-        if (ImGui.Checkbox("Reverse", ref reverse))
-        {
-            flipbook.Reverse = reverse;
-            OnLiveEdit(index);
-        }
-        ImGui.Unindent();
     }
 
     /// <summary>Rendering: simulation space (live), blend/depth/material/texture/behavior (structural).</summary>
     private void DrawRenderingSection(int index, ParticleGroup group, GroupUiState state)
     {
         ImGui.SeparatorText("Rendering");
-
-        ParticleSimulationSpace space = group.SimulationSpace;
-        if (ImGui.Combo("Simulation Space", ref space))
+        using (var table = new PropertyTable("rendering"))
         {
-            group.SimulationSpace = space;
-            OnLiveEdit(index);
-        }
+            ParticleSimulationSpace space = group.SimulationSpace;
+            if (table.Combo("Simulation Space", ref space))
+            {
+                group.SimulationSpace = space;
+                OnLiveEdit(index);
+            }
 
-        DrawBlendRow(group);
-        DrawDepthRow(group);
-        DrawMaterialRow(group, state);
-        DrawTextureRow(group, state);
-        DrawBehaviorRow(group, state);
+            DrawBlendRow(table, group);
+            DrawDepthRow(table, group);
+            DrawMaterialRow(table, group, state);
+            DrawTextureRow(table, group, state);
+            DrawBehaviorRow(table, group, state);
+        }
 
         if (state.ReferenceError.Length > 0)
         {
@@ -939,25 +995,29 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The blend preset combo; "(Default)" maps to null (alpha blend).</summary>
-    private void DrawBlendRow(ParticleGroup group)
+    private void DrawBlendRow(PropertyTable table, ParticleGroup group)
     {
         int current = PresetIndex(group.Blend, s_blendPresets);
-        if (DrawPresetCombo("Blend", current, s_blendPresets, out int selected))
+        table.BeginCell("Blend");
+        if (DrawPresetCombo(current, s_blendPresets, out int selected))
         {
             group.Blend = selected < 0 ? null : s_blendPresets[selected].State;
             OnStructuralEdit();
         }
+        table.EndCell();
     }
 
     /// <summary>The depth preset combo; "(Default)" maps to null (pass default).</summary>
-    private void DrawDepthRow(ParticleGroup group)
+    private void DrawDepthRow(PropertyTable table, ParticleGroup group)
     {
         int current = PresetIndex(group.Depth, s_depthPresets);
-        if (DrawPresetCombo("Depth", current, s_depthPresets, out int selected))
+        table.BeginCell("Depth");
+        if (DrawPresetCombo(current, s_depthPresets, out int selected))
         {
             group.Depth = selected < 0 ? null : s_depthPresets[selected].State;
             OnStructuralEdit();
         }
+        table.EndCell();
     }
 
     /// <summary>Finds the preset index matching a nullable state value; -1 = default, -2 = custom.</summary>
@@ -977,12 +1037,14 @@ public sealed partial class ParticleEffectDocument
         return -2;
     }
 
-    /// <summary>Draws a preset combo with a leading "(Default)" entry; outputs -1 for it.</summary>
-    private static bool DrawPresetCombo<TState>(string label, int current, (string Name, TState State)[] presets, out int selected)
+    /// <summary>Draws a preset combo filling the current value cell, with a leading
+    /// "(Default)" entry; outputs -1 for it.</summary>
+    private static bool DrawPresetCombo<TState>(int current, (string Name, TState State)[] presets, out int selected)
     {
         selected = current;
         string preview = current == -1 ? "(Default)" : current == -2 ? "(custom)" : presets[current].Name;
-        if (!ImGui.BeginCombo(label, preview))
+        ImGui.SetNextItemWidth(-1f);
+        if (!ImGui.BeginCombo("##value", preview))
         {
             return false;
         }
@@ -1002,11 +1064,11 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>The material picker row; an empty path maps to null (default surface).</summary>
-    private void DrawMaterialRow(ParticleGroup group, GroupUiState state)
+    private void DrawMaterialRow(PropertyTable table, ParticleGroup group, GroupUiState state)
     {
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Material");
-        ImGui.SameLine();
+        table.BeginCell("Material");
+        // Reserve the trailing browse button so the input fills the rest of the cell.
+        ImGui.SetNextItemWidth(-(ImGui.CalcTextSize("...").X + (ImGui.GetStyle().FramePadding.X * 4f) + ImGui.GetStyle().ItemSpacing.X));
         if (state.MaterialPicker.Draw(Context, "##material", ref state.MaterialPath, typeof(MaterialAsset)))
         {
             state.ReferenceError = string.Empty;
@@ -1033,14 +1095,15 @@ public sealed partial class ParticleEffectDocument
         {
             ImGui.SetTooltip("Clear the path to use the default particle surface.");
         }
+        table.EndCell();
     }
 
     /// <summary>The texture picker row; an empty path keeps the material's own binding.</summary>
-    private void DrawTextureRow(ParticleGroup group, GroupUiState state)
+    private void DrawTextureRow(PropertyTable table, ParticleGroup group, GroupUiState state)
     {
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted("Texture");
-        ImGui.SameLine();
+        table.BeginCell("Texture");
+        // Reserve the trailing browse button so the input fills the rest of the cell.
+        ImGui.SetNextItemWidth(-(ImGui.CalcTextSize("...").X + (ImGui.GetStyle().FramePadding.X * 4f) + ImGui.GetStyle().ItemSpacing.X));
         if (state.TexturePicker.Draw(Context, "##texture", ref state.TexturePath, typeof(Texture2D)))
         {
             state.ReferenceError = string.Empty;
@@ -1063,17 +1126,21 @@ public sealed partial class ParticleEffectDocument
                 }
             }
         }
+        table.EndCell();
     }
 
     /// <summary>The behavior module combo: default, the built-ins and every .slang file stem.</summary>
-    private void DrawBehaviorRow(ParticleGroup group, GroupUiState state)
+    private void DrawBehaviorRow(PropertyTable table, ParticleGroup group, GroupUiState state)
     {
         string currentName = group.Behavior?.Name ?? string.Empty;
         string[] candidates = GetBehaviorCandidates(currentName);
         int currentIndex = currentName.Length == 0 ? 0 : Math.Max(Array.IndexOf(candidates, currentName), 0);
 
-        if (!ImGui.BeginCombo("Behavior", currentIndex == 0 ? "(Default)" : candidates[currentIndex]))
+        table.BeginCell("Behavior");
+        ImGui.SetNextItemWidth(-1f);
+        if (!ImGui.BeginCombo("##value", currentIndex == 0 ? "(Default)" : candidates[currentIndex]))
         {
+            table.EndCell();
             return;
         }
         string? picked = null;
@@ -1090,6 +1157,7 @@ public sealed partial class ParticleEffectDocument
             }
         }
         ImGui.EndCombo();
+        table.EndCell();
 
         if (clear)
         {
@@ -1139,94 +1207,24 @@ public sealed partial class ParticleEffectDocument
     }
 
     /// <summary>An angle range row (degrees in the UI, radians in the asset).</summary>
-    private void DrawAngleRangeRow(int index, string label, ParticleRange radians, Action<ParticleRange> set)
+    private void DrawAngleRangeRow(PropertyTable table, int index, string label, ParticleRange radians, Action<ParticleRange> set)
     {
-        ParticleRange degrees = new(radians.Min * math.RadToDeg, radians.Max * math.RadToDeg);
-        if (DrawRangeRow(label, degrees, out ParticleRange edited, 0.5f))
+        float min = radians.Min * math.RadToDeg;
+        float max = radians.Max * math.RadToDeg;
+        if (table.Range(label, ref min, ref max, 0.5f))
         {
-            set(new ParticleRange(edited.Min * math.DegToRad, edited.Max * math.DegToRad));
+            set(new ParticleRange(min * math.DegToRad, max * math.DegToRad));
             OnLiveEdit(index);
         }
     }
 
-    /// <summary>A labeled float drag row filling the remaining width.</summary>
-    private static bool DragRow(string label, ref float value, float speed, float min = 0f, float max = 0f)
-    {
-        ImGui.SetNextItemWidth(-120f);
-        return ImGui.DragFloat(label, ref value, speed, min, max);
-    }
-
-    /// <summary>A labeled int drag row filling the remaining width.</summary>
-    private static bool DragRow(string label, ref int value, float speed, int min, int max)
-    {
-        ImGui.SetNextItemWidth(-120f);
-        return ImGui.DragInt(label, ref value, speed, min, max);
-    }
-
-    /// <summary>A labeled Vector2 drag row filling the remaining width.</summary>
-    private static bool DragRow(string label, ref Vector2 value, float speed, float min = 0f, float max = 0f)
-    {
-        ImGui.SetNextItemWidth(-120f);
-        return ImGui.DragFloat2(label, ref value, speed, min, max);
-    }
-
-    /// <summary>A labeled Vector3 drag row filling the remaining width.</summary>
-    private static bool DragRow(string label, ref Vector3 value, float speed, float min = 0f, float max = 0f)
-    {
-        ImGui.SetNextItemWidth(-120f);
-        return ImGui.DragFloat3(label, ref value, speed, min, max);
-    }
-
-    /// <summary>A labeled float slider row filling the remaining width.</summary>
-    private static bool SliderRow(string label, ref float value, float min, float max)
-    {
-        ImGui.SetNextItemWidth(-120f);
-        return ImGui.SliderFloat(label, ref value, min, max);
-    }
-
-    /// <summary>A small caption vertically aligned with the following widget, on the same line.</summary>
-    private static void Caption(string text)
-    {
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(text);
-        ImGui.SameLine();
-    }
-
-    /// <summary>A min/max pair of drag fields for a scalar range.</summary>
-    private static bool DrawRangeRow(string label, ParticleRange range, out ParticleRange result, float speed)
+    /// <summary>A scalar range row over a <see cref="ParticleRange"/> value.</summary>
+    private static bool RangeRow(PropertyTable table, string label, ParticleRange range, float speed, out ParticleRange result)
     {
         float min = range.Min;
         float max = range.Max;
-        ImGui.PushID(label);
-        Caption(label);
-        Caption("min");
-        ImGui.SetNextItemWidth(90f);
-        bool changed = ImGui.DragFloat("##min", ref min, speed, 0f, 0f);
-        ImGui.SameLine();
-        Caption("max");
-        ImGui.SetNextItemWidth(90f);
-        changed |= ImGui.DragFloat("##max", ref max, speed, 0f, 0f);
-        ImGui.PopID();
+        bool changed = table.Range(label, ref min, ref max, speed);
         result = new ParticleRange(min, max);
-        return changed;
-    }
-
-    /// <summary>A min/max pair of drag fields for a Vector2 range.</summary>
-    private static bool DrawRangeRow(string label, ParticleVector2Range range, out ParticleVector2Range result, float speed)
-    {
-        Vector2 min = range.Min;
-        Vector2 max = range.Max;
-        ImGui.PushID(label);
-        Caption(label);
-        Caption("min");
-        ImGui.SetNextItemWidth(140f);
-        bool changed = ImGui.DragFloat2("##min", ref min, speed, 0f, 0f);
-        ImGui.SameLine();
-        Caption("max");
-        ImGui.SetNextItemWidth(-1f);
-        changed |= ImGui.DragFloat2("##max", ref max, speed, 0f, 0f);
-        ImGui.PopID();
-        result = new ParticleVector2Range { Min = min, Max = max };
         return changed;
     }
 }
