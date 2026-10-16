@@ -4,7 +4,8 @@ namespace Alco.Editor;
 
 /// <summary>
 /// Base class of an open asset editor tab. One document owns one tab in the document
-/// area's tab bar; the tab label stays stable (<c>name###doc:path</c>). Documents over
+/// area's tab bar; the tab label stays stable (<c>name###doc:path</c>). Its inspector
+/// and per-frame updates remain independent of tab visibility. Documents over
 /// referenced (non-owned) assets are read-only: controls must be disabled and
 /// <see cref="Save"/> refuses to write.
 /// </summary>
@@ -71,10 +72,58 @@ public abstract class AssetDocument : AutoDisposable
     }
 
     /// <summary>Reopens the tab after a close request was vetoed (unsaved-changes prompt).</summary>
-    internal void Reopen() => IsOpen = true;
+    public void Reopen() => IsOpen = true;
+
+    /// <summary>
+    /// Draws the document's independent inspector in the caller's ImGui window.
+    /// Widget IDs are scoped to the asset path and referenced assets cannot be edited.
+    /// </summary>
+    public void DrawInspector()
+    {
+        ImGui.PushID(AssetPath);
+        try
+        {
+            if (IsReadOnly)
+            {
+                ImGui.TextDisabled("Referenced asset — read-only.");
+                ImGui.Separator();
+            }
+            ImGui.BeginDisabled(IsReadOnly);
+            try
+            {
+                DrawInspectorContent();
+            }
+            finally
+            {
+                ImGui.EndDisabled();
+            }
+        }
+        finally
+        {
+            ImGui.PopID();
+        }
+    }
 
     /// <summary>Draws the document's content inside its tab.</summary>
     protected abstract void DrawContent();
+
+    /// <summary>
+    /// Draws the inspector's parameters inside an asset-scoped, read-only-aware UI scope.
+    /// The default implementation has no editable parameters.
+    /// </summary>
+    protected virtual void DrawInspectorContent()
+    {
+        ImGui.TextDisabled("No editable parameters.");
+    }
+
+    /// <summary>
+    /// Updates document state once per frame, even when its tab or inspector is hidden.
+    /// Called by <see cref="DocumentManager.Update"/> after the editor windows are drawn;
+    /// the default implementation does nothing.
+    /// </summary>
+    public virtual void Update()
+    {
+    }
 
     /// <summary>
     /// Saves the document. The base implementation does nothing; editing documents

@@ -49,16 +49,21 @@ public sealed class BuiltInEditorModule : IEditorModule
         {
             Shortcut = "Esc",
         });
-        registry.Menus.AddItem(EditorSystem.WindowMenuTitle + "/Asset Browser", new EditorMenuItem(() =>
-        {
-            EditorSystem shell = registry.Services.Get<EditorSystem>();
-            shell.AssetBrowserOpen = !shell.AssetBrowserOpen;
-        })
-        {
-            IsChecked = () => registry.Services.Get<EditorSystem>().AssetBrowserOpen,
-        });
         registry.Menus.AddItem(EditorSystem.WindowMenuTitle + "/Reset Layout", new EditorMenuItem(
             () => registry.Services.Get<EditorSystem>().RequestResetLayout()));
+
+        registry.Windows.Register(new EditorWindow(EditorSystem.AssetDocumentWindowId, "Asset Document",
+            _ => registry.Services.Get<EditorSystem>().Documents.DrawDocuments()));
+        registry.Windows.Register(new EditorWindow(EditorSystem.AssetBrowserWindowId, "Asset Browser",
+            _ => registry.Services.Get<EditorSystem>().AssetBrowser.DrawContent())
+        {
+            DefaultRegion = EditorDockRegion.Bottom,
+        });
+        registry.Windows.Register(new EditorWindow(EditorSystem.InspectorWindowId, "Inspector",
+            _ => registry.Services.Get<EditorSystem>().Inspector.DrawContent())
+        {
+            DefaultRegion = EditorDockRegion.Right,
+        });
 
         // Asset templates: the particle effect starters.
         registry.AssetTemplates.Register(new ParticleEffect2DTemplate());

@@ -8,7 +8,7 @@ using Alco.Rendering;
 namespace Alco.Editor;
 
 /// <summary>
-/// Texture asset document: a preview pane plus an editor for the texture's
+/// Texture asset document: a preview pane plus an independent inspector for the texture's
 /// <see cref="Texture2DMeta"/> sidecar (<c>&lt;file&gt;.meta</c>) — filter/address modes,
 /// premultiplied alpha, 9-slice padding and sprite rects. The image file itself is
 /// never modified. The preview uses its own <see cref="Texture2D"/> instance (not the
@@ -121,22 +121,25 @@ public sealed class TextureDocument : AssetDocument
         DrawToolbar();
         ImGui.Separator();
 
-        float paramsWidth = 320f;
-        if (ImGui.BeginChild("##preview", new Vector2(-paramsWidth, -1)))
+        if (ImGui.BeginChild("##preview", new Vector2(0, -1)))
         {
             DrawPreview();
         }
         ImGui.EndChild();
+    }
 
-        ImGui.SameLine();
-
-        if (ImGui.BeginChild("##params", new Vector2(0, -1)))
+    /// <inheritdoc/>
+    protected override void DrawInspectorContent()
+    {
+        if (ImGui.Button("Apply to Preview"))
         {
-            ImGui.BeginDisabled(IsReadOnly);
-            DrawParams();
-            ImGui.EndDisabled();
+            RebuildPreview();
         }
-        ImGui.EndChild();
+        if (_previewTexture == null || _previewTexture.IsDisposed)
+        {
+            ImGui.TextDisabled("No preview (decode failed).");
+        }
+        DrawParams();
     }
 
     private void DrawToolbar()
@@ -374,6 +377,7 @@ public sealed class TextureDocument : AssetDocument
         public string Name;
         public int X, Y, Width, Height;
 
+        /// <summary>Creates the editable row from a named sprite rectangle.</summary>
         public SpriteRow(string name, Texture2DMeta.Rect rect)
         {
             Name = name;

@@ -8,11 +8,9 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// The editor shell: main menu bar and a strict two-pane layout — the asset browser on
-/// the left, the document area (a tab bar with one tab per open asset) on the right,
-/// separated by a draggable splitter. The layout is fixed; only the split position and
-/// the browser's visibility can change. While no project is open (an untitled project),
-/// the shell is replaced by the startup screen (<see cref="StartupScreenPanel"/>).
+/// The editor shell: a main menu and a tabbed workspace with top, bottom and right
+/// regions. Registered windows can move between regions independently of document
+/// lifetime. Untitled projects show <see cref="StartupScreenPanel"/> instead.
 /// <para/>
 /// ImGui content is emitted from <see cref="DoUI"/>, which must be called between
 /// <see cref="ImGUISystem"/>'s frame begin and render — that is, from the game update
@@ -21,10 +19,14 @@ namespace Alco.Editor;
 /// </summary>
 public sealed class EditorSystem : BaseEngineSystem
 {
-    private const float DefaultLeftPanelWidth = 280f;
-    private const float MinLeftPanelWidth = 160f;
-    private const float MinDocumentAreaWidth = 240f;
-    private const float SplitterThickness = 6f;
+    /// <summary>The built-in document window's stable registration ID.</summary>
+    public const string AssetDocumentWindowId = "alco.asset-document";
+
+    /// <summary>The built-in browser window's stable registration ID.</summary>
+    public const string AssetBrowserWindowId = "alco.asset-browser";
+
+    /// <summary>The built-in inspector window's stable registration ID.</summary>
+    public const string InspectorWindowId = "alco.inspector";
 
     /// <summary>Editor window title pattern; takes the project name ({0}).</summary>
     public const string WindowTitleFormat = "Alco Editor - {0}";
@@ -50,8 +52,8 @@ public sealed class EditorSystem : BaseEngineSystem
     private readonly RecentProjects _recentProjects;
     private readonly StartupScreenPanel _startupScreen;
 
-    private float _leftPanelWidth = DefaultLeftPanelWidth;
-    private bool _assetBrowserOpen = true;
+    private IntPtr _iniFilename;
+    private bool _disposed;
     private bool _openProjectDialogRequested;
     private bool _openProjectConfirm;
     private string _pendingProjectPath = string.Empty;
@@ -97,6 +99,10 @@ public sealed class EditorSystem : BaseEngineSystem
 
         _documents = new DocumentManager(_context, _registry.Documents);
         _assetBrowser = new AssetBrowserPanel(_context, _documents, _registry.AssetTemplates);
+        Inspector = new InspectorPanel(_documents);
+        Workspace = new EditorWorkspace(_context, _registry.Windows);
+        _registry.Services.Register(Workspace);
+        _documents.DocumentActivated += OnDocumentActivated;
 
         // The opener performs the project's initial asset mount and owns the mounted
         // sources for later project switches.
@@ -119,15 +125,26 @@ public sealed class EditorSystem : BaseEngineSystem
     /// <summary>The manager owning the open asset documents.</summary>
     public DocumentManager Documents => _documents;
 
-    /// <summary>Restores the default panel split (Window &gt; Reset Layout).</summary>
-    public void RequestResetLayout() => _leftPanelWidth = DefaultLeftPanelWidth;
+    /// <summary>The tabbed window workspace and its placement commands.</summary>
+    public EditorWorkspace Workspace { get; }
 
-    /// <summary>Whether the asset browser pane is visible (the Window &gt; Asset Browser toggle).</summary>
+    /// <summary>The browser content hosted by the built-in Asset Browser window.</summary>
+    public AssetBrowserPanel AssetBrowser => _assetBrowser;
+
+    /// <summary>The inspector content hosted by the built-in Inspector window.</summary>
+    public InspectorPanel Inspector { get; }
+
+    /// <summary>Restores default window placements, visibility and region proportions.</summary>
+    public void RequestResetLayout() => Workspace.ResetLayout();
+
+    /// <summary>Whether the Asset Browser window is visible.</summary>
     public bool AssetBrowserOpen
     {
-        get => _assetBrowserOpen;
-        set => _assetBrowserOpen = value;
+        get => Workspace.Layout.TryGetWindow(AssetBrowserWindowId, out EditorWindowPlacement placement) && placement.IsOpen;
+        set => Workspace.TrySetOpen(AssetBrowserWindowId, value);
     }
+
+    private void OnDocumentActivated(AssetDocument document) => Workspace.TryShow(AssetDocumentWindowId);
 
     /// <summary>
     /// Opens another <c>.alco</c> project in this editor session: closes open
@@ -205,37 +222,21 @@ public sealed class EditorSystem : BaseEngineSystem
         ImGui.SetNextWindowPos(viewport.WorkPos, ImGuiCond.Always);
         ImGui.SetNextWindowSize(viewport.WorkSize, ImGuiCond.Always);
 
-        // Borderless host pinned to the work area; all editor UI lives inside it so no
-        // window can be moved, resized or torn off.
+        // Workspace windows stay inside the three regions instead of becoming OS windows.
         const ImGuiWindowFlags hostFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize
             | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoBringToFrontOnFocus
-            | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoDocking;
+            | ImGuiWindowFlags.NoNavFocus | ImGuiWindowFlags.NoDocking
+            | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
 
         bool hostOpen = true;
         if (ImGui.Begin("##editor_host", ref hostOpen, hostFlags))
         {
-            if (_assetBrowserOpen)
-            {
-                if (ImGui.BeginChild("##asset_browser", new Vector2(_leftPanelWidth, 0f), ImGuiChildFlags.Borders))
-                {
-                    _assetBrowser.DrawContent();
-                }
-                ImGui.EndChild();
-
-                ImGui.SameLine(0f, 0f);
-                DrawSplitter();
-                ImGui.SameLine(0f, 0f);
-            }
-
-            if (ImGui.BeginChild("##document_area"))
-            {
-                _documents.DrawDocuments();
-            }
-            ImGui.EndChild();
+            Workspace.Draw();
+            _documents.Update();
         }
         ImGui.End();
 
-        // Floating panels registered by modules draw after the fixed shell layout.
+        // Legacy floating panels remain outside the dockable workspace.
         IReadOnlyList<IEditorPanel> panels = _registry.Panels.Panels;
         for (int i = 0; i < panels.Count; i++)
         {
@@ -244,38 +245,6 @@ public sealed class EditorSystem : BaseEngineSystem
                 panels[i].Draw(_context);
             }
         }
-    }
-
-    /// <summary>Draws the visible, draggable divider between the two panes.</summary>
-    private void DrawSplitter()
-    {
-        ImGui.InvisibleButton("##layout_splitter", new Vector2(SplitterThickness, -1f));
-        bool hovered = ImGui.IsItemHovered();
-        bool active = ImGui.IsItemActive();
-        if (active)
-        {
-            // Left + splitter + remaining = full width; cap the left pane so the
-            // document area always keeps its minimum width.
-            float remaining = ImGui.GetContentRegionAvail().X;
-            float maxLeft = _leftPanelWidth + SplitterThickness + remaining - MinDocumentAreaWidth;
-            _leftPanelWidth = Math.Clamp(
-                _leftPanelWidth + ImGui.GetIO().MouseDelta.X,
-                MinLeftPanelWidth,
-                Math.Max(MinLeftPanelWidth, maxLeft));
-        }
-        if (hovered || active)
-        {
-            ImGui.SetMouseCursor(ImGuiMouseCursor.ResizeEW);
-        }
-
-        // Center line, highlighted while hovered or dragged.
-        Vector2 min = ImGui.GetItemRectMin();
-        Vector2 max = ImGui.GetItemRectMax();
-        float x = MathF.Round((min.X + max.X) * 0.5f) + 0.5f;
-        uint color = ImGui.GetColorU32(active ? ImGuiCol.SeparatorActive
-            : hovered ? ImGuiCol.SeparatorHovered
-            : ImGuiCol.Border);
-        ImGui.GetWindowDrawList().AddLine(new Vector2(x, min.Y), new Vector2(x, max.Y), color, active ? 2f : 1f);
     }
 
     private void DrawMainMenuBar()
@@ -311,9 +280,10 @@ public sealed class EditorSystem : BaseEngineSystem
                 }
             }
 
-            // Floating panels get their toggle items at the end of the Window menu.
             if (menu.Title == WindowMenuTitle)
             {
+                ImGui.Separator();
+                Workspace.DrawWindowMenu();
                 IReadOnlyList<IEditorPanel> panels = _registry.Panels.Panels;
                 for (int j = 0; j < panels.Count; j++)
                 {
@@ -332,16 +302,34 @@ public sealed class EditorSystem : BaseEngineSystem
     }
 
     /// <summary>
-    /// Points ImGui's ini persistence at the project directory so each project keeps its
-    /// own editor layout. The buffer is deliberately never freed: ImGui borrows the
-    /// pointer for the whole context lifetime.
+    /// Points ImGui's auxiliary window settings at the project directory. The shell
+    /// owns the UTF-8 buffer borrowed by ImGui and replaces it on project switches.
     /// </summary>
-    private static unsafe void SetIniFilename(string path)
+    private unsafe void SetIniFilename(string path)
     {
         byte[] utf8 = System.Text.Encoding.UTF8.GetBytes(path + '\0');
         IntPtr ptr = Marshal.AllocHGlobal(utf8.Length);
         Marshal.Copy(utf8, 0, ptr, utf8.Length);
         ImGui.GetIO().NativePtr->IniFilename = (byte*)ptr;
+        Marshal.FreeHGlobal(_iniFilename);
+        _iniFilename = ptr;
+    }
+
+    /// <inheritdoc />
+    public override unsafe void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        _disposed = true;
+        _context.ProjectChanged -= OnProjectChanged;
+        _documents.DocumentActivated -= OnDocumentActivated;
+        Workspace.Dispose();
+        _documents.CloseAll(force: true);
+        ImGui.GetIO().NativePtr->IniFilename = null;
+        Marshal.FreeHGlobal(_iniFilename);
+        _iniFilename = IntPtr.Zero;
     }
 
     /// <summary>

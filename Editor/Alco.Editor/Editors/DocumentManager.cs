@@ -23,6 +23,8 @@ public sealed class DocumentManager
     private AssetDocument? _activeDocument;
     private AssetDocument? _pendingClose;
     private bool _openCloseConfirm;
+    private int _lastTabBarFrame = -1;
+    private uint _lastTabBarId;
 
     /// <summary>Creates the manager over the document factories in <paramref name="registry"/>.</summary>
     public DocumentManager(EditorContext context, DocumentRegistry registry)
@@ -34,13 +36,26 @@ public sealed class DocumentManager
     /// <summary>The currently open documents.</summary>
     public IReadOnlyList<AssetDocument> Documents => _documents;
 
-    /// <summary>The document whose tab is currently selected, null when none is open.</summary>
+    /// <summary>
+    /// The selected document, retained while the document window is hidden; null when
+    /// no document is open. Opening an asset selects it immediately.
+    /// </summary>
     public AssetDocument? ActiveDocument => _activeDocument;
 
-    /// <summary>Raised after a document was opened (not when an existing tab was focused).</summary>
+    /// <summary>Raised after a new document was opened, with <see cref="ActiveDocument"/> already assigned.</summary>
     public event Action<AssetDocument>? DocumentOpened;
 
-    /// <summary>Raised after a document was closed and disposed.</summary>
+    /// <summary>
+    /// Raised by <see cref="Open"/> for both new and already-open documents after
+    /// assigning <see cref="ActiveDocument"/> and requesting tab selection. The host
+    /// can use this notification to reveal the shared asset-document window.
+    /// </summary>
+    public event Action<AssetDocument>? DocumentActivated;
+
+    /// <summary>
+    /// Raised after a document was closed and disposed. <see cref="ActiveDocument"/>
+    /// already refers to a surviving document or null before disposal begins.
+    /// </summary>
     public event Action<AssetDocument>? DocumentClosed;
 
     /// <summary>Returns the open document for <paramref name="assetPath"/>, or null.</summary>
@@ -114,7 +129,9 @@ public sealed class DocumentManager
         AssetDocument? existing = FindOpen(assetPath);
         if (existing != null)
         {
+            _activeDocument = existing;
             _documentToSelect = existing;
+            DocumentActivated?.Invoke(existing);
             return;
         }
 
@@ -132,56 +149,87 @@ public sealed class DocumentManager
         }
 
         _documents.Add(document);
+        _activeDocument = document;
         _documentToSelect = document;
         DocumentOpened?.Invoke(document);
+        DocumentActivated?.Invoke(document);
     }
 
     /// <summary>
-    /// Draws the document-area tab bar with one tab per open document and disposes the
-    /// ones that were closed. Ctrl+S saves the selected document; closing a dirty tab
-    /// asks for confirmation first.
+    /// Draws the shared document window's internal tab bar and closes clean tabs.
+    /// Hidden tabs retain the active document. Dirty close requests are confirmed by
+    /// <see cref="Update"/> independently of the document window's visibility.
     /// </summary>
     public void DrawDocuments()
     {
+        if (_documents.Count == 0)
+        {
+            ImGui.TextDisabled("Double-click an asset in the browser to open it.");
+            return;
+        }
+        uint tabBarId = ImGui.GetID("##document_tabs");
+        if (!ImGui.BeginTabBar("##document_tabs", ImGuiTabBarFlags.Reorderable))
+        {
+            return;
+        }
+
+        int frame = ImGui.GetFrameCount();
+        if (_lastTabBarFrame < frame - 1 || _lastTabBarId != tabBarId)
+        {
+            // The host can hide or relocate the shared document window. Restore its
+            // remembered selection after either a visibility gap or a parent ID change.
+            _documentToSelect ??= _activeDocument;
+        }
+        _lastTabBarFrame = frame;
+        _lastTabBarId = tabBarId;
+
+        for (int i = _documents.Count - 1; i >= 0; i--)
+        {
+            AssetDocument document = _documents[i];
+            bool selected = document.DrawTabItem(document == _documentToSelect);
+            if (selected && (_documentToSelect == null || _documentToSelect == document))
+            {
+                // SetSelected can take effect on the following frame. Do not let
+                // the old visible tab overwrite an explicit activation in between.
+                _activeDocument = document;
+                if (_documentToSelect == document)
+                {
+                    _documentToSelect = null;
+                }
+            }
+            if (document.IsOpen)
+            {
+                continue;
+            }
+            if (document.IsDirty)
+            {
+                document.Reopen();
+                _pendingClose = document;
+                _openCloseConfirm = true;
+                continue;
+            }
+            CloseDocument(document);
+        }
+        ImGui.EndTabBar();
+    }
+
+    /// <summary>
+    /// Updates every open document, handles Ctrl+S once and draws dirty-close
+    /// confirmation. The host must call this once per frame after all editor windows,
+    /// inside the same stable ImGui window and ID scope even when documents are hidden.
+    /// </summary>
+    public void Update()
+    {
+        for (int i = 0; i < _documents.Count; i++)
+        {
+            _documents[i].Update();
+        }
+
         ImGuiIOPtr io = ImGui.GetIO();
         if (io.KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.S, false))
         {
             SaveActive();
         }
-
-        _activeDocument = null;
-        if (_documents.Count == 0)
-        {
-            ImGui.TextDisabled("Double-click an asset in the browser to open it.");
-        }
-        else if (ImGui.BeginTabBar("##document_tabs", ImGuiTabBarFlags.Reorderable))
-        {
-            for (int i = _documents.Count - 1; i >= 0; i--)
-            {
-                AssetDocument document = _documents[i];
-                if (document.DrawTabItem(document == _documentToSelect))
-                {
-                    _activeDocument = document;
-                }
-                if (!document.IsOpen)
-                {
-                    if (document.IsDirty)
-                    {
-                        // Veto the close and ask first (popup drawn below).
-                        document.Reopen();
-                        _pendingClose = document;
-                        _openCloseConfirm = true;
-                    }
-                    else
-                    {
-                        CloseDocument(document);
-                    }
-                }
-            }
-            ImGui.EndTabBar();
-        }
-
-        _documentToSelect = null;
         DrawCloseConfirmPopup();
     }
 
@@ -209,15 +257,25 @@ public sealed class DocumentManager
     /// <summary>Removes, disposes and notifies about a closed document.</summary>
     private void CloseDocument(AssetDocument document)
     {
-        _documents.Remove(document);
-        if (_documentToSelect == document)
+        int index = _documents.IndexOf(document);
+        _documents.RemoveAt(index);
+        if (_activeDocument == document)
         {
-            _documentToSelect = null;
+            _activeDocument = _documents.Count == 0 ? null : _documents[Math.Min(index, _documents.Count - 1)];
+            _documentToSelect = _activeDocument;
+        }
+        else if (_documentToSelect == document)
+        {
+            _documentToSelect = _activeDocument;
         }
         if (_pendingClose == document)
         {
             _pendingClose = null;
+            _openCloseConfirm = false;
         }
+
+        // Inspector and lifecycle subscribers must never observe a disposed active
+        // document, including callbacks run by the document's own Dispose override.
         document.Dispose();
         DocumentClosed?.Invoke(document);
     }

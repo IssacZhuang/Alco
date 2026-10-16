@@ -1,8 +1,9 @@
 namespace Alco.Editor.Extensibility;
 
 /// <summary>
-/// A toggleable floating editor panel. Registered panels appear as checkable items in
-/// the Window menu and are drawn (while open) after the shell's fixed two-pane layout.
+/// A legacy toggleable floating editor panel. Registered panels appear in the Window
+/// menu and draw outside the workspace. Prefer <see cref="IEditorWindow"/> for new
+/// extensions that should participate in region tabs and layout persistence.
 /// </summary>
 public interface IEditorPanel
 {

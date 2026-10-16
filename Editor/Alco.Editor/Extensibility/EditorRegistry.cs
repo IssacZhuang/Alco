@@ -16,6 +16,7 @@ public sealed class EditorRegistry
         Documents = new DocumentRegistry(context);
         Menus = new MenuRegistry();
         Panels = new PanelRegistry();
+        Windows = new WindowRegistry();
         AssetTemplates = new AssetTemplateRegistry();
         MetaTypes = new MetaTypeRegistry();
     }
@@ -32,7 +33,10 @@ public sealed class EditorRegistry
     /// <summary>The main-menu-bar entries.</summary>
     public MenuRegistry Menus { get; }
 
-    /// <summary>The toggleable floating panels.</summary>
+    /// <summary>The dockable windows hosted by the tabbed workspace.</summary>
+    public WindowRegistry Windows { get; }
+
+    /// <summary>The legacy floating panels, drawn outside the workspace.</summary>
     public PanelRegistry Panels { get; }
 
     /// <summary>The templates offered by the asset browser's "new asset" menu.</summary>

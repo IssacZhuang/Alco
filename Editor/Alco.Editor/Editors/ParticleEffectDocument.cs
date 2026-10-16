@@ -8,8 +8,8 @@ using Alco.Effects;
 namespace Alco.Editor;
 
 /// <summary>
-/// Particle effect asset document (<c>.afx</c>): a live preview viewport on the left
-/// and the full group parameter editor on the right, for both 2D and 3D effects.
+/// Particle effect asset document (<c>.afx</c>): a live preview viewport and an
+/// independent inspector with the full group parameter editor, for both 2D and 3D effects.
 /// Edits happen on a detached copy deserialized from the file (the shared asset cache
 /// is never mutated); saving serializes through the particle loader's own JSON options.
 /// <br/>Preview synchronization: fields baked into the GPU parameter record apply
@@ -96,12 +96,16 @@ public sealed partial class ParticleEffectDocument : AssetDocument
     }
 
     /// <inheritdoc/>
+    public override void Update()
+    {
+        TickStructuralRebuild(ImGui.GetIO().DeltaTime);
+    }
+
+    /// <inheritdoc/>
     protected override void DrawContent()
     {
+        // Spacebar restarts the visible preview unless the user is typing in a field.
         ImGuiIOPtr io = ImGui.GetIO();
-        TickStructuralRebuild(io.DeltaTime);
-
-        // Spacebar restarts the preview (unless the user is typing in a field).
         if (!io.WantTextInput && ImGui.IsKeyPressed(ImGuiKey.Space, false))
         {
             _preview.Restart();
@@ -110,22 +114,18 @@ public sealed partial class ParticleEffectDocument : AssetDocument
         DrawToolbar();
         ImGui.Separator();
 
-        const float paramsWidth = 420f;
-        if (ImGui.BeginChild("##preview", new Vector2(-paramsWidth, -1)))
+        if (ImGui.BeginChild("##preview", new Vector2(0, -1)))
         {
             _preview.Draw();
         }
         ImGui.EndChild();
+    }
 
-        ImGui.SameLine();
-
-        if (ImGui.BeginChild("##params", new Vector2(0, -1)))
-        {
-            ImGui.BeginDisabled(IsReadOnly);
-            DrawParams();
-            ImGui.EndDisabled();
-        }
-        ImGui.EndChild();
+    /// <inheritdoc/>
+    protected override void DrawInspectorContent()
+    {
+        DrawError();
+        DrawParams();
     }
 
     /// <summary>The save button plus the document-level error text.</summary>
@@ -141,10 +141,18 @@ public sealed partial class ParticleEffectDocument : AssetDocument
         ImGui.SameLine();
         ImGui.TextUnformatted(IsDirty ? "(modified)" : string.Empty);
 
+        if (_saveError.Length > 0 || _roundtripError.Length > 0)
+        {
+            ImGui.SameLine();
+            DrawError();
+        }
+    }
+
+    private void DrawError()
+    {
         string error = _saveError.Length > 0 ? _saveError : _roundtripError;
         if (error.Length > 0)
         {
-            ImGui.SameLine();
             ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), error);
         }
     }
@@ -246,6 +254,7 @@ public sealed partial class ParticleEffectDocument : AssetDocument
             _document = document;
         }
 
+        /// <summary>Returns the current preview camera mode and its dimension-specific parameters.</summary>
         [AgentFunction]
         [Description("Returns the particle effect preview camera state: the mode (2D/3D), and for 2D the zoom (1 = default, smaller zooms in) and view center, for 3D the orbit yaw/pitch (radians), distance and target.")]
         public string GetParticlePreviewCamera()
@@ -259,6 +268,7 @@ public sealed partial class ParticleEffectDocument : AssetDocument
             return $"mode: 2D | zoom: {zoom:0.###} | center: ({center.X:0.###}, {center.Y:0.###})";
         }
 
+        /// <summary>Changes the preview camera parameters, preserving values omitted by the caller.</summary>
         [AgentFunction]
         [Description("Sets the particle effect preview camera. 2D effects accept zoom (1 = default, smaller zooms in) and centerX/centerY; 3D effects accept yaw/pitch (radians), distance and targetX/Y/Z. Omitted parameters keep their current values.")]
         public string SetParticlePreviewCamera(

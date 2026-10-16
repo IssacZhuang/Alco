@@ -28,6 +28,7 @@ public sealed class EditorBaseTools
         _editor = editor;
     }
 
+    /// <summary>Opens an asset document or activates its existing tab.</summary>
     [AgentFunction]
     [Description("Opens an asset as an editor document tab (or focuses it when already open). Unknown extensions open in a read-only info view. Referenced assets open read-only.")]
     public string OpenAsset(
@@ -49,6 +50,7 @@ public sealed class EditorBaseTools
             : $"opened {document.AssetPath} ({document.GetType().Name}{(document.IsReadOnly ? ", read-only" : string.Empty)})";
     }
 
+    /// <summary>Closes an asset document and discards its unsaved changes.</summary>
     [AgentFunction]
     [Description("Closes the editor document tab of an open asset. Unsaved changes are discarded.")]
     public string CloseAsset(
@@ -59,6 +61,7 @@ public sealed class EditorBaseTools
             : $"error: no open document for {path}";
     }
 
+    /// <summary>Saves an open asset when it belongs to the editable project.</summary>
     [AgentFunction]
     [Description("Saves the editor document of an open asset. Documents of referenced (read-only) assets cannot be saved.")]
     public string SaveAsset(
@@ -79,6 +82,7 @@ public sealed class EditorBaseTools
             : $"error: failed to save {path}";
     }
 
+    /// <summary>Lists matching assets and their ownership, excluding metadata sidecars.</summary>
     [AgentFunction]
     [Description("Lists the project's assets (sidecar .meta files excluded), each tagged as owned (editable) or referenced (read-only).")]
     public string ListAssets(
@@ -122,6 +126,7 @@ public sealed class EditorBaseTools
         return builder.ToString();
     }
 
+    /// <summary>Lists open documents and their unsaved and read-only states.</summary>
     [AgentFunction]
     [Description("Lists the currently open asset documents with their dirty and read-only state.")]
     public string ListOpenDocuments()
@@ -149,14 +154,16 @@ public sealed class EditorBaseTools
         return builder.ToString();
     }
 
+    /// <summary>Restores default window visibility, placement and region proportions.</summary>
     [AgentFunction]
-    [Description("Restores the editor's default panel split (asset browser left, documents right).")]
+    [Description("Restores the default three-region workspace: Asset Document at the top, Asset Browser at the bottom, Inspector on the right. Reopens default windows and resets splitter sizes.")]
     public string ResetLayout()
     {
         _editor.RequestResetLayout();
         return "layout reset scheduled";
     }
 
+    /// <summary>Switches projects when loading and unsaved-document checks succeed.</summary>
     [AgentFunction]
     [Description("Opens a different Alco project in the editor, replacing the currently open one: all open asset documents are closed, the project's asset roots are remounted, and ListAssets/GetProjectInfo afterwards reflect the new project.")]
     public string OpenProject(
@@ -172,6 +179,7 @@ public sealed class EditorBaseTools
             : $"error: {error}";
     }
 
+    /// <summary>Returns the current project's identity and asset mount configuration.</summary>
     [AgentFunction]
     [Description("Describes the open Alco project: name, directories, owned asset roots and referenced asset entries.")]
     public string GetProjectInfo()

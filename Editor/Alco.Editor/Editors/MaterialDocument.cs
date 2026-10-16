@@ -8,8 +8,8 @@ namespace Alco.Editor;
 
 /// <summary>
 /// Material asset document (<c>.amat</c>): a preview pane (the material's bound
-/// textures; a surface-accurate compiled preview is a planned follow-up) plus a
-/// parameters pane editing the name, texture slots and <see cref="ShaderValue"/>
+/// textures; a surface-accurate compiled preview is a planned follow-up) plus an
+/// independent inspector editing the name, texture slots and <see cref="ShaderValue"/>
 /// parameter table. When the material names a surface, its texture slots and
 /// parameter rows come from the surface's shader reflection (fixed names and types —
 /// nothing to type in); materials without a surface keep free-form rows.
@@ -305,22 +305,18 @@ public sealed class MaterialDocument : AssetDocument
         DrawToolbar();
         ImGui.Separator();
 
-        float paramsWidth = 380f;
-        if (ImGui.BeginChild("##preview", new Vector2(-paramsWidth, -1)))
+        if (ImGui.BeginChild("##preview", new Vector2(0, -1)))
         {
             DrawPreview();
         }
         ImGui.EndChild();
+    }
 
-        ImGui.SameLine();
-
-        if (ImGui.BeginChild("##params", new Vector2(0, -1)))
-        {
-            ImGui.BeginDisabled(IsReadOnly);
-            DrawParams();
-            ImGui.EndDisabled();
-        }
-        ImGui.EndChild();
+    /// <inheritdoc/>
+    protected override void DrawInspectorContent()
+    {
+        DrawSaveError();
+        DrawParams();
     }
 
     private void DrawToolbar()
@@ -338,6 +334,14 @@ public sealed class MaterialDocument : AssetDocument
         if (_saveError.Length > 0)
         {
             ImGui.SameLine();
+            DrawSaveError();
+        }
+    }
+
+    private void DrawSaveError()
+    {
+        if (_saveError.Length > 0)
+        {
             ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), _saveError);
         }
     }
@@ -374,7 +378,7 @@ public sealed class MaterialDocument : AssetDocument
     {
         ImGui.SeparatorText("Material");
 
-        ImGui.SetNextItemWidth(-1f);
+        ImGui.SetNextItemWidth(-ImGui.CalcTextSize("Name").X - ImGui.GetStyle().ItemInnerSpacing.X);
         if (ImGui.InputText("Name", ref _name, 128))
         {
             MarkDirty();
@@ -679,6 +683,7 @@ public sealed class MaterialDocument : AssetDocument
         /// <summary>Pickers must be one instance per field so each keeps its own popup state.</summary>
         public readonly AssetPicker PathPicker = new();
 
+        /// <summary>Creates a texture-slot row with an optional resolved preview texture.</summary>
         public TextureSlotRow(string slot, Texture2D? texture)
         {
             Slot = slot;
@@ -686,6 +691,7 @@ public sealed class MaterialDocument : AssetDocument
             Texture = texture;
         }
 
+        /// <summary>Refreshes the resolved preview texture from the current asset path.</summary>
         public void RefreshTexture(EditorContext context)
         {
             string path = Path.Trim();
@@ -720,6 +726,7 @@ public sealed class MaterialDocument : AssetDocument
         /// <summary>The reflected slang type spelling, shown as a tooltip (reflected rows only).</summary>
         public string? TypeHint;
 
+        /// <summary>Creates an editable material parameter row.</summary>
         public ParameterRow(string name, ShaderValue value)
         {
             Name = name;

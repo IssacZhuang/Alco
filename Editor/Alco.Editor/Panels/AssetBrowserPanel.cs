@@ -5,7 +5,7 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// The asset browser panel (fixed left pane): a directory tree over every file the
+/// The dockable asset browser content: a directory tree over every file the
 /// asset system serves (owned roots and referenced entries merged), with read-only
 /// markers for referenced assets. Double-clicking a file opens it as a document tab,
 /// and files can be dragged onto widgets accepting <see cref="EditorDragDrop.AssetPayload"/>.
@@ -31,7 +31,7 @@ public sealed class AssetBrowserPanel
         _templates = templates;
     }
 
-    /// <summary>Draws the panel content inside the left pane's child region.</summary>
+    /// <summary>Draws the panel content inside its selected workspace tab.</summary>
     public void DrawContent()
     {
         DrawToolbar();
