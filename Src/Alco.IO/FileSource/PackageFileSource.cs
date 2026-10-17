@@ -99,12 +99,14 @@ public sealed class PackageFileSource<TMeta> : AutoDisposable, IFileSource where
     /// <summary>
     /// Opens a package file from disk.
     /// </summary>
-    public PackageFileSource(string packagePath)
+    /// <param name="packagePath">Package file path</param>
+    /// <param name="encryptionKey">Master key for encrypted packages; ignored for plaintext packages</param>
+    public PackageFileSource(string packagePath, byte[]? encryptionKey = null)
     {
         Name = packagePath;
         try
         {
-            _reader = PackageReader<TMeta>.OpenFile(packagePath);
+            _reader = PackageReader<TMeta>.OpenFile(packagePath, encryptionKey);
         }
         catch (Exception ex)
         {
@@ -115,7 +117,10 @@ public sealed class PackageFileSource<TMeta> : AutoDisposable, IFileSource where
     /// <summary>
     /// Opens a package from a stream by buffering it into memory.
     /// </summary>
-    public PackageFileSource(Stream stream, string name = "unnamed_package_stream")
+    /// <param name="stream">Seekable read stream positioned at the package start</param>
+    /// <param name="name">Label used in diagnostics</param>
+    /// <param name="encryptionKey">Master key for encrypted packages; ignored for plaintext packages</param>
+    public PackageFileSource(Stream stream, string name = "unnamed_package_stream", byte[]? encryptionKey = null)
     {
         Name = name;
         try
@@ -123,7 +128,7 @@ public sealed class PackageFileSource<TMeta> : AutoDisposable, IFileSource where
             using var ms = new MemoryStream();
             stream.CopyTo(ms);
             byte[] bytes = ms.ToArray();
-            _reader = PackageReader<TMeta>.OpenMemory(bytes);
+            _reader = PackageReader<TMeta>.OpenMemory(bytes, encryptionKey);
         }
         catch (Exception ex)
         {

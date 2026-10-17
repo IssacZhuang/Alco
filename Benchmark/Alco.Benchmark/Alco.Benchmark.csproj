@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\Benchmark\BenchmarkFramework\BenchmarkFramework.csproj" />
 
     <ProjectReference Include="..\..\Src\Alco\Alco.csproj" />
+    <ProjectReference Include="..\..\Src\Alco.IO\Alco.IO.csproj" />
     <ProjectReference Include="..\..\Src\Alco.Rendering\Alco.Rendering.csproj" />
   </ItemGroup>
 

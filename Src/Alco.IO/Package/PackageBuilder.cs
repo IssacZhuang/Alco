@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.IO;
+using System.Security.Cryptography;
 
 using Alco;
 
@@ -23,6 +24,13 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
     /// to carry type-specific fields (e.g. a save's player name and timestamp).
     /// </summary>
     public TMeta? Meta { get; set; }
+
+    /// <summary>
+    /// Master key for optional AES-256-GCM encryption (v2 format). When <see langword="null"/>
+    /// (default) the package is written unencrypted (v1 format). Must be exactly 32 bytes.
+    /// A fresh random salt is generated per build, so encrypted output is non-deterministic.
+    /// </summary>
+    public byte[]? EncryptionKey { get; set; }
 
     /// <summary>
     /// Content-relative alignment in bytes applied to the start of every entry (each entry is
@@ -94,33 +102,23 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
     /// <summary>
     /// Builds the package bytes:
     /// [<see cref="IPackageMeta.Magic"/>][meta length (Int64 LE)][meta payload][content payload].
-    /// Entries are padded to <see cref="EntryAlignment"/> (content-relative).
+    /// Entries are padded to <see cref="EntryAlignment"/> (content-relative). When
+    /// <see cref="EncryptionKey"/> is set, the meta payload is a single AEAD blob and each entry
+    /// is stored as encrypted 64 KiB chunks (see <c>PackageFormat.md</c>).
     /// </summary>
     /// <returns>Package bytes</returns>
     public byte[] Build()
     {
-        (TMeta meta, ReadOnlyMemory<byte> metaBytes, long totalContentLength) = PrepareBuild();
+        using PreparedPackage prepared = PrepareBuild();
 
-        int finalLength = checked((int)(12L + metaBytes.Length + totalContentLength));
+        int finalLength = checked((int)(12L + prepared.SectionLength + prepared.TotalStoredLength));
         byte[] package = new byte[finalLength];
-
-        TMeta.Magic.CopyTo(package.AsSpan(0, 4));
-
-        BinaryPrimitives.WriteInt64LittleEndian(package.AsSpan(4, 8), metaBytes.Length);
-
-        metaBytes.Span.CopyTo(package.AsSpan(12));
-
-        int cursor = 12 + metaBytes.Length;
-        foreach (string name in _order)
+        int cursor = 0;
+        WritePackage(prepared, data =>
         {
-            if (!_nameToBytes.TryGetValue(name, out byte[]? bytes))
-            {
-                continue;
-            }
-
-            Buffer.BlockCopy(bytes, 0, package, cursor, bytes.Length);
-            cursor += AlignUp(bytes.Length, _entryAlignment);
-        }
+            data.CopyTo(package.AsSpan(cursor));
+            cursor += data.Length;
+        });
 
         return package;
     }
@@ -136,44 +134,109 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
     {
         ArgumentNullException.ThrowIfNull(output);
 
-        (TMeta meta, ReadOnlyMemory<byte> metaBytes, long _) = PrepareBuild();
+        using PreparedPackage prepared = PrepareBuild();
+        WritePackage(prepared, output.Write);
+    }
 
+    /// <summary>Writes the header, meta section, and every entry's content through <paramref name="write"/>.</summary>
+    private void WritePackage(PreparedPackage prepared, PackageWriter write)
+    {
         Span<byte> header = stackalloc byte[12];
         TMeta.Magic.CopyTo(header[..4]);
-        BinaryPrimitives.WriteInt64LittleEndian(header.Slice(4, 8), metaBytes.Length);
-        output.Write(header);
+        long headerLength = prepared.Cipher != null
+            ? unchecked((long)((ulong)prepared.SectionLength | 0x8000_0000_0000_0000UL))
+            : prepared.SectionLength;
+        BinaryPrimitives.WriteInt64LittleEndian(header.Slice(4, 8), headerLength);
+        write(header);
 
-        output.Write(metaBytes.Span);
+        if (prepared.Cipher == null)
+        {
+            write(prepared.MetaBytes.Span);
+        }
+        else
+        {
+            write(prepared.Salt!);
+            write(prepared.EncryptedMeta!);
+        }
 
         byte[] padding = new byte[Math.Max(0, _entryAlignment - 1)];
-        foreach (string name in _order)
+        byte[]? chunkCiphertext = prepared.Cipher != null ? new byte[PackageCipher.ChunkSize] : null;
+        byte[]? chunkTag = prepared.Cipher != null ? new byte[PackageCipher.TagSize] : null;
+
+        for (int i = 0; i < _order.Count; i++)
         {
-            if (!_nameToBytes.TryGetValue(name, out byte[]? bytes))
+            if (!_nameToBytes.TryGetValue(_order[i], out byte[]? bytes))
             {
-                continue;
+                continue; // Should not happen, but tolerate
             }
 
-            output.Write(bytes);
+            long storedLength;
+            if (prepared.Cipher == null)
+            {
+                write(bytes);
+                storedLength = bytes.Length;
+            }
+            else
+            {
+                storedLength = WriteEncryptedEntry(prepared, i, bytes, chunkCiphertext!, chunkTag!, write);
+            }
 
-            int pad = AlignUp(bytes.Length, _entryAlignment) - bytes.Length;
+            int pad = AlignUp((int)storedLength, _entryAlignment) - (int)storedLength;
             if (pad > 0)
             {
-                output.Write(padding.AsSpan(0, pad));
+                write(padding.AsSpan(0, pad));
             }
         }
     }
 
     /// <summary>
-    /// Compute entry offsets (content-relative, honoring <see cref="EntryAlignment"/>) and
-    /// encode the meta payload. Shared by both Build overloads.
+    /// Writes one entry as consecutive AEAD chunks (ciphertext then tag per chunk) and returns
+    /// the entry's stored byte length.
     /// </summary>
-    private (TMeta Meta, ReadOnlyMemory<byte> MetaBytes, long TotalContentLength) PrepareBuild()
+    private long WriteEncryptedEntry(
+        PreparedPackage prepared,
+        int entryIndex,
+        byte[] bytes,
+        byte[] chunkCiphertext,
+        byte[] chunkTag,
+        PackageWriter write)
     {
+        long entryStart = prepared.Meta.Entries[entryIndex].Start;
+        int offset = 0;
+        int chunkIndex = 0;
+        while (offset < bytes.Length)
+        {
+            int chunkLength = Math.Min(PackageCipher.ChunkSize, bytes.Length - offset);
+            prepared.Cipher!.EncryptChunk(entryStart, chunkIndex, bytes.AsSpan(offset, chunkLength),
+                chunkCiphertext.AsSpan(0, chunkLength), chunkTag);
+            write(chunkCiphertext.AsSpan(0, chunkLength));
+            write(chunkTag);
+            offset += chunkLength;
+            chunkIndex++;
+        }
+
+        return PackageCipher.StoredEntryLength(bytes.Length);
+    }
+
+    /// <summary>
+    /// Compute entry offsets (content-relative, honoring <see cref="EntryAlignment"/> and, when
+    /// encrypting, the per-chunk tag overhead), encode the meta payload, and derive the cipher.
+    /// Shared by both Build overloads.
+    /// </summary>
+    private PreparedPackage PrepareBuild()
+    {
+        byte[]? encryptionKey = EncryptionKey;
+        if (encryptionKey != null && encryptionKey.Length != PackageCipher.KeySize)
+        {
+            throw new InvalidOperationException(
+                $"EncryptionKey must be exactly {PackageCipher.KeySize} bytes, got {encryptionKey.Length}.");
+        }
+
         TMeta meta = Meta ?? new TMeta();
         meta.ClearEntries();
 
         long runningOffset = 0;
-        long totalContentLength = 0;
+        long totalStoredLength = 0;
         foreach (string name in _order)
         {
             if (!_nameToBytes.TryGetValue(name, out byte[]? bytes))
@@ -181,14 +244,16 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
                 continue; // Should not happen, but tolerate
             }
 
-            int size = bytes.Length;
-            meta.AddEntry(name, runningOffset, size);
-            int paddedSize = AlignUp(size, _entryAlignment);
-            runningOffset += paddedSize;
-            totalContentLength += paddedSize;
+            int storedLength = (int)(encryptionKey != null
+                ? PackageCipher.StoredEntryLength(bytes.Length)
+                : bytes.Length);
+            int paddedLength = AlignUp(storedLength, _entryAlignment);
+            meta.AddEntry(name, runningOffset, bytes.Length);
+            runningOffset += paddedLength;
+            totalStoredLength += paddedLength;
         }
 
-        if (totalContentLength > int.MaxValue)
+        if (totalStoredLength > int.MaxValue)
         {
             throw new InvalidOperationException("Content payload too large.");
         }
@@ -199,7 +264,31 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
             throw new InvalidOperationException("Meta payload too large.");
         }
 
-        return (meta, metaBytes, totalContentLength);
+        if (encryptionKey == null)
+        {
+            return new PreparedPackage
+            {
+                Meta = meta,
+                MetaBytes = metaBytes,
+                Salt = null,
+                EncryptedMeta = null,
+                Cipher = null,
+                TotalStoredLength = totalStoredLength,
+            };
+        }
+
+        byte[] salt = RandomNumberGenerator.GetBytes(PackageCipher.SaltSize);
+        PackageCipher cipher = PackageCipher.Create(encryptionKey, salt);
+        byte[] encryptedMeta = cipher.EncryptMeta(metaBytes.Span);
+        return new PreparedPackage
+        {
+            Meta = meta,
+            MetaBytes = metaBytes,
+            Salt = salt,
+            EncryptedMeta = encryptedMeta,
+            Cipher = cipher,
+            TotalStoredLength = totalStoredLength,
+        };
     }
 
     private int AlignUp(int value, int alignment)
@@ -211,7 +300,10 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
     /// Packs every file under <paramref name="directory"/> (recursively, entry names relative to
     /// the directory with <c>/</c> separators) into a package at <paramref name="packagePath"/>.
     /// </summary>
-    public static void PackDirectory(string directory, string packagePath)
+    /// <param name="directory">Source directory</param>
+    /// <param name="packagePath">Output package path</param>
+    /// <param name="encryptionKey">Optional 32-byte master key; when set the package is AES-256-GCM encrypted</param>
+    public static void PackDirectory(string directory, string packagePath, byte[]? encryptionKey = null)
     {
         if (string.IsNullOrEmpty(directory))
         {
@@ -230,7 +322,7 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
         string[] files = Directory.GetFiles(directory, "*", SearchOption.AllDirectories);
         Array.Sort(files, StringComparer.Ordinal);
 
-        var builder = new PackageBuilder<TMeta>();
+        var builder = new PackageBuilder<TMeta> { EncryptionKey = encryptionKey };
         foreach (string file in files)
         {
             // Compute entry name relative to root and normalize separators to '/'
@@ -249,5 +341,38 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
             Directory.CreateDirectory(outDir);
         }
         File.WriteAllBytes(packagePath, package);
+    }
+
+    private delegate void PackageWriter(ReadOnlySpan<byte> data);
+
+    /// <summary>Header/meta payloads and cipher state computed once per build, shared by both Build overloads.</summary>
+    private sealed class PreparedPackage : IDisposable
+    {
+        public required TMeta Meta { get; init; }
+
+        /// <summary>Plaintext meta payload (written in v1 packages).</summary>
+        public required ReadOnlyMemory<byte> MetaBytes { get; init; }
+
+        /// <summary>Per-package random salt (v2 only).</summary>
+        public required byte[]? Salt { get; init; }
+
+        /// <summary>Encrypted meta as <c>ciphertext || tag</c> (v2 only).</summary>
+        public required byte[]? EncryptedMeta { get; init; }
+
+        /// <summary>Package cipher (v2 only); owns the AesGcm instances for this build.</summary>
+        public required PackageCipher? Cipher { get; init; }
+
+        /// <summary>Total content-payload bytes including per-entry alignment padding.</summary>
+        public required long TotalStoredLength { get; init; }
+
+        /// <summary>Bytes covered by the header length field: meta payload (v1) or salt + encrypted meta (v2).</summary>
+        public long SectionLength => Cipher != null
+            ? PackageCipher.SaltSize + EncryptedMeta!.Length
+            : MetaBytes.Length;
+
+        public void Dispose()
+        {
+            Cipher?.Dispose();
+        }
     }
 }
