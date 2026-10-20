@@ -19,32 +19,37 @@ namespace Alco.Rendering;
 /// only as long as the caller holds a reference to it, and a collected or disposed
 /// texture is re-rasterized on the next request. A cache hit hashes the document and
 /// resolves the weak reference without any allocation — parsing, geometry and GPU work
-/// happen on the first request only. Cache lookups are safe from any thread; the
-/// rasterization itself is serialized internally. The returned textures are owned by
-/// the callers — disposing the renderer does not invalidate them.
+/// happen on the first request only. All members are safe to call from any number of
+/// threads: concurrent requests for the same cache key are deduplicated into a single
+/// rasterization whose texture every waiter reuses, at most
+/// <see cref="MaxConcurrentRasterizations"/> rasterizations execute at once (excess
+/// requests queue for a slot instead of allocating more GPU state), and each execution
+/// borrows a pooled command buffer, material and buffer set that are reused across
+/// rasterizations. The returned textures are owned by the callers — disposing the
+/// renderer does not invalidate them, but callers must let in-flight rasterizations
+/// finish before disposing the renderer.
 /// </remarks>
 public sealed class SvgRenderer : AutoDisposable
 {
     /// <summary>The largest texture edge the renderer produces.</summary>
     public const uint MaxTextureSize = 4096;
 
-    private const int InitialBufferCapacity = 1024;
+    /// <summary>
+    /// Gets the maximum number of rasterizations that execute concurrently; requests
+    /// beyond the limit wait for a free slot instead of creating additional GPU
+    /// command buffers and upload buffers.
+    /// </summary>
+    public static int MaxConcurrentRasterizations => Environment.ProcessorCount;
+
     private const int SweepInterval = 64;
 
     private readonly RenderingSystem _renderingSystem;
     private readonly GPUDevice _device;
-    private readonly GPUCommandBuffer _commandBuffer;
-    private readonly ComputeMaterial _material;
-
-    private GraphicsArrayBuffer<Vector4> _edges = null!;
-    private GraphicsArrayBuffer<Vector4> _shapeBboxes = null!;
-    private GraphicsArrayBuffer<uint4> _shapeMeta = null!;
-    private GraphicsArrayBuffer<Vector4> _shapeColors = null!;
-    private GraphicsArrayBuffer<Vector4> _gradientXforms = null!;
-    private GraphicsArrayBuffer<Vector4> _gradientRamps = null!;
-
-    private readonly object _rasterizeLock = new();
+    private readonly Shader _shader;
+    private readonly ConcurrentPool<RasterContext> _contextPool;
+    private readonly SemaphoreSlim _rasterizeSlots = new(MaxConcurrentRasterizations, MaxConcurrentRasterizations);
     private readonly ConcurrentDictionary<CacheKey, WeakReference<Texture2D>> _cache = new();
+    private readonly ConcurrentDictionary<CacheKey, TaskCompletionSource<Texture2D?>> _inFlight = new();
     private int _addsSinceSweep;
 
     private readonly record struct CacheKey(ulong Hash, uint Width, uint Height);
@@ -66,22 +71,11 @@ public sealed class SvgRenderer : AutoDisposable
     {
         _renderingSystem = renderingSystem;
         _device = renderingSystem.GraphicsDevice;
-        _commandBuffer = _device.CreateCommandBuffer("svg_rasterize_command_buffer");
-        _material = renderingSystem.CreateComputeMaterial(shader);
-
-        _edges = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(InitialBufferCapacity, "svg_edges");
-        _shapeBboxes = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(64, "svg_shape_bboxes");
-        _shapeMeta = renderingSystem.CreateGraphicsArrayBuffer<uint4>(64, "svg_shape_meta");
-        _shapeColors = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(64, "svg_shape_colors");
-        _gradientXforms = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(32, "svg_gradient_xforms");
-        _gradientRamps = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(4096, "svg_gradient_ramps");
-
-        _material.TrySetBuffer(ShaderResourceId.SvgEdges, _edges);
-        _material.TrySetBuffer(ShaderResourceId.SvgBboxes, _shapeBboxes);
-        _material.TrySetBuffer(ShaderResourceId.SvgMeta, _shapeMeta);
-        _material.TrySetBuffer(ShaderResourceId.SvgColors, _shapeColors);
-        _material.TrySetBuffer(ShaderResourceId.SvgGradientXforms, _gradientXforms);
-        _material.TrySetBuffer(ShaderResourceId.SvgRamps, _gradientRamps);
+        _shader = shader;
+        _contextPool = new ConcurrentPool<RasterContext>(CreateContext);
+        // Warm the shader caches and keep one context ready so the first rasterization
+        // does not pay the pipeline and bind-group setup cost.
+        _contextPool.Return(_contextPool.Get());
     }
 
     /// <summary>
@@ -157,17 +151,102 @@ public sealed class SvgRenderer : AutoDisposable
             hash,
             requestedWidth == 0 ? 0 : Math.Clamp(requestedWidth, 1u, MaxTextureSize),
             requestedHeight == 0 ? 0 : Math.Clamp(requestedHeight, 1u, MaxTextureSize));
+
+        while (true)
+        {
+            if (TryGetLiveTexture(key, out texture))
+            {
+                return true;
+            }
+
+            // Single flight: the thread that installs the completion source rasterizes
+            // for every waiter of the same key; the others wait for and reuse its
+            // texture instead of duplicating the parse, geometry and GPU work.
+            TaskCompletionSource<Texture2D?> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (!_inFlight.TryAdd(key, completion))
+            {
+                if (!_inFlight.TryGetValue(key, out TaskCompletionSource<Texture2D?>? existing))
+                {
+                    // The entry completed and was removed before the lookup: retry,
+                    // the cache probe runs first.
+                    continue;
+                }
+
+                Texture2D? winner = existing.Task.GetAwaiter().GetResult();
+                if (winner == null)
+                {
+                    // The winner rejected the document: propagate the parse failure.
+                    texture = null;
+                    return false;
+                }
+                if (!winner.IsDisposed)
+                {
+                    texture = winner;
+                    return true;
+                }
+                // The winner's texture died immediately: fall through and retry.
+                continue;
+            }
+
+            // This thread owns the rasterization and completes the in-flight entry on
+            // every path, so the try/finally pair below never leaves waiters hanging.
+            try
+            {
+                // Re-check the cache: an intrinsic-size rasterization of the same
+                // document may have stored this exact key while the race was ongoing.
+                if (TryGetLiveTexture(key, out texture))
+                {
+                    completion.TrySetResult(texture);
+                    return true;
+                }
+
+                // Bound concurrent rasterizations: waiting here defers to the active
+                // executions instead of growing the context pool.
+                _rasterizeSlots.Wait();
+                try
+                {
+                    texture = RasterizeUncached(svg, hash, key);
+                    completion.TrySetResult(texture);
+                    return texture != null;
+                }
+                finally
+                {
+                    _rasterizeSlots.Release();
+                }
+            }
+            catch (Exception error)
+            {
+                completion.TrySetException(error);
+                throw;
+            }
+            finally
+            {
+                _inFlight.TryRemove(key, out _);
+            }
+        }
+    }
+
+    /// <summary>Resolves a cache entry that still points at a live texture.</summary>
+    private bool TryGetLiveTexture(CacheKey key, out Texture2D? texture)
+    {
         if (_cache.TryGetValue(key, out WeakReference<Texture2D>? cached) &&
             cached.TryGetTarget(out Texture2D? alive) && !alive.IsDisposed)
         {
             texture = alive;
             return true;
         }
+        texture = null;
+        return false;
+    }
 
+    /// <summary>Runs the cache-miss path: parse, geometry build, GPU dispatch and
+    /// cache store. Returns null when the document fails to parse. Must run under a
+    /// rasterization slot.</summary>
+    private Texture2D? RasterizeUncached(string svg, ulong hash, CacheKey key)
+    {
         if (!NanoSvg.TryParse(svg, out NanoSvgImage? image) || image == null)
         {
-            texture = null;
-            return false;
+            return null;
         }
 
         uint width = key.Width;
@@ -200,8 +279,7 @@ public sealed class SvgRenderer : AutoDisposable
         }
         MaybeSweep();
 
-        texture = result;
-        return true;
+        return result;
     }
 
     private static uint ClampSize(float value)
@@ -213,74 +291,37 @@ public sealed class SvgRenderer : AutoDisposable
         return Math.Clamp((uint)MathF.Round(value), 1u, MaxTextureSize);
     }
 
-    /// <summary>Uploads the payload and dispatches the rasterizer; queue operations on
-    /// the device are not thread safe, so the whole recording runs under a lock.</summary>
+    /// <summary>Uploads the payload and dispatches the rasterizer on a pooled context.
+    /// Recording runs without an engine-side lock: queue buffer writes and distinct
+    /// command buffers are concurrency-safe per the device contract, and the device
+    /// serializes the native submit internally.</summary>
     private void Rasterize(SvgRasterizeData data, Texture2D texture)
     {
-        lock (_rasterizeLock)
+        RasterContext context = _contextPool.Get();
+        try
         {
-            EnsureBufferCapacity(data);
+            context.EnsureCapacity(data);
+            context.Upload(data);
 
-            UploadBuffer(_edges, CollectionsMarshal.AsSpan(data.Edges));
-            UploadBuffer(_shapeBboxes, CollectionsMarshal.AsSpan(data.ShapeBboxes));
-            UploadBuffer(_shapeMeta, CollectionsMarshal.AsSpan(data.ShapeMeta));
-            UploadBuffer(_shapeColors, CollectionsMarshal.AsSpan(data.ShapeColors));
-            UploadBuffer(_gradientXforms, CollectionsMarshal.AsSpan(data.GradientXforms));
-            UploadBuffer(_gradientRamps, CollectionsMarshal.AsSpan(data.GradientRamps));
-
-            _material.SetTexture2DStorage(ShaderResourceId.Output, texture, 0);
-
+            context.Material.SetTexture2DStorage(ShaderResourceId.Output, texture, 0);
             PushConstants constants = new PushConstants
             {
                 TexSize = new uint2(texture.Width, texture.Height),
                 ShapeCount = (uint)data.ShapeMeta.Count,
             };
 
-            _commandBuffer.Begin();
-            using (GPUCommandBuffer.ComputePass computePass = _commandBuffer.BeginCompute())
+            context.CommandBuffer.Begin();
+            using (GPUCommandBuffer.ComputePass computePass = context.CommandBuffer.BeginCompute())
             {
-                _material.DispatchBySizeWithConstant(computePass, texture.Width, texture.Height, 1, constants);
+                context.Material.DispatchBySizeWithConstant(computePass, texture.Width, texture.Height, 1, constants);
             }
-            _commandBuffer.End();
-            _device.Submit(_commandBuffer);
+            context.CommandBuffer.End();
+            _device.Submit(context.CommandBuffer);
         }
-    }
-
-    private static void UploadBuffer<T>(GraphicsArrayBuffer<T> buffer, ReadOnlySpan<T> data) where T : unmanaged
-    {
-        if (data.Length == 0)
+        finally
         {
-            return;
+            _contextPool.Return(context);
         }
-        data.CopyTo(buffer.AsSpan());
-        buffer.UpdateBuffer();
-    }
-
-    private void EnsureBufferCapacity(SvgRasterizeData data)
-    {
-        // Buffers only grow; stale entries past the used count are never read.
-        EnsureBuffer(ref _edges, data.Edges.Count, ShaderResourceId.SvgEdges, "svg_edges");
-        EnsureBuffer(ref _shapeBboxes, data.ShapeBboxes.Count, ShaderResourceId.SvgBboxes, "svg_shape_bboxes");
-        EnsureBuffer(ref _shapeMeta, data.ShapeMeta.Count, ShaderResourceId.SvgMeta, "svg_shape_meta");
-        EnsureBuffer(ref _shapeColors, data.ShapeColors.Count, ShaderResourceId.SvgColors, "svg_shape_colors");
-        EnsureBuffer(ref _gradientXforms, data.GradientXforms.Count, ShaderResourceId.SvgGradientXforms, "svg_gradient_xforms");
-        EnsureBuffer(ref _gradientRamps, data.GradientRamps.Count, ShaderResourceId.SvgRamps, "svg_gradient_ramps");
-    }
-
-    private void EnsureBuffer<T>(ref GraphicsArrayBuffer<T> buffer, int required, string resourceId, string name) where T : unmanaged
-    {
-        if (buffer.Length >= required)
-        {
-            return;
-        }
-        int newSize = buffer.Length;
-        while (newSize < required)
-        {
-            newSize *= 2;
-        }
-        buffer.Dispose();
-        buffer = _renderingSystem.CreateGraphicsArrayBuffer<T>(newSize, name);
-        _material.TrySetBuffer(resourceId, buffer);
     }
 
     private void MaybeSweep()
@@ -299,6 +340,11 @@ public sealed class SvgRenderer : AutoDisposable
         }
     }
 
+    private RasterContext CreateContext()
+    {
+        return new RasterContext(_renderingSystem, _shader);
+    }
+
     /// <summary>
     /// Releases the GPU resources used by the SvgRenderer. Cached textures are owned
     /// by their callers and are not disposed here.
@@ -308,15 +354,145 @@ public sealed class SvgRenderer : AutoDisposable
     {
         if (disposing)
         {
-            _edges.Dispose();
-            _shapeBboxes.Dispose();
-            _shapeMeta.Dispose();
-            _shapeColors.Dispose();
-            _gradientXforms.Dispose();
-            _gradientRamps.Dispose();
-            _material.Dispose();
-            _commandBuffer.Dispose();
+            foreach (RasterContext context in _contextPool)
+            {
+                context.Dispose();
+            }
+            _contextPool.Clear();
+            _rasterizeSlots.Dispose();
             _cache.Clear();
+        }
+    }
+
+    /// <summary>
+    /// The mutable GPU state a single rasterization needs: a dedicated command buffer,
+    /// compute material and structured-buffer set. Contexts are pooled and reused
+    /// (buffers only grow) and are borrowed by one rasterization at a time, so their
+    /// use needs no engine-side lock.
+    /// </summary>
+    private sealed class RasterContext : IDisposable
+    {
+        private const int InitialEdgeCapacity = 1024;
+
+        private readonly RenderingSystem _renderingSystem;
+
+        /// <summary>The command buffer the rasterization dispatch is recorded on.</summary>
+        public readonly GPUCommandBuffer CommandBuffer;
+
+        /// <summary>The material binding the structured buffers and the output texture.</summary>
+        public readonly ComputeMaterial Material;
+
+        /// <summary>The flat edge list (x0, y0, x1, y1 per segment); grows only.</summary>
+        public GraphicsArrayBuffer<Vector4> Edges;
+
+        /// <summary>The per-shape bounding boxes; grows only.</summary>
+        public GraphicsArrayBuffer<Vector4> ShapeBboxes;
+
+        /// <summary>The per-shape metadata (edge range, fill rule, paint); grows only.</summary>
+        public GraphicsArrayBuffer<uint4> ShapeMeta;
+
+        /// <summary>The per-shape solid colors; grows only.</summary>
+        public GraphicsArrayBuffer<Vector4> ShapeColors;
+
+        /// <summary>The per-gradient transforms; grows only.</summary>
+        public GraphicsArrayBuffer<Vector4> GradientXforms;
+
+        /// <summary>The baked 64-entry gradient ramps; grows only.</summary>
+        public GraphicsArrayBuffer<Vector4> GradientRamps;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RasterContext"/> class with
+        /// fresh GPU resources bound to a fresh material.
+        /// </summary>
+        /// <param name="renderingSystem">The rendering system instance.</param>
+        /// <param name="shader">The SvgRasterize compute shader.</param>
+        public RasterContext(RenderingSystem renderingSystem, Shader shader)
+        {
+            _renderingSystem = renderingSystem;
+            CommandBuffer = renderingSystem.GraphicsDevice.CreateCommandBuffer("svg_rasterize_command_buffer");
+            Material = renderingSystem.CreateComputeMaterial(shader);
+
+            Edges = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(InitialEdgeCapacity, "svg_edges");
+            ShapeBboxes = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(64, "svg_shape_bboxes");
+            ShapeMeta = renderingSystem.CreateGraphicsArrayBuffer<uint4>(64, "svg_shape_meta");
+            ShapeColors = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(64, "svg_shape_colors");
+            GradientXforms = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(32, "svg_gradient_xforms");
+            GradientRamps = renderingSystem.CreateGraphicsArrayBuffer<Vector4>(4096, "svg_gradient_ramps");
+
+            Material.TrySetBuffer(ShaderResourceId.SvgEdges, Edges);
+            Material.TrySetBuffer(ShaderResourceId.SvgBboxes, ShapeBboxes);
+            Material.TrySetBuffer(ShaderResourceId.SvgMeta, ShapeMeta);
+            Material.TrySetBuffer(ShaderResourceId.SvgColors, ShapeColors);
+            Material.TrySetBuffer(ShaderResourceId.SvgGradientXforms, GradientXforms);
+            Material.TrySetBuffer(ShaderResourceId.SvgRamps, GradientRamps);
+        }
+
+        /// <summary>Grows the buffers to fit the payload. Stale entries past the used
+        /// count are never read, so buffers only grow.</summary>
+        /// <param name="data">The payload about to be uploaded.</param>
+        public void EnsureCapacity(SvgRasterizeData data)
+        {
+            EnsureBuffer(ref Edges, data.Edges.Count, ShaderResourceId.SvgEdges, "svg_edges");
+            EnsureBuffer(ref ShapeBboxes, data.ShapeBboxes.Count, ShaderResourceId.SvgBboxes, "svg_shape_bboxes");
+            EnsureBuffer(ref ShapeMeta, data.ShapeMeta.Count, ShaderResourceId.SvgMeta, "svg_shape_meta");
+            EnsureBuffer(ref ShapeColors, data.ShapeColors.Count, ShaderResourceId.SvgColors, "svg_shape_colors");
+            EnsureBuffer(ref GradientXforms, data.GradientXforms.Count, ShaderResourceId.SvgGradientXforms, "svg_gradient_xforms");
+            EnsureBuffer(ref GradientRamps, data.GradientRamps.Count, ShaderResourceId.SvgRamps, "svg_gradient_ramps");
+        }
+
+        /// <summary>Copies the payload into the staging spans and queues the GPU
+        /// buffer writes. Queue buffer writes are concurrency-safe per the device
+        /// contract and consume the staging memory before returning.</summary>
+        /// <param name="data">The payload to upload.</param>
+        public void Upload(SvgRasterizeData data)
+        {
+            UploadBuffer(Edges, CollectionsMarshal.AsSpan(data.Edges));
+            UploadBuffer(ShapeBboxes, CollectionsMarshal.AsSpan(data.ShapeBboxes));
+            UploadBuffer(ShapeMeta, CollectionsMarshal.AsSpan(data.ShapeMeta));
+            UploadBuffer(ShapeColors, CollectionsMarshal.AsSpan(data.ShapeColors));
+            UploadBuffer(GradientXforms, CollectionsMarshal.AsSpan(data.GradientXforms));
+            UploadBuffer(GradientRamps, CollectionsMarshal.AsSpan(data.GradientRamps));
+        }
+
+        private void EnsureBuffer<T>(ref GraphicsArrayBuffer<T> buffer, int required, string resourceId, string name) where T : unmanaged
+        {
+            if (buffer.Length >= required)
+            {
+                return;
+            }
+            int newSize = buffer.Length;
+            while (newSize < required)
+            {
+                newSize *= 2;
+            }
+            buffer.Dispose();
+            buffer = _renderingSystem.CreateGraphicsArrayBuffer<T>(newSize, name);
+            Material.TrySetBuffer(resourceId, buffer);
+        }
+
+        private static void UploadBuffer<T>(GraphicsArrayBuffer<T> buffer, ReadOnlySpan<T> data) where T : unmanaged
+        {
+            if (data.Length == 0)
+            {
+                return;
+            }
+            data.CopyTo(buffer.AsSpan());
+            buffer.UpdateBuffer();
+        }
+
+        /// <summary>
+        /// Releases the command buffer, material and structured buffers.
+        /// </summary>
+        public void Dispose()
+        {
+            Edges.Dispose();
+            ShapeBboxes.Dispose();
+            ShapeMeta.Dispose();
+            ShapeColors.Dispose();
+            GradientXforms.Dispose();
+            GradientRamps.Dispose();
+            Material.Dispose();
+            CommandBuffer.Dispose();
         }
     }
 }

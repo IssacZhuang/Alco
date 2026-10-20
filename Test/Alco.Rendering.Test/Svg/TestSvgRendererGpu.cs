@@ -307,6 +307,118 @@ public unsafe class TestSvgRendererGpu
         TestContext.Progress.WriteLine($"Encoded {files.Length} artwork SVGs to {outputDirectory}");
     }
 
+    /// <summary>A concurrent burst larger than the concurrency cap queues instead of
+    /// corrupting results: every texture matches its serial reference pixel-for-pixel,
+    /// and requests for the same document share one texture.</summary>
+    [Test]
+    public void Concurrent_MoreRequestsThanCap_AllCorrect()
+    {
+        using DummyRenderingSystemHost host = CreateHost();
+        using SvgRenderer renderer = host.RenderingSystem.CreateSvgRenderer();
+        string[] documents =
+        [
+            Svg(8, 8, "<rect x=\"2\" y=\"2\" width=\"4\" height=\"4\" fill=\"#ff0000\"/>"),
+            Svg(8, 8, "<path d=\"M1 1h6v6h-6z M3 3h2v2h-2z\" fill-rule=\"evenodd\" fill=\"#00ff00\"/>"),
+            Svg(8, 8, "<line x1=\"2\" y1=\"4\" x2=\"6\" y2=\"4\" fill=\"none\" " +
+                "stroke=\"#0000ff\" stroke-width=\"4\" stroke-linecap=\"round\"/>"),
+            Svg(4, 4, "<rect x=\"0\" y=\"0\" width=\"4\" height=\"4\" fill=\"#00ff00\"/>" +
+                "<rect x=\"0\" y=\"0\" width=\"2\" height=\"4\" fill=\"#ff0000\" fill-opacity=\"0.5\"/>"),
+            Svg(2, 8, """
+                <defs>
+                    <linearGradient id="g" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0" stop-color="#ff0000"/>
+                        <stop offset="1" stop-color="#0000ff"/>
+                    </linearGradient>
+                </defs>
+                <rect x="0" y="0" width="2" height="8" fill="url(#g)"/>
+                """),
+            Svg(8, 8, "<rect x=\"1\" y=\"1\" width=\"6\" height=\"6\" fill=\"#ffffff\"/>"),
+        ];
+
+        // Serial references: rasterize each document once, read it back, then dispose
+        // it so the concurrent burst re-rasterizes instead of hitting dead cache entries.
+        byte[][] references = new byte[documents.Length][];
+        for (int i = 0; i < documents.Length; i++)
+        {
+            Texture2D reference = renderer.GetTexture(documents[i]);
+            references[i] = ReadPixels(host.RenderingSystem, reference);
+            reference.Dispose();
+        }
+
+        int taskCount = SvgRenderer.MaxConcurrentRasterizations * 4;
+        Barrier barrier = new(taskCount);
+        Texture2D?[] results = new Texture2D?[taskCount];
+        Task[] tasks = new Task[taskCount];
+        for (int t = 0; t < taskCount; t++)
+        {
+            int index = t;
+            tasks[t] = Task.Run(() =>
+            {
+                barrier.SignalAndWait();
+                results[index] = renderer.GetTexture(documents[index % documents.Length]);
+            });
+        }
+        Task.WaitAll(tasks);
+
+        // Readback is serialized on the test thread after the burst completes; the
+        // shared queue order guarantees the reads observe the finished dispatches.
+        HashSet<Texture2D> uniqueTextures = [];
+        for (int t = 0; t < taskCount; t++)
+        {
+            Texture2D texture = results[t]!;
+            Assert.That(texture.IsDisposed, Is.False, $"task {t} texture is live");
+            Assert.That(ReadPixels(host.RenderingSystem, texture), Is.EqualTo(references[t % documents.Length]),
+                $"task {t} matches its document's serial reference");
+            uniqueTextures.Add(texture);
+        }
+
+        // Requests for the same document within the burst deduplicate: same doc index,
+        // same texture instance (single flight or a cache hit on the winner's texture).
+        for (int t = documents.Length; t < taskCount; t++)
+        {
+            Assert.That(results[t], Is.SameAs(results[t - documents.Length]),
+                $"tasks {t - documents.Length} and {t} requested the same document");
+        }
+
+        foreach (Texture2D texture in uniqueTextures)
+        {
+            texture.Dispose();
+        }
+    }
+
+    /// <summary>Concurrent requests for the same uncached document deduplicate into a
+    /// single rasterization: every caller receives the same texture instance.</summary>
+    [Test]
+    public void Concurrent_SameDocument_SingleFlight()
+    {
+        using DummyRenderingSystemHost host = CreateHost();
+        using SvgRenderer renderer = host.RenderingSystem.CreateSvgRenderer();
+        string svg = Svg(8, 8, "<rect x=\"2\" y=\"2\" width=\"4\" height=\"4\" fill=\"#ffffff\"/>");
+
+        int taskCount = Math.Max(4, SvgRenderer.MaxConcurrentRasterizations);
+        Barrier barrier = new(taskCount);
+        Texture2D?[] results = new Texture2D?[taskCount];
+        Task[] tasks = new Task[taskCount];
+        for (int t = 0; t < taskCount; t++)
+        {
+            int index = t;
+            tasks[t] = Task.Run(() =>
+            {
+                barrier.SignalAndWait();
+                results[index] = renderer.GetTexture(svg);
+            });
+        }
+        Task.WaitAll(tasks);
+
+        foreach (Texture2D? texture in results)
+        {
+            Assert.That(texture, Is.SameAs(results[0]), "all concurrent callers share the winner's texture");
+        }
+        byte[] pixels = ReadPixels(host.RenderingSystem, results[0]!);
+        Assert.That(Pixel(pixels, 8, 4, 4).A, Is.EqualTo(255), "the shared texture has content");
+        results[0]!.Dispose();
+    }
+
     private sealed class GpuHost : IGPUDeviceHost, IDisposable
     {
         /// <inheritdoc />
