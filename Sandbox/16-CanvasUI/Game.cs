@@ -20,7 +20,8 @@ public class Game : GameEngine
         Slider,
         List,
         VirtualList,
-        VirtualGridList
+        VirtualGridList,
+        GeometryIcon
     }
 
     private readonly RenderPipeline _mainPipeline;
@@ -40,6 +41,10 @@ public class Game : GameEngine
     private UIMask _gridLayoutMask;
 
     private UIImage _sprite;
+    private UIGeometryIcon _geometryIconStatic;
+    private UIGeometryIcon _geometryIconStretch;
+    private UIImage _geometryIconStretchPanel;
+    private UIGeometryIcon _geometryIconResize;
     private IntList _intList;
     private IntVirtualList _intVirtualList;
     private IntVirtualList _intVirtualGridList;
@@ -67,6 +72,17 @@ public class Game : GameEngine
     private float _spacingX = 5f;
     private float _spacingY = 5f;
     private UINode? _selectedNode;
+
+    private float _geometryIconSettleSeconds = 0.1f;
+    private float _geometryIconAnimateSpeed = 1f;
+    private bool _geometryIconAnimate;
+    private float _geometryIconPhase;
+
+    // Demo documents for the GeometryIcon page: a filled star, a radial-gradient
+    // orb and a stroked download glyph.
+    private const string SvgStar = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"#f5b942\" d=\"M12 2l2.9 6.26 6.88.8-5.09 4.7 1.4 6.78L12 17.27l-6.09 3.27 1.4-6.78-5.09-4.7 6.88-.8z\"/></svg>";
+    private const string SvgOrb = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"128\" height=\"128\" viewBox=\"0 0 128 128\"><defs><radialGradient id=\"g\" cx=\"0.5\" cy=\"0.45\" r=\"0.6\"><stop offset=\"0\" stop-color=\"#9bd0ff\"/><stop offset=\"0.7\" stop-color=\"#3f7fe0\"/><stop offset=\"1\" stop-color=\"#1b3a8a\"/></radialGradient></defs><circle cx=\"64\" cy=\"64\" r=\"56\" fill=\"url(#g)\"/></svg>";
+    private const string SvgDownload = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"none\" d=\"M12 3v12\" stroke=\"#e8e8e8\" stroke-width=\"2\" stroke-linecap=\"round\"/><path fill=\"none\" d=\"M7 11l5 5 5-5\" stroke=\"#e8e8e8\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path fill=\"none\" d=\"M4 20h16\" stroke=\"#8ab4ff\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
 
 
     public Game(GameEngineSetting setting) : base(setting)
@@ -251,6 +267,44 @@ public class Game : GameEngine
         };
 
         _root.Add(_sprite);
+
+        // GeometryIcon demo: a static icon at its native size, a stretch-anchored
+        // icon that follows window resizes, and a slider/animation-driven icon
+        // that resizes at high frequency.
+        _geometryIconStatic = new UIGeometryIcon
+        {
+            Svg = SvgStar,
+            Position = new Vector2(-240, -140),
+        };
+        _geometryIconStatic.SetNativeSize();
+
+        _geometryIconStretchPanel = new UIImage
+        {
+            // Stretches with the canvas so the icon inside demonstrates
+            // window-resize-driven re-rasterization.
+            Anchor = Anchor.Stretch,
+            SizeDelta = new Vector2(-240, -60),
+            Color = 0x222831,
+        };
+        _geometryIconStretch = new UIGeometryIcon
+        {
+            Svg = SvgOrb,
+            Anchor = Anchor.Stretch,
+            SizeDelta = new Vector2(-24, -24),
+        };
+        _geometryIconStretchPanel.Add(_geometryIconStretch);
+
+        _geometryIconResize = new UIGeometryIcon
+        {
+            Svg = SvgDownload,
+            Position = new Vector2(-260, 120),
+            Size = new Vector2(96, 96),
+            ResizeSettleSeconds = _geometryIconSettleSeconds,
+        };
+
+        _root.Add(_geometryIconStatic);
+        _root.Add(_geometryIconStretchPanel);
+        _root.Add(_geometryIconResize);
 
         // Int list demo
         _intList = new IntList()
@@ -656,6 +710,43 @@ public class Game : GameEngine
                 ImGui.Text("Grid layout with 3 items per row.");
                 break;
             }
+
+            case Display.GeometryIcon:
+            {
+                float width = _geometryIconResize.Size.X;
+                if (ImGui.SliderFloat("Icon width", ref width, 8, 512))
+                {
+                    _geometryIconResize.Size = new Vector2(width, _geometryIconResize.Size.Y);
+                }
+                float height = _geometryIconResize.Size.Y;
+                if (ImGui.SliderFloat("Icon height", ref height, 8, 512))
+                {
+                    _geometryIconResize.Size = new Vector2(_geometryIconResize.Size.X, height);
+                }
+                ImGui.Checkbox("Animate size (high-frequency resize)", ref _geometryIconAnimate);
+                if (_geometryIconAnimate)
+                {
+                    float speed = _geometryIconAnimateSpeed;
+                    if (ImGui.SliderFloat("Animate speed", ref speed, 0.1f, 8f))
+                    {
+                        _geometryIconAnimateSpeed = speed;
+                    }
+                    _geometryIconPhase += delta * _geometryIconAnimateSpeed;
+                    float size = 160f + MathF.Sin(_geometryIconPhase) * 144f;
+                    _geometryIconResize.Size = new Vector2(size, size);
+                }
+                float settle = _geometryIconSettleSeconds;
+                if (ImGui.SliderFloat("Resize settle seconds", ref settle, 0f, 1f))
+                {
+                    _geometryIconSettleSeconds = settle;
+                    _geometryIconResize.ResizeSettleSeconds = settle;
+                }
+                Texture2D? resizeTexture = _geometryIconResize.Texture;
+                ImGui.Text(resizeTexture != null ? $"Icon texture: {resizeTexture.Width}x{resizeTexture.Height}" : "Icon texture: <rasterizing...>");
+                Texture2D? stretchTexture = _geometryIconStretch.Texture;
+                ImGui.Text(stretchTexture != null ? $"Stretch texture: {stretchTexture.Width}x{stretchTexture.Height}" : "Stretch texture: <rasterizing...>");
+                break;
+            }
         }
 
         ImGui.End();
@@ -749,6 +840,10 @@ public class Game : GameEngine
         _intVirtualList.IsEnable = false;
         _intVirtualGridList.IsEnable = false;
         _label.IsEnable = false;
+        _geometryIconStatic.IsEnable = false;
+        _geometryIconStretchPanel.IsEnable = false;
+        _geometryIconStretch.IsEnable = false;
+        _geometryIconResize.IsEnable = false;
         if (_listSlider != null) _listSlider.IsEnable = false;
         if (_virtualListSlider != null) _virtualListSlider.IsEnable = false;
         if (_virtualGridListSlider != null) _virtualGridListSlider.IsEnable = false;
@@ -808,6 +903,12 @@ public class Game : GameEngine
             case Display.VirtualGridList:
                 _intVirtualGridList.IsEnable = true;
                 if (_virtualGridListSlider != null) _virtualGridListSlider.IsEnable = true;
+                break;
+            case Display.GeometryIcon:
+                _geometryIconStatic.IsEnable = true;
+                _geometryIconStretchPanel.IsEnable = true;
+                _geometryIconStretch.IsEnable = true;
+                _geometryIconResize.IsEnable = true;
                 break;
         }
     }

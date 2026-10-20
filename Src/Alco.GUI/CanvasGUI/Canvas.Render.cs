@@ -27,6 +27,27 @@ public partial class Canvas : AutoDisposable
     }
 
     /// <summary>
+    /// Draws a sprite whose texture stores premultiplied-alpha pixels (e.g. an SVG
+    /// rasterization) with the canvas's premultiplied-blend sprite material.
+    /// </summary>
+    /// <param name="texture">The texture to apply. If null, a white texture will be used.</param>
+    /// <param name="matrix">The transformation matrix to apply.</param>
+    /// <param name="uvRect">The UV rectangle that defines the portion of the texture to use.</param>
+    /// <param name="color">The color to multiply with the texture.</param>
+    public void DrawSpritePremultiplied(Texture2D? texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
+    {
+        SpriteConstant constant = new SpriteConstant
+        {
+            Model = matrix,
+            Color = color,
+            UvRect = uvRect
+        };
+
+        _premultipliedSpriteMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
+        DrawMaterial(_premultipliedSpriteMaterial, in constant);
+    }
+
+    /// <summary>
     /// Draws a sprite with custom vertices and indices using the specified texture, transformation matrix, UV rectangle, and color.
     /// </summary>
     /// <param name="vertices">The custom vertices to draw.</param>

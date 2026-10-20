@@ -48,9 +48,12 @@ public partial class Canvas : AutoDisposable, INavigationContext
 
     private readonly GraphicsMaterial _textMaterial;
     private readonly GraphicsMaterial _spriteMaterial;
+    private readonly GraphicsMaterial _premultipliedSpriteMaterial;
     private readonly GraphicsMaterial _stencilIncreaseMaterial;
     private readonly GraphicsMaterial _stencilDecreaseMaterial;
     private readonly uint _shaderId_texture;
+
+    private SvgRenderer? _svgRenderer;
 
     private uint _mask = 0;
 
@@ -261,6 +264,13 @@ public partial class Canvas : AutoDisposable, INavigationContext
     /// </summary>
     public UIRoot Root { get; }
 
+    /// <summary>
+    /// The SVG rasterizer shared by the nodes of this canvas, created on first use.
+    /// Sharing one renderer lets identical documents rasterized at the same size by
+    /// different nodes hit the same cache entry.
+    /// </summary>
+    internal SvgRenderer SvgRenderer => _svgRenderer ??= _renderingSystem.CreateSvgRenderer();
+
     public Canvas(
         RenderingSystem system,
         IUIInputTracker inputTracker,
@@ -301,6 +311,21 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _spriteMaterial.SetSpecializations("true");
         _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
         _spriteMaterial.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = StencilFaceState.CompareEqual,
+            BackFace = StencilFaceState.CompareEqual,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+
+        // SVG rasterizations store premultiplied alpha while the plain sprite
+        // material blends straight alpha: this instance differs only in the blend
+        // state and serves DrawSpritePremultiplied.
+        _premultipliedSpriteMaterial = defaultSpriteMaterial.CreateInstance();
+        _premultipliedSpriteMaterial.SetSpecializations("true");
+        _premultipliedSpriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _premultipliedSpriteMaterial.BlendState = BlendState.PremultipliedAlpha;
+        _premultipliedSpriteMaterial.DepthStencilState = DepthStencilState.Default with
         {
             FrontFace = StencilFaceState.CompareEqual,
             BackFace = StencilFaceState.CompareEqual,
@@ -477,6 +502,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
             _textRenderer.Dispose();
             _dynamicMeshRenderer.Dispose();
             _camera.Dispose();
+            // In-flight rasterizations may fault after this; adopters log it once.
+            _svgRenderer?.Dispose();
         }
 
         _hovered = null;
