@@ -295,9 +295,9 @@ public class GraphicsMaterial : AutoDisposable
     /// Try to set the texture.
     /// </summary>
     /// <param name="name">The shader resource name of the texture.</param>
-    /// <param name="texture">The texture to set.</param>
-    /// <returns>True if the texture is set successfully, otherwise false.</returns>
-    public bool TrySetTexture(string name, Texture2D texture)
+    /// <param name="texture">The texture to set, or null to restore the inherited binding.</param>
+    /// <returns>True if the texture slot exists, otherwise false.</returns>
+    public bool TrySetTexture(string name, Texture2D? texture)
     {
         if (_parameters.TrySetTexture(name, texture))
         {
@@ -311,9 +311,9 @@ public class GraphicsMaterial : AutoDisposable
     /// Try to set the texture.
     /// </summary>
     /// <param name="id">The shader resource id of the texture.</param>
-    /// <param name="texture">The texture to set.</param>
-    /// <returns>True if the texture is set successfully, otherwise false.</returns>
-    public bool TrySetTexture(uint id, Texture2D texture)
+    /// <param name="texture">The texture to set, or null to restore the inherited binding.</param>
+    /// <returns>True if the texture slot exists, otherwise false.</returns>
+    public bool TrySetTexture(uint id, Texture2D? texture)
     {
         if (_parameters.TrySetTexture(id, texture))
         {

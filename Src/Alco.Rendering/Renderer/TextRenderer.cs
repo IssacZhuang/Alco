@@ -157,18 +157,18 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f, GraphicsMaterial? material = null)
     {
         ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
             new TextSlice { Color = color, Start = 0, Length = str.Length }
         };
-        return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing, material);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f, GraphicsMaterial? material = null)
     {
-        return DrawTextCore(font, slices, str, matrix, pivot, ColorFloat.White, lineSpacing);
+        return DrawTextCore(font, slices, str, matrix, pivot, ColorFloat.White, lineSpacing, material);
     }
 
     /// <summary>
@@ -184,20 +184,26 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     /// <param name="lineSpacing">The normalized line spacing.</param>
     /// <returns>The normalized width of the drawn text.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
+    public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f, GraphicsMaterial? material = null)
     {
-        return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing);
+        return DrawTextCore(font, slices, str, matrix, pivot, color, lineSpacing, material);
     }
 
     #endregion
 
-    private unsafe float DrawTextCore(Font font, ReadOnlySpan<TextSlice> slices, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
+    private unsafe float DrawTextCore(Font font, ReadOnlySpan<TextSlice> slices, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing, GraphicsMaterial? material = null)
     {
         int length = str.Length;
         if (length == 0)
         {
             return 0;
         }
+
+        // A custom material (the canvas text pass template with an authored surface)
+        // resolves its own resource ids; the default keeps the ids cached in the ctor.
+        GraphicsMaterial drawMaterial = material ?? _material;
+        uint shaderId_font = material?.GetResourceId(ShaderResourceId.Font) ?? _shaderId_font;
+        uint shaderId_textBuffer = material?.GetResourceId(ShaderResourceId.TextBuffer) ?? _shaderId_textBuffer;
 
         // First pass: measure text extents (x,y) without writing to buffer
         float measureX = 0;
@@ -303,8 +309,18 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
             localIndex += drawCount;
 
-            _material.SetTexture(_shaderId_font, font.Texture);
-            _renderContext.DrawInstancedWithConstant(_mesh, _material, (uint)drawCount, instanceStart, constant);
+            if (material != null)
+            {
+                // A custom material resolves its own ids and must carry the shared text
+                // buffer binding too, or its shader reads unbound storage.
+                drawMaterial.SetTexture(shaderId_font, font.Texture);
+                drawMaterial.SetBuffer(shaderId_textBuffer, _textBufferGPU!);
+            }
+            else
+            {
+                _material.SetTexture(_shaderId_font, font.Texture);
+            }
+            _renderContext.DrawInstancedWithConstant(_mesh, drawMaterial, (uint)drawCount, instanceStart, constant);
         }
 
         return x;

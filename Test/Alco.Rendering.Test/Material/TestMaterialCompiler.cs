@@ -14,6 +14,7 @@ namespace Alco.Rendering.Test;
 // policy. Runs on the NoGPU device with in-memory slang modules, mirroring
 // MaterialCompilerComposeTest.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Verifies shared compiler ownership, surface selection and material compilation.</summary>
 [TestFixture]
 public class TestMaterialCompiler
 {
@@ -105,6 +106,22 @@ public class TestMaterialCompiler
         }
         """;
 
+    private const string ComputeTemplate = """
+        #language slang 2025
+        module test_compute_template;
+        import test_compiler_contract;
+        cbuffer camera : register(b0, space0) { float4x4 viewProjection; }
+        cbuffer draw : register(b0, space1) { RWStructuredBuffer<float4> output; }
+        [shader("compute")][numthreads(1, 1, 1)]
+        void MainCS<T : ISurface>()
+        {
+            T surface = T();
+            SurfaceInput input;
+            input.uv = float2(0, 0);
+            output[0] = surface.GetBaseColor(input) * viewProjection[0][0];
+        }
+        """;
+
     private const string Surface = """
         #language slang 2025
         module test_compiler_surface;
@@ -136,7 +153,16 @@ public class TestMaterialCompiler
     {
         ["test-compiler-contract.slang"] = Contract,
         ["test-lit-template.slang"] = LitTemplate,
+        ["test-compute-template.slang"] = ComputeTemplate,
         ["test-compiler-surface.slang"] = Surface,
+        ["test-compiler-alternate-surface.slang"] = Surface
+            .Replace("test_compiler_surface", "test_compiler_alternate_surface")
+            .Replace("surfaceParams", "alternateParams")
+            .Replace("pulseSpeed", "alternateSpeed"),
+        ["test-compute-surface.slang"] = Surface
+            .Replace("test_compiler_surface", "test_compute_surface")
+            .Replace("albedoTexture.Sample(linearClamp, input.uv)",
+                "albedoTexture.SampleLevel(linearClamp, input.uv, 0)"),
     };
 
     /// <summary>A rendering system whose shader modules resolve from <see cref="Files"/>.</summary>
@@ -159,11 +185,161 @@ public class TestMaterialCompiler
             () => Files.Keys));
     }
 
+    /// <summary>Shares cached compositions and owns their lifetime without owning compiled materials.</summary>
+    [Test]
+    public void RenderingSystem_OwnsSharedCompilerAndComposedShaders()
+    {
+        using DummyRenderingSystemHost host = CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+        MaterialCompiler compiler = rendering.MaterialCompiler;
+        Assert.That(compiler, Is.SameAs(rendering.MaterialCompiler));
+        Assert.That(rendering.ShaderSystem.Modules.GetLoadedModuleNames(), Is.Empty,
+            "Creating the shared compiler must not eagerly load a pipeline-family surface.");
+        ShaderLibrary template = rendering.ShaderSystem.GetLibrary("test_lit_template");
+        ShaderLibrary surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface");
+        MaterialAsset asset = new() { Surface = surface };
+        using GraphicsMaterial material = Compile(compiler, rendering, asset);
+        Shader shader = compiler.ComposeGraphics(template, surface);
+        Assert.That(shader, Is.SameAs(rendering.MaterialCompiler.ComposeGraphics(template, surface)));
+        Assert.That(material.Shader, Is.SameAs(shader));
+
+        host.Dispose();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(compiler.IsDisposed, Is.True);
+            Assert.That(shader.IsDisposed, Is.True);
+            Assert.That(material.IsDisposed, Is.False, "Compiled materials remain caller-owned.");
+            Assert.That(() => compiler.ComposeGraphics(template, surface), Throws.TypeOf<ObjectDisposedException>());
+        });
+    }
+
+    /// <summary>Subscribes the shared compiler to the rendering shader system's module invalidation.</summary>
+    [Test]
+    public void RenderingSystem_SharedCompilerObservesModuleInvalidation()
+    {
+        using DummyRenderingSystemHost host = CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+        MaterialCompiler compiler = rendering.MaterialCompiler;
+        ShaderLibrary template = rendering.ShaderSystem.GetLibrary("test_lit_template");
+        ShaderLibrary surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface");
+        Shader shader = compiler.ComposeGraphics(template, surface);
+        _ = shader.GetShaderModules();
+        uint version = shader.Version;
+        List<Shader> invalidated = [];
+        compiler.ShaderInvalidated += invalidated.Add;
+        string dependency = rendering.ShaderSystem.Modules.GetModuleDependencies(template.Name)
+            .First(path => path.Contains("contract", StringComparison.OrdinalIgnoreCase));
+
+        rendering.ShaderSystem.InvalidateModulesContaining(dependency);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(invalidated, Is.EqualTo(new[] { shader }));
+            Assert.That(shader.Version, Is.GreaterThan(version));
+            Assert.That(compiler.ComposeGraphics(template, surface), Is.SameAs(shader));
+            Assert.That(shader.GetShaderModules().IsGraphicsShader, Is.True);
+        });
+    }
+
+    /// <summary>Uses per-call fallbacks consistently without changing the material's authored surface.</summary>
+    [Test]
+    public void Compile_PerCallDefaultSurface_SelectsAndPacksEffectiveSurface()
+    {
+        using DummyRenderingSystemHost host = CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+        MaterialCompiler compiler = rendering.MaterialCompiler;
+        ShaderLibrary template = rendering.ShaderSystem.GetLibrary("test_lit_template");
+        ShaderLibrary surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface");
+        ShaderLibrary alternate = rendering.ShaderSystem.GetLibrary("test_compiler_alternate_surface");
+        MaterialAsset asset = new()
+        {
+            Name = "per_call_default",
+            Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = rendering.TextureWhite },
+        };
+        using GraphicsMaterial first = compiler.Compile(asset, template, null,
+            (a, shader) => CreateMaterial(rendering, a, shader), defaultSurface: surface);
+        using GraphicsMaterial second = compiler.Compile(asset, template, null,
+            (a, shader) => CreateMaterial(rendering, a, shader), defaultSurface: alternate);
+        using GraphicsMaterial repeated = compiler.Compile(asset, template, null,
+            (a, shader) => CreateMaterial(rendering, a, shader), defaultSurface: alternate);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(asset.Surface, Is.Null);
+            Assert.That(first.Shader, Is.SameAs(compiler.ComposeGraphics(template, surface)));
+            Assert.That(second.Shader, Is.SameAs(compiler.ComposeGraphics(template, alternate)));
+            Assert.That(first.Parameters.GetBuffer("surfaceParams"), Is.Not.Null);
+            Assert.That(second.Parameters.GetBuffer("alternateParams"), Is.Not.Null);
+            Assert.That(second.Parameters.GetBuffer("alternateParams"),
+                Is.SameAs(repeated.Parameters.GetBuffer("alternateParams")),
+                "The parameter cache must be keyed by the effective surface.");
+            Assert.That(() => compiler.SurfaceOf(asset), Throws.TypeOf<InvalidDataException>(),
+                "A per-call fallback must not become the shared compiler's default.");
+        });
+
+        asset.Surface = surface;
+        asset.Parameters = new Dictionary<string, ShaderValue> { ["pulseSpeed"] = 2.0f };
+        using GraphicsMaterial explicitSurface = compiler.Compile(asset, template, null,
+            (a, shader) => CreateMaterial(rendering, a, shader), defaultSurface: alternate);
+        Assert.That(explicitSurface.Shader, Is.SameAs(first.Shader), "The asset's explicit surface wins.");
+        Assert.That(asset.Surface, Is.SameAs(surface));
+    }
+
+    /// <summary>Lets a per-call fallback override only the compiler's default, not the asset's surface.</summary>
+    [Test]
+    public void Compile_PerCallDefaultSurface_TakesPrecedenceOverCompilerDefault()
+    {
+        using DummyRenderingSystemHost host = CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+        ShaderLibrary template = rendering.ShaderSystem.GetLibrary("test_lit_template");
+        ShaderLibrary surface = rendering.ShaderSystem.GetLibrary("test_compiler_surface");
+        ShaderLibrary alternate = rendering.ShaderSystem.GetLibrary("test_compiler_alternate_surface");
+        using MaterialCompiler compiler = new(rendering, alternate);
+        MaterialAsset asset = new()
+        {
+            Parameters = new Dictionary<string, ShaderValue> { ["pulseSpeed"] = 3.0f },
+        };
+        using GraphicsMaterial material = compiler.Compile(asset, template, null,
+            (a, shader) => CreateMaterial(rendering, a, shader), defaultSurface: surface);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(material.Shader, Is.SameAs(compiler.ComposeGraphics(template, surface)));
+            Assert.That(material.Parameters.GetBuffer("surfaceParams"), Is.Not.Null);
+            Assert.That(compiler.SurfaceOf(asset), Is.SameAs(alternate), "SurfaceOf keeps its existing default semantics.");
+            Assert.That(asset.Surface, Is.Null);
+        });
+    }
+
+    /// <summary>Retains compiler-default surface selection and parameter packing for compute materials.</summary>
+    [Test]
+    public void CompileCompute_UsesCompilerDefaultSurfaceForParameters()
+    {
+        using DummyRenderingSystemHost host = CreateRenderingSystem();
+        RenderingSystem rendering = host.RenderingSystem;
+        ShaderLibrary template = rendering.ShaderSystem.GetLibrary("test_compute_template");
+        ShaderLibrary surface = rendering.ShaderSystem.GetLibrary("test_compute_surface");
+        using MaterialCompiler compiler = new(rendering, surface);
+        MaterialAsset asset = new()
+        {
+            Parameters = new Dictionary<string, ShaderValue> { ["pulseSpeed"] = 4.0f },
+        };
+        using ComputeMaterial material = compiler.CompileCompute(asset, template);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(material.ParameterSet.GetBuffer("surfaceParams"), Is.Not.Null);
+            Assert.That(asset.Surface, Is.Null);
+        });
+    }
+
+    /// <summary>Produces fresh caller-owned materials from the rendering system's shared compiler.</summary>
     [Test]
     public void CompileProducesFreshCallerOwnedMaterials()
     {
         using DummyRenderingSystemHost host = CreateRenderingSystem();
-        using MaterialCompiler compiler = new(host.RenderingSystem);
+        MaterialCompiler compiler = host.RenderingSystem.MaterialCompiler;
 
         TestMaterialAsset asset = new()
         {
@@ -182,6 +358,7 @@ public class TestMaterialCompiler
         });
     }
 
+    /// <summary>Rejects texture slots and parameter names absent from the selected surface.</summary>
     [Test]
     public void TextureSlotsAndParametersValidateAgainstTheSurface()
     {
@@ -220,6 +397,7 @@ public class TestMaterialCompiler
         });
     }
 
+    /// <summary>Applies the material asset's texture fallback policy during compilation.</summary>
     [Test]
     public void FallbackTexturesFollowTheAssetPolicy()
     {
@@ -250,12 +428,13 @@ public class TestMaterialCompiler
             "The family asset keeps white for a non-matching slot prefix.");
     }
 
+    /// <summary>Requires an explicit surface on the shared compiler while preserving family defaults.</summary>
     [Test]
     public void SurfaceRequiresASurfaceOrADefault()
     {
         using DummyRenderingSystemHost host = CreateRenderingSystem();
         ShaderLibrary surface = host.RenderingSystem.ShaderSystem.GetLibrary("test_compiler_surface");
-        using MaterialCompiler noDefault = new(host.RenderingSystem);
+        MaterialCompiler noDefault = host.RenderingSystem.MaterialCompiler;
         using MaterialCompiler withDefault = new(host.RenderingSystem, surface);
         MaterialAsset unnamed = new() { Name = "unnamed" };
         MaterialAsset named = new() { Name = "named", Surface = surface };

@@ -7,6 +7,9 @@ using System.Diagnostics;
 using Alco.Graphics;
 using Alco.ImGUI;
 
+/// <summary>
+/// Demonstrates canvas UI controls and layout using the rendering system.
+/// </summary>
 public class Game : GameEngine
 {
     private enum Display{
@@ -85,6 +88,10 @@ public class Game : GameEngine
     private const string SvgDownload = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path fill=\"none\" d=\"M12 3v12\" stroke=\"#e8e8e8\" stroke-width=\"2\" stroke-linecap=\"round\"/><path fill=\"none\" d=\"M7 11l5 5 5-5\" stroke=\"#e8e8e8\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><path fill=\"none\" d=\"M4 20h16\" stroke=\"#8ab4ff\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>";
 
 
+    /// <summary>
+    /// Creates the canvas UI demonstration with the supplied engine settings.
+    /// </summary>
+    /// <param name="setting">The engine and view settings.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
@@ -145,13 +152,12 @@ public class Game : GameEngine
 
         UIInputTracker inputTracker = new UIInputTracker(Input, MainView);
 
-        GraphicsMaterial defaultSpriteMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Sprite, "sprite", false);
-        defaultSpriteMaterial.BlendState = BlendState.NonPremultipliedAlpha;
-        GraphicsMaterial defaultTextMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Text);
-        defaultTextMaterial.BlendState = BlendState.NonPremultipliedAlpha;
-
-
-        _canvas = RenderingSystem.CreateCanvas(inputTracker, defaultSpriteMaterial, defaultTextMaterial, _font);
+        ShaderSystem shaderSystem = RenderingSystem.ShaderSystem;
+        _canvas = RenderingSystem.CreateCanvas(inputTracker,
+            shaderSystem.GetLibrary("AlcoRendering_UISprite"),
+            shaderSystem.GetLibrary("AlcoRendering_UIText"),
+            shaderSystem.GetLibrary("AlcoRendering_UIStandard"),
+            _font);
         _canvas.Size = new Vector2(setting.View.Width, setting.View.Height);
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
 

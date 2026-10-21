@@ -71,12 +71,27 @@ public partial class Canvas : AutoDisposable
         _dynamicMeshRenderer.DrawWithConstant(vertices, indices, _spriteMaterial, constant);
     }
 
+    /// <summary>
+    /// Draws a sprite with custom vertices and indices using the specified material —
+    /// the custom-material counterpart of <see cref="DrawSpriteWithCustomMesh"/>: no
+    /// texture is injected, the material owns its resource bindings.
+    /// </summary>
+    /// <param name="vertices">The custom vertices to draw.</param>
+    /// <param name="indices">The indices defining the triangulation of the vertices.</param>
+    /// <param name="material">The material to draw with.</param>
+    /// <param name="constant">The sprite constant data containing model matrix, color, and UV rect.</param>
+    public void DrawSpriteWithCustomMaterial(ReadOnlySpan<Vertex> vertices, ReadOnlySpan<ushort> indices, GraphicsMaterial material, in SpriteConstant constant)
+    {
+        _renderContext.Pass.SetStencilReference(_mask);
+        _dynamicMeshRenderer.DrawWithConstant(vertices, indices, material, constant);
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing)
+    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing, GraphicsMaterial? material = null)
     {
         font ??= DefaultFont;
         _renderContext.Pass.SetStencilReference(_mask);
-        return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing);
+        return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing, material);
     }
 
     /// <summary>
@@ -92,11 +107,11 @@ public partial class Canvas : AutoDisposable
     /// <param name="lineSpacing">The normalized line spacing.</param>
     /// <returns>The normalized width of the drawn text.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing)
+    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing, GraphicsMaterial? material = null)
     {
         font ??= DefaultFont;
         _renderContext.Pass.SetStencilReference(_mask);
-        return _textRenderer.DrawText(font, str, matrix, pivot, color, slices, lineSpacing);
+        return _textRenderer.DrawText(font, str, matrix, pivot, color, slices, lineSpacing, material);
     }
 
     protected void IncreaceStencil(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
@@ -135,6 +150,27 @@ public partial class Canvas : AutoDisposable
         }
         _stencilDecreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
         _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilDecreaseMaterial, constant);
+    }
+
+    /// <summary>
+    /// Creates a material instance prepared for canvas drawing: stencil clipping
+    /// enabled (the canvas mask convention) and the canvas camera bound. Nodes
+    /// drawing with a custom material own the returned instance.
+    /// </summary>
+    /// <param name="material">The shared material to instance.</param>
+    /// <returns>The prepared material instance.</returns>
+    public GraphicsMaterialInstance CreateUIMaterialInstance(GraphicsMaterial material)
+    {
+        GraphicsMaterialInstance instance = material.CreateInstance();
+        instance.DepthStencilState = DepthStencilState.Default with
+        {
+            FrontFace = StencilFaceState.CompareEqual,
+            BackFace = StencilFaceState.CompareEqual,
+            StencilReadMask = 0xFF,
+            StencilWriteMask = 0xFF,
+        };
+        BindCameraToMaterial(instance);
+        return instance;
     }
 
     /// <summary>

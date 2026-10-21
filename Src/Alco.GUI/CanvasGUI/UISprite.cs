@@ -13,14 +13,21 @@ public class UIImage : UINode
     private ImageType _imageType = ImageType.Simple;
     private Vector2 _tilingScale = Vector2.One;
 
+    private MaterialAsset? _material;
+    private GraphicsMaterialInstance? _materialInstance;
+    private Canvas? _materialCanvas;
+    private Texture2D? _maskTexture;
+    private Texture2D? _boundMaterialTexture;
+    private Texture2D? _boundMaterialMaskTexture;
+
     private ArrayBuffer<Vertex>? _vertices = null;
     private ArrayBuffer<ushort>? _indices = null;
     private Vector2 _lastMeshSize;
 
     /// <summary>
-    /// The texture of the sprite. The white quad will be rendered if it is null.
+    /// The texture of the sprite. Null draws a white quad without a custom
+    /// <see cref="Material"/>, or inherits the material asset's texture otherwise.
     /// </summary>
-    /// <value></value>
     public Texture2D? Texture
     {
         get => _texture;
@@ -35,6 +42,48 @@ public class UIImage : UINode
         }
     }
 
+    /// <summary>
+    /// The material asset whose surface draws this image instead of the plain sprite
+    /// material. The surface must implement the engine's <c>IUISurface</c> protocol
+    /// and return straight RGBA for alpha blending. The node's <see cref="Texture"/>
+    /// and <see cref="MaskTexture"/> override the surface's declared texture/mask
+    /// slots; null values inherit the asset's bindings.
+    /// </summary>
+    public MaterialAsset? Material
+    {
+        get => _material;
+        set
+        {
+            if (_material == value)
+            {
+                return;
+            }
+            _material = value;
+            DisposeMaterialInstance();
+        }
+    }
+
+    /// <summary>
+    /// The color mask texture bound to the custom material's mask slot (the surface
+    /// family convention). Null inherits the material asset's mask binding. Ignored
+    /// without <see cref="Material"/> or by surfaces that declare no mask slot.
+    /// </summary>
+    public Texture2D? MaskTexture
+    {
+        get => _maskTexture;
+        set
+        {
+            if (_maskTexture == value)
+            {
+                return;
+            }
+            _maskTexture = value;
+        }
+    }
+
+    /// <summary>
+    /// The mesh mode used to draw the image.
+    /// </summary>
     public ImageType ImageType
     {
         get => _imageType;
@@ -81,9 +130,64 @@ public class UIImage : UINode
         get => _indices ??= new ArrayBuffer<ushort>();
     }
 
+    /// <summary>
+    /// Creates an image node with a simple quad mesh.
+    /// </summary>
     public UIImage()
     {
-        
+    }
+
+    /// <summary>
+    /// Gets this node's material instance, creating it with the canvas camera and
+    /// stencil state when needed and synchronizing the node's texture overrides.
+    /// Other overrides do not modify the shared base material and are preserved
+    /// while the instance is reused.
+    /// </summary>
+    /// <param name="canvas">The canvas that will draw the image.</param>
+    /// <returns>The instance used for drawing, valid until the material or canvas
+    /// changes, the node detaches, or the instance is disposed.</returns>
+    /// <exception cref="InvalidOperationException"><see cref="Material"/> is null.</exception>
+    public GraphicsMaterialInstance GetMaterialInstance(Canvas canvas)
+    {
+        if (_material == null)
+        {
+            throw new InvalidOperationException($"UIImage '{Name}': Material must be set before requesting a material instance.");
+        }
+
+        if (_materialInstance == null || _materialInstance.IsDisposed || !ReferenceEquals(_materialCanvas, canvas))
+        {
+            DisposeMaterialInstance();
+            _materialInstance = canvas.CreateUIMaterialInstance(canvas.GetSpriteMaterial(_material, BlendState.AlphaBlend));
+            _materialCanvas = canvas;
+        }
+
+        if (!ReferenceEquals(_boundMaterialTexture, Texture))
+        {
+            _materialInstance.TrySetTexture(ShaderResourceId.Texture, Texture);
+            _boundMaterialTexture = Texture;
+        }
+        if (!ReferenceEquals(_boundMaterialMaskTexture, MaskTexture))
+        {
+            _materialInstance.TrySetTexture(ShaderResourceId.Mask, MaskTexture);
+            _boundMaterialMaskTexture = MaskTexture;
+        }
+
+        return _materialInstance;
+    }
+
+    private void DisposeMaterialInstance()
+    {
+        _materialInstance?.Dispose();
+        _materialInstance = null;
+        _materialCanvas = null;
+        _boundMaterialTexture = null;
+        _boundMaterialMaskTexture = null;
+    }
+
+    protected override void OnDetachFromTree(Canvas canvas)
+    {
+        DisposeMaterialInstance();
+        base.OnDetachFromTree(canvas);
     }
 
     /// <summary>
@@ -97,6 +201,10 @@ public class UIImage : UINode
         }
     }
 
+    /// <summary>
+    /// Sets the image texture and UV rectangle from a sprite.
+    /// </summary>
+    /// <param name="sprite">The sprite whose texture and UV rectangle to use.</param>
     public void SetSprite(Sprite sprite)
     {
         Texture = sprite.Texture;
@@ -126,6 +234,12 @@ public class UIImage : UINode
     {
         base.OnUpdate(canvas, delta);
 
+        if (_material != null)
+        {
+            DrawWithMaterial(canvas, delta);
+            return;
+        }
+
         if (ImageType == ImageType.Sliced && Texture != null)
         {
             // Detect implicit size changes (e.g., stretch anchor with parent resize)
@@ -152,5 +266,51 @@ public class UIImage : UINode
         }
         canvas.DrawSprite(Texture, RenderTransform.Matrix, UvRect, RenderColor);
 
+    }
+
+    /// <summary>
+    /// Draws the image through its custom material: a centered quad for the simple
+    /// type, the sliced/tiled mesh otherwise. Node textures are pushed into the
+    /// material instance's texture/mask slots when the surface declares them.
+    /// </summary>
+    private void DrawWithMaterial(Canvas canvas, float delta)
+    {
+        GraphicsMaterialInstance instance = GetMaterialInstance(canvas);
+
+        bool sliced = ImageType == ImageType.Sliced && Texture != null;
+        bool tiled = ImageType == ImageType.Tiled && Texture != null;
+        if (!sliced && !tiled)
+        {
+            SpriteConstant constant = new SpriteConstant
+            {
+                Model = RenderTransform.Matrix,
+                Color = RenderColor,
+                UvRect = UvRect
+            };
+            canvas.DrawMaterial(instance, in constant);
+            return;
+        }
+
+        // Detect implicit size changes (e.g., stretch anchor with parent resize)
+        if (Size != _lastMeshSize)
+        {
+            OnUpdateRenderData(canvas, delta);
+        }
+        Transform2D transform = RenderTransform;
+        transform.Scale = WorldTransform.Scale; // mesh already contains Size, keep only world scale
+        SpriteConstant meshConstant = new SpriteConstant
+        {
+            Model = transform.Matrix,
+            Color = RenderColor,
+            UvRect = UvRect
+        };
+        if (sliced)
+        {
+            canvas.DrawSpriteWithCustomMaterial(Vertices.AsSpan(0, 16), Indices.AsSpan(0, 54), instance, in meshConstant);
+        }
+        else
+        {
+            canvas.DrawSpriteWithCustomMaterial(Vertices.AsSpan(0, 4), Indices.AsSpan(0, 6), instance, in meshConstant);
+        }
     }
 }

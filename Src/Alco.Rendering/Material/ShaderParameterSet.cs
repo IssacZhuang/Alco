@@ -496,9 +496,9 @@ public sealed class ShaderParameterSet
     /// Try to set the texture to the shader parameter set.
     /// </summary>
     /// <param name="name">The shader resource name of the resource.</param>
-    /// <param name="texture">The texture to set.</param>
-    /// <returns>Whether the texture is set successfully.</returns>
-    public bool TrySetTexture(string name, Texture texture)
+    /// <param name="texture">The texture to set, or null to restore the fallback binding.</param>
+    /// <returns>Whether the texture slot exists.</returns>
+    public bool TrySetTexture(string name, Texture? texture)
     {
         if (!_reflectionInfo.TryGetResourceId(name, out uint id))
         {
@@ -512,9 +512,9 @@ public sealed class ShaderParameterSet
     /// Try to set the texture to the shader parameter set.
     /// </summary>
     /// <param name="id">The shader resource ID of the resource.</param>
-    /// <param name="texture">The texture to set.</param>
-    /// <returns>Whether the texture is set successfully.</returns>
-    public bool TrySetTexture(uint id, Texture texture)
+    /// <param name="texture">The texture to set, or null to restore the fallback binding.</param>
+    /// <returns>Whether the texture slot exists.</returns>
+    public bool TrySetTexture(uint id, Texture? texture)
     {
         if (id >= (uint)_slots.Length)
         {

@@ -1,10 +1,8 @@
 namespace Alco.Rendering;
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using Alco.Graphics;
 
 /// <summary>
@@ -29,6 +27,7 @@ public partial class RenderingSystem
     private readonly GraphicsValueBuffer<GlobalRenderData> _globalRenderData;
     private readonly GraphicsValueBuffer<Matrix4x4> _viewProjectionMatrix;
 
+    /// <summary>Gets the device used to create and submit rendering resources.</summary>
     public GPUDevice GraphicsDevice
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -51,12 +50,14 @@ public partial class RenderingSystem
         get => _samplerLibrary;
     }
 
+    /// <summary>Gets the shared per-frame rendering data buffer.</summary>
     public GraphicsValueBuffer<GlobalRenderData> GlobalRenderDataBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _globalRenderData;
     }
 
+    /// <summary>Gets the shared main-camera view-projection matrix buffer.</summary>
     public GraphicsValueBuffer<Matrix4x4> MainCameraViewProjectionBuffer
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -131,6 +132,12 @@ public partial class RenderingSystem
     /// </summary>
     public string? SlangCacheDirectory { get; }
 
+    /// <summary>
+    /// Gets the rendering-system-owned material compiler and its shared composition cache.
+    /// It has no default surface: callers supply an asset surface or a per-call fallback.
+    /// </summary>
+    public MaterialCompiler MaterialCompiler { get; }
+
     private WeakReference<ICamera>? _mainCameraWeakRef;
 
     /// <summary>
@@ -167,6 +174,15 @@ public partial class RenderingSystem
         }
     }
 
+    /// <summary>Creates the shared rendering resources, shader system and material compiler.</summary>
+    /// <param name="host">The owner providing update and disposal notifications.</param>
+    /// <param name="device">The graphics device.</param>
+    /// <param name="preferredHDRFormat">The main HDR render-target format.</param>
+    /// <param name="preferredDepthStencilFormat">The main depth-stencil format.</param>
+    /// <param name="moduleResolver">
+    /// The authoritative module source resolver; null resolves disk files and executable-adjacent Assets.
+    /// </param>
+    /// <param name="slangCacheDirectory">The shader-cache directory; null selects the default cache location.</param>
     public RenderingSystem(
         IRenderingSystemHost host,
         GPUDevice device,
@@ -219,6 +235,7 @@ public partial class RenderingSystem
         // RAII like every other subsystem: the module shader factory is created
         // eagerly with its resolver (compilation itself stays lazy).
         _shaderSystem = CreateShaderSystem(moduleResolver, slangCacheDirectory ?? ".cache/shader-slang");
+        MaterialCompiler = new MaterialCompiler(this);
 
         _host.OnUpdate += OnUpdate;
         _host.OnDispose += OnDispose;
@@ -231,6 +248,8 @@ public partial class RenderingSystem
     /// </summary>
     internal int ScheduledSubmissionCount;
 
+    /// <summary>Submits a recorded command buffer to the graphics device.</summary>
+    /// <param name="commandBuffer">The command buffer to submit.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void ScheduleCommandBuffer(GPUCommandBuffer commandBuffer)
     {
@@ -260,6 +279,7 @@ public partial class RenderingSystem
     {
         _host.OnUpdate -= OnUpdate;
         _host.OnDispose -= OnDispose;
+        MaterialCompiler.Dispose();
         _samplerLibrary.Dispose();
         _globalRenderData.Dispose();
         _viewProjectionMatrix.Dispose();

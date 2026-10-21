@@ -271,11 +271,20 @@ public partial class Canvas : AutoDisposable, INavigationContext
     /// </summary>
     internal SvgRenderer SvgRenderer => _svgRenderer ??= _renderingSystem.CreateSvgRenderer();
 
+    /// <summary>Creates a canvas using caller-provided pass templates and a default UI surface.</summary>
+    /// <param name="system">The rendering system providing GPU resources and the shared material compiler.</param>
+    /// <param name="inputTracker">The canvas input source.</param>
+    /// <param name="spriteTemplate">The IUISurface pass template for images and masks.</param>
+    /// <param name="textTemplate">The IUISurface glyph pass template with premultiplied-alpha output.</param>
+    /// <param name="defaultSurface">The UI surface used for ordinary drawing and assets without an explicit surface.</param>
+    /// <param name="defaultFont">The default font used by text nodes.</param>
+    /// <param name="renderContext">An optional externally owned render context.</param>
     public Canvas(
         RenderingSystem system,
         IUIInputTracker inputTracker,
-        GraphicsMaterial defaultSpriteMaterial,
-        GraphicsMaterial defaultTextMaterial,
+        ShaderLibrary spriteTemplate,
+        ShaderLibrary textTemplate,
+        ShaderLibrary defaultSurface,
         Font defaultFont,
         RenderContext? renderContext = null
         )
@@ -283,11 +292,15 @@ public partial class Canvas : AutoDisposable, INavigationContext
 
         ArgumentNullException.ThrowIfNull(system);
         ArgumentNullException.ThrowIfNull(inputTracker);
-        ArgumentNullException.ThrowIfNull(defaultSpriteMaterial);
-        ArgumentNullException.ThrowIfNull(defaultTextMaterial);
+        ArgumentNullException.ThrowIfNull(spriteTemplate);
+        ArgumentNullException.ThrowIfNull(textTemplate);
+        ArgumentNullException.ThrowIfNull(defaultSurface);
         ArgumentNullException.ThrowIfNull(defaultFont);
 
         _renderingSystem = system;
+        _spriteTemplate = spriteTemplate;
+        _textTemplate = textTemplate;
+        _defaultSurface = defaultSurface;
 
         DefaultFont = defaultFont;
 
@@ -302,52 +315,13 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _renderContext = renderContext ?? system.CreateRenderContext();
         _ownsRenderContext = renderContext == null;
 
-        // The canvas sprite material derives from the caller's default sprite
-        // material (inheriting its blend state and texture defaults) and pins
-        // the repeated-wrap specialization of the sprite module
-        // (MainPS<let repeated : bool>) — the tiling mode of UISprite needs UVs
-        // beyond [0,1] to wrap.
-        _spriteMaterial = defaultSpriteMaterial.CreateInstance();
-        _spriteMaterial.SetSpecializations("true");
-        _spriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
-        _spriteMaterial.DepthStencilState = DepthStencilState.Default with
-        {
-            FrontFace = StencilFaceState.CompareEqual,
-            BackFace = StencilFaceState.CompareEqual,
-            StencilReadMask = 0xFF,
-            StencilWriteMask = 0xFF,
-        };
+        MaterialAsset defaultAsset = new() { Name = "UI_Default" };
+        GraphicsMaterial spriteBase = GetSpriteMaterial(defaultAsset, BlendState.AlphaBlend);
+        _spriteMaterial = CreateUIMaterialInstance(spriteBase);
+        _premultipliedSpriteMaterial = CreateUIMaterialInstance(GetSpriteMaterial(defaultAsset, BlendState.PremultipliedAlpha));
+        _textMaterial = CreateUIMaterialInstance(GetTextMaterial(defaultAsset));
 
-        // SVG rasterizations store premultiplied alpha while the plain sprite
-        // material blends straight alpha: this instance differs only in the blend
-        // state and serves DrawSpritePremultiplied.
-        _premultipliedSpriteMaterial = defaultSpriteMaterial.CreateInstance();
-        _premultipliedSpriteMaterial.SetSpecializations("true");
-        _premultipliedSpriteMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
-        _premultipliedSpriteMaterial.BlendState = BlendState.PremultipliedAlpha;
-        _premultipliedSpriteMaterial.DepthStencilState = DepthStencilState.Default with
-        {
-            FrontFace = StencilFaceState.CompareEqual,
-            BackFace = StencilFaceState.CompareEqual,
-            StencilReadMask = 0xFF,
-            StencilWriteMask = 0xFF,
-        };
-
-        _textMaterial = defaultTextMaterial.CreateInstance();
-        _textMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
-        _textMaterial.DepthStencilState = DepthStencilState.Default with
-        {
-            FrontFace = StencilFaceState.CompareEqual,
-            BackFace = StencilFaceState.CompareEqual,
-            StencilReadMask = 0xFF,
-            StencilWriteMask = 0xFF,
-        };
-
-        //stencil write
-        _stencilIncreaseMaterial = defaultSpriteMaterial.CreateInstance();
-        _stencilIncreaseMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
-
-        _shaderId_texture = _stencilIncreaseMaterial.GetResourceId(ShaderResourceId.Texture);
+        _stencilIncreaseMaterial = CreateUIMaterialInstance(spriteBase);
 
         StencilFaceState stencilIncrease = new StencilFaceState(
             CompareFunction.Equal,
@@ -371,8 +345,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
             StencilOperation.Keep
             );
 
-        _stencilDecreaseMaterial = defaultSpriteMaterial.CreateInstance();
-        _stencilDecreaseMaterial.TrySetBuffer(ShaderResourceId.Camera, _camera);
+        _stencilDecreaseMaterial = CreateUIMaterialInstance(spriteBase);
         _stencilDecreaseMaterial.DepthStencilState = DepthStencilState.Default with
         {
             FrontFace = stencilDecrease,
@@ -488,9 +461,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
     {
         if (disposing)
         {
-            if (_textInput != null)
+            ClearTextInput();
+            while (Root.Children.Count > 0)
             {
-                _inputTracker.ReleaseTextInput();
+                Root.Remove(Root.Children[Root.Children.Count - 1]);
             }
             _inputTracker?.UnregisterTextInput(OnTextInput);
             _collisionWorld.Dispose();
@@ -501,9 +475,15 @@ public partial class Canvas : AutoDisposable, INavigationContext
             _spriteRenderer.Dispose();
             _textRenderer.Dispose();
             _dynamicMeshRenderer.Dispose();
+            _spriteMaterial.Dispose();
+            _premultipliedSpriteMaterial.Dispose();
+            _textMaterial.Dispose();
+            _stencilIncreaseMaterial.Dispose();
+            _stencilDecreaseMaterial.Dispose();
             _camera.Dispose();
             // In-flight rasterizations may fault after this; adopters log it once.
             _svgRenderer?.Dispose();
+            _materialCache.Clear();
         }
 
         _hovered = null;

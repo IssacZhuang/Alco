@@ -185,32 +185,38 @@ public sealed class MaterialCompiler : AutoDisposable
     /// material, whose world-route axes do not apply).
     /// </summary>
     /// <param name="specializations">The named specialization values; null compiles the unspecialized variant (every axis of the template defaults).</param>
+    /// <param name="defaultSurface">
+    /// The per-call surface fallback when the asset names none; null uses the compiler's default.
+    /// The asset is not modified, and an explicit asset surface always takes precedence.
+    /// </param>
     /// <inheritdoc cref="Compile(MaterialAsset, ShaderLibrary, Func{MaterialAsset, Shader, GraphicsMaterial})"/>
     public GraphicsMaterial Compile(
         MaterialAsset asset,
         ShaderLibrary template,
         IReadOnlyDictionary<string, ShaderValue>? specializations,
-        Func<MaterialAsset, Shader, GraphicsMaterial> createMaterial)
+        Func<MaterialAsset, Shader, GraphicsMaterial> createMaterial,
+        ShaderLibrary? defaultSurface = null)
     {
         ArgumentNullException.ThrowIfNull(asset);
         ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(createMaterial);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        Shader shader = Compose(template, SurfaceOf(asset), compute: false);
+        ShaderLibrary surface = asset.Surface ?? defaultSurface ?? SurfaceOf(asset);
+        Shader shader = Compose(template, surface, compute: false);
         string[] specLiterals = BuildSpecializationLiterals(template, specializations);
         ShaderReflection reflection = shader.GetShaderModules(specLiterals).ReflectionInfo;
 
         // Compile-time slot validation: a texture slot the surface does not
         // declare is a typo in the asset — fail here, at compile time.
         // (Slot discovery: see EnumerateTextureSlots.)
-        IReadOnlyList<string> textureSlots = EnumerateTextureSlots(SurfaceOf(asset));
+        IReadOnlyList<string> textureSlots = EnumerateTextureSlots(surface);
         foreach (string slot in asset.Textures.Keys)
         {
             if (!textureSlots.Contains(slot))
             {
                 throw new InvalidDataException(
-                    $"GraphicsMaterial '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceOf(asset).Name}'; " +
+                    $"GraphicsMaterial '{asset.Name}' texture slot '{slot}' matches no texture of surface '{surface.Name}'; " +
                     $"expected one of: {string.Join(", ", textureSlots)}.");
             }
         }
@@ -230,7 +236,7 @@ public sealed class MaterialCompiler : AutoDisposable
             // slot value, the packed buffers are escapable shared references
             // (ShaderParameterSet.TryGetBuffer) — nobody disposes them explicitly;
             // their finalizer reclaims them once nothing references them.
-            foreach (KeyValuePair<string, GraphicsBuffer> block in PackParamsBuffers(asset))
+            foreach (KeyValuePair<string, GraphicsBuffer> block in PackParamsBuffers(asset, surface))
             {
                 if (reflection.TryGetResourceId(block.Key, out _))
                 {
@@ -293,25 +299,26 @@ public sealed class MaterialCompiler : AutoDisposable
     {
         ArgumentNullException.ThrowIfNull(asset);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
-        Shader shader = ComposeSurfaceComputeShader(asset, template);
+        ShaderLibrary surface = SurfaceOf(asset);
+        Shader shader = ComposeCompute(template, surface);
         string[] specLiterals = BuildSpecializationLiterals(template, asset.Specializations);
         ShaderReflection reflection = shader.GetShaderModules(specLiterals).ReflectionInfo;
 
         // Compile-time slot validation, the same rule as the graphics passes: a
         // texture slot the surface does not declare is a typo in the asset.
-        IReadOnlyList<string> textureSlots = EnumerateTextureSlots(SurfaceOf(asset));
+        IReadOnlyList<string> textureSlots = EnumerateTextureSlots(surface);
         foreach (string slot in asset.Textures.Keys)
         {
             if (!textureSlots.Contains(slot))
             {
                 throw new InvalidDataException(
-                    $"Compute material '{asset.Name}' texture slot '{slot}' matches no texture of surface '{SurfaceOf(asset).Name}'; " +
+                    $"Compute material '{asset.Name}' texture slot '{slot}' matches no texture of surface '{surface.Name}'; " +
                     $"expected one of: {string.Join(", ", textureSlots)}.");
             }
         }
 
         ComputeMaterial material = _rendering.CreateComputeMaterial(shader, specLiterals);
-        foreach (KeyValuePair<string, GraphicsBuffer> block in PackParamsBuffers(asset))
+        foreach (KeyValuePair<string, GraphicsBuffer> block in PackParamsBuffers(asset, surface))
         {
             if (reflection.TryGetResourceId(block.Key, out _))
             {
@@ -765,7 +772,7 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The parameter buffers of an asset: every block of its surface marked
+    /// The parameter buffers of an asset: every block of its effective surface marked
     /// <c>[MaterialParams]</c> (free names, any number), packed from
     /// <see cref="MaterialAsset.Parameters"/> by member name at the offsets slang
     /// reflected. Packed once per (asset, surface) and cached on the asset — every
@@ -773,9 +780,8 @@ public sealed class MaterialCompiler : AutoDisposable
     /// <see cref="MaterialAsset.ParameterBuffers"/>); re-setting the asset's
     /// surface/parameters drops the cache for a fresh pack.
     /// </summary>
-    private IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(MaterialAsset asset)
+    private IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(MaterialAsset asset, ShaderLibrary surface)
     {
-        ShaderLibrary surface = SurfaceOf(asset);
         if (asset.HasParameterBuffers(surface))
         {
             return asset.ParameterBuffers!;

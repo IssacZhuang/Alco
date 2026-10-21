@@ -10,6 +10,7 @@ namespace Alco.GUI;
 /// </summary>
 public class UIText : UISelectable
 {
+    /// <summary>The minimum temporary buffer size for span-formatted text.</summary>
     public const int MinSpanFormattableSize = 32;
     protected struct Line
     {
@@ -34,12 +35,35 @@ public class UIText : UISelectable
     private int _richTextLength;
     private List<TextSlice>? _richSlices;
     private ArrayBuffer<TextSlice>? _lineSlices;
+    private MaterialAsset? _material;
+    private GraphicsMaterialInstance? _materialInstance;
+    private Canvas? _materialCanvas;
 
     /// <summary>
     /// The font for rendering text. The text will not display if the font is null.
     /// </summary>
     /// <value></value>
     public Font? Font { get; set; }
+
+    /// <summary>
+    /// The material asset whose surface shades the glyphs instead of the plain text
+    /// material. The surface must implement the engine's <c>IUISurface</c> protocol
+    /// and return straight RGBA; the text pass applies glyph coverage and
+    /// premultiplies the output.
+    /// </summary>
+    public MaterialAsset? Material
+    {
+        get => _material;
+        set
+        {
+            if (_material == value)
+            {
+                return;
+            }
+            _material = value;
+            DisposeMaterialInstance();
+        }
+    }
 
     /// <summary>
     /// The font size for rendering text.
@@ -171,7 +195,9 @@ public class UIText : UISelectable
         set => _textPivot = value;
     }
 
-    
+    /// <summary>
+    /// Controls how text that exceeds the node width is laid out.
+    /// </summary>
     public OverflowModeHorizontal OverflowHorizontal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -180,6 +206,9 @@ public class UIText : UISelectable
         set => _overflowHorizontal = value;
     }
 
+    /// <summary>
+    /// Controls how text that exceeds the node height is handled.
+    /// </summary>
     public OverflowModeVertical OverflowVertical
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -188,6 +217,9 @@ public class UIText : UISelectable
         set => _overflowVertical = value;
     }
 
+    /// <summary>
+    /// The vertical alignment of text inside the node.
+    /// </summary>
     public TextAlign AlignVertical
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -197,6 +229,9 @@ public class UIText : UISelectable
 
     }
 
+    /// <summary>
+    /// The horizontal alignment of text inside the node.
+    /// </summary>
     public TextAlign AlignHorizontal
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -205,10 +240,52 @@ public class UIText : UISelectable
         set => _textPivot.X = value;
     }
 
+    /// <summary>
+    /// Creates a non-interactable text node.
+    /// </summary>
     public UIText()
     {
         //default false, override by InputBox
         IsInteractable = false;
+    }
+
+    /// <summary>
+    /// Gets this node's material instance, creating it with the canvas camera and
+    /// stencil state when needed. Overrides on the returned instance do not modify
+    /// the shared base material and are preserved while the instance is reused.
+    /// </summary>
+    /// <param name="canvas">The canvas that will draw the text.</param>
+    /// <returns>The instance used for drawing, valid until the material or canvas
+    /// changes, the node detaches, or the instance is disposed.</returns>
+    /// <exception cref="InvalidOperationException"><see cref="Material"/> is null.</exception>
+    public GraphicsMaterialInstance GetMaterialInstance(Canvas canvas)
+    {
+        if (_material == null)
+        {
+            throw new InvalidOperationException($"UIText '{Name}': Material must be set before requesting a material instance.");
+        }
+
+        if (_materialInstance == null || _materialInstance.IsDisposed || !ReferenceEquals(_materialCanvas, canvas))
+        {
+            DisposeMaterialInstance();
+            _materialInstance = canvas.CreateUIMaterialInstance(canvas.GetTextMaterial(_material));
+            _materialCanvas = canvas;
+        }
+
+        return _materialInstance;
+    }
+
+    private void DisposeMaterialInstance()
+    {
+        _materialInstance?.Dispose();
+        _materialInstance = null;
+        _materialCanvas = null;
+    }
+
+    protected override void OnDetachFromTree(Canvas canvas)
+    {
+        DisposeMaterialInstance();
+        base.OnDetachFromTree(canvas);
     }
 
     protected unsafe override void OnUpdate(Canvas canvas, float delta)
@@ -217,6 +294,11 @@ public class UIText : UISelectable
         if (Font == null)
         {
             return;
+        }
+
+        if (_material != null)
+        {
+            GetMaterialInstance(canvas);
         }
 
         if (_isTmpStrWriteDirty)
@@ -252,6 +334,10 @@ public class UIText : UISelectable
         }
     }
 
+    /// <summary>
+    /// Copies a string into the text buffer and marks its layout dirty.
+    /// </summary>
+    /// <param name="str">The text to display.</param>
     public unsafe void SetText(string str)
     {
         fixed (char* p = str)
@@ -260,6 +346,10 @@ public class UIText : UISelectable
         }
     }
 
+    /// <summary>
+    /// Copies a character span into the text buffer and marks its layout dirty.
+    /// </summary>
+    /// <param name="str">The text to display.</param>
     public unsafe void SetText(ReadOnlySpan<char> str)
     {
         fixed (char* p = str)
@@ -268,6 +358,11 @@ public class UIText : UISelectable
         }
     }
 
+    /// <summary>
+    /// Copies characters from a pointer into the text buffer and marks its layout dirty.
+    /// </summary>
+    /// <param name="str">The pointer to the characters to display.</param>
+    /// <param name="length">The number of characters to copy.</param>
     public unsafe void SetText(char* str, int length)
     {
         _isTmpStrReadDirty = true;
@@ -292,10 +387,10 @@ public class UIText : UISelectable
     {
         if (_isRichText && _richSlices!.Count > 0)
         {
-            canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, GetLineSlices(line), 1f);
+            canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, GetLineSlices(line), 1f, _materialInstance);
             return;
         }
-        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, 1f);
+        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, 1f, _materialInstance);
     }
 
     /// <summary>

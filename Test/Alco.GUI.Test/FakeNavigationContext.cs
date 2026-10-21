@@ -71,6 +71,15 @@ public sealed class FakeInputTracker : IUIInputTracker
     public ReadOnlySpan<char> GetClipboardText() => ReadOnlySpan<char>.Empty;
     public void RegisterTextInput(Action<ReadOnlySpan<char>> action) { }
     public void UnregisterTextInput(Action<ReadOnlySpan<char>> action) { }
-    public void RequestTextInput() { }
-    public void ReleaseTextInput() { }
+    /// <summary>Gets the number of text-input requests.</summary>
+    public int TextInputRequestCount { get; private set; }
+
+    /// <summary>Gets the number of released text-input requests.</summary>
+    public int TextInputReleaseCount { get; private set; }
+
+    /// <summary>Records a text-input request.</summary>
+    public void RequestTextInput() => TextInputRequestCount++;
+
+    /// <summary>Records the release of a text-input request.</summary>
+    public void ReleaseTextInput() => TextInputReleaseCount++;
 }

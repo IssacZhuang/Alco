@@ -1,4 +1,5 @@
 using System.Numerics;
+using Alco.Graphics;
 using Alco.Rendering;
 using NanoSvgSharp;
 
@@ -45,6 +46,10 @@ public class UIGeometryIcon : UINode
     private uint _rasterHeight;
     private bool _svgChanged;
     private bool _invalidSvgLogged;
+    private MaterialAsset? _material;
+    private GraphicsMaterialInstance? _materialInstance;
+    private Canvas? _materialCanvas;
+    private Texture2D? _boundMaterialTexture;
 
     private Task<Texture2D?>? _rasterTask;
     private string? _rasterTaskSvg;
@@ -98,6 +103,74 @@ public class UIGeometryIcon : UINode
     public float ResizeSettleSeconds { get; set; } = 0.1f;
 
     /// <summary>
+    /// The material asset whose surface draws the icon instead of the premultiplied
+    /// sprite material. The surface must implement the engine's <c>IUISurface</c>
+    /// protocol and return premultiplied RGBA for premultiplied-alpha blending.
+    /// The rasterized texture is bound to the surface's texture slot when declared.
+    /// </summary>
+    public MaterialAsset? Material
+    {
+        get => _material;
+        set
+        {
+            if (_material == value)
+            {
+                return;
+            }
+            _material = value;
+            DisposeMaterialInstance();
+        }
+    }
+
+    /// <summary>
+    /// Gets this node's material instance, creating it with the canvas camera,
+    /// stencil state and premultiplied-alpha blending when needed. The current
+    /// rasterized texture overrides the surface's texture slot when declared.
+    /// Other overrides do not modify the shared base material and are preserved
+    /// while the instance is reused.
+    /// </summary>
+    /// <param name="canvas">The canvas that will draw the icon.</param>
+    /// <returns>The instance used for drawing, valid until the material or canvas
+    /// changes, the node detaches, or the instance is disposed.</returns>
+    /// <exception cref="InvalidOperationException"><see cref="Material"/> is null.</exception>
+    public GraphicsMaterialInstance GetMaterialInstance(Canvas canvas)
+    {
+        if (_material == null)
+        {
+            throw new InvalidOperationException($"UIGeometryIcon '{Name}': Material must be set before requesting a material instance.");
+        }
+
+        if (_materialInstance == null || _materialInstance.IsDisposed || !ReferenceEquals(_materialCanvas, canvas))
+        {
+            DisposeMaterialInstance();
+            _materialInstance = canvas.CreateUIMaterialInstance(canvas.GetSpriteMaterial(_material, BlendState.PremultipliedAlpha));
+            _materialCanvas = canvas;
+        }
+
+        if (!ReferenceEquals(_boundMaterialTexture, _texture))
+        {
+            _materialInstance.TrySetTexture(ShaderResourceId.Texture, _texture);
+            _boundMaterialTexture = _texture;
+        }
+
+        return _materialInstance;
+    }
+
+    private void DisposeMaterialInstance()
+    {
+        _materialInstance?.Dispose();
+        _materialInstance = null;
+        _materialCanvas = null;
+        _boundMaterialTexture = null;
+    }
+
+    protected override void OnDetachFromTree(Canvas canvas)
+    {
+        DisposeMaterialInstance();
+        base.OnDetachFromTree(canvas);
+    }
+
+    /// <summary>
     /// Sets <see cref="UINode.Size"/> to the document's intrinsic size (the
     /// width/height attributes, or the viewBox size when they are absent). The
     /// document is parsed on a background thread and the size is applied on a
@@ -136,7 +209,21 @@ public class UIGeometryIcon : UINode
 
         if (_texture != null)
         {
-            canvas.DrawSpritePremultiplied(_texture, RenderTransform.Matrix, Rect.One, RenderColor);
+            if (_material == null)
+            {
+                canvas.DrawSpritePremultiplied(_texture, RenderTransform.Matrix, Rect.One, RenderColor);
+                return;
+            }
+
+            GraphicsMaterialInstance instance = GetMaterialInstance(canvas);
+
+            SpriteConstant constant = new SpriteConstant
+            {
+                Model = RenderTransform.Matrix,
+                Color = RenderColor,
+                UvRect = Rect.One
+            };
+            canvas.DrawMaterial(instance, in constant);
         }
     }
 

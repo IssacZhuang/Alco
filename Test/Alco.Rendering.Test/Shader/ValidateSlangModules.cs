@@ -62,6 +62,15 @@ public class ValidateSlangModules
     //   TextureCompressBc1/TextureCompressBc3: <let IsSRGB : bool>,
     //   TileInstanced: VertexMain<let IsFacade : bool>, PixelMain<let Bombing :
     //   bool> — args map to entry points in definition order.
+    //   UI sprite/text templates: compose with UIStandard and link both values
+    //   of the nearest axis to preserve their sampler-selection contract.
+    private static readonly IReadOnlyDictionary<string, string> TemplateSurfaces =
+        new Dictionary<string, string>
+        {
+            ["AlcoRendering_UISprite"] = "AlcoRendering_UIStandard",
+            ["AlcoRendering_UIText"] = "AlcoRendering_UIStandard",
+        };
+
     private static readonly IReadOnlyDictionary<string, string[][]> Specializations =
         new Dictionary<string, string[][]>
         {
@@ -70,9 +79,11 @@ public class ValidateSlangModules
             ["TextureCompressBc1"] = [["false"]],
             ["TextureCompressBc3"] = [["false"]],
             ["TileInstanced"] = [["false", "false"]],
+            ["AlcoRendering_UISprite"] = [["false"], ["true"]],
+            ["AlcoRendering_UIText"] = [["false"], ["true"]],
         };
 
-    /// <summary>Compiles every entry point with representative specialization arguments.</summary>
+    /// <summary>Compiles every entry point, composing surface templates with their default surface.</summary>
     /// <param name="moduleName">The shader module name.</param>
     /// <param name="file">The source file represented by the test case.</param>
     [Test]
@@ -103,7 +114,9 @@ public class ValidateSlangModules
             : [[]];
         foreach (string[] args in argSets)
         {
-            using SlangProgram program = system.Modules.GetProgramAllEntries(moduleName, args);
+            using SlangProgram program = TemplateSurfaces.TryGetValue(moduleName, out string? surfaceModule)
+                ? system.Modules.GetComposedProgram(moduleName, surfaceModule, args)
+                : system.Modules.GetProgramAllEntries(moduleName, args);
             Assert.That(program.EntryPoints, Has.Count.GreaterThan(0), $"{moduleName} defines no entry points");
             Assert.That(program.EntryCode.Count, Is.EqualTo(program.EntryPoints.Count));
             foreach (ReadOnlyMemory<byte> code in program.EntryCode)
