@@ -5,6 +5,9 @@ using System.Numerics;
 namespace Alco
 {
     //Collider for BVH tree
+    /// <summary>
+    /// A collidable 2D shape that supports overlap, ray, and point queries.
+    /// </summary>
     public unsafe interface ICollider2D : IShape2D
     {
         ColliderHeader2D Header { get; }

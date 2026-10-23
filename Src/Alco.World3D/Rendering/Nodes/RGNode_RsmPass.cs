@@ -6,20 +6,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A reflective shadow map (RSM) graph node for the voxel GI's sun-bounce
-/// injection (CRYENGINE SVOTI style, see docs/GI_Sun_RSM_Injection.md): renders
-/// the scene once per frame from the selected CSM cascade's sun view into a
-/// depth + albedo + world-normal target (Rsm.slang), clearing all attachments.
-/// Insert it after the shadow pass — typically
-/// <c>graph.InsertBefore(gbufferNode, rsmNode)</c> — and register content
-/// providers on <see cref="Content"/> (e.g. the same <see cref="ShadowRenderer"/>
-/// registered on the shadow pass, after
-/// <see cref="ShadowRenderer.EnableRsm"/>).
-/// <br/>The RSM depth is expressed in the selected cascade's NDC (the vertex
-/// shader unfolds the shared folded cascade matrices), so the GI cone trace's
-/// depth matching against <see cref="PBRSceneEnvironment"/> cascade data applies
-/// unchanged. Disable the node (<see cref="IRenderNode.IsEnabled"/>) when the GI
-/// injection intensity is zero — the pass then costs nothing.
+/// A reflective shadow map (RSM) graph node rendering the scene from the selected CSM cascade's sun view into depth, albedo, and world-normal targets for voxel GI sun-bounce injection. Insert it after the shadow pass and register content providers on <see cref="Content"/>.
 /// </summary>
 public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
 {
@@ -62,13 +49,7 @@ public sealed class RGNode_RsmPass : AutoDisposable, IRenderGraphNode
         CascadeIndex = cascadeIndex;
     }
 
-    /// <summary>The content drawn inside the pass, in list order. Register
-    /// content providers here — the pipeline the pass belongs to is not
-    /// involved.
-    /// <br/>Ownership: the pass does not take ownership of registered providers;
-    /// disposing them (when disposable) is the caller's responsibility, unlike
-    /// nodes handed to <c>RenderGraph.Use</c>, which transfers ownership to the
-    /// graph.</summary>
+    /// <summary>The content drawn inside the pass in list order; registered providers are owned by the caller, not the pass.</summary>
     public List<IRsmPassContent> Content { get; } = new();
 
     /// <summary>The CSM cascade whose sun view-projection defines the RSM view.

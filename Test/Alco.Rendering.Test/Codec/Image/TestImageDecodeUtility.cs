@@ -7,12 +7,14 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>Covers image header probing and decoding for PNG, JPEG, and DDS data.</summary>
 [TestFixture]
 public unsafe class TestImageDecodeUtility
 {
     private static byte[] LoadTestFile(string subfolder, string filename)
         => File.ReadAllBytes(Path.Combine("Files", "Image", subfolder, filename));
 
+    /// <summary>Tests that PNG image info reports the correct dimensions.</summary>
     [Test]
     public void GetImageInfo_PNG_ReturnsCorrectDimensions()
     {
@@ -22,6 +24,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.Height, Is.EqualTo(32));
     }
 
+    /// <summary>Tests that JPEG image info reports positive dimensions.</summary>
     [Test]
     public void GetImageInfo_JPEG_ReturnsCorrectDimensions()
     {
@@ -31,6 +34,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.Height, Is.GreaterThan(0));
     }
 
+    /// <summary>Tests that an unrecognized image format throws <see cref="ImageDecodeException"/>.</summary>
     [Test]
     public void GetImageInfo_UnknownFormat_ThrowsException()
     {
@@ -38,6 +42,7 @@ public unsafe class TestImageDecodeUtility
         Assert.Throws<ImageDecodeException>(() => ImageDecodeUtility.GetImageInfo(data));
     }
 
+    /// <summary>Tests that image data shorter than a header throws <see cref="ImageDecodeException"/>.</summary>
     [Test]
     public void GetImageInfo_TooShort_ThrowsException()
     {
@@ -45,6 +50,7 @@ public unsafe class TestImageDecodeUtility
         Assert.Throws<ImageDecodeException>(() => ImageDecodeUtility.GetImageInfo(data));
     }
 
+    /// <summary>Tests that automatic decoding recognizes and decodes PNG data.</summary>
     [Test]
     public void DecodeAuto_PNG_DecodesCorrectly()
     {
@@ -58,6 +64,7 @@ public unsafe class TestImageDecodeUtility
         finally { NativeMemory.Free(pixels); }
     }
 
+    /// <summary>Tests that automatic decoding recognizes and decodes JPEG data.</summary>
     [Test]
     public void DecodeAuto_JPEG_DecodesCorrectly()
     {
@@ -71,6 +78,7 @@ public unsafe class TestImageDecodeUtility
         finally { NativeMemory.Free(pixels); }
     }
 
+    /// <summary>Tests that automatic decoding rejects an unrecognized format.</summary>
     [Test]
     public void DecodeAuto_UnknownFormat_ThrowsException()
     {
@@ -79,6 +87,7 @@ public unsafe class TestImageDecodeUtility
             ImageDecodeUtility.DecodeAuto(data, out _, out _));
     }
 
+    /// <summary>Tests that a decoded PNG buffers exactly width times height RGBA pixels.</summary>
     [Test]
     public void Decode_ResultSize()
     {
@@ -118,6 +127,7 @@ public unsafe class TestImageDecodeUtility
         return data;
     }
 
+    /// <summary>Tests that PNG file info reports dimensions, format, and mip count.</summary>
     [Test]
     public void GetImageFileInfo_PNG_ReturnsFileSpec()
     {
@@ -130,6 +140,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.DataOffset, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that JPEG file info reports dimensions and a single uncompressed level.</summary>
     [Test]
     public void GetImageFileInfo_JPEG_ReturnsFileSpec()
     {
@@ -141,6 +152,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.MipLevels, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a truncated PNG header throws <see cref="ImageDecodeException"/>.</summary>
     [Test]
     public void GetImageFileInfo_PNG_TruncatedHeader_ThrowsException()
     {
@@ -148,6 +160,7 @@ public unsafe class TestImageDecodeUtility
         Assert.Throws<ImageDecodeException>(() => ImageDecodeUtility.GetImageFileInfo(data.AsSpan(0, 16)));
     }
 
+    /// <summary>Tests that a DDS header is parsed without any payload bytes.</summary>
     [Test]
     public void GetImageFileInfo_Dds_ParsesHeaderWithoutPayload()
     {
@@ -164,6 +177,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.DataOffset, Is.EqualTo(128));
     }
 
+    /// <summary>Tests that requesting sRGB on a DDS returns the sRGB pixel format variant.</summary>
     [Test]
     public void GetImageFileInfo_Dds_SrgbFlagSelectsSrgbVariant()
     {
@@ -172,6 +186,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.Format, Is.EqualTo(PixelFormat.BC1RGBAUnormSrgb));
     }
 
+    /// <summary>Tests that a DX10 extended DDS header resolves its DXGI format.</summary>
     [Test]
     public void GetImageFileInfo_DdsDx10_ParsesExtendedHeader()
     {
@@ -184,6 +199,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.DataOffset, Is.EqualTo(148));
     }
 
+    /// <summary>Tests that an unrecognized file format throws <see cref="ImageDecodeException"/>.</summary>
     [Test]
     public void GetImageFileInfo_UnknownFormat_ThrowsException()
     {
@@ -191,6 +207,7 @@ public unsafe class TestImageDecodeUtility
         Assert.Throws<ImageDecodeException>(() => ImageDecodeUtility.GetImageFileInfo(data));
     }
 
+    /// <summary>Tests that probing a PNG stream consumes exactly 33 bytes.</summary>
     [Test]
     public void GetImageFileInfo_Stream_PNG_ReadsExactly33Bytes()
     {
@@ -203,6 +220,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(stream.Position, Is.EqualTo(33));
     }
 
+    /// <summary>Tests that probing a JPEG stream reads only up to the SOF segment.</summary>
     [Test]
     public void GetImageFileInfo_Stream_JPEG_ReadsOnlySegmentHeaders()
     {
@@ -216,6 +234,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(stream.Position, Is.LessThan(data.Length));
     }
 
+    /// <summary>Tests that probing a DDS stream consumes exactly the 128-byte header.</summary>
     [Test]
     public void GetImageFileInfo_Stream_Dds_ReadsExactly128Bytes()
     {
@@ -227,6 +246,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(stream.Position, Is.EqualTo(128));
     }
 
+    /// <summary>Tests that probing a DX10 DDS stream consumes exactly the 148-byte header.</summary>
     [Test]
     public void GetImageFileInfo_Stream_DdsDx10_ReadsExactly148Bytes()
     {
@@ -238,6 +258,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(stream.Position, Is.EqualTo(148));
     }
 
+    /// <summary>Tests that a truncated PNG stream throws <see cref="ImageDecodeException"/>.</summary>
     [Test]
     public void GetImageFileInfo_Stream_Truncated_ThrowsException()
     {

@@ -3,8 +3,14 @@ using Alco;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Represents a gamepad device and exposes its buttons, axes, and vibration control.
+/// </summary>
 public abstract class Gamepad
 {
+    /// <summary>
+    /// Gets the human-readable name of the gamepad.
+    /// </summary>
     public abstract string Name { get; }
 
     /// <summary>
@@ -12,8 +18,16 @@ public abstract class Gamepad
     /// </summary>
     public abstract GamepadType GamepadType { get; }
 
+    /// <summary>
+    /// Gets whether the gamepad is currently connected.
+    /// </summary>
     public abstract bool IsConnected { get; }
 
+    /// <summary>
+    /// Gets whether the specified button is currently pressed.
+    /// </summary>
+    /// <param name="button">The button to query.</param>
+    /// <returns>True if the button is pressed; otherwise false.</returns>
     public abstract bool IsButtonPressed(GamepadButton button);
 
     /// <summary>
@@ -73,17 +87,35 @@ public abstract class Gamepad
         _onButtonUp.Invoke(button);
     }
 
+    /// <summary>
+    /// Gets the current value of the specified axis.
+    /// </summary>
+    /// <param name="axis">The axis to read.</param>
+    /// <returns>The axis value, normally in the range [-1, 1].</returns>
     public abstract float GetAxis(GamepadAxis axis);
 
+    /// <summary>
+    /// Gets the left stick position as a vector.
+    /// </summary>
+    /// <returns>The left stick X and Y axis values.</returns>
     public Vector2 GetLeftStick()
     {
         return new Vector2(GetAxis(GamepadAxis.LeftX), GetAxis(GamepadAxis.LeftY));
     }
 
+    /// <summary>
+    /// Gets the right stick position as a vector.
+    /// </summary>
+    /// <returns>The right stick X and Y axis values.</returns>
     public Vector2 GetRightStick()
     {
         return new Vector2(GetAxis(GamepadAxis.RightX), GetAxis(GamepadAxis.RightY));
     }
 
+    /// <summary>
+    /// Starts vibration for the specified duration.
+    /// </summary>
+    /// <param name="intensity">Vibration intensity, normally in the range [0, 1].</param>
+    /// <param name="duration">Duration in seconds.</param>
     public abstract void SetVibration(float intensity, float duration);
 }

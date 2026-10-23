@@ -5,6 +5,9 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Host interface implementations that connect engine services.
+/// </summary>
 public partial class GameEngine :
 IGPUDeviceHost,
 IAssetSystemHost,

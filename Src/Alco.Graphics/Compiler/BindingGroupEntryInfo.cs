@@ -13,6 +13,7 @@ public struct BindGroupEntryInfo
     /// <summary>The buffer size in bytes for uniform-buffer bindings; 0 for other entries.</summary>
     public uint Size;
 
+    /// <summary>Returns a diagnostic description of the binding entry and its reflected size.</summary>
     public override string ToString()
     {
         StringBuilder builder = new StringBuilder();
@@ -23,6 +24,8 @@ public struct BindGroupEntryInfo
         return builder.ToString();
     }
 
+    /// <summary>Converts the reflected slot to its underlying bind group entry.</summary>
+    /// <param name="info">The reflected binding slot.</param>
     public static implicit operator BindGroupEntry(BindGroupEntryInfo info)
     {
         return info.Entry;

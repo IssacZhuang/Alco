@@ -4,12 +4,8 @@ using System.Runtime.InteropServices;
 namespace Alco.Effects;
 
 /// <summary>
-/// The per-emitter parameter record of a 2D particle group, written by the CPU
-/// every frame and read by the emit/simulate/render shaders. Exact twin of the
-/// slang <c>EmitterParams2D</c> struct (AlcoParticles_Core2D.slang) — the field
-/// order and padding must match. The total size must stay a multiple of 16:
-/// std430 rounds the buffer element stride up to the struct alignment (16, from
-/// the matrix), and a CPU/GPU size mismatch shifts every emitter's parameters.
+/// The per-emitter parameter record of a 2D particle group, written by the CPU every frame and read by the emit/simulate/render shaders.
+/// The layout must match the slang <c>EmitterParams2D</c> struct exactly, with the total size a multiple of 16.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct EmitterParams2D
@@ -36,13 +32,8 @@ public struct EmitterParams2D
     public uint FrameSeed;
 
     /// <summary>
-    /// Bit flags; bit0: world-space simulation (spawn through <see cref="WorldMatrix"/>),
-    /// bit1: color-gradient lookup bound, bit2: size-curve lookup bound,
-    /// bit3: velocity-stretched quads (with align-rotation-to-velocity),
-    /// bit4: flipbook plays in reverse (last frame at spawn),
-    /// bit5: the render pass writes world z from <see cref="DepthBase"/> (2D only).
-    /// The slang side mirrors these as the PARTICLE_FLAG_* constants
-    /// (AlcoParticles_Core2D.slang).
+    /// Packed control flags (world-space simulation, gradients, size curves, velocity stretch, reversed flipbook, depth base).
+    /// The values correspond to the <c>Flag*</c> constants below and to the PARTICLE_FLAG_* constants in AlcoParticles_Core2D.slang.
     /// </summary>
     public uint Flags;
 
@@ -100,11 +91,8 @@ public struct EmitterParams2D
     public uint IndexCount;
 
     /// <summary>
-    /// A custom per-instance data channel for custom surface vertex hooks
-    /// (<c>IParticleSurface.adjustWorldPosition</c>, surfaced as
-    /// <c>ParticleVertexInput.customData</c>): the built-in passes never
-    /// read it, so a project shader is free to define its meaning; set per
-    /// instance through <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
+    /// A custom per-instance float channel for vertex hooks (<c>ParticleVertexInput.customData</c>); the built-in passes never read it, so a project shader defines its meaning.
+    /// Set per instance through <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
     /// </summary>
     public float CustomData;
 
@@ -115,13 +103,8 @@ public struct EmitterParams2D
     public float EmitterHeight;
 
     /// <summary>
-    /// The group's base world z for scene-depth arbitration (2D only): when
-    /// <see cref="FlagDepthBase"/> is set, the render pass writes
-    /// <c>world.z = DepthBase - height</c> (the particle's height above ground
-    /// recedes it, matching entity depth stacks) before the surface's vertex
-    /// hook runs, so hooks only refine the projection (e.g. tilt a standing
-    /// facade quad). Written per frame by the instance from
-    /// <see cref="ParticleEffectInstance2D.DepthBase"/>.
+    /// The group's base world z for scene-depth arbitration (2D only); when <see cref="FlagDepthBase"/> is set, the render pass writes <c>world.z = DepthBase - height</c>.
+    /// Written per frame by the instance from <see cref="ParticleEffectInstance2D.DepthBase"/>.
     /// </summary>
     public float DepthBase;
 
@@ -163,14 +146,7 @@ public struct EmitterParams2D
     public const uint FlagDepthBase = 32u;
 
     /// <summary>
-    /// Merges an edited record into the live slot record of an emitter: the static
-    /// (asset-authored) fields come from <paramref name="edited"/> while the
-    /// slot-bound (<see cref="Capacity"/>, <see cref="SliceOffset"/>,
-    /// <see cref="IndexCount"/>) and per-frame (<see cref="SpawnCount"/>,
-    /// <see cref="EmitCursor"/>, <see cref="DeltaTime"/>, <see cref="EmitterTime"/>,
-    /// <see cref="FrameSeed"/>, <see cref="WorldMatrix"/>, <see cref="EmitterHeight"/>,
-    /// <see cref="DepthBase"/>) fields keep their live values. Backs
-    /// <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
+    /// Merges an edited record into the live slot record: field values come from <paramref name="edited"/>, while slot-bound and per-frame fields keep their live values.
     /// </summary>
     /// <param name="live">The current slot record.</param>
     /// <param name="edited">The record carrying the edited static fields.</param>

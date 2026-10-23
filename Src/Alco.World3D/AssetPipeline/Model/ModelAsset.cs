@@ -25,16 +25,7 @@ public readonly struct ModelMaterialSlot
 }
 
 /// <summary>
-/// The composition layer of the 3D asset chain — the runtime form of a model asset
-/// file (<c>.amdl</c>): one <see cref="MeshAsset"/> plus the material bound to each named
-/// mesh slot. The mesh itself never references materials (its submeshes are named slots);
-/// this asset is where the binding happens. Pure orchestration: loading resolves the
-/// referenced <c>.amsh</c>/<c>.amat</c> files through the asset system as cheap meta loads —
-/// no geometry is resident, and material textures load with their material — and this
-/// object holds no GPU resources. Geometry streams per LOD via <see cref="Mesh.LoadLodAsync"/>;
-/// streamed texture sources (e.g. a glTF scene's textures) are owned by the loading
-/// consumer and override the compiled materials through
-/// <see cref="GraphicsMaterialInstance"/>s.
+/// The composition layer of the 3D asset chain: one <see cref="MeshAsset"/> plus the material bound to each named mesh slot. Holds no GPU resources; geometry streams per LOD via <see cref="Mesh.LoadLodAsync"/>.
 /// </summary>
 public sealed class ModelAsset
 {

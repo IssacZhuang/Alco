@@ -34,17 +34,8 @@ namespace Alco
     }
 
     /// <summary>
-    /// A build strategy for the 4-wide <see cref="NativeBvh3D"/>. Implementations arrange the
-    /// colliders into a tree of <see cref="BvhNode3D"/> internal nodes and <see cref="BvhLeaf3D"/>
-    /// leaf blocks, and write both directly into the buffers provided by the BVH, decoupling the
-    /// tree structure from the construction algorithm.
-    /// <para>Build contract:</para>
-    /// <para>- Both buffers are pre-allocated and reused by the BVH; each holds at least <c>colliders.Length + 16</c> entries.</para>
-    /// <para>- Every internal node uses 2 to 4 child lanes and every leaf block holds 1 to 4 colliders, so a conforming build has at most <c>colliders.Length</c> leaf blocks and fewer internal nodes than leaf blocks.</para>
-    /// <para>- Child references follow the tagging of <see cref="BvhNode3D"/>; unused lanes carry <see cref="BvhNode3D.EmptyChild"/> and bounds that fail every traversal test.</para>
-    /// <para>- Lane bounds must tightly bound the referenced child, so traversal pruning never skips a reachable collider.</para>
-    /// <para>- Implementations must not allocate managed memory during Build; scratch memory should be held
-    ///   by the implementation instance itself and reused across builds.</para>
+    /// A build strategy that arranges colliders into the pre-allocated node and leaf buffers of a 4-wide <see cref="NativeBvh3D"/>.
+    /// Builds must not allocate managed memory, must tightly bound every referenced child, and must use <see cref="BvhNode3D.EmptyChild"/> with failing bounds for unused lanes.
     /// </summary>
     public interface IBvhBuilder3D
     {

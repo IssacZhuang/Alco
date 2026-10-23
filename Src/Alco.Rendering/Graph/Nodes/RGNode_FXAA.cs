@@ -84,13 +84,8 @@ public sealed class RGNode_FXAA : RGNode_ChainTransform
     }
 
     /// <summary>
-    /// The node's construction data: the scene-copy shader, the fxaa shader and
-    /// the effect's tunables. The quality and mode axes are generic value
-    /// specializations of the module's MainPS&lt;let Quality : int,
-    /// let Mode : int&gt; entry — the node requests each (preset, mode) pair's
-    /// specialized pipeline on demand. Service-type dependencies (the
-    /// rendering system, graph, chain, output layout, depth source) are
-    /// explicit constructor parameters instead — a descriptor is pure data.
+    /// The node's construction data: the scene-copy and FXAA shaders plus the effect
+    /// tunables, where each (quality, mode) pair selects a specialized FXAA pipeline.
     /// </summary>
     public readonly struct Descriptor
     {

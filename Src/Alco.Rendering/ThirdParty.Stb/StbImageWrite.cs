@@ -11,8 +11,17 @@ namespace StbImageWriteSharp
 #endif
 	static unsafe partial class StbImageWrite
 	{
+		/// <summary>
+		/// Gets the number of live native allocations.
+		/// </summary>
 		public static int NativeAllocations => MemoryStats.Allocations;
 
+		/// <summary>
+		/// Writes values to the output according to a compact format string.
+		/// </summary>
+		/// <param name="s">The write context.</param>
+		/// <param name="fmt">The format string; '1', '2', and '4' write 1, 2, and 4 bytes per value.</param>
+		/// <param name="v">The values to write.</param>
 		public static void stbiw__writefv(stbi__write_context s, string fmt, params object[] v)
 		{
 			var vindex = 0;
@@ -53,11 +62,33 @@ namespace StbImageWriteSharp
 			}
 		}
 
+		/// <summary>
+		/// Writes values to the output according to a compact format string.
+		/// </summary>
+		/// <param name="s">The write context.</param>
+		/// <param name="fmt">The format string.</param>
+		/// <param name="v">The values to write.</param>
 		public static void stbiw__writef(stbi__write_context s, string fmt, params object[] v)
 		{
 			stbiw__writefv(s, fmt, v);
 		}
 
+		/// <summary>
+		/// Writes a complete image using the given header format and pixel data.
+		/// </summary>
+		/// <param name="s">The write context.</param>
+		/// <param name="rgb_dir">The red-blue channel direction.</param>
+		/// <param name="vdir">The vertical direction of the pixel data.</param>
+		/// <param name="x">The image width in pixels.</param>
+		/// <param name="y">The image height in pixels.</param>
+		/// <param name="comp">The number of components per pixel.</param>
+		/// <param name="expand_mono">Whether mono data is expanded to RGB.</param>
+		/// <param name="data">The pixel data.</param>
+		/// <param name="alpha">Whether the image has an alpha channel.</param>
+		/// <param name="pad">The row padding in bytes.</param>
+		/// <param name="fmt">The header format string.</param>
+		/// <param name="v">The header values.</param>
+		/// <returns>Non-zero on success; zero when the dimensions are invalid.</returns>
 		public static int stbiw__outfile(stbi__write_context s, int rgb_dir, int vdir, int x, int y, int comp,
 			int expand_mono, void* data, int alpha, int pad, string fmt, params object[] v)
 		{
@@ -71,6 +102,15 @@ namespace StbImageWriteSharp
 			return 1;
 		}
 
+		/// <summary>
+		/// Writes HDR pixel data to the output context.
+		/// </summary>
+		/// <param name="s">The write context.</param>
+		/// <param name="x">The image width in pixels.</param>
+		/// <param name="y">The image height in pixels.</param>
+		/// <param name="comp">The number of components per pixel.</param>
+		/// <param name="data">The floating-point pixel data.</param>
+		/// <returns>Non-zero on success; zero when the arguments are invalid.</returns>
 		public static int stbi_write_hdr_core(stbi__write_context s, int x, int y, int comp, float* data)
 		{
 			if ((y <= 0) || (x <= 0) || (data == null))

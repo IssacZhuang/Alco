@@ -7,24 +7,8 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// The shared scene state of a deferred PBR frame — sun/sky/shadow/GI/volumetric
-/// parameters, the camera, the point-light list and the shadow cascade fitting —
-/// together with the GPU buffers those parameters are assembled into
-/// (a reflection-driven lighting uniform, a <see cref="ShadowCascadeData"/>
-/// uniform and a point-light structured buffer).
-/// <br/>This object is not a graph node and knows nothing about the render graph:
-/// the nodes of a deferred pipeline read it (the lighting node's
-/// <see cref="RGNode_DeferredLighting.PrepareData"/> assembles and uploads the
-/// lighting data; the shadow node consumes <see cref="CascadeViewProjections"/>),
-/// and the composing preset (<see cref="RenderPipelines.CreatePBRDeferred"/>) wires
-/// the <see cref="ShadowEnabledChanged"/> / <see cref="VolumetricLightEnabledChanged"/>
-/// notifications to the affected nodes. A user composing a custom deferred pipeline
-/// by hand creates this object and does the same wiring through the same public API.
-/// <br/>The per-cascade shadow view-projections live in a uniform buffer with reference
-/// semantics, so render bundles recorded against the shadow pass layout stay valid
-/// while the camera-fitted cascades move.
-/// <br/>Cascade splits are computed by <see cref="ComputeShadowCascades"/> (PSSM,
-/// camera-fitted, texel-snapped).
+/// Holds the shared per-frame scene state of a deferred PBR pipeline and assembles it into GPU buffers.
+/// It is not a render-graph node; pipeline nodes read it and the composing preset wires its change notifications.
 /// </summary>
 public sealed unsafe class PBRSceneEnvironment : AutoDisposable
 {
@@ -60,11 +44,8 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     public const int MaxPointLights = 256;
 
     /// <summary>
-    /// The user-defined shader attribute marking the uniform block that mirrors
-    /// this environment's shared lighting state (<c>[SceneEnvironmentParams]</c>,
-    /// declared in AlcoWorld3D_PBRCommon). Discovery keys off this marker, not
-    /// the block variable's name — the shader may rename it freely; a library
-    /// without exactly one marked block fails at buffer creation with the fix named.
+    /// The shader attribute marking the uniform block that mirrors this environment's shared lighting state.
+    /// A lighting-data library must contain exactly one marked block.
     /// </summary>
     public const string EnvironmentDataMarker = "SceneEnvironmentParams";
 
@@ -159,17 +140,13 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     // ── GPU buffers (bound to lighting / volumetric / forward / GI materials) ──
 
     /// <summary>
-    /// The cascade VP data buffer (per-cascade light view-projection matrices).
-    /// Passed to <see cref="ShadowRenderer"/> so its materials can bind it.
+    /// Gets the per-cascade light view-projection data buffer.
     /// </summary>
     public GraphicsBuffer ShadowDataBuffer => _shadowDataBuffer;
 
     /// <summary>
-    /// The deferred lighting data buffer (per-frame sun, sky, cascade and camera
-    /// constants). Shared with forward renderers so they can evaluate the same PBR.
-    /// The buffer layout mirrors the [<c>SceneEnvironmentParams</c>]-marked uniform
-    /// block of the lighting-data library injected at construction; the library
-    /// must stay alive for the buffer's lifetime (reflection is captured at creation).
+    /// Gets the per-frame lighting data buffer shared with forward and GI renderers.
+    /// Its layout mirrors the marked uniform block of the lighting-data library, which must outlive the buffer.
     /// </summary>
     public GraphicsBuffer LightingDataBuffer => _lightingDataBuffer ??= CreateLightingDataBuffer();
 
@@ -277,21 +254,10 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     /// <summary>Filtered physical-sky radiance at the zenith.</summary>
     public Vector3 SkyZenithColor { get; set; }
 
-    /// <summary>Saturation of the sky colors used for ambient lighting and GI
-    /// (1 = full physical color, 0 = luminance-only neutral). The atmosphere is
-    /// rendered with single scattering only, which is bluer than the real sky
-    /// whose multiple scattering whitens ambient light; blending toward
-    /// luminance keeps sky GI intensity brightening the scene instead of
-    /// tinting it blue. The visible sky is not affected.</summary>
+    /// <summary>Saturation of the sky colors used for ambient lighting and GI (1 = full color, 0 = luminance-only); the visible sky is unaffected.</summary>
     public float SkyGiSaturation { get; set; } = 0.6f;
 
-    /// <summary>
-    /// Debug view of the deferred lighting pass, selected through the lighting
-    /// shader's <c>MainPS&lt;let DebugView&gt;</c> specialization axis (one
-    /// compiled variant per view; the non-debug variant carries no branch cost).
-    /// The composing preset wires <see cref="LightingDebugViewChanged"/> to the
-    /// lighting node's material swap.
-    /// </summary>
+    /// <summary>Gets or sets the deferred-lighting debug view; changing it raises <see cref="LightingDebugViewChanged"/>.</summary>
     public LightingDebugView LightingDebugView
     {
         get => _lightingDebugView;
@@ -402,14 +368,8 @@ public sealed unsafe class PBRSceneEnvironment : AutoDisposable
     }
 
     /// <summary>
-    /// Compute cascaded shadow map data for a directional sun: per-cascade light
-    /// view-projection matrices, split boundaries and world texel sizes, stored
-    /// internally for use by the shadow and lighting passes.
-    /// <br/>Splits follow the practical split scheme (log/uniform blend controlled by
-    /// <see cref="ShadowSplitLambda"/>) on radial camera distance. The light space is a
-    /// pure rotation (camera-independent) and each cascade fits a fixed-radius bounding
-    /// sphere of its frustum slice, snapped to texel increments, so the shadow map stays
-    /// stable when the camera moves or rotates.
+    /// Computes and stores the per-cascade view-projections, splits, depth ranges, and texel sizes for the current sun and camera.
+    /// Call once per frame before rendering shadows.
     /// </summary>
     /// <param name="cameraNear">Near boundary of cascade 0, typically the camera near plane distance.</param>
     /// <exception cref="InvalidOperationException">No camera is set (<see cref="Camera"/>).</exception>

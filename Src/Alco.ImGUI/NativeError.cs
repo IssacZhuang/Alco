@@ -8,10 +8,17 @@ namespace Alco.ImGUI
     /// </summary>
     public sealed class ImGuiNativeException : Exception
     {
+        /// <summary>The native assertion expression that failed.</summary>
         public string AssertExpression { get; }
+        /// <summary>The source file reported by the native assertion.</summary>
         public string SourceFile { get; }
+        /// <summary>The source line reported by the native assertion.</summary>
         public int LineNumber { get; }
 
+        /// <summary>Creates an exception from a native assertion failure.</summary>
+        /// <param name="expr">The assertion expression that failed.</param>
+        /// <param name="file">The source file reported by the assertion.</param>
+        /// <param name="line">The source line reported by the assertion.</param>
         public ImGuiNativeException(string expr, string file, int line)
             : base($"[cimgui] Assert failed: {expr} at {file}:{line}")
         {

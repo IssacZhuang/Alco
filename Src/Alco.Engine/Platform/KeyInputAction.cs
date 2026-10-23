@@ -34,6 +34,9 @@ public sealed class KeyInputAction
     /// </summary>
     public IReadOnlyCollection<Mouse> MouseButtons => _mouseButtons;
 
+    /// <summary>
+    /// Gets or sets the provider used to resolve prompt icons for this action.
+    /// </summary>
     public IInputPromptIconProvider? IconProvider {get;set;}
 
     /// <summary>
@@ -166,26 +169,45 @@ public sealed class KeyInputAction
         }
     }
 
+    /// <summary>
+    /// Adds a key binding to this action.
+    /// </summary>
+    /// <param name="key">Key code to bind.</param>
     public void AddKey(KeyCode key)
     {
         _keys.Add(key);
     }
 
+    /// <summary>
+    /// Removes a key binding from this action.
+    /// </summary>
+    /// <param name="key">Key code to unbind.</param>
     public void RemoveKey(KeyCode key)
     {
         _keys.Remove(key);
     }
 
+    /// <summary>
+    /// Adds a gamepad button binding to this action.
+    /// </summary>
+    /// <param name="button">Gamepad button to bind.</param>
     public void AddGamepadButton(GamepadButton button)
     {
         _gamepadButtons.Add(button);
     }
 
+    /// <summary>
+    /// Removes a gamepad button binding from this action.
+    /// </summary>
+    /// <param name="button">Gamepad button to unbind.</param>
     public void RemoveGamepadButton(GamepadButton button)
     {
         _gamepadButtons.Remove(button);
     }
 
+    /// <summary>
+    /// Removes all key, gamepad, and mouse bindings from this action.
+    /// </summary>
     public void Clear()
     {
         _keys.Clear();
@@ -193,6 +215,10 @@ public sealed class KeyInputAction
         _mouseButtons.Clear();
     }
 
+    /// <summary>
+    /// Creates a serializable option snapshot of the current bindings.
+    /// </summary>
+    /// <returns>A new option containing the current bindings.</returns>
     public KeyInputActionOption ToOption()
     {
         return new KeyInputActionOption
@@ -203,6 +229,10 @@ public sealed class KeyInputAction
         };
     }
 
+    /// <summary>
+    /// Replaces the current bindings with those from the specified option.
+    /// </summary>
+    /// <param name="option">Option containing the bindings to load.</param>
     public void LoadFromOption(KeyInputActionOption option)
     {
         _keys.Clear();

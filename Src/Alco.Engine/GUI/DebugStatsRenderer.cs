@@ -5,6 +5,7 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
+/// <summary>Renders the debug stats overlay with immediate-mode draw calls.</summary>
 public class DebugStatsRenderer : IDisposable
 {
     private readonly Input _input;
@@ -27,24 +28,35 @@ public class DebugStatsRenderer : IDisposable
     private RenderFrameScope? _frameScope;
     private bool _isBegun;
 
+    /// <summary>Gets the cursor position in window coordinates.</summary>
     public Vector2 MousePosition
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _window.MousePosition;
     }
 
+    /// <summary>Gets whether the left mouse button was pressed this frame.</summary>
     public bool IsMouseClicked
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input.IsMouseDown(Mouse.Left);
     }
 
+    /// <summary>Gets whether the left mouse button is currently pressed.</summary>
     public bool IsMousePressing
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input.IsMousePressing(Mouse.Left);
     }
 
+    /// <summary>Creates a debug stats renderer and its overlay resources.</summary>
+    /// <param name="input">The input system used for mouse state.</param>
+    /// <param name="window">The window used for cursor coordinates.</param>
+    /// <param name="width">The initial render width in pixels.</param>
+    /// <param name="height">The initial render height in pixels.</param>
+    /// <param name="renderingSystem">The rendering system that owns the created resources.</param>
+    /// <param name="shaderText">The shader used for text.</param>
+    /// <param name="shaderSprite">The shader used for sprites.</param>
     public DebugStatsRenderer(Input input, View window, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
     {
         _input = input;
@@ -75,6 +87,9 @@ public class DebugStatsRenderer : IDisposable
         _mesh = _renderingSystem.MeshFullScreen;
     }
 
+    /// <summary>Sets the render resolution in pixels.</summary>
+    /// <param name="width">The render width in pixels.</param>
+    /// <param name="height">The render height in pixels.</param>
     public void SetResolution(float width, float height)
     {
         _camera.ViewSize = new Vector2(width, height);
@@ -82,6 +97,8 @@ public class DebugStatsRenderer : IDisposable
         _camera.UpdateMatrixToGPU();
     }
 
+    /// <summary>Begins an overlay frame targeting the given framebuffer.</summary>
+    /// <param name="target">The framebuffer to draw into.</param>
     public void Begin(GPUFrameBuffer target)
     {
         _isBegun = true;
@@ -89,6 +106,7 @@ public class DebugStatsRenderer : IDisposable
         _passScope = _rendererContent.BeginPass(target);
     }
 
+    /// <summary>Ends the current overlay frame.</summary>
     public void End()
     {
         if (_isBegun)
@@ -101,6 +119,10 @@ public class DebugStatsRenderer : IDisposable
         }
     }
 
+    /// <summary>Draws a solid quad.</summary>
+    /// <param name="position">The quad position.</param>
+    /// <param name="size">The quad size.</param>
+    /// <param name="color">The quad color.</param>
     public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
     {
         if (!_isBegun)
@@ -111,6 +133,14 @@ public class DebugStatsRenderer : IDisposable
         _spriteRenderer.Draw(_textureWhite, matrix, color);
     }
 
+    /// <summary>Draws text and returns its advance width.</summary>
+    /// <param name="str">The text to draw.</param>
+    /// <param name="position">The text position.</param>
+    /// <param name="font">The font to use.</param>
+    /// <param name="fontSize">The font size in pixels.</param>
+    /// <param name="color">The text color.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <returns>The advance width of the drawn text.</returns>
     public unsafe float DrawText(ReadOnlySpan<char> str, Vector2 position, Font font, float fontSize, ColorFloat color, Pivot pivot)
     {
         if (!_isBegun)
@@ -121,6 +151,11 @@ public class DebugStatsRenderer : IDisposable
         return _textRenderer.DrawText(font, str, matrix, pivot, color, 1.0f);
     }
 
+    /// <summary>Draws a texture.</summary>
+    /// <param name="position">The texture position.</param>
+    /// <param name="size">The texture size.</param>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="color">The texture tint.</param>
     public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
     {
         if (!_isBegun)
@@ -131,6 +166,7 @@ public class DebugStatsRenderer : IDisposable
         _spriteRenderer.Draw(texture, matrix, color);
     }
 
+    /// <summary>Releases the overlay resources.</summary>
     public void Dispose()
     {
         _rendererContent.Dispose();

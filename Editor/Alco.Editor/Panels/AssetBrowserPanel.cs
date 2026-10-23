@@ -5,12 +5,8 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// The dockable asset browser content: a directory tree over every file the
-/// asset system serves (owned roots and referenced entries merged), with read-only
-/// markers for referenced assets. Double-clicking a file opens it as a document tab,
-/// and files can be dragged onto widgets accepting <see cref="EditorDragDrop.AssetPayload"/>.
-/// The tree rebuilds whenever <see cref="AssetSystem.Version"/> changes (hot reload,
-/// mount changes) or on demand via the refresh button.
+/// The dockable asset browser content: a directory tree over every file the asset system serves, marked read-only for referenced assets.
+/// Double-click opens a file as a document tab, files drag onto <see cref="EditorDragDrop.AssetPayload"/> targets, and the tree rebuilds when the asset version changes or on refresh.
 /// </summary>
 public sealed class AssetBrowserPanel
 {

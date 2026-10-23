@@ -1,6 +1,9 @@
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Gamepad implementation for environments without gamepad support.
+/// </summary>
 public class NoGamepad : Gamepad
 {
     public override string Name => "No Gamepad";

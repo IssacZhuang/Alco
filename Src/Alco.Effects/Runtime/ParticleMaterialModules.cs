@@ -4,11 +4,9 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// The material modules registered with one particle system (see
-/// <see cref="IParticleMaterialModule"/>): a list serialized on the owning
-/// system's shared gate, so module registration, material publication and the
-/// binding refresh are atomic against each other. The gate is reentrant, so a
-/// module may safely call back into its system from
+/// The material modules registered with one particle system, serialized on the
+/// owning system's shared gate so registration, publication and binding refresh are
+/// atomic. The gate is reentrant, so a module may call back into its system from
 /// <see cref="IParticleMaterialModule.ConfigureMaterial"/>.
 /// </summary>
 internal sealed class ParticleMaterialModules

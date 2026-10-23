@@ -45,11 +45,19 @@ public struct RasterizerState
     /// </summary>
     public static readonly RasterizerState Wireframe = new RasterizerState(FillMode.Wireframe, CullMode.None, FrontFace.CounterClockwise);
 
+    /// <summary>Determines whether two rasterizer states have equal fill, cull and front-face settings.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when both states are equal.</returns>
     public static bool operator ==(RasterizerState left, RasterizerState right)
     {
         return left.FillMode == right.FillMode && left.CullMode == right.CullMode && left.FrontFace == right.FrontFace;
     }
 
+    /// <summary>Determines whether two rasterizer states differ in any setting.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when the states are not equal.</returns>
     public static bool operator !=(RasterizerState left, RasterizerState right)
     {
         return left.FillMode != right.FillMode || left.CullMode != right.CullMode || left.FrontFace != right.FrontFace;

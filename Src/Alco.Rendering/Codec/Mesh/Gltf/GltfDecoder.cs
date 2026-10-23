@@ -7,19 +7,10 @@ using System.Text.Json;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Decoder for glTF 2.0 scenes (.gltf JSON and .glb binary container).
-/// <br/>Produces GPU-ready <see cref="VertexPBR"/> vertices and uint indices
-/// in native memory, plus materials, images and flattened draw items.
-/// <br/>Supported subset: float32 POSITION/NORMAL/TEXCOORD_0/TANGENT attributes, u8/u16/u32 indices,
-/// TRIANGLES mode, TRS or matrix node transforms, metallic-roughness materials with
-/// base color, normal and metallic-roughness textures. Sparse accessors, normalized integer
-/// attributes, quantization and Draco compression are not supported.
-/// <br/>When a primitive lacks a TANGENT attribute, tangents are computed from the triangle
-/// UVs (area-weighted accumulation, orthogonalized against the normal, bitangent sign from
-/// the UV handedness). Without TEXCOORD_0 a default orthogonal tangent is assigned.
-/// <br/>Coordinates are converted from glTF's right-handed +Y-up to the engine's left-handed
-/// +Z-up convention (x,y,z) → (-z,x,y); triangle winding and tangent signs are adjusted
-/// accordingly (the conversion is a reflection).
+/// Decoder for glTF 2.0 scenes (.gltf JSON and .glb) producing GPU-ready <see cref="VertexPBR"/>
+/// vertices, uint indices, materials and draw items, converted to the engine's left-handed
+/// +Z-up convention. Supports float vertex attributes, u8/u16/u32 indices, TRIANGLES mode and
+/// metallic-roughness materials; sparse accessors and Draco compression are not supported.
 /// </summary>
 internal static unsafe class GltfDecoder
 {

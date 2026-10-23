@@ -7,6 +7,11 @@ namespace Alco
     //math lib for 3d rotation
     public static partial class math
     {
+        /// <summary>
+        /// Creates a quaternion from Euler angles in degrees using the engine's left-handed yaw (Z), pitch (Y), roll (X) order.
+        /// </summary>
+        /// <param name="degrees">Euler angles in degrees.</param>
+        /// <returns>The corresponding rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion quaternion(Vector3 degrees)
         {
@@ -29,12 +34,24 @@ namespace Alco
             return result;
         }
 
+        /// <summary>
+        /// Creates a quaternion from Euler angles in degrees.
+        /// </summary>
+        /// <param name="x">The X (roll) angle in degrees.</param>
+        /// <param name="y">The Y (pitch) angle in degrees.</param>
+        /// <param name="z">The Z (yaw) angle in degrees.</param>
+        /// <returns>The corresponding rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion quaternion(float x, float y, float z)
         {
             return quaternion(new Vector3(x, y, z));
         }
 
+        /// <summary>
+        /// Creates a quaternion from the rotation encoded in a matrix.
+        /// </summary>
+        /// <param name="matrix">The matrix whose rotation to extract.</param>
+        /// <returns>The extracted rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static Quaternion quaternion(in Matrix4x4 matrix)
         {
@@ -102,30 +119,61 @@ namespace Alco
             return q;
         }
 
+        /// <summary>
+        /// Multiplies two quaternions.
+        /// </summary>
+        /// <param name="a">The first rotation.</param>
+        /// <param name="b">The second rotation.</param>
+        /// <returns>The combined rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion mul(Quaternion a, Quaternion b)
         {
             return Quaternion.Multiply(a, b);
         }
 
+        /// <summary>
+        /// Returns the inverse of a quaternion.
+        /// </summary>
+        /// <param name="a">The rotation to invert.</param>
+        /// <returns>The inverse rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion inverse(Quaternion a)
         {
             return Quaternion.Inverse(a);
         }
 
+        /// <summary>
+        /// Linearly interpolates between two quaternions.
+        /// </summary>
+        /// <param name="a">The start rotation.</param>
+        /// <param name="b">The end rotation.</param>
+        /// <param name="t">The interpolation factor in the range [0, 1].</param>
+        /// <returns>The interpolated rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion lerp(Quaternion a, Quaternion b, float t)
         {
             return Quaternion.Lerp(a, b, t);
         }
 
+        /// <summary>
+        /// Spherically interpolates between two quaternions.
+        /// </summary>
+        /// <param name="a">The start rotation.</param>
+        /// <param name="b">The end rotation.</param>
+        /// <param name="t">The interpolation factor in the range [0, 1].</param>
+        /// <returns>The interpolated rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion slerp(Quaternion a, Quaternion b, float t)
         {
             return Quaternion.Slerp(a, b, t);
         }
 
+        /// <summary>
+        /// Returns the signed angle between two quaternions.
+        /// </summary>
+        /// <param name="a">The first rotation.</param>
+        /// <param name="b">The second rotation.</param>
+        /// <returns>The signed angle in radians.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float angle(Quaternion a, Quaternion b)
         {
@@ -134,6 +182,11 @@ namespace Alco
         }
 
 
+        /// <summary>
+        /// Converts a quaternion to Euler angles in degrees.
+        /// </summary>
+        /// <param name="q">The rotation to convert.</param>
+        /// <returns>Euler angles in degrees as (roll, pitch, yaw).</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 euler(Quaternion q)
         {
@@ -169,18 +222,34 @@ namespace Alco
             return new Vector3(roll, pitch, yaw) * RadToDeg;
         }
 
+        /// <summary>
+        /// Creates a rotation that looks from the origin along a direction.
+        /// </summary>
+        /// <param name="dir">The forward direction.</param>
+        /// <returns>The corresponding rotation.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Quaternion direction(Vector3 dir)
         {
             return quaternion(Matrix4x4.CreateLookAtLeftHanded(Vector3.Zero, dir, Vector3.UnitZ));
         }
 
+        /// <summary>
+        /// Returns the forward direction of a rotation.
+        /// </summary>
+        /// <param name="q">The rotation.</param>
+        /// <returns>The rotated +X unit vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 direction(Quaternion q)
         {
             return mul(q, Vector3.UnitX);
         }
 
+        /// <summary>
+        /// Returns the dot product of two quaternions.
+        /// </summary>
+        /// <param name="a">The first rotation.</param>
+        /// <param name="b">The second rotation.</param>
+        /// <returns>The dot product.</returns>
         //todo: use simd
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float dot(Quaternion a, Quaternion b)
@@ -188,72 +257,144 @@ namespace Alco
             return a.X * b.X + a.Y * b.Y + a.Z * b.Z + a.W * b.W;
         }
 
+        /// <summary>
+        /// Rotates a 2D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The rotation.</param>
+        /// <param name="b">The vector to rotate.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 mul(Quaternion a, Vector2 b)
         {
             return Vector2.Transform(b, a);
         }
 
+        /// <summary>
+        /// Rotates a 2D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The vector to rotate.</param>
+        /// <param name="b">The rotation.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 mul(Vector2 a, Quaternion b)
         {
             return Vector2.Transform(a, b);
         }
 
+        /// <summary>
+        /// Rotates a 2D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The vector to rotate.</param>
+        /// <param name="b">The rotation.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Vector2 a, Quaternion b)
         {
             return Vector2.Transform(a, b);
         }
 
+        /// <summary>
+        /// Rotates a 2D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The rotation.</param>
+        /// <param name="b">The vector to rotate.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector2 rotate(Quaternion a, Vector2 b)
         {
             return Vector2.Transform(b, a);
         }
 
+        /// <summary>
+        /// Rotates a 3D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The vector to rotate.</param>
+        /// <param name="b">The rotation.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 mul(Vector3 a, Quaternion b)
         {
             return Vector3.Transform(a, b);
         }
 
+        /// <summary>
+        /// Rotates a 3D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The rotation.</param>
+        /// <param name="b">The vector to rotate.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 mul(Quaternion a, Vector3 b)
         {
             return Vector3.Transform(b, a);
         }
 
+        /// <summary>
+        /// Rotates a 3D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The vector to rotate.</param>
+        /// <param name="b">The rotation.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 rotate(Vector3 a, Quaternion b)
         {
             return Vector3.Transform(a, b);
         }
 
+        /// <summary>
+        /// Rotates a 3D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The rotation.</param>
+        /// <param name="b">The vector to rotate.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector3 rotate(Quaternion a, Vector3 b)
         {
             return Vector3.Transform(b, a);
         }
 
+        /// <summary>
+        /// Rotates a 4D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The vector to rotate.</param>
+        /// <param name="b">The rotation.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 mul(Vector4 a, Quaternion b)
         {
             return Vector4.Transform(a, b);
         }
 
+        /// <summary>
+        /// Rotates a 4D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The rotation.</param>
+        /// <param name="b">The vector to rotate.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 mul(Quaternion a, Vector4 b)
         {
             return Vector4.Transform(b, a);
         }
 
+        /// <summary>
+        /// Rotates a 4D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The vector to rotate.</param>
+        /// <param name="b">The rotation.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 rotate(Vector4 a, Quaternion b)
         {
             return Vector4.Transform(a, b);
         }
 
+        /// <summary>
+        /// Rotates a 4D vector by a quaternion.
+        /// </summary>
+        /// <param name="a">The rotation.</param>
+        /// <param name="b">The vector to rotate.</param>
+        /// <returns>The rotated vector.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector4 rotate(Quaternion a, Vector4 b)
         {

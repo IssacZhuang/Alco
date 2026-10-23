@@ -5,6 +5,9 @@ namespace Alco.Graphics;
 /// </summary>
 public struct PushConstantsRange
 {
+    /// <summary>Initializes the range with its start and end byte offsets.</summary>
+    /// <param name="start">The start offset of the range in bytes.</param>
+    /// <param name="end">The end offset of the range in bytes.</param>
     public PushConstantsRange(uint start, uint end)
     {
         Start = start;
@@ -21,6 +24,7 @@ public struct PushConstantsRange
     /// </summary>
     public uint End { get; init; }
 
+    /// <summary>Returns a diagnostic description of the range.</summary>
     public override string ToString()
     {
         return $"Start: {Start}, End: {End}";

@@ -4,9 +4,15 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>
+/// Covers DEFLATE Huffman table construction and symbol decoding for PNG streams.
+/// </summary>
 [TestFixture]
 public class TestPngHuffman
 {
+    /// <summary>
+    /// Tests that the fixed literal table contains symbols 0 and 256.
+    /// </summary>
     [Test]
     public void BuildFixedLiteralTable_Has288SymbolsAndKnownEntries()
     {
@@ -39,6 +45,9 @@ public class TestPngHuffman
         Assert.That(foundSymbol256, Is.True, "Symbol 256 (end-of-block) should be in table");
     }
 
+    /// <summary>
+    /// Tests that fixed literal table code lengths are zero or between 7 and 9.
+    /// </summary>
     [Test]
     public void BuildFixedLiteralTable_AllCodeLengthsAreValid()
     {
@@ -57,6 +66,9 @@ public class TestPngHuffman
         }
     }
 
+    /// <summary>
+    /// Tests that the fixed distance table contains all 32 symbols with 5-bit codes.
+    /// </summary>
     [Test]
     public void BuildFixedDistanceTable_All32SymbolsPresent()
     {
@@ -86,6 +98,9 @@ public class TestPngHuffman
         }
     }
 
+    /// <summary>
+    /// Tests that a uniform table contains all symbols with the expected length.
+    /// </summary>
     [Test]
     public void BuildUniformTable_AllSymbolsDecodeCorrectly()
     {
@@ -119,6 +134,9 @@ public class TestPngHuffman
             Assert.That(found[i], Is.True, $"Symbol {i} not found in table");
     }
 
+    /// <summary>
+    /// Tests that a known bit stream decodes to the expected symbol sequence.
+    /// </summary>
     [Test]
     public void DecodeRoundTrip_KnownSymbolsDecodeCorrectly()
     {
@@ -156,6 +174,9 @@ public class TestPngHuffman
         Assert.That(PngHuffman.DecodeSymbol(ref bitBuffer, ref bitsAvailable, data, ref dataPos, symbols, lengths, tableBits), Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests that a known bit stream decodes through the fixed distance table.
+    /// </summary>
     [Test]
     public void DecodeRoundTrip_FixedDistanceTable()
     {
@@ -191,6 +212,9 @@ public class TestPngHuffman
         Assert.That(PngHuffman.DecodeSymbol(ref bitBuffer, ref bitsAvailable, data, ref dataPos, symbols, lengths, tableBits), Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests that a single-symbol table always decodes to that symbol.
+    /// </summary>
     [Test]
     public void SingleSymbol_AlwaysDecodesToSameValue()
     {
@@ -221,6 +245,9 @@ public class TestPngHuffman
         Assert.That(PngHuffman.DecodeSymbol(ref bitBuffer, ref bitsAvailable, data, ref dataPos, symbols, lengths, tableBits), Is.EqualTo(5));
     }
 
+    /// <summary>
+    /// Tests that a code length above the maximum is rejected.
+    /// </summary>
     [Test]
     public void InvalidCodeLengths_ExceedsMaxBits_ReturnsFalse()
     {
@@ -235,6 +262,9 @@ public class TestPngHuffman
         Assert.That(result, Is.False, "Should return false for code length exceeding max bits");
     }
 
+    /// <summary>
+    /// Tests that all-zero code lengths produce an empty table.
+    /// </summary>
     [Test]
     public void InvalidCodeLengths_AllZero_ReturnsTrueWithEmptyTable()
     {
@@ -254,6 +284,9 @@ public class TestPngHuffman
         }
     }
 
+    /// <summary>
+    /// Tests that decoding an empty stream returns -1.
+    /// </summary>
     [Test]
     public void DecodeSymbol_EmptyStream_ReturnsMinusOne()
     {
@@ -270,6 +303,9 @@ public class TestPngHuffman
         Assert.That(result, Is.EqualTo(-1), "Should return -1 when no data available");
     }
 
+    /// <summary>
+    /// Tests that undersized output buffers are rejected.
+    /// </summary>
     [Test]
     public void BuildHuffmanTable_OutputBuffersTooSmall_ReturnsFalse()
     {
@@ -282,6 +318,9 @@ public class TestPngHuffman
         Assert.That(result, Is.False, "Should return false when output buffers are too small");
     }
 
+    /// <summary>
+    /// Tests that table construction reads code lengths from the given offset.
+    /// </summary>
     [Test]
     public void BuildHuffmanTable_WithOffset_WorksCorrectly()
     {

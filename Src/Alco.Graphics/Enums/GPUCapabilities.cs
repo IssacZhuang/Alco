@@ -1,11 +1,9 @@
 namespace Alco.Graphics;
 
 /// <summary>
-/// Device facts reported by the backend that cannot be requested: they follow
-/// from the backend, the adapter and the library build, and are enabled
-/// unconditionally whenever available. Query them with
-/// <see cref="GPUDevice.IsCapabilitySupported"/>. Unlike
-/// <see cref="GPUFeatures"/>, capabilities never appear in a device request.
+/// Device facts reported by the backend that cannot be requested and are enabled
+/// unconditionally when available. Query them with <see cref="GPUDevice.IsCapabilitySupported"/>;
+/// unlike <see cref="GPUFeatures"/>, they never appear in a device request.
 /// </summary>
 [Flags]
 public enum GPUCapabilities : ulong

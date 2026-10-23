@@ -11,10 +11,20 @@ namespace Alco.Rendering;
 /// </summary>
 public class JsonConverterMaterialAsset : BaseJsonConverterAsset<MaterialAsset>
 {
+    /// <summary>
+    /// Initializes a new instance of the <see cref="JsonConverterMaterialAsset"/> class.
+    /// </summary>
+    /// <param name="assetSystem">The asset system used to resolve assets.</param>
     public JsonConverterMaterialAsset(AssetSystem assetSystem) : base(assetSystem)
     {
     }
 
+    /// <summary>
+    /// Writes the material's extensionless asset alias path.
+    /// </summary>
+    /// <param name="writer">The target JSON writer.</param>
+    /// <param name="value">The material asset to write.</param>
+    /// <param name="options">The serializer options.</param>
     public override void Write(Utf8JsonWriter writer, MaterialAsset value, JsonSerializerOptions options)
     {
         // Write the loadable asset path (stamped by the loader), not the display

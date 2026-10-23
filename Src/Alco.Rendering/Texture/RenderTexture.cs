@@ -167,11 +167,8 @@ public sealed class RenderTexture : AutoDisposable
     }
 
     /// <summary>
-    /// The content version of the render texture, incremented by every
-    /// <see cref="Resize"/>. The material system compares the version recorded at bind
-    /// time against the current one to detect the recreated GPU resources and rebuild
-    /// the affected bind groups automatically. The value wraps around on overflow: it
-    /// is only ever compared for equality.
+    /// The content version of the render texture, incremented on every resize or rebind.
+    /// The material system compares it to rebuild bind groups over recreated GPU resources.
     /// </summary>
     public uint Version
     {
@@ -180,11 +177,8 @@ public sealed class RenderTexture : AutoDisposable
     }
 
     /// <summary>
-    /// Recreates the internal GPU resources at a new size in place. The wrapper identity
-    /// (and therefore every material and render node referencing it) stays valid; the
-    /// affected bind groups are rebuilt automatically on next use through the
-    /// <see cref="Version"/> check of the material system. A call with the current size
-    /// is a no-op.
+    /// Recreates the internal GPU resources at a new size in place, keeping the wrapper identity valid.
+    /// A call with the current size is a no-op.
     /// </summary>
     /// <param name="width">The new width in pixels.</param>
     /// <param name="height">The new height in pixels.</param>
@@ -207,14 +201,8 @@ public sealed class RenderTexture : AutoDisposable
     }
 
     /// <summary>
-    /// Rebinds the wrapper to a different frame buffer in place. Used by
-    /// <see cref="RenderGraph"/> to swap the pooled backing of a transient resource:
-    /// the wrapper identity stays valid, the affected bind groups are rebuilt
-    /// automatically on next use through the <see cref="Version"/> check.
-    /// <br/>Ownership of <paramref name="frameBuffer"/> transfers to the wrapper (it
-    /// is disposed on the next rebind or on <see cref="Dispose"/>); for external
-    /// frame buffers disposal only releases the composed descriptor, never the pooled
-    /// textures.
+    /// Rebinds the wrapper to a different frame buffer in place.
+    /// Ownership of <paramref name="frameBuffer"/> transfers to the wrapper and bind groups are rebuilt through the <see cref="Version"/> check.
     /// </summary>
     /// <param name="frameBuffer">The new backing frame buffer.</param>
     internal void Rebind(GPUFrameBuffer frameBuffer)

@@ -6,11 +6,8 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// Owns the open asset documents: opens assets by path, dispatches to the document
-/// type registered for the file extension (mirroring how <see cref="AssetSystem"/>
-/// routes loaders by extension), selects already-open tabs, and closes/disposes
-/// documents whose tab was closed. The factories come from the
-/// <see cref="DocumentRegistry"/> filled by the editor modules.
+/// Owns the open asset documents and their shared tab bar: opens assets through the document type
+/// registered for the file extension, activates existing tabs, and closes and disposes documents whose tab was closed.
 /// </summary>
 public sealed class DocumentManager
 {

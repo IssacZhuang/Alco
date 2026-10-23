@@ -1,14 +1,8 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// The base interface of all render nodes — the units a render pipeline orchestrates.
-/// A node renders content at a specific point of a pipeline: as a
-/// <see cref="IRenderGraphNode"/> scheduled by a <see cref="RenderGraph"/>, or scoped
-/// inside a pass node (<see cref="IRenderPassContent"/>, or a module-specific pass
-/// content interface such as Alco.World3D's <c>IShadowPassContent</c>).
-/// <br/>Nodes are plain objects registered on a pipeline or graph via <c>Use</c>; the
-/// owner decides when and into what they render, and takes ownership: nodes that
-/// implement <see cref="System.IDisposable"/> are disposed with the owner.
+/// The base interface of all render nodes, the units a render pipeline orchestrates.
+/// Nodes are plain objects owned by the pipeline or graph that registers them.
 /// </summary>
 public interface IRenderNode
 {

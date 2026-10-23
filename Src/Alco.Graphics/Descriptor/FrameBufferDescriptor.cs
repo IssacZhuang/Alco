@@ -1,11 +1,9 @@
 namespace Alco.Graphics;
 
 /// <summary>
-/// Represents the creation information for a GPU frame buffer that owns its
-/// attachments: the device creates one texture per attachment of the layout and
-/// the frame buffer disposes them with itself. Use
-/// <see cref="ExternalFrameBufferDescriptor"/> to wrap externally owned textures
-/// instead.
+/// Creation information for a GPU frame buffer that owns its attachments: the device
+/// creates one texture per layout attachment and disposes them with the frame buffer.
+/// Use <see cref="ExternalFrameBufferDescriptor"/> to wrap externally owned textures.
 /// </summary>
 public struct FrameBufferDescriptor
 {

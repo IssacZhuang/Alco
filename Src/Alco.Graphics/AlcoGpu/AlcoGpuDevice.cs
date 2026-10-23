@@ -821,11 +821,8 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     }
 
     /// <summary>
-    /// Acquires a reusable staging buffer for a readback of <paramref name="requiredSize"/>
-    /// bytes, creating a new native buffer only when no suitable idle buffer is cached. The
-    /// returned buffer must later be passed to <see cref="ReturnStagingBuffer"/> or
-    /// <see cref="ReleaseReadbackBuffer"/>. Native buffer creation is performed outside the
-    /// staging-cache lock.
+    /// Acquires a reusable staging buffer for a <paramref name="requiredSize"/>-byte readback, creating a new native buffer only when no suitable idle buffer is cached.
+    /// The returned buffer must later be passed to <see cref="ReturnStagingBuffer"/> or <see cref="ReleaseReadbackBuffer"/>.
     /// </summary>
     private StagingTicket AcquireStagingBuffer(ulong requiredSize)
     {
@@ -1133,11 +1130,7 @@ internal sealed unsafe partial class AlcoGpuDevice : GPUDevice
     }
 
     /// <summary>
-    /// Routes one wgpu-core log record delivered through the process-wide
-    /// native log callback. Unlike <see cref="PollMessages"/>,
-    /// error-severity records do not throw: they can fire from the middle of
-    /// a native operation where an unwind is undefined, and synchronous
-    /// failures already throw through the facade.
+    /// Routes one wgpu-core log record delivered through the process-wide native log callback; unlike <see cref="PollMessages"/>, error-severity records are logged instead of thrown.
     /// </summary>
     /// <param name="level">The <see cref="AlcoGPU.LogLevel"/> of the record.</param>
     /// <param name="message">The record text.</param>

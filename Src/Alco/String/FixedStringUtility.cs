@@ -2,8 +2,18 @@ using System;
 
 namespace Alco;
 
+/// <summary>
+/// Utilities for locating trimmed ranges in fixed character spans.
+/// </summary>
 public static class FixedStringUtility
 {
+    /// <summary>
+    /// Locates the first and last non-whitespace characters after applying the requested trim sides.
+    /// </summary>
+    /// <param name="str">The characters to inspect.</param>
+    /// <param name="trimType">The sides to trim.</param>
+    /// <param name="start">The index of the first retained character.</param>
+    /// <param name="end">The index of the last retained character.</param>
     public static void GetTrimIndex(this ReadOnlySpan<char> str, TrimType trimType, out int start, out int end)
     {
         // end will point to the first non-trimmed character on the right.
@@ -36,6 +46,14 @@ public static class FixedStringUtility
         }
     }
 
+    /// <summary>
+    /// Locates the first and last characters not contained in <paramref name="trimChars"/> after applying the requested trim sides.
+    /// </summary>
+    /// <param name="str">The characters to inspect.</param>
+    /// <param name="trimChars">The characters to remove from the trimmed sides.</param>
+    /// <param name="trimType">The sides to trim.</param>
+    /// <param name="start">The index of the first retained character.</param>
+    /// <param name="end">The index of the last retained character.</param>
     public static void GetTrimIndex(
         this ReadOnlySpan<char> str,
         ReadOnlySpan<char> trimChars,

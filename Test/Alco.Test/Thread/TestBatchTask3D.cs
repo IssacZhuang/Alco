@@ -4,6 +4,9 @@ using System.Threading;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Covers <see cref="ReusableBatchTask3D"/> execution, reuse, batching, errors, and disposal.
+/// </summary>
 public class TestBatchTask3D
 {
     // Test classes for ReusableBatchTask3D
@@ -72,6 +75,9 @@ public class TestBatchTask3D
     }
 
 
+    /// <summary>
+    /// Tests basic 3D execution, reuse, and non-positive dimensions.
+    /// </summary>
     [Test(Description = "Test 3D Batch Task Basic Functionality")]
     public void TestReusableBatchTask3DBasic()
     {
@@ -113,6 +119,9 @@ public class TestBatchTask3D
         Assert.That(task.Counter, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that 3D parallel execution fills every array element.
+    /// </summary>
     [Test(Description = "Test 3D Batch Task Array Processing")]
     public void TestReusableBatchTask3DArray()
     {
@@ -138,6 +147,9 @@ public class TestBatchTask3D
         }
     }
 
+    /// <summary>
+    /// Tests execution with explicit, unit, large, and automatic batch sizes.
+    /// </summary>
     [Test(Description = "Test 3D Batch Task with Different Batch Sizes")]
     public void TestReusableBatchTask3DBatchSizes()
     {
@@ -167,6 +179,9 @@ public class TestBatchTask3D
         Assert.That(task.Counter, Is.EqualTo(width * height * depth));
     }
 
+    /// <summary>
+    /// Tests that a worker exception surfaces as an <see cref="AggregateException"/>.
+    /// </summary>
     [Test(Description = "Test 3D Batch Task Exception Handling")]
     public void TestReusableBatchTask3DExceptions()
     {
@@ -179,6 +194,9 @@ public class TestBatchTask3D
         Assert.That(aggregateException.InnerExceptions[0].Message, Does.Contain("Test exception at position (1, 2, 1)"));
     }
 
+    /// <summary>
+    /// Tests that disposal is idempotent.
+    /// </summary>
     [Test(Description = "Test 3D Batch Task Disposal")]
     public void TestReusableBatchTask3DDisposal()
     {
@@ -196,6 +214,9 @@ public class TestBatchTask3D
     }
 
 
+    /// <summary>
+    /// Tests execution over a large 3D volume.
+    /// </summary>
     [Test(Description = "Test 3D Batch Task Large Volume Processing")]
     public void TestReusableBatchTask3DLargeVolume()
     {
@@ -206,6 +227,9 @@ public class TestBatchTask3D
         Assert.That(task.Counter, Is.EqualTo(size * size * size));
     }
 
+    /// <summary>
+    /// Tests execution over rectangular, cubic, and flat volumes.
+    /// </summary>
     [Test(Description = "Test 3D Batch Task with Different Volume Shapes")]
     public void TestReusableBatchTask3DDifferentShapes()
     {

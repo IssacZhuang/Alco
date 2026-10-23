@@ -6,6 +6,9 @@ using Hebron.Runtime;
 
 namespace StbVorbisSharp
 {
+	/// <summary>
+	/// Provides the native Ogg Vorbis decoder bindings used by <see cref="Vorbis"/>.
+	/// </summary>
 	public static unsafe partial class StbVorbis
 	{
 		public static sbyte[,] channel_position =
@@ -19,8 +22,14 @@ namespace StbVorbisSharp
 			{2 | 1, 2 | 4 | 1, 4 | 1, 2 | 1, 4 | 1, 2 | 4 | 1}
 		};
 
+		/// <summary>Gets the number of live native allocations.</summary>
 		public static int NativeAllocations => MemoryStats.Allocations;
 
+		/// <summary>Decodes an in-memory Ogg Vorbis stream to interleaved 16-bit samples.</summary>
+		/// <param name="input">The encoded Ogg Vorbis data.</param>
+		/// <param name="sampleRate">The decoded stream sample rate.</param>
+		/// <param name="chan">The decoded channel count.</param>
+		/// <returns>The decoded interleaved samples.</returns>
 		public static short[] decode_vorbis_from_memory(byte[] input, out int sampleRate, out int chan)
 		{
 			short* result = null;
@@ -45,6 +54,7 @@ namespace StbVorbisSharp
 			return output;
 		}
 
+		/// <summary>Holds the native residue configuration of a Vorbis decoder.</summary>
 		public class Residue
 		{
 			public uint begin;
@@ -56,6 +66,7 @@ namespace StbVorbisSharp
 			public short[,] residue_books;
 		}
 
+		/// <summary>Holds the native state of an Ogg Vorbis decoder instance.</summary>
 		public class stb_vorbis
 		{
 			public float*[] A = new float*[2];
@@ -130,6 +141,7 @@ namespace StbVorbisSharp
 			public float*[] window = new float*[2];
 		}
 
+		/// <summary>Holds a native Vorbis floor-1 configuration.</summary>
 		[StructLayout(LayoutKind.Sequential)]
 		public struct Floor1
 		{
@@ -141,12 +153,14 @@ namespace StbVorbisSharp
 			public fixed short subclass_books[16 * 8];
 			public fixed ushort Xlist[31 * 8 + 2];
 			public fixed byte sorted_order[31 * 8 + 2];
+			/// <summary>The neighbor list used for floor-1 curve reconstruction.</summary>
 			public fixed byte neighbors[(31 * 8 + 2) * 2];
 			public byte floor1_multiplier;
 			public byte rangebits;
 			public int values;
 		}
 
+		/// <summary>Holds a native Vorbis floor configuration for either supported floor type.</summary>
 		[StructLayout(LayoutKind.Explicit)]
 		public struct Floor
 		{

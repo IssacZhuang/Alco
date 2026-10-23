@@ -6,12 +6,8 @@ using Alco.AgentControlProtocol;
 namespace Alco.Editor;
 
 /// <summary>
-/// The editor's base agent tools, always available while the agent API runs:
-/// document open/close/save, project switching, asset listing and layout control.
-/// Frame screenshots and script execution come from the agent control host's built-in
-/// tools. Asset-type-specific tools are
-/// contributed by the open documents themselves (<see cref="AssetDocument.CreateAgentTools"/>).
-/// Tools run on the engine main thread unless marked otherwise.
+/// The editor's always-available agent tools for document open/close/save, project switching, asset listing and layout control.
+/// Asset-type-specific tools are contributed by the open documents themselves; tools run on the engine main thread unless marked otherwise.
 /// </summary>
 [AgentTools]
 public sealed class EditorBaseTools

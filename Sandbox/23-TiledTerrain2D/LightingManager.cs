@@ -4,12 +4,14 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.Rendering;
 
+/// <summary>A light source contributing to the tile-based light map.</summary>
 public interface ILight
 {
     int2 Position { get; }
     Vector4 Color { get; }
 }
 
+/// <summary>An obstacle that blocks light propagation with its opacity.</summary>
 public interface IObstacle
 {
     int2 Position { get; }

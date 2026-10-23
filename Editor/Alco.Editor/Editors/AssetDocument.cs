@@ -2,13 +2,7 @@ using Alco.ImGUI;
 
 namespace Alco.Editor;
 
-/// <summary>
-/// Base class of an open asset editor tab. One document owns one tab in the document
-/// area's tab bar; the tab label stays stable (<c>name###doc:path</c>). Its inspector
-/// and per-frame updates remain independent of tab visibility. Documents over
-/// referenced (non-owned) assets are read-only: controls must be disabled and
-/// <see cref="Save"/> refuses to write.
-/// </summary>
+/// <summary>Base class of an open asset editor tab; documents over non-owned assets are read-only.</summary>
 public abstract class AssetDocument : AutoDisposable
 {
     /// <summary>Creates the document for the given asset-system-relative path.</summary>
@@ -125,10 +119,7 @@ public abstract class AssetDocument : AutoDisposable
     {
     }
 
-    /// <summary>
-    /// Saves the document. The base implementation does nothing; editing documents
-    /// override it and must refuse to write when <see cref="IsReadOnly"/> is set.
-    /// </summary>
+    /// <summary>Saves the document; overrides must refuse to write when <see cref="IsReadOnly"/> is set.</summary>
     public virtual void Save()
     {
     }
@@ -136,15 +127,7 @@ public abstract class AssetDocument : AutoDisposable
     /// <summary>Marks the document as modified.</summary>
     protected void MarkDirty() => IsDirty = true;
 
-    /// <summary>
-    /// Agent tools contributed by this document while it is open. Each returned
-    /// instance's <c>[AgentFunction]</c> methods are registered into the editor's agent
-    /// API when the document opens and unregistered when it closes. Method names should
-    /// carry an asset-type prefix (e.g. <c>Material_SetBaseColor</c>) so they cannot
-    /// collide with the editor's base tools. The base implementation contributes none:
-    /// text-format assets are better edited by writing the file directly and letting
-    /// hot reload update the preview.
-    /// </summary>
+    /// <summary>Returns agent tools contributed by this document while it is open; the base implementation returns none.</summary>
     public virtual IEnumerable<object> CreateAgentTools() => Enumerable.Empty<object>();
 
     /// <inheritdoc/>

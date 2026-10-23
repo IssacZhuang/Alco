@@ -6,8 +6,14 @@ using System.Reflection;
 
 namespace Alco;
 
+/// <summary>
+/// Resolves types by name from a configurable set of assemblies.
+/// </summary>
 public class TypeHelper
 {
+    /// <summary>
+    /// The shared helper that searches all assemblies in the current app domain.
+    /// </summary>
     public static readonly TypeHelper Default = new TypeHelper(true);
 
     private readonly ConcurrentDictionary<string, Type?> _typeCache = new ConcurrentDictionary<string, Type?>();
@@ -18,6 +24,10 @@ public class TypeHelper
     /// </summary>
     public bool UseGlobalAssemblies { get; set; } = true;
 
+    /// <summary>
+    /// Initializes a helper that searches the default assemblies or all app-domain assemblies.
+    /// </summary>
+    /// <param name="useGlobalAssemblies">Whether to search every assembly in the current app domain.</param>
     public TypeHelper(bool useGlobalAssemblies = false)
     {
         if (!useGlobalAssemblies)
@@ -33,6 +43,10 @@ public class TypeHelper
         UseGlobalAssemblies = useGlobalAssemblies;
     }
 
+    /// <summary>
+    /// Initializes a helper that searches the default assemblies plus the specified assemblies.
+    /// </summary>
+    /// <param name="assemblies">Additional assemblies to search.</param>
     public TypeHelper(params ReadOnlySpan<Assembly> assemblies)
     {
         // Add System assembly by default

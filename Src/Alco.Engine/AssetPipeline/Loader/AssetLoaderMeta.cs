@@ -22,16 +22,28 @@ public class AssetLoaderMeta : IAssetLoader
     /// <inheritdoc/>
     public IReadOnlyList<string> FileExtensions => Extensions;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="AssetLoaderMeta"/> with default serializer settings.
+    /// </summary>
     public AssetLoaderMeta()
     {
 
     }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="AssetLoaderMeta"/>.
+    /// </summary>
+    /// <param name="jsonSerializerOptions">Serializer options used to read meta files.</param>
     public AssetLoaderMeta(JsonSerializerOptions jsonSerializerOptions)
     {
         _jsonSerializerOptions = jsonSerializerOptions;
     }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="AssetLoaderMeta"/> from converters and an optional type resolver.
+    /// </summary>
+    /// <param name="jsonConverters">Converters registered for meta deserialization.</param>
+    /// <param name="typeInfoResolver">Optional JSON type metadata resolver.</param>
     public AssetLoaderMeta(IEnumerable<JsonConverter> jsonConverters, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         _jsonSerializerOptions = new JsonSerializerOptions

@@ -6,12 +6,15 @@ namespace Alco.Rendering.Test;
 using Alco.Rendering;
 
 /// <summary>
-/// DDS file assembly: encoded files round-trip through DdsDecoder and the header
-/// probes, and invalid families, dimensions and mip chains are rejected.
+/// Tests DDS encoding round-trips through the decoder and rejection of invalid dimensions,
+/// mip chains, and block families.
 /// </summary>
 [TestFixture]
 public class TestDdsEncoder
 {
+    /// <summary>
+    /// Tests that a BC3 encode round-trips through the decoder.
+    /// </summary>
     [Test]
     public void Encode_Bc3_SpecRoundTripsThroughDecoder()
     {
@@ -31,6 +34,9 @@ public class TestDdsEncoder
         Assert.That(file.Length, Is.EqualTo(128 + 5440));
     }
 
+    /// <summary>
+    /// Tests that BC1 maps to DXT1 and its sRGB variant.
+    /// </summary>
     [Test]
     public void Encode_Bc1_MapsToDxt1AndSrgbVariant()
     {
@@ -48,6 +54,9 @@ public class TestDdsEncoder
         Assert.That(dataOffset, Is.EqualTo(128));
     }
 
+    /// <summary>
+    /// Tests that encoding produces a header accepted by the image probe.
+    /// </summary>
     [Test]
     public void Encode_ProducesProbeableHeader()
     {
@@ -70,6 +79,9 @@ public class TestDdsEncoder
         Assert.That(spanInfo.MipLevels, Is.EqualTo(2));
     }
 
+    /// <summary>
+    /// Tests that sub-block or zero dimensions throw.
+    /// </summary>
     [Test]
     public void Encode_SubBlockDimensions_Throw()
     {
@@ -79,6 +91,9 @@ public class TestDdsEncoder
             () => DdsEncoder.Encode(0, 8, DdsDecoder.BcFamily.BC1, new byte[8], mipLevels: 1));
     }
 
+    /// <summary>
+    /// Tests that an unaligned mip level count throws.
+    /// </summary>
     [Test]
     public void Encode_UnalignedMipLevel_Throws()
     {
@@ -87,6 +102,9 @@ public class TestDdsEncoder
             () => DdsEncoder.Encode(8, 8, DdsDecoder.BcFamily.BC1, new byte[40], mipLevels: 3));
     }
 
+    /// <summary>
+    /// Tests that a wrong mip chain length throws.
+    /// </summary>
     [Test]
     public void Encode_WrongChainLength_Throws()
     {
@@ -95,6 +113,9 @@ public class TestDdsEncoder
             () => DdsEncoder.Encode(16, 16, DdsDecoder.BcFamily.BC1, new byte[32], mipLevels: 2));
     }
 
+    /// <summary>
+    /// Tests that an unsupported block family throws.
+    /// </summary>
     [Test]
     public void Encode_UnsupportedFamily_Throws()
     {

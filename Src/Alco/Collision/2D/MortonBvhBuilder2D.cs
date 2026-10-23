@@ -7,15 +7,8 @@ using System.Runtime.Intrinsics;
 namespace Alco
 {
     /// <summary>
-    /// An <see cref="IBvhBuilder2D"/> producing a 4-wide BVH over Morton codes (LBVH style,
-    /// Karras 2012). Leaf centroids are mapped to 20-bit Morton codes, sorted with an LSD radix
-    /// sort, and each internal node is formed with a falling split: the largest remaining range
-    /// is split at the highest differing code bit until the node has up to four children, which
-    /// are then ordered by descending item count so any-hit style queries meet the bigger
-    /// subtree first. Subtree bounds are computed bottom-up while the recursion unwinds, so a
-    /// build touches every collider a constant number of times.
-    /// All scratch memory is owned by the instance and reused across builds (zero managed
-    /// allocations once the buffers have reached their high-water mark).
+    /// An <see cref="IBvhBuilder2D"/> that builds a 4-wide LBVH by sorting leaf centroids by Morton code and splitting ranges by the highest differing bits.
+    /// All scratch memory is owned by the instance and reused across builds.
     /// </summary>
     public unsafe class MortonBvhBuilder2D : IBvhBuilder2D, IDisposable
     {

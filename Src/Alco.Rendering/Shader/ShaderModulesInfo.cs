@@ -9,6 +9,9 @@ namespace Alco.Rendering;
 /// </summary>
 public sealed class ShaderModulesInfo
 {
+    /// <summary>
+    /// The name of the shader variant.
+    /// </summary>
     public string Name { get; }
 
     /// <summary>
@@ -31,12 +34,20 @@ public sealed class ShaderModulesInfo
     /// </summary>
     public ShaderReflection ReflectionInfo { get; }
 
+    /// <summary>
+    /// Whether this variant has both vertex and fragment shader modules.
+    /// </summary>
     public bool IsGraphicsShader => VertexShader.HasValue && FragmentShader.HasValue;
+
+    /// <summary>
+    /// Whether this variant has a compute shader module.
+    /// </summary>
     public bool IsComputeShader => ComputeShader.HasValue;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ShaderModulesInfo"/> class.
     /// </summary>
+    /// <param name="name">The name of the shader variant.</param>
     /// <param name="vertex">The vertex shader module.</param>
     /// <param name="fragment">The fragment shader module.</param>
     /// <param name="compute">The compute shader module.</param>
@@ -58,6 +69,7 @@ public sealed class ShaderModulesInfo
     /// <summary>
     /// Creates a new graphics shader variant with the specified vertex and fragment shaders.
     /// </summary>
+    /// <param name="name">The name of the shader variant.</param>
     /// <param name="vertexShader">The vertex shader module.</param>
     /// <param name="fragmentShader">The fragment shader module.</param>
     /// <param name="reflectionInfo">The reflection information for the shader.</param>
@@ -74,6 +86,7 @@ public sealed class ShaderModulesInfo
     /// <summary>
     /// Creates a new compute shader variant with the specified compute shader.
     /// </summary>
+    /// <param name="name">The name of the shader variant.</param>
     /// <param name="computeShader">The compute shader module.</param>
     /// <param name="reflectionInfo">The reflection information for the shader.</param>
     /// <returns>A new <see cref="ShaderModulesInfo"/> instance configured for compute.</returns>

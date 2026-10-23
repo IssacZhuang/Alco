@@ -4,12 +4,7 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// High level encapsulation of a GPUTexture with a TextureView whose dimension is 3D.
-/// <br/>Provides the read-only resource group of the full mip chain (<see cref="EntryReadonly"/>)
-/// and per-mip read-only / storage resource groups (<see cref="EntryReadonlyMip"/> and
-/// <see cref="EntryStorage(uint)"/>), so compute passes can load a single mip and write a
-/// single mip within one dispatch without subresource usage conflicts. Filtered sampling
-/// goes through the consuming shader's shared sampler bank entries.
+/// High-level encapsulation of a 3D <see cref="GPUTexture"/> with full-chain and per-mip resource groups.
 /// </summary>
 public sealed class Texture3D : Texture
 {
@@ -65,10 +60,7 @@ public sealed class Texture3D : Texture
 
     /// <summary>
     /// The read-only resource group bound to the single-mip view of the given mip level.
-    /// Inside the view the mip is rebased to mip 0, so shaders load it with mip index 0.
-    /// <br/>Use this instead of <see cref="EntryReadonly"/> when the same dispatch also writes
-    /// another mip of the texture: the non-overlapping subresource ranges of the two views
-    /// avoid the usage scope conflict of the underlying graphics API.
+    /// Use it instead of <see cref="EntryReadonly"/> when the same dispatch writes another mip.
     /// </summary>
     /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
     /// <returns>The read-only resource group for the mip level.</returns>

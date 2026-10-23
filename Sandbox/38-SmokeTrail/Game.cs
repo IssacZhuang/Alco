@@ -10,29 +10,8 @@ using Alco.Rendering;
 using Alco.World3D;
 using SandboxUtils;
 
-/// <summary>
-/// Top-down twin-stick arena shooter built on the deferred PBR pipeline
-/// (Alco.World3D): a golden-hour sun with cascaded shadow maps, a physical sky
-/// gradient for ambient, HBAO, HDR bloom, ACES tonemapping and FXAA. The player
-/// ship hovers over a walled arena scattered with crates and glowing corner
-/// pylons; enemy drones spawn in waves and kamikaze-chase the ship.
-/// <br/>The sandbox's signature feature — the 3D GPU trail renderer
-/// (<see cref="GpuTrailSystem3D"/>, Alco.Effects) — drives the bullets: every
-/// shot is an emissive tracer that drags a camera-facing smoke ribbon
-/// (TrailSurfaceSmoke: turbulence wander, buoyant rise, noise-eroded
-/// dissipation), and every destroyed drone bursts into a short smoke puff from
-/// the same system. Muzzle flashes and drone explosions are pooled point lights.
-/// <br/>Controls: WASD move, mouse aim, left mouse fires, ESC exits.
-/// <br/>Frame model: the render loop is uncapped. Player movement/aim and the
-/// chase camera run per frame (<see cref="OnUpdate"/>) for input responsiveness
-/// and smooth visuals; the simulation (shooting, bullets, drones, waves, damage)
-/// runs on the engine's fixed 60 Hz tick (<see cref="OnTick"/>), and tick-driven
-/// bodies interpolate their render transforms between ticks, so gameplay speed
-/// and hit detection are identical at any render rate.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] — runs a scripted demo
-/// (a ring of drones converges on the ship, which auto-fires at the nearest one)
-/// and captures the presented frame after N simulation ticks.
-/// </summary>
+/// <summary>Top-down twin-stick arena shooter demonstrating the deferred PBR pipeline and the 3D GPU trail renderer.</summary>
+/// <remarks>Controls: WASD move, mouse aim, left mouse fires, ESC exits. Pass <c>--screenshot=&lt;path.png&gt; [--frames=N]</c> to run a scripted demo and capture a frame.</remarks>
 public class Game : GameEngine
 {
     // ── Rendering ────────────────────────────────────────────────────────────
@@ -191,6 +170,9 @@ public class Game : GameEngine
         }
     }
 
+    /// <summary>Initializes the arena, rendering resources, and optional screenshot mode.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
+    /// <param name="args">Command-line arguments, including optional screenshot options.</param>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");

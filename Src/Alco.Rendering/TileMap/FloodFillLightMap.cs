@@ -3,6 +3,9 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// A tile light map that propagates lighting and opacity across a grid with iterative flood fill.
+/// </summary>
 public class FloodFillLightMap : AutoDisposable
 {
     private readonly RenderTexture _lightMapFront;
@@ -22,18 +25,27 @@ public class FloodFillLightMap : AutoDisposable
     private bool _isResultDirty = false;
 
 
+    /// <summary>The number of flood-fill iterations performed per compute pass.</summary>
     public int Iteration { get; set; } = 32;
+    /// <summary>The light attenuation applied per step to side-neighbor propagation.</summary>
     public float AttenuationSide { get; set; } = 0.1f;
+    /// <summary>The light attenuation applied per step to diagonal propagation.</summary>
     public float AttenuationCorner { get; set; } = 0.14141414f;
 
+    /// <summary>The multiplier applied to both side and corner attenuation.</summary>
     public float AttenuationMultiplier { get; set; } = 1f;
 
+    /// <summary>The front light map texture holding the current propagation result.</summary>
     public RenderTexture Texture => _lightMaps.Front;
 
+    /// <summary>The texture storing per-tile opacity obstacles.</summary>
     public RenderTexture OpacityMap => _opacityMap;
 
+    /// <summary>The map width in texels.</summary>
     public int Width => _lightMapCPU.Width;
+    /// <summary>The map height in texels.</summary>
     public int Height => _lightMapCPU.Height;
+    /// <summary>The name of the light map, used for diagnostics.</summary>
     public string Name { get; }
 
 
@@ -65,6 +77,8 @@ public class FloodFillLightMap : AutoDisposable
 
     }
 
+    /// <summary>Clears the entire CPU light map to the given color.</summary>
+    /// <param name="color">The color to fill with.</param>
     public void ClearLightMap(Vector4 color)
     {
         _lightMapCPU.Fill(color);
@@ -148,37 +162,54 @@ public class FloodFillLightMap : AutoDisposable
         _isResultDirty = true;
     }
 
+    /// <summary>Marks the GPU textures as needing a full re-upload on the next reset.</summary>
     public void SetDirty()
     {
         _isTextureDirty = true;
     }
 
+    /// <summary>Resets the CPU opacity map to fully opaque white.</summary>
     public void ResetOpacity()
     {
         _opacityMapCPU.Fill(Color32.White);
     }
 
+    /// <summary>Adds light to the texel at the given coordinates.</summary>
+    /// <param name="x">The x coordinate of the texel.</param>
+    /// <param name="y">The y coordinate of the texel.</param>
+    /// <param name="light">The light value to add.</param>
     public void AddLight(int x, int y, Half4 light)
     {
         _lightMapCPU[x, y] = _lightMapCPU[x, y] + light;
     }
 
+    /// <summary>Sets the light value of the texel at the given coordinates, replacing any existing value.</summary>
+    /// <param name="x">The x coordinate of the texel.</param>
+    /// <param name="y">The y coordinate of the texel.</param>
+    /// <param name="light">The light value to set.</param>
     public void SetLight(int x, int y, Half4 light)
     {
         _lightMapCPU[x, y] = light;
     }
 
+    /// <summary>Clears the CPU opacity map to fully opaque white.</summary>
     public void ClearOpacityMap()
     {
         _opacityMapCPU.Fill(Color32.White);
     }
 
 
+    /// <summary>Sets the opacity of the texel at the given coordinates.</summary>
+    /// <param name="x">The x coordinate of the texel.</param>
+    /// <param name="y">The y coordinate of the texel.</param>
+    /// <param name="opacity">The opacity value to set.</param>
     public void SetOpacity(int x, int y, Color32 opacity)
     {
         _opacityMapCPU[x, y] = opacity;
     }
 
+    /// <summary>Runs the full-map flood-fill computation when the result is dirty.</summary>
+    /// <param name="computePass">The compute pass to record the dispatches to.</param>
     public void Compute(GPUCommandBuffer.ComputePass computePass)
     {
         ResetTexture();
@@ -191,11 +222,9 @@ public class FloodFillLightMap : AutoDisposable
     }
 
     /// <summary>
-    /// Runs the flood-fill iterations over a sub-rectangle only, ignoring the result-dirty gate:
-    /// region callers upload fresh input state for the region beforehand, so the propagation
-    /// always runs. Texels outside the region are not dispatched and keep their last computed
-    /// values; the region must therefore be expanded by at least <see cref="Iteration"/> texels
-    /// beyond any sampled area, since border texels read one-step-old neighbors each iteration.
+    /// Runs the flood-fill iterations over a sub-rectangle, ignoring the result-dirty gate;
+    /// texels outside the region keep their values, so the region must extend at least
+    /// <see cref="Iteration"/> texels beyond any sampled area.
     /// </summary>
     /// <param name="computePass">The compute pass to record the dispatches to.</param>
     /// <param name="x">The x origin of the region, in texels.</param>
@@ -228,6 +257,8 @@ public class FloodFillLightMap : AutoDisposable
         }
     }
 
+    /// <summary>Uploads dirty CPU maps to the GPU textures and marks the computed result dirty.</summary>
+    /// <param name="force">Whether to upload even when the dirty flag is not set.</param>
     public void ResetTexture(bool force = false)
     {
         if (!_isTextureDirty && !force)

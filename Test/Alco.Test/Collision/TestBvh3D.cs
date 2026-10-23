@@ -10,29 +10,44 @@ using TestFramework;
 
 namespace Alco.Test
 {
+    /// <summary>
+    /// Collects BVH query hits into native array lists.
+    /// </summary>
     public struct NativeListCollector3D : IBvhCollisionCollector3D, IBvhRayCastCollector3D
     {
         private unsafe NativeArrayList<ColliderCastResult3D>* _list;
         private unsafe NativeArrayList<RayCastResult3D>* _rayList;
 
+        /// <summary>
+        /// Creates a collector that appends collider-cast hits to the given list.
+        /// </summary>
         public unsafe NativeListCollector3D(NativeArrayList<ColliderCastResult3D>* list)
         {
             _list = list;
             _rayList = null;
         }
 
+        /// <summary>
+        /// Creates a collector that appends ray-cast hits to the given list.
+        /// </summary>
         public unsafe NativeListCollector3D(NativeArrayList<RayCastResult3D>* rayList)
         {
             _list = null;
             _rayList = rayList;
         }
 
+        /// <summary>
+        /// Appends the collider hit to the list and continues traversal.
+        /// </summary>
         public unsafe bool OnHit(ColliderCastResult3D result)
         {
             if (_list != null) _list->Add(result);
             return true;
         }
 
+        /// <summary>
+        /// Appends the ray hit to the list and continues traversal.
+        /// </summary>
         public unsafe bool OnHit(RayCastResult3D result)
         {
             if (_rayList != null) _rayList->Add(result);
@@ -40,12 +55,18 @@ namespace Alco.Test
         }
     }
 
+    /// <summary>
+    /// Captures only the first BVH hit for collider and ray casts.
+    /// </summary>
     public struct FirstHitCollector3D : IBvhCollisionCollector3D, IBvhRayCastCollector3D
     {
         public ColliderCastResult3D Result;
         public RayCastResult3D RayResult;
         public bool HasHit;
 
+        /// <summary>
+        /// Records the collider hit and stops traversal.
+        /// </summary>
         public bool OnHit(ColliderCastResult3D result)
         {
             Result = result;
@@ -53,6 +74,9 @@ namespace Alco.Test
             return false;
         }
 
+        /// <summary>
+        /// Records the ray hit and stops traversal.
+        /// </summary>
         public bool OnHit(RayCastResult3D result)
         {
             RayResult = result;
@@ -62,14 +86,13 @@ namespace Alco.Test
     }
 
     /// <summary>
-    /// Correctness tests for the 4-wide collider <see cref="NativeBvh3D"/>. All query methods
-    /// are cross-validated against a linear scan that runs the exact same shape tests on the
-    /// same colliders, so any disagreement exposes lost or duplicated traversal work. The
-    /// scenes include rotated boxes, spheres, duplicates, a shared-centroid cluster (identical
-    /// Morton codes) and ray origins inside colliders.
+    /// Correctness tests for the 4-wide <see cref="NativeBvh3D"/>, cross-validated against a linear scan over varied scenes.
     /// </summary>
     public class TestBvh3D
     {
+        /// <summary>
+        /// Tests ray casts on a simple 3D BVH scene, including multi-hit collection.
+        /// </summary>
         [Test(Description = "Test BVH ray collision 3D")]
         public unsafe void TestRayCollision()
         {
@@ -161,6 +184,9 @@ namespace Alco.Test
 
         }
 
+        /// <summary>
+        /// Tests box and sphere collider casts against a 3D BVH.
+        /// </summary>
         [Test(Description = "Test BVH collider collision 3D")]
         public unsafe void TestColliderCollision()
         {
@@ -493,6 +519,9 @@ namespace Alco.Test
             castHits.Dispose();
         }
 
+        /// <summary>
+        /// Tests all five query types against a linear-scan reference on a randomized scene.
+        /// </summary>
         [Test(Description = "BVH collider 3D: randomized cross-validation of all five query types against a linear scan")]
         public unsafe void TestBvhCrossValidation3D()
         {
@@ -511,6 +540,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that an explicit Morton builder produces the same query results as the default build.
+        /// </summary>
         [Test(Description = "BVH collider 3D: explicit Morton builder instance produces the same results as the default build")]
         public unsafe void TestBvhExplicitBuilderMatchesDefault3D()
         {
@@ -544,6 +576,9 @@ namespace Alco.Test
             builder.Dispose();
         }
 
+        /// <summary>
+        /// Tests that the pairing-order builder matches the linear-scan reference across scene sizes.
+        /// </summary>
         [Test(Description = "BVH collider 3D: pairing-order builder (order-preserving) matches the linear-scan reference")]
         public unsafe void TestBvhPairingOrderBuilder3D()
         {
@@ -571,6 +606,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests item counts around the four-item leaf-block boundary.
+        /// </summary>
         [Test(Description = "BVH collider 3D: item counts around the 4-item leaf-block boundary stay correct")]
         public unsafe void TestBvhSmallCounts3D()
         {
@@ -611,6 +649,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that identical colliders with equal Morton codes all remain reachable.
+        /// </summary>
         [Test(Description = "BVH collider 3D: 300 identical colliders (identical Morton codes) are all reachable")]
         public unsafe void TestBvhIdenticalColliders3D()
         {
@@ -648,6 +689,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that an empty input leaves every query inert.
+        /// </summary>
         [Test(Description = "BVH collider 3D: empty input leaves the tree inert for every query")]
         public unsafe void TestBvhEmptyInput3D()
         {
@@ -674,6 +718,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that rebuilding with different sizes reuses buffers without corrupting results.
+        /// </summary>
         [Test(Description = "BVH collider 3D: rebuilding with different sizes reuses buffers without corrupting results")]
         public unsafe void TestBvhRebuildReuse3D()
         {

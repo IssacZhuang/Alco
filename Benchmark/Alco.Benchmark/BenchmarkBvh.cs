@@ -10,6 +10,9 @@ using BepuUtilities.Memory;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks 2D and 3D BVH construction and ray casting across engine and Bepu implementations.
+/// </summary>
 public class BenchmarkBvh
 {
     NativeArrayList<ColliderBox3D> boxs3D;
@@ -58,6 +61,9 @@ public class BenchmarkBvh
     private CastRayTaskBepu _castRayTaskBepuAdd;
     private CastRayTaskBepu _castRayTaskBepuBinned;
 
+    /// <summary>
+    /// Initializes the collider, ray, and BVH data used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public unsafe void Setup()
     {
@@ -413,6 +419,9 @@ public class BenchmarkBvh
         _castRayTaskAabb2D = new CastRayTaskAabb2D(_bvhAabb2D);
     }
 
+    /// <summary>
+    /// Releases the unmanaged resources used by the benchmarks.
+    /// </summary>
     [GlobalCleanup]
     public void Cleanup()
     {
@@ -456,24 +465,36 @@ public class BenchmarkBvh
         _castRayTaskAabb2D.Dispose();
     }
 
+    /// <summary>
+    /// Benchmarks building the 3D Morton BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 3D (Morton 4-wide) Build tree: ")]
     public void BuildBvh3D()
     {
         bvh3D.BuildTree(colliders3D.AsSpan());
     }
 
+    /// <summary>
+    /// Benchmarks building the 3D pairing-order BVH from insertion-order input.
+    /// </summary>
     [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, insertion order) Build tree: ")]
     public void BuildBvh3DPairing()
     {
         _bvh3DPairing.BuildTree(colliders3D.AsSpan(), PairingOrderBvhBuilder3D.Shared);
     }
 
+    /// <summary>
+    /// Benchmarks building the 3D pairing-order BVH from Morton-sorted input.
+    /// </summary>
     [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, Morton-sorted input) Build tree: ")]
     public void BuildBvh3DPairingSorted()
     {
         _bvh3DPairingSorted.BuildTree(_colliders3DSorted.AsSpan(), PairingOrderBvhBuilder3D.Shared);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 3D Morton BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 3D (Morton 4-wide) Cast ray: ")]
     public void CastRay3D()
     {
@@ -481,6 +502,9 @@ public class BenchmarkBvh
         _castRayTask3D.RunParallel(rays3D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 3D pairing-order BVH built from insertion-order input.
+    /// </summary>
     [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, insertion order) Cast ray: ")]
     public void CastRay3DPairing()
     {
@@ -488,6 +512,9 @@ public class BenchmarkBvh
         _castRayTask3DPairing.RunParallel(rays3D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 3D pairing-order BVH built from Morton-sorted input.
+    /// </summary>
     [Benchmark(Description = "BVH 3D (PairingOrder 4-wide, Morton-sorted input) Cast ray: ")]
     public void CastRay3DPairingSorted()
     {
@@ -495,12 +522,18 @@ public class BenchmarkBvh
         _castRayTask3DPairingSorted.RunParallel(rays3D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks building the 3D AABB-only BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 3D AABB (Morton) Build tree: ")]
     public void BuildBvhAabb3D()
     {
         _bvhAabb3D.Build(_aabbs3D);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 3D AABB-only BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 3D AABB (Morton) Cast ray: ")]
     public void CastRayAabb3D()
     {
@@ -508,18 +541,27 @@ public class BenchmarkBvh
         _castRayTaskAabb3D.RunParallel(rays3D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks building the Bepu tree incrementally with Add.
+    /// </summary>
     [Benchmark(Description = "Bepu (Add) Build tree: ")]
     public void BuildBepuAddBench()
     {
         BuildBepuAdd();
     }
 
+    /// <summary>
+    /// Benchmarks building the Bepu tree with BinnedBuild.
+    /// </summary>
     [Benchmark(Description = "Bepu (BinnedBuild) Build tree: ")]
     public void BuildBepuBinnedBench()
     {
         BuildBepuBinned();
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the Bepu Add tree.
+    /// </summary>
     [Benchmark(Description = "Bepu (Add) Cast ray: ")]
     public void CastRayBepuAdd()
     {
@@ -527,6 +569,9 @@ public class BenchmarkBvh
         _castRayTaskBepuAdd.RunParallel(rays3D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the Bepu BinnedBuild tree.
+    /// </summary>
     [Benchmark(Description = "Bepu (Binned) Cast ray: ")]
     public void CastRayBepuBinned()
     {
@@ -534,18 +579,27 @@ public class BenchmarkBvh
         _castRayTaskBepuBinned.RunParallel(rays3D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks building the 2D Morton BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 2D (Morton 4-wide) Build tree: ")]
     public void BuildBvh2D()
     {
         bvh2D.BuildTree(colliders2D.AsSpan());
     }
 
+    /// <summary>
+    /// Benchmarks building the 2D pairing-order BVH from insertion-order input.
+    /// </summary>
     [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, insertion order) Build tree: ")]
     public void BuildBvh2DPairing()
     {
         _bvh2DPairing.BuildTree(colliders2D.AsSpan(), PairingOrderBvhBuilder2D.Shared);
     }
 
+    /// <summary>
+    /// Benchmarks building the 2D pairing-order BVH from Morton-sorted input.
+    /// </summary>
     [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, Morton-sorted input) Build tree: ")]
     public void BuildBvh2DPairingSorted()
     {
@@ -627,6 +681,9 @@ public class BenchmarkBvh
         }
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 2D Morton BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 2D (Morton 4-wide) Cast ray: ")]
     public void CastRay2D()
     {
@@ -634,6 +691,9 @@ public class BenchmarkBvh
         _castRayTask.RunParallel(rays2D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 2D pairing-order BVH built from insertion-order input.
+    /// </summary>
     [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, insertion order) Cast ray: ")]
     public void CastRay2DPairing()
     {
@@ -641,6 +701,9 @@ public class BenchmarkBvh
         _castRayTask2DPairing.RunParallel(rays2D.Length, 16);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 2D pairing-order BVH built from Morton-sorted input.
+    /// </summary>
     [Benchmark(Description = "BVH 2D (PairingOrder 4-wide, Morton-sorted input) Cast ray: ")]
     public void CastRay2DPairingSorted()
     {
@@ -759,12 +822,18 @@ public class BenchmarkBvh
         return v;
     }
 
+    /// <summary>
+    /// Benchmarks building the 2D AABB-only BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 2D AABB (Morton) Build tree: ")]
     public void BuildBvhAabb2D()
     {
         _bvhAabb2D.Build(_aabbs2D);
     }
 
+    /// <summary>
+    /// Benchmarks casting rays against the 2D AABB-only BVH.
+    /// </summary>
     [Benchmark(Description = "BVH 2D AABB (Morton) Cast ray: ")]
     public void CastRayAabb2D()
     {

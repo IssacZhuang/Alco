@@ -5,13 +5,8 @@ using Alco.Rendering;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// Tests of the RAII scopes of <see cref="RenderContext"/>: frame scopes
-/// (<see cref="RenderFrameScope"/>, the only submitter) and pass scopes
-/// (<see cref="RenderPassScope"/>) handed out by
-/// <see cref="RenderContext.BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>
-/// and <see cref="SubRenderContext.BeginPass"/>: frame-only submission, misuse
-/// guards, listener notifications, bundle recording, and the render graph's
-/// one-submission-per-frame model. Driven by the NoGPU backend.
+/// Tests the RAII frame and pass scopes of <see cref="RenderContext"/>, including
+/// submission, misuse guards, listeners, bundle recording, and the render graph.
 /// </summary>
 [TestFixture]
 public sealed class TestRenderPassScope
@@ -84,6 +79,7 @@ public sealed class TestRenderPassScope
     private GPUAttachmentLayout _layout;
     private RenderTexture _target;
 
+    /// <summary>Creates the rendering host, attachment layout, and target texture.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -95,6 +91,7 @@ public sealed class TestRenderPassScope
         _target = _rendering.CreateRenderTexture(_layout, 32, 32, "scope_target");
     }
 
+    /// <summary>Disposes the target texture, attachment layout, and rendering host.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -103,6 +100,7 @@ public sealed class TestRenderPassScope
         _host.Dispose();
     }
 
+    /// <summary>Tests that BeginPass without an open frame scope throws.</summary>
     [Test(Description = "BeginPass without an open frame scope throws InvalidOperationException — the frame scope is the only submitter")]
     public void BeginPassWithoutFrameThrows()
     {
@@ -112,6 +110,7 @@ public sealed class TestRenderPassScope
         Assert.That(context.IsPassOpen, Is.False);
     }
 
+    /// <summary>Tests that each sequential frame submits once.</summary>
     [Test(Description = "Two sequential frames on one context submit once each")]
     public void SequentialFramesSubmitOnceEach()
     {
@@ -134,6 +133,7 @@ public sealed class TestRenderPassScope
         Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 2));
     }
 
+    /// <summary>Tests that calls on a disposed pass scope throw.</summary>
     [Test(Description = "Calls on a disposed scope throw InvalidOperationException")]
     public void CallsOnClosedScopeThrow()
     {
@@ -146,6 +146,7 @@ public sealed class TestRenderPassScope
         Assert.Throws<InvalidOperationException>(() => pass.Dispose());
     }
 
+    /// <summary>Tests that beginning a pass while another is open throws.</summary>
     [Test(Description = "Beginning a second pass while one is open throws InvalidOperationException")]
     public void NestedBeginPassThrows()
     {
@@ -157,6 +158,7 @@ public sealed class TestRenderPassScope
         }
     }
 
+    /// <summary>Tests that listeners fire once per frame.</summary>
     [Test(Description = "Listeners are notified once per frame scope (one pass per frame here), on the recycled scope identity")]
     public void ListenersFireOncePerFrame()
     {
@@ -181,6 +183,7 @@ public sealed class TestRenderPassScope
         Assert.That(listener.EndCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that a sub-context records a bundle and replays it into a pass.</summary>
     [Test(Description = "A sub context records a bundle through its scope; the bundle replays into a pass")]
     public void SubRenderContextRecordsAndReplaysBundle()
     {
@@ -202,6 +205,7 @@ public sealed class TestRenderPassScope
         }
     }
 
+    /// <summary>Tests that pass-only operations throw while recording a bundle.</summary>
     [Test(Description = "Pass-only operations throw while recording a render bundle")]
     public void BundleScopeRejectsPassOnlyOperations()
     {
@@ -215,6 +219,7 @@ public sealed class TestRenderPassScope
         }
     }
 
+    /// <summary>Tests that listeners fire once per frame on a graph-shared context.</summary>
     [Test(Description = "Listeners on a graph-shared context fire once per frame (buffer cycle), no matter how many passes the frame contains")]
     public void ListenersFireOncePerFrameOnSharedGraphContext()
     {
@@ -234,6 +239,7 @@ public sealed class TestRenderPassScope
         Assert.That(listener.EndCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that sub-context listeners fire once per bundle recording.</summary>
     [Test(Description = "Listeners on a sub context fire once per bundle recording")]
     public void SubRenderContextListenersFirePerRecording()
     {
@@ -252,6 +258,7 @@ public sealed class TestRenderPassScope
         Assert.That(listener.EndCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that a frame scope submits once for many passes.</summary>
     [Test(Description = "A frame scope records many passes into one buffer and submits once on dispose (shared mode outside the render graph)")]
     public void FrameScopeSubmitsOnceForManyPasses()
     {
@@ -283,6 +290,7 @@ public sealed class TestRenderPassScope
         Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 2));
     }
 
+    /// <summary>Tests that frame-scope listeners fire once per frame.</summary>
     [Test(Description = "Listeners fire once per frame scope (buffer cycle), not per pass")]
     public void FrameScopeListenersFireOncePerFrame()
     {
@@ -304,6 +312,7 @@ public sealed class TestRenderPassScope
         Assert.That(listener.EndCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that disposing a frame scope with an open pass aborts without submitting.</summary>
     [Test(Description = "Disposing a frame scope with a pass still open discards the buffer without submitting and leaves the context reusable")]
     public void FrameScopeWithOpenPassAbortsWithoutSubmit()
     {
@@ -328,6 +337,7 @@ public sealed class TestRenderPassScope
         Assert.That(_rendering.ScheduledSubmissionCount, Is.EqualTo(before + 1));
     }
 
+    /// <summary>Tests that nested frame begins and double dispose throw.</summary>
     [Test(Description = "Nested BeginFrame or a double frame dispose throws InvalidOperationException")]
     public void FrameScopeNestingAndDoubleDisposeThrow()
     {
@@ -340,6 +350,7 @@ public sealed class TestRenderPassScope
         Assert.Throws<InvalidOperationException>(() => frame.Dispose());
     }
 
+    /// <summary>Tests that the render graph submits once per frame.</summary>
     [Test(Description = "The render graph records every node's passes into the shared context and submits exactly once per frame")]
     public void GraphSubmitsOncePerFrame()
     {
@@ -356,6 +367,7 @@ public sealed class TestRenderPassScope
             "Two pass nodes must share a single command buffer submission.");
     }
 
+    /// <summary>Tests that a frame recording nothing still submits once.</summary>
     [Test(Description = "A frame whose nodes record nothing still submits the shared buffer once")]
     public void GraphSubmitsEmptyFrameOnce()
     {

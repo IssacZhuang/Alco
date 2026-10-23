@@ -34,11 +34,19 @@ public struct ColorAttachment
     /// </summary>
     public Vector4 ClearColor { get; init; } = new Vector4(0.0f, 0.0f, 0.0f, 1.0f);
 
+    /// <summary>Determines whether two color attachments have equal format and clear color.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when both attachments are equal.</returns>
     public static bool operator ==(ColorAttachment left, ColorAttachment right)
     {
         return left.Equals(right);
     }
 
+    /// <summary>Determines whether two color attachments differ in format or clear color.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when the attachments are not equal.</returns>
     public static bool operator !=(ColorAttachment left, ColorAttachment right)
     {
         return !(left == right);
@@ -49,6 +57,9 @@ public struct ColorAttachment
         return obj is ColorAttachment attachment && Equals(attachment);
     }
 
+    /// <summary>Determines whether this attachment equals another in format and clear color.</summary>
+    /// <param name="other">The attachment to compare with.</param>
+    /// <returns>True when the attachments are equal.</returns>
     public readonly bool Equals(ColorAttachment other)
     {
         return Format == other.Format && ClearColor == other.ClearColor;

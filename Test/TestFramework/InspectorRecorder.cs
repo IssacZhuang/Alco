@@ -5,12 +5,7 @@ using Alco;
 namespace TestFramework;
 
 /// <summary>
-/// A scripted <see cref="IInspector"/> for tests: it records every widget call
-/// (as <c>"Widget:label"</c> strings in <see cref="Calls"/>) and applies
-/// label-keyed scripted edits registered through <see cref="Edit"/> — the
-/// widget whose label matches reports "edited" once and writes the scripted
-/// value through its <c>ref</c> parameter. Enum combos are scripted with the
-/// enum value itself.
+/// A scripted <see cref="IInspector"/> that records widget calls and applies label-keyed edits.
 /// </summary>
 public sealed class InspectorRecorder : IInspector
 {

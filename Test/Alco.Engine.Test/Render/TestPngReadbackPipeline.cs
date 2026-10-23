@@ -10,12 +10,7 @@ using NUnit.Framework;
 namespace Alco.Engine.Test;
 
 /// <summary>
-/// Tests for <see cref="PngReadbackPipeline"/> as a pure transport: the PNG encodes
-/// exactly the texture's RGBA — alpha included — so transparent pixels survive to
-/// the file untouched. Alpha semantics belong to the producing pass (verified for
-/// the blit shaders in <see cref="TestCaptureBlitAlpha"/>); this fixture covers the
-/// full pipeline (GPU readback, PNG encode, decode) against the real alco-gpu
-/// backend.
+/// Tests that the PNG readback pipeline preserves texture RGBA values, including alpha, end to end.
 /// </summary>
 [TestFixture]
 public class TestPngReadbackPipeline

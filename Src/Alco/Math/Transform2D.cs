@@ -22,8 +22,14 @@ namespace Alco
         /// </summary>
         public Vector2 Scale;
 
+        /// <summary>
+        /// A transform with zero position, identity rotation and unit scale.
+        /// </summary>
         public static readonly Transform2D Identity = new Transform2D(Vector2.Zero, Rotation2D.Identity, Vector2.One);
 
+        /// <summary>
+        /// Initializes a transform at the origin with identity rotation and unit scale.
+        /// </summary>
         public Transform2D()
         {
             this.Position = Vector2.Zero;
@@ -31,6 +37,10 @@ namespace Alco
             this.Scale = Vector2.One;
         }
 
+        /// <summary>
+        /// Initializes a transform at the given position with identity rotation and unit scale.
+        /// </summary>
+        /// <param name="pos">The position of the transform.</param>
         public Transform2D(Vector2 pos)
         {
             this.Position = pos;
@@ -38,6 +48,11 @@ namespace Alco
             this.Scale = Vector2.One;
         }
 
+        /// <summary>
+        /// Initializes a transform with the given position and rotation, using unit scale.
+        /// </summary>
+        /// <param name="pos">The position of the transform.</param>
+        /// <param name="rot">The rotation of the transform.</param>
         public Transform2D(Vector2 pos, Rotation2D rot)
         {
             this.Position = pos;
@@ -45,6 +60,11 @@ namespace Alco
             this.Scale = Vector2.One;
         }
 
+        /// <summary>
+        /// Initializes a transform with the given rotation and position, using unit scale.
+        /// </summary>
+        /// <param name="rot">The rotation of the transform.</param>
+        /// <param name="pos">The position of the transform.</param>
         public Transform2D(Rotation2D rot, Vector2 pos)
         {
             this.Position = pos;
@@ -52,6 +72,12 @@ namespace Alco
             this.Scale = Vector2.One;
         }
 
+        /// <summary>
+        /// Initializes a transform with the given position, rotation and scale.
+        /// </summary>
+        /// <param name="pos">The position of the transform.</param>
+        /// <param name="rot">The rotation of the transform.</param>
+        /// <param name="scale">The scale of the transform.</param>
         public Transform2D(Vector2 pos, Rotation2D rot, Vector2 scale)
         {
             this.Position = pos;

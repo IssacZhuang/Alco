@@ -29,6 +29,7 @@ public enum SlangCodeTarget
     MetalLib = 3,
 }
 
+/// <summary>Maps a <see cref="SlangCodeTarget"/> to its engine shader language and wgpu entry-point name.</summary>
 public static class SlangCodeTargetExtensions
 {
     /// <summary>The engine shader language each target's entry code is written in.</summary>

@@ -18,15 +18,17 @@ public class GraphicsMaterial : AutoDisposable
 
     /// <summary>The shader handle, bound at construction and immutable for the material's lifetime.</summary>
     /// <remarks>
-    /// The specialization starts at construction and can be swapped later through
-    /// <see cref="SetSpecializations"/>; the swap rebuilds the pipeline lazily and
-    /// carries the resource bindings over by name.
+    /// Specializations may be swapped through <see cref="SetSpecializations"/>, which rebuilds
+    /// the pipeline lazily and carries bindings over by name.
     /// </remarks>
     protected readonly Shader _shader;
     private string[] _specializations;
 
     private uint _version;
 
+    /// <summary>
+    /// The version incremented whenever material bindings change.
+    /// </summary>
     public uint Version => _version;
 
     public int ResourceGroupCount
@@ -218,6 +220,12 @@ public class GraphicsMaterial : AutoDisposable
 
     #region Set buffer
 
+    /// <summary>
+    /// Tries to bind a buffer to the shader resource with the given name.
+    /// </summary>
+    /// <param name="name">The shader resource name.</param>
+    /// <param name="buffer">The buffer to bind.</param>
+    /// <returns><c>true</c> when the resource exists and was bound; otherwise <c>false</c>.</returns>
     public bool TrySetBuffer(string name, GraphicsBuffer buffer)
     {
         if (_parameters.TrySetBuffer(name, buffer))
@@ -228,12 +236,23 @@ public class GraphicsMaterial : AutoDisposable
         return false;
     }
 
+    /// <summary>
+    /// Binds a buffer to the shader resource with the given name.
+    /// </summary>
+    /// <param name="name">The shader resource name.</param>
+    /// <param name="buffer">The buffer to bind.</param>
     public void SetBuffer(string name, GraphicsBuffer buffer)
     {
         _parameters.SetBuffer(name, buffer);
         IncreaseVersion();
     }
 
+    /// <summary>
+    /// Tries to bind a buffer to the shader resource with the given id.
+    /// </summary>
+    /// <param name="id">The shader resource id.</param>
+    /// <param name="buffer">The buffer to bind.</param>
+    /// <returns><c>true</c> when the resource exists and was bound; otherwise <c>false</c>.</returns>
     public bool TrySetBuffer(uint id, GraphicsBuffer buffer)
     {
         if (_parameters.TrySetBuffer(id, buffer))
@@ -244,6 +263,11 @@ public class GraphicsMaterial : AutoDisposable
         return false;
     }
 
+    /// <summary>
+    /// Binds a buffer to the shader resource with the given id.
+    /// </summary>
+    /// <param name="id">The shader resource id.</param>
+    /// <param name="buffer">The buffer to bind.</param>
     public void SetBuffer(uint id, GraphicsBuffer buffer)
     {
         _parameters.SetBuffer(id, buffer);

@@ -39,12 +39,7 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
-    /// Converts a filename to its extensionless alias form when its extension is a
-    /// recognized asset extension — the form that resolves back through the alias
-    /// table regardless of the concrete file format shipped (e.g. a texture
-    /// reference stays valid when packages replace <c>.png</c> files with
-    /// <c>.dds</c>). Filenames with no recognized extension are returned unchanged;
-    /// the alias table has no entry for them, so only the full name resolves.
+    /// Converts a filename with a recognized asset extension to its extensionless alias form; other filenames are returned unchanged.
     /// </summary>
     /// <param name="filename">The filename to convert.</param>
     /// <returns>The extensionless alias form, or the filename unchanged.</returns>
@@ -60,7 +55,7 @@ public sealed partial class AssetSystem
 
     /// <summary>
     /// Check if the file exists
-    /// /// </summary>
+    /// </summary>
     /// <param name="filename">The filename to check</param>
     /// <returns>True if the file exists</returns>
     public bool IsFileExist(string? filename)

@@ -5,6 +5,7 @@ using System.Xml;
 
 namespace Alco.Test
 {
+    /// <summary>Tests binary table encoding, decoding, conversion and post-load handling.</summary>
     public class TestBinaryParser
     {
         private class SerializableForPostLoad : ISerializable
@@ -29,6 +30,7 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>Creates a binary array containing a null value for noise testing.</summary>
         public static BinaryArray NoiseArray()
         {
             string?[] data = new string?[5]{
@@ -54,6 +56,7 @@ namespace Alco.Test
             return binArray;
         }
 
+        /// <summary>Tests encoding and decoding of a table with nested values.</summary>
         [Test(Description = "Test BinaryParser object")]
         public void TestParseObject()
         {
@@ -137,6 +140,7 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>Tests encoding and decoding of a list with null entries.</summary>
         [Test(Description = "Test BinaryParser list")]
         public void TestParseList()
         {
@@ -189,6 +193,7 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>Tests string conversion of null and non-null table values.</summary>
         [Test(Description = "Test BinaryParser convert")]
         public void TestConvert()
         {
@@ -214,6 +219,7 @@ namespace Alco.Test
             Assert.IsTrue(value4 == "value4");
         }
 
+        /// <summary>Tests decoding a span with strings, numbers, arrays and nested tables.</summary>
         [Test(Description = "Test BinaryParser decode from span")]
         public void TestDecodeFromSpan()
         {
@@ -291,6 +297,7 @@ namespace Alco.Test
             Assert.IsTrue(nestedIntValue == 789);
         }
 
+        /// <summary>Tests that table-to-object conversion with the new path runs post-load.</summary>
         [Test(Description = "BinaryParser should trigger PostLoad after TableToObject new() path")]
         public void TestPostLoad_TableToObject_New()
         {
@@ -303,6 +310,7 @@ namespace Alco.Test
             Assert.IsTrue(obj.PostLoaded);
         }
 
+        /// <summary>Tests that table-to-object conversion with a factory runs post-load.</summary>
         [Test(Description = "BinaryParser should trigger PostLoad after TableToObject factory path")]
         public void TestPostLoad_TableToObject_Factory()
         {
@@ -319,6 +327,7 @@ namespace Alco.Test
             Assert.IsTrue(obj.PostLoaded);
         }
 
+        /// <summary>Tests that populate runs post-load.</summary>
         [Test(Description = "BinaryParser should trigger PostLoad after Populate path")]
         public void TestPostLoad_Populate()
         {
@@ -342,6 +351,7 @@ namespace Alco.Test
         }
 
 
+        /// <summary>Tests the binary encoding size against XML output.</summary>
         [Test(Description = "Test BinaryParser vs XML size")]
         public void TestSize()
         {

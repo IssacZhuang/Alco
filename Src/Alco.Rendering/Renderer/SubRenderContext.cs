@@ -4,12 +4,9 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The reusable sub context of the render object. Owns one <see cref="GPURenderBundle"/>
-/// and hands out its recording scope through <see cref="BeginPass"/> — all draw commands
-/// are recorded inside the scope, consumed with <c>using</c>. The recorded bundle is
-/// executed inside a render pass through <see cref="RenderPassScope.ExecuteSubContext"/>.
-/// <br/>All APIs in this class are not thread safe, but you can create multiple
-/// instances on different threads.
+/// A reusable sub context owning one <see cref="GPURenderBundle"/> that records draw commands
+/// for execution inside a render pass. All APIs are not thread safe, but separate instances may
+/// be used on different threads.
 /// </summary>
 public sealed class SubRenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 {

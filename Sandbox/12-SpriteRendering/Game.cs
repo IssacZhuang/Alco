@@ -6,6 +6,7 @@ using Alco;
 using FastRandom = Alco.FastRandom;
 using Alco.Graphics;
 
+/// <summary>Sandbox benchmarking batched sprite and text rendering.</summary>
 public class Game : GameEngine
 {
     private int DrawCount = 10000;
@@ -24,6 +25,8 @@ public class Game : GameEngine
     private Vector2 _size = Vector2.One * 20;
 
 
+    /// <summary>Initializes the sprite and text renderers used by the benchmark.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _camera = RenderingSystem.CreateCamera2D(640, 360, 100);

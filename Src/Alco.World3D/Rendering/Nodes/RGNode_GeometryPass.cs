@@ -5,11 +5,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A graph node that opens a single render pass on a target resource — clearing its
-/// attachments — and invokes every enabled <see cref="IRenderPassContent"/> in
-/// <see cref="Content"/> inside it. Use it for passes that many content providers
-/// share (a G-buffer pass, a custom depth prepass, ...), so all draws land in one
-/// render pass and render bundles are replayed without re-opening.
+/// A graph node that opens a single render pass on a target resource, clearing its attachments and invoking every enabled <see cref="IRenderPassContent"/> in <see cref="Content"/>.
 /// </summary>
 public sealed class RGNode_GeometryPass : AutoDisposable, IRenderGraphNode
 {

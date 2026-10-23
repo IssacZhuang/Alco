@@ -39,11 +39,7 @@ public sealed class Shader : AutoDisposable
     public string Name { get; }
 
     /// <summary>
-    /// Create a new shader handle whose modules are compiled through the slang
-    /// module system: the compiler is called once per specialization, on demand.
-    /// Nothing compiles at construction — a module with generic entry points
-    /// (e.g. <c>MainPS&lt;let Quality : int&gt;</c>) links only when one of its
-    /// specializations is first requested.
+    /// Creates a shader handle whose modules compile lazily, once per specialization.
     /// </summary>
     /// <param name="renderingSystem">The rendering system</param>
     /// <param name="name">The name of the shader</param>
@@ -169,11 +165,7 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Attempts to update an existing pipeline context with a new attachment layout.
-    /// The context keeps the specialization it was built for (set by the
-    /// <see cref="GetGraphicsPipeline(GPUAttachmentLayout, DepthStencilState, BlendState, RasterizerState, PrimitiveTopology, ReadOnlySpan{object})"/>
-    /// call that created it) — switching variants means building a fresh context
-    /// with different specialization arguments.
+    /// Attempts to update an existing pipeline context with a new attachment layout, preserving its specialization; returns false when nothing changed.
     /// </summary>
     /// <param name="pipelineInfo">The pipeline context to update</param>
     /// <param name="attachmentLayout">The new attachment layout configuration</param>
@@ -206,6 +198,12 @@ public sealed class Shader : AutoDisposable
     }
 
 
+    /// <summary>
+    /// Refreshes a compute pipeline context when its version is stale or the update is forced.
+    /// </summary>
+    /// <param name="pipelineInfo">The pipeline context to refresh.</param>
+    /// <param name="forced">Whether to refresh even when the version is current.</param>
+    /// <returns>True if the context was refreshed; false when it was already current.</returns>
     public bool TryUpdateComputePipelineContext(ref ComputePipelineContext pipelineInfo, bool forced = false)
     {
         if (pipelineInfo.Version == _version && !forced)
@@ -243,13 +241,7 @@ public sealed class Shader : AutoDisposable
         => string.Join("|", specializations);
 
     /// <summary>
-    /// Normalizes object-typed specialization arguments into the canonical slang
-    /// expression strings used as cache keys and handed to the compiler: bool
-    /// takes the lowercase slang literals (C# <c>ToString()</c> casing is
-    /// rejected by slang's expression parser), the integer types invariant
-    /// digits, strings pass through (identifiers, type names). Slang value axes
-    /// are integer/enum only (error E30624), so floating-point arguments are
-    /// rejected here with a clear message instead of failing inside the compiler.
+    /// Normalizes object-typed specialization arguments into the canonical slang expression strings.
     /// </summary>
     internal static string[] NormalizeSpecializations(ReadOnlySpan<object> specializations)
     {
@@ -387,11 +379,7 @@ public sealed class Shader : AutoDisposable
     }
 
     /// <summary>
-    /// Module-based hot reload: the ShaderSystem invalidated this shader's
-    /// module; drop the compiled modules of every specialization and every cached
-    /// pipeline so the next use recompiles from the module system's current sources.
-    /// The version bump drives lazy pipeline rebuilds through the existing
-    /// TryUpdatePipelineContext mechanism.
+    /// Drops all compiled modules and cached pipelines after a module hot reload so the next use recompiles them.
     /// </summary>
     internal void UnsafeModuleReload()
     {

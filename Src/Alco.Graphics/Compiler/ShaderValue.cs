@@ -3,15 +3,10 @@ using System.Numerics;
 namespace Alco.Graphics;
 
 /// <summary>
-/// One authored material-parameter value — the flexible authoring currency of the
-/// <c>[MaterialParams]</c> table. Holds either a float component tuple (scalar
-/// through float4, plus <see langword="bool"/> and <see cref="int"/>/<see cref="uint"/>
-/// for typed members), a <see cref="Matrix4x4"/>, or an array of same-kind elements.
-/// JSON accepts a number, a hex color string, or a per-component object,
-/// plus the natural forms of the typed members (a JSON integer for
-/// <see langword="int"/>/<see langword="uint"/>, <c>true</c>/<c>false</c> for
-/// <see langword="bool"/>, an array for array members); code constructs values
-/// through the implicit conversions.
+/// One authored material-parameter value holding a float tuple (scalar through float4,
+/// <see langword="int"/>, <see langword="uint"/> or <see langword="bool"/>), a
+/// <see cref="Matrix4x4"/>, or an array of same-kind elements. JSON authors it as a
+/// number, hex color string, per-component object, or the natural typed form.
 /// </summary>
 public readonly struct ShaderValue : IEquatable<ShaderValue>
 {

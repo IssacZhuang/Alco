@@ -5,6 +5,7 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Test;
 
+/// <summary>Tests compute material instances resolving inherited and own resources.</summary>
 public class TestComputeMaterialInstance
 {
     // Self-contained slang module mirroring the engine's one-set-per-resource
@@ -43,6 +44,7 @@ public class TestComputeMaterialInstance
         }
         """;
 
+    /// <summary>Tests that a compute material instance binds its own resources and inherits parent resources.</summary>
     [Test]
     public void TestComputeInstanceResolvesOwnAndInheritedResources()
     {

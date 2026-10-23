@@ -7,6 +7,9 @@ namespace Alco.Graphics.Test;
 // graph, reverse invalidation and the two disk-cache layers (module IR +
 // linked programs) — hit/miss/invalidation/staleness.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>
+/// Tests the headless shader system core, including module caching, invalidation, and both disk-cache layers.
+/// </summary>
 [TestFixture]
 public class SlangModuleSystemTest
 {
@@ -92,6 +95,9 @@ public class SlangModuleSystemTest
         new SlangEntryPointRequest("MainPS", Alco.Graphics.ShaderStage.Fragment),
     ];
 
+    /// <summary>
+    /// Tests that a loaded module is reused within one system and records its imports.
+    /// </summary>
     [Test]
     public void ModuleCache_ReusesLoadedModule()
     {
@@ -112,6 +118,9 @@ public class SlangModuleSystemTest
         });
     }
 
+    /// <summary>
+    /// Tests that module IR and compiled programs restore across systems from disk.
+    /// </summary>
     [Test]
     public void ModuleIRDiskCache_RestoresAcrossSystems()
     {
@@ -151,6 +160,9 @@ public class SlangModuleSystemTest
         }
     }
 
+    /// <summary>
+    /// Tests that name-keyed modules restore across systems from the IR disk cache.
+    /// </summary>
     [Test]
     public void ModuleIRDiskCache_NameKeyedModules_RestoreAcrossSystems()
     {
@@ -190,6 +202,9 @@ public class SlangModuleSystemTest
         }
     }
 
+    /// <summary>
+    /// Tests that a changed dependency invalidates the module IR cache entry.
+    /// </summary>
     [Test]
     public void ModuleIRDiskCache_StaleWhenSourceChanges()
     {
@@ -218,6 +233,9 @@ public class SlangModuleSystemTest
         }
     }
 
+    /// <summary>
+    /// Tests that invalidating a dependency drops importers and raises the invalidation event.
+    /// </summary>
     [Test]
     public void Invalidate_ModulesContaining_InvalidatesImportersAndFiresEvent()
     {
@@ -256,6 +274,9 @@ public class SlangModuleSystemTest
         Assert.That(after.EntryCode[1].Length, Is.GreaterThan(4));
     }
 
+    /// <summary>
+    /// Tests that module and program caches are keyed by shader code target.
+    /// </summary>
     [Test]
     public void ProgramAndModuleCaches_AreKeyedByCodeTarget()
     {
@@ -301,6 +322,9 @@ public class SlangModuleSystemTest
         }
     }
 
+    /// <summary>
+    /// Tests that interface specializations compile to distinct cached programs.
+    /// </summary>
     [Test]
     public void GetProgram_DistinctSpecializationsAreDistinctPrograms()
     {
@@ -346,6 +370,9 @@ public class SlangModuleSystemTest
         });
     }
 
+    /// <summary>
+    /// Tests that integer value specializations compile to distinct cached programs.
+    /// </summary>
     [Test]
     public void GetProgram_IntValueSpecializationsAreDistinctPrograms()
     {
@@ -379,6 +406,9 @@ public class SlangModuleSystemTest
         });
     }
 
+    /// <summary>
+    /// Tests that bool value specializations accept slang literals and reject C# casing.
+    /// </summary>
     [Test]
     public void GetProgram_BoolValueSpecializationsAcceptSlangLiteralsOnly()
     {
@@ -416,6 +446,9 @@ public class SlangModuleSystemTest
                 "the C# bool.ToString() spelling must be rejected — object arguments need normalization to slang literals");
     }
 
+    /// <summary>
+    /// Tests which generic value axis types slang accepts for specialization.
+    /// </summary>
     [Test]
     public void GetProgram_ValueAxisTypeMatrix()
     {

@@ -5,12 +5,8 @@ using Alco.Effects;
 namespace Alco.Editor;
 
 /// <summary>
-/// Immediate-mode editor for a particle color-over-life gradient (a list of
-/// <see cref="ParticleColorKey"/>): a preview bar sampled through
-/// <see cref="ParticleOverLifeBake.EvaluateGradient"/> (the same evaluation the GPU
-/// bake uses), draggable key handles on a strip below it, click-on-bar to insert a
-/// key, and a color/time editor row for the selected key. Edits the key list in
-/// place; times are clamped to [0, 1] as the bake does.
+/// Immediate-mode editor for a particle color-over-life gradient: a preview bar sampled with the GPU bake's own evaluation, draggable key handles, click-to-insert and a color/time editor row for the selected key.
+/// Edits the key list in place; times are clamped to [0, 1].
 /// </summary>
 public static class GradientEditor
 {

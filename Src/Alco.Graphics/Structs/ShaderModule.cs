@@ -62,22 +62,14 @@ namespace Alco.Graphics
         public (uint X, uint Y, uint Z) WorkgroupSize { get; init; } = (1, 1, 1);
 
         /// <summary>
-        /// Whether the SPIR-V source already uses Naga's internal coordinate
-        /// convention (Slang's direct emission), so the GL-style Y adjustment must
-        /// be skipped when translating it. Only meaningful for SPIR-V consumed
-        /// through translation (D3D12); defaults to false, which keeps externally
-        /// produced GLSL-style SPIR-V behaving like stock wgpu.
+        /// Whether the SPIR-V source already uses Naga's internal coordinate convention, so the GL-style Y adjustment must be skipped when translating it.
+        /// Only meaningful for SPIR-V consumed through translation.
         /// </summary>
         public bool SpirvAdjustedCoordinates { get; init; }
 
         /// <summary>
-        /// Whether the native layer must consume <see cref="Source"/> through
-        /// passthrough (bytes handed to the backend as-is) instead of Naga
-        /// translation. The decision is caller-owned: DXIL/MSL/MetalLib have no
-        /// translation path and require this to be true, while SPIR-V translates
-        /// through Naga on every backend unless this is set (passthrough SPIR-V
-        /// additionally requires the Vulkan backend and the PassthroughShaders
-        /// capability). WGSL ignores this property.
+        /// Whether the native layer consumes <see cref="Source"/> through passthrough (handed to the backend as-is) instead of Naga translation.
+        /// DXIL/MSL/MetalLib require true; passthrough SPIR-V additionally requires the Vulkan backend and the PassthroughShaders capability.
         /// </summary>
         public bool Passthrough { get; init; }
     }

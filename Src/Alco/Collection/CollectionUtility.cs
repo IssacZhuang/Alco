@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace Alco
 {
+    /// <summary>
+    /// Provides general-purpose collection algorithms.
+    /// </summary>
     public static class CollectionUtility
     {
         /// <summary>

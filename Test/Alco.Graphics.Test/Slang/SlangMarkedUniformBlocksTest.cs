@@ -21,6 +21,7 @@ namespace Alco.Graphics.Test;
 //   3. a marked block keeps mixing uniform members with texture/sampler
 //      resources (the mixed-block shape the material set already uses).
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Tests that material parameter blocks are discovered through the MaterialParams attribute.</summary>
 [TestFixture]
 public class SlangMarkedUniformBlocksTest
 {
@@ -76,6 +77,7 @@ public class SlangMarkedUniformBlocksTest
         }
         """;
 
+    /// <summary>Tests that module reflection lists every block and attribute filtering keeps the marked ones.</summary>
     [Test]
     public void ModuleReflection_ListsEveryBlockWithAttributes_FilterKeepsMarkedOnes()
     {
@@ -97,6 +99,7 @@ public class SlangMarkedUniformBlocksTest
         });
     }
 
+    /// <summary>Tests that marked blocks expose their uniform members and texture slots.</summary>
     [Test]
     public void ModuleReflection_MarkedBlockMembersAndTextureSlots()
     {
@@ -124,6 +127,7 @@ public class SlangMarkedUniformBlocksTest
         });
     }
 
+    /// <summary>Tests that a module without the marker has no marked blocks.</summary>
     [Test]
     public void ModuleReflection_PlainModule_HasNoMarkedBlocks()
     {

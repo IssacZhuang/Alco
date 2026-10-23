@@ -15,6 +15,7 @@ public sealed class TestProjectAssetMount
     private string _tempRoot = string.Empty;
     private AssetSystem _assetSystem = null!;
 
+    /// <summary>Creates a fresh temporary directory and asset system for each test.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -23,6 +24,7 @@ public sealed class TestProjectAssetMount
         _assetSystem = new AssetSystem(new SilentHost());
     }
 
+    /// <summary>Deletes the test's temporary directory.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -68,6 +70,7 @@ public sealed class TestProjectAssetMount
     /// </summary>
     private void RefreshEntries() => _assetSystem.ForceRefreshEntries();
 
+    /// <summary>Tests that mounting a project exposes its owned assets.</summary>
     [Test]
     public void Mount_ExposesOwnedAssets()
     {
@@ -83,6 +86,7 @@ public sealed class TestProjectAssetMount
         });
     }
 
+    /// <summary>Tests that unmounting removes the project's mounted sources.</summary>
     [Test]
     public void Unmount_RemovesMountedSources()
     {
@@ -97,6 +101,7 @@ public sealed class TestProjectAssetMount
         Assert.That(_assetSystem.IsFileExist("assetsa.txt"), Is.False);
     }
 
+    /// <summary>Tests that unmounting then mounting switches to another project's assets.</summary>
     [Test]
     public void UnmountThenMount_SwitchesToAnotherProject()
     {
@@ -119,6 +124,7 @@ public sealed class TestProjectAssetMount
         });
     }
 
+    /// <summary>Tests that unmounting releases watched directories for deletion.</summary>
     [Test]
     public void Unmount_ReleasesWatchedDirectories()
     {

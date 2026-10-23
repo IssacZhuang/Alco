@@ -17,18 +17,21 @@ public class TestParticleSimulation
 
     private Host _engine = null!;
 
+    /// <summary>Creates the shared no-GPU engine for the fixture.</summary>
     [OneTimeSetUp]
     public void SetUp()
     {
         _engine = new Host(GameEngineSetting.CreateNoGPU());
     }
 
+    /// <summary>Disposes the shared engine.</summary>
     [OneTimeTearDown]
     public void TearDown()
     {
         _engine.Dispose();
     }
 
+    /// <summary>Tests that a new 2D material draws on its first simulated frame.</summary>
     [Test(Description = "A brand-new material's groups join the draw plan on their first simulated frame")]
     public void NewMaterialDrawsOnItsFirstFrame2D()
     {
@@ -44,6 +47,7 @@ public class TestParticleSimulation
             "the effect's debut frame dropped out of the draw plan, so it neither dispatched nor drew");
     }
 
+    /// <summary>Tests that a new 3D material draws on its first simulated frame.</summary>
     [Test(Description = "The 3D draw plan also includes brand-new materials on their first simulated frame")]
     public void NewMaterialDrawsOnItsFirstFrame3D()
     {
@@ -59,6 +63,7 @@ public class TestParticleSimulation
             "the effect's debut frame dropped out of the draw plan, so it neither dispatched nor drew");
     }
 
+    /// <summary>Tests that a hitch-sized delta clamps instead of fast-forwarding a one-shot.</summary>
     [Test(Description = "A hitch-sized frame delta clamps instead of fast-forwarding a one-shot to death")]
     public void HitchDeltaClamps2D()
     {
@@ -80,6 +85,7 @@ public class TestParticleSimulation
         });
     }
 
+    /// <summary>Tests that rate limiting skips sub-interval frames and accumulates time.</summary>
     [Test(Description = "The rate limiter skips frames below the interval, then steps by the accumulated time")]
     public void RateLimitSkipsAndAccumulates2D()
     {
@@ -115,6 +121,7 @@ public class TestParticleSimulation
         });
     }
 
+    /// <summary>Tests that rate-limited steps are fixed intervals and carry the remainder.</summary>
     [Test(Description = "Rate-limited steps are one fixed interval each; the accumulator carries the remainder")]
     public void RateLimitStepsAreFixedAndCarryRemainder2D()
     {
@@ -138,6 +145,7 @@ public class TestParticleSimulation
             "without the carried remainder this frame would have skipped (3/256 below the 4/256 interval)");
     }
 
+    /// <summary>Tests that a hitch under rate limiting simulates one interval and discards the backlog.</summary>
     [Test(Description = "A hitch with a valid plan simulates one interval and discards the backlog instead of fast-forwarding")]
     public void RateLimitedHitchDiscardsBacklog2D()
     {
@@ -161,6 +169,7 @@ public class TestParticleSimulation
         });
     }
 
+    /// <summary>Tests that disabling the rate limiter simulates every frame.</summary>
     [Test(Description = "With the rate limiter off every frame simulates, however small the delta")]
     public void RateLimitDisabledSimulatesEveryFrame2D()
     {
@@ -178,6 +187,7 @@ public class TestParticleSimulation
             "a disabled limiter still skipped a sub-interval frame");
     }
 
+    /// <summary>Tests that disposing an active instance forces a resimulation.</summary>
     [Test(Description = "Disposing an actively drawing instance forces a resimulation instead of replaying its stale draw")]
     public void ActiveDisposalForcesResimulation2D()
     {
@@ -197,6 +207,7 @@ public class TestParticleSimulation
             "the stale draw of a disposed active instance would have replayed for up to one interval");
     }
 
+    /// <summary>Tests that disposing a finished one-shot does not force a resimulation.</summary>
     [Test(Description = "Reaping a finished one-shot does not force a resimulation (its last draw is empty anyway)")]
     public void FinishedOneShotDisposalKeepsTheRateLimit2D()
     {
@@ -233,6 +244,7 @@ public class TestParticleSimulation
         Assert.That(system.Pool.PendingKills, Is.Empty, "the pending kill never dispatched");
     }
 
+    /// <summary>Tests that the 3D system rate-limits frames like the 2D system.</summary>
     [Test(Description = "The 3D system rate-limits identically: sub-interval frames skip, then the accumulated time steps")]
     public void RateLimitSkipsAndAccumulates3D()
     {

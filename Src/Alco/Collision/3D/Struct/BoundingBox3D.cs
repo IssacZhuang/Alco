@@ -6,6 +6,9 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// An axis-aligned 3D bounding box defined by its minimum and maximum corners.
+    /// </summary>
     public struct BoundingBox3D
     {
         /// <summary>
@@ -29,12 +32,22 @@ namespace Alco
             get => Max - Min;
         }
 
+        /// <summary>
+        /// Initializes a bounding box with the given minimum and maximum corners.
+        /// </summary>
+        /// <param name="min">The minimum corner.</param>
+        /// <param name="max">The maximum corner.</param>
         public BoundingBox3D(Vector3 min, Vector3 max)
         {
             this.Min = min;
             this.Max = max;
         }
 
+        /// <summary>
+        /// Determines whether this box overlaps or touches another box.
+        /// </summary>
+        /// <param name="other">The other box to test.</param>
+        /// <returns>True when the boxes overlap or touch.</returns>
         public bool Intersects(in BoundingBox3D other)
         {
             Vector3 minMax = Vector3.Max(Min, other.Min);
@@ -46,6 +59,11 @@ namespace Alco
             //        min.Z <= other.max.Z && max.Z >= other.min.Z;
         }
 
+        /// <summary>
+        /// Determines whether the box contains the given point, boundaries included.
+        /// </summary>
+        /// <param name="point">The point to test.</param>
+        /// <returns>True when the point lies inside or on the box.</returns>
         public bool Contains(Vector3 point)
         {
             return Min.X <= point.X && Max.X >= point.X &&
@@ -58,6 +76,12 @@ namespace Alco
             return $"Box: {Min} {Max}";
         }
 
+        /// <summary>
+        /// Gets the smallest box that contains both input boxes.
+        /// </summary>
+        /// <param name="a">The first box.</param>
+        /// <param name="b">The second box.</param>
+        /// <returns>The union of the two boxes.</returns>
         public static BoundingBox3D Merge(in BoundingBox3D a, in BoundingBox3D b)
         {
             return new BoundingBox3D
@@ -67,6 +91,13 @@ namespace Alco
             };
         }
 
+        /// <summary>
+        /// Gets the overlap of two boxes; when they do not overlap, the result has minimum
+        /// values greater than its maximum values.
+        /// </summary>
+        /// <param name="a">The first box.</param>
+        /// <param name="b">The second box.</param>
+        /// <returns>The intersection of the two boxes.</returns>
         public static BoundingBox3D GetIntersection(in BoundingBox3D a, in BoundingBox3D b)
         {
             return new BoundingBox3D

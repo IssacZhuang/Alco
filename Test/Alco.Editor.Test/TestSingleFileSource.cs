@@ -12,6 +12,7 @@ public sealed class TestSingleFileSource
 {
     private string _tempRoot = string.Empty;
 
+    /// <summary>Creates a temporary root directory.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -19,6 +20,7 @@ public sealed class TestSingleFileSource
         Directory.CreateDirectory(_tempRoot);
     }
 
+    /// <summary>Deletes the temporary root directory.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -28,6 +30,7 @@ public sealed class TestSingleFileSource
         }
     }
 
+    /// <summary>Tests that only the declared file is served.</summary>
     [Test]
     public void ServesOnlyTheDeclaredFile()
     {
@@ -47,6 +50,7 @@ public sealed class TestSingleFileSource
         });
     }
 
+    /// <summary>Tests that a missing file is not served.</summary>
     [Test]
     public void MissingFileServesNothing()
     {
@@ -56,6 +60,7 @@ public sealed class TestSingleFileSource
         Assert.That(source.TryGetStream("Configs/missing.json", out _, out _), Is.False);
     }
 
+    /// <summary>Tests that backslash paths are normalized.</summary>
     [Test]
     public void NormalizesBackslashes()
     {

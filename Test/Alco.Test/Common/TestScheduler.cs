@@ -3,16 +3,25 @@ using NUnit.Framework;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Tests scheduler timing, repetition, unscheduling, and error reporting.
+/// </summary>
 public class TestScheduler
 {
     private Scheduler _scheduler = null!;
 
+    /// <summary>
+    /// Creates a fresh scheduler.
+    /// </summary>
     [SetUp]
     public void Setup()
     {
         _scheduler = new Scheduler();
     }
 
+    /// <summary>
+    /// Tests that a one-shot schedule runs at its interval.
+    /// </summary>
     [Test]
     public void TestSingleSchedule()
     {
@@ -31,6 +40,9 @@ public class TestScheduler
         Assert.That(executed, Is.True);
     }
 
+    /// <summary>
+    /// Tests that a finite schedule runs the requested number of times.
+    /// </summary>
     [Test]
     public void TestRepeatedSchedule()
     {
@@ -46,6 +58,9 @@ public class TestScheduler
         Assert.That(count, Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests that an infinite schedule keeps repeating at its interval.
+    /// </summary>
     [Test]
     public void TestInfiniteLoop()
     {
@@ -61,6 +76,9 @@ public class TestScheduler
         Assert.That(count, Is.EqualTo(5));
     }
 
+    /// <summary>
+    /// Tests that unscheduling stops further execution.
+    /// </summary>
     [Test]
     public void TestUnschedule()
     {
@@ -86,6 +104,9 @@ public class TestScheduler
         Assert.That(count, Is.EqualTo(2));
     }
 
+    /// <summary>
+    /// Tests that unscheduling all stops every schedule.
+    /// </summary>
     [Test]
     public void TestUnscheduleAll()
     {
@@ -113,6 +134,9 @@ public class TestScheduler
         Assert.That(count2, Is.EqualTo(2));
     }
 
+    /// <summary>
+    /// Tests that schedule exceptions are reported through the error event.
+    /// </summary>
     [Test]
     public void TestErrorHandling()
     {

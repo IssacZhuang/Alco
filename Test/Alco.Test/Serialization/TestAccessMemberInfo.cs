@@ -4,6 +4,9 @@ using NUnit.Framework;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Covers reflection-based access to properties and fields through <see cref="AccessMemberInfo"/>.
+/// </summary>
 [TestFixture]
 public class TestAccessMemberInfo
 {
@@ -30,12 +33,18 @@ public class TestAccessMemberInfo
 
     private MemberAccessor _memberAccessor;
 
+    /// <summary>
+    /// Creates a fresh member accessor for each test.
+    /// </summary>
     [SetUp]
     public void Setup()
     {
         _memberAccessor = new ReflectionEmitMemberAccessor();
     }
 
+    /// <summary>
+    /// Tests that Create builds a readable and writable member from a property.
+    /// </summary>
     [Test]
     public void TestCreatePropertyInfo()
     {
@@ -53,6 +62,9 @@ public class TestAccessMemberInfo
         Assert.That(accessMemberInfo.CanWrite, Is.True);
     }
 
+    /// <summary>
+    /// Tests that Create builds a readable and writable member from a field.
+    /// </summary>
     [Test]
     public void TestCreateFieldInfo()
     {
@@ -70,6 +82,9 @@ public class TestAccessMemberInfo
         Assert.That(accessMemberInfo.CanWrite, Is.True);
     }
 
+    /// <summary>
+    /// Tests generic value retrieval from a property.
+    /// </summary>
     [Test]
     public void TestGetValueGeneric()
     {
@@ -85,6 +100,9 @@ public class TestAccessMemberInfo
         Assert.That(value, Is.EqualTo(42));
     }
 
+    /// <summary>
+    /// Tests string value retrieval from a property.
+    /// </summary>
     [Test]
     public void TestGetValueString()
     {
@@ -100,6 +118,9 @@ public class TestAccessMemberInfo
         Assert.That(value, Is.EqualTo("Hello"));
     }
 
+    /// <summary>
+    /// Tests value retrieval from a field.
+    /// </summary>
     [Test]
     public void TestGetValueField()
     {
@@ -115,6 +136,9 @@ public class TestAccessMemberInfo
         Assert.That(value, Is.EqualTo(3.14f));
     }
 
+    /// <summary>
+    /// Tests writing a property value.
+    /// </summary>
     [Test]
     public void TestSetValueProperty()
     {
@@ -130,6 +154,9 @@ public class TestAccessMemberInfo
         Assert.That(instance.IntProperty, Is.EqualTo(100));
     }
 
+    /// <summary>
+    /// Tests writing a field value.
+    /// </summary>
     [Test]
     public void TestSetValueField()
     {
@@ -145,6 +172,9 @@ public class TestAccessMemberInfo
         Assert.That(instance.FloatField, Is.EqualTo(6.28f));
     }
 
+    /// <summary>
+    /// Tests that a property with a private setter is readable but not writable.
+    /// </summary>
     [Test]
     public void TestReadOnlyProperty()
     {
@@ -169,6 +199,9 @@ public class TestAccessMemberInfo
         Assert.That(value, Is.EqualTo(false));
     }
 
+    /// <summary>
+    /// Tests that reading a property as the wrong type throws <see cref="InvalidCastException"/>.
+    /// </summary>
     [Test]
     public void TestGetValueWrongType()
     {

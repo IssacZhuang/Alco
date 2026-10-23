@@ -11,6 +11,9 @@ namespace Alco;
 public class AccessListItemInfo<T> : AccessMemberInfo
 {
     private readonly IList<T> _list;
+    /// <summary>
+    /// Gets or sets the index of the list item this accessor targets.
+    /// </summary>
     public int Index { get; set; }
 
     /// <summary>

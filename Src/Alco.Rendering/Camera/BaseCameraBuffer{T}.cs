@@ -13,6 +13,11 @@ public abstract class BaseCameraBuffer<T> : GraphicsValueBuffer<Matrix4x4> where
     protected T _data;
     protected bool _dirty;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="BaseCameraBuffer{T}"/> class.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system that owns the buffer.</param>
+    /// <param name="name">The buffer name used for diagnostics.</param>
     public BaseCameraBuffer(RenderingSystem renderingSystem, string name) : base(renderingSystem, name)
     {
         _dirty = true;

@@ -24,6 +24,10 @@ public class ImGUISystem : BaseEngineSystem
     /// </summary>
     public override int Order => int.MaxValue;
 
+    /// <summary>
+    /// Creates the ImGui system and its renderer and input handler for the given engine.
+    /// </summary>
+    /// <param name="engine">The engine that supplies the rendering system, input and main view.</param>
     public ImGUISystem(GameEngine engine)
     {
         _engine = engine;

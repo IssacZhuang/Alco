@@ -5,13 +5,8 @@ using Alco.Rendering;
 namespace Alco.Editor;
 
 /// <summary>
-/// No-op hot reloader for meta sidecars. Saving a <c>.meta</c> from the editor fires
-/// the directory watcher, and <see cref="AssetSystem"/> throws when a cached asset
-/// type has no reloader (async-void path — it would escape onto the main thread).
-/// Registering this swallow keeps meta saves harmless; the editing document evicts and
-/// rebuilds its own state explicitly. The supported <see cref="Meta"/> subclasses come
-/// from the <see cref="MetaTypeRegistry"/> filled by the editor modules (the built-in
-/// module registers <see cref="Texture2DMeta"/>).
+/// No-op hot reloader for meta sidecars: registering it keeps editor saves of <c>.meta</c> files harmless, since <see cref="AssetSystem"/> requires a reloader for cached types while the editing document rebuilds its own state explicitly.
+/// The supported types come from the <see cref="MetaTypeRegistry"/> filled by the editor modules.
 /// </summary>
 public sealed class MetaHotReloader : IAssetHotReloader
 {

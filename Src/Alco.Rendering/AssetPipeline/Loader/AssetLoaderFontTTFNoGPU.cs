@@ -14,6 +14,10 @@ public class AssetLoaderFontTTFNoGPU : BaseAssetLoader<Font>
     public override string Name => "AssetLoader.Font.TTF.NoGPU";
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
+    /// <summary>
+    /// Creates the no-GPU font loader.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system.</param>
     public AssetLoaderFontTTFNoGPU(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;

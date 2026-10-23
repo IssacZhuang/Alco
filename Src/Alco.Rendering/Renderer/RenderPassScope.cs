@@ -5,15 +5,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The RAII scope of one open render pass (or render-bundle recording): every draw
-/// command lives here. Obtained from <see cref="RenderContext.BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>
-/// or <see cref="SubRenderContext.BeginPass"/> and consumed with <c>using</c>.
-/// <br/>The instance is recycled by its owning context: it is valid only between
-/// BeginPass and <see cref="Dispose"/> — do not use it past the <c>using</c> block;
-/// calls on a closed scope throw <see cref="InvalidOperationException"/>. The identity
-/// is stable across frames, so renderers may hold it permanently through
-/// <see cref="IRenderContext"/>.
-/// <br/>Not thread safe; each owning context has its own scope instance.
+/// The RAII scope of one open render pass or render-bundle recording, valid only between BeginPass and <see cref="Dispose"/>.
+/// The instance is recycled and not thread safe.
 /// </summary>
 public sealed class RenderPassScope : IRenderContext, IDisposable
 {
@@ -232,13 +225,8 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
-    /// Draws a mesh with the draw arguments (index count, instance count, first
-    /// instance) read from an indirect buffer plus push constants. The record at
-    /// <paramref name="indirectOffset"/> must follow the
-    /// <see cref="Alco.Graphics.IndexedIndirectData"/> layout; the shader still
-    /// fetches instance data by instance id, offset by the record's firstInstance
-    /// field. Available while recording render bundles, so bundles recorded against
-    /// a persistent indirect buffer replay whatever the buffer holds at execute time.
+    /// Draws a mesh with indexed draw arguments read from an indirect buffer and pushes the given constants.
+    /// The record must follow the <see cref="Alco.Graphics.IndexedIndirectData"/> layout.
     /// </summary>
     /// <typeparam name="T">The type of the constant data.</typeparam>
     /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from the indirect record).</param>
@@ -266,13 +254,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
-    /// The <see cref="DrawIndexedIndirect{T}"/> variant for materials without push constants:
-    /// draws a mesh with the draw arguments read from an indirect buffer, pushing nothing. The
-    /// record at <paramref name="indirectOffset"/> must follow the
-    /// <see cref="Alco.Graphics.IndexedIndirectData"/> layout; the shader still fetches instance
-    /// data by instance id, offset by the record's firstInstance field. Available while
-    /// recording render bundles, so bundles recorded against a persistent indirect buffer replay
-    /// whatever the buffer holds at execute time.
+    /// Draws a mesh with indexed draw arguments read from an indirect buffer, for pipelines without push constants.
     /// </summary>
     /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from the indirect record).</param>
     /// <param name="material">The material to use for drawing; its pipeline must declare no push constants.</param>
@@ -301,15 +283,8 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
-    /// Draws many sub-draws of one mesh with one command: the multi-draw indirect
-    /// records (one <see cref="Alco.Graphics.IndexedIndirectData"/> per sub-draw,
-    /// 20-byte stride) are read consecutively from <paramref name="indirectBuffer"/>
-    /// starting at <paramref name="indirectOffset"/>. Every record's firstInstance
-    /// field addresses <paramref name="drawDataBuffer"/>, the per-draw instance-step
-    /// vertex buffer (vertex slot 1) the vertex shader's "drawData" input fetches
-    /// through — all sub-draws share the bound pipeline, mesh and material, so the
-    /// batch must be homogeneous by material. Backends without multi-draw support
-    /// fall back to one indexed-indirect draw per record.
+    /// Draws many sub-draws of one mesh with a single multi-draw indirect command, using the draw-data buffer for per-draw vertex data.
+    /// All sub-draws share the bound pipeline, mesh, and material.
     /// </summary>
     /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from each indirect record).</param>
     /// <param name="material">The material of every sub-draw.</param>
@@ -338,12 +313,7 @@ public sealed class RenderPassScope : IRenderContext, IDisposable
     }
 
     /// <summary>
-    /// The <see cref="MultiDrawIndexedIndirect(in Mesh, in GraphicsMaterial, GraphicsBuffer, uint, uint, GraphicsBuffer, in int)"/>
-    /// variant without a draw-data buffer: the per-draw identity travels through each
-    /// record's firstInstance field instead, which the vertex stage reads with the
-    /// Vulkan-semantic instance-id builtin (SV_VulkanInstanceID — absolute, unlike
-    /// the D3D12-semantic per-draw counter). For consumers whose sub-draw identity
-    /// needs no per-draw vertex fetch, e.g. <c>GpuTrailSystem2D</c> (Alco.Effects).
+    /// Draws many sub-draws of one mesh with a single multi-draw indirect command, addressing per-draw data through each record's firstInstance field.
     /// </summary>
     /// <param name="mesh">The mesh to draw (vertex/index buffers are bound, the index count comes from each indirect record).</param>
     /// <param name="material">The material of every sub-draw.</param>

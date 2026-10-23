@@ -6,17 +6,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// HBAO+ (horizon-based ambient occlusion) renderer for deferred PBR compositions.
-/// <br/>Reads the G-buffer depth and world-normal attachments, marches screen-space
-/// horizon rays in a compute pass (HBAO.slang) and filters the noisy result with a
-/// depth/normal-aware bilateral blur (HBAOBlur.slang). The blur pass writes the
-/// filtered AO to a full-resolution texture (<see cref="AOResult"/>),
-/// which the deferred lighting material samples through its _aoTexture slot.
-/// <br/>Attach the renderer to a deferred composition via <see cref="Attach"/>: it
-/// creates its graph transient resources, registers itself as a direct
-/// <see cref="IRenderGraphNode"/> before the lighting node and wires its
-/// output to <see cref="RGNode_DeferredLighting.AoInput"/>. The raw intermediate is
-/// pooled/aliased by the graph.
+/// HBAO+ (horizon-based ambient occlusion) renderer for deferred PBR compositions, producing a full-resolution AO texture from the G-buffer depth and normals. Attach it via <see cref="Attach"/> to feed the deferred lighting pass.
 /// </summary>
 public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
 {
@@ -86,11 +76,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
         ?? throw new InvalidOperationException("The HBAO renderer is not attached to a graph (call Attach first).");
 
     /// <summary>
-    /// The node's construction data: the raw AO shader and the bilateral blur
-    /// shader. Service-type dependencies (the rendering system) are explicit
-    /// constructor parameters instead — a descriptor is pure data. No GPU
-    /// textures are allocated at construction — the AO textures are graph
-    /// transients created by <see cref="Attach"/>.
+    /// Construction data for <see cref="RGNode_HBAO"/>: the raw AO and bilateral blur compute shaders.
     /// </summary>
     public readonly struct Descriptor
     {
@@ -126,12 +112,7 @@ public sealed class RGNode_HBAO : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Attaches the renderer to a deferred composition as a direct
-    /// <see cref="IRenderGraphNode"/> in the graph: creates the transient AO result
-    /// and raw-AO intermediate, registers itself immediately before the lighting
-    /// node, and wires the result to <see cref="RGNode_DeferredLighting.AoInput"/> and
-    /// the lighting material's _aoTexture slot. After attachment the graph drives
-    /// execution and resize.
+    /// Attaches this renderer before the lighting node, creating its transient AO resources and wiring the result into <see cref="RGNode_DeferredLighting.AoInput"/> and the lighting material.
     /// </summary>
     /// <param name="graph">The render graph driving the frame.</param>
     /// <param name="lighting">The deferred lighting node the AO output feeds.</param>

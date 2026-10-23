@@ -24,6 +24,9 @@ public class BenchmarkParallel
     private int[] _array;
     private FastRandom _random;
 
+    /// <summary>
+    /// Initializes the shared tasks and input array.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -40,6 +43,9 @@ public class BenchmarkParallel
         }
     }
 
+    /// <summary>
+    /// Disposes the reusable tasks.
+    /// </summary>
     [GlobalCleanup]
     public void Cleanup()
     {
@@ -82,6 +88,9 @@ public class BenchmarkParallel
         }
     }
 
+    /// <summary>
+    /// Benchmarks CPU-intensive work executed with <see cref="Parallel.For(int, int, Action{int})"/>.
+    /// </summary>
     [Benchmark(Description = "CPU Intensive - Parallel.For")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
@@ -101,6 +110,9 @@ public class BenchmarkParallel
         return results;
     }
 
+    /// <summary>
+    /// Benchmarks CPU-intensive work executed with a reusable parallel task.
+    /// </summary>
     [Benchmark(Description = "CPU Intensive - ReusableParallelTask")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
@@ -149,6 +161,9 @@ public class BenchmarkParallel
         }
     }
 
+    /// <summary>
+    /// Benchmarks memory-intensive work executed with <see cref="Parallel.For(int, int, Action{int})"/>.
+    /// </summary>
     [Benchmark(Description = "Memory Intensive - Parallel.For")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
@@ -170,6 +185,9 @@ public class BenchmarkParallel
     }
 
 
+    /// <summary>
+    /// Benchmarks memory-intensive work executed with a reusable parallel task.
+    /// </summary>
     [Benchmark(Description = "Memory Intensive - ReusableParallelTask")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
@@ -212,6 +230,9 @@ public class BenchmarkParallel
         }
     }
 
+    /// <summary>
+    /// Benchmarks lightweight work executed with <see cref="Parallel.For(int, int, Action{int})"/>.
+    /// </summary>
     [Benchmark(Description = "Lightweight - Parallel.For")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
@@ -227,6 +248,9 @@ public class BenchmarkParallel
     }
 
 
+    /// <summary>
+    /// Benchmarks lightweight work executed with a reusable parallel task.
+    /// </summary>
     [Benchmark(Description = "Lightweight - ReusableParallelTask")]
     [Arguments(SmallWorkload)]
     [Arguments(MediumWorkload)]
@@ -332,6 +356,9 @@ public class BenchmarkParallel
 
     private readonly OverheadTask _overheadTask = new OverheadTask();
 
+    /// <summary>
+    /// Benchmarks the overhead of a reusable parallel task with minimal work.
+    /// </summary>
     [Benchmark(Description = "Overhead - ReusableParallelTask")]
     public int Overhead_ReusableParallelTask()
     {

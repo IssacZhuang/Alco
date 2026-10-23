@@ -100,11 +100,9 @@ public readonly struct ModelDrawItem
 }
 
 /// <summary>
-/// A loaded 3D model scene: GPU meshes and textures plus a flattened draw list with
-/// engine-space world transforms. Owns all meshes and textures; dispose to release them.
-/// <br/>External textures stream their content in place: every texture object is final
-/// when the scene is created, its content uploads asynchronously into the same native
-/// texture, so material bindings never change after load.
+/// A loaded 3D model scene owning its GPU meshes and textures, with a flattened draw list
+/// in engine-space world transforms. Textures upload asynchronously but keep their identity
+/// after creation.
 /// </summary>
 public sealed class ModelScene : AutoDisposable
 {

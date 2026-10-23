@@ -6,12 +6,8 @@ using Alco;
 namespace Alco;
 
 /// <summary>
-/// A reusable, allocation-conscious A* pathfinder base decoupled from any specific map.
-/// Default configuration searches on an 8-connected grid (orthogonal + diagonal moves).
-/// Diagonal steps have a geometric cost multiplier of √2 and corner-cutting is prevented
-/// (a diagonal move is allowed only if both adjacent orthogonal cells are inside bounds
-/// and traversable).
-/// Implementors provide traversability, bounds, traversal cost, and heuristic estimation.
+/// A reusable A* pathfinder for 8-connected grids that applies a √2 diagonal cost and prevents corner cutting.
+/// Implementors supply traversability, bounds, traversal cost, and heuristic estimation.
 /// </summary>
 public abstract class AStarPathFinder : IPathFinder
 {

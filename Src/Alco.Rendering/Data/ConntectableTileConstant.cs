@@ -3,6 +3,9 @@ namespace Alco.Rendering;
 using System.Numerics;
 using System.Runtime.InteropServices;
 
+/// <summary>
+/// Per-draw constants for rendering a connectable tile sprite.
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct ConntectableTileConstant
 {

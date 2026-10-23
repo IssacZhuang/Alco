@@ -3,8 +3,16 @@ using System.Collections.Generic;
 
 namespace Alco
 {
+    /// <summary>
+    /// Binary search helpers for sorted lists.
+    /// </summary>
     public class AlgoBinarySearch
     {
+        /// <summary>
+        /// Gets the default comparison for <typeparamref name="T"/>.
+        /// </summary>
+        /// <typeparam name="T">The element type to compare.</typeparam>
+        /// <returns>A comparison delegate backed by <see cref="Comparer{T}.Default"/>.</returns>
         public static Comparison<T> DefaultComparer<T>()
         {
             return Comparer<T>.Default.Compare;

@@ -4,6 +4,7 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>Tests the JPEG inverse discrete cosine transform.</summary>
 [TestFixture]
 public class TestJpegIdct
 {
@@ -19,6 +20,7 @@ public class TestJpegIdct
         return (short)(coeff * 4);
     }
 
+    /// <summary>Tests that a DC-only block produces a uniform grey level.</summary>
     [Test]
     public void TestDcOnlyBlock()
     {
@@ -36,6 +38,7 @@ public class TestJpegIdct
             Assert.That(output[i], Is.InRange((byte)252, (byte)253), $"Pixel {i}");
     }
 
+    /// <summary>Tests that an all-zero block decodes to mid-grey.</summary>
     [Test]
     public void TestAllZeros()
     {
@@ -48,6 +51,7 @@ public class TestJpegIdct
             Assert.That(output[i], Is.EqualTo(128), $"Pixel {i}");
     }
 
+    /// <summary>Tests that a single AC coefficient yields varying pixel values.</summary>
     [Test]
     public void TestSingleAc_ProducesNonConstantOutput()
     {
@@ -83,6 +87,7 @@ public class TestJpegIdct
         Assert.That(avg, Is.InRange(100, 156), "Average pixel value should be near 128");
     }
 
+    /// <summary>Tests that a larger DC-only coefficient yields the expected grey level.</summary>
     [Test]
     public void TestZeroRowSkip()
     {
@@ -98,6 +103,7 @@ public class TestJpegIdct
             Assert.That(output[i], Is.InRange((byte)191, (byte)193), $"Pixel {i}");
     }
 
+    /// <summary>Tests the IDCT round trip against the STB reference decoder.</summary>
     [Test]
     public void TestIdentity_RoundTrip()
     {

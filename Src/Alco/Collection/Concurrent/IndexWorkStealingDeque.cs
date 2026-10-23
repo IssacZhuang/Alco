@@ -4,6 +4,9 @@ using System.Threading;
 
 namespace Alco
 {
+    /// <summary>
+    /// A concurrent work-stealing deque of indices into a shared range.
+    /// </summary>
     public class IndexWorkStealingDeque
     {
         // inclusive
@@ -13,12 +16,20 @@ namespace Alco
 
         private int _start;
 
+        /// <summary>
+        /// Initializes an empty deque.
+        /// </summary>
         public IndexWorkStealingDeque()
         {
             _top = 0;
             _bottom = 0;
         }
 
+        /// <summary>
+        /// Resets the deque to the index range of <paramref name="count"/> items starting at <paramref name="start"/>.
+        /// </summary>
+        /// <param name="start">First index in the range.</param>
+        /// <param name="count">Number of indices in the range.</param>
         public void Set(int start, int count)
         {
             VolatileTop = 0;

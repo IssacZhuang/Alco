@@ -32,15 +32,7 @@ public enum NavOrientation
 /// start logic.
 /// </summary>
 /// <remarks>
-/// The host control supplies two callbacks:
-/// <list type="bullet">
-/// <item><see cref="ResolveNode"/> maps a focused index to its visible node.</item>
-/// <item><see cref="TryNavigate"/> applies one step in a direction from an index,
-///   returning the new index or null when blocked (e.g. clamped at an edge,
-///   or skipped past non-navigable items).</item>
-/// </list>
-/// Direction-to-axis mapping is controlled by <see cref="Orientation"/>; the
-/// per-host navigation math lives in <see cref="TryNavigate"/>.
+/// The host supplies <see cref="ResolveNode"/> to map a focused index to its node and <see cref="TryNavigate"/> to move focus; <see cref="Orientation"/> selects the active axes.
 /// </remarks>
 public sealed class NavigationHoverCoordinator
 {
@@ -92,11 +84,7 @@ public sealed class NavigationHoverCoordinator
     public Action<INavigationContext, int>? OnNavigated { get; set; }
 
     /// <summary>
-    /// Optional callback that, given a hovered node, returns the focused index
-    /// of the navigable child it belongs to (walking up the parent chain), or
-    /// null when the hover is outside this list. Used for hover-seeded navigation
-    /// start. When unset, hover-seeding is disabled and navigation falls back to
-    /// <see cref="FocusedIndex"/> / first / last.
+    /// Optional callback that maps a hovered node to the index of its navigable child, or null when the hover is outside this list; when unset, hover-seeded navigation is disabled.
     /// </summary>
     public Func<UINode?, int?>? IndexOfHoveredChild { get; set; }
 

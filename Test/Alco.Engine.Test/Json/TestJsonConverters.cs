@@ -11,6 +11,9 @@ namespace Alco.Engine.Test;
 
 
 
+/// <summary>
+/// Tests JSON converters for vectors, quaternions, types, configs, colors, and curve points.
+/// </summary>
 public class TestJsonConverters
 {
 
@@ -24,6 +27,9 @@ public class TestJsonConverters
 
     private readonly JsonSerializerOptions _options;
 
+    /// <summary>
+    /// Initializes the shared serializer options with all tested converters.
+    /// </summary>
     public TestJsonConverters()
     {
         _options = new JsonSerializerOptions
@@ -41,6 +47,9 @@ public class TestJsonConverters
         };
     }
 
+    /// <summary>
+    /// Tests Vector2 JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test Vector2 JSON conversion")]
     public void TestVector2Conversion()
     {
@@ -57,6 +66,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests Vector3 JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test Vector3 JSON conversion")]
     public void TestVector3Conversion()
     {
@@ -74,6 +86,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests Vector4 JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test Vector4 JSON conversion")]
     public void TestVector4Conversion()
     {
@@ -92,6 +107,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests Quaternion JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test Quaternion JSON conversion")]
     public void TestQuaternionConversion()
     {
@@ -110,6 +128,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests that a non-object Vector2 payload throws.
+    /// </summary>
     [Test(Description = "Test Vector2 JSON invalid format")]
     public void TestVector2InvalidFormat()
     {
@@ -118,6 +139,9 @@ public class TestJsonConverters
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Vector2>("\"not an object\"", _options));
     }
 
+    /// <summary>
+    /// Tests that a non-object Vector3 payload throws.
+    /// </summary>
     [Test(Description = "Test Vector3 JSON invalid format")]
     public void TestVector3InvalidFormat()
     {
@@ -126,6 +150,9 @@ public class TestJsonConverters
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Vector3>("\"not an object\"", _options));
     }
 
+    /// <summary>
+    /// Tests that a non-object Vector4 payload throws.
+    /// </summary>
     [Test(Description = "Test Vector4 JSON invalid format")]
     public void TestVector4InvalidFormat()
     {
@@ -134,12 +161,18 @@ public class TestJsonConverters
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Vector4>("\"not an object\"", _options));
     }
 
+    /// <summary>
+    /// Tests that a non-object Quaternion payload throws.
+    /// </summary>
     [Test(Description = "Test Quaternion JSON invalid format")]
     public void TestQuaternionInvalidFormat()
     {
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<Quaternion>("\"not an object\"", _options));
     }
 
+    /// <summary>
+    /// Tests Vector3 list JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test List<Vector3> JSON conversion")]
     public void TestVector3ListConversion()
     {
@@ -169,6 +202,9 @@ public class TestJsonConverters
         }
     }
 
+    /// <summary>
+    /// Tests Vector3 dictionary JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test Dictionary<string, Vector3> JSON conversion")]
     public void TestVector3DictionaryConversion()
     {
@@ -199,6 +235,9 @@ public class TestJsonConverters
         }
     }
 
+    /// <summary>
+    /// Tests round-trip conversion of an object containing vectors and a quaternion.
+    /// </summary>
     [Test(Description = "Test object containing Vector2/3/4 and Quaternion JSON conversion")]
     public void TestComplexObjectConversion()
     {
@@ -247,6 +286,9 @@ public class TestJsonConverters
         public Type? CustomType { get; set; }
     }
 
+    /// <summary>
+    /// Tests Type JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test Type JSON conversion")]
     public void TestTypeConversion()
     {
@@ -273,6 +315,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests that null Type values round-trip as null.
+    /// </summary>
     [Test(Description = "Test Type JSON null handling")]
     public void TestTypeNullHandling()
     {
@@ -299,6 +344,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests that invalid Type payloads throw.
+    /// </summary>
     [Test(Description = "Test Type JSON invalid format")]
     public void TestTypeInvalidFormat()
     {
@@ -325,6 +373,9 @@ public class TestJsonConverters
     }
 
 
+    /// <summary>
+    /// Tests that Configable.Id serializes immediately after $type.
+    /// </summary>
     [Test(Description = "Configable.Id is inherited from a base type; without JsonPropertyOrder it would serialize last. Verify it lands right after $type.")]
     public void TestConfigIdSerializesAfterType()
     {
@@ -357,6 +408,9 @@ public class TestJsonConverters
     }
 
 
+    /// <summary>
+    /// Tests round-trip serialization of a polymorphic config.
+    /// </summary>
     [Test(Description = "Test JsonConverterConfig basic serialization")]
     public void TestConfigConversion()
     {
@@ -385,6 +439,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests that a null config serializes and deserializes as null.
+    /// </summary>
     [Test(Description = "Test JsonConverterConfig with null value")]
     public void TestConfigNull()
     {
@@ -402,6 +459,9 @@ public class TestJsonConverters
         Assert.That(deserialized, Is.Null);
     }
 
+    /// <summary>
+    /// Tests that an unknown config $type throws.
+    /// </summary>
     [Test(Description = "Test JsonConverterConfig with invalid type")]
     public void TestConfigInvalidType()
     {
@@ -417,6 +477,9 @@ public class TestJsonConverters
             JsonSerializer.Deserialize<Configable>(invalidJson, options));
     }
 
+    /// <summary>
+    /// Tests ColorFloat JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test ColorFloat JSON conversion")]
     public void TestColorFloatConversion()
     {
@@ -435,6 +498,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests that ColorFloat defaults alpha to one when omitted.
+    /// </summary>
     [Test(Description = "Test ColorFloat JSON conversion with default alpha")]
     public void TestColorFloatConversionDefaultAlpha()
     {
@@ -455,6 +521,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests Color32 JSON serialization and deserialization.
+    /// </summary>
     [Test(Description = "Test Color32 JSON conversion")]
     public void TestColor32Conversion()
     {
@@ -481,6 +550,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests that Color32 defaults alpha to 255 when omitted.
+    /// </summary>
     [Test(Description = "Test Color32 JSON conversion with default alpha")]
     public void TestColor32ConversionDefaultAlpha()
     {
@@ -509,6 +581,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests ColorFloat hex string conversion with and without alpha.
+    /// </summary>
     [Test(Description = "Test ColorFloat JSON hex string conversion")]
     public void TestColorFloatHexStringConversion()
     {
@@ -538,6 +613,9 @@ public class TestJsonConverters
     }
 
 
+    /// <summary>
+    /// Tests Color32 hex string conversion with and without alpha.
+    /// </summary>
     [Test(Description = "Test Color32 JSON hex string conversion")]
     public void TestColor32HexStringConversion()
     {
@@ -567,6 +645,9 @@ public class TestJsonConverters
     }
 
 
+    /// <summary>
+    /// Tests that ColorFloat hex and object formats produce the same value.
+    /// </summary>
     [Test(Description = "Test ColorFloat JSON mixed hex and array formats")]
     public void TestColorFloatMixedFormats()
     {
@@ -588,6 +669,9 @@ public class TestJsonConverters
         TestContext.WriteLine($"ColorFloat from object: R={fromObject.R}, G={fromObject.G}, B={fromObject.B}, A={fromObject.A}");
     }
 
+    /// <summary>
+    /// Tests that Color32 hex and object formats produce the same value.
+    /// </summary>
     [Test(Description = "Test Color32 JSON mixed hex and array formats")]
     public void TestColor32MixedFormats()
     {
@@ -617,6 +701,9 @@ public class TestJsonConverters
         TestContext.WriteLine($"Color32 from object: R={fromObject.R}, G={fromObject.G}, B={fromObject.B}, A={fromObject.A}");
     }
 
+    /// <summary>
+    /// Tests ColorFloat conversion of common hex colors.
+    /// </summary>
     [Test(Description = "Test ColorFloat JSON common hex color values")]
     public void TestColorFloatCommonHexColors()
     {
@@ -667,6 +754,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests Color32 conversion of common hex colors.
+    /// </summary>
     [Test(Description = "Test Color32 JSON common hex color values")]
     public void TestColor32CommonHexColors()
     {
@@ -725,6 +815,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests JSON conversion of a float curve point, including lowercase keys.
+    /// </summary>
     [Test(Description = "Test CurvePoint<float> JSON conversion")]
     public void TestCurvePointFloatConversion()
     {
@@ -750,6 +843,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests JSON conversion of a Vector2 curve point.
+    /// </summary>
     [Test(Description = "Test CurvePoint<Vector2> JSON conversion")]
     public void TestCurvePointVector2Conversion()
     {
@@ -767,6 +863,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests JSON conversion of a Vector3 curve point.
+    /// </summary>
     [Test(Description = "Test CurvePoint<Vector3> JSON conversion")]
     public void TestCurvePointVector3Conversion()
     {
@@ -785,6 +884,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests JSON conversion of a Vector4 curve point.
+    /// </summary>
     [Test(Description = "Test CurvePoint<Vector4> JSON conversion")]
     public void TestCurvePointVector4Conversion()
     {
@@ -804,6 +906,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests JSON conversion of a ColorFloat curve point.
+    /// </summary>
     [Test(Description = "Test CurvePoint<ColorFloat> JSON conversion")]
     public void TestCurvePointColorFloatConversion()
     {
@@ -823,6 +928,9 @@ public class TestJsonConverters
         });
     }
 
+    /// <summary>
+    /// Tests JSON conversion of a Color32 curve point.
+    /// </summary>
     [Test(Description = "Test CurvePoint<Color32> JSON conversion")]
     public void TestCurvePointColor32Conversion()
     {

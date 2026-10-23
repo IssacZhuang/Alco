@@ -3,6 +3,9 @@ using System.Threading;
 namespace Alco.Engine;
 
 
+/// <summary>
+/// Main-thread dispatch helpers for the engine.
+/// </summary>
 public partial class GameEngine
 {
     /// <summary>
@@ -46,8 +49,7 @@ public partial class GameEngine
     /// <returns>A task that completes when the action has been executed on the main thread.</returns>
     /// <exception cref="ArgumentNullException">Thrown when action is null.</exception>
     /// <remarks>
-    /// This method is designed to be called from background threads to execute main-thread-only operations
-    /// and wait for completion. The main thread ID is <see cref="MainThreadId"/>.
+    /// Blocks until the main thread runs the action.
     /// </remarks>
     public Task PostToMainThreadAsync(Action action)
     {
@@ -82,8 +84,7 @@ public partial class GameEngine
     /// <returns>A task that completes with the result when the function has been executed on the main thread.</returns>
     /// <exception cref="ArgumentNullException">Thrown when action is null.</exception>
     /// <remarks>
-    /// This method is designed to be called from background threads to access main-thread-only resources
-    /// and return their values. The main thread ID is <see cref="MainThreadId"/>.
+    /// Blocks until the main thread runs the function and produces its result.
     /// </remarks>
     public Task<T> PostToMainThreadAsync<T>(Func<T> action)
     {

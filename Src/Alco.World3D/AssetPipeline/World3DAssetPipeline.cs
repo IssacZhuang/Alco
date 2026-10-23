@@ -4,15 +4,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// Entry point of the World3D asset pipeline: the file extensions this module owns and a
-/// one-call registration of its asset loaders. The engine core does not reference
-/// Alco.World3D — applications wire this module in themselves (engine startup, then this call).
-/// <br/>The 3D asset chain: <c>.amsh</c> meshes expose named material slots (never
-/// materials), <c>.amat</c> files are data-only material descriptions (loaded by the
-/// engine's <c>AssetLoaderMaterialAsset</c>; the family asset type
-/// <see cref="PbrMaterialAsset"/> is selected by the file's <c>$type</c> discriminator
-/// and discovered by assembly scan — no registration), and <c>.amdl</c> model assets
-/// are the composition layer binding materials to mesh slots.
+/// Entry point of the World3D asset pipeline: the file extensions it owns and one-call registration of its asset loaders.
 /// </summary>
 public static class World3DAssetPipeline
 {
@@ -23,12 +15,7 @@ public static class World3DAssetPipeline
     public const string ModelExtension = ".amdl";
 
     /// <summary>
-    /// Register the module's asset loaders with the engine's asset system. Call once after
-    /// engine startup, before loading any World3D assets. A bound rendering system enables GPU
-    /// residency (<see cref="MeshAsset.LoadLodAsync"/>); without one, mesh assets load
-    /// header-only. Material assets resolve their textures and surface library at load
-    /// time, so the engine's material loader (an engine default loader) needs the
-    /// engine's asset and shader systems.
+    /// Registers the World3D asset loaders; call once after engine startup and before loading any World3D assets.
     /// </summary>
     /// <param name="assetSystem">The asset system to register with.</param>
     /// <param name="renderingSystem">The rendering system, or null for header-only mesh assets.</param>

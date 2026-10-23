@@ -6,11 +6,7 @@ using System.IO;
 namespace Alco.IO;
 
 /// <summary>
-/// The interface provide file data for <see cref="AssetSystem"/>. 
-/// The implementor should be thread safe.
-/// <br/>
-/// This interface is not recyclable and it will be disposed when the <see cref="AssetSystem"/> is disposed 
-/// or on the <see cref="AssetSystem.RemoveAllFileSource"/> and <see cref="AssetSystem.RemoveFileSource"/>
+/// Provides file data to <see cref="AssetSystem"/>. Implementations must be thread-safe; sources are not recyclable and are disposed with the asset system or when removed from it.
 /// </summary>
 public interface IFileSource
 {

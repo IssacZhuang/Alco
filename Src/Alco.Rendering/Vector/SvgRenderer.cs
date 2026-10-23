@@ -15,19 +15,8 @@ namespace Alco.Rendering;
 /// The output is a premultiplied-alpha RGBA8 texture.
 /// </summary>
 /// <remarks>
-/// Results are cached weakly per (document hash, requested size): a texture stays alive
-/// only as long as the caller holds a reference to it, and a collected or disposed
-/// texture is re-rasterized on the next request. A cache hit hashes the document and
-/// resolves the weak reference without any allocation — parsing, geometry and GPU work
-/// happen on the first request only. All members are safe to call from any number of
-/// threads: concurrent requests for the same cache key are deduplicated into a single
-/// rasterization whose texture every waiter reuses, at most
-/// <see cref="MaxConcurrentRasterizations"/> rasterizations execute at once (excess
-/// requests queue for a slot instead of allocating more GPU state), and each execution
-/// borrows a pooled command buffer, material and buffer set that are reused across
-/// rasterizations. The returned textures are owned by the callers — disposing the
-/// renderer does not invalidate them, but callers must let in-flight rasterizations
-/// finish before disposing the renderer.
+/// Results are cached weakly per (document hash, size) and re-rasterized on demand. All members are
+/// thread safe, concurrent requests are deduplicated, and returned textures are caller-owned.
 /// </remarks>
 public sealed class SvgRenderer : AutoDisposable
 {

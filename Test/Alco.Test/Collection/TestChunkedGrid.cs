@@ -3,9 +3,15 @@ using System.Collections.Generic;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Tests chunked grid coordinate mapping, chunk allocation, and enumeration.
+/// </summary>
 [TestFixture]
 public class TestChunkedGrid
 {
+    /// <summary>
+    /// Tests that the constructor validates chunk sizes and computes chunk cells.
+    /// </summary>
     [Test]
     public void TestConstructorValidatesChunkSize()
     {
@@ -20,6 +26,9 @@ public class TestChunkedGrid
         Assert.Throws<ArgumentOutOfRangeException>(() => new ChunkedGrid<int>(chunkSize: 100));
     }
 
+    /// <summary>
+    /// Tests that negative coordinates use floor division for chunk and local cells.
+    /// </summary>
     [Test]
     public void TestNegativeCoordinatesUseFloorDivision()
     {
@@ -39,6 +48,9 @@ public class TestChunkedGrid
         Assert.That(grid.GetChunkCoord(5, -63), Is.EqualTo(new int2(0, -1)));
     }
 
+    /// <summary>
+    /// Tests that local cell indices stay non-negative for extreme coordinates.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     [TestCase(2)]
@@ -52,6 +64,9 @@ public class TestChunkedGrid
         }
     }
 
+    /// <summary>
+    /// Tests that local indices follow row-major order and wrap across chunks.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     public void TestGetLocalIndexRowMajor(int chunkSize)
@@ -72,6 +87,9 @@ public class TestChunkedGrid
         Assert.That(grid.GetLocalIndex(-chunkSize, 0), Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that chunk origins round-trip with chunk and local coordinates.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     [TestCase(2)]
@@ -91,6 +109,9 @@ public class TestChunkedGrid
         }
     }
 
+    /// <summary>
+    /// Tests that reading a missing chunk returns the grid default.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     public void TestReadMissingChunkReturnsDefault(int chunkSize)
@@ -107,6 +128,9 @@ public class TestChunkedGrid
         Assert.That(floatGrid.ChunkCount, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that setting a non-default value allocates a chunk and round-trips.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     public void TestSetAllocatesChunkAndRoundTrips(int chunkSize)
@@ -125,6 +149,9 @@ public class TestChunkedGrid
         Assert.That(grid[4, 5], Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that writing the default value does not allocate a chunk.
+    /// </summary>
     [Test]
     public void TestSetDefaultValueDoesNotAllocate()
     {
@@ -141,6 +168,9 @@ public class TestChunkedGrid
         Assert.That(grid[20, 20], Is.EqualTo(9));
     }
 
+    /// <summary>
+    /// Tests that setting an existing cell overwrites its value.
+    /// </summary>
     [Test]
     public void TestSetOverwritesExistingValue()
     {
@@ -154,6 +184,9 @@ public class TestChunkedGrid
         Assert.That(grid[1, 1], Is.EqualTo("third"));
     }
 
+    /// <summary>
+    /// Tests that cells across chunk boundaries occupy distinct chunks.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     [TestCase(4)]
@@ -175,6 +208,9 @@ public class TestChunkedGrid
         Assert.That(grid[0, chunkSize], Is.EqualTo(5));
     }
 
+    /// <summary>
+    /// Tests that extreme coordinates map and round-trip correctly.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     public void TestExtremeCoordinates(int chunkSize)
@@ -187,6 +223,9 @@ public class TestChunkedGrid
         Assert.That(grid[int.MinValue, int.MaxValue], Is.EqualTo(2));
     }
 
+    /// <summary>
+    /// Tests that new chunks are prefilled with the grid default.
+    /// </summary>
     [TestCase(64)]
     [TestCase(16)]
     public void TestGetOrCreateChunkPrefillsDefault(int chunkSize)
@@ -210,6 +249,9 @@ public class TestChunkedGrid
         Assert.That(grid.ChunkCount, Is.EqualTo(2));
     }
 
+    /// <summary>
+    /// Tests chunk existence and retrieval queries.
+    /// </summary>
     [Test]
     public void TestHasChunkAndTryGetChunk()
     {
@@ -224,6 +266,9 @@ public class TestChunkedGrid
         Assert.That(stringGrid.TryGetChunk(new int2(0, 0), out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that clearing the grid removes all chunks.
+    /// </summary>
     [Test]
     public void TestClearRemovesAllChunks()
     {
@@ -240,6 +285,9 @@ public class TestChunkedGrid
         Assert.That(grid.Chunks.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests enumeration over populated chunks and their cells.
+    /// </summary>
     [Test]
     public void TestChunksEnumeration()
     {

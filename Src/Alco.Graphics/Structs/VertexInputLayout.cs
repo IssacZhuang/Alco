@@ -31,6 +31,7 @@ public struct VertexInputLayout
         StepMode = stepMode;
     }
 
+    /// <summary>Returns a diagnostic description of the layout and its attributes.</summary>
     public override string ToString()
     {
         StringBuilder builder = new StringBuilder();

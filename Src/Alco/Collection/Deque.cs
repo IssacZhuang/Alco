@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace Alco;
 
+/// <summary>
+/// A double-ended queue backed by a circular array.
+/// </summary>
 public sealed class Deque<T> : ICollection<T>
 {
     private T[] _array = Array.Empty<T>();
@@ -13,10 +16,20 @@ public sealed class Deque<T> : ICollection<T>
     private int _size; // Number of elements.
     private int _version; // Mutation counter for enumerator versioning
 
+    /// <summary>
+    /// Gets the number of elements in the deque.
+    /// </summary>
     public int Count => _size;
 
+    /// <summary>
+    /// Gets whether the deque contains no elements.
+    /// </summary>
     public bool IsEmpty => _size == 0;
 
+    /// <summary>
+    /// Adds an item to the tail of the deque.
+    /// </summary>
+    /// <param name="item">The item to add.</param>
     public void EnqueueTail(T item)
     {
         if (_size == _array.Length)
@@ -33,6 +46,10 @@ public sealed class Deque<T> : ICollection<T>
         _version++;
     }
 
+    /// <summary>
+    /// Adds an item to the head of the deque.
+    /// </summary>
+    /// <param name="item">The item to add.</param>
     public void EnqueueHead(T item)
     {
        if (_size == _array.Length)
@@ -46,6 +63,11 @@ public sealed class Deque<T> : ICollection<T>
         _version++;
     }
 
+    /// <summary>
+    /// Attempts to remove the item at the head of the deque.
+    /// </summary>
+    /// <param name="item">The removed item, or the default value when the deque is empty.</param>
+    /// <returns>True if an item was removed; otherwise, false.</returns>
     public bool TryDequeueHead(out T item)
     {
         if (_size == 0)
@@ -66,6 +88,11 @@ public sealed class Deque<T> : ICollection<T>
         return true;
     }
 
+    /// <summary>
+    /// Attempts to read the item at the head of the deque without removing it.
+    /// </summary>
+    /// <param name="item">The item at the head, or the default value when the deque is empty.</param>
+    /// <returns>True if an item was read; otherwise, false.</returns>
     public bool TryPeekHead(out T item)
     {
         if (_size == 0)
@@ -77,6 +104,11 @@ public sealed class Deque<T> : ICollection<T>
         return true;
     }
 
+    /// <summary>
+    /// Attempts to read the item at the tail of the deque without removing it.
+    /// </summary>
+    /// <param name="item">The item at the tail, or the default value when the deque is empty.</param>
+    /// <returns>True if an item was read; otherwise, false.</returns>
     public bool TryPeekTail(out T item)
     {
         if (_size == 0)
@@ -93,6 +125,11 @@ public sealed class Deque<T> : ICollection<T>
         return true;
     }
 
+    /// <summary>
+    /// Attempts to remove the item at the tail of the deque.
+    /// </summary>
+    /// <param name="item">The removed item, or the default value when the deque is empty.</param>
+    /// <returns>True if an item was removed; otherwise, false.</returns>
     public bool TryDequeueTail(out T item)
     {
         if (_size == 0)
@@ -113,6 +150,10 @@ public sealed class Deque<T> : ICollection<T>
         return true;
     }
 
+    /// <summary>
+    /// Returns an enumerator that iterates from the head to the tail of the deque.
+    /// </summary>
+    /// <returns>An enumerator over the deque.</returns>
     public Enumerator GetEnumerator() => new Enumerator(this);
 
     IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
@@ -263,6 +304,9 @@ public sealed class Deque<T> : ICollection<T>
         }
     }
 
+    /// <summary>
+    /// Removes all items from the deque.
+    /// </summary>
     public void Clear()
     {
         int pos = _head;
@@ -322,6 +366,9 @@ public sealed class Deque<T> : ICollection<T>
     }
 
 
+    /// <summary>
+    /// Enumerates the elements of a deque from head to tail.
+    /// </summary>
     public struct Enumerator : IEnumerator<T>,
             IEnumerator
     {
@@ -338,12 +385,19 @@ public sealed class Deque<T> : ICollection<T>
             _currentElement = default;
         }
 
+        /// <summary>
+        /// Releases the enumerator and invalidates further iteration.
+        /// </summary>
         public void Dispose()
         {
             _index = -2;
             _currentElement = default;
         }
 
+        /// <summary>
+        /// Advances the enumerator to the next element of the deque.
+        /// </summary>
+        /// <returns>True if another element was found; otherwise, false.</returns>
         public bool MoveNext()
         {
             if (_version != _q._version)

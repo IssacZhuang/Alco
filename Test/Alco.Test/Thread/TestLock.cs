@@ -5,9 +5,11 @@ using System.Threading.Tasks;
 
 namespace Alco.Test;
 
+/// <summary>Tests atomic spin lock mutual exclusion.</summary>
 public class TestLock
 {
 
+    /// <summary>Tests that CAS-based locks serialize concurrent list additions.</summary>
     [Test(Description = "Test CAS lock")]
     public void TestCASLock()
     {

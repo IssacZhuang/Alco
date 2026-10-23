@@ -3,11 +3,8 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// Mounts an <see cref="AlcoProject"/> onto an <see cref="AssetSystem"/>: owned roots as
-/// hot-reloading watcher sources (priority 10, shadowing referenced entries of the same
-/// path), referenced entries as plain read-only sources (directories) or single-file
-/// sources (file entries). Missing entries are skipped silently, matching the engine's
-/// optional-root convention.
+/// Mounts an <see cref="AlcoProject"/> onto an <see cref="AssetSystem"/>: owned roots as hot-reloading watcher sources that shadow referenced entries, referenced entries as read-only directory or single-file sources.
+/// Missing entries are skipped silently.
 /// </summary>
 public static class ProjectAssetMount
 {

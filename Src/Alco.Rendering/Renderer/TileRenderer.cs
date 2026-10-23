@@ -6,17 +6,30 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+/// <summary>A tile type in a <see cref="TileSet"/>: the material and appearance parameters used to draw one tile ID.</summary>
 public sealed class TileItem
 {
+    /// <summary>Gets the display name of this tile type.</summary>
     public string Name { get; }
+    /// <summary>Gets the material used to render tiles of this type.</summary>
     public GraphicsMaterial Material { get; }
+    /// <summary>Gets the ordering value assigned to this tile type.</summary>
     public float RenderOrder { get; }
+    /// <summary>Gets the caller-defined data associated with this tile type.</summary>
     public object? UserData { get; }
     
+    /// <summary>Gets or sets the color multiplied into tiles of this type.</summary>
     public Vector4 Color { get; set; } = Vector4.One;
+    /// <summary>Gets or sets the blend factor used when compositing tiles of this type.</summary>
     public float BlendFactor { get; set; } = 0.2f;
+    /// <summary>Gets or sets the texture tiling factor for tiles of this type.</summary>
     public float Tiling { get; set; } = 1.0f;
 
+    /// <summary>Initializes a tile type with the given name, material, render order, and user data.</summary>
+    /// <param name="name">The display name of the tile type.</param>
+    /// <param name="material">The material used to render tiles of this type.</param>
+    /// <param name="renderOrder">The ordering value assigned to the tile type.</param>
+    /// <param name="userData">Caller-defined data associated with the tile type.</param>
     public TileItem(string name, GraphicsMaterial material, float renderOrder, object? userData)
     {
         ArgumentNullException.ThrowIfNull(name);
@@ -28,13 +41,17 @@ public sealed class TileItem
     }
 }
 
+/// <summary>An ordered set of tile types; a tile map stores indices into this set.</summary>
 public sealed class TileSet
 {
     private readonly TileItem[] _items;
     private readonly FrozenDictionary<TileItem, int> _itemIndexMap;
 
+    /// <summary>Gets the number of tile types in the set.</summary>
     public int Count => _items.Length;
 
+    /// <summary>Initializes a tile set from the given tile types, preserving their order.</summary>
+    /// <param name="items">The tile types in index order.</param>
     public TileSet(params ReadOnlySpan<TileItem> items)
     {
         _items = items.ToArray();
@@ -48,19 +65,27 @@ public sealed class TileSet
         _itemIndexMap = itemIndexMap.ToFrozenDictionary();
     }
 
+    /// <summary>Gets the tile type at the given index.</summary>
+    /// <param name="index">The zero-based index of the tile type.</param>
+    /// <returns>The tile type at <paramref name="index"/>.</returns>
     public TileItem GetItem(int index)
     {
         return _items[index];
     }
 
+    /// <summary>Gets the index of a tile type in the set.</summary>
+    /// <param name="item">The tile type to look up; it must belong to this set.</param>
+    /// <returns>The zero-based index of <paramref name="item"/>.</returns>
     public int GetItemIndex(TileItem item)
     {
         return _itemIndexMap[item];
     }
 }
 
+/// <summary>Renders a row-major tile map through CPU-batched instance draws or a GPU-driven compute-culling path.</summary>
 public sealed class TileRenderer : AutoDisposable
 {
+    /// <summary>The tile ID that represents an empty tile.</summary>
     public const int TileIdEmpty = -1;
 
     private struct TileInstanceData
@@ -322,6 +347,7 @@ public sealed class TileRenderer : AutoDisposable
     /// </summary>
     public Transform3D Transform;
 
+    /// <summary>Gets the name of the renderer.</summary>
     public string Name { get; }
 
     /// <summary>
@@ -629,6 +655,11 @@ public sealed class TileRenderer : AutoDisposable
         SetAllBatchesDirty();
     }
 
+    /// <summary>Tries to get the tile ID at the given map position.</summary>
+    /// <param name="x">The X coordinate of the tile.</param>
+    /// <param name="y">The Y coordinate of the tile.</param>
+    /// <param name="tileId">When this method returns <see langword="true"/>, the tile ID at the position.</param>
+    /// <returns><see langword="true"/> when the position is in bounds and holds a valid tile ID; otherwise <see langword="false"/>.</returns>
     public bool TryGetTile(int x, int y, out int tileId)
     {
         if (!IsInBounds(x, y))
@@ -976,6 +1007,8 @@ public sealed class TileRenderer : AutoDisposable
 
 
 
+    /// <summary>Gets the raw tile map storage in row-major order.</summary>
+    /// <returns>A span over the tile map, where each element is a tile ID or <see cref="TileIdEmpty"/>.</returns>
     public Span<int> AsSpan()
     {
         return _tileMap.AsSpan();

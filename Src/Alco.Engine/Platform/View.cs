@@ -19,11 +19,23 @@ public unsafe abstract class View : AutoDisposable
 
     private int _textInputRefCount = 0;
 
+    /// <summary>
+    /// Gets the width of the view in pixels.
+    /// </summary>
     public uint Width => Size.X;
+    /// <summary>
+    /// Gets the height of the view in pixels.
+    /// </summary>
     public uint Height => Size.Y;
 
+    /// <summary>
+    /// Gets whether text input is currently requested by at least one user.
+    /// </summary>
     public bool IsTextInputEnabled => _textInputRefCount > 0;
 
+    /// <summary>
+    /// Requests text input; input is started when the first user requests it.
+    /// </summary>
     public void RequestTextInput()
     {
         _textInputRefCount++;
@@ -33,6 +45,9 @@ public unsafe abstract class View : AutoDisposable
         }
     }
 
+    /// <summary>
+    /// Releases a text input request; input is stopped when the last user releases it.
+    /// </summary>
     public void ReleaseTextInput()
     {
         if (_textInputRefCount > 0)
@@ -189,18 +204,28 @@ public unsafe abstract class View : AutoDisposable
     /// <returns>A task that completes with the selected save path. Empty if canceled.</returns>
     public abstract Task<string[]> OpenSaveFilePickerAsync(string? defaultPath, params ReadOnlySpan<DialogFileFilter> filters);
 
+    /// <summary>
+    /// Raises the <see cref="OnResize"/> event.
+    /// </summary>
+    /// <param name="size">The new size of the view.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DoResize(uint2 size)
     {
         _onResize.Invoke(size);
     }
 
+    /// <summary>
+    /// Raises the <see cref="OnMinimize"/> event.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DoMinimize()
     {
         _onMinimize.Invoke();
     }
 
+    /// <summary>
+    /// Raises the <see cref="OnRestore"/> event.
+    /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DoRestore()
     {

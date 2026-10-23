@@ -3,6 +3,9 @@ using NUnit.Framework;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Tests reflection-based and reflection-emit member accessors for constructors, fields, properties, and arrays.
+/// </summary>
 [TestFixture]
 public class TestMemberAccessor
 {
@@ -55,6 +58,9 @@ public class TestMemberAccessor
     private ReflectionMemberAccessor _reflectionAccessor;
     private ReflectionEmitMemberAccessor _reflectionEmitAccessor;
 
+    /// <summary>
+    /// Creates both member accessor implementations for each test.
+    /// </summary>
     [SetUp]
     public void Setup()
     {
@@ -62,6 +68,9 @@ public class TestMemberAccessor
         _reflectionEmitAccessor = new ReflectionEmitMemberAccessor();
     }
 
+    /// <summary>
+    /// Tests parameterless constructor accessors for classes and structs.
+    /// </summary>
     [Test]
     public void TestParameterlessConstructor()
     {
@@ -98,6 +107,9 @@ public class TestMemberAccessor
         Assert.That(reflectionEmitStructInstance.Number, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests parameterized constructor accessors with object arguments.
+    /// </summary>
     [Test]
     public void TestParameterizedConstructor()
     {
@@ -116,6 +128,9 @@ public class TestMemberAccessor
         Assert.That(reflectionEmitInstance.PublicField, Is.EqualTo("Test"));
     }
 
+    /// <summary>
+    /// Tests typed constructor delegates created by both accessors.
+    /// </summary>
     [Test]
     public void TestParameterizedConstructorWithDelegate()
     {
@@ -134,6 +149,9 @@ public class TestMemberAccessor
         Assert.That(reflectionEmitInstance.PublicField, Is.EqualTo("Test"));
     }
 
+    /// <summary>
+    /// Tests property getter and setter accessors.
+    /// </summary>
     [Test]
     public void TestPropertyGetterAndSetter()
     {
@@ -159,6 +177,9 @@ public class TestMemberAccessor
         Assert.That(instance.PublicProperty, Is.EqualTo(300));
     }
 
+    /// <summary>
+    /// Tests field getter and setter accessors.
+    /// </summary>
     [Test]
     public void TestFieldGetterAndSetter()
     {
@@ -184,6 +205,9 @@ public class TestMemberAccessor
         Assert.That(instance.PublicField, Is.EqualTo("Test"));
     }
 
+    /// <summary>
+    /// Tests field and property getters on a struct instance.
+    /// </summary>
     [Test]
     public void TestStructFieldAndProperty()
     {
@@ -207,6 +231,9 @@ public class TestMemberAccessor
         Assert.That(reflectionEmitPropertyGetter(instance), Is.EqualTo("Test"));
     }
 
+    /// <summary>
+    /// Tests getter and setter accessors for a value-type array property.
+    /// </summary>
     [Test]
     public void TestValueTypeArrayProperty()
     {
@@ -239,6 +266,9 @@ public class TestMemberAccessor
         Assert.That(instance.ValueTypeArray, Is.EqualTo(anotherArray));
     }
 
+    /// <summary>
+    /// Tests getter and setter accessors for an object-type array field.
+    /// </summary>
     [Test]
     public void TestObjectTypeArrayField()
     {
@@ -271,6 +301,9 @@ public class TestMemberAccessor
         Assert.That(instance.ObjectTypeArray, Is.EqualTo(anotherArray));
     }
 
+    /// <summary>
+    /// Tests getter and setter accessors for a mixed object array property.
+    /// </summary>
     [Test]
     public void TestMixedObjectArrayProperty()
     {
@@ -307,6 +340,9 @@ public class TestMemberAccessor
         Assert.That(instance.MixedObjectArray, Is.EqualTo(anotherArray));
     }
 
+    /// <summary>
+    /// Tests that array accessors round-trip null values.
+    /// </summary>
     [Test]
     public void TestNullArrayHandling()
     {
@@ -330,6 +366,9 @@ public class TestMemberAccessor
         Assert.That(reflectionEmitGetter(instance), Is.Null);
     }
 
+    /// <summary>
+    /// Tests that array accessors round-trip empty arrays.
+    /// </summary>
     [Test]
     public void TestEmptyArrayHandling()
     {

@@ -11,6 +11,7 @@ namespace Alco.Rendering.Test;
 // hot-reload invalidation. NoGPU device; reflection-level assertions only.
 // Mirrors production conventions: set-scoped cbuffer resource blocks,
 // [MaterialParams]-marked parameter blocks, ShaderLibrary addressing.
+/// <summary>Tests material shader composition across templates and surfaces, including specialization variants, parameter reflection, packing, and invalidation.</summary>
 [TestFixture]
 public class MaterialCompilerComposeTest
 {
@@ -290,6 +291,7 @@ public class MaterialCompilerComposeTest
         return new MaterialCompiler(host.RenderingSystem, shaderSystem: shaderSystem);
     }
 
+    /// <summary>Tests that graphics composition combines a template with a surface and caches the result.</summary>
     [Test]
     public void ComposeGraphics_ComposesTemplateWithSurface_AndCaches()
     {
@@ -317,6 +319,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that a minimal surface uses the interface defaults.</summary>
     [Test]
     public void ComposeGraphics_MinimalSurface_RidesInterfaceDefaults()
     {
@@ -338,6 +341,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that compute composition builds a single compute entry.</summary>
     [Test]
     public void ComposeCompute_ComposesSingleComputeEntry()
     {
@@ -360,6 +364,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that mixing graphics and compute templates throws.</summary>
     [Test]
     public void Compose_StageMixMismatch_Throws()
     {
@@ -378,6 +383,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that named specializations are validated against reflection.</summary>
     [Test]
     public void ComposeGraphics_ConsumesNamedSpecializations_AndValidatesAgainstReflection()
     {
@@ -409,6 +415,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that value specializations produce distinct shader variants.</summary>
     [Test]
     public void ComposeGraphics_ValueSpecializations_AreDistinctVariants()
     {
@@ -438,6 +445,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that a composed shader serves runtime variant switches.</summary>
     [Test]
     public void ComposedShader_ServesRuntimeVariantSwitches()
     {
@@ -480,6 +488,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that parameter layouts are read from marked block members without linking.</summary>
     [Test]
     public void GetParamsLayouts_ReadsMarkedBlockMembers_WithoutLinking()
     {
@@ -507,6 +516,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that parameter names are validated and values pack into a buffer.</summary>
     [Test]
     public void PackParamsBuffer_ValidatesNamesAndPacks()
     {
@@ -537,6 +547,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that typed parameter kinds marshal to their GPU representations.</summary>
     [Test]
     public void PackParamsBuffer_MarshalsTypedMemberKinds()
     {
@@ -595,6 +606,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that every marked parameter block is packed.</summary>
     [Test]
     public void PackParamsBuffers_PacksEveryMarkedBlock()
     {
@@ -631,6 +643,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that texture slots list the surface module's textures.</summary>
     [Test]
     public void EnumerateTextureSlots_ListsTexturesOfTheSurfaceModule()
     {
@@ -645,6 +658,7 @@ public class MaterialCompilerComposeTest
         }
     }
 
+    /// <summary>Tests that module invalidation reloads the composed shader and clears the parameter layout.</summary>
     [Test]
     public void ModuleInvalidation_ReloadsComposedShader_AndClearsParamsLayout()
     {

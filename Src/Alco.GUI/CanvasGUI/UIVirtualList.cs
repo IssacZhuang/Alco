@@ -265,6 +265,9 @@ public abstract class UIVirtualList<TData> : UINode, INavigationFocusable
         SetLayoutDirty();
     }
 
+    /// <summary>
+    /// Marks the item layout as dirty so visible items are recomputed on the next refresh.
+    /// </summary>
     public void SetLayoutDirty()
     {
         _isLayoutDirty = true;

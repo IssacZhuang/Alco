@@ -3,12 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Base class for processors that render texture content into a target with fullscreen
-/// passes (bloom, FXAA, ...). Typically wrapped by a <see cref="RGNode_ChainTransform"/>
-/// for pipeline orchestration.
-/// <br/>Processors record their passes through a <see cref="RenderContext"/> (the same
-/// high-level path every renderer uses: <see cref="RenderContext.BeginPass"/> plus
-/// materials) and never submit: the frame scope owning the context submits.
+/// Base class for processors that render texture content into a target with full-screen
+/// passes. Processors record passes on a render context but never submit.
 /// </summary>
 public abstract class TextureProcessor : AutoDisposable
 {

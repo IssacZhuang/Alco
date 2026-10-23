@@ -5,14 +5,7 @@ using Alco.Rendering;
 
 namespace Alco.World3D.Test;
 
-/// <summary>
-/// End-to-end tests of the <see cref="RenderPipelines.CreatePBRDeferred"/> preset driven by the NoGPU backend:
-/// node dispatch order and counts, feature gating (shadow / headless destination),
-/// facade identity and version stability, resize and the no-camera guard.
-/// The fake nodes use only the public composition API: pass content lists
-/// (<see cref="RGNode_GeometryPass.Content"/> / <see cref="RGNode_ShadowPass.Content"/>) and
-/// chain nodes (<see cref="RGNode_SceneContent"/> / <see cref="RGNode_ChainTransform"/>).
-/// </summary>
+/// <summary>Covers the <see cref="RenderPipelines.CreatePBRDeferred"/> preset: node dispatch, feature gating, facade identity, resize, and the no-camera guard.</summary>
 [TestFixture]
 public sealed class TestPBRDeferredPreset
 {
@@ -205,6 +198,7 @@ public sealed class TestPBRDeferredPreset
     private Shader _lightingShader;
     private GPUAttachmentLayout _destinationLayout;
 
+    /// <summary>Creates the rendering and shader systems and the destination layout.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -249,6 +243,7 @@ public sealed class TestPBRDeferredPreset
             [new ColorAttachment(PixelFormat.RGBA8Unorm)], null, "test_destination"));
     }
 
+    /// <summary>Disposes the shader resources, layout, and rendering host.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -286,6 +281,7 @@ public sealed class TestPBRDeferredPreset
         return _rendering.CreateRenderTexture(_destinationLayout, width, height, "test_destination_rt");
     }
 
+    /// <summary>Tests that all registered nodes run in registration order with the expected per-pass counts.</summary>
     [Test(Description = "All registered nodes are invoked in registration order with the expected per-pass counts")]
     public void RenderInvokesAllNodesInOrder()
     {
@@ -313,6 +309,7 @@ public sealed class TestPBRDeferredPreset
         }));
     }
 
+    /// <summary>Tests that disabling shadows culls the shadow pass while every other node still runs.</summary>
     [Test(Description = "ShadowEnabled=false culls the whole shadow pass; every other node still runs")]
     public void ShadowDisabledSkipsShadowPass()
     {
@@ -335,6 +332,7 @@ public sealed class TestPBRDeferredPreset
         Assert.That(log, Is.EqualTo(new[] { "gbuffer", "forward", "processor" }));
     }
 
+    /// <summary>Tests that a null destination skips chain transforms but still runs content nodes.</summary>
     [Test(Description = "A null destination (headless view) skips chain transforms but still runs content nodes")]
     public void NullDestinationSkipsProcessorsButKeepsContent()
     {
@@ -360,6 +358,7 @@ public sealed class TestPBRDeferredPreset
         }));
     }
 
+    /// <summary>Tests that the G-buffer and forward facades keep identity and version across frames.</summary>
     [Test(Description = "The GBuffer and ForwardRenderTexture facades keep identity and version across steady-state frames")]
     public void FacadesKeepIdentityAndVersionAcrossFrames()
     {
@@ -384,6 +383,7 @@ public sealed class TestPBRDeferredPreset
         Assert.That(preset.ForwardRenderTexture.Version, Is.EqualTo(forwardVersion));
     }
 
+    /// <summary>Tests that the scene color target shares the G-buffer's depth attachment.</summary>
     [Test(Description = "The scene color target shares the G-buffer's depth attachment (render graph depthSource) instead of owning a separate depth texture")]
     public void SceneColorSharesGBufferDepth()
     {
@@ -398,6 +398,7 @@ public sealed class TestPBRDeferredPreset
             preset.GBuffer.FrameBuffer.DepthStencil), Is.True);
     }
 
+    /// <summary>Tests that the forward layout declares its depth attachment as read-only.</summary>
     [Test(Description = "The forward layout declares its depth read-only: the lighting/forward passes sample or test the shared G-buffer depth while it is attached")]
     public void ForwardLayoutDepthIsReadOnly()
     {
@@ -407,6 +408,7 @@ public sealed class TestPBRDeferredPreset
         Assert.That(preset.ForwardLayout.Depth.Value.ReadOnly, Is.True);
     }
 
+    /// <summary>Tests that Resize keeps facade identity, updates sizes, and notifies chain nodes.</summary>
     [Test(Description = "Resize keeps facade identity, updates sizes and notifies chain nodes")]
     public void ResizeUpdatesFacadesAndNotifiesNodes()
     {
@@ -436,6 +438,7 @@ public sealed class TestPBRDeferredPreset
         Assert.DoesNotThrow(() => preset.Pipeline.Render(destination.FrameBuffer));
     }
 
+    /// <summary>Tests that rendering without a camera throws <see cref="InvalidOperationException"/>.</summary>
     [Test(Description = "Render without a camera throws InvalidOperationException")]
     public void RenderWithoutCameraThrows()
     {

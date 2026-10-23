@@ -7,6 +7,9 @@ using BenchmarkFramework;
 
 namespace Alco.Engine.Benchmark;
 
+/// <summary>
+/// Benchmarks the old and new sprite renderer implementations.
+/// </summary>
 [CustomConfigParam(8, 50, 128)]
 public class BenchmarkRenderer
 {
@@ -19,6 +22,9 @@ public class BenchmarkRenderer
     private RenderTexture _target;
 
 
+    /// <summary>
+    /// Creates the engine, texture, and render target used by the benchmarks.
+    /// </summary>
     public BenchmarkRenderer()
     {
         _engine = new GameEngine(GameEngineSetting.CreateGPUWithoutView());
@@ -27,6 +33,9 @@ public class BenchmarkRenderer
         _target = renderingSystem.CreateRenderTexture(renderingSystem.PreferredHDRPass, 1920, 1080);
     }
 
+    /// <summary>
+    /// Initializes the camera, material, and sprite renderers.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -43,6 +52,9 @@ public class BenchmarkRenderer
 
     }
 
+    /// <summary>
+    /// Benchmarks the legacy sprite renderer.
+    /// </summary>
     [Benchmark]
     public void OldSpriteRenderer()
     {
@@ -54,6 +66,9 @@ public class BenchmarkRenderer
         _renderer1.End();
     }
 
+    /// <summary>
+    /// Benchmarks the current sprite renderer.
+    /// </summary>
     [Benchmark]
     public void NewSpriteRenderer()
     {

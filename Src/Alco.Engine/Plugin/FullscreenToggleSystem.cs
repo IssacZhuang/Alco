@@ -8,6 +8,11 @@ public class FullscreenToggleSystem : BaseEngineSystem
     private readonly GameEngine _engine;
     private readonly bool _isBorderlessFullscreen;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="FullscreenToggleSystem"/>.
+    /// </summary>
+    /// <param name="engine">The engine whose main view is toggled.</param>
+    /// <param name="isBorderlessFullscreen">Whether to use borderless instead of exclusive fullscreen.</param>
     public FullscreenToggleSystem(GameEngine engine, bool isBorderlessFullscreen)
     {
         _engine = engine;

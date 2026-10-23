@@ -17,6 +17,7 @@ namespace Alco.Engine.Test;
 // the streaming lifecycle through the disposal of the asset stream. Runs on the
 // NoGPU device with an in-memory file source.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Covers glTF model image loading, texture bindings, and the file-backed streaming lifecycle.</summary>
 [TestFixture]
 public class TestModelGltfTextures
 {
@@ -189,6 +190,7 @@ public class TestModelGltfTextures
     private AssetSystem _assetSystem;
     private TestFileSource _fileSource;
 
+    /// <summary>Creates the headless rendering and asset systems for each test.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -206,6 +208,7 @@ public class TestModelGltfTextures
         _assetSystem.RegisterAssetLoader(new AssetLoaderModelGltf(_renderingSystem));
     }
 
+    /// <summary>Disposes the rendering host, asset system host, and file source.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -220,6 +223,7 @@ public class TestModelGltfTextures
         return _assetSystem.Load<ModelScene>("models/scene.gltf");
     }
 
+    /// <summary>Tests that an external albedo PNG is final at load, streamed in place, and sRGB.</summary>
     [Test]
     public void ExternalPng_AlbedoIsFinalAtLoadAndSrgb()
     {
@@ -244,6 +248,7 @@ public class TestModelGltfTextures
         Assert.That(texture.NativeTexture, Is.SameAs(native));
     }
 
+    /// <summary>Tests that an external normal map PNG stays in a linear pixel format.</summary>
     [Test]
     public void ExternalPng_NormalMapStaysLinear()
     {
@@ -257,6 +262,7 @@ public class TestModelGltfTextures
         Assert.That(texture!.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
     }
 
+    /// <summary>Tests that an external DDS albedo streams its mip chain with an sRGB block-compressed format.</summary>
     [Test]
     public void ExternalDds_StreamsMipChainWithSrgbFormat()
     {
@@ -276,6 +282,7 @@ public class TestModelGltfTextures
         Assert.That(SpinWait.SpinUntil(() => _fileSource.OpenedStreams[0].Disposed, TimeSpan.FromSeconds(10)), Is.True);
     }
 
+    /// <summary>Tests that a missing image leaves the material's fallback texture in place.</summary>
     [Test]
     public void MissingImage_KeepsTheFallback()
     {
@@ -286,6 +293,7 @@ public class TestModelGltfTextures
         Assert.That(_fileSource.OpenedStreams, Is.Empty);
     }
 
+    /// <summary>Tests that a corrupt image leaves the material's fallback texture in place.</summary>
     [Test]
     public void CorruptImage_KeepsTheFallback()
     {
@@ -297,6 +305,7 @@ public class TestModelGltfTextures
         Assert.That(scene.Materials[0].AlbedoTexture, Is.Null);
     }
 
+    /// <summary>Tests that an embedded data-URI PNG decodes synchronously without opening a stream.</summary>
     [Test]
     public void EmbeddedDataUriPng_DecodesSynchronously()
     {

@@ -10,6 +10,7 @@ namespace Alco.LLM.Test;
 [AgentTools]
 public static class FakeToolFunctions
 {
+    /// <summary>Returns the sum of two numbers.</summary>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Adds two numbers")]
     public static int Add(int a, int b)
@@ -17,6 +18,7 @@ public static class FakeToolFunctions
         return a + b;
     }
 
+    /// <summary>Returns the given message unchanged.</summary>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Echoes the message back")]
     public static string Echo(string message)
@@ -24,6 +26,7 @@ public static class FakeToolFunctions
         return message;
     }
 
+    /// <summary>Throws an exception to simulate a failing tool call.</summary>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Always throws an error")]
     public static string ThrowError()

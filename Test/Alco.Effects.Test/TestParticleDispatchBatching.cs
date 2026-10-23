@@ -5,14 +5,7 @@ using Alco.Rendering;
 
 namespace Alco.Effects.Test;
 
-/// <summary>
-/// Compute dispatch batching tests of the 2D and 3D systems: the frame's active
-/// groups merge into one wide emit and one wide simulate dispatch per behavior
-/// material (each 64-thread block resolving its group through the work-block
-/// table), while groups with distinct behavior libraries still split — and every
-/// active group contributes at least one emit block so its draw-args record resets
-/// even with zero spawns.
-/// </summary>
+/// <summary>Tests compute dispatch batching for particle groups in the 2D and 3D systems.</summary>
 public class TestParticleDispatchBatching
 {
     /// <summary>The minimal engine host (real shader compilation on the no-GPU backend).</summary>
@@ -20,18 +13,21 @@ public class TestParticleDispatchBatching
 
     private Host _engine = null!;
 
+    /// <summary>Creates the shared no-GPU engine host.</summary>
     [OneTimeSetUp]
     public void SetUp()
     {
         _engine = new Host(GameEngineSetting.CreateNoGPU());
     }
 
+    /// <summary>Disposes the shared engine host.</summary>
     [OneTimeTearDown]
     public void TearDown()
     {
         _engine.Dispose();
     }
 
+    /// <summary>Tests that groups sharing a behavior merge into one emit and simulate dispatch in 2D.</summary>
     [Test(Description = "Groups sharing the default behavior merge into one emit and one simulate dispatch")]
     public void SharedBehaviorMergesDispatches2D()
     {
@@ -56,6 +52,7 @@ public class TestParticleDispatchBatching
         });
     }
 
+    /// <summary>Tests that groups with distinct behaviors split into separate dispatches in 2D.</summary>
     [Test(Description = "Groups with distinct behavior libraries split into one dispatch pair each")]
     public void DistinctBehaviorsSplitDispatches2D()
     {
@@ -79,6 +76,7 @@ public class TestParticleDispatchBatching
         });
     }
 
+    /// <summary>Tests that groups sharing a behavior merge into one emit and simulate dispatch in 3D.</summary>
     [Test(Description = "The 3D system merges same-behavior groups into one emit and one simulate dispatch too")]
     public void SharedBehaviorMergesDispatches3D()
     {
@@ -101,6 +99,7 @@ public class TestParticleDispatchBatching
         });
     }
 
+    /// <summary>Tests that groups with distinct behaviors split into separate dispatches in 3D.</summary>
     [Test(Description = "The 3D system splits groups with distinct behavior libraries")]
     public void DistinctBehaviorsSplitDispatches3D()
     {

@@ -5,6 +5,9 @@ using System.Threading;
 
 namespace Alco;
 
+/// <summary>
+/// Assigns and resolves unique identifiers for referenceable objects during serialization.
+/// </summary>
 public class ReferenceContext
 {
     public const string SerializeKey = "$id";
@@ -14,8 +17,7 @@ public class ReferenceContext
     private readonly ConcurrentDictionary<ulong, object> _idToObject = new();
 
     /// <summary>
-    /// Gets or assigns a unique ID for the specified object within this context.
-    /// Override to customize ID assignment (e.g. cross-context references).
+    /// Gets or assigns the unique identifier of the specified object within this context; override to customize ID assignment.
     /// </summary>
     public virtual ulong GetId(object obj)
     {

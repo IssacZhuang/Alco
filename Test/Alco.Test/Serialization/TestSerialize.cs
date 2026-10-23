@@ -6,6 +6,9 @@ using System.Security.Cryptography.X509Certificates;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Enumeration used to exercise enum serialization.
+/// </summary>
 public enum TestEnum
 {
     None,
@@ -14,6 +17,9 @@ public enum TestEnum
     Three
 }
 
+/// <summary>
+/// Tests binary serialization binding for values, collections, references, dictionaries, binary data, and nullables.
+/// </summary>
 public class TestSerialize
 {
     // Tests for BindArraySerializable
@@ -60,6 +66,9 @@ public class TestSerialize
         }
     }
 
+    /// <summary>
+    /// Tests that serializable arrays round-trip values, references, and post-load callbacks.
+    /// </summary>
     [Test]
     public void TestBindArraySerializable_BasicRoundTripAndPostLoad()
     {
@@ -84,6 +93,9 @@ public class TestSerialize
         Assert.That(ReferenceEquals(dst.Items[2], dst.Ref2), Is.True);
     }
 
+    /// <summary>
+    /// Tests that a saved array larger than the destination truncates and drops unresolved references.
+    /// </summary>
     [Test]
     public void TestBindArraySerializable_SizeMismatch_Saved3_Dest2()
     {
@@ -107,6 +119,9 @@ public class TestSerialize
         Assert.That(dst.Ref2, Is.Null);
     }
 
+    /// <summary>
+    /// Tests that a saved array smaller than the destination leaves the extra elements unloaded.
+    /// </summary>
     [Test]
     public void TestBindArraySerializable_SizeMismatch_Saved2_Dest3()
     {
@@ -350,6 +365,9 @@ public class TestSerialize
         }
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of values, strings, memory arrays, and optional serializable objects.
+    /// </summary>
     [Test]
     public void TestSerializeNormal()
     {
@@ -381,6 +399,9 @@ public class TestSerialize
 
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of integer and string collections.
+    /// </summary>
     [Test]
     public void TestSerializeCollection()
     {
@@ -401,6 +422,9 @@ public class TestSerialize
         }
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of nested class and struct objects.
+    /// </summary>
     [Test]
     public void TestSerializeDeep()
     {
@@ -414,6 +438,9 @@ public class TestSerialize
         Assert.That(obj2.structChild.str, Is.EqualTo("123"));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of collections of serializable classes and structs.
+    /// </summary>
     [Test]
     public void TestSerializeCollectionDeep()
     {
@@ -443,6 +470,9 @@ public class TestSerialize
         }
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of enum values and enum collections.
+    /// </summary>
     [Test]
     public void TestSerializeEnum()
     {
@@ -462,6 +492,9 @@ public class TestSerialize
         Assert.That(obj2.enumList[2], Is.EqualTo(TestEnum.Three));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of dictionaries with int, string, and binary values.
+    /// </summary>
     [Test]
     public void TestSerializeDictionary()
     {
@@ -504,6 +537,9 @@ public class TestSerialize
         Assert.That(obj2.dictByteArray["data3"].Span.SequenceEqual(new byte[] { 255, 0, 128 }), Is.True);
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of empty dictionaries.
+    /// </summary>
     [Test]
     public void TestSerializeDictionaryEmpty()
     {
@@ -519,6 +555,9 @@ public class TestSerialize
         Assert.That(obj2.dictByteArray.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of dictionary keys containing special characters.
+    /// </summary>
     [Test]
     public void TestSerializeDictionaryWithSpecialCharacters()
     {
@@ -542,6 +581,9 @@ public class TestSerialize
         Assert.That(obj2.dictString["null_test"], Is.EqualTo(""));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of dictionaries of serializable classes and structs.
+    /// </summary>
     [Test]
     public void TestSerializeDictionarySerializable()
     {
@@ -579,6 +621,9 @@ public class TestSerialize
         Assert.That(obj2.dictStruct["s2"].str, Is.EqualTo("struct2"));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of dictionaries whose values use a factory.
+    /// </summary>
     [Test]
     public void TestSerializeDictionaryFactory()
     {
@@ -597,6 +642,9 @@ public class TestSerialize
         Assert.That(obj2.dictBitmap["icon2"].Height, Is.EqualTo(32));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of binary data including an empty array.
+    /// </summary>
     [Test]
     public void TestBindBinary()
     {
@@ -624,6 +672,9 @@ public class TestSerialize
         Assert.That(obj2.emptyBinaryData.Length, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of empty binary arrays.
+    /// </summary>
     [Test]
     public void TestBindBinary_EmptyArray()
     {
@@ -644,6 +695,9 @@ public class TestSerialize
         Assert.That(obj2.emptyBinaryData.Length, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of large binary data.
+    /// </summary>
     [Test]
     public void TestBindBinary_LargeData()
     {
@@ -676,6 +730,9 @@ public class TestSerialize
         Assert.That(obj2.emptyBinaryData.IsEmpty, Is.True);
     }
 
+    /// <summary>
+    /// Tests round-trip serialization of nullable values.
+    /// </summary>
     [Test]
     public void TestBindNullableValue_RoundTrip()
     {
@@ -690,6 +747,9 @@ public class TestSerialize
         Assert.That(obj2.floatValue, Is.Null);
     }
 
+    /// <summary>
+    /// Tests that missing keys leave nullable values null.
+    /// </summary>
     [Test]
     public void TestBindNullableValue_AllMissingKeys_LoadNull()
     {
@@ -702,6 +762,9 @@ public class TestSerialize
         Assert.That(obj2.floatValue, Is.Null);
     }
 
+    /// <summary>
+    /// Tests that deserializing null nullable values resets stale destination values.
+    /// </summary>
     [Test]
     public void TestBindNullableValue_OverwrittenNull_StaysNull()
     {

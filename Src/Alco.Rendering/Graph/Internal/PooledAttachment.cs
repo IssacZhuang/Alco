@@ -3,11 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A pooled attachment texture with its baked views: the attachment view used as a
-/// render pass target, plus depth/stencil sampling views for depth formats (mirroring
-/// the view set of <see cref="GPUFrameBuffer"/>). Created once when the pool
-/// materializes the texture and reused for every composed frame buffer; the views are
-/// therefore never recreated on aliasing churn.
+/// A pooled attachment texture with its baked attachment and depth/stencil sampling views,
+/// created once and reused for every composed frame buffer.
 /// </summary>
 internal sealed class PooledAttachment : System.IDisposable
 {

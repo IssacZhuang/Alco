@@ -18,6 +18,9 @@ public unsafe class SafeMemoryHandle : AutoDisposable
 
     private readonly byte[]? _buffer;
 
+    /// <summary>
+    /// The shared handle that wraps an empty byte array.
+    /// </summary>
     public static readonly SafeMemoryHandle Empty = new SafeMemoryHandle(Array.Empty<byte>());
 
     /// <summary>
@@ -88,10 +91,7 @@ public unsafe class SafeMemoryHandle : AutoDisposable
     }
 
     /// <summary>
-    /// Gets a span representing the memory managed by this handle.
-    /// If using unmanaged memory, returns a span over the unsafe pointer.
-    /// If using managed memory, returns a span over the managed buffer.
-    /// Returns an empty span if no memory is allocated.
+    /// Gets a span over the managed or unmanaged memory, or an empty span when no memory is allocated.
     /// </summary>
     public Span<byte> AsSpan()
     {
@@ -108,10 +108,7 @@ public unsafe class SafeMemoryHandle : AutoDisposable
     }
 
     /// <summary>
-    /// Gets a read-only span representing the memory managed by this handle.
-    /// If using unmanaged memory, returns a span over the unsafe pointer.
-    /// If using managed memory, returns a span over the managed buffer.
-    /// Returns an empty read-only span if no memory is allocated.
+    /// Gets a read-only span over the managed or unmanaged memory, or an empty span when no memory is allocated.
     /// </summary>
     public ReadOnlySpan<byte> AsReadOnlySpan()
     {

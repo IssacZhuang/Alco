@@ -263,16 +263,8 @@ public sealed class SlangModuleSystem : IDisposable
     }
 
     /// <summary>
-    /// Links (or restores) a composed program: the template module owns the (generic)
-    /// [shader(...)] entry points, the companion (surface) module contributes the
-    /// surface type — the material-composition path, which needs no generated
-    /// wrapper module. The surface type is discovered from the modules themselves
-    /// (see <see cref="SlangCompileSession.CompileComposed"/>): the template's entry
-    /// points declare the contract, the companion must export exactly one conforming
-    /// type — no type name is passed or configured. Both modules load through
-    /// <see cref="GetOrLoadModule(string)"/>. Value specialization arguments feed the
-    /// entries' value parameters in entry order (e.g. the shadow template's
-    /// AlphaTest flag).
+    /// Links or restores a composed program: the template module owns the generic entry points and the companion module contributes exactly one conforming surface type, discovered from the modules themselves.
+    /// Both modules load through <see cref="GetOrLoadModule(string)"/>; value specialization arguments feed the entries' value parameters in entry order.
     /// </summary>
     public SlangProgram GetComposedProgram(
         string templateModuleName, string companionModuleName,
@@ -336,12 +328,8 @@ public sealed class SlangModuleSystem : IDisposable
             .FirstOrDefault(block => block.Name == cbufferName)?.Members ?? [];
 
     /// <summary>
-    /// The library reflection of a module (see <see cref="ShaderLibraryReflection"/>):
-    /// every uniform/parameter block it declares — with user-defined attributes and
-    /// float-shaped members — plus every sampled-texture slot, read from the module's
-    /// own layout without entry points or a link. Domain-neutral: attribute markers
-    /// (e.g. MaterialParams) are filtered by the caller. Cached per module entry;
-    /// invalidated together with the module on session rebuilds.
+    /// The library reflection of a module: every uniform/parameter block it declares plus every sampled-texture slot, read without entry points or a link.
+    /// Cached per module entry and invalidated together with the module on session rebuilds.
     /// </summary>
     public ShaderLibraryReflection GetModuleReflection(string moduleName)
     {

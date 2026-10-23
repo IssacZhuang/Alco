@@ -11,6 +11,9 @@ namespace Alco.Graphics.Test;
 // Reflection exposes members by their bare field name and the block's uniform
 // data as one buffer entry under the block's name. C# never reads a set number.
 
+/// <summary>
+/// Covers the parameter block binding contract, including per-block bind groups, uniform members, and resource naming.
+/// </summary>
 [TestFixture]
 public static class SlangBlockBindingTest
 {
@@ -71,6 +74,9 @@ public static class SlangBlockBindingTest
         }
         """;
 
+    /// <summary>
+    /// Tests that each parameter block owns one bind group with members reflected by bare name.
+    /// </summary>
     [Test]
     public static void BlockMembers_ReflectByBareName_EachBlockOwnsOneSet()
     {
@@ -101,6 +107,9 @@ public static class SlangBlockBindingTest
         }));
     }
 
+    /// <summary>
+    /// Tests that uniform member reflection omits resource fields.
+    /// </summary>
     [Test]
     public static void UniformMembers_SkipResourceFields()
     {
@@ -112,6 +121,9 @@ public static class SlangBlockBindingTest
         Assert.That(members[1].OffsetBytes, Is.GreaterThan(0u));
     }
 
+    /// <summary>
+    /// Tests that duplicate resource names across blocks fail to compile.
+    /// </summary>
     [Test]
     public static void ResourceNames_MustBeUniqueAcrossSets()
     {
@@ -142,6 +154,9 @@ public static class SlangBlockBindingTest
         Assert.That(() => Compile("block_dup", duplicate), Throws.Exception);
     }
 
+    /// <summary>
+    /// Tests that bare globals occupy set zero and blocks follow in their own sets.
+    /// </summary>
     [Test]
     public static void BareGlobals_TakeSetZero_BlocksGetTheirOwnSetsAfter()
     {
@@ -183,6 +198,9 @@ public static class SlangBlockBindingTest
         }));
     }
 
+    /// <summary>
+    /// Tests that blocks take their own sets in declaration order.
+    /// </summary>
     [Test]
     public static void EachBlock_TakesItsOwnSet_InDeclarationOrder()
     {

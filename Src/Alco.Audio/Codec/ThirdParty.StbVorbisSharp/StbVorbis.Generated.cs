@@ -8,6 +8,7 @@ namespace StbVorbisSharp
 {
 	unsafe partial class StbVorbis
 	{
+		/// <summary>STB Vorbis error codes returned by the decoder.</summary>
 		public enum STBVorbisError
 		{
 			VORBIS__no_error,
@@ -33,6 +34,7 @@ namespace StbVorbisSharp
 			VORBIS_ogg_skeleton_not_supported
 		}
 		
+		/// <summary>Vorbis codebook used for Huffman and vector decoding.</summary>
 		public struct Codebook
 		{
 			public int dimensions;
@@ -53,6 +55,7 @@ namespace StbVorbisSharp
 			public int sorted_entries;
 		}
 
+		/// <summary>Scratch state for locating Ogg pages by CRC during seeking.</summary>
 		public struct CRCscan
 		{
 			public uint goal_crc;
@@ -62,6 +65,7 @@ namespace StbVorbisSharp
 			public uint sample_loc;
 		}
 
+		/// <summary>Vorbis floor-0 curve configuration.</summary>
 		public struct Floor0
 		{
 			public byte order;
@@ -73,6 +77,7 @@ namespace StbVorbisSharp
 			public fixed byte book_list[16];
 		}
 
+		/// <summary>Vorbis channel mapping for one mode.</summary>
 		public struct Mapping
 		{
 			public ushort coupling_steps;
@@ -82,6 +87,7 @@ namespace StbVorbisSharp
 			public fixed byte submap_residue[15];
 		}
 
+		/// <summary>One coupling entry of a Vorbis channel mapping.</summary>
 		public struct MappingChannel
 		{
 			public byte magnitude;
@@ -89,6 +95,7 @@ namespace StbVorbisSharp
 			public byte mux;
 		}
 
+		/// <summary>Vorbis block mode configuration.</summary>
 		public struct Mode
 		{
 			public byte blockflag;
@@ -97,6 +104,7 @@ namespace StbVorbisSharp
 			public ushort transformtype;
 		}
 
+		/// <summary>Ogg page offsets recorded while probing a stream.</summary>
 		public struct ProbedPage
 		{
 			public uint page_start;
@@ -104,6 +112,7 @@ namespace StbVorbisSharp
 			public uint last_decoded_sample;
 		}
 
+		/// <summary>Basic Vorbis stream information.</summary>
 		public struct stb_vorbis_info
 		{
 			public uint sample_rate;
@@ -111,6 +120,7 @@ namespace StbVorbisSharp
 			public int max_frame_size;
 		}
 
+		/// <summary>Scratch entry for ordering floor-1 values by position.</summary>
 		public struct stbv__floor_ordering
 		{
 			public ushort x;
@@ -172,6 +182,13 @@ namespace StbVorbisSharp
 		public static int[] vorbis_decode_packet_rest_range_list = {256, 128, 86, 64};
 		public static byte[] vorbis_validate_vorbis = {118, 111, 114, 98, 105, 115};
 
+		/// <summary>Adds one codeword entry to a codebook during setup.</summary>
+		/// <param name="c">The codebook being built.</param>
+		/// <param name="huff_code">The Huffman code assigned to the symbol.</param>
+		/// <param name="symbol">The symbol index.</param>
+		/// <param name="count">The entry index to write.</param>
+		/// <param name="len">The codeword length in bits.</param>
+		/// <param name="values">The symbol value table.</param>
 		public static void add_entry(Codebook* c, uint huff_code, int symbol, int count, int len, uint* values)
 		{
 			if (c->sparse == 0)
@@ -186,6 +203,9 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Reverses the bits of a 32-bit value.</summary>
+		/// <param name="n">The value to reverse.</param>
+		/// <returns>The bit-reversed value.</returns>
 		public static uint bit_reverse(uint n)
 		{
 			n = ((n & 0xAAAAAAAA) >> 1) | ((n & 0x55555555) << 1);
@@ -195,6 +215,9 @@ namespace StbVorbisSharp
 			return (n >> 16) | (n << 16);
 		}
 
+		/// <summary>Checks whether the stream starts with the Ogg capture pattern.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero when the pattern matches.</returns>
 		public static int capture_pattern(stb_vorbis f)
 		{
 			if (0x4f != get8(f))
@@ -208,6 +231,12 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Decodes a codebook vector and adds it to the output buffer.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="c">The codebook to decode from.</param>
+		/// <param name="output">The destination sample buffer.</param>
+		/// <param name="len">The number of values to decode.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int codebook_decode(stb_vorbis f, Codebook* c, float* output, int len)
 		{
 			var i = 0;
@@ -236,6 +265,16 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Decodes interleaved channel data from a codebook until the requested count is produced.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="c">The codebook to decode from.</param>
+		/// <param name="outputs">The per-channel output buffers.</param>
+		/// <param name="ch">The channel count.</param>
+		/// <param name="c_inter_p">The current interleave channel index.</param>
+		/// <param name="p_inter_p">The current output position.</param>
+		/// <param name="len">The output length per channel.</param>
+		/// <param name="total_decode">The total number of samples to decode.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int codebook_decode_deinterleave_repeat(stb_vorbis f, Codebook* c, float** outputs, int ch,
 			int* c_inter_p, int* p_inter_p, int len, int total_decode)
 		{
@@ -298,6 +337,10 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Decodes one scalar value using the accelerated Huffman table.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="c">The codebook to decode from.</param>
+		/// <returns>The decoded value, or -1 on failure.</returns>
 		public static int codebook_decode_scalar(stb_vorbis f, Codebook* c)
 		{
 			var i = 0;
@@ -321,6 +364,10 @@ namespace StbVorbisSharp
 			return codebook_decode_scalar_raw(f, c);
 		}
 
+		/// <summary>Decodes one scalar value using the sorted or direct Huffman tables.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="c">The codebook to decode from.</param>
+		/// <returns>The decoded value, or -1 on failure.</returns>
 		public static int codebook_decode_scalar_raw(stb_vorbis f, Codebook* c)
 		{
 			var i = 0;
@@ -384,6 +431,10 @@ namespace StbVorbisSharp
 			return -1;
 		}
 
+		/// <summary>Starts decoding one codebook vector and returns its scalar index.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="c">The codebook to decode from.</param>
+		/// <returns>The decoded scalar, or -1 on failure.</returns>
 		public static int codebook_decode_start(stb_vorbis f, Codebook* c)
 		{
 			var z = -1;
@@ -406,6 +457,13 @@ namespace StbVorbisSharp
 			return z;
 		}
 
+		/// <summary>Decodes a codebook vector into the output buffer with a fixed stride.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="c">The codebook to decode from.</param>
+		/// <param name="output">The destination sample buffer.</param>
+		/// <param name="len">The number of values to decode.</param>
+		/// <param name="step">The output stride in floats.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int codebook_decode_step(stb_vorbis f, Codebook* c, float* output, int len, int step)
 		{
 			var i = 0;
@@ -427,6 +485,8 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Builds the accelerated Huffman lookup table for a codebook.</summary>
+		/// <param name="c">The codebook to initialize.</param>
 		public static void compute_accelerated_huffman(Codebook* c)
 		{
 			var i = 0;
@@ -448,6 +508,9 @@ namespace StbVorbisSharp
 				}
 		}
 
+		/// <summary>Computes the bit-reversal table for the inverse MDCT.</summary>
+		/// <param name="n">The transform length.</param>
+		/// <param name="rev">The destination table.</param>
 		public static void compute_bitreverse(int n, ushort* rev)
 		{
 			var ld = ilog(n) - 1;
@@ -456,6 +519,12 @@ namespace StbVorbisSharp
 			for (i = 0; i < n8; ++i) rev[i] = (ushort) ((bit_reverse((uint) i) >> (32 - ld + 3)) << 2);
 		}
 
+		/// <summary>Computes canonical codewords from the codeword lengths.</summary>
+		/// <param name="c">The codebook to initialize.</param>
+		/// <param name="len">The codeword lengths.</param>
+		/// <param name="n">The number of entries.</param>
+		/// <param name="values">The destination symbol table.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int compute_codewords(Codebook* c, byte* len, int n, uint* values)
 		{
 			var i = 0;
@@ -494,6 +563,13 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Downmixes the channels selected by a speaker mask into 16-bit samples.</summary>
+		/// <param name="mask">The speaker mask selecting contributing channels.</param>
+		/// <param name="output">The destination sample buffer.</param>
+		/// <param name="num_c">The source channel count.</param>
+		/// <param name="data">The per-channel source buffers.</param>
+		/// <param name="d_offset">The source sample offset.</param>
+		/// <param name="len">The number of samples to convert.</param>
 		public static void compute_samples(int mask, short* output, int num_c, float*[] data, int d_offset, int len)
 		{
 			var buffer = stackalloc float[32];
@@ -521,6 +597,10 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Builds the sorted Huffman lookup tables for a codebook.</summary>
+		/// <param name="c">The codebook to initialize.</param>
+		/// <param name="lengths">The codeword lengths.</param>
+		/// <param name="values">The symbol value table.</param>
 		public static void compute_sorted_huffman(Codebook* c, byte* lengths, uint* values)
 		{
 			var i = 0;
@@ -575,6 +655,12 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Downmixes channels into interleaved stereo 16-bit samples.</summary>
+		/// <param name="output">The interleaved destination buffer.</param>
+		/// <param name="num_c">The source channel count.</param>
+		/// <param name="data">The per-channel source buffers.</param>
+		/// <param name="d_offset">The source sample offset.</param>
+		/// <param name="len">The number of samples to convert.</param>
 		public static void compute_stereo_samples(short* output, int num_c, float*[] data, int d_offset, int len)
 		{
 			var buffer = stackalloc float[32];
@@ -615,6 +701,11 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Computes the twiddle factor tables for the inverse MDCT.</summary>
+		/// <param name="n">The transform length.</param>
+		/// <param name="A">The first destination table.</param>
+		/// <param name="B">The second destination table.</param>
+		/// <param name="C">The third destination table.</param>
 		public static void compute_twiddle_factors(int n, float* A, float* B, float* C)
 		{
 			var n4 = n >> 2;
@@ -636,6 +727,9 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Computes the window table for the inverse MDCT.</summary>
+		/// <param name="n">The transform length.</param>
+		/// <param name="window">The destination window table.</param>
 		public static void compute_window(int n, float* window)
 		{
 			var n2 = n >> 1;
@@ -646,6 +740,13 @@ namespace StbVorbisSharp
 				                                                             3.14159265358979323846264f)));
 		}
 
+		/// <summary>Converts channel data to interleaved 16-bit samples with channel remapping.</summary>
+		/// <param name="buf_c">The output channel count.</param>
+		/// <param name="buffer">The interleaved output buffer.</param>
+		/// <param name="data_c">The source channel count.</param>
+		/// <param name="data">The per-channel source buffers.</param>
+		/// <param name="d_offset">The source sample offset.</param>
+		/// <param name="len">The number of samples to convert.</param>
 		public static void convert_channels_short_interleaved(int buf_c, short* buffer, int data_c, float*[] data,
 			int d_offset, int len)
 		{
@@ -674,6 +775,14 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Converts channel data to planar 16-bit samples.</summary>
+		/// <param name="buf_c">The output channel count.</param>
+		/// <param name="buffer">The per-channel output buffers.</param>
+		/// <param name="b_offset">The output sample offset.</param>
+		/// <param name="data_c">The source channel count.</param>
+		/// <param name="data">The per-channel source buffers.</param>
+		/// <param name="d_offset">The source sample offset.</param>
+		/// <param name="samples">The number of samples to convert.</param>
 		public static void convert_samples_short(int buf_c, short** buffer, int b_offset, int data_c, float*[] data,
 			int d_offset, int samples)
 		{
@@ -693,6 +802,10 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Converts floating-point samples to 16-bit samples.</summary>
+		/// <param name="dest">The destination buffer.</param>
+		/// <param name="src">The source buffer.</param>
+		/// <param name="len">The number of samples to convert.</param>
 		public static void copy_samples(short* dest, float* src, int len)
 		{
 			var i = 0;
@@ -705,6 +818,7 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Initializes the CRC table used for Ogg page validation.</summary>
 		public static void crc32_init()
 		{
 			var i = 0;
@@ -718,11 +832,22 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Updates a running Ogg page CRC with one byte.</summary>
+		/// <param name="crc">The running CRC.</param>
+		/// <param name="b">The byte to add.</param>
+		/// <returns>The updated CRC.</returns>
 		public static uint crc32_update(uint crc, byte b)
 		{
 			return (crc << 8) ^ crc_table[b ^ (crc >> 24)];
 		}
 
+		/// <summary>Decodes residue data for the requested channels into their sample buffers.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="residue_buffers">The per-channel destination buffers.</param>
+		/// <param name="ch">The channel count.</param>
+		/// <param name="n">The number of samples to decode.</param>
+		/// <param name="rn">The residue type.</param>
+		/// <param name="do_not_decode">Per-channel flags that skip decoding.</param>
 		public static void decode_residue(stb_vorbis f, float** residue_buffers, int ch, int n, int rn,
 			byte* do_not_decode)
 		{
@@ -889,6 +1014,15 @@ namespace StbVorbisSharp
 			f.temp_offset = temp_alloc_point;
 		}
 
+		/// <summary>Decodes and applies the floor curve for one channel.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="map">The channel mapping.</param>
+		/// <param name="i">The channel index.</param>
+		/// <param name="n">The number of samples.</param>
+		/// <param name="target">The output buffer.</param>
+		/// <param name="finalY">The decoded floor values.</param>
+		/// <param name="step2_flag">The floor-1 step flags.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int do_floor(stb_vorbis f, Mapping* map, int i, int n, float* target, short* finalY,
 			byte* step2_flag)
 		{
@@ -924,6 +1058,13 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Draws a line into the floor-1 output buffer.</summary>
+		/// <param name="output">The destination buffer.</param>
+		/// <param name="x0">The first endpoint x coordinate.</param>
+		/// <param name="y0">The first endpoint y coordinate.</param>
+		/// <param name="x1">The second endpoint x coordinate.</param>
+		/// <param name="y1">The second endpoint y coordinate.</param>
+		/// <param name="n">The buffer length.</param>
 		public static void draw_line(float* output, int x0, int y0, int x1, int y1, int n)
 		{
 			var dy = y1 - y0;
@@ -963,6 +1104,10 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Records an error on the stream and returns its numeric code.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="e">The error to record.</param>
+		/// <returns>The numeric error code.</returns>
 		public static int error(stb_vorbis f, STBVorbisError e)
 		{
 			f.error = e;
@@ -970,6 +1115,9 @@ namespace StbVorbisSharp
 			return 0;
 		}
 
+		/// <summary>Unpacks a Vorbis float32 value from its bit representation.</summary>
+		/// <param name="x">The packed value.</param>
+		/// <returns>The decoded float value.</returns>
 		public static float float32_unpack(uint x)
 		{
 			var mantissa = x & 0x1fffff;
@@ -979,6 +1127,8 @@ namespace StbVorbisSharp
 			return (float) CRuntime.ldexp((float) res, (int) exp - 788);
 		}
 
+		/// <summary>Discards the current packet state.</summary>
+		/// <param name="f">The decoder stream.</param>
 		public static void flush_packet(stb_vorbis f)
 		{
 			while (get8_packet_raw(f) != -1)
@@ -986,6 +1136,10 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Reads an unsigned bit field from the current packet.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="n">The number of bits to read.</param>
+		/// <returns>The bits read.</returns>
 		public static uint get_bits(stb_vorbis f, int n)
 		{
 			uint z = 0;
@@ -1022,6 +1176,10 @@ namespace StbVorbisSharp
 			return z;
 		}
 
+		/// <summary>Reads the header of the page at the current position for seeking.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="z">The destination page information.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int get_seek_page_info(stb_vorbis f, ProbedPage* z)
 		{
 			var header = stackalloc byte[27];
@@ -1042,6 +1200,10 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Gets the precomputed window table for a block size.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="len">The block length.</param>
+		/// <returns>The window table, or null when the length is invalid.</returns>
 		public static float* get_window(stb_vorbis f, int len)
 		{
 			len <<= 1;
@@ -1052,6 +1214,9 @@ namespace StbVorbisSharp
 			return null;
 		}
 
+		/// <summary>Reads a 32-bit little-endian value from the stream.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The value read.</returns>
 		public static uint get32(stb_vorbis f)
 		{
 			uint x = 0;
@@ -1062,6 +1227,9 @@ namespace StbVorbisSharp
 			return x;
 		}
 
+		/// <summary>Reads a 32-bit little-endian value from the current packet.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The value read.</returns>
 		public static int get32_packet(stb_vorbis f)
 		{
 			uint x = 0;
@@ -1072,6 +1240,9 @@ namespace StbVorbisSharp
 			return (int) x;
 		}
 
+		/// <summary>Reads one byte from the stream.</summary>
+		/// <param name="z">The decoder stream.</param>
+		/// <returns>The byte read.</returns>
 		public static byte get8(stb_vorbis z)
 		{
 			if (1 != 0)
@@ -1086,6 +1257,9 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Reads one byte from the current packet.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The byte read.</returns>
 		public static int get8_packet(stb_vorbis f)
 		{
 			var x = get8_packet_raw(f);
@@ -1093,6 +1267,9 @@ namespace StbVorbisSharp
 			return x;
 		}
 
+		/// <summary>Reads one byte from the current packet without flushing on exhaustion.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The byte read.</returns>
 		public static int get8_packet_raw(stb_vorbis f)
 		{
 			if (f.bytes_in_seg == 0)
@@ -1108,6 +1285,11 @@ namespace StbVorbisSharp
 			return get8(f);
 		}
 
+		/// <summary>Reads bytes from the stream into a buffer.</summary>
+		/// <param name="z">The decoder stream.</param>
+		/// <param name="data">The destination buffer.</param>
+		/// <param name="n">The number of bytes to read.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int getn(stb_vorbis z, byte* data, int n)
 		{
 			if (1 != 0)
@@ -1124,6 +1306,10 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Seeks to the last page that starts before the given offset.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="limit_offset">The offset the page must precede.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int go_to_page_before(stb_vorbis f, uint limit_offset)
 		{
 			uint previous_safe = 0;
@@ -1143,6 +1329,9 @@ namespace StbVorbisSharp
 			return 0;
 		}
 
+		/// <summary>Returns the bit length of a non-negative value.</summary>
+		/// <param name="n">The value to measure.</param>
+		/// <returns>The number of bits required to represent the value.</returns>
 		public static int ilog(int n)
 		{
 			if (n < 0)
@@ -1164,6 +1353,13 @@ namespace StbVorbisSharp
 			return 30 + ilog_log2_4[n >> 30];
 		}
 
+		/// <summary>Runs one radix-4 inner stage of the inverse MDCT.</summary>
+		/// <param name="lim">The loop limit.</param>
+		/// <param name="e">The working buffer.</param>
+		/// <param name="d0">The buffer offset.</param>
+		/// <param name="k_off">The second element offset.</param>
+		/// <param name="A">The twiddle table.</param>
+		/// <param name="k1">The twiddle table stride.</param>
 		public static void imdct_step3_inner_r_loop(int lim, float* e, int d0, int k_off, float* A, int k1)
 		{
 			var i = 0;
@@ -1206,6 +1402,14 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Runs one inner stage of the inverse MDCT with a fixed stride.</summary>
+		/// <param name="n">The number of elements.</param>
+		/// <param name="e">The working buffer.</param>
+		/// <param name="i_off">The buffer offset.</param>
+		/// <param name="k_off">The second element offset.</param>
+		/// <param name="A">The twiddle table.</param>
+		/// <param name="a_off">The twiddle table offset.</param>
+		/// <param name="k0">The twiddle table base.</param>
 		public static void imdct_step3_inner_s_loop(int n, float* e, int i_off, int k_off, float* A, int a_off, int k0)
 		{
 			var i = 0;
@@ -1252,6 +1456,12 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Runs the final inner stage of the inverse MDCT for the long block.</summary>
+		/// <param name="n">The number of elements.</param>
+		/// <param name="e">The working buffer.</param>
+		/// <param name="i_off">The buffer offset.</param>
+		/// <param name="A">The twiddle table.</param>
+		/// <param name="base_n">The base transform length.</param>
 		public static void imdct_step3_inner_s_loop_ld654(int n, float* e, int i_off, float* A, int base_n)
 		{
 			var a_off = base_n >> 3;
@@ -1294,6 +1504,12 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Runs the first inner iteration of the inverse MDCT.</summary>
+		/// <param name="n">The number of elements.</param>
+		/// <param name="e">The working buffer.</param>
+		/// <param name="i_off">The buffer offset.</param>
+		/// <param name="k_off">The second element offset.</param>
+		/// <param name="A">The twiddle table.</param>
 		public static void imdct_step3_iter0_loop(int n, float* e, int i_off, int k_off, float* A)
 		{
 			var ee0 = e + i_off;
@@ -1336,6 +1552,10 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Returns whether a codeword length participates in the sorted Huffman table.</summary>
+		/// <param name="c">The codebook.</param>
+		/// <param name="len">The codeword length.</param>
+		/// <returns>Nonzero when the entry is included.</returns>
 		public static int include_in_sort(Codebook* c, byte len)
 		{
 			if (c->sparse != 0) return 1;
@@ -1347,6 +1567,11 @@ namespace StbVorbisSharp
 			return 0;
 		}
 
+		/// <summary>Allocates the tables for one block size.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="b">The block index.</param>
+		/// <param name="n">The block length.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int init_blocksize(stb_vorbis f, int b, int n)
 		{
 			var n2 = n >> 1;
@@ -1369,6 +1594,11 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Computes the inverse MDCT for one block.</summary>
+		/// <param name="buffer">The sample buffer.</param>
+		/// <param name="n">The transform length.</param>
+		/// <param name="f">The stream providing the tables.</param>
+		/// <param name="blocktype">The block type index.</param>
 		public static void inverse_mdct(float* buffer, int n, stb_vorbis f, int blocktype)
 		{
 			var n2 = n >> 1;
@@ -1605,6 +1835,9 @@ namespace StbVorbisSharp
 			f.temp_offset = save_point;
 		}
 
+		/// <summary>Checks whether the current page contains the whole packet.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero when the full packet is present.</returns>
 		public static int is_whole_packet_present(stb_vorbis f)
 		{
 			var s = f.next_seg;
@@ -1670,6 +1903,8 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Applies one radix-4 butterfly stage of the inverse MDCT.</summary>
+		/// <param name="z">The working buffer.</param>
 		public static void iter_54(float* z)
 		{
 			float k00 = 0;
@@ -1698,6 +1933,10 @@ namespace StbVorbisSharp
 			z[-7] = k11 + k22;
 		}
 
+		/// <summary>Returns the largest value whose dim-th power does not exceed the entry count.</summary>
+		/// <param name="entries">The number of entries.</param>
+		/// <param name="dim">The vector dimension.</param>
+		/// <returns>The largest fitting value, or -1 when the count is inconsistent.</returns>
 		public static int lookup1_values(int entries, int dim)
 		{
 			var r = (int) CRuntime.floor(CRuntime.exp((float) CRuntime.log((float) entries) / dim));
@@ -1710,6 +1949,9 @@ namespace StbVorbisSharp
 			return r;
 		}
 
+		/// <summary>Starts a new packet when the current page has been consumed.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int maybe_start_packet(stb_vorbis f)
 		{
 			if (f.next_seg == -1)
@@ -1738,6 +1980,11 @@ namespace StbVorbisSharp
 			return start_packet(f);
 		}
 
+		/// <summary>Finds the nearest lower and higher values around a reference position in a sorted array.</summary>
+		/// <param name="x">The sorted value array.</param>
+		/// <param name="n">The number of entries before the reference value.</param>
+		/// <param name="plow">Receives the index of the nearest lower value.</param>
+		/// <param name="phigh">Receives the index of the nearest higher value.</param>
 		public static void neighbors(ushort* x, int n, int* plow, int* phigh)
 		{
 			var low = -1;
@@ -1759,6 +2006,9 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Advances to the next packet segment.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The segment length in bytes, or a negative error code.</returns>
 		public static int next_segment(stb_vorbis f)
 		{
 			var len = 0;
@@ -1790,6 +2040,14 @@ namespace StbVorbisSharp
 			return len;
 		}
 
+		/// <summary>Peeks the block boundaries of the next packet without consuming it.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="p_left_start">Receives the left block start.</param>
+		/// <param name="p_left_end">Receives the left block end.</param>
+		/// <param name="p_right_start">Receives the right block start.</param>
+		/// <param name="p_right_end">Receives the right block end.</param>
+		/// <param name="mode">Receives the block mode.</param>
+		/// <returns>The number of samples in the packet.</returns>
 		public static int peek_decode_initial(stb_vorbis f, int* p_left_start, int* p_left_end, int* p_right_start,
 			int* p_right_end, int* mode)
 		{
@@ -1812,6 +2070,10 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Compares two seek-point samples for sorting.</summary>
+		/// <param name="p">The first value.</param>
+		/// <param name="q">The second value.</param>
+		/// <returns>A negative, zero or positive comparison result.</returns>
 		public static int point_compare(void* p, void* q)
 		{
 			var a = (stbv__floor_ordering*) p;
@@ -1819,6 +2081,13 @@ namespace StbVorbisSharp
 			return a->x < b->x ? -1 : a->x > b->x ? 1 : 0;
 		}
 
+		/// <summary>Linearly interpolates a value between two probe points.</summary>
+		/// <param name="x">The target position.</param>
+		/// <param name="x0">The first position.</param>
+		/// <param name="x1">The second position.</param>
+		/// <param name="y0">The first value.</param>
+		/// <param name="y1">The second value.</param>
+		/// <returns>The interpolated value.</returns>
 		public static int predict_point(int x, int x0, int x1, int y0, int y1)
 		{
 			var dy = y1 - y0;
@@ -1828,6 +2097,8 @@ namespace StbVorbisSharp
 			return dy < 0 ? y0 - off : y0 + off;
 		}
 
+		/// <summary>Prepares the Huffman decoder state for the next packet.</summary>
+		/// <param name="f">The decoder stream.</param>
 		public static void prep_huffman(stb_vorbis f)
 		{
 			if (f.valid_bits <= 24)
@@ -1848,6 +2119,14 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Decodes one residue vector into the target buffer.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="book">The residue codebook.</param>
+		/// <param name="target">The destination buffer.</param>
+		/// <param name="offset">The destination offset.</param>
+		/// <param name="n">The number of samples.</param>
+		/// <param name="rtype">The residue type.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int residue_decode(stb_vorbis f, Codebook* book, float* target, int offset, int n, int rtype)
 		{
 			var k = 0;
@@ -1872,6 +2151,10 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Seeks to the closest earlier page containing the requested sample.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="sample_number">The target sample index.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int seek_to_sample_coarse(stb_vorbis f, uint sample_number)
 		{
 			var left = new ProbedPage();
@@ -2028,6 +2311,10 @@ namespace StbVorbisSharp
 			return error(f, STBVorbisError.VORBIS_seek_failed);
 		}
 
+		/// <summary>Sets the absolute stream read position.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="loc">The absolute byte offset.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int set_file_offset(stb_vorbis f, uint loc)
 		{
 			if (f.push_mode != 0)
@@ -2047,6 +2334,9 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Allocates memory for decoder setup.</summary>
+		/// <param name="sz">The size in bytes.</param>
+		/// <returns>The allocated memory, or null on failure.</returns>
 		public static void* setup_malloc(int sz)
 		{
 			sz = (sz + 7) & ~7;
@@ -2054,12 +2344,18 @@ namespace StbVorbisSharp
 			return sz != 0 ? CRuntime.malloc((ulong) sz) : null;
 		}
 
+		/// <summary>Allocates temporary memory for decoder setup.</summary>
+		/// <param name="sz">The size in bytes.</param>
+		/// <returns>The allocated memory, or null on failure.</returns>
 		public static void* setup_temp_malloc(int sz)
 		{
 			sz = (sz + 7) & ~7;
 			return CRuntime.malloc((ulong) sz);
 		}
 
+		/// <summary>Skips bytes in the stream.</summary>
+		/// <param name="z">The decoder stream.</param>
+		/// <param name="n">The number of bytes to skip.</param>
 		public static void skip(stb_vorbis z, int n)
 		{
 			if (1 != 0)
@@ -2070,11 +2366,17 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Returns the square of a value.</summary>
+		/// <param name="x">The input value.</param>
+		/// <returns>The squared value.</returns>
 		public static float square(float x)
 		{
 			return x * x;
 		}
 
+		/// <summary>Parses the stream headers and initializes decoder state.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int start_decoder(stb_vorbis f)
 		{
 			var header = stackalloc byte[6];
@@ -2766,6 +3068,9 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Starts reading a new packet.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int start_packet(stb_vorbis f)
 		{
 			while (f.next_seg == -1)
@@ -2783,6 +3088,9 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Starts reading the next Ogg page.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int start_page(stb_vorbis f)
 		{
 			if (capture_pattern(f) == 0)
@@ -2790,6 +3098,9 @@ namespace StbVorbisSharp
 			return start_page_no_capturepattern(f);
 		}
 
+		/// <summary>Starts reading an Ogg page after its capture pattern has been consumed.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int start_page_no_capturepattern(stb_vorbis f)
 		{
 			uint loc0 = 0;
@@ -2845,6 +3156,8 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Closes a decoder and frees its resources.</summary>
+		/// <param name="p">The decoder to close.</param>
 		public static void stb_vorbis_close(stb_vorbis p)
 		{
 			if (p == null)
@@ -2852,6 +3165,14 @@ namespace StbVorbisSharp
 			vorbis_deinit(p);
 		}
 
+		/// <summary>Decodes one frame from push-mode input without copying it.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="data">The input data.</param>
+		/// <param name="data_len">The input length in bytes.</param>
+		/// <param name="channels">Receives the channel count.</param>
+		/// <param name="output">Receives the per-channel output buffers.</param>
+		/// <param name="samples">Receives the sample count.</param>
+		/// <returns>The number of bytes consumed, or a negative error code.</returns>
 		public static int stb_vorbis_decode_frame_pushdata(stb_vorbis f, byte* data, int data_len, int* channels,
 			ref float*[] output, int* samples)
 		{
@@ -2919,6 +3240,13 @@ namespace StbVorbisSharp
 			return (int) (f.stream - data);
 		}
 
+		/// <summary>Decodes an entire Vorbis stream from memory into 16-bit samples.</summary>
+		/// <param name="mem">The encoded data.</param>
+		/// <param name="len">The data length in bytes.</param>
+		/// <param name="channels">Receives the channel count.</param>
+		/// <param name="sample_rate">Receives the sample rate.</param>
+		/// <param name="output">Receives the decoded interleaved samples.</param>
+		/// <returns>The number of samples per channel, or a negative error code.</returns>
 		public static int stb_vorbis_decode_memory(byte* mem, int len, int* channels, int* sample_rate,
 			ref short* output)
 		{
@@ -2972,6 +3300,8 @@ namespace StbVorbisSharp
 			return data_len;
 		}
 
+		/// <summary>Resets the push-mode decoder state after a seek.</summary>
+		/// <param name="f">The decoder stream.</param>
 		public static void stb_vorbis_flush_pushdata(stb_vorbis f)
 		{
 			f.previous_length = 0;
@@ -2984,6 +3314,9 @@ namespace StbVorbisSharp
 			f.channel_buffer_end = 0;
 		}
 
+		/// <summary>Gets and clears the last stream error.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The last error code.</returns>
 		public static int stb_vorbis_get_error(stb_vorbis f)
 		{
 			var e = (int) f.error;
@@ -2991,6 +3324,9 @@ namespace StbVorbisSharp
 			return e;
 		}
 
+		/// <summary>Gets the current absolute byte offset in the stream.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The current offset.</returns>
 		public static uint stb_vorbis_get_file_offset(stb_vorbis f)
 		{
 			if (f.push_mode != 0)
@@ -2999,6 +3335,11 @@ namespace StbVorbisSharp
 				return (uint) (f.stream - f.stream_start);
 		}
 
+		/// <summary>Gets the next decoded frame as floating-point channel buffers.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="channels">Receives the channel count.</param>
+		/// <param name="output">Receives the per-channel buffers.</param>
+		/// <returns>The number of samples per channel.</returns>
 		public static int stb_vorbis_get_frame_float(stb_vorbis f, int* channels, ref float*[] output)
 		{
 			var len = 0;
@@ -3025,6 +3366,12 @@ namespace StbVorbisSharp
 			return len;
 		}
 
+		/// <summary>Gets the next frame as planar 16-bit samples.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="num_c">The output channel count.</param>
+		/// <param name="buffer">The per-channel output buffers.</param>
+		/// <param name="num_samples">The buffer capacity per channel.</param>
+		/// <returns>The number of samples per channel.</returns>
 		public static int stb_vorbis_get_frame_short(stb_vorbis f, int num_c, short** buffer, int num_samples)
 		{
 			float*[] output = null;
@@ -3036,6 +3383,12 @@ namespace StbVorbisSharp
 			return len;
 		}
 
+		/// <summary>Gets the next frame as interleaved 16-bit samples.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="num_c">The output channel count.</param>
+		/// <param name="buffer">The interleaved output buffer.</param>
+		/// <param name="num_shorts">The output capacity in shorts.</param>
+		/// <returns>The number of samples per channel.</returns>
 		public static int stb_vorbis_get_frame_short_interleaved(stb_vorbis f, int num_c, short* buffer, int num_shorts)
 		{
 			float*[] output = null;
@@ -3053,6 +3406,9 @@ namespace StbVorbisSharp
 			return len;
 		}
 
+		/// <summary>Gets basic stream information.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The stream information.</returns>
 		public static stb_vorbis_info stb_vorbis_get_info(stb_vorbis f)
 		{
 			var d = new stb_vorbis_info();
@@ -3062,6 +3418,9 @@ namespace StbVorbisSharp
 			return d;
 		}
 
+		/// <summary>Gets the sample index of the next sample to be returned.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The next sample index.</returns>
 		public static int stb_vorbis_get_sample_offset(stb_vorbis f)
 		{
 			if (f.current_loc_valid != 0)
@@ -3069,6 +3428,12 @@ namespace StbVorbisSharp
 			return -1;
 		}
 
+		/// <summary>Reads floating-point samples into planar channel buffers.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="channels">The output channel count.</param>
+		/// <param name="buffer">The per-channel output buffers.</param>
+		/// <param name="num_samples">The number of samples to read.</param>
+		/// <returns>The number of samples per channel read.</returns>
 		public static int stb_vorbis_get_samples_float(stb_vorbis f, int channels, float** buffer, int num_samples)
 		{
 			float*[] outputs = null;
@@ -3102,6 +3467,12 @@ namespace StbVorbisSharp
 			return n;
 		}
 
+		/// <summary>Reads floating-point samples into an interleaved buffer.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="channels">The output channel count.</param>
+		/// <param name="buffer">The interleaved output buffer.</param>
+		/// <param name="num_floats">The output capacity in floats.</param>
+		/// <returns>The number of samples per channel read.</returns>
 		public static int stb_vorbis_get_samples_float_interleaved(stb_vorbis f, int channels, float* buffer,
 			int num_floats)
 		{
@@ -3136,6 +3507,12 @@ namespace StbVorbisSharp
 			return n;
 		}
 
+		/// <summary>Reads 16-bit samples into planar channel buffers.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="channels">The output channel count.</param>
+		/// <param name="buffer">The per-channel output buffers.</param>
+		/// <param name="len">The number of samples to read.</param>
+		/// <returns>The number of samples per channel read.</returns>
 		public static int stb_vorbis_get_samples_short(stb_vorbis f, int channels, short** buffer, int len)
 		{
 			float*[] outputs = null;
@@ -3159,6 +3536,12 @@ namespace StbVorbisSharp
 			return n;
 		}
 
+		/// <summary>Reads 16-bit samples into an interleaved buffer.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="channels">The output channel count.</param>
+		/// <param name="buffer">The interleaved output buffer.</param>
+		/// <param name="num_shorts">The output capacity in shorts.</param>
+		/// <returns>The number of samples per channel read.</returns>
 		public static int stb_vorbis_get_samples_short_interleaved(stb_vorbis f, int channels, short* buffer,
 			int num_shorts)
 		{
@@ -3185,6 +3568,11 @@ namespace StbVorbisSharp
 			return n;
 		}
 
+		/// <summary>Opens a decoder over a Vorbis stream held in memory.</summary>
+		/// <param name="data">The encoded data.</param>
+		/// <param name="len">The data length in bytes.</param>
+		/// <param name="error">Receives the error code on failure.</param>
+		/// <returns>The decoder, or null on failure.</returns>
 		public static stb_vorbis stb_vorbis_open_memory(byte* data, int len, int* error)
 		{
 			stb_vorbis f;
@@ -3221,6 +3609,12 @@ namespace StbVorbisSharp
 			return null;
 		}
 
+		/// <summary>Opens a decoder in push mode over caller-supplied data.</summary>
+		/// <param name="data">The input data.</param>
+		/// <param name="data_len">The input length in bytes.</param>
+		/// <param name="data_used">Receives the number of bytes consumed.</param>
+		/// <param name="error">Receives the error code on failure.</param>
+		/// <returns>The decoder, or null when more data is needed or on error.</returns>
 		public static stb_vorbis stb_vorbis_open_pushdata(byte* data, int data_len, int* data_used, int* error)
 		{
 			stb_vorbis f;
@@ -3252,6 +3646,10 @@ namespace StbVorbisSharp
 			return null;
 		}
 
+		/// <summary>Seeks to a sample position.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="sample_number">The target sample index.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int stb_vorbis_seek(stb_vorbis f, uint sample_number)
 		{
 			if (stb_vorbis_seek_frame(f, sample_number) == 0)
@@ -3269,6 +3667,10 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Seeks to the frame containing a sample position.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="sample_number">The target sample index.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int stb_vorbis_seek_frame(stb_vorbis f, uint sample_number)
 		{
 			uint max_frame_samples = 0;
@@ -3308,6 +3710,9 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Seeks back to the beginning of the stream.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int stb_vorbis_seek_start(stb_vorbis f)
 		{
 			if (f.push_mode != 0) return error(f, STBVorbisError.VORBIS_invalid_api_mixing);
@@ -3319,6 +3724,9 @@ namespace StbVorbisSharp
 			return vorbis_pump_first_frame(f);
 		}
 
+		/// <summary>Gets the stream length in samples per channel.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The length in samples.</returns>
 		public static uint stb_vorbis_stream_length_in_samples(stb_vorbis f)
 		{
 			uint restore_offset = 0;
@@ -3379,11 +3787,18 @@ namespace StbVorbisSharp
 			return f.total_samples == 0xffffffff ? 0 : f.total_samples;
 		}
 
+		/// <summary>Gets the stream length in seconds.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>The length in seconds.</returns>
 		public static float stb_vorbis_stream_length_in_seconds(stb_vorbis f)
 		{
 			return stb_vorbis_stream_length_in_samples(f) / (float) f.sample_rate;
 		}
 
+		/// <summary>Compares two unsigned 32-bit values.</summary>
+		/// <param name="p">The first value.</param>
+		/// <param name="q">The second value.</param>
+		/// <returns>A negative, zero or positive comparison result.</returns>
 		public static int uint32_compare(void* p, void* q)
 		{
 			var x = *(uint*) p;
@@ -3391,11 +3806,22 @@ namespace StbVorbisSharp
 			return x < y ? -1 : x > y ? 1 : 0;
 		}
 
+		/// <summary>Allocates a decoder instance using the configured allocator.</summary>
+		/// <param name="f">The decoder template.</param>
+		/// <returns>The allocated decoder, or null on failure.</returns>
 		public static stb_vorbis vorbis_alloc(stb_vorbis f)
 		{
 			return new stb_vorbis();
 		}
 
+		/// <summary>Decodes the initial block headers of a packet and returns its sample count.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="p_left_start">Receives the left block start.</param>
+		/// <param name="p_left_end">Receives the left block end.</param>
+		/// <param name="p_right_start">Receives the right block start.</param>
+		/// <param name="p_right_end">Receives the right block end.</param>
+		/// <param name="mode">Receives the block mode.</param>
+		/// <returns>The number of samples in the packet.</returns>
 		public static int vorbis_decode_initial(stb_vorbis f, int* p_left_start, int* p_left_end, int* p_right_start,
 			int* p_right_end, int* mode)
 		{
@@ -3467,6 +3893,12 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Decodes one audio packet.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="len">Receives the packet length.</param>
+		/// <param name="p_left">Receives the left block start.</param>
+		/// <param name="p_right">Receives the right block end.</param>
+		/// <returns>The number of samples decoded, or a negative error code.</returns>
 		public static int vorbis_decode_packet(stb_vorbis f, int* len, int* p_left, int* p_right)
 		{
 			var mode = 0;
@@ -3480,6 +3912,16 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Decodes the rest of a packet after its initial block headers.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="len">Receives the packet length.</param>
+		/// <param name="mode">The block mode.</param>
+		/// <param name="left_start">The left block start.</param>
+		/// <param name="left_end">The left block end.</param>
+		/// <param name="right_start">The right block start.</param>
+		/// <param name="right_end">The right block end.</param>
+		/// <param name="p_left">Receives the left block start.</param>
+		/// <returns>The number of samples decoded, or a negative error code.</returns>
 		public static int vorbis_decode_packet_rest(stb_vorbis f, int* len, Mode* mode, int left_start, int left_end,
 			int right_start, int right_end, int* p_left)
 		{
@@ -3741,6 +4183,8 @@ namespace StbVorbisSharp
 			return 1;
 		}
 
+		/// <summary>Releases the resources owned by a decoder.</summary>
+		/// <param name="p">The decoder to deinitialize.</param>
 		public static void vorbis_deinit(stb_vorbis p)
 		{
 			var i = 0;
@@ -3798,6 +4242,11 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Scans forward for the next valid Ogg page.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="end">Receives the page end offset.</param>
+		/// <param name="last">Receives whether this is the last page.</param>
+		/// <returns>Nonzero when a page was found.</returns>
 		public static uint vorbis_find_page(stb_vorbis f, uint* end, uint* last)
 		{
 			for (;;)
@@ -3874,6 +4323,12 @@ namespace StbVorbisSharp
 			}
 		}
 
+		/// <summary>Finishes a frame by applying the overlap windows.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="len">The frame length.</param>
+		/// <param name="left">The left block start.</param>
+		/// <param name="right">The right block end.</param>
+		/// <returns>The number of samples produced.</returns>
 		public static int vorbis_finish_frame(stb_vorbis f, int len, int left, int right)
 		{
 			var prev = 0;
@@ -3907,6 +4362,8 @@ namespace StbVorbisSharp
 			return right - left;
 		}
 
+		/// <summary>Initializes the decoder state.</summary>
+		/// <param name="p">The decoder to initialize.</param>
 		public static void vorbis_init(stb_vorbis p)
 		{
 			p.eof = 0;
@@ -3916,6 +4373,9 @@ namespace StbVorbisSharp
 			p.page_crc_tests = -1;
 		}
 
+		/// <summary>Decodes the first frame and pushes it back into the stream.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <returns>Nonzero on success.</returns>
 		public static int vorbis_pump_first_frame(stb_vorbis f)
 		{
 			var len = 0;
@@ -3928,6 +4388,11 @@ namespace StbVorbisSharp
 			return res;
 		}
 
+		/// <summary>Searches push-mode input for the start of an Ogg page.</summary>
+		/// <param name="f">The decoder stream.</param>
+		/// <param name="data">The input data.</param>
+		/// <param name="data_len">The input length in bytes.</param>
+		/// <returns>The number of bytes consumed, or a negative error code.</returns>
 		public static int vorbis_search_for_page_pushdata(stb_vorbis f, byte* data, int data_len)
 		{
 			var i = 0;
@@ -4013,6 +4478,9 @@ namespace StbVorbisSharp
 			return data_len;
 		}
 
+		/// <summary>Checks whether the data begins with the Vorbis identification header pattern.</summary>
+		/// <param name="data">The data to validate.</param>
+		/// <returns>Nonzero when the pattern is valid.</returns>
 		public static int vorbis_validate(byte* data)
 		{
 			return CRuntime.memcmp(data, vorbis_validate_vorbis, 6) == 0 ? 1 : 0;

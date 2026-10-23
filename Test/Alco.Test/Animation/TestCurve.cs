@@ -5,8 +5,10 @@ using NUnit.Framework;
 
 namespace Alco.Test
 {
+    /// <summary>Tests the linear and Hermite curve implementations.</summary>
     public class TestCurve
     {
+        /// <summary>Tests linear curve evaluation, including out-of-range keys.</summary>
         [Test(Description = "CurveLinear Functionality")]
         public void TestCurveLinear()
         {
@@ -30,6 +32,7 @@ namespace Alco.Test
             Assert.That(curve.Evaluate(3), Is.EqualTo(0f).Within(1e-5f));
         }
 
+        /// <summary>Tests Hermite curve evaluation at key points and midpoints.</summary>
         [Test(Description = "CurveHermite Functionality")]
         public void TestCurveHermite()
         {
@@ -55,6 +58,7 @@ namespace Alco.Test
             Assert.IsTrue(midVal >= 0 && midVal <= 1);
         }
 
+        /// <summary>Tests linear curve evaluation for 2D vectors.</summary>
         [Test(Description = "CurveLinear2D Functionality")]
         public void TestCurveLinear2D()
         {
@@ -71,6 +75,7 @@ namespace Alco.Test
             Assert.That(res.Y, Is.EqualTo(10f).Within(1e-5f));
         }
 
+        /// <summary>Tests adding, removing and clearing curve points.</summary>
         [Test(Description = "Curve Collection Operations (Add, Remove, Clear)")]
         public void TestCurveCollectionOperations()
         {
@@ -107,6 +112,7 @@ namespace Alco.Test
             Assert.That(curve.Evaluate(1.0f), Is.EqualTo(0f));
         }
 
+        /// <summary>Tests setting curve points through the indexer, including re-sorting.</summary>
         [Test(Description = "Curve Indexer Setter and Re-sorting")]
         public void TestCurveIndexerSetter()
         {

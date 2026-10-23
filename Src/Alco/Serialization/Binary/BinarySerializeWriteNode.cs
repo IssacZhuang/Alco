@@ -4,14 +4,25 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Alco;
 
+/// <summary>
+/// Serializes values from source objects into a binary table.
+/// </summary>
 public class BinarySerializeWriteNode : SerializeWriteNode
 {
     private readonly ReferenceContext? _referenceContext;
     protected BinaryTable _content = new BinaryTable();
+    /// <summary>
+    /// Gets the binary table being written.
+    /// </summary>
     public BinaryTable Content => _content;
 
     public override ReferenceContext? ReferenceContext => _referenceContext;
 
+    /// <summary>
+    /// Initializes a write node with an empty binary table.
+    /// </summary>
+    /// <param name="referenceContext">The optional reference context.</param>
+    /// <param name="onError">Optional callback invoked when a binding fails.</param>
     public BinarySerializeWriteNode(ReferenceContext? referenceContext, Action<string>? onError = null)
     {
         _referenceContext = referenceContext;

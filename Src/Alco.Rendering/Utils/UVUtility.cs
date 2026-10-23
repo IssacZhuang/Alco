@@ -1,5 +1,8 @@
 namespace Alco.Rendering;
 
+/// <summary>
+/// UV coordinate helpers for sprite sheets and atlases.
+/// </summary>
 public static class UVUtility
 {
     /// <summary>

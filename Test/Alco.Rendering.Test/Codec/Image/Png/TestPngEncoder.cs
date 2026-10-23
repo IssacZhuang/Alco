@@ -5,11 +5,13 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>Tests PNG encoding round-trips, validation and compression.</summary>
 [TestFixture]
 public unsafe class TestPngEncoder
 {
     // ── Round-trip: encode RGBA8 → decode PNG → verify pixel-perfect ──
 
+    /// <summary>Tests that a solid-color image round-trips pixel-perfect.</summary>
     [Test]
     public void RoundTrip_SolidColor()
     {
@@ -46,6 +48,7 @@ public unsafe class TestPngEncoder
         }
     }
 
+    /// <summary>Tests that a gradient image round-trips pixel-perfect.</summary>
     [Test]
     public void RoundTrip_Gradient()
     {
@@ -81,6 +84,7 @@ public unsafe class TestPngEncoder
         }
     }
 
+    /// <summary>Tests that a 1x1 image round-trips.</summary>
     [Test]
     public void RoundTrip_1x1()
     {
@@ -103,6 +107,7 @@ public unsafe class TestPngEncoder
         }
     }
 
+    /// <summary>Tests that a large random image round-trips pixel-perfect.</summary>
     [Test]
     public void RoundTrip_LargeImage()
     {
@@ -129,6 +134,7 @@ public unsafe class TestPngEncoder
         }
     }
 
+    /// <summary>Tests that an existing PNG file round-trips through decode and re-encode.</summary>
     [Test]
     public void RoundTrip_ExistingPngFile()
     {
@@ -164,6 +170,7 @@ public unsafe class TestPngEncoder
 
     // ── Pointer-based API ──
 
+    /// <summary>Tests that encoding from a pointer produces a decodable PNG.</summary>
     [Test]
     public void EncodePng_FromPointer()
     {
@@ -189,6 +196,7 @@ public unsafe class TestPngEncoder
 
     // ── Validation ──
 
+    /// <summary>Tests that encoding with zero width throws.</summary>
     [Test]
     public void Encode_ThrowsOnZeroWidth()
     {
@@ -196,6 +204,7 @@ public unsafe class TestPngEncoder
         Assert.Throws<ImageEncodeException>(() => ImageEncodeUtility.EncodePng(pixels, 0, 1));
     }
 
+    /// <summary>Tests that encoding with a negative dimension throws.</summary>
     [Test]
     public void Encode_ThrowsOnNegativeDimension()
     {
@@ -203,6 +212,7 @@ public unsafe class TestPngEncoder
         Assert.Throws<ImageEncodeException>(() => ImageEncodeUtility.EncodePng(pixels, -1, 1));
     }
 
+    /// <summary>Tests that encoding with insufficient pixel data throws.</summary>
     [Test]
     public void Encode_ThrowsOnInsufficientData()
     {
@@ -212,6 +222,7 @@ public unsafe class TestPngEncoder
 
     // ── CRC32 ──
 
+    /// <summary>Tests that CRC-32 matches a known value.</summary>
     [Test]
     public void Crc32_KnownValue()
     {
@@ -223,6 +234,7 @@ public unsafe class TestPngEncoder
 
     // ── Compressed output size ──
 
+    /// <summary>Tests that solid-color data compresses below its raw size.</summary>
     [Test]
     public void Encode_CompressesData()
     {

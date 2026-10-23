@@ -49,9 +49,7 @@ internal sealed unsafe class OpenALAudioStream : AudioStream, IOpenALSourceOwner
     /// <param name="device">The owning OpenAL device and source pool provider.</param>
     /// <param name="provider">The data provider that supplies PCM to this stream.</param>
     /// <remarks>
-    /// Performs no allocation and reads no provider fields: the provider may still be loading
-    /// asynchronously. Hardware-facing fields (<c>_samplesPerBuffer</c>/<c>_fillBuffer</c>/<c>_format</c>)
-    /// are resolved on first <see cref="PlayCore"/> via <see cref="EnsureProviderReady"/>.
+    /// Performs no allocation and reads no provider fields; hardware-facing state is resolved on first <see cref="PlayCore"/>.
     /// </remarks>
     public OpenALAudioStream(OpenALDevice device, IAudioStreamDataProvider provider) : base(provider)
     {

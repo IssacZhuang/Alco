@@ -3,13 +3,9 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The per-frame execution context passed to <see cref="IRenderGraphNode.Execute"/>.
-/// Exposes the frame's destination and timing information. Nodes resolve their
-/// transient resources through the <see cref="RenderGraphTexture.Texture"/> facades
-/// they captured at registration — the facades are guaranteed to be backed by real
-/// GPU textures for the duration of the node's Execute call.
-/// <br/>A single reused instance is passed to every node; it is only valid during the
-/// Execute call — do not store it.
+/// The per-frame execution context passed to <see cref="IRenderGraphNode.Execute"/>, exposing
+/// the destination, timing and shared render context; resource facades are backed by real GPU
+/// textures during the call. A single reused instance that is valid only during Execute.
 /// </summary>
 public sealed class RenderGraphContext
 {

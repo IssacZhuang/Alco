@@ -5,6 +5,9 @@ using Alco.Rendering;
 
 
 
+/// <summary>
+/// A tile that supplies its material, size and offset and resolves connection UV rects.
+/// </summary>
 public interface IConnectableTile
 {
     /// <summary>

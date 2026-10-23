@@ -10,15 +10,7 @@ using Alco.World3D;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Parsing and loading of render node factory files (.rnfact): the <c>$type</c>
-/// CLR-name discriminator selects the factory class (no registration — assembly
-/// scan), shader references resolve typed through the shared shader system at
-/// load time (a typoed module name fails at load with the file's context),
-/// tunable properties map typed (floats, string enums) and unknown fields or
-/// discriminators fail at load. The factory context's service blackboard is
-/// type-keyed and reports missing dependencies by name. Uses a NoGPU engine
-/// with registered virtual modules (module resolution and material creation
-/// are device-independent).
+/// Covers parsing and loading of render node factory files, including type discriminators, shader references, typed properties, and validation errors.
 /// </summary>
 public class TestRenderNodeFactory
 {
@@ -65,6 +57,7 @@ public class TestRenderNodeFactory
         "fxaaShader": "FXAA"
         """;
 
+    /// <summary>Tests that shader module fields resolve to typed shader handles at parse time.</summary>
     [Test]
     public void ParseResolvesShaderModulesTypedAtLoadTime()
     {
@@ -93,6 +86,7 @@ public class TestRenderNodeFactory
         });
     }
 
+    /// <summary>Tests that shader references resolve to interned shader handles at load time.</summary>
     [Test]
     public void ParseResolvesShaderReferencesTypedAtLoadTime()
     {
@@ -120,6 +114,7 @@ public class TestRenderNodeFactory
         });
     }
 
+    /// <summary>Tests that an unknown shader module fails parsing.</summary>
     [Test]
     public void ParseFailsForUnknownShaderModuleAtLoadTime()
     {
@@ -137,6 +132,7 @@ public class TestRenderNodeFactory
             "A typoed module name fails at load, not at node creation.");
     }
 
+    /// <summary>Tests that tunable fields populate descriptors and omitted shader slots stay null.</summary>
     [Test]
     public void ParseMapsTunableFieldsAndOptionalShaderSlots()
     {
@@ -173,6 +169,7 @@ public class TestRenderNodeFactory
         });
     }
 
+    /// <summary>Tests that a missing required shader fails parsing.</summary>
     [Test]
     public void ParseRejectsMissingRequiredShader()
     {
@@ -182,6 +179,7 @@ public class TestRenderNodeFactory
             "Required shader slots are part of the file, not code defaults.");
     }
 
+    /// <summary>Tests that an unknown <c>$type</c> discriminator fails parsing.</summary>
     [Test]
     public void ParseRejectsUnknownDiscriminator()
     {
@@ -190,6 +188,7 @@ public class TestRenderNodeFactory
             Throws.TypeOf<JsonException>());
     }
 
+    /// <summary>Tests that a missing <c>$type</c> discriminator fails parsing.</summary>
     [Test]
     public void ParseRejectsMissingDiscriminator()
     {
@@ -200,6 +199,7 @@ public class TestRenderNodeFactory
             Throws.TypeOf<NotSupportedException>());
     }
 
+    /// <summary>Tests that unknown fields fail parsing.</summary>
     [Test]
     public void ParseRejectsUnknownFields()
     {
@@ -210,6 +210,7 @@ public class TestRenderNodeFactory
             Throws.TypeOf<JsonException>());
     }
 
+    /// <summary>Tests that factory files load and cache through the asset system.</summary>
     [Test]
     public void LoadRoundTripsThroughAssetSystem()
     {
@@ -249,6 +250,7 @@ public class TestRenderNodeFactory
         }
     }
 
+    /// <summary>Tests that an invalid factory file fails with an asset load exception.</summary>
     [Test]
     public void LoadFailsForInvalidFile()
     {
@@ -271,6 +273,7 @@ public class TestRenderNodeFactory
         }
     }
 
+    /// <summary>Tests that factory services resolve by type and report missing services by name.</summary>
     [Test]
     public void ServicesResolveTypeKeyedAndReportMissing()
     {
@@ -288,6 +291,7 @@ public class TestRenderNodeFactory
         });
     }
 
+    /// <summary>Tests that a factory creates a render node from its descriptor data.</summary>
     [Test]
     public void CreateBuildsNodeFromFactoryData()
     {
@@ -316,6 +320,7 @@ public class TestRenderNodeFactory
         });
     }
 
+    /// <summary>Tests that node creation reports the missing service by name.</summary>
     [Test]
     public void CreateReportsMissingServicesByName()
     {

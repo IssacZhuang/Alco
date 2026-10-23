@@ -12,6 +12,9 @@ namespace Alco.Rendering;
 // Callers load shaders by module name through here, never through asset loads.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>
+/// The rendering system's module-backed shader factory.
+/// </summary>
 public partial class RenderingSystem
 {
     private readonly ShaderSystem _shaderSystem;

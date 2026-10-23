@@ -9,8 +9,10 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>Tests work-stealing deque concurrency.</summary>
     public class TestConcurrent
     {
+        /// <summary>Tests that a circular work-stealing deque yields every pushed item to a single stealer.</summary>
         [Test(Description = "Circular Working Stealing Deque Single Push&Steal")]
         public void TestCircularSingleSteal()
         {
@@ -47,6 +49,7 @@ namespace Alco.Test
             Assert.IsTrue(success == count);
         }
 
+        /// <summary>Tests that concurrent stealers consume every pushed item exactly once.</summary>
         [Test(Description = "Circular Working Stealing Single Push & Concurrent Steal")]
         public void TestCircularConcurrentSteal()
         {
@@ -94,6 +97,7 @@ namespace Alco.Test
         }
 
 
+        /// <summary>Tests index work-stealing deques across steal, pop and mixed concurrent access.</summary>
         [Test(Description ="Index Working Stealing Deque Pop&Steal")]
         public void TestIndexWorkStealing()
         {

@@ -3,6 +3,7 @@ using NUnit.Framework;
 
 namespace Alco.Graphics.Test;
 
+/// <summary>Tests that Slang sources follow the engine's language, module, naming and parameter-block conventions.</summary>
 [TestFixture]
 public partial class SlangSourceConventionTest
 {
@@ -48,6 +49,7 @@ public partial class SlangSourceConventionTest
         }
     }
 
+    /// <summary>Tests that every Slang source pins the language version and declares exactly one module.</summary>
     [Test]
     public void EverySlangSourcePinsLanguageAndDeclaresOneModule()
     {
@@ -76,6 +78,7 @@ public partial class SlangSourceConventionTest
         });
     }
 
+    /// <summary>Tests that no legacy HLSL files or textual includes remain in the source trees.</summary>
     [Test]
     public void SourceTreesContainNoLegacyHlslOrTextualIncludes()
     {
@@ -103,6 +106,7 @@ public partial class SlangSourceConventionTest
         });
     }
 
+    /// <summary>Tests that every Slang source binds resources only through parameter blocks.</summary>
     [Test]
     public void EverySlangSourceBindsByParameterBlockOnly()
     {
@@ -132,6 +136,7 @@ public partial class SlangSourceConventionTest
         });
     }
 
+    /// <summary>Tests that Slang file names are PascalCase and module names match their stems.</summary>
     [Test]
     public void FileNamesArePascalCaseAndModulesMatchStems()
     {
@@ -160,6 +165,7 @@ public partial class SlangSourceConventionTest
         });
     }
 
+    /// <summary>Tests that Slang imports case-exactly match engine module stems.</summary>
     [Test]
     public void ImportsResolveExactlyAgainstEngineModuleStems()
     {

@@ -3,24 +3,7 @@ using NUnit.Framework;
 
 namespace Alco.Graphics.Test;
 
-/// <summary>
-/// Pins the parameter-interface contracts the depth-aware FXAA mode axis
-/// (<c>MainPS&lt;let Quality : int, let Mode : int&gt;</c>) leans on:
-/// <list type="number">
-/// <item>the depth texture field of a <c>ParameterBlock</c> survives in every
-/// specialization's reflection — even a mode that never references it — at a
-/// stable set/binding, so the C# material binds it once per blit regardless
-/// of the active mode;</item>
-/// <item>the uniform block layout is specialization-independent, so one
-/// <c>UniformGraphicsBuffer</c> created from one specialization serves every
-/// (quality, mode) pair;</item>
-/// <item>the modes do fold to different code (the luma mode drops the depth
-/// loads), so the axis is a real compile-time specialization, not a runtime
-/// branch.</item>
-/// </list>
-/// A slang upgrade that changes any of this must fail here, not inside a game
-/// material compile.
-/// </summary>
+/// <summary>Tests the parameter-interface contracts of the depth-aware FXAA mode specialization.</summary>
 [TestFixture]
 public class FxaaModeSpecializationTest
 {
@@ -70,6 +53,7 @@ public class FxaaModeSpecializationTest
         return session.CompileAllEntryPoints(module, args);
     }
 
+    /// <summary>Tests that the depth texture slot survives in every mode at a stable binding.</summary>
     [Test]
     public void DepthTextureSlot_SurvivesInEveryMode_AtStableBinding()
     {
@@ -92,6 +76,7 @@ public class FxaaModeSpecializationTest
         }
     }
 
+    /// <summary>Tests that the uniform block layout is independent of the specialization.</summary>
     [Test]
     public void UniformBlockLayout_IsSpecializationIndependent()
     {
@@ -103,6 +88,7 @@ public class FxaaModeSpecializationTest
         AssertUniformLayoutEqual(luma, depthOnly);
     }
 
+    /// <summary>Tests that each mode folds to distinct code.</summary>
     [Test]
     public void Modes_FoldToDistinctCode()
     {

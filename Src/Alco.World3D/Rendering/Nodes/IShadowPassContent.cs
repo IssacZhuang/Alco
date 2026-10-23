@@ -3,13 +3,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A content provider for a <see cref="RGNode_ShadowPass"/>: draws shadow casters into
-/// one cascade of the shadow atlas. The pass owns the render passes — it applies the
-/// per-cascade scissor rect and keeps one render pass open per cascade for all
-/// content.
-/// <br/>This is not a pipeline-level registration category: content is registered on
-/// the pass node itself (<see cref="RGNode_ShadowPass.Content"/>), keeping the pipeline
-/// agnostic of the kinds of casters its shadow pass carries.
+/// A content provider for <see cref="RGNode_ShadowPass"/> that draws shadow casters into one cascade of the shadow atlas; content is registered on the pass node itself.
 /// </summary>
 public interface IShadowPassContent : IRenderNode
 {

@@ -13,22 +13,40 @@ public sealed class TestStructuredFileMeta : IStructuredFileMeta
 {
     private static readonly byte[] s_magic = "test"u8.ToArray();
 
+    /// <summary>
+    /// Gets the magic bytes identifying this test meta type.
+    /// </summary>
     public static ReadOnlySpan<byte> Magic => s_magic;
 
     private string _name = "";
     private int _value;
 
+    /// <summary>
+    /// Gets the stored test name.
+    /// </summary>
     public string Name => _name;
+    /// <summary>
+    /// Gets the stored test value.
+    /// </summary>
     public int Value => _value;
 
+    /// <summary>
+    /// Creates an empty test meta instance.
+    /// </summary>
     public TestStructuredFileMeta() { }
 
+    /// <summary>
+    /// Creates a test meta instance with the given name and value.
+    /// </summary>
     public TestStructuredFileMeta(string name, int value)
     {
         _name = name;
         _value = value;
     }
 
+    /// <summary>
+    /// Serializes the test meta fields into the node.
+    /// </summary>
     public void OnSerialize(SerializeNode node, SerializeMode mode)
     {
         node.BindString(nameof(_name), ref _name);
@@ -36,9 +54,15 @@ public sealed class TestStructuredFileMeta : IStructuredFileMeta
     }
 }
 
+/// <summary>
+/// Tests composing, reading, and writing structured files with metadata and content.
+/// </summary>
 [TestFixture]
 public class TestStructuredFileBase
 {
+    /// <summary>
+    /// Tests that composed data has the expected magic, metadata, and content layout.
+    /// </summary>
     [Test]
     public void TestCompose_CorrectLayout()
     {
@@ -66,6 +90,9 @@ public class TestStructuredFileBase
         Assert.That(readContent, Is.EqualTo(new byte[] { 0x01, 0x02, 0x03, 0x04 }));
     }
 
+    /// <summary>
+    /// Tests that reading returns both metadata and content.
+    /// </summary>
     [Test]
     public void TestRead_ReturnsMetaAndContent()
     {
@@ -81,6 +108,9 @@ public class TestStructuredFileBase
         Assert.That(readContent.ToArray(), Is.EqualTo(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }));
     }
 
+    /// <summary>
+    /// Tests that reading metadata alone returns the stored metadata.
+    /// </summary>
     [Test]
     public void TestReadMeta_ReturnsOnlyMeta()
     {
@@ -94,6 +124,9 @@ public class TestStructuredFileBase
         Assert.That(readMeta.Value, Is.EqualTo(7));
     }
 
+    /// <summary>
+    /// Tests that data with an invalid magic throws.
+    /// </summary>
     [Test]
     public void TestRead_InvalidMagic_Throws()
     {
@@ -102,6 +135,9 @@ public class TestStructuredFileBase
         Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(badData));
     }
 
+    /// <summary>
+    /// Tests that data shorter than the header throws.
+    /// </summary>
     [Test]
     public void TestRead_TooShort_Throws()
     {
@@ -110,6 +146,9 @@ public class TestStructuredFileBase
         Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(shortData));
     }
 
+    /// <summary>
+    /// Tests that a negative metadata length throws.
+    /// </summary>
     [Test]
     public void TestRead_NegativeMetaLength_Throws()
     {
@@ -126,6 +165,9 @@ public class TestStructuredFileBase
         Assert.Throws<InvalidDataException>(() => StructuredFileUtility.Read<TestStructuredFileMeta>(data));
     }
 
+    /// <summary>
+    /// Tests that reading metadata from a stream returns the stored metadata.
+    /// </summary>
     [Test]
     public void TestReadMeta_Stream_ReturnsOnlyMeta()
     {
@@ -140,6 +182,9 @@ public class TestStructuredFileBase
         Assert.That(readMeta.Value, Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests that writing to a stream produces the composed bytes.
+    /// </summary>
     [Test]
     public void TestWriteTo_CorrectBytesInStream()
     {
@@ -153,6 +198,9 @@ public class TestStructuredFileBase
         Assert.That(ms.ToArray(), Is.EqualTo(expected));
     }
 
+    /// <summary>
+    /// Tests that reading from a stream returns metadata and content.
+    /// </summary>
     [Test]
     public void TestRead_Stream_ReturnsMetaAndContent()
     {
@@ -167,6 +215,9 @@ public class TestStructuredFileBase
         Assert.That(readContent.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02 }));
     }
 
+    /// <summary>
+    /// Tests that a negative content length throws.
+    /// </summary>
     [Test]
     public void TestRead_NegativeContentLength_Throws()
     {

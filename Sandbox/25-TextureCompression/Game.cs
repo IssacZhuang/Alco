@@ -9,6 +9,7 @@ using Alco.ImGUI;
 
 
 
+/// <summary>Sandbox comparing an original texture with its BC3-compressed version.</summary>
 public class Game : GameEngine
 {
 
@@ -20,6 +21,8 @@ public class Game : GameEngine
     private readonly Texture2D _compressedTexture;
     private readonly TextureCompressorBC3 _compressor;
     private bool _isShowCompressed = false;
+    /// <summary>Loads a test texture and creates its BC3-compressed copy.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));

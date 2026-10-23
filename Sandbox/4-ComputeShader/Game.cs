@@ -9,6 +9,7 @@ using Alco.Engine;
 using Alco;
 using Alco.GUI;
 
+/// <summary>Sandbox demonstrating a compute shader that fills a texture drawn on a quad.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -51,6 +52,8 @@ public class Game : GameEngine
 
     private float _timer = 0.0f;
 
+    /// <summary>Initializes the quad, compute pipeline, and render target.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

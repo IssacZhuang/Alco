@@ -2,6 +2,9 @@ namespace Alco.Rendering;
 
 // compute material factory
 
+/// <summary>
+/// Compute material creation.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>

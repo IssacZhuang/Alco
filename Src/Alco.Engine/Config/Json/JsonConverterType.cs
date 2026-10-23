@@ -16,16 +16,27 @@ public class JsonConverterType : JsonConverter<Type>
 {
     private readonly TypeHelper _typeHelper;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="JsonConverterType"/> using the default type helper.
+    /// </summary>
     public JsonConverterType()
     {
         _typeHelper = TypeHelper.Default;
     }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="JsonConverterType"/>.
+    /// </summary>
+    /// <param name="typeHelper">Helper used to resolve type names.</param>
     public JsonConverterType(TypeHelper typeHelper)
     {
         _typeHelper = typeHelper;
     }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="JsonConverterType"/> that searches the specified assemblies.
+    /// </summary>
+    /// <param name="assemblies">Assemblies searched when resolving type names.</param>
     public JsonConverterType(params ReadOnlySpan<Assembly> assemblies) : this()
 
     {

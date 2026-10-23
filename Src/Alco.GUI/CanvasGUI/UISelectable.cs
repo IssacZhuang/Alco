@@ -9,6 +9,9 @@ namespace Alco.GUI;
 public class UISelectable : UINode
 {
 
+    /// <summary>
+    /// Gets or sets whether this node participates in UI input hit testing.
+    /// </summary>
     public bool IsInteractable { get; set; } = true;
 
 

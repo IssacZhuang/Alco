@@ -12,11 +12,8 @@ namespace Alco.Effects;
 public sealed class ParticleEffectInstance3D : AutoDisposable
 {
     /// <summary>
-    /// The per-group runtime state of a 3D effect instance: one value record in
-    /// the instance's group array — a struct so an instance's groups are one
-    /// contiguous allocation instead of one object per group. Mutate array
-    /// elements through <c>ref</c> locals only; copies taken elsewhere (the draw
-    /// plan's bucket lists) are value snapshots.
+    /// The per-group runtime state of a 3D effect instance, stored as a value record in the instance's group array.
+    /// Mutate array elements through <c>ref</c> locals only; copies taken elsewhere are value snapshots.
     /// </summary>
     internal struct GroupState
     {
@@ -118,11 +115,7 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
     public bool IsActive { get; private set; } = true;
 
     /// <summary>
-    /// Whether the instance is visible to the camera (culling hook driven by the
-    /// caller, e.g. a frustum or spatial query). An invisible instance skips its
-    /// emit/simulate dispatches and its draw — GPU cost drops to zero — while its
-    /// emission timeline keeps advancing, so a looping effect resumes seamlessly
-    /// instead of bursting when it becomes visible again.
+    /// Whether the instance is visible to the camera (a caller-driven culling hook): an invisible instance skips its emit/simulate dispatches and draw while its emission timeline keeps advancing.
     /// </summary>
     public bool IsVisible { get; set; } = true;
 
@@ -179,14 +172,8 @@ public sealed class ParticleEffectInstance3D : AutoDisposable
     public EmitterParams3D GetGroupParams(int groupIndex) => _system.ParamsRef(_groups[groupIndex].Slot);
 
     /// <summary>
-    /// Replaces the static (asset-authored) parameter fields of a group — speed,
-    /// lifetime, size, gravity, tint, the stretch and lookup flags — for this
-    /// instance only, without respawning it; the slot-bound and per-frame fields
-    /// keep their live values (see <see cref="EmitterParams3D.MergeEdited"/>) and
-    /// the asset is not mutated. The group's CPU-side lifetime follows
-    /// <see cref="EmitterParams3D.Life"/>.X/Y, so a stopped group still deactivates
-    /// on time. The upload rides the regular dirty-range path: active groups upload
-    /// the same frame, dormant groups when they reactivate.
+    /// Replaces the static (asset-authored) parameter fields of a group for this instance only, without respawning it; slot-bound and per-frame fields keep their live values and the asset is not mutated.
+    /// Active groups upload the same frame; dormant groups upload when they reactivate.
     /// </summary>
     /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
     /// <param name="parameters">The record carrying the edited static fields.</param>

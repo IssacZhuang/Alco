@@ -6,18 +6,17 @@ using Alco.IO;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Loads render node factory files (<c>.rnfact</c>, jsonc) into
-/// <see cref="RenderNodeFactory"/>s: shader references resolve typed through the
-/// shared shader system at load time (the material asset convention — a typoed
-/// module fails at load with the file's name), and a bad file (unknown
-/// discriminator, unknown field, malformed value) fails here too. The factories
-/// stay inert data otherwise: nodes materialize only when
-/// <see cref="RenderNodeFactory.Create"/> runs.
+/// Loads render node factory files (<c>.rnfact</c>) into <see cref="RenderNodeFactory"/> instances with shader references resolved and validated at load time.
 /// </summary>
 public class AssetLoaderRenderNodeFactory : BaseAssetLoader<RenderNodeFactory>
 {
     private readonly JsonSerializerOptions _options;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AssetLoaderRenderNodeFactory"/> class.
+    /// </summary>
+    /// <param name="shaderSystem">The shader system used to resolve shader references.</param>
+    /// <param name="typeInfoResolver">The optional JSON type metadata resolver; reflection-based when null.</param>
     public AssetLoaderRenderNodeFactory(ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         _options = CreateJsonOptions(shaderSystem, typeInfoResolver);
@@ -30,11 +29,7 @@ public class AssetLoaderRenderNodeFactory : BaseAssetLoader<RenderNodeFactory>
     public override IReadOnlyList<string> FileExtensions => [FileExt.RenderNodeFactory];
 
     /// <summary>
-    /// The serializer options render node factory files parse with: author-friendly
-    /// (camelCase, comments and trailing commas tolerated), strict about unmapped
-    /// members, polymorphic over <see cref="RenderNodeFactory"/>, shader references
-    /// resolving through the shader system, enums as strings. Exposed for tests
-    /// and tooling that parse factory files outside the asset system.
+    /// The serializer options used to parse render node factory files, exposed for tests and tooling.
     /// </summary>
     public static JsonSerializerOptions CreateJsonOptions(ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {

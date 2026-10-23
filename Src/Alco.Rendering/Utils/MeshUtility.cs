@@ -2,6 +2,9 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Mesh generation helpers.
+/// </summary>
 public static class MeshUtility
 {
 

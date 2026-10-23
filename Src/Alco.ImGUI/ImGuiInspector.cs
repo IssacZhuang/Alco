@@ -4,11 +4,8 @@ using System.Numerics;
 namespace Alco.ImGUI;
 
 /// <summary>
-/// The ImGui-backed reference implementation of <see cref="IInspector"/>:
-/// forwards every widget to the vendored static <see cref="ImGui"/> binding
-/// (through its ReadOnlySpan overloads, keeping label handling allocation-free).
-/// Requires an active ImGUI context (see <see cref="ImGUISystem"/>) on the
-/// calling thread.
+/// ImGui-backed implementation of <see cref="IInspector"/> that requires an active
+/// ImGui context on the calling thread.
 /// </summary>
 public sealed class ImGuiInspector : IInspector
 {

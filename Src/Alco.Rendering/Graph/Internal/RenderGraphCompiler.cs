@@ -1,12 +1,9 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// The per-frame scheduler of a <see cref="RenderGraph"/>: validates the declared
-/// dependencies, culls nodes whose output is unused, and computes transient resource
-/// lifetimes. This type is pure scheduling logic — it touches no GPU objects and is
-/// unit-tested through fake nodes/resources.
-/// <br/>All working sets are reused across frames; a steady-state compile allocates
-/// no managed memory.
+/// The per-frame scheduler of a <see cref="RenderGraph"/> that validates dependencies,
+/// culls unused nodes and computes transient resource lifetimes without touching GPU objects.
+/// Working sets are reused across frames.
 /// </summary>
 internal sealed class RenderGraphCompiler
 {

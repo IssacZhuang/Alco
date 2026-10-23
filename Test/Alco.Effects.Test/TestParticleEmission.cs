@@ -4,9 +4,8 @@ using Alco.Effects;
 namespace Alco.Effects.Test;
 
 /// <summary>
-/// CPU-side emission bookkeeping tests: rate accumulation, burst timing (single
-/// and looping timelines), the capacity clamp and the emission window of
-/// non-looping emitters.
+/// Tests CPU-side particle emission bookkeeping, including rate accumulation, burst timing,
+/// capacity clamping, and emission windows.
 /// </summary>
 public class TestParticleEmission
 {
@@ -17,6 +16,9 @@ public class TestParticleEmission
         => ParticleEmission.Advance(ref time, ref accumulator, dt, rate, duration, looping,
             bursts ?? [], ref _random, capacity);
 
+    /// <summary>
+    /// Tests that a continuous rate accumulates fractional spawns.
+    /// </summary>
     [Test]
     public void ContinuousRateAccumulatesFractionally()
     {
@@ -30,6 +32,9 @@ public class TestParticleEmission
         Assert.That(total, Is.EqualTo(10u).Within(1u));
     }
 
+    /// <summary>
+    /// Tests that a long hitch spawn burst is clamped to one second.
+    /// </summary>
     [Test]
     public void HitchBurstIsClampedToOneSecond()
     {
@@ -39,6 +44,9 @@ public class TestParticleEmission
         Assert.That(spawn, Is.LessThanOrEqualTo(100u));
     }
 
+    /// <summary>
+    /// Tests that a burst fires once at the start of an infinite timeline.
+    /// </summary>
     [Test]
     public void BurstFiresOnceAtStartOfInfiniteTimeline()
     {
@@ -53,6 +61,9 @@ public class TestParticleEmission
         });
     }
 
+    /// <summary>
+    /// Tests that a burst refires every loop cycle.
+    /// </summary>
     [Test]
     public void BurstRefiresEveryLoopCycle()
     {
@@ -67,6 +78,9 @@ public class TestParticleEmission
         Assert.That(total, Is.EqualTo(16u));
     }
 
+    /// <summary>
+    /// Tests that a non-looping emitter stops after its duration.
+    /// </summary>
     [Test]
     public void NonLoopingEmitterStopsAfterDuration()
     {
@@ -93,6 +107,9 @@ public class TestParticleEmission
         });
     }
 
+    /// <summary>
+    /// Tests that the spawn count clamps to capacity.
+    /// </summary>
     [Test]
     public void SpawnCountClampsToCapacity()
     {
@@ -106,6 +123,9 @@ public class TestParticleEmission
         => ParticleEmission.AdvanceLifecycle(ref time, ref accumulator, ref idleTimer, dt, playing,
             rate, duration, looping, [], ref _random, 4096, maxLifetime, out active);
 
+    /// <summary>
+    /// Tests that a one-shot group deactivates after its duration plus the maximum particle lifetime.
+    /// </summary>
     [Test]
     public void OneShotGroupDeactivatesAfterDurationPlusMaxLifetime()
     {
@@ -145,6 +165,9 @@ public class TestParticleEmission
         });
     }
 
+    /// <summary>
+    /// Tests that a looping group stays active while playing.
+    /// </summary>
     [Test]
     public void LoopingGroupStaysActiveWhilePlaying()
     {
@@ -160,6 +183,9 @@ public class TestParticleEmission
         Assert.That(total, Is.EqualTo(250u).Within(4u));
     }
 
+    /// <summary>
+    /// Tests that a stopped group idles out after the maximum particle lifetime.
+    /// </summary>
     [Test]
     public void StoppedGroupIdlesOutAfterMaxLifetime()
     {

@@ -11,28 +11,8 @@ namespace Alco;
 /// Chunk coordinates are plain <see cref="int2"/> values.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Storage is a <see cref="Dictionary{TKey, TValue}"/> of chunk cell arrays keyed by chunk
-/// coordinate. The chunk edge length is configurable per instance but must be a power of
-/// two, so cell-to-chunk floor division and in-chunk indexing compile to a shift and a mask
-/// and handle negative coordinates without correction steps.
-/// </para>
-/// <para>
-/// A chunk is allocated only when a value different from <see cref="DefaultValue"/> is
-/// written; reading any cell of a missing chunk returns <see cref="DefaultValue"/> (uniform
-/// page). Newly allocated chunks are pre-filled with <see cref="DefaultValue"/> so unwritten
-/// cells inside an allocated chunk read consistently.
-/// </para>
-/// <para>
-/// Chunks are never reclaimed automatically: writing default values into an existing chunk
-/// keeps it allocated. Bulk readers and writers operate on whole chunk arrays via
-/// <see cref="TryGetChunk"/> / <see cref="GetOrCreateChunk"/> instead of per-cell dictionary
-/// lookups. Chunk arrays are row-major with linear index localY*<see cref="ChunkSize"/> +
-/// localX (see <see cref="GetLocalIndex"/>).
-/// </para>
-/// <para>
-/// The grid is not thread-safe.
-/// </para>
+/// Chunks are allocated lazily on the first non-default write, are never reclaimed automatically, and missing chunks read as <see cref="DefaultValue"/>.
+/// The chunk size must be a power of two, and the grid is not thread-safe.
 /// </remarks>
 /// <typeparam name="T">The type of the cell values.</typeparam>
 public sealed class ChunkedGrid<T>

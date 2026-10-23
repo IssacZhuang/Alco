@@ -15,17 +15,21 @@ public sealed class HostGlobals
 
     public readonly string Label = "host-label";
 
+    /// <summary>Initializes a new instance with the given engine.</summary>
+    /// <param name="engine">The engine exposed to scripts.</param>
     public HostGlobals(GameEngine engine)
     {
         Engine = engine;
     }
 }
 
+/// <summary>Tests the script tool's execution, globals, and script-path handling.</summary>
 [TestFixture]
 public class ScriptToolTests
 {
     private ScriptEngineHarness _harness = null!;
 
+    /// <summary>Creates and runs the test harness.</summary>
     [OneTimeSetUp]
     public void OneTimeSetUp()
     {
@@ -33,18 +37,21 @@ public class ScriptToolTests
         _harness.Run();
     }
 
+    /// <summary>Tests that a basic script return value is stringified.</summary>
     [Test]
     public void ExecuteScript_BasicReturn_IsStringified()
     {
         Assert.That(_harness.Basic, Is.EqualTo("42"));
     }
 
+    /// <summary>Tests that default globals expose the engine instance.</summary>
     [Test]
     public void ExecuteScript_DefaultGlobals_ExposesEngineInstance()
     {
         Assert.That(_harness.DefaultEngineType, Is.EqualTo("ScriptEngineHarness"));
     }
 
+    /// <summary>Tests that host globals expose custom members and the engine.</summary>
     [Test]
     public void ExecuteScript_HostGlobals_ExposesCustomMembersAndEngine()
     {
@@ -52,6 +59,7 @@ public class ScriptToolTests
         Assert.That(_harness.HostGlobalsEngineType, Is.EqualTo("ScriptEngineHarness"));
     }
 
+    /// <summary>Tests that a null factory result falls back to default globals.</summary>
     [Test]
     public void ExecuteScript_FactoryReturnsNull_FallsBackToDefaultGlobals()
     {
@@ -61,18 +69,21 @@ public class ScriptToolTests
         Assert.That(_harness.FactoryNullEngineType, Is.EqualTo("ScriptEngineHarness"));
     }
 
+    /// <summary>Tests that a non-public globals type reports a compilation error.</summary>
     [Test]
     public void ExecuteScript_NonPublicGlobalsType_ReportsCompilationError()
     {
         Assert.That(_harness.NonPublicGlobals, Does.StartWith("Compilation error:"));
     }
 
+    /// <summary>Tests that empty code reports that no code was provided.</summary>
     [Test]
     public void ExecuteScript_EmptyCode_ReportsNoCode()
     {
         Assert.That(_harness.EmptyCode, Is.EqualTo("No code provided."));
     }
 
+    /// <summary>Tests that awaiting an incomplete task completes without deadlocking.</summary>
     [Test]
     public void ExecuteScript_AwaitIncompleteTask_CompletesWithoutDeadlock()
     {
@@ -81,12 +92,14 @@ public class ScriptToolTests
         Assert.That(_harness.AwaitScript, Is.EqualTo("awaited"));
     }
 
+    /// <summary>Tests that BCL namespaces import Task and File without qualification.</summary>
     [Test]
     public void ExecuteScript_BclNamespaces_ImportTaskAndFileBare()
     {
         Assert.That(_harness.BareBclNames, Is.EqualTo("Task/System.IO.File"));
     }
 
+    /// <summary>Tests that a script path runs the file and reports compile diagnostics.</summary>
     [Test]
     public void ExecuteScript_ScriptPath_RunsFileAndReportsDiagnostics()
     {
@@ -95,36 +108,42 @@ public class ScriptToolTests
         Assert.That(_harness.FileScriptCompileError, Does.Contain(_harness.ScriptFileName + "(1,8)"));
     }
 
+    /// <summary>Tests that relative loads resolve against the script directory.</summary>
     [Test]
     public void ExecuteScript_ScriptPath_RelativeLoadResolvesAgainstScriptDirectory()
     {
         Assert.That(_harness.FileScriptRelativeLoad, Is.EqualTo("10"));
     }
 
+    /// <summary>Tests that a relative script path is rejected.</summary>
     [Test]
     public void ExecuteScript_ScriptPath_RelativePathIsRejected()
     {
         Assert.That(_harness.RelativePathScript, Does.StartWith("scriptPath must be an absolute path:"));
     }
 
+    /// <summary>Tests that a missing script file reports a read error.</summary>
     [Test]
     public void ExecuteScript_ScriptPath_MissingFileReportsReadError()
     {
         Assert.That(_harness.MissingFileScript, Does.StartWith("Cannot read script file"));
     }
 
+    /// <summary>Tests that providing both code and a script path is rejected.</summary>
     [Test]
     public void ExecuteScript_CodeAndScriptPathTogetherIsRejected()
     {
         Assert.That(_harness.BothCodeAndPath, Is.EqualTo("Provide either 'code' or 'scriptPath', not both."));
     }
 
+    /// <summary>Tests that the harness battery completed without failure.</summary>
     [Test]
     public void ExecuteScript_NoFailure()
     {
         Assert.That(_harness.Failure, Is.Null);
     }
 
+    /// <summary>Deletes the temporary script directory.</summary>
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {

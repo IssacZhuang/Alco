@@ -32,6 +32,8 @@ public class Game : GameEngine
     private readonly RGNode_Tonemap _tonemapNode;
     private TonemapType _toneMapType;
 
+    /// <summary>Initializes the bloom/HDR sample pipeline and its scene.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor

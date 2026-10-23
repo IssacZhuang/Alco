@@ -4,6 +4,10 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 
+/// <summary>
+/// Base 2D particle emitter that generates particles with configurable speed, rotation,
+/// cone, color, size and lifetime.
+/// </summary>
 public abstract class BaseParticleEmitter2D : IParticleEmitter2D
 {
     private FastRandom _random = FastRandom.CreateFromIndex(3);
@@ -63,6 +67,11 @@ public abstract class BaseParticleEmitter2D : IParticleEmitter2D
     protected abstract Vector2 GeneratePosition();
 
 
+    /// <summary>
+    /// Creates one particle in the space of the given transform.
+    /// </summary>
+    /// <param name="transform">The emitter transform applied to the particle.</param>
+    /// <returns>The initialized particle data.</returns>
     public ParticleData2D Emit(in Transform2D transform)
     {
         ParticleData2D particle = default;

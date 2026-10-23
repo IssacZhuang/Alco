@@ -17,6 +17,9 @@ public class BenchmarkStringBuilder
 
     private readonly string _longString = new string('A', 1000);
 
+    /// <summary>
+    /// Gets or sets the number of operations performed by each benchmark.
+    /// </summary>
     [Params(10, 100, 1000)]
     public int Operations { get; set; }
 

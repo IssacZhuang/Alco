@@ -8,6 +8,7 @@ using FastRandom = Alco.FastRandom;
 using Alco.Graphics;
 using Alco.GUI;
 
+/// <summary>Sandbox demonstrating texture atlas packing and rendering the packed sprites.</summary>
 public class Game : GameEngine
 {
     private readonly TextureAtlas _atlas;
@@ -15,6 +16,8 @@ public class Game : GameEngine
     private readonly Camera2DBuffer _camera;
     private readonly GraphicsMaterial _material;
 
+    /// <summary>Generates random sprites, packs them into an atlas, and renders it.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         FastRandom random = new FastRandom(123456789);

@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.GUI;
 
+/// <summary>
+/// A container that scrolls a child content node by dragging, mouse wheel, or attached sliders.
+/// </summary>
 public class UIScrollable : UISelectable
 {
     private UINode? _content;
@@ -13,6 +16,9 @@ public class UIScrollable : UISelectable
     private float _lastDeltaTime;
     private const float MaxInertiaSpeed = 6000f;
     private bool _suppressSliderEvent;
+    /// <summary>
+    /// Gets or sets the axes on which the content can be scrolled.
+    /// </summary>
     public SrollMode ScrollMode { get; set; }
     private UISlider? _sliderHorizontal;
     private UISlider? _sliderVertical;

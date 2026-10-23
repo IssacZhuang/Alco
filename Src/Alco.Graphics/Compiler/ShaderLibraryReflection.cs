@@ -1,12 +1,7 @@
 namespace Alco.Graphics;
 
 /// <summary>
-/// One sampled-texture slot of a shader library: the slot's bare field name
-/// (its material-domain identity — the name an asset binds by) plus the
-/// texture shape the declaration requires. The library-level counterpart of
-/// the linked view's <c>TextureBindingInfo</c> on a bind-group entry: the
-/// same shape facts, correlated by name after linking, with no set/binding
-/// numbers (a set is a composition product, not an input).
+/// One sampled-texture slot of a shader library: its bare field name (the identity an asset binds by) and the texture shape the declaration requires.
 /// </summary>
 public sealed class ShaderTextureSlot
 {
@@ -32,12 +27,8 @@ public sealed class ShaderTextureSlot
 }
 
 /// <summary>
-/// One sampler slot of a shader library: a sampler member the module declares
-/// (e.g. a surface's custom <c>SamplerState _mySampler;</c>), by its bare field
-/// name — the identity a material binds through <c>SetSampler</c>. The
-/// library-level counterpart of the linked view's sampler bind-group entries.
-/// This list excludes the engine-owned shared sampler bank; materials cannot
-/// bind it directly.
+/// One sampler slot of a shader library: a sampler member declared by the module, identified by its bare field name (the identity a material binds through <c>SetSampler</c>).
+/// Excludes the engine-owned shared sampler bank, which materials cannot bind directly.
 /// </summary>
 public sealed class ShaderSamplerSlot
 {
@@ -76,20 +67,14 @@ public enum ShaderSpecScalarType
 }
 
 /// <summary>
-/// One generic value parameter of a shader module's entry points: the axis a
-/// material specializes by name (e.g. <c>&lt;let isFacade : bool&gt;</c>).
-/// Axes enumerate in specialization argument order — entry definition order,
-/// each entry's value parameters in declaration order — the same order link-time
-/// specialization consumes them, so a positional argument list is a projection
-/// of this list.
+/// One generic value parameter of a shader module's entry points, the axis a material specializes by name (e.g. <c>&lt;let isFacade : bool&gt;</c>).
+/// Axes enumerate in specialization argument order, the order link-time specialization consumes them.
 /// </summary>
 public sealed record ShaderSpecializationAxis(string Name, ShaderSpecScalarType ScalarType);
 
 /// <summary>
-/// Declarations view of one shader module before any composition or link:
-/// its uniform blocks and texture/sampler slots, keyed by bare field names
-/// with no set numbers. Cached per module by the module system and
-/// invalidated with it.
+/// Declarations view of one shader module before any composition or link: its uniform blocks and texture/sampler slots, keyed by bare field names with no set numbers.
+/// Cached per module by the module system and invalidated with it.
 /// </summary>
 public sealed class ShaderLibraryReflection
 {
@@ -120,21 +105,13 @@ public sealed class ShaderLibraryReflection
     public IReadOnlyList<ShaderTextureSlot> TextureSlots { get; }
 
     /// <summary>
-    /// Every sampler member of every block, in declaration order, with the
-    /// comparison flag. A custom sampler is an explicit binding target
-    /// (<c>SetSampler</c> by name); the shared sampler bank is engine-owned
-    /// state and never appears here.
+    /// Every sampler member of every block in declaration order, with the comparison flag; the engine-owned shared sampler bank never appears here.
     /// </summary>
     public IReadOnlyList<ShaderSamplerSlot> SamplerSlots { get; }
 
     /// <summary>
-    /// Every generic value parameter of the module's generic entry points, in
-    /// specialization argument order (entry definition order, each entry's
-    /// value parameters in declaration order) — the named axes a material's
-    /// specialization table binds by. A repeated name (the vertex and fragment
-    /// entries both declaring <c>fadeInOut</c>) appears once per position; one
-    /// named value feeds every position of that name. Modules whose entries
-    /// take no value parameters have an empty list.
+    /// Every generic value parameter of the module's generic entry points, in specialization argument order — the named axes a material's specialization table binds by.
+    /// A repeated name appears once per position, and one named value feeds every position of that name.
     /// </summary>
     public IReadOnlyList<ShaderSpecializationAxis> SpecializationAxes { get; }
 }

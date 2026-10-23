@@ -4,12 +4,9 @@ using Alco.Graphics.AlcoGpu.Interop;
 namespace Alco.Graphics.AlcoGpu;
 
 /// <summary>
-/// Routes wgpu-core log records into the active managed device. The native
-/// forwarder is process-wide (a process has one <c>log</c> logger), so the
-/// most recently attached device receives every record; records emitted
-/// before the first attach or after the last detach are dropped. Routing
-/// never throws — records arrive on native frames that do not permit
-/// unwinding.
+/// Routes wgpu-core log records to the most recently attached managed device.
+/// Routing never throws, and records emitted outside an attached device's lifetime
+/// are dropped.
 /// </summary>
 internal static unsafe class AlcoGpuLogRouter
 {

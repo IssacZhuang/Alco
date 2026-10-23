@@ -18,8 +18,11 @@ public class JsonPreprocessor
 {
     private static readonly HashSet<string> _specialKeywords = new() { "$abstract", "$parent" };
 
+    /// <summary>The key that marks a JSON document as abstract.</summary>
     public const string Keyward_Abstract = "$abstract";
+    /// <summary>The key naming a JSON document's parent id.</summary>
     public const string Keyward_Parent = "$parent";
+    /// <summary>The key holding a JSON document's id.</summary>
     public const string Keyward_Id = "Id";
 
     /// <summary>
@@ -191,6 +194,7 @@ public class JsonPreprocessor
     /// </summary>
     public event Action<IJsonPreprocessContext>? BeforeProcessJsonDocument;
 
+    /// <summary>Gets all loaded non-abstract JSON documents.</summary>
     public IEnumerable<JsonDocument> AllDocuments
     {
         get
@@ -202,21 +206,31 @@ public class JsonPreprocessor
         }
     }
 
+    /// <summary>Creates a preprocessor that reports errors through the given callback.</summary>
+    /// <param name="onError">Invoked with each preprocessing error.</param>
     public JsonPreprocessor(Action<string> onError)
     {
         _onError = onError;
     }
 
+    /// <summary>Adds a JSON file source.</summary>
+    /// <param name="fileSource">The file source to add.</param>
     public void AddFileSource(IFileSource fileSource)
     {
         _fileSources.Add(fileSource);
     }
 
+    /// <summary>Removes a JSON file source.</summary>
+    /// <param name="fileSource">The file source to remove.</param>
     public void RemoveFileSource(IFileSource fileSource)
     {
         _fileSources.Remove(fileSource);
     }
 
+    /// <summary>Gets the loaded JSON document with the given id.</summary>
+    /// <param name="id">The document id.</param>
+    /// <returns>The loaded document.</returns>
+    /// <exception cref="Exception">No document with the given id exists.</exception>
     public JsonDocument GetJsonDocument(string id)
     {
         if (_jsonItems.TryGetValue(id, out var jsonItem))
@@ -227,6 +241,10 @@ public class JsonPreprocessor
         throw new Exception($"Json document with id {id} not found");
     }
 
+    /// <summary>Tries to get the loaded JSON document with the given id.</summary>
+    /// <param name="id">The document id.</param>
+    /// <param name="document">The loaded document when found.</param>
+    /// <returns>True when the document exists.</returns>
     public bool TryGetJsonDocument(string id, [NotNullWhen(true)] out JsonDocument? document)
     {
         if (_jsonItems.TryGetValue(id, out var jsonItem))

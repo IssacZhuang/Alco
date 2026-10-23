@@ -81,9 +81,7 @@ public sealed class ToolRegistry
     }
 
     /// <summary>
-    /// Removes the tools previously registered for <paramref name="instance"/>. Only
-    /// descriptors whose target is this exact instance are removed — a same-named tool
-    /// re-registered by someone else afterwards is left alone.
+    /// Removes the tools registered for the exact <paramref name="instance"/>.
     /// </summary>
     /// <param name="instance">The instance to unregister.</param>
     public void UnregisterInstance(object instance)
@@ -118,10 +116,8 @@ public sealed class ToolRegistry
     }
 
     /// <summary>
-    /// Invokes a tool by name with the provided JSON arguments.
-    /// Agent-thread tools execute on the thread pool via <see cref="Task.Run(Action)"/> so the
-    /// returned task is pending and callers can race it against timeouts or run multiple tools
-    /// concurrently. Tools requiring the main thread are marshaled via the main thread queue.
+    /// Invokes a tool by name; agent-thread tools run on the thread pool, while main-thread
+    /// tools are marshaled through the main thread queue.
     /// </summary>
     /// <param name="name">The tool name.</param>
     /// <param name="jsonArgs">The JSON element containing arguments.</param>

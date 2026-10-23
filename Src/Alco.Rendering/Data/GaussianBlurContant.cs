@@ -2,6 +2,9 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Constants for the gaussian blur compute pass.
+/// </summary>
 public struct GaussianBlurConstant
 {
     public int2 texSize;

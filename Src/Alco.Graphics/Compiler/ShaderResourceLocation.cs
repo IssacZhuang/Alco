@@ -1,11 +1,9 @@
 namespace Alco.Graphics;
 
 /// <summary>
-/// The location of a settable shader resource inside the bind groups of a shader.
-/// <br/>A resource is a shader variable the material API can bind by name or id
-/// (a buffer or a texture). Companion entries such as samplers and structured
-/// buffer counters are not resources of their own; they are resolved from the
-/// resource that owns them.
+/// The location of a settable shader resource (a buffer or a texture) inside a
+/// shader's bind groups. Samplers and structured-buffer counters are not resources
+/// of their own; they are resolved from the resource that owns them.
 /// </summary>
 public readonly struct ShaderResourceLocation
 {
@@ -20,6 +18,7 @@ public readonly struct ShaderResourceLocation
     /// <summary>The shader name of the resource.</summary>
     public string Name { get; init; }
 
+    /// <summary>Returns a diagnostic description of the resource location.</summary>
     public override string ToString()
     {
         return $"ShaderResourceLocation: {Name} (GroupIndex: {GroupIndex}, Binding: {Binding}, Type: {Type})";

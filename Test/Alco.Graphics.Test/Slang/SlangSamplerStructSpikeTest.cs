@@ -12,6 +12,9 @@ namespace Alco.Graphics.Test;
 // methods ride along, so the shader body reads `_albedo.Sample(uv)` with no
 // preprocessor macro.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>
+/// Tests that shared Slang sampler structs reflect dotted resource members and are reusable across imported modules.
+/// </summary>
 [TestFixture]
 public static class SlangSamplerStructSpikeTest
 {
@@ -138,6 +141,9 @@ public static class SlangSamplerStructSpikeTest
         return system.GetProgramAllEntries(name, []);
     }
 
+    /// <summary>
+    /// Tests that struct pair members reflect dotted names in sequential bindings.
+    /// </summary>
     [Test]
     public static void StructPairMembers_ReflectDottedNames_InSequentialBindings()
     {
@@ -160,6 +166,9 @@ public static class SlangSamplerStructSpikeTest
         }));
     }
 
+    /// <summary>
+    /// Tests that sampler structs expose depth texture sample types.
+    /// </summary>
     [Test]
     public static void StructPairCarriesDepthTextureSampleType()
     {
@@ -173,6 +182,9 @@ public static class SlangSamplerStructSpikeTest
         Assert.That(shadow.TextureInfo.SampleType, Is.EqualTo(TextureSampleType.Depth));
     }
 
+    /// <summary>
+    /// Tests that a struct type is shared across modules through import.
+    /// </summary>
     [Test]
     public static void StructType_IsSharedAcrossModulesViaImport()
     {
@@ -186,6 +198,9 @@ public static class SlangSamplerStructSpikeTest
         }));
     }
 
+    /// <summary>
+    /// Tests that uniform members skip resource-only structs in a mixed parameter block.
+    /// </summary>
     [Test]
     public static void MixedParamsBlock_UniformMembersSkipResourceOnlyStruct()
     {

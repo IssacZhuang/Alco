@@ -6,9 +6,11 @@ using static Alco.math;
 
 namespace Alco.Test;
 
+/// <summary>Tests Euler and quaternion conversion helpers.</summary>
 [TestFixture]
 public class TestRotation
 {
+    /// <summary>Tests that Euler-to-quaternion conversion matches the composed rotation.</summary>
     [Test]
     public void TestEuler()
     {
@@ -38,6 +40,7 @@ public class TestRotation
         });
     }
 
+    /// <summary>Tests quaternion-to-Euler conversion across standard, zero, gimbal-lock, negative and large angles.</summary>
     [Test]
     public void TestQuaternionToEuler()
     {
@@ -107,6 +110,7 @@ public class TestRotation
         });
     }
 
+    /// <summary>Tests rotation extraction from matrices with translation and scale.</summary>
     [Test]
     public void TestDecomposeFromMatrix()
     {

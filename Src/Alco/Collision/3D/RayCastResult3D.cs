@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace Alco
 {
+    /// <summary>
+    /// Result of a 3D ray cast, including the hit details and the collider that was hit.
+    /// </summary>
     public struct RayCastResult3D
     {
         public bool Hit;

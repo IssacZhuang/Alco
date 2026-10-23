@@ -3,12 +3,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// Factory for the voxel global illumination render plugin node: holds the
-/// node's <see cref="VoxelGiDescriptor"/> (shader references resolve through
-/// the shared shader system at load time, including the voxelize feed
-/// template). The material compiler composing the per-surface voxelize feed
-/// comes from the factory context's services; graph resources and the lighting
-/// hookup stay with the composing code through <see cref="RGNode_VoxelGI.Attach"/>.
+/// Factory for the voxel global illumination render plugin node, holding its <see cref="VoxelGiDescriptor"/>; the material compiler comes from factory services and graph resources and lighting hookup stay with the composing code.
 /// </summary>
 public class RGNodeFactory_VoxelGI : RenderNodeFactory
 {

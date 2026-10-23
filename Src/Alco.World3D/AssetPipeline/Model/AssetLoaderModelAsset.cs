@@ -4,13 +4,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// Loads model asset files (<c>.amdl</c>) — the composition layer — into
-/// <see cref="ModelAsset"/>s: parses the JSON, then resolves the referenced
-/// <see cref="MeshAsset"/> (<c>.amsh</c>) and <see cref="MaterialAsset"/> (<c>.amat</c>)
-/// files through the asset system. All loads are cheap meta loads; no geometry and no
-/// textures become resident. Nested loads go through distinct per-file handles, so loading
-/// inside a load cannot deadlock. Registered through
-/// <see cref="World3DAssetPipeline.RegisterLoaders"/>.
+/// Loads model asset files (<c>.amdl</c>) into <see cref="ModelAsset"/>s, resolving the referenced mesh and material assets through the asset system as cheap meta loads.
 /// </summary>
 public sealed class AssetLoaderModelAsset : BaseAssetLoader<ModelAsset>
 {

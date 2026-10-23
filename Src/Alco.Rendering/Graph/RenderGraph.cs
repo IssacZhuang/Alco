@@ -4,33 +4,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A lightweight render graph: a set of <see cref="IRenderGraphNode"/> nodes that
-/// declare per-frame resource reads/writes, plus the transient
-/// <see cref="RenderGraphTexture"/> resources flowing between them. Per frame,
-/// <see cref="Execute"/> runs four phases:
-/// <list type="number">
-/// <item><b>Setup</b> — every enabled node declares its dependencies (registration
-/// order);</item>
-/// <item><b>Compile</b> — dependencies are validated, nodes whose output is unused
-/// are culled (transitively from <see cref="RenderGraphBuilder.ProducesOutput"/>
-/// roots), and transient lifetimes are computed;</item>
-/// <item><b>Assign</b> — a single allocation walk over the used transients (sorted by
-/// first touch) hands out pooled textures: assignments whose lifetime ended are
-/// released as reuse candidates, so non-overlapping lifetimes alias the same GPU
-/// textures;</item>
-/// <item><b>Execute</b> — surviving nodes record their GPU work in registration
-/// order into the frame-shared <see cref="RenderContext"/>; the shared command buffer
-/// is submitted once when the last node completes.</item>
-/// </list>
-/// Execution order is always registration order — the graph validates it satisfies
-/// the declared dependencies instead of reordering, keeping the schedule explicit
-/// and predictable.
-/// <br/>The allocation walk is deterministic: for an unchanged schedule it reproduces
-/// last frame's assignment exactly, so steady-state frames perform no facade
-/// rebinding and no managed allocations on the whole Setup/Compile/Execute path.
-/// <br/>The graph takes ownership of registered nodes: nodes implementing
-/// <see cref="System.IDisposable"/> are disposed with the graph. Pooled textures are
-/// disposed with the graph and on <see cref="Resize"/>.
+/// A render graph that validates and executes registered nodes in registration order over transient pooled textures.
+/// The graph owns its nodes and pooled textures, disposing them with itself.
 /// </summary>
 public sealed class RenderGraph : AutoDisposable
 {
@@ -76,12 +51,7 @@ public sealed class RenderGraph : AutoDisposable
     /// <param name="width">The initial viewport width in pixels (drives graph-relative transient sizes).</param>
     /// <param name="height">The initial viewport height in pixels.</param>
     /// <param name="name">A diagnostic name for the graph.</param>
-    /// <param name="sharedContext">An externally owned render context to execute with
-    /// instead of a graph-private one, so consumers that bind to one context (e.g. a
-    /// canvas bound to a pipeline's context) work across several graphs. The graphs
-    /// sharing it must alternate frames: each <see cref="Execute"/> performs exactly
-    /// one frame open/submit on the context. The caller keeps ownership; the graph
-    /// never disposes it. When null, the graph creates and owns its context.</param>
+    /// <param name="sharedContext">An externally owned context to execute with instead of a private one; null creates a graph-owned context.</param>
     public RenderGraph(RenderingSystem rendering, uint width, uint height, string name = "unnamed_render_graph", RenderContext? sharedContext = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
@@ -108,20 +78,14 @@ public sealed class RenderGraph : AutoDisposable
     public IReadOnlyList<IRenderGraphNode> Nodes => _nodes;
 
     /// <summary>
-    /// The frame-shared context every node's passes are recorded into. Exposed so
-    /// long-lived consumers (e.g. a canvas whose renderers bind a scope at construction)
-    /// can attach to the same context the graph executes with. The graph owns its
-    /// lifecycle (unless the context was shared in through the constructor): never
-    /// call its internal open/submit APIs or dispose it.
+    /// The frame-shared context every node's passes are recorded into, owned by the graph unless it was shared through the constructor.
     /// </summary>
     public RenderContext RenderContext => _sharedContext;
 
-    /// <summary>The profiler exposed to nodes through the execution context, or null.
-    /// When set, <see cref="Execute"/> brackets the frame with
-    /// <see cref="RenderProfiler.BeginFrame"/> / <see cref="RenderProfiler.EndFrame"/>,
-    /// and automatically measures every node's CPU execution time into
-    /// <see cref="NodeCpuGroup"/> counters (plus a whole-execute <c>Total</c>) — nodes
-    /// never push their own CPU timing.</summary>
+    /// <summary>
+    /// The profiler exposed to nodes through the execution context, or null. When set, the graph
+    /// reports frame and per-node CPU timings to it.
+    /// </summary>
     public RenderProfiler? Profiler { get; set; }
 
     /// <summary>The current viewport width in pixels.</summary>
@@ -131,11 +95,7 @@ public sealed class RenderGraph : AutoDisposable
     public uint Height => _height;
 
     /// <summary>
-    /// Whether the frame currently being executed has a final destination (e.g. the
-    /// swapchain). Set at the start of <see cref="Execute"/>, before any node's
-    /// <see cref="IRenderGraphNode.Setup"/> runs, so nodes can read it from
-    /// <see cref="IRenderNode.IsEnabled"/> and <see cref="IRenderGraphNode.Setup"/>
-    /// to implement headless-frame behavior (e.g. a final blit disabling itself).
+    /// Whether the frame currently being executed has a final destination, set before any node's setup runs.
     /// </summary>
     public bool HasDestinationThisFrame { get; private set; } = true;
 
@@ -302,12 +262,8 @@ public sealed class RenderGraph : AutoDisposable
     }
 
     /// <summary>
-    /// Destroys a transient resource ahead of the graph's own lifetime, tombstoning
-    /// it in place: the resource stays in the resource table (ids remain stable) but
-    /// its facade is disposed and it is skipped by the allocation walk, resize and
-    /// disposal. Use this when the owning node is removed dynamically (e.g. a
-    /// post-process node's private output). The graph still owns the pool entries
-    /// the resource last held — they become idle and are reused by other transients.
+    /// Destroys a transient resource ahead of the graph's lifetime while keeping its id stable.
+    /// Use this when the owning node is removed dynamically.
     /// </summary>
     /// <param name="resource">The transient resource to destroy.</param>
     public void DestroyTransient(RenderGraphTexture resource)
@@ -532,13 +488,7 @@ public sealed class RenderGraph : AutoDisposable
     }
 
     /// <summary>
-    /// Performs the allocation walk: used transients are visited in first-touch order;
-    /// assignments whose lifetime ended strictly before the current resource starts
-    /// are released to the pool (making them the preferred alias candidates), then
-    /// every slot of the current resource is assigned. Walking in first-touch order
-    /// releases assignments as late as possible, which is what allows non-overlapping
-    /// lifetimes to share one texture while overlapping lifetimes keep stable,
-    /// dedicated assignments across frames.
+    /// Performs the allocation walk, assigning pooled textures to used transients in first-touch order.
     /// </summary>
     private void AssignResources(ReadOnlySpan<int> firstTouch, ReadOnlySpan<int> lastTouch)
     {

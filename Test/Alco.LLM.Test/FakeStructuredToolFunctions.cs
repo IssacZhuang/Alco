@@ -10,6 +10,8 @@ namespace Alco.LLM.Test;
 [AgentTools]
 public static class FakeStructuredToolFunctions
 {
+    /// <summary>Returns a structured confirmation result.</summary>
+    /// <param name="name">Name to include in the confirmation.</param>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Returns a structured confirmation result")]
     public static ToolOk ConfirmThing(string name)
@@ -17,6 +19,8 @@ public static class FakeStructuredToolFunctions
         return new ToolOk($"Confirmed '{name}'.");
     }
 
+    /// <summary>Returns a structured data result.</summary>
+    /// <param name="id">Identifier included in the data.</param>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Returns a structured data result")]
     public static ToolData GetData(int id)
@@ -24,6 +28,8 @@ public static class FakeStructuredToolFunctions
         return new ToolData(new { id, name = "Sample" });
     }
 
+    /// <summary>Returns data that requires caller-provided JSON converters.</summary>
+    /// <param name="value">Value wrapped by the converter-backed data.</param>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Returns data that requires caller-provided JSON converters")]
     public static ToolData GetConvertedData(int value)
@@ -31,6 +37,7 @@ public static class FakeStructuredToolFunctions
         return new ToolData(new ConverterBackedData(value));
     }
 
+    /// <summary>Returns a structured tool error.</summary>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Returns a structured tool error")]
     public static ToolError ReportError()
@@ -38,6 +45,7 @@ public static class FakeStructuredToolFunctions
         return new ToolError("No game loaded", "NO_GAME");
     }
 
+    /// <summary>Returns a plain string to verify passthrough.</summary>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Returns a plain string to verify passthrough")]
     public static string PlainString()

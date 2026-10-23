@@ -5,9 +5,7 @@ using NUnit.Framework;
 namespace Alco.Graphics.Test;
 
 /// <summary>
-/// Unit tests for <see cref="ShaderReflectionUtility.ValidateBindGroupLayouts"/>.
-/// These exercise the pure managed validation with synthesized reflection info
-/// (no DXC, no native WebGPU handles).
+/// Tests bind group layout validation for contiguous, in-range, and unique group indices.
 /// </summary>
 [TestFixture]
 public class ShaderBindGroupValidationTests
@@ -39,6 +37,9 @@ public class ShaderBindGroupValidationTests
             ThreadGroupSize.Default);
     }
 
+    /// <summary>
+    /// Tests that a shader with no bind groups is valid.
+    /// </summary>
     [Test(Description = "A shader with no bind groups is valid")]
     public void Validate_NoBindGroups_Passes()
     {
@@ -46,6 +47,9 @@ public class ShaderBindGroupValidationTests
         Assert.DoesNotThrow(() => ShaderReflectionUtility.ValidateBindGroupLayouts(info, 8));
     }
 
+    /// <summary>
+    /// Tests that contiguous indices starting at zero under the limit are valid.
+    /// </summary>
     [Test(Description = "Contiguous indices starting at 0 under the limit are valid")]
     public void Validate_ContiguousUnderLimit_Passes()
     {
@@ -56,6 +60,9 @@ public class ShaderBindGroupValidationTests
         Assert.DoesNotThrow(() => ShaderReflectionUtility.ValidateBindGroupLayouts(atLimit, 4));
     }
 
+    /// <summary>
+    /// Tests that more bind groups than the limit throws.
+    /// </summary>
     [Test(Description = "More bind groups than the limit throws")]
     public void Validate_CountExceedsMax_Throws()
     {
@@ -65,6 +72,9 @@ public class ShaderBindGroupValidationTests
         Assert.That(ex.Message, Does.Contain("exceeds the maximum 4"));
     }
 
+    /// <summary>
+    /// Tests that a skipped group index throws.
+    /// </summary>
     [Test(Description = "A skipped group index throws")]
     public void Validate_SkippedGroupIndex_Throws()
     {
@@ -74,6 +84,9 @@ public class ShaderBindGroupValidationTests
         Assert.That(ex.Message, Does.Contain("contiguous"));
     }
 
+    /// <summary>
+    /// Tests that group indices not starting at zero throw.
+    /// </summary>
     [Test(Description = "Group indices not starting at 0 throw")]
     public void Validate_NonZeroStart_Throws()
     {
@@ -82,6 +95,9 @@ public class ShaderBindGroupValidationTests
             () => ShaderReflectionUtility.ValidateBindGroupLayouts(info, 8));
     }
 
+    /// <summary>
+    /// Tests that a duplicate group index throws.
+    /// </summary>
     [Test(Description = "A duplicate group index throws")]
     public void Validate_DuplicateGroupIndex_Throws()
     {
@@ -90,6 +106,9 @@ public class ShaderBindGroupValidationTests
             () => ShaderReflectionUtility.ValidateBindGroupLayouts(info, 8));
     }
 
+    /// <summary>
+    /// Tests that the NoGPU device reports a maximum of eight bind groups.
+    /// </summary>
     [Test(Description = "NoDevice reports the representative NoGPU bind-group limit")]
     public void NoDevice_ReportsMaxBindGroupsEight()
     {

@@ -4,11 +4,7 @@ using Alco.Graphics;
 namespace Alco.TextureConverter;
 
 /// <summary>
-/// A <see cref="GameEngine"/> host for batch conversions: headless GPU (compute
-/// compressors), no audio, no main loop. The engine is constructed once and
-/// reused across <see cref="TextureConverter.TryConvert"/> calls — texture
-/// creation, compression and readback are direct GPU calls that do not need a
-/// running platform loop.
+/// Hosts a headless, viewless GPU engine reused across batch texture conversions.
 /// </summary>
 internal sealed class ConverterEngine : GameEngine
 {

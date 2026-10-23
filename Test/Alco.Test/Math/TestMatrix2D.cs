@@ -6,9 +6,11 @@ using static Alco.math;
 
 namespace Alco.Test;
 
+/// <summary>Tests composed 2D transformation matrix helpers.</summary>
 [TestFixture]
 public class TestMatrix2D
 {
+    /// <summary>Tests that matrix4trs matches separate scale, rotation and translation composition.</summary>
     [Test]
     public void TestMatrix4trs()
     {
@@ -22,6 +24,7 @@ public class TestMatrix2D
         Assert.That(resultOptimized, Is.EqualTo(resultOriginal).Using<Matrix4x4>((m1, m2) => m1.Equals(m2) ? 0 : 1));
     }
 
+    /// <summary>Tests that matrix4tr matches separate rotation and translation composition.</summary>
     [Test]
     public void TestMatrix4tr()
     {
@@ -34,6 +37,7 @@ public class TestMatrix2D
         Assert.That(resultOptimized, Is.EqualTo(resultOriginal).Using<Matrix4x4>((m1, m2) => m1.Equals(m2) ? 0 : 1));
     }
 
+    /// <summary>Tests that matrix4ts matches separate scale and translation composition.</summary>
     [Test]
     public void TestMatrix4ts()
     {
@@ -46,6 +50,7 @@ public class TestMatrix2D
         Assert.That(resultOptimized, Is.EqualTo(resultOriginal).Using<Matrix4x4>((m1, m2) => m1.Equals(m2) ? 0 : 1));
     }
 
+    /// <summary>Tests that matrix4rs matches separate scale and rotation composition.</summary>
     [Test]
     public void TestMatrix4rs()
     {

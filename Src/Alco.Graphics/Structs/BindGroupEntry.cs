@@ -76,6 +76,7 @@ public struct BindGroupEntry
     /// </summary>
     public string Name { get; init; } = "unnamed_binding";
 
+    /// <summary>Returns a diagnostic description of the binding slot.</summary>
     public override string ToString()
     {
         return $"BindGroupEntry: {Name} (Binding: {Binding}, Stage: {Stage}, Type: {Type})";

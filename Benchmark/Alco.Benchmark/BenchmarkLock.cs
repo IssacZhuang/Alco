@@ -6,6 +6,9 @@ using Alco;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks lock implementations under single-threaded and multi-threaded contention.
+/// </summary>
 public class BenchmarkLock
 {
     private object _lockObj;
@@ -17,6 +20,9 @@ public class BenchmarkLock
     private ParallelOptions _options16Threads;
 
 
+    /// <summary>
+    /// Initializes the lock implementations and parallel options used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -34,6 +40,9 @@ public class BenchmarkLock
 
     }
 
+    /// <summary>
+    /// Benchmarks acquiring and releasing an uncontended monitor lock.
+    /// </summary>
     [Benchmark(Description = "Lock single thread")]
     public void Lock()
     {
@@ -42,6 +51,9 @@ public class BenchmarkLock
         }
     }
 
+    /// <summary>
+    /// Benchmarks acquiring and releasing an uncontended <see cref="System.Threading.Lock"/>.
+    /// </summary>
     [Benchmark(Description = ".NET Lock single thread")]
     public void DotNetLock()
     {
@@ -51,6 +63,9 @@ public class BenchmarkLock
         }
     }
 
+    /// <summary>
+    /// Benchmarks acquiring and releasing an uncontended atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLock single thread")]
     public void AtomicSpinLock()
     {
@@ -58,6 +73,9 @@ public class BenchmarkLock
         _atomicSpinLock.Unlock();
     }
 
+    /// <summary>
+    /// Benchmarks acquiring and releasing an uncontended object-based atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLockObject single thread")]
     public void AtomicSpinLockObject()
     {
@@ -65,6 +83,9 @@ public class BenchmarkLock
         _atomicSpinLockObject.Unlock();
     }
 
+    /// <summary>
+    /// Benchmarks monitor locking from eight concurrent threads.
+    /// </summary>
     [Benchmark(Description = "Lock 8 threads")]
     public void Lock8Threads()
     {
@@ -77,6 +98,9 @@ public class BenchmarkLock
     }
 
     
+    /// <summary>
+    /// Benchmarks <see cref="System.Threading.Lock"/> from eight concurrent threads.
+    /// </summary>
     [Benchmark(Description = ".NET Lock 8 threads")]
     public void DotNetLock8Threads()
     {
@@ -88,6 +112,9 @@ public class BenchmarkLock
         });
     }
 
+    /// <summary>
+    /// Benchmarks the atomic spin lock from eight concurrent threads.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLock 8 threads")]
     public void AtomicSpinLock8Threads()
     {
@@ -98,6 +125,9 @@ public class BenchmarkLock
         });
     }
 
+    /// <summary>
+    /// Benchmarks the object-based atomic spin lock from eight concurrent threads.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLockObject 8 threads")]
     public void AtomicSpinLockObject8Threads()
     {
@@ -108,6 +138,9 @@ public class BenchmarkLock
         });
     }
 
+    /// <summary>
+    /// Benchmarks monitor locking from sixteen concurrent threads.
+    /// </summary>
     [Benchmark(Description = "Lock 16 threads")]
     public void Lock16Threads()
     {
@@ -119,6 +152,9 @@ public class BenchmarkLock
         });
     }
 
+    /// <summary>
+    /// Benchmarks <see cref="System.Threading.Lock"/> from sixteen concurrent threads.
+    /// </summary>
     [Benchmark(Description = ".NET Lock 16 threads")]
     public void DotNetLock16Threads()
     {
@@ -130,6 +166,9 @@ public class BenchmarkLock
         });
     }
 
+    /// <summary>
+    /// Benchmarks the atomic spin lock from sixteen concurrent threads.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLock 16 threads")]
     public void AtomicSpinLock16Threads()
     {
@@ -140,6 +179,9 @@ public class BenchmarkLock
         });
     }
 
+    /// <summary>
+    /// Benchmarks the object-based atomic spin lock from sixteen concurrent threads.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLockObject 16 threads")]
     public void AtomicSpinLockObject16Threads()
     {
@@ -152,6 +194,9 @@ public class BenchmarkLock
 
 }
 
+/// <summary>
+/// Benchmarks list appends guarded by different lock implementations across one, eight, and sixteen threads.
+/// </summary>
 public class BenchmarkLockAdd
 {
     private object _lockObj;
@@ -165,6 +210,9 @@ public class BenchmarkLockAdd
 
     private List<int> _list;
 
+    /// <summary>
+    /// Initializes the lock implementations, parallel options, and target list used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -185,6 +233,9 @@ public class BenchmarkLockAdd
     }
 
 
+    /// <summary>
+    /// Benchmarks single-threaded list appends without locking.
+    /// </summary>
     [Benchmark(Baseline = true, Description = "No lock 1 thread add")]
     public void NoLock1ThreadAdd()
     {
@@ -194,6 +245,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks single-threaded list appends with a monitor lock.
+    /// </summary>
     [Benchmark(Description = "Lock 1 thread add")]
     public void Lock1ThreadAdd()
     {
@@ -206,6 +260,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks single-threaded list appends with <see cref="System.Threading.Lock"/>.
+    /// </summary>
     [Benchmark(Description = ".NET Lock 1 thread add")]
     public void DotNetLock1ThreadAdd()
     {
@@ -218,6 +275,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks single-threaded list appends with an atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLock 1 thread add")]
     public void AtomicSpinLock1ThreadAdd()
     {
@@ -229,6 +289,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks single-threaded list appends with an object-based atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLockObject 1 thread add")]
     public void AtomicSpinLockObject1ThreadAdd()
     {
@@ -240,6 +303,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with eight concurrent threads and a monitor lock.
+    /// </summary>
     [Benchmark(Description = "Lock 8 threads add")]
     public void Lock8ThreadsAdd()
     {
@@ -252,6 +318,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with eight concurrent threads and <see cref="System.Threading.Lock"/>.
+    /// </summary>
     [Benchmark(Description = ".NET Lock 8 threads add")]
     public void DotNetLock8ThreadsAdd()
     {
@@ -264,6 +333,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with eight concurrent threads and an atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLock 8 threads add")]
     public void AtomicSpinLock8ThreadsAdd()
     {
@@ -275,6 +347,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with eight concurrent threads and an object-based atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLockObject 8 threads add")]
     public void AtomicSpinLockObject8ThreadsAdd()
     {
@@ -286,6 +361,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with sixteen concurrent threads and a monitor lock.
+    /// </summary>
     [Benchmark(Description = "Lock 16 threads add")]
     public void Lock16ThreadsAdd()
     {
@@ -298,6 +376,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with sixteen concurrent threads and <see cref="System.Threading.Lock"/>.
+    /// </summary>
     [Benchmark(Description = ".NET Lock 16 threads add")]
     public void DotNetLock16ThreadsAdd()
     {
@@ -310,6 +391,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with sixteen concurrent threads and an atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLock 16 threads add")]
     public void AtomicSpinLock16ThreadsAdd()
     {
@@ -321,6 +405,9 @@ public class BenchmarkLockAdd
         });
     }
 
+    /// <summary>
+    /// Benchmarks list appends with sixteen concurrent threads and an object-based atomic spin lock.
+    /// </summary>
     [Benchmark(Description = "AtomicSpinLockObject 16 threads add")]
     public void AtomicSpinLockObject16ThreadsAdd()
     {
@@ -333,6 +420,9 @@ public class BenchmarkLockAdd
     }
 }
 
+/// <summary>
+/// Benchmarks synchronization primitives used for signaling and waiting.
+/// </summary>
 public class BenchmarkWait
 {
     private int _count = 1000;
@@ -342,6 +432,9 @@ public class BenchmarkWait
     private AutoResetEvent[] _autoResetEvents;
     private Barrier[] _barriers;
 
+    /// <summary>
+    /// Creates the synchronization primitives used for the current iteration.
+    /// </summary>
     [IterationSetup]
     public void Setup()
     {
@@ -374,6 +467,9 @@ public class BenchmarkWait
 
     }
 
+    /// <summary>
+    /// Benchmarks signaling and waiting with <see cref="System.Threading.SemaphoreSlim"/>.
+    /// </summary>
     [Benchmark(Description = "SemaphoreSlim")]
     public void SemaphoreSlim()
     {
@@ -392,6 +488,9 @@ public class BenchmarkWait
         }
     }
 
+    /// <summary>
+    /// Benchmarks signaling and waiting with <see cref="System.Threading.ManualResetEvent"/>.
+    /// </summary>
     [Benchmark(Description = "ManualResetEvent")]
     public void ManualResetEvent()
     {
@@ -410,6 +509,9 @@ public class BenchmarkWait
         }
     }
 
+    /// <summary>
+    /// Benchmarks signaling and waiting with <see cref="System.Threading.ManualResetEventSlim"/>.
+    /// </summary>
     [Benchmark(Description = "ManualResetEventSlim")]
     public void ManualResetEventSlim()
     {
@@ -428,6 +530,9 @@ public class BenchmarkWait
         }
     }
 
+    /// <summary>
+    /// Benchmarks signaling and waiting with <see cref="System.Threading.AutoResetEvent"/>.
+    /// </summary>
     [Benchmark(Description = "AutoResetEvent")]
     public void AutoResetEvent()
     {
@@ -447,6 +552,9 @@ public class BenchmarkWait
     }
 
 
+    /// <summary>
+    /// Benchmarks signaling and waiting with <see cref="System.Threading.Barrier"/>.
+    /// </summary>
     [Benchmark(Description = "Barrier")]    
     public void Barrier()
     {

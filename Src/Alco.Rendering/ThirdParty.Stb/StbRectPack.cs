@@ -10,6 +10,9 @@ namespace StbRectPackSharp
 #endif
 	static unsafe partial class StbRectPack
 	{
+		/// <summary>
+		/// The packing context, owning the node and extra allocations.
+		/// </summary>
 		public struct stbrp_context: IDisposable
 		{
 			public int width;
@@ -24,6 +27,10 @@ namespace StbRectPackSharp
 			public stbrp_node* all_nodes;
 
 
+			/// <summary>
+			/// Initializes a new context with the specified number of nodes.
+			/// </summary>
+			/// <param name="nodesCount">The number of packing nodes to allocate.</param>
 			public stbrp_context(int nodesCount)
 			{
 				if (nodesCount <= 0)
@@ -41,6 +48,9 @@ namespace StbRectPackSharp
 				extra = (stbrp_node*)CRuntime.malloc(sizeof(stbrp_node) * 2);
 			}
 
+			/// <summary>
+			/// Releases the unmanaged allocations owned by the context.
+			/// </summary>
 			public void Dispose()
 			{
 				if (all_nodes != null)

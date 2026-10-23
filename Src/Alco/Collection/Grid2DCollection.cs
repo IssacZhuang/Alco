@@ -19,6 +19,12 @@ public class Grid2DCollection<T> where T : class
         public int Y;
         public T Data;
 
+        /// <summary>
+        /// Initializes an entry with its cell position and data.
+        /// </summary>
+        /// <param name="x">The cell X coordinate.</param>
+        /// <param name="y">The cell Y coordinate.</param>
+        /// <param name="data">The data stored in the cell.</param>
         public Info(int x, int y, T data)
         {
             X = x;

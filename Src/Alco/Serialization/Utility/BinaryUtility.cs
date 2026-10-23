@@ -9,12 +9,18 @@ using System;
 namespace Alco
 {
     /// <summary>
-    /// Encoding helpers of the binary serialization format. Primitive scalars and enums are
-    /// canonical little-endian on disk. Composite unmanaged layouts are host-layout blits,
-    /// which requires a little-endian host (every runtime .NET ships today is one).
+    /// Encoding helpers for the binary serialization format. Scalars and enums are stored
+    /// little-endian, while composite unmanaged layouts are host-layout blits that require a
+    /// little-endian host.
     /// </summary>
     public static class BinaryUtility
     {
+        /// <summary>
+        /// Encodes an unmanaged value into a byte array.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged value type.</typeparam>
+        /// <param name="value">The value to encode.</param>
+        /// <returns>The encoded bytes.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] EncodeValue<T>(T value) where T : unmanaged
         {
@@ -32,6 +38,12 @@ namespace Alco
         }
 
         // Nullable<T> can be simply cast to T? but less readablity
+        /// <summary>
+        /// Encodes a nullable unmanaged value, including its presence flag, into a byte array.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged value type.</typeparam>
+        /// <param name="value">The nullable value to encode.</param>
+        /// <returns>The encoded bytes.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static byte[] EncodeNullableValue<T>(Nullable<T> value) where T : unmanaged
         {
@@ -44,6 +56,12 @@ namespace Alco
             return bytes;
         }
 
+        /// <summary>
+        /// Decodes an unmanaged value from the given bytes.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged value type.</typeparam>
+        /// <param name="bytes">The bytes to decode.</param>
+        /// <returns>The decoded value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T DecodeToValue<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
         {
@@ -55,6 +73,12 @@ namespace Alco
             return MemoryMarshal.Read<T>(bytes);
         }
 
+        /// <summary>
+        /// Decodes a nullable unmanaged value from the given bytes.
+        /// </summary>
+        /// <typeparam name="T">The unmanaged value type.</typeparam>
+        /// <param name="bytes">The bytes to decode.</param>
+        /// <returns>The decoded nullable value.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public unsafe static Nullable<T> DecodeToNullableValue<T>(ReadOnlySpan<byte> bytes) where T : unmanaged
         {
@@ -65,12 +89,22 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Encodes a string as UTF-8 bytes.
+        /// </summary>
+        /// <param name="str">The string to encode.</param>
+        /// <returns>The UTF-8 bytes.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] EncodeString(string str)
         {
             return Encoding.UTF8.GetBytes(str);
         }
 
+        /// <summary>
+        /// Encodes a string as UTF-8 bytes, returning an empty array when the string is null.
+        /// </summary>
+        /// <param name="str">The string to encode.</param>
+        /// <returns>The UTF-8 bytes, or an empty array for null.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte[] EncodeStringNullable(string str)
         {
@@ -81,12 +115,22 @@ namespace Alco
             return Encoding.UTF8.GetBytes(str);
         }
 
+        /// <summary>
+        /// Decodes a UTF-8 string from the given bytes.
+        /// </summary>
+        /// <param name="bytes">The UTF-8 bytes to decode.</param>
+        /// <returns>The decoded string.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string DecodeToString(ReadOnlySpan<byte> bytes)
         {
             return Encoding.UTF8.GetString(bytes);
         }
 
+        /// <summary>
+        /// Decodes a nullable UTF-8 string from the given bytes.
+        /// </summary>
+        /// <param name="bytes">The UTF-8 bytes to decode.</param>
+        /// <returns>The decoded string.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static string DecodeToStringNullable(ReadOnlySpan<byte> bytes)
         {

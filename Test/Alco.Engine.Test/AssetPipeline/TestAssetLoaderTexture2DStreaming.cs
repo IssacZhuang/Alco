@@ -16,6 +16,7 @@ namespace Alco.Engine.Test;
 // (cross-checked by the disposal of the asset stream, which the upload task owns).
 // Runs on the NoGPU device with an in-memory file source.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Covers Texture2D asset streaming, including header probing, in-place uploads, and decode fallbacks.</summary>
 [TestFixture]
 public class TestAssetLoaderTexture2DStreaming
 {
@@ -146,6 +147,7 @@ public class TestAssetLoaderTexture2DStreaming
     private AssetSystem _assetSystem;
     private TestFileSource _fileSource;
 
+    /// <summary>Creates the headless rendering and asset systems for each test.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -163,6 +165,7 @@ public class TestAssetLoaderTexture2DStreaming
         _assetSystem.RegisterAssetLoader(new AssetLoaderTexture2D(_renderingSystem));
     }
 
+    /// <summary>Disposes the rendering host, asset system host, and file source.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -171,6 +174,7 @@ public class TestAssetLoaderTexture2DStreaming
         _fileSource?.Dispose();
     }
 
+    /// <summary>Tests that a file-backed PNG is pre-created at load and uploaded in place.</summary>
     [Test]
     public void FileBackedPng_PreCreatedAtLoadThenUploadedInPlace()
     {
@@ -196,6 +200,7 @@ public class TestAssetLoaderTexture2DStreaming
         Assert.That(texture.IsContentLoaded, Is.True);
     }
 
+    /// <summary>Tests that a DDS without BC support streams an uncompressed RGBA fallback in place.</summary>
     [Test]
     public void FileBackedDds_StreamsFallbackRgbaInPlace()
     {
@@ -217,6 +222,7 @@ public class TestAssetLoaderTexture2DStreaming
         Assert.That(texture.IsContentLoaded, Is.True);
     }
 
+    /// <summary>Tests that a preloaded context decodes synchronously without opening a stream.</summary>
     [Test]
     public void PreloadedContext_DecodesSynchronously()
     {
@@ -230,6 +236,7 @@ public class TestAssetLoaderTexture2DStreaming
         Assert.That(_fileSource.OpenedStreams, Is.Empty);
     }
 
+    /// <summary>Tests that a corrupt file fails after the header probe falls back to decoding.</summary>
     [Test]
     public void CorruptFile_ProbeFallsBackToDecodeAndFails()
     {

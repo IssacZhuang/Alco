@@ -6,14 +6,8 @@ using Alco.Engine;
 namespace Alco.AgentControlProtocol;
 
 /// <summary>
-/// Hosts the engine's agent control protocol: a <see cref="ToolRegistry"/> of agent
-/// tools — discovered from the configured tool types plus the built-in tools — whose
-/// main-thread queue is drained on each tick, optionally exposed over localhost HTTP
-/// through <see cref="GameApiServer"/>.
-/// <br/>Adding this system to an engine gives external AI agents full control of a
-/// running game: tool discovery and invocation, script execution and frame
-/// screenshots. The HTTP server lifecycle is explicit (<see cref="StartServer"/>);
-/// referencing this project alone starts nothing.
+/// Engine system that hosts agent tools, dispatches them on the main thread, and optionally
+/// exposes them over localhost HTTP through <see cref="GameApiServer"/>.
 /// </summary>
 public sealed class AgentControlHost : BaseEngineSystem
 {

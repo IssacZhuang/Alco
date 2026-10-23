@@ -18,6 +18,13 @@ public sealed class ParticleSimulatorColorLerp2D : IParticleSimulator2D
     public ColorFloat EndColor = new ColorFloat(1, 1, 1, 0f);
 
 
+    /// <summary>
+    /// Advances the particle and lerps its color from <see cref="EndColor"/> to
+    /// <see cref="StartColor"/> over the remaining lifetime.
+    /// </summary>
+    /// <param name="system">The owning particle system.</param>
+    /// <param name="particle">The particle to simulate.</param>
+    /// <param name="deltaTime">The elapsed time in seconds.</param>
     public void Simulate(ParticleSystem2DCPU system, ref ParticleData2D particle, float deltaTime)
     {
         particle.Transform.Position += particle.Velocity * deltaTime;

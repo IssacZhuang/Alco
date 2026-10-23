@@ -4,13 +4,7 @@ using System.Security.Cryptography;
 namespace Alco.IO;
 
 /// <summary>
-/// AES-256-GCM cipher for encrypted (v2) packages. Derives independent meta and content subkeys
-/// from a master key and a per-package random salt via HKDF-SHA256, encrypts the meta section as
-/// a single AEAD blob, and encrypts each entry as consecutive 64 KiB AEAD chunks (ciphertext
-/// followed by a 16-byte tag each). Content nonces are positional (entry start offset + chunk
-/// index), and the meta blob uses a zero nonce under its own subkey, so no nonce state is stored
-/// and fresh salts prevent reuse across builds. Chunking keeps random-offset entry reads
-/// decrypting only the chunks they overlap. Instances are safe for concurrent use.
+/// AES-256-GCM cipher for encrypted (v2) packages, deriving independent meta and content subkeys via HKDF-SHA256 and encrypting entries as consecutive 64 KiB chunks. Instances are safe for concurrent use.
 /// </summary>
 internal sealed class PackageCipher : IDisposable
 {

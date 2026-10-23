@@ -7,13 +7,7 @@ using Alco.IO;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Compiles every shader module shipped with the Alco.World3D module through the
-/// shared slang module system (the same compiler path used at runtime). The
-/// module's shader modules flow into the test output's <c>Assets</c> folder, so
-/// the default engine asset source serves them; each file's dashed stem is its
-/// load name. The four material-pass templates
-/// (gbuffer/shadow_depth/rsm/glass) are surface-generic and define no entry
-/// points — <see cref="TestSlangMaterialCompiler"/> covers their composition.
+/// Compiles every Alco.World3D shader module through the shared slang module system and verifies their reflected resource conventions.
 /// </summary>
 public class ValidateShader
 {
@@ -23,13 +17,16 @@ public class ValidateShader
     /// </summary>
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
+    /// <summary>Engine host exposing the asset and shader systems for shader validation.</summary>
     public class ShaderValidator : GameEngine
     {
+        /// <summary>Creates the validator engine with the given settings.</summary>
         public ShaderValidator(GameEngineSetting setting) : base(setting)
         {
         }
     }
 
+    /// <summary>Tests that every World3D shader module loads and non-generic entry modules link unspecialized.</summary>
     [Test(Description = "Validate all Alco.World3D shader modules")]
     public void ValidateAllWorld3DShaders()
     {
@@ -75,6 +72,7 @@ public class ValidateShader
         Parallel.ForEach(shaders, static shader => _ = shader.GetShaderModules());
     }
 
+    /// <summary>Tests that composed World3D shader reflection matches the module's resource conventions.</summary>
     [Test]
     public void ModuleReflectionMatchesWorld3DResourceConventions()
     {

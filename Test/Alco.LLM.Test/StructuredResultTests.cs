@@ -7,6 +7,9 @@ using NUnit.Framework;
 
 namespace Alco.LLM.Test;
 
+/// <summary>
+/// Tests how structured tool results are formatted for history and surfaced in session events.
+/// </summary>
 [TestFixture]
 public class StructuredResultTests
 {
@@ -43,6 +46,9 @@ public class StructuredResultTests
         return messages.SelectMany(m => m.Contents.OfType<FunctionResultContent>()).Single();
     }
 
+    /// <summary>
+    /// Tests that a <see cref="ToolOk"/> result is formatted into history but kept raw in the event.
+    /// </summary>
     [Test]
     public async Task ToolReturning_ToolOk_FormattedIntoHistoryButRawInEvent()
     {
@@ -70,6 +76,9 @@ public class StructuredResultTests
         Assert.That(historyResult.Result, Is.EqualTo("Confirmed 'Widget'."));
     }
 
+    /// <summary>
+    /// Tests that <see cref="ToolData"/> is formatted as JSON in history but kept raw in the event.
+    /// </summary>
     [Test]
     public async Task ToolReturning_ToolData_FormattedAsJsonIntoHistoryButRawInEvent()
     {
@@ -99,6 +108,9 @@ public class StructuredResultTests
         Assert.That(doc.RootElement.GetProperty("name").GetString(), Is.EqualTo("Sample"));
     }
 
+    /// <summary>
+    /// Tests that <see cref="ToolData"/> formatting uses the session JSON converters.
+    /// </summary>
     [Test]
     public async Task ToolReturning_ToolData_UsesSessionJsonConverters()
     {
@@ -121,6 +133,9 @@ public class StructuredResultTests
         Assert.That(doc.RootElement.GetProperty("converted").GetInt32(), Is.EqualTo(9));
     }
 
+    /// <summary>
+    /// Tests that a <see cref="ToolError"/> formats history and yields a failed event.
+    /// </summary>
     [Test]
     public async Task ToolReturning_ToolError_FormatsHistoryAndYieldsFailedEvent()
     {
@@ -151,6 +166,9 @@ public class StructuredResultTests
         Assert.That(doc.RootElement.GetProperty("code").GetString(), Is.EqualTo("NO_GAME"));
     }
 
+    /// <summary>
+    /// Tests that <see cref="ToolOk"/> formatting honors the session maximum tool result length.
+    /// </summary>
     [Test]
     public async Task ToolReturning_ToolOk_UsesSessionMaxToolResultLength()
     {
@@ -174,6 +192,9 @@ public class StructuredResultTests
         Assert.That(formatted, Does.EndWith("...[truncated]"));
     }
 
+    /// <summary>
+    /// Tests that a plain string result passes through unchanged.
+    /// </summary>
     [Test]
     public async Task ToolReturning_PlainString_PassesThroughUnchanged()
     {
@@ -191,6 +212,9 @@ public class StructuredResultTests
         Assert.That(historyResult.Result, Is.EqualTo("I am a plain string"));
     }
 
+    /// <summary>
+    /// Tests that the <see cref="ToolError"/> type is not serialized into formatted output.
+    /// </summary>
     [Test]
     public void ToolError_ErrorType_NotSerialized()
     {

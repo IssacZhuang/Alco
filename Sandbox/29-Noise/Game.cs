@@ -8,6 +8,7 @@ using Alco.ImGUI;
 using static Alco.Rendering.Noise;
 
 
+/// <summary>Sandbox demonstrating procedural noise generation with adjustable scale and offset.</summary>
 public class Game : GameEngine
 {
     // Noise parameters are now managed directly by the _noise object
@@ -69,6 +70,8 @@ public class Game : GameEngine
         }
     }
 
+    /// <summary>Initializes the noise generator and its parallel generation task.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));

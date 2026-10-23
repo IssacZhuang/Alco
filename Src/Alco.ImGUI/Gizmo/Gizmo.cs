@@ -3,11 +3,8 @@ using System.Numerics;
 namespace Alco.ImGUI;
 
 /// <summary>
-/// Immediate-mode manipulation gizmo (translate/rotate/scale handles and bounds box
-/// resize anchors), a pure C# replacement for ImGuizmo built on the engine's math
-/// conventions: row-major left-handed matrices, Z+ up, 2D X+ right / Y+ up. All
-/// overloads draw into the current ImGui window's draw list and therefore must be
-/// called inside an ImGui window scope (<see cref="ImGui.Begin(string)"/> / <see cref="ImGui.End"/>).
+/// Immediate-mode manipulation gizmo with translate, rotate and scale handles plus
+/// bounds resize anchors. All draw overloads must be called inside an ImGui window scope.
 /// </summary>
 public static class Gizmo
 {

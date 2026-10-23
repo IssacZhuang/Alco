@@ -7,12 +7,18 @@ using Alco;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks adding 1000 integers to a List and a NativeArrayList.
+/// </summary>
 public class BenchmarkCollectionAdd
 {
     private const int Count = 1000;
     private List<int> list;
     private NativeArrayList<int> nativeArrayList;
 
+    /// <summary>
+    /// Creates the collections used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -20,12 +26,18 @@ public class BenchmarkCollectionAdd
         nativeArrayList = new NativeArrayList<int>();
     }
 
+    /// <summary>
+    /// Disposes the native list.
+    /// </summary>
     [GlobalCleanup]
     public void Cleanup()
     {
         nativeArrayList.Dispose();
     }
 
+    /// <summary>
+    /// Benchmarks adding 1000 integers to a List.
+    /// </summary>
     [Benchmark(Description = "List add")]
     public void List()
     {
@@ -36,6 +48,9 @@ public class BenchmarkCollectionAdd
     }
 
 
+    /// <summary>
+    /// Benchmarks adding 1000 integers to a NativeArrayList.
+    /// </summary>
     [Benchmark(Description = "NativeArrayList add")]
     public void NativeArrayList()
     {
@@ -47,6 +62,9 @@ public class BenchmarkCollectionAdd
 
 }
 
+/// <summary>
+/// Benchmarks removing 1000 integers from a List and a NativeArrayList.
+/// </summary>
 public class BenchmarkCollectionRemove
 {
     private const int Count = 1000;
@@ -55,6 +73,9 @@ public class BenchmarkCollectionRemove
     private NativeArrayList<int> nativeArrayList;
     private MiniHeap<int> miniHeap;
 
+    /// <summary>
+    /// Creates and fills the collections used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public unsafe void Setup()
     {
@@ -72,6 +93,9 @@ public class BenchmarkCollectionRemove
         }
     }
 
+    /// <summary>
+    /// Benchmarks removing 1000 integers from a List.
+    /// </summary>
     [Benchmark(Description = "List remove")]
     public void List()
     {
@@ -81,6 +105,9 @@ public class BenchmarkCollectionRemove
         }
     }
 
+    /// <summary>
+    /// Benchmarks removing 1000 integers from a NativeArrayList.
+    /// </summary>
     [Benchmark(Description = "NativeArrayList remove")]
     public void NativeArrayList()
     {
@@ -104,6 +131,9 @@ public class BenchmarkCollectionAccess
     private FrozenDictionary<int, int> frozenDictionary;
     private unsafe int* unmanagedPointer;
 
+    /// <summary>
+    /// Initializes the arrays, dictionaries, and unmanaged buffer used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public unsafe void Setup()
     {
@@ -130,6 +160,9 @@ public class BenchmarkCollectionAccess
         }
     }
 
+    /// <summary>
+    /// Frees the unmanaged buffer.
+    /// </summary>
     [GlobalCleanup]
     public unsafe void Cleanup()
     {
@@ -141,6 +174,9 @@ public class BenchmarkCollectionAccess
         }
     }
 
+    /// <summary>
+    /// Benchmarks reading 1000 elements from an array.
+    /// </summary>
     [Benchmark(Description = "Array access")]
     public int ArrayAccess()
     {
@@ -152,6 +188,9 @@ public class BenchmarkCollectionAccess
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks reading 1000 elements from a Dictionary.
+    /// </summary>
     [Benchmark(Description = "Dictionary access")]
     public int DictionaryAccess()
     {
@@ -163,6 +202,9 @@ public class BenchmarkCollectionAccess
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks reading 1000 elements from a FrozenDictionary.
+    /// </summary>
     [Benchmark(Description = "FrozenDictionary access")]
     public int FrozenDictionaryAccess()
     {
@@ -174,6 +216,9 @@ public class BenchmarkCollectionAccess
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks reading 1000 elements through a Span.
+    /// </summary>
     [Benchmark(Description = "Span access")]
     public int SpanAccess()
     {
@@ -186,6 +231,9 @@ public class BenchmarkCollectionAccess
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks reading 1000 elements through an unmanaged pointer.
+    /// </summary>
     [Benchmark(Description = "Unsafe pointer access")]
     public unsafe int UnsafePointerAccess()
     {
@@ -197,6 +245,9 @@ public class BenchmarkCollectionAccess
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks writing 1000 elements to an array.
+    /// </summary>
     [Benchmark(Description = "Array write")]
     public void ArrayWrite()
     {
@@ -206,6 +257,9 @@ public class BenchmarkCollectionAccess
         }
     }
 
+    /// <summary>
+    /// Benchmarks writing 1000 elements to a Dictionary.
+    /// </summary>
     [Benchmark(Description = "Dictionary write")]
     public void DictionaryWrite()
     {
@@ -215,6 +269,9 @@ public class BenchmarkCollectionAccess
         }
     }
 
+    /// <summary>
+    /// Benchmarks writing 1000 elements through a Span.
+    /// </summary>
     [Benchmark(Description = "Span write")]
     public void SpanWrite()
     {
@@ -225,6 +282,9 @@ public class BenchmarkCollectionAccess
         }
     }
 
+    /// <summary>
+    /// Benchmarks writing 1000 elements through an unmanaged pointer.
+    /// </summary>
     [Benchmark(Description = "Unsafe pointer write")]
     public unsafe void UnsafePointerWrite()
     {

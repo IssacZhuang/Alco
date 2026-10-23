@@ -64,8 +64,7 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
     /// Gets a pointer to the underlying bitmap data buffer for unsafe operations.
     /// </summary>
     /// <remarks>
-    /// The pointer provides direct access to the bitmap's internal buffer. Use with caution
-    /// and ensure proper bounds checking when using this pointer.
+    /// The pointer exposes the internal buffer directly; callers must enforce bounds safety.
     /// </remarks>
     public T* UnsafePointer => _data.UnsafePointer;
 
@@ -88,6 +87,12 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         }
     }
 
+    /// <summary>
+    /// Creates a bitmap of the given size, optionally filled with a default pixel.
+    /// </summary>
+    /// <param name="width">The width of the bitmap.</param>
+    /// <param name="height">The height of the bitmap.</param>
+    /// <param name="defaultValue">The pixel value to fill the bitmap with, or null to clear it.</param>
     public Bitmap(uint width, uint height, T? defaultValue = default)
     {
         _data = new GridMap<T>((int)width, (int)height);
@@ -110,6 +115,10 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         _data.AsSpan().Clear();
     }
 
+    /// <summary>
+    /// Sets all pixels in the bitmap to the specified value.
+    /// </summary>
+    /// <param name="value">The value to fill the bitmap with.</param>
     public void Fill(T value)
     {
         _data.AsSpan().Fill(value);
@@ -142,6 +151,12 @@ public unsafe class Bitmap<T> : AutoDisposable where T : unmanaged
         }
     }
 
+    /// <summary>
+    /// Sets the pixel at the specified coordinates.
+    /// </summary>
+    /// <param name="x">The x coordinate of the pixel.</param>
+    /// <param name="y">The y coordinate of the pixel.</param>
+    /// <param name="value">The pixel value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set(int x, int y, T value)
     {

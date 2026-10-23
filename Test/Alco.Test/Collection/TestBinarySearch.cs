@@ -5,8 +5,10 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>Tests binary search helpers.</summary>
     public class TestBinarySearch
     {
+        /// <summary>Tests that binary search finds an existing element.</summary>
         [Test(Description = "binary search")]
         public void TestSearch()
         {
@@ -15,6 +17,7 @@ namespace Alco.Test
             Assert.IsFalse(index != 4, "binary search failed: expect 4, got " + index);
         }
 
+        /// <summary>Tests floor search for existing, between and out-of-range values.</summary>
         [Test(Description = "binary search floor")]
         public void TestSearchFloor()
         {
@@ -33,6 +36,7 @@ namespace Alco.Test
             Assert.IsFalse(index != 8, "binary search failed: expect 8, got " + index);
         }
 
+        /// <summary>Tests ceiling search for existing, between and out-of-range values.</summary>
         [Test(Description = "binary search ceil")]
         public void TestSearchCeil()
         {

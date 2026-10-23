@@ -4,8 +4,10 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Test;
 
+/// <summary>Tests attachment layout equality, hashing, and pipeline caching.</summary>
 public class TestAttachmentLayout
 {
+    /// <summary>Tests that equal attachment layouts share hashes and pipelines while differing layouts do not.</summary>
     [Test]
     public void TestAttachmentLayoutHash()
     {

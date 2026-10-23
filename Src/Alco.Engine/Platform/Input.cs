@@ -82,29 +82,13 @@ public abstract class Input
     public abstract Vector2 MousePosition { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the system cursor is visible.
-    /// <br/>
-    /// For SDL3 backends, this corresponds to <c>SDL_CursorVisible</c> for querying
-    /// and <c>SDL_ShowCursor</c>/<c>SDL_HideCursor</c> for changing visibility. This
-    /// should be accessed on the main thread.
+    /// Gets or sets whether the system cursor is visible; access on the main thread.
     /// </summary>
     public abstract bool IsCursorVisible { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the mouse uses relative (raw) input for the main view.
-    /// <br/>
-    /// While enabled the cursor is hidden and confined to the window, and
-    /// <see cref="MouseDelta"/> reports raw relative device motion accumulated by the OS
-    /// (Raw Input on Windows): unaffected by OS pointer acceleration ("enhance pointer
-    /// precision"), screen edges, or per-pixel rounding. When the mode is disabled the
-    /// cursor is restored to where it was when the mode was enabled.
-    /// <br/>
-    /// [Attention] Units differ between modes: <see cref="MouseDelta"/> is measured in
-    /// screen pixels while this mode is off, but in raw device counts ("mickeys") while
-    /// it is on. A typical mouse (800-1600 DPI) on a 96 DPI display emits roughly 8-16
-    /// counts per cursor pixel, so consumers that were tuned for pixels (e.g. camera
-    /// sensitivity) need their own scale factor in relative mode. This should be
-    /// accessed on the main thread.
+    /// Gets or sets whether relative (raw) mouse input is used for the main view; while enabled,
+    /// <see cref="MouseDelta"/> reports raw device counts instead of screen pixels.
     /// </summary>
     public abstract bool IsMouseRelativeMode { get; set; }
 
@@ -190,6 +174,10 @@ public abstract class Input
     /// </summary>
     public abstract ReadOnlySpan<char> GetClipboardText();
 
+    /// <summary>
+    /// Gets the currently connected gamepads.
+    /// </summary>
+    /// <returns>The connected gamepads.</returns>
     public abstract IReadOnlyList<Gamepad> GetGamepads();
 
     public Gamepad? PrimaryGamepad

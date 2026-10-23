@@ -4,13 +4,12 @@ using static Alco.ImGUI.Test.GizmoTestSupport;
 namespace Alco.ImGUI.Test;
 
 /// <summary>
-/// GC pressure regression: the per-frame gizmo path must not allocate managed memory.
-/// Pumps hover/activate/drag frames through the headless core and asserts zero
-/// allocated bytes after warm-up (first calls may allocate static/JIT state).
+/// Regression tests that per-frame gizmo core frames allocate no managed memory.
 /// </summary>
 [TestFixture]
 public class TestGizmoAllocations
 {
+    /// <summary>Tests that core translate drag frames allocate no managed memory.</summary>
     [Test]
     public void TranslateDrag_CoreFrames_AllocateNothing()
     {
@@ -45,6 +44,7 @@ public class TestGizmoAllocations
         return GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
     }
 
+    /// <summary>Tests that core rotate drag frames allocate no managed memory.</summary>
     [Test]
     public void RotateDrag_CoreFrames_AllocateNothing()
     {
@@ -69,6 +69,7 @@ public class TestGizmoAllocations
         Assert.That(allocated, Is.EqualTo(0), "per-frame core path must not allocate");
     }
 
+    /// <summary>Tests that core bounds drag frames allocate no managed memory.</summary>
     [Test]
     public void BoundsDrag_CoreFrames_AllocateNothing()
     {

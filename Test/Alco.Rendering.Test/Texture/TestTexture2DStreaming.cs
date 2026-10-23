@@ -13,6 +13,9 @@ namespace Alco.Rendering.Test;
 // (NoTexture discards writes). The NoGPU device reports no BC support, so the DDS
 // tests cover the CPU fallback path; BcCapableNoDevice covers the verbatim BC path.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>
+/// Tests header-driven texture creation and in-place content upload, including streaming, BC fallback, and error paths on the NoGPU device.
+/// </summary>
 [TestFixture]
 public class TestTexture2DStreaming
 {
@@ -35,6 +38,9 @@ public class TestTexture2DStreaming
         return data;
     }
 
+    /// <summary>
+    /// Tests that a PNG header creates an empty texture at the file specification.
+    /// </summary>
     [Test]
     public void CreateFromHeader_Png_CreatesEmptyAtFileSpec()
     {
@@ -53,6 +59,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8UnormSrgb));
     }
 
+    /// <summary>
+    /// Tests that DDS without BC support falls back to a single-level RGBA8 texture.
+    /// </summary>
     [Test]
     public void CreateFromHeader_Dds_WithoutBcSupport_FallsBackToRgba()
     {
@@ -74,6 +83,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
     }
 
+    /// <summary>
+    /// Tests that DDS with BC support uses the file's BC1 specification and mip count.
+    /// </summary>
     [Test]
     public void CreateFromHeader_Dds_WithBcSupport_UsesFileSpec()
     {
@@ -92,6 +104,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.BC1RGBAUnorm));
     }
 
+    /// <summary>
+    /// Tests that uploading PNG content preserves texture identity.
+    /// </summary>
     [Test]
     public void UploadContent_Png_KeepsIdentity()
     {
@@ -108,6 +123,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.NativeTexture, Is.SameAs(native));
     }
 
+    /// <summary>
+    /// Tests that DDS upload without BC support decodes level 0 and marks content loaded.
+    /// </summary>
     [Test]
     public void UploadContent_Dds_WithoutBcSupport_DecodesLevel0AndMarksLoaded()
     {
@@ -129,6 +147,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.NativeTexture, Is.SameAs(native));
     }
 
+    /// <summary>
+    /// Tests that DDS upload with BC support keeps identity and marks content loaded.
+    /// </summary>
     [Test]
     public void UploadContent_Dds_WithBcSupport_UploadsMipChainKeepsIdentity()
     {
@@ -147,6 +168,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.NativeTexture, Is.SameAs(native));
     }
 
+    /// <summary>
+    /// Tests that a truncated DDS payload throws.
+    /// </summary>
     [Test]
     public void UploadContent_Dds_TruncatedPayload_Throws()
     {
@@ -161,6 +185,9 @@ public class TestTexture2DStreaming
         Assert.Throws<ImageDecodeException>(() => rendering.UploadTexture2DContent(texture, data));
     }
 
+    /// <summary>
+    /// Tests that uploading content that does not match the texture specification throws and preserves identity.
+    /// </summary>
     [Test]
     public void UploadContent_SpecMismatch_Throws()
     {
@@ -177,7 +204,6 @@ public class TestTexture2DStreaming
     }
 
     /// <summary>
-    /// <summary>
     /// A read-only stream over bytes that records disposal — the streaming contract
     /// disposes the stream when the upload task finishes, which cross-checks the
     /// texture's own ContentArrival completion signal.
@@ -193,6 +219,9 @@ public class TestTexture2DStreaming
         }
     }
 
+    /// <summary>
+    /// Tests that streaming pre-creates the texture, uploads in place, and disposes the stream.
+    /// </summary>
     [Test]
     public void CreateStreaming_Png_PreCreatesThenUploadsInPlace()
     {
@@ -216,6 +245,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.NativeTexture, Is.SameAs(native));
     }
 
+    /// <summary>
+    /// Tests that a corrupt streaming header throws and leaves the stream to the caller.
+    /// </summary>
     [Test]
     public void CreateStreaming_CorruptHeader_ThrowsAndCallerKeepsStream()
     {
@@ -230,6 +262,9 @@ public class TestTexture2DStreaming
         Assert.DoesNotThrow(() => stream.Dispose());
     }
 
+    /// <summary>
+    /// Tests that a header-created texture reports content loaded only after upload.
+    /// </summary>
     [Test]
     public void CreateFromHeader_Png_ContentNotLoadedUntilUpload()
     {
@@ -249,6 +284,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.IsContentLoaded, Is.True);
     }
 
+    /// <summary>
+    /// Tests that a texture created with content reports content loaded immediately.
+    /// </summary>
     [Test]
     public void CreateFromColor_ReportsContentLoadedByDefault()
     {
@@ -262,6 +300,9 @@ public class TestTexture2DStreaming
         Assert.That(texture.ContentArrival.IsCompleted, Is.True);
     }
 
+    /// <summary>
+    /// Tests that streaming content arrival completes and marks content loaded.
+    /// </summary>
     [Test]
     public void CreateStreaming_Png_ContentArrivalCompletesAndMarksContentLoaded()
     {

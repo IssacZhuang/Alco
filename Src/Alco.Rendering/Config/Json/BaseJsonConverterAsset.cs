@@ -7,10 +7,17 @@ using Alco.IO;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Base converter that loads a <typeparamref name="T"/> asset by path through the asset system.
+/// </summary>
 public abstract class BaseJsonConverterAsset<T> : JsonConverter<T> where T : class
 {
     protected readonly AssetSystem _assetSystem;
 
+    /// <summary>
+    /// Creates the converter over the asset system used to load assets.
+    /// </summary>
+    /// <param name="assetSystem">The asset system.</param>
     public BaseJsonConverterAsset(AssetSystem assetSystem)
     {
         _assetSystem = assetSystem;

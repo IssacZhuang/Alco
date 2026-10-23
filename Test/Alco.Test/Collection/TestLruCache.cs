@@ -5,9 +5,11 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>Tests the least-recently-used cache.</summary>
     [TestFixture]
     public class TestLruCache
     {
+        /// <summary>Tests basic set, get, remove and clear operations.</summary>
         [Test(Description = "Test basic LRU cache operations")]
         public void TestBasicOperations()
         {
@@ -53,6 +55,7 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(0), "Sum weight should be 0 after clearing");
         }
 
+        /// <summary>Tests that the least recently used entries are evicted.</summary>
         [Test(Description = "Test LRU eviction behavior")]
         public void TestLruEviction()
         {
@@ -89,6 +92,7 @@ namespace Alco.Test
             Assert.IsTrue(cache.TryGetValue("key5", out _), "key5 should be in cache");
         }
 
+        /// <summary>Tests eviction with a custom weight function.</summary>
         [Test(Description = "Test LRU cache with custom weights")]
         public void TestCustomWeights()
         {
@@ -137,6 +141,7 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(expectedWeight), $"Sum weight should be {expectedWeight}");
         }
 
+        /// <summary>Tests indexer get and set behaviour.</summary>
         [Test(Description = "Test LRU cache with indexer")]
         public void TestIndexer()
         {

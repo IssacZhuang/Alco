@@ -5,13 +5,8 @@ using System.Runtime.CompilerServices;
 namespace Alco;
 
 /// <summary>
-/// Breadth-first flood fill helper that tracks visited cells with a <see cref="HashSet{T}"/> instead
-/// of a fixed-size bitmap. Unlike <see cref="GridFloodFiller"/>, it imposes no grid dimensions:
-/// coordinates are arbitrary integers (negatives included), and bounds/validity are decided entirely
-/// by the supplied <paramref name="isTraversable"/> predicate. This trades higher per-cell overhead
-/// and allocations that grow with the filled area for the freedom to fill without first carving out a
-/// rectangular region, so prefer <see cref="GridFloodFiller"/> when the fill is always bounded to a
-/// known rectangle.
+/// A breadth-first flood fill that tracks visited cells in a <see cref="HashSet{T}"/> and supports arbitrary integer coordinates, including negatives.
+/// Prefer <see cref="GridFloodFiller"/> when the fill is bounded to a known rectangle.
 /// </summary>
 public sealed class HashSetFloodFiller
 {

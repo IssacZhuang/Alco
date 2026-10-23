@@ -6,6 +6,9 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// A 2D GPU texture with optional named sprites and 9-slice padding.
+/// </summary>
 public sealed class Texture2D : Texture
 {
     private readonly Sprite _defaultSprite;
@@ -51,14 +54,12 @@ public sealed class Texture2D : Texture
         }
     }
 
+    /// <summary>The 9-slice padding, in texels, applied to sprites of this texture.</summary>
     public Padding SlicePadding { get; }
 
     /// <summary>
-    /// A task that completes when streamed content has been issued to the GPU queue,
-    /// or is already completed for textures created with their content. It completes
-    /// even when the upload failed — check <see cref="IsContentLoaded"/> to distinguish —
-    /// and never faults. Completion covers the CPU-side queue write only: backends
-    /// order queue operations, so work submitted afterwards observes the content.
+    /// A task that completes when streamed content has been issued to the GPU queue.
+    /// It never faults; check <see cref="IsContentLoaded"/> to determine success.
     /// </summary>
     public Task ContentArrival => _contentUpload ?? Task.CompletedTask;
 
@@ -122,10 +123,7 @@ public sealed class Texture2D : Texture
 
     /// <summary>
     /// The read-only resource group bound to the single-mip view of the given mip level.
-    /// Inside the view the mip is rebased to mip 0, so shaders load it with mip index 0.
-    /// <br/>Use this instead of <see cref="EntryReadonly"/> when the same dispatch also writes
-    /// another mip of the texture: the non-overlapping subresource ranges of the two views
-    /// avoid the usage scope conflict of the underlying graphics API.
+    /// Use it instead of <see cref="EntryReadonly"/> when the same dispatch writes another mip.
     /// </summary>
     /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
     /// <returns>The read-only resource group for the mip level.</returns>
@@ -214,21 +212,32 @@ public sealed class Texture2D : Texture
         }
     }
 
+    /// <summary>Removes all named sprites.</summary>
     public void ClearSprites()
     {
         _sprites.Clear();
     }
 
+    /// <summary>Adds or replaces a named sprite over the given UV rectangle.</summary>
+    /// <param name="name">The sprite name.</param>
+    /// <param name="uvRect">The UV rectangle of the sprite within the texture.</param>
     public void SetSprite(string name, Rect uvRect)
     {
         _sprites[name] = new Sprite(name, this, uvRect);
     }
 
+    /// <summary>Gets the sprite with the given name, returning false when it does not exist.</summary>
+    /// <param name="name">The sprite name.</param>
+    /// <param name="sprite">The found sprite, or null.</param>
+    /// <returns>True when a sprite with the name exists.</returns>
     public bool TryGetSprite(string name, [NotNullWhen(true)] out Sprite? sprite)
     {
         return _sprites.TryGetValue(name, out sprite);
     }
 
+    /// <summary>Gets the sprite with the given name, falling back to the default sprite when absent.</summary>
+    /// <param name="name">The sprite name.</param>
+    /// <returns>The named sprite, or the default sprite.</returns>
     public Sprite GetSprite(string name)
     {
         if (_sprites.TryGetValue(name, out Sprite? sprite))
@@ -248,6 +257,9 @@ public sealed class Texture2D : Texture
         return texture._defaultSprite;
     }
 
+    /// <summary>Uploads a CPU bitmap to the texture, replacing the whole content.</summary>
+    /// <typeparam name="T">The pixel type; must match the texture's format.</typeparam>
+    /// <param name="bitmap">The CPU bitmap to upload.</param>
     public unsafe void SetPixels<T>(Bitmap<T> bitmap) where T : unmanaged
     {
         if (!IsWriteable)
@@ -323,6 +335,9 @@ public sealed class Texture2D : Texture
 
     private byte[]? _regionScratch;
 
+    /// <summary>Replaces the underlying GPU texture and view, invalidating cached bind groups.</summary>
+    /// <param name="texture">The new GPU texture.</param>
+    /// <param name="textureView">The new GPU texture view.</param>
     public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)
     {
         _texture = texture;

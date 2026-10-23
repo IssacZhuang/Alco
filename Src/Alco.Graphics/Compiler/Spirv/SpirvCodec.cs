@@ -8,11 +8,9 @@ namespace Alco.Graphics;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Decodes SPIR-V framing: little-endian byte/word conversion and instruction
-/// headers (<c>(wordCount &lt;&lt; 16) | opcode</c>). Instructions are exposed
-/// as <see cref="SpirvInstruction"/> locations over the word array — operand
-/// words stay in place, so passes rewrite by splicing ranges instead of
-/// materializing a module object model.
+/// Decodes SPIR-V framing: little-endian byte/word conversion and instruction headers
+/// exposed as <see cref="SpirvInstruction"/> locations over the word array. Operands
+/// stay in the word array, so passes rewrite by splicing ranges.
 /// </summary>
 public static class SpirvCodec
 {

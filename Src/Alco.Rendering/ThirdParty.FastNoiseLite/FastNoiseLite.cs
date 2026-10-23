@@ -60,6 +60,7 @@ using FNLfloat = System.Single;
 //using FNLfloat = System.Double;
 
 
+/// <summary>The noise algorithm used by <see cref="Noise"/>.</summary>
 public enum NoiseType
 {
     OpenSimplex2,
@@ -70,6 +71,7 @@ public enum NoiseType
     Value
 };
 
+/// <summary>The 3D rotation applied to improve axis-aligned artifacts.</summary>
 public enum RotationType3D
 {
     None,
@@ -77,6 +79,7 @@ public enum RotationType3D
     ImproveXZPlanes
 };
 
+/// <summary>The fractal combination applied to the base noise.</summary>
 public enum FractalType
 {
     None,
@@ -87,6 +90,7 @@ public enum FractalType
     DomainWarpIndependent
 };
 
+/// <summary>The distance metric used by cellular noise.</summary>
 public enum CellularDistanceFunction
 {
     Euclidean,
@@ -95,6 +99,7 @@ public enum CellularDistanceFunction
     Hybrid
 };
 
+/// <summary>The cellular value returned by cellular noise.</summary>
 public enum CellularReturnType
 {
     CellValue,
@@ -106,6 +111,7 @@ public enum CellularReturnType
     Distance2Div
 };
 
+/// <summary>The algorithm used for domain warping.</summary>
 public enum DomainWarpType
 {
     OpenSimplex2,
@@ -114,6 +120,9 @@ public enum DomainWarpType
 };
 
 //public class FastNoiseLite
+/// <summary>
+/// A configurable noise generator supporting multiple noise, fractal, cellular, and domain-warp types.
+/// </summary>
 public partial class Noise
 {
     private const short INLINE = 256; // MethodImplOptions.AggressiveInlining;
@@ -151,8 +160,9 @@ public partial class Noise
     private float mDomainWarpAmp = 1.0f;
 
     /// <summary>
-    /// Create new FastNoise object with optional seed
+    /// Creates a noise generator with the given seed.
     /// </summary>
+    /// <param name="seed">The seed used by all noise types.</param>
     //public FastNoiseLite(int seed = 1337)
     public Noise(int seed = 1337)
     {
@@ -205,8 +215,7 @@ public partial class Noise
     /// Sets method for combining octaves in all fractal noise types
     /// </summary>
     /// <remarks>
-    /// Default: None
-    /// Note: FractalType.DomainWarp... only affects DomainWarp(...)
+    /// Default: None. DomainWarp fractal types only affect domain warping.
     /// </remarks>
     private void SetFractalType(FractalType fractalType) { mFractalType = fractalType; }
 
@@ -246,8 +255,7 @@ public partial class Noise
     /// Sets octave weighting for all none DomainWarp fratal types
     /// </summary>
     /// <remarks>
-    /// Default: 0.0
-    /// Note: Keep between 0...1 to maintain -1...1 output bounding
+    /// Default: 0.0. Keep between 0 and 1 to maintain -1..1 output bounds.
     /// </remarks>
     private void SetFractalWeightedStrength(float weightedStrength) { mWeightedStrength = weightedStrength; }
 
@@ -280,8 +288,7 @@ public partial class Noise
     /// Sets the maximum distance a cellular point can move from it's grid position
     /// </summary>
     /// <remarks>
-    /// Default: 1.0
-    /// Note: Setting this higher than 1 will cause artifacts
+    /// Default: 1.0. Values above 1 cause artifacts.
     /// </remarks> 
     private void SetCellularJitter(float cellularJitter) { mCellularJitterModifier = cellularJitter; }
 

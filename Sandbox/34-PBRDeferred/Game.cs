@@ -9,30 +9,8 @@ using Alco.Rendering;
 using Alco.World3D;
 using SandboxUtils;
 
-/// <summary>
-/// Sandbox demonstrating 3D PBR rendering with a deferred pipeline:
-/// G-buffer pass, deferred lighting (GGX BRDF), a directional sun with
-/// cascaded shadow maps (4 cascades in a 2x2 atlas), up to four point
-/// lights, emissive surfaces with HDR bloom, a physically-based procedural
-/// sky (single-scattering atmosphere driven by the time of day, with a sun
-/// disc and a star field) and voxel global illumination (a camera-following
-/// sparse brick clipmap with compute voxelization, rotation-balanced diffuse
-/// tracing and hybrid reflections).
-/// <br/>Static geometry (the whole glTF scene, or the non-animated primitives)
-/// is recorded once into render bundles (one per shadow cascade plus one for the
-/// G-buffer pass) and replayed every frame; scene materials are data-only
-/// <see cref="MaterialAsset"/>s compiled per pass by the pipeline's
-/// <see cref="MaterialCompiler"/>. Only animated objects are drawn
-/// immediately each frame.
-/// <br/>Loads the Amazon Lumberyard Bistro exterior scene (glTF) when present
-/// in Assets/Bistro; --interior loads the Bistro interior, --rungholt the
-/// converted Minecraft city (split into spatial chunks) from Assets/Rungholt
-/// instead. Otherwise falls back to a procedural primitive scene.
-/// <br/>Controls: in fly mode hold the right mouse button to look around,
-/// WASD to move; in orbit mode drag with the left mouse button to orbit,
-/// mouse wheel to zoom, ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--rungholt] [--interior] [--procedural] [--cascade-debug] [--sun=x,y,z] [--time=H] [--time-speed=S] [--no-hbao] [--hbao-debug] [--no-gi] [--gi-debug=N] [--gi-resolution=50|75|100] [--rsm=N] [--no-bloom] [--bloom-threshold=N] [--bloom-intensity=N]
-/// </summary>
+/// <summary>Sandbox demonstrating 3D PBR rendering with a deferred pipeline: G-buffer, GGX lighting, cascaded shadows, HBAO, HDR bloom, a procedural sky, and voxel global illumination.</summary>
+/// <remarks>Loads the Bistro or Rungholt scenes when present and otherwise falls back to a procedural scene; use <c>--screenshot=&lt;path.png&gt;</c> to capture a frame.</remarks>
 public class Game : GameEngine
 {
     /// <summary>A PBR scene object: mesh, transform and surface parameters.</summary>
@@ -347,6 +325,9 @@ public class Game : GameEngine
 
     private float _time;
 
+    /// <summary>Initializes the PBR scene, rendering pipeline, and optional screenshot mode.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
+    /// <param name="args">Command-line arguments selecting the scene and debug options.</param>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
@@ -863,13 +844,7 @@ public class Game : GameEngine
         _materialCompiler?.Dispose();
     }
 
-    /// <summary>
-    /// Called when any asset is hot-reloaded. For shaders, marks the static
-    /// render bundles dirty so G-buffer / shadow / forward passes re-record
-    /// with the freshly compiled pipeline on the next frame. Without this,
-    /// only dynamic draws pick up the new shader (static bundles replay the
-    /// old pipeline captured at record time).
-    /// </summary>
+    /// <summary>Marks static render bundles dirty when a shader is hot-reloaded so all passes re-record with the new pipeline.</summary>
     private void OnShaderHotReload(string filename, object cachedAsset)
     {
         if (cachedAsset is not Shader)
@@ -1110,12 +1085,7 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>
-    /// Scan model draw items for emissive materials and build point lights at
-    /// their world-space centers. Light color, range and intensity are matched
-    /// to the emissive material name (street lights, string lights, shop signs,
-    /// ceiling lamps, etc.). Called once during initialization.
-    /// </summary>
+    /// <summary>Creates point lights at the world-space centers of emissive model materials during initialization.</summary>
     private void BuildModelPointLights()
     {
         if (_modelScene == null)
@@ -1362,14 +1332,7 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>
-    /// Arms the chain-tail screenshot: a <see cref="RGNode_Capture"/> is inserted before
-    /// the final blit and copies the fully post-processed frame (bloom and the chain's
-    /// tonemap included — the real presented look, not the raw HDR scene texture) into
-    /// its RGBA8 texture. The asynchronous readback and PNG encode then run on the
-    /// following frames via <see cref="PngReadbackPipeline"/>; the content is fully
-    /// populated within the first few frames — pick --frames accordingly.
-    /// </summary>
+    /// <summary>Inserts a capture node before the final blit so the fully post-processed frame is read back as a PNG.</summary>
     private void ArmScreenshot(string path)
     {
         _screenshotArmed = true;

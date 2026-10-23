@@ -3,23 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Base class for chain transform nodes: post-process effects that read the chain's
-/// current content and write the transformed result into their own private transient
-/// output, then advance the chain to that output. On headless frames (null
-/// destination) the node is culled automatically — its output is never consumed.
-/// <br/>Derive and implement <see cref="OnProcess"/>; both textures are backed by
-/// real GPU textures for the duration of the call. The node owns its output
-/// transient — destroyed via <see cref="RenderGraph.DestroyTransient"/> with the
-/// node — and the graph's transient pool aliases the historical ping-pong
-/// temporaries.
-/// <br/>Timing: per-node CPU time is measured automatically by the graph (see
-/// <see cref="RenderGraph.Profiler"/>). For GPU time, when no external
-/// <see cref="Instrumentation"/> is set and the graph has a profiler, the node
-/// lazily self-instruments — when the device supports timestamp queries it
-/// creates a private GPU sampler whose slot pair wraps the pass opened through
-/// <see cref="BeginProcessPass"/> (or a span the derivative brackets itself via
-/// <see cref="PassInstrumentation.BeginSpanPass"/>/
-/// <see cref="PassInstrumentation.EndSpanPass"/>).
+/// Base class for chain transform nodes: post-process effects that transform the chain's current content into a private transient output and advance the chain.
+/// The node owns its output transient and is culled on headless frames.
 /// </summary>
 public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
 {
@@ -138,11 +123,7 @@ public abstract class RGNode_ChainTransform : AutoDisposable, IRenderGraphNode
     protected abstract void OnProcess(RenderTexture input, RenderTexture output, in RenderGraphContext context);
 
     /// <summary>
-    /// Opens the node's main process pass on the frame's render context, wrapping
-    /// it with the instrumentation's GPU timestamp pair (begin + end) and
-    /// scheduling the resolve at pass close. Derivatives drawing a single pass
-    /// into <paramref name="output"/> should open it through this helper so the
-    /// auto instrumentation records them.
+    /// Opens the node's main process pass on the frame's render context, wrapped in the instrumentation's GPU timestamp pair.
     /// </summary>
     /// <param name="output">The node's output texture (from <see cref="OnProcess"/>).</param>
     /// <param name="context">The per-frame execution context.</param>

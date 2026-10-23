@@ -7,6 +7,7 @@ using Alco.GUI;
 using Alco.Rendering;
 using FastRandom = Alco.FastRandom;
 
+/// <summary>Manages pooled cubes, collision casts, and sprite rendering for the space-partition sandbox.</summary>
 public class CubeSystem : IDisposable
 {
     private static readonly ColorFloat DefaultColor = 0xff4444;
@@ -20,6 +21,10 @@ public class CubeSystem : IDisposable
 
     private FastRandom _random = new FastRandom(123);
 
+    /// <summary>Initializes the cube system and its sprite renderer.</summary>
+    /// <param name="rendering">Rendering system used to create the render context.</param>
+    /// <param name="material">Sprite material used for drawing.</param>
+    /// <param name="texCube">Texture applied to cubes.</param>
     public CubeSystem(RenderingSystem rendering, GraphicsMaterial material, Texture2D texCube)
     {
         _texture = texCube;
@@ -28,6 +33,8 @@ public class CubeSystem : IDisposable
         _collisionTask = new PerformCollisionTask();
     }
 
+    /// <summary>Removes cubes marked for destruction and returns them to the pool.</summary>
+    /// <param name="delta">Elapsed time in seconds.</param>
     public void OnTick(float delta)
     {
 
@@ -49,6 +56,8 @@ public class CubeSystem : IDisposable
         }
     }
 
+    /// <summary>Spawns a cube at the given position using a pooled instance.</summary>
+    /// <param name="position">World position for the cube; only X and Y are used.</param>
     public void Spawn(Vector3 position)
     {
         Log.Info("Spawn", position);
@@ -62,6 +71,8 @@ public class CubeSystem : IDisposable
         }
     }
 
+    /// <summary>Casts every active cube against the collision world in parallel.</summary>
+    /// <param name="collisionWorld">World used for the collision casts.</param>
     public void PerformCollision(CollisionWorld2D collisionWorld)
     {
         if (_activeList.Count == 0) return;
@@ -95,6 +106,8 @@ public class CubeSystem : IDisposable
         }
     }
 
+    /// <summary>Draws all active cubes into the given framebuffer.</summary>
+    /// <param name="frame">Framebuffer receiving the draw calls.</param>
     public void OnRender(GPUFrameBuffer frame)
     {
         using (RenderFrameScope frameScope = _renderContext.BeginFrame())
@@ -109,6 +122,7 @@ public class CubeSystem : IDisposable
 
     }
 
+    /// <summary>Releases the collision task and render context.</summary>
     public void Dispose()
     {
         _collisionTask.Dispose();

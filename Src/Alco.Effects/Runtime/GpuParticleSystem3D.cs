@@ -7,24 +7,8 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// The 3D GPU particle system: simulates and renders <see cref="ParticleEffect3D"/>
-/// instances entirely on the GPU — the 3D counterpart of
-/// <see cref="GpuParticleSystem2D"/> (see its remarks for the material-batched
-/// multi-draw architecture; the draw plan is built in RecordSimulation and replayed
-/// in Render the same way, and the same rate limiting applies — see
-/// <see cref="SimulationRateLimitEnabled"/>). Renders camera-facing billboards with
-/// depth testing (tested, not written) — draw it into the scene's forward/transparent
-/// pass.
-/// <br/>Material modules (<see cref="AddMaterialModule"/>) bind further shared
-/// shader resources into the render materials — see
-/// <see cref="GpuParticleSystem2D.AddMaterialModule"/>.
-/// <br/>Threading: instance creation, release (instance disposal), the camera, the
-/// frame simulation and rendering are serialized on one reentrant gate shared with
-/// the pool, so creating/destroying effects from any thread is safe and never
-/// corrupts the shared bookkeeping. First-use material compilation happens off the
-/// gate (double-checked caches), so a worker-thread compile never stalls the frame
-/// thread. Ongoing per-instance mutation (per-tick transforms, group parameter
-/// edits) remains a main-thread contract.
+/// The 3D GPU particle system: simulates and renders <see cref="ParticleEffect3D"/> instances entirely on the GPU as camera-facing, depth-tested billboards drawn into the scene's forward/transparent pass.
+/// Creating and destroying instances is thread-safe, but ongoing per-instance mutation (transforms, group parameter edits) is a main-thread contract.
 /// </summary>
 public sealed class GpuParticleSystem3D : AutoDisposable
 {
@@ -484,11 +468,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     }
 
     /// <summary>
-    /// Rebuilds the per-frame draw plan (see <see cref="GpuParticleSystem2D.BuildDrawPlan"/>):
-    /// the visible active groups bucketed by material (first-seen order), each
-    /// assigned a drawIndex into the compacted draw-args array and a drawStart (the
-    /// draw's firstInstance and base into the instance-data buffer, spaced by the
-    /// group's slice capacity).
+    /// Rebuilds the per-frame draw plan: visible active groups bucketed by material, each assigned a draw index and a draw start into the compacted draw arguments.
     /// </summary>
     private void BuildDrawPlan()
     {
@@ -694,13 +674,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
     }
 
     /// <summary>
-    /// The behavior's compute materials, double-checked: the compose runs off the
-    /// gate (a first-use compile can take milliseconds and must not stall the frame
-    /// thread), and a concurrent duplicate compile loses the race and is disposed.
-    /// Called once per group at instance creation — on the frame thread for
-    /// synchronous creations, on a worker thread for the async cold path — and the
-    /// resolved materials are cached in the group state, so the frame simulation
-    /// loop takes no per-group cache lookup or lock.
+    /// Resolves and caches the behavior's compute materials, compiling off the gate; a concurrent duplicate compile is disposed.
     /// </summary>
     private (ComputeMaterial Emit, ComputeMaterial Simulate) GetBehaviorMaterials(ShaderLibrary? behavior)
     {

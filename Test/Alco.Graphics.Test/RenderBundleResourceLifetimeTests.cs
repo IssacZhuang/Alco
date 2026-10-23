@@ -10,6 +10,7 @@ namespace Alco.Graphics.Test;
 [TestFixture]
 public sealed class RenderBundleResourceLifetimeTests
 {
+    /// <summary>Tests that a recorded render bundle retains its resource group until it is re-recorded.</summary>
     [Test(Description = "A recorded render bundle retains its resource groups until it is replaced")]
     public void RecordedResourceGroupRemainsAliveUntilBundleIsReRecorded()
     {

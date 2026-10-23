@@ -9,6 +9,7 @@ using Alco.IO;
 
 namespace Alco.Engine.Test;
 
+/// <summary>Covers JSON preprocessing, including inheritance merging, special-property filtering, and validation errors.</summary>
 [TestFixture]
 public class TestJsonPreprocessor
 {
@@ -75,6 +76,7 @@ public class TestJsonPreprocessor
         );
     }
 
+    /// <summary>Tests that independent JSON documents load without errors.</summary>
     [Test]
     public void TestBasicJsonLoading()
     {
@@ -99,6 +101,7 @@ public class TestJsonPreprocessor
         Assert.That(doc2!.RootElement.GetProperty("name").GetString(), Is.EqualTo("Test Object 2"));
     }
 
+    /// <summary>Tests that abstract documents merge into children and are not directly accessible.</summary>
     [Test]
     public void TestAbstractJsonLoading()
     {
@@ -126,6 +129,7 @@ public class TestJsonPreprocessor
         Assert.That(preprocessor.TryGetJsonDocument("abstract1", out _), Is.False);
     }
 
+    /// <summary>Tests that a multi-level inheritance chain merges and overrides values correctly.</summary>
     [Test]
     public void TestInheritanceChain()
     {
@@ -153,6 +157,7 @@ public class TestJsonPreprocessor
         Assert.That(rootElement.GetProperty("value4").GetInt32(), Is.EqualTo(4), "Should have final's own property");
     }
 
+    /// <summary>Tests that array inheritance appends child elements after parent elements.</summary>
     [Test]
     public void TestArrayInheritance()
     {
@@ -180,6 +185,7 @@ public class TestJsonPreprocessor
         Assert.That(items[3].GetString(), Is.EqualTo("d"));
     }
 
+    /// <summary>Tests that object values with inheritance disabled replace rather than merge the parent object.</summary>
     [Test]
     public void TestObjectInheritanceControl()
     {
@@ -205,6 +211,7 @@ public class TestJsonPreprocessor
         Assert.That(data.GetProperty("c").GetInt32(), Is.EqualTo(3), "Should have 'c'");
     }
 
+    /// <summary>Tests that circular parent references are reported as errors.</summary>
     [Test]
     public void TestCircularDependencyDetection()
     {
@@ -226,6 +233,7 @@ public class TestJsonPreprocessor
         Assert.That(errors.Any(e => e.Contains("Circular dependency")), Is.True);
     }
 
+    /// <summary>Tests that a reference to a nonexistent parent is reported as an error.</summary>
     [Test]
     public void TestMissingParent()
     {
@@ -245,6 +253,7 @@ public class TestJsonPreprocessor
         Assert.That(errors.Any(e => e.Contains("Parent with ID 'nonexistent' not found")), Is.True);
     }
 
+    /// <summary>Tests that duplicate document IDs are reported as errors.</summary>
     [Test]
     public void TestDuplicateIds()
     {
@@ -265,6 +274,7 @@ public class TestJsonPreprocessor
         Assert.That(errors.Any(e => e.Contains("duplicate id same")), Is.True);
     }
 
+    /// <summary>Tests that a document without an ID is reported as an error.</summary>
     [Test]
     public void TestMissingId()
     {
@@ -284,6 +294,7 @@ public class TestJsonPreprocessor
         Assert.That(errors.Any(e => e.Contains("has no id")), Is.True);
     }
 
+    /// <summary>Tests that an empty parent ID is reported as an error.</summary>
     [Test]
     public void TestEmptyParentId()
     {
@@ -303,6 +314,7 @@ public class TestJsonPreprocessor
         Assert.That(errors.Any(w => w.Contains("empty parent ID")), Is.True);
     }
 
+    /// <summary>Tests that requesting a nonexistent document through GetJsonDocument throws.</summary>
     [Test]
     public void TestGetJsonDocumentException()
     {
@@ -314,6 +326,7 @@ public class TestJsonPreprocessor
             "Should throw exception for non-existent document");
     }
 
+    /// <summary>Tests that a non-abstract parent is inherited from and remains directly accessible.</summary>
     [Test]
     public void TestNonAbstractParentInheritance()
     {
@@ -342,6 +355,7 @@ public class TestJsonPreprocessor
         Assert.That(parentDoc!.RootElement.GetProperty("baseValue").GetInt32(), Is.EqualTo(100));
     }
 
+    /// <summary>Tests that documents from multiple added file sources are loaded.</summary>
     [Test]
     public void TestFileSourceManagement()
     {
@@ -366,6 +380,7 @@ public class TestJsonPreprocessor
         // Need to recreate preprocessor to test removal (current implementation doesn't support dynamic removal)
     }
 
+    /// <summary>Tests that nested object and array inheritance merge correctly across multiple levels.</summary>
     [Test]
     public void TestComplexInheritanceScenario()
     {
@@ -430,6 +445,7 @@ public class TestJsonPreprocessor
         Assert.That(abilities, Is.EqualTo(expectedAbilities), "Should have all abilities in correct order");
     }
 
+    /// <summary>Tests that $abstract and $parent are removed from final documents and abstract ones are excluded.</summary>
     [Test]
     public void TestSpecialPropertiesFiltering()
     {

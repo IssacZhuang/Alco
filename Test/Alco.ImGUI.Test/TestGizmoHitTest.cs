@@ -18,6 +18,9 @@ public class TestGizmoHitTest
     private GizmoContext _ctx = null!;
     private Matrix4x4 _model;
 
+    /// <summary>
+    /// Creates the camera, context, and initial frame for each test.
+    /// </summary>
     [SetUp]
     public void SetUp()
     {
@@ -33,6 +36,9 @@ public class TestGizmoHitTest
         Frame(_ctx, mouse, false, _view, _projection, operation, GizmoMode.World, ref _model);
     }
 
+    /// <summary>
+    /// Tests that hovering near the X axis selects MoveX.
+    /// </summary>
     [Test]
     public void U4_AxisHit_WithinThreshold()
     {
@@ -41,6 +47,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.MoveX));
     }
 
+    /// <summary>
+    /// Tests that hovering away from the X axis selects no operation.
+    /// </summary>
     [Test]
     public void U4_AxisHit_OutsideThreshold()
     {
@@ -50,6 +59,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.None));
     }
 
+    /// <summary>
+    /// Tests that hovering inside the XY plane quad selects MoveXY.
+    /// </summary>
     [Test]
     public void U4_PlaneHit_WithinQuad()
     {
@@ -58,6 +70,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.MoveXY));
     }
 
+    /// <summary>
+    /// Tests that hovering outside the XY quad does not select MoveXY.
+    /// </summary>
     [Test]
     public void U4_PlaneHit_OutsideQuad()
     {
@@ -67,6 +82,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.Not.EqualTo(GizmoMoveType.MoveXY));
     }
 
+    /// <summary>
+    /// Tests that hovering on the rotation ring selects RotateZ.
+    /// </summary>
     [Test]
     public void U4_RingHit_WithinThreshold()
     {
@@ -77,6 +95,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.RotateZ));
     }
 
+    /// <summary>
+    /// Tests that hovering away from the rotation ring does not select RotateZ.
+    /// </summary>
     [Test]
     public void U4_RingHit_OutsideThreshold()
     {
@@ -89,6 +110,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.Not.EqualTo(GizmoMoveType.RotateZ));
     }
 
+    /// <summary>
+    /// Tests that hovering the center with translation enabled selects MoveScreen.
+    /// </summary>
     [Test]
     public void U4_CenterHit_ScreenMove()
     {
@@ -96,6 +120,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.MoveScreen));
     }
 
+    /// <summary>
+    /// Tests that hovering the X axis with scale enabled selects ScaleX.
+    /// </summary>
     [Test]
     public void U4_ScaleAxisHit()
     {
@@ -104,6 +131,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.ScaleX));
     }
 
+    /// <summary>
+    /// Tests that hovering the uniform-scale ring selects ScaleXYZ.
+    /// </summary>
     [Test]
     public void U4_UniformScaleRingHit()
     {
@@ -112,6 +142,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.ScaleXYZ));
     }
 
+    /// <summary>
+    /// Tests that a mouse position outside the viewport selects no operation.
+    /// </summary>
     [Test]
     public void U4_MouseOutsideViewport_NoHit()
     {
@@ -123,6 +156,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.None));
     }
 
+    /// <summary>
+    /// Tests that disabled operation bits are not hittable.
+    /// </summary>
     [Test]
     public void U4_DisabledOperationBits_NoHit()
     {
@@ -132,6 +168,9 @@ public class TestGizmoHitTest
         Assert.That(_ctx.FrameHoverType, Is.Not.EqualTo(GizmoMoveType.MoveX));
     }
 
+    /// <summary>
+    /// Tests that a gizmo behind the camera produces no hit or drag.
+    /// </summary>
     [Test]
     public void U10_BehindCamera_ReturnsFalseAndStaysIdle()
     {
@@ -150,6 +189,9 @@ public class TestGizmoHitTest
         Assert.That(ctx.Using, Is.False);
     }
 
+    /// <summary>
+    /// Tests that a gizmo far outside the frustum is not hittable.
+    /// </summary>
     [Test]
     public void U10_FarOutsideFrustum_NotHittable()
     {

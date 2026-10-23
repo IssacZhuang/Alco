@@ -53,6 +53,13 @@ public class AssetLoaderFontTTF : BaseAssetLoader<Font>
     public override string Name => "AssetLoader.Font.TTF";
     public override IReadOnlyList<string> FileExtensions => Extensions;
 
+    /// <summary>
+    /// Creates the font loader, optionally enabling SDF generation and a disk atlas cache.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system.</param>
+    /// <param name="textSdfShader">The shader used to generate SDF glyphs.</param>
+    /// <param name="generateSdf">Whether to generate SDF glyphs.</param>
+    /// <param name="cacheDirectory">The font atlas cache directory, or null to disable caching.</param>
     public AssetLoaderFontTTF(RenderingSystem renderingSystem, Shader? textSdfShader = null, bool generateSdf = false, string? cacheDirectory = null)
     {
         _renderingSystem = renderingSystem;

@@ -2,9 +2,11 @@ using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
 
+/// <summary>Tests premultiplying alpha on RGBA pixel buffers.</summary>
 [TestFixture]
 public unsafe class TestPremultiplyAlpha
 {
+    /// <summary>Tests that zero alpha zeroes the RGB channels.</summary>
     [Test]
     public void ZeroAlpha_ZeroesRGB()
     {
@@ -22,6 +24,7 @@ public unsafe class TestPremultiplyAlpha
         });
     }
 
+    /// <summary>Tests that fully opaque pixels are left unchanged.</summary>
     [Test]
     public void FullAlpha_Unchanged()
     {
@@ -39,6 +42,7 @@ public unsafe class TestPremultiplyAlpha
         });
     }
 
+    /// <summary>Tests that partial alpha scales the RGB channels.</summary>
     [Test]
     public void PartialAlpha_PremultipliesRGB()
     {
@@ -56,6 +60,7 @@ public unsafe class TestPremultiplyAlpha
         });
     }
 
+    /// <summary>Tests that premultiplying never alters the alpha channel.</summary>
     [Test]
     public void AlphaChannel_AlwaysPreserved()
     {
@@ -85,6 +90,8 @@ public unsafe class TestPremultiplyAlpha
     [TestCase(17)]
     [TestCase(32)]
     [TestCase(100)]
+    /// <summary>Tests premultiplication for various pixel counts.</summary>
+    /// <param name="pixelCount">Number of pixels to process.</param>
     public void VariousPixelCounts_AllCorrect(int pixelCount)
     {
         byte[] pixels = new byte[pixelCount * 4];
@@ -125,6 +132,7 @@ public unsafe class TestPremultiplyAlpha
         }
     }
 
+    /// <summary>Tests premultiplication for every alpha value across sampled colour levels.</summary>
     [Test]
     public void AllPixelValues_RoundTrip()
     {

@@ -12,12 +12,7 @@ using System.Text;
 namespace Alco.IO;
 
 /// <summary>
-/// Reads an Alco package over a file, byte array, unmanaged memory, or seekable <see cref="Stream"/>.
-/// Validates the file magic against <typeparamref name="TMeta"/>'s magic and decodes the entry
-/// directory (the <see cref="PackageMetaBase.Entries"/> inherited by <typeparamref name="TMeta"/>).
-/// Supports both plaintext (v1) and AES-256-GCM encrypted (v2) packages; encrypted packages
-/// require the master key and are decrypted transparently, including random-offset entry reads.
-/// Supports concurrent positional reads; each thread supplies its own destination buffer.
+/// Reads an Alco package over a file, byte array, unmanaged memory, or seekable <see cref="Stream"/>, validating the magic and decoding the entry directory. Supports plaintext (v1) and AES-256-GCM encrypted (v2) packages and concurrent positional reads.
 /// </summary>
 /// <typeparam name="TMeta">The package metadata type, which must implement <see cref="IPackageMeta"/>.</typeparam>
 public unsafe sealed class PackageReader<TMeta> : AutoDisposable where TMeta : PackageMetaBase, IPackageMeta, new()

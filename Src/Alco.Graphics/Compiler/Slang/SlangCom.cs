@@ -144,10 +144,7 @@ internal sealed class SlangBlob
 /// IGlobalSession wrapper. Created once per process via slang_createGlobalSession
 /// (SlangCompiler holds it for the process lifetime); owns the slang core module.
 /// </summary>
-/// <remarks>
-/// Vtable slot mapping: 0-2 IUnknown, 3 createSession, 4 findProfile, 8 getBuildTagString,
-/// 17 checkCompileTargetSupport, 22 findCapability.
-/// </remarks>
+/// <remarks>Vtable slots: 0-2 IUnknown, 3 createSession, 4 findProfile, 8 getBuildTagString, 17 checkCompileTargetSupport, 22 findCapability.</remarks>
 internal sealed class SlangGlobalSession
 {
     public IntPtr NativePointer { get; }

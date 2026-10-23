@@ -6,16 +6,18 @@ using Alco.IO;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Loads material asset files (<c>.amat</c>) directly into <see cref="MaterialAsset"/>s —
-/// no DTO layer: resource references land typed — textures load through the asset system,
-/// the surface resolves and validates into a <see cref="ShaderLibrary"/>, parameters and
-/// PBR factors read as vectors/colors. A bad reference (missing texture, unknown module,
-/// unknown field, unknown <c>$type</c>) fails here, at load time, with the file's name.
+/// Loads material asset files (<c>.amat</c>) directly into <see cref="MaterialAsset"/> instances with typed resource references and load-time validation.
 /// </summary>
 public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
 {
     private readonly JsonSerializerOptions _options;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AssetLoaderMaterialAsset"/> class.
+    /// </summary>
+    /// <param name="assetSystem">The asset system used to load referenced textures.</param>
+    /// <param name="shaderSystem">The shader system used to resolve shader libraries.</param>
+    /// <param name="typeInfoResolver">The optional JSON type metadata resolver; reflection-based when null.</param>
     public AssetLoaderMaterialAsset(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
         _options = CreateJsonOptions(assetSystem, shaderSystem, typeInfoResolver);
@@ -40,11 +42,7 @@ public class AssetLoaderMaterialAsset : BaseAssetLoader<MaterialAsset>
     }
 
     /// <summary>
-    /// The serializer options material asset files parse with: author-friendly (camelCase,
-    /// comments and trailing commas tolerated), strict about unmapped members, polymorphic
-    /// over <see cref="MaterialAsset"/>, with the material converters (textures, shader
-    /// libraries, vectors/colors, enums). Exposed for tests and tooling that parse
-    /// material files outside the asset system.
+    /// The serializer options used to parse material asset files, exposed for tests and tooling.
     /// </summary>
     public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {

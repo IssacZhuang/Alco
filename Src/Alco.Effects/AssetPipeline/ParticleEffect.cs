@@ -5,14 +5,10 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// A particle effect asset (<c>.afx</c>) — the data-only, serializable description
-/// of a whole particle effect: a list of <em>groups</em>, where each group is one
-/// emitter with its own emission/motion parameters, an optional slang behavior
-/// module defining the simulation (<see cref="ParticleGroup.Behavior"/>) and a
-/// material configuration defining the visuals (<see cref="ParticleGroup.Material"/>).
-/// <br/>2D and 3D effects are separate types (<see cref="ParticleEffect2D"/> /
-/// <see cref="ParticleEffect3D"/>); their data structures never mix — 2D effects
-/// simulate the cheaper <c>Transform2D</c>-style particle layout.
+/// A particle effect asset (<c>.afx</c>): the data-only, serializable description
+/// of an effect as a list of emitter groups, each with its own simulation and
+/// material configuration. 2D and 3D effects are separate types with non-mixing
+/// data structures.
 /// </summary>
 public abstract class ParticleEffect : IJsonOnDeserialized
 {
@@ -142,22 +138,17 @@ public abstract class ParticleGroup
     public float EndScale { get; set; } = 1f;
 
     /// <summary>
-    /// The color gradient over the particle's life: a list of { time, color } keys
-    /// (time = normalized age 0..1), baked into a 1D lookup texture at material
-    /// setup and sampled in the render vertex shader. When set (non-empty), it
-    /// <em>replaces</em> the <see cref="StartColor"/> → <see cref="EndColor"/> lerp:
-    /// the particle's color is its spawn color multiplied by the gradient sample;
-    /// <see cref="FadeIn"/>/<see cref="FadeOut"/> still apply on top. Null or empty
-    /// keeps the lerp behavior.
+    /// The color gradient over the particle's life, keyed by normalized age (0..1).
+    /// When non-empty it replaces the <see cref="StartColor"/> → <see cref="EndColor"/>
+    /// lerp and multiplies the spawn color; <see cref="FadeIn"/>/<see cref="FadeOut"/>
+    /// still apply on top.
     /// </summary>
     public List<ParticleColorKey>? ColorGradient { get; set; }
 
     /// <summary>
-    /// The size multiplier curve over the particle's life: a list of
-    /// { time, value } keys (time = normalized age 0..1), baked like
-    /// <see cref="ColorGradient"/>. When set (non-empty), it <em>replaces</em> the
-    /// <see cref="EndScale"/> lerp: the particle's size is its spawn size multiplied
-    /// by the curve sample. Null or empty keeps the lerp behavior.
+    /// The size multiplier curve over the particle's life, keyed by normalized age
+    /// (0..1); when non-empty it replaces the <see cref="EndScale"/> lerp by
+    /// multiplying the spawn size with the curve sample.
     /// </summary>
     public List<ParticleScalarKey>? SizeCurve { get; set; }
 
@@ -171,22 +162,17 @@ public abstract class ParticleGroup
 
     /// <summary>
     /// The slang shader library module defining this group's simulation behavior:
-    /// a module exporting exactly one struct implementing <c>IParticleBehavior2D</c>
-    /// (2D effects) or <c>IParticleBehavior3D</c> (3D effects). Null selects the
-    /// built-in default behavior (shape emission, gravity, drag, color/size over
-    /// life, fade in/out).
+    /// exactly one struct implementing <c>IParticleBehavior2D</c> (2D effects) or
+    /// <c>IParticleBehavior3D</c> (3D effects); null selects the built-in default
+    /// behavior.
     /// </summary>
     public ShaderLibrary? Behavior { get; set; }
 
     /// <summary>
     /// The material asset (<c>.amat</c>) defining the group's visuals: its surface
-    /// module shades the particle fragments and may adjust their vertices
-    /// (implementing <c>IParticleSurface</c> — one contract for the 2D and 3D
-    /// passes; the built-in default shades texture × particle color), and it
-    /// carries the shared
-    /// resources — textures (e.g. noise maps) and uniform shader parameters
-    /// (the surface's <c>[MaterialParams]</c> blocks). Null compiles the engine's
-    /// default particle surface with its fallback textures.
+    /// module shades the particle fragments and may adjust their vertices, and it
+    /// carries shared textures and uniform parameters. Null uses the engine's default
+    /// particle surface.
     /// </summary>
     public MaterialAsset? Material { get; set; }
 
@@ -207,11 +193,8 @@ public abstract class ParticleGroup
 
     /// <summary>
     /// The depth-stencil state preset of the group's material (<c>"None"</c>,
-    /// <c>"Read"</c>, <c>"Write"</c>, …); null keeps the particle pass's default
-    /// (2D: no depth test; 3D: the system's default). A 2D group authoring a depth
-    /// state also opts into the pass's depth-base world z (depth base minus particle
-    /// height — see <see cref="EmitterParams2D.FlagDepthBase"/>), so its quads sort
-    /// against the scene depth they test.
+    /// <c>"Read"</c>, <c>"Write"</c>, …); null keeps the particle pass's default.
+    /// A 2D group authoring a depth state also opts into the pass's depth-base world z.
     /// </summary>
     public DepthStencilState? Depth { get; set; }
 
@@ -264,9 +247,8 @@ public sealed class ParticleGroup2D : ParticleGroup
     /// Whether the quad stretches along its velocity (requires
     /// <see cref="AlignRotationToVelocity"/>): the velocity-axis extent becomes
     /// base size × <see cref="StretchLengthScale"/> + speed ×
-    /// <see cref="StretchSpeedScale"/>, evaluated per frame from the current
-    /// velocity in the vertex shader; the perpendicular extent stays the base
-    /// size. Speed ≈ 0 falls back to the aligned rotation.
+    /// <see cref="StretchSpeedScale"/>, while the perpendicular extent stays the
+    /// base size.
     /// </summary>
     public bool VelocityStretch { get; set; }
 
@@ -337,12 +319,9 @@ public sealed class ParticleGroup3D : ParticleGroup
 
     /// <summary>
     /// Whether the billboard stretches along the screen-space projection of its
-    /// velocity (velocity-stretched billboard): the velocity-axis extent becomes
-    /// base size × <see cref="StretchLengthScale"/> + speed ×
-    /// <see cref="StretchSpeedScale"/>, evaluated per frame from the current
-    /// velocity in the vertex shader; the perpendicular extent stays the base
-    /// size and the billboard roll is ignored. Speed ≈ 0 (or velocity pointing
-    /// at the camera) falls back to the camera-facing orientation.
+    /// velocity: the velocity-axis extent becomes base size ×
+    /// <see cref="StretchLengthScale"/> + speed × <see cref="StretchSpeedScale"/>,
+    /// while the perpendicular extent stays the base size and the roll is ignored.
     /// </summary>
     public bool VelocityStretch { get; set; }
 

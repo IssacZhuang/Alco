@@ -11,9 +11,15 @@ using System.Reflection;
 
 namespace Alco;
 
+/// <summary>
+/// A member accessor that creates delegates through reflection without generating code.
+/// </summary>
 public sealed class ReflectionMemberAccessor : MemberAccessor
 {
 
+    /// <summary>
+    /// Initializes a reflection-based member accessor.
+    /// </summary>
     [RequiresDynamicCode(SerializationRequiresDynamicCodeMessage)]
     [RequiresUnreferencedCode(SerializationRequiresDynamicCodeMessage)]
     public ReflectionMemberAccessor()

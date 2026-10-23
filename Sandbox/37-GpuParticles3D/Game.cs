@@ -8,29 +8,8 @@ using Alco.Effects;
 using Alco.Rendering;
 using SandboxUtils;
 
-/// <summary>
-/// Sandbox demonstrating the 3D GPU particle system (Alco.Effects): particle
-/// effect assets (<c>.afx</c>, 3D flavor) simulated and rendered entirely on the
-/// GPU, drawn as camera-facing billboards with depth testing against the scene.
-/// The scene shows a looping flame jet, one-shot explosions (velocity-stretched
-/// sparks plus a gradient-tinted, curve-grown smoke group) re-spawning constantly
-/// (the frequent create/destroy path) and a vortex whose simulation comes from a
-/// custom slang behavior module (SbVortex3D, local simulation space).
-/// <br/>The ImGui panel manages the live instances: a click-selectable instance
-/// list (dead instances are pruned automatically), per-effect spawn buttons
-/// (spawned at the orbit target), delete, and — for the selected instance — a
-/// scene gizmo (translate / rotate) plus live per-group parameter editing
-/// (emission rate, lifetime, speed, size, gravity, tint, velocity stretch)
-/// through the instance's params override API.
-/// <br/>Controls: hold the middle mouse button to orbit (suspended while the
-/// pointer is over the gizmo), drag the gizmo handles with the left button,
-/// ESC to exit.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--particles=N [--particlesize=S]]
-/// <br/>--particles=N fills the pool to ~N live particles with saturating 8192-particle
-/// groups (1M scale is opt-in — the demo defaults stay small); --particlesize=S
-/// overrides the fill billboard size (default 0.5 world units; tiny values isolate
-/// simulation from fill rate).
-/// </summary>
+/// <summary>Sandbox demonstrating the 3D GPU particle system with camera-facing billboards, live instance management, and per-group parameter editing.</summary>
+/// <remarks>Middle mouse orbits, left mouse drags the gizmo, and ESC exits; <c>--screenshot=&lt;path.png&gt;</c> captures a frame and <c>--particles=N</c> fills the pool.</remarks>
 public class Game : GameEngine
 {
     private readonly RenderPipeline _pipeline;
@@ -88,6 +67,9 @@ public class Game : GameEngine
     private int _statFrames;
     private long _statAllocatedBytes;
 
+    /// <summary>Initializes the 3D particle sandbox and its render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
+    /// <param name="args">Command-line arguments, including optional screenshot and particle-fill options.</param>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
@@ -557,13 +539,7 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>
-    /// Live editing of one emitter group of the selected instance: the practical
-    /// scalar subset (emission rate, lifetime, speed, size, gravity, tint,
-    /// velocity stretch). Reads the group's current record every frame and writes
-    /// the edited one back through <see cref="ParticleEffectInstance3D.SetGroupParams"/>,
-    /// which applies to the running instance without respawning it.
-    /// </summary>
+    /// <summary>Draws live editing controls for one emitter group of the selected instance.</summary>
     private static void DrawGroupEditor(ParticleEffectInstance3D instance, int groupIndex)
     {
         ImGui.PushID(groupIndex);

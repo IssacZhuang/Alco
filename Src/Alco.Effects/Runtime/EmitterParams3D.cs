@@ -4,12 +4,8 @@ using System.Runtime.InteropServices;
 namespace Alco.Effects;
 
 /// <summary>
-/// The per-emitter parameter record of a 3D particle group; the 3D counterpart of
-/// <see cref="EmitterParams2D"/>. Exact twin of the slang <c>EmitterParams3D</c>
-/// struct (AlcoParticles_Core3D.slang) — the field order and padding must match.
-/// The total size must stay a multiple of 16: the buffer element stride rounds up
-/// to the struct alignment (16, from the matrix), and a CPU/GPU size mismatch
-/// shifts every emitter's parameters.
+/// The per-emitter parameter record of a 3D particle group, the 3D counterpart of <see cref="EmitterParams2D"/>.
+/// The layout must match the slang <c>EmitterParams3D</c> struct exactly, with the total size a multiple of 16.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct EmitterParams3D
@@ -36,12 +32,8 @@ public struct EmitterParams3D
     public uint FrameSeed;
 
     /// <summary>
-    /// Bit flags; bit0: world-space simulation (spawn through <see cref="WorldMatrix"/>),
-    /// bit1: color-gradient lookup bound, bit2: size-curve lookup bound,
-    /// bit3: velocity-stretched billboards,
-    /// bit4: flipbook plays in reverse (last frame at spawn).
-    /// The slang side mirrors these as the PARTICLE_FLAG_* constants
-    /// (AlcoParticles_Core2D.slang).
+    /// Packed control flags (world-space simulation, gradients, size curves, velocity stretch, reversed flipbook).
+    /// The values correspond to the <c>Flag*</c> constants below and to the PARTICLE_FLAG_* constants in AlcoParticles_Core3D.slang.
     /// </summary>
     public uint Flags;
 
@@ -91,11 +83,8 @@ public struct EmitterParams3D
     public uint IndexCount;
 
     /// <summary>
-    /// A custom per-instance data channel for custom surface vertex hooks, the 3D
-    /// counterpart of <see cref="EmitterParams2D.CustomData"/>
-    /// (<c>IParticleSurface.adjustWorldPosition</c>, surfaced as
-    /// <c>ParticleVertexInput.customData</c>). Set per instance through
-    /// <see cref="ParticleEffectInstance3D.SetGroupParams"/>.
+    /// A custom per-instance float channel for vertex hooks (<c>ParticleVertexInput.customData</c>), the 3D counterpart of <see cref="EmitterParams2D.CustomData"/>.
+    /// Set per instance through <see cref="ParticleEffectInstance3D.SetGroupParams"/>.
     /// </summary>
     public float CustomData;
 
@@ -106,13 +95,8 @@ public struct EmitterParams3D
     public uint Reserved2;
 
     /// <summary>
-    /// The fixed spawn offset in emitter-local space: shifts every spawned
-    /// particle by this vector before the world transform, so it follows the
-    /// emitter's rotation in both simulation spaces. Offsets a directional
-    /// effect away from its anchor (e.g. a muzzle flash off the muzzle point).
-    /// Must stay the last slang member (16-byte aligned): HLSL packs a scalar
-    /// after a float3 into its w slot while std430 pushes it to the next row,
-    /// so the pad below is CPU-side only.
+    /// The fixed spawn offset in emitter-local space, applied before the world transform so it follows the emitter's rotation.
+    /// Must stay the last slang member; the pad below is CPU-side only.
     /// </summary>
     public Vector3 PositionOffset;
 
@@ -138,13 +122,7 @@ public struct EmitterParams3D
     public const uint FlagFlipbookReverse = 16u;
 
     /// <summary>
-    /// Merges an edited record into the live slot record of an emitter: the static
-    /// (asset-authored) fields come from <paramref name="edited"/> while the
-    /// slot-bound (<see cref="Capacity"/>, <see cref="SliceOffset"/>,
-    /// <see cref="IndexCount"/>) and per-frame (<see cref="SpawnCount"/>,
-    /// <see cref="EmitCursor"/>, <see cref="DeltaTime"/>, <see cref="EmitterTime"/>,
-    /// <see cref="FrameSeed"/>, <see cref="WorldMatrix"/>) fields keep their live
-    /// values. Backs <see cref="ParticleEffectInstance3D.SetGroupParams"/>.
+    /// Merges an edited record into the live slot record: field values come from <paramref name="edited"/>, while slot-bound and per-frame fields keep their live values.
     /// </summary>
     /// <param name="live">The current slot record.</param>
     /// <param name="edited">The record carrying the edited static fields.</param>

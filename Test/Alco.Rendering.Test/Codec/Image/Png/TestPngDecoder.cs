@@ -5,6 +5,7 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>Tests PNG decoding across bit depths, color types, interlacing, and corrupt inputs.</summary>
 [TestFixture]
 public unsafe class TestPngDecoder
 {

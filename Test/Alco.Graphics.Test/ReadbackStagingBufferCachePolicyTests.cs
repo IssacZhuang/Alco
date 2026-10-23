@@ -24,6 +24,7 @@ public class ReadbackStagingBufferCachePolicyTests
             oversizeReuseThresholdBytes: OneMegabyte);
     }
 
+    /// <summary>Tests that bucketization rounds sizes up to powers of two or 1 MB steps.</summary>
     [Test(Description = "Bucketize rounds up small sizes to powers of two and large sizes to 1 MB steps")]
     public void BucketizeRoundsUp()
     {
@@ -38,6 +39,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(policy.Bucketize(3UL * OneMegabyte + 1), Is.EqualTo(4UL * OneMegabyte));
     }
 
+    /// <summary>Tests that acquiring from an empty cache fails.</summary>
     [Test(Description = "TryAcquire returns false on an empty cache")]
     public void TryAcquireEmptyReturnsFalse()
     {
@@ -48,6 +50,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(policy.IdleCount, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that a returned buffer is reused at the same size.</summary>
     [Test(Description = "A returned buffer can be acquired again at the same size")]
     public void ReturnThenAcquireReusesBuffer()
     {
@@ -64,6 +67,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(policy.IdleCapacityBytes, Is.EqualTo(0UL));
     }
 
+    /// <summary>Tests that acquiring picks the smallest sufficient buffer.</summary>
     [Test(Description = "TryAcquire picks the smallest sufficient cached buffer (best-fit)")]
     public void TryAcquirePicksBestFit()
     {
@@ -78,6 +82,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(ticket, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that acquiring rejects excessively oversized buffers.</summary>
     [Test(Description = "TryAcquire rejects buffers that are excessively oversized")]
     public void TryAcquireRejectsOversized()
     {
@@ -95,6 +100,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(ticket, Is.EqualTo(99));
     }
 
+    /// <summary>Tests that the oversize ceiling uses the threshold for small requests.</summary>
     [Test(Description = "TryAcquire uses the larger of required*2 and required+threshold for the oversize ceiling")]
     public void TryAcquireOversizeCeilingUsesThresholdForSmallRequests()
     {
@@ -108,6 +114,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(ticket, Is.EqualTo(7));
     }
 
+    /// <summary>Tests that buffers above the single-buffer maximum are never cached.</summary>
     [Test(Description = "Oversized buffers (above singleBufferMax) are never cached on return")]
     public void OversizedBuffersAreNeverCached()
     {
@@ -122,6 +129,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(evicted, Is.Empty, "Oversized buffers are not added nor evicted; the caller keeps the handle to destroy");
     }
 
+    /// <summary>Tests that cache eligibility reflects the single-buffer maximum.</summary>
     [Test(Description = "ShouldCacheOnReturn reports oversized buffers as non-cacheable")]
     public void ShouldCacheOnReturnReflectsSingleBufferMax()
     {
@@ -132,6 +140,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(policy.ShouldCacheOnReturn(4UL * OneMegabyte + 1), Is.False);
     }
 
+    /// <summary>Tests that trimming evicts entries expired by age.</summary>
     [Test(Description = "Trim evicts entries that have expired by age even when under budget")]
     public void TrimEvictsExpiredByAge()
     {
@@ -149,6 +158,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(policy.IdleCapacityBytes, Is.EqualTo(OneMegabyte));
     }
 
+    /// <summary>Tests that trimming evicts the oldest entries when over budget.</summary>
     [Test(Description = "Trim evicts oldest first when total capacity exceeds the budget")]
     public void TrimEvictsOldestWhenOverBudget()
     {
@@ -166,6 +176,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(policy.IdleCapacityBytes, Is.LessThanOrEqualTo(8UL * OneMegabyte));
     }
 
+    /// <summary>Tests that draining returns all tickets and resets capacity.</summary>
     [Test(Description = "Drain returns all tickets and resets capacity")]
     public void DrainClearsAll()
     {
@@ -182,6 +193,7 @@ public class ReadbackStagingBufferCachePolicyTests
         Assert.That(policy.IdleCapacityBytes, Is.EqualTo(0UL));
     }
 
+    /// <summary>Tests that capacity accounting stays consistent across acquire and return.</summary>
     [Test(Description = "Capacity accounting stays consistent across acquire/return cycles")]
     public void CapacityAccountingConsistent()
     {

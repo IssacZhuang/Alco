@@ -60,6 +60,8 @@ public static class FakeParallelToolFunctions
         _rendezvous = new CountdownEvent(2);
     }
 
+    /// <summary>Signals arrival and waits for a second concurrent call.</summary>
+    /// <param name="id">Identifier returned in the result.</param>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Signals arrival and waits for a second concurrent call")]
     public static string Rendezvous(string id)
@@ -69,6 +71,9 @@ public static class FakeParallelToolFunctions
         return bothArrived ? $"{id}:parallel" : $"{id}:serial";
     }
 
+    /// <summary>Tracks concurrency while delaying asynchronously.</summary>
+    /// <param name="id">Identifier returned in the result.</param>
+    /// <param name="milliseconds">Delay duration in milliseconds.</param>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Tracks concurrency while delaying on the thread pool without blocking a thread")]
     public static async Task<string> Tracked(string id, int milliseconds)
@@ -79,6 +84,8 @@ public static class FakeParallelToolFunctions
         return id;
     }
 
+    /// <summary>Tracks concurrency while executing on the main thread.</summary>
+    /// <param name="id">Identifier returned in the result.</param>
     [AgentFunction]
     [Description("Tracks concurrency while executing on the main thread")]
     public static string MainTracked(string id)
@@ -88,6 +95,8 @@ public static class FakeParallelToolFunctions
         return id;
     }
 
+    /// <summary>Delays asynchronously without blocking a thread pool thread.</summary>
+    /// <param name="milliseconds">Delay duration in milliseconds.</param>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Delays without blocking a thread pool thread")]
     public static async Task<string> AgentSlow(int milliseconds)
@@ -99,6 +108,7 @@ public static class FakeParallelToolFunctions
         return "slow-done";
     }
 
+    /// <summary>Throws an error for failure-path tests.</summary>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Always throws an error")]
     public static string AgentThrow()

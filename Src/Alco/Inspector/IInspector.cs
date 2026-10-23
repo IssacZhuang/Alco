@@ -4,32 +4,8 @@ using System.Numerics;
 namespace Alco;
 
 /// <summary>
-/// A UI-agnostic, immediate-mode parameter editing contract (an "inspector").
-/// <para>
-/// Engine code (assets, components, render node descriptors, ...) depends only
-/// on this interface — defined in the dependency-free base module — to expose
-/// parameters for interactive editing, so the engine itself never references a
-/// UI toolkit. Concrete editors implement the interface on top of their own
-/// toolkit; the reference implementation is <c>ImGuiInspector</c> (Alco.ImGUI).
-/// </para>
-/// <para>
-/// Contract rules:
-/// <list type="bullet">
-/// <item>Immediate mode: call the widgets every frame while the parameter rows
-/// should stay visible.</item>
-/// <item>Edits happen in place through the <c>ref</c> parameter; a widget
-/// returns true only when the user edited the value during this frame (the
-/// <c>ref</c> value already holds the new value when it does).</item>
-/// <item>The label doubles as the stable widget identifier; keep it unique
-/// within one panel.</item>
-/// <item>Text parameters are spans (<see cref="ReadOnlySpan{T}"/>): labels are
-/// usually literals and must not be stored by implementations — widgets draw
-/// immediately.</item>
-/// <item>Drag widgets are <c>Edit*</c> (<c>EditFloat</c>, <c>EditInt</c> and their
-/// vector sizes); sliders are <c>Slider*</c>; drag bounds default to unbounded;
-/// sliders require a range.</item>
-/// </list>
-/// </para>
+/// A UI-agnostic, immediate-mode parameter editing contract.
+/// Widgets are called every frame while a row should stay visible, edits occur in place through ref parameters, and the label doubles as the stable widget identifier within a panel.
 /// </summary>
 public interface IInspector
 {

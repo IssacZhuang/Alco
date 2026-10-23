@@ -6,6 +6,7 @@ using NUnit.Framework;
 
 namespace Alco.LLM.Test;
 
+/// <summary>Covers the LLM session tool-call loop across the chat, event, and streaming APIs.</summary>
 [TestFixture]
 public class ToolCallLoopTests
 {
@@ -55,6 +56,7 @@ public class ToolCallLoopTests
         return (doc.RootElement.GetProperty("error").GetString()!, doc.RootElement.GetProperty("code").GetString()!);
     }
 
+    /// <summary>Resets the shared fake tool state before each test.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -63,6 +65,7 @@ public class ToolCallLoopTests
 
     #region ChatAsync
 
+    /// <summary>Tests that a response without tool calls returns its text directly.</summary>
     [Test]
     public async Task ChatAsync_NoToolCalls_ReturnsTextDirectly()
     {
@@ -79,6 +82,7 @@ public class ToolCallLoopTests
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a single tool call is invoked and its follow-up response returned.</summary>
     [Test]
     public async Task ChatAsync_SingleToolCall_InvokesAndReturnsResult()
     {
@@ -106,6 +110,7 @@ public class ToolCallLoopTests
         Assert.That(secondCallMessages.Count, Is.GreaterThanOrEqualTo(3));
     }
 
+    /// <summary>Tests that multiple tool calls in one response are all invoked.</summary>
     [Test]
     public async Task ChatAsync_MultipleToolCalls_InvokesAll()
     {
@@ -128,6 +133,7 @@ public class ToolCallLoopTests
         Assert.That(toolResults.Count, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that an unknown tool yields a structured error result.</summary>
     [Test]
     public async Task ChatAsync_UnknownTool_ReturnsErrorResult()
     {
@@ -150,6 +156,7 @@ public class ToolCallLoopTests
         Assert.That(error, Does.Contain("NonExistent"));
     }
 
+    /// <summary>Tests that a throwing tool yields a structured error result.</summary>
     [Test]
     public async Task ChatAsync_ToolThrowsException_ReturnsErrorResult()
     {
@@ -170,6 +177,7 @@ public class ToolCallLoopTests
         Assert.That(error, Is.EqualTo("Test error"));
     }
 
+    /// <summary>Tests that disabling auto-invocation skips tools and stops the loop.</summary>
     [Test]
     public async Task ChatAsync_AutoInvokeToolsFalse_DoesNotInvokeToolOrContinueLoop()
     {
@@ -190,6 +198,7 @@ public class ToolCallLoopTests
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a timed-out tool yields a structured error and the loop continues.</summary>
     [Test]
     public async Task ChatAsync_ToolTimeout_ReturnsStructuredErrorResultAndContinues()
     {
@@ -213,6 +222,7 @@ public class ToolCallLoopTests
         Assert.That(error, Does.Contain("timed out"));
     }
 
+    /// <summary>Tests that an externally canceled call throws <see cref="OperationCanceledException"/>.</summary>
     [Test]
     public void ChatAsync_ExternalCancellation_CancelsRequest()
     {
@@ -229,6 +239,7 @@ public class ToolCallLoopTests
         Assert.ThrowsAsync<OperationCanceledException>(async () => await session.ChatAsync("Cancel", cts.Token));
     }
 
+    /// <summary>Tests that the loop stops at its iteration limit and returns the last response.</summary>
     [Test]
     public async Task ChatAsync_MaxIterationsReached_ReturnsLastResponse()
     {
@@ -253,6 +264,7 @@ public class ToolCallLoopTests
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(129));
     }
 
+    /// <summary>Tests that the tool loop preserves user, assistant, and tool messages in history.</summary>
     [Test]
     public async Task ChatAsync_ToolCallLoopPreservesHistory()
     {
@@ -277,6 +289,7 @@ public class ToolCallLoopTests
 
     #region ChatEventsAsync
 
+    /// <summary>Tests that a text-only event stream yields request and text events in order.</summary>
     [Test]
     public async Task ChatEventsAsync_TextOnly_YieldsStructuredRequestAndTextEvents()
     {
@@ -312,6 +325,7 @@ public class ToolCallLoopTests
         Assert.That(((RequestCompletedEvent)events[3]).RequestIndex, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that a tool call yields started and completed events around the loop.</summary>
     [Test]
     public async Task ChatEventsAsync_ToolCall_YieldsStartedAndCompletedEvents()
     {
@@ -368,6 +382,7 @@ public class ToolCallLoopTests
         Assert.That(events.OfType<RequestCompletedEvent>().Select(e => e.RequestIndex), Is.EqualTo(new[] { 0, 1 }));
     }
 
+    /// <summary>Tests that an unknown tool yields a failed event with its error details.</summary>
     [Test]
     public async Task ChatEventsAsync_ToolFailure_YieldsFailedEvent()
     {
@@ -407,6 +422,7 @@ public class ToolCallLoopTests
         Assert.That(events.OfType<TextDeltaEvent>().Single().Text, Is.EqualTo("Handled."));
     }
 
+    /// <summary>Tests that a timed-out tool yields a failed event with a timeout code.</summary>
     [Test]
     public async Task ChatEventsAsync_ToolTimeout_YieldsFailedEvent()
     {
@@ -445,6 +461,7 @@ public class ToolCallLoopTests
         Assert.That(failed.ErrorCode, Is.EqualTo("TIMEOUT"));
     }
 
+    /// <summary>Tests that disabling auto-invocation yields only the tool-call started event.</summary>
     [Test]
     public async Task ChatEventsAsync_AutoInvokeToolsFalse_YieldsStartedOnly()
     {
@@ -479,6 +496,7 @@ public class ToolCallLoopTests
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that an externally canceled event stream throws <see cref="OperationCanceledException"/>.</summary>
     [Test]
     public void ChatEventsAsync_ExternalCancellation_CancelsRequest()
     {
@@ -509,6 +527,7 @@ public class ToolCallLoopTests
 
     #region ChatStreamingAsync
 
+    /// <summary>Tests that a text-only streaming response yields its text chunks.</summary>
     [Test]
     public async Task ChatStreamingAsync_TextOnly_YieldsTextChunks()
     {
@@ -534,6 +553,7 @@ public class ToolCallLoopTests
         Assert.That(chunks, Is.EqualTo(new[] { "Hello", " World" }));
     }
 
+    /// <summary>Tests that streaming yields text only after the tool loop completes.</summary>
     [Test]
     public async Task ChatStreamingAsync_ToolCallYieldsTextOnlyAfterToolLoop()
     {
@@ -571,6 +591,7 @@ public class ToolCallLoopTests
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that streaming never emits tool notification strings.</summary>
     [Test]
     public async Task ChatStreamingAsync_DoesNotEmitToolNotificationStrings()
     {
@@ -605,6 +626,7 @@ public class ToolCallLoopTests
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that disabling auto-invocation yields no notifications and stops the loop.</summary>
     [Test]
     public async Task ChatStreamingAsync_AutoInvokeToolsFalse_YieldsNoToolNotificationAndDoesNotContinueLoop()
     {

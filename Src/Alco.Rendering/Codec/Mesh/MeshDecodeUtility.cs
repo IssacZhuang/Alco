@@ -41,11 +41,8 @@ public static unsafe class MeshDecodeUtility
     // ── Tangent computation ──
 
     /// <summary>
-    /// Compute per-vertex tangents from triangle UVs (Lengyel's method): tangents and
-    /// bitangents accumulate per triangle, then each tangent is orthogonalized against
-    /// the normal and gets its bitangent sign from the accumulated UV handedness.
-    /// The <paramref name="vertices"/> span is mutated in-place — each vertex's
-    /// <see cref="VertexPBR.Tangent"/> field is overwritten with the result.
+    /// Computes per-vertex tangents from triangle UVs, overwriting each vertex's
+    /// <see cref="VertexPBR.Tangent"/> in place.
     /// </summary>
     /// <param name="vertices">The vertex span to read positions/normals/UVs from and write tangents to.</param>
     /// <param name="indices">Triangle index data (indexCount must be a multiple of 3).</param>

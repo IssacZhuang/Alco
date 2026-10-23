@@ -27,6 +27,7 @@ namespace Alco.Graphics.Test;
 //      block's sub-object index; pinned layout: from the annotation), since
 //      member-level reflection spaces are relative (always 0).
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Covers Slang ParameterBlock reflection, set/binding assignment, and composition behavior.</summary>
 [TestFixture]
 public class SlangParameterBlockSpikeTest
 {
@@ -194,6 +195,7 @@ public class SlangParameterBlockSpikeTest
         }
         """;
 
+    /// <summary>Tests that vk::binding-pinned parameter blocks keep one set per block.</summary>
     [Test]
     public void VkBindingPinnedParameterBlocks_KeepOneSetPerBlock()
     {
@@ -210,6 +212,7 @@ public class SlangParameterBlockSpikeTest
         }));
     }
 
+    /// <summary>Tests that the scanner and reflection reader agree on the register-annotated cbuffer baseline.</summary>
     [Test]
     public void CbufferRegisterBaseline_ScannerAgreesWithReader()
     {
@@ -228,6 +231,7 @@ public class SlangParameterBlockSpikeTest
         }));
     }
 
+    /// <summary>Tests that parameter blocks across imported modules receive automatic sets and bindings.</summary>
     [Test]
     public void ParameterBlocksAcrossModules_ReflectAutoSetsAndBindings()
     {
@@ -246,6 +250,7 @@ public class SlangParameterBlockSpikeTest
         }));
     }
 
+    /// <summary>Tests that register-pinned parameter blocks keep one set per block.</summary>
     [Test]
     public void PinnedParameterBlocks_KeepOneSetPerBlock()
     {
@@ -261,6 +266,7 @@ public class SlangParameterBlockSpikeTest
             Is.Not.EqualTo(0u), "the imported module's register(space0) pin must not hold");
     }
 
+    /// <summary>Tests that a bare cbuffer mixed with a parameter block resolves to the default set.</summary>
     [Test]
     public void BareCbufferMixedWithParameterBlock_ReflectsDefaultSet()
     {
@@ -533,6 +539,7 @@ public class SlangParameterBlockSpikeTest
         public ParameterBlock<MaterialParams> material;
         """;
 
+    /// <summary>Tests that a composed program assigns entry-module blocks before companion-module blocks.</summary>
     [Test]
     public void ComposedProgram_EntryBlocksFirstThenCompanion()
     {
@@ -617,15 +624,7 @@ public class SlangParameterBlockSpikeTest
         }
     }
 
-    /// <summary>
-    /// The reader-side derivation, cross-checked against the SPIR-V
-    /// decorations in the tests above: under automatic layout a global
-    /// PARAMETER_BLOCK parameter's binding index IS its absolute descriptor
-    /// set (GetBindingSpace reports the explicit register annotation only, 0
-    /// under auto layout), and a member's binding index is its absolute
-    /// binding inside that set — already shifted past the block's
-    /// automatically-introduced uniform buffer (binding 0).
-    /// </summary>
+    /// <summary>Derives absolute set and binding assignments from the reflection layout for cross-checking.</summary>
     private static (uint Set, uint Binding, string Name)[] GetOffsetSets(IntPtr layout)
     {
         List<(uint, uint, string)> result = [];
@@ -689,6 +688,7 @@ public class SlangParameterBlockSpikeTest
         }
     }
 
+    /// <summary>Tests that the engine reflection reader flattens parameter blocks into bind groups with bare member names.</summary>
     [Test]
     public void EngineReflectionReader_BuildsBindGroupsFromParameterBlocks()
     {

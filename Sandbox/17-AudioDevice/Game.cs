@@ -7,6 +7,7 @@ using Alco.ImGUI;
 using Alco.Rendering;
 
 
+/// <summary>Sandbox demonstrating audio source and streaming playback with adjustable gain and pitch.</summary>
 public class Game : GameEngine
 {
     private readonly RenderPipeline _mainPipeline;
@@ -19,6 +20,8 @@ public class Game : GameEngine
     private float _streamGain = 1f;
     private float _streamPitch = 1f;
 
+    /// <summary>Initializes the audio sample, stream, and render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor

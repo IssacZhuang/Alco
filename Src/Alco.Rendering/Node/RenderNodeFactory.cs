@@ -3,14 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The type-keyed blackboard a <see cref="RenderNodeFactory"/> pulls its
-/// pipeline-shape dependencies from: the composing code registers the shared
-/// services it owns — the post <see cref="RenderChain"/> and its content layout,
-/// a material compiler, a camera, scene environment, graph resource roles — and
-/// factory classes request them by type. The engine layer defines only the
-/// container; which service types exist is decided by the composer and the
-/// factories (e.g. a World3D factory asking for a World3D environment), so a
-/// new render feature never requires touching this class or the context.
+/// A type-keyed blackboard of shared services that render node factories pull their dependencies from.
 /// </summary>
 public sealed class RenderNodeFactoryServices
 {
@@ -48,11 +41,7 @@ public sealed class RenderNodeFactoryServices
 }
 
 /// <summary>
-/// A graph resource role for the factory service blackboard: the resource
-/// whose depth attachment is the scene depth render nodes may sample — the
-/// pipeline's scene color resource. Composers that offer scene depth to
-/// factories register this role; nodes consuming scene depth request it by
-/// type and fall back gracefully when it is absent.
+/// A factory service role exposing the resource whose depth attachment is the sampleable scene depth.
 /// </summary>
 public sealed class SceneDepthSource
 {
@@ -68,13 +57,7 @@ public sealed class SceneDepthSource
 }
 
 /// <summary>
-/// The environment a <see cref="RenderNodeFactory"/> creates its node in: the
-/// rendering system, the target render graph, and the composer's service
-/// blackboard. It never grows feature-specific members — resources a node depends
-/// on for its existence (a G-buffer, a scene color target, a sibling node) are
-/// registered as services by the composing code, which owns them anyway, and stay
-/// type-safe end to end. A factory covers the replaceable surface only: which
-/// slang modules back the node's shaders, and tunable parameters.
+/// The environment a <see cref="RenderNodeFactory"/> creates its node in: the rendering system, target render graph, and service blackboard.
 /// </summary>
 public readonly struct RenderNodeFactoryContext
 {
@@ -106,12 +89,8 @@ public readonly struct RenderNodeFactoryContext
 }
 
 /// <summary>
-/// A serializable recipe for creating a render node: plain properties hold the
-/// node's replaceable surface (its <see cref="Shader"/>s, tunable parameters), and
-/// <see cref="Create"/> assembles the node from them. Factories are shared cached
-/// assets loaded from <c>.rnfact</c> jsonc files, with shader references resolving
-/// through the shader system at load time — treat a loaded factory as immutable;
-/// runtime overrides go to the created node's own properties.
+/// A serializable recipe for creating a render node from its replaceable shader and parameter surface.
+/// Loaded factories are shared cached assets and should be treated as immutable.
 /// </summary>
 public abstract class RenderNodeFactory
 {

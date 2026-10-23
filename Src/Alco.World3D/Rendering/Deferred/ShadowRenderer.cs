@@ -45,19 +45,9 @@ public interface IShadowRenderable
 }
 
 /// <summary>
-/// A shadow content provider of the deferred PBR pipeline. Compiles its per-asset
-/// materials through the <see cref="MaterialCompiler"/> (the renderer is itself the
-/// pass strategy: the <c>shadow_depth.slang</c> template composed per material asset,
-/// with its <c>let AlphaTest : bool</c> value specialization fed from the asset's
-/// alpha mode — see <see cref="GetMaterial"/>) and holds a registry of
-/// <see cref="IShadowRenderable"/> objects. Static objects are baked into internal
-/// per-cascade render bundles; dynamic objects are drawn immediately each frame.
-/// The owning <see cref="RGNode_ShadowPass"/> calls <see cref="OnRenderShadow"/>
-/// automatically inside each cascade's pass (register via
-/// <see cref="RGNode_ShadowPass.Content"/>).
-/// <br/>The renderer does <b>not</b> own the shadow render texture, attachment layout,
-/// render context or cascade VP data buffer — those are owned by the pass node and
-/// the pipeline.
+/// A shadow and reflective-shadow-map content provider that draws registered
+/// <see cref="IShadowRenderable"/> objects with per-material compiled materials.
+/// It owns its internal render bundles; compiled materials follow asset lifetime, and the pass layout and cascade data buffer are caller-owned.
 /// </summary>
 public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, IRsmPassContent
 {
@@ -65,11 +55,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     public bool IsEnabled { get; set; } = true;
 
     /// <summary>
-    /// Push constant payload for the instanced shadow map / RSM draws. Layout
-    /// must match the <c>ShadowConstants</c> struct in ShadowDepth.slang and the
-    /// <c>RsmConstants</c> struct in Rsm.slang exactly. All other per-item data
-    /// comes from the <c>_instances</c> storage buffer, so this constant stays
-    /// static per cascade (render-bundle friendly).
+    /// Push-constant payload shared by all instanced shadow-map and RSM draws in one cascade.
     /// </summary>
     public struct CascadeConstants
     {
@@ -160,12 +146,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     // ── Per-asset materials ──
 
     /// <summary>
-    /// The shadow material of one material asset: compiled once per asset through
-    /// the material compiler (the shadow template composes with the asset's
-    /// surface, its alpha test a value specialization fed from the asset's alpha
-    /// mode; this renderer's factory applies the pass-mandated state) and shared
-    /// by every caster using the asset. The material is derived per-asset state,
-    /// held weakly so its lifetime follows the asset's.
+    /// Gets the shadow material for a material asset, compiling and caching it on first use.
     /// </summary>
     /// <param name="asset">The material asset; blend assets cast no shadows.</param>
     /// <exception cref="InvalidDataException">The asset is a blend material of a foreign family.</exception>
@@ -246,12 +227,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     // ── Pipeline callback ──
 
     /// <summary>
-    /// Draw all registered casters into the shadow map for the given cascade.
-    /// Called by the owning <see cref="RGNode_ShadowPass"/> inside the cascade's open
-    /// pass, once per cascade. Static items live in instance batches recorded once
-    /// into the per-cascade bundles (re-recorded only when dirty on cascade 0);
-    /// dynamic items are batched once per frame (cascade 0) and their bundle is
-    /// re-recorded per cascade with the cascade constant.
+    /// Draws all registered casters into the shadow map for the specified cascade.
     /// </summary>
     /// <param name="context">The live shadow pass scope.</param>
     /// <param name="cascadeIndex">The cascade being rendered (0 = nearest).</param>
@@ -327,11 +303,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     public bool IsRsmEnabled => _rsmLayout != null;
 
     /// <summary>
-    /// Enable the RSM pass support: stores the attachment layout and creates the
-    /// RSM render bundles. After this call <see cref="GetRsmMaterial"/> compiles
-    /// (the <c>Rsm.slang</c> template composed per material asset) and the renderer
-    /// can be registered as an <see cref="IRsmPassContent"/> on an
-    /// <see cref="RGNode_RsmPass"/>.
+    /// Enables RSM rendering with the specified attachment layout and creates the RSM render bundles.
     /// </summary>
     /// <param name="rsmLayout">The RSM pass attachment layout (two RGBA8 colors +
     /// depth; the layout of the RSM render texture the pass draws into).</param>
@@ -345,11 +317,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     }
 
     /// <summary>
-    /// Draw every registered caster into the reflective shadow map. Called by the
-    /// owning <see cref="RGNode_RsmPass"/> inside its open pass.
-    /// Static items live in an instance batch recorded once into the RSM bundle;
-    /// a change of the RSM cascade forces a re-record because the cascade index
-    /// is baked into the recorded push constant.
+    /// Draws all registered casters into the reflective shadow map for the specified cascade.
     /// </summary>
     /// <param name="context">The live RSM pass scope.</param>
     /// <param name="cascadeIndex">The CSM cascade whose sun view defines the RSM.</param>
@@ -464,12 +432,7 @@ public sealed unsafe class ShadowRenderer : AutoDisposable, IShadowPassContent, 
     }
 
     /// <summary>
-    /// Create an RSM material from the composed pass-template shader: applies the
-    /// pass-mandated state and the shared cascade data buffer (the RSM vertex
-    /// shader unfolds the selected cascade's atlas quadrant), so recorded bundles
-    /// stay valid while the cascades move. The compile caller owns the returned
-    /// material (see <see cref="GetRsmMaterial"/>). Requires <see cref="EnableRsm"/>
-    /// first.
+    /// Creates an RSM material from the composed template shader with the pass-mandated state applied.
     /// </summary>
     /// <param name="shader">The composed RSM template shader.</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>

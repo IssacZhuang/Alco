@@ -302,6 +302,9 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
         _nav.ClearFocus();
     }
 
+    /// <summary>
+    /// Marks the page layout as dirty so the current page is rebuilt on the next update.
+    /// </summary>
     public void SetLayoutDirty()
     {
         _isLayoutDirty = true;

@@ -7,6 +7,9 @@ namespace Alco.Test;
 #pragma warning disable CS0414
 #pragma warning disable CS0649
 
+/// <summary>
+/// Covers <see cref="AccessTypeInfo"/> member discovery and instance creation for classes and structs.
+/// </summary>
 [TestFixture]
 public class TestAccessTypeInfo
 {
@@ -82,12 +85,18 @@ public class TestAccessTypeInfo
 
     private MemberAccessor _memberAccessor;
 
+    /// <summary>
+    /// Creates a fresh member accessor for each test.
+    /// </summary>
     [SetUp]
     public void Setup()
     {
         _memberAccessor = new ReflectionEmitMemberAccessor();
     }
 
+    /// <summary>
+    /// Tests that public instance members are discovered with their read and write capabilities.
+    /// </summary>
     [Test]
     public void TestAccessTypeInfoMembers()
     {
@@ -120,6 +129,9 @@ public class TestAccessTypeInfo
         Assert.That(members.Any(m => m.Name == "_privateField"), Is.False);
     }
 
+    /// <summary>
+    /// Tests that a parameterless constructor creates an initialized instance.
+    /// </summary>
     [Test]
     public void TestAccessTypeInfoCreateInstance()
     {
@@ -137,6 +149,9 @@ public class TestAccessTypeInfo
         Assert.That(instance.PublicField, Is.EqualTo("Hello"));
     }
 
+    /// <summary>
+    /// Tests that struct members are discovered.
+    /// </summary>
     [Test]
     public void TestAccessTypeInfoWithStruct()
     {
@@ -155,6 +170,9 @@ public class TestAccessTypeInfo
         Assert.That(members.Any(m => m.Name == "Text"), Is.True);
     }
 
+    /// <summary>
+    /// Tests that instance creation without a parameterless constructor throws.
+    /// </summary>
     [Test]
     public void TestAccessTypeInfoWithNoParameterlessConstructor()
     {
@@ -166,8 +184,7 @@ public class TestAccessTypeInfo
     }
 
     /// <summary>
-    /// Test that indexers are not included as accessible members.
-    /// Indexers should be filtered out because they have parameters and are not regular properties.
+    /// Tests that indexers are excluded from accessible members.
     /// </summary>
     [Test]
     public void TestAccessTypeInfoExcludesIndexers()
@@ -198,8 +215,7 @@ public class TestAccessTypeInfo
     }
 
     /// <summary>
-    /// Test that inherited properties and fields from base classes are included.
-    /// This test reveals the bug where DeclaredOnly flag prevents inheritance.
+    /// Tests that inherited public members are included and protected members are excluded.
     /// </summary>
     [Test]
     public void TestAccessTypeInfoIncludesInheritedMembers()

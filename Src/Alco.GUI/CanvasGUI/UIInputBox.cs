@@ -6,6 +6,9 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
+/// <summary>
+/// How the Tab key is inserted into a <see cref="UIInputBox"/>.
+/// </summary>
 public enum TabAction
 {
     Spaces4,
@@ -52,6 +55,9 @@ public class UIInputBox : UIText, ITextInput
 
     private float _timerCursorBlink;
 
+    /// <summary>
+    /// Gets or sets how the Tab key is inserted.
+    /// </summary>
     public TabAction TabAction { get; set; } = TabAction.Spaces4;
 
     /// <summary>
@@ -146,6 +152,9 @@ public class UIInputBox : UIText, ITextInput
         }
     }
 
+    /// <summary>
+    /// Creates an interactable input box.
+    /// </summary>
     public UIInputBox() : base()
     {
         IsInteractable = true;
@@ -331,6 +340,11 @@ public class UIInputBox : UIText, ITextInput
     }
 
 
+    /// <summary>
+    /// Deletes characters starting at the given index.
+    /// </summary>
+    /// <param name="start">The zero-based index of the first character to delete.</param>
+    /// <param name="count">The number of characters to delete.</param>
     public void DeleteText(int start, int count)
     {
         Span<char> text = TextSpan;
@@ -515,6 +529,12 @@ public class UIInputBox : UIText, ITextInput
 
     #region Handle Keyborad Events
 
+    /// <summary>
+    /// Inserts text at the current selection, replacing selected text and stripping line breaks
+    /// when <see cref="IsSingleLine"/> is set.
+    /// </summary>
+    /// <param name="canvas">The canvas hosting the input box.</param>
+    /// <param name="text">The characters to insert.</param>
     public void OnTextInput(Canvas canvas, ReadOnlySpan<char> text)
     {
         if (IsSingleLine)
@@ -578,6 +598,9 @@ public class UIInputBox : UIText, ITextInput
         return buffer.Slice(0, written).ToArray();
     }
 
+    /// <summary>
+    /// Handles the Delete key by removing the selection or the character after the cursor.
+    /// </summary>
     public void HandleKeyDelete()
     {
         if (_selectionStartPosition == _selectionEndPosition)
@@ -595,6 +618,9 @@ public class UIInputBox : UIText, ITextInput
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Backspace key by removing the selection or the character before the cursor.
+    /// </summary>
     public void HandleKeyBackspace()
     {
         if (_selectionStartPosition == _selectionEndPosition)
@@ -614,6 +640,9 @@ public class UIInputBox : UIText, ITextInput
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Enter key by inserting a line break at the cursor.
+    /// </summary>
     public void HandleKeyEnter()
     {
         InsertText(CursorCharIndex, "\n");
@@ -621,6 +650,9 @@ public class UIInputBox : UIText, ITextInput
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Tab key using the configured tab action.
+    /// </summary>
     public void HandleKeyTab()
     {
         switch(TabAction)
@@ -641,6 +673,9 @@ public class UIInputBox : UIText, ITextInput
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Escape key by clearing the selection.
+    /// </summary>
     public void HandleKeyEscape()
     {
         _selectionStartPosition = _selectionEndPosition;
@@ -648,18 +683,28 @@ public class UIInputBox : UIText, ITextInput
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Left arrow key by moving the cursor one character left.
+    /// </summary>
     public void HandleKeyArrowLeft()
     {
         IncreaseCursorPosition(-1);
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Right arrow key by moving the cursor one character right.
+    /// </summary>
     public void HandleKeyArrowRight()
     {
         IncreaseCursorPosition(1);
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Up arrow key by moving the cursor to the previous line at the same relative
+    /// horizontal offset.
+    /// </summary>
     public void HandleKeyArrowUp()
     {
         if (_lines.Count == 0)
@@ -682,6 +727,10 @@ public class UIInputBox : UIText, ITextInput
         ResetBlink();
     }
 
+    /// <summary>
+    /// Handles the Down arrow key by moving the cursor to the next line at the same relative
+    /// horizontal offset.
+    /// </summary>
     public void HandleKeyArrowDown()
     {
         if (_lines.Count == 0)
@@ -728,6 +777,9 @@ public class UIInputBox : UIText, ITextInput
         _isInputAreaDirty = true;
     }
 
+    /// <summary>
+    /// Selects the entire text.
+    /// </summary>
     public void SelectAll()
     {
         _selectionStartPosition = 0;
@@ -735,6 +787,10 @@ public class UIInputBox : UIText, ITextInput
         SetSelectionDirty();
     }
 
+    /// <summary>
+    /// Gets the currently selected text.
+    /// </summary>
+    /// <returns>The selected characters, or an empty span when nothing is selected.</returns>
     public Span<char> GetSelectedText()
     {
         if (_selectionStartPosition == _selectionEndPosition)

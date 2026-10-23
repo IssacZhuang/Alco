@@ -7,12 +7,8 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// Loads particle effect asset files (<c>.afx</c>) directly into
-/// <see cref="ParticleEffect"/>s — no DTO layer: texture references load
-/// through the asset system, behavior module references resolve and validate into
-/// <see cref="ShaderLibrary"/>s at load time, so a bad reference (missing texture,
-/// unknown module, unknown field, unknown <c>$type</c>) fails here, at load time,
-/// with the file's name.
+/// Loads particle effect asset files (<c>.afx</c>) directly into <see cref="ParticleEffect"/>s without a DTO layer.
+/// Texture and behavior-module references resolve and validate at load time, so bad references or unknown fields fail with the file's name.
 /// </summary>
 public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
 {
@@ -43,11 +39,8 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
     }
 
     /// <summary>
-    /// The serializer options particle effect files parse with: author-friendly
-    /// (camelCase, comments and trailing commas tolerated), strict about unmapped
-    /// members, polymorphic over <see cref="ParticleEffect"/>, with the vector/
-    /// color, range, texture, shader(-library) and blend-state converters. Exposed
-    /// for tests and tooling that parse effect files outside the asset system.
+    /// The serializer options particle effect files parse with: camelCase, comments and trailing commas tolerated, strict about unmapped members, polymorphic over <see cref="ParticleEffect"/>.
+    /// Exposed for tests and tooling that parse effect files outside the asset system.
     /// </summary>
     public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {

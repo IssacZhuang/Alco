@@ -11,8 +11,8 @@ namespace Alco;
 /// <typeparam name="TKey">The type of keys in the cache. Must be non-null.</typeparam>
 /// <typeparam name="TValue">The type of values in the cache. Must be a reference type.</typeparam>
 /// <remarks>
-/// This cache automatically removes the least recently used items when it reaches capacity.
-/// Each item can have a custom weight, allowing for more flexible capacity management.
+/// Evicts the least recently used items when the weight capacity is exceeded; item weights are
+/// customizable by overriding <see cref="GetWeight"/>.
 /// </remarks>
 public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
 {
@@ -84,8 +84,7 @@ public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
     /// <returns>The value associated with the specified key.</returns>
     /// <exception cref="KeyNotFoundException">Thrown when the key is not found in the cache during a get operation.</exception>
     /// <remarks>
-    /// When getting a value, the item is marked as recently used.
-    /// When setting a value, if the key already exists, the old value is replaced and marked as recently used.
+    /// Both get and set mark the item as most recently used; set replaces an existing value.
     /// </remarks>
     public TValue this[TKey key]
     {
@@ -132,9 +131,8 @@ public class LruCache<TKey, TValue> where TKey : notnull where TValue : class
     /// <param name="value">The value to associate with the key.</param>
     /// <exception cref="ArgumentNullException">Thrown when the value is null.</exception>
     /// <remarks>
-    /// If the key already exists, the old value is replaced.
-    /// If adding the new item would exceed the cache capacity, least recently used items are removed until there is enough space.
-    /// The new or updated item is marked as the most recently used.
+    /// Replaces an existing value and evicts least recently used items until the new item fits;
+    /// the item becomes the most recently used.
     /// </remarks>
     public void Set(TKey key, TValue value)
     {

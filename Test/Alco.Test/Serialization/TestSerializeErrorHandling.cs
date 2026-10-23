@@ -81,6 +81,7 @@ public class TestSerializeErrorHandling
         }
     }
 
+    /// <summary>Tests that a single object serialization error is reported without failing others.</summary>
     [Test]
     public void TestSerializeWithSingleObjectError()
     {
@@ -116,6 +117,7 @@ public class TestSerializeErrorHandling
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that list item serialization errors are reported per index.</summary>
     [Test]
     public void TestSerializeWithListItemErrors()
     {
@@ -159,6 +161,7 @@ public class TestSerializeErrorHandling
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that a single object deserialization error is reported without failing others.</summary>
     [Test]
     public void TestDeserializeWithSingleObjectError()
     {
@@ -195,6 +198,7 @@ public class TestSerializeErrorHandling
         Assert.That(deserializedContainer.Object3?.Name, Is.EqualTo("Object3"));
     }
 
+    /// <summary>Tests that list item deserialization errors are reported per index.</summary>
     [Test]
     public void TestDeserializeWithListItemErrors()
     {
@@ -250,6 +254,7 @@ public class TestSerializeErrorHandling
         Assert.That(deserializedContainer.ObjectList[3].Name, Is.EqualTo("Item4"));
     }
 
+    /// <summary>Tests that errors from multiple sources are all reported.</summary>
     [Test]
     public void TestMultipleErrorsFromDifferentSources()
     {
@@ -299,6 +304,7 @@ public class TestSerializeErrorHandling
         Assert.That(errorCollector.Errors.Count, Is.EqualTo(0)); // No deserialization errors
     }
 
+    /// <summary>Tests that errors without a custom handler do not throw.</summary>
     [Test]
     public void TestErrorHandlingWithDefaultErrorHandler()
     {

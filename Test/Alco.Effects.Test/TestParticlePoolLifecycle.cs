@@ -5,11 +5,7 @@ using Alco.Rendering;
 namespace Alco.Effects.Test;
 
 /// <summary>
-/// Lifecycle and bookkeeping tests of the shared particle buffer pool and the
-/// systems' create/dispose paths on the no-GPU backend: growth retirement,
-/// disposal (incl. unrecorded growth copies), slice/slot recycling, instance
-/// teardown returning pool resources, creation rollback on failure, and the
-/// steady-state per-frame CPU path's allocation budget.
+/// Tests particle buffer pool lifecycle and particle system create/dispose paths on the no-GPU backend.
 /// </summary>
 public class TestParticlePoolLifecycle
 {
@@ -18,12 +14,18 @@ public class TestParticlePoolLifecycle
 
     private Host _engine = null!;
 
+    /// <summary>
+    /// Creates the shared engine host.
+    /// </summary>
     [OneTimeSetUp]
     public void SetUp()
     {
         _engine = new Host(GameEngineSetting.CreateNoGPU());
     }
 
+    /// <summary>
+    /// Disposes the shared engine host.
+    /// </summary>
     [OneTimeTearDown]
     public void TearDown()
     {
@@ -33,6 +35,9 @@ public class TestParticlePoolLifecycle
     private ParticleBufferPool<GpuParticle2D, EmitterParams2D> CreatePool(int particles = 256, int slots = 4)
         => new(_engine.RenderingSystem, particles, slots, "test");
 
+    /// <summary>
+    /// Tests that growth retires old buffers after the grace period.
+    /// </summary>
     [Test(Description = "Growth retires the old buffers after the 2-frame grace")]
     public void GrowthRetiresOldBuffersAfterGrace()
     {
@@ -63,6 +68,9 @@ public class TestParticlePoolLifecycle
         });
     }
 
+    /// <summary>
+    /// Tests that disposal releases unrecorded growth-copy sources and is idempotent.
+    /// </summary>
     [Test(Description = "Pool dispose releases growth-copy sources that were never recorded (and is idempotent)")]
     public void DisposeReleasesUnrecordedGrowthSources()
     {
@@ -82,6 +90,9 @@ public class TestParticlePoolLifecycle
         Assert.DoesNotThrow(() => pool.Dispose(), "pool dispose is not idempotent");
     }
 
+    /// <summary>
+    /// Tests that a freed slice is recycled by size and its kill is queued.
+    /// </summary>
     [Test(Description = "A freed slice is recycled by size and its kill is queued")]
     public void FreedSliceRecyclesAndQueuesKill()
     {
@@ -105,6 +116,9 @@ public class TestParticlePoolLifecycle
         Assert.That(other.Offset, Is.Not.EqualTo(first.Offset));
     }
 
+    /// <summary>
+    /// Tests that emitter slots grow geometrically and free back to zero.
+    /// </summary>
     [Test(Description = "Emitter slots grow geometrically and free back to zero")]
     public void SlotsGrowAndFree()
     {
@@ -131,6 +145,9 @@ public class TestParticlePoolLifecycle
         Assert.That(pool.AllocatedSlotCount, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that disposing an instance returns its slots and slices to the pool.
+    /// </summary>
     [Test(Description = "Disposing an instance returns its slots and slices to the pool")]
     public void InstanceDisposeReturnsSlotsAndSlices()
     {
@@ -163,6 +180,9 @@ public class TestParticlePoolLifecycle
         Assert.That(system.Pool.AllocatedSlotCount, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that a failing instance creation frees the slots and slices of groups already set up.
+    /// </summary>
     [Test(Description = "A failing CreateInstance frees the slots/slices of the groups already set up")]
     public void CreateInstanceRollsBackOnFailure()
     {
@@ -196,6 +216,9 @@ public class TestParticlePoolLifecycle
         });
     }
 
+    /// <summary>
+    /// Tests that the steady-state per-frame CPU path allocates nothing.
+    /// </summary>
     [Test(Description = "The steady-state per-frame CPU path (AdvanceFrame + dirty-range upload) allocates nothing")]
     public void AdvanceFrameHotPathAllocatesNothing()
     {

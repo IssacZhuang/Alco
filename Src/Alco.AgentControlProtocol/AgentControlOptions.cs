@@ -48,13 +48,7 @@ public sealed class AgentControlOptions
     public int ScriptCompilationTimeoutMs { get; init; } = 10_000;
 
     /// <summary>
-    /// Optional factory invoked once per script execution (on the calling agent thread)
-    /// to build the globals object whose public members scripts see as top-level names.
-    /// The returned type must be public with public members (a Roslyn scripting
-    /// constraint). When null, or when the factory returns null, the protocol's default
-    /// <see cref="ScriptGlobals"/> is used, which exposes the engine instance as
-    /// <c>Engine</c>. Supply a factory to expose host-typed state (for example the
-    /// current game and map) alongside or instead of the engine.
+    /// Gets the optional factory that builds per-execution script globals; null uses <see cref="ScriptGlobals"/>.
     /// </summary>
     public Func<object?>? ScriptGlobalsFactory { get; init; }
 }

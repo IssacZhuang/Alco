@@ -3,16 +3,9 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Base class for graph nodes that draw content in place into the chain's current
-/// target: scene geometry in a forward pipeline, transparency in a deferred one
-/// (hardware depth-tested against the target's own depth attachment). The node never
-/// advances the chain; on headless frames (null destination) it roots itself so it
-/// still runs.
-/// <br/>Derive from this class and implement <see cref="OnRender"/>; the node begins
-/// and ends nothing itself — the implementation owns its render pass on the given
-/// target (render bundles recorded via <see cref="SubRenderContext"/> are replayed
-/// into any open <see cref="RenderPassScope"/> via
-/// <see cref="RenderPassScope.ExecuteSubContext"/>).
+/// Base class for graph nodes that draw content in place into the chain's current target
+/// without advancing the chain. Derived types implement <see cref="OnRender"/> and own their
+/// render pass.
 /// </summary>
 public abstract class RGNode_SceneContent : AutoDisposable, IRenderGraphNode
 {

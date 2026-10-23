@@ -4,15 +4,18 @@ using System.Collections.Generic;
 namespace Alco;
 
 /// <summary>
-/// A serialization node used during the post-load phase.
-/// This node does not read or write any data. It only traverses objects
-/// and invokes <see cref="ISerializable.OnSerialize"/> with <see cref="SerializeMode.PostLoad"/>.
+/// A serialization node used during the post-load phase that traverses objects and invokes
+/// <see cref="ISerializable.OnSerialize"/> with <see cref="SerializeMode.PostLoad"/> without
+/// reading or writing data.
 /// </summary>
 public class BinaryPostLoadSerializeNode : SerializeNode
 {
     private readonly ReferenceContext? _referenceContext;
     private readonly bool _clearMissingReferences;
     protected BinaryTable _content;
+    /// <summary>
+    /// Gets the binary table traversed by this post-load node.
+    /// </summary>
     public BinaryTable Content => _content;
 
     public override ReferenceContext? ReferenceContext => _referenceContext;
@@ -25,7 +28,6 @@ public class BinaryPostLoadSerializeNode : SerializeNode
     /// <param name="onError">Optional error callback.</param>
     /// <param name="clearMissingReferences">
     /// Whether a missing reference ID clears the existing destination before resolution.
-    /// Use this when populating a reused object from authoritative serialized state.
     /// </param>
     public BinaryPostLoadSerializeNode(
         ReferenceContext? referenceContext,

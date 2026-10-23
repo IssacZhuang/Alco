@@ -9,6 +9,9 @@ using Alco.Rendering;
 
 namespace Alco.World3D.Test;
 
+/// <summary>
+/// Tests mesh asset package writing, reading, hash verification, and structure exposure.
+/// </summary>
 public class TestMeshAssetFormat
 {
     private static VertexPBR[] CreateQuadVertices()
@@ -107,6 +110,9 @@ public class TestMeshAssetFormat
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// Tests that the writer produces an aligned package readable through its metadata.
+    /// </summary>
     [Test]
     public void WriterProducesAlignedReadablePackage()
     {
@@ -140,6 +146,9 @@ public class TestMeshAssetFormat
         });
     }
 
+    /// <summary>
+    /// Tests that the writer produces a multi-LOD package with partitioned submeshes.
+    /// </summary>
     [Test]
     public void WriterProducesMultiLodPackage()
     {
@@ -183,6 +192,9 @@ public class TestMeshAssetFormat
         });
     }
 
+    /// <summary>
+    /// Tests that the reader round-trips vertex and index chunk bytes.
+    /// </summary>
     [Test]
     public void ReaderRoundTripsChunkBytes()
     {
@@ -204,6 +216,9 @@ public class TestMeshAssetFormat
         Assert.That(indices, Is.EqualTo(data.Lods[0].Indices));
     }
 
+    /// <summary>
+    /// Tests that the reader round-trips multi-LOD chunk bytes.
+    /// </summary>
     [Test]
     public void ReaderRoundTripsMultiLodChunkBytes()
     {
@@ -222,6 +237,9 @@ public class TestMeshAssetFormat
         Assert.That(indices, Is.EqualTo(data.Lods[1].Indices));
     }
 
+    /// <summary>
+    /// Tests that a tampered chunk fails hash verification.
+    /// </summary>
     [Test]
     public void TamperedChunkFailsHashVerification()
     {
@@ -241,6 +259,9 @@ public class TestMeshAssetFormat
             Throws.TypeOf<InvalidDataException>());
     }
 
+    /// <summary>
+    /// Tests that a mesh asset exposes its structure without a graphics device.
+    /// </summary>
     [Test]
     public void MeshAssetExposesStructureWithoutDevice()
     {
@@ -264,6 +285,9 @@ public class TestMeshAssetFormat
         });
     }
 
+    /// <summary>
+    /// Tests that a mesh asset exposes per-LOD submeshes and rejects out-of-range access.
+    /// </summary>
     [Test]
     public void MeshAssetExposesPerLodSubMeshes()
     {
@@ -291,6 +315,9 @@ public class TestMeshAssetFormat
         });
     }
 
+    /// <summary>
+    /// Tests that a disposed mesh asset rejects further use.
+    /// </summary>
     [Test]
     public void DisposedStreamRejectsFurtherUse()
     {

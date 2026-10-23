@@ -340,20 +340,14 @@ public class ParticleFlipbook
     public int Cols { get; set; } = 1;
 
     /// <summary>
-    /// The playback rate relative to the particle's lifetime: 1 plays the whole
-    /// sheet exactly once from spawn to death, 2 plays it twice, 0 holds the
-    /// first frame; fractional values play a portion of the sheet. Each particle
-    /// aligns to its own sampled lifetime, so a randomized lifetime stays in
-    /// sync — no fps/lifetime math.
+    /// The playback rate relative to the particle's lifetime: 1 plays the whole sheet once from spawn to death, 2 plays it twice, 0 holds the first frame.
+    /// Each particle aligns to its own sampled lifetime, so randomized lifetimes stay in sync.
     /// </summary>
     public float Cycles { get; set; } = 1f;
 
     /// <summary>
-    /// The number of frames in one animation when the sheet packs several
-    /// variants (e.g. a smoke sheet of eight one-row anims): each particle
-    /// draws one anim at spawn and plays only that. 0 (default) treats the
-    /// whole sheet as a single animation; trailing cells are skipped when the
-    /// length does not divide the sheet evenly.
+    /// The number of frames in one animation when the sheet packs several variants; each particle draws one animation at spawn and plays only that.
+    /// 0 treats the whole sheet as a single animation, and trailing cells are skipped when the length does not divide the sheet evenly.
     /// </summary>
     public int FramesPerAnim { get; set; }
 

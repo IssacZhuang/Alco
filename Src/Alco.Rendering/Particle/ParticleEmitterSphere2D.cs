@@ -13,6 +13,10 @@ public sealed class ParticleEmitterSphere2D : BaseParticleEmitter2D
     /// </summary>
     public ShapeSphere2D Shape;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ParticleEmitterSphere2D"/> class.
+    /// </summary>
+    /// <param name="radius">The sphere radius.</param>
     public ParticleEmitterSphere2D(float radius)
     {
         Shape = new ShapeSphere2D(Vector2.Zero, radius);

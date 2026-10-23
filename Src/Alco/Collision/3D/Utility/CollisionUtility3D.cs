@@ -7,8 +7,17 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// Provides intersection and raycast tests for spheres, boxes, and bounding boxes in 3D.
+    /// </summary>
     public static class CollisionUtility3D
     {
+        /// <summary>
+        /// Determines whether two spheres intersect.
+        /// </summary>
+        /// <param name="sphere1">The first sphere.</param>
+        /// <param name="sphere2">The second sphere.</param>
+        /// <returns>True if the spheres overlap.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool SphereSphere(ShapeSphere3D sphere1, ShapeSphere3D sphere2)
         {
@@ -18,6 +27,12 @@ namespace Alco
             return distanceSquared < sumRadius * sumRadius;
         }
 
+        /// <summary>
+        /// Determines whether a box intersects a sphere.
+        /// </summary>
+        /// <param name="box">The box.</param>
+        /// <param name="sphere">The sphere.</param>
+        /// <returns>True if the box and sphere overlap.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxSphere(ShapeBox3D box, ShapeSphere3D sphere)
         {
@@ -30,6 +45,12 @@ namespace Alco
             return distanceSquared < sphere.Radius * sphere.Radius;
         }
 
+        /// <summary>
+        /// Determines whether two rotated boxes intersect.
+        /// </summary>
+        /// <param name="box1">The first box.</param>
+        /// <param name="box2">The second box.</param>
+        /// <returns>True if the boxes overlap.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBox(ShapeBox3D box1, ShapeBox3D box2)
         {
@@ -41,6 +62,12 @@ namespace Alco
             return IntersectAABBWorldToLocal(box1, box2) && IntersectAABBWorldToLocal(box2, box1);
         }
 
+        /// <summary>
+        /// Determines whether two axis-aligned boxes intersect.
+        /// </summary>
+        /// <param name="box1">The first box.</param>
+        /// <param name="box2">The second box.</param>
+        /// <returns>True if the boxes overlap.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BoxBoxAxisAligned(ShapeBox3D box1, ShapeBox3D box2)
         {
@@ -54,6 +81,12 @@ namespace Alco
                    min1.Z <= max2.Z && max1.Z >= min2.Z;
         }
 
+        /// <summary>
+        /// Determines whether a box intersects another box's axis-aligned bounds expressed in that box's local space.
+        /// </summary>
+        /// <param name="world">The box whose local space is used for the test.</param>
+        /// <param name="toLocal">The box to transform into the local space.</param>
+        /// <returns>True if the transformed box overlaps the local bounds.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IntersectAABBWorldToLocal(ShapeBox3D world, ShapeBox3D toLocal)
         {
@@ -67,6 +100,16 @@ namespace Alco
             return worldBox.Intersects(localBox);
         }
 
+        /// <summary>
+        /// Tests a ray against a sphere and returns the entry fraction and surface normal. A ray that starts inside the sphere does not hit.
+        /// </summary>
+        /// <param name="rayOrigin">The ray origin.</param>
+        /// <param name="rayDisplacement">The ray displacement vector.</param>
+        /// <param name="sphereCenter">The sphere center.</param>
+        /// <param name="sphereRadius">The sphere radius.</param>
+        /// <param name="fraction">The current closest hit fraction; updated when a closer hit is found.</param>
+        /// <param name="normal">The surface normal at the hit point.</param>
+        /// <returns>True if the ray hits the sphere before the current fraction.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RaySphere(Vector3 rayOrigin, Vector3 rayDisplacement, Vector3 sphereCenter, float sphereRadius, ref float fraction, out Vector3 normal)
         {
@@ -100,6 +143,13 @@ namespace Alco
             return false;
         }
 
+        /// <summary>
+        /// Tests a ray against a sphere and returns the hit details.
+        /// </summary>
+        /// <param name="ray">The ray to test.</param>
+        /// <param name="sphere">The sphere to test.</param>
+        /// <param name="hit">The hit point, normal, and fraction when a hit occurs.</param>
+        /// <returns>True if the ray hits the sphere.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RaySphere(Ray3D ray, ShapeSphere3D sphere, out RaycastHit3D hit)
         {
@@ -118,6 +168,14 @@ namespace Alco
             return false;
         }
 
+        /// <summary>
+        /// Tests a ray against an axis-aligned bounding box and returns the entry fraction and face normal.
+        /// </summary>
+        /// <param name="ray">The ray to test.</param>
+        /// <param name="boundingBox">The bounding box to test.</param>
+        /// <param name="fraction">The entry fraction along the ray.</param>
+        /// <param name="normal">The normal of the face entered.</param>
+        /// <returns>True if the ray intersects the box.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray3D ray, BoundingBox3D boundingBox, ref float fraction, out Vector3 normal)
         {
@@ -229,6 +287,12 @@ namespace Alco
             return true;
         }
 
+        /// <summary>
+        /// Determines whether a ray intersects an axis-aligned bounding box.
+        /// </summary>
+        /// <param name="ray">The ray to test.</param>
+        /// <param name="boundingBox">The bounding box to test.</param>
+        /// <returns>True if the ray intersects the box.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayAABB(Ray3D ray, BoundingBox3D boundingBox)
         {
@@ -294,6 +358,13 @@ namespace Alco
             return true;
         }
 
+        /// <summary>
+        /// Tests a ray against an oriented box and returns the hit details.
+        /// </summary>
+        /// <param name="ray">The ray to test.</param>
+        /// <param name="box">The box to test.</param>
+        /// <param name="hit">The hit point, normal, and fraction when a hit occurs.</param>
+        /// <returns>True if the ray hits the box in front of its origin.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool RayBox(Ray3D ray, ShapeBox3D box, out RaycastHit3D hit)
         {
@@ -320,6 +391,12 @@ namespace Alco
         }
 
 
+        /// <summary>
+        /// Determines whether a point lies inside or on a sphere.
+        /// </summary>
+        /// <param name="point">The point to test.</param>
+        /// <param name="sphere">The sphere to test.</param>
+        /// <returns>True if the point lies inside or on the sphere.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool PointSphere(Vector3 point, ShapeSphere3D sphere)
         {
@@ -328,6 +405,12 @@ namespace Alco
             return distanceSquared < sphere.Radius * sphere.Radius;
         }
 
+        /// <summary>
+        /// Determines whether a point lies inside or on a box.
+        /// </summary>
+        /// <param name="point">The point to test.</param>
+        /// <param name="box">The box to test.</param>
+        /// <returns>True if the point lies inside or on the box.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool PointBox(Vector3 point, ShapeBox3D box)
         {

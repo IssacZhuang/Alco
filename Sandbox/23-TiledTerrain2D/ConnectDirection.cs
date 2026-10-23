@@ -1,5 +1,8 @@
 
 
+/// <summary>
+/// Flags identifying which sides of a tile connect to its neighbors.
+/// </summary>
 [Flags]
 public enum ConnectDirection
 {

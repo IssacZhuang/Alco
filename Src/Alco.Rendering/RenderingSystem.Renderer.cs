@@ -6,6 +6,9 @@ using Alco.Graphics;
 
 // renderer factory
 
+/// <summary>
+/// Provides factory methods for renderers and render contexts.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>
@@ -20,16 +23,33 @@ public partial class RenderingSystem
         return new TextRenderer(this, renderContext, MeshTrueType, material, name);
     }
 
+    /// <summary>
+    /// Creates a sprite renderer that uses a render context and a material.
+    /// </summary>
+    /// <param name="renderContext">The render context to use.</param>
+    /// <param name="material">The material to use.</param>
+    /// <param name="name">The name of the renderer.</param>
+    /// <returns>The created sprite renderer.</returns>
     public SpriteRenderer CreateSpriteRenderer(IRenderContext renderContext, GraphicsMaterial material, string name = "sprite_renderer")
     {
         return new SpriteRenderer(this, renderContext, MeshCenteredSprite, material, name);
     }
 
+    /// <summary>
+    /// Creates a render context with its own command buffer.
+    /// </summary>
+    /// <param name="name">The debug name of the context.</param>
+    /// <returns>The created render context.</returns>
     public RenderContext CreateRenderContext(string name = "render_context")
     {
         return new RenderContext(this, name);
     }
 
+    /// <summary>
+    /// Creates a sub-render context that records into a parent render context.
+    /// </summary>
+    /// <param name="name">The debug name of the context.</param>
+    /// <returns>The created sub-render context.</returns>
     public SubRenderContext CreateSubRenderContext(string name = "sub_render_context")
     {
         return new SubRenderContext(this, name);

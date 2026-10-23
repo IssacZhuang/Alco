@@ -12,9 +12,7 @@ namespace Alco.World3D;
 /// and composites it before bloom and tone mapping.
 /// </summary>
 /// <remarks>
-/// Register this node after forward scene content and before content processors.
-/// It intentionally runs after deferred lighting so a hit samples the real shaded
-/// scene color instead of attempting to reconstruct lighting from the G-buffer.
+/// Register this node after forward scene content and before content processors so traced hits sample the shaded scene color.
 /// </remarks>
 public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
 {
@@ -150,28 +148,7 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
         ?? throw new InvalidOperationException("The SSR node is not attached to a graph (call Attach first).")).Height;
 
     /// <summary>
-    /// Creates the post-lighting SSR node. Shader objects and the graph resources
-    /// remain owned by their callers; the node owns its materials and the persistent
-    /// reflection history. The scene copy and raw trace target are graph transients
-    /// created by <see cref="Attach"/>; <paramref name="width"/>/<paramref name="height"/>
-    /// only size the initial history.
-    /// </summary>
-    /// <param name="rendering">The rendering system.</param>
-    /// <param name="graph">The render graph the node will attach to.</param>
-    /// <param name="chain">The content chain whose tail the node composites into.</param>
-    /// <param name="gbuffer">The G-buffer resource the trace/resolve passes read.</param>
-    /// <param name="sceneColor">The scene color resource the node copies and
-    /// composites into.</param>
-    /// <param name="voxelGi">The voxel GI renderer providing the fallback reflection
-    /// and the debug view mode.</param>
-    /// <param name="camera">The camera the reflection tracing runs from.</param>
-    /// <summary>
-    /// The node's construction data: the five shaders (trace / resolve /
-    /// composite / scene-copy blit / blue-noise bake) and the trace-resolution
-    /// scale. Service-type dependencies (the rendering system, graph, chain, the
-    /// G-buffer and scene color resources, the voxel GI fallback node, camera
-    /// and scene environment) are explicit constructor parameters or factory
-    /// context services instead — a descriptor is pure data.
+    /// Contains the shaders and trace-resolution scale used to construct an SSR node.
     /// </summary>
     public readonly struct Descriptor
     {
@@ -332,13 +309,8 @@ public sealed class RGNode_SSR : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Attaches the node to the render graph as a direct <see cref="IRenderGraphNode"/>
-    /// registered immediately before <paramref name="insertBefore"/> (usually the
-    /// composition's final blit): creates the scene-copy (graph-relative ×1.0) and
-    /// raw-trace (×<see cref="TraceResolutionScale"/>) transient resources and binds
-    /// the materials to them. The temporal reflection history stays persistent
-    /// (cross-frame feedback never enters the graph). After attachment the graph
-    /// drives execution and resize.
+    /// Attaches the node to the graph before <paramref name="insertBefore"/> and creates its transient scene-copy and raw-trace resources.
+    /// The persistent reflection history stays outside the graph, which then drives execution and resize.
     /// </summary>
     /// <param name="insertBefore">The registered node before which this node runs.</param>
     /// <exception cref="InvalidOperationException">The node is already attached.</exception>

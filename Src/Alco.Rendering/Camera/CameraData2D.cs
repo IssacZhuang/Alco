@@ -85,6 +85,12 @@ public struct CameraData2D : ICamera
         get => ViewMatrix * ProjectionMatrix;
     }
 
+    /// <summary>
+    /// Creates a ray from a screen-space point through the 2D camera.
+    /// </summary>
+    /// <param name="screenPosition">The point in screen pixels.</param>
+    /// <param name="screenSize">The screen size in pixels.</param>
+    /// <returns>The ray in world space.</returns>
     public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
     {
         return CameraMathUtility.ScreenPointToRay2D(screenPosition, screenSize, ViewProjectionMatrix, Near, Near + 1);

@@ -6,6 +6,7 @@ using NUnit.Framework;
 
 namespace Alco.LLM.Test;
 
+/// <summary>Tests parallel tool execution, ordering, timeouts and cancellation in <see cref="LLMSession"/>.</summary>
 [TestFixture]
 public class ParallelToolExecutionTests
 {
@@ -15,6 +16,7 @@ public class ParallelToolExecutionTests
         TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
     };
 
+    /// <summary>Resets the fake tool state before each test.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -66,6 +68,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC1: consecutive agent-thread tools execute concurrently on the thread pool.
+    /// <summary>Tests that consecutive agent-thread tools run in parallel.</summary>
     [Test]
     public async Task ChatAsync_ConsecutiveAgentThreadTools_RunInParallel()
     {
@@ -86,6 +89,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC2: a main-thread tool occupies an exclusive batch and never overlaps agent-thread batches.
+    /// <summary>Tests that a main-thread tool does not overlap agent-thread batches.</summary>
     [Test]
     public async Task ChatAsync_MainThreadTool_DoesNotOverlapAgentThreadBatches()
     {
@@ -128,6 +132,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC3: one tool failing in a parallel batch does not affect the others.
+    /// <summary>Tests that one failing tool does not affect other tools in a parallel batch.</summary>
     [Test]
     public async Task ChatEventsAsync_ParallelBatchOneToolThrows_OtherSucceeds()
     {
@@ -156,6 +161,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC4: one tool timing out in a parallel batch does not affect the others.
+    /// <summary>Tests that one timing-out tool does not affect other tools in a parallel batch.</summary>
     [Test]
     public async Task ChatEventsAsync_ParallelBatchOneToolTimesOut_OtherSucceeds()
     {
@@ -186,6 +192,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC5: results are ordered by original tool call order even when completion order differs.
+    /// <summary>Tests that parallel results follow the original tool call order.</summary>
     [Test]
     public async Task ChatAsync_ParallelBatch_ResultsFollowOriginalOrder()
     {
@@ -206,6 +213,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC6: MaxConcurrentTools <= 1 bypasses the parallel path and executes serially in order.
+    /// <summary>Tests that a concurrency limit of one executes tools serially in order.</summary>
     [Test]
     public async Task ChatAsync_MaxConcurrentToolsOne_ExecutesSeriallyInOrder()
     {
@@ -231,6 +239,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC7: external cancellation propagates out of a parallel batch.
+    /// <summary>Tests that external cancellation propagates out of a parallel batch.</summary>
     [Test]
     public void ChatAsync_ExternalCancellationDuringParallelBatch_Throws()
     {
@@ -250,6 +259,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC8: Started events yield in original order, Completed events yield in original order.
+    /// <summary>Tests that parallel tool events follow the original call order.</summary>
     [Test]
     public async Task ChatEventsAsync_ParallelBatch_EventOrderFollowsOriginalOrder()
     {
@@ -281,6 +291,7 @@ public class ParallelToolExecutionTests
     }
 
     // AC9: timeout now applies to a single agent-thread tool on the serial path (fixed bug).
+    /// <summary>Tests that a single agent-thread tool timeout yields a failed event.</summary>
     [Test]
     public async Task ChatEventsAsync_SingleAgentThreadToolTimeout_YieldsFailedEvent()
     {

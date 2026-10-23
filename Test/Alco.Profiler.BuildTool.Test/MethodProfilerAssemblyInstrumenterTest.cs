@@ -6,6 +6,7 @@ using NUnit.Framework;
 
 namespace Alco.Profiler.BuildTool.Test;
 
+/// <summary>Tests assembly instrumentation by the method profiler build tool.</summary>
 public sealed class MethodProfilerAssemblyInstrumenterTest
 {
     private sealed class IncludeFixtureRule : IMethodProfileRule
@@ -20,6 +21,7 @@ public sealed class MethodProfilerAssemblyInstrumenterTest
         }
     }
 
+    /// <summary>Tests that instrumentation produces a readable executable assembly and preserves its PDB.</summary>
     [Test]
     public async Task InstrumentProducesReadableExecutableAssemblyAndPreservesPdb()
     {

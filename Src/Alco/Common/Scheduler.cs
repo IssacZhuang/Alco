@@ -79,6 +79,10 @@ public class Scheduler
         }
     }
 
+    /// <summary>
+    /// Removes all scheduled entries that invoke <paramref name="action"/>.
+    /// </summary>
+    /// <param name="action">The action to unschedule.</param>
     public void Unschedule(Action action)
     {
         int length = _contexts.Count;
@@ -93,6 +97,9 @@ public class Scheduler
         }
     }
 
+    /// <summary>
+    /// Removes all scheduled entries.
+    /// </summary>
     public void UnscheduleAll()
     {
         _contexts.Clear();

@@ -5,6 +5,9 @@ using System.Threading.Tasks;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Covers reusable task execution and reusable parallel batch tasks, including reuse, errors, and disposal.
+/// </summary>
 public class TestTask
 {
     private class TestAddTask : ReusableTask<int>
@@ -115,6 +118,9 @@ public class TestTask
         }
     }
 
+    /// <summary>
+    /// Tests repeated execution and waiting of a reusable task, including error propagation.
+    /// </summary>
     [Test(Description = "Test Task")]
     public void TestReusableTask()
     {
@@ -153,6 +159,9 @@ public class TestTask
         Assert.Catch(() => errorTask.Wait());
     }
 
+    /// <summary>
+    /// Tests basic parallel execution, task reuse, and non-positive counts.
+    /// </summary>
     [Test(Description = "Test Parallel Task Basic Functionality")]
     public void TestReusableParallelTaskBasic()
     {
@@ -178,6 +187,9 @@ public class TestTask
         Assert.That(task.Counter, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that parallel processing fills every array element.
+    /// </summary>
     [Test(Description = "Test Parallel Task Array Processing")]
     public void TestReusableParallelTaskArray()
     {
@@ -193,6 +205,9 @@ public class TestTask
         }
     }
 
+    /// <summary>
+    /// Tests parallel execution with different batch sizes.
+    /// </summary>
     [Test(Description = "Test Parallel Task with Different Batch Sizes")]
     public void TestReusableParallelTaskBatchSizes()
     {
@@ -215,6 +230,9 @@ public class TestTask
         Assert.That(task.Counter, Is.EqualTo(totalCount));
     }
 
+    /// <summary>
+    /// Tests that a worker exception surfaces as an <see cref="AggregateException"/>.
+    /// </summary>
     [Test(Description = "Test Parallel Task Exception Handling")]
     public void TestReusableParallelTaskExceptions()
     {
@@ -227,6 +245,9 @@ public class TestTask
         Assert.That(aggregateException.InnerExceptions[0].Message, Does.Contain("Test exception at index 5"));
     }
 
+    /// <summary>
+    /// Tests that disposing a parallel task is idempotent.
+    /// </summary>
     [Test(Description = "Test Parallel Task Disposal")]
     public void TestReusableParallelTaskDisposal()
     {

@@ -7,6 +7,7 @@ using Alco.Rendering;
 using Alco;
 using Alco.GUI;
 
+/// <summary>Sandbox demonstrating push-constant data for per-draw values.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -55,6 +56,8 @@ public class Game : GameEngine
 
     private float _timeMove = 0.0f;
 
+    /// <summary>Initializes the quad buffers, textures, and push-constant material groups.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

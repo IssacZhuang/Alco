@@ -288,14 +288,8 @@ public class ComputeMaterial : AutoDisposable
     #region Set Sampler
 
     /// <summary>
-    /// Tries to bind a custom sampler to the compute shader's own sampler entry of
-    /// the given name (a module-declared <c>SamplerState</c> member that is not a
-    /// shared sampler bank member). Shared bank members are immutable engine
-    /// constants resolved from the sampler library and cannot be bound or overridden.
-    /// <br/>Compute shaders sample through <c>SampleLevel</c>/<c>SampleCompareLevel</c>
-    /// (WebGPU disallows implicit-LOD sampling outside the fragment stage), which
-    /// makes the bank (and custom samplers) as usable from compute as from pixel
-    /// shaders.
+    /// Tries to bind a custom sampler to a module-declared sampler entry; shared sampler
+    /// bank members are immutable and cannot be bound.
     /// </summary>
     /// <param name="name">The shader-side sampler entry name (e.g. <c>_mySampler</c>).</param>
     /// <param name="sampler">The custom sampler to bind.</param>
@@ -445,6 +439,13 @@ public class ComputeMaterial : AutoDisposable
     }
 
 
+    /// <summary>
+    /// Tries to set a render texture resource by index.
+    /// </summary>
+    /// <param name="id">The index of the render texture.</param>
+    /// <param name="renderTexture">The render texture to set.</param>
+    /// <param name="index">The index of the color attachment in the render texture.</param>
+    /// <returns>True if the render texture was set successfully, otherwise false.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TrySetRenderTexture(uint id, RenderTexture renderTexture, int index = 0)
     {
@@ -525,6 +526,10 @@ public class ComputeMaterial : AutoDisposable
 
     #endregion
 
+    /// <summary>
+    /// Creates a per-instance parameter set for this material.
+    /// </summary>
+    /// <returns>The new material instance.</returns>
     public ComputeMaterialInstance CreateInstance()
     {
         return new ComputeMaterialInstance(_system, this);

@@ -4,20 +4,14 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// A live instance of a 2D particle effect asset: owns the per-group runtime state
-/// (pool slice, emitter slot, emission timeline) and the emitter transform. Created
-/// through <see cref="GpuParticleSystem2D.CreateInstance"/>; disposing it returns its
-/// slices and slots to the shared pool — cheap enough for effects that spawn and
-/// despawn constantly.
+/// A live instance of a 2D particle effect asset that owns the per-group runtime state (pool slice, emitter slot, emission timeline) and the emitter transform.
+/// Created through <see cref="GpuParticleSystem2D.CreateInstance"/>; disposal returns its slices and slots to the shared pool.
 /// </summary>
 public sealed class ParticleEffectInstance2D : AutoDisposable
 {
     /// <summary>
-    /// The per-group runtime state of a 2D effect instance: one value record in
-    /// the instance's group array — a struct so an instance's groups are one
-    /// contiguous allocation instead of one object per group. Mutate array
-    /// elements through <c>ref</c> locals only; copies taken elsewhere (the draw
-    /// plan's bucket lists) are value snapshots.
+    /// The per-group runtime state of a 2D effect instance, stored as a value record in the instance's group array.
+    /// Mutate array elements through <c>ref</c> locals only; copies taken elsewhere are value snapshots.
     /// </summary>
     internal struct GroupState
     {
@@ -121,12 +115,8 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     public float Height { get; set; }
 
     /// <summary>
-    /// The effect's base world z for scene-depth arbitration, written into every
-    /// group's per-frame parameters (see <see cref="EmitterParams2D.DepthBase"/>).
-    /// Groups that author a depth state (the depth-base flag) render at
-    /// <c>z = DepthBase - particle height</c>; the value typically follows the host
-    /// entity's depth stack, set per tick alongside <see cref="Transform"/> and
-    /// <see cref="Height"/>. Ignored by groups without the flag.
+    /// The effect's base world z for scene-depth arbitration, written into every group's per-frame parameters (see <see cref="EmitterParams2D.DepthBase"/>).
+    /// Groups with the depth-base flag render at <c>z = DepthBase - particle height</c>; ignored by groups without it.
     /// </summary>
     public float DepthBase { get; set; }
 
@@ -198,14 +188,8 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     public EmitterParams2D GetGroupParams(int groupIndex) => _system.ParamsRef(_groups[groupIndex].Slot);
 
     /// <summary>
-    /// Replaces the static (asset-authored) parameter fields of a group — speed,
-    /// lifetime, size, gravity, tint, the stretch and lookup flags — for this
-    /// instance only, without respawning it; the slot-bound and per-frame fields
-    /// keep their live values (see <see cref="EmitterParams2D.MergeEdited"/>) and
-    /// the asset is not mutated. The group's CPU-side lifetime follows
-    /// <see cref="EmitterParams2D.Life"/>.X/Y, so a stopped group still deactivates
-    /// on time. The upload rides the regular dirty-range path: active groups upload
-    /// the same frame, dormant groups when they reactivate.
+    /// Replaces the static (asset-authored) parameter fields of a group for this instance only, without respawning it; slot-bound and per-frame fields keep their live values and the asset is not mutated.
+    /// The group's CPU-side lifetime follows <see cref="EmitterParams2D.Life"/>.X/Y; active groups upload the same frame, dormant groups when they reactivate.
     /// </summary>
     /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
     /// <param name="parameters">The record carrying the edited static fields.</param>

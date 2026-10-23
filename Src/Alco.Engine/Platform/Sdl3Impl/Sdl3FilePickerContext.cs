@@ -7,11 +7,25 @@ using static Alco.MemoryUtility;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Describes a file type filter for a file picker dialog.
+/// </summary>
 public class DialogFileFilter
 {
+    /// <summary>
+    /// Gets the display name of the filter.
+    /// </summary>
     public string Name { get; }
+    /// <summary>
+    /// Gets the file matching pattern of the filter.
+    /// </summary>
     public string Pattern { get; }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="DialogFileFilter"/>.
+    /// </summary>
+    /// <param name="name">Display name of the filter.</param>
+    /// <param name="pattern">File matching pattern, for example "*.png".</param>
     public DialogFileFilter(string name, string pattern)
     {
         Name = name;

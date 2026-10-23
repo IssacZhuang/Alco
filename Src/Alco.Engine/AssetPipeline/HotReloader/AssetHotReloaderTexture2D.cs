@@ -6,10 +6,17 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Hot reloads 2D textures in place.
+/// </summary>
 public class AssetHotReloaderTexture2D : BaseAssetHotReloader<Texture2D>
 {
     private readonly RenderingSystem _renderingSystem;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="AssetHotReloaderTexture2D"/>.
+    /// </summary>
+    /// <param name="renderingSystem">Rendering system used to reload texture data.</param>
     public AssetHotReloaderTexture2D(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem;

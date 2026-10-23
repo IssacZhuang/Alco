@@ -34,6 +34,9 @@ public class BenchmarkPackage
     private byte[] _smallBuffer = null!;
     private byte[] _rangedBuffer = null!;
 
+    /// <summary>
+    /// Builds the plain and encrypted packages and prepares the readers and buffers.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -79,60 +82,90 @@ public class BenchmarkPackage
         _rangedBuffer = new byte[RangedSize];
     }
 
+    /// <summary>
+    /// Benchmarks opening a plain package from memory.
+    /// </summary>
     [Benchmark(Description = "Package open (plain)")]
     public void OpenPlain()
     {
         using var reader = PackageReader<PackageMeta>.OpenMemory(_plainPackage);
     }
 
+    /// <summary>
+    /// Benchmarks opening an encrypted package from memory.
+    /// </summary>
     [Benchmark(Description = "Package open (encrypted)")]
     public void OpenEncrypted()
     {
         using var reader = PackageReader<PackageMeta>.OpenMemory(_encryptedPackage, _key);
     }
 
+    /// <summary>
+    /// Benchmarks reading a 4 MB entry from a plain package.
+    /// </summary>
     [Benchmark(Description = "Read 4MB entry (plain)")]
     public void ReadLargePlain()
     {
         _plainReader.ReadByEntry(_plainLarge, _largeBuffer);
     }
 
+    /// <summary>
+    /// Benchmarks reading a 4 MB entry from an encrypted package.
+    /// </summary>
     [Benchmark(Description = "Read 4MB entry (encrypted)")]
     public void ReadLargeEncrypted()
     {
         _encryptedReader.ReadByEntry(_encryptedLarge, _largeBuffer);
     }
 
+    /// <summary>
+    /// Benchmarks reading a 2 KB entry from a plain package.
+    /// </summary>
     [Benchmark(Description = "Read 2KB entry (plain)")]
     public void ReadSmallPlain()
     {
         _plainReader.ReadByEntry(_plainSmall, _smallBuffer);
     }
 
+    /// <summary>
+    /// Benchmarks reading a 2 KB entry from an encrypted package.
+    /// </summary>
     [Benchmark(Description = "Read 2KB entry (encrypted)")]
     public void ReadSmallEncrypted()
     {
         _encryptedReader.ReadByEntry(_encryptedSmall, _smallBuffer);
     }
 
+    /// <summary>
+    /// Benchmarks reading a 4 KB range from a 4 MB entry in a plain package.
+    /// </summary>
     [Benchmark(Description = "Read 4KB range of 4MB entry (plain)")]
     public void ReadRangePlain()
     {
         _plainReader.ReadByEntry(_plainLarge, _rangedBuffer, RangedOffset);
     }
 
+    /// <summary>
+    /// Benchmarks reading a 4 KB range from a 4 MB entry in an encrypted package.
+    /// </summary>
     [Benchmark(Description = "Read 4KB range of 4MB entry (encrypted)")]
     public void ReadRangeEncrypted()
     {
         _encryptedReader.ReadByEntry(_encryptedLarge, _rangedBuffer, RangedOffset);
     }
 
+    /// <summary>
+    /// Benchmarks building a 4.3 MB plain package.
+    /// </summary>
     [Benchmark(Description = "Package build 4.3MB (plain)")]
     public byte[] BuildPlain()
     {
         return _plainBuilder.Build();
     }
 
+    /// <summary>
+    /// Benchmarks building a 4.3 MB encrypted package.
+    /// </summary>
     [Benchmark(Description = "Package build 4.3MB (encrypted)")]
     public byte[] BuildEncrypted()
     {

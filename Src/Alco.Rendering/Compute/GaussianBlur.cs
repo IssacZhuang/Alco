@@ -3,6 +3,9 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// A separable Gaussian blur computed on the GPU with a fixed kernel size.
+/// </summary>
 public class GaussianBlur : AutoDisposable
 {
     private readonly ComputeMaterial _material;
@@ -44,6 +47,10 @@ public class GaussianBlur : AutoDisposable
         _material.SetBuffer(ShaderResourceId.GaussianKernel, _kernelBuffer);
     }
 
+    /// <summary>
+    /// Replaces the blur kernel and uploads it to the GPU.
+    /// </summary>
+    /// <param name="kernel">The kernel weights; its length must equal the kernel size.</param>
     public void SetKernel(ReadOnlySpan<float> kernel)
     {
         if (kernel.Length != _kernelSizeX * _kernelSizeY)
@@ -61,6 +68,12 @@ public class GaussianBlur : AutoDisposable
         _kernelBuffer.UpdateBuffer();
     }
 
+    /// <summary>
+    /// Blurs the whole input texture into the output texture.
+    /// </summary>
+    /// <param name="computePass">The compute pass to record the dispatch to.</param>
+    /// <param name="input">The input texture; must match the output's size.</param>
+    /// <param name="output">The output texture; must match the input's size.</param>
     public void Compute(GPUCommandBuffer.ComputePass computePass, RenderTexture input, RenderTexture output)
     {
         ComputeRegion(computePass, input, output, 0, 0, (int)input.Width, (int)input.Height);

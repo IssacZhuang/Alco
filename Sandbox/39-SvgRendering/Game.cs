@@ -5,6 +5,7 @@ using Alco.Engine;
 using Alco.Graphics;
 using Alco.Rendering;
 
+/// <summary>Sandbox demonstrating SVG rasterization and rendering at multiple sizes.</summary>
 public class Game : GameEngine
 {
     private const float ViewWidth = 1280;
@@ -41,6 +42,9 @@ public class Game : GameEngine
     private bool _screenshotSaved;
     private SwapchainCaptureSystem? _swapchainCapture;
 
+    /// <summary>Initializes the SVG artwork, renderers, and optional screenshot mode.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
+    /// <param name="args">Command-line arguments, including optional screenshot options.</param>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");

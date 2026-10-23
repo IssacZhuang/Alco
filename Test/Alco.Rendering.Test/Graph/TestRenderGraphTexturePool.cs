@@ -47,6 +47,7 @@ public sealed class TestRenderGraphTexturePool
         return pool;
     }
 
+    /// <summary>Tests that an allocate miss invokes the factory with the requested key and name.</summary>
     [Test(Description = "An allocate miss on an empty pool invokes the factory with the requested key and name")]
     public void AllocateMissInvokesFactory()
     {
@@ -63,6 +64,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(pool.IdleCountFor(KeyA), Is.EqualTo(0), "The allocated entry is occupied, not idle.");
     }
 
+    /// <summary>Tests that the most recently freed entry is preferred over idle entries.</summary>
     [Test(Description = "A freed entry is preferred over idle entries: the most recently released entry is reused first")]
     public void FreedEntryIsPreferredOverIdle()
     {
@@ -82,6 +84,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(pool.IdleCountFor(KeyA), Is.EqualTo(1), "The other idle entry stays untouched.");
     }
 
+    /// <summary>Tests that a sticky entry is recovered from the freed set.</summary>
     [Test(Description = "A sticky entry is taken back out of the freed set even when it is not the most recently released")]
     public void StickyEntryIsRecoveredFromFreed()
     {
@@ -102,6 +105,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(ReferenceEquals(lifo, z), Is.True, "The remaining freed entry is still available.");
     }
 
+    /// <summary>Tests that a sticky entry is recovered from the idle set.</summary>
     [Test(Description = "A sticky entry still idle at allocation time is reassigned and removed from the idle set")]
     public void StickyEntryIsRecoveredFromIdle()
     {
@@ -119,6 +123,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(ReferenceEquals(fallback, y), Is.True, "Only the other idle entry remains.");
     }
 
+    /// <summary>Tests that the oldest idle entry is the fallback.</summary>
     [Test(Description = "With no freed entries and no sticky, the oldest idle entry is the deterministic fallback")]
     public void OldestIdleEntryIsTheFallback()
     {
@@ -135,6 +140,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(pool.IdleCountFor(KeyA), Is.EqualTo(0));
     }
 
+    /// <summary>Tests that beginning a frame returns occupied entries to the idle set.</summary>
     [Test(Description = "BeginFrame returns every occupied entry to the idle set and clears the freed set")]
     public void BeginFrameResetsTheWalk()
     {
@@ -153,6 +159,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(pool.TotalCountFor(KeyA), Is.EqualTo(2));
     }
 
+    /// <summary>Tests that clearing disposes every entry and empties the pool.</summary>
     [Test(Description = "Clear disposes every materialized entry and empties all pool state")]
     public void ClearDisposesEverything()
     {
@@ -176,6 +183,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(pool.TotalCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that pruning disposes entries outside the keep set.</summary>
     [Test(Description = "PruneExcept disposes entries outside the keep set, rebuilds the walk state and drops empty key states")]
     public void PruneExceptDisposesUnkeptEntries()
     {
@@ -200,6 +208,7 @@ public sealed class TestRenderGraphTexturePool
         Assert.That(ReferenceEquals(rerented, keepA), Is.True, "The pool keeps working after a prune.");
     }
 
+    /// <summary>Tests that entries of different keys are isolated.</summary>
     [Test(Description = "Entries of one key are invisible to allocations of a different key")]
     public void DifferentKeysAreIsolated()
     {

@@ -10,6 +10,7 @@ namespace Alco.ImGUI.Test;
 [TestFixture]
 public class TestGizmoSnap
 {
+    /// <summary>Tests that translation snapping applies to the cumulative drag delta.</summary>
     [Test]
     public void U9_TranslationSnap_AppliesToCumulativeDelta()
     {
@@ -35,6 +36,7 @@ public class TestGizmoSnap
         Assert.That(transform.Position.Y, Is.EqualTo(0f).Within(1e-4f));
     }
 
+    /// <summary>Tests that a drag below half a step keeps the position.</summary>
     [Test]
     public void U9_TranslationSnap_BelowHalfStep_KeepsPosition()
     {
@@ -56,6 +58,7 @@ public class TestGizmoSnap
         Assert.That(transform.Position.X, Is.EqualTo(0f).Within(1e-4f));
     }
 
+    /// <summary>Tests that non-positive snap components are skipped.</summary>
     [Test]
     public void U9_TranslationSnap_NonPositiveComponentsSkipped()
     {
@@ -77,6 +80,7 @@ public class TestGizmoSnap
         Assert.That(transform.Position.Y, Is.EqualTo(0.6f).Within(0.05f), "Y snap component is 0 and must not snap");
     }
 
+    /// <summary>Tests that rotation snaps the cumulative angle.</summary>
     [Test]
     public void U9_RotationSnap_SnapsCumulativeAngle()
     {
@@ -105,6 +109,7 @@ public class TestGizmoSnap
         Assert.That(transform.Rotation.ToDegree(), Is.EqualTo(0f).Within(0.5f));
     }
 
+    /// <summary>Tests that scale snapping applies to the multiplier.</summary>
     [Test]
     public void U9_ScaleSnap_SnapsMultiplier()
     {

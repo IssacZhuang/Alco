@@ -3,15 +3,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A content provider for a <see cref="RGNode_RsmPass"/>: draws sun-lit geometry
-/// (albedo + world normal) into the reflective shadow map of the voxel GI's
-/// sun-bounce injection. The pass owns the render pass — it clears the RSM
-/// attachments and keeps one pass open for all content.
-/// <br/><see cref="ShadowRenderer"/> implements this after
-/// <see cref="ShadowRenderer.EnableRsm"/>, replaying the same caster registry as
-/// the shadow pass with per-item RSM materials.
-/// <br/>This is not a pipeline-level registration category: content is registered
-/// on the pass node itself (<see cref="RGNode_RsmPass.Content"/>).
+/// A content provider for <see cref="RGNode_RsmPass"/> that draws sun-lit albedo and world normals into the reflective shadow map; content is registered on the pass node itself.
 /// </summary>
 public interface IRsmPassContent : IRenderNode
 {

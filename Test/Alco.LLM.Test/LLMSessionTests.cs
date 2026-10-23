@@ -6,6 +6,7 @@ using NUnit.Framework;
 
 namespace Alco.LLM.Test;
 
+/// <summary>Tests LLM session message handling and history.</summary>
 [TestFixture]
 public class LLMSessionTests
 {
@@ -15,6 +16,7 @@ public class LLMSessionTests
         TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
     };
 
+    /// <summary>Tests that a system prompt is injected as the first message.</summary>
     [Test]
     public void Constructor_WithSystemPrompt_InjectsSystemMessage()
     {
@@ -36,6 +38,7 @@ public class LLMSessionTests
         Assert.That(firstCallMessages[0].Text, Is.EqualTo("You are a helpful assistant."));
     }
 
+    /// <summary>Tests that no system message is added without a system prompt.</summary>
     [Test]
     public void Constructor_WithoutSystemPrompt_NoSystemMessage()
     {
@@ -53,6 +56,7 @@ public class LLMSessionTests
         Assert.That(firstCallMessages[0].Role, Is.EqualTo(ChatRole.User));
     }
 
+    /// <summary>Tests that multi-turn chat keeps prior history.</summary>
     [Test]
     public async Task ChatAsync_MultiTurn_HistoryPersists()
     {

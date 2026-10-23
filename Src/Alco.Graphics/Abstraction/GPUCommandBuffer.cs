@@ -163,11 +163,10 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         }
 
         /// <summary>
-        /// Draws <paramref name="drawCount"/> meshes whose draw arguments (one
-        /// <see cref="IndexedIndirectData"/> record each, 20-byte stride) are read
-        /// consecutively from <paramref name="indirectBuffer"/> starting at
-        /// <paramref name="offset"/>. Requires <see cref="GPUFeatures.MultiDrawIndirect"/>;
-        /// backends without the feature fall back to one indirect draw per record.
+        /// Draws <paramref name="drawCount"/> consecutive indexed indirect records
+        /// (20-byte stride) starting at <paramref name="offset"/> in
+        /// <paramref name="indirectBuffer"/>. Requires <see cref="GPUFeatures.MultiDrawIndirect"/>;
+        /// backends without it fall back to one indirect draw per record.
         /// </summary>
         /// <param name="indirectBuffer">The buffer holding the indirect draw records.</param>
         /// <param name="offset">The byte offset of the first record.</param>

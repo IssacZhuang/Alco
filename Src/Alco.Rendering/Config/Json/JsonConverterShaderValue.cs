@@ -7,19 +7,21 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Json converter for authored material-parameter values (<see cref="ShaderValue"/>).
-/// Accepted shapes: a JSON number (an integer without a fraction reads as
-/// <see langword="int"/>, otherwise float), <c>true</c>/<c>false</c>, a hex color
-/// string (<c>"#RRGGBB"</c> / <c>"#RRGGBBAA"</c>, as authored), a component object
-/// — vector-style (<c>{"x": 1, ...}</c>) or color-style (<c>{"r": 1, ...}</c>),
-/// filling as many components as the object names — or an array of numbers for
-/// array members.
+/// Json converter for authored material parameter values, accepting numbers, booleans,
+/// hex color strings, component objects and numeric arrays.
 /// </summary>
 public class JsonConverterShaderValue : JsonConverter<ShaderValue>
 {
     private static readonly string[] VectorNames = ["x", "y", "z", "w"];
     private static readonly string[] ColorNames = ["r", "g", "b", "a"];
 
+    /// <summary>
+    /// Reads a material parameter value from any supported JSON shape.
+    /// </summary>
+    /// <param name="reader">The JSON reader positioned at the value.</param>
+    /// <param name="typeToConvert">The target type.</param>
+    /// <param name="options">The serializer options.</param>
+    /// <returns>The parsed parameter value.</returns>
     public override ShaderValue Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         switch (reader.TokenType)
@@ -59,6 +61,12 @@ public class JsonConverterShaderValue : JsonConverter<ShaderValue>
         }
     }
 
+    /// <summary>
+    /// Writes a material parameter value in a shape the reader accepts.
+    /// </summary>
+    /// <param name="writer">The target JSON writer.</param>
+    /// <param name="value">The parameter value to write.</param>
+    /// <param name="options">The serializer options.</param>
     public override void Write(Utf8JsonWriter writer, ShaderValue value, JsonSerializerOptions options)
     {
         // The engine never writes material assets; a faithful authoring dump of

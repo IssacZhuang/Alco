@@ -4,6 +4,7 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>Tests JPEG YCbCr, grayscale, and CMYK color conversion to RGBA.</summary>
 [TestFixture]
 public unsafe class TestJpegColorConvert
 {

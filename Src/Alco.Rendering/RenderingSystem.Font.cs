@@ -2,9 +2,17 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
-// Font factory: creates fonts and their atlas textures on the rendering system.
+/// <summary>
+/// Font creation operations that build fonts and their atlas textures.
+/// </summary>
 public partial class RenderingSystem
 {
+    /// <summary>
+    /// Creates a font and atlas texture from a font file containing the built-in glyph ranges.
+    /// </summary>
+    /// <param name="fileBytes">The font file contents.</param>
+    /// <param name="name">The name of the atlas texture.</param>
+    /// <returns>The created font.</returns>
     public Font CreateFontByFile(ReadOnlySpan<byte> fileBytes, string name = "font")
     {
         using FontAtlasPacker packer = new FontAtlasPacker(8192, 8192);
@@ -35,6 +43,15 @@ public partial class RenderingSystem
         return CreateFont(packer.Bitmap, packer.Width, packer.Height, packer.Glyphs, name);
     }
 
+    /// <summary>
+    /// Creates a font from a single-channel glyph atlas bitmap.
+    /// </summary>
+    /// <param name="bitmap">The font atlas bitmap.</param>
+    /// <param name="width">The atlas width in pixels.</param>
+    /// <param name="height">The atlas height in pixels.</param>
+    /// <param name="glyphs">The glyph information for the atlas.</param>
+    /// <param name="name">The name of the atlas texture.</param>
+    /// <returns>The created font.</returns>
     public unsafe Font CreateFont(ReadOnlySpan<byte> bitmap, int width, int height, GlyphInfo[] glyphs, string name = "font")
     {
         fixed (byte* bitmapPtr = bitmap)

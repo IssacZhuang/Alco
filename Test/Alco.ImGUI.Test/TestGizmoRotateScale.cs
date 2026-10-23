@@ -9,6 +9,7 @@ namespace Alco.ImGUI.Test;
 [TestFixture]
 public class TestGizmoRotateScale
 {
+    /// <summary>Tests that a counterclockwise 2D rotate drag decreases the engine angle.</summary>
     [Test]
     public void U7_RotateZ_2D_CounterClockwiseDrag_DecreasesEngineAngle()
     {
@@ -40,6 +41,7 @@ public class TestGizmoRotateScale
         Assert.That(ctx.Using, Is.False);
     }
 
+    /// <summary>Tests that a clockwise 2D rotate drag increases the engine angle.</summary>
     [Test]
     public void U7_RotateZ_2D_ClockwiseDrag_IncreasesEngineAngle()
     {
@@ -61,6 +63,7 @@ public class TestGizmoRotateScale
         Assert.That(transform.Rotation.ToDegree(), Is.EqualTo(45f).Within(1.0f));
     }
 
+    /// <summary>Tests a 90-degree rotate drag under a perspective camera.</summary>
     [Test]
     public void U7_RotateZ_3D_Perspective()
     {
@@ -85,6 +88,7 @@ public class TestGizmoRotateScale
         RotationEquivalent(expected, rotation, 1e-2f);
     }
 
+    /// <summary>Tests scaling along X under a perspective camera.</summary>
     [Test]
     public void U8_ScaleX_Perspective()
     {
@@ -114,6 +118,7 @@ public class TestGizmoRotateScale
         Assert.That(scale.Z, Is.EqualTo(1f).Within(1e-4f));
     }
 
+    /// <summary>Tests that dragging inward shrinks the X scale.</summary>
     [Test]
     public void U8_ScaleX_Shrink_WhenDraggingInward()
     {
@@ -136,6 +141,7 @@ public class TestGizmoRotateScale
         Assert.That(scale.X, Is.GreaterThan(0.001f));
     }
 
+    /// <summary>Tests that uniform scaling follows horizontal mouse movement.</summary>
     [Test]
     public void U8_ScaleUniform_MouseX()
     {

@@ -4,21 +4,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A handle to a texture resource managed by a <see cref="RenderGraph"/>.
-/// <list type="bullet">
-/// <item><b>Transient</b> resources (<see cref="RenderGraph.CreateTransient"/>) are
-/// backed by the graph's texture pool. Their lifetime is computed per frame from the
-/// declared reads/writes, and non-overlapping lifetimes may alias the same pooled
-/// texture.</item>
-/// <item><b>Imported</b> resources (<see cref="RenderGraph.Import"/>) wrap a
-/// caller-owned <see cref="RenderTexture"/> (e.g. cross-frame history); the
-/// graph references but never pools or rebinds them.</item>
-/// </list>
-/// The <see cref="Texture"/> facade keeps a stable object identity across backing
-/// changes: materials bind it once and rebuild their bind groups automatically through
-/// the <see cref="RenderTexture.Version"/> check whenever the backing
-/// changes. In steady state (same enabled node set) the pool hands out the identical
-/// textures every frame, so no rebinding occurs.
+/// A handle to a texture resource managed by a <see cref="RenderGraph"/>, either transient (pooled) or imported (caller-owned).
+/// The <see cref="Texture"/> facade keeps a stable identity across backing changes.
 /// </summary>
 public sealed class RenderGraphTexture
 {
@@ -69,10 +56,7 @@ public sealed class RenderGraphTexture
 
     /// <summary>The current pool assignment of the color attachments (transient only).</summary>
     /// <remarks>
-    /// The composed frame buffer and facade stay valid between frames (materials may
-    /// keep referencing them); the underlying pooled textures are only guaranteed
-    /// inside the resource's computed lifetime — outside it they may alias another
-    /// transient.
+    /// The facade and composed frame buffer stay valid between frames, but the pooled textures are only guaranteed inside the resource's lifetime.
     /// </remarks>
     internal PooledAttachment[]? ColorAttachments;
     internal PooledAttachment? DepthAttachment;

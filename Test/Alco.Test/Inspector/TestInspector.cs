@@ -103,6 +103,7 @@ public class TestInspector
         public bool ColorEdit4(ReadOnlySpan<char> label, ref Vector4 color, bool hdr = false) => false;
     }
 
+    /// <summary>Tests that the abstract enum combo writes the edited value back through IInspector.</summary>
     [Test]
     public void EnumComboWritesBackThroughTheContract()
     {
@@ -118,6 +119,7 @@ public class TestInspector
         });
     }
 
+    /// <summary>Tests that collapsing headers gate whether section content is drawn.</summary>
     [Test]
     public void CollapsingHeaderGatesSectionContent()
     {
@@ -141,6 +143,7 @@ public class TestInspector
         Assert.That(drewContent, Is.False);
     }
 
+    /// <summary>Tests that NullInspector reports no edits and leaves values unchanged.</summary>
     [Test]
     public void NullInspectorReportsNoEdits()
     {

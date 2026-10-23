@@ -1,12 +1,8 @@
 namespace Alco.Editor.Extensibility;
 
 /// <summary>
-/// A pluggable editor module: registers its document factories, services, menus,
-/// dockable windows, panels, asset templates and meta types into the shared
-/// <see cref="EditorRegistry"/>. Modules are registered at startup after the built-in
-/// defaults. Later modules can replace document factories and services; window IDs
-/// must be unique. Register <see cref="IEditorWindow"/> implementations through
-/// <see cref="EditorRegistry.Windows"/> to join the workspace and Window menu.
+/// A pluggable editor module that registers its document factories, services, menus, dockable windows, panels, asset templates and meta types into the shared <see cref="EditorRegistry"/>.
+/// Modules register at startup after the built-in defaults; later modules can replace document factories and services, and window IDs must be unique.
 /// </summary>
 public interface IEditorModule
 {

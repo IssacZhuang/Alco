@@ -2,6 +2,9 @@ using BenchmarkDotNet.Attributes;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks reusable tasks against system tasks.
+/// </summary>
 [MemoryDiagnoser]
 public class BenchmarkTask
 {
@@ -25,6 +28,9 @@ public class BenchmarkTask
     private TestAddTask[] _resuableTasks = new TestAddTask[10000];
     private Task<int>[] _systemTasks = new Task<int>[10000];
 
+    /// <summary>
+    /// Initializes the reusable tasks for each iteration.
+    /// </summary>
     [IterationSetup]
     public void Setup()
     {
@@ -35,6 +41,9 @@ public class BenchmarkTask
         }
     }
 
+    /// <summary>
+    /// Benchmarks running reusable tasks without waiting.
+    /// </summary>
     [Benchmark(Description = "Reusable Task")]
     public void BenchmarkReusableTask()
     {
@@ -45,6 +54,9 @@ public class BenchmarkTask
         }
     }
 
+    /// <summary>
+    /// Benchmarks running and waiting for a system task.
+    /// </summary>
     [Benchmark(Description = "System Task")]
     public void BenchmarkSystemTask()
     {
@@ -55,6 +67,9 @@ public class BenchmarkTask
         }
     }
 
+    /// <summary>
+    /// Benchmarks running an array of reusable tasks and waiting for all of them.
+    /// </summary>
     [Benchmark(Description = "Reusable Task WaitAll")]
     public void BenchmarkReusableTaskArray()
     {
@@ -69,6 +84,9 @@ public class BenchmarkTask
         }
     }
 
+    /// <summary>
+    /// Benchmarks running an array of system tasks and waiting for all of them.
+    /// </summary>
     [Benchmark(Description = "System Task WaitAll")]    
     public void BenchmarkSystemTaskArray()
     {

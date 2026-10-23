@@ -17,17 +17,7 @@ public readonly record struct GBufferInput(RenderGraphTexture Texture);
 public readonly record struct SceneColorInput(RenderGraphTexture Texture);
 
 /// <summary>
-/// Factory for the screen-space reflections render plugin node: holds the
-/// node's <see cref="RGNode_SSR.Descriptor"/> (shader references resolve
-/// through the shared shader system at load time). The node's deferred inputs —
-/// the G-buffer and scene color resources, the voxel GI node providing the
-/// off-screen reflection fallback, the camera and the scene environment — are
-/// factory context services the composing code registers (<see
-/// cref="GBufferInput"/>, <see cref="SceneColorInput"/>,
-/// <see cref="RGNode_VoxelGI"/>, <see cref="CameraPerspectiveBuffer"/>,
-/// <see cref="PBRSceneEnvironment"/>, plus the post <see cref="RenderChain"/>);
-/// graph insertion stays with the composing code through
-/// <see cref="RGNode_SSR.Attach"/>.
+/// Factory for the screen-space reflections render plugin node, holding its <see cref="RGNode_SSR.Descriptor"/>; deferred inputs are factory context services and graph insertion stays with the composing code through <see cref="RGNode_SSR.Attach"/>.
 /// </summary>
 public class RGNodeFactory_SSR : RenderNodeFactory
 {

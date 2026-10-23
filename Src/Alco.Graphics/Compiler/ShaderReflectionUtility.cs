@@ -1,5 +1,6 @@
 namespace Alco.Graphics;
 
+/// <summary>Validation helpers for reflected shader interfaces.</summary>
 public static class ShaderReflectionUtility
 {
     /// <summary>

@@ -10,6 +10,7 @@ namespace Alco.ImGUI.Test;
 [TestFixture]
 public class TestGizmoStateMachine
 {
+    /// <summary>Tests the hover, press, drag and release state transitions.</summary>
     [Test]
     public void U11_Hover_Press_Drag_Release()
     {
@@ -53,6 +54,7 @@ public class TestGizmoStateMachine
         Assert.That(ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.MoveX));
     }
 
+    /// <summary>Tests that pressing without hovering does not activate a drag.</summary>
     [Test]
     public void U11_PressWithoutHover_DoesNotActivate()
     {
@@ -67,6 +69,7 @@ public class TestGizmoStateMachine
         Assert.That(ctx.Using, Is.False);
     }
 
+    /// <summary>Tests that an active drag ignores other handles.</summary>
     [Test]
     public void U11_SingleActiveHandle_DragIgnoresOtherHandles()
     {
@@ -91,6 +94,7 @@ public class TestGizmoStateMachine
         Assert.That(ctx.FrameHoverType, Is.EqualTo(GizmoMoveType.MoveX));
     }
 
+    /// <summary>Tests that IsOver reflects hover and active drag state.</summary>
     [Test]
     public void U11_IsOver_ReflectsHoverAndUsing()
     {

@@ -3,6 +3,9 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Packs textures into an atlas and renders the resulting atlas texture.
+/// </summary>
 public sealed class TextureAtlasPacker: AutoDisposable
 {
     private struct TextureItem
@@ -39,11 +42,20 @@ public sealed class TextureAtlasPacker: AutoDisposable
         _camera = rendering.CreateCamera2D(minWidth, minHeight, 1000);
     }
 
+    /// <summary>
+    /// Adds a texture to the atlas.
+    /// </summary>
+    /// <param name="name">The sprite name used to identify the added texture.</param>
+    /// <param name="texture">The texture to add.</param>
     public void AddTexture(string name, Texture2D texture)
     {
         _packer.AddRect((int)texture.Width, (int)texture.Height, new TextureItem { Name = name, Texture = texture });
     }
 
+    /// <summary>
+    /// Renders all added textures into a new atlas.
+    /// </summary>
+    /// <returns>The rendered atlas texture and its sprites.</returns>
     public TextureAtlas BuildTextureAtlas()
     {
         RenderTexture atlasTexture = _renderingSystem.CreateRenderTexture(

@@ -1,5 +1,8 @@
 namespace Alco.Rendering;
 
+/// <summary>
+/// Unicode code point ranges used for font atlas and language support.
+/// </summary>
 public static class UnicodeUtility
 {
     /// <summary>
@@ -152,6 +155,11 @@ public static class UnicodeUtility
     /// </summary>
     public static readonly int2 RangeGeneralPunctuation = new int2(0x2000, 0x206F);
 
+    /// <summary>
+    /// Enumerates the code point ranges required by the specified language flags.
+    /// </summary>
+    /// <param name="language">The language flags selecting the script ranges.</param>
+    /// <returns>The required Unicode ranges.</returns>
     public static IEnumerable<int2> GetUnicodeRanges(FontLanguage language)
     {
         if (language.HasFlag(FontLanguage.Basic))

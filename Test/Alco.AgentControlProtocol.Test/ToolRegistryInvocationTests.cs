@@ -4,6 +4,7 @@ using NUnit.Framework;
 
 namespace Alco.AgentControlProtocol.Test;
 
+/// <summary>Tests <see cref="ToolRegistry"/> invocation across synchronous, task, main-thread and binary tool results.</summary>
 [TestFixture]
 public class ToolRegistryInvocationTests
 {
@@ -13,12 +14,14 @@ public class ToolRegistryInvocationTests
         TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
     };
 
+    /// <summary>Resets the fake tool state before each test.</summary>
     [SetUp]
     public void SetUp()
     {
         FakeAdvancedToolFunctions.Reset();
     }
 
+    /// <summary>Tests that a synchronous tool returns its value directly.</summary>
     [Test]
     public async Task InvokeToolAsync_ReturnsValueDirectly()
     {
@@ -31,6 +34,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a void tool returns its completion value.</summary>
     [Test]
     public async Task InvokeToolAsync_VoidResult_ReturnsValue()
     {
@@ -43,6 +47,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a task-returning tool is awaited and its value returned.</summary>
     [Test]
     public async Task InvokeToolAsync_TaskResult_AwaitsAndReturnsValue()
     {
@@ -55,6 +60,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a resultless task tool is awaited and returns null.</summary>
     [Test]
     public async Task InvokeToolAsync_TaskWithoutResult_AwaitsAndReturnsNull()
     {
@@ -67,6 +73,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a value-task tool is awaited and its value returned.</summary>
     [Test]
     public async Task InvokeToolAsync_ValueTaskResult_AwaitsAndReturnsValue()
     {
@@ -79,6 +86,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a resultless value-task tool is awaited and returns null.</summary>
     [Test]
     public async Task InvokeToolAsync_ValueTaskWithoutResult_AwaitsAndReturnsNull()
     {
@@ -91,6 +99,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a main-thread tool completes only after the queue is drained.</summary>
     [Test]
     public async Task InvokeToolAsync_MainThreadTool_WaitsUntilQueueIsDrained()
     {
@@ -108,6 +117,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a main-thread task tool is awaited after the queue is drained.</summary>
     [Test]
     public async Task InvokeToolAsync_MainThreadTaskResult_AwaitsAfterQueueIsDrained()
     {
@@ -125,6 +135,7 @@ public class ToolRegistryInvocationTests
         Assert.That(FakeAdvancedToolFunctions.CallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a binary result returns bytes and omits them from JSON.</summary>
     [Test]
     public async Task InvokeToolAsync_BinaryToolResult_ReturnsBytesButOmitsBytesFromJson()
     {

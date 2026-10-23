@@ -11,6 +11,9 @@ namespace Alco.Engine.Test;
 /// </summary>
 public class TestJsonStateConverters
 {
+    /// <summary>
+    /// Tests depth-stencil state JSON round-tripping for all presets.
+    /// </summary>
     [Test(Description = "Test DepthStencilState JSON conversion with all presets")]
     public void TestDepthStencilStateAllPresets()
     {
@@ -41,6 +44,9 @@ public class TestJsonStateConverters
         }
     }
 
+    /// <summary>
+    /// Tests case-insensitive depth-stencil state deserialization.
+    /// </summary>
     [Test(Description = "Test DepthStencilState JSON case insensitive conversion")]
     public void TestDepthStencilStateCaseInsensitive()
     {
@@ -67,6 +73,9 @@ public class TestJsonStateConverters
         }
     }
 
+    /// <summary>
+    /// Tests that an invalid depth-stencil state preset throws.
+    /// </summary>
     [Test(Description = "Test DepthStencilState JSON invalid preset")]
     public void TestDepthStencilStateInvalidPreset()
     {
@@ -79,6 +88,9 @@ public class TestJsonStateConverters
             JsonSerializer.Deserialize<DepthStencilState>("\"InvalidPreset\"", options));
     }
 
+    /// <summary>
+    /// Tests that non-string depth-stencil state values throw.
+    /// </summary>
     [Test(Description = "Test DepthStencilState JSON invalid format")]
     public void TestDepthStencilStateInvalidFormat()
     {
@@ -93,6 +105,9 @@ public class TestJsonStateConverters
             JsonSerializer.Deserialize<DepthStencilState>("{\"test\": \"value\"}", options));
     }
 
+    /// <summary>
+    /// Tests blend state JSON round-tripping for all presets.
+    /// </summary>
     [Test(Description = "Test BlendState JSON conversion with all presets")]
     public void TestBlendStateAllPresets()
     {
@@ -125,6 +140,9 @@ public class TestJsonStateConverters
         }
     }
 
+    /// <summary>
+    /// Tests case-insensitive blend state deserialization.
+    /// </summary>
     [Test(Description = "Test BlendState JSON case insensitive conversion")]
     public void TestBlendStateCaseInsensitive()
     {
@@ -150,6 +168,9 @@ public class TestJsonStateConverters
         }
     }
 
+    /// <summary>
+    /// Tests that an invalid blend state preset throws.
+    /// </summary>
     [Test(Description = "Test BlendState JSON invalid preset")]
     public void TestBlendStateInvalidPreset()
     {
@@ -162,6 +183,9 @@ public class TestJsonStateConverters
             JsonSerializer.Deserialize<BlendState>("\"InvalidPreset\"", options));
     }
 
+    /// <summary>
+    /// Tests that non-string blend state values throw.
+    /// </summary>
     [Test(Description = "Test BlendState JSON invalid format")]
     public void TestBlendStateInvalidFormat()
     {

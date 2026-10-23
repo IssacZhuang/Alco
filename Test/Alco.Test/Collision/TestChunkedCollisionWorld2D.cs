@@ -115,6 +115,7 @@ public unsafe class TestChunkedCollisionWorld2D
         }
     }
 
+    /// <summary>Tests chunked queries against a brute-force reference in linear and tree modes.</summary>
     [Test(Description = "chunked world fuzz against brute force (linear + tree modes, with mutations)")]
     public void TestFuzzAgainstBruteForce()
     {
@@ -165,6 +166,7 @@ public unsafe class TestChunkedCollisionWorld2D
         treeWorld.Dispose();
     }
 
+    /// <summary>Tests empty and edge-case queries, removal, reuse and clearing.</summary>
     [Test(Description = "chunked world empty and edge-case queries")]
     public void TestEdgeCases()
     {
@@ -247,6 +249,7 @@ public unsafe class TestChunkedCollisionWorld2D
         world.Dispose();
     }
 
+    /// <summary>Tests region enumeration of targets by bounds.</summary>
     [Test(Description = "chunked world collect-by-bounds region enumeration")]
     public void TestCollectTargets()
     {

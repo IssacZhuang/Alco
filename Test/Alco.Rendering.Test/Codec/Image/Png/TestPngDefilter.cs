@@ -4,6 +4,9 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>
+/// Tests PNG scanline defiltering for all filter types, SIMD boundaries, and byte overflow.
+/// </summary>
 [TestFixture]
 public class TestPngDefilter
 {
@@ -86,6 +89,9 @@ public class TestPngDefilter
         return c;
     }
 
+    /// <summary>
+    /// Tests the None filter output against the reference implementation.
+    /// </summary>
     [Test]
     public void TestFilterNone()
     {
@@ -116,6 +122,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests the Sub filter including prefix-sum values.
+    /// </summary>
     [Test]
     public void TestFilterSub()
     {
@@ -154,6 +163,9 @@ public class TestPngDefilter
         Assert.That(scanlines[4], Is.EqualTo(10));  // row 0, pixel 3
     }
 
+    /// <summary>
+    /// Tests the Up filter against the reference implementation.
+    /// </summary>
     [Test]
     public void TestFilterUp()
     {
@@ -192,6 +204,9 @@ public class TestPngDefilter
         Assert.That(scanlines[9], Is.EqualTo(44));
     }
 
+    /// <summary>
+    /// Tests the Average filter including hand-verified values.
+    /// </summary>
     [Test]
     public void TestFilterAverage()
     {
@@ -237,6 +252,9 @@ public class TestPngDefilter
         Assert.That(scanlines[4], Is.EqualTo(61));
     }
 
+    /// <summary>
+    /// Tests the Paeth filter including hand-verified values.
+    /// </summary>
     [Test]
     public void TestFilterPaeth()
     {
@@ -280,6 +298,9 @@ public class TestPngDefilter
         Assert.That(scanlines[4], Is.EqualTo(100));
     }
 
+    /// <summary>
+    /// Tests a scanline mix containing every filter type.
+    /// </summary>
     [Test]
     public void TestMixedFilters()
     {
@@ -311,6 +332,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests a row whose stride equals one SIMD vector.
+    /// </summary>
     [Test]
     public void TestSimdBoundary_SingleVector()
     {
@@ -345,6 +369,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests a row whose stride is not vector-aligned.
+    /// </summary>
     [Test]
     public void TestSimdBoundary_NonAligned()
     {
@@ -377,6 +404,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests very small one-byte-per-pixel rows.
+    /// </summary>
     [Test]
     public void TestSmallRows_1Bpp()
     {
@@ -415,6 +445,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests small three-byte-per-pixel rows.
+    /// </summary>
     [Test]
     public void TestSmallRows_3Bpp()
     {
@@ -453,6 +486,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests a large row exercising the SIMD paths for all filters.
+    /// </summary>
     [Test]
     public void TestLargeRow_AllFilters()
     {
@@ -485,6 +521,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests byte wraparound for values near 255.
+    /// </summary>
     [Test]
     public void TestByteOverflow()
     {
@@ -524,6 +563,9 @@ public class TestPngDefilter
         Assert.That(scanlines[4], Is.EqualTo(24));   // 14+10 = 24
     }
 
+    /// <summary>
+    /// Tests the Paeth predictor branches against the reference implementation.
+    /// </summary>
     [Test]
     public void TestPaethPredictor_AllBranches()
     {
@@ -568,6 +610,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests the Sub filter on a large four-byte-per-pixel row.
+    /// </summary>
     [Test]
     public void TestFilterSub_4Bpp_LargeRow()
     {
@@ -601,6 +646,9 @@ public class TestPngDefilter
         }
     }
 
+    /// <summary>
+    /// Tests the Sub filter on a four-byte-per-pixel row spanning one vector.
+    /// </summary>
     [Test]
     public void TestFilterSub_4Bpp_VectorBoundary()
     {

@@ -6,6 +6,9 @@ using System.Collections.Generic;
 
 namespace Alco
 {
+    /// <summary>
+    /// Describes a 3D ray cast contact point, normal, and hit fraction.
+    /// </summary>
     public struct RaycastHit3D
     {
         public Vector3 Point;

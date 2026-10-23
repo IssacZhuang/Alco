@@ -5,16 +5,8 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// Reusable asset picker widget: an input field for the asset path plus a browse
-/// button that opens a picker popup anchored below the field. The popup contains a
-/// search box over a browser: with an empty search it shows the directory tree pruned
-/// to branches that contain assets of the requested type; with a non-empty search it
-/// shows the matching asset paths as a flat list. Clicking an entry writes its path
-/// into the field and closes the popup. The input field and the browse button also
-/// accept an asset dropped from the asset browser (<see cref="EditorDragDrop.AssetPayload"/>),
-/// taking the same assignment path as a popup pick. The filtered tree is cached and rebuilt when
-/// the asset system version or the type filter changes. One instance per field: each
-/// instance keeps its own search text and tree cache.
+/// Reusable asset picker widget: a path input field plus a browse button opening a searchable picker popup pruned to the requested asset type; picking or dropping an asset from the browser assigns its path.
+/// One instance per field; the filtered tree is cached and rebuilt when the asset system version or the type filter changes.
 /// </summary>
 public sealed class AssetPicker
 {

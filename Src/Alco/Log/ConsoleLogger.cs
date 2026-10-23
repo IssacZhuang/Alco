@@ -27,6 +27,9 @@ public class ConsoleLogger : AutoDisposable, ILogger
     private const string AnsiSuccess = "\x1b[32m"; // Green for Success
     private const string AnsiWarning = "\x1b[33m"; // Yellow for Warning
 
+    /// <summary>
+    /// Initializes a logger that writes ANSI-colored messages to standard output.
+    /// </summary>
     public ConsoleLogger()
     {
         _writer = new StreamWriter(Console.OpenStandardOutput(), new UTF8Encoding(false), bufferSize: 1024, leaveOpen: true)

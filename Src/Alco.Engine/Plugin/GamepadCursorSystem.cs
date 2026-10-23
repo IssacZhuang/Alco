@@ -22,6 +22,9 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
     /// cursor drift while the stick rests near the neutral position. Default <c>0.1f</c>.
     /// </summary>
     public float DeadZone { get; set; } = 0.1f;
+    /// <summary>
+    /// Gets or sets the cursor speed multiplier. Defaults to 1.
+    /// </summary>
     public float Sensitivity { get; set; } = 1.0f;
 
     private Vector2 _pixelAccumulator;
@@ -43,14 +46,17 @@ public sealed class GamepadCursorSystem : BaseEngineSystem
     public bool IsLeftStickCursor { get; set; } = false;
 
     /// <summary>
-    /// Optional game-layer modifier invoked each frame after the stick velocity is computed and
-    /// before it is accumulated, letting gameplay adjust cursor speed contextually (e.g. aim
-    /// assist). Arguments: current view-local cursor position in pixels, requested cursor
-    /// velocity in pixels per second. Returns the adjusted velocity. <see langword="null"/>
-    /// (default) leaves the velocity unchanged.
+    /// Optional game-layer modifier invoked each frame with the cursor position and requested velocity, returning the adjusted velocity.
     /// </summary>
     public Func<Vector2, Vector2, Vector2>? VelocityModifier { get; set; }
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="GamepadCursorSystem"/>.
+    /// </summary>
+    /// <param name="input">Input backend used to read the gamepad and set the cursor position.</param>
+    /// <param name="view">View whose bounds clamp the cursor.</param>
+    /// <param name="deadZone">Normalized stick magnitude below which input is ignored.</param>
+    /// <param name="sensitivity">Cursor speed multiplier.</param>
     public GamepadCursorSystem(Input input, View view, float deadZone, float sensitivity)
     {
         _input = input;

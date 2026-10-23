@@ -1,7 +1,8 @@
 namespace Alco.Rendering;
 
-// texture processor factory (bloom, FXAA, blur, SDF)
-
+/// <summary>
+/// Texture processor creation for bloom, FXAA, blur and SDF effects.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>
@@ -17,6 +18,14 @@ public partial class RenderingSystem
         return new Bloom(this, blitShader, setupShader, downsampleShader, gaussianShader);
     }
 
+    /// <summary>
+    /// Creates a separable gaussian blur processor.
+    /// </summary>
+    /// <param name="material">The compute material used for the blur passes.</param>
+    /// <param name="kernelSizeX">The horizontal kernel size in pixels.</param>
+    /// <param name="kernelSizeY">The vertical kernel size in pixels.</param>
+    /// <param name="kernel">The kernel weights.</param>
+    /// <returns>A new gaussian blur processor instance.</returns>
     public GaussianBlur CreateGaussianBlur(ComputeMaterial material, int kernelSizeX, int kernelSizeY, ReadOnlySpan<float> kernel)
     {
         return new GaussianBlur(this, material, kernelSizeX, kernelSizeY, kernel);

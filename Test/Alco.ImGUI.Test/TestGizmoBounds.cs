@@ -24,6 +24,7 @@ public class TestGizmoBounds
         return (view, projection, ctx);
     }
 
+    /// <summary>Tests that a corner drag resizes two axes around the opposite corner.</summary>
     [Test]
     public void CornerDrag_ResizesTwoAxes_AroundOppositeCorner()
     {
@@ -44,6 +45,7 @@ public class TestGizmoBounds
         AreEqual(new Vector3(1f, 1f, 1f), bounds.Max, 0.05f);
     }
 
+    /// <summary>Tests that dragging a corner past the pivot shrinks the box.</summary>
     [Test]
     public void CornerDrag_PastPivot_ShrinksBox()
     {
@@ -57,6 +59,7 @@ public class TestGizmoBounds
         AreEqual(new Vector3(1f, 1f, 1f), bounds.Max, 0.05f);
     }
 
+    /// <summary>Tests that an edge-midpoint drag resizes a single axis.</summary>
     [Test]
     public void EdgeMidpointDrag_ResizesSingleAxis()
     {
@@ -77,6 +80,7 @@ public class TestGizmoBounds
         AreEqual(new Vector3(1f, 1f, 1f), bounds.Max, 0.05f);
     }
 
+    /// <summary>Tests that snapping applies to the resulting size.</summary>
     [Test]
     public void Snap_AppliesToResultingSize()
     {
@@ -91,6 +95,7 @@ public class TestGizmoBounds
         AreEqual(new Vector3(1f, 1f, 1f), bounds.Max, 0.05f);
     }
 
+    /// <summary>Tests that a click away from an anchor does not activate bounds editing.</summary>
     [Test]
     public void MissClick_DoesNotActivate()
     {
@@ -102,6 +107,7 @@ public class TestGizmoBounds
         Assert.That(ctx.UsingBounds, Is.False);
     }
 
+    /// <summary>Tests that a bounds drag solves while held and stops on release.</summary>
     [Test]
     public void DragStateMachine_SolvesWhileHeld_StopsOnRelease()
     {
@@ -123,6 +129,7 @@ public class TestGizmoBounds
         AreEqual(new Vector3(0f, -1f, -1f), bounds.Min, 0.05f);
     }
 
+    /// <summary>Tests that a 2D corner drag resizes only X and Y.</summary>
     [Test]
     public void Box2D_CornerDrag_ResizesXYOnly()
     {
@@ -142,6 +149,7 @@ public class TestGizmoBounds
         AreEqual(new Vector2(1f, 1f), bounds.Max, 0.05f);
     }
 
+    /// <summary>Tests that a 2D edge-midpoint drag resizes a single axis.</summary>
     [Test]
     public void Box2D_EdgeMidpointDrag_ResizesSingleAxis()
     {
@@ -162,6 +170,7 @@ public class TestGizmoBounds
         AreEqual(new Vector2(1f, 1f), bounds.Max, 0.05f);
     }
 
+    /// <summary>Tests that bounds editing is suppressed while a gizmo drag is active.</summary>
     [Test]
     public void GizmoDragActive_BoundsNotInteractive()
     {
@@ -177,6 +186,7 @@ public class TestGizmoBounds
         ctx.Using = false;
     }
 
+    /// <summary>Tests that hovering a gizmo handle suppresses bounds anchor activation.</summary>
     [Test]
     public void GizmoHandleHovered_AnchorActivationSuppressed()
     {
@@ -191,6 +201,7 @@ public class TestGizmoBounds
         Assert.That(ctx.UsingBounds, Is.False);
     }
 
+    /// <summary>Tests that gizmo handles are suppressed while a bounds drag is active.</summary>
     [Test]
     public void BoundsDragActive_GizmoHandlesSuppressed()
     {
@@ -205,6 +216,7 @@ public class TestGizmoBounds
         ctx.UsingBounds = false;
     }
 
+    /// <summary>Tests that bounds behind the camera are neither displayed nor interactive.</summary>
     [Test]
     public void CenterBehindCamera_NoDisplayNoInteraction()
     {

@@ -21,8 +21,14 @@ namespace Alco
         /// The scale of the transform in world space.
         /// </summary>
         public Vector3 Scale;
+        /// <summary>
+        /// The identity transform with zero position, no rotation, and unit scale.
+        /// </summary>
         public static readonly Transform3D Identity = new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One);
 
+        /// <summary>
+        /// Initializes a transform at the origin with no rotation and unit scale.
+        /// </summary>
         public Transform3D()
         {
             Position = Vector3.Zero;
@@ -30,6 +36,10 @@ namespace Alco
             Scale = Vector3.One;
         }
 
+        /// <summary>
+        /// Initializes a transform at the specified position with no rotation and unit scale.
+        /// </summary>
+        /// <param name="pos">The world-space position.</param>
         public Transform3D(Vector3 pos)
         {
             Position = pos;
@@ -37,6 +47,11 @@ namespace Alco
             Scale = Vector3.One;
         }
 
+        /// <summary>
+        /// Initializes a transform with the specified position and rotation, and unit scale.
+        /// </summary>
+        /// <param name="pos">The world-space position.</param>
+        /// <param name="rot">The world-space rotation.</param>
         public Transform3D(Vector3 pos, Quaternion rot)
         {
             Position = pos;
@@ -44,6 +59,11 @@ namespace Alco
             Scale = Vector3.One;
         }
 
+        /// <summary>
+        /// Initializes a transform with the specified rotation and position, and unit scale.
+        /// </summary>
+        /// <param name="rot">The world-space rotation.</param>
+        /// <param name="pos">The world-space position.</param>
         public Transform3D(Quaternion rot, Vector3 pos)
         {
             Position = pos;
@@ -51,6 +71,12 @@ namespace Alco
             Scale = Vector3.One;
         }
 
+        /// <summary>
+        /// Initializes a transform with the specified position, rotation, and scale.
+        /// </summary>
+        /// <param name="pos">The world-space position.</param>
+        /// <param name="rot">The world-space rotation.</param>
+        /// <param name="scale">The world-space scale.</param>
         public Transform3D(Vector3 pos, Quaternion rot, Vector3 scale)
         {
             Position = pos;
@@ -58,6 +84,10 @@ namespace Alco
             Scale = scale;
         }
 
+        /// <summary>
+        /// Initializes a 3D transform from a 2D transform placed on the XY plane.
+        /// </summary>
+        /// <param name="transform">The 2D transform to convert.</param>
         public Transform3D(Transform2D transform)
         {
             Position = new Vector3(transform.Position, 0);
@@ -65,6 +95,10 @@ namespace Alco
             Scale = new Vector3(transform.Scale, 1);
         }
 
+        /// <summary>
+        /// Initializes a transform from a 4x4 matrix representation.
+        /// </summary>
+        /// <param name="matrix">The matrix to decompose.</param>
         public Transform3D(Matrix4x4 matrix)
         {
 
@@ -181,6 +215,10 @@ namespace Alco
             Rotate(Quaternion.CreateFromAxisAngle(axis, angle));
         }
 
+        /// <summary>
+        /// Returns a string containing the position, rotation, and scale.
+        /// </summary>
+        /// <returns>A string representation of the transform.</returns>
         public override string ToString()
         {
             return $"Position: {Position}, Rotation: {Rotation}, Scale: {Scale}";

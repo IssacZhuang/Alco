@@ -4,6 +4,7 @@ using NUnit.Framework;
 
 namespace Alco.Test.Algorithm;
 
+/// <summary>Tests <see cref="HashSetFloodFiller"/> traversal, step limits and coordinate handling.</summary>
 [TestFixture]
 public class TestHashSetFloodFiller
 {
@@ -11,6 +12,7 @@ public class TestHashSetFloodFiller
     // predicate. In3x3 bounds a fill to the [0,3)×[0,3) region so tests mirror the GridFloodFiller ones.
     private static bool In3x3(int2 cell) => cell.X >= 0 && cell.X < 3 && cell.Y >= 0 && cell.Y < 3;
 
+    /// <summary>Tests that a fill restricted to the start cell returns only that cell.</summary>
     [Test]
     public void SingleCellFill_Works()
     {
@@ -23,6 +25,7 @@ public class TestHashSetFloodFiller
         Assert.That(result[0], Is.EqualTo(new int2(1, 1)));
     }
 
+    /// <summary>Tests that a fill covers the whole predicate-bounded region.</summary>
     [Test]
     public void FillEntireRegion_WhenAllCellsTraversable()
     {
@@ -42,6 +45,7 @@ public class TestHashSetFloodFiller
         }
     }
 
+    /// <summary>Tests that a fill skips blocked cells.</summary>
     [Test]
     public void FillWithObstacles_Works()
     {
@@ -66,6 +70,7 @@ public class TestHashSetFloodFiller
         }
     }
 
+    /// <summary>Tests that maxStep limits the filled cells and returns false.</summary>
     [Test]
     public void FillWithMaxStep_LimitsResult()
     {
@@ -78,6 +83,7 @@ public class TestHashSetFloodFiller
         Assert.That(result.Length, Is.EqualTo(5));
     }
 
+    /// <summary>Tests that a zero maxStep returns an empty result.</summary>
     [Test]
     public void FillWithMaxStepZero_ReturnsEmpty()
     {
@@ -89,6 +95,7 @@ public class TestHashSetFloodFiller
         Assert.That(result.Length, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that a non-traversable start returns an empty result.</summary>
     [Test]
     public void FillNonTraversableStart_ReturnsEmpty()
     {
@@ -100,6 +107,7 @@ public class TestHashSetFloodFiller
         Assert.That(result.Length, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that a fill stops at the boundary of a traversable island.</summary>
     [Test]
     public void FillIsland_IslandOnly()
     {
@@ -119,6 +127,7 @@ public class TestHashSetFloodFiller
         }
     }
 
+    /// <summary>Tests that repeated fills reset the previous result.</summary>
     [Test]
     public void MultipleFills_ResetProperly()
     {
@@ -143,6 +152,7 @@ public class TestHashSetFloodFiller
         Assert.That(thirdResult.Length, Is.EqualTo(3));
     }
 
+    /// <summary>Tests that a fill returns false when maxStep is reached.</summary>
     [Test]
     public void FillReturnsFalse_WhenMaxStepReached()
     {
@@ -155,6 +165,7 @@ public class TestHashSetFloodFiller
         Assert.That(result.Length, Is.EqualTo(50));
     }
 
+    /// <summary>Tests that a fill works across negative coordinates.</summary>
     [Test]
     public void FillWithNegativeCoordinates_Works()
     {

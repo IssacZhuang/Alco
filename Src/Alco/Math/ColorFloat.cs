@@ -12,19 +12,41 @@ namespace Alco;
 [StructLayout(LayoutKind.Sequential)]
 public struct ColorFloat
 {
+    /// <summary>
+    /// A fully opaque black color.
+    /// </summary>
     public static readonly ColorFloat Black = new(0, 0, 0, 1);
+    /// <summary>
+    /// A fully opaque white color.
+    /// </summary>
     public static readonly ColorFloat White = new(1, 1, 1, 1);
+    /// <summary>
+    /// A fully transparent black color.
+    /// </summary>
     public static readonly ColorFloat Transparent = new(0, 0, 0, 0);
 
     private const float invMaxByte = 1.0f / 255.0f;
     private static readonly Vector4 invMaxByteVec4 = new(invMaxByte);
     public Vector4 value;
 
+    /// <summary>
+    /// Creates a color from its RGBA components.
+    /// </summary>
+    /// <param name="r">The red component.</param>
+    /// <param name="g">The green component.</param>
+    /// <param name="b">The blue component.</param>
+    /// <param name="a">The alpha component.</param>
     public ColorFloat(float r, float g, float b, float a)
     {
         value = new Vector4(r, g, b, a);
     }
 
+    /// <summary>
+    /// Creates a fully opaque color from its RGB components.
+    /// </summary>
+    /// <param name="r">The red component.</param>
+    /// <param name="g">The green component.</param>
+    /// <param name="b">The blue component.</param>
     public ColorFloat(float r, float g, float b)
     {
         value = new Vector4(r, g, b, 1);
@@ -66,12 +88,20 @@ public struct ColorFloat
         get => ref Unsafe.AsRef(in value.W);
     }
 
+    /// <summary>
+    /// Returns this color with all components clamped to the range [0, 1].
+    /// </summary>
+    /// <returns>The clamped color.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ColorFloat Clamp01()
     {
         return Vector4.Clamp(value, Vector4.Zero, Vector4.One);
     }
 
+    /// <summary>
+    /// Converts this color to 8-bit SDR, clamping each component to [0, 1].
+    /// </summary>
+    /// <returns>The converted color.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Color32 ToColor32()
     {
@@ -148,15 +178,31 @@ public struct ColorFloat
 
     //overload operator
 
+    /// <summary>
+    /// Converts a color to its raw RGBA vector.
+    /// </summary>
+    /// <param name="color">The color to convert.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator Vector4(ColorFloat color) => color.value;
 
+    /// <summary>
+    /// Converts a color to 8-bit SDR, clamping each component to [0, 1].
+    /// </summary>
+    /// <param name="color">The color to convert.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator Color32(ColorFloat color) => color.ToColor32();
 
+    /// <summary>
+    /// Converts an RGBA vector to a color.
+    /// </summary>
+    /// <param name="color">The vector to convert.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(Vector4 color) => new ColorFloat { value = color };
 
+    /// <summary>
+    /// Converts a packed 8-digit hex color to a color.
+    /// </summary>
+    /// <param name="color">The packed hex value.</param>
     // convet hex color in 8 digit to ColorFloat (rgba)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(uint color)
@@ -169,7 +215,7 @@ public struct ColorFloat
         );
     }
 
-    /// <summary>Converts an integer hex color to <see cref="ColorFloat"/>: values &le; 0xFFFFFF are RGB with alpha = 1.0, anything larger is an 8-digit RGBA value (AA BB GG RR).</summary>
+    /// <summary>Converts an integer hex color to <see cref="ColorFloat"/>: values &lt;= 0xFFFFFF are RGB with alpha = 1.0, anything larger is an 8-digit RGBA value (AA BB GG RR).</summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator ColorFloat(int color)
     {
@@ -193,12 +239,23 @@ public struct ColorFloat
         );
     }
 
+    /// <summary>
+    /// Converts a color to 16-bit floating-point components.
+    /// </summary>
+    /// <param name="color">The color to convert.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator Half4(ColorFloat color)
     {
         return new Half4(color.R, color.G, color.B, color.A);
     }
 
+    /// <summary>
+    /// Linearly interpolates between two colors.
+    /// </summary>
+    /// <param name="a">The start color.</param>
+    /// <param name="b">The end color.</param>
+    /// <param name="t">The interpolation factor in the range [0, 1].</param>
+    /// <returns>The interpolated color.</returns>
     public static ColorFloat Lerp(ColorFloat a, ColorFloat b, float t)
     {
         return new ColorFloat
@@ -208,18 +265,54 @@ public struct ColorFloat
     }
 
     // + - * /
+    /// <summary>
+    /// Adds two colors component-wise.
+    /// </summary>
+    /// <param name="a">The first color.</param>
+    /// <param name="b">The second color.</param>
+    /// <returns>The component-wise sum.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator +(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value + b.value };
+    /// <summary>
+    /// Subtracts two colors component-wise.
+    /// </summary>
+    /// <param name="a">The first color.</param>
+    /// <param name="b">The color to subtract.</param>
+    /// <returns>The component-wise difference.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator -(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value - b.value };
+    /// <summary>
+    /// Multiplies two colors component-wise.
+    /// </summary>
+    /// <param name="a">The first color.</param>
+    /// <param name="b">The second color.</param>
+    /// <returns>The component-wise product.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator *(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value * b.value };
+    /// <summary>
+    /// Divides two colors component-wise.
+    /// </summary>
+    /// <param name="a">The dividend color.</param>
+    /// <param name="b">The divisor color.</param>
+    /// <returns>The component-wise quotient.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator /(ColorFloat a, ColorFloat b) => new ColorFloat { value = a.value / b.value };
 
+    /// <summary>
+    /// Multiplies a color by a scalar component-wise.
+    /// </summary>
+    /// <param name="a">The color.</param>
+    /// <param name="b">The scalar factor.</param>
+    /// <returns>The scaled color.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator *(ColorFloat a, float b) => new ColorFloat { value = a.value * b };
 
+    /// <summary>
+    /// Multiplies a color by a scalar component-wise.
+    /// </summary>
+    /// <param name="a">The scalar factor.</param>
+    /// <param name="b">The color.</param>
+    /// <returns>The scaled color.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static ColorFloat operator *(float a, ColorFloat b) => new ColorFloat { value = a * b.value };
 

@@ -4,13 +4,15 @@ using NUnit.Framework;
 namespace Alco.Graphics.Test;
 
 /// <summary>
-/// Unit tests for the shared SPIR-V word-level utilities: opcode registry
-/// spot values from the specification, little-endian word/byte conversion,
-/// instruction-header decoding and module assembly round-trips.
+/// Tests shared SPIR-V word-level utilities, including opcode values, byte conversion,
+/// instruction decoding, and module assembly.
 /// </summary>
 [TestFixture]
 public class SpirvCodecTests
 {
+    /// <summary>
+    /// Tests that opcode values match the specification.
+    /// </summary>
     [Test]
     public void OpcodesMatchSpecificationValues()
     {
@@ -36,6 +38,9 @@ public class SpirvCodecTests
         Assert.That((uint)SpirvOp.Max, Is.EqualTo(0x7fffffffu));
     }
 
+    /// <summary>
+    /// Tests that byte-to-word conversion decodes little-endian and drops an incomplete trailing word.
+    /// </summary>
     [Test]
     public void BytesToWordsDecodesLittleEndianAndDropsIncompleteTrailingWord()
     {
@@ -45,6 +50,9 @@ public class SpirvCodecTests
         Assert.That(words, Is.EqualTo(new[] { 0x0723_0203u }));
     }
 
+    /// <summary>
+    /// Tests that word-to-byte conversion round-trips through byte-to-word conversion.
+    /// </summary>
     [Test]
     public void WordsToBytesRoundTripsThroughBytesToWords()
     {
@@ -52,6 +60,9 @@ public class SpirvCodecTests
         Assert.That(SpirvCodec.BytesToWords(SpirvCodec.WordsToBytes(words)), Is.EqualTo(words));
     }
 
+    /// <summary>
+    /// Tests that instruction decoding reads the word count and opcode.
+    /// </summary>
     [Test]
     public void TryDecodeInstructionReadsCountAndOpcode()
     {
@@ -62,6 +73,9 @@ public class SpirvCodecTests
         Assert.That(instruction.Op, Is.EqualTo(SpirvOp.SelectionMerge));
     }
 
+    /// <summary>
+    /// Tests that instruction decoding rejects malformed framing.
+    /// </summary>
     [Test]
     public void TryDecodeInstructionRejectsMalformedFraming()
     {
@@ -75,6 +89,9 @@ public class SpirvCodecTests
         Assert.That(SpirvCodec.TryDecodeInstruction(words, 5, out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that decoding throws on malformed framing.
+    /// </summary>
     [Test]
     public void DecodeInstructionThrowsOnMalformedFraming()
     {
@@ -82,6 +99,9 @@ public class SpirvCodecTests
         Assert.That(() => SpirvCodec.DecodeInstruction(words, 9), Throws.InvalidOperationException);
     }
 
+    /// <summary>
+    /// Tests that the assembler emits the header, id bound, and instruction body.
+    /// </summary>
     [Test]
     public void AssemblerEmitsHeaderBoundAndBody()
     {
@@ -103,6 +123,9 @@ public class SpirvCodecTests
         Assert.That(words[9], Is.EqualTo((4u << 16) | (uint)SpirvOp.Constant));
     }
 
+    /// <summary>
+    /// Tests that the assembler splices raw words and round-trips through bytes.
+    /// </summary>
     [Test]
     public void AssemblerSplicesRawWordsAndRoundTrips()
     {

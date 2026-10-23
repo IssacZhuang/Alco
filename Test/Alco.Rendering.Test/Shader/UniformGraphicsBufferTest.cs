@@ -14,6 +14,9 @@ namespace Alco.Rendering.Test;
 // testable surface. Uses the NoGPU device; GetBufferContent reads the staging
 // back through the exposed test seam.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>
+/// Tests reflection-driven uniform buffer writes, validation, and member reflection.
+/// </summary>
 [TestFixture]
 public class UniformGraphicsBufferTest
 {
@@ -32,6 +35,9 @@ public class UniformGraphicsBufferTest
         }
         """;
 
+    /// <summary>
+    /// Tests that typed values are written at reflected offsets.
+    /// </summary>
     [Test]
     public void SetValue_WritesAtReflectedOffsets_TypedMembers()
     {
@@ -62,6 +68,9 @@ public class UniformGraphicsBufferTest
             "array elements land contiguously at the reflected offset");
     }
 
+    /// <summary>
+    /// Tests that an unknown member throws and lists valid names.
+    /// </summary>
     [Test]
     public void SetValue_UnknownMember_ThrowsListingValidNames()
     {
@@ -75,6 +84,9 @@ public class UniformGraphicsBufferTest
             Throws.TypeOf<KeyNotFoundException>().With.Message.Contains("pulseSpeed"));
     }
 
+    /// <summary>
+    /// Tests that an oversized value throws.
+    /// </summary>
     [Test]
     public void SetValue_OversizedValue_Throws()
     {
@@ -88,6 +100,9 @@ public class UniformGraphicsBufferTest
             Throws.TypeOf<ArgumentException>(), "a float member cannot take a float4 value");
     }
 
+    /// <summary>
+    /// Tests that a scalar kind mismatch throws.
+    /// </summary>
     [Test(Description = "An int blitted into a float member reads as a denormal on the GPU — the invisible-clouds regression")]
     public void SetValue_ScalarKindMismatch_Throws()
     {
@@ -108,6 +123,9 @@ public class UniformGraphicsBufferTest
             "a uint value against a bool member reinterprets instead of marshaling");
     }
 
+    /// <summary>
+    /// Tests that a wrong array element count throws.
+    /// </summary>
     [Test]
     public void SetValues_WrongElementCount_Throws()
     {
@@ -123,6 +141,9 @@ public class UniformGraphicsBufferTest
             Throws.TypeOf<ArgumentException>(), "a plain member is not an array");
     }
 
+    /// <summary>
+    /// Tests that reflection records typed members and arrays.
+    /// </summary>
     [Test]
     public void Reflection_RecordsTypedMembersAndArrays()
     {

@@ -5,30 +5,8 @@ using System.Numerics;
 namespace Alco;
 
 /// <summary>
-/// A chunked collision world for static or rarely-mutating free-position colliders.
-/// It complements <see cref="CollisionWorld2D"/> (rebuilt per tick for dynamic colliders):
-/// targets are inserted once at their exact free position and removed on pickup, with no
-/// per-tick rebuild cost. The world divides the grid into square chunks; each chunk owns a
-/// bucket of leaf indices, and buckets that exceed <see cref="TreeBuildThreshold"/> entries
-/// are promoted to a mini <see cref="NativeBvh2D"/> during <see cref="RebuildDirtyTrees"/>.
-/// Colliders whose AABB spans more than <see cref="BigBucketSpanFactor"/> chunk sizes are
-/// routed to a separate big-object bucket (promoted to a tree by the same rule) so they cannot
-/// inflate every local bucket they overlap.
-/// <para>
-/// Threading contract: mutations (<see cref="Add(object, in ShapeBox2D)"/>,
-/// <see cref="TargetRegistration.Dispose"/>, <see cref="Clear"/> and
-/// <see cref="RebuildDirtyTrees"/>) are main-thread only; once no mutations are pending, all
-/// cast methods are read-only and safe to call from multiple threads concurrently. Mutating a
-/// chunk immediately drops its tree and marks it pending, so queries never observe stale trees;
-/// the next <see cref="RebuildDirtyTrees"/> re-promotes buckets above the threshold.
-/// </para>
-/// <para>
-/// Ray semantics: rays are segments; <paramref name="maxT"/> bounds the accepted hit fraction
-/// in displacement units on both the traversal side and the precise test side, so traversal
-/// pruning never disagrees with the precise tests. Collect queries may report a leaf more than
-/// once when its AABB spans several visited chunks; collectors that require uniqueness
-/// (e.g. a HashSet) deduplicate naturally.
-/// </para>
+/// A chunked collision world for static or rarely-mutating free-position colliders, promoting per-chunk buckets above <see cref="TreeBuildThreshold"/> to mini <see cref="NativeBvh2D"/> trees and routing oversized colliders to a big-object bucket.
+/// Mutations are main-thread only; once no mutations are pending, cast queries are read-only and safe to call concurrently.
 /// </summary>
 public unsafe class ChunkedCollisionWorld2D : AutoDisposable
 {

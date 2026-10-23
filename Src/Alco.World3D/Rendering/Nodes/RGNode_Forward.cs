@@ -45,15 +45,7 @@ public interface IForwardRenderable
 }
 
 /// <summary>
-/// A scene content node drawing the transparency pass of the deferred PBR
-/// pipeline. Compiles its per-asset glass materials through the
-/// <see cref="MaterialCompiler"/> (the node is itself the pass strategy: the
-/// <c>Glass.slang</c> template composed per material asset, participating only
-/// for blend materials — see <see cref="GetMaterial"/>) and holds a registry of
-/// <see cref="IForwardRenderable"/> objects. Static objects are baked into an
-/// internal render bundle; dynamic objects are drawn immediately each frame. The
-/// pass scope comes from the graph's frame-shared render context — the node does
-/// not own a render context of its own.
+/// A scene content node drawing the transparency pass of the deferred PBR pipeline for registered <see cref="IForwardRenderable"/> objects. Static objects are baked into a render bundle; dynamic objects are drawn every frame.
 /// </summary>
 public sealed unsafe class RGNode_Forward : RGNode_SceneContent
 {
@@ -162,11 +154,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     // ── Per-asset materials ──
 
     /// <summary>
-    /// The glass material of one material asset: compiled once per asset through
-    /// the material compiler (the glass template composes with the asset's
-    /// surface; this node's factory applies the pass-mandated state) and shared
-    /// by every item using the asset. The material is derived per-asset state,
-    /// held weakly so its lifetime follows the asset's.
+    /// Gets the glass material for a blend material asset, compiled and cached per asset.
     /// </summary>
     /// <param name="asset">The material asset; only blend assets belong here.</param>
     /// <exception cref="InvalidDataException">The asset is not a blend material or a foreign family.</exception>
@@ -352,13 +340,7 @@ public sealed unsafe class RGNode_Forward : RGNode_SceneContent
     // ── Material factory ──
 
     /// <summary>
-    /// Create a glass material from the composed pass-template shader: applies the
-    /// pass-mandated state — alpha blending (no accumulation, no sorting needed),
-    /// reversed-depth hardware testing against opaque geometry (the forward target
-    /// shares the G-buffer's depth attachment through the graph's depth sharing —
-    /// no depth copy), cull mode, the camera/lighting buffer bindings and the
-    /// shadow-map depth binding. The compile caller owns the returned material
-    /// (see <see cref="GetMaterial"/>).
+    /// Creates a glass material from the composed pass-template shader with the pass-mandated blend, depth, cull, and buffer bindings; the caller owns the result.
     /// </summary>
     /// <param name="shader">The composed glass template shader.</param>
     /// <param name="doubleSided">Whether to disable back-face culling for this material.</param>

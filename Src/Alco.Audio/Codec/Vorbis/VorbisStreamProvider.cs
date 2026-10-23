@@ -10,22 +10,7 @@ namespace Alco.Audio;
 /// finalizer).
 /// </summary>
 /// <remarks>
-/// <para>
-/// The OGG bytes are copied into a native buffer (via <see cref="MemoryUtility.Alloc"/>) rather
-/// than pinned from a managed array, because <c>stb_vorbis_open_memory</c> stores the raw
-/// <c>byte*</c> into the decoder handle for its entire lifetime — a managed array could be
-/// relocated by the GC after a <c>fixed</c> block ends. A native allocation is stable and
-/// matches the existing <see cref="MemoryUtility"/> usage in the codec layer.
-/// </para>
-/// <para>
-/// Because <see cref="AudioStreamDataProvider"/> drives decoding on a pool thread, the subclass
-/// only implements three synchronous methods (<see cref="OpenCore"/>, <see cref="ReadCore"/>,
-/// <see cref="ResetCore"/>) and writes no threading code.
-/// </para>
-/// <para>
-/// The returned frame count follows StbVorbisSharp semantics (frames = samples per channel), so
-/// the caller multiplies by <see cref="AudioStreamDataProvider.Channel"/> to get the float count.
-/// </para>
+/// OGG bytes are copied into a stable native buffer because the decoder retains the pointer, and frame counts follow StbVorbisSharp semantics (samples per channel).
 /// </remarks>
 public sealed unsafe class VorbisStreamProvider : AudioStreamDataProvider
 {

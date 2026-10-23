@@ -6,6 +6,9 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
+/// <summary>
+/// A UI canvas that lays out, ticks, renders, and dispatches input to a tree of <see cref="UINode"/> objects.
+/// </summary>
 public partial class Canvas : AutoDisposable, INavigationContext
 {
 
@@ -73,6 +76,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     // even though the cursor did not move, so hover follows the node now under it.
     private bool _hoverDirty;
 
+    /// <summary>Gets the default font used by text nodes on this canvas.</summary>
     public Font DefaultFont { get; }
 
     /// <summary>
@@ -98,6 +102,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     private UINode? _holded;
     private Vector2 _pressPosition;
 
+    /// <summary>Gets or sets the maximum pointer travel that still counts as a click.</summary>
     public float DragClickThreshold { get; set; } = 10.0f;
     private UINode? _hovered;
     private UINode? _selected;
@@ -117,8 +122,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
     private InputState _copyState;
     private InputState _pasteState;
 
+    /// <summary>Gets whether a node currently owns mouse hover or press capture.</summary>
     public bool IsCapturingMouse => _hovered != null || _holded != null;
 
+    /// <summary>Gets whether a text input control currently owns keyboard input.</summary>
     public bool IsCapturingKeyboard => _textInput != null;
 
     /// <summary>
@@ -127,6 +134,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     /// </summary>
     public bool IsInputEnabled { get; set; } = true;
 
+    /// <summary>Gets the current pointer position in canvas coordinates.</summary>
     public Vector2 CursorPosition {get;private set;}
 
     public BoundingBox2D Bound
@@ -253,8 +261,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
         }
     }
 
+    /// <summary>Gets the 2D camera data used for rendering and coordinate conversion.</summary>
     public CameraData2D CameraData => _camera.Data;
 
+    /// <summary>Gets or sets the color used for debug drawing on this canvas.</summary>
     public Vector4 DebugDrawColor { get; set; }
 
     public Action<Exception>? ErrorHandler;
@@ -411,11 +421,18 @@ public partial class Canvas : AutoDisposable, INavigationContext
 
 
 
+    /// <summary>Registers a node as a mouse hit target with the specified shape.</summary>
+    /// <param name="node">The node that receives pointer events.</param>
+    /// <param name="shape">The hit-test shape in canvas coordinates.</param>
     public void AddClickReciever(UINode node, ShapeBox2D shape)
     {
         _collisionWorld.PushCollisionTarget(node, shape);
     }
 
+    /// <summary>Gives text-input focus to a control and reports its normalized input area.</summary>
+    /// <param name="node">The control receiving text input.</param>
+    /// <param name="inputArea">The input area in canvas coordinates.</param>
+    /// <param name="cursor">The cursor position within the text.</param>
     public void SetTextInputArea(ITextInput node, BoundingBox2D inputArea, int cursor)
     {
         bool wasTextInput = _textInput != null;
@@ -447,6 +464,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
         _inputTracker?.SetTextInput(xNorm, yNorm, widthNorm, heightNorm, cursor);
     }
 
+    /// <summary>Clears the current text-input focus and releases keyboard capture.</summary>
     public void ClearTextInput()
     {
         if (_textInput != null)
@@ -987,11 +1005,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
     }
 
     /// <summary>
-    /// Dispatches an event to <paramref name="target"/> and bubbles up through
-    /// its ancestor chain. Each node's invocation is individually wrapped in
-    /// try/catch so an exception in one node does not prevent others from
-    /// receiving the event. Bubbling stops after a node with
-    /// <see cref="UINode.BubbleEvent"/> == false.
+    /// Dispatches an event to <paramref name="target"/> and bubbles it through ancestors, isolating exceptions per node and stopping after a node whose <see cref="UINode.BubbleEvent"/> is false.
     /// </summary>
     private void DispatchBubble(UINode? target, string operation, Action<UINode, Canvas, Vector2> action, Vector2 position)
     {
@@ -1012,6 +1026,10 @@ public partial class Canvas : AutoDisposable, INavigationContext
         }
     }
 
+    /// <summary>Reports an exception raised while processing a node operation.</summary>
+    /// <param name="exception">The exception that occurred.</param>
+    /// <param name="operation">The operation that failed.</param>
+    /// <param name="node">The node involved, when available.</param>
     public void HandleError(Exception exception, string operation, UINode? node)
     {
         if (ErrorHandler != null)

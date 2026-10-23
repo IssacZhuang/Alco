@@ -390,18 +390,12 @@ public class ConfigDatabase
     }
 
     /// <summary>
-    /// Copies every readable and writable instance member from <paramref name="source"/> to
-    /// <paramref name="target"/> (both must share the same runtime type) using the compiled
-    /// member accessor. <see cref="Configable.Id"/> is never copied: identity belongs to the
-    /// target. Members without a public setter (e.g. the runtime-assigned, JsonIgnore'd
-    /// <c>StatConfig.CacheIndex</c>) are not writable through the accessor and are left untouched.
+    /// Copies readable and writable instance members from <paramref name="source"/> to
+    /// <paramref name="target"/>, which must share the same runtime type; <see cref="Configable.Id"/> is never copied.
     /// </summary>
     /// <remarks>
-    /// The accessor does not expose attribute information, so members annotated with
-    /// <see cref="JsonIgnoreAttribute"/> cannot be detected and ARE copied when they have both a
-    /// public getter and a public setter — they would be reset to the source's (freshly
-    /// deserialized) value. No config type currently declares such a member; keep it that way or
-    /// extend the accessor to expose attributes.
+    /// Members marked <see cref="JsonIgnoreAttribute"/> with public getters and setters are copied,
+    /// because the compiled accessor does not expose attributes.
     /// </remarks>
     /// <exception cref="ArgumentException">
     /// <paramref name="source"/> and <paramref name="target"/> have different runtime types.

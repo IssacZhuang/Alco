@@ -1,5 +1,8 @@
 namespace Alco.Audio;
 
+/// <summary>
+/// Converts mu-law encoded audio bytes to 16-bit linear samples.
+/// </summary>
 public static class MuLawDecoder
 {
     /// <summary>

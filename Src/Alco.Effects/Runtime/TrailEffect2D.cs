@@ -6,22 +6,14 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// The data-only description of one trail of <see cref="GpuTrailSystem2D"/> — the
-/// trail counterpart of a particle effect: geometry behavior (life, spacing, the
-/// width envelope), the color gradient and the material reference. Constructible
-/// in code or authored through a material asset; the system snapshots every
-/// field at creation, so mutating the effect afterwards does not affect live
-/// trails.
+/// The data-only description of one trail rendered by <see cref="GpuTrailSystem2D"/>: geometry behavior (life, spacing, width envelope), color gradient and material reference.
+/// The system snapshots every field at creation, so later mutations do not affect live trails.
 /// </summary>
 public sealed class TrailEffect2D
 {
     /// <summary>
-    /// Gets or sets the render material asset of the trail: its surface module
-    /// (implementing <c>ITrailSurface</c>) composes with the trail pass template
-    /// (GpuTrail2D), its textures and parameter values bind onto the surface.
-    /// Trails batch by compiled material: one multi-draw-indirect per material.
-    /// Null selects the engine's default surface (the color gradient with a soft
-    /// across-ribbon edge).
+    /// Gets or sets the render material asset of the trail: its surface module composes with the trail pass template, and trails batch by compiled material.
+    /// Null selects the engine's default surface.
     /// </summary>
     public MaterialAsset? Material { get; set; }
 
@@ -81,12 +73,8 @@ public sealed class TrailEffect2D
     public float FadeOut { get; set; } = 0.5f;
 
     /// <summary>
-    /// Gets or sets the expected number of simultaneously-live points of the trail,
-    /// used to size its ring slice of the shared point buffer (rounded up to a power
-    /// of two, clamped to the renderer's slice limits). Size it by
-    /// <c>Life * peak speed / Spacing</c> — short-lived debris trails need far fewer
-    /// points than long projectile ribbons, and smaller slices pack more trails into
-    /// the same point budget.
+    /// Gets or sets the expected number of simultaneously-live points, used to size the trail's ring slice (rounded up to a power of two, clamped to the renderer's limits).
+    /// Size it by <c>Life * peak speed / Spacing</c>.
     /// </summary>
     public int ExpectedPoints { get; set; } = 64;
 

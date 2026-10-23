@@ -5,6 +5,9 @@ namespace Alco.Rendering;
 
 // resource factory
 
+/// <summary>
+/// Shared rendering resource access.
+/// </summary>
 public partial class RenderingSystem
 {
     private Texture2D? _textureWhite;

@@ -3,17 +3,8 @@ using Alco.Engine;
 
 namespace Alco.Editor;
 
-/// <summary>
-/// Hosts the editor's agent API on top of an <see cref="AgentControlHost"/> (HTTP/JSON
-/// on localhost): the engine's built-in tools (script execution, frame screenshots)
-/// plus the base editor tools (open/close/save, project switching, asset listing,
-/// layout) and whatever tools the open asset documents contribute. Document tools are
-/// discovered from <see cref="AssetDocument.CreateAgentTools"/> and registered while
-/// the document is open — text-format assets usually contribute none, since agents
-/// edit those files directly and hot reload updates the preview.
-/// <br/>The host's main-thread queue is drained from <see cref="OnTick"/>; tool
-/// invocations therefore complete while the editor loop keeps running.
-/// </summary>
+/// <summary>Hosts the editor's localhost HTTP agent API with the built-in editor tools plus tools contributed by open asset documents.</summary>
+/// <remarks>Tool invocations are drained from <see cref="OnTick"/> on the main thread.</remarks>
 public sealed class EditorApiHost : BaseEngineSystem
 {
     private readonly DocumentManager _documents;

@@ -2,6 +2,9 @@ using System;
 
 namespace Alco
 {
+    /// <summary>
+    /// Provides cubic Bezier easing curve generation.
+    /// </summary>
     public class AlgoInterpolation
     {
         const int NEWTON_ITERATIONS = 4;

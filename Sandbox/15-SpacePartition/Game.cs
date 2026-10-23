@@ -8,6 +8,7 @@ using Random = Alco.FastRandom;
 using Alco.Graphics;
 using Alco.GUI;
 
+/// <summary>Sandbox demonstrating 2D space partitioning with falling droplets and colliding cubes.</summary>
 public class Game : GameEngine
 {
     //scence
@@ -25,9 +26,12 @@ public class Game : GameEngine
 
     private Plane3D _plane;
 
+    /// <summary>The pipeline rendering the space-partition scene.</summary>
     public RenderPipeline MainPipeline => _mainPipeline;
 
 
+    /// <summary>Initializes the droplet and cube systems and the render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor

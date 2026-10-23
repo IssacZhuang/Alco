@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// Provides extension members for <see cref="Vector3"/>.
+    /// </summary>
     public static class Vector3Extension
     {
         extension(Vector3 value)

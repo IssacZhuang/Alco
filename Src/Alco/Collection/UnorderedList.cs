@@ -6,8 +6,8 @@ using System.Runtime.CompilerServices;
 namespace Alco;
 
 /// <summary>
-/// The UnorderedList, same usage as List<T> but it might be unordered when removing elements.
-/// <br/> It is faster than List<T> when removing elements.
+/// The UnorderedList, same usage as List&lt;T&gt; but it might be unordered when removing elements.
+/// <br/> It is faster than List&lt;T&gt; when removing elements.
 /// </summary>
 /// <typeparam name="T">The type of elements in the list.</typeparam>
 public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
@@ -17,6 +17,9 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
     private int _size;
     private int _version;
 
+    /// <summary>
+    /// Initializes an empty list.
+    /// </summary>
     public UnorderedList()
     {
         _items = Array.Empty<T>();
@@ -74,8 +77,15 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         }
     }
 
+    /// <summary>
+    /// Gets whether the list is read-only; always <c>false</c>.
+    /// </summary>
     public bool IsReadOnly => false;
 
+    /// <summary>
+    /// Adds an item to the end of the list.
+    /// </summary>
+    /// <param name="item">The item to add.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Add(T item)
     {
@@ -94,6 +104,9 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         _version++;
     }
 
+    /// <summary>
+    /// Removes all items from the list.
+    /// </summary>
     public void Clear()
     {
         if (IsReferenceType)
@@ -112,6 +125,11 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         _version++;
     }
 
+    /// <summary>
+    /// Determines whether the list contains an item.
+    /// </summary>
+    /// <param name="item">The item to locate.</param>
+    /// <returns><c>true</c> if the item is present.</returns>
     public bool Contains(T item)
     {
         if (_size != 0)
@@ -121,20 +139,39 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         return false;
     }
 
+    /// <summary>
+    /// Copies the list elements to an array starting at the given index.
+    /// </summary>
+    /// <param name="array">The destination array.</param>
+    /// <param name="arrayIndex">The zero-based index in the destination array at which copying starts.</param>
     public void CopyTo(T[] array, int arrayIndex)
     {
         Array.Copy(_items, 0, array, arrayIndex, _size);
     }
 
+    /// <summary>
+    /// Returns an enumerator over the list.
+    /// </summary>
+    /// <returns>The enumerator.</returns>
     public Enumerator GetEnumerator() => new Enumerator(this);
 
     IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
 
+    /// <summary>
+    /// Returns the index of the first occurrence of an item.
+    /// </summary>
+    /// <param name="item">The item to locate.</param>
+    /// <returns>The zero-based index, or -1 if the item is not found.</returns>
     public int IndexOf(T item)
     {
         return Array.IndexOf(_items, item, 0, _size);
     }
 
+    /// <summary>
+    /// Inserts an item at the given index, shifting later elements.
+    /// </summary>
+    /// <param name="index">The zero-based insertion index.</param>
+    /// <param name="item">The item to insert.</param>
     public void Insert(int index, T item)
     {
         if (index < 0 || index > _size)
@@ -154,6 +191,11 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         _version++;
     }
 
+    /// <summary>
+    /// Removes the first occurrence of an item.
+    /// </summary>
+    /// <param name="item">The item to remove.</param>
+    /// <returns><c>true</c> if the item was removed.</returns>
     public bool Remove(T item)
     {
         int num = IndexOf(item);
@@ -165,6 +207,10 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         return false;
     }
 
+    /// <summary>
+    /// Removes the item at the given index by moving the last item into its place.
+    /// </summary>
+    /// <param name="index">The zero-based index of the item to remove.</param>
     public void RemoveAt(int index)
     {
         if (index >= _size)
@@ -179,6 +225,10 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         _version++;
     }
 
+    /// <summary>
+    /// Removes and returns the last item.
+    /// </summary>
+    /// <returns>The removed item.</returns>
     public T RemoveLast()
     {
         if (_size <= 0)
@@ -197,11 +247,21 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
 
     IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable<T>)this).GetEnumerator();
 
+    /// <summary>
+    /// Returns a span over the list's items.
+    /// </summary>
+    /// <returns>The span of live items.</returns>
     public Span<T> AsSpan()
     {
         return _items.AsSpan(0, _size);
     }
 
+    /// <summary>
+    /// Returns a span over a range of the list's items.
+    /// </summary>
+    /// <param name="start">The zero-based start index.</param>
+    /// <param name="count">The number of items in the span.</param>
+    /// <returns>The requested span.</returns>
     public Span<T> AsSpan(int start, int count)
     {
         return _items.AsSpan(start, count);
@@ -231,6 +291,9 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
         Capacity = num;
     }
 
+    /// <summary>
+    /// Enumerates the elements of an <see cref="UnorderedList{T}"/>.
+    /// </summary>
     public struct Enumerator : IEnumerator<T>, IEnumerator
     {
         private readonly UnorderedList<T> _list;
@@ -246,6 +309,9 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
             _current = default;
         }
 
+        /// <summary>
+        /// Gets the element at the current position.
+        /// </summary>
         public T Current => _current!;
 
         object? IEnumerator.Current
@@ -260,10 +326,17 @@ public class UnorderedList<T> : IList<T>, IReadOnlyList<T>
             }
         }
 
+        /// <summary>
+        /// Releases resources used by the enumerator; this implementation does nothing.
+        /// </summary>
         public void Dispose()
         {
         }
 
+        /// <summary>
+        /// Advances the enumerator to the next element.
+        /// </summary>
+        /// <returns><c>true</c> if the enumerator advanced to a valid element.</returns>
         public bool MoveNext()
         {
             UnorderedList<T> localList = _list;

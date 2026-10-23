@@ -7,6 +7,13 @@ namespace StbTrueTypeSharp
 {
 	unsafe partial class StbTrueType
 	{
+		/// <summary>
+		/// Allocates a block from the heap, allocating a new chunk when the free list is empty.
+		/// </summary>
+		/// <param name="hh">The heap.</param>
+		/// <param name="size">The block size in bytes.</param>
+		/// <param name="userdata">The user data passed to the allocator callbacks.</param>
+		/// <returns>The allocated block, or null when allocation failed.</returns>
 		public static void* stbtt__hheap_alloc(stbtt__hheap* hh, ulong size, void* userdata)
 		{
 			if (hh->first_free != null)
@@ -32,6 +39,11 @@ namespace StbTrueTypeSharp
 			return (sbyte*)hh->head + sizeof(stbtt__hheap_chunk) + size * (ulong)hh->num_remaining_in_head_chunk;
 		}
 
+		/// <summary>
+		/// Frees all chunks owned by the heap.
+		/// </summary>
+		/// <param name="hh">The heap.</param>
+		/// <param name="userdata">The user data passed to the allocator callbacks.</param>
 		public static void stbtt__hheap_cleanup(stbtt__hheap* hh, void* userdata)
 		{
 			var c = hh->head;
@@ -43,12 +55,26 @@ namespace StbTrueTypeSharp
 			}
 		}
 
+		/// <summary>
+		/// Returns a block to the heap's free list.
+		/// </summary>
+		/// <param name="hh">The heap.</param>
+		/// <param name="p">The block to free.</param>
 		public static void stbtt__hheap_free(stbtt__hheap* hh, void* p)
 		{
 			*(void**)p = hh->first_free;
 			hh->first_free = p;
 		}
 
+		/// <summary>
+		/// Creates an active edge for the scanline rasterizer at the given scanline position.
+		/// </summary>
+		/// <param name="hh">The heap used for the edge block.</param>
+		/// <param name="e">The source edge.</param>
+		/// <param name="off_x">The horizontal offset in pixels.</param>
+		/// <param name="start_point">The scanline position at which the edge becomes active.</param>
+		/// <param name="userdata">The user data passed to the allocator callbacks.</param>
+		/// <returns>The new active edge, or null when allocation failed.</returns>
 		public static stbtt__active_edge* stbtt__new_active(stbtt__hheap* hh, stbtt__edge* e, int off_x,
 			float start_point, void* userdata)
 		{
@@ -67,6 +93,9 @@ namespace StbTrueTypeSharp
 			return z;
 		}
 
+		/// <summary>
+		/// A simple chunked allocator used by the rasterizer.
+		/// </summary>
 		[StructLayout(LayoutKind.Sequential)]
 		public struct stbtt__hheap
 		{
@@ -75,6 +104,9 @@ namespace StbTrueTypeSharp
 			public int num_remaining_in_head_chunk;
 		}
 
+		/// <summary>
+		/// A chunk header in the heap's chunk list.
+		/// </summary>
 		[StructLayout(LayoutKind.Sequential)]
 		public struct stbtt__hheap_chunk
 		{

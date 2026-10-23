@@ -8,8 +8,10 @@ using Alco.ImGUI;
 
 namespace Alco.ImGUI;
 
+/// <summary>Forwards engine input events and per-frame mouse state to ImGui.</summary>
 public sealed unsafe class ImGUIInputHandler : AutoDisposable
 {
+    /// <summary>Whether ImGui currently wants to capture the mouse.</summary>
     public static bool IsCapturingMouse
     {
         get
@@ -26,14 +28,10 @@ public sealed unsafe class ImGUIInputHandler : AutoDisposable
     private bool _wantTextInput;
 
     /// <summary>
-    /// The constructor of the ImGUIInputHandler.
+    /// Creates a handler that subscribes to the engine input and view events.
     /// </summary>
-    /// <param name="inputSystem">The input system.</param>
-    /// <param name="getMousePosition">The function to get the mouse position. 
-    /// The <see cref="Input.MousePosition"/> is used if the function is not provided.
-    /// The default mouse position getter might not be correct because it is the position relative to the screen, not the window.
-    /// It it better to provide a custom mouse position getter that returns the position relative to the window.
-    /// </param>
+    /// <param name="inputSystem">The input system to subscribe to.</param>
+    /// <param name="view">The view that supplies window-relative mouse position and text input.</param>
     public ImGUIInputHandler(Input inputSystem, View view)
     {
         _inputSystem = inputSystem;
@@ -50,6 +48,7 @@ public sealed unsafe class ImGUIInputHandler : AutoDisposable
         platformIO.Platform_SetImeDataFn = (IntPtr)(delegate* unmanaged[Cdecl]<IntPtr, ImGuiViewport*, ImGuiPlatformImeData*, void>)&SetImeDataCallback;
     }
 
+    /// <summary>Forwards the current frame's mouse position, wheel and text-input state to ImGui.</summary>
     public void Update()
     {
         ImGuiIOPtr io = ImGui.GetIO();

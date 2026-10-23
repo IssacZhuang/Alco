@@ -52,22 +52,9 @@ public readonly struct RenderProfileSnapshot
 }
 
 /// <summary>
-/// A zero-allocation hub for collecting per-frame render performance data.
-/// Counter names are registered once during initialization and exchanged for
-/// integer IDs, so the per-frame <see cref="PushValue"/> hot path performs only
-/// a single array write with no string operations.
-/// <para>
-/// Internally uses double buffering: the current frame writes into
-/// <c>_current</c> while readers observe the previously published
-/// <c>_published</c> buffer. <see cref="BeginFrame"/> clears the current buffer;
-/// <see cref="EndFrame"/> swaps and publishes a <see cref="RenderProfileSnapshot"/>.
-/// </para>
-/// <para>
-/// Push and frame-lifecycle methods are not thread-safe — they must be called from
-/// the render thread, consistent with <see cref="RenderContext"/>. The snapshot
-/// returned by <see cref="GetSnapshot"/> may be read from any thread after
-/// <see cref="EndFrame"/> returns.
-/// </para>
+/// A zero-allocation hub collecting per-frame render counters by registered integer ID.
+/// Push and frame-lifecycle methods must run on the render thread; snapshots may be read from
+/// any thread after <see cref="EndFrame"/> returns.
 /// </summary>
 public sealed class RenderProfiler
 {

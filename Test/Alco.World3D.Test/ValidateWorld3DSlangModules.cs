@@ -14,6 +14,7 @@ namespace Alco.World3D.Test;
 // resolver's module-name matching conventions.
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Tests that every Alco.World3D Slang module loads and links its entry points.</summary>
 public class ValidateWorld3DSlangModules
 {
     private static readonly string[] Roots =
@@ -99,6 +100,7 @@ public class ValidateWorld3DSlangModules
         };
     }
 
+    /// <summary>Returns the World3D modules with entry points to validate.</summary>
     public static IEnumerable<TestCaseData> ModuleCases()
     {
         string root = Roots[1];
@@ -139,6 +141,9 @@ public class ValidateWorld3DSlangModules
             ["VolumetricCloudNoise"] = [["false"], ["true"]],
         };
 
+    /// <summary>Tests that a module links every entry point to non-empty SPIR-V.</summary>
+    /// <param name="moduleName">Module name to compile.</param>
+    /// <param name="file">Path to the module file.</param>
     [Test]
     [TestCaseSource(nameof(ModuleCases))]
     public void Module_CompilesAllEntryPoints(string moduleName, string file)
@@ -177,6 +182,7 @@ public class ValidateWorld3DSlangModules
         ("Voxelize", [[]]),
     ];
 
+    /// <summary>Tests that pass templates compose with the built-in PBR surface module.</summary>
     [Test]
     public void PassTemplates_ComposeWithBuiltinSurface()
     {
@@ -204,6 +210,7 @@ public class ValidateWorld3DSlangModules
         }
     }
 
+    /// <summary>Returns the import-only library modules to validate.</summary>
     public static IEnumerable<TestCaseData> LibModuleCases()
     {
         foreach (string name in LibModules)
@@ -212,6 +219,8 @@ public class ValidateWorld3DSlangModules
         }
     }
 
+    /// <summary>Tests that an import-only library module loads.</summary>
+    /// <param name="moduleName">Module name to load.</param>
     [Test]
     [TestCaseSource(nameof(LibModuleCases))]
     public void LibModule_Loads(string moduleName)

@@ -1,13 +1,9 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// The dependency declaration surface passed to <see cref="IRenderGraphNode.Setup"/>.
-/// A node declares which resources it reads and writes this frame; the graph derives
-/// execution dependencies, culling and transient lifetimes from these declarations.
-/// <br/>The builder is a single reused instance attached to the declaring node for
-/// the duration of the call. It is only valid inside <see cref="IRenderGraphNode.Setup"/>
-/// — do not store it, and do not allocate while using it (Setup is on the per-frame
-/// hot path).
+/// The dependency declaration surface passed to <see cref="IRenderGraphNode.Setup"/>, from
+/// which the graph derives execution order, culling and resource lifetimes. A single reused
+/// instance that is valid only during Setup.
 /// </summary>
 public sealed class RenderGraphBuilder
 {

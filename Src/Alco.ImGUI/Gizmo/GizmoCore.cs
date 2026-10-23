@@ -3,11 +3,8 @@ using System.Numerics;
 namespace Alco.ImGUI;
 
 /// <summary>
-/// The headless gizmo frame pipeline: per-call context computation (matrix
-/// decomposition, camera ray, screen factor), handle hit-testing, drag solving and
-/// snapping, and writing the result back. Contains no ImGui references; input
-/// arrives through <see cref="GizmoContext.Input"/> and drawing is a separate layer
-/// invoked by the facade.
+/// Headless gizmo interaction core for matrices, transforms and bounds boxes.
+/// Contains no ImGui references; drawing is a separate layer.
 /// </summary>
 internal static class GizmoCore
 {
@@ -85,8 +82,7 @@ internal static class GizmoCore
     }
 
     /// <summary>
-    /// Runs one manipulation frame on a matrix: recomputes the per-call context,
-    /// hit-tests handles, solves the active drag and writes the result back.
+    /// Runs one manipulation frame on a model matrix and reports whether it changed.
     /// </summary>
     /// <param name="ctx">The gizmo context holding frame input and drag state.</param>
     /// <param name="view">The camera view matrix.</param>
@@ -141,9 +137,8 @@ internal static class GizmoCore
     }
 
     /// <summary>
-    /// Runs one manipulation frame on a 3D transform. The transform is composed to a
-    /// matrix, manipulated and decomposed back; when decomposition fails the
-    /// transform is left untouched and the call reports no change.
+    /// Runs one manipulation frame on a 3D transform and reports whether it changed;
+    /// the transform remains untouched when the result cannot be decomposed.
     /// </summary>
     /// <param name="ctx">The gizmo context holding frame input and drag state.</param>
     /// <param name="view">The camera view matrix.</param>
@@ -741,11 +736,7 @@ internal static class GizmoCore
     }
 
     /// <summary>
-    /// Runs one manipulation frame on a world-space axis-aligned box: selects the
-    /// camera-facing box faces, hit-tests the corner/edge anchors, solves the active
-    /// resize drag and writes the result back. Corner anchors resize two face axes at
-    /// once around the opposite corner, edge-midpoint anchors resize a single axis
-    /// around the opposite edge midpoint.
+    /// Runs one manipulation frame on a world-space axis-aligned box and reports whether it changed.
     /// </summary>
     /// <param name="ctx">The gizmo context holding frame input and drag state.</param>
     /// <param name="view">The camera view matrix.</param>
@@ -807,10 +798,7 @@ internal static class GizmoCore
     }
 
     /// <summary>
-    /// Selects the box faces to draw: world axes whose direction is sufficiently
-    /// aligned with the box-to-camera direction (visible faces), best-aligned first,
-    /// each on the side of the box facing the camera. Falls back to the single
-    /// best-aligned face when the box is viewed edge-on.
+    /// Selects the camera-facing box faces to draw, best-aligned first.
     /// </summary>
     private static void SelectBoundsFaces(GizmoContext ctx, in BoundingBox3D bounds)
     {
@@ -943,9 +931,7 @@ internal static class GizmoCore
     }
 
     /// <summary>
-    /// Solves the active bounds drag: projects the mouse on the captured solve plane,
-    /// converts the mouse offset into per-axis size ratios against the drag-start box
-    /// and rebuilds the box around the fixed pivot.
+    /// Solves the active bounds drag and writes the resized box back.
     /// </summary>
     private static bool SolveBoundsDrag(GizmoContext ctx, ref BoundingBox3D bounds, Vector3? snap)
     {

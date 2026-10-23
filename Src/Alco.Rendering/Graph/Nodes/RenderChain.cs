@@ -1,18 +1,9 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// The threading state of a linear texture chain inside a <see cref="RenderGraph"/>:
-/// the <see cref="RenderGraphTexture"/> currently holding the content produced so far.
-/// A chain is rooted at a scene content resource (e.g. a pipeline's scene color
-/// target); chain-aware nodes read <see cref="Current"/> in their
-/// <see cref="IRenderGraphNode.Setup"/> and — when they transform the content into a
-/// new texture (post-process effects) — call <see cref="Advance"/> so later nodes
-/// continue from their output. In-place nodes (forward content, additive overlays)
-/// read <see cref="Current"/> without advancing.
-/// <br/>The chain relies on the graph's contract that <see cref="IRenderGraphNode.Setup"/>
-/// runs strictly in registration order, which is what makes this threading
-/// deterministic. The composing pipeline resets the chain to its root resource at the
-/// start of every frame, before <see cref="RenderGraph.Execute"/>.
+/// The threading state of a linear texture chain inside a <see cref="RenderGraph"/>, tracking
+/// the resource currently holding the content produced so far. Transform nodes advance it in
+/// setup, and the composing pipeline resets it to its root each frame.
 /// </summary>
 public sealed class RenderChain
 {

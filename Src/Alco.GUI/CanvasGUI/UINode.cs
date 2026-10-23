@@ -26,6 +26,7 @@ public class UINode : IEnumerable<UINode>
     private ColorFloat _renderColor = ColorFloat.White;
     private bool _isColorDirty = true;
 
+    /// <summary>Gets or sets whether routed events continue bubbling to the parent after this node handles them.</summary>
     public virtual bool BubbleEvent { get; set; } = true;
 
     /// <summary>
@@ -44,6 +45,7 @@ public class UINode : IEnumerable<UINode>
     public event Action<Canvas, Vector2>? EventOnUnhover;
     public event Action<Canvas, Vector2>? EventOnScroll;
 
+    /// <summary>Initializes a UI node with an empty child collection and a name derived from its runtime type.</summary>
     public UINode()
     {
         Children = new UINodeChildCollection(this);
@@ -401,6 +403,9 @@ public class UINode : IEnumerable<UINode>
     /// <value></value>
     public UINodeChildCollection Children { get; }
 
+    /// <summary>Finds the <see cref="UIRoot"/> that contains this node.</summary>
+    /// <param name="root">The containing root, when found.</param>
+    /// <returns><see langword="true"/> when this node belongs to a root; otherwise, <see langword="false"/>.</returns>
     public bool HasRoot([NotNullWhen(true)] out UIRoot? root)
     {
         UINode? node = this;
@@ -425,6 +430,8 @@ public class UINode : IEnumerable<UINode>
     {
         private readonly UINode Parent;
 
+        /// <summary>Creates a child collection for the specified node.</summary>
+        /// <param name="parent">The node that owns the children.</param>
         public UINodeChildCollection(UINode parent)
         {
             Parent = parent;
@@ -437,9 +444,15 @@ public class UINode : IEnumerable<UINode>
         }
 
         // IReadOnlyList implementation
+        /// <summary>Gets the child at the specified index.</summary>
+        /// <param name="index">The zero-based child index.</param>
+        /// <returns>The child at the specified index.</returns>
         public UINode this[int index] => Parent._children[index];
+        /// <summary>Gets the number of immediate children.</summary>
         public int Count => Parent._children.Count;
 
+        /// <summary>Returns an enumerator over the immediate children.</summary>
+        /// <returns>An enumerator over the immediate children.</returns>
         public IEnumerator<UINode> GetEnumerator()
         {
             return Parent._children.GetEnumerator();
@@ -472,7 +485,6 @@ public class UINode : IEnumerable<UINode>
     /// <param name="node">The child node to add.</param>
     /// <param name="keepWorldTransform">Whether to keep the world transform of the child node.</param>
     /// <exception cref="ArgumentException">The node already has a parent or is already a child of this node.</exception>
-    /// <summary>
     public virtual void Add(UINode node, bool keepWorldTransform = false)
     {
         if (node.Parent != null)
@@ -523,7 +535,6 @@ public class UINode : IEnumerable<UINode>
     /// </summary>
     /// <param name="node">The child node to remove.</param>
     /// <exception cref="ArgumentException">The node is not a child of this node.</exception>
-    /// <summary>
     public void Remove(UINode node)
     {
         if (node.Parent != this)
@@ -715,6 +726,7 @@ public class UINode : IEnumerable<UINode>
         return true;
     }
 
+    /// <summary>Removes all immediate children from this node.</summary>
     public void RemoveAllChildren()
     {
         for (int i = 0; i < _children.Count; i++)
@@ -841,6 +853,10 @@ public class UINode : IEnumerable<UINode>
 
     }
 
+    /// <summary>Refreshes cached render data when it is dirty.</summary>
+    /// <param name="canvas">The canvas performing the update.</param>
+    /// <param name="delta">Delta time in seconds.</param>
+    /// <returns><see langword="true"/> when render data was refreshed; otherwise, <see langword="false"/>.</returns>
     public bool TryRefreshRenderData(Canvas canvas, float delta)
     {
         if (!_isRenderDataDirty)
@@ -965,8 +981,7 @@ public class UINode : IEnumerable<UINode>
     /// value means the node draws on top.
     /// </summary>
     /// <remarks>
-    /// Used to pick the topmost node among overlapping click receivers; a node disabled for a
-    /// tick keeps a stale value but cannot be hit that tick.
+    /// Used to pick the topmost overlapping click receiver; disabled nodes keep a stale value but are not hit.
     /// </remarks>
     internal int TickOrder;
 
@@ -990,51 +1005,81 @@ public class UINode : IEnumerable<UINode>
 
     #region Event
 
+    /// <summary>Raises the click event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnClick(Canvas canvas, Vector2 mousePosition)
     {
         EventOnClick?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the hover event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnHover(Canvas canvas, Vector2 mousePosition)
     {
         EventOnHover?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the unhover event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnUnhover(Canvas canvas, Vector2 mousePosition)
     {
         EventOnUnhover?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the press-hold event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnPressing(Canvas canvas, Vector2 mousePosition)
     {
         EventOnPressing?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the press-down event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnPressDown(Canvas canvas, Vector2 mousePosition)
     {
         EventOnPressDown?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the press-up event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnPressUp(Canvas canvas, Vector2 mousePosition)
     {
         EventOnPressUp?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the drag event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnDrag(Canvas canvas, Vector2 mousePosition)
     {
         EventOnDrag?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the selection event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnSelect(Canvas canvas, Vector2 mousePosition)
     {
         EventOnSelect?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the deselection event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="mousePosition">The pointer position in canvas coordinates.</param>
     public virtual void OnDeselect(Canvas canvas, Vector2 mousePosition)
     {
         EventOnDeselect?.Invoke(canvas, mousePosition);
     }
 
+    /// <summary>Raises the scroll event for this node.</summary>
+    /// <param name="canvas">The canvas dispatching the event.</param>
+    /// <param name="scrollDelta">The scroll delta.</param>
     public virtual void OnScroll(Canvas canvas, Vector2 scrollDelta)
     {
         EventOnScroll?.Invoke(canvas, scrollDelta);

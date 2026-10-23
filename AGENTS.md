@@ -45,6 +45,8 @@
 - Always add comments for all public classes, methods, and properties after editing. Comments for private members are not required.
 - All documentation comments must be written in English.
 - Use standard XML documentation tags (`<summary>`, `<param>`, `<returns>`, etc.).
+- Keep XML documentation brief: the shortest complete description of the member's contract — `<summary>` is typically one or two sentences; leave implementation details out.
+- Do not write large documentation blocks (multi-paragraph `<summary>` or `<remarks>` essays).
 
 ## Performance Guidelines
 - Prefer `for` loops with integer indexing over `foreach` when performance is critical or when index access is needed.

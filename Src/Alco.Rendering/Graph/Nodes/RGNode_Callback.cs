@@ -1,11 +1,8 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// A graph node that invokes a delegate: per-frame data uploads, event hooks between
-/// passes, or any GPU work that does not fit the other building blocks. Declares no
-/// resources by default; it can root the graph (see <see cref="ProducesGraphOutput"/>).
-/// For work that reads or writes graph resources, implement
-/// <see cref="IRenderGraphNode"/> directly instead.
+/// A graph node that invokes a delegate for per-frame data uploads, event hooks or other GPU
+/// work. It declares no resources and roots the graph by default.
 /// </summary>
 public sealed class RGNode_Callback : IRenderGraphNode
 {

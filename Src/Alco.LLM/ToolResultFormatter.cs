@@ -9,15 +9,8 @@ namespace Alco.LLM;
 /// enter LLM history. Immutable and thread-safe after construction.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Only <see cref="AgentToolResult"/> instances pass through this formatter. Plain <see cref="string"/>
-/// tool returns bypass it entirely and enter history unchanged, keeping unmigrated tools working
-/// without modification.
-/// </para>
-/// <para>
-/// The formatted value goes into LLM history only; runtime events preserve the raw
-/// <see cref="AgentToolResult"/> so UI/debug consumers retain structured data.
-/// </para>
+/// Only <see cref="AgentToolResult"/> instances are formatted; formatted text goes into LLM history
+/// while runtime events preserve the raw result.
 /// </remarks>
 public sealed class ToolResultFormatter
 {

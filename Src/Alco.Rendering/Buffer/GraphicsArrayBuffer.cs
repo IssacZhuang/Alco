@@ -89,6 +89,10 @@ public class GraphicsArrayBuffer<T> : GraphicsBuffer where T : unmanaged
         _device.WriteBuffer(_buffer, (uint)byteOffset, (byte*)_data.UnsafePointer + byteOffset, (uint)(count * sizeof(T)));
     }
 
+    /// <summary>
+    /// Gets the CPU-side elements as a span.
+    /// </summary>
+    /// <returns>A span over the array elements.</returns>
     public Span<T> AsSpan()
     {
         return _data.AsSpan();

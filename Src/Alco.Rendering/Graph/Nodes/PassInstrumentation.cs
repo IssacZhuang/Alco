@@ -3,13 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Optional per-pass GPU instrumentation for the building-block graph nodes: begin/end
-/// timestamps written into a <see cref="GpuTimestampSampler"/> query set slot pair.
-/// All fields are optional; a null sampler disables instrumentation. Nodes apply the
-/// GPU timestamps around their render pass (see <see cref="BeginPass"/> /
-/// <see cref="EndPass"/>). CPU-side node timing is automatic — the graph itself
-/// measures every node's <see cref="IRenderGraphNode.Execute"/> (see
-/// <see cref="RenderGraph.Profiler"/>).
+/// Optional GPU timestamp instrumentation for graph nodes that brackets a pass with a <see cref="GpuTimestampSampler"/> query set slot pair.
+/// A null sampler disables instrumentation; CPU-side node timing is handled by the graph itself.
 /// </summary>
 public sealed class PassInstrumentation
 {
@@ -57,11 +52,8 @@ public sealed class PassInstrumentation
     }
 
     /// <summary>
-    /// Begins the first pass of a measured span: only the begin timestamp is
-    /// written, so consecutive passes can be bracketed by one timestamp pair —
-    /// open the last pass of the span with <see cref="EndSpanPass"/> and resolve
-    /// there via <see cref="ScheduleResolve"/>. No-op pass opening when GPU
-    /// timing is disabled.
+    /// Begins the first pass of a measured span, writing only the begin timestamp.
+    /// Open the last pass of the span with <see cref="EndSpanPass"/> and resolve there.
     /// </summary>
     /// <returns>The pass scope; dispose it (or use <c>using</c>) to close the pass.</returns>
     public RenderPassScope BeginSpanPass(RenderContext context, GPUFrameBuffer target, ReadOnlySpan<ClearColorData> clearColors, float? clearDepth = null)

@@ -6,20 +6,8 @@ using Alco.Rendering;
 namespace Alco.Engine;
 
 /// <summary>
-/// Frame-driven pipeline that turns a GPU texture into PNG bytes: asynchronous GPU
-/// readback into a pooled CPU buffer, then a thread-pool PNG encode, surfaced as a
-/// <see cref="RenderCaptureResult"/>. This is the shared tail of every "render
-/// something, hand it out as PNG" system (render-graph captures, swapchain captures,
-/// offscreen map snapshots, ...): the owner renders into its own
-/// <see cref="RenderTexture"/>, calls <see cref="TryBeginRead"/> with a completion
-/// callback when the pixels are ready, and the pipeline's pumper delivers the result
-/// to that callback. The pipeline is a pure transport: the PNG encodes exactly the
-/// texture's RGBA, alpha included — alpha semantics belong to the producing pass
-/// (opaque captures blit through <c>BlitOpaque</c>/<c>BlitRegionOpaque</c>, which
-/// force alpha to 1 on the GPU; transparent captures blit with alpha passthrough).
-/// <br/>Readbacks only complete on the main thread's frame pump, so
-/// <b>callers must not block-await their completion task on the main thread</b> — that
-/// would stall the very pump this pipeline depends on. All methods are main-thread only.
+/// Main-thread pipeline that turns a GPU texture into PNG bytes through asynchronous readback
+/// and thread-pool encoding; callers must not block-await completion on the main thread.
 /// </summary>
 public sealed class PngReadbackPipeline
 {
@@ -155,11 +143,8 @@ public sealed class PngReadbackPipeline
     }
 
     /// <summary>
-    /// Pumps the pipeline once per update on the main thread: completes a finished
-    /// encode, starts the encode when the readback completed, and delivers the finished
-    /// capture's result to the callback registered with <see cref="TryBeginRead"/>.
-    /// A shared pipeline can be pumped by a single pumper (the engine) and still route
-    /// each result to its owning capture system.
+    /// Advances the pipeline on the main thread, starts a pending encode, and delivers finished
+    /// captures to the callbacks registered with <see cref="TryBeginRead"/>.
     /// </summary>
     public void Pump()
     {

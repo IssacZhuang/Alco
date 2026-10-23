@@ -4,9 +4,11 @@ using NUnit.Framework;
 
 namespace Alco.Engine.Test;
 
+/// <summary>Tests JSON merge behavior, including inheritance controls.</summary>
 [TestFixture]
 public class TestJsonUtility
 {
+    /// <summary>Tests merging two simple objects with the target overriding shared properties.</summary>
     [Test]
     public void Merge_SimpleObjects_ShouldMergeCorrectly()
     {
@@ -27,6 +29,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("city").GetString(), Is.EqualTo("New York"));
     }
 
+    /// <summary>Tests that nested objects are merged recursively.</summary>
     [Test]
     public void Merge_NestedObjects_ShouldMergeRecursively()
     {
@@ -50,6 +53,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("role").GetString(), Is.EqualTo("admin"));
     }
 
+    /// <summary>Tests that arrays are replaced by default.</summary>
     [Test]
     public void Merge_Arrays_ShouldReplaceByDefault()
     {
@@ -72,6 +76,7 @@ public class TestJsonUtility
         Assert.That(array[2].GetInt32(), Is.EqualTo(6));
     }
 
+    /// <summary>Tests that arrays inside objects are replaced by default.</summary>
     [Test]
     public void Merge_ObjectsWithArrays_ShouldReplaceArraysByDefault()
     {
@@ -95,6 +100,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("description").GetString(), Is.EqualTo("target"));
     }
 
+    /// <summary>Tests that a type mismatch overrides the parent value with the target.</summary>
     [Test]
     public void Merge_TypeMismatch_ShouldOverrideWithTarget()
     {
@@ -113,6 +119,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("value").GetString(), Is.EqualTo("string"));
     }
 
+    /// <summary>Tests that a null target value keeps the parent value.</summary>
     [Test]
     public void Merge_NullValueInTarget_ShouldKeepParentValue()
     {
@@ -133,6 +140,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("city").GetString(), Is.EqualTo("New York"));
     }
 
+    /// <summary>Tests that merging empty objects returns an empty object.</summary>
     [Test]
     public void Merge_EmptyObjects_ShouldReturnEmptyObject()
     {
@@ -152,6 +160,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.EnumerateObject().Count(), Is.EqualTo(0));
     }
 
+    /// <summary>Tests that merging empty arrays returns an empty array.</summary>
     [Test]
     public void Merge_EmptyArrays_ShouldReturnEmptyArray()
     {
@@ -171,6 +180,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetArrayLength(), Is.EqualTo(0));
     }
 
+    /// <summary>Tests merging a complex nested structure.</summary>
     [Test]
     public void Merge_ComplexNestedStructure_ShouldMergeCorrectly()
     {
@@ -226,6 +236,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("author").GetString(), Is.EqualTo("test"));
     }
 
+    /// <summary>Tests that the merge-to-document API returns a <see cref="JsonDocument"/>.</summary>
     [Test]
     public void MergeToDocument_ShouldReturnJsonDocument()
     {
@@ -245,6 +256,7 @@ public class TestJsonUtility
         Assert.That(result.RootElement.GetProperty("age").GetInt32(), Is.EqualTo(25));
     }
 
+    /// <summary>Tests that a non-container parent throws <see cref="InvalidOperationException"/>.</summary>
     [Test]
     public void Merge_ParentIsNotContainer_ShouldThrowException()
     {
@@ -261,6 +273,7 @@ public class TestJsonUtility
         Assert.That(ex.Message, Does.Contain("Number"));
     }
 
+    /// <summary>Tests that a non-container target throws <see cref="InvalidOperationException"/>.</summary>
     [Test]
     public void Merge_TargetIsNotContainer_ShouldThrowException()
     {
@@ -277,6 +290,7 @@ public class TestJsonUtility
         Assert.That(ex.Message, Does.Contain("Number"));
     }
 
+    /// <summary>Tests that mismatched container types throw <see cref="InvalidOperationException"/>.</summary>
     [Test]
     public void Merge_MismatchedContainerTypes_ShouldThrowException()
     {
@@ -293,6 +307,7 @@ public class TestJsonUtility
         Assert.That(ex.Message, Does.Contain("Array"));
     }
 
+    /// <summary>Tests that arrays of mixed types are replaced by default.</summary>
     [Test]
     public void Merge_ArrayWithMixedTypes_ShouldReplaceByDefault()
     {
@@ -315,6 +330,7 @@ public class TestJsonUtility
         Assert.That(array[2].ValueKind, Is.EqualTo(JsonValueKind.Array));
     }
 
+    /// <summary>Tests that overriding a single property preserves the other properties.</summary>
     [Test]
     public void Merge_SinglePropertyOverride_ShouldPreserveOtherProperties()
     {
@@ -335,6 +351,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("city").GetString(), Is.EqualTo("Boston"));
     }
 
+    /// <summary>Tests that $inherit false completely overrides the parent object.</summary>
     [Test]
     public void Merge_InheritFalse_ShouldCompletelyOverrideParent()
     {
@@ -357,6 +374,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
     }
 
+    /// <summary>Tests that $inherit false on a nested object overrides only that nested object.</summary>
     [Test]
     public void Merge_InheritFalse_NestedObject_ShouldOverrideParentNested()
     {
@@ -409,6 +427,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.GetProperty("version").GetString(), Is.EqualTo("1.0"));
     }
 
+    /// <summary>Tests that $inherit true merges normally.</summary>
     [Test]
     public void Merge_InheritTrue_ShouldMergeNormally()
     {
@@ -430,6 +449,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
     }
 
+    /// <summary>Tests that a non-boolean $inherit value merges normally.</summary>
     [Test]
     public void Merge_InheritString_ShouldMergeNormally()
     {
@@ -451,6 +471,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
     }
 
+    /// <summary>Tests that $inherit false with an empty target results in an empty object.</summary>
     [Test]
     public void Merge_InheritFalse_EmptyTargetObject_ShouldResultInEmptyObject()
     {
@@ -470,6 +491,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.EnumerateObject().Count(), Is.EqualTo(0));
     }
 
+    /// <summary>Tests that $inherit false keeps only the target's properties.</summary>
     [Test]
     public void Merge_InheritFalse_ComplexTarget_ShouldOnlyContainTargetProperties()
     {
@@ -519,6 +541,7 @@ public class TestJsonUtility
         Assert.That(resultDoc.RootElement.TryGetProperty("$inherit", out _), Is.False);
     }
 
+    /// <summary>Tests that $inherit false in an array replaces the parent array.</summary>
     [Test]
     public void Merge_ArrayInheritFalse_ShouldReplaceParentArray()
     {
@@ -540,6 +563,7 @@ public class TestJsonUtility
         Assert.That(array[1].GetString(), Is.EqualTo("y"));
     }
 
+    /// <summary>Tests that $inherit prepend puts target elements before the parent array.</summary>
     [Test]
     public void Merge_ArrayInheritPrepend_ShouldPrependTargetToParent()
     {
@@ -564,6 +588,7 @@ public class TestJsonUtility
         Assert.That(array[4].GetString(), Is.EqualTo("c"));
     }
 
+    /// <summary>Tests that $inherit append puts target elements after the parent array.</summary>
     [Test]
     public void Merge_ArrayInheritAppend_ShouldAppendTargetToParent()
     {
@@ -588,6 +613,7 @@ public class TestJsonUtility
         Assert.That(array[4].GetString(), Is.EqualTo("y"));
     }
 
+    /// <summary>Tests that arrays without an inherit control use the default replace behavior.</summary>
     [Test]
     public void Merge_ArrayWithoutInheritControl_ShouldUseDefaultBehavior()
     {
@@ -609,6 +635,7 @@ public class TestJsonUtility
         Assert.That(array[1].GetString(), Is.EqualTo("y"));
     }
 
+    /// <summary>Tests that $inherit false in an array with no other elements results in an empty array.</summary>
     [Test]
     public void Merge_ArrayInheritFalse_EmptyTargetArray_ShouldResultInEmptyArray()
     {
@@ -628,6 +655,7 @@ public class TestJsonUtility
         Assert.That(array.Length, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that array inherit controls work inside object properties.</summary>
     [Test]
     public void Merge_ArrayInheritInObject_ShouldControlNestedArrays()
     {
@@ -665,6 +693,7 @@ public class TestJsonUtility
         Assert.That(itemsArray[0].GetString(), Is.EqualTo("new-item"));
     }
 
+    /// <summary>Tests that array inherit prepend handles mixed element types.</summary>
     [Test]
     public void Merge_ArrayInheritWithMixedTypes_ShouldHandleCorrectly()
     {
@@ -689,6 +718,7 @@ public class TestJsonUtility
         Assert.That(array[4].GetBoolean(), Is.True);
     }
 
+    /// <summary>Tests that an invalid array inherit mode falls back to the default replace behavior.</summary>
     [Test]
     public void Merge_ArrayInheritInvalidMode_ShouldFallbackToDefault()
     {

@@ -17,9 +17,7 @@ public class UISlider : UIButton
     public event Action<float>? EventOnValueChanged;
 
     /// <summary>
-    /// Gets or sets whether dragging the handle is required to change the value.
-    /// When false, the value can only be changed by dragging the handle.
-    /// When true, clicking anywhere on the slider sets the value directly.
+    /// Gets or sets whether clicking the track sets the value directly instead of dragging the handle.
     /// </summary>
     public bool ClickToSetValue { get; set; } = false;
 
@@ -43,6 +41,9 @@ public class UISlider : UIButton
         }
     }
 
+    /// <summary>
+    /// Gets or sets the text that displays the current value.
+    /// </summary>
     public UIText? ValueText
     {
         get => _valueText;
@@ -53,6 +54,9 @@ public class UISlider : UIButton
         }
     }
 
+    /// <summary>
+    /// Gets or sets the slider value, clamped to the range [0, 1].
+    /// </summary>
     public float Value
     {
         get => _value;
@@ -81,6 +85,9 @@ public class UISlider : UIButton
     }
 
 
+    /// <summary>
+    /// Sets <see cref="Value"/> from the press position when <see cref="ClickToSetValue"/> is enabled.
+    /// </summary>
     public override void OnPressing(Canvas canvas, Vector2 mousePosition)
     {
         if (!ClickToSetValue) return;

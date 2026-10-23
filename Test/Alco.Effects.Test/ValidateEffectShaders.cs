@@ -6,13 +6,7 @@ using Alco.Rendering;
 namespace Alco.Effects.Test;
 
 /// <summary>
-/// Compiles every shader module shipped with the Alco.Effects module (particle and
-/// trail trees) through the shared slang module system (the same compiler path used
-/// at runtime), and — the part the plain module sweep cannot cover — composes the
-/// generic emit/simulate pass templates with the built-in default behaviors AND with
-/// custom behavior modules (Files/Assets/Shaders/TestBehavior{2D,3D}.slang), linking
-/// and generating code for each composition. Trail pass-template × surface
-/// composition is covered by TestGpuTrailSystem{2D,3D}'s surface test cases.
+/// Compiles every Alco.Effects shader module and verifies emit/simulate compositions with default and custom particle behaviors.
 /// </summary>
 public class ValidateEffectShaders
 {
@@ -25,6 +19,7 @@ public class ValidateEffectShaders
     /// <summary>The minimal engine host for the shader system.</summary>
     public class ShaderValidator(GameEngineSetting setting) : GameEngine(setting);
 
+    /// <summary>Tests that every Alco.Effects shader module compiles and non-generic entry modules link.</summary>
     [Test(Description = "Validate all Alco.Effects shader modules")]
     public void ValidateAllEffectShaders()
     {
@@ -62,6 +57,7 @@ public class ValidateEffectShaders
         }
     }
 
+    /// <summary>Tests that the emit and simulate templates compose with default and custom behaviors.</summary>
     [Test(Description = "Compose the emit/simulate templates with default and custom behaviors")]
     public void ComposeSimulationTemplates()
     {
@@ -104,6 +100,7 @@ public class ValidateEffectShaders
         }
     }
 
+    /// <summary>Tests that the render pass templates compose with default and custom surfaces.</summary>
     [Test(Description = "Compose the render pass templates with the default and a custom surface")]
     public void ValidateRenderPassReflection()
     {

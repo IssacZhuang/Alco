@@ -4,6 +4,7 @@ using System.Text;
 using Alco.Graphics;
 using Alco.Engine;
 
+/// <summary>Sandbox drawing a single vertex-colored quad with a custom pipeline.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -32,6 +33,8 @@ public class Game : GameEngine
     private GPUBuffer _vertexBuffer;
     private GPUBuffer _indexBuffer;
     private GPUPipeline _pipeline;
+    /// <summary>Initializes the quad's vertex/index buffers and pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

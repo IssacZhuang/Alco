@@ -5,11 +5,24 @@ using static Alco.MemoryUtility;
 
 namespace Alco;
 
+/// <summary>
+/// A bump allocator for unmanaged values that hands out stable pointers in fixed-size native blocks;
+/// the memory is released on <see cref="Dispose"/>.
+/// </summary>
 public unsafe struct MiniHeap<T> : IDisposable where T : unmanaged
 {
     public const int BlockSize = 1024 * 8;
+    /// <summary>
+    /// The number of elements of type <typeparamref name="T"/> that fit in one block.
+    /// </summary>
     public static readonly int ItemPerBlock = BlockSize / sizeof(T);
+    /// <summary>
+    /// The size in bytes of one element of type <typeparamref name="T"/>.
+    /// </summary>
     public static readonly int Stride = sizeof(T);
+    /// <summary>
+    /// A fixed-size native block that backs heap allocations.
+    /// </summary>
     public struct Block
     {
         public fixed byte data[BlockSize];
@@ -20,6 +33,11 @@ public unsafe struct MiniHeap<T> : IDisposable where T : unmanaged
     private int _indexInBlock;
 
 
+    /// <summary>
+    /// Copies an element into the heap and returns a stable pointer to it.
+    /// </summary>
+    /// <param name="element">The element to store.</param>
+    /// <returns>A pointer to the stored element, valid until the heap is disposed.</returns>
     public T* Alloc(T element)
     {
         EnsureSize();
@@ -53,6 +71,9 @@ public unsafe struct MiniHeap<T> : IDisposable where T : unmanaged
         }
     }
 
+    /// <summary>
+    /// Releases all native blocks owned by the heap.
+    /// </summary>
     public void Dispose()
     {
         for (int i = 0; i < _blocks.Length; i++)

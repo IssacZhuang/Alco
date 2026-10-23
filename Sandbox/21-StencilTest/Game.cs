@@ -8,6 +8,7 @@ using Alco.Graphics;
 using Alco.GUI;
 using System.Diagnostics;
 
+/// <summary>Sandbox demonstrating stencil-buffer masking with rotating cubes.</summary>
 public class Game : GameEngine
 {
     private static ColorFloat Color1 = new ColorFloat(0, 0, 0, 1f);
@@ -37,6 +38,8 @@ public class Game : GameEngine
     // pixel-tuned feel.
     private const float RawMouseCountScale = 5f;
 
+    /// <summary>Initializes the stencil test scene and render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor

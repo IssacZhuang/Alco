@@ -12,22 +12,7 @@ namespace Alco.GUI;
 /// the node never stalls the UI thread.
 /// </summary>
 /// <remarks>
-/// <para>
-/// High-frequency resizes (stretch anchors, size animations, window resizing) are
-/// handled by decoupling drawing from rasterization: the latest completed texture
-/// is always drawn stretched across the node rect, so the icon never disappears
-/// while sizes change. Rasterization targets are quantized to
-/// <see cref="RasterSizeStep"/>-pixel buckets of the on-screen size, a resize must
-/// stay in a new bucket for <see cref="ResizeSettleSeconds"/> before a
-/// re-rasterization is issued, and an on-screen size diverging from the raster
-/// size beyond <see cref="MaxStaleRatio"/> re-rasterizes immediately to bound
-/// blurriness. At most one rasterization per node is in flight; superseded
-/// results are dropped and the corrected request follows on the next frame.
-/// </para>
-/// <para>
-/// The textures come from the renderer's weak cache and may be shared with other
-/// nodes, so this node never disposes them; dropping the reference is enough.
-/// </para>
+/// The latest completed texture is drawn stretched while sizes change; textures come from a shared weak cache and are never disposed by this node.
 /// </remarks>
 public class UIGeometryIcon : UINode
 {
@@ -123,15 +108,10 @@ public class UIGeometryIcon : UINode
     }
 
     /// <summary>
-    /// Gets this node's material instance, creating it with the canvas camera,
-    /// stencil state and premultiplied-alpha blending when needed. The current
-    /// rasterized texture overrides the surface's texture slot when declared.
-    /// Other overrides do not modify the shared base material and are preserved
-    /// while the instance is reused.
+    /// Gets or creates this node's material instance for the given canvas, binding the current rasterized texture.
     /// </summary>
     /// <param name="canvas">The canvas that will draw the icon.</param>
-    /// <returns>The instance used for drawing, valid until the material or canvas
-    /// changes, the node detaches, or the instance is disposed.</returns>
+    /// <returns>The instance used for drawing, valid until the material or canvas changes or the node detaches.</returns>
     /// <exception cref="InvalidOperationException"><see cref="Material"/> is null.</exception>
     public GraphicsMaterialInstance GetMaterialInstance(Canvas canvas)
     {
@@ -171,11 +151,7 @@ public class UIGeometryIcon : UINode
     }
 
     /// <summary>
-    /// Sets <see cref="UINode.Size"/> to the document's intrinsic size (the
-    /// width/height attributes, or the viewBox size when they are absent). The
-    /// document is parsed on a background thread and the size is applied on a
-    /// later frame once known; the result is dropped if <see cref="Svg"/> changes
-    /// in between. Does nothing when the document is empty, invalid or unsized.
+    /// Sets <see cref="UINode.Size"/> to the SVG document's intrinsic size, parsed asynchronously; does nothing when the document is empty, invalid, or unsized.
     /// </summary>
     public void SetNativeSize()
     {

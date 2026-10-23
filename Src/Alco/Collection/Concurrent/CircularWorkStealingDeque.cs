@@ -5,6 +5,10 @@ using System.Threading;
 namespace Alco
 {
     
+    /// <summary>
+    /// A work-stealing deque of value-type items backed by a growable circular array.
+    /// </summary>
+    /// <typeparam name="T">The item type stored in the deque.</typeparam>
     public class CircularWorkStealingDeque<T> where T : struct
     {
         private int _bottom = 0;
@@ -12,6 +16,10 @@ namespace Alco
         private volatile CircularArray<T> _array;
         private static readonly T DefaultValue = default(T);
 
+        /// <summary>
+        /// Initializes a deque with storage for at least <paramref name="capacity"/> items.
+        /// </summary>
+        /// <param name="capacity">The initial number of items the deque can hold.</param>
         public CircularWorkStealingDeque(int capacity)
         {
             _array = new CircularArray<T>((int)Math.Ceiling(Math.Log(capacity, 2)));

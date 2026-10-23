@@ -1,16 +1,13 @@
 namespace Alco.Rendering;
 
+/// <summary>
+/// Flags selecting the Unicode script ranges supported by a font.
+/// </summary>
 [Flags]
 public enum FontLanguage
 {
     /// <summary>
-    /// The basic language set for english, numbers and symbols. <br/>
-    /// Unicode range: <br/>
-    /// - Basic Latin (0000-007F), <br/>
-    /// - Latin-1 Supplement (0080-00FF), <br/>
-    /// - Latin Extended-A (0100-017F), <br/>
-    /// - Cyrillic (0400-04FF), <br/>
-    /// - Cyrillic Supplement (0500-052F), <br/>
+    /// Basic Latin, Latin-1 Supplement, Latin Extended-A, Cyrillic and Cyrillic Supplement.
     /// </summary>
     Basic = 1 << 0,
     /// <summary>

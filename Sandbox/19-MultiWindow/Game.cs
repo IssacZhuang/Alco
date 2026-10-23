@@ -8,6 +8,7 @@ using Alco.Graphics;
 
 
 
+/// <summary>Sandbox demonstrating rendering two windows with independent pipelines.</summary>
 public class Game : GameEngine
 {
     private readonly View _window2;
@@ -31,6 +32,8 @@ public class Game : GameEngine
     private readonly RGNode_Bloom _bloomNode2;
 
 
+    /// <summary>Initializes the main window pipeline and the secondary window.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor

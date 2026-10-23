@@ -4,6 +4,9 @@ namespace Alco.Rendering;
 
 // camera factory
 
+/// <summary>
+/// Camera buffer creation.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>

@@ -13,6 +13,9 @@ public class BenchmarkDictionary
     public int Count;
     private List<Tuple<string, int>> _data;
 
+    /// <summary>
+    /// Initializes the source data for dictionary construction.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -23,6 +26,9 @@ public class BenchmarkDictionary
         }
     }
 
+    /// <summary>
+    /// Benchmarks constructing a <see cref="Dictionary{TKey, TValue}"/> from the source data.
+    /// </summary>
     [Benchmark(Description = "Dictionary construction")]
     public Dictionary<string, int> ConstructDictionary()
     {
@@ -34,6 +40,9 @@ public class BenchmarkDictionary
         return dict;
     }
 
+    /// <summary>
+    /// Benchmarks constructing a <see cref="FrozenDictionary{TKey, TValue}"/> from the source data.
+    /// </summary>
     [Benchmark(Description = "FrozenDictionary construction")]
     public FrozenDictionary<string, int> ConstructFrozenDictionary()
     {

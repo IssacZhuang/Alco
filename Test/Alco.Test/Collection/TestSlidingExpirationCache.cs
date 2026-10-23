@@ -7,9 +7,11 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>Tests the sliding expiration cache.</summary>
     [TestFixture]
     public class TestSlidingExpirationCache
     {
+        /// <summary>Tests basic add and retrieve operations.</summary>
         [Test(Description = "Test basic operations of the sliding expiration cache")]
         public void TestBasicOperations()
         {
@@ -29,6 +31,7 @@ namespace Alco.Test
             Assert.That(value, Is.EqualTo("value2"), "Should return the second added value");
         }
 
+        /// <summary>Tests that idle entries expire after the sliding window.</summary>
         [Test(Description = "Test that entries expire after sliding expiration time")]
         public void TestEntriesExpire()
         {
@@ -60,6 +63,7 @@ namespace Alco.Test
             Assert.That(result, Is.EqualTo("new value"), "Should return the new value after expiration");
         }
 
+        /// <summary>Tests that repeatedly accessed entries stay alive.</summary>
         [Test(Description = "Test that active entries don't expire due to sliding window")]
         public void TestActiveEntriesStayAlive()
         {
@@ -90,6 +94,7 @@ namespace Alco.Test
             Assert.That(result, Is.EqualTo(initialValue), "Should return the initial value for active entry");
         }
 
+        /// <summary>Tests that Clear removes all entries.</summary>
         [Test(Description = "Test clear method")]
         public void TestClear()
         {
@@ -114,6 +119,7 @@ namespace Alco.Test
             Assert.IsTrue(factoryCalled, "Value factory should be called after clearing");
         }
 
+        /// <summary>Tests that null values are stored and retrieved.</summary>
         [Test(Description = "Test with null values")]
         public void TestNullValues()
         {

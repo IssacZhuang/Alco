@@ -72,6 +72,7 @@ public sealed class TestRenderGraph
     private GPUAttachmentLayout _layoutColorDepth; // RGBA8Unorm + Depth32Float
     private GPUAttachmentLayout _layoutFloatDepth; // RGBA16Float + Depth32Float
 
+    /// <summary>Creates the rendering system and the attachment layouts used by the tests.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -89,6 +90,7 @@ public sealed class TestRenderGraph
             [new ColorAttachment(PixelFormat.RGBA16Float)], new DepthAttachment(PixelFormat.Depth32Float), "graph_float_depth"));
     }
 
+    /// <summary>Disposes the rendering system host.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -111,6 +113,7 @@ public sealed class TestRenderGraph
             layout, width, height, 1.0f, depthSource, FilterMode.Linear, name);
     }
 
+    /// <summary>Tests that a linear chain executes every node in registration order.</summary>
     [Test(Description = "Linear chain gbuffer -> lighting -> blit executes every node in registration order")]
     public void LinearChainExecutesInRegistrationOrder()
     {
@@ -135,6 +138,7 @@ public sealed class TestRenderGraph
         Assert.That(submitted, Is.EqualTo(3));
     }
 
+    /// <summary>Tests that a node whose writes are never read is culled.</summary>
     [Test(Description = "A node whose writes are never read is culled; the rest of the chain runs")]
     public void UnreferencedWriteCullsTheWriter()
     {
@@ -156,6 +160,7 @@ public sealed class TestRenderGraph
         Assert.That(log, Is.EqualTo(new[] { "writer", "blit" }));
     }
 
+    /// <summary>Tests that disabling the chain tail skips it while keeping the content root alive.</summary>
     [Test(Description = "Disabling the chain tail keeps the content root alive and skips the disabled node")]
     public void DisabledChainTailKeepsContentRootAlive()
     {
@@ -177,6 +182,7 @@ public sealed class TestRenderGraph
         Assert.That(log, Is.EqualTo(new[] { "gbuffer", "lighting" }));
     }
 
+    /// <summary>Tests that a conditionally read shadow map keeps its producer alive only while read.</summary>
     [Test(Description = "A conditionally read shadow map keeps its producer alive only while actually read")]
     public void ConditionalReadTogglesProducerCulling()
     {
@@ -212,6 +218,7 @@ public sealed class TestRenderGraph
         Assert.That(lighting.ExecuteCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that an in-place read-write chain keeps every node alive.</summary>
     [Test(Description = "A ReadWrite (in-place) chain propagates the dependency and keeps every node alive")]
     public void ReadWriteChainKeepsEveryNodeAlive()
     {
@@ -231,6 +238,7 @@ public sealed class TestRenderGraph
         Assert.That(log, Is.EqualTo(new[] { "lighting", "forward", "blit" }));
     }
 
+    /// <summary>Tests that reading a transient before any enabled writer throws.</summary>
     [Test(Description = "Reading a transient before any enabled earlier node writes it throws with node and resource names")]
     public void ReadBeforeWriteThrows()
     {
@@ -249,6 +257,7 @@ public sealed class TestRenderGraph
         Assert.That(writer.ExecuteCount, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that equal-spec transients with non-overlapping lifetimes alias and overlapping ones do not.</summary>
     [Test(Description = "Transients with equal specs and non-overlapping lifetimes alias the same pooled texture; overlapping lifetimes do not")]
     public void NonOverlappingLifetimesAlias()
     {
@@ -287,6 +296,7 @@ public sealed class TestRenderGraph
             "Overlapping transients must not alias the same pooled texture.");
     }
 
+    /// <summary>Tests that up-front created transients with non-overlapping lifetimes alias the same pooled attachment.</summary>
     [Test(Description = "Regression: transients created up front (before any Execute) with non-overlapping lifetimes alias the same pooled attachment")]
     public void UpFrontCreatedTransientsAlias()
     {
@@ -317,6 +327,7 @@ public sealed class TestRenderGraph
         Assert.That(b.Texture.Version, Is.EqualTo(versionB), "Steady state must not rebind B.");
     }
 
+    /// <summary>Tests that nested lifetimes keep stable dedicated assignments across frames.</summary>
     [Test(Description = "Regression: nested lifetimes keep stable dedicated assignments across frames (no rebind oscillation)")]
     public void NestedLifetimesKeepStableAssignments()
     {
@@ -350,6 +361,7 @@ public sealed class TestRenderGraph
         Assert.That(b.Texture.Version, Is.EqualTo(versionB2), "Frame 3 must not rebind B.");
     }
 
+    /// <summary>Tests that an identical schedule across frames keeps the identical backing without rebinding.</summary>
     [Test(Description = "The identical schedule across frames keeps the identical backing without rebinding the facade")]
     public void IdenticalScheduleKeepsIdenticalBackingAcrossFrames()
     {
@@ -370,6 +382,7 @@ public sealed class TestRenderGraph
         Assert.That(a.Texture.Version, Is.EqualTo(version), "No rebind means no version bump in steady state.");
     }
 
+    /// <summary>Tests that a transient shares its depth source's attachment and that an unwritten source throws.</summary>
     [Test(Description = "A transient sharing another transient's depth gets the identical depth attachment; an unwritten depth source throws")]
     public void DepthSourceSharing()
     {
@@ -403,6 +416,7 @@ public sealed class TestRenderGraph
         Assert.That(exception.Message, Does.Contain("'orphanDepth'"));
     }
 
+    /// <summary>Tests that an imported render texture is never pooled or disposed by the graph.</summary>
     [Test(Description = "An imported render texture is never pooled, materializes nothing and is never disposed by the graph")]
     public void ImportedTextureIsNeverPooled()
     {
@@ -431,6 +445,7 @@ public sealed class TestRenderGraph
         Assert.That(external.IsDisposed, Is.False, "The graph must not dispose imported textures.");
     }
 
+    /// <summary>Tests that Execute returns the number of executed nodes.</summary>
     [Test(Description = "Execute returns the number of alive nodes that executed this frame")]
     public void ExecuteReturnsExecutedNodeCount()
     {
@@ -459,6 +474,7 @@ public sealed class TestRenderGraph
         Assert.That(withWork, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that Resize rematerializes graph-relative transients at the new size.</summary>
     [Test(Description = "Resize rematerializes graph-relative transients at the new size and later frames still run")]
     public void ResizeRematerializesGraphRelativeTransients()
     {
@@ -484,6 +500,7 @@ public sealed class TestRenderGraph
         Assert.That(node.ExecuteCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that Resize prunes stale pool entries while absolute-size transients keep their backing.</summary>
     [Test(Description = "Resize prunes pool entries of the old size; absolute-size transients keep their backing")]
     public void ResizePrunesStaleSizePoolEntries()
     {
@@ -508,6 +525,7 @@ public sealed class TestRenderGraph
         Assert.That(node.ExecuteCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that steady-state frames perform no meaningful managed allocations.</summary>
     [Test(Description = "Steady-state frames perform no meaningful managed allocations on the Setup/Compile/Execute path")]
     public void SteadyStateFramesDoNotAllocate()
     {
@@ -540,6 +558,7 @@ public sealed class TestRenderGraph
         TestContext.Out.WriteLine($"Steady-state allocation over 100 frames: {allocated} bytes.");
     }
 
+    /// <summary>Tests that destroying a transient disposes the facade but leaves the pooled backing reusable.</summary>
     [Test(Description = "Regression: DestroyTransient disposes the facade but must not dispose the pooled backing; a later same-spec transient receives the intact pooled attachment")]
     public void DestroyTransientKeepsPooledAttachmentAlive()
     {
@@ -589,6 +608,7 @@ public sealed class TestRenderGraph
         Assert.That(node.ExecuteCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that render texture wrappers do not own or synchronously release their attachments.</summary>
     [Test(Description = "The color texture wrappers of a render texture do not own the attachments: disposing the render texture disposes the wrappers and the frame buffer, while attachment release is left to the frame buffer's (deferred) destruction")]
     public void RenderTextureWrappersDoNotOwnAttachments()
     {

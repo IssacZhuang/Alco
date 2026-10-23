@@ -18,12 +18,21 @@ public sealed unsafe class FontAtlasPacker : AutoDisposable
     private readonly int _height;
     private readonly int _padding;
 
+    /// <summary>The glyph infos indexed by Unicode code point.</summary>
     public GlyphInfo[] Glyphs => _glyphs;
+    /// <summary>The packed atlas bitmap pixels.</summary>
     public ReadOnlySpan<byte> Bitmap => _bitmap.AsSpan();
+    /// <summary>The atlas width in pixels.</summary>
     public int Width => _width;
+    /// <summary>The atlas height in pixels.</summary>
     public int Height => _height;
+    /// <summary>The padding in pixels around each packed glyph.</summary>
     public int Padding => _padding;
 
+    /// <summary>Creates a packer over a bitmap of the given size.</summary>
+    /// <param name="width">The atlas width in pixels.</param>
+    /// <param name="height">The atlas height in pixels.</param>
+    /// <param name="padding">The padding in pixels around each packed glyph.</param>
     public FontAtlasPacker(int width, int height, int padding = 1)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
@@ -41,6 +50,10 @@ public sealed unsafe class FontAtlasPacker : AutoDisposable
         stbtt_PackBegin(_context, _bitmap.UnsafePointer, width, height, width, padding, null);
     }
 
+    /// <summary>Packs the glyphs of the given Unicode ranges from a TTF font into the atlas.</summary>
+    /// <param name="ttf">The TTF font data.</param>
+    /// <param name="fontSize">The font size in pixels.</param>
+    /// <param name="unicodeRanges">The inclusive Unicode code point ranges to pack.</param>
     public void Add(ReadOnlySpan<byte> ttf, float fontSize, IEnumerable<int2> unicodeRanges)
     {
         if (ttf == ReadOnlySpan<byte>.Empty)

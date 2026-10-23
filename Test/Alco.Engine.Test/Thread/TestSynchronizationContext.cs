@@ -4,6 +4,9 @@ using NUnit.Framework;
 namespace Alco.Engine.Test;
 
 
+/// <summary>
+/// Tests that the engine installs its synchronization context on the main thread and keeps continuations there.
+/// </summary>
 public class TestSynchronizationContext
 {
     private class TestEngine : GameEngine
@@ -70,6 +73,7 @@ public class TestSynchronizationContext
 
     }
 
+    /// <summary>Tests continuation threading for tasks started on the main thread and on a worker thread.</summary>
     [Test]
     public void Test()
     {

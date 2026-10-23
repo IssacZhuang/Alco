@@ -4,23 +4,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The engine's shared sampler bank, owned by the <see cref="RenderingSystem"/> —
-/// the GPU device only creates raw samplers
-/// (<see cref="GPUDevice.CreateSampler"/>); which samplers exist and how they
-/// map to shader member names is a rendering-layer policy.
-/// <br/>The shader-side counterpart is the <c>samplers</c> ParameterBlock of
-/// <c>AlcoRendering_Core.slang</c>; every shader importing the core module gets
-/// the block reflected into one of its bind groups. The bank is immutable
-/// engine-wide state and is never overridable: the bank serves a whole
-/// sampler-only bind group as one shared <see cref="GPUResourceGroup"/>
-/// (see <see cref="GetSamplerGroup"/>) that every material binds as-is.
-/// Custom samplers are a separate concept — a module declares its own sampler
-/// member and the material binds it through
-/// <c>GraphicsMaterial.SetSampler</c>; they never interact with the bank.
-/// <br/>Thread safety: the samplers are created eagerly at construction and the
-/// shared group cache is synchronized, so materials on any number of threads
-/// resolve the bank concurrently (the GPU device's create APIs are thread safe;
-/// only command recording is per context).
+/// The engine's immutable bank of shared samplers owned by the <see cref="RenderingSystem"/>, serving sampler-only bind groups that materials bind as-is.
+/// Samplers are created eagerly and group lookups are synchronized, so materials may resolve the bank from any thread.
 /// </summary>
 public sealed class SharedSamplers : IDisposable
 {
@@ -140,11 +125,7 @@ public sealed class SharedSamplers : IDisposable
         or "anisotropicRepeat" or "depthComparison";
 
     /// <summary>
-    /// Resolves a bank sampler by its shader-side member name (e.g.
-    /// <c>linearClamp</c>). This is the single name table of the shared sampler
-    /// convention; an unknown name means a shader declared a sampler that is
-    /// neither a bank member nor material-bound — resolved loudly at bind group
-    /// assembly, not silently ignored.
+    /// Resolves a bank sampler by its shader-side member name, returning <c>false</c> when the name is not a bank member.
     /// </summary>
     public bool TryGetByName(string shaderMemberName, [NotNullWhen(true)] out GPUSampler? sampler)
     {
@@ -164,19 +145,11 @@ public sealed class SharedSamplers : IDisposable
     }
 
     /// <summary>
-    /// Gets the shared, immutable resource group binding the bank samplers for a
-    /// reflected sampler-only bind group layout (the <c>samplers</c> block of the
-    /// core module reflected into a shader). The group is created once per
-    /// structural layout and shared by every material and frame — bank samplers
-    /// are engine-wide constants and are never overridden. Lookups after the
-    /// first build allocate nothing (structural compare, no key strings).
-    /// <br/>Thread safe: the whole lookup-and-create runs under the group lock —
-    /// this is a material-construction path, not a per-frame hot path.
+    /// Gets the shared, immutable resource group binding the bank samplers for a reflected sampler-only bind group layout.
+    /// The group is created once per structural layout and shared by every material and frame.
     /// </summary>
-    /// <param name="layout">The reflected bind group layout; every entry must be
-    /// a bank member.</param>
-    /// <exception cref="GraphicsException">The layout declares an entry that is
-    /// not a bank member.</exception>
+    /// <param name="layout">The reflected bind group layout; every entry must be a bank member.</param>
+    /// <exception cref="GraphicsException">The layout declares an entry that is not a bank member.</exception>
     public GPUResourceGroup GetSamplerGroup(BindGroupLayout layout)
     {
         lock (_groupLock)
@@ -235,6 +208,9 @@ public sealed class SharedSamplers : IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases the shared samplers and cached bind groups.
+    /// </summary>
     public void Dispose()
     {
         lock (_groupLock)

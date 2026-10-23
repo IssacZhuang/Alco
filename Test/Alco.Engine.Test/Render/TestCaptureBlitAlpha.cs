@@ -9,11 +9,7 @@ using NUnit.Framework;
 namespace Alco.Engine.Test;
 
 /// <summary>
-/// Pixel-level GPU tests of the capture blits' alpha handling on the real alco-gpu
-/// backend, drawn the way the capture systems draw them (a full-screen blit into an
-/// RGBA8 target): the plain <c>Blit</c> passes the source alpha through — the
-/// transparent-capture path — while <c>BlitOpaque</c> forces every alpha to 1, so
-/// opaque screenshots need no CPU-side alpha pass.
+/// Pixel-level tests that capture blits preserve source alpha while opaque blits force alpha to one.
 /// </summary>
 [TestFixture]
 [NonParallelizable]

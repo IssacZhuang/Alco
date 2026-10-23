@@ -1,5 +1,8 @@
 namespace Alco.IO;
 
+/// <summary>
+/// Defines the file extension constants used by the asset system.
+/// </summary>
 public static class FileExt
 {
     /// <summary>The compiled shader binary asset extension (<c>.scb</c>).</summary>

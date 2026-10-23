@@ -5,21 +5,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A throttled GPU timestamp sampler: timestamps are recorded, resolved, and read
-/// back only once per interval (default 1s) — no GPU timestamp work in between — and
-/// the readback always returns the previous sample (≥ one interval old), so its GPU
-/// work is guaranteed complete. Per frame: gate on <see cref="ShouldRecord"/>, record
-/// into <see cref="QuerySet"/>, resolve into <see cref="ResolveBuffer"/>, then call
-/// <see cref="EndSample"/>; <see cref="TryReadback"/> returns the previous sample's
-/// slots (indexed by logical slot) or null.
-/// <para>
-/// Two resolve layouts: contiguous, slots packed tightly and resolved together via
-/// <see cref="ResolveAll"/> once every slot has been written; padded-pair, each slot
-/// pair resolved into its own stride-aligned region (<see cref="PairStrideBytes"/>)
-/// via <see cref="ResolvePair(RenderPassScope, int)"/> right after it is written.
-/// Resolving slots that were not yet written (mid-frame, partial set) can lose the
-/// device on some backends.
-/// </para>
+/// A throttled GPU timestamp sampler that records, resolves, and reads back timestamps once per interval, always returning the previous sample.
+/// Supports a contiguous resolve layout (<see cref="ResolveAll(RenderPassScope)"/>) and a padded-pair layout (<see cref="ResolvePair(RenderPassScope, int)"/>).
 /// </summary>
 public sealed class GpuTimestampSampler : AutoDisposable
 {
@@ -190,11 +177,8 @@ public sealed class GpuTimestampSampler : AutoDisposable
     }
 
     /// <summary>
-    /// Schedule (at <paramref name="pass"/> close) a resolve of the sampler's
-    /// whole query set into the resolve buffer at offset 0 — the layout
-    /// <see cref="DeltaMilliseconds"/> reads back. Contiguous layout only, and
-    /// only valid once every slot has been written this frame. A repeated
-    /// identical resolve is harmless.
+    /// Schedules a resolve of the whole query set into the resolve buffer at offset 0 when the pass closes.
+    /// Contiguous layout only, and valid only after every slot has been written this frame.
     /// </summary>
     /// <param name="pass">An open pass scope; the resolve runs when it closes.</param>
     public void ResolveAll(RenderPassScope pass)
@@ -215,15 +199,11 @@ public sealed class GpuTimestampSampler : AutoDisposable
     }
 
     /// <summary>
-    /// Schedule (at <paramref name="pass"/> close) a resolve of one slot pair
-    /// into its own stride-aligned region of the resolve buffer, so passes
-    /// sharing the sampler never overwrite each other's timings. Padded-pair
-    /// layout only; call on the pass that writes the pair's end timestamp, after
-    /// both of its slots have been written.
+    /// Schedules a resolve of one slot pair into its own stride-aligned region of the resolve buffer when the pass closes.
+    /// Padded-pair layout only; call after both slots of the pair have been written.
     /// </summary>
     /// <param name="pass">An open pass scope; the resolve runs when it closes.</param>
-    /// <param name="pairIndex">The pair to resolve; pair <c>i</c> covers slots
-    /// <c>2i</c> and <c>2i+1</c>.</param>
+    /// <param name="pairIndex">The pair to resolve; pair <c>i</c> covers slots <c>2i</c> and <c>2i+1</c>.</param>
     public void ResolvePair(RenderPassScope pass, int pairIndex)
     {
         pass.ResolveTimestampsOnEnd(QuerySet, (uint)(pairIndex * 2), 2, ResolveBuffer,

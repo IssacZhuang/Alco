@@ -7,6 +7,9 @@ namespace Alco.Graphics.Test;
 // cross-module composite + type specialization, interface defaults,
 // bool value specialization with DCE, parameter-block reflection,
 // disk-cache round-trip.
+/// <summary>
+/// Spike tests for the Slang composition mechanisms the material system relies on, including cross-module type specialization, interface defaults, value specialization, reflection, and disk-cache round-trips.
+/// </summary>
 [TestFixture]
 public class SlangCompositionSpikeTest
 {
@@ -181,6 +184,9 @@ public class SlangCompositionSpikeTest
         public struct Surface : ISurface { }
         """;
 
+    /// <summary>
+    /// Tests that composed template entry points specialize with the surface type across modules.
+    /// </summary>
     [Test]
     public void CrossModuleComposite_SpecializesTemplateEntriesWithSurfaceType()
     {
@@ -216,6 +222,9 @@ public class SlangCompositionSpikeTest
         Assert.That(again, Is.SameAs(program), "same composition must return the cached program");
     }
 
+    /// <summary>
+    /// Tests that a surface overriding only albedo inherits the interface defaults.
+    /// </summary>
     [Test]
     public void InterfaceDefaults_SurfaceOverridesOnlyWhatItCustomizes()
     {
@@ -236,6 +245,9 @@ public class SlangCompositionSpikeTest
         });
     }
 
+    /// <summary>
+    /// Tests that bool value specialization replaces a pass-private define and dead-strips the branch.
+    /// </summary>
     [Test]
     public void ValueSpecialization_ReplacesPassPrivateDefine_AndDeadStripsIt()
     {
@@ -264,6 +276,9 @@ public class SlangCompositionSpikeTest
         });
     }
 
+    /// <summary>
+    /// Tests that module layout reports parameter-block members without linking.
+    /// </summary>
     [Test]
     public void ModuleLayout_ReportsParameterBlockMembers_WithoutLinking()
     {
@@ -286,6 +301,9 @@ public class SlangCompositionSpikeTest
             Is.Empty, "a module without the block reports empty");
     }
 
+    /// <summary>
+    /// Tests that a composed program round-trips through the disk cache.
+    /// </summary>
     [Test]
     public void ComposedProgram_RoundTripsThroughDiskCache()
     {

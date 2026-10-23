@@ -4,11 +4,17 @@ using NUnit.Framework;
 
 namespace Alco.LLM.Test;
 
+/// <summary>
+/// Covers <see cref="ToolResultFormatter"/> output shapes and length-cap truncation for tool results.
+/// </summary>
 [TestFixture]
 public class ToolResultFormatterTests
 {
     private static ToolResultFormatter Formatter { get; } = new();
 
+    /// <summary>
+    /// Tests that <see cref="ToolOk"/> messages are returned unchanged.
+    /// </summary>
     [Test]
     public void Format_ToolOk_ReturnsMessageVerbatim()
     {
@@ -17,6 +23,9 @@ public class ToolResultFormatterTests
         Assert.That(Formatter.Format(result), Is.EqualTo("Placed 'Wall' at (10,20)."));
     }
 
+    /// <summary>
+    /// Tests that a truncated list serializes items, total, truncated, and hint.
+    /// </summary>
     [Test]
     public void Format_ToolList_TruncatedWithHint_SerializesAllFields()
     {
@@ -31,6 +40,9 @@ public class ToolResultFormatterTests
         Assert.That(root.GetProperty("hint").GetString(), Is.EqualTo("Use offset:10 for more"));
     }
 
+    /// <summary>
+    /// Tests that a complete list omits the hint property.
+    /// </summary>
     [Test]
     public void Format_ToolList_AllFit_OmitsHint()
     {
@@ -42,6 +54,9 @@ public class ToolResultFormatterTests
         Assert.That(doc.RootElement.TryGetProperty("hint", out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that an empty list serializes empty items and a zero total.
+    /// </summary>
     [Test]
     public void Format_ToolList_Empty_HasEmptyItemsAndZeroTotal()
     {
@@ -54,6 +69,9 @@ public class ToolResultFormatterTests
         Assert.That(doc.RootElement.GetProperty("truncated").GetBoolean(), Is.False);
     }
 
+    /// <summary>
+    /// Tests that tool data is serialized as camel-case JSON.
+    /// </summary>
     [Test]
     public void Format_ToolData_SerializesInnerObjectAsCamelCaseJson()
     {
@@ -67,6 +85,9 @@ public class ToolResultFormatterTests
         Assert.That(root.GetProperty("terrainId").GetString(), Is.EqualTo("Grass"));
     }
 
+    /// <summary>
+    /// Tests that an error result serializes the error message and code.
+    /// </summary>
     [Test]
     public void Format_ToolError_SerializesErrorAndCode()
     {
@@ -78,6 +99,9 @@ public class ToolResultFormatterTests
         Assert.That(doc.RootElement.GetProperty("code").GetString(), Is.EqualTo("NO_GAME"));
     }
 
+    /// <summary>
+    /// Tests that an oversized list yields valid JSON within the length cap.
+    /// </summary>
     [Test]
     public void Format_ToolList_ExceedsCap_ReturnsValidTruncatedJson()
     {
@@ -94,6 +118,9 @@ public class ToolResultFormatterTests
         Assert.That(doc.RootElement.GetProperty("items").GetArrayLength(), Is.LessThan(items.Length));
     }
 
+    /// <summary>
+    /// Tests that oversized tool data yields valid truncated JSON within the length cap.
+    /// </summary>
     [Test]
     public void Format_ToolData_ExceedsCap_ReturnsValidTruncatedJson()
     {
@@ -107,6 +134,9 @@ public class ToolResultFormatterTests
         Assert.That(doc.RootElement.GetProperty("originalLength").GetInt32(), Is.GreaterThan(ToolResultFormatter.DefaultMaxFormattedLength));
     }
 
+    /// <summary>
+    /// Tests that an oversized error is truncated while retaining its code.
+    /// </summary>
     [Test]
     public void Format_ToolError_ExceedsCap_ReturnsValidTruncatedJson()
     {
@@ -120,6 +150,9 @@ public class ToolResultFormatterTests
         Assert.That(doc.RootElement.GetProperty("error").GetString(), Does.EndWith("...[truncated]"));
     }
 
+    /// <summary>
+    /// Tests that output exceeding the cap ends with the truncation marker.
+    /// </summary>
     [Test]
     public void Format_ExceedsCap_TruncatesWithMarker()
     {
@@ -132,6 +165,9 @@ public class ToolResultFormatterTests
         Assert.That(formatted.Length, Is.EqualTo(ToolResultFormatter.DefaultMaxFormattedLength));
     }
 
+    /// <summary>
+    /// Tests that output exactly at the cap is not truncated.
+    /// </summary>
     [Test]
     public void Format_AtCapBoundary_NotTruncated()
     {

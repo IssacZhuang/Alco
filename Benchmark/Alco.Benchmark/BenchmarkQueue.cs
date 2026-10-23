@@ -6,12 +6,18 @@ using Alco;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks pushing 1000 items to a ConcurrentQueue and a CircularWorkStealingDeque.
+/// </summary>
 public class BenchmarkQueuePush
 {
     private const int Count = 1000;
     private ConcurrentQueue<int> _concurrentQueue;
     private CircularWorkStealingDeque<int> _circularWorkStealingDeque;
 
+    /// <summary>
+    /// Creates the queues used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -19,6 +25,9 @@ public class BenchmarkQueuePush
         _circularWorkStealingDeque = new CircularWorkStealingDeque<int>(1024);
     }
 
+    /// <summary>
+    /// Benchmarks pushing 1000 items to a ConcurrentQueue.
+    /// </summary>
     [Benchmark(Description = "ConcurrentQueue push")]
     public void ConcurrentQueue()
     {
@@ -28,6 +37,9 @@ public class BenchmarkQueuePush
         }
     }
 
+    /// <summary>
+    /// Benchmarks pushing 1000 items to a CircularWorkStealingDeque.
+    /// </summary>
     [Benchmark(Description = "CircularWorkStealingDeque push")]
     public void CircularWorkStealingDeque()
     {
@@ -38,11 +50,17 @@ public class BenchmarkQueuePush
     }
 }
 
+/// <summary>
+/// Benchmarks popping 1000 items from a ConcurrentQueue and a CircularWorkStealingDeque on one and multiple threads.
+/// </summary>
 public class BenchmarkQueuePop{
     private const int Count = 1000;
     private ConcurrentQueue<int> _concurrentQueue;
     private CircularWorkStealingDeque<int> _circularWorkStealingDeque;
 
+    /// <summary>
+    /// Creates and fills the queues used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -55,6 +73,9 @@ public class BenchmarkQueuePop{
         }
     }
 
+    /// <summary>
+    /// Benchmarks popping 1000 items from a ConcurrentQueue on a single thread.
+    /// </summary>
     [Benchmark(Description = "ConcurrentQueue pop single thread")]
     public void ConcurrentQueue()
     {
@@ -64,6 +85,9 @@ public class BenchmarkQueuePop{
         }
     }
 
+    /// <summary>
+    /// Benchmarks stealing 1000 items from a CircularWorkStealingDeque on a single thread.
+    /// </summary>
     [Benchmark(Description = "CircularWorkStealingDeque pop single thread")]
     public void CircularWorkStealingDeque()
     {
@@ -73,6 +97,9 @@ public class BenchmarkQueuePop{
         }
     }
 
+    /// <summary>
+    /// Benchmarks popping 1000 items from a ConcurrentQueue in parallel.
+    /// </summary>
     [Benchmark(Description = "ConcurrentQueue pop multi thread")]
     public void ConcurrentQueueMultiThread()
     {
@@ -82,6 +109,9 @@ public class BenchmarkQueuePop{
         });
     }
 
+    /// <summary>
+    /// Benchmarks stealing all items from a CircularWorkStealingDeque in parallel.
+    /// </summary>
     [Benchmark(Description = "CircularWorkStealingDeque pop multi thread")]
     public void CircularWorkStealingDequeMultiThread()
     {

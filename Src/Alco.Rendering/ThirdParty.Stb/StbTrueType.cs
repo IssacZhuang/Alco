@@ -13,8 +13,14 @@ namespace StbTrueTypeSharp
 	{
 		internal static bool usedOldRasterizer = false;
 
+		/// <summary>
+		/// Gets the number of live native allocations.
+		/// </summary>
 		public static int NativeAllocations => MemoryStats.Allocations;
 
+		/// <summary>
+		/// Holds parsed TrueType font tables and the font data this instance owns.
+		/// </summary>
 		public class stbtt_fontinfo : IDisposable
 		{
 			public stbtt__buf cff;
@@ -40,6 +46,9 @@ namespace StbTrueTypeSharp
 			public void* userdata;
 			public bool useOldRasterizer;
 
+			/// <summary>
+			/// Releases the font data owned by this instance.
+			/// </summary>
 			public void Dispose()
 			{
 				Dispose(true);
@@ -60,6 +69,13 @@ namespace StbTrueTypeSharp
 			}
 		}
 
+		/// <summary>
+		/// Finds the offset of a table in the font, or 0 when the table is missing.
+		/// </summary>
+		/// <param name="data">The font data.</param>
+		/// <param name="fontstart">The offset of the font's table directory.</param>
+		/// <param name="tag">The four-character table tag.</param>
+		/// <returns>The table offset, or 0 when not found.</returns>
 		public static uint stbtt__find_table(byte* data, uint fontstart, string tag)
 		{
 			int num_tables = ttUSHORT(data + fontstart + 4);
@@ -76,6 +92,19 @@ namespace StbTrueTypeSharp
 			return 0;
 		}
 
+		/// <summary>
+		/// Bakes a range of characters from the font into a bitmap.
+		/// </summary>
+		/// <param name="ttf">The font data.</param>
+		/// <param name="offset">The offset of the font within the data.</param>
+		/// <param name="pixel_height">The font pixel height.</param>
+		/// <param name="pixels">The destination 8-bit alpha bitmap.</param>
+		/// <param name="pw">The bitmap width in pixels.</param>
+		/// <param name="ph">The bitmap height in pixels.</param>
+		/// <param name="first_char">The first character code to bake.</param>
+		/// <param name="num_chars">The number of character codes to bake.</param>
+		/// <param name="chardata">Receives the baked character metrics.</param>
+		/// <returns><c>true</c> when the characters fit in the bitmap; otherwise <c>false</c>.</returns>
 		public static bool stbtt_BakeFontBitmap(byte[] ttf, int offset, float pixel_height, byte[] pixels, int pw,
 			int ph,
 			int first_char, int num_chars, stbtt_bakedchar[] chardata)

@@ -13,6 +13,11 @@ namespace Alco.Audio;
 /// </summary>
 public unsafe static class AudioDecodeUtility
 {
+    /// <summary>
+    /// Averages interleaved stereo samples into mono.
+    /// </summary>
+    /// <param name="stereoData">The interleaved stereo samples.</param>
+    /// <param name="monoData">The destination mono samples; its length must be half of <paramref name="stereoData"/>.</param>
     public static void StereoToMono(ReadOnlySpan<float> stereoData, Span<float> monoData)
     {
         Debug.Assert(stereoData.Length % 2 == 0);

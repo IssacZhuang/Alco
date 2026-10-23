@@ -7,28 +7,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// Volumetric clouds renderer for deferred PBR compositions: a half-resolution
-/// ray-marched cloud slab (Perlin-Worley base + Worley-detail erosion, Nubis
-/// style — see <c>Shaders/Passes/Volumetrics/VolumetricClouds.slang</c>)
-/// composited over the HDR scene color with a depth-aware bilateral upsample,
-/// plus a small cloud-shadow coverage bake the deferred lighting pass uses to
-/// dim the direct sun, so cloud shadows drift across the terrain.
-/// <br/>The cloud lighting adapts to the procedural sky automatically: the sun
-/// energy is the atmosphere's own solar radiance attenuated at cloud height
-/// (sunset clouds stay lit and redden after the ground light has faded), and
-/// the ambient is the CPU-filtered sky gradient — both arrive through the
-/// shared lighting data buffer, so no sky state is duplicated here.
-/// <br/>The 3D noise textures (128³ base + 32³ detail, RGBA8) are generated
-/// once by <c>volumetric-cloud-noise.slang</c> on the first frame. The shadow
-/// coverage texture is node-owned (not a graph transient): the lighting pass
-/// reads the previous frame's bake, one frame behind the visible clouds but
-/// always in lockstep with its own uniforms.
-/// <br/>Attach the renderer via <see cref="Attach"/>: it creates its transient
-/// march target, registers itself directly after the deferred lighting node
-/// (before the volumetric light overlay, whose near-camera shafts correctly
-/// add over the composited clouds), binds the coverage texture to the lighting
-/// material's <c>_cloudShadow</c> slot and publishes the shadow uniforms on the
-/// scene environment.
+/// Volumetric clouds renderer for deferred PBR compositions, compositing a ray-marched cloud slab over the scene color and baking cloud shadows for the deferred lighting pass. Attach it via <see cref="Attach"/> after the lighting node.
 /// </summary>
 public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
 {
@@ -176,13 +155,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// The node's construction data: the march, composite, cloud-shadow coverage
-    /// and noise-bake shaders, plus the march resolution scale. The noise-bake
-    /// module's base/detail variants are the generic value specializations
-    /// (MainCS&lt;let IsDetail&gt;) of one module: false = base shape bake,
-    /// true = detail bake, selected when the materials are created.
-    /// Service-type dependencies (the rendering system) are explicit constructor
-    /// parameters instead — a descriptor is pure data.
+    /// Construction data for <see cref="RGNode_VolumetricClouds"/>: the march, composite, shadow-bake, and noise-bake shaders plus the march resolution scale.
     /// </summary>
     public readonly struct Descriptor
     {
@@ -279,12 +252,7 @@ public sealed class RGNode_VolumetricClouds : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Attaches the renderer to a deferred composition: creates the transient
-    /// half-resolution march target, registers itself directly after the
-    /// lighting node (before the volumetric light overlay), wires the shared
-    /// lighting data / G-buffer depth / shadow map bindings, binds the shadow
-    /// coverage texture to the lighting material's _cloudShadow slot and
-    /// publishes the cloud shadow uniforms on the environment.
+    /// Attaches this renderer after the lighting node, creating its transient march target, binding the shared G-buffer and shadow resources, and publishing cloud shadow state.
     /// </summary>
     /// <param name="graph">The render graph driving the frame.</param>
     /// <param name="chain">The content chain whose current content the clouds

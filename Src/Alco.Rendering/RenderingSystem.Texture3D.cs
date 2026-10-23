@@ -4,6 +4,9 @@ namespace Alco.Rendering;
 
 // 3D texture factory
 
+/// <summary>
+/// 3D texture creation.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>

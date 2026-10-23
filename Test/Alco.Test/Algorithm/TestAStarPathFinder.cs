@@ -5,6 +5,9 @@ using NUnit.Framework;
 
 namespace Alco.Test.Algorithm;
 
+/// <summary>
+/// Tests A* pathfinding on a rectangular grid, covering waypoints, blocked cells, costs, and diagonal rules.
+/// </summary>
 [TestFixture]
 public class TestAStarPathFinder
 {
@@ -44,6 +47,9 @@ public class TestAStarPathFinder
         }
     }
 
+    /// <summary>
+    /// Tests that equal start and end return true with an empty path.
+    /// </summary>
     [Test]
     public void StartEqualsEnd_ReturnsTrue_AndEmptyPath()
     {
@@ -56,6 +62,9 @@ public class TestAStarPathFinder
         Assert.That(path.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that a fractional goal ends at the exact requested position.
+    /// </summary>
     [Test]
     public void FractionalGoal_LastWaypointIsExactEndPosition()
     {
@@ -76,6 +85,9 @@ public class TestAStarPathFinder
         }
     }
 
+    /// <summary>
+    /// Tests that a fractional goal in the start cell returns a single exact waypoint.
+    /// </summary>
     [Test]
     public void SameCell_FractionalGoal_ReturnsSingleExactWaypoint()
     {
@@ -89,6 +101,9 @@ public class TestAStarPathFinder
         Assert.That(path[0], Is.EqualTo(new Vector2(1.4f, 1.8f)));
     }
 
+    /// <summary>
+    /// Tests that a nearly identical goal returns an empty path.
+    /// </summary>
     [Test]
     public void SameCell_NearlyIdenticalGoal_ReturnsEmptyPath()
     {
@@ -101,6 +116,9 @@ public class TestAStarPathFinder
         Assert.That(path.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that ignoring the end point ends the path at an adjacent cell center.
+    /// </summary>
     [Test]
     public void IgnoreEndPoint_True_FractionalGoal_EndsAtAdjacentCellCenter()
     {
@@ -120,6 +138,9 @@ public class TestAStarPathFinder
             "The path must end orthogonally adjacent to the goal cell");
     }
 
+    /// <summary>
+    /// Tests that a blocked goal returns false.
+    /// </summary>
     [Test]
     public void GoalBlocked_ReturnsFalse()
     {
@@ -132,6 +153,9 @@ public class TestAStarPathFinder
         Assert.That(path.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that a path can lead out of a blocked start cell.
+    /// </summary>
     [Test]
     public void BlockedStart_CanPathOut()
     {
@@ -152,6 +176,9 @@ public class TestAStarPathFinder
         }
     }
 
+    /// <summary>
+    /// Tests that a path around a blocked cell is valid and shortest.
+    /// </summary>
     [Test]
     public void UniquePath_OnRectGrid_IsValidShortestPath()
     {
@@ -174,6 +201,9 @@ public class TestAStarPathFinder
         Assert.That(steps[steps.Length - 1], Is.EqualTo(new Vector2(4, 0)));
     }
 
+    /// <summary>
+    /// Tests that weighted costs steer the path away from an expensive cell.
+    /// </summary>
     [Test]
     public void WeightedCost_AvoidsHighCostCell()
     {
@@ -197,6 +227,9 @@ public class TestAStarPathFinder
         Assert.That(steps[steps.Length - 1], Is.EqualTo(new Vector2(2, 0)));
     }
 
+    /// <summary>
+    /// Tests that diagonal corner cutting is prevented.
+    /// </summary>
     [Test]
     public void Diagonal_CornerCutting_Prevented()
     {
@@ -214,6 +247,9 @@ public class TestAStarPathFinder
         Assert.That(steps[steps.Length - 1], Is.EqualTo(new Vector2(1, 1)));
     }
 
+    /// <summary>
+    /// Tests that a blocked goal fails when the end point is not ignored.
+    /// </summary>
     [Test]
     public void IgnoreEndPoint_False_BlockedGoal_ReturnsFalse()
     {
@@ -227,6 +263,9 @@ public class TestAStarPathFinder
         Assert.That(path.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that a blocked goal succeeds at an adjacent cell when the end point is ignored.
+    /// </summary>
     [Test]
     public void IgnoreEndPoint_True_BlockedGoal_ReturnsTrue_PathReachesAdjacent()
     {
@@ -245,6 +284,9 @@ public class TestAStarPathFinder
         Assert.That(isAdjacentToGoal, Is.True);
     }
 
+    /// <summary>
+    /// Tests that ignoring a goal without traversable neighbors fails.
+    /// </summary>
     [Test]
     public void IgnoreEndPoint_True_NoTraversableNeighbor_ReturnsFalse()
     {
@@ -266,6 +308,9 @@ public class TestAStarPathFinder
         Assert.That(path.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that equal start and end return true with an empty path when the end point is ignored.
+    /// </summary>
     [Test]
     public void IgnoreEndPoint_True_StartEqualsEnd_ReturnsTrue_EmptyPath()
     {
@@ -279,6 +324,9 @@ public class TestAStarPathFinder
         Assert.That(path.Count, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that ignoring the end point picks the nearest adjacent goal cell.
+    /// </summary>
     [Test]
     public void IgnoreEndPoint_True_MultipleAdjacentOptions_FindsShortest()
     {

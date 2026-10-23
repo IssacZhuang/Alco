@@ -122,11 +122,8 @@ internal static class GizmoMath
     }
 
     /// <summary>
-    /// Attempts to decompose a row-major matrix produced by 2D gizmo manipulation back
-    /// into 2D transform components. The rotation sign convention matches
-    /// <see cref="Transform2D.Matrix"/>: a positive <see cref="Rotation2D"/> angle rotates
-    /// the local X axis toward -Y in world space (clockwise on screen for a Y-up camera).
-    /// Fails when any axis row is degenerate.
+    /// Decomposes a row-major matrix into 2D transform components using the same rotation
+    /// sign convention as <see cref="Transform2D.Matrix"/>; fails when any axis row is degenerate.
     /// </summary>
     /// <param name="matrix">The matrix to decompose.</param>
     /// <param name="position">The extracted 2D position.</param>

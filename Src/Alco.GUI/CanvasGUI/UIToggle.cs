@@ -70,6 +70,9 @@ public class UIToggle : UIButton
         _onToggleEvent?.Invoke(isOn);
     }
 
+    /// <summary>
+    /// Toggles <see cref="IsChecked"/> in response to a click.
+    /// </summary>
     public override void OnClick(Canvas canvas, Vector2 mousePosition)
     {
         base.OnClick(canvas, mousePosition);

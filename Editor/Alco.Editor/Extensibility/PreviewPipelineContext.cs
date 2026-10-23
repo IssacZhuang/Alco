@@ -5,14 +5,8 @@ using Alco.Rendering;
 namespace Alco.Editor.Extensibility;
 
 /// <summary>
-/// The construction data handed to an <see cref="IPreviewPipelineFactory"/> by the
-/// <see cref="PreviewViewport"/>: the shared editor services, the resource base name,
-/// the initial render size, and the viewport-owned content nodes.
-/// <br/>The <see cref="RecordNode"/> is created up front (its callback reads the
-/// viewport's RecordFrame delegate). The scene content node is created through
-/// <see cref="CreateSceneNode"/> once the pipeline exists, because its base class
-/// (<see cref="RGNode_SceneContent"/>) binds the pipeline's graph and chain at
-/// construction; its render override reads the viewport's SceneContent delegate.
+/// The construction data handed to an <see cref="IPreviewPipelineFactory"/> by the <see cref="PreviewViewport"/>: the shared editor services, the resource base name, the initial render size and the viewport-owned content nodes.
+/// The scene content node is created through <see cref="CreateSceneNode"/> once the pipeline's graph and chain exist.
 /// </summary>
 public sealed class PreviewPipelineContext
 {

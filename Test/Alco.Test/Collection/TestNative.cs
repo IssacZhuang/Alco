@@ -6,8 +6,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Alco;
 
+/// <summary>Tests native heap allocation and reuse.</summary>
 public class TestNative
 {
+    /// <summary>Tests that MiniHeap allocations retain their values across a reset.</summary>
     [Test(Description = "native chunk list add")]
     public unsafe void TestMiniHeapAlloc()
     {

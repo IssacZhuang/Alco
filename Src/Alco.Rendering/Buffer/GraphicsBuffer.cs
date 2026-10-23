@@ -118,11 +118,8 @@ public class GraphicsBuffer : AutoDisposable
     }
 
     /// <summary>
-    /// Returns the bind group that binds this buffer as the only resource of a
-    /// shader bind group with the given layout, creating it on first use. The
-    /// group is cached on the buffer for its lifetime and shared across all
-    /// materials and frames, so cycling the buffer through a material (e.g.
-    /// per-instance dispatches) does not allocate a new bind group per change.
+    /// Returns the cached bind group that binds this buffer as the only resource of the
+    /// given layout, creating it on first use.
     /// </summary>
     /// <param name="layout">The bind group layout of the consuming shader's group.</param>
     /// <param name="binding">The binding number of the buffer inside the group.</param>

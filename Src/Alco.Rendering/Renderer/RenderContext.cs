@@ -5,20 +5,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The context of the render object. Owns one <see cref="GPUCommandBuffer"/>. Recording
-/// requires an active frame scope (<see cref="BeginFrame"/>); all draw commands are
-/// recorded inside <see cref="RenderPassScope"/> instances handed out by
-/// <see cref="BeginPass(GPUFrameBuffer, ReadOnlySpan{ClearColorData}, float?, uint?, ReadOnlySpan{AttachmentOps}, AttachmentOps?)"/>,
-/// consumed with <c>using</c>.
-/// <br/>Submission model: unified — the frame scope is the only submitter. Passes (and
-/// compute recorded through <see cref="CommandBuffer"/>) never submit; disposing the
-/// frame scope submits the whole buffer exactly once. <see cref="RenderGraph"/> drives
-/// its shared context through the same public <see cref="BeginFrame"/> path, so graph
-/// frames and standalone frames behave identically.
-/// <br/>All APIs in this class are not thread safe, but you can create multiple
-/// instances on different threads.
-/// <br/>Listeners bound through <see cref="RenderPassScope.AddListener"/> fire once per
-/// frame scope — when it opens and when it submits or aborts — never per pass.
+/// The context of a render object that owns one <see cref="GPUCommandBuffer"/>; the frame scope is the only submitter and all passes record into it.
+/// All APIs in this class are not thread safe, but multiple instances may be created and used on different threads.
 /// </summary>
 public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
 {
@@ -129,11 +117,8 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     }
 
     /// <summary>
-    /// Begins a render pass with GPU timestamp writes at pass begin and/or end.
-    /// A null index skips the corresponding write, which allows bracketing a span
-    /// of consecutive passes with one timestamp pair (begin on the first pass,
-    /// end on the last). Only call this when
-    /// <see cref="GPUDevice.IsFeatureSupported"/>(<see cref="GPUFeatures.TimestampQuery"/>) is true.
+    /// Begins a render pass that writes GPU timestamps at its begin and end.
+    /// A null index skips the corresponding write; requires timestamp query support.
     /// </summary>
     /// <param name="target">The framebuffer to render to.</param>
     /// <param name="clearColors">Attachment clear values.</param>
@@ -165,15 +150,8 @@ public sealed class RenderContext : AutoDisposable, RenderPassScope.IScopeOwner
     }
 
     /// <summary>
-    /// Opens the command buffer and returns the frame scope that owns its submission:
-    /// passes (and compute recorded via <see cref="CommandBuffer"/>) inside the scope
-    /// record into one buffer without submitting; disposing the scope submits once.
-    /// This is the only way to open the buffer — <see cref="RenderGraph"/> drives its
-    /// shared context through this same path. Throws when a frame is already open
-    /// (nested <c>BeginFrame</c>).
-    /// <br/>The returned scope is recycled (stable in identity, like
-    /// <see cref="Pass"/>): consume it with <c>using</c> and never hold it beyond
-    /// its frame.
+    /// Opens the command buffer and returns the frame scope that owns its submission.
+    /// The returned scope is recycled and must be consumed with <c>using</c>.
     /// </summary>
     /// <returns>The frame scope, to be disposed outermost of any pass scope.</returns>
     public RenderFrameScope BeginFrame()

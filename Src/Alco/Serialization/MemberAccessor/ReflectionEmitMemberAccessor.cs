@@ -13,10 +13,16 @@ using System.Reflection.Emit;
 
 namespace Alco;
 
+/// <summary>
+/// A member accessor that generates delegates with reflection emit, requiring dynamic code support.
+/// </summary>
 public sealed class ReflectionEmitMemberAccessor : MemberAccessor
 {
     internal const int UnboxedParameterCountThreshold = 4;
 
+    /// <summary>
+    /// Initializes a reflection-emit member accessor.
+    /// </summary>
     [RequiresDynamicCode(SerializationRequiresDynamicCodeMessage)]
     [RequiresUnreferencedCode(SerializationRequiresDynamicCodeMessage)]
     public ReflectionEmitMemberAccessor()

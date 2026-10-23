@@ -10,9 +10,7 @@ namespace Alco.Audio;
 /// only needs to configure properties and call <see cref="Play"/>.
 /// </summary>
 /// <remarks>
-/// Mirrors <see cref="AudioSource"/>: GC-managed (extends <see cref="BaseAudioObject"/>),
-/// borrows a source from the device pool, shadows state that is pushed to hardware once a
-/// source is allocated, and binds to an optional <see cref="AudioBus"/>.
+/// GC-managed; borrows a playback source from the device pool and pushes its state to hardware only while allocated.
 /// </remarks>
 public abstract class AudioStream : BaseAudioObject
 {

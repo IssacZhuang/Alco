@@ -3,18 +3,9 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A render graph capture node: when armed, copies the chain's current color at this
-/// node's graph position into a private RGBA8 render texture, which an external
-/// service (typically <c>RenderCaptureSystem</c>) reads back after the frame. Where
-/// the node is registered defines what is captured — right after the content node is
-/// the raw scene, between post-process nodes is a partially processed image, and
-/// before the final blit is the complete frame.
-/// <br/>The node is disabled (and skipped by the graph entirely) until
-/// <see cref="Submit"/> arms it; an armed capture survives culling via
-/// <see cref="RenderGraphBuilder.ProducesOutput"/> because the capture texture is not
-/// a graph resource. Captures also run on headless frames (null destination), where
-/// the final blit disables itself.
-/// <br/>One capture at a time: arm, take the completion, read back, then arm again.
+/// A graph node that, when armed, copies the chain's current color at this graph position into
+/// a private RGBA8 texture for external readback. It is disabled until <see cref="Submit"/> arms
+/// it and supports one capture at a time.
 /// </summary>
 public sealed class RGNode_Capture : AutoDisposable, IRenderGraphNode
 {

@@ -8,14 +8,8 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// The editor shell: a main menu and a tabbed workspace with top, bottom and right
-/// regions. Registered windows can move between regions independently of document
-/// lifetime. Untitled projects show <see cref="StartupScreenPanel"/> instead.
-/// <para/>
-/// ImGui content is emitted from <see cref="DoUI"/>, which must be called between
-/// <see cref="ImGUISystem"/>'s frame begin and render — that is, from the game update
-/// phase (<c>EditorEngine.OnUpdate</c>). This system's own <c>OnUpdate</c> runs before
-/// the ImGui frame starts and must never emit ImGui calls.
+/// The editor shell: a main menu and a tabbed workspace with top, bottom and right regions whose windows move independently of document lifetime; untitled projects show the startup screen.
+/// ImGui content is emitted only from <see cref="DoUI"/>; this system's own update never emits ImGui calls.
 /// </summary>
 public sealed class EditorSystem : BaseEngineSystem
 {

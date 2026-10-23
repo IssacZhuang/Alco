@@ -6,6 +6,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
+/// <summary>Sandbox demonstrating instanced rendering of many quads.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -45,6 +46,8 @@ public class Game : GameEngine
     private Transform2D _transform1;
     private float _timer = 0.0f;
 
+    /// <summary>Initializes the instance buffers and render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

@@ -5,8 +5,14 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Test;
 
+/// <summary>
+/// Tests graphics material inheritance, bind group assembly, caching, thread safety, and flush allocation behavior.
+/// </summary>
 public class TestMaterial
 {
+    /// <summary>
+    /// Tests that material instances resolve bound and inherited slot values correctly.
+    /// </summary>
     [Test]
     public void TestMaterialInheritance()
     {
@@ -50,6 +56,9 @@ public class TestMaterial
         Assert.That(instance3[1], Is.SameAs(cachedGroup3));
     }
 
+    /// <summary>
+    /// Tests that group assembly flushes a dirty camera buffer.
+    /// </summary>
     [Test]
     public void TestCameraBufferFlushedOnGroupAssembly()
     {
@@ -77,6 +86,9 @@ public class TestMaterial
         Assert.IsFalse(IsDirty(camera));
     }
 
+    /// <summary>
+    /// Tests that an instance tracks parent changes and reuses groups in steady state.
+    /// </summary>
     [Test]
     public void TestInstanceTracksParentChanges()
     {
@@ -101,6 +113,9 @@ public class TestMaterial
         Assert.That(instance[0], Is.SameAs(after));
     }
 
+    /// <summary>
+    /// Tests that the shared sampler bank group is engine-wide and immutable.
+    /// </summary>
     [Test]
     public void TestSharedSamplerBankGroupIsEngineWideImmutable()
     {
@@ -151,6 +166,9 @@ public class TestMaterial
         Assert.IsFalse(sprite.TrySetSampler("linearClamp", attempt));
     }
 
+    /// <summary>
+    /// Tests that materials can be created and assembled concurrently across threads.
+    /// </summary>
     [Test]
     public void TestMaterialsOnMultipleThreadsAreSafe()
     {
@@ -251,6 +269,9 @@ public class TestMaterial
         }
     }
 
+    /// <summary>
+    /// Tests that steady-state material flush allocates nothing.
+    /// </summary>
     [Test]
     public void TestFlushSteadyStateNoAllocation()
     {

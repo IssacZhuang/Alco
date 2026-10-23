@@ -29,6 +29,12 @@ public sealed class ShaderSystem : IDisposable
     /// <summary>Raised for each shader whose module was invalidated (after its caches were cleared).</summary>
     public event Action<Shader>? ShaderInvalidated;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ShaderSystem"/> class.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system that owns the shaders.</param>
+    /// <param name="options">The Slang compiler options.</param>
+    /// <param name="cacheDirectory">The optional directory for on-disk caches.</param>
     public ShaderSystem(RenderingSystem renderingSystem, SlangCompilerOptions options, string? cacheDirectory = null)
     {
         _renderingSystem = renderingSystem;
@@ -40,15 +46,8 @@ public sealed class ShaderSystem : IDisposable
     public SlangModuleSystem Modules => _modules;
 
     /// <summary>
-    /// Gets (or creates) the interned <see cref="ShaderLibrary"/> reference of one module.
-    /// Creation acquires the resource: the module is loaded (parsed or restored from
-    /// the IR cache) and its reflection materialized, so the returned reference is
-    /// usable immediately — a name that resolves to nothing or a module that fails
-    /// to parse throws here, not at first use. Library references are the typed
-    /// identity the material system composes with; their held reflection is
-    /// refreshed in place across hot reloads. Resolver-backed modules and modules
-    /// already loaded from explicit source (<see cref="GetShaderFromModule"/>) are
-    /// addressable this way.
+    /// Gets or creates the interned <see cref="ShaderLibrary"/> reference of one module, loading and reflecting it eagerly.
+    /// A name that resolves to nothing or fails to parse throws here.
     /// </summary>
     /// <param name="moduleName">The module name (e.g. <c>PbrStandard</c>).</param>
     /// <exception cref="InvalidDataException">The name resolves to no module source.</exception>
@@ -80,10 +79,7 @@ public sealed class ShaderSystem : IDisposable
     }
 
     /// <summary>
-    /// Gets (or creates) the shader handle of one module: the module's entry
-    /// points are its own [shader(...)] definitions, and generic value variant
-    /// axes are requested through the specialization arguments of the Shader's
-    /// accessor methods. Handles are interned per module name.
+    /// Gets or creates the interned shader handle of one module.
     /// </summary>
     public Shader GetShader(string moduleName)
     {
@@ -108,11 +104,7 @@ public sealed class ShaderSystem : IDisposable
     }
 
     /// <summary>
-    /// Gets (or creates) the shader of a module registered from explicit source instead of
-    /// the file resolver — embedded resources (ImGui) and generated wrappers (the material
-    /// compiler's template+surface compositions) enter the module system this way. The
-    /// module keeps its source identity: dependency tracking and invalidation treat
-    /// <paramref name="path"/> like any other module file.
+    /// Gets or creates the shader of a module registered from explicit source instead of the file resolver.
     /// </summary>
     /// <param name="moduleName">The module identity (its import name).</param>
     /// <param name="path">The virtual path carrying the module's identity in dependency graphs and caches.</param>
@@ -269,6 +261,9 @@ public sealed class ShaderSystem : IDisposable
         }
     }
 
+    /// <summary>
+    /// Releases all owned shaders and the underlying module system.
+    /// </summary>
     public void Dispose()
     {
         lock (_lockPins)

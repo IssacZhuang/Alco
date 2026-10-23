@@ -3,12 +3,7 @@ using System.Numerics;
 namespace Alco.World3D;
 
 /// <summary>
-/// Per-instance draw data shared by the G-buffer (<see cref="GBufferRenderer"/>),
-/// CSM shadow and RSM (<see cref="ShadowRenderer"/>) passes. Every instanced
-/// pass fetches this from the <c>_instances</c> storage buffer by
-/// <c>SV_InstanceID</c>; the layout must match the <c>PbrInstance</c> struct in
-/// PbrInstance.slang exactly. The bounds fields are dormant (zero today) and
-/// reserved for the future GPU culling pass.
+/// Per-instance draw data shared by the G-buffer, CSM shadow, and RSM passes; the layout must match the <c>PbrInstance</c> struct in PbrInstance.slang exactly.
 /// </summary>
 public struct PbrInstanceData
 {

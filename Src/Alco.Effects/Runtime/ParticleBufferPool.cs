@@ -21,17 +21,8 @@ internal readonly struct ParticleSlice
 }
 
 /// <summary>
-/// The shared GPU buffers of one particle dimension (2D or 3D): the particle pool,
-/// the per-emitter render lists, the draw-args records and per-draw instance data
-/// of the material-batched indirect draws, and the CPU-mirrored per-emitter
-/// parameter array. Effect instances allocate slices/slots from the pool
-/// instead of owning GPU buffers, so creating and destroying effects is pure CPU
-/// bookkeeping plus a slice-kill dispatch — no GPU resource churn.
-/// <br/>Buffers grow geometrically when exhausted; growth copies the live contents
-/// into the new buffers at the next <see cref="RecordMigration"/> (recorded at the
-/// start of a frame's simulation, before any consuming dispatch or draw) and raises
-/// <see cref="Reallocated"/> so materials rebind. Returned slices are zeroed lazily
-/// through the pending-kill queue, dispatched before any new tenant's first emit.
+/// The shared GPU buffers of one particle dimension (2D or 3D): the particle pool, per-emitter render lists, indirect draw arguments, instance data and the CPU-mirrored parameter array.
+/// Effect instances allocate slices and slots instead of owning buffers; buffers grow geometrically when exhausted, migrating live contents via <see cref="RecordMigration"/> and raising <see cref="Reallocated"/>.
 /// </summary>
 /// <typeparam name="TParticle">The particle record type (GPU layout twin).</typeparam>
 /// <typeparam name="TParams">The per-emitter parameter record type (GPU layout twin).</typeparam>
@@ -45,11 +36,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     private readonly string _name;
 
     /// <summary>
-    /// Serializes every bookkeeping mutation (allocation, free, growth, migration,
-    /// kills) and the params writes/uploads. The owning particle system passes its
-    /// own gate so pool operations and system operations share one reentrant lock —
-    /// growth raises <see cref="Reallocated"/> with the gate held, and the system's
-    /// handler re-enters pool/system state under it, so a second lock could deadlock.
+    /// Serializes all bookkeeping mutations and parameter writes/uploads; the owning particle system passes its own gate so both share one reentrant lock.
     /// </summary>
     private readonly Lock _gate;
 
@@ -180,12 +167,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     }
 
     /// <summary>
-    /// Atomically drains the pending kill ranges into a reusable sink: the sink is
-    /// cleared and refilled with the queue's contents, and the queue is cleared, all
-    /// in one step under the gate — so a kill queued concurrently with the drain is
-    /// never lost, and a consumer that early-returns leaves no stale records for the
-    /// next frame. The frame simulation calls this before dispatching the kills;
-    /// the sink is owned by the caller and stays untouched by the pool afterwards.
+    /// Atomically moves the pending kill ranges into the caller-owned sink under the gate, so a kill queued concurrently with the drain is never lost.
     /// </summary>
     /// <param name="kills">The reusable sink to drain into.</param>
     public void DrainPendingKills(List<(uint Offset, uint Count)> kills)

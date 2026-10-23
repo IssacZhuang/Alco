@@ -11,25 +11,12 @@ using Alco.Rendering;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Compilation of material assets into per-pass GPU materials: the pure
-/// (asset, template, spec-args, factory) factory of <see cref="MaterialCompiler"/>,
-/// the renderers' per-asset caching and derived pipeline state, participation
-/// guards, texture-slot validation and the optional-feature guards. Uses a
-/// NoGPU engine with the module's real shaders, mirroring
-/// <see cref="ValidateShader"/>.
+/// Covers material asset compilation into per-pass GPU materials, including caching, slot validation, and optional-feature guards.
 /// </summary>
 public class TestMaterialCompiler
 {
     /// <summary>
-    /// Write a minimal procedural surface module into a temp directory mounted on the
-    /// asset system: no textures, one <c>[MaterialParams]</c>-marked block member
-    /// (<c>scale</c>, the block name itself is free), engine time via
-    /// <c>_globalRenderData</c>. The surface contract (ISurface)
-    /// resolves from the engine's own asset source, so the temp source carries only
-    /// the surface file; every uncustomized attribute rides the interface defaults.
-    /// Returns the surface's module name (what <see cref="MaterialAsset.Surface"/>
-    /// references); <paramref name="directory"/> receives the temp directory to delete
-    /// when the test ends.
+    /// Writes a minimal procedural surface module to a temporary asset source and returns its module name.
     /// </summary>
     private static string WriteTestSurface(AssetSystem assets, out string directory)
     {
@@ -73,6 +60,7 @@ public class TestMaterialCompiler
         return "test_surface";
     }
 
+    /// <summary>Tests that the G-buffer renderer caches one material per asset and applies pass state.</summary>
     [Test]
     public void GBufferMaterialsCompilePerAssetAndCache()
     {
@@ -116,6 +104,7 @@ public class TestMaterialCompiler
         Assert.That(() => instance.SetTexture("albedoTexture", engine.RenderingSystem.TextureWhite), Throws.Nothing);
     }
 
+    /// <summary>Tests that compute materials bind asset textures once and reject undeclared slots.</summary>
     [Test]
     public void ComputeFeedBindsTexturesOnce()
     {
@@ -147,6 +136,7 @@ public class TestMaterialCompiler
         Assert.That(() => compiler.CompileCompute(PbrMaterialAsset.Default, voxelize), Throws.Nothing);
     }
 
+    /// <summary>Tests that compute materials pack surface parameter blocks and reject unknown names.</summary>
     [Test]
     public void ComputeFeedPacksSurfaceParameters()
     {
@@ -185,6 +175,7 @@ public class TestMaterialCompiler
         }
     }
 
+    /// <summary>Tests that the glass pass template accepts blend materials.</summary>
     [Test]
     public void PassAcceptsRoutesAndRejects()
     {
@@ -203,6 +194,7 @@ public class TestMaterialCompiler
         Assert.That(compiler.Compile(blend, glass, CompileGlass), Is.Not.Null);
     }
 
+    /// <summary>Tests that the shadow pass specializes alpha test variants from the material's alpha mode.</summary>
     [Test]
     public void ShadowPassSpecializesAlphaTestFromTheAsset()
     {
@@ -231,6 +223,7 @@ public class TestMaterialCompiler
         });
     }
 
+    /// <summary>Tests that declared texture slots compile and undeclared slots fail at compile time.</summary>
     [Test]
     public void TextureSlotsValidateAgainstTheSurface()
     {
@@ -260,6 +253,7 @@ public class TestMaterialCompiler
         Assert.That(() => gbuffer.GetMaterial(typo), Throws.TypeOf<InvalidDataException>());
     }
 
+    /// <summary>Tests that a custom surface composes into the G-buffer pass template.</summary>
     [Test]
     public void CustomSurfaceComposesIntoThePassTemplate()
     {
@@ -296,6 +290,7 @@ public class TestMaterialCompiler
         }
     }
 
+    /// <summary>Tests that surface parameter blocks bind in the composed shader and unknown parameters fail.</summary>
     [Test]
     public void SurfaceParametersBindIntoTheComposedShader()
     {
@@ -366,6 +361,7 @@ public class TestMaterialCompiler
         return "minimal_surface";
     }
 
+    /// <summary>Tests that a surface without overrides composes using the interface defaults.</summary>
     [Test]
     public void MinimalSurfaceReliesOnInterfaceDefaults()
     {

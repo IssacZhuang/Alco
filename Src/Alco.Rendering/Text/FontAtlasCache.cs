@@ -27,10 +27,23 @@ public sealed class FontAtlasCacheEntry
     /// </summary>
     public GlyphInfo[] Glyphs => _glyphs;
 
+    /// <summary>
+    /// The atlas width in pixels.
+    /// </summary>
     public int Width => _width;
 
+    /// <summary>
+    /// The atlas height in pixels.
+    /// </summary>
     public int Height => _height;
 
+    /// <summary>
+    /// Creates a cache entry from a baked atlas.
+    /// </summary>
+    /// <param name="bitmap">The R8 coverage bitmap.</param>
+    /// <param name="glyphs">The glyph table.</param>
+    /// <param name="width">The atlas width in pixels.</param>
+    /// <param name="height">The atlas height in pixels.</param>
     public FontAtlasCacheEntry(byte[] bitmap, GlyphInfo[] glyphs, int width, int height)
     {
         _bitmap = bitmap;
@@ -41,16 +54,9 @@ public sealed class FontAtlasCacheEntry
 }
 
 /// <summary>
-/// Persistent disk cache for baked font atlases. The cache stores the output of glyph
-/// rasterization (atlas bitmap + glyph table) so subsequent loads of the same font skip
-/// stb_truetype entirely. Cache entries are keyed by a hash of every baking input:
-/// font file content, font size, padding, atlas dimensions, SDF flag and unicode ranges.
-/// <para/>
-/// The cache payload is Brotli-compressed (glyph coverage bitmaps compress to a small
-/// fraction of the raw 64 MB atlas). Writes run on a background thread, go through a
-/// temp file + atomic move so a crash never leaves a half-written entry, and are
-/// best-effort: failures are swallowed and never break asset loading. Any corrupt or
-/// stale entry is simply treated as a miss and overwritten on the next store.
+/// Persistent disk cache for baked font atlases, keyed by a hash of every baking input.
+/// Entries are Brotli-compressed and written atomically in the background; corrupt or stale
+/// entries are treated as misses.
 /// </summary>
 public sealed class FontAtlasCache
 {
@@ -75,6 +81,9 @@ public sealed class FontAtlasCache
         }
     }
 
+    /// <summary>
+    /// Whether caching is enabled (a cache directory was provided).
+    /// </summary>
     public bool IsEnabled => _cacheDirectory != null;
 
     /// <summary>

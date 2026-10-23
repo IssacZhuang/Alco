@@ -5,16 +5,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// The handle of a composed PBR deferred pipeline, created by
-/// <see cref="RenderPipelines.CreatePBRDeferred"/>: a bag of references to the
-/// pipeline shell, the shared scene environment and every composed node/resource,
-/// plus the ownership of the preset-only objects (layouts, materials, GPU timestamp
-/// sampler). It has no frame logic of its own — the frame is driven by
-/// <see cref="Pipeline"/>.<see cref="RenderPipeline.Render"/>, the scene state is
-/// set on <see cref="Environment"/>, and the composition is modified through
-/// <see cref="Graph"/> directly (insert custom nodes between any two stages, or
-/// remove a stock stage and replace it with a custom implementation — nothing the
-/// preset does requires engine internals).
+/// The handle of a composed PBR deferred pipeline created by <see cref="RenderPipelines.CreatePBRDeferred"/>, exposing the pipeline shell, scene environment, and composed nodes and resources, and owning the preset-only layouts and materials. It has no frame logic of its own: drive frames through <see cref="Pipeline"/> and modify the composition through <see cref="Graph"/>.
 /// </summary>
 public sealed class PBRDeferredPreset : AutoDisposable
 {
@@ -151,11 +142,7 @@ public sealed class PBRDeferredPreset : AutoDisposable
     public RenderTexture ShadowMap => ShadowMapResource.Texture;
 
     /// <summary>
-    /// The pipeline-internal forward render texture (HDR color + depth) holding the
-    /// resolved lighting and forward transparency — the frame output before
-    /// post-processing. This is a stable facade: the backing graph textures change
-    /// across frames (pooling / aliasing / resize), but the object identity never
-    /// does and material bindings follow automatically through the version check.
+    /// The pipeline-internal forward render texture (HDR color + depth) holding the resolved lighting and forward transparency before post-processing; the facade's object identity is stable across frames and material bindings follow automatically.
     /// </summary>
     public RenderTexture ForwardRenderTexture => SceneColorResource.Texture;
 

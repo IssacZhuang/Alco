@@ -3,8 +3,10 @@ using NUnit.Framework;
 
 namespace Alco.Test
 {
+    /// <summary>Tests enum handling in BinaryValue.</summary>
     public class TestBinaryValue
     {
+        /// <summary>Tests creating a BinaryValue from an enum and reading it back.</summary>
         [Test(Description = "Test BinaryValue.CreateValueEnum and TryGetEnum")]
         public void TestEnumHandling()
         {
@@ -35,6 +37,7 @@ namespace Alco.Test
             Assert.That(anotherRetrievedValue, Is.EqualTo(anotherValue));
         }
 
+        /// <summary>Tests that TryGetEnum fails for invalid or empty data.</summary>
         [Test(Description = "Test BinaryValue.TryGetEnum with invalid data")]
         public void TestEnumHandlingInvalidData()
         {
@@ -57,6 +60,7 @@ namespace Alco.Test
             Assert.That(emptyValue, Is.EqualTo(default(SerializeMode)));
         }
 
+        /// <summary>Tests enum round-trips for byte- and int-backed enums.</summary>
         [Test(Description = "Test BinaryValue.CreateValueEnum and TryGetEnum with custom enum")]
         public void TestCustomEnumHandling()
         {
@@ -81,6 +85,7 @@ namespace Alco.Test
             Assert.That(retrievedIntEnum, Is.EqualTo(intEnumValue));
         }
 
+        /// <summary>Tests TryGetEnum when the requested enum type differs from the stored one.</summary>
         [Test(Description = "Test BinaryValue.TryGetEnum with mismatched enum types")]
         public void TestMismatchedEnumTypes()
         {
@@ -114,6 +119,7 @@ namespace Alco.Test
         }
 
         // Test enums with different underlying types
+        /// <summary>A byte-backed test enum.</summary>
         public enum TestByteEnum : byte
         {
             Value1 = 0,
@@ -121,6 +127,7 @@ namespace Alco.Test
             Value3 = 2
         }
 
+        /// <summary>An int-backed test enum.</summary>
         public enum TestIntEnum : int
         {
             Value1 = 0,

@@ -10,6 +10,9 @@ namespace Alco.Benchmark;
 /// </summary>
 public static unsafe class QuickJpegBenchmark
 {
+    /// <summary>
+    /// Runs the JPEG decoder comparison benchmark.
+    /// </summary>
     public static void Run()
     {
         byte[] jpegData = File.ReadAllBytes("Files/Image/jpeg-real.jpg");

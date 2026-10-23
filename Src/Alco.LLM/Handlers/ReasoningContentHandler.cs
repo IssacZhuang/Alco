@@ -10,15 +10,8 @@ namespace Alco.LLM;
 /// <c>tool_calls</c> but lacks <c>reasoning_content</c>.
 /// </summary>
 /// <remarks>
-/// DeepSeek V4 (and other reasoning-capable models) require the
-/// <c>reasoning_content</c> field to be present on assistant messages with
-/// <c>tool_calls</c> in follow-up requests during a tool-call loop.
-/// The API validates field <em>presence</em>, not content, so an empty string
-/// ("") is sufficient to pass validation.
-///
-/// This handler works at the HTTP level, below the OpenAI SDK and MEAI
-/// abstraction, because the OpenAI SDK v2.10.0 does not expose a
-/// <c>ReasoningContent</c> property on <c>AssistantChatMessage</c>.
+/// The API validates field presence rather than content, so an empty <c>reasoning_content</c>
+/// is sufficient for assistant messages that carry <c>tool_calls</c>.
 /// </remarks>
 public class ReasoningContentHandler : DelegatingHandler
 {

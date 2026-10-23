@@ -8,13 +8,7 @@ using Alco.Rendering;
 namespace Alco.Effects.Test;
 
 /// <summary>
-/// Material-module tests of the 2D/3D systems on the no-GPU backend: a module's
-/// ConfigureMaterial must reach every render material — those already cached at
-/// registration, those created afterwards, and all of them again on
-/// RefreshMaterialModules — while an unregistered module must configure nothing
-/// further. The concurrent test guards the publication/registration
-/// atomicity: whichever way material publication and module registration
-/// interleave, no material may escape configuration.
+/// Tests that particle material modules configure cached and newly created materials on the 2D and 3D systems.
 /// </summary>
 public class TestParticleMaterialModule
 {
@@ -23,12 +17,18 @@ public class TestParticleMaterialModule
 
     private Host _engine = null!;
 
+    /// <summary>
+    /// Creates the shared engine host.
+    /// </summary>
     [OneTimeSetUp]
     public void SetUp()
     {
         _engine = new Host(GameEngineSetting.CreateNoGPU());
     }
 
+    /// <summary>
+    /// Disposes the shared engine host.
+    /// </summary>
     [OneTimeTearDown]
     public void TearDown()
     {
@@ -46,6 +46,9 @@ public class TestParticleMaterialModule
         }
     }
 
+    /// <summary>
+    /// Tests that a 2D material module reaches cached, new, and refreshed materials.
+    /// </summary>
     [Test(Description = "2D: registration sweeps cached materials; new materials configure at creation; refresh re-applies to all")]
     public void ModuleReachesCachedAndNewMaterials2D()
     {
@@ -67,6 +70,9 @@ public class TestParticleMaterialModule
         });
     }
 
+    /// <summary>
+    /// Tests that a 3D material module reaches cached, new, and refreshed materials.
+    /// </summary>
     [Test(Description = "3D: registration sweeps cached materials; new materials configure at creation; refresh re-applies to all")]
     public void ModuleReachesCachedAndNewMaterials3D()
     {
@@ -88,6 +94,9 @@ public class TestParticleMaterialModule
         });
     }
 
+    /// <summary>
+    /// Tests that disposing a registration stops the module from configuring materials.
+    /// </summary>
     [Test(Description = "Disposing the registration unregisters the module")]
     public void DisposedRegistrationStopsConfiguring()
     {
@@ -100,6 +109,9 @@ public class TestParticleMaterialModule
         Assert.That(module.Materials, Is.Empty, "an unregistered module still configured materials");
     }
 
+    /// <summary>
+    /// Tests that concurrent registration and creation leave no material unconfigured.
+    /// </summary>
     [Test(Description = "2D: registration racing creation — a post-join sweep must still reach every material")]
     public void ConcurrentRegistrationSweepReachesEveryMaterial2D()
     {

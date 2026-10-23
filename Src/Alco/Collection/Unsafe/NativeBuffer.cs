@@ -145,9 +145,7 @@ namespace Alco
         }
 
         /// <summary>
-        /// Ensures the buffer has at least the specified size. Uses intelligent expansion strategy:
-        /// - If buffer is empty, expands to DefaultCapacity first
-        /// - If still not enough, doubles capacity until requirement is met
+        /// Ensures the buffer can hold at least <paramref name="size"/> elements, growing capacity by doubling from <see cref="DefaultCapacity"/>.
         /// </summary>
         /// <param name="size">The minimum size required.</param>
         public void SetSize(int size)

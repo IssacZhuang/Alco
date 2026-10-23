@@ -126,14 +126,9 @@ public enum VoxelGiDebugMode
 }
 
 /// <summary>
-/// The node's construction data: the complete set of compute/graphics shaders
-/// plus the voxelize feed template and the clipmap and trace parameters —
-/// everything a voxel GI needs except service-type dependencies (the rendering
-/// system, material compiler, graph wiring), which are explicit constructor
-/// parameters instead, so a descriptor is pure data. The triangle voxelization
-/// shader is the <c>voxelize</c> template: it composes per material surface
-/// through the <see cref="MaterialCompiler"/> (the template × each registered
-/// asset's surface).
+/// Construction data for <see cref="RGNode_VoxelGI"/>: the shaders, voxelize feed template and
+/// clipmap/trace parameters; service dependencies are passed separately to the constructor.
+/// The voxelize template is composed per material surface through <see cref="MaterialCompiler"/>.
 /// </summary>
 public readonly struct VoxelGiDescriptor
 {
@@ -180,45 +175,10 @@ public readonly struct VoxelGiDescriptor
 }
 
 /// <summary>
-/// Voxel global illumination renderer for the deferred PBR pipeline: a cascaded
-/// voxel clipmap (4 levels, each a cube of <c>resolution</c>^3 voxels at twice
-/// the previous level's voxel size, following the camera) with compute
-/// voxelization, direct-light injection, deterministic rotation-balanced
-/// diffuse cone tracing and the off-screen voxel-cone reflection fallback used
-/// by the post-lighting screen-space reflection renderer.
-/// <br/>Scene objects register once through <see cref="Add"/> as
-/// <see cref="IVoxelGIRenderable"/>s: static ones are baked into the persistent
-/// structural clipmap (their live properties are synced every frame, re-voxelizing
-/// changed bricks), dynamic ones are pulled and re-voxelized on each volume-update
-/// frame. Shared source meshes are uploaded once. Structural bricks are rebuilt
-/// incrementally after edits or camera scrolling.
-/// <br/>Known limitation: registered textures may still be streaming their content
-/// in place (see <see cref="RenderingSystem.CreateTexture2DStreaming"/>). The binding
-/// needs no accommodation — the bound texture object is never replaced, so every
-/// dispatch samples the latest content. But voxel attributes are surface samples
-/// baked at voxelize time, and content arrival raises no invalidation: a brick
-/// voxelized before its texture arrived keeps the stale (zero-initialized) sample
-/// until its region is invalidated by an edit or a clipmap scroll. In practice the
-/// rate-limited dirty-brick drain voxelizes most bricks after their textures have
-/// arrived, so the defect is barely perceptible; consumers that need the baked
-/// lighting correct right after load can call <see cref="InvalidateStatic()"/> once
-/// streaming has settled.
-/// <br/>Call <see cref="Render"/> after the G-buffer pass and before the lighting
-/// pass; the resulting configurable-resolution <see cref="IndirectTexture"/>
-/// atlas is upsampled internally to the full-resolution <see cref="DiffuseTexture"/>
-/// and <see cref="SpecularTexture"/> outputs that the deferred lighting pass samples.
-/// <br/>Attribute voxels live in storage buffers (packed, point-sampled by the
-/// injection pass); the HDR radiance volume is one mip-mapped RGBA16Float
-/// <see cref="Texture3D"/> with all clipmap levels stacked along its depth axis,
-/// cone-traced with hardware trilinear filtering.
-/// </summary>
-/// <summary>
 /// A renderable object whose surface feeds the <see cref="RGNode_VoxelGI"/> clipmap.
-/// The node registers the object with <see cref="RGNode_VoxelGI.Add"/> once and then
-/// pulls these properties itself: dynamic objects (IsStatic = false) are re-read and
-/// voxelized every volume-update frame; static objects are baked into the persistent
-/// clipmap, with property changes detected automatically at the next frame sync —
-/// treat IsStatic as a promise that properties mutate at low frequency.
+/// The node registers it once with <see cref="RGNode_VoxelGI.Add"/> and pulls these properties itself:
+/// dynamic objects are re-read every volume-update frame, static objects are baked and changes detected
+/// automatically. Treat <see cref="IsStatic"/> as a promise that properties mutate at low frequency.
 /// </summary>
 public interface IVoxelGIRenderable
 {
@@ -261,6 +221,12 @@ public interface IVoxelGIRenderable
     float AlphaCutoff { get; }
 }
 
+/// <summary>
+/// Voxel global illumination renderer for the deferred PBR pipeline: a camera-following cascaded
+/// voxel clipmap with compute voxelization, direct-light injection, multi-bounce propagation and
+/// cone-traced diffuse/specular output. Static renderables are baked into the persistent structural
+/// clipmap; dynamic renderables are re-voxelized on volume-update frames.
+/// </summary>
 public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
 {
     /// <summary>
@@ -294,11 +260,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     {
         public required MeshGeometry Geometry;
         /// <summary>
-        /// A per-registration instance of the asset's compiled voxelize material
-        /// (template × surface). The instance binds this registration's geometry
-        /// buffers into the <c>_geometry</c> block once, here; everything else
-        /// (textures, parameter blocks, the shared <c>_data</c> buffer) resolves
-        /// through the fallback chain from the per-asset parent material.
+        /// A per-registration instance of the asset's compiled voxelize material, with this
+        /// registration's geometry buffers bound; other bindings resolve through the parent material.
         /// </summary>
         public required ComputeMaterial Material;
     }
@@ -383,12 +346,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private const int TimestampSlotCount = 10;
 
     /// <summary>
-    /// Per-stage GPU durations in milliseconds, indexed by stage enum. These are
-    /// exponential moving averages over sampled volume-update frames only: on
-    /// skipped frames the update stages are bracketed by back-to-back
-    /// timestamps (~0 ms), so folding those in would alias the counters between
-    /// ~0 and the true cost at the beat of the ~1 Hz sampler against the
-    /// volume refresh rate.
+    /// Per-stage GPU durations in milliseconds, indexed by stage enum; exponential moving
+    /// averages over sampled volume-update frames only.
     /// </summary>
     private readonly double[] _stageGpuMilliseconds = new double[GiStageCount];
 
@@ -519,15 +478,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     private readonly int[] _staticBrickBudgets = [256, 128, 64, 32];
 
     /// <summary>
-    /// Gets the maximum number of structural bricks rebuilt per frame for one
-    /// clipmap level. High-priority edit bricks are processed before
-    /// camera-streaming bricks. The budget caps the voxelization work of any
-    /// single frame when the camera crosses a brick boundary (all levels get
-    /// dirty simultaneously); the trade-off of lower values is that
-    /// newly-exposed geometry takes more frames to fully voxelize. Coarser
-    /// levels cover much more world space per brick, so giving them a smaller
-    /// budget than the fine levels smooths frame spikes better than a uniform
-    /// value.
+    /// Gets the maximum number of structural bricks rebuilt per frame for one clipmap level;
+    /// high-priority edit bricks are processed before camera-streaming bricks.
     /// </summary>
     public int GetStaticBrickBudget(int level)
     {
@@ -573,13 +525,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     public float TemporalHysteresis { get; set; } = 0.8f;
 
     /// <summary>
-    /// Gets or sets the post-demosaic diffuse temporal hysteresis (0..1),
-    /// independently from specular. The raw-trace accumulation converges for
-    /// static scenes but collapses to single-cone noise wherever its own
-    /// reprojection rejects history (camera motion across depth edges), so the
-    /// demosaic stage keeps a second, neighbourhood-clamped accumulation. The
-    /// effective hysteresis halves under camera motion (see VoxelDemosaic.slang)
-    /// to stay responsive to the scrolling voxel field; zero disables it.
+    /// Gets or sets the post-demosaic diffuse temporal hysteresis (0..1), independent of specular;
+    /// higher values are smoother but more laggy, and zero disables it.
     /// </summary>
     public float DiffuseTemporalHysteresis { get; set; } = 0.85f;
 
@@ -592,11 +539,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     public float DiffuseSpreading { get; set; } = 0.5f;
 
     /// <summary>
-    /// Gets or sets the screen-space cone-trace resolution relative to the
-    /// G-buffer (0.25..1.0). Changing it recreates only the trace, resolve and
-    /// temporal-history textures; the voxel clipmap remains intact. The caller
-    /// must rebind <see cref="IndirectTexture"/> to its lighting pipeline after
-    /// changing this value.
+    /// Gets or sets the screen-space cone-trace resolution relative to the G-buffer (0.25..1.0);
+    /// changing it recreates only the trace and history textures, and the caller must rebind
+    /// <see cref="IndirectTexture"/> afterwards.
     /// </summary>
     public float TraceResolutionScale
     {
@@ -669,16 +614,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     public VoxelGiDebugMode DebugView { get; set; }
 
     /// <summary>
-    /// Gets or sets the maximum refresh rate of the voxel radiance volume
-    /// (movable-geometry rebuild + inject + mip chain + propagate) in updates
-    /// per second. 0 updates every frame; values above 0 cap the rate — the
-    /// default 30 keeps the volume at 30 Hz regardless of the frame rate,
-    /// reducing the update cost of scenes with per-frame movable instances
-    /// proportionally. The volume has no cross-frame feedback and the diffuse
-    /// temporal resolve (~5-frame window) low-passes the quantized updates,
-    /// so the only visible effect is indirect light from moving objects and
-    /// lights lagging by up to 1/rate seconds. Invalid values (negative or
-    /// non-finite) are clamped to 0.
+    /// Gets or sets the maximum voxel radiance volume refresh rate in updates per second
+    /// (movable-geometry rebuild, injection, mip chain and propagation); 0 updates every frame,
+    /// and negative or non-finite values are clamped to 0.
     /// </summary>
     public float VolumeRefreshRate
     {
@@ -687,12 +625,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Gets or sets the RSM sun-bounce injection intensity (0 disables the
-    /// injection in the trace shader). When set to 0 the owning
-    /// <see cref="RGNode_RsmPass"/> must be disabled in the same frame (and
-    /// vice versa): the RSM map is a graph transient written by that node, and
-    /// the graph validates that this node only reads it while a writer is
-    /// enabled — the read declaration itself is gated on this property.
+    /// Gets or sets the RSM sun-bounce injection intensity; 0 disables it and requires the owning
+    /// <see cref="RGNode_RsmPass"/> to be disabled in the same frame.
     /// </summary>
     public float RsmInjectionIntensity { get; set; } = 1;
 
@@ -729,11 +663,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     public VoxelGiStatistics Statistics { get; private set; }
 
     /// <summary>
-    /// The gathered indirect radiance atlas (five times the configured trace
-    /// width: diffuse near/far layers, specular, ALD near/far layers with
-    /// their view-linear layer depths in alpha). This is the trace-resolution
-    /// atlas consumed by the internal upsample pass; the full-resolution outputs
-    /// are <see cref="DiffuseTexture"/> and <see cref="SpecularTexture"/>.
+    /// Gets the trace-resolution indirect radiance atlas (diffuse near/far, specular and ALD layers)
+    /// consumed by the internal upsample pass; the full-resolution outputs are
+    /// <see cref="DiffuseTexture"/> and <see cref="SpecularTexture"/>.
     /// </summary>
     public RenderTexture IndirectTexture => _indirectAtlas;
 
@@ -976,14 +908,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Attaches the renderer to a deferred composition as a direct
-    /// <see cref="IRenderGraphNode"/> in the graph: creates the transient
-    /// full-resolution outputs, registers itself immediately before the lighting
-    /// node and wires the outputs to <see cref="RGNode_DeferredLighting.GiDiffuseInput"/> /
-    /// <see cref="RGNode_DeferredLighting.GiSpecularInput"/> and the lighting material's
-    /// GI slots. The graph rematerializes the outputs on resize. The trace and
-    /// temporal-history textures stay persistent (cross-frame feedback never
-    /// enters the graph).
+    /// Attaches the renderer to the graph, creating its full-resolution transient outputs and
+    /// wiring them into the deferred lighting node; the outputs are rematerialized on resize.
     /// </summary>
     /// <param name="graph">The render graph driving the frame.</param>
     /// <param name="lighting">The deferred lighting node the GI outputs feed.</param>
@@ -1099,12 +1025,9 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Registers a renderable into the voxel clipmap. Static objects (see
-    /// <see cref="IVoxelGIRenderable.IsStatic"/>) are baked into the persistent
-    /// structural clipmap; dynamic ones are re-read and re-voxelized on every
-    /// volume-update frame. Registering the same object reference twice is a
-    /// no-op. Shared source meshes are uploaded once and reused by every
-    /// registration that references them.
+    /// Registers a renderable into the voxel clipmap; registering the same reference twice is a no-op.
+    /// Static objects are baked into the persistent clipmap and dynamic ones are re-voxelized on every
+    /// volume-update frame; shared source meshes are uploaded once.
     /// </summary>
     public void Add(IVoxelGIRenderable renderable)
     {
@@ -1199,14 +1122,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// The compiled voxelize parent material of one material asset, cached per
-    /// asset and held weakly — the material is derived per-asset state whose
-    /// lifetime follows the asset's (live registrations keep their own
-    /// references). Compilation goes through <see cref="MaterialCompiler.CompileCompute"/>:
-    /// the surface's texture slots and parameter blocks bind from the asset once,
-    /// here; the shared per-frame <c>_data</c> buffer binds on top. Each mesh
-    /// registration derives a <see cref="ComputeMaterialInstance"/> from this
-    /// parent to pin its geometry buffers (see <see cref="Add"/>).
+    /// Gets the compiled voxelize parent material of one asset, cached weakly per asset so its
+    /// lifetime follows the asset; null selects the built-in PBR surface.
     /// </summary>
     private ComputeMaterial GetVoxelizeMaterial(MaterialAsset? asset)
     {
@@ -1220,12 +1137,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Detects static entries whose live properties changed since the last frame:
-    /// any change refreshes the snapshot and invalidates the affected world bounds
-    /// (baked attribute pages are only rewritten when their bricks are invalidated,
-    /// so even pure surface edits require a re-voxelization); a swapped mesh /
-    /// material / stride additionally rebuilds the entry's registration. Runs
-    /// before the frame's structural voxelization.
+    /// Detects static entries whose live properties changed, refreshes their snapshots and
+    /// invalidates the affected world bounds; a swapped mesh, material or stride rebuilds the registration.
     /// </summary>
     private void SyncStaticEntries()
     {
@@ -1384,11 +1297,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Run the hybrid GI passes: voxelize (static on dirty, dynamic every update
-    /// frame), inject direct lighting, rebuild radiance mips and gather
-    /// diffuse/reflections from the G-buffer. Must be called after the G-buffer
-    /// pass and before the lighting pass. Static renderables' live properties are
-    /// synced (and their bricks re-voxelized on change) at the start of the call.
+    /// Runs the hybrid GI passes: voxelization, direct-light injection, radiance mip generation and
+    /// diffuse/specular cone tracing. Must be called after the G-buffer pass and before the lighting pass.
     /// </summary>
     /// <param name="context">The render graph context providing the frame delta time.</param>
     private void Render(in RenderGraphContext context)
@@ -1739,13 +1649,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Structural voxelization, driven by high-priority edit bricks and
-    /// lower-priority camera-streaming bricks. Runs every frame with a small
-    /// per-level budget so camera-scroll invalidation is amortized across
-    /// frames instead of bursting inside the rate-limited volume update; its
-    /// output (attribute pages) is consumed solely by the inject stage on the
-    /// next volume-update frame. The clipmap buffer is toroidal, so retained
-    /// bricks survive camera movement without being copied.
+    /// Voxelizes this frame's budgeted set of dirty structural bricks, processing high-priority
+    /// edits before camera-streaming bricks; the output is consumed by the next volume-update frame.
     /// </summary>
     private void RunStaticVoxelize(
         GPUCommandBuffer.ComputePass computePass,
@@ -1809,11 +1714,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Rebuilds the movable-geometry pages, collects resident bricks, injects
-    /// direct lighting, rebuilds the radiance mip chain and runs multi-bounce
-    /// propagation (the Voxelize-tail through Propagate GPU stages). Returns
-    /// the index into <see cref="_radiance"/> of the texture holding the final
-    /// direct + bounce result for the trace stage.
+    /// Rebuilds movable-geometry pages, injects direct lighting, rebuilds the radiance mip chain and
+    /// propagates bounces. Returns the <see cref="_radiance"/> index holding the final result.
     /// </summary>
     private int RunVolumeUpdate(
         GPUCommandBuffer.ComputePass computePass,
@@ -1987,14 +1889,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Fold the GPU durations of one sampled volume-update frame into the
-    /// exponential moving averages backing the profiler counters
-    /// (<see cref="_gpuMilliseconds"/>, <see cref="_stageGpuMilliseconds"/>).
-    /// Only update frames contribute — skipped frames record back-to-back
-    /// timestamps (~0 ms) for the update stages. Slots 0–7 bracket the main
-    /// compute pass (0=begin, 7=end), slots 8–9 bracket the upsample pass.
-    /// In-pass slots 1–6 are no-ops (read as 0) when the device lacks
-    /// <see cref="GPUFeatures.TimestampQueryInsidePasses"/>.
+    /// Folds the GPU durations of one sampled volume-update frame into the exponential moving
+    /// averages backing the profiler counters.
     /// </summary>
     private void AccumulateGpuDurations(ulong[] timestamps)
     {
@@ -2142,12 +2038,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Collects the per-level resident brick list (union of static + dynamic
-    /// page tables) plus any bricks that were resident last frame but are no
-    /// longer (stale). Stale bricks are appended so the inject pass can clear
-    /// their stale radiance by writing zeros, avoiding a separate full-pass
-    /// clear. Returns via <see cref="_residentBricks"/> (resident+stale) and
-    /// <see cref="_residentCounts"/>/<see cref="_staleCounts"/>.
+    /// Collects the per-level resident brick list (union of the static and dynamic page tables),
+    /// appends no-longer-resident bricks as stale for zeroing and updates the combined page table.
     /// </summary>
     private void CollectResidentBricks(int level)
     {
@@ -2227,14 +2119,8 @@ public sealed class RGNode_VoxelGI : AutoDisposable, IRenderGraphNode
     }
 
     /// <summary>
-    /// Builds the full radiance + opacity mip chain (mip 0 → mip N) for all
-    /// clipmap levels. Each transition reads mip N and writes mip N+1 through
-    /// single-mip views whose non-overlapping subresource ranges avoid the
-    /// read/write usage conflict within one dispatch.
-    /// Levels are packed into the dispatch z dimension, so one dispatch per
-    /// transition covers all clipmap levels. The last three transitions (tiny
-    /// mip sizes) are merged into a single cascading dispatch per texture type
-    /// via VoxelMipChain, reducing dispatch count further.
+    /// Builds the full radiance and opacity mip chains for every clipmap level, one dispatch per
+    /// transition, with the last three transitions merged into a cascading dispatch.
     /// </summary>
     private void BuildMipChains(GPUCommandBuffer.ComputePass computePass, Texture3D radiance)
     {

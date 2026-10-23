@@ -176,6 +176,11 @@ public sealed unsafe class PrimitiveMesh : Mesh
         LocalBoundsMax = max;
     }
 
+    /// <summary>
+    /// Returns the default sub-mesh covering the whole mesh; the index is ignored.
+    /// </summary>
+    /// <param name="index">The sub-mesh index, ignored.</param>
+    /// <returns>The default sub-mesh data.</returns>
     public override SubMeshData GetSubMesh(int index)
     {
         //no submeshes,, return hole mesh

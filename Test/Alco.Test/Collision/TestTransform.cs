@@ -6,8 +6,10 @@ using System.Collections.Generic;
 
 namespace Alco.Test
 {
+    /// <summary>Tests transforming a box shape between local and world space.</summary>
     public class TestTransform
     {
+        /// <summary>Tests box transformation by a parent transform.</summary>
         [Test(Description ="Box to local")]
         public void TestBoxToLocal()
         {

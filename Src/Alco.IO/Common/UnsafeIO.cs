@@ -5,6 +5,13 @@ namespace Alco.IO;
 
 public static unsafe class UnsafeIO
 {
+    /// <summary>
+    /// Reads an entire file into an unmanaged buffer.
+    /// </summary>
+    /// <param name="path">The file path.</param>
+    /// <param name="fileShare">The sharing mode used while reading.</param>
+    /// <param name="size">The number of bytes read.</param>
+    /// <returns>The allocated buffer, which the caller must free.</returns>
     public static byte* ReadFile(string path, FileShare fileShare, out int size)
     {
         byte* ptr = null;
@@ -48,6 +55,12 @@ public static unsafe class UnsafeIO
         }
     }
 
+    /// <summary>
+    /// Reads an entire file into an unmanaged buffer using read sharing.
+    /// </summary>
+    /// <param name="path">The file path.</param>
+    /// <param name="size">The number of bytes read.</param>
+    /// <returns>The allocated buffer, which the caller must free.</returns>
     public static byte* ReadFile(string path, out int size)
     {
         return ReadFile(path, FileShare.Read, out size);

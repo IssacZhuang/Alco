@@ -6,6 +6,17 @@ namespace Alco.Graphics;
 /// </summary>
 public struct GraphicsPipelineDescriptor
 {
+    /// <summary>Initializes the descriptor with the default <see cref="PrimitiveTopology.TriangleList"/> topology.</summary>
+    /// <param name="bindGroups">The bind group layouts the pipeline accepts.</param>
+    /// <param name="shaderModules">The shader modules feeding the pipeline stages.</param>
+    /// <param name="vertexInputLayouts">The vertex input layouts describing vertex buffer bindings.</param>
+    /// <param name="rasterizerState">The rasterization state.</param>
+    /// <param name="blendState">The blending applied to color targets.</param>
+    /// <param name="depthStencilState">The depth and stencil test configuration.</param>
+    /// <param name="colorFormats">The color target formats, in render-target order.</param>
+    /// <param name="depthStencilFormat">The depth-stencil target format, or null when there is none.</param>
+    /// <param name="pushConstantsSize">The push constants block size in bytes.</param>
+    /// <param name="name">The diagnostic pipeline name.</param>
     public GraphicsPipelineDescriptor(
         GPUBindGroup[] bindGroups,
         ShaderModule[] shaderModules,
@@ -31,6 +42,18 @@ public struct GraphicsPipelineDescriptor
         Name = name;
     }
 
+    /// <summary>Initializes the descriptor with an explicit primitive topology.</summary>
+    /// <param name="bindGroups">The bind group layouts the pipeline accepts.</param>
+    /// <param name="shaderModules">The shader modules feeding the pipeline stages.</param>
+    /// <param name="vertexInputLayouts">The vertex input layouts describing vertex buffer bindings.</param>
+    /// <param name="rasterizerState">The rasterization state.</param>
+    /// <param name="blendState">The blending applied to color targets.</param>
+    /// <param name="depthStencilState">The depth and stencil test configuration.</param>
+    /// <param name="primitiveTopology">How vertices are assembled into primitives.</param>
+    /// <param name="colorFormats">The color target formats, in render-target order.</param>
+    /// <param name="depthStencilFormat">The depth-stencil target format, or null when there is none.</param>
+    /// <param name="pushConstantsSize">The push constants block size in bytes.</param>
+    /// <param name="name">The diagnostic pipeline name.</param>
     public GraphicsPipelineDescriptor(
         GPUBindGroup[] bindGroups,
         ShaderModule[] shaderModules,

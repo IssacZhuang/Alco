@@ -107,6 +107,7 @@ public class TestDirectoryOptionCache
     private AssetSystem _assetSystem;
     private TestFileSource _fileSource;
 
+    /// <summary>Creates the asset system and in-memory file source for each test.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -116,6 +117,7 @@ public class TestDirectoryOptionCache
         _assetSystem.AddFileSource(_fileSource);
     }
 
+    /// <summary>Disposes the asset system host and file source.</summary>
     [TearDown]
     public void TearDown()
     {

@@ -11,6 +11,13 @@ namespace Alco.Engine;
 /// <typeparam name="T">The type of the value in the curve point.</typeparam>
 public class JsonConverterCurvePoint<T> : JsonConverter<CurvePoint<T>> where T : struct
 {
+    /// <summary>
+    /// Reads a curve point from a JSON object with key and value properties.
+    /// </summary>
+    /// <param name="reader">The JSON reader.</param>
+    /// <param name="typeToConvert">The type being converted.</param>
+    /// <param name="options">The serializer options.</param>
+    /// <returns>The deserialized curve point.</returns>
     public override CurvePoint<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         if (reader.TokenType != JsonTokenType.StartObject)
@@ -53,6 +60,12 @@ public class JsonConverterCurvePoint<T> : JsonConverter<CurvePoint<T>> where T :
         throw new JsonException("Expected EndObject token.");
     }
 
+    /// <summary>
+    /// Writes a curve point as a JSON object with key and value properties.
+    /// </summary>
+    /// <param name="writer">The JSON writer.</param>
+    /// <param name="value">The curve point to write.</param>
+    /// <param name="options">The serializer options.</param>
     public override void Write(Utf8JsonWriter writer, CurvePoint<T> value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
@@ -68,6 +81,11 @@ public class JsonConverterCurvePoint<T> : JsonConverter<CurvePoint<T>> where T :
 /// </summary>
 public class JsonConverterCurvePointFactory : JsonConverterFactory
 {
+    /// <summary>
+    /// Determines whether the type is a <see cref="CurvePoint{T}"/>.
+    /// </summary>
+    /// <param name="typeToConvert">The type to check.</param>
+    /// <returns>True if the type is supported; otherwise false.</returns>
     public override bool CanConvert(Type typeToConvert)
     {
         if (!typeToConvert.IsGenericType)
@@ -78,6 +96,12 @@ public class JsonConverterCurvePointFactory : JsonConverterFactory
         return typeToConvert.GetGenericTypeDefinition() == typeof(CurvePoint<>);
     }
 
+    /// <summary>
+    /// Creates the converter for the concrete curve point type.
+    /// </summary>
+    /// <param name="typeToConvert">The type being converted.</param>
+    /// <param name="options">The serializer options.</param>
+    /// <returns>The converter instance, or null if none was created.</returns>
     public override JsonConverter? CreateConverter(Type typeToConvert, JsonSerializerOptions options)
     {
         Type itemType = typeToConvert.GetGenericArguments()[0];

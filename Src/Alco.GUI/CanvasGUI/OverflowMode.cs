@@ -1,5 +1,8 @@
 namespace Alco.GUI;
 
+/// <summary>
+/// How text that exceeds the node width is laid out.
+/// </summary>
 public enum OverflowModeHorizontal
 {
     /// <summary>
@@ -16,6 +19,9 @@ public enum OverflowModeHorizontal
     NextLine,
 }
 
+/// <summary>
+/// How text that exceeds the node height is handled.
+/// </summary>
 public enum OverflowModeVertical
 {
     /// <summary>

@@ -44,102 +44,267 @@ namespace Tommy
 {
     #region TOML Nodes
 
+    /// <summary>
+    /// Base class for TOML nodes, which represent tables, arrays and scalar values.
+    /// </summary>
     public abstract class TomlNode : IEnumerable
     {
+        /// <summary>
+        /// Gets whether this node carries a scalar value.
+        /// </summary>
         public virtual bool HasValue { get; } = false;
+        /// <summary>
+        /// Gets whether this node is an array.
+        /// </summary>
         public virtual bool IsArray { get; } = false;
+        /// <summary>
+        /// Gets whether this node is a table.
+        /// </summary>
         public virtual bool IsTable { get; } = false;
+        /// <summary>
+        /// Gets whether this node is a string.
+        /// </summary>
         public virtual bool IsString { get; } = false;
+        /// <summary>
+        /// Gets whether this node is an integer.
+        /// </summary>
         public virtual bool IsInteger { get; } = false;
+        /// <summary>
+        /// Gets whether this node is a float.
+        /// </summary>
         public virtual bool IsFloat { get; } = false;
+        /// <summary>
+        /// Gets whether this node is a date-time, either local or with an offset.
+        /// </summary>
         public bool IsDateTime => IsDateTimeLocal || IsDateTimeOffset;
+        /// <summary>
+        /// Gets whether this node is a local date-time.
+        /// </summary>
         public virtual bool IsDateTimeLocal { get; } = false;
+        /// <summary>
+        /// Gets whether this node is a date-time with an offset.
+        /// </summary>
         public virtual bool IsDateTimeOffset { get; } = false;
+        /// <summary>
+        /// Gets whether this node is a boolean.
+        /// </summary>
         public virtual bool IsBoolean { get; } = false;
+        /// <summary>
+        /// Gets or sets the comment written above this node.
+        /// </summary>
         public virtual string Comment { get; set; }
+        /// <summary>
+        /// Gets or sets the nesting level at which this node is collapsed during serialization.
+        /// </summary>
         public virtual int CollapseLevel { get; set; }
 
+        /// <summary>
+        /// Gets this node as a table, or null if it is not a table.
+        /// </summary>
         public virtual TomlTable AsTable => this as TomlTable;
+        /// <summary>
+        /// Gets this node as a string, or null if it is not a string.
+        /// </summary>
         public virtual TomlString AsString => this as TomlString;
+        /// <summary>
+        /// Gets this node as an integer, or null if it is not an integer.
+        /// </summary>
         public virtual TomlInteger AsInteger => this as TomlInteger;
+        /// <summary>
+        /// Gets this node as a float, or null if it is not a float.
+        /// </summary>
         public virtual TomlFloat AsFloat => this as TomlFloat;
+        /// <summary>
+        /// Gets this node as a boolean, or null if it is not a boolean.
+        /// </summary>
         public virtual TomlBoolean AsBoolean => this as TomlBoolean;
+        /// <summary>
+        /// Gets this node as a local date-time, or null if it is not one.
+        /// </summary>
         public virtual TomlDateTimeLocal AsDateTimeLocal => this as TomlDateTimeLocal;
+        /// <summary>
+        /// Gets this node as an offset date-time, or null if it is not one.
+        /// </summary>
         public virtual TomlDateTimeOffset AsDateTimeOffset => this as TomlDateTimeOffset;
+        /// <summary>
+        /// Gets this node as a date-time, or null if it is not one.
+        /// </summary>
         public virtual TomlDateTime AsDateTime => this as TomlDateTime;
+        /// <summary>
+        /// Gets this node as an array, or null if it is not an array.
+        /// </summary>
         public virtual TomlArray AsArray => this as TomlArray;
 
+        /// <summary>
+        /// Gets the number of direct children.
+        /// </summary>
         public virtual int ChildrenCount => 0;
 
+        /// <summary>
+        /// Gets or sets the child node with the given key.
+        /// </summary>
+        /// <param name="key">The child key.</param>
         public virtual TomlNode this[string key]
         {
             get => null;
             set { }
         }
 
+        /// <summary>
+        /// Gets or sets the child node at the given index.
+        /// </summary>
+        /// <param name="index">The child index.</param>
         public virtual TomlNode this[int index]
         {
             get => null;
             set { }
         }
 
+        /// <summary>
+        /// Gets the child nodes of this node.
+        /// </summary>
         public virtual IEnumerable<TomlNode> Children
         {
             get { yield break; }
         }
 
+        /// <summary>
+        /// Gets the keys of this node's children.
+        /// </summary>
         public virtual IEnumerable<string> Keys
         {
             get { yield break; }
         }
 
+        /// <summary>
+        /// Returns an enumerator over the child nodes.
+        /// </summary>
         public IEnumerator GetEnumerator() => Children.GetEnumerator();
 
+        /// <summary>
+        /// Tries to get the child node with the given key.
+        /// </summary>
+        /// <param name="key">The child key.</param>
+        /// <param name="node">The child node when found; otherwise null.</param>
+        /// <returns>True when the child exists.</returns>
         public virtual bool TryGetNode(string key, out TomlNode node)
         {
             node = null;
             return false;
         }
 
+        /// <summary>
+        /// Gets whether this node has a child with the given key.
+        /// </summary>
+        /// <param name="key">The key to check.</param>
         public virtual bool HasKey(string key) => false;
 
+        /// <summary>
+        /// Gets whether this node has a child at the given index.
+        /// </summary>
+        /// <param name="index">The index to check.</param>
         public virtual bool HasItemAt(int index) => false;
 
+        /// <summary>
+        /// Adds a child node under the given key.
+        /// </summary>
+        /// <param name="key">The child key.</param>
+        /// <param name="node">The node to add.</param>
         public virtual void Add(string key, TomlNode node) { }
 
+        /// <summary>
+        /// Adds a child node to this node.
+        /// </summary>
+        /// <param name="node">The node to add.</param>
         public virtual void Add(TomlNode node) { }
 
+        /// <summary>
+        /// Removes the given child node.
+        /// </summary>
+        /// <param name="node">The node to remove.</param>
         public virtual void Delete(TomlNode node) { }
 
+        /// <summary>
+        /// Removes the child node with the given key.
+        /// </summary>
+        /// <param name="key">The key of the node to remove.</param>
         public virtual void Delete(string key) { }
 
+        /// <summary>
+        /// Removes the child node at the given index.
+        /// </summary>
+        /// <param name="index">The index of the node to remove.</param>
         public virtual void Delete(int index) { }
 
+        /// <summary>
+        /// Adds all nodes in the sequence as children.
+        /// </summary>
+        /// <param name="nodes">The nodes to add.</param>
         public virtual void AddRange(IEnumerable<TomlNode> nodes)
         {
             foreach (var tomlNode in nodes) Add(tomlNode);
         }
 
+        /// <summary>
+        /// Writes this node to the given writer.
+        /// </summary>
+        /// <param name="tw">The destination writer.</param>
+        /// <param name="name">The fully qualified key of this node, if any.</param>
         public virtual void WriteTo(TextWriter tw, string name = null) => tw.WriteLine(ToInlineToml());
 
+        /// <summary>
+        /// Returns the inline TOML representation of this node.
+        /// </summary>
         public virtual string ToInlineToml() => ToString();
 
         #region Native type to TOML cast
 
+        /// <summary>
+        /// Converts a string to a TOML string node.
+        /// </summary>
+        /// <param name="value">The string value.</param>
         public static implicit operator TomlNode(string value) => new TomlString { Value = value };
 
+        /// <summary>
+        /// Converts a boolean to a TOML boolean node.
+        /// </summary>
+        /// <param name="value">The boolean value.</param>
         public static implicit operator TomlNode(bool value) => new TomlBoolean { Value = value };
 
+        /// <summary>
+        /// Converts a long to a TOML integer node.
+        /// </summary>
+        /// <param name="value">The integer value.</param>
         public static implicit operator TomlNode(long value) => new TomlInteger { Value = value };
 
+        /// <summary>
+        /// Converts a float to a TOML float node.
+        /// </summary>
+        /// <param name="value">The float value.</param>
         public static implicit operator TomlNode(float value) => new TomlFloat { Value = value };
 
+        /// <summary>
+        /// Converts a double to a TOML float node.
+        /// </summary>
+        /// <param name="value">The double value.</param>
         public static implicit operator TomlNode(double value) => new TomlFloat { Value = value };
 
+        /// <summary>
+        /// Converts a DateTime to a local TOML date-time node.
+        /// </summary>
+        /// <param name="value">The date-time value.</param>
         public static implicit operator TomlNode(DateTime value) => new TomlDateTimeLocal { Value = value };
 
+        /// <summary>
+        /// Converts a DateTimeOffset to an offset TOML date-time node.
+        /// </summary>
+        /// <param name="value">The date-time value.</param>
         public static implicit operator TomlNode(DateTimeOffset value) => new TomlDateTimeOffset { Value = value };
 
+        /// <summary>
+        /// Converts an array of nodes to a TOML array node.
+        /// </summary>
+        /// <param name="nodes">The nodes to include in the array.</param>
         public static implicit operator TomlNode(TomlNode[] nodes)
         {
             var result = new TomlArray();
@@ -151,33 +316,80 @@ namespace Tommy
 
         #region TOML to native type cast
 
+        /// <summary>
+        /// Converts a node to its string representation.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator string(TomlNode value) => value.ToString();
 
+        /// <summary>
+        /// Converts an integer node to an int.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator int(TomlNode value) => (int)value.AsInteger.Value;
 
+        /// <summary>
+        /// Converts an integer node to a long.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator long(TomlNode value) => value.AsInteger.Value;
 
+        /// <summary>
+        /// Converts a float node to a float.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator float(TomlNode value) => (float)value.AsFloat.Value;
 
+        /// <summary>
+        /// Converts a float node to a double.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator double(TomlNode value) => value.AsFloat.Value;
 
+        /// <summary>
+        /// Converts a boolean node to a bool.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator bool(TomlNode value) => value.AsBoolean.Value;
 
+        /// <summary>
+        /// Converts a local date-time node to a DateTime.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator DateTime(TomlNode value) => value.AsDateTimeLocal.Value;
 
+        /// <summary>
+        /// Converts an offset date-time node to a DateTimeOffset.
+        /// </summary>
+        /// <param name="value">The node to convert.</param>
         public static implicit operator DateTimeOffset(TomlNode value) => value.AsDateTimeOffset.Value;
 
         #endregion
     }
 
+    /// <summary>
+    /// Represents a TOML string value.
+    /// </summary>
     public class TomlString : TomlNode
     {
         public override bool HasValue { get; } = true;
         public override bool IsString { get; } = true;
+        /// <summary>
+        /// Gets or sets whether the string is written as a multiline string.
+        /// </summary>
         public bool IsMultiline { get; set; }
+        /// <summary>
+        /// Gets or sets whether the first line of a multiline string is trimmed.
+        /// </summary>
         public bool MultilineTrimFirstLine { get; set; }
+        /// <summary>
+        /// Gets or sets whether the string is written as a literal string when possible.
+        /// </summary>
         public bool PreferLiteral { get; set; }
 
+        /// <summary>
+        /// Gets or sets the string value.
+        /// </summary>
         public string Value { get; set; }
 
         public override string ToString() => Value;
@@ -197,8 +409,14 @@ namespace Tommy
         }
     }
 
+    /// <summary>
+    /// Represents a TOML integer value.
+    /// </summary>
     public class TomlInteger : TomlNode
     {
+        /// <summary>
+        /// Integer bases supported by TOML integer literals.
+        /// </summary>
         public enum Base
         {
             Binary = 2,
@@ -209,8 +427,14 @@ namespace Tommy
 
         public override bool IsInteger { get; } = true;
         public override bool HasValue { get; } = true;
+        /// <summary>
+        /// Gets or sets the base used when writing the integer.
+        /// </summary>
         public Base IntegerBase { get; set; } = Base.Decimal;
 
+        /// <summary>
+        /// Gets or sets the integer value.
+        /// </summary>
         public long Value { get; set; }
 
         public override string ToString() => Value.ToString();
@@ -221,17 +445,34 @@ namespace Tommy
                 : Value.ToString(CultureInfo.InvariantCulture);
     }
 
+    /// <summary>
+    /// Represents a TOML floating-point value.
+    /// </summary>
     public class TomlFloat : TomlNode, IFormattable
     {
         public override bool IsFloat { get; } = true;
         public override bool HasValue { get; } = true;
 
+        /// <summary>
+        /// Gets or sets the floating-point value.
+        /// </summary>
         public double Value { get; set; }
 
         public override string ToString() => Value.ToString(CultureInfo.InvariantCulture);
 
+        /// <summary>
+        /// Formats the value using the given format and format provider.
+        /// </summary>
+        /// <param name="format">The format string.</param>
+        /// <param name="formatProvider">The format provider.</param>
+        /// <returns>The formatted value.</returns>
         public string ToString(string format, IFormatProvider formatProvider) => Value.ToString(format, formatProvider);
 
+        /// <summary>
+        /// Formats the value using the given format provider.
+        /// </summary>
+        /// <param name="formatProvider">The format provider.</param>
+        /// <returns>The formatted value.</returns>
         public string ToString(IFormatProvider formatProvider) => Value.ToString(formatProvider);
 
         public override string ToInlineToml() =>
@@ -244,11 +485,17 @@ namespace Tommy
             };
     }
 
+    /// <summary>
+    /// Represents a TOML boolean value.
+    /// </summary>
     public class TomlBoolean : TomlNode
     {
         public override bool IsBoolean { get; } = true;
         public override bool HasValue { get; } = true;
 
+        /// <summary>
+        /// Gets or sets the boolean value.
+        /// </summary>
         public bool Value { get; set; }
 
         public override string ToString() => Value.ToString();
@@ -256,11 +503,28 @@ namespace Tommy
         public override string ToInlineToml() => Value ? TomlSyntax.TRUE_VALUE : TomlSyntax.FALSE_VALUE;
     }
 
+    /// <summary>
+    /// Base class for TOML date-time values.
+    /// </summary>
     public class TomlDateTime : TomlNode, IFormattable
     {
+        /// <summary>
+        /// Gets or sets the number of fractional-second digits written, from 0 through 7.
+        /// </summary>
         public int SecondsPrecision { get; set; }
         public override bool HasValue { get; } = true;
+        /// <summary>
+        /// Formats the date-time using the given format and format provider.
+        /// </summary>
+        /// <param name="format">The format string.</param>
+        /// <param name="formatProvider">The format provider.</param>
+        /// <returns>The formatted date-time.</returns>
         public virtual string ToString(string format, IFormatProvider formatProvider) => string.Empty;
+        /// <summary>
+        /// Formats the date-time using the given format provider.
+        /// </summary>
+        /// <param name="formatProvider">The format provider.</param>
+        /// <returns>The formatted date-time.</returns>
         public virtual string ToString(IFormatProvider formatProvider) => string.Empty;
         protected virtual string ToInlineTomlInternal() => string.Empty;
 
@@ -269,9 +533,15 @@ namespace Tommy
                                                 .Replace(TomlSyntax.ISO861ZeroZone, TomlSyntax.RFC3339ZeroZone);
     }
 
+    /// <summary>
+    /// Represents a TOML date-time with an offset from UTC.
+    /// </summary>
     public class TomlDateTimeOffset : TomlDateTime
     {
         public override bool IsDateTimeOffset { get; } = true;
+        /// <summary>
+        /// Gets or sets the date-time value.
+        /// </summary>
         public DateTimeOffset Value { get; set; }
 
         public override string ToString() => Value.ToString(CultureInfo.CurrentCulture);
@@ -283,8 +553,14 @@ namespace Tommy
         protected override string ToInlineTomlInternal() => Value.ToString(TomlSyntax.RFC3339Formats[SecondsPrecision]);
     }
 
+    /// <summary>
+    /// Represents a TOML date-time without an offset.
+    /// </summary>
     public class TomlDateTimeLocal : TomlDateTime
     {
+        /// <summary>
+        /// Date-time components written for a local date-time.
+        /// </summary>
         public enum DateTimeStyle
         {
             Date,
@@ -293,7 +569,13 @@ namespace Tommy
         }
 
         public override bool IsDateTimeLocal { get; } = true;
+        /// <summary>
+        /// Gets or sets which components of the local date-time are written.
+        /// </summary>
         public DateTimeStyle Style { get; set; } = DateTimeStyle.DateTime;
+        /// <summary>
+        /// Gets or sets the date-time value.
+        /// </summary>
         public DateTime Value { get; set; }
 
         public override string ToString() => Value.ToString(CultureInfo.CurrentCulture);
@@ -312,14 +594,26 @@ namespace Tommy
             };
     }
 
+    /// <summary>
+    /// Represents a TOML array.
+    /// </summary>
     public class TomlArray : TomlNode
     {
         private List<TomlNode> values;
 
         public override bool HasValue { get; } = true;
         public override bool IsArray { get; } = true;
+        /// <summary>
+        /// Gets or sets whether the array is written across multiple lines.
+        /// </summary>
         public bool IsMultiline { get; set; }
+        /// <summary>
+        /// Gets or sets whether the array is written as an array of tables.
+        /// </summary>
         public bool IsTableArray { get; set; }
+        /// <summary>
+        /// Gets the underlying list of nodes.
+        /// </summary>
         public List<TomlNode> RawArray => values ??= new List<TomlNode>();
 
         public override TomlNode this[int index]
@@ -354,6 +648,11 @@ namespace Tommy
 
         public override string ToString() => ToString(false);
 
+        /// <summary>
+        /// Returns the TOML representation of this array.
+        /// </summary>
+        /// <param name="multiline">Whether to format the array across multiple lines.</param>
+        /// <returns>The TOML text for the array.</returns>
         public string ToString(bool multiline)
         {
             var sb = new StringBuilder();
@@ -423,6 +722,9 @@ namespace Tommy
         }
     }
 
+    /// <summary>
+    /// Represents a TOML table.
+    /// </summary>
     public class TomlTable : TomlNode
     {
         private Dictionary<string, TomlNode> children;
@@ -430,7 +732,13 @@ namespace Tommy
 
         public override bool HasValue { get; } = false;
         public override bool IsTable { get; } = true;
+        /// <summary>
+        /// Gets or sets whether the table is written as an inline table.
+        /// </summary>
         public bool IsInline { get; set; }
+        /// <summary>
+        /// Gets the underlying dictionary of child nodes.
+        /// </summary>
         public Dictionary<string, TomlNode> RawTable => children ??= new Dictionary<string, TomlNode>();
 
         public override TomlNode this[string key]
@@ -625,8 +933,14 @@ namespace Tommy
 
     #region Parser
 
+    /// <summary>
+    /// Parses TOML text into a TomlTable.
+    /// </summary>
     public class TOMLParser : IDisposable
     {
+        /// <summary>
+        /// Parser states used while scanning TOML text.
+        /// </summary>
         public enum ParseState
         {
             None,
@@ -640,16 +954,30 @@ namespace Tommy
         private int line, col;
         private List<TomlSyntaxException> syntaxErrors;
 
+        /// <summary>
+        /// Initializes a parser that reads TOML from the given reader.
+        /// </summary>
+        /// <param name="reader">The reader providing the TOML text.</param>
         public TOMLParser(TextReader reader)
         {
             this.reader = reader;
             line = col = 0;
         }
 
+        /// <summary>
+        /// Gets or sets whether non-ASCII characters are escaped.
+        /// </summary>
         public bool ForceASCII { get; set; }
 
+        /// <summary>
+        /// Releases the underlying reader.
+        /// </summary>
         public void Dispose() => reader?.Dispose();
 
+        /// <summary>
+        /// Parses the reader's content into a root table and throws TomlParseException when syntax errors are found.
+        /// </summary>
+        /// <returns>The parsed root table.</returns>
         public TomlTable Parse()
         {
             syntaxErrors = new List<TomlSyntaxException>();
@@ -1767,10 +2095,21 @@ namespace Tommy
 
     #endregion
 
+    /// <summary>
+    /// Provides entry points for parsing TOML text.
+    /// </summary>
     public static class TOML
     {
+        /// <summary>
+        /// Gets or sets whether non-ASCII characters are escaped when writing TOML.
+        /// </summary>
         public static bool ForceASCII { get; set; } = false;
 
+        /// <summary>
+        /// Parses all TOML text from the reader into a table.
+        /// </summary>
+        /// <param name="reader">The reader providing the TOML text.</param>
+        /// <returns>The parsed root table.</returns>
         public static TomlTable Parse(TextReader reader)
         {
             using var parser = new TOMLParser(reader) { ForceASCII = ForceASCII };
@@ -1780,13 +2119,28 @@ namespace Tommy
 
     #region Exception Types
 
+    /// <summary>
+    /// Thrown when TOML nodes cannot be written as valid TOML.
+    /// </summary>
     public class TomlFormatException : Exception
     {
+        /// <summary>
+        /// Initializes the exception with the given message.
+        /// </summary>
+        /// <param name="message">The message describing the error.</param>
         public TomlFormatException(string message) : base(message) { }
     }
 
+    /// <summary>
+    /// Thrown when TOML parsing encounters syntax errors.
+    /// </summary>
     public class TomlParseException : Exception
     {
+        /// <summary>
+        /// Initializes the exception with the partially parsed table and the syntax errors.
+        /// </summary>
+        /// <param name="parsed">The table parsed before the errors were found.</param>
+        /// <param name="exceptions">The syntax errors encountered during parsing.</param>
         public TomlParseException(TomlTable parsed, IEnumerable<TomlSyntaxException> exceptions) :
             base("TOML file contains format errors")
         {
@@ -1794,13 +2148,29 @@ namespace Tommy
             SyntaxErrors = exceptions;
         }
 
+        /// <summary>
+        /// Gets the table parsed before the syntax errors were found.
+        /// </summary>
         public TomlTable ParsedTable { get; }
 
+        /// <summary>
+        /// Gets the syntax errors encountered during parsing.
+        /// </summary>
         public IEnumerable<TomlSyntaxException> SyntaxErrors { get; }
     }
 
+    /// <summary>
+    /// Describes a TOML syntax error at a specific parser position.
+    /// </summary>
     public class TomlSyntaxException : Exception
     {
+        /// <summary>
+        /// Initializes the exception with the message, parser state and position.
+        /// </summary>
+        /// <param name="message">The message describing the error.</param>
+        /// <param name="state">The parser state when the error occurred.</param>
+        /// <param name="line">The line number of the error.</param>
+        /// <param name="col">The column number of the error.</param>
         public TomlSyntaxException(string message, TOMLParser.ParseState state, int line, int col) : base(message)
         {
             ParseState = state;
@@ -1808,10 +2178,19 @@ namespace Tommy
             Column = col;
         }
 
+        /// <summary>
+        /// Gets the parser state when the error occurred.
+        /// </summary>
         public TOMLParser.ParseState ParseState { get; }
 
+        /// <summary>
+        /// Gets the line number where the error occurred.
+        /// </summary>
         public int Line { get; }
 
+        /// <summary>
+        /// Gets the column number where the error occurred.
+        /// </summary>
         public int Column { get; }
     }
 

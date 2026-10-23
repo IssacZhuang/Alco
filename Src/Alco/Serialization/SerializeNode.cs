@@ -12,6 +12,9 @@ public abstract class SerializeNode
 {
     protected Action<string>? OnError {get; set;}
 
+    /// <summary>
+    /// Gets the reference context used to track serialized object identities, if any.
+    /// </summary>
     public abstract ReferenceContext? ReferenceContext { get;}
 
     /// <summary>
@@ -95,6 +98,12 @@ public abstract class SerializeNode
     /// <param name="value">The collection of strings to be serialized or deserialized.</param>
     public abstract void BindCollection(string key, ICollection<string> value);
 
+    /// <summary>
+    /// Binds a read-only list of serializable objects for deep serialization.
+    /// </summary>
+    /// <typeparam name="T">The type that implements ISerializable.</typeparam>
+    /// <param name="key">The key identifier for the array in the serialization format.</param>
+    /// <param name="value">The list of serializable objects to be serialized or deserialized.</param>
     public abstract void BindArraySerializable<T>(string key, IReadOnlyList<T> value) where T : ISerializable;
 
     /// <summary>
@@ -161,17 +170,8 @@ public abstract class SerializeNode
     public abstract void BindBinary(string key, ref ReadOnlyMemory<byte> data);
 
     /// <summary>
-    /// Binds a reference to an <see cref="IReferenceable"/> object. Save writes the object's
-    /// context ID; PostLoad resolves it back. Cross-context (e.g. into an inactive map) and
-    /// object-identity concerns are handled automatically — declare the field and call this.
-    /// <para>
-    /// Two rules to remember:
-    /// <br/>1. The target must already be registered in the context — it must have been
-    /// serialized first via <c>BindSerializable</c>/<c>BindCollectionSerializable</c> in the
-    /// same traversal, otherwise PostLoad resolves it to <c>null</c> silently.
-    /// <br/>2. The field is <c>null</c> during <see cref="SerializeMode.Load"/>; references
-    /// are only resolved during <see cref="SerializeMode.PostLoad"/>, so do not read it earlier.
-    /// </para>
+    /// Binds a reference to an <see cref="IReferenceable"/> object, writing its context ID on save and resolving it during <see cref="SerializeMode.PostLoad"/>; the field stays null during <see cref="SerializeMode.Load"/>.
+    /// The target must already be registered by the same traversal, otherwise it resolves to null.
     /// </summary>
     /// <param name="key">The key identifier for the reference in the serialization format.</param>
     /// <param name="referenceable">The referenced object, or <c>null</c>.</param>

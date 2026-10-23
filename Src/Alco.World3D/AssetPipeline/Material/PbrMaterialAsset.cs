@@ -4,16 +4,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// The World3D material asset — the pipeline-agnostic <see cref="MaterialAsset"/> plus
-/// the built-in PbrStandard surface's flat factors (glTF metallic-roughness) and the
-/// alpha/double-sided routing fields the World3D passes read. Parsed directly from
-/// <c>.amat</c> files carrying the <c>"$type": "Alco.World3D.PbrMaterialAsset"</c>
-/// discriminator (the engine's polymorphic JSON convention; no registration needed —
-/// the type is discovered by assembly scan).
-/// <br/>The flat factors are per-instance data at draw time: they ride the renderers'
-/// instance buffers, not the material's own resources. A material naming no
-/// <see cref="MaterialAsset.Surface"/> evaluates the built-in PbrStandard surface
-/// and reads the flat factor fields plus the four standard texture slots.
+/// The World3D material asset: a <see cref="MaterialAsset"/> plus the built-in PbrStandard surface's flat metallic-roughness factors and the alpha/double-sided routing fields. Parsed from <c>.amat</c> files carrying the <c>"$type": "Alco.World3D.PbrMaterialAsset"</c> discriminator.
 /// </summary>
 public sealed class PbrMaterialAsset : MaterialAsset
 {

@@ -7,6 +7,14 @@ namespace Alco.Graphics;
 /// </summary>
 public struct DeviceDescriptor
 {
+    /// <summary>Initializes the descriptor with the host and device options.</summary>
+    /// <param name="loopProvider">The application host that owns the device loop.</param>
+    /// <param name="backend">The graphics backend, or Auto to let the runtime choose.</param>
+    /// <param name="preferredSurfaceFormat">The texture format requested for swapchain surfaces.</param>
+    /// <param name="debug">Whether to enable debug validation and extra error reporting.</param>
+    /// <param name="pushConstantsSize">The push constants buffer size in bytes; 0 disables it.</param>
+    /// <param name="disposeDelay">How many frames a destroyed object is kept alive before release.</param>
+    /// <param name="name">The diagnostic device name.</param>
     public DeviceDescriptor(
         IGPUDeviceHost loopProvider,
         GraphicsBackend backend = GraphicsBackend.Auto,

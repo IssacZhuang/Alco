@@ -4,9 +4,11 @@ using NUnit.Framework;
 
 namespace Alco.Test.Collection;
 
+/// <summary>Tests the double-ended queue implementation.</summary>
 [TestFixture]
 public class TestDeque
 {
+	/// <summary>Tests basic enqueue, dequeue and peek operations at both ends.</summary>
 	[Test]
 	public void Enqueue_Dequeue_HeadTail_Basic()
 	{
@@ -42,6 +44,7 @@ public class TestDeque
 		Assert.That(dq.TryDequeueTail(out _), Is.False);
 	}
 
+	/// <summary>Tests that growth and wrap-around preserve element order.</summary>
 	[Test]
 	public void Grow_WrapAround_Preserves_Order()
 	{
@@ -73,6 +76,7 @@ public class TestDeque
 		}
 	}
 
+	/// <summary>Tests removing elements by value from the head, tail and middle.</summary>
 	[Test]
 	public void Remove_ByValue_MiddleHeadTail()
 	{
@@ -98,6 +102,7 @@ public class TestDeque
 		CollectionAssert.AreEqual(new[] { 1,2,3,4,6,7,8 }, remaining);
 	}
 
+	/// <summary>Tests that Clear resets the deque and allows reuse.</summary>
 	[Test]
 	public void Clear_Resets_State()
 	{
@@ -113,6 +118,7 @@ public class TestDeque
 		Assert.That(x, Is.EqualTo(42));
 	}
 
+    /// <summary>Tests that enumeration yields elements from head to tail.</summary>
     [Test]
     public void Foreach_Enumerates_InOrder()
     {
@@ -129,6 +135,7 @@ public class TestDeque
         CollectionAssert.AreEqual(new[] { 5, 6, 7, 8, 9, 0, 1, 2, 3, 4 }, seen);
     }
 
+    /// <summary>Tests that mutating the deque during enumeration throws.</summary>
     [Test]
     public void Foreach_Modify_During_Enumeration_Throws()
     {

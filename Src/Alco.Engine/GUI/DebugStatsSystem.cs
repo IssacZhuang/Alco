@@ -20,6 +20,10 @@ public class DebugStatsSystem : BaseEngineSystem
     /// </summary>
     public override int Order => int.MaxValue - 1;
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="DebugStatsSystem"/> using the engine's built-in assets.
+    /// </summary>
+    /// <param name="engine">The engine that owns the main view and rendering system.</param>
     public DebugStatsSystem(GameEngine engine)
     {
         _engine = engine;

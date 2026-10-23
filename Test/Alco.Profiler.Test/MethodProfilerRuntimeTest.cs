@@ -2,6 +2,9 @@ using NUnit.Framework;
 
 namespace Alco.Profiler.Test;
 
+/// <summary>
+/// Tests method profiler runtime timings, session exclusivity, component aggregation, and parallel calls.
+/// </summary>
 public sealed class MethodProfilerRuntimeTest
 {
     private interface IFakeTickable
@@ -15,6 +18,9 @@ public sealed class MethodProfilerRuntimeTest
     private long _timestamp;
     private MethodProfilerRuntime _runtime = null!;
 
+    /// <summary>
+    /// Creates the profiler runtime with a controllable clock.
+    /// </summary>
     [SetUp]
     public void SetUp()
     {
@@ -22,6 +28,9 @@ public sealed class MethodProfilerRuntimeTest
         _runtime = new MethodProfilerRuntime(() => _timestamp, 1000);
     }
 
+    /// <summary>
+    /// Tests that nested methods produce inclusive and self times.
+    /// </summary>
     [Test]
     public void NestedMethodsProduceInclusiveAndSelfTime()
     {
@@ -54,6 +63,9 @@ public sealed class MethodProfilerRuntimeTest
         }
     }
 
+    /// <summary>
+    /// Tests that profiler sessions are exclusive and report their owner.
+    /// </summary>
     [Test]
     public void SessionIsExclusiveAndReportsOwner()
     {
@@ -69,6 +81,9 @@ public sealed class MethodProfilerRuntimeTest
         second!.Dispose();
     }
 
+    /// <summary>
+    /// Tests that nested component bodies produce one concrete-type aggregate.
+    /// </summary>
     [Test]
     public void NestedComponentBodiesProduceOneConcreteTypeAggregate()
     {
@@ -105,6 +120,9 @@ public sealed class MethodProfilerRuntimeTest
         }
     }
 
+    /// <summary>
+    /// Tests that a non-matching runtime contract creates no component aggregate.
+    /// </summary>
     [Test]
     public void NonMatchingRuntimeContractDoesNotCreateComponentAggregate()
     {
@@ -126,6 +144,9 @@ public sealed class MethodProfilerRuntimeTest
         }
     }
 
+    /// <summary>
+    /// Tests that parallel calls remain isolated and merge at the end of the tick.
+    /// </summary>
     [Test]
     public void ParallelCallsRemainIsolatedAndMergeAtEndTick()
     {

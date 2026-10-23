@@ -76,11 +76,19 @@ public struct ThreadGroupSize
         dispatchZ = (z + Z - 1) / Z;
     }
 
+    /// <summary>Determines whether two thread group sizes have equal dimensions.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when all three axis counts are equal.</returns>
     public static bool operator ==(ThreadGroupSize left, ThreadGroupSize right)
     {
         return left.X == right.X && left.Y == right.Y && left.Z == right.Z;
     }
 
+    /// <summary>Determines whether two thread group sizes differ in any dimension.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when any axis count differs.</returns>
     public static bool operator !=(ThreadGroupSize left, ThreadGroupSize right)
     {
         return left.X != right.X || left.Y != right.Y || left.Z != right.Z;

@@ -8,16 +8,8 @@ using Alco.Effects;
 namespace Alco.Editor;
 
 /// <summary>
-/// Particle effect asset document (<c>.afx</c>): a live preview viewport and an
-/// independent inspector with the full group parameter editor, for both 2D and 3D effects.
-/// Edits happen on a detached copy deserialized from the file (the shared asset cache
-/// is never mutated); saving serializes through the particle loader's own JSON options.
-/// <br/>Preview synchronization: fields baked into the GPU parameter record apply
-/// live through <see cref="ParticleEffectInstance2D.SetGroupParams"/> without
-/// restarting emission; structural edits (pool capacity, timeline, bursts, behavior,
-/// material/texture, blend/depth, over-life tables, group list) rebuild the preview
-/// instance from a JSON-roundtripped copy after a short debounce, so the system's
-/// per-asset material and lookup-texture caches rebake against fresh object identities.
+/// The <c>.afx</c> particle effect document: a live preview viewport plus an inspector with the full group parameter editor, editing a detached copy so the shared asset cache is never mutated.
+/// Save writes through the particle loader's JSON options; GPU-record fields apply live while structural edits rebuild the preview after a short debounce.
 /// </summary>
 public sealed partial class ParticleEffectDocument : AssetDocument
 {

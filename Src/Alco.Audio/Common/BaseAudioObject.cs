@@ -10,6 +10,7 @@ public abstract class BaseAudioObject : IDisposable
 {
     private volatile uint _disposed;
 
+    /// <summary>Gets whether this object has been disposed.</summary>
     public bool IsDisposed => _disposed != 0;
 
     ~BaseAudioObject()
@@ -21,6 +22,7 @@ public abstract class BaseAudioObject : IDisposable
         }
     }
 
+    /// <summary>Releases the object's resources.</summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) == 0)

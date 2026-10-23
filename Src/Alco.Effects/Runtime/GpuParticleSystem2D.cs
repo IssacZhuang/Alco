@@ -7,52 +7,9 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// The 2D GPU particle system: simulates and renders any number of
-/// <see cref="ParticleEffect2D"/> instances entirely on the GPU. Per frame it
-/// records the compute work batched per behavior material — one wide emit and one
-/// wide simulate/compact dispatch each, whose 64-thread blocks resolve their
-/// emitter group through a CPU-uploaded work-block table (see
-/// <see cref="GpuParticleWorkBlock"/>) — and, batched per render material, one
-/// indexed multi-draw indirect into the scene pass; CPU work per frame is a small
-/// parameter update per active emitter plus the per-frame draw-plan bookkeeping.
-/// <br/>All instances share one buffer pool (see <see cref="ParticleBufferPool{,}"/>),
-/// which makes creating/destroying effects cheap and keeps the draw state stable.
-/// <br/>Draw batching: per frame the CPU buckets the visible active groups by
-/// material and assigns each a drawIndex (its slot in the compacted draw-args
-/// array, contiguous per material for the multi-draw) and a drawStart (the
-/// firstInstance addressing its run in the instance-data buffer). The emit pass
-/// writes the args record at drawIndex, the simulate pass appends one
-/// GpuInstanceData record per surviving particle at drawStart; the render pass
-/// binds the instance-data buffer as the instance-step vertex buffer and issues
-/// one multi-draw per material, so draw calls scale with the material count, not
-/// the emitter count. The per-draw identity travels through vertex fetch on
-/// purpose: the instance-id builtin's firstInstance semantics differ between
-/// Vulkan (absolute) and D3D12 (per-draw).
-/// <br/>Note the batch list is recorded at simulation time; <c>Render</c> replays
-/// it, so a visibility flip between the two phases lands the next frame (the
-/// simulation itself already gates on the previous frame's visibility).
-/// <br/>Rate limiting: with <see cref="SimulationRateLimitEnabled"/> on (the
-/// default), the simulation steps at most once per <see cref="SimulationInterval"/>
-/// and the frames in between skip every dispatch and replay the cached draw plan
-/// — the pool buffers persist, so the last simulated state still draws. The GPU
-/// simulation cost then scales with the configured rate instead of the frame rate.
-/// <br/>Usage: insert the simulation into the pipeline with an
-/// <see cref="RGNode_Callback"/> before the scene content node and call
-/// <see cref="Render"/> from the scene content (or an <see cref="IRenderPassContent"/>).
-/// <br/>Material modules (<see cref="AddMaterialModule"/>) bind further shared
-/// shader resources into the render materials (e.g. a lighting middleware
-/// binding a light map); slots resolve by name with opt-in semantics, so
-/// surfaces that declare no matching slot are unaffected.
-/// <br/>Threading: instance creation, release (instance disposal), the camera,
-/// the frame simulation and rendering are serialized on one reentrant gate shared
-/// with the pool, so creating/destroying effects from any thread is safe and never
-/// corrupts the shared bookkeeping. First-use material compilation happens off the
-/// gate (double-checked caches), so a worker-thread compile never stalls the frame
-/// thread. Ongoing per-instance mutation (per-tick transforms, group parameter
-/// edits) remains a main-thread contract; a one-time setup write from the creating
-/// thread (e.g. facade depth right after creation) may race the frame simulation's
-/// per-frame fields of the same slot — the worst case is losing one frame of that
-/// group's emission, self-healed by the next step.
+/// Simulates and renders any number of <see cref="ParticleEffect2D"/> instances entirely on the GPU,
+/// batching per material and sharing one buffer pool. Creation, release, simulation and rendering are
+/// serialized on one gate; per-instance mutation stays on the main thread.
 /// </summary>
 public sealed class GpuParticleSystem2D : AutoDisposable
 {
@@ -156,11 +113,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     private const int InitialWorkBlockCapacity = 512;
 
     /// <summary>
-    /// The 2D camera the groups render with; bound to every group's material.
-    /// Accepts any view-projection matrix buffer (a <see cref="Camera2DBuffer"/>,
-    /// or the shared <see cref="RenderingSystem.MainCameraViewProjectionBuffer"/> to
-    /// track whatever camera is currently rendering). Must be set before
-    /// <see cref="Render"/> is called.
+    /// The camera view-projection buffer bound to every group's material; accepts a
+    /// <see cref="Camera2DBuffer"/> or the shared
+    /// <see cref="RenderingSystem.MainCameraViewProjectionBuffer"/>. Must be set
+    /// before <see cref="Render"/> is called.
     /// </summary>
     public GraphicsValueBuffer<Matrix4x4>? Camera
     {
@@ -182,11 +138,8 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// Registers a material module (see <see cref="IParticleMaterialModule"/>):
-    /// its bindings apply immediately to every material already cached and to
-    /// every render material the system creates afterwards. The typical module
-    /// is a lighting middleware binding a shared light-map texture and its
-    /// sampling parameters into slots the particle surfaces declare.
+    /// Registers a material module (see <see cref="IParticleMaterialModule"/>); its
+    /// bindings apply to every cached material and every material created afterwards.
     /// </summary>
     /// <param name="module">The module to register.</param>
     /// <returns>The unregistration handle; dispose it to remove the module.</returns>
@@ -206,11 +159,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// Re-applies every registered material module to every cached render
-    /// material (materials created afterwards configure at creation anyway).
-    /// For a module that replaced one of its resource objects (e.g. its light
-    /// map was recreated) and needs the new object bound everywhere; unchanged
-    /// bindings are overwritten idempotently.
+    /// Re-applies every registered material module to every cached render material,
+    /// e.g. after a module replaced one of its resource objects. Materials created
+    /// afterwards configure at creation anyway.
     /// </summary>
     public void RefreshMaterialModules()
     {
@@ -237,15 +188,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
     /// <summary>
     /// The fixed time in seconds between simulation steps while
-    /// <see cref="SimulationRateLimitEnabled"/> is on. Frames below it record no
-    /// emit/simulate dispatches at all — <see cref="Render"/> replays the cached
-    /// draw plan, which still draws the last simulated state — and their deltas
-    /// accumulate; each step simulates exactly one interval and carries the
-    /// remainder, so the cadence is even and the average pacing matches the wall
-    /// clock. Backlog beyond one interval (a hitch, or a frame rate below the
-    /// simulation rate) is discarded — effects play through stalls slightly
-    /// slower instead of fast-forwarding. Must be positive to have an effect; a
-    /// non-positive value simulates every frame.
+    /// <see cref="SimulationRateLimitEnabled"/> is on; frames below it record no
+    /// dispatches and <see cref="Render"/> replays the cached draw plan. Backlog
+    /// beyond one interval is discarded, and a non-positive value simulates every
+    /// frame.
     /// </summary>
     public float SimulationInterval { get; set; } = DefaultSimulationInterval;
 
@@ -299,10 +245,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 
     /// <summary>
     /// Creates an effect instance with a ground-plane transform and an independent
-    /// 2.5D emitter height. The instance starts playing immediately. Thread-safe:
-    /// pool allocation, parameter writes and the instance publication are serialized
-    /// on the shared gate; a first-use material compiles outside it (see
-    /// <see cref="GetOrCreateMaterial"/>).
+    /// 2.5D emitter height, starting immediately. Thread-safe: pool allocation and
+    /// publication are serialized on the shared gate, and a first-use material
+    /// compiles outside it.
     /// </summary>
     /// <param name="effect">The effect asset.</param>
     /// <param name="transform">The emitter's ground-plane transform.</param>
@@ -386,31 +331,10 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// Records the simulation of all active instances into
-    /// <paramref name="commandBuffer"/>: pending pool migrations, the parameter
-    /// upload, the per-frame draw plan, pending slice kills, then the emit and
-    /// simulate/compact dispatches batched per behavior material (see
-    /// <see cref="BuildWorkBlocks"/>). The caller owns the ordering: record
-    /// before the scene pass the particles draw into (e.g. from an
-    /// <see cref="RGNode_Callback"/>). Pass
-    /// <paramref name="deltaTime"/> = 0 to freeze the simulation while still
-    /// processing pool migrations and pending kills. The step clamps to
-    /// <see cref="ParticleEmission.MaxDeltaTime"/>: a hitch (first-use shader
-    /// compilation, save load, OS stall) must not fast-forward one-shot effects
-    /// past their emission timeline and kill every live particle in a single
-    /// dispatch — effects play through hitches slightly slower instead.
-    /// <br/>While <see cref="SimulationRateLimitEnabled"/> is on, a frame whose
-    /// accumulated delta stays below <see cref="SimulationInterval"/> skips the
-    /// whole simulation: pool migrations still record (growth and buffer disposal
-    /// must not stall), but the parameter upload, the draw-plan rebuild and every
-    /// dispatch wait for the next step, and <see cref="Render"/> replays the cached
-    /// plan. Each step simulates one fixed interval with the remainder carried
-    /// over; backlog beyond one interval is discarded (the same never-fast-forward
-    /// policy as the hitch clamp). Pending slice kills ride the next simulated
-    /// frame — they only gate a slice's reuse, which itself happens on simulated
-    /// frames. A zero <paramref name="deltaTime"/> (paused) never accumulates and
-    /// always simulates, so culling flips and kills stay live while the game is
-    /// frozen.
+    /// Records the simulation of all active instances into <paramref name="commandBuffer"/> before the
+    /// scene pass the particles draw into. A zero <paramref name="deltaTime"/> freezes the simulation
+    /// while still processing migrations and kills; each step clamps to
+    /// <see cref="ParticleEmission.MaxDeltaTime"/>.
     /// </summary>
     /// <param name="commandBuffer">The frame command buffer to record into.</param>
     /// <param name="deltaTime">The simulation time step in seconds.</param>
@@ -506,12 +430,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// Records the batched indirect draws of the frame's draw plan into the
-    /// current pass: one multi-draw per material (or, without multi-draw support,
-    /// one indexed-indirect draw per record — see
-    /// <see cref="RenderPassScope.MultiDrawIndexedIndirect"/>). Call from the
-    /// scene content node (<see cref="RGNode_SceneContent"/> or an
-    /// <see cref="IRenderPassContent"/>).
+    /// Records the batched indirect draws of the frame's draw plan into the current
+    /// pass, one multi-draw per material (or one indexed-indirect draw per record
+    /// without multi-draw support); call from the scene content node.
     /// </summary>
     /// <param name="pass">The render pass scope of the scene pass.</param>
     public void Render(RenderPassScope pass)
@@ -609,12 +530,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// Rebuilds the batched compute plan of the current draw plan: the groups
-    /// re-bucketed by behavior material in first-seen order (a group's emit and
-    /// simulate materials pair by behavior, but the two passes bucket separately),
-    /// each bucket flattened into one work-block record per 64-thread block and
-    /// uploaded to its GPU table, then recorded as one wide dispatch over the
-    /// bucket's table run.
+    /// Rebuilds the batched compute plan: the draw plan's groups re-bucketed by
+    /// behavior material, each bucket uploaded as one work-block table run and
+    /// recorded as one wide dispatch.
     /// </summary>
     private void BuildWorkBlocks()
     {
@@ -758,13 +676,9 @@ public sealed class GpuParticleSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// The behavior's compute materials, double-checked: the compose runs off the
-    /// gate (a first-use compile can take milliseconds and must not stall the frame
-    /// thread), and a concurrent duplicate compile loses the race and is disposed.
-    /// Called once per group at instance creation — on the frame thread for
-    /// synchronous creations, on a worker thread for the async cold path — and the
-    /// resolved materials are cached in the group state, so the frame simulation
-    /// loop takes no per-group cache lookup or lock.
+    /// The behavior's emit/simulate compute materials, compiled and cached with
+    /// double-checked locking; a concurrent duplicate compile loses the race and is
+    /// disposed.
     /// </summary>
     private (ComputeMaterial Emit, ComputeMaterial Simulate) GetBehaviorMaterials(ShaderLibrary? behavior)
     {
@@ -983,9 +897,6 @@ public sealed class GpuParticleSystem2D : AutoDisposable
 /// <summary>
 /// One 64-thread block's work record of the batched emit/simulate dispatches
 /// (16 bytes; GPU layout twin of GpuWorkBlock in AlcoParticles_Core2D.slang).
-/// The CPU uploads one record per block of the wide per-material dispatches; a
-/// block's shader thread index within its group's dispatch span is
-/// ThreadBase + SV_GroupThreadID.x.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct GpuParticleWorkBlock

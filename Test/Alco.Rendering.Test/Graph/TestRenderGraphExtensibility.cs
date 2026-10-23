@@ -7,17 +7,8 @@ using Alco.World3D;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// The render graph extensibility contract, exercised strictly through the public API
-/// surface (no internal access, no engine modification):
-/// <list type="bullet">
-/// <item>A user can compose a complete rendering pipeline from scratch — graph,
-/// transient targets, clear / content / transform / blit nodes.</item>
-/// <item>A user can replace a pipeline stage with their own implementation
-/// (here: the deferred lighting pass of a preset composed by
-/// <see cref="RenderPipelines"/>).</item>
-/// <item>A user can insert custom post-process effects into an existing pipeline,
-/// reorder and toggle them, and remove them again at runtime.</item>
-/// </list>
+/// Tests the public render graph extensibility contract: composing pipelines from scratch,
+/// replacing a pipeline stage, and inserting, ordering, toggling, or removing custom post-process effects.
 /// </summary>
 [TestFixture]
 public sealed class TestRenderGraphExtensibility
@@ -218,6 +209,9 @@ public sealed class TestRenderGraphExtensibility
     private GPUAttachmentLayout _destinationLayout;
     private GPUAttachmentLayout _postProcessLayout;
 
+    /// <summary>
+    /// Creates the headless rendering system, shaders, and attachment layouts used by the tests.
+    /// </summary>
     [SetUp]
     public void SetUp()
     {
@@ -266,6 +260,9 @@ public sealed class TestRenderGraphExtensibility
             [new ColorAttachment(_rendering.PreferredHDRFormat)], null, "test_post_process"));
     }
 
+    /// <summary>
+    /// Disposes the rendering system, shaders, and attachment layouts.
+    /// </summary>
     [TearDown]
     public void TearDown()
     {
@@ -287,6 +284,9 @@ public sealed class TestRenderGraphExtensibility
             height: 64);
     }
 
+    /// <summary>
+    /// Tests composing a complete pipeline from scratch with public API only.
+    /// </summary>
     [Test(Description = "A complete pipeline — clear, content, post-process, blit — composed from scratch with public API only")]
     public void UserCanComposeACompletePipelineFromScratch()
     {
@@ -319,6 +319,9 @@ public sealed class TestRenderGraphExtensibility
         Assert.That(effect.Log, Is.EqualTo(new[] { "effect" }));
     }
 
+    /// <summary>
+    /// Tests replacing the deferred lighting stage with a user node.
+    /// </summary>
     [Test(Description = "The engine's deferred lighting node can be swapped for a user implementation")]
     public void UserCanReplaceTheDeferredLightingStage()
     {
@@ -335,6 +338,9 @@ public sealed class TestRenderGraphExtensibility
         Assert.That(preset.Graph.Nodes, Does.Not.Contain(preset.Lighting));
     }
 
+    /// <summary>
+    /// Tests inserting, ordering, toggling, and running custom post-process effects.
+    /// </summary>
     [Test(Description = "Custom post-process effects insert into the pipeline's chain, run in order, and cull when disabled")]
     public void UserCanInsertOrderAndToggleCustomPostEffects()
     {
@@ -358,6 +364,9 @@ public sealed class TestRenderGraphExtensibility
         Assert.That(log, Is.EqualTo(new[] { "a", "b", "b" }));
     }
 
+    /// <summary>
+    /// Tests removing a custom node and disposing its transient at runtime.
+    /// </summary>
     [Test(Description = "A node can be removed at runtime and its transient destroyed with it")]
     public void UserCanRemoveANodeAndDestroyItsTransient()
     {

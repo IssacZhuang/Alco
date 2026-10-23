@@ -18,14 +18,8 @@ public enum ShaderUniformScalarType
 }
 
 /// <summary>
-/// One member of a uniform block: name, byte offset, size, element type and
-/// element count, in the block's declaration order. The shared parameter
-/// vocabulary of both reflection views — <see cref="ShaderReflection"/> (the
-/// linked program's blocks) and <see cref="ShaderLibraryReflection"/> (the
-/// module's declared blocks) — the compiler layer only fills it in.
-/// <br/><see cref="ComponentCount"/> is the component count of one element
-/// (1 scalar, 2-4 vector, rows×columns matrix); <see cref="ElementCount"/>
-/// is 1 for plain members and N for arrays.
+/// One member of a uniform block: name, byte offset, size, element type and element count, in declaration order — the shared parameter vocabulary of both reflection views.
+/// <see cref="ComponentCount"/> is the component count of one element (1 scalar, 2-4 vector, rows×columns matrix); <see cref="ElementCount"/> is 1 for plain members and N for arrays.
 /// </summary>
 public readonly record struct ShaderUniformMember(
     string Name,
@@ -36,15 +30,8 @@ public readonly record struct ShaderUniformMember(
     uint ElementCount = 1);
 
 /// <summary>
-/// One uniform/parameter block, as the shared block vocabulary of both
-/// reflection views: <see cref="ShaderReflection"/> reports the blocks that
-/// survived linking (with their post-link member layouts, correlated to
-/// bind-group entries by name), <see cref="ShaderLibraryReflection"/> reports
-/// every block the module declares. Name-keyed, no set/binding numbers —
-/// those exist only after linking and live on the bind-group side.
-/// <see cref="Members"/> lists the members the uniform view can represent;
-/// <see cref="UnsupportedMemberReason"/> reports why the rest, if any, do not
-/// fit that view.
+/// One uniform/parameter block as reported by either reflection view, keyed by name with no set or binding numbers.
+/// <see cref="Members"/> lists the representable members and <see cref="UnsupportedMemberReason"/> explains any omitted ones.
 /// </summary>
 public sealed class ShaderUniformBlock
 {

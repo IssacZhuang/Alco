@@ -14,6 +14,7 @@ namespace Alco.Graphics.Test;
 //      block carrying the attribute, its members listed by bare field name at
 //      their reflected offsets — the exact vocabulary UniformGraphicsBuffer
 //      writes through.
+/// <summary>Tests that the SceneEnvironmentParams marker is discovered on a parameter block variable.</summary>
 [TestFixture]
 public class SlangSceneEnvironmentMarkerTest
 {
@@ -46,6 +47,7 @@ public class SlangSceneEnvironmentMarkerTest
         }
         """;
 
+    /// <summary>Tests that the marker on a parameter block variable appears in reflection.</summary>
     [Test]
     public void ModuleReflection_MarkerOnParameterBlockVariable_IsVisible()
     {
@@ -64,6 +66,7 @@ public class SlangSceneEnvironmentMarkerTest
         });
     }
 
+    /// <summary>Tests that the marked block exposes its members with correct types.</summary>
     [Test]
     public void ModuleReflection_MarkedBlockMembers()
     {

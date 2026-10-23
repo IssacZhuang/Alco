@@ -5,11 +5,7 @@ using System.Numerics;
 namespace Alco.Test
 {
     /// <summary>
-    /// Correctness tests for the 4-wide <see cref="BvhAabb2D"/>. All query methods are
-    /// cross-validated against a double-precision brute-force reference over randomized
-    /// scenes (including rays that start inside boxes, axis-parallel rays, degenerate and
-    /// duplicated boxes), plus hand-picked edge cases the random scenes cannot reach
-    /// deterministically (empty input, leaf-block boundaries, scratch reuse across rebuilds).
+    /// Correctness tests for the 4-wide <see cref="BvhAabb2D"/>, cross-validated against a double-precision brute-force reference and edge cases.
     /// </summary>
     public class TestBvhAabb2D
     {
@@ -214,6 +210,9 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>
+        /// Tests randomized queries against a brute-force reference.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: randomized cross-validation against a double-precision brute-force reference")]
         public void TestBvhAabb2DRandomizedCrossValidation()
         {
@@ -224,6 +223,9 @@ namespace Alco.Test
             CrossValidate(bvh, boxes, random, 3000, 500);
         }
 
+        /// <summary>
+        /// Tests a large scene against the brute-force reference.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: larger scene keeps the same query results as the reference")]
         public void TestBvhAabb2DLargeSceneCrossValidation()
         {
@@ -238,6 +240,9 @@ namespace Alco.Test
         //  Edge cases
         // ════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// Tests that an empty input leaves the tree inert for every query.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: empty input leaves the tree inert for every query")]
         public void TestBvhAabb2DEmptyInput()
         {
@@ -256,6 +261,9 @@ namespace Alco.Test
             Assert.That(results.Count, Is.EqualTo(0));
         }
 
+        /// <summary>
+        /// Tests item counts around the leaf-block boundary.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: item counts around the 4-item leaf-block boundary stay correct")]
         public void TestBvhAabb2DSmallCounts()
         {
@@ -269,6 +277,9 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>
+        /// Tests that identical boxes are all reachable.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: 300 identical boxes (identical Morton codes) are all reachable")]
         public void TestBvhAabb2DIdenticalBoxes()
         {
@@ -297,6 +308,9 @@ namespace Alco.Test
             Assert.IsTrue(t < 0f);
         }
 
+        /// <summary>
+        /// Tests that zero-displacement rays behave as point-in-box tests.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: zero-displacement rays behave as point-in-box tests")]
         public void TestBvhAabb2DZeroDisplacementRay()
         {
@@ -315,6 +329,9 @@ namespace Alco.Test
             Assert.IsFalse(bvh.RayCastClosest(new Vector2(20, 0), Vector2.Zero, out _, out _));
         }
 
+        /// <summary>
+        /// Tests that rebuilding with different sizes reuses scratch without corrupting results.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: rebuilding with different sizes reuses scratch without corrupting results")]
         public void TestBvhAabb2DRebuildReuse()
         {
@@ -334,6 +351,9 @@ namespace Alco.Test
             CrossValidate(bvh, bigger, random, 300, 60);
         }
 
+        /// <summary>
+        /// Tests that rebuilding the same input produces identical query results.
+        /// </summary>
         [Test(Description = "BVH AABB 2D: rebuilding the same input produces identical query results")]
         public void TestBvhAabb2DDeterministicRebuild()
         {

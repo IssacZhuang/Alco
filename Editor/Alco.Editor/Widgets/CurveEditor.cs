@@ -5,12 +5,8 @@ using Alco.Effects;
 namespace Alco.Editor;
 
 /// <summary>
-/// Immediate-mode editor for a particle scalar-over-life curve (a list of
-/// <see cref="ParticleScalarKey"/>): a framed plot of the curve sampled through
-/// <see cref="ParticleOverLifeBake.EvaluateCurve"/> (the same evaluation the GPU bake
-/// uses), draggable 2D key points, double-click to insert a key, and a time/value
-/// editor row for the selected key. The value axis auto-ranges to the keys (always
-/// including the 0 and 1 reference lines). Edits the key list in place.
+/// Immediate-mode editor for a particle scalar-over-life curve: a plot sampled with the GPU bake's own evaluation, draggable key points, double-click insertion and a value/time editor row for the selected key.
+/// Edits the key list in place.
 /// </summary>
 public static class CurveEditor
 {

@@ -34,6 +34,11 @@ public static unsafe partial class ImGui
         });
     }
 
+    /// <summary>Draws a combo box for an enum and updates the current value when an item is selected.</summary>
+    /// <typeparam name="TEnum">The enum type.</typeparam>
+    /// <param name="label">The combo label.</param>
+    /// <param name="currentItem">The current enum value, updated on selection.</param>
+    /// <returns>True when the selection changed.</returns>
     public static bool Combo<TEnum>(string label, ref TEnum currentItem) where TEnum : struct, Enum
     {
         var infos = GetEnumInfos<TEnum>();
@@ -50,6 +55,11 @@ public static unsafe partial class ImGui
         return result;
     }
 
+    /// <summary>Draws a combo box for an enum and updates the current value when an item is selected.</summary>
+    /// <typeparam name="TEnum">The enum type.</typeparam>
+    /// <param name="label">The combo label.</param>
+    /// <param name="currentItem">The current enum value, updated on selection.</param>
+    /// <returns>True when the selection changed.</returns>
     public static bool Combo<TEnum>(ReadOnlySpan<char> label, ref TEnum currentItem) where TEnum : struct, Enum
     {
         var infos = GetEnumInfos<TEnum>();

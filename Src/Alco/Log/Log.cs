@@ -5,6 +5,9 @@ using System.Threading;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Alco{
+    /// <summary>
+    /// Static logging facade that forwards messages to a configurable logger.
+    /// </summary>
     public static class Log
     {
         private readonly static ThreadLocal<SpanStringBuilder> _builder = new ThreadLocal<SpanStringBuilder>(()=> new SpanStringBuilder());
@@ -27,13 +30,24 @@ namespace Alco{
         public const string ColorMagenta = "#ff00ff";
         public const string Null = "null";
 
+        /// <summary>
+        /// The logger that receives all messages; defaults to a console logger.
+        /// </summary>
         public static ILogger Logger { get; set; } = new ConsoleLogger();
 
+        /// <summary>
+        /// Logs an informational message.
+        /// </summary>
+        /// <param name="message">The message to log.</param>
         public static void Info(ReadOnlySpan<char> message)
         {
             Logger.Info(message);
         }
 
+        /// <summary>
+        /// Logs the string representation of a value as an informational message.
+        /// </summary>
+        /// <param name="message">The value to log.</param>
         public static void Info<T> (T message)
         {
             if (message == null)
@@ -44,6 +58,11 @@ namespace Alco{
             Logger.Info(message.ToString()??string.Empty);
         }
 
+        /// <summary>
+        /// Logs an informational message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
         public static void Info<T1, T2> (T1 message1, T2 message2)
         {
             Builder.Clear();
@@ -53,6 +72,12 @@ namespace Alco{
             Logger.Info(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs an informational message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
         public static void Info<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
         {
             Builder.Clear();
@@ -64,6 +89,13 @@ namespace Alco{
             Logger.Info(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs an informational message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
         public static void Info<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
         {
             Builder.Clear();
@@ -77,6 +109,14 @@ namespace Alco{
             Logger.Info(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs an informational message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
+        /// <param name="message5">The fifth value to log.</param>
         public static void Info<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
         {
             Builder.Clear();
@@ -103,11 +143,19 @@ namespace Alco{
         //     ConsolePrint(Builder.ToString(), ConsoleColor.Yellow);
         // }
 
+        /// <summary>
+        /// Logs a warning message.
+        /// </summary>
+        /// <param name="message">The message to log.</param>
         public static void Warning(ReadOnlySpan<char> message)
         {
             Logger.Warning(message);
         }
 
+        /// <summary>
+        /// Logs the string representation of a value as a warning message.
+        /// </summary>
+        /// <param name="message">The value to log.</param>
         public static void Warning<T> (T message)
         {
             if (message == null)
@@ -118,6 +166,11 @@ namespace Alco{
             Logger.Warning(message.ToString()??string.Empty);
         }
 
+        /// <summary>
+        /// Logs a warning message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
         public static void Warning<T1, T2> (T1 message1, T2 message2)
         {
             Builder.Clear();
@@ -127,6 +180,12 @@ namespace Alco{
             Logger.Warning(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs a warning message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
         public static void Warning<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
         {
             Builder.Clear();
@@ -138,6 +197,13 @@ namespace Alco{
             Logger.Warning(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs a warning message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
         public static void Warning<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
         {
             Builder.Clear();
@@ -151,6 +217,14 @@ namespace Alco{
             Logger.Warning(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs a warning message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
+        /// <param name="message5">The fifth value to log.</param>
         public static void Warning<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
         {
             Builder.Clear();
@@ -177,11 +251,19 @@ namespace Alco{
         //     ConsolePrint(Builder.ToString(), ConsoleColor.Red);
         // }
 
+        /// <summary>
+        /// Logs an error message.
+        /// </summary>
+        /// <param name="message">The message to log.</param>
         public static void Error(ReadOnlySpan<char> message)
         {
             Logger.Error(message);
         }
 
+        /// <summary>
+        /// Logs the string representation of a value as an error message.
+        /// </summary>
+        /// <param name="message">The value to log.</param>
         public static void Error<T> (T message)
         {
             if (message == null)
@@ -192,6 +274,11 @@ namespace Alco{
             Logger.Error(message.ToString()??string.Empty);
         }
 
+        /// <summary>
+        /// Logs an error message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
         public static void Error<T1, T2> (T1 message1, T2 message2)
         {
             Builder.Clear();
@@ -201,6 +288,12 @@ namespace Alco{
             Logger.Error(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs an error message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
         public static void Error<T1, T2, T3> (T1 message1, T2 message2, T3 message3)
         {
             Builder.Clear();
@@ -212,6 +305,13 @@ namespace Alco{
             Logger.Error(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs an error message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
         public static void Error<T1, T2, T3, T4> (T1 message1, T2 message2, T3 message3, T4 message4)
         {
             Builder.Clear();
@@ -225,6 +325,14 @@ namespace Alco{
             Logger.Error(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs an error message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
+        /// <param name="message5">The fifth value to log.</param>
         public static void Error<T1, T2, T3, T4, T5> (T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
         {
             Builder.Clear();
@@ -241,11 +349,19 @@ namespace Alco{
         }
 
 
+        /// <summary>
+        /// Logs a success message.
+        /// </summary>
+        /// <param name="message">The message to log.</param>
         public static void Success(ReadOnlySpan<char> message)
         {
             Logger.Success(message);
         }
 
+        /// <summary>
+        /// Logs the string representation of a value as a success message.
+        /// </summary>
+        /// <param name="message1">The value to log.</param>
         public static void Success<T1>(T1 message1)
         {
             Builder.Clear();
@@ -253,6 +369,11 @@ namespace Alco{
             Logger.Success(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs a success message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
         public static void Success<T1, T2>(T1 message1, T2 message2)
         {
             Builder.Clear();
@@ -262,6 +383,12 @@ namespace Alco{
             Logger.Success(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs a success message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
         public static void Success<T1, T2, T3>(T1 message1, T2 message2, T3 message3)
         {
             Builder.Clear();
@@ -273,6 +400,13 @@ namespace Alco{
             Logger.Success(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs a success message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
         public static void Success<T1, T2, T3, T4>(T1 message1, T2 message2, T3 message3, T4 message4)
         {
             Builder.Clear();
@@ -286,6 +420,14 @@ namespace Alco{
             Logger.Success(Builder.AsReadOnlySpan());
         }
 
+        /// <summary>
+        /// Logs a success message composed of multiple values separated by spaces.
+        /// </summary>
+        /// <param name="message1">The first value to log.</param>
+        /// <param name="message2">The second value to log.</param>
+        /// <param name="message3">The third value to log.</param>
+        /// <param name="message4">The fourth value to log.</param>
+        /// <param name="message5">The fifth value to log.</param>
         public static void Success<T1, T2, T3, T4, T5>(T1 message1, T2 message2, T3 message3, T4 message4, T5 message5)
         {
             Builder.Clear();

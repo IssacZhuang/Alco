@@ -4,12 +4,7 @@ namespace Alco.Graphics;
 
 /// <summary>
 /// Provides low-level GPU resource creation and command submission.
-/// Creation and destruction of independent resources may run concurrently, and different command buffers
-/// may be recorded in parallel. Callers must keep the device and all supplied resources alive until each
-/// operation completes, serialize use, end, and destruction of the same mutable object, and ensure device
-/// teardown never overlaps active operations. This is not a blanket thread-safety guarantee for queue
-/// operations (including initial-data uploads), readbacks, mapping, polling, or surface operations;
-/// follow their individual thread and synchronization requirements.
+/// Independent resources and command buffers may be created and recorded concurrently, but callers must serialize use and destruction of the same mutable object; queue operations, readbacks, mapping and surfaces follow their own thread requirements.
 /// </summary>
 public abstract partial class GPUDevice
 {
@@ -495,11 +490,8 @@ public abstract partial class GPUDevice
     }
 
     /// <summary>
-    /// Processes pending asynchronous texture readbacks on the main thread: delivers completed
-    /// GPU readbacks to their requests so observers (e.g. PNG readback pipelines) can consume
-    /// them. Runs automatically at end of frame; also safe to call manually while the frame
-    /// loop is not running (e.g. to drain in-flight captures at engine shutdown), because the
-    /// GPU executes the queue independently and only the completion delivery needs this call.
+    /// Processes pending asynchronous texture readbacks on the main thread, delivering completed GPU readbacks to their requests.
+    /// Runs automatically at end of frame and is also safe to call manually while the frame loop is not running.
     /// </summary>
     public void ProcessPendingReadbacks()
     {
@@ -642,11 +634,8 @@ public abstract partial class GPUDevice
     }
 
     /// <summary>
-    /// Writes a sub-rectangle of texels to the GPU texture at the mip level. The source data holds
-    /// <paramref name="height"/> rows of <paramref name="width"/> texels each, packed at
-    /// <paramref name="bytesPerRow"/> bytes per row; the row stride must be 256-byte aligned when
-    /// <paramref name="height"/> exceeds one (a wgpu-core queue-write requirement). Texels outside the
-    /// rectangle are left untouched.
+    /// Writes a sub-rectangle of texels to the GPU texture at the mip level; the row stride must be 256-byte aligned when <paramref name="height"/> exceeds one.
+    /// Texels outside the rectangle are left untouched.
     /// </summary>
     /// <param name="texture">The target GPU texture.</param>
     /// <param name="data">The pointer to the region data.</param>

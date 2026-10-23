@@ -90,10 +90,13 @@ public sealed class PackageFileSource<TMeta> : AutoDisposable, IFileSource where
 
     private readonly PackageReader<TMeta> _reader;
 
+    /// <summary>Gets the name of this file source.</summary>
     public string Name { get; }
 
+    /// <summary>Gets the resolution priority; higher-priority sources override lower-priority ones.</summary>
     public int Priority => 0;
 
+    /// <summary>Gets all file names exposed by this source.</summary>
     public IEnumerable<string> AllFileNames => _reader.AllFileNames;
 
     /// <summary>
@@ -136,6 +139,11 @@ public sealed class PackageFileSource<TMeta> : AutoDisposable, IFileSource where
         }
     }
 
+    /// <summary>Tries to load a file's data from the package.</summary>
+    /// <param name="path">The package-relative file path.</param>
+    /// <param name="data">The loaded data when successful.</param>
+    /// <param name="failureReason">The reason for failure, when unsuccessful.</param>
+    /// <returns><see langword="true"/> when the data was loaded; otherwise, <see langword="false"/>.</returns>
     public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
     {
         if (IsDisposed)
@@ -169,6 +177,11 @@ public sealed class PackageFileSource<TMeta> : AutoDisposable, IFileSource where
         }
     }
 
+    /// <summary>Tries to open a seekable read stream for a file in the package.</summary>
+    /// <param name="path">The package-relative file path.</param>
+    /// <param name="stream">The opened stream when successful; the caller owns it.</param>
+    /// <param name="failureReason">The reason for failure, when unsuccessful.</param>
+    /// <returns><see langword="true"/> when the stream was opened; otherwise, <see langword="false"/>.</returns>
     public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
     {
         if (IsDisposed)

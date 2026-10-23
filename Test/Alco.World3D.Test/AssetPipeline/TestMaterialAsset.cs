@@ -10,14 +10,7 @@ using Alco.Rendering;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// Parsing and loading of World3D material asset files (.amat): the <c>$type</c> CLR-name
-/// discriminator selects the derived asset type (no registration — assembly scan), resource
-/// references resolve typed at load (textures load through the asset system, the surface
-/// resolves into a validated <see cref="ShaderLibrary"/>), parameter values read as
-/// typed <see cref="ShaderValue"/>s — numbers, integers, booleans, component objects,
-/// hex colors or arrays — and the loader round trips through the asset system.
-/// Uses a NoGPU engine (textures are 1x1 dummies there; the PbrStandard surface module
-/// resolves from the module's shipped assets).
+/// Covers parsing and loading of World3D material assets, including typed parameters, texture and surface resolution, defaults, and validation errors.
 /// </summary>
 public class TestMaterialAsset
 {
@@ -37,6 +30,9 @@ public class TestMaterialAsset
         return (PbrMaterialAsset)material;
     }
 
+    /// <summary>
+    /// Tests that all PBR material fields parse into their typed values.
+    /// </summary>
     [Test]
     public void ParseMapsEveryField()
     {
@@ -73,6 +69,9 @@ public class TestMaterialAsset
         });
     }
 
+    /// <summary>
+    /// Tests that surface references and parameter shapes parse with the base asset type.
+    /// </summary>
     [Test]
     public void ParseMapsSurfaceAndParameterShapes()
     {
@@ -111,6 +110,9 @@ public class TestMaterialAsset
         });
     }
 
+    /// <summary>
+    /// Tests that integer, boolean, and array parameters keep their typed kinds.
+    /// </summary>
     [Test]
     public void ParseReadsTypedParameterKinds()
     {
@@ -142,6 +144,9 @@ public class TestMaterialAsset
         });
     }
 
+    /// <summary>
+    /// Tests that a minimal file receives the default values.
+    /// </summary>
     [Test]
     public void ParseAppliesDefaultsToMinimalFile()
     {
@@ -163,6 +168,9 @@ public class TestMaterialAsset
         });
     }
 
+    /// <summary>
+    /// Tests that an unknown type discriminator is rejected.
+    /// </summary>
     [Test]
     public void ParseRejectsUnknownDiscriminator()
     {
@@ -172,6 +180,9 @@ public class TestMaterialAsset
             Throws.TypeOf<JsonException>());
     }
 
+    /// <summary>
+    /// Tests that an unknown alpha mode is rejected.
+    /// </summary>
     [Test]
     public void ParseRejectsUnknownAlphaMode()
     {
@@ -181,6 +192,9 @@ public class TestMaterialAsset
             Throws.TypeOf<JsonException>());
     }
 
+    /// <summary>
+    /// Tests that malformed vector and color shapes are rejected.
+    /// </summary>
     [Test]
     public void ParseRejectsMalformedVectors()
     {
@@ -202,6 +216,9 @@ public class TestMaterialAsset
         });
     }
 
+    /// <summary>
+    /// Tests that unknown fields are rejected.
+    /// </summary>
     [Test]
     public void ParseRejectsUnknownFields()
     {
@@ -213,6 +230,9 @@ public class TestMaterialAsset
             Throws.TypeOf<JsonException>());
     }
 
+    /// <summary>
+    /// Tests that textures load typed and material assets are cached per file.
+    /// </summary>
     [Test]
     public void LoadResolvesTexturesTypedAndCaches()
     {
@@ -261,6 +281,9 @@ public class TestMaterialAsset
         }
     }
 
+    /// <summary>
+    /// Tests that a surface reference resolves by module name.
+    /// </summary>
     [Test]
     public void LoadResolvesSurfaceByModuleName()
     {
@@ -295,6 +318,9 @@ public class TestMaterialAsset
         }
     }
 
+    /// <summary>
+    /// Tests that an unknown surface module fails at load.
+    /// </summary>
     [Test]
     public void LoadFailsForUnknownSurfaceModule()
     {
@@ -322,6 +348,9 @@ public class TestMaterialAsset
         }
     }
 
+    /// <summary>
+    /// Tests that a missing texture fails at load.
+    /// </summary>
     [Test]
     public void LoadFailsWhenTextureIsMissing()
     {
@@ -350,12 +379,18 @@ public class TestMaterialAsset
         }
     }
 
+    /// <summary>
+    /// Tests that a future major asset version is rejected.
+    /// </summary>
     [Test]
     public void LoadRejectsFutureMajorVersion()
     {
         AssertLoadFails("""{ "version": "2.0" }""");
     }
 
+    /// <summary>
+    /// Tests that a missing asset version is rejected.
+    /// </summary>
     [Test]
     public void LoadRejectsMissingVersion()
     {

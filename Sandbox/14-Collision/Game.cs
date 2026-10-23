@@ -8,6 +8,7 @@ using Alco.Graphics;
 using Alco.GUI;
 using Alco.ImGUI;
 
+/// <summary>Sandbox demonstrating 3D box collision between a movable cube and a plane.</summary>
 public class Game : GameEngine
 {
     private static ColorFloat Color = new ColorFloat(1f, 0.5f, 0.5f, 1f);
@@ -27,9 +28,12 @@ public class Game : GameEngine
     private Plane3D _plane;
     private Vector3 offset;
 
+    /// <summary>The pipeline rendering the collision scene.</summary>
     public RenderPipeline MainPipeline => _mainPipeline;
 
 
+    /// <summary>Initializes the collision scene and render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor

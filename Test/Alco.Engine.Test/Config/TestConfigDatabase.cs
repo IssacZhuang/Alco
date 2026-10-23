@@ -168,6 +168,9 @@ namespace Alco.Engine.Test
         private ConcurrentBag<string> _errors;
         private TestFileSource _fileSource;
 
+        /// <summary>
+        /// Creates the config database and test file source for each test.
+        /// </summary>
         [SetUp]
         public void SetUp()
         {
@@ -184,12 +187,18 @@ namespace Alco.Engine.Test
             _fileSource = new TestFileSource();
         }
 
+        /// <summary>
+        /// Disposes the test file source after each test.
+        /// </summary>
         [TearDown]
         public void TearDown()
         {
             _fileSource?.Dispose();
         }
 
+        /// <summary>
+        /// Tests that the constructor initializes the database with the provided callbacks.
+        /// </summary>
         [Test]
         public void Constructor_ShouldInitializeWithCallbacks()
         {
@@ -202,6 +211,9 @@ namespace Alco.Engine.Test
             Assert.That(_errors, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Tests that GetConfig returns the matching config for a valid id and type.
+        /// </summary>
         [Test]
         public void GetConfig_WithValidIdAndType_ShouldReturnConfig()
         {
@@ -230,6 +242,9 @@ namespace Alco.Engine.Test
             Assert.That(testConfig.Value, Is.EqualTo(42));
         }
 
+        /// <summary>
+        /// Tests that GetConfig throws when no config matches the requested id.
+        /// </summary>
         [Test]
         public void GetConfig_WithNonExistentId_ShouldThrowException()
         {
@@ -243,6 +258,9 @@ namespace Alco.Engine.Test
             Assert.That(exception.Message, Does.Contain("Config with id non-existent and type TestConfig not found"));
         }
 
+        /// <summary>
+        /// Tests that GetConfig throws when the config exists under a different type.
+        /// </summary>
         [Test]
         public void GetConfig_WithWrongType_ShouldThrowException()
         {
@@ -266,6 +284,9 @@ namespace Alco.Engine.Test
             Assert.That(exception.Message, Does.Contain("Config with id test-config-1 and type AnotherTestConfig not found"));
         }
 
+        /// <summary>
+        /// Tests that TryGetConfig returns true and the config for a valid id and type.
+        /// </summary>
         [Test]
         public void TryGetConfig_WithValidIdAndType_ShouldReturnTrueAndConfig()
         {
@@ -295,6 +316,9 @@ namespace Alco.Engine.Test
             Assert.That(testConfig.Value, Is.EqualTo(42));
         }
 
+        /// <summary>
+        /// Tests that TryGetConfig returns false and null for an unknown id.
+        /// </summary>
         [Test]
         public void TryGetConfig_WithNonExistentId_ShouldReturnFalseAndNull()
         {
@@ -309,6 +333,9 @@ namespace Alco.Engine.Test
             Assert.That(config, Is.Null);
         }
 
+        /// <summary>
+        /// Tests that TryGetConfig returns false and null when the type does not match.
+        /// </summary>
         [Test]
         public void TryGetConfig_WithWrongType_ShouldReturnFalseAndNull()
         {
@@ -333,6 +360,9 @@ namespace Alco.Engine.Test
             Assert.That(config, Is.Null);
         }
 
+        /// <summary>
+        /// Tests that adding a file source makes its configs queryable.
+        /// </summary>
         [Test]
         public void AddFileSource_ShouldMakeConfigsAvailable()
         {
@@ -357,6 +387,9 @@ namespace Alco.Engine.Test
             Assert.That(config, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Tests that removing a file source makes its configs unavailable.
+        /// </summary>
         [Test]
         public void RemoveFileSource_ShouldMakeConfigsUnavailable()
         {
@@ -386,6 +419,9 @@ namespace Alco.Engine.Test
             Assert.That(config, Is.Null);
         }
 
+        /// <summary>
+        /// Tests that configs from multiple file sources are all available.
+        /// </summary>
         [Test]
         public void MultipleFileeSources_ShouldHandleConfigsFromAllSources()
         {
@@ -432,6 +468,9 @@ namespace Alco.Engine.Test
             fileSource2.Dispose();
         }
 
+        /// <summary>
+        /// Tests that multiple configs of the same type are addressable by their distinct ids.
+        /// </summary>
         [Test]
         public void MultipleSameTypeConfigs_ShouldBeAvailableByDifferentIds()
         {
@@ -472,6 +511,9 @@ namespace Alco.Engine.Test
             Assert.That(testConfig2.Value, Is.EqualTo(20));
         }
 
+        /// <summary>
+        /// Tests that configs are processed lazily and remain available on first access.
+        /// </summary>
         [Test]
         public void LazyLoading_ShouldOnlyProcessOnFirstAccess()
         {
@@ -499,6 +541,9 @@ namespace Alco.Engine.Test
             Assert.That(config, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Tests that the database reuses cached config instances while not dirty.
+        /// </summary>
         [Test]
         public void DirtyFlagManagement_ShouldReuseProcessedConfigsWhenNotDirty()
         {
@@ -525,6 +570,9 @@ namespace Alco.Engine.Test
             Assert.That(config1, Is.SameAs(config2), "Configs should be cached and return the same instance");
         }
 
+        /// <summary>
+        /// Tests that concurrent config queries complete without exceptions.
+        /// </summary>
         [Test]
         public void ThreadSafety_ConcurrentAccessShouldNotCauseExceptions()
         {
@@ -573,6 +621,9 @@ namespace Alco.Engine.Test
             Assert.That(exceptions, Is.Empty, $"Concurrent access caused exceptions: {string.Join(", ", exceptions)}");
         }
 
+        /// <summary>
+        /// Tests that invalid JSON is reported as an error without throwing.
+        /// </summary>
         [Test]
         public void InvalidJsonConfig_ShouldBeHandledGracefully()
         {
@@ -594,6 +645,9 @@ namespace Alco.Engine.Test
             Assert.That(_errors.Count, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Tests that an unknown $type is reported through the error callback.
+        /// </summary>
         [Test]
         public void IncorrectTypeInJson_ShouldTriggerOnError()
         {
@@ -624,6 +678,9 @@ namespace Alco.Engine.Test
                 "Should report deserialization error for incorrect $type");
         }
 
+        /// <summary>
+        /// Tests that JSON without a $type is handled without throwing.
+        /// </summary>
         [Test]
         public void ConfigWithoutType_ShouldBeHandledGracefully()
         {
@@ -648,6 +705,9 @@ namespace Alco.Engine.Test
             });
         }
 
+        /// <summary>
+        /// Tests that an empty file source yields no configs without throwing.
+        /// </summary>
         [Test]
         public void EmptyFileSource_ShouldHandleGracefully()
         {
@@ -662,6 +722,9 @@ namespace Alco.Engine.Test
             Assert.That(config, Is.Null);
         }
 
+        /// <summary>
+        /// Tests that null JSON deserialization yields no config without throwing.
+        /// </summary>
         [Test]
         public void NullConfigDeserialization_ShouldBeHandledGracefully()
         {
@@ -683,6 +746,9 @@ namespace Alco.Engine.Test
 
         #region Inheritance Tests
 
+        /// <summary>
+        /// Tests that querying by a base type returns derived config instances.
+        /// </summary>
         [Test]
         public void ConfigInheritance_BaseTypeQuery_ShouldReturnDerivedInstances()
         {
@@ -742,6 +808,9 @@ namespace Alco.Engine.Test
             Assert.That(anotherDerivedConfig.AnotherText, Is.EqualTo("Another Text"));
         }
 
+        /// <summary>
+        /// Tests that querying by a derived type excludes sibling derived types.
+        /// </summary>
         [Test]
         public void ConfigInheritance_DerivedTypeQuery_ShouldReturnOnlySpecificDerivedType()
         {
@@ -787,6 +856,9 @@ namespace Alco.Engine.Test
             Assert.That(config3, Is.InstanceOf<AnotherDerivedConfig>());
         }
 
+        /// <summary>
+        /// Tests that generic GetConfig resolves configs through inheritance.
+        /// </summary>
         [Test]
         public void ConfigInheritance_GenericGetConfig_ShouldWorkWithInheritance()
         {
@@ -817,6 +889,9 @@ namespace Alco.Engine.Test
             Assert.That(derivedConfig.DerivedProperty, Is.EqualTo("Derived Value"));
         }
 
+        /// <summary>
+        /// Tests that generic TryGetConfig resolves configs through inheritance.
+        /// </summary>
         [Test]
         public void ConfigInheritance_TryGetConfigGeneric_ShouldWorkWithInheritance()
         {
@@ -853,6 +928,9 @@ namespace Alco.Engine.Test
             Assert.That(anotherConfig, Is.Null);
         }
 
+        /// <summary>
+        /// Tests that a root-type query finds configs several inheritance levels down.
+        /// </summary>
         [Test]
         public void ConfigInheritance_MultipleInheritanceLevels_ShouldWork()
         {
@@ -882,6 +960,9 @@ namespace Alco.Engine.Test
             Assert.That(config.Id, Is.EqualTo("derived-config-1"));
         }
 
+        /// <summary>
+        /// Tests that type queries filter mixed config hierarchies correctly.
+        /// </summary>
         [Test]
         public void ConfigInheritance_MixedTypesInDatabase_ShouldFilterCorrectly()
         {
@@ -949,6 +1030,9 @@ namespace Alco.Engine.Test
             Assert.That(derivedConfig2, Is.Null);
         }
 
+        /// <summary>
+        /// Tests that compatible type queries return the same cached config instance.
+        /// </summary>
         [Test]
         public void ConfigInheritance_CachingBehavior_ShouldWorkCorrectlyWithInheritance()
         {
@@ -992,6 +1076,9 @@ namespace Alco.Engine.Test
 
 
 
+        /// <summary>
+        /// Tests that JSONC comments and trailing commas are parsed.
+        /// </summary>
         [Test]
         public void JsoncSupport_ShouldParseJsonWithCommentsAndTrailingCommas()
         {
@@ -1027,6 +1114,9 @@ namespace Alco.Engine.Test
 
         #region ConfigReference Tests
 
+        /// <summary>
+        /// Tests that cross-references between configs resolve correctly.
+        /// </summary>
         [Test]
         public void ConfigReference_CrossReference_ShouldResolveCorrectly()
         {
@@ -1079,6 +1169,9 @@ namespace Alco.Engine.Test
             Assert.That(crossConfigB.Friend.Config.Friend.Config, Is.SameAs(crossConfigB));
         }
 
+        /// <summary>
+        /// Tests that a self-referencing config resolves its reference.
+        /// </summary>
         [Test]
         public void ConfigReference_CrossReferenceWithSelfReference_ShouldWork()
         {
@@ -1109,6 +1202,9 @@ namespace Alco.Engine.Test
             Assert.That(crossConfig.Friend.Config, Is.SameAs(crossConfig));
         }
 
+        /// <summary>
+        /// Tests that accessing a cross-reference to a missing config throws.
+        /// </summary>
         [Test]
         public void ConfigReference_CrossReferenceWithInvalidId_ShouldThrowException()
         {
@@ -1144,6 +1240,9 @@ namespace Alco.Engine.Test
             Assert.That(exception.Message, Does.Contain("non-existent-config"));
         }
 
+        /// <summary>
+        /// Tests that list references resolve to all target configs in order.
+        /// </summary>
         [Test]
         public void ConfigReference_ListReferences_ShouldResolveAllReferencesCorrectly()
         {
@@ -1207,6 +1306,9 @@ namespace Alco.Engine.Test
             Assert.That(listConfig.RequiredRefs[2].Config.Value, Is.EqualTo(30));
         }
 
+        /// <summary>
+        /// Tests that accessing an invalid list reference throws.
+        /// </summary>
         [Test]
         public void ConfigReference_ListReferencesWithInvalidRequiredRef_ShouldThrowOnAccess()
         {
@@ -1241,6 +1343,9 @@ namespace Alco.Engine.Test
             Assert.That(exception.Message, Does.Contain("non-existent-config"));
         }
 
+        /// <summary>
+        /// Tests that hashset references resolve to all target configs.
+        /// </summary>
         [Test]
         public void ConfigReference_HashSetReferences_ShouldResolveAllReferencesCorrectly()
         {
@@ -1305,6 +1410,9 @@ namespace Alco.Engine.Test
             Assert.That(values.Contains(33), Is.True);
         }
 
+        /// <summary>
+        /// Tests that duplicate hashset references are deduplicated.
+        /// </summary>
         [Test]
         public void ConfigReference_HashSetReferencesWithDuplicates_ShouldHandleDuplicates()
         {
@@ -1349,6 +1457,9 @@ namespace Alco.Engine.Test
             Assert.That(requiredRefsList[0].Config.Value, Is.EqualTo(42));
         }
 
+        /// <summary>
+        /// Tests that equal hashset references share equality but remain distinct instances.
+        /// </summary>
         [Test]
         public void ConfigReference_HashSetReferencesEquality_ShouldWorkCorrectly()
         {

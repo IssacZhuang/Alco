@@ -4,6 +4,9 @@ using Alco.Engine;
 
 namespace Alco.Engine.Test;
 
+/// <summary>
+/// Tests JSON pointer lookup, decoding, parent navigation, and missing-path handling.
+/// </summary>
 [TestFixture]
 public class TestJsonPointer
 {
@@ -21,6 +24,9 @@ public class TestJsonPointer
     }
     """;
 
+    /// <summary>
+    /// Tests that the root pointer returns the root node.
+    /// </summary>
     [Test]
     public void RootPointer_ReturnsRoot()
     {
@@ -30,6 +36,9 @@ public class TestJsonPointer
         Assert.That(new JsonPointer("/").Find(node), Is.SameAs(node));
     }
 
+    /// <summary>
+    /// Tests that an object property path resolves.
+    /// </summary>
     [Test]
     public void ObjectProperty_Path_Works()
     {
@@ -42,6 +51,9 @@ public class TestJsonPointer
         Assert.That(result!.GetValue<string>(), Is.EqualTo("Shop"));
     }
 
+    /// <summary>
+    /// Tests that an array index path resolves.
+    /// </summary>
     [Test]
     public void ArrayIndex_Path_Works()
     {
@@ -84,6 +96,9 @@ public class TestJsonPointer
         Assert.That(result!.GetValue<string>(), Is.EqualTo("A"));
     }
 
+    /// <summary>
+    /// Tests that tilde escapes and percent-encoding are decoded.
+    /// </summary>
     [Test]
     public void Decoding_TildeAndUriPercent_Works()
     {
@@ -108,6 +123,9 @@ public class TestJsonPointer
         Assert.That(val3!.GetValue<int>(), Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests that a missing property returns null.
+    /// </summary>
     [Test]
     public void MissingProperty_ReturnsNull()
     {
@@ -117,6 +135,9 @@ public class TestJsonPointer
         Assert.That(ptr.Find(node), Is.Null);
     }
 
+    /// <summary>
+    /// Tests that an out-of-range array index returns null.
+    /// </summary>
     [Test]
     public void InvalidArrayIndex_ReturnsNull()
     {
@@ -126,6 +147,9 @@ public class TestJsonPointer
         Assert.That(ptr.Find(node), Is.Null);
     }
 
+    /// <summary>
+    /// Tests that parent pointers walk up to the root.
+    /// </summary>
     [Test]
     public void ParentPointer_Works()
     {

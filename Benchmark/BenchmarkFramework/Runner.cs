@@ -8,8 +8,17 @@ using BenchmarkDotNet.Running;
 
 namespace BenchmarkFramework;
 
+/// <summary>
+/// Runs benchmarks from an assembly using the supplied configuration.
+/// </summary>
 public class Runner
 {
+    /// <summary>
+    /// Runs all benchmarks or the benchmark types named in the arguments.
+    /// </summary>
+    /// <param name="assembly">The assembly containing the benchmarks.</param>
+    /// <param name="config">The benchmark configuration.</param>
+    /// <param name="args">The benchmark type names to run, or empty to run all benchmarks.</param>
     public static void Run(Assembly assembly, IConfig config, string[] args)
     {
         Summary[] summaries = [];

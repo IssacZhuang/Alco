@@ -20,6 +20,7 @@ public class TestWeakLazy
         }
     }
 
+    /// <summary>Tests that a null value factory throws an argument null exception.</summary>
     [Test]
     public void Constructor_WithNullValueFactory_ThrowsArgumentNullException()
     {
@@ -27,6 +28,7 @@ public class TestWeakLazy
         Assert.Throws<ArgumentNullException>(() => new WeakLazy<TestClass>(null!));
     }
 
+    /// <summary>Tests that the first access creates the instance.</summary>
     [Test]
     public void Value_InitialAccess_CreatesNewInstance()
     {
@@ -47,6 +49,7 @@ public class TestWeakLazy
         Assert.That(factoryCallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that repeated accesses return the same instance.</summary>
     [Test]
     public void Value_MultipleAccesses_ReturnsSameInstance()
     {
@@ -67,6 +70,7 @@ public class TestWeakLazy
         Assert.That(factoryCallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that access after garbage collection creates a new instance.</summary>
     [Test]
     public void Value_AfterGarbageCollection_CreatesNewInstance()
     {
@@ -97,6 +101,7 @@ public class TestWeakLazy
         Assert.That(factoryCallCount, Is.EqualTo(2));
     }
 
+    /// <summary>Tests that concurrent access creates only one instance.</summary>
     [Test]
     public void Value_ConcurrentAccess_ThreadSafe()
     {
@@ -137,6 +142,7 @@ public class TestWeakLazy
         Assert.That(factoryCallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that a factory exception propagates to the caller.</summary>
     [Test]
     public void Value_FactoryThrowsException_PropagatesException()
     {
@@ -148,6 +154,7 @@ public class TestWeakLazy
         Assert.That(exception.Message, Is.EqualTo("Factory error"));
     }
 
+    /// <summary>Tests that the next access recovers after a factory exception.</summary>
     [Test]
     public void Value_FactoryThrowsException_CanRecoverOnNextAccess()
     {
@@ -171,6 +178,7 @@ public class TestWeakLazy
         Assert.That(value.Value, Is.EqualTo("success"));
     }
 
+    /// <summary>Tests that a strongly referenced value survives garbage collection.</summary>
     [Test]
     public void Value_WeakReferencePreservesObject_ReturnsOriginalInstance()
     {
@@ -201,6 +209,7 @@ public class TestWeakLazy
         Assert.That(factoryCallCount, Is.EqualTo(1));
     }
 
+    /// <summary>Tests that repeated garbage collection and access recreate the value.</summary>
     [Test]
     public void Value_RapidGarbageCollectionAndAccess_HandlesCorrectly()
     {
@@ -230,6 +239,7 @@ public class TestWeakLazy
         Assert.That(factoryCallCount, Is.GreaterThan(1));
     }
 
+    /// <summary>Tests that concurrent access after garbage collection creates one instance.</summary>
     [Test]
     public void Value_ConcurrentAccessAfterGC_ThreadSafe()
     {

@@ -2,11 +2,7 @@ using System.Numerics;
 
 namespace Alco.ImGUI;
 
-/// <summary>
-/// Identifies a single gizmo handle (or none). Values are ordered so that
-/// translate handles come first, then rotate, then scale, mirroring the ImGuizmo
-/// MOVETYPE layout; arithmetic on the values is used to map handles to axes.
-/// </summary>
+/// <summary>Identifies a single gizmo handle (or none).</summary>
 internal enum GizmoMoveType
 {
     /// <summary>No handle.</summary>
@@ -59,11 +55,8 @@ internal enum GizmoMoveType
 }
 
 /// <summary>
-/// Holds all gizmo state across frames: persistent configuration, the input
-/// snapshot, the active drag state, and the per-<see cref="GizmoCore.Manipulate"/>
-/// call working set (matrices, camera ray, screen factor). At most one handle can
-/// be active at a time; the active drag survives frame boundaries while the hover
-/// state is recomputed every frame.
+/// Holds all gizmo state across frames: persistent configuration, the input snapshot,
+/// the active drag state and the per-call working set. At most one drag is active at a time.
 /// </summary>
 internal sealed class GizmoContext
 {

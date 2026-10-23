@@ -5,12 +5,9 @@ using System.Text;
 namespace Alco.Graphics.AlcoGpu.Interop;
 
 /// <summary>
-/// Marshals native failures into managed exceptions. Fallible native entries
-/// return a <see cref="AlcoGPU.Status"/> code; a failed call has recorded a
-/// fresh diagnostic in its thread-local last error, which this helper reads
-/// and throws as a <see cref="GraphicsException"/> once the call has
-/// returned — throwing from inside a native callback would unwind through
-/// native frames, which aborts the process on Unix runtimes.
+/// Marshals native failures into managed exceptions: fallible native entries return
+/// a <see cref="AlcoGPU.Status"/> code, and a failed call's thread-local last error
+/// is thrown as a <see cref="GraphicsException"/> after the call returns.
 /// </summary>
 internal static unsafe class AlcoGpuMarshal
 {

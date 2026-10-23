@@ -148,10 +148,7 @@ public sealed class RGNode_Tonemap : RGNode_ChainTransform
 
     /// <summary>
     /// The node's construction data: the plain-copy shader used by the
-    /// <see cref="TonemapType.Linear"/> operator and the six operator shaders.
-    /// Service-type dependencies (the rendering system, graph, chain, output
-    /// layout) are explicit constructor parameters instead — a descriptor is
-    /// pure data.
+    /// <see cref="TonemapType.Linear"/> operator and the six tonemap operator shaders.
     /// </summary>
     public readonly struct Descriptor
     {

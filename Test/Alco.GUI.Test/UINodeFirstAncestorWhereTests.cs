@@ -8,6 +8,7 @@ namespace Alco.GUI.Test;
 [TestFixture]
 public class UINodeFirstAncestorWhereTests
 {
+    /// <summary>Tests that the search matches the node itself when its predicate is true.</summary>
     [Test]
     public void MatchesSelf_WhenPredicateTrueForThis()
     {
@@ -18,6 +19,7 @@ public class UINodeFirstAncestorWhereTests
         Assert.That(result, Is.SameAs(node));
     }
 
+    /// <summary>Tests that the nearest matching ancestor is returned.</summary>
     [Test]
     public void ReturnsParent_WhenPredicateMatchesAncestor()
     {
@@ -32,6 +34,7 @@ public class UINodeFirstAncestorWhereTests
         Assert.That(result, Is.SameAs(root));
     }
 
+    /// <summary>Tests that the first matching node while walking up is returned.</summary>
     [Test]
     public void ReturnsFirstMatching_WhenMultipleMatch()
     {
@@ -47,6 +50,7 @@ public class UINodeFirstAncestorWhereTests
         Assert.That(result, Is.SameAs(mid));
     }
 
+    /// <summary>Tests that no match returns null.</summary>
     [Test]
     public void ReturnsNull_WhenNoMatch()
     {

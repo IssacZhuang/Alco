@@ -3,10 +3,8 @@ using System.Runtime.InteropServices;
 namespace Alco.Graphics.AlcoGpu.Interop;
 
 /// <summary>
-/// Mirrors the raw C ABI of the alco-gpu Rust cdylib
-/// (<c>Src/Alco.Graphics.Native/alco-gpu/src/abi.rs</c>). Layouts must stay
-/// field-order identical; bools are <see cref="uint"/>, enums are
-/// <see cref="uint"/> with Alco numeric values, optionals use
+/// Mirrors the raw C ABI of the alco-gpu Rust cdylib. Layouts must stay field-order
+/// identical; bools and enums are <see cref="uint"/>, optionals use
 /// <see cref="None"/> sentinels and arrays are (pointer, count) pairs.
 /// </summary>
 internal static unsafe partial class AlcoGPU

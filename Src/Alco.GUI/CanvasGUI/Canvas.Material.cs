@@ -12,9 +12,8 @@ public partial class Canvas
     private readonly ShaderLibrary _defaultSurface;
 
     /// <summary>
-    /// Gets the shared base material for an image surface implementing IUISurface.
-    /// The canvas weakly caches materials by asset and blend state; node-specific
-    /// bindings belong on an instance created with <see cref="CreateUIMaterialInstance"/>.
+    /// Gets the shared, weakly cached base material for an image surface with the given blend state.
+    /// Use <see cref="CreateUIMaterialInstance"/> for node-specific bindings.
     /// </summary>
     /// <param name="asset">The surface, textures, and default parameters to compile.</param>
     /// <param name="blend">The blend state matching the surface's output.</param>

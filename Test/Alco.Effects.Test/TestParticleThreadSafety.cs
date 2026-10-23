@@ -7,16 +7,7 @@ using Alco.Rendering;
 
 namespace Alco.Effects.Test;
 
-/// <summary>
-/// Concurrency tests of the 2D/3D particle systems on the no-GPU backend:
-/// concurrent instance churn (create + dispose) from worker threads while the
-/// frame simulation steps on the test thread must never corrupt the shared
-/// bookkeeping — no exceptions, no leaked pool slots, the instance registry
-/// drained, the pending-kill queue emptied by a final frame. The churn also
-/// forces pool growth (the Reallocated callback re-entering the shared gate)
-/// and exercises the concurrent first-use material compile (the double-checked
-/// cache's loser-disposal path).
-/// </summary>
+/// <summary>Tests that concurrent instance churn and first-use material compilation stay consistent in the 2D and 3D particle systems.</summary>
 public class TestParticleThreadSafety
 {
     /// <summary>The minimal engine host (real shader compilation on the no-GPU backend).</summary>
@@ -24,18 +15,21 @@ public class TestParticleThreadSafety
 
     private Host _engine = null!;
 
+    /// <summary>Creates the shared no-GPU engine host.</summary>
     [OneTimeSetUp]
     public void SetUp()
     {
         _engine = new Host(GameEngineSetting.CreateNoGPU());
     }
 
+    /// <summary>Disposes the shared engine host.</summary>
     [OneTimeTearDown]
     public void TearDown()
     {
         _engine.Dispose();
     }
 
+    /// <summary>Tests concurrent instance churn while frames simulate in 2D.</summary>
     [Test(Description = "2D: concurrent create/dispose churn from 4 workers while the frame simulation steps stays consistent")]
     public void ConcurrentChurnWithFrameSimulation2D()
     {
@@ -54,6 +48,7 @@ public class TestParticleThreadSafety
             () => system.Pool.PendingKills.Count);
     }
 
+    /// <summary>Tests concurrent instance churn while frames simulate in 3D.</summary>
     [Test(Description = "3D: concurrent create/dispose churn from 4 workers while the frame simulation steps stays consistent")]
     public void ConcurrentChurnWithFrameSimulation3D()
     {
@@ -69,6 +64,7 @@ public class TestParticleThreadSafety
             () => system.Pool.PendingKills.Count);
     }
 
+    /// <summary>Tests concurrent first-use material compilation in 2D.</summary>
     [Test(Description = "2D: simultaneous first-use creation of the same group races the double-checked material cache")]
     public void ConcurrentFirstUseMaterialCompile2D()
     {

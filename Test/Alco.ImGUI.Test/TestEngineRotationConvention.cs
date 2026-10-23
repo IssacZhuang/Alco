@@ -3,14 +3,11 @@ using System.Numerics;
 namespace Alco.ImGUI.Test;
 
 /// <summary>
-/// Pins the engine euler convention the gizmo's rotation info display relies on:
-/// <see cref="math.euler"/> decomposes to Roll(X)/Pitch(Y)/Yaw(Z) where engine-positive
-/// is RH-negative about X and Y but RH-positive about Z (UE-style left-handed).
-/// The gizmo display negates the raw plane angle for X/Y so the text matches the
-/// inspector's euler readout.
+/// Pins the engine euler convention that the gizmo rotation display relies on.
 /// </summary>
 public class TestEngineRotationConvention
 {
+    /// <summary>Tests that a positive right-handed X rotation maps to a negative engine roll.</summary>
     [Test]
     public void Convention_AxisX_RhPositive_IsEngineNegative()
     {
@@ -21,6 +18,7 @@ public class TestEngineRotationConvention
         Assert.That(euler.Z, Is.EqualTo(0f).Within(0.01f), "yaw");
     }
 
+    /// <summary>Tests that a positive right-handed Y rotation maps to a negative engine pitch.</summary>
     [Test]
     public void Convention_AxisY_RhPositive_IsEngineNegative()
     {
@@ -31,6 +29,7 @@ public class TestEngineRotationConvention
         Assert.That(euler.Z, Is.EqualTo(0f).Within(0.01f), "yaw");
     }
 
+    /// <summary>Tests that a positive right-handed Z rotation maps to a positive engine yaw.</summary>
     [Test]
     public void Convention_AxisZ_RhPositive_IsEnginePositive()
     {

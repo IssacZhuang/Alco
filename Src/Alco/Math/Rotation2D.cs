@@ -64,6 +64,11 @@ namespace Alco
         }
 
 
+        /// <summary>
+        /// Creates a rotation from an angle in radians.
+        /// </summary>
+        /// <param name="radian">The angle in radians.</param>
+        /// <returns>The corresponding rotation.</returns>
         public static Rotation2D FromRadians(float radian)
         {
             return new Rotation2D(math.degrees(radian));

@@ -4,10 +4,16 @@ using Alco;
 
 namespace TestFramework;
 
+/// <summary>
+/// Provides approximate equality assertions for vector, rotation, transform, and matrix types.
+/// </summary>
 public static class AssertExt
 {
     public const float Epsilon = 0.01f;
 
+    /// <summary>
+    /// Asserts that two <see cref="Vector2"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Vector2 expected, Vector2 actual)
     {
         if (!IsEqual(expected, actual))
@@ -17,6 +23,9 @@ public static class AssertExt
         }
     }
 
+    /// <summary>
+    /// Asserts that two <see cref="Vector3"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Vector3 expected, Vector3 actual)
     {
         if (!IsEqual(expected, actual))
@@ -26,6 +35,9 @@ public static class AssertExt
         }
     }
 
+    /// <summary>
+    /// Asserts that two <see cref="Vector4"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Vector4 expected, Vector4 actual)
     {
         if (!IsEqual(expected, actual))
@@ -35,6 +47,9 @@ public static class AssertExt
         }
     }
 
+    /// <summary>
+    /// Asserts that two <see cref="Quaternion"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Quaternion expected, Quaternion actual)
     {
         if (!IsEqual(expected, actual))
@@ -44,6 +59,9 @@ public static class AssertExt
         }
     }
 
+    /// <summary>
+    /// Asserts that two <see cref="Rotation2D"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Rotation2D expected, Rotation2D actual)
     {
         if (!IsEqual(expected, actual))
@@ -53,6 +71,9 @@ public static class AssertExt
         }
     }
 
+    /// <summary>
+    /// Asserts that two <see cref="Transform2D"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Transform2D expected, Transform2D actual)
     {
         if (!IsEqual(expected.Position, actual.Position) ||
@@ -64,6 +85,9 @@ public static class AssertExt
         }
     }
 
+    /// <summary>
+    /// Asserts that two <see cref="Transform3D"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Transform3D expected, Transform3D actual)
     {
         if (!IsEqual(expected.Position, actual.Position) ||
@@ -75,6 +99,9 @@ public static class AssertExt
         }
     }
 
+    /// <summary>
+    /// Asserts that two <see cref="Matrix4x4"/> values are approximately equal.
+    /// </summary>
     public static void AreEqual(Matrix4x4 expected, Matrix4x4 actual)
     {
         if (!IsEqual(expected.M11, actual.M11) ||

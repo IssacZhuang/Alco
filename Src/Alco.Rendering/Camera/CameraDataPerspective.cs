@@ -39,12 +39,8 @@ public struct CameraDataPerspective : ICamera
     public float AspectRatio;
 
     /// <summary>
-    /// Whether to build a reversed infinite-far projection: NDC z maps the near
-    /// plane to 1.0 and the far plane (at infinity) to 0.0, so depth precision
-    /// stays uniform in relative terms and nothing is ever far-clipped. Requires
-    /// a float depth buffer cleared to 0 with GreaterEqual depth tests
-    /// (<c>DepthStencilState.WriteReverseZ</c> / <c>DepthStencilState.ReadReverseZ</c>);
-    /// <see cref="Far"/> is unused for the projection itself.
+    /// Whether to build a reversed infinite-far projection, mapping the near plane to NDC z 1.0 and the far plane at infinity to 0.0.
+    /// Requires a float depth buffer cleared to 0 with GreaterEqual depth tests.
     /// </summary>
     public bool ReverseInfiniteDepth;
 
@@ -73,11 +69,7 @@ public struct CameraDataPerspective : ICamera
     }
 
     /// <summary>
-    /// Reversed infinite-far perspective projection, row-vector left-handed convention
-    /// matching <see cref="Matrix4x4.CreatePerspectiveFieldOfViewLeftHanded"/> (z mapped
-    /// to [0, 1]): z_ndc = near / z_view, i.e. near maps to 1.0 and the far plane at
-    /// infinity to 0.0, which keeps float depth precision uniform in relative terms.
-    /// With M33 = 0 and M43 = near, z_clip = near and w = z_view.
+    /// Creates a reversed infinite-far perspective projection in the left-handed row-vector convention.
     /// </summary>
     private static Matrix4x4 CreatePerspectiveFieldOfViewReversedInfinite(float fieldOfView, float aspectRatio, float nearPlaneDistance)
     {
@@ -120,6 +112,12 @@ public struct CameraDataPerspective : ICamera
         Transform = Transform3D.Identity;
     }
 
+    /// <summary>
+    /// Creates a ray from a screen-space point through the perspective camera.
+    /// </summary>
+    /// <param name="screenPosition">The point in screen pixels.</param>
+    /// <param name="screenSize">The screen size in pixels.</param>
+    /// <returns>The ray in world space.</returns>
     public Ray3D ScreenPointToRay(Vector2 screenPosition, Vector2 screenSize)
     {
         return CameraMathUtility.ScreenPointToRayPerspective(screenPosition, screenSize, ViewProjectionMatrix, Transform.Position);

@@ -53,6 +53,9 @@ public class NavigationHoverCoordinatorTests
 
     // --- IsHoveredWithin ---
 
+    /// <summary>
+    /// Tests that a node is within its own hover subtree.
+    /// </summary>
     [Test]
     public void IsHoveredWithin_ExactMatch_ReturnsTrue()
     {
@@ -61,6 +64,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(NavigationHoverCoordinator.IsHoveredWithin(target, target), Is.True);
     }
 
+    /// <summary>
+    /// Tests that a descendant node is within its ancestor's hover subtree.
+    /// </summary>
     [Test]
     public void IsHoveredWithin_Descendant_ReturnsTrue()
     {
@@ -73,6 +79,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(NavigationHoverCoordinator.IsHoveredWithin(grandchild, target), Is.True);
     }
 
+    /// <summary>
+    /// Tests that an unrelated node is not within another node's hover subtree.
+    /// </summary>
     [Test]
     public void IsHoveredWithin_UnrelatedNode_ReturnsFalse()
     {
@@ -82,6 +91,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(NavigationHoverCoordinator.IsHoveredWithin(other, target), Is.False);
     }
 
+    /// <summary>
+    /// Tests that a null hovered node is not within any subtree.
+    /// </summary>
     [Test]
     public void IsHoveredWithin_NullHovered_ReturnsFalse()
     {
@@ -92,6 +104,9 @@ public class NavigationHoverCoordinatorTests
 
     // --- Focus basics ---
 
+    /// <summary>
+    /// Tests that setting focus to -1 clears the focused index and node.
+    /// </summary>
     [Test]
     public void SetFocus_NegativeOne_ClearsFocus()
     {
@@ -110,6 +125,9 @@ public class NavigationHoverCoordinatorTests
         });
     }
 
+    /// <summary>
+    /// Tests that clearing focus resets the focused index.
+    /// </summary>
     [Test]
     public void ClearFocus_ResetsIndex()
     {
@@ -125,6 +143,9 @@ public class NavigationHoverCoordinatorTests
 
     // --- Edge detection / navigation ---
 
+    /// <summary>
+    /// Tests that a tick without navigation focus clears the focus and ignores input.
+    /// </summary>
     [Test]
     public void Tick_OwnerNotActive_ClearsFocusAndIgnoresInput()
     {
@@ -141,6 +162,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(nav.FocusedIndex, Is.EqualTo(-1));
     }
 
+    /// <summary>
+    /// Tests that focus is cleared when the tick owner is inactive.
+    /// </summary>
     [Test]
     public void Tick_OwnerInactive_ClearsFocus()
     {
@@ -157,6 +181,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(nav.FocusedIndex, Is.EqualTo(-1));
     }
 
+    /// <summary>
+    /// Tests that a held direction fires only once per key edge.
+    /// </summary>
     [Test]
     public void Tick_HeldDirection_OnlyFiresOncePerEdge()
     {
@@ -177,6 +204,9 @@ public class NavigationHoverCoordinatorTests
 
     // --- Hover-seeded navigation start ---
 
+    /// <summary>
+    /// Tests that navigation with no focus seeds from the hovered child.
+    /// </summary>
     [Test]
     public void Tick_NoFocus_HoverOnNavigableChild_StartsFromHover()
     {
@@ -204,6 +234,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(nav.FocusedIndex, Is.EqualTo(-1));
     }
 
+    /// <summary>
+    /// Tests that pressing Up with no focus moves from the hovered child.
+    /// </summary>
     [Test]
     public void Tick_NoFocus_HoverOnNavigableChild_PressingUp_MovesUpFromHover()
     {
@@ -230,6 +263,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(nav.FocusedIndex, Is.EqualTo(4));
     }
 
+    /// <summary>
+    /// Tests that hovering outside the list falls back to the first item.
+    /// </summary>
     [Test]
     public void Tick_NoFocus_HoverOutsideList_FallsBackToEdge()
     {
@@ -257,6 +293,9 @@ public class NavigationHoverCoordinatorTests
         Assert.That(nav.FocusedIndex, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that navigation starts from the hovered child instead of the focused index.
+    /// </summary>
     [Test]
     public void Tick_AlreadyFocused_ButHoveredElsewhere_StartsFromHover()
     {
@@ -286,6 +325,9 @@ public class NavigationHoverCoordinatorTests
 
     // --- Post-navigation hover application ---
 
+    /// <summary>
+    /// Tests that navigation applies hover to the newly focused node.
+    /// </summary>
     [Test]
     public void Tick_Navigation_AppliesHoverToNewFocused()
     {
@@ -306,6 +348,9 @@ public class NavigationHoverCoordinatorTests
         });
     }
 
+    /// <summary>
+    /// Tests that an existing hover on a navigable child is not overridden on focus change.
+    /// </summary>
     [Test]
     public void Tick_FocusChanged_HoverOnNavigableChild_DoesNotOverrideHover()
     {
@@ -338,6 +383,9 @@ public class NavigationHoverCoordinatorTests
         });
     }
 
+    /// <summary>
+    /// Tests that focus change applies hover when the cursor is outside the list.
+    /// </summary>
     [Test]
     public void Tick_FocusChanged_HoverOutsideList_AppliesFocusedHover()
     {

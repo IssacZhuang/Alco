@@ -1,11 +1,8 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// The graph-side registration record of one <see cref="IRenderGraphNode"/>: the node
-/// itself plus the per-frame dependency declaration captured during
-/// <see cref="IRenderGraphNode.Setup"/>. The read/write arrays are allocated once at
-/// registration and only ever grow, so the per-frame <see cref="ResetPerFrame"/> is
-/// allocation-free.
+/// The graph-side registration record of one <see cref="IRenderGraphNode"/> holding the node
+/// and its per-frame dependency declaration; its arrays are reused allocation-free.
 /// </summary>
 internal sealed class RenderGraphNodeRecord
 {

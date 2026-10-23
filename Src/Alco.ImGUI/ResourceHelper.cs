@@ -10,6 +10,9 @@ namespace Alco.ImGUI;
 /// </summary>
 public static class ImGUIResourceHelper
 {
+    /// <summary>Creates the shader used to render ImGui geometry.</summary>
+    /// <param name="renderingSystem">The rendering system that compiles the shader.</param>
+    /// <returns>The compiled ImGui shader.</returns>
     public static Shader GetImGUIShader(RenderingSystem renderingSystem)
     {
         // Compiles through the shared slang module system: source registered

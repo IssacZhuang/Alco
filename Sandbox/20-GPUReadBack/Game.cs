@@ -1,8 +1,11 @@
 using Alco.Engine;
 using Alco.Graphics;
 
+/// <summary>Sandbox verifying a GPU buffer write and readback round trip.</summary>
 public class Game : GameEngine
 {
+    /// <summary>Runs the buffer write/readback round trip.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         uint length = 1024 * 1024 * 50;

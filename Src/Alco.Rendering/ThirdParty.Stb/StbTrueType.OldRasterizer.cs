@@ -5,6 +5,15 @@ namespace StbTrueTypeSharp
 {
 	unsafe partial class StbTrueType
 	{
+		/// <summary>
+		/// Creates an active edge at the given scanline position for the old rasterizer.
+		/// </summary>
+		/// <param name="hh">The heap used for the edge block.</param>
+		/// <param name="e">The source edge.</param>
+		/// <param name="off_x">The horizontal offset in pixels.</param>
+		/// <param name="start_point">The scanline position at which the edge becomes active.</param>
+		/// <param name="userdata">The user data passed to the allocator callbacks.</param>
+		/// <returns>The new active edge, or null when allocation failed.</returns>
 		public static stbtt__active_edge_old_rasterizer* stbtt__new_active_old_rasterizer(stbtt__hheap* hh, stbtt__edge* e, int off_x, float start_point, void* userdata)
 		{
 			stbtt__active_edge_old_rasterizer* z = (stbtt__active_edge_old_rasterizer*)(stbtt__hheap_alloc(hh, (ulong)(sizeof(stbtt__active_edge_old_rasterizer)), userdata));
@@ -24,6 +33,13 @@ namespace StbTrueTypeSharp
 			return z;
 		}
 
+		/// <summary>
+		/// Rasterizes the active edges into one scanline.
+		/// </summary>
+		/// <param name="scanline">The scanline to accumulate coverage into.</param>
+		/// <param name="len">The scanline length in pixels.</param>
+		/// <param name="e">The head of the active edge list.</param>
+		/// <param name="max_weight">The maximum coverage weight per pixel.</param>
 		public static void stbtt__fill_active_edges_old_rasterizer(byte* scanline, int len, stbtt__active_edge_old_rasterizer* e, int max_weight)
 		{
 			int x0 = 0; 
@@ -72,6 +88,16 @@ namespace StbTrueTypeSharp
 			}
 		}
 
+		/// <summary>
+		/// Rasterizes a sorted edge list into an 8-bit coverage bitmap.
+		/// </summary>
+		/// <param name="result">The destination bitmap.</param>
+		/// <param name="e">The sorted edge list.</param>
+		/// <param name="n">The number of edges.</param>
+		/// <param name="vsubsample">The vertical supersampling factor.</param>
+		/// <param name="off_x">The horizontal offset in pixels.</param>
+		/// <param name="off_y">The vertical offset in pixels.</param>
+		/// <param name="userdata">The user data passed to the allocator callbacks.</param>
 		public static void stbtt__rasterize_sorted_edges_old_rasterizer(stbtt__bitmap* result, stbtt__edge* e, int n, int vsubsample, int off_x, int off_y, void* userdata)
 		{
 			usedOldRasterizer = true;
@@ -181,6 +207,9 @@ namespace StbTrueTypeSharp
 				CRuntime.free(scanline);
 		}
 
+		/// <summary>
+		/// An edge that is active for the current scanline in the old rasterizer.
+		/// </summary>
 		[StructLayout(LayoutKind.Sequential)]
 		public struct stbtt__active_edge_old_rasterizer
 		{

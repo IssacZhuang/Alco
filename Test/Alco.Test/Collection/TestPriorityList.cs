@@ -5,8 +5,10 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>Tests the priority list.</summary>
     public class TestPriorityList
     {
+        /// <summary>Tests that added elements are kept in priority order.</summary>
         [Test(Description = "TestPriorityList add")]
         public void TestAdd()
         {
@@ -40,6 +42,7 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>Tests that removing elements preserves priority order.</summary>
         [Test(Description = "TestPriorityList remove")]
         public void TestRemove()
         {
@@ -78,6 +81,7 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>Tests that equal priorities preserve insertion order.</summary>
         [Test(Description = "PriorityList preserves insertion order for equal priorities")]
         public void EqualPrioritiesPreserveInsertionOrder()
         {

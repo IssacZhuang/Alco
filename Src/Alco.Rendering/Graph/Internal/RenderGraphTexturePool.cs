@@ -1,27 +1,8 @@
 namespace Alco.Rendering;
 
 /// <summary>
-/// The texture store and assignment authority behind transient
-/// <see cref="RenderGraphTexture"/> resources. The owning <see cref="RenderGraph"/>
-/// computes lifetimes per frame and then performs a single allocation walk over the
-/// used resources (sorted by first touch); this pool answers each slot request with
-/// the following priority:
-/// <list type="number">
-/// <item>The slot's <b>sticky</b> entry (its assignment from last frame) when it was
-/// released earlier in this walk — sticky reassignment keeps facades stable without
-/// blocking reuse.</item>
-/// <item>The <b>most recently released</b> entry of this walk — this is what makes
-/// non-overlapping lifetimes alias the same texture.</item>
-/// <item>The slot's sticky entry when still idle.</item>
-/// <item>The <b>oldest idle</b> entry (deterministic fallback).</item>
-/// <item>A newly materialized entry from the factory.</item>
-/// </list>
-/// For an unchanged schedule the walk is deterministic and reproduces last frame's
-/// assignment exactly, so facades are never rebound and the path allocates no managed
-/// memory.
-/// <br/>The pool is handle-based (<see cref="object"/>) and created with a factory, so
-/// the assignment logic is testable without a GPU device. Handles implementing
-/// <see cref="System.IDisposable"/> are disposed by <see cref="Clear"/>.
+/// The pool behind transient <see cref="RenderGraphTexture"/> resources that assigns entries to resource slots by lifetime.
+/// An unchanged schedule is deterministic and allocates no managed memory.
 /// </summary>
 internal sealed class RenderGraphTexturePool : System.IDisposable
 {
@@ -145,12 +126,8 @@ internal sealed class RenderGraphTexturePool : System.IDisposable
     }
 
     /// <summary>
-    /// Disposes every materialized entry not contained in <paramref name="keep"/> and
-    /// drops it from the pool. Called by the graph's resize to release stale-size
-    /// textures: pool keys are size-qualified, so entries of a previous size can never
-    /// be matched again and would otherwise stay idle until <see cref="Clear"/>.
-    /// Must only be called between frames; device-level deferred destruction keeps
-    /// in-flight GPU work referencing the disposed textures valid.
+    /// Disposes every materialized entry not contained in <paramref name="keep"/> and drops it from the pool.
+    /// Must only be called between frames.
     /// </summary>
     /// <param name="keep">The entries still assigned to live resources.</param>
     /// <returns>The number of entries disposed.</returns>

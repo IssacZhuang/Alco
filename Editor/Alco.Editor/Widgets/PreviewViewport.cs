@@ -7,20 +7,8 @@ using Alco.Rendering;
 namespace Alco.Editor;
 
 /// <summary>
-/// A reusable offscreen preview viewport for asset editors: a small
-/// <see cref="RenderPipeline"/> (by default an HDR scene, a toolbar-switchable display
-/// transform that defaults to the game's Neutral post chain, and a blit into
-/// an RGBA8 target shown through <c>ImGui.Image</c>; a custom
-/// <see cref="IPreviewPipelineFactory"/> can replace the chain) with a built-in camera,
-/// viewport input, and a world-space helper overlay (grid, axes and a scale bar).
-/// <br/>The viewport does not know what it renders. The owning document hooks
-/// the pipeline through delegates: <see cref="SceneContent"/> draws into the
-/// scene pass, <see cref="RecordFrame"/> records per-frame GPU work ahead of it
-/// (e.g. particle simulation), <see cref="OverlayExtras"/> draws extra
-/// world-space markup, and <see cref="ToolbarLeading"/>/<see cref="ToolbarTrailing"/>
-/// plus <see cref="StatusPrefix"/>/<see cref="StatusSuffix"/> extend the UI.
-/// <br/>Use <see cref="PreviewViewport2D"/> or <see cref="PreviewViewport3D"/>;
-/// the base class holds everything that is independent of the camera dimension.
+/// A reusable offscreen preview viewport for asset editors: a render pipeline (replaceable through <see cref="IPreviewPipelineFactory"/>) with a camera, viewport input and a grid/axes overlay, displayed through <c>ImGui.Image</c>.
+/// The owning document supplies the content through <see cref="SceneContent"/>, <see cref="RecordFrame"/> and the overlay and toolbar delegates; use <see cref="PreviewViewport2D"/> or <see cref="PreviewViewport3D"/>.
 /// </summary>
 public abstract class PreviewViewport : AutoDisposable
 {

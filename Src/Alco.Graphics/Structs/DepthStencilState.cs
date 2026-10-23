@@ -109,6 +109,10 @@ public struct DepthStencilState
     /// </summary>
     public uint StencilReadMask { get; init; }
 
+    /// <summary>Determines whether two depth-stencil states have equal depth and stencil settings.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when both states are equal.</returns>
     public static bool operator ==(DepthStencilState left, DepthStencilState right)
     {
         return left.DepthWriteEnabled == right.DepthWriteEnabled &&
@@ -118,6 +122,10 @@ public struct DepthStencilState
                left.BackFace == right.BackFace;
     }
 
+    /// <summary>Determines whether two depth-stencil states differ in any setting.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when the states are not equal.</returns>
     public static bool operator !=(DepthStencilState left, DepthStencilState right)
     {
         return left.DepthWriteEnabled != right.DepthWriteEnabled ||

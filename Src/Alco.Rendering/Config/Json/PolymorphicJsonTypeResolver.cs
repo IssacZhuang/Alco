@@ -9,14 +9,8 @@ using System.Text.Json.Serialization.Metadata;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A <see cref="IJsonTypeInfoResolver"/> that layers runtime $type polymorphism on top of
-/// an inner resolver: for the requested root types it scans all loaded assemblies for
-/// concrete derived types and attaches <see cref="JsonPolymorphismOptions"/> (discriminator
-/// "$type" = derived type full name). The inner resolver defaults to reflection-based
-/// metadata (<see cref="DefaultJsonTypeInfoResolver"/>); under NativeAOT pass a source
-/// generated <see cref="JsonSerializerContext"/> instead, whose metadata is compiled
-/// ahead of time (attach-on-top only works through the per-options infos the context
-/// resolver interface returns, so route all calls through this class).
+/// An <see cref="IJsonTypeInfoResolver"/> that adds runtime <c>$type</c> polymorphism for
+/// specified root types by discovering concrete derived types in loaded assemblies.
 /// </summary>
 public class PolymorphicJsonTypeResolver : IJsonTypeInfoResolver
 {
@@ -28,11 +22,21 @@ public class PolymorphicJsonTypeResolver : IJsonTypeInfoResolver
 
     private readonly IJsonTypeInfoResolver _inner;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PolymorphicJsonTypeResolver"/> class
+    /// using reflection-based metadata.
+    /// </summary>
+    /// <param name="typesNeedDerived">Root types that receive polymorphic derived types.</param>
     public PolymorphicJsonTypeResolver(ReadOnlySpan<Type> typesNeedDerived)
         : this(typesNeedDerived, null)
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="PolymorphicJsonTypeResolver"/> class.
+    /// </summary>
+    /// <param name="typesNeedDerived">Root types that receive polymorphic derived types.</param>
+    /// <param name="innerResolver">The resolver that supplies base metadata; reflection-based when null.</param>
     public PolymorphicJsonTypeResolver(ReadOnlySpan<Type> typesNeedDerived, IJsonTypeInfoResolver? innerResolver)
     {
         HashSet<Type> typeNeedDerived = new();
@@ -44,6 +48,12 @@ public class PolymorphicJsonTypeResolver : IJsonTypeInfoResolver
         _inner = innerResolver ?? s_reflectionResolver;
     }
 
+    /// <summary>
+    /// Gets the contract metadata for a type, attaching polymorphism options for configured roots.
+    /// </summary>
+    /// <param name="type">The type to resolve.</param>
+    /// <param name="options">The serializer options.</param>
+    /// <returns>The type metadata, or null when the inner resolver cannot provide it.</returns>
     public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions options)
     {
         var typeInfo = _inner.GetTypeInfo(type, options);

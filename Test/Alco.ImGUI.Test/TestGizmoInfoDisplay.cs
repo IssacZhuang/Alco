@@ -9,6 +9,7 @@ namespace Alco.ImGUI.Test;
 /// </summary>
 public class TestGizmoInfoDisplay
 {
+    /// <summary>Tests that InfoUnitScale defaults to one.</summary>
     [Test]
     public void InfoUnitScale_DefaultsToOne()
     {
@@ -16,6 +17,7 @@ public class TestGizmoInfoDisplay
         Assert.That(ctx.InfoUnitScale, Is.EqualTo(1f));
     }
 
+    /// <summary>Tests that InfoUnitScale resets on BeginFrame.</summary>
     [Test]
     public void InfoUnitScale_ResetsOnBeginFrame()
     {
@@ -25,6 +27,7 @@ public class TestGizmoInfoDisplay
         Assert.That(ctx.InfoUnitScale, Is.EqualTo(1f));
     }
 
+    /// <summary>Tests that the facade InfoUnitScale round-trips.</summary>
     [Test]
     public void InfoUnitScale_FacadeRoundTrip()
     {
@@ -33,6 +36,7 @@ public class TestGizmoInfoDisplay
         Gizmo.InfoUnitScale = 1f;
     }
 
+    /// <summary>Tests that EngineRotationSign matches the engine's Euler convention.</summary>
     [Test]
     public void EngineRotationSign_MatchesEulerConvention()
     {

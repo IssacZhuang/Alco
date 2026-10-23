@@ -3,12 +3,9 @@ using System.Numerics;
 namespace Alco.Effects;
 
 /// <summary>
-/// Bakes the over-life tables of a particle group (the color gradient and the
-/// size curve) into the sample arrays of the 1D lookup textures the render pass
-/// vertex shaders sample by normalized particle age. Pure CPU math — key
-/// sorting, clamped ends, linear interpolation — kept separate from the GPU
-/// texture upload (<see cref="GpuParticleSystem2D"/> / <see cref="GpuParticleSystem3D"/>)
-/// so it is unit-testable without a device.
+/// Bakes a particle group's over-life color gradient and size curve into the sample
+/// arrays of the 1D lookup textures sampled by the render pass vertex shaders.
+/// Pure CPU math, unit-testable without a device.
 /// </summary>
 public static class ParticleOverLifeBake
 {
@@ -16,9 +13,8 @@ public static class ParticleOverLifeBake
     public const int TextureWidth = 256;
 
     /// <summary>
-    /// Evaluates a color gradient at a normalized age: the keys, sorted by time
-    /// and clamped to [0, 1], interpolate linearly (component-wise); before the
-    /// first key and after the last the value clamps to the end key.
+    /// Evaluates a color gradient at a normalized age, interpolating linearly between
+    /// time-sorted keys and clamping to the end keys outside the keyed range.
     /// </summary>
     /// <param name="keys">The gradient keys (any order, times may lie outside [0, 1]).</param>
     /// <param name="age01">The normalized particle age (clamped to [0, 1]).</param>
@@ -97,10 +93,9 @@ public static class ParticleOverLifeBake
     }
 
     /// <summary>
-    /// Bakes a color gradient into one row of RGBA8 pixels (4 bytes per texel):
-    /// texel <c>i</c> of <c>n</c> holds <see cref="EvaluateGradient"/> at
-    /// <c>i / (n - 1)</c>, so the texture's clamped linear sampling hits the end
-    /// keys exactly at ages 0 and 1.
+    /// Bakes a color gradient into an RGBA8 pixel row, sampling
+    /// <see cref="EvaluateGradient"/> at evenly spaced normalized ages so the end
+    /// keys land exactly at the texture ends.
     /// </summary>
     /// <param name="keys">The gradient keys (any order).</param>
     /// <param name="rgba8">The pixel row to fill; the texel count is <c>rgba8.Length / 4</c>.</param>
@@ -119,10 +114,8 @@ public static class ParticleOverLifeBake
     }
 
     /// <summary>
-    /// Bakes a scalar curve into one row of R16Float texels: texel <c>i</c> of
-    /// <c>n</c> holds <see cref="EvaluateCurve"/> at <c>i / (n - 1)</c> (see
-    /// <see cref="BakeGradient"/>). A float texture because curve values may
-    /// exceed 1 (growth), which a unorm texture cannot represent.
+    /// Bakes a scalar curve into an R16Float texel row using the same sampling as
+    /// <see cref="BakeGradient"/>; a float texture allows values above 1.
     /// </summary>
     /// <param name="keys">The curve keys (any order).</param>
     /// <param name="r16">The texel row to fill; the texel count is <c>r16.Length</c>.</param>

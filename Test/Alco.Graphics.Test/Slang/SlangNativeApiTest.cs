@@ -79,6 +79,9 @@ public class SlangNativeApiTest
         }
         """;
 
+    /// <summary>
+    /// Tests that the compiler reports a non-empty 2026 build tag.
+    /// </summary>
     [Test]
     public void CreateGlobalSession_ReturnsBuildTag()
     {
@@ -87,6 +90,9 @@ public class SlangNativeApiTest
         Assert.That(compiler.BuildTag, Does.Contain("2026"));
     }
 
+    /// <summary>
+    /// Tests that the MetalLib support probe agrees with the actual compile outcome.
+    /// </summary>
     [Test]
     public void MetalLibSupportProbe_MatchesCompileOutcome()
     {
@@ -123,6 +129,9 @@ public class SlangNativeApiTest
         }
     }
 
+    /// <summary>
+    /// Tests that an unknown target profile is rejected.
+    /// </summary>
     [Test]
     public void CreateSession_RejectsUnknownTargetProfile()
     {
@@ -136,6 +145,9 @@ public class SlangNativeApiTest
         Assert.That(error.Message, Does.Contain("not_a_spirv_profile"));
     }
 
+    /// <summary>
+    /// Tests that DXIL compilation returns DXBC containers for both entry points.
+    /// </summary>
     [Test]
     public void Compile_GraphicsShader_DxilTarget_ReturnsContainers()
     {
@@ -163,6 +175,9 @@ public class SlangNativeApiTest
         });
     }
 
+    /// <summary>
+    /// Tests that MSL compilation returns source with the declared entry name and threadgroup size.
+    /// </summary>
     [Test]
     public void Compile_ComputeShader_MslTarget_ReturnsNamedEntrySource()
     {
@@ -186,6 +201,9 @@ public class SlangNativeApiTest
         });
     }
 
+    /// <summary>
+    /// Tests that SPIR-V compilation returns the pinned 1.3 header for both entries.
+    /// </summary>
     [Test]
     public void Compile_GraphicsShader_ReturnsSpirvAndReflection()
     {
@@ -211,6 +229,9 @@ public class SlangNativeApiTest
         });
     }
 
+    /// <summary>
+    /// Tests that reflection matches the shader's bind groups and vertex layout declarations.
+    /// </summary>
     [Test]
     public void Compile_GraphicsShader_ReflectionMatchesDeclarations()
     {
@@ -258,6 +279,9 @@ public class SlangNativeApiTest
         });
     }
 
+    /// <summary>
+    /// Tests that compute reflection reports the declared threadgroup size.
+    /// </summary>
     [Test]
     public void Compile_ComputeShader_ReflectionCarriesThreadGroupSize()
     {
@@ -276,6 +300,9 @@ public class SlangNativeApiTest
         });
     }
 
+    /// <summary>
+    /// Tests that module imports resolve through the virtual file system.
+    /// </summary>
     [Test]
     public void LoadModule_ResolvesImportsThroughVirtualFileSystem()
     {
@@ -300,6 +327,9 @@ public class SlangNativeApiTest
         Assert.That(module.GetDependencyFilePaths(), Has.Some.Contains("alco_test_lib"));
     }
 
+    /// <summary>
+    /// Tests that search paths resolve modules by name from disk and virtual sources.
+    /// </summary>
     [Test]
     public void LoadModule_SearchPathResolvesModuleByName()
     {
@@ -361,6 +391,9 @@ public class SlangNativeApiTest
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
     }
 
+    /// <summary>
+    /// Tests that serialized module IR restores and compiles in a fresh session.
+    /// </summary>
     [Test]
     public void ModuleIR_RoundTripsThroughSerializeAndLoadFromIRBlob()
     {
@@ -400,6 +433,9 @@ public class SlangNativeApiTest
         });
     }
 
+    /// <summary>
+    /// Tests that invalid shader source reports a compilation exception.
+    /// </summary>
     [Test]
     public void Compile_InvalidShader_ReportsErrors()
     {
@@ -410,6 +446,9 @@ public class SlangNativeApiTest
             session.LoadModuleFromSource("alco_test_invalid", "alco_test_invalid.slang", "this is not valid slang at all : : :"));
     }
 
+    /// <summary>
+    /// Tests that uniform member reflection reports names and component counts.
+    /// </summary>
     [Test]
     public void GetUniformMembers_ReturnsReflectedOffsets()
     {

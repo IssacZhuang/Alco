@@ -36,13 +36,7 @@ internal readonly struct PbrInstanceSegment
 }
 
 /// <summary>
-/// Accumulates per-instance draw data and groups it into instanced draw
-/// segments for the G-buffer / CSM shadow / RSM passes. Consecutive instances
-/// that share a material and mesh merge into one segment;
-/// <see cref="Flush"/> uploads the CPU array into a single GPU storage
-/// buffer. The GPU buffer object stays identical between rebuilds unless the
-/// required capacity grows, so render bundles recorded against it stay valid
-/// until the next rebuild.
+/// Accumulates per-instance draw data and groups it into instanced draw segments for the G-buffer, shadow, and RSM passes; the GPU buffer object stays stable across rebuilds unless capacity grows.
 /// </summary>
 internal sealed class PbrInstanceBatch : AutoDisposable
 {

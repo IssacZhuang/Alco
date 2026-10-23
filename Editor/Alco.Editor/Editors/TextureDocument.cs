@@ -8,11 +8,8 @@ using Alco.Rendering;
 namespace Alco.Editor;
 
 /// <summary>
-/// Texture asset document: a preview pane plus an independent inspector for the texture's
-/// <see cref="Texture2DMeta"/> sidecar (<c>&lt;file&gt;.meta</c>) — filter/address modes,
-/// premultiplied alpha, 9-slice padding and sprite rects. The image file itself is
-/// never modified. The preview uses its own <see cref="Texture2D"/> instance (not the
-/// shared asset cache) so it always reflects the meta currently being edited.
+/// Texture asset document: a preview pane plus an inspector for the <see cref="Texture2DMeta"/> sidecar
+/// (filtering, addressing, premultiplied alpha, 9-slice padding and sprite rects); the image file itself is never modified.
 /// </summary>
 public sealed class TextureDocument : AssetDocument
 {

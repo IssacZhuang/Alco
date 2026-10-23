@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 
 namespace Alco.Test;
 
+/// <summary>Tests idempotent concurrent disposal.</summary>
 public class TestDisposal
 {
     private class TestDisposable : AutoDisposable
@@ -14,6 +15,7 @@ public class TestDisposal
         }
     }
 
+    /// <summary>Tests that concurrent Dispose calls execute the disposal logic once.</summary>
     [Test]
     public void TestConcurrentDisposa()
     {

@@ -4,6 +4,9 @@ using System.Text.Json.Serialization;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Base type for configs that can be registered and referenced in a config database.
+/// </summary>
 [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)]
 public class Configable
 {

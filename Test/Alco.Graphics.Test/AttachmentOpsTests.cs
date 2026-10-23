@@ -10,6 +10,7 @@ namespace Alco.Graphics.Test;
 [TestFixture]
 public sealed class AttachmentOpsTests
 {
+    /// <summary>Tests that BeginRender accepts attachment load and store ops.</summary>
     [Test(Description = "BeginRender accepts attachment load/store ops without throwing")]
     public void BeginRenderAcceptsAttachmentOps()
     {
@@ -37,6 +38,7 @@ public sealed class AttachmentOpsTests
         Assert.DoesNotThrow(() => device.Submit(commandBuffer));
     }
 
+    /// <summary>Tests that a color count mismatch is rejected.</summary>
     [Test(Description = "CreateExternalFrameBuffer rejects a color count mismatch")]
     public void CreateExternalFrameBufferRejectsColorCountMismatch()
     {
@@ -62,6 +64,7 @@ public sealed class AttachmentOpsTests
         Assert.Throws<GraphicsException>(() => device.CreateExternalFrameBuffer(descriptor));
     }
 
+    /// <summary>Tests that a missing depth stencil view is rejected.</summary>
     [Test(Description = "CreateExternalFrameBuffer requires a depth stencil view when a depth texture is set")]
     public void CreateExternalFrameBufferRequiresDepthStencilView()
     {
@@ -88,6 +91,7 @@ public sealed class AttachmentOpsTests
         Assert.Throws<GraphicsException>(() => device.CreateExternalFrameBuffer(descriptor));
     }
 
+    /// <summary>Tests that a texture size mismatch is rejected.</summary>
     [Test(Description = "CreateExternalFrameBuffer rejects a texture size mismatch")]
     public void CreateExternalFrameBufferRejectsSizeMismatch()
     {
@@ -111,6 +115,7 @@ public sealed class AttachmentOpsTests
         Assert.Throws<GraphicsException>(() => device.CreateExternalFrameBuffer(descriptor));
     }
 
+    /// <summary>Tests that a valid descriptor creates a frame buffer.</summary>
     [Test(Description = "A valid external frame buffer descriptor creates a frame buffer")]
     public void CreateExternalFrameBufferSucceeds()
     {

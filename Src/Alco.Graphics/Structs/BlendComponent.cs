@@ -29,11 +29,19 @@ public struct BlendComponent
     /// </summary>
     public BlendOperation Operation { get; set; }
 
+    /// <summary>Determines whether two blend components have equal factors and operation.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when both components are equal.</returns>
     public static bool operator ==(BlendComponent left, BlendComponent right)
     {
         return left.SrcFactor == right.SrcFactor && left.DstFactor == right.DstFactor && left.Operation == right.Operation;
     }
 
+    /// <summary>Determines whether two blend components differ in factors or operation.</summary>
+    /// <param name="left">The left operand.</param>
+    /// <param name="right">The right operand.</param>
+    /// <returns>True when the components are not equal.</returns>
     public static bool operator !=(BlendComponent left, BlendComponent right)
     {
         return left.SrcFactor != right.SrcFactor || left.DstFactor != right.DstFactor || left.Operation != right.Operation;

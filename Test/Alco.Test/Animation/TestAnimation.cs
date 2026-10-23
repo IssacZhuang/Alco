@@ -4,8 +4,10 @@ using NUnit.Framework;
 
 namespace Alco.Test;
 
+/// <summary>Tests animation curve event triggering.</summary>
 public class TestAnimation
 {
+    /// <summary>Tests that curve events fire once when their time is crossed.</summary>
     [Test(Description = "animation curve event test")]
     public void TestEvent()
     {

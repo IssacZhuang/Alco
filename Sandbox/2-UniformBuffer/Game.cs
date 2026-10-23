@@ -5,6 +5,7 @@ using Alco.Graphics;
 using Alco.Engine;
 using Alco;
 
+/// <summary>Sandbox demonstrating per-frame uniform buffer updates.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -38,6 +39,8 @@ public class Game : GameEngine
 
     private float _timer = 0.0f;
 
+    /// <summary>Initializes the quad buffers and uniform resource group.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

@@ -86,9 +86,7 @@ namespace Alco
         /// </summary>
         /// <returns>A random uint value.</returns>
         /// <remarks>
-        /// SplitMix32 algorithm based on the SplitMix family by Sebastiano Vigna.
-        /// It uses a simple counter-based approach with excellent avalanche properties.
-        /// This implementation accepts all possible state values, including 0.
+        /// SplitMix32 accepts every state value, including zero.
         /// </remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private uint NextState()
@@ -100,54 +98,82 @@ namespace Alco
             return z ^ (z >> 16);
         }
 
+        /// <summary>
+        /// Returns the next random unsigned integer.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint NextUint()
         {
             return NextState();
         }
 
+        /// <summary>
+        /// Returns a random boolean with equal probability.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool NextBool()
         {
             return (NextState() & 0x1) == 1;
         }
 
+        /// <summary>
+        /// Returns true with the specified probability.
+        /// </summary>
+        /// <param name="probability">The probability of returning true, in the range [0, 1].</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool NextBool(float probability)
         {
             return NextFloat() < probability;
         }
 
+        /// <summary>
+        /// Returns a random integer across the full int range.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int NextInt()
         {
             return (int)NextState() ^ -2147483648;
         }
 
+        /// <summary>
+        /// Returns a random byte.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte NextByte()
         {
             return (byte)(NextState() >> 24);
         }
 
+        /// <summary>
+        /// Returns a random float in the range [0, 1).
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat()
         {
             return asfloat(0x3f800000 | (NextState() >> 9)) - 1.0f;
         }
 
+        /// <summary>
+        /// Returns a Vector2 with random components in the range [0, 1).
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2 NextVector2()
         {
             return new Vector2(NextFloat(), NextFloat());
         }
 
+        /// <summary>
+        /// Returns a Vector3 with random components in the range [0, 1).
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 NextVector3()
         {
             return new Vector3(NextFloat(), NextFloat(), NextFloat());
         }
 
+        /// <summary>
+        /// Returns a Vector4 with random components in the range [0, 1).
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 NextVector4()
         {
@@ -208,54 +234,90 @@ namespace Alco
             return new uint4(NextUint(), NextUint(), NextUint(), NextUint());
         }
 
+        /// <summary>
+        /// Returns a random unsigned integer in the range [0, max).
+        /// </summary>
+        /// <param name="max">The exclusive upper bound.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint NextUint(uint max)
         {
             return NextUint() % max;
         }
 
+        /// <summary>
+        /// Returns a random integer in the range [0, max).
+        /// </summary>
+        /// <param name="max">The exclusive upper bound.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int NextInt(int max)
         {
             return (int)((NextState() * (ulong)max) >> 32);
         }
 
+        /// <summary>
+        /// Returns a random float in the range [0, max).
+        /// </summary>
+        /// <param name="max">The exclusive upper bound.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat(float max)
         {
             return NextFloat() * max;
         }
 
+        /// <summary>
+        /// Returns a random Vector2 with each component in the range [0, max.Component).
+        /// </summary>
+        /// <param name="max">The component-wise exclusive upper bounds.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2 NextVector2(Vector2 max)
         {
             return NextVector2() * max;
         }
 
+        /// <summary>
+        /// Returns a random Vector2 with each component in the range [0, max).
+        /// </summary>
+        /// <param name="max">The exclusive upper bound for each component.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2 NextVector2(float max)
         {
             return NextVector2() * max;
         }
 
+        /// <summary>
+        /// Returns a random Vector3 with each component in the range [0, max.Component).
+        /// </summary>
+        /// <param name="max">The component-wise exclusive upper bounds.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 NextVector3(Vector3 max)
         {
             return NextVector3() * max;
         }
 
+        /// <summary>
+        /// Returns a random Vector3 with each component in the range [0, max).
+        /// </summary>
+        /// <param name="max">The exclusive upper bound for each component.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 NextVector3(float max)
         {
             return NextVector3() * max;
         }
 
+        /// <summary>
+        /// Returns a random Vector4 with each component in the range [0, max.Component).
+        /// </summary>
+        /// <param name="max">The component-wise exclusive upper bounds.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 NextVector4(Vector4 max)
         {
             return NextVector4() * max;
         }
 
+        /// <summary>
+        /// Returns a random Vector4 with each component in the range [0, max).
+        /// </summary>
+        /// <param name="max">The exclusive upper bound for each component.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 NextVector4(float max)
         {
@@ -370,12 +432,22 @@ namespace Alco
             return new uint4(NextUint(max), NextUint(max), NextUint(max), NextUint(max));
         }
 
+        /// <summary>
+        /// Returns a random unsigned integer in the range [min, max).
+        /// </summary>
+        /// <param name="min">The inclusive lower bound.</param>
+        /// <param name="max">The exclusive upper bound.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint NextUint(uint min, uint max)
         {
             return NextUint() % (max - min) + min;
         }
 
+        /// <summary>
+        /// Returns a random integer in the range [min, max).
+        /// </summary>
+        /// <param name="min">The inclusive lower bound.</param>
+        /// <param name="max">The exclusive upper bound.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int NextInt(int min, int max)
         {
@@ -383,42 +455,77 @@ namespace Alco
             return (int)(NextState() * (ulong)range >> 32) + min;
         }
 
+        /// <summary>
+        /// Returns a random float in the range [min, max).
+        /// </summary>
+        /// <param name="min">The inclusive lower bound.</param>
+        /// <param name="max">The exclusive upper bound.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public float NextFloat(float min, float max)
         {
             return NextFloat() * (max - min) + min;
         }
 
+        /// <summary>
+        /// Returns a random Vector2 with each component in the range [min.Component, max.Component).
+        /// </summary>
+        /// <param name="min">The component-wise inclusive lower bounds.</param>
+        /// <param name="max">The component-wise exclusive upper bounds.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2 NextVector2(Vector2 min, Vector2 max)
         {
             return NextVector2() * (max - min) + min;
         }
 
+        /// <summary>
+        /// Returns a random Vector2 with each component in the range [min, max).
+        /// </summary>
+        /// <param name="min">The inclusive lower bound for each component.</param>
+        /// <param name="max">The exclusive upper bound for each component.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector2 NextVector2(float min, float max)
         {
             return NextVector2() * (max - min) + min * Vector2.One;
         }
 
+        /// <summary>
+        /// Returns a random Vector3 with each component in the range [min.Component, max.Component).
+        /// </summary>
+        /// <param name="min">The component-wise inclusive lower bounds.</param>
+        /// <param name="max">The component-wise exclusive upper bounds.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 NextVector3(Vector3 min, Vector3 max)
         {
             return NextVector3() * (max - min) + min;
         }
 
+        /// <summary>
+        /// Returns a random Vector3 with each component in the range [min, max).
+        /// </summary>
+        /// <param name="min">The inclusive lower bound for each component.</param>
+        /// <param name="max">The exclusive upper bound for each component.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector3 NextVector3(float min, float max)
         {
             return NextVector3() * (max - min) + min * Vector3.One;
         }
 
+        /// <summary>
+        /// Returns a random Vector4 with each component in the range [min.Component, max.Component).
+        /// </summary>
+        /// <param name="min">The component-wise inclusive lower bounds.</param>
+        /// <param name="max">The component-wise exclusive upper bounds.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 NextVector4(Vector4 min, Vector4 max)
         {
             return NextVector4() * (max - min) + min;
         }
 
+        /// <summary>
+        /// Returns a random Vector4 with each component in the range [min, max).
+        /// </summary>
+        /// <param name="min">The inclusive lower bound for each component.</param>
+        /// <param name="max">The exclusive upper bound for each component.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector4 NextVector4(float min, float max)
         {
@@ -533,6 +640,9 @@ namespace Alco
             return new uint4(NextUint(min, max), NextUint(min, max), NextUint(min, max), NextUint(min, max));
         }
 
+        /// <summary>
+        /// Returns a uniformly distributed random rotation quaternion.
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Quaternion NextQuaternionRotation()
         {
@@ -552,6 +662,9 @@ namespace Alco
             return new Quaternion(q.X, q.Y, q.Z, q.W);
         }
 
+        /// <summary>
+        /// Returns a random 2D rotation with an angle in the range [0, 2 * PI).
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Rotation2D NextRotation2D()
         {

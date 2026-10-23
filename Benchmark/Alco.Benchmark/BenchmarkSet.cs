@@ -4,6 +4,9 @@ using System.Linq;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks <see cref="HashSet{T}"/> and <see cref="SortedSet{T}"/> operations.
+/// </summary>
 [MemoryDiagnoser]
 public class BenchmarkSet
 {
@@ -12,6 +15,9 @@ public class BenchmarkSet
     private HashSet<int> _hashSet;
     private SortedSet<int> _sortedSet;
 
+    /// <summary>
+    /// Initializes the shuffled data and the pre-populated sets.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -28,6 +34,9 @@ public class BenchmarkSet
         _sortedSet = new SortedSet<int>(_data);
     }
 
+    /// <summary>
+    /// Benchmarks adding elements to a <see cref="HashSet{T}"/>.
+    /// </summary>
     [Benchmark(Description = "HashSet Add")]
     public void HashSetAdd()
     {
@@ -38,6 +47,9 @@ public class BenchmarkSet
         }
     }
 
+    /// <summary>
+    /// Benchmarks adding elements to a <see cref="SortedSet{T}"/>.
+    /// </summary>
     [Benchmark(Description = "SortedSet Add")]
     public void SortedSetAdd()
     {
@@ -48,6 +60,9 @@ public class BenchmarkSet
         }
     }
 
+    /// <summary>
+    /// Benchmarks looking up elements in a <see cref="HashSet{T}"/>.
+    /// </summary>
     [Benchmark(Description = "HashSet Contains")]
     public bool HashSetContains()
     {
@@ -59,6 +74,9 @@ public class BenchmarkSet
         return result;
     }
 
+    /// <summary>
+    /// Benchmarks looking up elements in a <see cref="SortedSet{T}"/>.
+    /// </summary>
     [Benchmark(Description = "SortedSet Contains")]
     public bool SortedSetContains()
     {
@@ -70,6 +88,9 @@ public class BenchmarkSet
         return result;
     }
 
+    /// <summary>
+    /// Benchmarks removing elements from a <see cref="HashSet{T}"/>.
+    /// </summary>
     [Benchmark(Description = "HashSet Remove")]
     public void HashSetRemove()
     {
@@ -80,6 +101,9 @@ public class BenchmarkSet
         }
     }
 
+    /// <summary>
+    /// Benchmarks removing elements from a <see cref="SortedSet{T}"/>.
+    /// </summary>
     [Benchmark(Description = "SortedSet Remove")]
     public void SortedSetRemove()
     {

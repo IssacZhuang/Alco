@@ -2,9 +2,11 @@ using System;
 
 namespace Alco.Test;
 
+/// <summary>Tests the two-dimensional grid collection.</summary>
 [TestFixture]
 public class TestGrid2DCollection
 {
+    /// <summary>Tests construction with valid dimensions and empty initial state.</summary>
     [Test]
     public void TestConstructor()
     {
@@ -15,6 +17,7 @@ public class TestGrid2DCollection
         Assert.That(grid.Infos.Count, Is.EqualTo(0));
     }
 
+    /// <summary>Tests TryAdd for valid, occupied and out-of-bounds cells.</summary>
     [Test]
     public void TestTrySet()
     {
@@ -47,6 +50,7 @@ public class TestGrid2DCollection
         Assert.That(result, Is.False);
     }
 
+    /// <summary>Tests AddOrUpdate for new, existing and out-of-bounds cells.</summary>
     [Test]
     public void TestSet()
     {
@@ -72,6 +76,7 @@ public class TestGrid2DCollection
         Assert.Throws<ArgumentOutOfRangeException>(() => grid.AddOrUpdate(0, 3, "invalid"));
     }
 
+    /// <summary>Tests TryGet for populated, empty and out-of-bounds cells.</summary>
     [Test]
     public void TestTryGet()
     {
@@ -106,6 +111,7 @@ public class TestGrid2DCollection
         Assert.That(data, Is.Null);
     }
 
+    /// <summary>Tests TryRemove for populated, empty and out-of-bounds cells.</summary>
     [Test]
     public void TestTryRemove()
     {
@@ -141,6 +147,7 @@ public class TestGrid2DCollection
         Assert.That(data, Is.Null);
     }
 
+    /// <summary>Tests that Clear removes all stored cells.</summary>
     [Test]
     public void TestClear()
     {

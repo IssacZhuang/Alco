@@ -2,6 +2,9 @@ namespace Alco.Rendering;
 
 // vector graphics processor factory (SVG rasterization)
 
+/// <summary>
+/// SVG rasterizer creation.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>

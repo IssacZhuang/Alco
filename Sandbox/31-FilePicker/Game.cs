@@ -5,6 +5,7 @@ using Alco;
 using Alco.Graphics;
 using Alco.ImGUI;
 
+/// <summary>Sandbox demonstrating the native file picker and its status reporting.</summary>
 public class Game : GameEngine
 {
     private readonly GPUCommandBuffer _commandBuffer;
@@ -13,6 +14,8 @@ public class Game : GameEngine
     private bool isPicking;
     private string lastPickStatus = "";
 
+    /// <summary>Initializes the ImGui system and command buffer.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));

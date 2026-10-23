@@ -4,11 +4,8 @@ using System.Text;
 namespace Alco.Graphics;
 
 /// <summary>
-/// The reflection of a linked shader program — its pipeline interface: bind
-/// groups (set/binding-keyed), vertex input layouts, push constants, thread
-/// group size and fragment output count — plus its uniform blocks in the
-/// shared <see cref="ShaderUniformBlock"/> vocabulary. The module-level
-/// declarations view is <see cref="ShaderLibraryReflection"/>.
+/// The reflection of a linked shader program: bind groups, vertex input layouts, push constants, thread group size, fragment output count and uniform blocks.
+/// The module-level declarations view is <see cref="ShaderLibraryReflection"/>.
 /// </summary>
 public sealed class ShaderReflection
 {
@@ -48,19 +45,13 @@ public sealed class ShaderReflection
     public ThreadGroupSize Size { get; }
 
     /// <summary>
-    /// The uniform blocks that survived linking, in declaration order, with their
-    /// post-link member layouts — the same <see cref="ShaderUniformBlock"/> vocabulary
-    /// the library view uses. Correlated to <see cref="BindGroups"/> entries by block
-    /// name; a pass that never consumes a block may strip its buffer from the layout,
-    /// so this list is the linked truth, not the module's declaration set.
+    /// The uniform blocks that survived linking, in declaration order, with their post-link member layouts.
+    /// Correlated to <see cref="BindGroups"/> entries by block name; this list is the linked truth, not the module's declaration set.
     /// </summary>
     public IReadOnlyList<ShaderUniformBlock> UniformBlocks { get; }
 
     /// <summary>
-    /// Builds the reflection from the linked program's reflected parts. Resource
-    /// ids are assigned here by position: bind groups and their bindings are
-    /// walked in order and every settable resource (buffer or texture) takes the
-    /// next id, so ids are indices into <see cref="ResourceLocations"/>.
+    /// Builds the reflection from the linked program's reflected parts; resource ids are assigned by position, so ids are indices into <see cref="ResourceLocations"/>.
     /// </summary>
     /// <param name="vertexLayouts">The vertex input layouts, one per vertex buffer.</param>
     /// <param name="bindGroups">The bind groups with their binding entries, ordered by set index.</param>
@@ -293,6 +284,7 @@ public sealed class ShaderReflection
         }
     }
 
+    /// <summary>Returns a diagnostic description of the reflected pipeline interface.</summary>
     public override string ToString()
     {
         StringBuilder builder = new StringBuilder();

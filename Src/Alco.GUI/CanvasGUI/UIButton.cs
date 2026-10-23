@@ -195,6 +195,9 @@ public class UIButton : UISelectable
         }
     }
 
+    /// <summary>
+    /// Initializes a new button node.
+    /// </summary>
     public UIButton()
     {
     }

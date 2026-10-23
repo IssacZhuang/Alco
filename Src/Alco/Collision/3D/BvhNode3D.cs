@@ -7,10 +7,7 @@ namespace Alco
 {
     /// <summary>
     /// An internal node of a 4-wide bounding volume hierarchy.
-    /// The layout is part of the build contract between <see cref="NativeBvh3D"/> and
-    /// <see cref="IBvhBuilder3D"/>: the bounds of the (up to) four children are stored
-    /// structure-of-arrays style, so one traversal step tests all children with a single
-    /// <see cref="Vector128{T}"/> comparison per axis, and the child references are sign-tagged.
+    /// Child bounds are stored structure-of-arrays style and child references are sign-tagged.
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Size = 128)]
     public unsafe struct BvhNode3D

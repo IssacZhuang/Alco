@@ -4,15 +4,11 @@ using System.Runtime.InteropServices;
 namespace Alco.Rendering;
 
 /// <summary>
-/// CPU decoder for block-compressed DDS payloads (BC1-BC3): decompresses a single
-/// mip level to an RGBA8 pixel buffer. Fallback path for devices without
-/// <see cref="Alco.Graphics.GPUFeatures.TextureCompressionBC"/>; the asset pipeline
-/// only produces BC1 and BC3, so BC4-BC7 are rejected.
-/// <br/>All methods are thread-safe (pure read-only span access).
+/// CPU decoder for block-compressed DDS payloads (BC1-BC3) that decompresses one mip level to an RGBA8 pixel buffer.
+/// All methods are thread-safe.
 /// </summary>
 /// <remarks>
-/// Public for the TextureConverter tool (round-trip verification); the runtime
-/// fallback path in RenderingSystem uses it in-process.
+/// Public for the TextureConverter tool; the runtime fallback uses it in-process.
 /// </remarks>
 public static unsafe class BcDecoder
 {

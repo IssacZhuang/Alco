@@ -9,15 +9,10 @@ namespace Alco.Engine.Test;
 public static class TestEngineSettings
 {
     /// <summary>
-    /// Returns a NoGPU setting with the on-disk shader cache enabled, so engine unit
-    /// tests don't recompile every Slang module on every fresh engine instance.
-    /// The first run compiles and writes serialized module IR plus linked programs;
-    /// subsequent runs restore the cached program and reflection. The cache lives
-    /// under the test output directory (gitignored) and is shared across engine instances.
+    /// Returns a NoGPU setting with the on-disk shader cache enabled to speed up engine unit tests.
     /// </summary>
     /// <remarks>
-    /// The engine default <see cref="GameEngineSetting.CreateNoGPU"/> keeps the shader
-    /// cache disabled; tests opt in here so the engine default stays unchanged.
+    /// The engine default keeps the shader cache disabled; tests opt in here.
     /// </remarks>
     public static GameEngineSetting CreateNoGPUWithShaderCache()
     {

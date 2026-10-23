@@ -5,7 +5,7 @@ using Alco.IO;
 namespace Alco.Engine;
 
 /// <summary>
-/// The loader for ogg audio
+/// The loader for FLAC audio.
 /// </summary>
 public class AssetLoaderAudioFlac : BaseAssetLoader<AudioClip>
 {
@@ -15,6 +15,10 @@ public class AssetLoaderAudioFlac : BaseAssetLoader<AudioClip>
 
     public override IReadOnlyList<string> FileExtensions => [FileExt.AudioFlac];
 
+    /// <summary>
+    /// Initializes a new instance of <see cref="AssetLoaderAudioFlac"/>.
+    /// </summary>
+    /// <param name="device">Audio device used to decode audio data.</param>
     public AssetLoaderAudioFlac(AudioDevice device)
     {
         _device = device;

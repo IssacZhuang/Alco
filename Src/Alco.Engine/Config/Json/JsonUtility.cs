@@ -42,25 +42,8 @@ public static class JsonUtility
     /// Thrown when either document is not a container type (object or array) or when container types don't match.
     /// </exception>
     /// <remarks>
-    /// <para>For objects:</para>
-    /// <list type="bullet">
-    /// <item>Properties are recursively merged by default</item>
-    /// <item>If target contains "$inherit": false, completely overrides parent object</item>
-    /// <item>The "$inherit" property is always excluded from the final result</item>
-    /// </list>
-    /// <para>For arrays:</para>
-    /// <list type="bullet">
-    /// <item>Target array replaces parent array by default (no merging)</item>
-    /// <item>First element can be a control object with "$inherit" property to enable merging:
-    ///   <list type="bullet">
-    ///   <item>false: Replace parent array entirely (same as default)</item>
-    ///   <item>true: Append target elements after parent elements</item>
-    ///   <item>"prepend": Target elements first, then parent elements</item>
-    ///   <item>"append": Parent elements first, then target elements</item>
-    ///   </list>
-    /// </item>
-    /// <item>Control objects are excluded from the final result</item>
-    /// </list>
+    /// Objects merge properties recursively; "$inherit": false replaces the parent. Arrays replace by default
+    /// unless their first element is a "$inherit" control object (true, "prepend", or "append").
     /// </remarks>
     /// <example>
     /// <code>

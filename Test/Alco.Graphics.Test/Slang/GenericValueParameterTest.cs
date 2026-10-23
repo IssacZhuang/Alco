@@ -3,20 +3,7 @@ using NUnit.Framework;
 namespace Alco.Graphics.Test;
 
 /// <summary>
-/// Pins the two contracts the value-specialization pipeline leans on:
-/// (a) generic value-parameter reflection — a generic entry point's <c>let</c>
-/// parameters enumerate by name and scalar type through
-/// <c>spReflectionGeneric_GetValueParameter*</c>, in declaration order (slang
-/// itself admits only integer and enum value-parameter types — E30624 — so the
-/// engine's bindable set is bool/int/uint), and
-/// (b) the literal expression syntax <c>SlangSpecializationArg.FromExpr</c>
-/// accepts per scalar kind at link-time specialization (decimal integers for
-/// int/uint, true/false for bool). A slang upgrade that rejects these forms
-/// must fail here, not inside a game material compile.
-/// <br/>Fixed slang defect, pinned as a regression guard below: a ternary
-/// whose condition const-folds to true from an int/uint generic comparison
-/// crashed the compiler natively in slang 2026.16 (bool conditions were
-/// unaffected); compiles correctly as of slang 2026.19.
+/// Pins the generic value-parameter reflection and literal specialization-argument contracts.
 /// </summary>
 [TestFixture]
 public class GenericValueParameterTest
@@ -77,6 +64,9 @@ public class GenericValueParameterTest
         return session.CompileAllEntryPoints(module, args);
     }
 
+    /// <summary>
+    /// Tests that generic value parameters are enumerated by name and scalar type.
+    /// </summary>
     [Test]
     public void ValueParameters_EnumerateByNameAndScalarType()
     {
@@ -123,6 +113,9 @@ public class GenericValueParameterTest
         }
     }
 
+    /// <summary>
+    /// Tests that a bool axis specializes with the keyword form.
+    /// </summary>
     [Test]
     public void BoolAxis_SpecializesWithKeyword()
     {
@@ -130,6 +123,9 @@ public class GenericValueParameterTest
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
     }
 
+    /// <summary>
+    /// Tests that an int axis specializes with a decimal literal.
+    /// </summary>
     [Test]
     public void IntAxis_SpecializesWithDecimal()
     {
@@ -137,6 +133,9 @@ public class GenericValueParameterTest
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
     }
 
+    /// <summary>
+    /// Tests that a uint axis specializes with a decimal literal.
+    /// </summary>
     [Test]
     public void UIntAxis_SpecializesWithDecimal()
     {
@@ -144,6 +143,9 @@ public class GenericValueParameterTest
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
     }
 
+    /// <summary>
+    /// Tests that three value axes specialize together.
+    /// </summary>
     [Test]
     public void ThreeAxes_SpecializeTogether()
     {
@@ -152,6 +154,9 @@ public class GenericValueParameterTest
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
     }
 
+    /// <summary>
+    /// Tests that three value axes specialize with their defaults.
+    /// </summary>
     [Test]
     public void ThreeAxes_SpecializeWithDefaults()
     {
@@ -160,6 +165,9 @@ public class GenericValueParameterTest
         Assert.That(program.EntryCode[0].Length, Is.GreaterThan(4));
     }
 
+    /// <summary>
+    /// Tests that an int axis with a constant-true ternary condition compiles.
+    /// </summary>
     [Test]
     public void IntAxis_TernaryTrueCondition_Compiles()
     {

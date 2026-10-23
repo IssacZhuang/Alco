@@ -44,6 +44,12 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     #region Draw 2D
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture with the given 2D position, rotation, and scale.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="scale">The scale.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, ColorFloat color)
     {
         Transform2D transform = new Transform2D(position, rotation, scale);
@@ -51,12 +57,25 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture region with the given 2D position, rotation, and scale.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="scale">The scale.</param>
+    /// <param name="uvRect">The source UV rectangle within the texture.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Vector2 position, Rotation2D rotation, Vector2 scale, Rect uvRect, ColorFloat color)
     {
         Transform2D transform = new Transform2D(position, rotation, scale);
         DrawCore(texture, uvRect, transform.Matrix, color);
     }
 
+    /// <summary>Draws a sprite with the given 2D position, rotation, and scale.</summary>
+    /// <param name="sprite">The sprite to draw.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="scale">The scale.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Sprite sprite, Vector2 position, Rotation2D rotation, Vector2 scale, ColorFloat color)
     {
         Transform2D transform = new Transform2D(position, rotation, scale);
@@ -64,6 +83,10 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture with a 2D transform.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="transform">The 2D transform.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Transform2D transform, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
@@ -71,12 +94,21 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture region with a 2D transform.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="transform">The 2D transform.</param>
+    /// <param name="uvRect">The source UV rectangle within the texture.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Transform2D transform, Rect uvRect, ColorFloat color)
     {
         DrawCore(texture, uvRect, transform.Matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a sprite with a 2D transform.</summary>
+    /// <param name="sprite">The sprite to draw.</param>
+    /// <param name="transform">The 2D transform.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Sprite sprite, Transform2D transform, ColorFloat color)
     {
         DrawCore(sprite.Texture, sprite.UvRect, transform.Matrix, color);
@@ -88,6 +120,12 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     #region Draw 3D
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture with the given 3D position, rotation, and scale.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="scale">The scale.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, ColorFloat color)
     {
         Transform3D transform = new Transform3D(position, rotation, scale);
@@ -95,6 +133,13 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture region with the given 3D position, rotation, and scale.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="scale">The scale.</param>
+    /// <param name="uvRect">The source UV rectangle within the texture.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Vector3 position, Quaternion rotation, Vector3 scale, Rect uvRect, ColorFloat color)
     {
         Transform3D transform = new Transform3D(position, rotation, scale);
@@ -102,6 +147,12 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a sprite with the given 3D position, rotation, and scale.</summary>
+    /// <param name="sprite">The sprite to draw.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="scale">The scale.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Sprite sprite, Vector3 position, Quaternion rotation, Vector3 scale, ColorFloat color)
     {
         Transform3D transform = new Transform3D(position, rotation, scale);
@@ -109,18 +160,31 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture with a 3D transform.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="transform">The 3D transform.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Transform3D transform, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, transform.Matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture region with a 3D transform.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="transform">The 3D transform.</param>
+    /// <param name="uvRect">The source UV rectangle within the texture.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Transform3D transform, Rect uvRect, ColorFloat color)
     {
         DrawCore(texture, uvRect, transform.Matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a sprite with a 3D transform.</summary>
+    /// <param name="sprite">The sprite to draw.</param>
+    /// <param name="transform">The 3D transform.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Sprite sprite, Transform3D transform, ColorFloat color)
     {
         DrawCore(sprite.Texture, sprite.UvRect, transform.Matrix, color);
@@ -131,18 +195,31 @@ public unsafe sealed class SpriteRenderer : AutoDisposable
     #region Draw by matrix
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture with the given model matrix.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="matrix">The model matrix.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Matrix4x4 matrix, ColorFloat color)
     {
         DrawCore(texture, DefaultUvRect, matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a texture region with the given model matrix.</summary>
+    /// <param name="texture">The texture to draw.</param>
+    /// <param name="matrix">The model matrix.</param>
+    /// <param name="uvRect">The source UV rectangle within the texture.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Texture2D texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
     {
         DrawCore(texture, uvRect, matrix, color);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a sprite with the given model matrix.</summary>
+    /// <param name="sprite">The sprite to draw.</param>
+    /// <param name="matrix">The model matrix.</param>
+    /// <param name="color">The tint color.</param>
     public void Draw(Sprite sprite, Matrix4x4 matrix, ColorFloat color)
     {
         DrawCore(sprite.Texture, sprite.UvRect, matrix, color);

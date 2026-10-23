@@ -7,18 +7,36 @@ namespace Alco.GUI;
 
 public partial class Canvas : AutoDisposable
 {
+    /// <summary>
+    /// Draws a solid-color quad.
+    /// </summary>
+    /// <param name="matrix">The model transformation matrix.</param>
+    /// <param name="color">The quad color.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawQuad(Matrix4x4 matrix, ColorFloat color)
     {
         DrawSprite(_renderingSystem.TextureWhite, matrix, Rect.One, color);
     }
 
+    /// <summary>
+    /// Draws a sprite using the full texture UV rectangle.
+    /// </summary>
+    /// <param name="texture">The texture to draw; null uses the white texture.</param>
+    /// <param name="matrix">The model transformation matrix.</param>
+    /// <param name="color">The color multiplied with the texture.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawSprite(Texture2D? texture, Matrix4x4 matrix, ColorFloat color)
     {
         DrawSprite(texture, matrix, Rect.One, color);
     }
 
+    /// <summary>
+    /// Draws a sub-rectangle of a sprite texture.
+    /// </summary>
+    /// <param name="texture">The texture to draw; null uses the white texture.</param>
+    /// <param name="matrix">The model transformation matrix.</param>
+    /// <param name="uvRect">The UV rectangle selecting the texture region.</param>
+    /// <param name="color">The color multiplied with the texture.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void DrawSprite(Texture2D? texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
     {
@@ -86,6 +104,17 @@ public partial class Canvas : AutoDisposable
         _dynamicMeshRenderer.DrawWithConstant(vertices, indices, material, constant);
     }
 
+    /// <summary>
+    /// Draws text with a uniform color.
+    /// </summary>
+    /// <param name="font">The font to render with; null uses the default font.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="matrix">The transformation matrix.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="color">The text color.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <param name="material">The material to draw with; null uses the default text material.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing, GraphicsMaterial? material = null)
     {

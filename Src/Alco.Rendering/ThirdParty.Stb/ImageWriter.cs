@@ -168,14 +168,14 @@ namespace StbImageWriteSharp
 		}
 
 		/// <summary>
-		/// 
+		/// Writes the image as a JPEG to the destination stream.
 		/// </summary>
-		/// <param name="data"></param>
-		/// <param name="width"></param>
-		/// <param name="height"></param>
-		/// <param name="components"></param>
-		/// <param name="dest"></param>
-		/// <param name="quality">Should be from 1 to 100</param>
+		/// <param name="data">The pixel data.</param>
+		/// <param name="width">The image width in pixels.</param>
+		/// <param name="height">The image height in pixels.</param>
+		/// <param name="components">The color components per pixel.</param>
+		/// <param name="dest">The destination stream.</param>
+		/// <param name="quality">The JPEG quality from 1 to 100.</param>
 		public void WriteJpg(void* data, int width, int height, ColorComponents components, Stream dest, int quality)
 		{
 			try
@@ -191,14 +191,14 @@ namespace StbImageWriteSharp
 		}
 
 		/// <summary>
-		/// 
+		/// Writes the image as a JPEG to the destination stream.
 		/// </summary>
-		/// <param name="data"></param>
-		/// <param name="width"></param>
-		/// <param name="height"></param>
-		/// <param name="components"></param>
-		/// <param name="dest"></param>
-		/// <param name="quality">Should be from 1 to 100</param>
+		/// <param name="data">The pixel data.</param>
+		/// <param name="width">The image width in pixels.</param>
+		/// <param name="height">The image height in pixels.</param>
+		/// <param name="components">The color components per pixel.</param>
+		/// <param name="dest">The destination stream.</param>
+		/// <param name="quality">The JPEG quality from 1 to 100.</param>
 		public void WriteJpg(byte[] data, int width, int height, ColorComponents components, Stream dest, int quality)
 		{
 			CheckParams(data, width, height, components);

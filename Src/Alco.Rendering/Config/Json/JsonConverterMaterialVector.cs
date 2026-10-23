@@ -5,12 +5,8 @@ using System.Text.Json.Serialization;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Json converter for material vector values (surface parameters and PBR factors).
-/// Accepted shapes: a number (broadcast to every component), a hex color string
-/// (<c>"#RRGGBB"</c> / <c>"#RRGGBBAA"</c>), or a component object — vector-style
-/// (<c>{"x": 1, "y": 2, ...}</c>) or color-style (<c>{"r": 1, "g": 0.5, ...}</c>);
-/// missing components read zero. Hex colors land as authored (sRGB byte values
-/// normalized to [0, 1]; no linearization).
+/// Json converter for material vector values, accepting a broadcast number, a hex color
+/// string, or a vector- or color-style component object with missing components zero.
 /// </summary>
 public class JsonConverterMaterialVector4 : JsonConverter<Vector4>
 {

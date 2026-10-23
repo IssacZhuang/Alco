@@ -4,11 +4,7 @@ using Alco.IO;
 namespace Alco.Engine;
 
 /// <summary>
-/// Lightweight audio asset loader for NoAudio mode.
-/// Skips file reading and PCM decoding, returning a minimal dummy clip produced
-/// by the device. Mirrors <see cref="Alco.Rendering.AssetLoaderTexture2DNoGPU"/>: when there is
-/// no real audio device the asset pipeline still returns a valid, non-null
-/// <see cref="AudioClip"/> without paying for decode.
+/// Audio asset loader for no-audio mode that returns valid dummy clips without reading or decoding files.
 /// </summary>
 public class AssetLoaderAudioNoLoad : BaseAssetLoader<AudioClip>
 {

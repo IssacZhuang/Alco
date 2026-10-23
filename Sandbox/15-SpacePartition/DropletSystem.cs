@@ -9,6 +9,7 @@ using Alco.ImGUI;
 
 using FastRandom = Alco.FastRandom;
 
+/// <summary>Spawns and renders falling droplet particles, optionally registered with a 2D collision world.</summary>
 public class DropletSystem : IDisposable
 {
     public static readonly int RenderThreadCount = 24;
@@ -79,6 +80,11 @@ public class DropletSystem : IDisposable
 
     private FastRandom _random = new FastRandom(123);
 
+    /// <summary>Initializes the droplet system and its per-thread renderers.</summary>
+    /// <param name="system">Rendering system used to create contexts and materials.</param>
+    /// <param name="camera">Camera buffer bound to the sprite material.</param>
+    /// <param name="shader">Shader used to render droplets.</param>
+    /// <param name="texDroplet">Texture applied to droplets.</param>
     public DropletSystem(RenderingSystem system, GraphicsBuffer camera, Shader shader, Texture2D texDroplet)
     {
         _renderContext = system.CreateRenderContext();
@@ -100,6 +106,8 @@ public class DropletSystem : IDisposable
         _jobParallelRender = new JobParallelRender(_subRenderContexts, _renderers, _renderRanges, _activeList, system.MeshCenteredSprite);
     }
 
+    /// <summary>Advances the simulation, spawning and moving droplets and recycling those that expire.</summary>
+    /// <param name="delta">Elapsed time in seconds.</param>
     public void OnTick(float delta)
     {
         
@@ -124,6 +132,7 @@ public class DropletSystem : IDisposable
         }
     }
 
+    /// <summary>Spawns one droplet at a random position near the top of the screen.</summary>
     public void Spawn()
     {
         if (_pool.TryGet(out Droplet? entity))
@@ -135,6 +144,8 @@ public class DropletSystem : IDisposable
         }
     }
 
+    /// <summary>Registers all active droplets as collision targets in the given world.</summary>
+    /// <param name="collisionWorld">World receiving the collision targets.</param>
     public void PushCollisionTarget(CollisionWorld2D collisionWorld)
     {
         for (int i = 0; i < _activeList.Count; i++)
@@ -144,6 +155,8 @@ public class DropletSystem : IDisposable
         }
     }
 
+    /// <summary>Draws the ImGUI controls for tuning the simulation.</summary>
+    /// <param name="delta">Elapsed time in seconds.</param>
     public void OnUpdate(float delta)
     {
         // ImGUI Controls
@@ -164,6 +177,9 @@ public class DropletSystem : IDisposable
         ImGui.End();
     }
 
+    /// <summary>Records the droplets into the target framebuffer using parallel sub-contexts.</summary>
+    /// <param name="target">Framebuffer receiving the draw calls.</param>
+    /// <param name="layout">Attachment layout used for the render pass.</param>
     public void OnRender(GPUFrameBuffer target, GPUAttachmentLayout layout)
     {
         for (int i = 0; i < RenderThreadCount; i++)
@@ -188,6 +204,8 @@ public class DropletSystem : IDisposable
         }
     }
 
+    /// <summary>Legacy per-thread render entry point; currently unused.</summary>
+    /// <param name="i">Index of the render thread.</param>
     public void Render(int i)
     {
         // _renderer[i].Begin(_renderTarget.RenderTexture.FrameBuffer);
@@ -199,6 +217,7 @@ public class DropletSystem : IDisposable
         // _renderer[i].End();
     }
 
+    /// <summary>Releases the render job, renderers, and render context.</summary>
     public void Dispose()
     {
         _jobParallelRender.Dispose();

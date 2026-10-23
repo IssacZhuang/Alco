@@ -6,6 +6,9 @@ using System.Runtime.CompilerServices;
 
 namespace SDL3;
 
+/// <summary>
+/// Boolean value type matching the SDL boolean representation.
+/// </summary>
 public readonly struct SDLBool : IEquatable<SDLBool>
 {
     internal const byte FALSE_VALUE = 0;
@@ -13,9 +16,18 @@ public readonly struct SDLBool : IEquatable<SDLBool>
 
     private readonly byte _value;
 
+    /// <summary>
+    /// Gets the true value.
+    /// </summary>
     public static SDLBool True => new(TRUE_VALUE);
+    /// <summary>
+    /// Gets the false value.
+    /// </summary>
     public static SDLBool False => new(FALSE_VALUE);
 
+    /// <summary>
+    /// Initializes a default (false) value.
+    /// </summary>
     [Obsolete("Never explicitly construct an SDL bool.")]
     public SDLBool()
     {

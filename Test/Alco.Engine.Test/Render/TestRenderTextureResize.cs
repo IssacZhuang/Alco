@@ -37,6 +37,7 @@ public class TestRenderTextureResize
         }
         """;
 
+    /// <summary>Tests that resizing keeps object identity and bumps the version.</summary>
     [Test]
     public void TestResizeKeepsIdentityAndBumpsVersion()
     {
@@ -57,6 +58,7 @@ public class TestRenderTextureResize
         Assert.That(rt.ColorTextures[0], Is.Not.SameAs(colorBefore));
     }
 
+    /// <summary>Tests that resizing to the same size is a no-op.</summary>
     [Test]
     public void TestResizeSameSizeIsNoOp()
     {
@@ -71,6 +73,7 @@ public class TestRenderTextureResize
         Assert.That(rt.FrameBuffer, Is.SameAs(frameBefore));
     }
 
+    /// <summary>Tests that resizing a disposed texture throws.</summary>
     [Test]
     public void TestResizeDisposedThrows()
     {
@@ -83,6 +86,7 @@ public class TestRenderTextureResize
         Assert.That(() => rt.Resize(16, 16), Throws.TypeOf<System.ObjectDisposedException>());
     }
 
+    /// <summary>Tests that depth views are recreated on resize.</summary>
     [Test]
     public void TestDepthEntriesRecreatedOnResize()
     {
@@ -105,6 +109,7 @@ public class TestRenderTextureResize
         Assert.That(rt.DepthView, Is.Not.SameAs(depthView));
     }
 
+    /// <summary>Tests that material groups are rebuilt after a resize.</summary>
     [Test]
     public void TestMaterialGroupRebuiltOnResize()
     {

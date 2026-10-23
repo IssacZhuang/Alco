@@ -17,11 +17,16 @@ namespace _33_LLM;
 /// </summary>
 public class Game : GameEngine
 {
+    /// <summary>Persisted LLM connection settings for the sandbox.</summary>
     public class SandboxPreference
     {
+        /// <summary>Identifier of the language model to use.</summary>
         public string ModelId { get; set; } = "gpt-4o";
+        /// <summary>API key used to authenticate requests.</summary>
         public string ApiKey { get; set; } = "";
+        /// <summary>Optional organization identifier for requests.</summary>
         public string OrgId { get; set; } = "";
+        /// <summary>Optional custom endpoint URI overriding the default provider endpoint.</summary>
         public string CustomUri { get; set; } = "";
     }
 
@@ -48,6 +53,8 @@ public class Game : GameEngine
     private readonly GraphicsValueBuffer<Matrix4x4> _cameraBuffer;
     private readonly Dictionary<string, Cube> _entities = new();
 
+    /// <summary>Initializes the LLM sandbox and its rendering resources.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));
@@ -405,6 +412,8 @@ public class Game : GameEngine
 
     [AgentFunction]
     [Description("Get the list of cubes")]
+    /// <summary>Lists the names of all cubes in the scene.</summary>
+    /// <returns>Comma-separated cube names.</returns>
     public string ListCube()
     {
         return string.Join(", ", _entities.Keys);
@@ -412,6 +421,10 @@ public class Game : GameEngine
 
     [AgentFunction]
     [Description("Set the color of a cube")]
+    /// <summary>Sets the color of a named cube.</summary>
+    /// <param name="cubeName">Name of the cube to recolor.</param>
+    /// <param name="color">Target color in <c>#RRGGBBAA</c> format.</param>
+    /// <returns>A status message describing the result.</returns>
     public string SetCubeColor(
         [Description("The name of the cube to set the color of")] string cubeName,
         [Description("The color to set the cube to, the format should be like #RRGGBBAA")] string color
@@ -431,6 +444,9 @@ public class Game : GameEngine
 
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Hello form")]
+    /// <summary>Returns a greeting for the given name, used to demonstrate agent-thread functions.</summary>
+    /// <param name="name">Name of the person to greet.</param>
+    /// <returns>A greeting message.</returns>
     public string HelloForm([Description("The name of the person")] string name)
     {
         Thread.Sleep(500);

@@ -3,14 +3,20 @@ using Alco;
 
 namespace Alco.IO;
 
+/// <summary>
+/// Describes one named entry in a package directory, including its content-relative offset and size.
+/// </summary>
 public sealed class PackageEntry : ISerializable
 {
     private string _name = string.Empty;
     private long _start;
     private long _size;
 
+    /// <summary>Gets the entry name.</summary>
     public string Name => _name;
+    /// <summary>Gets the entry's start offset, in bytes, relative to the package content.</summary>
     public long Start => _start;
+    /// <summary>Gets the entry's size, in bytes.</summary>
     public long Size => _size;
 
     /// <summary>
@@ -21,6 +27,12 @@ public sealed class PackageEntry : ISerializable
 
     }
 
+    /// <summary>
+    /// Initializes a new entry description.
+    /// </summary>
+    /// <param name="name">The entry name.</param>
+    /// <param name="start">The start offset, in bytes, relative to the package content.</param>
+    /// <param name="size">The entry size, in bytes.</param>
     public PackageEntry(string name, long start, long size)
     {
         _name = name;
@@ -28,6 +40,11 @@ public sealed class PackageEntry : ISerializable
         _size = size;
     }
 
+    /// <summary>
+    /// Serializes this entry's name, start offset, and size.
+    /// </summary>
+    /// <param name="node">The serialization node to bind fields on.</param>
+    /// <param name="mode">The serialization mode.</param>
     public void OnSerialize(SerializeNode node, SerializeMode mode)
     {
         node.BindString(nameof(_name), ref _name);
@@ -43,9 +60,7 @@ public sealed class PackageEntry : ISerializable
 /// directly, and add their own fields and magic number.
 /// </summary>
 /// <remarks>
-/// This base deliberately implements <see cref="ISerializable"/> but <b>not</b>
-/// <see cref="IPackageMeta"/>, so each concrete meta's static magic slot is the one generic
-/// dispatch resolves to. See the remarks on <see cref="IPackageMeta"/>.
+/// Deliberately does not implement <see cref="IPackageMeta"/>, so generic dispatch resolves each concrete meta's own magic number.
 /// </remarks>
 public abstract class PackageMetaBase : ISerializable
 {

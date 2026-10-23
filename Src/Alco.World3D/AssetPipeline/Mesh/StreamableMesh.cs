@@ -5,11 +5,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A read-only multi-submesh mesh whose vertex/index buffers were streamed from a mesh asset
-/// asset (.amsh). Submeshes are byte ranges derived from the asset's submesh table. Constructed
-/// by <c>MeshAsset</c> once a LOD's payload has been read; upload via the
-/// <c>Upload</c> methods and finalize with <see cref="MarkReady"/>. Consumed by the renderer
-/// like any other <see cref="Mesh"/>.
+/// A read-only multi-submesh mesh whose vertex and index buffers were streamed from a mesh asset; upload the payload and call <see cref="MarkReady"/> before drawing it.
 /// </summary>
 public sealed unsafe class StreamableMesh : Mesh
 {

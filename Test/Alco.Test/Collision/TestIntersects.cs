@@ -8,8 +8,10 @@ using System.Net.NetworkInformation;
 
 namespace Alco.Test
 {
+    /// <summary>Tests 3D collision intersection routines.</summary>
     public class TestIntersects
     {
+        /// <summary>Tests box-sphere intersection for overlapping and separated shapes.</summary>
         [Test(Description = "test box sphere intersects")]
         public void TestIntersectsBoxSphere()
         {
@@ -20,6 +22,7 @@ namespace Alco.Test
             Assert.IsFalse(CollisionUtility3D.BoxSphere(box, sphere2));
         }
 
+        /// <summary>Tests box-box intersection for a range of positions and rotations.</summary>
         [Test(Description = "test box intersects")]
         public void TestIntersectsBox()
         {
@@ -82,6 +85,7 @@ namespace Alco.Test
 
         }
 
+        /// <summary>Tests ray-box intersection for hits and misses.</summary>
         [Test(Description = "test ray box intersects")]
         public void TestIntersectsRayBox()
         {
@@ -110,6 +114,7 @@ namespace Alco.Test
             TestContext.WriteLine(hit.ToString());
         }
 
+        /// <summary>Tests ray-sphere intersection for hits and misses.</summary>
         [Test(Description = "test ray sphere intersects")]
         public void TestIntersectsRaySphere()
         {
@@ -132,6 +137,7 @@ namespace Alco.Test
             TestContext.WriteLine(hit.ToString());
         }
 
+        /// <summary>Tests point-box containment for rotated boxes.</summary>
         [Test(Description = "test point box")]
         public void TestIntersectsPointBox()
         {

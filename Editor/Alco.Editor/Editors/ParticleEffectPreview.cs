@@ -8,18 +8,8 @@ using Alco.Rendering;
 namespace Alco.Editor;
 
 /// <summary>
-/// The live preview of the particle effect document: runs one instance of the
-/// edited effect on a private <see cref="GpuParticleSystem2D"/>/<see cref="GpuParticleSystem3D"/>
-/// inside a <see cref="PreviewViewport"/> (which owns the pipeline, camera,
-/// viewport input and the grid/axes overlay).
-/// <br/>This class adds the particle-specific parts on top of the viewport:
-/// the effect instance lifecycle (<see cref="SetEffect"/>,
-/// <see cref="LiveUpdateGroup(int, ParticleGroup2D)"/>), the transport
-/// controls (pause, stop, restart, time scale — pausing records a 0 delta,
-/// which freezes the simulation but keeps pool bookkeeping alive), the
-/// per-group emitter shape outlines read from <see cref="OverlaySource"/>,
-/// and the editor-only per-group visibility toggles
-/// (<see cref="SetGroupVisible"/>, never serialized into the asset).
+/// The live preview of the particle effect document: runs the edited effect on a private GPU particle system
+/// inside a <see cref="PreviewViewport"/>, adding effect-instance lifecycle, transport controls and editor-only shape overlays and visibility toggles.
 /// </summary>
 public sealed class ParticleEffectPreview : AutoDisposable
 {

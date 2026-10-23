@@ -9,29 +9,44 @@ using System.Runtime;
 
 namespace Alco.Test
 {
+    /// <summary>
+    /// Collects BVH query hits into native array lists.
+    /// </summary>
     public struct NativeListCollector : IBvhCollisionCastCollector2D, IBvhRayCastCollector2D
     {
         private unsafe NativeArrayList<ColliderCastResult2D>* _list;
         private unsafe NativeArrayList<RayCastResult2D>* _rayList;
 
+        /// <summary>
+        /// Creates a collector that appends collider-cast hits to the given list.
+        /// </summary>
         public unsafe NativeListCollector(NativeArrayList<ColliderCastResult2D>* list)
         {
             _list = list;
             _rayList = null;
         }
 
+        /// <summary>
+        /// Creates a collector that appends ray-cast hits to the given list.
+        /// </summary>
         public unsafe NativeListCollector(NativeArrayList<RayCastResult2D>* rayList)
         {
             _list = null;
             _rayList = rayList;
         }
 
+        /// <summary>
+        /// Appends the collider hit to the list and continues traversal.
+        /// </summary>
         public unsafe bool OnHit(ColliderCastResult2D result)
         {
             if (_list != null) _list->Add(result);
             return true;
         }
 
+        /// <summary>
+        /// Appends the ray hit to the list and continues traversal.
+        /// </summary>
         public unsafe bool OnHit(RayCastResult2D result)
         {
             if (_rayList != null) _rayList->Add(result);
@@ -39,12 +54,18 @@ namespace Alco.Test
         }
     }
 
+    /// <summary>
+    /// Captures only the first BVH hit for collider and ray casts.
+    /// </summary>
     public struct FirstHitCollector : IBvhCollisionCastCollector2D, IBvhRayCastCollector2D
     {
         public ColliderCastResult2D Result;
         public RayCastResult2D RayResult;
         public bool HasHit;
 
+        /// <summary>
+        /// Records the collider hit and stops traversal.
+        /// </summary>
         public bool OnHit(ColliderCastResult2D result)
         {
             Result = result;
@@ -52,6 +73,9 @@ namespace Alco.Test
             return false;
         }
 
+        /// <summary>
+        /// Records the ray hit and stops traversal.
+        /// </summary>
         public bool OnHit(RayCastResult2D result)
         {
             RayResult = result;
@@ -60,10 +84,16 @@ namespace Alco.Test
         }
     }
 
+    /// <summary>
+    /// Collects the user data of collider hits in traversal order.
+    /// </summary>
     public struct OrderCollector : IBvhCollisionCastCollector2D
     {
         public List<int> Order;
 
+        /// <summary>
+        /// Appends the hit collider's user data and continues traversal.
+        /// </summary>
         public bool OnHit(ColliderCastResult2D result)
         {
             Order.Add(result.Collider.UserData);
@@ -72,14 +102,13 @@ namespace Alco.Test
     }
 
     /// <summary>
-    /// Correctness tests for the 4-wide collider <see cref="NativeBvh2D"/>. All query methods
-    /// are cross-validated against a linear scan that runs the exact same shape tests on the
-    /// same colliders, so any disagreement exposes lost or duplicated traversal work. The
-    /// scenes include rotated boxes, spheres, duplicates, a shared-centroid cluster (identical
-    /// Morton codes) and ray origins inside colliders.
+    /// Correctness tests for the 4-wide <see cref="NativeBvh2D"/>, cross-validated against a linear scan over varied scenes.
     /// </summary>
     public class TestBvh2D
     {
+        /// <summary>
+        /// Tests ray, collider, and point casts on a simple 2D BVH scene.
+        /// </summary>
         [Test(Description = "BVH collision 2D with Collector")]
         public unsafe void TestBvhCollision()
         {
@@ -418,6 +447,9 @@ namespace Alco.Test
             castHits.Dispose();
         }
 
+        /// <summary>
+        /// Tests all five query types against a linear-scan reference on a randomized scene.
+        /// </summary>
         [Test(Description = "BVH collider 2D: randomized cross-validation of all five query types against a linear scan")]
         public unsafe void TestBvhCrossValidation()
         {
@@ -436,6 +468,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that an explicit Morton builder produces the same query results as the default build.
+        /// </summary>
         [Test(Description = "BVH collider 2D: explicit Morton builder instance produces the same results as the default build")]
         public unsafe void TestBvhExplicitBuilderMatchesDefault()
         {
@@ -469,6 +504,9 @@ namespace Alco.Test
             builder.Dispose();
         }
 
+        /// <summary>
+        /// Tests that the pairing-order builder matches the linear-scan reference across scene sizes.
+        /// </summary>
         [Test(Description = "BVH collider 2D: pairing-order builder (order-preserving) matches the linear-scan reference")]
         public unsafe void TestBvhPairingOrderBuilder()
         {
@@ -496,6 +534,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that pairing-order trees emit point-cast hits in input order.
+        /// </summary>
         [Test(Description = "BVH collider 2D: pairing-order trees emit point-cast hits in input order")]
         public unsafe void TestBvhPairingOrderPointSequence()
         {
@@ -528,6 +569,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests item counts around the four-item leaf-block boundary.
+        /// </summary>
         [Test(Description = "BVH collider 2D: item counts around the 4-item leaf-block boundary stay correct")]
         public unsafe void TestBvhSmallCounts()
         {
@@ -568,6 +612,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that identical colliders with equal Morton codes all remain reachable.
+        /// </summary>
         [Test(Description = "BVH collider 2D: 300 identical colliders (identical Morton codes) are all reachable")]
         public unsafe void TestBvhIdenticalColliders()
         {
@@ -605,6 +652,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that an empty input leaves every query inert.
+        /// </summary>
         [Test(Description = "BVH collider 2D: empty input leaves the tree inert for every query")]
         public unsafe void TestBvhEmptyInput()
         {
@@ -631,6 +681,9 @@ namespace Alco.Test
             bvh.Dispose();
         }
 
+        /// <summary>
+        /// Tests that rebuilding with different sizes reuses buffers without corrupting results.
+        /// </summary>
         [Test(Description = "BVH collider 2D: rebuilding with different sizes reuses buffers without corrupting results")]
         public unsafe void TestBvhRebuildReuse()
         {

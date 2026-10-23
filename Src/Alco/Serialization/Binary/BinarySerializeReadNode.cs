@@ -5,14 +5,26 @@ using System.Threading.Tasks;
 
 namespace Alco;
 
+/// <summary>
+/// Deserializes values from a binary table into target objects.
+/// </summary>
 public class BinarySerializeReadNode : SerializeReadNode
 {
     private readonly ReferenceContext? _referenceContext;
     protected BinaryTable _content;
+    /// <summary>
+    /// Gets the binary table being read.
+    /// </summary>
     public BinaryTable Content => _content;
 
     public override ReferenceContext? ReferenceContext => _referenceContext;
 
+    /// <summary>
+    /// Initializes a read node for the given binary table.
+    /// </summary>
+    /// <param name="referenceContext">The optional reference context.</param>
+    /// <param name="content">The table to read from.</param>
+    /// <param name="onError">Optional callback invoked when a binding fails.</param>
     public BinarySerializeReadNode(ReferenceContext? referenceContext, BinaryTable content, Action<string>? onError = null)
     {
         ArgumentNullException.ThrowIfNull(content);
@@ -366,6 +378,9 @@ public class BinarySerializeReadNode : SerializeReadNode
         }
     }
 
+    /// <summary>
+    /// This implementation is a no-op; references are not read from binary tables.
+    /// </summary>
     public override void BindReference<T>(string key, ref T? referenceable) where T : default
     {
         //do nothing

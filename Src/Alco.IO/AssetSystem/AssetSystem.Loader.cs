@@ -79,6 +79,11 @@ public sealed partial class AssetSystem
         return true;
     }
 
+    /// <summary>
+    /// Returns whether a file extension is handled by a registered asset loader.
+    /// </summary>
+    /// <param name="extension">The file extension, including the leading dot.</param>
+    /// <returns>True if the extension is recognized; otherwise, false.</returns>
     public bool IsRecongizedExtension(string extension)
     {
         UpdateRecongizedExtensions();
@@ -90,7 +95,7 @@ public sealed partial class AssetSystem
     /// </summary>
     /// <param name="filename">The filename to check</param>
     /// <param name="type">The type to check</param>
-    /// <returns></returns>
+    /// <returns>True if the file exists and its loader supports the type; otherwise, false.</returns>
     public bool CanHandleType(string filename, Type type)
     {
         if (!IsFileExist(filename, out string realFilename))

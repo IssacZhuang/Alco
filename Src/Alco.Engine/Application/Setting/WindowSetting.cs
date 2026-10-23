@@ -7,6 +7,12 @@ namespace Alco.Engine;
 /// </summary>
 public struct ViewSetting
 {
+    /// <summary>
+    /// Initializes a new instance of <see cref="ViewSetting"/>.
+    /// </summary>
+    /// <param name="width">Window width in pixels.</param>
+    /// <param name="height">Window height in pixels.</param>
+    /// <param name="title">Window title.</param>
     public ViewSetting(int width, int height, string title)
     {
         Width = width;

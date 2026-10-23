@@ -5,15 +5,8 @@ using Alco.IO;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Asset loader for glTF 2.0 model scenes (.gltf / .glb).
-/// Creates a <see cref="ModelScene"/>: GPU meshes, textures and a flattened draw list.
-/// <br/>Only the engine-relevant material subset is realized (base color, normal,
-/// metallic-roughness and emissive textures, factors, alpha mode); other extensions are ignored.
-/// <br/>External textures stream: each is created at its final specification from a header
-/// probe and its content uploads in place asynchronously (see
-/// <see cref="RenderingSystem.CreateTexture2DStreaming"/>), so texture identities and
-/// material bindings are final when the scene returns. Albedo and emissive textures are
-/// sRGB color data; normal and metallic-roughness textures are linear.
+/// Asset loader for glTF 2.0 model scenes (.gltf / .glb) that creates a <see cref="ModelScene"/> with GPU meshes, textures, and a flattened draw list.
+/// Only the engine-relevant material subset is realized, and external textures stream in place so material bindings are final when the scene returns.
 /// </summary>
 public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
 {
@@ -229,11 +222,7 @@ public sealed class AssetLoaderModelGltf : BaseAssetLoader<ModelScene>
     }
 
     /// <summary>
-    /// Create the texture of one image, or null when it is missing or fails to decode.
-    /// External images stream from the asset system: the texture is created at its final
-    /// specification from a header probe and its content uploads in place asynchronously.
-    /// Images whose header cannot be probed fall back to a full synchronous decode, as do
-    /// embedded images (their bytes are already in memory).
+    /// Creates the texture for one image, or null when it is missing or fails to decode.
     /// </summary>
     private Texture2D? CreateImageTexture(
         AssetSystem assetSystem, GltfImage image, string directory, TextureRole role, AddressMode wrap)

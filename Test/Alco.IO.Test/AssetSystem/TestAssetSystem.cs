@@ -7,6 +7,9 @@ using System.Text;
 
 namespace Alco.IO.Test;
 
+/// <summary>
+/// Tests asset loading, caching, and asset listing in AssetSystem.
+/// </summary>
 public class TestAssetSystem
 {
     private class TestFastAsset
@@ -204,6 +207,9 @@ public class TestAssetSystem
     }
 
 
+    /// <summary>
+    /// Tests synchronous loading of asset types, including empty, exception, and missing-loader failures.
+    /// </summary>
     [Test]
     public void TestLoad()
     {
@@ -240,6 +246,9 @@ public class TestAssetSystem
         //assetSystem.Dispose();
     }
 
+    /// <summary>
+    /// Tests that concurrent loads return the same cached asset instance.
+    /// </summary>
     [Test]
     public void TestLoadConcurrent()
     {
@@ -305,6 +314,9 @@ public class TestAssetSystem
     }
 
 
+    /// <summary>
+    /// Tests asynchronous asset loading and error propagation.
+    /// </summary>
     [Test]
     public async Task TestLoadAsyncTask()
     {
@@ -337,6 +349,9 @@ public class TestAssetSystem
    
 // the garbage collect is lazy in debug mode
 // it might cause the test failed
+    /// <summary>
+    /// Tests cache modes and garbage collection of recyclable assets.
+    /// </summary>
 #if !DEBUG
     [Test]
 #endif
@@ -452,6 +467,9 @@ public class TestAssetSystem
         }
     }
 
+    /// <summary>
+    /// Tests listing assets in root and nested paths.
+    /// </summary>
     [Test]
     public void TestListAssets()
     {
@@ -502,6 +520,9 @@ public class TestAssetSystem
 
     }
 
+    /// <summary>
+    /// Tests resolving file extensions per asset type, including caching and unsupported types.
+    /// </summary>
     [Test]
     public void TestGetExtensionsForType()
     {
@@ -540,6 +561,9 @@ public class TestAssetSystem
         Assert.Throws<ArgumentNullException>(() => assetSystem.GetExtensionsForType(null!));
     }
 
+    /// <summary>
+    /// Tests that registering and unregistering loaders invalidates the extension cache.
+    /// </summary>
     [Test]
     public void TestGetExtensionsForTypeCacheInvalidation()
     {
@@ -569,6 +593,9 @@ public class TestAssetSystem
         Assert.That(extensions3, Is.Not.SameAs(extensions2));
     }
 
+    /// <summary>
+    /// Tests listing assets filtered by asset type and path.
+    /// </summary>
     [Test]
     public void TestListAssetsInPathWithType()
     {
@@ -639,6 +666,9 @@ public class TestAssetSystem
         Assert.Throws<ArgumentNullException>(() => assetSystem.ListAssetsInPath("", null!).ToList());
     }
 
+    /// <summary>
+    /// Tests that concurrent typed asset listings return consistent results.
+    /// </summary>
     [Test]
     public void TestListAssetsInPathWithTypeThreadSafety()
     {

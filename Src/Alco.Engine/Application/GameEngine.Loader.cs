@@ -6,8 +6,15 @@ using Alco.IO;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Asset loading and serialization defaults for the engine.
+/// </summary>
 public partial class GameEngine
 {
+    /// <summary>
+    /// Creates the default asset loaders for the configured subsystems.
+    /// </summary>
+    /// <returns>The default asset loaders.</returns>
     public virtual IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         // Create JSON converters (shared between meta loader and option cache)
@@ -48,6 +55,10 @@ public partial class GameEngine
         yield return new AssetLoaderMeta(jsonConvertersList, Setting.TypeInfoResolver);
     }
 
+    /// <summary>
+    /// Creates the default asset hot reloaders for the configured subsystems.
+    /// </summary>
+    /// <returns>The default asset hot reloaders.</returns>
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
     {
         yield return new AssetHotReloaderTexture2D(RenderingSystem);
@@ -58,6 +69,10 @@ public partial class GameEngine
         }
     }
 
+    /// <summary>
+    /// Creates the default file sources used to resolve assets.
+    /// </summary>
+    /// <returns>The default file sources.</returns>
     public virtual IEnumerable<IFileSource> CreateDefaultFileSources()
     {
         yield return new DirectoryFileSource(Setting.Assets.AssetsPath);
@@ -81,6 +96,10 @@ public partial class GameEngine
         public override int Priority => 1;
     }
 
+    /// <summary>
+    /// Creates the default JSON converters used by engine serialization.
+    /// </summary>
+    /// <returns>The default JSON converters.</returns>
     public virtual IEnumerable<JsonConverter> CreateDefaultJsonConverters()
     {
         yield return new JsonConverterType();

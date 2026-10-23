@@ -3,31 +3,52 @@ using System.Numerics;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Covers 2D collision world builds and shape, point, and ray casts, including the Morton builder.
+/// </summary>
 public unsafe class TestCollisionWorld2D
 {
+    /// <summary>
+    /// Test collision target backed by a 2D box shape.
+    /// </summary>
     public class TestBoxTarget
     {
         public int id;
         public ShapeBox2D shape;
     }
 
+    /// <summary>
+    /// Test collision target backed by a 2D sphere shape.
+    /// </summary>
     public class TestSphereTarget
     {
         public int id;
         public ShapeSphere2D shape;
     }
 
+    /// <summary>
+    /// Collects hit ids from collision and ray casts.
+    /// </summary>
     public struct TestSphereCollector : ICollisionCastCollector, IRayCastCollector2D
     {
         public List<int> hitIds;
         public int cutomData;
 
+        /// <summary>
+        /// Initializes the collector with the given custom data.
+        /// </summary>
+        /// <param name="customData">Custom payload retained by the collector.</param>
         public TestSphereCollector(int customData)
         {
             this.hitIds = new List<int>();
             this.cutomData = customData;
         }
 
+        /// <summary>
+        /// Records the id of a hit box or sphere target and continues the cast.
+        /// </summary>
+        /// <param name="hitObject">Object reported by the cast.</param>
+        /// <returns>True to continue collecting hits.</returns>
         public bool OnHit(object hitObject)
         {
             if (hitObject is TestBoxTarget target)
@@ -41,6 +62,12 @@ public unsafe class TestCollisionWorld2D
             return true;
         }
 
+        /// <summary>
+        /// Records the id of a hit box or sphere target and continues the cast.
+        /// </summary>
+        /// <param name="target">Object reported by the cast.</param>
+        /// <param name="hit">Hit details, which are ignored.</param>
+        /// <returns>True to continue collecting hits.</returns>
         public bool OnHit(object target, RaycastHit2D hit)
         {
             if (target is TestBoxTarget box)
@@ -55,6 +82,9 @@ public unsafe class TestCollisionWorld2D
         }
     }
 
+    /// <summary>
+    /// Tests sphere shape casts and world rebuild reuse.
+    /// </summary>
     [Test(Description = "collision world 2d")]
     public void TestShapeCast2D()
     {
@@ -135,6 +165,9 @@ public unsafe class TestCollisionWorld2D
 
     }
 
+    /// <summary>
+    /// Tests that a point cast reports all boxes containing the point.
+    /// </summary>
     [Test]
     public void TestPointCast2D()
     {
@@ -178,6 +211,9 @@ public unsafe class TestCollisionWorld2D
         Assert.That(collector1.hitIds.Count, Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests closest-hit ray casts for hit and miss cases.
+    /// </summary>
     [Test]
     public void TestRayCast2D()
     {
@@ -209,6 +245,9 @@ public unsafe class TestCollisionWorld2D
         Assert.That(hitObject2, Is.Null);
     }
 
+    /// <summary>
+    /// Tests that a multi-hit ray cast reports every intersected box.
+    /// </summary>
     [Test]
     public void TestRayCastMulti2D()
     {
@@ -234,6 +273,9 @@ public unsafe class TestCollisionWorld2D
         Assert.That(collector.hitIds.Count, Is.EqualTo(5));
     }
 
+    /// <summary>
+    /// Tests that a ray starting inside a sphere reports no hit.
+    /// </summary>
     [Test]
     public void TestRayFromInsideSphere2D()
     {
@@ -252,6 +294,9 @@ public unsafe class TestCollisionWorld2D
         Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out _, out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that a ray starting inside a box reports no hit.
+    /// </summary>
     [Test]
     public void TestRayFromInsideBox2D()
     {
@@ -270,6 +315,9 @@ public unsafe class TestCollisionWorld2D
         Assert.That(world.TryCastRayClosestHit<TestBoxTarget>(ray, out _, out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that a ray from outside a sphere reports a hit.
+    /// </summary>
     [Test]
     public void TestRayFromOutsideToInsideSphere2D()
     {
@@ -289,6 +337,9 @@ public unsafe class TestCollisionWorld2D
         Assert.That(hitTarget!.id, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that the Morton builder casts identically to the default builder across rebuilds.
+    /// </summary>
     [Test]
     public void TestMortonBuilderWorld2D()
     {

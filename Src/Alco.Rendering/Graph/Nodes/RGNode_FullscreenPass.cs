@@ -3,16 +3,9 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A chain transform node that draws a full-screen material: reads the chain's
-/// current content, draws into its own output transient and advances the chain — the
-/// typical post-process effect shape (tone mapping, FXAA, color grading, ...).
-/// <br/>The chain input facade is bound to the material per frame (toggling an
-/// earlier chain node changes this node's input resource; the facade version check
-/// keeps steady-state rebinding free). Additional static bindings (G-buffer textures,
-/// data buffers, ...) are set through <see cref="BindTexture"/> /
-/// <see cref="BindTextureDepth"/> / <see cref="BindBuffer"/>.
-/// <br/>The node draws inside a pass scope from the frame-shared render context;
-/// it does not own the material.
+/// A chain transform node that draws a full-screen material from the chain's current content
+/// into its own transient and advances the chain. It binds the chain input per frame and does
+/// not own the material.
 /// </summary>
 public class RGNode_FullscreenPass : RGNode_ChainTransform
 {

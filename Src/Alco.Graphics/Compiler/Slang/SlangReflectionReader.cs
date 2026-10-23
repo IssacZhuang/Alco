@@ -208,12 +208,9 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// Collects one uniform/parameter block into the shared block vocabulary:
-    /// the parameter's user-defined attributes, the float-shaped members at
-    /// their reflected offsets, and why any member the float view cannot
-    /// represent is missing. The same helper feeds the library view
-    /// (<see cref="BuildLibraryReflection"/>) and the linked view
-    /// (<see cref="BuildReflectionInfo"/>).
+    /// Collects one uniform/parameter block into the shared block vocabulary: its
+    /// user-defined attributes, its float-shaped members and the reason any
+    /// unrepresentable member is missing.
     /// </summary>
     private static unsafe void AddUniformBlock(
         IntPtr parameter, IntPtr typeLayout, List<ShaderUniformBlock> blocks)
@@ -230,11 +227,8 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// The members of the named uniform block of a LINKED program, at their
-    /// post-link offsets — the strict wrapper over the block view collected by
-    /// <see cref="BuildReflectionInfo"/>. Empty when the program declares no
-    /// such block. Non-float members make the method throw — the material
-    /// parameter system writes floats only.
+    /// The members of the named uniform block of a linked program at their post-link
+    /// offsets; empty when the block is absent, and non-float members make it throw.
     /// </summary>
     public static unsafe List<ShaderUniformMember> GetUniformMembers(IntPtr reflection, string cbufferName)
     {
@@ -261,14 +255,9 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// Builds the module-level library reflection — every uniform/parameter
-    /// block the layout declares, with its user-defined attributes and
-    /// float-shaped members, plus every sampled-texture slot — from a slang
-    /// module layout (no entry points, no link), and the module's
-    /// specialization axes from its declaration tree. Domain-neutral:
-    /// attribute markers (e.g. MaterialParams) are filtered by the caller, and
-    /// a block whose members do not all fit the float view is reported through
-    /// the block, not rejected here.
+    /// Builds the module-level library reflection — every uniform/parameter block with
+    /// its attributes and float-shaped members, every sampled-texture slot, and the
+    /// module's specialization axes — from a module layout without linking.
     /// </summary>
     /// <param name="layout">The module's own layout (blocks and slots).</param>
     /// <param name="moduleDecl">The module's declaration tree root (specialization axes).</param>
@@ -312,13 +301,8 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// The specialization axes of a module's generic entry points: every
-    /// <c>let</c> value parameter of every module-scope generic function (the
-    /// entry-point shape — a generic struct is not an entry), in declaration
-    /// order. This is the same order the compile paths consume specialization
-    /// arguments in, so a positional argument list is a projection of this one.
-    /// A value parameter of a scalar kind the material domain cannot bind is
-    /// an error here — the contract stays "every reflected axis is bindable".
+    /// The specialization axes of a module's generic entry points: every value
+    /// parameter of every module-scope generic function, in declaration order.
     /// </summary>
     /// <param name="moduleDecl">The module's declaration tree root.</param>
     /// <param name="moduleName">The module's name, for error context.</param>
@@ -407,11 +391,9 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// The sampled-texture slots of a block's element struct, in declaration
-    /// order, with the shape each declaration requires (the same shape facts
-    /// the linked view reports on its bind-group entries). Storage images and
-    /// depth textures are excluded — they are pass bindings, not material
-    /// texture slots.
+    /// The sampled-texture slots of a block's element struct, in declaration order,
+    /// with the shape each declaration requires; storage images and depth textures
+    /// are excluded.
     /// </summary>
     private static unsafe void CollectTextureSlots(
         IntPtr structLayout, List<ShaderTextureSlot> slots,
@@ -497,15 +479,11 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// The lenient member walk behind <see cref="ReadUniformMembers(IntPtr)"/>:
-    /// the representable members in declaration order plus, through
-    /// <paramref name="unsupportedMemberReason"/>, why the first member that
-    /// does not fit the uniform view (unsupported scalar width, other kind, a
-    /// struct with uniform data, a nested array) is missing — null when the
-    /// listing is complete. Resource members (textures, samplers, storage
-    /// buffers, and structs that only group them) are binding entries, not
-    /// uniform data, and never count as unsupported. Arrays unwrap to one
-    /// member with the element's type and the array's element count.
+    /// The lenient member walk: the representable float members in declaration order
+    /// plus, through <paramref name="unsupportedMemberReason"/>, why the first member
+    /// outside the uniform view is missing (null when the listing is complete).
+    /// Resource members are skipped and arrays unwrap to their element type with the
+    /// array's element count.
     /// </summary>
     private static unsafe List<ShaderUniformMember> ReadUniformMembers(
         IntPtr typeLayout, out string? unsupportedMemberReason)
@@ -719,17 +697,10 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// Enumerates the resource members (textures, samplers, structured and
-    /// storage buffers) of a uniform block declared as
-    /// <c>cbuffer name : register(b0, spaceN) { ... }</c>. Members resolve by
-    /// their bare field name — the C# contract keeps the flat name the shader
-    /// body uses for unqualified member access. A member's binding index and
-    /// space are compiler-assigned relative to the block's register
-    /// (b0/spaceN), so both must be rebased onto the block's own indices.
-    /// A struct-typed field (e.g. a shared texture+sampler pair type) is
-    /// legal slang: the compiler flattens its resource leaves into the same
-    /// sequential block numbering, and reflection exposes them as
-    /// dotted qualified names (`pair.tex`, `pair.samp`).
+    /// Enumerates the resource members (textures, samplers, structured and storage
+    /// buffers) of a uniform block declared at a register, rebasing their
+    /// compiler-assigned bindings onto the block's own indices. Struct-typed fields
+    /// are flattened under dotted names.
     /// </summary>
     private static void AddBlockResourceMembers(
         IntPtr parameter,
@@ -1183,11 +1154,8 @@ public static class SlangReflectionReader
     }
 
     /// <summary>
-    /// The member type facts of a reflection type: the component count (1
-    /// scalar, N vector, rows×columns matrix) and the 32-bit scalar type the
-    /// CPU marshals by; false leaves the reason the type does not fit the
-    /// uniform view (unsupported scalar width, or not a scalar/vector/matrix
-    /// kind).
+    /// The component count and 32-bit scalar type of a reflection type; false returns
+    /// the reason it does not fit the uniform view.
     /// </summary>
     private static bool TryGetMemberType(
         IntPtr type, out int components, out ShaderUniformScalarType scalar, out string? reason)

@@ -14,6 +14,7 @@ namespace Alco.Editor.Test;
 [TestFixture]
 public sealed class TestTextureMeta
 {
+    /// <summary>Tests that null metadata fields are omitted from serialized JSON.</summary>
     [Test]
     public void Save_OmitsNullFields()
     {
@@ -28,6 +29,7 @@ public sealed class TestTextureMeta
         });
     }
 
+    /// <summary>Tests that enum values are written as PascalCase strings.</summary>
     [Test]
     public void Save_WritesPascalCaseEnumAsString()
     {
@@ -38,6 +40,7 @@ public sealed class TestTextureMeta
         Assert.That(json, Does.Contain("\"FilterMode\": \"Nearest\""));
     }
 
+    /// <summary>Tests that serialization round-trips all metadata fields.</summary>
     [Test]
     public void RoundTrip_PreservesAllFields()
     {
@@ -67,6 +70,7 @@ public sealed class TestTextureMeta
         });
     }
 
+    /// <summary>Tests that legacy PascalCase metadata files load.</summary>
     [Test]
     public void Load_ReadsLegacyPascalCaseFiles()
     {

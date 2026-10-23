@@ -4,14 +4,8 @@ using Alco.ImGUI;
 namespace Alco.Editor;
 
 /// <summary>
-/// A two-column name/value layout for inspector panels: the label column keeps a
-/// fixed width shared by every section, so labels are left-aligned and all value
-/// widgets start at the same x; the value column fills the remaining width. Labels
-/// longer than the column wrap to another line instead of pushing the values apart,
-/// and multi-widget value cells flow onto extra lines instead of overflowing.
-/// Create one instance per section in a <c>using</c> statement; the shared width
-/// formula keeps the columns aligned across the whole panel. When the host window
-/// skips items, the row helpers degrade to no-ops.
+/// A two-column name/value layout for inspector panels: a shared fixed-width label column, so labels and values align across all sections, with the value column filling the remaining width.
+/// Create one instance per section in a <c>using</c> statement; the row helpers are no-ops when the host window skips items.
 /// </summary>
 public ref struct PropertyTable : IDisposable
 {

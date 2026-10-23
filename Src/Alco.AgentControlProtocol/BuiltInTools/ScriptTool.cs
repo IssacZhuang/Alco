@@ -17,13 +17,8 @@ namespace Alco.AgentControlProtocol;
 /// runtime, bound to an engine instance.
 /// </summary>
 /// <remarks>
-/// Compilation runs on the agent (background) thread because it is CPU-bound and
-/// touches no game state. The compiled script then executes on the engine main thread
-/// so it can read game state directly (entities, maps, services) without callers
-/// worrying about thread marshalling. Scripts may <c>await</c>: only the first
-/// synchronous segment blocks the posted main-thread callback, and continuations are
-/// pumped back onto the main thread by the engine loop once per frame, so the game
-/// keeps running while a script waits.
+/// Compilation runs on the agent thread; the compiled script executes on the engine main
+/// thread, and awaiting scripts do not block the game loop.
 /// </remarks>
 public sealed class ScriptTool
 {
@@ -67,23 +62,12 @@ public sealed class ScriptTool
     }
 
     /// <summary>
-    /// Compiles and executes an arbitrary C# script and returns its result as a string.
-    /// Compilation runs on a background thread; execution runs on the engine main thread.
-    /// The source is either the inline <paramref name="code"/> string or a .csx file at
-    /// the absolute <paramref name="scriptPath"/> — provide exactly one of the two.
+    /// Compiles and executes a C# script on the engine main thread and returns its stringified result.
     /// </summary>
-    /// <param name="code">The C# code to compile and execute. May use a top-level <c>return</c> statement; the return value is stringified.</param>
-    /// <param name="scriptPath">
-    /// Absolute path to a .csx script file to execute. Compilation diagnostics report positions
-    /// in this file, and <c>#load</c>/<c>#r</c> directives inside it resolve relative paths
-    /// against its directory.
-    /// </param>
-    /// <param name="timeoutMs">Compilation timeout in milliseconds. Defaults to the host's configured timeout when omitted or non-positive.</param>
-    /// <returns>
-    /// The stringified script return value on success, or a prefixed diagnostic message on
-    /// compilation error (<c>Compilation error:</c>), runtime exception (<c>Runtime error:</c>),
-    /// or compile timeout (<c>Compilation timed out</c>).
-    /// </returns>
+    /// <param name="code">The C# code to compile and execute; may use a top-level return statement.</param>
+    /// <param name="scriptPath">Absolute path to a .csx script file to execute.</param>
+    /// <param name="timeoutMs">Compilation timeout in milliseconds; non-positive uses the configured default.</param>
+    /// <returns>The stringified result, or a prefixed error message on failure.</returns>
     [AgentFunction(IsOnAgentThread = true)]
     [Description(
         "Compile and execute an arbitrary C# script and return its stringified result. " +
@@ -236,21 +220,8 @@ public sealed class ScriptTool
     /// namespaces.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Assemblies whose <see cref="Assembly.Location"/> is empty (dynamic or in-memory assemblies, and
-    /// bundled assemblies under <c>PublishSingleFile</c>) are skipped for references: Roslyn cannot
-    /// resolve metadata references for them via path, and framework assemblies are supplied by
-    /// <see cref="ScriptOptions.Default"/> regardless. This keeps reference resolution robust across
-    /// regular, single-file and trimmed builds without throwing.
-    /// </para>
-    /// <para>
-    /// Imports are derived from loaded assemblies rather than hardcoded: every loaded Alco.* assembly
-    /// contributes its assembly name as a namespace import (assembly name matches the root namespace
-    /// by engine convention), and host application assemblies are imported when they actually contain
-    /// a type in a namespace matching their assembly name — importing a namespace that does not exist
-    /// would fail every script with an unresolved-namespace compile error. Design-time-only
-    /// assemblies that are not loaded at runtime are never imported.
-    /// </para>
+    /// Assemblies without an on-disk location are skipped as references; namespace imports
+    /// are derived from the loaded assemblies.
     /// </remarks>
     /// <returns>The configured script options.</returns>
     private static ScriptOptions BuildScriptOptions()
@@ -333,8 +304,7 @@ public sealed class ScriptTool
     }
 
     /// <summary>
-    /// Whether the assembly actually declares a type in a namespace matching its
-    /// assembly name — the engine convention for importable root namespaces.
+    /// Determines whether the assembly declares a type in a namespace matching its name.
     /// </summary>
     private static bool HasRootNamespace(Assembly assembly, string name)
     {

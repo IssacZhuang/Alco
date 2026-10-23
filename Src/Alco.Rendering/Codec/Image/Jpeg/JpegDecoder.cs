@@ -4,9 +4,7 @@ using System.Runtime.InteropServices;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Decodes JPEG image data to RGBA8 pixel buffer.
-/// Parses markers, manages scans, and coordinates Huffman decode + IDCT + color conversion.
-/// Supports baseline and progressive JPEG, grayscale, YCbCr (with subsampling), CMYK, and YCCK.
+/// Decodes JPEG image data to an RGBA8 pixel buffer, supporting baseline and progressive JPEGs with grayscale, YCbCr, CMYK, and YCCK color.
 /// </summary>
 internal static unsafe class JpegDecoder
 {

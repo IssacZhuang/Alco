@@ -4,24 +4,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The universal render pipeline shell: owns a <see cref="RenderGraph"/>, a
-/// <see cref="RenderChain"/> rooted at the scene color resource and a final blit
-/// node, and drives the frame (<see cref="Render"/>) through the graph.
-/// <br/>There is no forward/deferred pipeline type distinction: a pipeline is
-/// nothing but a shell plus the nodes composed into its graph. A plain forward
-/// pipeline is just this shell with content and chain transform nodes added via
-/// <see cref="Use"/>; a deferred PBR pipeline is this shell with shadow, G-buffer,
-/// deferred lighting and overlay nodes — assembled by a preset factory (e.g. the
-/// Alco.World3D module's <c>RenderPipelines.CreatePBRDeferred</c>) or by hand from
-/// the same public building blocks.
-/// <br/>The pipeline is a plain object, created and driven manually by its owner
-/// (the engine for the main view, game code for additional views): register nodes
-/// with <see cref="Use"/>, drive frames with <see cref="Render"/>, propagate view
-/// resizes with <see cref="Resize"/>.
-/// <br/>Everything the pipeline does is public API: the same frame can be composed by hand
-/// from <see cref="RenderGraph"/>, <see cref="RGNode_Clear"/>, <see cref="RenderChain"/>
-/// and <see cref="RGNode_Blit"/>, and any stage of a pipeline can be replaced or
-/// reordered through <see cref="Graph"/>.
+/// The universal render pipeline shell that owns a <see cref="RenderGraph"/>, a <see cref="RenderChain"/> rooted at the scene color resource, and a final blit node, and drives frames through the graph.
+/// Pipelines differ only by the nodes composed into the graph; the shell takes ownership of the graph and its nodes.
 /// </summary>
 public sealed class RenderPipeline : AutoDisposable
 {
@@ -115,20 +99,12 @@ public sealed class RenderPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Creates a shell over an already-composed graph: the graph, its scene color
-    /// resource, content chain and final blit were built by the caller (a preset
-    /// factory — inside the engine or in an external module such as Alco.World3D)
-    /// and are adopted by the shell, which owns and disposes the graph (and through
-    /// it the nodes and transients) from this point on. There is no clear node; the
-    /// composed passes clear their own targets.
+    /// Creates a shell over an already-composed graph, adopting ownership of the graph and its nodes.
     /// </summary>
     /// <param name="rendering">The rendering system.</param>
-    /// <param name="graph">The fully composed graph (nodes already registered in
-    /// execution order). Ownership transfers to the pipeline.</param>
-    /// <param name="sceneColor">The graph's scene color resource: the chain root and
-    /// the target of the final blit. Must carry an attachment layout.</param>
-    /// <param name="chain">The content chain threading the scene color through the
-    /// graph's chain nodes.</param>
+    /// <param name="graph">The fully composed graph; ownership transfers to the pipeline.</param>
+    /// <param name="sceneColor">The graph's scene color resource: the chain root and final blit target.</param>
+    /// <param name="chain">The content chain threading the scene color through the graph's chain nodes.</param>
     /// <param name="finalBlit">The final blit node, already registered in the graph.</param>
     public RenderPipeline(RenderingSystem rendering, RenderGraph graph, RenderGraphTexture sceneColor, RenderChain chain, RGNode_Blit finalBlit)
     {
@@ -212,11 +188,8 @@ public sealed class RenderPipeline : AutoDisposable
     }
 
     /// <summary>
-    /// Registers a graph node into the pipeline, immediately before the final blit
-    /// (nodes run in registration order). This is a convenience for
-    /// <c>Graph.InsertBefore(FinalBlit, node)</c>; register at any other position
-    /// through <see cref="Graph"/> directly. The graph takes ownership: nodes
-    /// implementing <see cref="System.IDisposable"/> are disposed with the pipeline.
+    /// Registers a node immediately before the final blit.
+    /// The graph takes ownership and disposes the node with the pipeline.
     /// </summary>
     public void Use(IRenderGraphNode node)
     {

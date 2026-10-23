@@ -2,6 +2,9 @@ using System.Numerics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Per-frame global shader data: time values and cursor parameters.
+/// </summary>
 public struct GlobalRenderData
 {
     public float Time;

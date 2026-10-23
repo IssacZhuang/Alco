@@ -3,17 +3,9 @@ using System.Numerics;
 namespace Alco.Effects;
 
 /// <summary>
-/// A live trail of <see cref="GpuTrailSystem2D"/>: a GPU-resident ribbon of points
-/// the caller extends along a moving head. Created through
-/// <see cref="GpuTrailSystem2D.TryCreateInstance"/>. Emission is the only per-point
-/// CPU work; aging, validity and ribbon expansion run in the vertex stage.
-/// <br/>Lifecycle: the trail fades on its own once emission stops — when every point
-/// has outlived its age budget the renderer recycles the trail's slot and slice, and
-/// this object turns inert (every member becomes a harmless no-op). Disposing the
-/// instance instead tears the trail down immediately, points vanishing mid-flight;
-/// both paths release the same pooled resources, so a recycled trail's later
-/// disposal is a no-op.
-/// <br/>Threading: main-thread contract, like the renderer itself.
+/// A live trail of <see cref="GpuTrailSystem2D"/>: a GPU-resident ribbon of points the caller extends along a moving head.
+/// After emission stops it fades and is recycled automatically, turning this object inert; disposal tears it down immediately and is a no-op on a recycled trail.
+/// Main-thread only.
 /// </summary>
 public sealed class TrailEffectInstance2D : AutoDisposable
 {
@@ -62,11 +54,8 @@ public sealed class TrailEffectInstance2D : AutoDisposable
     }
 
     /// <summary>
-    /// Extends the trail head onto <paramref name="position"/> (e.g. the destruction
-    /// point of the trail's source) and stops emission, letting the trail fade.
-    /// Without it the ribbon would stop at the last <see cref="ExtendTo"/> position,
-    /// visibly short of the impact. A target not ahead of the emitted path adds no
-    /// backwards stub. No-op on a recycled trail.
+    /// Extends the trail head onto <paramref name="position"/> and stops emission, letting the trail fade; a target not ahead of the emitted path adds no backwards stub.
+    /// No-op on a recycled trail.
     /// </summary>
     /// <param name="position">The final world position of the head.</param>
     /// <param name="depth">The render depth of the final segment.</param>

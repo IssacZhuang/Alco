@@ -3,11 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The final node of a graph: copies the chain's current content into the frame's
-/// destination with a full-screen draw. Register it last (or keep it last with
-/// <see cref="RenderGraph.InsertBefore"/> when adding chain nodes). Disabled on
-/// headless frames (null destination); otherwise it is the graph's culling root
-/// (<see cref="RenderGraphBuilder.ProducesOutput"/>).
+/// The final graph node, copying the chain's current content into the frame destination with
+/// a full-screen draw. It is the graph's culling root and disables itself on headless frames.
 /// </summary>
 public sealed class RGNode_Blit : AutoDisposable, IRenderGraphNode
 {

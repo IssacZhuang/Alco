@@ -8,18 +8,8 @@ using System.Runtime.Intrinsics;
 namespace Alco
 {
     /// <summary>
-    /// A flat, 4-wide AABB bounding volume hierarchy for 2D workloads (frustum culling,
-    /// ray picking, visibility queries), built with the same Morton-code LBVH (Karras 2012)
-    /// pipeline as <see cref="NativeBvh2D"/>.
-    /// <para>
-    /// - Nodes store the SoA bounds of their (up to) 4 children in an 80-byte block, so one
-    ///   Vector128 slab test covers all children with no padding.
-    /// - Child references are tagged in the sign bit (&gt;= 0 node index, &lt; 0 leaf block);
-    ///   unused leaf slots carry empty bounds that fail every intersection test.
-    /// - The 4-way split is a "falling split" over the binary Morton splits; children are
-    ///   ordered by descending subtree size for any-hit queries.
-    /// </para>
-    /// <see cref="Build"/> is not thread-safe; all query methods are safe for concurrent reads.
+    /// A flat, 4-wide SIMD AABB bounding volume hierarchy for 2D ray, frustum, and visibility queries.
+    /// <see cref="Build"/> is not thread-safe; all query methods are safe for concurrent reads after building.
     /// </summary>
     public unsafe class BvhAabb2D : IDisposable
     {
@@ -395,13 +385,11 @@ namespace Alco
         // ════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Casts a ray segment (origin + displacement·t, t ∈ [0,1]) and returns the closest
-        /// leaf item whose AABB the ray enters; <paramref name="hitT"/> is the raw slab entry,
-        /// which can be negative when the origin starts inside a box. All 4 child bounds are
-        /// tested with one SIMD slab test; children are traversed near-first and stack entries
-        /// carry entry distances so subtrees behind the running best hit are skipped.
+        /// Finds the closest leaf item whose AABB is entered by the ray segment origin + displacement·t for t in [0,1],
+        /// returning the raw slab entry fraction as <paramref name="hitT"/> (which may be negative when the origin is inside a box).
+        /// Thread-safe for concurrent reads after building.
         /// </summary>
-        /// <returns>True if any leaf was hit; <paramref name="hitT"/> is the entry fraction.</returns>
+        /// <returns>True if any leaf was hit; <paramref name="hitT"/> is the entry fraction and <paramref name="hitIndex"/> the item index.</returns>
         public bool RayCastClosest(Vector2 origin, Vector2 displacement, out int hitIndex, out float hitT)
         {
             hitIndex = -1;

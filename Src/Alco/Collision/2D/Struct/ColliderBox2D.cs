@@ -7,6 +7,9 @@ using System.Runtime.CompilerServices;
 
 namespace Alco
 {
+    /// <summary>
+    /// A 2D box collider carrying the header required by the collision system.
+    /// </summary>
     public struct ColliderBox2D : ICollider2D
     {
         private readonly ColliderHeader2D _header;
@@ -18,6 +21,9 @@ namespace Alco
             get => _header;
         }
 
+        /// <summary>
+        /// Initializes a box collider with its type header set.
+        /// </summary>
         public ColliderBox2D()
         {
             _header = new ColliderHeader2D
@@ -26,6 +32,11 @@ namespace Alco
             };
         }
 
+        /// <summary>
+        /// Determines whether this collider overlaps another collider.
+        /// </summary>
+        /// <param name="other">The header of the other collider.</param>
+        /// <returns>True when the colliders overlap.</returns>
         public unsafe bool CollidesWith(ColliderHeader2D* other)
         {
             switch (other->Type)
@@ -38,16 +49,31 @@ namespace Alco
             return false;
         }
 
+        /// <summary>
+        /// Gets the axis-aligned bounds enclosing the collider.
+        /// </summary>
+        /// <returns>The bounding box of the collider shape.</returns>
         public BoundingBox2D GetBoundingBox()
         {
             return Shape.GetBoundingBox();
         }
 
+        /// <summary>
+        /// Tests whether the ray intersects the collider.
+        /// </summary>
+        /// <param name="ray">The ray to test.</param>
+        /// <param name="hitInfo">The hit details when an intersection occurs.</param>
+        /// <returns>True when the ray intersects the collider.</returns>
         public bool IntersectRay(Ray2D ray, out RaycastHit2D hitInfo)
         {
             return CollisionUtility2D.RayBox(ray, Shape, out hitInfo);
         }
 
+        /// <summary>
+        /// Determines whether the collider contains the given point.
+        /// </summary>
+        /// <param name="point">The point to test.</param>
+        /// <returns>True when the point lies inside the collider.</returns>
         public bool IntersectPoint(Vector2 point)
         {
             return CollisionUtility2D.PointBox(point, Shape);

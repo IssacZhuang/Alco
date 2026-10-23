@@ -3,8 +3,14 @@ using BenchmarkDotNet.Attributes;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks unmanaged allocation and release with Marshal.AllocHGlobal and NativeMemory at several block sizes.
+/// </summary>
 public unsafe class BenchmarkAlloc
 {
+    /// <summary>
+    /// Benchmarks allocating and freeing a 16-byte block with Marshal.
+    /// </summary>
     [Benchmark(Description = "Marshal 16 bytes")]
     public void Marshal16b()
     {
@@ -12,6 +18,9 @@ public unsafe class BenchmarkAlloc
         Marshal.FreeHGlobal(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks allocating and freeing a 16-byte block with NativeMemory.
+    /// </summary>
     [Benchmark(Description = "NativeMemory 16 bytes")]
     public void NativeMemory16b()
     {
@@ -19,6 +28,9 @@ public unsafe class BenchmarkAlloc
         NativeMemory.Free(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks allocating and freeing a 1 KB block with Marshal.
+    /// </summary>
     [Benchmark(Description = "Marshal 1 kb")]
     public void Marshal1kb()
     {
@@ -26,6 +38,9 @@ public unsafe class BenchmarkAlloc
         Marshal.FreeHGlobal(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks allocating and freeing a 1 KB block with NativeMemory.
+    /// </summary>
     [Benchmark(Description = "NativeMemory 1 kb")]
     public void NativeMemory1kb()
     {
@@ -33,6 +48,9 @@ public unsafe class BenchmarkAlloc
         NativeMemory.Free(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks allocating and freeing a 1 MB block with Marshal.
+    /// </summary>
     [Benchmark(Description = "Marshal 1 mb")]
     public void Marshal1mb()
     {
@@ -40,6 +58,9 @@ public unsafe class BenchmarkAlloc
         Marshal.FreeHGlobal(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks allocating and freeing a 1 MB block with NativeMemory.
+    /// </summary>
     [Benchmark(Description = "NativeMemory 1 mb")]
     public void NativeMemory1mb()
     {
@@ -47,6 +68,9 @@ public unsafe class BenchmarkAlloc
         NativeMemory.Free(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks allocating and freeing a 16 MB block with Marshal.
+    /// </summary>
     [Benchmark(Description = "Marshal 16 mb")]
     public void Marshal16mb()
     {
@@ -54,6 +78,9 @@ public unsafe class BenchmarkAlloc
         Marshal.FreeHGlobal(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks allocating and freeing a 16 MB block with NativeMemory.
+    /// </summary>
     [Benchmark(Description = "NativeMemory 16 mb")]
     public void NativeMemory16mb()
     {

@@ -15,6 +15,7 @@ collocter large amount of GPU will block the GPUQueue
 
 */
 
+/// <summary>Sandbox that stresses the garbage collector and GPU command-buffer pool.</summary>
 public class Game : GameEngine
 {
 
@@ -42,6 +43,8 @@ public class Game : GameEngine
     private readonly List<GPUCommandBuffer> _gpuCommandBufferList = new List<GPUCommandBuffer>();
     private readonly TestParallelTask _task = new TestParallelTask();
 
+    /// <summary>Initializes the GC burner pipeline and ImGui controls.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _gpuCommandBufferPool = new ConcurrentPool<GPUCommandBuffer>(CreateGPUCommandBuffer);

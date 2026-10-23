@@ -4,24 +4,9 @@ using Alco.Rendering;
 namespace Alco.Engine;
 
 /// <summary>
-/// Engine-wide frame screenshot service: captures the main view's swapchain surface —
-/// the exact pixels about to be presented, <b>including the ImGui overlay</b> — as PNG
-/// bytes, delivered through a <see cref="Task{RenderCaptureResult}"/>. This complements
-/// <see cref="RenderCaptureSystem"/>, whose render-graph captures stop before the ImGui
-/// pass; screenshots meant for debugging editor/ImGui UI must come from here.
-/// <br/>In headless/offscreen mode (no swapchain), requests are routed through
-/// <see cref="OffscreenFallback"/> — typically the render-graph chain tail, which is
-/// the frame that would be presented.
-/// <br/>Requests are serialized (one capture in flight). A dispatched request arms a
-/// one-shot conversion in the post-ImGui / pre-present window
-/// (<see cref="IGPUDeviceHost.OnEndFrame"/>): a surface that cannot be sampled is first
-/// copied into a same-format sampleable texture, then blitted into an RGBA8 staging
-/// texture with a full-screen GPU draw (any surface format is converted by the blit —
-/// no CPU-side pixel processing; the blit also forces alpha to 1, the presented
-/// surface's alpha being unauthored). The shared <see cref="PngReadbackPipeline"/> then
-/// performs the asynchronous GPU readback and a thread-pool PNG encode, completing the
-/// request a couple of frames later. When another capture system holds the shared
-/// pipeline, the staged capture waits and begins its readback on a later update.
+/// Engine system that captures the main view's presented swapchain surface, including the ImGui
+/// overlay, as PNG bytes and delivers it through a task. In headless mode requests are routed
+/// through <see cref="OffscreenFallback"/>.
 /// </summary>
 public sealed class SwapchainCaptureSystem : BaseEngineSystem
 {
@@ -38,11 +23,8 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
     private Task<RenderCaptureResult>? _fallbackTask;
 
     /// <summary>
-    /// Services capture requests when the main view has no presenter surface —
-    /// headless/offscreen mode, where no swapchain exists to hook. Typically wired to
-    /// <see cref="RenderCaptureSystem.RequestCaptureAsync()"/> so the pipeline's chain
-    /// tail (the frame that would be presented; no ImGui overlay exists headless)
-    /// serves as the screenshot. Requests fail with a clear error when null.
+    /// Gets or sets the fallback used when no swapchain exists, typically the render-graph chain
+    /// tail; requests fail when null.
     /// </summary>
     public Func<Task<RenderCaptureResult>>? OffscreenFallback { get; set; }
 

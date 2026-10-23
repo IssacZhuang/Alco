@@ -12,6 +12,8 @@ public class Game : GameEngine
 {
     private readonly GPUCommandBuffer _commandBuffer;
 
+    /// <summary>Creates the gamepad tester sandbox.</summary>
+    /// <param name="setting">The engine settings for this sandbox.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));

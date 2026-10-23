@@ -6,15 +6,8 @@ namespace Alco.LLM;
 /// Base type for structured, compact tool results that are reformatted before entering LLM history.
 /// </summary>
 /// <remarks>
-/// <para>
-/// A tool may return an <see cref="AgentToolResult"/> subtype instead of a plain <see cref="string"/>.
-/// <see cref="ToolResultFormatter"/> then converts it to compact text for the model, while the raw
-/// object is preserved on runtime events so UI/debug consumers do not lose structured data.
-/// </para>
-/// <para>
-/// Plain <see cref="string"/> returns bypass this hierarchy entirely and enter history unchanged,
-/// which lets tools opt in incrementally without breaking unmigrated ones.
-/// </para>
+/// The formatter renders these results as compact text for the model while runtime events keep
+/// the raw object; plain <see cref="string"/> returns bypass this hierarchy.
 /// </remarks>
 public abstract record AgentToolResult;
 
@@ -42,13 +35,9 @@ public sealed record ToolList(
     [property: JsonPropertyName("hint")] string? Hint = null) : AgentToolResult;
 
 /// <summary>
-/// Structured single-item result. <see cref="Data"/> is JSON-serialized for the model.
-/// Do not pass a JSON <em>string</em>; pass a parsed object or
-/// <see cref="System.Text.Json.Nodes.JsonNode"/> to avoid double-encoding.
-/// Prefer compact model-facing DTOs, records, anonymous objects, primitives, or JSON nodes.
-/// Do not pass live runtime objects with engine resources, cyclic references, or large object graphs.
+/// Structured single-item result; <see cref="Data"/> is serialized as JSON for the model.
 /// </summary>
-/// <param name="Data">The compact structured object to serialize as JSON for the model.</param>
+/// <param name="Data">The compact object to serialize as JSON for the model.</param>
 public sealed record ToolData(
     [property: JsonPropertyName("data")] object Data) : AgentToolResult;
 

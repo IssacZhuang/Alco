@@ -4,6 +4,7 @@ using System.Threading;
 
 namespace Alco.Test;
 
+/// <summary>Tests <see cref="ReusableBatchTask2D"/> parallel execution, batching, exceptions and disposal.</summary>
 public class TestBatchTask2D
 {
     // Test classes for ReusableBatchTask2D
@@ -69,6 +70,7 @@ public class TestBatchTask2D
         }
     }
 
+    /// <summary>Tests basic execution and reuse across area sizes.</summary>
     [Test(Description = "Test 2D Batch Task Basic Functionality")]
     public void TestReusableBatchTask2DBasic()
     {
@@ -102,6 +104,7 @@ public class TestBatchTask2D
         Assert.That(task.Counter, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that every cell of a 2D array is processed.</summary>
     [Test(Description = "Test 2D Batch Task Array Processing")]
     public void TestReusableBatchTask2DArray()
     {
@@ -123,6 +126,7 @@ public class TestBatchTask2D
         }
     }
 
+    /// <summary>Tests execution with fixed, unit, large and automatic batch sizes.</summary>
     [Test(Description = "Test 2D Batch Task with Different Batch Sizes")]
     public void TestReusableBatchTask2DBatchSizes()
     {
@@ -151,6 +155,7 @@ public class TestBatchTask2D
         Assert.That(task.Counter, Is.EqualTo(width * height));
     }
 
+    /// <summary>Tests that an exception is surfaced as an aggregate exception.</summary>
     [Test(Description = "Test 2D Batch Task Exception Handling")]
     public void TestReusableBatchTask2DExceptions()
     {
@@ -163,6 +168,7 @@ public class TestBatchTask2D
         Assert.That(aggregateException.InnerExceptions[0].Message, Does.Contain("Test exception at position (2, 3)"));
     }
 
+    /// <summary>Tests that disposal is idempotent.</summary>
     [Test(Description = "Test 2D Batch Task Disposal")]
     public void TestReusableBatchTask2DDisposal()
     {
@@ -179,6 +185,7 @@ public class TestBatchTask2D
         Assert.DoesNotThrow(() => task.Dispose());
     }
 
+    /// <summary>Tests that a large area is processed completely.</summary>
     [Test(Description = "Test 2D Batch Task Large Area Processing")]
     public void TestReusableBatchTask2DLargeArea()
     {

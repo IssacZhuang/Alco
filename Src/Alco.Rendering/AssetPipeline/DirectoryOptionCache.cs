@@ -7,8 +7,7 @@ namespace Alco.Rendering;
 
 /// <summary>
 /// Abstract base for lazily discovering, merging, and caching directory-level option files.
-/// Thread-safe. Option files are loaded per-directory on demand — no upfront scan.
-/// Auto-invalidates when <see cref="AssetSystem.Version"/> changes.
+/// Thread-safe, loaded on demand, and invalidated automatically when <see cref="AssetSystem.Version"/> changes.
 /// </summary>
 /// <typeparam name="TOption">The option model type.</typeparam>
 public abstract class DirectoryOptionCache<TOption> where TOption : class, new()

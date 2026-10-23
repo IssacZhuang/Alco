@@ -6,6 +6,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
+/// <summary>Sandbox demonstrating storage buffers shared between compute and graphics passes.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -45,6 +46,8 @@ public class Game : GameEngine
     private Transform2D _transform1;
     private float _timer = 0.0f;
 
+    /// <summary>Initializes the graphics and compute pipelines and the storage buffers.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

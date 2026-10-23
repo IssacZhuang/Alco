@@ -5,6 +5,9 @@ namespace Alco.Rendering;
 // shader factory — module-backed only: every shader is a compiled slang module
 // program, supplied through the ShaderSystem or a composition owner (MaterialCompiler).
 
+/// <summary>
+/// Shader creation.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>

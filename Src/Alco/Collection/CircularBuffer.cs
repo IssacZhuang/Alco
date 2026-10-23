@@ -12,11 +12,17 @@ public class CircularBuffer<T>
     private readonly List<T> _items = new List<T>();
     private int _index;
 
+    /// <summary>
+    /// Initializes an empty circular buffer.
+    /// </summary>
     public CircularBuffer()
     {
 
     }
 
+    /// <summary>
+    /// Gets the number of items in the buffer.
+    /// </summary>
     public int Count => _items.Count;
 
     /// <summary>

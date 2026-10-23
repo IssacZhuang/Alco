@@ -254,6 +254,10 @@ IDisposable
 
     #endregion
 
+    /// <summary>
+    /// Initializes a new engine instance with the specified settings.
+    /// </summary>
+    /// <param name="setting">The engine configuration.</param>
     public GameEngine(GameEngineSetting setting)
     {
         _setting = setting;
@@ -531,6 +535,9 @@ IDisposable
         }
     }
 
+    /// <summary>
+    /// Stops systems and releases engine resources.
+    /// </summary>
     public void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
@@ -610,11 +617,21 @@ IDisposable
         _platform.StopMainLoop();
     }
 
+    /// <summary>
+    /// Registers a system to be driven by the engine lifecycle.
+    /// </summary>
+    /// <param name="system">The system to add.</param>
     public void AddSystem(IEngineSystem system)
     {
         _systems.Add(system);
     }
 
+    /// <summary>
+    /// Attempts to find a registered system of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The system type to find.</typeparam>
+    /// <param name="system">The matching system when found.</param>
+    /// <returns>True if a matching system was found; otherwise false.</returns>
     public bool TryGetSystem<T>([NotNullWhen(true)] out T? system)
     {
         for (int i = 0; i < _systems.Count; i++)
@@ -629,6 +646,10 @@ IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Forces a full garbage collection, optionally compacting the large object heap.
+    /// </summary>
+    /// <param name="compactLOH">Whether to compact the large object heap once.</param>
     public static void DoGarbageCollection(bool compactLOH = false)
     {
         if (compactLOH)
@@ -643,6 +664,10 @@ IDisposable
         }
     }
 
+    /// <summary>
+    /// Gets the current memory pressure based on managed heap load thresholds.
+    /// </summary>
+    /// <returns>The current memory pressure level.</returns>
     public static MemoryPressure GetMemoryPressure()
     {
         GCMemoryInfo gCMemoryInfo = GC.GetGCMemoryInfo();

@@ -20,6 +20,7 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
         public Vector2 VertexOffset;
     }
 
+    /// <summary>The position offset applied to TrueType glyphs.</summary>
     public static readonly Vector2 TrueTypePositionOffset = new Vector2(-0.5f, 0f);
 
 
@@ -115,6 +116,16 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a single-color text string in 2D.</summary>
+    /// <param name="font">The font to render with.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="fontSize">The font size.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="color">The text color.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
@@ -125,6 +136,16 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a text string in 2D with per-range color slices.</summary>
+    /// <param name="font">The font to render with.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="fontSize">The font size.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="slices">The color slices; later slices override earlier ones.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector2 position, Rotation2D rotation, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
     {
         Transform2D transform = new Transform2D(position, rotation, Vector2.One * fontSize);
@@ -135,6 +156,16 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
     #region Draw 3d
 
+    /// <summary>Draws a single-color text string in 3D.</summary>
+    /// <param name="font">The font to render with.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="fontSize">The font size.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="color">The text color.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f)
     {
         Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
@@ -145,6 +176,16 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws a text string in 3D with per-range color slices.</summary>
+    /// <param name="font">The font to render with.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="fontSize">The font size.</param>
+    /// <param name="position">The world position.</param>
+    /// <param name="rotation">The rotation.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="slices">The color slices; later slices override earlier ones.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, float fontSize, Vector3 position, Quaternion rotation, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f)
     {
         Transform3D transform = new Transform3D(position, rotation, Vector3.One * fontSize);
@@ -157,6 +198,15 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
 
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws single-color text with an explicit transformation matrix.</summary>
+    /// <param name="font">The font to render with.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="matrix">The transformation matrix.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="color">The text color.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <param name="material">An optional material override.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing = 1.0f, GraphicsMaterial? material = null)
     {
         ReadOnlySpan<TextSlice> slices = stackalloc TextSlice[1]{
@@ -166,6 +216,15 @@ public unsafe sealed class TextRenderer : AutoDisposable, ICommandListener
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    /// <summary>Draws text with per-range color slices and an explicit transformation matrix.</summary>
+    /// <param name="font">The font to render with.</param>
+    /// <param name="str">The characters to draw.</param>
+    /// <param name="matrix">The transformation matrix.</param>
+    /// <param name="pivot">The text pivot.</param>
+    /// <param name="slices">The color slices; later slices override earlier ones.</param>
+    /// <param name="lineSpacing">The normalized line spacing.</param>
+    /// <param name="material">An optional material override.</param>
+    /// <returns>The normalized width of the drawn text.</returns>
     public unsafe float DrawText(Font font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ReadOnlySpan<TextSlice> slices, float lineSpacing = 1.0f, GraphicsMaterial? material = null)
     {
         return DrawTextCore(font, slices, str, matrix, pivot, ColorFloat.White, lineSpacing, material);

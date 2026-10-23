@@ -5,13 +5,8 @@ using System.Runtime.Intrinsics;
 namespace Alco
 {
     /// <summary>
-    /// A leaf block of a 4-wide bounding volume hierarchy storing up to four colliders packed
-    /// structure-of-arrays style: one <see cref="Vector128{T}"/> row per axis bound lets a single
-    /// slab, overlap or contains comparison cull all four colliders at once, before the exact
-    /// shape tests run on the surviving slots only.
-    /// The layout is part of the build contract between <see cref="NativeBvh2D"/> and
-    /// <see cref="IBvhBuilder2D"/>: unused slots carry empty bounds (min greater than max) and a
-    /// null <see cref="ColliderRef2D"/>, so they fail every traversal mask.
+    /// A leaf block of a 4-wide bounding volume hierarchy storing up to four colliders in structure-of-arrays form.
+    /// Unused slots carry empty bounds and null <see cref="ColliderRef2D"/> values so they fail every traversal test.
     /// </summary>
     public unsafe struct BvhLeaf2D
     {

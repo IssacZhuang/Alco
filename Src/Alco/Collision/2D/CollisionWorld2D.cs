@@ -15,14 +15,14 @@ public unsafe class CollisionWorld2D : AutoDisposable
 
     private readonly NativeBvh2D _bvh;
 
+    /// <summary>
+    /// Gets the BVH that indexes the collision targets.
+    /// </summary>
     public NativeBvh2D Bvh => _bvh;
 
     /// <summary>
-    /// Gets or sets the tree construction algorithm used by <see cref="BuildTree"/>; when null, the
-    /// Morton builder owned by the <see cref="NativeBvh2D"/> is used. The world owns the assigned
-    /// builder: an instance implementing <see cref="IDisposable"/> is disposed together with the
-    /// world, and builders keep per-build scratch state, so concurrent worlds must not share one
-    /// instance.
+    /// Gets or sets the tree construction algorithm used by <see cref="BuildTree"/>; when null, the world's Morton builder is used.
+    /// The world owns and disposes the assigned builder, which keeps per-build scratch state and must not be shared between concurrent worlds.
     /// </summary>
     public IBvhBuilder2D? Builder { get; set; }
 
@@ -35,16 +35,19 @@ public unsafe class CollisionWorld2D : AutoDisposable
     private NativeArrayList<ColliderRef2D> _targetColliders;
 
 
+    /// <summary>
+    /// Initializes an empty collision world.
+    /// </summary>
     public CollisionWorld2D()
     {
         _bvh = new NativeBvh2D();
     }
 
     /// <summary>
-    /// Add object that waits for being hit. This object can only be hit but cannot hit other objects.
+    /// Adds a box-shaped collision target that casts can hit but that does not hit other objects.
     /// </summary>
-    /// /// <param name="target"> Object that waits for being hit. </param>
-    /// <param name="shape"> Shape of the object. </param>
+    /// <param name="target">The object registered as the hit target.</param>
+    /// <param name="shape">The box shape of the target.</param>
     public void PushCollisionTarget(object target, in ShapeBox2D shape)
     {
         ColliderBox2D* collider = _targetBoxes.Alloc(new ColliderBox2D
@@ -56,10 +59,10 @@ public unsafe class CollisionWorld2D : AutoDisposable
     }
 
     /// <summary>
-    /// Add object that waits for being hit. This object can only be hit but cannot hit other objects.
+    /// Adds a sphere-shaped collision target that casts can hit but that does not hit other objects.
     /// </summary>
-    /// <param name="target"> Object that waits for being hit. </param>
-    /// <param name="shape"> Shape of the object. </param>    
+    /// <param name="target">The object registered as the hit target.</param>
+    /// <param name="shape">The sphere shape of the target.</param>
     public void PushCollisionTarget(object target, in ShapeSphere2D shape)
     {
         ColliderSphere2D* collider = _targetSpheres.Alloc(new ColliderSphere2D
@@ -162,6 +165,9 @@ public unsafe class CollisionWorld2D : AutoDisposable
         return false;
     }
 
+    /// <summary>
+    /// Removes all collision targets and their colliders.
+    /// </summary>
     public void ClearTargets()
     {
         _targets.Clear();
@@ -170,6 +176,9 @@ public unsafe class CollisionWorld2D : AutoDisposable
         _targetColliders.Clear();
     }
 
+    /// <summary>
+    /// Removes all collision targets and resets the world.
+    /// </summary>
     public void ClearAll()
     {
         ClearTargets();

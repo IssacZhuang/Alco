@@ -8,34 +8,8 @@ using Alco.Effects;
 using Alco.Rendering;
 using SandboxUtils;
 
-/// <summary>
-/// Sandbox demonstrating the 2D GPU particle system (Alco.Effects): particle
-/// effects are assets (<c>.afx</c>) with one or more emitter groups, simulated
-/// and rendered entirely on the GPU (two compute dispatches + one indexed-indirect
-/// instanced draw per group per frame). The scene shows six effects — a one-shot
-/// explosion (two groups: sparks + smoke, the sparks velocity-stretched), a looping
-/// flame (two groups), a looping fountain with a periodic burst, a vortex whose
-/// simulation comes from a custom slang behavior module (SbVortex2D, local
-/// simulation space), a dissolve whose visuals come from a material asset
-/// (Materials/Dissolve2D.amat: a custom slang surface with a shared noise texture
-/// and uniform parameters; the group derives only its sprite over the material's
-/// "texture" slot), and a rainbow jet whose colors and growth come from a baked
-/// color gradient and size curve (the over-life lookup textures).
-/// <br/>The auto-spawner exercises the frequent create/destroy path: explosions
-/// spawn at random positions and finished instances dispose themselves, returning
-/// their pool slices.
-/// <br/>The ImGui panel manages the live instances: a click-selectable instance
-/// list (dead instances are pruned automatically), per-effect spawn buttons
-/// (spawned at the screen center), delete, and — for the selected instance — a
-/// scene gizmo (translate in the view plane / rotate around the view axis) plus
-/// live per-group parameter editing (emission rate, lifetime, speed, size,
-/// gravity, tint, velocity stretch) through the instance's params override API.
-/// <br/>CLI: --screenshot=&lt;path.png&gt; [--frames=N] [--stress=N] [--particles=N [--particlesize=S]]
-/// <br/>--stress=N spawns a grid of N flame/vortex instances; --particles=N fills the
-/// pool to ~N live particles with saturating 8192-particle groups (8192-group fill,
-/// 1M scale, is opt-in — the demo defaults stay small), --particlesize=S overrides the
-/// fill quad size (default 2 world units; tiny values isolate simulation from fill rate).
-/// </summary>
+/// <summary>Sandbox demonstrating the 2D GPU particle system with six effect assets, live instance management, and per-group parameter editing.</summary>
+/// <remarks>Use <c>--screenshot=&lt;path.png&gt;</c> to capture a frame, <c>--stress=N</c> to spawn many instances, and <c>--particles=N</c> to fill the pool.</remarks>
 public class Game : GameEngine
 {
     private readonly RenderPipeline _pipeline;
@@ -85,6 +59,9 @@ public class Game : GameEngine
     private int _statFrames;
     private long _statAllocatedBytes;
 
+    /// <summary>Creates the GPU particle sandbox.</summary>
+    /// <param name="setting">The engine settings for this sandbox.</param>
+    /// <param name="args">Command-line arguments selecting screenshot, stress and fill modes.</param>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
@@ -521,13 +498,7 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>
-    /// Live editing of one emitter group of the selected instance: the practical
-    /// scalar subset (emission rate, lifetime, speed, size, gravity, tint,
-    /// velocity stretch). Reads the group's current record every frame and writes
-    /// the edited one back through <see cref="ParticleEffectInstance2D.SetGroupParams"/>,
-    /// which applies to the running instance without respawning it.
-    /// </summary>
+    /// <summary>Draws live editing controls for one emitter group of the selected instance.</summary>
     private static void DrawGroupEditor(ParticleEffectInstance2D instance, int groupIndex)
     {
         ImGui.PushID(groupIndex);

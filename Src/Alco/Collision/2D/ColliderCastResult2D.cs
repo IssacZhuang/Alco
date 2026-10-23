@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace Alco
 {
+    /// <summary>
+    /// Result of a 2D collider cast, identifying whether and which collider was hit.
+    /// </summary>
     public struct ColliderCastResult2D
     {
         public bool Hit;

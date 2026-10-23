@@ -43,11 +43,7 @@ public class UIImage : UINode
     }
 
     /// <summary>
-    /// The material asset whose surface draws this image instead of the plain sprite
-    /// material. The surface must implement the engine's <c>IUISurface</c> protocol
-    /// and return straight RGBA for alpha blending. The node's <see cref="Texture"/>
-    /// and <see cref="MaskTexture"/> override the surface's declared texture/mask
-    /// slots; null values inherit the asset's bindings.
+    /// The material asset whose surface draws this image instead of the plain sprite material. The node's <see cref="Texture"/> and <see cref="MaskTexture"/> override the surface's declared slots; null values inherit the asset's bindings.
     /// </summary>
     public MaterialAsset? Material
     {

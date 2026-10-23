@@ -13,6 +13,9 @@ namespace Alco.Rendering;
 
 // texture factory
 
+/// <summary>
+/// 2D texture creation and decoding.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>Whether the active device supports BC-family compressed textures.</summary>
@@ -97,12 +100,8 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a Texture2D from a DDS file holding block-compressed data (BC1-BC7).
-    /// With device BC support no pixel decoding happens: the mip chain stored in the
-    /// file is uploaded as-is, overriding <see cref="ImageLoadOption.MipLevels"/>. The
-    /// sRGB-ness of the BC format follows <see cref="ImageLoadOption.Format"/>.
-    /// Without <see cref="GPUFeatures.TextureCompressionBC"/> the file's level 0 is
-    /// decoded to RGBA8 on the CPU (BC1-BC3 only) and the mip chain is dropped.
+    /// Creates a Texture2D from DDS block-compressed (BC1-BC7) file bytes, uploading the stored mip chain verbatim when the device supports BC textures.
+    /// Without BC support, level 0 is decoded to RGBA8 on the CPU and the mip chain is dropped.
     /// </summary>
     /// <param name="fileBytes">The complete DDS file bytes.</param>
     /// <param name="option">Image load options.</param>
@@ -176,20 +175,11 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates an empty Texture2D at the specification dictated by an image file's
-    /// header (see <see cref="ImageDecodeUtility.GetImageFileInfo"/>), for streaming
-    /// loads: the texture's identity and specification are final from creation, and its
-    /// content is uploaded in place later via <see cref="UploadTexture2DContent"/>.
-    /// The backend zero-initializes the content, so until the upload arrives sampling
-    /// yields transparent black, and <see cref="Texture2D.IsContentLoaded"/> reports
-    /// false until the upload succeeds.
-    /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
-    /// public creation path.
+    /// Creates an empty Texture2D at the specification dictated by an image file header, with zero-initialized content pending a later upload.
+    /// Internal building block of <see cref="CreateTexture2DStreaming"/>.
     /// </summary>
     /// <param name="info">The probed file header.</param>
-    /// <param name="option">Image load options. For block-compressed files the format
-    /// and mip count come from <paramref name="info"/> instead (the same rule as
-    /// <see cref="CreateTexture2DFromDds"/>).</param>
+    /// <param name="option">Image load options; block-compressed files take format and mip count from <paramref name="info"/>.</param>
     /// <returns>A new Texture2D instance with zero-initialized content.</returns>
     internal Texture2D CreateTexture2DFromHeader(in ImageFileInfo info, ImageLoadOption? option = null)
     {
@@ -242,23 +232,12 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Decodes image file bytes and uploads them into an existing texture in place,
-    /// preserving its identity: the native texture, its views and every bind group
-    /// built from them stay valid. Pair with <see cref="CreateTexture2DFromHeader"/>
-    /// for streaming loads. DDS files (BC1-BC7) upload their blocks and mip chain
-    /// verbatim onto BC textures, or decode level 0 to RGBA8 on uncompressed fallback
-    /// textures (devices without <see cref="GPUFeatures.TextureCompressionBC"/>,
-    /// BC1-BC3 only); other formats (PNG/JPEG) decode to RGBA8 and upload mip 0.
-    /// On success <see cref="Texture2D.IsContentLoaded"/> turns true.
-    /// <br/>There is no thread constraint: the upload may run on any thread.
-    /// <br/>Internal building block of <see cref="CreateTexture2DStreaming"/>; not a
-    /// public upload path.
+    /// Decodes image file bytes and uploads them in place into an existing texture, preserving its identity and bind groups; usable from any thread.
+    /// Internal building block of <see cref="CreateTexture2DStreaming"/>.
     /// </summary>
-    /// <param name="texture">The target texture, previously created at the file's
-    /// specification.</param>
+    /// <param name="texture">The target texture, previously created at the file's specification.</param>
     /// <param name="fileBytes">The complete image file bytes.</param>
-    /// <param name="option">Image load options (premultiply, sRGB-ness of DDS formats).
-    /// Should match the options the texture was created with.</param>
+    /// <param name="option">Image load options; should match the options the texture was created with.</param>
     /// <exception cref="InvalidOperationException">The texture is not writable.</exception>
     /// <exception cref="ImageDecodeException">The file is invalid, or its specification
     /// differs from the texture's (the texture is left untouched).</exception>
@@ -352,15 +331,8 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a Texture2D whose content streams in asynchronously: the header is probed
-    /// from the stream (reading only the bytes each format's header needs, see
-    /// <see cref="ImageDecodeUtility.GetImageFileInfo(Stream, bool)"/>), the texture is
-    /// created at its final specification, and the file content is then read and uploaded
-    /// in place on a thread-pool thread. The texture's identity never changes; a failed
-    /// upload leaves the zero-initialized content and logs a warning.
-    /// <br/>On success the stream's ownership transfers to the streaming task, which
-    /// disposes it on completion; when probing fails (an <see cref="ImageDecodeException"/>
-    /// escapes this call) the caller keeps ownership of the stream.
+    /// Creates a Texture2D whose content streams in asynchronously while the texture's identity stays fixed.
+    /// The stream's ownership transfers to the streaming task on success; if probing fails the caller retains ownership.
     /// </summary>
     /// <param name="stream">A seekable stream over the image file, positioned at the start.</param>
     /// <param name="option">Image load options.</param>
@@ -531,18 +503,12 @@ public partial class RenderingSystem
     }
 
     /// <summary>
-    /// Creates a Texture2D from existing GPU resources.
-    /// <br/>By default the wrapper does NOT take ownership of
-    /// <paramref name="texture"/> and <paramref name="textureView"/>: being created
-    /// outside, their lifetime is managed by the caller (e.g. the frame buffer whose
-    /// attachments they are). Pass <paramref name="ownsResources"/> to transfer
-    /// ownership to the wrapper instead (its disposal then releases the texture and
-    /// view).
+    /// Creates a Texture2D from existing GPU resources without taking ownership of them by default.
+    /// Pass <paramref name="ownsResources"/> to transfer ownership to the wrapper.
     /// </summary>
     /// <param name="texture">The GPU texture.</param>
     /// <param name="textureView">The GPU texture view.</param>
-    /// <param name="ownsResources">Whether the wrapper owns (and disposes) the
-    /// texture and view.</param>
+    /// <param name="ownsResources">Whether the wrapper owns and disposes the texture and view.</param>
     /// <returns>A new Texture2D instance.</returns>
     public Texture2D CreateTexture2D(
         GPUTexture texture,

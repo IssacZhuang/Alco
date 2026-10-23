@@ -9,6 +9,7 @@ using Alco.IO;
 using SandboxUtils;
 using Alco.ImGUI;
 
+/// <summary>Sandbox demonstrating a tile-based 2D terrain editor with walls, water, and dynamic lighting.</summary>
 public class Game : GameEngine
 {
     private enum EditMode
@@ -23,6 +24,7 @@ public class Game : GameEngine
     private readonly Camera2D _camera;
     private readonly GraphicsMaterial _blitMaterial;
 
+    /// <summary>The pipeline rendering the terrain scene.</summary>
     public RenderPipeline MainPipeline => _mainPipeline;
 
     private readonly GraphicsMaterial _surfaceMaterial;
@@ -65,6 +67,8 @@ public class Game : GameEngine
     // pixel-tuned feel.
     private const float RawMouseCountScale = 5f;
 
+    /// <summary>Initializes the terrain editor scene and render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor

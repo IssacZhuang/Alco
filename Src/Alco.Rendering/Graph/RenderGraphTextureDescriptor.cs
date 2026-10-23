@@ -3,11 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Describes a transient texture resource created by
-/// <see cref="RenderGraph.CreateTransient"/>. Transient resources are backed by the
-/// graph's texture pool: their lifetime is computed per frame from the declared
-/// reads/writes, and resources whose lifetimes do not overlap may alias the same
-/// underlying GPU texture.
+/// Describes a transient texture resource created by <see cref="RenderGraph.CreateTransient"/>.
+/// Transient resources are pooled per frame, and non-overlapping lifetimes may alias the same GPU texture.
 /// </summary>
 public struct RenderGraphTextureDescriptor
 {
@@ -38,10 +35,7 @@ public struct RenderGraphTextureDescriptor
 
     /// <summary>
     /// Optional transient resource whose depth attachment this resource shares.
-    /// Both layouts must declare a depth attachment with the same format. Every node
-    /// writing this resource implicitly reads <see cref="DepthSource"/>, so the
-    /// source's lifetime always covers the usage. Typically used to render a scene
-    /// color target against the G-buffer's depth without a depth copy.
+    /// Both layouts must declare a depth attachment with the same format.
     /// </summary>
     public RenderGraphTexture? DepthSource { get; init; }
 

@@ -6,17 +6,8 @@ namespace Alco.Rendering;
 
 
 /// <summary>
-/// The shader parameter set which manages the resources of the shader.
-/// Resources are addressed by dense resource id (one slot per settable shader
-/// variable: a buffer or a texture); their bind groups assemble lazily from the
-/// slot values and are cached per contents, so unchanged groups are reused frame
-/// to frame. Sampler entries are independent resources resolving by their own
-/// name — a material-bound override first, else the rendering system's sampler
-/// library.
-/// <br/>Thread safety: one material (its parameter set) is used from a single
-/// thread at a time, but different materials may live on different threads —
-/// every state they transitively share (the sampler bank, bind group caches,
-/// module/pipeline caches) is synchronized.
+/// The shader parameter set that holds a material's resource values and assembles their cached bind groups.
+/// One set is used from a single thread at a time; cross-thread shared caches are synchronized.
 /// </summary>
 public sealed class ShaderParameterSet
 {
@@ -89,9 +80,7 @@ public sealed class ShaderParameterSet
         public bool hasTextureSlots;
         /// <summary>A sampler-only group of shared sampler bank members.</summary>
         /// <remarks>
-        /// The whole group is engine-wide immutable state served by the sampler
-        /// library's shared resource group — no assembly, per-material cache or dirty
-        /// tracking ever applies.
+        /// Immutable engine-wide state served directly by the sampler library.
         /// </remarks>
         public bool isBank;
         /// <summary>
@@ -1103,19 +1092,7 @@ public sealed class ShaderParameterSet
     #region Resource Group Assembly
 
     /// <summary>
-    /// Rebuilds the assembled resource groups whose slot values changed since the
-    /// last call. Identical contents are served from a per-group cache, so repeated
-    /// updates (e.g. double buffered ping-pong) do not recreate bind groups.
-    /// <br/>A group is skipped entirely when neither its own slots (dirty flag) nor
-    /// any value of the fallback chain (version sum) changed. Steady-state validation
-    /// and group reuse do not allocate.
-    /// <br/>Groups with texture slots additionally validate the recorded
-    /// <see cref="RenderTexture.Version"/> of their render textures: an in-place
-    /// <see cref="RenderTexture.Resize"/> keeps the slot reference intact but replaces
-    /// the underlying GPU textures. Versions are validated for this set and every
-    /// fallback ancestor before any group is reused, even when an ancestor is dirty
-    /// or has never assembled its own groups. Validation only marks affected groups
-    /// dirty and bumps their set's version; ancestor GPU groups are not assembled.
+    /// Rebuilds the resource groups whose slot values or render texture versions changed since the last call, reusing cached groups for identical contents.
     /// </summary>
     public void FlushResourceGroups()
     {
@@ -1295,15 +1272,7 @@ public sealed class ShaderParameterSet
     }
 
     /// <summary>
-    /// Assembles a group whose plans resolve from one slot: exactly one Resource
-    /// entry and no sampler entries. The bind group of such a group is a pure
-    /// function of the slot value and the group layout, so it is cached on the
-    /// buffer or texture itself (see <see cref="GraphicsBuffer.GetOrCreateResourceGroup"/>
-    /// and <see cref="Texture.GetOrCreateResourceGroup"/>) instead of the per-group
-    /// LRU: created once per resource and reused no matter how often the slot
-    /// changes, for this set or any other set binding the same resource.
-    /// <br/>Slots resolved through the fallback chain or backed by render
-    /// textures are not covered and fall back to the general cache.
+    /// Assembles a group whose plans resolve from exactly one resource slot, caching the result on the resource itself.
     /// </summary>
     private bool TryAssembleSingleSlotGroup(int groupIndex, GroupState group, EntryPlan[] plans, out GPUResourceGroup? resourceGroup)
     {

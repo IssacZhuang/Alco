@@ -10,6 +10,9 @@ namespace Alco.ImGUI.Test;
 [TestFixture]
 public class TestGizmoMath
 {
+    /// <summary>
+    /// Tests that TRS round-trips with uniform scale.
+    /// </summary>
     [Test]
     public void U1_TRS_RoundTrip_UniformScale()
     {
@@ -25,6 +28,9 @@ public class TestGizmoMath
         AreEqual(scale, s2, 1e-4f);
     }
 
+    /// <summary>
+    /// Tests that TRS round-trips with non-uniform scale.
+    /// </summary>
     [Test]
     public void U1_TRS_RoundTrip_NonUniformScale()
     {
@@ -50,6 +56,9 @@ public class TestGizmoMath
         }
     }
 
+    /// <summary>
+    /// Tests that TRS round-trips the identity matrix.
+    /// </summary>
     [Test]
     public void U1_TRS_RoundTrip_Identity()
     {
@@ -60,6 +69,9 @@ public class TestGizmoMath
         AreEqual(Vector3.One, s2, 1e-6f);
     }
 
+    /// <summary>
+    /// Tests that decomposition fails for a degenerate scale.
+    /// </summary>
     [Test]
     public void U1_TRS_Decompose_DegenerateScaleFails()
     {
@@ -67,6 +79,9 @@ public class TestGizmoMath
         Assert.That(GizmoMath.TryDecompose(matrix, out _, out _, out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that world-to-screen matches camera math under a perspective camera.
+    /// </summary>
     [Test]
     public void U2_WorldToScreen_Parity_Perspective()
     {
@@ -82,6 +97,9 @@ public class TestGizmoMath
         }
     }
 
+    /// <summary>
+    /// Tests that world-to-screen matches camera math under an orthographic camera.
+    /// </summary>
     [Test]
     public void U2_WorldToScreen_Parity_Orthographic()
     {
@@ -97,6 +115,9 @@ public class TestGizmoMath
         }
     }
 
+    /// <summary>
+    /// Tests that screen-to-ray matches camera math under a perspective camera.
+    /// </summary>
     [Test]
     public void U3_ScreenToRay_Parity_Perspective()
     {
@@ -120,6 +141,9 @@ public class TestGizmoMath
         }
     }
 
+    /// <summary>
+    /// Tests that screen-to-ray matches camera math under an orthographic camera.
+    /// </summary>
     [Test]
     public void U3_ScreenToRay_Parity_Orthographic()
     {
@@ -139,6 +163,9 @@ public class TestGizmoMath
         }
     }
 
+    /// <summary>
+    /// Tests snap step and half-step hysteresis behavior.
+    /// </summary>
     [Test]
     public void U9_SnapMath_StepAndHysteresis()
     {
@@ -160,6 +187,9 @@ public class TestGizmoMath
         Assert.That(value, Is.EqualTo(-1f).Within(1e-6f));
     }
 
+    /// <summary>
+    /// Tests that non-positive snap components are skipped.
+    /// </summary>
     [Test]
     public void U9_SnapMath_NonPositiveComponentsSkipped()
     {

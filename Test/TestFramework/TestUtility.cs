@@ -3,6 +3,7 @@ using NUnit.Framework;
 
 namespace TestFramework;
 
+/// <summary>Shared formatting helpers for tests.</summary>
 public static class TestUtility
 {
     private readonly static long SizeK = 1024;
@@ -13,6 +14,7 @@ public static class TestUtility
 
 
     //size in bytes, to B, KB, MB, GB
+    /// <summary>Formats a byte count as a human-readable size.</summary>
     public static string FormatSize(long size)
     {
         if (size < SizeK)

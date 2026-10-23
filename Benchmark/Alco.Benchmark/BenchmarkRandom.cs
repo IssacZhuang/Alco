@@ -6,12 +6,7 @@ using Alco;
 namespace Alco.Benchmark;
 
 /// <summary>
-/// Benchmark tests comparing System.Random vs FastRandom performance
-/// Tests four different usage patterns:
-/// 1. System.Random.Shared (static shared instance)
-/// 2. System.Random instance (local instance)
-/// 3. FastRandom instance (local instance)
-/// 4. FastRandom created on each use (measures initialization overhead)
+/// Compares System.Random and FastRandom for integer, float, vector, and byte generation, including per-call instance creation overhead.
 /// </summary>
 public class BenchmarkRandom
 {
@@ -22,6 +17,9 @@ public class BenchmarkRandom
     private FastRandom _fastRandom;
     private uint _seed;
 
+    /// <summary>
+    /// Creates the random generators used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -32,6 +30,9 @@ public class BenchmarkRandom
 
     // ==================== NextInt ====================
 
+    /// <summary>
+    /// Benchmarks NextInt calls on the shared System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random.Shared - NextInt")]
     public int SystemRandomShared_NextInt()
     {
@@ -43,6 +44,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextInt calls on a local System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random instance - NextInt")]
     public int SystemRandomInstance_NextInt()
     {
@@ -54,6 +58,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextInt calls on a local FastRandom instance.
+    /// </summary>
     [Benchmark(Description = "FastRandom instance - NextInt")]
     public int FastRandomInstance_NextInt()
     {
@@ -65,6 +72,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextInt calls on a FastRandom created for each call.
+    /// </summary>
     [Benchmark(Description = "FastRandom create on use - NextInt")]
     public int FastRandomCreate_NextInt()
     {
@@ -79,6 +89,9 @@ public class BenchmarkRandom
 
     // ==================== NextInt(max) ====================
 
+    /// <summary>
+    /// Benchmarks bounded Next calls on the shared System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random.Shared - Next(max)")]
     public int SystemRandomShared_NextMax()
     {
@@ -90,6 +103,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks bounded Next calls on a local System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random instance - Next(max)")]
     public int SystemRandomInstance_NextMax()
     {
@@ -101,6 +117,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks bounded NextInt calls on a local FastRandom instance.
+    /// </summary>
     [Benchmark(Description = "FastRandom instance - NextInt(max)")]
     public int FastRandomInstance_NextMax()
     {
@@ -112,6 +131,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks bounded NextInt calls on a FastRandom created for each call.
+    /// </summary>
     [Benchmark(Description = "FastRandom create on use - NextInt(max)")]
     public int FastRandomCreate_NextMax()
     {
@@ -126,6 +148,9 @@ public class BenchmarkRandom
 
     // ==================== NextFloat ====================
 
+    /// <summary>
+    /// Benchmarks NextSingle calls on the shared System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random.Shared - NextSingle")]
     public float SystemRandomShared_NextSingle()
     {
@@ -137,6 +162,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextSingle calls on a local System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random instance - NextSingle")]
     public float SystemRandomInstance_NextSingle()
     {
@@ -148,6 +176,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextFloat calls on a local FastRandom instance.
+    /// </summary>
     [Benchmark(Description = "FastRandom instance - NextFloat")]
     public float FastRandomInstance_NextFloat()
     {
@@ -159,6 +190,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextFloat calls on a FastRandom created for each call.
+    /// </summary>
     [Benchmark(Description = "FastRandom create on use - NextFloat")]
     public float FastRandomCreate_NextFloat()
     {
@@ -173,6 +207,9 @@ public class BenchmarkRandom
 
     // ==================== NextVector2 ====================
 
+    /// <summary>
+    /// Benchmarks Vector2 generation using the shared System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random.Shared - Vector2")]
     public Vector2 SystemRandomShared_Vector2()
     {
@@ -184,6 +221,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks Vector2 generation using a local System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random instance - Vector2")]
     public Vector2 SystemRandomInstance_Vector2()
     {
@@ -195,6 +235,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextVector2 calls on a local FastRandom instance.
+    /// </summary>
     [Benchmark(Description = "FastRandom instance - NextVector2")]
     public Vector2 FastRandomInstance_NextVector2()
     {
@@ -206,6 +249,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextVector2 calls on a FastRandom created for each call.
+    /// </summary>
     [Benchmark(Description = "FastRandom create on use - NextVector2")]
     public Vector2 FastRandomCreate_NextVector2()
     {
@@ -220,6 +266,9 @@ public class BenchmarkRandom
 
     // ==================== NextByte ====================
 
+    /// <summary>
+    /// Benchmarks single-byte NextBytes calls on the shared System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random.Shared - NextBytes")]
     public int SystemRandomShared_NextBytes()
     {
@@ -233,6 +282,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks single-byte NextBytes calls on a local System.Random instance.
+    /// </summary>
     [Benchmark(Description = "System.Random instance - NextBytes")]
     public int SystemRandomInstance_NextBytes()
     {
@@ -246,6 +298,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextByte calls on a local FastRandom instance.
+    /// </summary>
     [Benchmark(Description = "FastRandom instance - NextByte")]
     public int FastRandomInstance_NextByte()
     {
@@ -257,6 +312,9 @@ public class BenchmarkRandom
         return sum;
     }
 
+    /// <summary>
+    /// Benchmarks NextByte calls on a FastRandom created for each call.
+    /// </summary>
     [Benchmark(Description = "FastRandom create on use - NextByte")]
     public int FastRandomCreate_NextByte()
     {

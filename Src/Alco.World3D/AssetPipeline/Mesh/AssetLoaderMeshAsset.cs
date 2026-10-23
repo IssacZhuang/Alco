@@ -4,11 +4,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// Loads mesh asset packages (.amsh) into <see cref="MeshAsset"/> handles. Only the meta
-/// and tables are parsed at load time — the returned asset holds no geometry and streams LOD
-/// payloads on demand. Falls back to an in-memory open when the asset context has preloaded
-/// data (e.g. TryDecode) instead of a stream. Registered through
-/// <see cref="World3DAssetPipeline.RegisterLoaders"/> — the engine core does not know this module.
+/// Loads mesh asset packages (<c>.amsh</c>) into header-only <see cref="MeshAsset"/> handles whose LOD payloads stream on demand.
 /// </summary>
 public sealed class AssetLoaderMeshAsset : BaseAssetLoader<MeshAsset>
 {

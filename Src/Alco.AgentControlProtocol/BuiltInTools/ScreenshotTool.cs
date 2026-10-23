@@ -5,9 +5,8 @@ using Alco.Engine;
 namespace Alco.AgentControlProtocol;
 
 /// <summary>
-/// Built-in agent tool: captures the final presented frame through the engine's
-/// <see cref="SwapchainCaptureSystem"/> — the exact pixels about to be presented,
-/// including any ImGui overlay. Works in windowed and headless (offscreen) modes.
+/// Built-in agent tool that captures the presented frame, including the ImGui overlay, in
+/// windowed and headless modes.
 /// </summary>
 public sealed class ScreenshotTool
 {
@@ -22,9 +21,7 @@ public sealed class ScreenshotTool
     }
 
     /// <summary>
-    /// Captures a screenshot of the presented frame. Runs on the agent thread: it hops
-    /// to the main thread only to register the capture, then awaits the asynchronous
-    /// GPU readback and PNG encode.
+    /// Captures the presented frame as PNG and returns it as a binary tool result.
     /// </summary>
     [AgentFunction(IsOnAgentThread = true)]
     [Description("Capture the current presented frame and return it as an HTTP image/png response through the agent control API. Windowed mode captures the exact presented pixels including any ImGui overlay; headless mode captures the rendered frame at the render-graph chain tail.")]

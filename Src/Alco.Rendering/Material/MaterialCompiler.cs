@@ -4,14 +4,9 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// The material facility: a stateless factory that composes pass templates with
-/// surface shader libraries into cached, hot-reloadable shaders, and compiles
-/// data-only <see cref="MaterialAsset"/>s into per-pass GPU materials via
-/// <see cref="Compile"/> (graphics) or <see cref="CompileCompute"/> (compute).
-/// Composed shaders are cached per key and owned by this compiler; compiled
-/// materials are caller-owned — every compile produces a fresh material the
-/// caller shares across meshes and disposes. Dispose the compiler to release
-/// the composed-shader cache; it owns nothing else.
+/// Composes pass templates with surface shader libraries into cached, hot-reloadable shaders and
+/// compiles data-only <see cref="MaterialAsset"/>s into per-pass GPU materials. The compiler owns
+/// the composed-shader cache; compiled materials are caller-owned.
 /// </summary>
 public sealed class MaterialCompiler : AutoDisposable
 {
@@ -61,13 +56,8 @@ public sealed class MaterialCompiler : AutoDisposable
     public event Action<Shader>? ShaderInvalidated;
 
     /// <summary>
-    /// The composed graphics (vertex+fragment) shader of one (template, surface) pair;
-    /// created on first request, then cached. The compiler owns the returned shader.
-    /// The handle serves every specialization of the pair: variants link lazily per
-    /// positional argument list through <see cref="Shader.GetShaderModules(string[])"/>,
-    /// an empty list selecting every axis's default — the same variant model a module
-    /// shader has. <see cref="BuildSpecializationLiterals"/> translates an asset's
-    /// named table into that positional form.
+    /// Gets the cached graphics shader composed from a pass template and a surface library.
+    /// The compiler owns the shader, and its variants link lazily per specialization argument list.
     /// </summary>
     /// <param name="template">The pass-template library (owns the generic entry points).</param>
     /// <param name="surface">The surface library (exports the contract's single conforming type).</param>
@@ -83,12 +73,8 @@ public sealed class MaterialCompiler : AutoDisposable
         => Compose(template, surface, compute: true);
 
     /// <summary>
-    /// The link-time specialization literals of one (template, named values) pair: each
-    /// axis the template's reflection declares, in specialization argument order, takes
-    /// the value the table assigns to its name — formatted per the axis's reflected
-    /// scalar kind — and its type's default when the table omits it. This is the single
-    /// translation between the material domain's named values and the positional
-    /// argument lists the slang compile paths consume.
+    /// Translates named specialization values into the positional literals, in reflection argument
+    /// order, that the shader compile paths consume. Axes missing from the table use their type's default.
     /// </summary>
     /// <param name="template">The pass-template library whose axes the values feed.</param>
     /// <param name="specializations">The named values (an asset's <see cref="MaterialAsset.Specializations"/>); null or empty selects every axis's default.</param>
@@ -156,13 +142,9 @@ public sealed class MaterialCompiler : AutoDisposable
         => new($"Specialization '{axis.Name}' of template '{templateName}' is a {axis.ScalarType} axis; the authored value {value} is not {expected}.");
 
     /// <summary>
-    /// Compile the material of an asset for one graphics pass: the pass template
-    /// composes with the asset's surface, specialized by the asset's named
-    /// <see cref="MaterialAsset.Specializations"/> table, and the caller's factory
-    /// creates the GPU material applying the pass-mandated state (depth/blend/rasterizer,
-    /// internal buffer bindings). Every call compiles a fresh material — the
-    /// caller owns it: share it across the meshes using the asset, dispose it
-    /// with the owning scene/renderer, or drop it for the GC.
+    /// Compiles the graphics material of an asset for one pass template, specialized by the
+    /// asset's <see cref="MaterialAsset.Specializations"/> table. Every call returns a fresh
+    /// caller-owned material that the caller disposes with the owning scene or renderer.
     /// </summary>
     /// <param name="asset">The material asset.</param>
     /// <param name="template">The pass-template library, composed with the asset's surface.</param>
@@ -176,13 +158,9 @@ public sealed class MaterialCompiler : AutoDisposable
         => Compile(asset, template, asset.Specializations, createMaterial);
 
     /// <summary>
-    /// Compile with a facility-provided specialization table — the compile of
-    /// <see cref="Compile(MaterialAsset, ShaderLibrary, Func{MaterialAsset, Shader, GraphicsMaterial})"/>
-    /// for facilities that derive a template's variant from their own logic instead of
-    /// the asset's authored table (e.g. the shadow pass specializing its AlphaTest axis
-    /// from the material's alpha mode), or that deliberately take the unspecialized
-    /// variant of a template with no axes of its own (e.g. the UI draw of an entity
-    /// material, whose world-route axes do not apply).
+    /// Compiles with a caller-provided specialization table instead of the asset's authored one,
+    /// for facilities that derive a variant from their own logic or request the unspecialized
+    /// variant. The returned material is caller-owned.
     /// </summary>
     /// <param name="specializations">The named specialization values; null compiles the unspecialized variant (every axis of the template defaults).</param>
     /// <param name="defaultSurface">
@@ -263,11 +241,9 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The shader of one pass template composed with an asset's surface (the compiler's
-    /// default surface when <paramref name="asset"/> is null or names none) — the
-    /// composition step of <see cref="Compile"/>, on its own for inspection and tests.
-    /// The handle serves every specialization of the pair; select the asset's variant
-    /// with the positional literals of <see cref="BuildSpecializationLiterals"/>.
+    /// Gets the shader of one pass template composed with an asset's surface, or with the compiler's
+    /// default surface when the asset is null or names none. The returned handle serves every
+    /// specialization of the pair.
     /// </summary>
     /// <param name="asset">The material asset whose surface composes; null selects the default surface.</param>
     /// <param name="template">The pass-template library.</param>
@@ -282,14 +258,9 @@ public sealed class MaterialCompiler : AutoDisposable
         => ComposeCompute(template, SurfaceOf(asset));
 
     /// <summary>
-    /// The compute counterpart of <see cref="Compile"/>: the material of an asset for a
-    /// compute pass template (e.g. a voxel GI's voxelization), under the same slot rules
-    /// as the graphics passes — texture slots are validated against the composed
-    /// reflection and bound from the asset's own bindings (the asset's fallback policy
-    /// for unbound slots), and the surface's parameter blocks are packed and bound.
-    /// <br/>The material is caller-owned: share it across the dispatches using the asset
-    /// and drop it with the owning facility; a compute material holds no disposable
-    /// state of its own, and the GPU resources it references finalize themselves.
+    /// Compiles the compute material of an asset for a compute pass template, applying the same
+    /// texture-slot validation and parameter-block binding as the graphics path. The returned
+    /// material is caller-owned.
     /// </summary>
     /// <param name="asset">The material asset; its fallback policy covers unbound slots.</param>
     /// <param name="template">The pass-template library.</param>
@@ -338,14 +309,9 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The material-parameter blocks of a surface library — every uniform block
-    /// marked <c>[<see cref="ParamsMarkerAttribute"/>]</c>, with its scalar/vector
-    /// float members — from the library's own reflection (no entry points, no
-    /// link; cached by the module system). The material domain's view of
-    /// <see cref="ShaderLibrary.Reflection"/>: blocks are found by the
-    /// marker, and a marked block the float view cannot fully represent fails
-    /// here (the parameter system writes floats only). Empty means the module
-    /// marks no parameter blocks.
+    /// Gets the material-parameter blocks of a surface library, keyed by block name, from the uniform
+    /// blocks marked <c>[MaterialParams]</c>. A marked block the float-only parameter system cannot
+    /// represent throws; an empty result means the surface marks no parameter blocks.
     /// </summary>
     public IReadOnlyDictionary<string, IReadOnlyList<ShaderUniformMember>> GetParamsLayouts(ShaderLibrary surface)
     {
@@ -374,13 +340,9 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// Packs a uniform buffer from a parameter-block layout and named values: members
-    /// the value table leaves out read zero; each value marshals to its member's
-    /// reflected scalar kind (float components, int/uint/bool images, arrays,
-    /// matrices); an unknown name is a typo and fails listing the valid members.
-    /// The buffer is a <see cref="UniformGraphicsBuffer"/> laid out at the offsets
-    /// slang reflected, written once and flushed — the compile-time material path
-    /// of the per-frame uniform buffers the render nodes use.
+    /// Packs one parameter block into a <see cref="UniformGraphicsBuffer"/> using the reflected layout;
+    /// members the value table omits read zero, and unknown value names fail. The caller owns the
+    /// returned buffer.
     /// </summary>
     /// <param name="layout">The block members (<see cref="GetParamsLayouts"/>).</param>
     /// <param name="values">The values by member name.</param>
@@ -590,11 +552,9 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// Packs every parameter block of a surface (see <see cref="GetParamsLayouts"/>)
-    /// from one value table: a value whose name matches no member of ANY block is a
-    /// typo and fails listing the valid members; the same member name in two blocks
-    /// is ambiguous and fails. Blocks without any matching value still pack (their
-    /// members read zero).
+    /// Packs every parameter block of a surface from one value table, keyed by block name. Unknown
+    /// value names and member names duplicated across blocks fail; blocks with no matching values
+    /// still pack with zeroed members.
     /// </summary>
     /// <returns>The packed buffer of each block, keyed by block name.</returns>
     public IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(
@@ -653,12 +613,8 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The texture slot names of a surface library — what the binding side fills from
-    /// the material's texture table, with the asset's fallback policy for
-    /// unbound slots. The name projection of the library's texture slots (which
-    /// also carry each slot's required dimension and sample type); discovery
-    /// stays name-keyed, no set number — a ParameterBlock's set is
-    /// compiler-assigned declaration order, nothing the engine pins or reads.
+    /// Gets the texture slot names of a surface library, which the binding side fills from the
+    /// material's texture table. Unbound slots use the asset's fallback policy.
     /// </summary>
     public IReadOnlyList<string> EnumerateTextureSlots(ShaderLibrary surface)
         => [.. surface.Reflection.TextureSlots.Select(slot => slot.Name)];
@@ -772,13 +728,8 @@ public sealed class MaterialCompiler : AutoDisposable
     }
 
     /// <summary>
-    /// The parameter buffers of an asset: every block of its effective surface marked
-    /// <c>[MaterialParams]</c> (free names, any number), packed from
-    /// <see cref="MaterialAsset.Parameters"/> by member name at the offsets slang
-    /// reflected. Packed once per (asset, surface) and cached on the asset — every
-    /// pass compiles the same bytes, so the passes share the buffers (see
-    /// <see cref="MaterialAsset.ParameterBuffers"/>); re-setting the asset's
-    /// surface/parameters drops the cache for a fresh pack.
+    /// Gets the asset's parameter buffers for a surface, packing and caching them per (asset, surface).
+    /// Re-setting the asset's surface or parameters invalidates the cache.
     /// </summary>
     private IReadOnlyDictionary<string, GraphicsBuffer> PackParamsBuffers(MaterialAsset asset, ShaderLibrary surface)
     {

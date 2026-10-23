@@ -15,8 +15,7 @@ namespace Alco.Engine;
 /// Provides an SDL 3 window and its engine-owned rendering swapchain.
 /// </summary>
 /// <remarks>
-/// Create and explicitly dispose windows on the SDL main thread. Independently created GPU
-/// resources that retain the surface must be released before the window is disposed.
+/// Create and dispose windows on the SDL main thread, releasing GPU resources that retain the surface first.
 /// </remarks>
 public unsafe partial class Sdl3Window : View
 {
@@ -37,6 +36,7 @@ public unsafe partial class Sdl3Window : View
 
     internal SDL_WindowID WindowId => SDL_GetWindowID(_window);
 
+    /// <summary>Gets the underlying SDL window handle.</summary>
     public SDL_Window NativeWindow => _window;
 
     public override WindowMode WindowMode
@@ -357,6 +357,11 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
+    /// <summary>Creates an SDL window that adopts an existing X11 window.</summary>
+    /// <param name="device">The device used to create the swapchain.</param>
+    /// <param name="xWindow">The X11 window identifier.</param>
+    /// <param name="setting">The window and presentation settings.</param>
+    /// <returns>The created window.</returns>
     public static Sdl3Window CreateFromXID(GPUDevice device, long xWindow, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
@@ -379,6 +384,12 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
+    /// <summary>Creates an SDL window that adopts an existing Cocoa window and optional view.</summary>
+    /// <param name="device">The device used to create the swapchain.</param>
+    /// <param name="NSWindow">The Cocoa window handle.</param>
+    /// <param name="NSView">The Cocoa view handle, or zero to use the window's view.</param>
+    /// <param name="setting">The window and presentation settings.</param>
+    /// <returns>The created window.</returns>
     public static Sdl3Window CreateFromNSWindow(GPUDevice device, IntPtr NSWindow, IntPtr NSView, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
@@ -405,6 +416,11 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
+    /// <summary>Creates an SDL window that adopts an existing Wayland surface.</summary>
+    /// <param name="device">The device used to create the swapchain.</param>
+    /// <param name="surface">The Wayland surface handle.</param>
+    /// <param name="setting">The window and presentation settings.</param>
+    /// <returns>The created window.</returns>
     public static Sdl3Window CreateFromWaylandSurface(GPUDevice device, IntPtr surface, ViewSetting setting)
     {
         SDL_PropertiesID props = 0;
@@ -427,6 +443,8 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
+    /// <summary>Raises the text input event with the given text.</summary>
+    /// <param name="text">The input text.</param>
     public void DoTextInputCore(ReadOnlySpan<char> text)
     {
         DoTextInput(text);

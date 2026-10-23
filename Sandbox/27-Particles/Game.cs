@@ -6,6 +6,7 @@ using Alco.Graphics;
 using Alco.ImGUI;
 
 
+/// <summary>Sandbox demonstrating the CPU particle system with a box emitter and gizmo controls.</summary>
 public class Game : GameEngine
 {
     private readonly Camera2DBuffer _camera;
@@ -27,6 +28,8 @@ public class Game : GameEngine
     private int _operationIndex = 0;
     private GizmoOperation _imGuizmoOperation = GizmoOperation.TranslateX | GizmoOperation.TranslateY;
 
+    /// <summary>Initializes the particle emitter, simulator, and renderer.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));

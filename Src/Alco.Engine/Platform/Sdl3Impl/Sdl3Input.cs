@@ -6,6 +6,7 @@ using static SDL3.SDL3;
 
 namespace Alco.Engine;
 
+/// <summary>SDL3-backed implementation of the engine input system.</summary>
 public unsafe class Sdl3Input : Input
 {
     private const int MaxKeyCount = 512;
@@ -176,6 +177,7 @@ public unsafe class Sdl3Input : Input
 
     public override bool IsGamepadInputting => _isGamepadInputting;
 
+    /// <summary>Creates an input system; call <see cref="Init"/> before use.</summary>
     public Sdl3Input()
     {
 

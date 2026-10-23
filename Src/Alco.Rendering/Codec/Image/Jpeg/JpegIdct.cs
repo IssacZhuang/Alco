@@ -128,11 +128,9 @@ internal static class JpegIdct
     }
 
     /// <summary>
-    /// Perform IDCT on a dequantized 8x8 block, writing directly to a component plane.
-    /// Output is written at (outputPtr + row * outputStride) for each of the 8 rows.
-    /// This avoids an intermediate block→plane copy.
-    /// The caller guarantees that outputPtr has room for 8 rows of outputStride bytes each.
-    /// Coefficients are in zigzag order, with AAN scaling already applied.
+    /// Performs the IDCT on a dequantized 8x8 block of zigzag-ordered coefficients, writing
+    /// directly into an 8-row component plane. The caller must provide 8 rows of
+    /// <paramref name="outputStride"/> bytes at <paramref name="outputPtr"/>.
     /// </summary>
     public static unsafe void Transform(ReadOnlySpan<short> coeffs, byte* outputPtr, int outputStride)
     {

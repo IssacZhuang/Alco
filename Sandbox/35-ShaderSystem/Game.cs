@@ -6,6 +6,7 @@ using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
 
+/// <summary>Sandbox demonstrating the shader system with module-based shaders and hot reload.</summary>
 public class Game : GameEngine
 {
     [StructLayout(LayoutKind.Sequential)]
@@ -32,6 +33,8 @@ public class Game : GameEngine
     private volatile string? _pendingChange;
     private float _timer;
 
+    /// <summary>Initializes the shader modules, material, and hot-reload watcher.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _renderContext = RenderingSystem.CreateRenderContext("sandbox_shader_system");

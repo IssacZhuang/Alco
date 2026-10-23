@@ -57,6 +57,8 @@ public class Game : GameEngine
     private float _globalEmissionMultiplier = 1.0f;
     private bool _allPlaying = true;
 
+    /// <summary>Creates the particle batching sandbox.</summary>
+    /// <param name="setting">The engine settings for this sandbox.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));

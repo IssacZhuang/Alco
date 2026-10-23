@@ -6,6 +6,7 @@ using NUnit.Framework;
 
 namespace Alco.Test;
 
+/// <summary>Covers caching behavior of <see cref="MemberAccessorCache"/>, including cache hits, clearing, generic keys, and concurrency.</summary>
 [TestFixture]
 public class TestMemberAccessorCache
 {
@@ -31,6 +32,7 @@ public class TestMemberAccessorCache
     private MemberAccessorCache _cacheAccessor;
     private MockMemberAccessor _mockAccessor;
 
+    /// <summary>Creates the reflection, mock, and caching accessors used by the tests.</summary>
     [SetUp]
     public void Setup()
     {
@@ -123,6 +125,7 @@ public class TestMemberAccessorCache
         }
     }
 
+    /// <summary>Tests that a property getter is created once and reused for identical requests.</summary>
     [Test]
     public void TestPropertyGetterCache()
     {
@@ -143,6 +146,7 @@ public class TestMemberAccessorCache
         Assert.That(getter2(instance), Is.EqualTo(42));
     }
 
+    /// <summary>Tests that a field getter is created once and reused for identical requests.</summary>
     [Test]
     public void TestFieldGetterCache()
     {
@@ -166,6 +170,7 @@ public class TestMemberAccessorCache
         Assert.That(getter1, Is.SameAs(getter2));
     }
 
+    /// <summary>Tests that a parameterless constructor delegate is created once and reused.</summary>
     [Test]
     public void TestParameterlessConstructorCache()
     {
@@ -191,6 +196,7 @@ public class TestMemberAccessorCache
         Assert.That(ctor1, Is.SameAs(ctor2));
     }
 
+    /// <summary>Tests that a parameterized constructor delegate is created once and reused.</summary>
     [Test]
     public void TestParameterizedConstructorCache()
     {
@@ -216,6 +222,7 @@ public class TestMemberAccessorCache
         Assert.That(ctor1, Is.SameAs(ctor2));
     }
 
+    /// <summary>Tests that clearing the cache forces delegates to be recreated.</summary>
     [Test]
     public void TestCacheClear()
     {
@@ -245,6 +252,7 @@ public class TestMemberAccessorCache
         Assert.That(getter1, Is.Not.SameAs(getter3));
     }
 
+    /// <summary>Tests that different generic type arguments produce separate cache entries.</summary>
     [Test]
     public void TestDifferentGenericTypesAreCached()
     {
@@ -266,6 +274,7 @@ public class TestMemberAccessorCache
         Assert.That(_mockAccessor.CallCount, Is.EqualTo(2), "Repeat calls should use cache");
     }
 
+    /// <summary>Tests that concurrent cache reads return the same delegate instances.</summary>
     [Test]
     public void TestConcurrentAccess()
     {

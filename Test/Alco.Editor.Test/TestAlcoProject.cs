@@ -12,6 +12,7 @@ public sealed class TestAlcoProject
 {
     private string _tempRoot = string.Empty;
 
+    /// <summary>Creates a fresh temporary directory for each test.</summary>
     [SetUp]
     public void SetUp()
     {
@@ -19,6 +20,7 @@ public sealed class TestAlcoProject
         Directory.CreateDirectory(_tempRoot);
     }
 
+    /// <summary>Deletes the test's temporary directory.</summary>
     [TearDown]
     public void TearDown()
     {
@@ -35,6 +37,7 @@ public sealed class TestAlcoProject
         return path;
     }
 
+    /// <summary>Tests that project loading accepts PascalCase and camelCase keys.</summary>
     [Test]
     public void Load_AcceptsPascalCaseAndCamelCase()
     {
@@ -59,6 +62,7 @@ public sealed class TestAlcoProject
         });
     }
 
+    /// <summary>Tests that a single string is accepted for path lists.</summary>
     [Test]
     public void Load_AcceptsSingleStringForPathLists()
     {
@@ -69,6 +73,7 @@ public sealed class TestAlcoProject
         Assert.That(project.AssetsPaths, Is.EqualTo(new[] { "Assets" }));
     }
 
+    /// <summary>Tests that the project name defaults to the file name.</summary>
     [Test]
     public void Load_DefaultsNameToFileName()
     {
@@ -79,6 +84,7 @@ public sealed class TestAlcoProject
         Assert.That(project.Name, Is.EqualTo("MyGame"));
     }
 
+    /// <summary>Tests that loading a non-.alco file is rejected.</summary>
     [Test]
     public void Load_RejectsNonAlcoFiles()
     {
@@ -87,12 +93,14 @@ public sealed class TestAlcoProject
         Assert.Throws<InvalidDataException>(() => AlcoProject.Load(path));
     }
 
+    /// <summary>Tests that loading a missing file is rejected.</summary>
     [Test]
     public void Load_RejectsMissingFiles()
     {
         Assert.Throws<FileNotFoundException>(() => AlcoProject.Load(Path.Combine(_tempRoot, "Nope.alco")));
     }
 
+    /// <summary>Tests that relative asset paths resolve against the project directory.</summary>
     [Test]
     public void Paths_ResolveAgainstProjectDirectory()
     {
@@ -108,6 +116,7 @@ public sealed class TestAlcoProject
         });
     }
 
+    /// <summary>Tests that saving writes camelCase keys and round-trips the project.</summary>
     [Test]
     public void Save_WritesCamelCaseAndRoundTrips()
     {
@@ -137,6 +146,7 @@ public sealed class TestAlcoProject
         });
     }
 
+    /// <summary>Tests that an untitled project uses the given directory as its asset root.</summary>
     [Test]
     public void CreateUntitled_RootsItselfAtTheGivenDirectory()
     {
@@ -149,6 +159,7 @@ public sealed class TestAlcoProject
         });
     }
 
+    /// <summary>Tests that owned and referenced asset paths resolve to their absolute files.</summary>
     [Test]
     public void Ownership_OwnedAndReferencedFilesResolve()
     {
@@ -189,6 +200,7 @@ public sealed class TestAlcoProject
         });
     }
 
+    /// <summary>Tests that an owned asset shadows a referenced asset with the same path.</summary>
     [Test]
     public void Ownership_OwnedShadowsReferenced()
     {

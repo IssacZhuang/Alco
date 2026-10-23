@@ -5,6 +5,7 @@ using Alco.IO;
 
 namespace Alco.IO.Test;
 
+/// <summary>Tests package entry alignment and builder output consistency.</summary>
 public class TestPackageBuilderAlignment
 {
     private static (byte[] Package, long MetaLength) BuildPackage(int alignment)
@@ -20,6 +21,7 @@ public class TestPackageBuilderAlignment
         return (package, metaLength);
     }
 
+    /// <summary>Tests that entries start at aligned offsets.</summary>
     [Test]
     public void AlignmentMovesEntryStarts()
     {
@@ -41,6 +43,7 @@ public class TestPackageBuilderAlignment
         });
     }
 
+    /// <summary>Tests that alignment 1 packs entries back to back.</summary>
     [Test]
     public void DefaultAlignmentPacksBackToBack()
     {
@@ -58,6 +61,7 @@ public class TestPackageBuilderAlignment
         });
     }
 
+    /// <summary>Tests that stream and byte-array builds produce identical output.</summary>
     [Test]
     public void BuildStreamMatchesBuildBytes()
     {
@@ -79,6 +83,7 @@ public class TestPackageBuilderAlignment
         Assert.That(stream.ToArray(), Is.EqualTo(fromBytes), "stream output must be byte-identical to array output");
     }
 
+    /// <summary>Tests that invalid alignment values are rejected.</summary>
     [Test]
     public void InvalidAlignmentIsRejected()
     {

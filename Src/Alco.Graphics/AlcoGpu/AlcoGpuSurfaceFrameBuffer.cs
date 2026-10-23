@@ -294,10 +294,9 @@ internal sealed unsafe class AlcoGpuSurfaceFrameBuffer : AlcoGpuFrameBufferBase
 
     /// <summary>
     /// Acquires this frame's surface texture and refreshes the color attachment view.
-    /// Returns true when the acquired texture is usable for the frame; returns false —
-    /// after reconfiguring the surface — when the frame must be skipped because the
-    /// acquire failed, the acquired size no longer matches the configuration, or a
-    /// pending non-size configuration change requires a reconfigure first.
+    /// Returns false when the frame must be skipped because the acquire failed, the
+    /// acquired size no longer matches the configuration, or a pending configuration
+    /// change requires a reconfigure first.
     /// </summary>
     public bool RequestSurfaceTexture()
     {

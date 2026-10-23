@@ -7,11 +7,7 @@ namespace Alco.TextureConverter;
 /// not thread-safe.
 /// </summary>
 /// <remarks>
-/// Encoded variants are LINEAR BC (raw byte passthrough): the runtime uploads
-/// DDS payloads as BC?RGBA8Unorm, matching the sampling semantics of the
-/// PNG → RGBA8Unorm path. Scope note: Item/Apparel/Weapon* texture groups load
-/// with PremultiplyAlpha; extending the converter to them requires
-/// premultiplying on the encode side first.
+/// Encoded variants store linear BC data as raw bytes. Item/Apparel/Weapon* texture groups require premultiplied input, which the converter does not yet produce.
 /// </remarks>
 public sealed class TextureConverter : IDisposable
 {

@@ -90,11 +90,19 @@ namespace Alco.Graphics
             Alpha = new BlendComponent(BlendFactor.One, BlendFactor.One, BlendOperation.Max)
         };
 
+        /// <summary>Determines whether two blend states have equal color and alpha components.</summary>
+        /// <param name="left">The left operand.</param>
+        /// <param name="right">The right operand.</param>
+        /// <returns>True when both blend states are equal.</returns>
         public static bool operator ==(BlendState left, BlendState right)
         {
             return left.Color == right.Color && left.Alpha == right.Alpha;
         }
 
+        /// <summary>Determines whether two blend states differ in any component.</summary>
+        /// <param name="left">The left operand.</param>
+        /// <param name="right">The right operand.</param>
+        /// <returns>True when the blend states are not equal.</returns>
         public static bool operator !=(BlendState left, BlendState right)
         {
             return left.Color != right.Color || left.Alpha != right.Alpha;

@@ -7,6 +7,7 @@ using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
 
+/// <summary>Tests the persistent font atlas cache.</summary>
 [TestFixture]
 public class TestFontAtlasCache
 {
@@ -42,6 +43,7 @@ public class TestFontAtlasCache
         glyphs = packer.Glyphs;
     }
 
+    /// <summary>Tests that a stored atlas loads back identically.</summary>
     [Test]
     public void StoreThenLoad_RoundTripsAtlasExactly()
     {
@@ -80,6 +82,7 @@ public class TestFontAtlasCache
         }
     }
 
+    /// <summary>Tests that changing any bake input causes a cache miss.</summary>
     [Test]
     public void TryLoad_ReturnsNull_ForDifferentBakeInputs()
     {
@@ -110,6 +113,8 @@ public class TestFontAtlasCache
     [TestCase(0)]
     [TestCase(64)]
     [TestCase(1024)]
+    /// <summary>Tests that corrupt cache entries load as misses.</summary>
+    /// <param name="corruptSize">Size in bytes of the corrupted entry.</param>
     public void TryLoad_ReturnsNull_ForCorruptEntries(int corruptSize)
     {
         string directory = CreateTempCacheDirectory();
@@ -131,6 +136,7 @@ public class TestFontAtlasCache
         }
     }
 
+    /// <summary>Tests that duplicate concurrent stores keep a single cache entry.</summary>
     [Test]
     public void StoreAsync_SwallowsDuplicateConcurrentWrites()
     {
@@ -156,6 +162,7 @@ public class TestFontAtlasCache
         }
     }
 
+    /// <summary>Tests that a disabled cache never loads or stores entries.</summary>
     [Test]
     public void DisabledCache_NeverLoadsOrStores()
     {

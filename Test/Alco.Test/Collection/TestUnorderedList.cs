@@ -3,8 +3,10 @@ using System.Collections.Generic;
 
 namespace Alco.Test;
 
+/// <summary>Tests the unordered list.</summary>
 public class TestUnorderedList
 {
+    /// <summary>Tests add, remove, remove-at and clear operations.</summary>
     [Test]
     public void Test()
     {
@@ -61,6 +63,7 @@ public class TestUnorderedList
         Assert.That(list2.Count, Is.EqualTo(count - pendingRemove.Count));
     }
 
+    /// <summary>Tests that enumeration visits elements in storage order.</summary>
     [Test]
     public void Foreach_Enumerates_InOrder()
     {
@@ -76,6 +79,7 @@ public class TestUnorderedList
         CollectionAssert.AreEqual(new[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, seen);
     }
 
+    /// <summary>Tests that mutating the list during enumeration throws.</summary>
     [Test]
     public void Foreach_Modify_During_Enumeration_Throws()
     {

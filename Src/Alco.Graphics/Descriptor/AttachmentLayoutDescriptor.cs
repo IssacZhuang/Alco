@@ -1,11 +1,9 @@
 namespace Alco.Graphics;
 
 /// <summary>
-/// Declares the attachment layout of a frame buffer: the color attachments, an
-/// optional depth attachment and their formats/clear values. The layout itself
-/// owns no textures; a <see cref="FrameBufferDescriptor"/> creates owned
-/// textures from it while an <see cref="ExternalFrameBufferDescriptor"/>
-/// references externally owned ones.
+/// Declares a frame buffer's color attachments and optional depth attachment,
+/// including formats and clear values. The layout owns no textures; frame buffer
+/// descriptors create or reference them.
 /// </summary>
 public struct AttachmentLayoutDescriptor
 {

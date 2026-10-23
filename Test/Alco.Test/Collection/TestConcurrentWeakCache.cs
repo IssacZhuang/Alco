@@ -7,6 +7,9 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>
+    /// Covers <see cref="ConcurrentWeakCache{TKey, TValue}"/> creation, weak reference behavior, and concurrent access.
+    /// </summary>
     [TestFixture]
     public class TestConcurrentWeakCache
     {
@@ -28,6 +31,9 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>
+        /// Tests basic get-or-add creation and instance reuse.
+        /// </summary>
         [Test(Description = "Test basic GetOrAdd functionality")]
         public void TestBasicGetOrAdd()
         {
@@ -53,6 +59,9 @@ namespace Alco.Test
             Assert.That(obj3.Data, Is.EqualTo("test3"), "Object should have correct data");
         }
 
+        /// <summary>
+        /// Tests that a collected value is recreated on the next get.
+        /// </summary>
         [Test(Description = "Test weak reference behavior")]
         public void TestWeakReferenceBehavior()
         {
@@ -77,6 +86,9 @@ namespace Alco.Test
             Assert.That(newObj.Data, Is.EqualTo("new test"), "Should create new object after GC");
         }
 
+        /// <summary>
+        /// Tests that concurrent accesses to one key return the same instance.
+        /// </summary>
         [Test(Description = "Test concurrent access")]
         public void TestConcurrentAccess()
         {
@@ -112,6 +124,9 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>
+        /// Tests that a null value factory is rejected.
+        /// </summary>
         [Test(Description = "Test null valueFactory parameter")]
         public void TestNullValueFactory()
         {
@@ -122,6 +137,9 @@ namespace Alco.Test
                 "GetOrAdd should throw ArgumentNullException for null valueFactory");
         }
 
+        /// <summary>
+        /// Tests get-or-add with string and integer keys.
+        /// </summary>
         [Test(Description = "Test with different key types")]
         public void TestDifferentKeyTypes()
         {
@@ -139,6 +157,9 @@ namespace Alco.Test
             Assert.That(intObj.Data, Is.EqualTo("int_42"), "Should use key in data");
         }
 
+        /// <summary>
+        /// Tests that distinct keys map to distinct cached instances.
+        /// </summary>
         [Test(Description = "Test multiple keys and values")]
         public void TestMultipleKeysAndValues()
         {
@@ -169,6 +190,9 @@ namespace Alco.Test
             Assert.That(ReferenceEquals(obj3, retrieved3), Is.True, "Should return same object for key3");
         }
 
+        /// <summary>
+        /// Tests that the value factory runs once per key.
+        /// </summary>
         [Test(Description = "Test valueFactory called only once per key")]
         public void TestValueFactoryCalledOnce()
         {
@@ -195,6 +219,9 @@ namespace Alco.Test
             Assert.That(callCount, Is.EqualTo(2), "ValueFactory should be called for different key");
         }
 
+        /// <summary>
+        /// Tests caching and mutation of a complex reference value.
+        /// </summary>
         [Test(Description = "Test with complex objects")]
         public void TestComplexObjects()
         {
@@ -214,6 +241,9 @@ namespace Alco.Test
             Assert.That(list2.Count, Is.EqualTo(6), "Should see modifications to original list");
         }
 
+        /// <summary>
+        /// Tests many concurrent get-or-add operations across keys.
+        /// </summary>
         [Test(Description = "Test stress test with many concurrent operations")]
         public void TestStressTest()
         {

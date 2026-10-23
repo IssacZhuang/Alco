@@ -74,6 +74,10 @@ public sealed class AudioBus
         }
     }
 
+    /// <summary>
+    /// Initializes a new audio bus with the given name.
+    /// </summary>
+    /// <param name="name">The bus name.</param>
     public AudioBus(string name)
     {
         Name = name;

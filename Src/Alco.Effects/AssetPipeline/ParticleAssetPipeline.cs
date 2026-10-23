@@ -4,11 +4,8 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// The module entry point of the Alco.Effects asset pipeline: registers the
-/// particle effect asset loader (<c>.afx</c>) with an asset system. Shader
-/// modules of the module resolve by name once the module's <c>Assets</c> folder is
-/// reachable by the asset system (the module csproj ships it next to the
-/// consuming app; dev-time hot reload mounts it as a file source).
+/// The asset-pipeline entry point of Alco.Effects, which registers the particle
+/// effect (<c>.afx</c>) asset loader with an asset system.
 /// </summary>
 public static class ParticleAssetPipeline
 {
@@ -62,12 +59,8 @@ public static class ParticleAssetPipeline
     /// Registers the particle effect asset loader with the asset system.
     /// </summary>
     /// <param name="assetSystem">The asset system to register the loader with.</param>
-    /// <param name="renderingSystem">
-    /// The rendering system whose shader system resolves behavior/shader module
-    /// references at load time; null defers module resolution to instance creation
-    /// (module references stay unresolved name strings are NOT supported — pass a
-    /// rendering system).
-    /// </param>
+    /// <param name="renderingSystem">The rendering system whose shader system resolves shader module references at load time.</param>
+    /// <param name="typeInfoResolver">The optional JSON type-info resolver used for asset metadata.</param>
     public static void RegisterLoaders(AssetSystem assetSystem, RenderingSystem renderingSystem,
         System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver? typeInfoResolver = null)
     {

@@ -4,6 +4,9 @@ using System.Runtime.CompilerServices;
 namespace Alco.Engine;
 
 
+/// <summary>
+/// Immediate-mode debug overlay drawing helpers.
+/// </summary>
 public static partial class DebugStats
 {
     private static DebugStatsRenderer? _renderer;
@@ -16,6 +19,11 @@ public static partial class DebugStats
     private static Vector2 _currentPosition = Vector2.Zero;
     private static Vector2 _nextOffset = Vector2.Zero;
 
+    /// <summary>
+    /// Initializes the overlay with the given renderer and style.
+    /// </summary>
+    /// <param name="renderer">Renderer that submits overlay draw commands.</param>
+    /// <param name="style">Visual style applied to overlay elements.</param>
     public static void Initialize(DebugStatsRenderer renderer, DebugStatsStyle style)
     {
         _renderer = renderer;
@@ -24,6 +32,9 @@ public static partial class DebugStats
         ResetPosition();
     }
 
+    /// <summary>
+    /// Places the next overlay element on the same line as the previous one.
+    /// </summary>
     public static void SameLine()
     {
         _isSameLine = true;

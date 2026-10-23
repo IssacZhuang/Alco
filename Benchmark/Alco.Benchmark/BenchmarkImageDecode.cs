@@ -163,6 +163,9 @@ file static unsafe class LibpngDecoder
 
 // ── Benchmark ───────────────────────────────────────────────────────────
 
+/// <summary>
+/// Benchmarks PNG and JPEG decoding with STB, the engine decoder, and libpng.
+/// </summary>
 [Config(typeof(DefaultBenchmarkConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
@@ -173,6 +176,9 @@ public unsafe class BenchmarkImageDecode
     private byte[] _pngWall = null!;
     private byte[] _jpegReal = null!;
 
+    /// <summary>
+    /// Loads the image files used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -184,6 +190,9 @@ public unsafe class BenchmarkImageDecode
 
     // ── PNG Small ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Benchmarks decoding a small PNG with STB.
+    /// </summary>
     [Benchmark(Baseline = true, Description = "STB")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_Stb()
@@ -191,6 +200,9 @@ public unsafe class BenchmarkImageDecode
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(_pngSmall, ColorComponents.RedGreenBlueAlpha);
     }
 
+    /// <summary>
+    /// Benchmarks decoding a small PNG with the engine decoder.
+    /// </summary>
     [Benchmark(Description = "New")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_New()
@@ -199,6 +211,9 @@ public unsafe class BenchmarkImageDecode
         NativeMemory.Free(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks decoding a small PNG with libpng.
+    /// </summary>
     [Benchmark(Description = "Libpng")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_Libpng()
@@ -208,6 +223,9 @@ public unsafe class BenchmarkImageDecode
 
     // ── PNG Large ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Benchmarks decoding a large PNG with STB.
+    /// </summary>
     [Benchmark(Baseline = true, Description = "STB")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_Stb()
@@ -215,6 +233,9 @@ public unsafe class BenchmarkImageDecode
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(_pngLarge, ColorComponents.RedGreenBlueAlpha);
     }
 
+    /// <summary>
+    /// Benchmarks decoding a large PNG with the engine decoder.
+    /// </summary>
     [Benchmark(Description = "New")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_New()
@@ -223,6 +244,9 @@ public unsafe class BenchmarkImageDecode
         NativeMemory.Free(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks decoding a large PNG with libpng.
+    /// </summary>
     [Benchmark(Description = "Libpng")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_Libpng()
@@ -232,6 +256,9 @@ public unsafe class BenchmarkImageDecode
 
     // ── PNG Wall ──────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Benchmarks decoding a wall-sized PNG with STB.
+    /// </summary>
     [Benchmark(Baseline = true, Description = "STB")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_Stb()
@@ -239,6 +266,9 @@ public unsafe class BenchmarkImageDecode
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(_pngWall, ColorComponents.RedGreenBlueAlpha);
     }
 
+    /// <summary>
+    /// Benchmarks decoding a wall-sized PNG with the engine decoder.
+    /// </summary>
     [Benchmark(Description = "New")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_New()
@@ -247,6 +277,9 @@ public unsafe class BenchmarkImageDecode
         NativeMemory.Free(ptr);
     }
 
+    /// <summary>
+    /// Benchmarks decoding a wall-sized PNG with libpng.
+    /// </summary>
     [Benchmark(Description = "Libpng")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_Libpng()
@@ -256,6 +289,9 @@ public unsafe class BenchmarkImageDecode
 
     // ── JPEG ──────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Benchmarks decoding a JPEG with STB.
+    /// </summary>
     [Benchmark(Baseline = true, Description = "STB")]
     [BenchmarkCategory("JPEG")]
     public void JpegReal_Stb()
@@ -263,6 +299,9 @@ public unsafe class BenchmarkImageDecode
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(_jpegReal, ColorComponents.RedGreenBlueAlpha);
     }
 
+    /// <summary>
+    /// Benchmarks decoding a JPEG with the engine decoder.
+    /// </summary>
     [Benchmark(Description = "New")]
     [BenchmarkCategory("JPEG")]
     public void JpegReal_New()

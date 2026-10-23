@@ -9,6 +9,13 @@ namespace Alco
 
         // 3D
 
+        /// <summary>
+        /// Creates a scale-rotation-translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <param name="rotation">The rotation.</param>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The combined transform matrix.</returns>
         //[MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4trs(Vector3 position, Quaternion rotation, Vector3 scale)
         {
@@ -48,6 +55,12 @@ namespace Alco
             return result;
         }
 
+        /// <summary>
+        /// Creates a rotation-translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <param name="rotation">The rotation.</param>
+        /// <returns>The combined transform matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4tr(Vector3 position, Quaternion rotation)
         {
@@ -87,6 +100,12 @@ namespace Alco
             // return result;
         }
 
+        /// <summary>
+        /// Creates a scale-translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The combined transform matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4ts(Vector3 position, Vector3 scale)
         {
@@ -112,6 +131,12 @@ namespace Alco
             // return result;
         }
 
+        /// <summary>
+        /// Creates a rotation-scale matrix.
+        /// </summary>
+        /// <param name="rotation">The rotation.</param>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The combined transform matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4rs(Quaternion rotation, Vector3 scale)
         {
@@ -147,18 +172,33 @@ namespace Alco
             // return result;
         }
 
+        /// <summary>
+        /// Creates a 3D translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <returns>The translation matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4translation(Vector3 position)
         {
             return Matrix4x4.CreateTranslation(position);
         }
 
+        /// <summary>
+        /// Creates a 3D rotation matrix.
+        /// </summary>
+        /// <param name="rotation">The rotation.</param>
+        /// <returns>The rotation matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4rotation(Quaternion rotation)
         {
             return Matrix4x4.CreateFromQuaternion(rotation);
         }
 
+        /// <summary>
+        /// Creates a 3D scale matrix.
+        /// </summary>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The scale matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4scale(Vector3 scale)
         {
@@ -167,6 +207,13 @@ namespace Alco
 
         // 2D
 
+        /// <summary>
+        /// Creates a 2D scale-rotation-translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <param name="rotation">The rotation.</param>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The combined transform matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4trs(Vector2 position, Rotation2D rotation, Vector2 scale)
         {
@@ -192,6 +239,12 @@ namespace Alco
             // return result;
         }
 
+        /// <summary>
+        /// Creates a 2D rotation-translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <param name="rotation">The rotation.</param>
+        /// <returns>The combined transform matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4tr(Vector2 position, Rotation2D rotation)
         {
@@ -217,6 +270,12 @@ namespace Alco
             // return result;
         }
 
+        /// <summary>
+        /// Creates a 2D scale-translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The combined transform matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4ts(Vector2 position, Vector2 scale)
         {
@@ -242,6 +301,12 @@ namespace Alco
             // return result;
         }
 
+        /// <summary>
+        /// Creates a 2D rotation-scale matrix.
+        /// </summary>
+        /// <param name="rotation">The rotation.</param>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The combined transform matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4rs(Rotation2D rotation, Vector2 scale)
         {
@@ -267,6 +332,11 @@ namespace Alco
             // return result;
         }
 
+        /// <summary>
+        /// Creates a 2D translation matrix.
+        /// </summary>
+        /// <param name="position">The translation.</param>
+        /// <returns>The translation matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4translation(Vector2 position)
         {
@@ -276,6 +346,11 @@ namespace Alco
             return identity;
         }
 
+        /// <summary>
+        /// Creates a 2D scale matrix.
+        /// </summary>
+        /// <param name="scale">The scale.</param>
+        /// <returns>The scale matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4scale(Vector2 scale)
         {
@@ -285,6 +360,11 @@ namespace Alco
             return identity;
         }
 
+        /// <summary>
+        /// Creates a 2D rotation matrix.
+        /// </summary>
+        /// <param name="rotation">The rotation.</param>
+        /// <returns>The rotation matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 matrix4rotation(Rotation2D rotation)
         {
@@ -298,6 +378,11 @@ namespace Alco
             return identity;
         }
 
+        /// <summary>
+        /// Returns the inverse of a matrix, or the identity matrix when it is not invertible.
+        /// </summary>
+        /// <param name="matrix">The matrix to invert.</param>
+        /// <returns>The inverse matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 inverse(in Matrix4x4 matrix)
         {
@@ -311,12 +396,22 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Returns the transpose of a matrix.
+        /// </summary>
+        /// <param name="matrix">The matrix to transpose.</param>
+        /// <returns>The transposed matrix.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Matrix4x4 transpose(in Matrix4x4 matrix)
         {
             return Matrix4x4.Transpose(matrix);
         }
 
+        /// <summary>
+        /// Returns the determinant of a matrix.
+        /// </summary>
+        /// <param name="matrix">The matrix to evaluate.</param>
+        /// <returns>The determinant.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float determinant(in Matrix4x4 matrix)
         {
@@ -380,12 +475,26 @@ namespace Alco
             rotation = Quaternion.Normalize(rotation);
         }
 
+        /// <summary>
+        /// Decomposes a matrix into scale, Euler angles in degrees, and translation.
+        /// </summary>
+        /// <param name="matrix">The matrix to decompose.</param>
+        /// <param name="scale">The scale of the matrix.</param>
+        /// <param name="eulerAngles">The Euler angles in degrees.</param>
+        /// <param name="translation">The translation of the matrix.</param>
         public static void decompose(in Matrix4x4 matrix, out Vector3 scale, out Vector3 eulerAngles, out Vector3 translation)
         {
             decompose(matrix, out scale, out Quaternion rotation, out translation);
             eulerAngles = euler(rotation);
         }
 
+        /// <summary>
+        /// Decomposes a matrix into 2D scale, rotation, and translation.
+        /// </summary>
+        /// <param name="matrix">The matrix to decompose.</param>
+        /// <param name="scale">The 2D scale of the matrix.</param>
+        /// <param name="rotation">The 2D rotation of the matrix.</param>
+        /// <param name="translation">The 2D translation of the matrix.</param>
         public static void decompose(in Matrix4x4 matrix, out Vector2 scale, out Rotation2D rotation, out Vector2 translation)
         {
             decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);
@@ -395,6 +504,13 @@ namespace Alco
             translation = new Vector2(translation3.X, translation3.Y);
         }
 
+        /// <summary>
+        /// Decomposes a matrix into 2D scale, rotation angle in degrees, and translation.
+        /// </summary>
+        /// <param name="matrix">The matrix to decompose.</param>
+        /// <param name="scale">The 2D scale of the matrix.</param>
+        /// <param name="angle">The rotation angle in degrees.</param>
+        /// <param name="translation">The 2D translation of the matrix.</param>
         public static void decompose(in Matrix4x4 matrix, out Vector2 scale, out float angle, out Vector2 translation)
         {
             decompose(matrix, out Vector3 scale3, out Quaternion rotation2, out Vector3 translation3);

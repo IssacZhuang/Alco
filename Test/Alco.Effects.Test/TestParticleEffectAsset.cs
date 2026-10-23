@@ -74,6 +74,7 @@ public class TestParticleEffectAsset
         }
         """;
 
+    /// <summary>Tests parsing a 2D effect with explicit values, defaults and strict member checking.</summary>
     [Test]
     public void ParsesEffect2DWithDefaultsAndStrictMembers()
     {
@@ -184,6 +185,7 @@ public class TestParticleEffectAsset
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffect>(bad, options));
     }
 
+    /// <summary>Tests that a group material loads an .amat asset with shared resources.</summary>
     [Test]
     public void GroupMaterialLoadsAnAmatAssetWithSharedResources()
     {
@@ -231,6 +233,7 @@ public class TestParticleEffectAsset
         });
     }
 
+    /// <summary>Tests that the GPU struct twins keep their expected layouts.</summary>
     [Test]
     public void GpuTwinsKeepTheirExpectedLayout()
     {
@@ -252,6 +255,7 @@ public class TestParticleEffectAsset
         });
     }
 
+    /// <summary>Tests that reverse flipbook playback sets the reverse flag bit.</summary>
     [Test]
     public void FlipbookReverseSetsTheReverseFlagBit()
     {
@@ -284,6 +288,7 @@ public class TestParticleEffectAsset
         });
     }
 
+    /// <summary>Tests flipbook cycle and frames-per-animation packing.</summary>
     [Test]
     public void FlipbookCyclesAreLifetimeRelative()
     {

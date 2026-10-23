@@ -3,15 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// A stable reference to a shader library — one composable unit of shader code
-/// (a pass template, a material surface, ...). Instances are interned by
-/// <see cref="ShaderSystem.GetLibrary"/>: one per module name, so library
-/// references compare by identity.
-/// <br/>Creation acquires the resource: the module is loaded and its reflection
-/// materialized eagerly, so failures surface at creation, never at first use.
-/// Hot reload refreshes the held reflection in place: identity survives a
-/// session rebuild, and a broken edit keeps the last-known-good reflection
-/// until the source compiles again.
+/// A stable, interned reference to a shader library, one composable unit of shader code.
+/// The module is loaded and reflected eagerly, and hot reload refreshes the reflection in place.
 /// </summary>
 public sealed class ShaderLibrary
 {
@@ -25,11 +18,8 @@ public sealed class ShaderLibrary
     public string Name { get; }
 
     /// <summary>
-    /// The library's reflection — its declared uniform blocks (with attributes
-    /// and members), texture slots and sampler slots; the library-domain
-    /// counterpart of a <see cref="Shader"/>'s linked reflection. Materialized
-    /// at creation and refreshed in place on hot-reload invalidation; reading it
-    /// never compiles and never throws.
+    /// The library's reflection: its uniform blocks, texture slots, and sampler slots.
+    /// Refreshed in place on hot reload.
     /// </summary>
     public ShaderLibraryReflection Reflection { get; internal set; }
 

@@ -69,6 +69,9 @@ public class LLMRetryTests
         };
     }
 
+    /// <summary>
+    /// Tests that a pre-token failure retries and succeeds on the second attempt.
+    /// </summary>
     [Test]
     public async Task Retry_BeforeFirstToken_SucceedsOnAttempt2()
     {
@@ -97,6 +100,9 @@ public class LLMRetryTests
         Assert.That(retries[0].ErrorType, Is.EqualTo(nameof(HttpRequestException)));
     }
 
+    /// <summary>
+    /// Tests that exhausted retries throw the last error.
+    /// </summary>
     [Test]
     public async Task Retry_Exhausted_ThrowsLast()
     {
@@ -132,6 +138,9 @@ public class LLMRetryTests
         Assert.That(retries[1].Attempt, Is.EqualTo(2));
     }
 
+    /// <summary>
+    /// Tests that a failure after the first token is not retried.
+    /// </summary>
     [Test]
     public async Task Retry_MidStreamFailure_DoesNotRetry()
     {
@@ -165,6 +174,9 @@ public class LLMRetryTests
         Assert.That(text, Is.EqualTo("Partial"));
     }
 
+    /// <summary>
+    /// Tests that user cancellation is not retried.
+    /// </summary>
     [Test]
     public void Retry_UserCancel_DoesNotRetry()
     {
@@ -188,6 +200,9 @@ public class LLMRetryTests
         Assert.That(client.GetStreamingResponseCallCount, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that a disabled retry policy throws immediately.
+    /// </summary>
     [Test]
     public async Task RetryDisabled_ThrowsImmediately()
     {
@@ -218,6 +233,9 @@ public class LLMRetryTests
         Assert.That(events.OfType<RequestRetryEvent>(), Is.Empty);
     }
 
+    /// <summary>
+    /// Tests that the final request retries on a transient error.
+    /// </summary>
     [Test]
     public async Task FinalRequest_RetriesOnTransientError()
     {
@@ -252,6 +270,9 @@ public class LLMRetryTests
         Assert.That(retry.RequestIndex, Is.EqualTo(128));
     }
 
+    /// <summary>
+    /// Tests that reaching the iteration cap yields a max-iterations event.
+    /// </summary>
     [Test]
     public async Task MaxIterationsReached_YieldsEvent()
     {

@@ -4,8 +4,16 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// View and graphics device creation for the engine.
+/// </summary>
 public partial class GameEngine
 {
+    /// <summary>
+    /// Creates a view using the platform backend.
+    /// </summary>
+    /// <param name="setting">The view configuration.</param>
+    /// <returns>The created view.</returns>
     public View CreateView(ViewSetting setting)
     {
         return _platform.CreateView(_graphicsDevice, setting);

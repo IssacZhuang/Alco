@@ -6,41 +6,9 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// Renders any number of 3D trail ribbons GPU-resident — the 3D counterpart of
-/// <see cref="GpuTrailSystem2D"/>: the CPU appends one point record per emission
-/// into the trail's ring slice of the shared point buffer, and the vertex stage
-/// handles validity, aging and the camera-facing quad expansion (module
-/// AlcoRendering_Trails3D). CPU work covers newly emitted points and bounded
-/// trail-slot scans for lifecycle, uploads and material batching; live points
-/// require no per-frame CPU simulation.
-/// <br/>Camera-facing expansion: a point bakes the head's travel direction as its
-/// tangent (not a ribbon normal like the 2D system); the vertex stage derives the
-/// across-ribbon axis per vertex from the tangent and the view direction off the
-/// <see cref="CameraPosition"/> record, so the ribbon stays a camera-facing strip
-/// free to wander through 3D space.
-/// <br/>Materials: the trail's <see cref="TrailEffect3D.Material"/> asset composes
-/// with the trail pass template (<see cref="RenderModule"/>, GpuTrail3D) through a
-/// <see cref="MaterialCompiler"/> the system owns — the asset's surface module
-/// (implementing ITrailSurface, module AlcoRendering_TrailSurface) shapes the
-/// look, the system compiles, caches per (asset, blend, depth), applies the pass
-/// state (premultiplied blend, depth-read, cull-none) and binds the shared buffers
-/// (the camera block and the trailPoints/trailParams/trailGlobals resources the
-/// template declares) — the same template-plus-surface design as the particle
-/// system's group materials. A null material selects the engine's default surface.
-/// <br/>Capacity model: one shared point buffer (sliced per trail in powers of two,
-/// clamped to 32..1024 points) plus one parameter record per trail slot, both fixed
-/// at construction — <see cref="TryCreateInstance"/> returns false when either is
-/// exhausted instead of growing, so the worst-case GPU cost is bounded by the budget.
-/// <br/>Draw batching: per frame (in <see cref="Render"/>) the live visible trails
-/// are bucketed by material, one <see cref="IndexedIndirectData"/> record per trail
-/// (firstInstance = trail slot, vertexOffset = sliceOffset * 4) is written
-/// contiguously per material, and every material draws with a single
-/// <see cref="RenderPassScope.MultiDrawIndexedIndirect(in Mesh, in GraphicsMaterial, GraphicsBuffer, uint, uint, in int)"/>
-/// — draw calls scale with the material count, not the trail count. Dead trails
-/// drop out of the plan entirely; dead segments collapse in the vertex stage.
-/// <br/>Threading: main-thread contract — creation, emission, <see cref="Update"/>
-/// and <see cref="Render"/> are all driven by the owning game on the main thread,
-/// like <see cref="DynamicMeshRenderer"/>.
+/// Renders any number of 3D trail ribbons GPU-resident — the 3D counterpart of <see cref="GpuTrailSystem2D"/>: the CPU appends point records into each trail's ring slice and the vertex stage handles aging and camera-facing expansion.
+/// Point slices and trail slots are fixed at construction, so <see cref="TryCreateInstance"/> returns false when either is exhausted.
+/// Creation, emission, <see cref="Update"/> and <see cref="Render"/> must all run on the main thread.
 /// </summary>
 public sealed class GpuTrailSystem3D : AutoDisposable
 {
@@ -274,14 +242,8 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     }
 
     /// <summary>
-    /// The 3D camera the trails render with; bound to every compiled material.
-    /// Accepts any view-projection matrix buffer (a <see cref="CameraPerspectiveBuffer"/>,
-    /// or the shared <see cref="RenderingSystem.MainCameraViewProjectionBuffer"/> to
-    /// track whatever camera is currently rendering). The compile path's factory
-    /// already binds the main camera buffer, so this only needs setting to override
-    /// it — materials compiled afterwards bind it at creation. The camera-facing
-    /// expansion additionally needs the camera's world position — see
-    /// <see cref="CameraPosition"/>.
+    /// The view-projection matrix buffer the trails render with, bound to every compiled material.
+    /// Defaults to the main camera buffer; materials compiled after assignment bind it at creation. Camera-facing expansion also needs <see cref="CameraPosition"/>.
     /// </summary>
     public GraphicsValueBuffer<Matrix4x4>? Camera
     {
@@ -300,11 +262,8 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     }
 
     /// <summary>
-    /// The world position of the camera the trails render for: the vertex stage
-    /// derives each ribbon point's view direction from it to face the strip to the
-    /// camera. Written into the trail globals at <see cref="Render"/>, so it tracks
-    /// the camera when assigned per frame; the default (the world origin) leaves
-    /// ribbons near the origin with a degenerate view direction.
+    /// The world position of the camera the trails render for, used by the vertex stage to face each ribbon strip to the camera.
+    /// Written into the trail globals at <see cref="Render"/>; the default is the world origin.
     /// </summary>
     public Vector3 CameraPosition
     {
@@ -399,12 +358,8 @@ public sealed class GpuTrailSystem3D : AutoDisposable
     }
 
     /// <summary>
-    /// Writes the per-frame globals (the trail clock and <see cref="CameraPosition"/>),
-    /// flushes the dirty point/parameter ranges, rebuilds the draw plan and records
-    /// the batched indirect draws into the current pass: one multi-draw per material.
-    /// Call from the scene content of the scene pass — the same entry shape as
-    /// <see cref="GpuTrailSystem2D.Render"/> — not available while recording a
-    /// render bundle (multi-draw indirect).
+    /// Writes the per-frame globals, flushes dirty point and parameter ranges, rebuilds the draw plan and records one batched multi-draw per material into the current pass.
+    /// Must be called from the scene content of the scene pass, not while recording a render bundle.
     /// </summary>
     /// <param name="pass">The render pass scope of the scene pass.</param>
     public void Render(RenderPassScope pass)

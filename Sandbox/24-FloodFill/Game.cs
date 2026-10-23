@@ -8,6 +8,7 @@ using Alco.IO;
 using SandboxUtils;
 using Alco.ImGUI;
 
+/// <summary>Sandbox demonstrating flood-fill light propagation over a tile map.</summary>
 public class Game : GameEngine
 {
 
@@ -22,6 +23,8 @@ public class Game : GameEngine
     private float _intensity = 1;
 
     private int _iterations = 32;
+    /// <summary>Initializes the flood-fill light map and render pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
 
     {

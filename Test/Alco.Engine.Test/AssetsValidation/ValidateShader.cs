@@ -4,6 +4,7 @@ using Alco.Rendering;
 
 namespace Alco.Engine.Test;
 
+/// <summary>Tests that all shipped Slang shaders compile.</summary>
 public class ValidateShader
 {
     /// <summary>
@@ -12,13 +13,17 @@ public class ValidateShader
     /// </summary>
     public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
 
+    /// <summary>A game engine subclass used to host shader validation.</summary>
     public class ShaderValidator : GameEngine
     {
+        /// <summary>Creates the validator with the given engine setting.</summary>
+        /// <param name="setting">Engine setting to use.</param>
         public ShaderValidator(GameEngineSetting setting) : base(setting)
         {
         }
     }
 
+    /// <summary>Tests that all shipped Slang files compile.</summary>
     [Test(Description = "Validate all shipped slang files compile")]
     public void ValidateAllShaders()
     {

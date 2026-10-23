@@ -7,6 +7,7 @@ using Alco.ImGUI;
 using Alco.IO;
 
 
+/// <summary>Sandbox demonstrating ImGui windows and common widgets.</summary>
 public class Game : GameEngine
 {
     private readonly GPUCommandBuffer _commandBuffer;
@@ -21,6 +22,8 @@ public class Game : GameEngine
 
     private Texture2D _texture;
 
+    /// <summary>Initializes the ImGui system and loads the demo texture and fonts.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));

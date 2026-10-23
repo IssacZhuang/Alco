@@ -33,6 +33,7 @@ public struct VertexElement
     /// </summary>
     public string Name { get; init; } = "unnamed_vertex_element";
 
+    /// <summary>Returns a diagnostic description of the vertex attribute.</summary>
     public override string ToString()
     {
         return $"Location: {Location}, Name: {Name}, Offset: {Offset}, Format: {Format} ";

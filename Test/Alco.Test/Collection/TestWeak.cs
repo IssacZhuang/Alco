@@ -3,6 +3,7 @@ using System.Collections.Generic;
 
 namespace Alco.Test
 {
+    /// <summary>Tests weak reference liveness before and after garbage collection.</summary>
     public class TestWeak
     {
         private class TestObject
@@ -15,6 +16,7 @@ namespace Alco.Test
             }
         }
 
+        /// <summary>Tests that a weak reference dies after its strong reference is cleared.</summary>
         [Test(Description = "WeakReference")]
         public void TestWeakReference()
         {

@@ -11,11 +11,7 @@ namespace Alco.Effects;
 internal static class ParticleEmission
 {
     /// <summary>
-    /// The maximum simulation time step the particle systems simulate per frame.
-    /// Frame deltas beyond it (hitches: first-use shader compilation, save load,
-    /// OS stalls) clamp, so transient effects play through the stall slightly
-    /// slower instead of fast-forwarding past their emission timeline and dying
-    /// in a single dispatch.
+    /// The maximum simulation time step the particle systems simulate per frame; larger frame deltas clamp so transient effects play through a stall instead of fast-forwarding past their timeline.
     /// </summary>
     public const float MaxDeltaTime = 0.1f;
 
@@ -106,12 +102,8 @@ internal static class ParticleEmission
         => duration <= 0f || looping || time < duration;
 
     /// <summary>
-    /// Advances one emitter group's lifecycle by a frame: while the group is playing
-    /// AND on its emission timeline, spawns via <see cref="Advance"/> and resets the
-    /// idle timer; otherwise (stopped, or a one-shot timeline that ran out) the idle
-    /// timer accumulates. A group past its emission stays active until every live
-    /// particle had time to die — this is what lets one-shot effects deactivate and
-    /// be destroyed instead of lingering forever.
+    /// Advances one emitter group's lifecycle by a frame: a playing group on its emission timeline spawns via <see cref="Advance"/> and resets the idle timer, otherwise the idle timer accumulates.
+    /// A group past its emission stays active until every live particle has died.
     /// </summary>
     /// <param name="time">The unwrapped timeline position in seconds.</param>
     /// <param name="accumulator">The fractional-particle accumulator of the continuous rate.</param>

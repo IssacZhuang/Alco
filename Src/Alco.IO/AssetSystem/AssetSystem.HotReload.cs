@@ -26,7 +26,6 @@ public sealed partial class AssetSystem
     /// <summary>
     /// Register a hot reloader for a specific asset type
     /// </summary>
-    /// <typeparam name="TAsset">The asset type</typeparam>
     /// <param name="hotReloader">The hot reloader implementation</param>
     public void RegisterAssetHotReloader(IAssetHotReloader hotReloader)
     {
@@ -40,7 +39,6 @@ public sealed partial class AssetSystem
     /// <summary>
     /// Unregister a hot reloader for a specific asset type
     /// </summary>
-    /// <typeparam name="TAsset">The asset type</typeparam>
     /// <param name="hotReloader">The hot reloader implementation</param>
     public void UnregisterAssetHotReloader(IAssetHotReloader hotReloader)
     {

@@ -4,13 +4,7 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Sum-of-gaussians bloom: the input is thresholded into a
-/// half-resolution setup texture, downsampled to 1/64 through a five-level
-/// chain, then six independently-sized separable gaussians (Bloom1..6) are
-/// blurred at the chain level where each radius is cheapest and accumulated
-/// coarse-to-fine, each weighted by tint * intensity / 6. The accumulation,
-/// at the last executed stage's resolution, is finally composited additively
-/// onto the scene image.
+/// A sum-of-gaussians bloom post-process that blurs a thresholded image at multiple resolutions and composites the accumulation additively onto the scene.
 /// </summary>
 public class Bloom : TextureProcessor
 {
@@ -78,11 +72,8 @@ public class Bloom : TextureProcessor
     private RenderTexture[]? _stageTextures;
 
     /// <summary>
-    /// Gets or sets the brightness cutoff of the bloom setup pass. The threshold
-    /// is a linear ramp reaching full strength two units above the cutoff;
-    /// negative values disable it so the whole image blooms. Defaults to 0: the
-    /// darkest pixels contribute less while everything at or above two units of
-    /// luminance blooms at full strength.
+    /// Gets or sets the brightness cutoff of the bloom setup pass.
+    /// Negative values disable thresholding; defaults to 0.
     /// </summary>
     public float Threshold
     {

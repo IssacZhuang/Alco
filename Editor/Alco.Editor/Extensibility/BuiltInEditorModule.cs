@@ -5,13 +5,8 @@ using Alco.Rendering;
 namespace Alco.Editor.Extensibility;
 
 /// <summary>
-/// The editor's built-in defaults: the document factories for the asset types the
-/// engine ships editors for, the default particle preview environment, the File and
-/// Window menus, the particle effect asset templates and the engine's meta types.
-/// <see cref="EditorSystem"/> registers this module first, so modules passed to it
-/// can override any of these registrations.
-/// <br/>The menu items resolve the shell (<see cref="EditorSystem"/>) lazily through
-/// the service bag: the module runs while the shell is still being constructed.
+/// The editor's built-in defaults: document factories for engine asset types, the default particle preview environment, File and Window menus, particle effect templates and engine meta types.
+/// <see cref="EditorSystem"/> registers this module first, so later modules can override any of these registrations.
 /// </summary>
 public sealed class BuiltInEditorModule : IEditorModule
 {

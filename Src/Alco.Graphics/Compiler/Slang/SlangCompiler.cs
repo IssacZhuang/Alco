@@ -46,23 +46,16 @@ public sealed class SlangCompilerOptions
     public SlangCodeTarget Target { get; init; } = SlangCodeTarget.Spirv;
 
     /// <summary>
-    /// Normalizes each SPIR-V entry blob through <see cref="SpirvNormalizer"/>
-    /// before it is cached or handed to the GPU library. Required when the
-    /// SPIR-V is consumed through Naga translation (the D3D12 path): Naga 30's
-    /// SPIR-V frontend miscompiles enclosing-loop breaks through Slang's
-    /// default-only switch wrappers, so the redundant wrappers are removed
-    /// while the bytes are still under the compiler's control. Leave false for
-    /// backends that pass slang's SPIR-V through untouched (Vulkan).
+    /// Whether each SPIR-V entry blob is normalized by <see cref="SpirvNormalizer"/>
+    /// before caching; required when the SPIR-V is consumed through Naga translation
+    /// (the D3D12 path), leave false for Vulkan.
     /// </summary>
     public bool NormalizeSpirvForNaga { get; init; }
 
     /// <summary>
-    /// Optional profile override for the target (e.g. "spirv_1_5", "sm_6_6").
-    /// Null selects the target's pinned default: SPIR-V 1.3 (so a bundled compiler
-    /// update cannot silently change the dialect), DXIL shader model 6.0 (the
-    /// only level every SM6 driver guarantees) and metallib 2.3 (the oldest
-    /// dialect every macOS 13 / iOS 16 runtime loads; newer OSes load it fine).
-    /// MSL has no profile name in slang; an override must be null for it.
+    /// Optional profile override for the target (e.g. "spirv_1_5", "sm_6_6"); null
+    /// selects the target's pinned default (SPIR-V 1.3, shader model 6.0, metallib 2.3).
+    /// MSL has no profile name, so an override must be null for it.
     /// </summary>
     public string? TargetProfile { get; init; }
 
@@ -136,12 +129,8 @@ public sealed class SlangProgram : IDisposable
 }
 
 /// <summary>
-/// Stateless view over the process-wide slang global session (the slang core
-/// module). The global session is created on first use and never released —
-/// releasing it while any module system (or the serialized-IR caches it
-/// stamped) outlives one would invalidate slang's process-wide state, and its
-/// one-time cost is irrelevant next to the compiles it serves. Dispose is a
-/// no-op; dispose the <see cref="SlangCompileSession"/>s instead.
+/// Facade over the process-wide slang global session, which is created on first use
+/// and never released. Dispose is a no-op; dispose the compile sessions instead.
 /// </summary>
 public sealed class SlangCompiler : IDisposable
 {
@@ -160,13 +149,9 @@ public sealed class SlangCompiler : IDisposable
     }
 
     /// <summary>
-    /// Whether slang can actually produce metallib containers on this machine.
-    /// <see cref="SlangGlobalSession.CheckCompileTargetSupport"/> is not enough: it
-    /// only reports whether the metallib codegen is compiled into slang, while the
-    /// codegen shells out to Apple's Metal toolchain (xcrun metal on macOS, the Metal
-    /// Developer Tools on Windows) and fails with error E52002 where that toolchain
-    /// is absent. The honest probe is one trial compile of a minimal module; the
-    /// result is cached for the process.
+    /// Whether slang can actually produce metallib containers on this machine,
+    /// probed once with a trial compile (the metallib codegen shells out to Apple's
+    /// Metal toolchain) and cached for the process.
     /// </summary>
     public bool MetalLibSupported => _metalLibSupported ??= ProbeMetalLibSupport();
 
@@ -407,22 +392,11 @@ public sealed class SlangCompileSession : IDisposable
     }
 
     /// <summary>
-    /// Compiles every [shader(...)] entry point of <paramref name="entryModule"/> into a
-    /// program composed with <paramref name="companionModule"/> — the material-composition
-    /// path: the template module owns the (generic) entry points, the companion (surface)
-    /// module contributes the surface type. The surface type is <b>discovered, never
-    /// named</b>: the template's generic entry points declare the surface contract as the
-    /// constraint of their first type parameter, and the companion module must export
-    /// exactly one public struct implementing that interface — checked with slang's own
-    /// subtype reflection, so a renamed or mismatched implementation cannot slip through.
-    /// Every generic entry point specializes with the discovered type; its value
-    /// parameters (e.g. the shadow template's AlphaTest flag) consume
-    /// <paramref name="valueSpecializationArgs"/> in entry order.
-    /// <br/>A template whose generic entry points carry only value parameters (no surface
-    /// type — e.g. a particle pass's facade/fade flags), or no generic parameters at all,
-    /// links without a type argument: every specialization parameter consumes a value
-    /// argument. The companion still links in, contributing its parameter blocks and
-    /// texture slots — for parameter-only effects the template is its own surface.
+    /// Compiles every [shader(...)] entry point of <paramref name="entryModule"/> into
+    /// a program composed with <paramref name="companionModule"/>. The surface type is
+    /// discovered from the template's first generic type-parameter constraint and the
+    /// companion module must export exactly one public struct implementing it; value
+    /// specialization arguments are consumed in entry order.
     /// </summary>
     /// <exception cref="ShaderCompilationException">
     /// The companion module exports no type implementing the contract, or more than one
@@ -525,13 +499,9 @@ public sealed class SlangCompileSession : IDisposable
 
     /// <summary>
     /// The surface contract of a template: the constraint of the first type parameter
-    /// of its generic entry points (a generic function declaration in the module's
-    /// declaration tree — generic helper types are skipped). All type-generic entry
-    /// points must agree on one contract; an entry point without generic parameters
-    /// links without a type argument (IntPtr.Zero), and so does one whose generics
-    /// carry only value parameters (e.g. a particle pass's fade flags). A module
-    /// mixing type-generic and value-only entries is rejected — its parameters could
-    /// not be mapped consistently.
+    /// of its generic entry points, or zero when the entries are non-generic or
+    /// value-only. All type-generic entries must agree on one contract, and mixing
+    /// type-generic with value-only entries is rejected.
     /// </summary>
     private static unsafe IntPtr DiscoverSurfaceContract(SlangModuleHandle template, out string contractName)
     {
@@ -666,12 +636,10 @@ public sealed class SlangCompileSession : IDisposable
     }
 
     /// <summary>
-    /// The module-level library reflection of a module — every uniform/parameter
-    /// block it declares (with user-defined attributes and float-shaped members)
-    /// and every sampled-texture slot — read from the module's own layout, no
-    /// entry points, no link. Domain-neutral: attribute markers are filtered by
-    /// the caller, and blocks whose members do not all fit the float view are
-    /// reported, not rejected.
+    /// The module-level library reflection — every uniform/parameter block with its
+    /// attributes and float-shaped members, plus every sampled-texture slot — read
+    /// from the module's own layout without entry points or linking. Blocks whose
+    /// members do not all fit the float view are reported, not rejected.
     /// </summary>
     public ShaderLibraryReflection GetModuleReflection(SlangModuleHandle module)
     {
@@ -905,10 +873,7 @@ public sealed class SlangModuleHandle
 
     /// <summary>
     /// The module's [shader(...)] entry point count and whether any entry point
-    /// declares generic parameters — (0, false) for import-only libraries. The
-    /// front-end has already checked every entry (and every branch of its
-    /// generic bodies) at module load; a module with no generic entry links
-    /// unspecialized, a generic one needs its arguments at link time.
+    /// declares generic parameters; (0, false) for import-only libraries.
     /// </summary>
     public (int Count, bool AnyGeneric) GetEntryPointInfo()
     {

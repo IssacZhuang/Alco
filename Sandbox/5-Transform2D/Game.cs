@@ -6,6 +6,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco;
 
+/// <summary>Sandbox demonstrating 2D transforms with animated quads.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -49,6 +50,8 @@ public class Game : GameEngine
 
     private float _timeMove = 0.0f;
 
+    /// <summary>Initializes the quad buffers, textures, and transforms.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

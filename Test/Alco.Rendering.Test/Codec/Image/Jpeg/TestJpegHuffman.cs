@@ -4,6 +4,9 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>
+/// Tests JPEG Huffman table construction, symbol decoding, and receive-extend decoding.
+/// </summary>
 [TestFixture]
 public class TestJpegHuffman
 {
@@ -47,6 +50,9 @@ public class TestJpegHuffman
         0xF9, 0xFA,
     ];
 
+    /// <summary>
+    /// Tests building the standard DC luminance Huffman table.
+    /// </summary>
     [Test]
     public void BuildTable_StandardDCLuminance()
     {
@@ -81,6 +87,9 @@ public class TestJpegHuffman
         Assert.That(table.Table[384].Length, Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests building the standard AC luminance Huffman table.
+    /// </summary>
     [Test]
     public void BuildTable_StandardACLuminance()
     {
@@ -109,6 +118,9 @@ public class TestJpegHuffman
         Assert.That(table.Table[16384].Length, Is.EqualTo(2));
     }
 
+    /// <summary>
+    /// Tests decoding a known bit pattern against a small Huffman table.
+    /// </summary>
     [Test]
     public void DecodeSymbol_KnownPattern()
     {
@@ -142,6 +154,9 @@ public class TestJpegHuffman
         Assert.That(sym1, Is.EqualTo(1), "Third symbol should be 1");
     }
 
+    /// <summary>
+    /// Tests decoding known codes from the standard DC luminance table.
+    /// </summary>
     [Test]
     public void DecodeSymbol_StandardDCLuminance_KnownCodes()
     {
@@ -160,6 +175,9 @@ public class TestJpegHuffman
         Assert.That(JpegHuffman.DecodeSymbol(ref bitBuffer, ref bitsAvailable, data, ref dataPos, table), Is.EqualTo(6));
     }
 
+    /// <summary>
+    /// Tests receive-extend for a positive four-bit value.
+    /// </summary>
     [Test]
     public void ReceiveExtend_PositiveValue()
     {
@@ -173,6 +191,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.EqualTo(8));
     }
 
+    /// <summary>
+    /// Tests receive-extend for a negative four-bit value.
+    /// </summary>
     [Test]
     public void ReceiveExtend_NegativeValue()
     {
@@ -186,6 +207,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.EqualTo(-12));
     }
 
+    /// <summary>
+    /// Tests that receive-extend with zero bits consumes no input.
+    /// </summary>
     [Test]
     public void ReceiveExtend_ZeroBits()
     {
@@ -202,6 +226,9 @@ public class TestJpegHuffman
         Assert.That(dataPos, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests receive-extend for a single zero bit.
+    /// </summary>
     [Test]
     public void ReceiveExtend_OneBit_Zero()
     {
@@ -215,6 +242,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.EqualTo(-1));
     }
 
+    /// <summary>
+    /// Tests receive-extend for a single one bit.
+    /// </summary>
     [Test]
     public void ReceiveExtend_OneBit_One()
     {
@@ -228,6 +258,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.EqualTo(1));
     }
 
+    /// <summary>
+    /// Tests that a code-length array of the wrong size is rejected.
+    /// </summary>
     [Test]
     public void BuildTable_InvalidCodeLengthsCount_ReturnsFalse()
     {
@@ -239,6 +272,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.False);
     }
 
+    /// <summary>
+    /// Tests that a values array shorter than the code count is rejected.
+    /// </summary>
     [Test]
     public void BuildTable_ValuesTooShort_ReturnsFalse()
     {
@@ -250,6 +286,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.False);
     }
 
+    /// <summary>
+    /// Tests that an empty table builds with zero table bits.
+    /// </summary>
     [Test]
     public void BuildTable_EmptyTable_Succeeds()
     {
@@ -264,6 +303,9 @@ public class TestJpegHuffman
         Assert.That(table.TableBits, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that decoding an empty stream returns -1.
+    /// </summary>
     [Test]
     public void DecodeSymbol_EmptyStream_ReturnsMinusOne()
     {
@@ -282,6 +324,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.EqualTo(-1), "Should return -1 when no data available");
     }
 
+    /// <summary>
+    /// Tests receive-extend for the maximum positive four-bit value.
+    /// </summary>
     [Test]
     public void ReceiveExtend_AllPositiveValues_4Bits()
     {
@@ -295,6 +340,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.EqualTo(15));
     }
 
+    /// <summary>
+    /// Tests receive-extend for the minimum negative four-bit value.
+    /// </summary>
     [Test]
     public void ReceiveExtend_AllNegativeValues_4Bits()
     {
@@ -308,6 +356,9 @@ public class TestJpegHuffman
         Assert.That(result, Is.EqualTo(-15));
     }
 
+    /// <summary>
+    /// Tests decoding a category symbol followed by its receive-extend value.
+    /// </summary>
     [Test]
     public void DecodeAndExtend_IntegrationTest()
     {

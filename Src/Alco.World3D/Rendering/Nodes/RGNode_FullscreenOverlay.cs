@@ -5,12 +5,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A graph node that draws a full-screen material in place into the chain's current
-/// content, reading and writing it — the shape of additive overlays such as
-/// volumetric light. The node never advances the chain; on headless frames (null
-/// destination) it roots itself so it still runs.
-/// <br/>The pass scope comes from the frame-shared render context; the node does
-/// not own the material.
+/// A graph node that draws a full-screen material in place into the chain's current content, reading and writing it. The node never advances the chain and does not own the material.
 /// </summary>
 public sealed class RGNode_FullscreenOverlay : AutoDisposable, IRenderGraphNode
 {

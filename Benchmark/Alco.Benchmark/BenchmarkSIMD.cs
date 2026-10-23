@@ -8,6 +8,9 @@ using BenchmarkDotNet.Attributes;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks filling large Vector4 and uint arrays with standard loops, unsafe pointers, SIMD, and Span operations.
+/// </summary>
 public class BenchmarkSIMD
 {
     private const int ArraySize = 1000000;
@@ -18,6 +21,9 @@ public class BenchmarkSIMD
     private Vector4 _vectorValue = new Vector4(1.0f, 2.0f, 3.0f, 4.0f);
     private uint _uintValue = 42;
 
+    /// <summary>
+    /// Allocates the arrays used by the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -25,6 +31,9 @@ public class BenchmarkSIMD
         _uintArray = new uint[ArraySize];
     }
 
+    /// <summary>
+    /// Benchmarks filling a Vector4 array with a standard loop.
+    /// </summary>
     [Benchmark(Description = "Vector4 Array - Standard Loop")]
     public void Vector4StandardLoop()
     {
@@ -34,6 +43,9 @@ public class BenchmarkSIMD
         }
     }
 
+    /// <summary>
+    /// Benchmarks filling a Vector4 array through an unsafe pointer.
+    /// </summary>
     [Benchmark(Description = "Vector4 Array - Unsafe Pointer")]
     public unsafe void Vector4UnsafePointer()
     {
@@ -46,6 +58,9 @@ public class BenchmarkSIMD
         }
     }
 
+    /// <summary>
+    /// Benchmarks filling a Vector4 array with AVX stores.
+    /// </summary>
     [Benchmark(Description = "Vector4 Array - SIMD")]
     public unsafe void Vector4SIMD()
     {
@@ -79,6 +94,9 @@ public class BenchmarkSIMD
         }
     }
 
+    /// <summary>
+    /// Benchmarks filling a uint array with a standard loop.
+    /// </summary>
     [Benchmark(Description = "UInt Array - Standard Loop")]
     public void UIntStandardLoop()
     {
@@ -88,6 +106,9 @@ public class BenchmarkSIMD
         }
     }
 
+    /// <summary>
+    /// Benchmarks filling a uint array through an unsafe pointer.
+    /// </summary>
     [Benchmark(Description = "UInt Array - Unsafe Pointer")]
     public unsafe void UIntUnsafePointer()
     {
@@ -100,6 +121,9 @@ public class BenchmarkSIMD
         }
     }
 
+    /// <summary>
+    /// Benchmarks filling a uint array with SIMD stores.
+    /// </summary>
     [Benchmark(Description = "UInt Array - SIMD")]
     public unsafe void UIntSIMD()
     {
@@ -140,6 +164,9 @@ public class BenchmarkSIMD
         }
     }
 
+    /// <summary>
+    /// Benchmarks filling a uint array through Span.Fill.
+    /// </summary>
     [Benchmark(Description = "UInt Array - Span Fill")]
     public void UIntSpanFill()
     {
@@ -147,6 +174,9 @@ public class BenchmarkSIMD
         span.Fill(_uintValue);
     }
 
+    /// <summary>
+    /// Benchmarks filling a Vector4 array through a Span.
+    /// </summary>
     [Benchmark(Description = "Vector4 Array - Span Fill")]
     public void Vector4SpanFill()
     {

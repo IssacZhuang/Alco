@@ -58,13 +58,9 @@ public enum FXAAMode
 }
 
 /// <summary>
-/// Fast Approximate Anti-Aliasing (FXAA) post-processing effect.
-/// Provides screen-space anti-aliasing with minimal performance cost.
-/// FXAA 3.11's luma-based edge detection assumes tone-mapped input: register
-/// the node after the tonemap node — on linear HDR the bright regions dominate
-/// the luma range and edges in the darks get missed or over-blurred.
-/// <br/>The mode axis selects the edge detector (see <see cref="FXAAMode"/>);
-/// the depth-aware modes sample <see cref="DepthSource"/>'s depth attachment.
+/// Fast Approximate Anti-Aliasing post-processing effect, intended to run after tone mapping
+/// because its edge detection assumes tone-mapped input. The mode axis selects luma or
+/// depth-aware edge detection (see <see cref="FXAAMode"/>).
 /// </summary>
 public class FXAA : TextureProcessor
 {

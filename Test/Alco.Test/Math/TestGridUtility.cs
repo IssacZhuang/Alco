@@ -5,9 +5,11 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>Tests grid line rasterization utilities.</summary>
     [TestFixture]
     public class TestGridUtility
     {
+        /// <summary>Tests that Bresenham lines include both endpoints and the expected point count.</summary>
         [Test]
         public void Bresenham_IncludesEndpoints_And_CountIsMaxDxDyPlusOne()
         {
@@ -33,6 +35,7 @@ namespace Alco.Test
             Assert.That(list.Count, Is.EqualTo(6));
         }
 
+        /// <summary>Tests that the span overload matches the list overload and respects capacity.</summary>
         [Test]
         public void Bresenham_SpanMatchesList_And_RespectsCapacity()
         {
@@ -55,6 +58,7 @@ namespace Alco.Test
             Assert.That(truncated, Is.EqualTo(small.Length));
         }
 
+        /// <summary>Tests supercover lines for basic shapes with endpoint and count checks.</summary>
         [Test]
         public void Supercover_BasicShapes_EndpointsAndCounts()
         {
@@ -87,6 +91,7 @@ namespace Alco.Test
             Assert.That(list.Count, Is.EqualTo(Math.Abs(3 - 0) + 1));
         }
 
+        /// <summary>Tests that the supercover span overload matches the list overload and respects capacity.</summary>
         [Test]
         public void Supercover_SpanMatchesList_And_RespectsCapacity()
         {

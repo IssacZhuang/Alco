@@ -34,14 +34,8 @@ public sealed unsafe class UniformGraphicsBuffer : GraphicsBuffer
     public string BlockName => _blockName;
 
     /// <summary>
-    /// Writes one member by name, staging the value at the member's reflected
-    /// offset. A scalar/vector/matrix member takes its matching unmanaged type
-    /// (e.g. <c>float3</c> ↔ <c>Vector3</c>); integer members marshal through
-    /// the same-width managed types (e.g. <c>uint</c> ↔ <c>uint</c>), and
-    /// <see langword="bool"/> marshals to the GPU's 4-byte 0/1. The value's
-    /// scalar kind must match the member's reflected type — an <see langword="int"/>
-    /// written to a <c>float</c> member is a silent garbage reinterpretation, so
-    /// it throws instead.
+    /// Writes one member by name at its reflected offset, marshalling <see langword="bool"/>
+    /// to the GPU's 4-byte 0/1 form; the value's scalar kind must match the member type.
     /// </summary>
     /// <param name="name">The member name, as reflected.</param>
     /// <param name="value">The value to write (blitted raw once the kind matches).</param>

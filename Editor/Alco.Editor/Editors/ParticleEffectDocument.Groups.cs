@@ -9,12 +9,8 @@ using Alco.Rendering;
 namespace Alco.Editor;
 
 /// <summary>
-/// The parameter pane of <see cref="ParticleEffectDocument"/>: the effect header and
-/// one collapsing section per emitter group exposing every asset field. Fields baked
-/// into the GPU parameter record hot-apply to the preview (<see cref="OnLiveEdit"/>);
-/// structural fields (capacity, timeline, bursts, behavior/material/texture, blend,
-/// over-life tables, the group list itself) schedule a preview rebuild
-/// (<see cref="OnStructuralEdit"/>).
+/// The parameter pane of <see cref="ParticleEffectDocument"/>: the effect header and one collapsing section per emitter group.
+/// GPU-record fields hot-apply to the preview; structural fields schedule a preview rebuild.
 /// </summary>
 public sealed partial class ParticleEffectDocument
 {

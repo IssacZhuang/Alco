@@ -48,6 +48,7 @@ public class TestShaderResourceMapping
         }
         """;
 
+    /// <summary>Tests that settable resources receive dense ids in reflection order while sampler companions are excluded.</summary>
     [Test(Description = "Settable resources get dense ids in reflection order; sampler companions are excluded")]
     public void Reflection_DenseResourceMapping_ExcludesCompanions()
     {

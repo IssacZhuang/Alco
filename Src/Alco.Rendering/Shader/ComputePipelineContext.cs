@@ -3,6 +3,9 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// The state cache for a compute pipeline.
+/// </summary>
 public struct ComputePipelineContext
 {
     public GPUPipeline? Pipeline;
@@ -16,13 +19,23 @@ public struct ComputePipelineContext
     /// </summary>
     public string[]? Specializations;
 
+    /// <summary>
+    /// A default context with no pipeline or reflection info set.
+    /// </summary>
     public static readonly ComputePipelineContext Default = new ComputePipelineContext();
 
+    /// <summary>
+    /// Creates a context with no pipeline set.
+    /// </summary>
     public ComputePipelineContext()
     {
         Version = 0;
     }
 
+    /// <summary>
+    /// Creates a context with the given shader reflection info.
+    /// </summary>
+    /// <param name="reflectionInfo">The shader reflection info.</param>
     public ComputePipelineContext(ShaderReflection reflectionInfo)
     {
         ReflectionInfo = reflectionInfo;
@@ -30,13 +43,11 @@ public struct ComputePipelineContext
     }
 
     /// <summary>
-    /// Tries to get the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
+    /// Tries to resolve the binding id of a shader resource by name.
     /// </summary>
     /// <param name="name">The name of the resource.</param>
-
-    /// <param name="resourceId">The resource ID if found, otherwise 0.</param>
-    /// <returns>True if the resource sID was found, false otherwise.</returns>
+    /// <param name="resourceId">The resolved resource id, or 0 when not found.</param>
+    /// <returns><c>true</c> when the resource was found; otherwise <c>false</c>.</returns>
     public readonly bool TryGetResourceId(string name, out uint resourceId)
     {
         if (ReflectionInfo == null)
@@ -48,12 +59,12 @@ public struct ComputePipelineContext
     }
 
     /// <summary>
-    /// Gets the resource ID associated with the given name.
-    /// <br/> <c>thread safe.</c>
+    /// Resolves the binding id of a shader resource by name.
     /// </summary>
     /// <param name="name">The name of the resource.</param>
-    /// <throws>KeyNotFoundException if the resource is not found.</throws>
-    /// <returns>The resource ID.</returns>
+    /// <returns>The resolved resource id.</returns>
+    /// <exception cref="KeyNotFoundException">No resource with the given name exists in the shader.</exception>
+    /// <exception cref="Exception">The context has no reflection info.</exception>
     public readonly uint GetResourceId(string name)
     {
         if (ReflectionInfo == null)

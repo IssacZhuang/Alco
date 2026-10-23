@@ -7,15 +7,8 @@ using System.Runtime.Intrinsics;
 namespace Alco
 {
     /// <summary>
-    /// An <see cref="IBvhBuilder2D"/> that fully preserves the caller's input order: leaf blocks
-    /// and child lanes follow the collider sequence exactly, so the tree is a balanced 4-ary
-    /// range tree over the input and the build never reorders anything. Use it when the caller
-    /// maintains the collider order itself (for example incrementally re-sorting a persistent
-    /// collection every tick for spatial coherence) and only needs the BVH to accelerate
-    /// queries; tree quality then depends entirely on the input order. The historical name
-    /// refers to the original binary pairwise-merge builder with the same order contract.
-    /// The builder keeps no per-build scratch memory, so one instance can serve any number of
-    /// trees (builds themselves must not run concurrently, as with any builder).
+    /// An <see cref="IBvhBuilder2D"/> that preserves the caller's input order exactly, producing a balanced 4-ary range tree without reordering colliders.
+    /// The builder keeps no per-build scratch memory, so one instance can serve multiple trees as long as builds do not run concurrently.
     /// </summary>
     public unsafe class PairingOrderBvhBuilder2D : IBvhBuilder2D
     {

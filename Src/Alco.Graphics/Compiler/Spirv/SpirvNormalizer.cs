@@ -12,16 +12,9 @@ namespace Alco.Graphics;
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// <summary>
-/// Rewrites slang-emitted SPIR-V before Naga consumes it on backends that
-/// translate SPIR-V instead of passing it through (D3D12). Removes redundant
-/// default-only switch wrappers inside loops; source-continue shapes expand a
-/// dominance chain of selections through the loop-body tail with fresh, unique
-/// merge labels. Existing values and phi predecessors stay unchanged;
-/// phi-bearing tail merges and ambiguous shapes without nonlocal loop breaks
-/// are preserved, while unsupported nonlocal loop breaks fail before Naga can
-/// miscompile them. Valid SPIR-V IDs and their header bound are prerequisites —
-/// this pass is not a complete module validator. The input array is never
-/// modified; failures throw <see cref="ShaderCompilationException"/>.
+/// Rewrites Slang-emitted SPIR-V before Naga consumes it on translating backends
+/// such as D3D12, removing redundant default-only switch wrappers inside loops.
+/// The input array is never modified; failures throw <see cref="ShaderCompilationException"/>.
 /// </summary>
 public static class SpirvNormalizer
 {

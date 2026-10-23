@@ -4,14 +4,23 @@ using BenchmarkDotNet.Attributes;
 
 namespace Alco.Benchmark;
 
+/// <summary>
+/// Benchmarks encoding a small object with XmlDocument, System.Text.Json, and BinaryTable.
+/// </summary>
 public class BenchmarkSerializationEncoding
 {
 
+    /// <summary>
+    /// Prepares the benchmark state.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
     }
 
+    /// <summary>
+    /// Benchmarks encoding an object with XmlDocument.
+    /// </summary>
     [Benchmark(Description = "XmlDocument encoding")]
     public void XmlDocumentEncoding()
     {
@@ -33,6 +42,9 @@ public class BenchmarkSerializationEncoding
         string xml = doc.OuterXml;
     }
 
+    /// <summary>
+    /// Benchmarks encoding an object with System.Text.Json.
+    /// </summary>
     [Benchmark(Description = "JsonDocument encoding")]
     public void JsonDocumentEncoding()
     {
@@ -48,6 +60,9 @@ public class BenchmarkSerializationEncoding
         });
 
     }
+    /// <summary>
+    /// Benchmarks encoding an object with BinaryTable.
+    /// </summary>
     [Benchmark(Description = "BinaryTable encoding")]
     public void BinaryTableEncoding(){
         BinaryTable table = new BinaryTable();
@@ -59,12 +74,18 @@ public class BenchmarkSerializationEncoding
     }
 }
 
+/// <summary>
+/// Benchmarks decoding a small object with XmlDocument, System.Text.Json, and BinaryTable.
+/// </summary>
 public class BenchmarkSerializationDecoding
 {
     private string _xmlInput;
     private string _jsonInput;
     private ReadOnlyMemory<byte> _binaryInput;
 
+    /// <summary>
+    /// Builds the XML, JSON, and binary inputs from the same object.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -105,6 +126,9 @@ public class BenchmarkSerializationDecoding
         _binaryInput = BinaryParser.EncodeTable(table);
     }
 
+    /// <summary>
+    /// Benchmarks decoding an object with XmlDocument.
+    /// </summary>
     [Benchmark(Description = "XmlDocument decoding")]
     public void XmlDocumentDecoding()
     {
@@ -112,12 +136,18 @@ public class BenchmarkSerializationDecoding
         doc.LoadXml(_xmlInput);
     }
 
+    /// <summary>
+    /// Benchmarks decoding an object with System.Text.Json.
+    /// </summary>
     [Benchmark(Description = "JsonDocument decoding")]
     public void JsonDocumentDecoding()
     {
         JsonDocument doc = JsonDocument.Parse(_jsonInput);
     }
 
+    /// <summary>
+    /// Benchmarks decoding an object with BinaryTable.
+    /// </summary>
     [Benchmark(Description = "BinaryTable decoding")]
     public void BinaryTableDecoding()
     {

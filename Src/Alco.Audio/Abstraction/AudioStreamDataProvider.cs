@@ -9,15 +9,7 @@ namespace Alco.Audio;
 /// blocks the main thread.
 /// </summary>
 /// <remarks>
-/// A subclass implements three synchronous methods (<see cref="OpenCore"/>,
-/// <see cref="ReadCore"/>, <see cref="ResetCore"/>) that run strictly one at a time on the pool
-/// thread, while the public API (<see cref="WaitForOpen"/>, <see cref="ReadSamples"/>,
-/// <see cref="Reset"/>, <see cref="Dispose"/>) is called only from the main (owner) thread —
-/// so subclass methods need no locking. Two slots are kept ready: while the main thread consumes
-/// slot N, the pool thread decodes the previous slot; <see cref="ReadSamples"/> returns the ready
-/// slot immediately (a <see cref="Span{T}"/> copy) and hands the consumed slot back for refill.
-/// Decodes are serialized (the decoder is not thread-safe); the 3-buffer OpenAL ring provides
-/// ample slack so the refill never blocks the main thread in practice.
+/// Subclass methods run serially on a pool thread while the public API is main-thread only, so subclasses need no locking; two prefetched slots keep decoding off the consumer's path.
 /// </remarks>
 public abstract unsafe class AudioStreamDataProvider : IAudioStreamDataProvider
 {

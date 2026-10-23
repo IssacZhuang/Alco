@@ -4,16 +4,30 @@ using System.Numerics;
 
 namespace Alco;
 
+/// <summary>
+/// A Hermite curve of 4D vectors.
+/// </summary>
 public class CurveHermite4D : BaseCurveHermite<Vector4>
 {
+    /// <summary>
+    /// Initializes an empty curve.
+    /// </summary>
     public CurveHermite4D()
     {
     }
 
+    /// <summary>
+    /// Initializes a curve from the given control points.
+    /// </summary>
+    /// <param name="points">The control points of the curve.</param>
     public CurveHermite4D(ReadOnlySpan<CurvePoint<Vector4>> points) : base(points)
     {
     }
 
+    /// <summary>
+    /// Initializes a curve from the given control points.
+    /// </summary>
+    /// <param name="points">The control points of the curve.</param>
     public CurveHermite4D(IReadOnlyList<CurvePoint<Vector4>> points) : base(points)
     {
     }

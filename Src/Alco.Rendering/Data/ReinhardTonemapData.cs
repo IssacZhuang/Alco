@@ -1,5 +1,8 @@
 namespace Alco.Rendering;
 
+/// <summary>
+/// Reinhard tonemap operator settings.
+/// </summary>
 public struct ReinhardTonemapData
 {
     public float MaxLuminance;

@@ -4,16 +4,11 @@ using NUnit.Framework;
 namespace Alco.Effects.Test;
 
 /// <summary>
-/// Tests of <see cref="EmitterParams2D.MergeEdited"/> and
-/// <see cref="EmitterParams3D.MergeEdited"/>: the merge behind the live
-/// parameter editing of a running effect instance
-/// (<see cref="ParticleEffectInstance2D.SetGroupParams"/> /
-/// <see cref="ParticleEffectInstance3D.SetGroupParams"/>) — the static fields
-/// come from the edited record while the slot-bound and per-frame fields keep
-/// their live values.
+/// Tests that 2D and 3D emitter parameter edits merge while retaining slot-bound and per-frame fields.
 /// </summary>
 public class TestEmitterParamsMerge
 {
+    /// <summary>Tests that merging 2D emitter edits keeps slot-bound and per-frame fields.</summary>
     [Test]
     public void Merge2DKeepsSlotBoundAndPerFrameFields()
     {
@@ -82,6 +77,7 @@ public class TestEmitterParamsMerge
         });
     }
 
+    /// <summary>Tests that merging 3D emitter edits keeps slot-bound and per-frame fields.</summary>
     [Test]
     public void Merge3DKeepsSlotBoundAndPerFrameFields()
     {

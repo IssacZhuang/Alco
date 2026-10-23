@@ -4,6 +4,7 @@ using System.Numerics;
 
 namespace Alco.ImGUI;
 
+/// <summary>ImGui-based debug drawing extensions for <see cref="UINode"/> trees and inspectors.</summary>
 public static class UINodeExtension
 {
     /// <summary>
@@ -74,6 +75,9 @@ public static class UINodeExtension
         dl.PathStroke(col, ImDrawFlags.Closed, thickness);
     }
 
+    /// <summary>Draws a two-column debug UI with the node tree and an inspector for the selected node.</summary>
+    /// <param name="rootNode">The root node of the tree to display.</param>
+    /// <param name="selectedNode">The currently selected node, updated when the user clicks a tree item.</param>
     public static void DrawDebugTreeWithInspector(this UINode rootNode, ref UINode? selectedNode)
     {
         if (ImGui.BeginTable("ui_debug", 2, ImGuiTableFlags.Resizable | ImGuiTableFlags.Borders))
@@ -201,6 +205,8 @@ public static class UINodeExtension
         }
     }
 
+    /// <summary>Draws editable debug controls for the node's transform and visual properties.</summary>
+    /// <param name="node">The node to inspect.</param>
     public static void DrawDebugInspector(this UINode node)
     {
         FixedString128 label;
@@ -298,6 +304,9 @@ public static class UINodeExtension
         ImGui.EndDisabled();
     }
 
+    /// <summary>Draws a recursive tree view of the node and its children, updating the selection on click.</summary>
+    /// <param name="node">The root node of the subtree to draw.</param>
+    /// <param name="selectedNode">The currently selected node, updated when the user clicks an item.</param>
     public static void DrawDebugTree(this UINode node, ref UINode? selectedNode)
     {
         // build label with fixed string to avoid GC

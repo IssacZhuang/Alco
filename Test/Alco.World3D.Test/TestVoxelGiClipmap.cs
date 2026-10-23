@@ -5,8 +5,14 @@ using Alco.World3D;
 
 namespace Alco.World3D.Test;
 
+/// <summary>
+/// Tests voxel GI clipmap streaming, page pooling, probe grid snapping, and bounds transforms.
+/// </summary>
 public class TestVoxelGiClipmap
 {
+    /// <summary>
+    /// Tests that the initial update marks every brick and requests a full reset.
+    /// </summary>
     [Test]
     public void InitialUpdateMarksEveryBrickAndRequestsFullReset()
     {
@@ -22,6 +28,9 @@ public class TestVoxelGiClipmap
         Assert.That(dirty, Has.All.Matches<VoxelGiDirtyBrick>(brick => brick.X < 16 && brick.Y < 16 && brick.Z < 16));
     }
 
+    /// <summary>
+    /// Tests that a one-brick scroll retains storage and marks only the entering plane.
+    /// </summary>
     [Test]
     public void OneBrickScrollRetainsStorageAndMarksOnlyEnteringPlane()
     {
@@ -41,6 +50,9 @@ public class TestVoxelGiClipmap
         Assert.That(clipmap.ConsumeFullReset(0), Is.False);
     }
 
+    /// <summary>
+    /// Tests that structural invalidation preempts pending streaming work.
+    /// </summary>
     [Test]
     public void StructuralInvalidationPreemptsStreamingWork()
     {
@@ -61,6 +73,9 @@ public class TestVoxelGiClipmap
         Assert.That(dirty[0].Z, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that a teleport requests a full reset and restarts the toroidal offset.
+    /// </summary>
     [Test]
     public void TeleportRequestsFullResetAndRestartsToroidalOffset()
     {
@@ -77,6 +92,9 @@ public class TestVoxelGiClipmap
         Assert.That(clipmap.GetPendingBrickCount(0), Is.EqualTo(16 * 16 * 16));
     }
 
+    /// <summary>
+    /// Tests that bounds transforms include rotation, scale, and translation.
+    /// </summary>
     [Test]
     public void BoundsTransformIncludesRotationScaleAndTranslation()
     {
@@ -95,6 +113,9 @@ public class TestVoxelGiClipmap
         Assert.That(transformed.Max.Z, Is.EqualTo(32.0f).Within(0.0001f));
     }
 
+    /// <summary>
+    /// Tests that the page pool reuses a toroidal slot without allocating another page.
+    /// </summary>
     [Test]
     public void PagePoolReusesToroidalSlotWithoutAllocatingAnotherPage()
     {
@@ -112,6 +133,9 @@ public class TestVoxelGiClipmap
         Assert.That(pool.GetPageTable(0)[0], Is.EqualTo(originalEntry));
     }
 
+    /// <summary>
+    /// Tests that the page pool reports capacity and releases pages.
+    /// </summary>
     [Test]
     public void PagePoolReportsCapacityAndReleasesPages()
     {
@@ -126,6 +150,9 @@ public class TestVoxelGiClipmap
         Assert.That(pool.AllocatedPageCount, Is.EqualTo(1));
     }
 
+    /// <summary>
+    /// Tests that the probe grid origin moves only in whole probe steps.
+    /// </summary>
     [Test]
     public void ProbeGridOriginMovesOnlyInWholeProbeSteps()
     {
@@ -153,6 +180,9 @@ public class TestVoxelGiClipmap
         Assert.That(nextCell.W, Is.EqualTo(0.8f));
     }
 
+    /// <summary>
+    /// Tests that failed brick work can be requeued at high priority.
+    /// </summary>
     [Test]
     public void FailedBrickWorkCanBeRequeuedAtHighPriority()
     {

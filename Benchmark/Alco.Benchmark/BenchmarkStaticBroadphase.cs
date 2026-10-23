@@ -8,16 +8,7 @@ using BenchmarkFramework;
 namespace Alco.Benchmark;
 
 /// <summary>
-/// Compares a single global Morton BVH against the engine <see cref="ChunkedCollisionWorld2D"/>
-/// (linear-bucket and adaptive-tree modes) for a large static scene with mixed small and large
-/// free-position colliders (dropped items, debris).
-/// Chunked variant: 16x16-cell chunk buckets, objects spanning more than two chunks go to a
-/// big-object bucket, and the adaptive mode lazily builds a mini Morton BVH per bucket that
-/// exceeds the threshold. Workload: 85% tiny clustered objects, 10% medium (multi-chunk),
-/// 5% huge (big bucket). Queries mirror MapService_Collision: short rays (bullets), long rays
-/// (sight lines), small boxes (explosions), large boxes (area effects), run in parallel batches.
-/// A verification pass in GlobalSetup asserts both chunked modes return exactly the same
-/// results as the single BVH.
+/// Compares a single global Morton BVH against <see cref="ChunkedCollisionWorld2D"/> in linear-bucket and adaptive-tree modes for build, mutation, ray, and box queries.
 /// </summary>
 [CustomConfigParam(3, 12, 64)]
 public unsafe class BenchmarkStaticBroadphase
@@ -29,6 +20,9 @@ public unsafe class BenchmarkStaticBroadphase
     private const int MutationCount = 100;
     private const float SegmentFractionLimit = 1.0001f;
 
+    /// <summary>
+    /// Number of colliders generated for the scene.
+    /// </summary>
     [Params(5000, 20000)]
     public int ColliderCount { get; set; }
 
@@ -59,6 +53,9 @@ public unsafe class BenchmarkStaticBroadphase
     private BoxBatchTask _boxTaskLinear = null!;
     private BoxBatchTask _boxTaskAdaptive = null!;
 
+    /// <summary>
+    /// Generates the scene and queries and verifies that both chunked modes match the single BVH.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -335,6 +332,9 @@ public unsafe class BenchmarkStaticBroadphase
         return !expectedHit || MathF.Abs(expectedFraction - actualFraction) < 1e-4f;
     }
 
+    /// <summary>
+    /// Releases all native collections and collision structures.
+    /// </summary>
     [GlobalCleanup]
     public void Cleanup()
     {
@@ -357,12 +357,18 @@ public unsafe class BenchmarkStaticBroadphase
         _boxTaskAdaptive.Dispose();
     }
 
+    /// <summary>
+    /// Benchmarks building the single global Morton BVH.
+    /// </summary>
     [Benchmark(Description = "Build: single Morton BVH")]
     public void BuildSingleBvh()
     {
         _singleBvh.BuildTree(_colliders.AsSpan(), _mortonBuilder);
     }
 
+    /// <summary>
+    /// Benchmarks inserting all colliders into the linear chunked world.
+    /// </summary>
     [Benchmark(Description = "Build: chunked insert all")]
     public void BuildChunked()
     {
@@ -373,6 +379,9 @@ public unsafe class BenchmarkStaticBroadphase
         }
     }
 
+    /// <summary>
+    /// Benchmarks removing and reinserting 100 colliders in the linear chunked world.
+    /// </summary>
     [Benchmark(Description = "Mutate: chunked remove+insert x100")]
     public void MutateChunked()
     {
@@ -384,6 +393,9 @@ public unsafe class BenchmarkStaticBroadphase
         }
     }
 
+    /// <summary>
+    /// Benchmarks removing and reinserting 100 colliders in the adaptive chunked world, including tree rebuilds.
+    /// </summary>
     [Benchmark(Description = "Mutate: chunked adaptive remove+insert+rebuild x100")]
     public void MutateChunkedAdaptive()
     {
@@ -397,6 +409,9 @@ public unsafe class BenchmarkStaticBroadphase
         _chunkedAdaptive.RebuildDirtyTrees();
     }
 
+    /// <summary>
+    /// Benchmarks short-ray casting against the single BVH.
+    /// </summary>
     [Benchmark(Description = "RayShort: single BVH")]
     public void RayShortSingle()
     {
@@ -404,6 +419,9 @@ public unsafe class BenchmarkStaticBroadphase
         _rayTaskSingle.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks short-ray casting against the linear chunked world.
+    /// </summary>
     [Benchmark(Description = "RayShort: chunked linear")]
     public void RayShortLinear()
     {
@@ -411,6 +429,9 @@ public unsafe class BenchmarkStaticBroadphase
         _rayTaskLinear.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks short-ray casting against the adaptive chunked world.
+    /// </summary>
     [Benchmark(Description = "RayShort: chunked adaptive")]
     public void RayShortAdaptive()
     {
@@ -418,6 +439,9 @@ public unsafe class BenchmarkStaticBroadphase
         _rayTaskAdaptive.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks long-ray casting against the single BVH.
+    /// </summary>
     [Benchmark(Description = "RayLong: single BVH")]
     public void RayLongSingle()
     {
@@ -425,6 +449,9 @@ public unsafe class BenchmarkStaticBroadphase
         _rayTaskSingle.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks long-ray casting against the linear chunked world.
+    /// </summary>
     [Benchmark(Description = "RayLong: chunked linear")]
     public void RayLongLinear()
     {
@@ -432,6 +459,9 @@ public unsafe class BenchmarkStaticBroadphase
         _rayTaskLinear.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks long-ray casting against the adaptive chunked world.
+    /// </summary>
     [Benchmark(Description = "RayLong: chunked adaptive")]
     public void RayLongAdaptive()
     {
@@ -439,6 +469,9 @@ public unsafe class BenchmarkStaticBroadphase
         _rayTaskAdaptive.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks small-box casting against the single BVH.
+    /// </summary>
     [Benchmark(Description = "BoxSmall: single BVH")]
     public void BoxSmallSingle()
     {
@@ -446,6 +479,9 @@ public unsafe class BenchmarkStaticBroadphase
         _boxTaskSingle.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks small-box casting against the linear chunked world.
+    /// </summary>
     [Benchmark(Description = "BoxSmall: chunked linear")]
     public void BoxSmallLinear()
     {
@@ -453,6 +489,9 @@ public unsafe class BenchmarkStaticBroadphase
         _boxTaskLinear.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks small-box casting against the adaptive chunked world.
+    /// </summary>
     [Benchmark(Description = "BoxSmall: chunked adaptive")]
     public void BoxSmallAdaptive()
     {
@@ -460,6 +499,9 @@ public unsafe class BenchmarkStaticBroadphase
         _boxTaskAdaptive.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks large-box casting against the single BVH.
+    /// </summary>
     [Benchmark(Description = "BoxLarge: single BVH")]
     public void BoxLargeSingle()
     {
@@ -467,6 +509,9 @@ public unsafe class BenchmarkStaticBroadphase
         _boxTaskSingle.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks large-box casting against the linear chunked world.
+    /// </summary>
     [Benchmark(Description = "BoxLarge: chunked linear")]
     public void BoxLargeLinear()
     {
@@ -474,6 +519,9 @@ public unsafe class BenchmarkStaticBroadphase
         _boxTaskLinear.RunParallel(QueryCount, 16);
     }
 
+    /// <summary>
+    /// Benchmarks large-box casting against the adaptive chunked world.
+    /// </summary>
     [Benchmark(Description = "BoxLarge: chunked adaptive")]
     public void BoxLargeAdaptive()
     {

@@ -1,5 +1,8 @@
 namespace Alco.Audio;
 
+/// <summary>
+/// Converts A-law encoded audio bytes to 16-bit linear samples.
+/// </summary>
 public class ALawDecoder
 {
     /// <summary>

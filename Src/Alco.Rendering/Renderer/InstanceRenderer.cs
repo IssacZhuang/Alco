@@ -38,6 +38,9 @@ public unsafe sealed class InstanceRenderer<T> : AutoDisposable, ICommandListene
     private readonly ArrayBuffer<T> _instances = new ArrayBuffer<T>();
     private int _instanceCount = 0;
 
+    /// <summary>
+    /// The name of this renderer.
+    /// </summary>
     public string Name { get; }
 
     private ReadOnlySpan<T> CurrentInstances => _instances.AsSpan(0, _instanceCount);

@@ -5,15 +5,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// Preset factories composing common render pipelines from the public building
-/// blocks (<see cref="RenderGraph"/>, the <c>RGNode_*</c> nodes,
-/// <see cref="PBRSceneEnvironment"/> and <see cref="RenderPipeline"/>).
-/// <br/>A preset is not a special pipeline type — it is a one-time assembly of the
-/// same nodes and resources a user can compose by hand. Everything a preset does is
-/// public API: study a factory's body as the reference composition, then modify the
-/// result through <see cref="PBRDeferredPreset.Graph"/> (insert custom nodes between
-/// any two stages, remove a stock stage and replace it with a custom implementation),
-/// or re-implement the whole frame without the factory.
+/// Preset factories composing common render pipelines from the public render graph, nodes, scene environment, and pipeline building blocks.
 /// </summary>
 public static class RenderPipelines
 {
@@ -26,20 +18,7 @@ public static class RenderPipelines
     private const int TimestampSlotCount = 8;
 
     /// <summary>
-    /// Creates the deferred PBR pipeline preset: shadow cascades → G-buffer →
-    /// <see cref="PBRDeferredPreset.AfterGBuffer"/> hook → effect plugins → deferred
-    /// lighting into the scene color target → volumetric light (optional) → forward
-    /// content nodes (transparency, hardware depth-tested against the scene depth) →
-    /// post-process chain → final blit into the destination.
-    /// <br/>The composition owns three transient targets — a G-buffer (albedo / normal /
-    /// metallic-roughness-ao / emissive + depth), a depth-only shadow map holding
-    /// <see cref="PBRSceneEnvironment.ShadowCascadeCount"/> cascades in a 2x2 atlas and
-    /// the scene color target (HDR color + depth) — plus the deferred lighting material
-    /// and the shared scene environment. Effect plugins (HBAO, VoxelGI, SSR) are not
-    /// part of the preset; attach them afterwards through their public
-    /// <c>Attach</c> methods, wiring their outputs to
-    /// <see cref="RGNode_DeferredLighting.AoInput"/> /
-    /// <see cref="RGNode_DeferredLighting.GiDiffuseInput"/>.
+    /// Creates the deferred PBR pipeline preset: shadow cascades, G-buffer, lighting, forward transparency, post-process chain, and final blit. Effect plugins such as HBAO, VoxelGI, and SSR are attached afterwards through their public <c>Attach</c> methods.
     /// </summary>
     /// <param name="rendering">The rendering system used to create GPU resources.</param>
     /// <param name="lightingShader">The deferred lighting shader (DeferredLighting.slang). Caller-owned, like every shader the composition takes. Scene and shadow depth are bound as native Slang depth textures.</param>

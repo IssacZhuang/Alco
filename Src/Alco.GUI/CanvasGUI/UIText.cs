@@ -89,14 +89,7 @@ public class UIText : UISelectable
     public float LineSpacing { get; set; } = 1f;
 
     /// <summary>
-    /// Controls which axis auto-adjusts to match the text content size.
-    /// <list type="bullet">
-    ///   <item><see cref="FitContentMode.None"/>: no auto-sizing (default).</item>
-    ///   <item><see cref="FitContentMode.Width"/>: Size.X tracks the pixel width of the widest line.
-    ///         Ignored when <see cref="OverflowHorizontal"/> is NextLine.</item>
-    ///   <item><see cref="FitContentMode.Height"/>: Size.Y tracks the content height.
-    ///         Works best with OverflowHorizontal.NextLine for multi-line wrapping.</item>
-    /// </list>
+    /// Controls which axis auto-adjusts to match the text content size; <see cref="FitContentMode.Width"/> is ignored when <see cref="OverflowHorizontal"/> is NextLine.
     /// </summary>
     public FitContentMode FitContentMode
     {
@@ -157,11 +150,7 @@ public class UIText : UISelectable
     }
 
     /// <summary>
-    /// Enables rich text parsing.
-    /// When enabled, &lt;color=#RRGGBB&gt; / &lt;color=#RRGGBBAA&gt; and &lt;/color&gt; tags are stripped from
-    /// the rendered text and the enclosed characters are tinted with the tag color multiplied by the node color.
-    /// Tags may be nested; malformed or unmatched tags are rendered as plain text.
-    /// <see cref="Text"/> and <see cref="TextSpan"/> still return the raw text including tags.
+    /// Enables rich text parsing of &lt;color&gt; tags, which tint the enclosed characters and are stripped from the rendered text; malformed tags render as plain text.
     /// </summary>
     public bool IsRichText
     {

@@ -6,6 +6,7 @@ using Alco.Engine;
 using Alco.Rendering;
 using Alco.IO;
 
+/// <summary>Sandbox demonstrating loading HLSL shaders through a custom asset loader.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -44,6 +45,8 @@ public class Game : GameEngine
 
     private float _timer = 0.0f;
 
+    /// <summary>Initializes the quad buffers and the HLSL-backed pipeline.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

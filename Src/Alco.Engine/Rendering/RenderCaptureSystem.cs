@@ -4,24 +4,9 @@ using Alco.Rendering;
 namespace Alco.Engine;
 
 /// <summary>
-/// Engine-wide screenshot capture service: captures the active render pipeline's
-/// output as PNG bytes, delivered through a <see cref="Task{RenderCaptureResult}"/>.
-/// <br/>Captures are render-graph captures: a per-pipeline <c>RGNode_Capture</c> node
-/// is inserted at a position in the pipeline's graph and copies the content chain's
-/// state at that position into a private texture — before the final blit is the
-/// complete frame (canvas UI included, ImGui overlay excluded), right after the
-/// content node is the raw scene without post processing, and any anchor in between
-/// yields the chain as of that point. <see cref="RequestCaptureAsync()"/> captures the
-/// chain tail; <see cref="RequestCaptureAsync(Alco.Rendering.IRenderGraphNode, bool)"/>
-/// captures at an explicit anchor.
-/// <br/>Requests are serialized (one capture in flight) and complete a couple of
-/// frames after the request: one frame for the node's blit, then an asynchronous GPU
-/// readback and a thread-pool PNG encode. The system runs late in the update
-/// (order 9000), before the frame's pipeline execution, so requests armed here take
-/// effect in the same frame and readbacks land between two frames' submissions.
-/// <br/>The PNG readback is performed on a shared <see cref="PngReadbackPipeline"/>
-/// (pumped by the engine); when another capture system holds it, the completed
-/// capture waits and begins its readback on a later update.
+/// Engine system that captures the active render pipeline's output as PNG bytes, optionally at
+/// an explicit graph anchor, and delivers it through a task. The ImGui overlay is excluded;
+/// use <see cref="SwapchainCaptureSystem"/> for presented frames.
 /// </summary>
 public sealed class RenderCaptureSystem : BaseEngineSystem
 {
@@ -177,11 +162,8 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
     }
 
     /// <summary>
-    /// Places the capture node for this request: after/before the anchor when one is
-    /// given, otherwise at the chain tail (before the final blit). The node is always
-    /// removed and re-inserted, so a previous request's position never leaks into a
-    /// default request. Calls outside a frame; throws when the anchor is not registered
-    /// in the pipeline's graph.
+    /// Places the capture node after or before the requested anchor, or at the chain tail when
+    /// no anchor is given; throws when the anchor is not registered in the pipeline's graph.
     /// </summary>
     private static void RepositionCaptureNode(RenderPipeline pipeline, RGNode_Capture node, PendingCaptureRequest request)
     {
@@ -278,15 +260,25 @@ public sealed record RenderCaptureResult
     /// <summary>The MIME type of <see cref="PngBytes"/>.</summary>
     public const string PngMimeType = "image/png";
 
+    /// <summary>Gets whether the capture succeeded.</summary>
     public bool Success { get; init; }
+    /// <summary>Gets the PNG-encoded image bytes on success.</summary>
     public byte[]? PngBytes { get; init; }
+    /// <summary>Gets the capture width in pixels.</summary>
     public int? Width { get; init; }
+    /// <summary>Gets the capture height in pixels.</summary>
     public int? Height { get; init; }
+    /// <summary>Gets the number of bytes in the encoded image.</summary>
     public int? ByteLength { get; init; }
+    /// <summary>Gets the time the capture was taken in UTC.</summary>
     public DateTimeOffset? CapturedAtUtc { get; init; }
+    /// <summary>Gets the GPU readback time in milliseconds.</summary>
     public double? ReadbackTimeMs { get; init; }
+    /// <summary>Gets the PNG encode time in milliseconds.</summary>
     public double? EncodeTimeMs { get; init; }
+    /// <summary>Gets the failure description.</summary>
     public string? Error { get; init; }
+    /// <summary>Gets the failure type name.</summary>
     public string? ErrorType { get; init; }
 
     /// <summary>Builds a success result.</summary>

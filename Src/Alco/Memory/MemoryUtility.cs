@@ -21,6 +21,11 @@ namespace Alco
             return ptr;
         }
 
+        /// <summary>
+        /// Allocates the given number of bytes from native memory.
+        /// </summary>
+        /// <param name="size">The number of bytes to allocate.</param>
+        /// <returns>A pointer to the allocated memory.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void* Alloc(long size)
         {
@@ -49,6 +54,12 @@ namespace Alco
 #endif
         }
 
+        /// <summary>
+        /// Allocates native memory for the given number of unmanaged elements.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <param name="count">The number of elements to allocate.</param>
+        /// <returns>A pointer to the allocated memory.</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T* Alloc<T>(long count) where T : unmanaged
         {
@@ -87,6 +98,12 @@ namespace Alco
         }
 
 
+        /// <summary>
+        /// Fills the given number of bytes starting at the pointer with a byte value.
+        /// </summary>
+        /// <param name="ptr">The memory to fill.</param>
+        /// <param name="size">The number of bytes to fill.</param>
+        /// <param name="value">The byte value to write.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Memset(void* ptr, long size, byte value)
         {
@@ -97,6 +114,13 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Fills the given number of elements starting at the pointer with a value.
+        /// </summary>
+        /// <typeparam name="T">The element type.</typeparam>
+        /// <param name="ptr">The memory to fill.</param>
+        /// <param name="size">The number of elements to fill.</param>
+        /// <param name="value">The value to write.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Memset<T>(T* ptr, long size, T value) where T : unmanaged
         {
@@ -106,12 +130,24 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Copies the given number of bytes from the source to the destination.
+        /// </summary>
+        /// <param name="src">The source memory.</param>
+        /// <param name="dest">The destination memory.</param>
+        /// <param name="size">The number of bytes to copy.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void MemCopy(void* src, void* dest, long size)
         {
             System.Runtime.CompilerServices.Unsafe.CopyBlock(dest, src, (uint)size);
         }
 
+        /// <summary>
+        /// Copies the given number of bytes from the source to the destination.
+        /// </summary>
+        /// <param name="src">The source memory.</param>
+        /// <param name="dest">The destination memory.</param>
+        /// <param name="size">The number of bytes to copy.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void MemCopy(void* src, void* dest, uint size)
         {

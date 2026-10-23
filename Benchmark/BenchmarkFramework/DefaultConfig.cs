@@ -6,8 +6,14 @@ using BenchmarkDotNet.Reports;
 
 namespace BenchmarkFramework;
 
+/// <summary>
+/// Default BenchmarkDotNet configuration using three warmup and fifteen measurement iterations.
+/// </summary>
 public class DefaultBenchmarkConfig : ManualConfig
 {
+    /// <summary>
+    /// Initializes the default benchmark configuration.
+    /// </summary>
     public DefaultBenchmarkConfig()
     {
         AddJob(Job.Default

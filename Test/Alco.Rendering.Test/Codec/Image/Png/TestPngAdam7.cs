@@ -4,11 +4,17 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>
+/// Tests Adam7 pass sizing and pass merging.
+/// </summary>
 [TestFixture]
 public class TestPngAdam7
 {
     #region GetPassSize tests
 
+    /// <summary>
+    /// Tests pass sizes for an 8x8 image.
+    /// </summary>
     [Test]
     public void TestGetPassSize_8x8()
     {
@@ -22,6 +28,9 @@ public class TestPngAdam7
         Assert.That(PngAdam7.GetPassSize(6, 8, 8), Is.EqualTo((8, 4))); // Pass 7
     }
 
+    /// <summary>
+    /// Tests pass sizes for a 1x1 image.
+    /// </summary>
     [Test]
     public void TestGetPassSize_1x1()
     {
@@ -35,6 +44,9 @@ public class TestPngAdam7
         Assert.That(PngAdam7.GetPassSize(6, 1, 1), Is.EqualTo((0, 0))); // Pass 7
     }
 
+    /// <summary>
+    /// Tests pass sizes for a 7x7 image.
+    /// </summary>
     [Test]
     public void TestGetPassSize_7x7()
     {
@@ -55,6 +67,9 @@ public class TestPngAdam7
         Assert.That(PngAdam7.GetPassSize(6, 7, 7), Is.EqualTo((7, 3)));
     }
 
+    /// <summary>
+    /// Tests pass sizes for a 16x16 image.
+    /// </summary>
     [Test]
     public void TestGetPassSize_16x16()
     {
@@ -97,6 +112,9 @@ public class TestPngAdam7
         return passData;
     }
 
+    /// <summary>
+    /// Tests merging all seven passes into an 8x8 image.
+    /// </summary>
     [Test]
     public unsafe void TestMergePass_8x8_AllPasses()
     {
@@ -152,6 +170,9 @@ public class TestPngAdam7
         }
     }
 
+    /// <summary>
+    /// Tests merging passes into a 1x1 image.
+    /// </summary>
     [Test]
     public unsafe void TestMergePass_1x1()
     {
@@ -190,6 +211,9 @@ public class TestPngAdam7
         Assert.That(output[0], Is.EqualTo(42));
     }
 
+    /// <summary>
+    /// Tests merging passes for three bytes per pixel.
+    /// </summary>
     [Test]
     public unsafe void TestMergePass_3Bpp()
     {

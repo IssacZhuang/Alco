@@ -6,6 +6,7 @@ using NUnit.Framework;
 
 namespace Alco.LLM.Test;
 
+/// <summary>Tests the tool registry adapter's conversion to AI tools.</summary>
 [TestFixture]
 public class ToolRegistryAdapterTests
 {
@@ -15,6 +16,7 @@ public class ToolRegistryAdapterTests
         TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
     };
 
+    /// <summary>Tests that ToAITools returns one tool per registered function.</summary>
     [Test]
     public void ToAITools_ReturnsCorrectCount()
     {
@@ -24,6 +26,7 @@ public class ToolRegistryAdapterTests
         Assert.That(tools.Count, Is.EqualTo(3)); // Add, Echo, ThrowError
     }
 
+    /// <summary>Tests that each converted tool carries its name and description.</summary>
     [Test]
     public void ToAITools_EachToolHasCorrectMetadata()
     {
@@ -39,6 +42,7 @@ public class ToolRegistryAdapterTests
         Assert.That(echoTool!.Description, Is.EqualTo("Echoes the message back"));
     }
 
+    /// <summary>Tests that each converted tool has a valid JSON schema.</summary>
     [Test]
     public void ToAITools_SchemaIsValidJson()
     {

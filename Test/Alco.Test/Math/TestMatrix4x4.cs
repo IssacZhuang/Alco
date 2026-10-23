@@ -6,9 +6,11 @@ using static Alco.math;
 
 namespace Alco.Test;
 
+/// <summary>Tests matrix decomposition of TRS transforms.</summary>
 [TestFixture]
 public class TestMatrix4x4
 {
+    /// <summary>Tests that decomposition recovers position, rotation, and scale from a TRS matrix.</summary>
     [Test]
     public void TestDecomposeTransform3DComponents()
     {
@@ -69,6 +71,7 @@ public class TestMatrix4x4
 
     }
 
+    /// <summary>Tests that decomposition recovers euler angles from a TRS matrix.</summary>
     [Test]
     public void TestDecomposeTransform3DEuler()
     {

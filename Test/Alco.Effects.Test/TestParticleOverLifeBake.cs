@@ -3,9 +3,7 @@ using NUnit.Framework;
 namespace Alco.Effects.Test;
 
 /// <summary>
-/// Tests of the over-life lookup baking (<see cref="ParticleOverLifeBake"/>):
-/// key sorting, clamped ends and linear interpolation of the color gradient and
-/// the size curve, plus the RGBA8/R16Float sample-row baking.
+/// Tests over-life gradient and curve evaluation and their RGBA8/R16 texture baking.
 /// </summary>
 public class TestParticleOverLifeBake
 {
@@ -15,6 +13,9 @@ public class TestParticleOverLifeBake
     private static List<ParticleScalarKey> CurveKeys(params (float Time, float Value)[] keys)
         => [.. keys.Select(key => new ParticleScalarKey { Time = key.Time, Value = key.Value })];
 
+    /// <summary>
+    /// Tests gradient evaluation at the endpoints and midpoint.
+    /// </summary>
     [Test]
     public void GradientEndpointsAndMidpointInterpolate()
     {
@@ -33,6 +34,9 @@ public class TestParticleOverLifeBake
         });
     }
 
+    /// <summary>
+    /// Tests that gradient evaluation clamps outside the key range and sorts unsorted keys.
+    /// </summary>
     [Test]
     public void GradientClampsOutsideTheKeyRangeAndSortsUnsortedKeys()
     {
@@ -54,6 +58,9 @@ public class TestParticleOverLifeBake
         });
     }
 
+    /// <summary>
+    /// Tests that curve evaluation clamps the ends and preserves values above one.
+    /// </summary>
     [Test]
     public void CurveEndpointsClampAndValuesAboveOneSurvive()
     {
@@ -68,6 +75,9 @@ public class TestParticleOverLifeBake
         });
     }
 
+    /// <summary>
+    /// Tests that a single key is constant and duplicate times take the later key.
+    /// </summary>
     [Test]
     public void SingleKeyIsConstantAndDuplicateTimesTakeTheLaterKey()
     {
@@ -78,6 +88,9 @@ public class TestParticleOverLifeBake
         Assert.That(ParticleOverLifeBake.EvaluateCurve(duplicate, 0.5f), Is.EqualTo(2f).Within(1e-6));
     }
 
+    /// <summary>
+    /// Tests that empty key lists throw.
+    /// </summary>
     [Test]
     public void EmptyKeyListsThrow()
     {
@@ -88,6 +101,9 @@ public class TestParticleOverLifeBake
         });
     }
 
+    /// <summary>
+    /// Tests that gradient baking fills RGBA8 rows with exact endpoints.
+    /// </summary>
     [Test]
     public void BakeGradientFillsRgba8RowsWithExactEndpoints()
     {
@@ -114,6 +130,9 @@ public class TestParticleOverLifeBake
         Assert.That(tiny, Is.EqualTo(new byte[] { 255, 255, 255, 255, 255, 0, 0, 0 }));
     }
 
+    /// <summary>
+    /// Tests that curve baking fills R16 rows with exact endpoints.
+    /// </summary>
     [Test]
     public void BakeCurveFillsR16RowsWithExactEndpoints()
     {

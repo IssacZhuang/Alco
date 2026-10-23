@@ -7,9 +7,15 @@ using Alco;
 
 namespace Alco.Test
 {
+    /// <summary>
+    /// Covers <see cref="ConcurrentLruCache{TKey, TValue}"/> operations, eviction, weights, and concurrency behavior.
+    /// </summary>
     [TestFixture]
     public class TestConcurrentLruCache
     {
+        /// <summary>
+        /// Tests basic add, read, remove, and clear operations.
+        /// </summary>
         [Test(Description = "Test basic concurrent LRU cache operations")]
         public void TestBasicOperations()
         {
@@ -55,6 +61,9 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(0), "Sum weight should be 0 after clearing");
         }
 
+        /// <summary>
+        /// Tests that the least recently used entry is evicted at capacity.
+        /// </summary>
         [Test(Description = "Test LRU eviction behavior")]
         public void TestLruEviction()
         {
@@ -91,6 +100,9 @@ namespace Alco.Test
             Assert.IsTrue(cache.TryGetValue("key5", out _), "key5 should be in cache");
         }
 
+        /// <summary>
+        /// Tests that GetOrAdd returns existing values and invokes the factory only for new keys.
+        /// </summary>
         [Test(Description = "Test GetOrAdd functionality")]
         public void TestGetOrAdd()
         {
@@ -115,6 +127,9 @@ namespace Alco.Test
             Assert.That(value, Is.EqualTo("value1"), "Original value should be preserved");
         }
 
+        /// <summary>
+        /// Tests mixed concurrent operations and final cache consistency.
+        /// </summary>
         [Test(Description = "Test concurrent access")]
         public void TestConcurrentAccess()
         {
@@ -213,6 +228,9 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.LessThanOrEqualTo(1000), "Cache weight should not exceed capacity");
         }
 
+        /// <summary>
+        /// Tests eviction based on custom item weights.
+        /// </summary>
         [Test(Description = "Test LRU cache with custom weights")]
         public void TestCustomWeights()
         {
@@ -289,6 +307,9 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(remainingWeight), "Sum weight should match remaining items");
         }
 
+        /// <summary>
+        /// Tests argument validation for keys, values, factories, and capacity.
+        /// </summary>
         [Test(Description = "Test exception handling")]
         public void TestExceptionHandling()
         {
@@ -317,6 +338,9 @@ namespace Alco.Test
             Assert.Throws<ArgumentException>(() => new ConcurrentLruCache<string, string>(-1));
         }
 
+        /// <summary>
+        /// Tests that an item heavier than the capacity is rejected.
+        /// </summary>
         [Test(Description = "Test item weight exceeding capacity")]
         public void TestItemExceedingCapacity()
         {
@@ -335,6 +359,9 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(3));
         }
 
+        /// <summary>
+        /// Tests concurrent GetOrAdd calls for shared keys.
+        /// </summary>
         [Test(Description = "Test concurrent GetOrAdd with same key")]
         public void TestConcurrentGetOrAdd()
         {
@@ -371,6 +398,9 @@ namespace Alco.Test
             Assert.That(cache.Count, Is.EqualTo(numKeys), "Cache should contain all unique keys");
         }
 
+        /// <summary>
+        /// Tests concurrent reads and removals for cache consistency.
+        /// </summary>
         [Test(Description = "Test concurrent Get and Remove race condition")]
         public void TestConcurrentGetAndRemove()
         {
@@ -423,6 +453,9 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(cache.Count), "SumWeight should match Count");
         }
 
+        /// <summary>
+        /// Tests concurrent reads, writes, and indexer access for cache consistency.
+        /// </summary>
         [Test(Description = "Test concurrent TryGetValue and Set race condition")]
         public void TestConcurrentTryGetValueAndSet()
         {
@@ -488,6 +521,9 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(cache.Count), "SumWeight should match Count");
         }
 
+        /// <summary>
+        /// Tests concurrent operations under forced eviction.
+        /// </summary>
         [Test(Description = "Test concurrent operations with eviction")]
         public void TestConcurrentWithEviction()
         {
@@ -542,6 +578,9 @@ namespace Alco.Test
             Assert.That(cache.SumWeight, Is.EqualTo(cache.Count), "SumWeight should match Count");
         }
 
+        /// <summary>
+        /// Tests cache integrity under a high-concurrency stress workload.
+        /// </summary>
         [Test(Description = "Test high concurrency stress test")]
         public void TestHighConcurrencyStress()
         {

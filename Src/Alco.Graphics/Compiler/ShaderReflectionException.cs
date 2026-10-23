@@ -6,6 +6,8 @@ namespace Alco.Graphics;
 /// </summary>
 public class ShaderReflectionException : Exception
 {
+    /// <summary>Initializes the exception with the specified message.</summary>
+    /// <param name="message">The exception message.</param>
     public ShaderReflectionException(string message) : base(message)
     {
     }

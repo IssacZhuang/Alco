@@ -6,17 +6,7 @@ using Alco.Rendering;
 
 namespace Alco.Editor;
 
-/// <summary>
-/// Material asset document (<c>.amat</c>): a preview pane (the material's bound
-/// textures; a surface-accurate compiled preview is a planned follow-up) plus an
-/// independent inspector editing the name, texture slots and <see cref="ShaderValue"/>
-/// parameter table. When the material names a surface, its texture slots and
-/// parameter rows come from the surface's shader reflection (fixed names and types —
-/// nothing to type in); materials without a surface keep free-form rows.
-/// Edits happen on a detached copy deserialized from the file, so
-/// the shared asset cache is never mutated; saving serializes through the material
-/// loader's own JSON options.
-/// </summary>
+/// <summary>Material asset document (<c>.amat</c>) with a texture preview pane and an inspector editing the name, texture slots, and shader parameter table. Edits happen on a detached copy, so the shared asset cache is never mutated.</summary>
 public sealed class MaterialDocument : AssetDocument
 {
     private readonly JsonSerializerOptions _jsonOptions;
@@ -167,13 +157,7 @@ public sealed class MaterialDocument : AssetDocument
         };
     }
 
-    /// <summary>
-    /// Keeps an asset's existing value when the reflected member accepts it, mirroring
-    /// the compiler's marshal rules (<see cref="MaterialCompiler"/>): float members take
-    /// float/int/uint values by leading components (an authored <c>"#RRGGBB"</c> color
-    /// keeps its rgb on a float3 member), int/uint members take integer values of the
-    /// same element count. Anything else falls back to the member's default.
-    /// </summary>
+    /// <summary>Keeps an asset's existing value when the reflected member accepts it and otherwise falls back to the member's default.</summary>
     private static ShaderValue CoerceOrDefault(ShaderUniformMember member, ShaderValue existing)
     {
         // Exact match keeps the value untouched.

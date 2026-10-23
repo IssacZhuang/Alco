@@ -29,11 +29,7 @@ public static unsafe class ImageDecodeUtility
     }
 
     /// <summary>
-    /// Probe the file-level specification of an image from a stream, reading only the
-    /// bytes each format's header needs: 33 for PNG, 128 (148 with the DX10 extension)
-    /// for DDS, and the segment headers up to the SOF marker for JPEG (payloads are
-    /// skipped, not read). Detects format by magic bytes: PNG (89 50 4E 47),
-    /// JPEG (FF D8) or DDS ("DDS ").
+    /// Probes the file-level texture specification from a stream, reading only the header bytes of PNG, JPEG, or DDS data.
     /// </summary>
     /// <param name="stream">The stream positioned at the start of the image file.</param>
     /// <param name="srgb">
@@ -41,8 +37,7 @@ public static unsafe class ImageDecodeUtility
     /// for PNG/JPEG, whose final texture format is chosen via load options instead.
     /// </param>
     /// <returns>The file-dictated texture specification.</returns>
-    /// <exception cref="ImageDecodeException">Unrecognized format, or the header is
-    /// truncated or corrupt.</exception>
+    /// <exception cref="ImageDecodeException">Unrecognized format, or the header is truncated or corrupt.</exception>
     public static ImageFileInfo GetImageFileInfo(Stream stream, bool srgb = false)
     {
         // The largest header: a DDS with the DX10 extension.
@@ -109,11 +104,7 @@ public static unsafe class ImageDecodeUtility
     }
 
     /// <summary>
-    /// Probe the file-level specification from the leading header bytes alone,
-    /// without decoding pixels — the per-format header byte requirements and
-    /// format detection are those of the stream overload
-    /// (<see cref="GetImageFileInfo(Stream, bool)"/>); a partially read file can
-    /// be probed ahead of streaming its content.
+    /// Probes the file-level texture specification from the leading header bytes without decoding pixels.
     /// </summary>
     /// <param name="data">The leading bytes of the image file.</param>
     /// <param name="srgb">
@@ -121,8 +112,7 @@ public static unsafe class ImageDecodeUtility
     /// for PNG/JPEG, whose final texture format is chosen via load options instead.
     /// </param>
     /// <returns>The file-dictated texture specification.</returns>
-    /// <exception cref="ImageDecodeException">Unrecognized format, or the header is
-    /// truncated or corrupt (for JPEG, the SOF marker lies beyond the given bytes).</exception>
+    /// <exception cref="ImageDecodeException">Unrecognized format, or the header is truncated or corrupt.</exception>
     public static ImageFileInfo GetImageFileInfo(ReadOnlySpan<byte> data, bool srgb = false)
     {
         if (DdsDecoder.IsDds(data))

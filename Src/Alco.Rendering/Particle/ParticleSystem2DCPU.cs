@@ -108,8 +108,16 @@ public sealed unsafe class ParticleSystem2DCPU
     /// </summary>
     public Transform2D Transform = Transform2D.Identity;
 
+    /// <summary>
+    /// The live particles.
+    /// </summary>
     public Span<ParticleData2D> Particles => _particles.AsSpan();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ParticleSystem2DCPU"/> class.
+    /// </summary>
+    /// <param name="emitter">The emitter that creates particles.</param>
+    /// <param name="simulator">The simulator that updates particles; the default simulator when null.</param>
     public ParticleSystem2DCPU(
         IParticleEmitter2D emitter,
         IParticleSimulator2D? simulator = null)
@@ -167,9 +175,8 @@ public sealed unsafe class ParticleSystem2DCPU
     }
 
     /// <summary>
-    /// Simulates all active particles in the system for the given time step.
-    /// Dead particles (lifetime <= 0) are swapped to the end of the active range and then removed efficiently.
-    /// Uses an activeLength counter to prevent re-checking already processed dead particles.
+    /// Simulates all active particles for the given time step and removes particles whose
+    /// lifetime has expired.
     /// </summary>
     /// <param name="deltaTime">Time elapsed since the last simulation step in seconds.</param>
     public void Simulate(float deltaTime)

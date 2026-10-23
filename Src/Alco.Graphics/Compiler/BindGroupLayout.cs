@@ -14,6 +14,7 @@ public struct BindGroupLayout
     /// <summary>The binding entries of the set.</summary>
     public IReadOnlyList<BindGroupEntryInfo> Bindings { get; init; }
 
+    /// <summary>Returns a diagnostic description of the bind group and its entries.</summary>
     public override string ToString()
     {
         StringBuilder builder = new StringBuilder();

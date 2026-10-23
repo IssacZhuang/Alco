@@ -10,11 +10,7 @@ using Alco.Rendering;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// The composition layer (.amdl): loading a model asset resolves its mesh stream and the
-/// bound material assets through the asset system, with slot lookup and default fallback
-/// working on top. The mesh asset is written by the real cooker; the mesh asset stays
-/// header-only (no GPU device). Materials load through the engine's material loader
-/// (a NoGPU engine; textures are dummies there).
+/// Covers model asset composition, resolving mesh streams and bound materials with slot lookup and default fallback.
 /// </summary>
 public class TestModelAsset
 {
@@ -121,6 +117,7 @@ public class TestModelAsset
         }
     }
 
+    /// <summary>Tests that loading resolves mesh slots and the default material.</summary>
     [Test]
     public void LoadResolvesMeshSlotsAndDefault()
     {
@@ -165,6 +162,7 @@ public class TestModelAsset
         });
     }
 
+    /// <summary>Tests that loading fails when a referenced material is missing.</summary>
     [Test]
     public void LoadFailsWhenAReferencedMaterialIsMissing()
     {
@@ -178,6 +176,7 @@ public class TestModelAsset
         });
     }
 
+    /// <summary>Tests that loading fails when the mesh reference is missing.</summary>
     [Test]
     public void LoadFailsWhenMeshReferenceIsMissing()
     {
@@ -191,6 +190,7 @@ public class TestModelAsset
         });
     }
 
+    /// <summary>Tests that model assets reuse cached material instances.</summary>
     [Test]
     public void ModelAssetsReuseCachedMaterialInstances()
     {

@@ -3,15 +3,8 @@ using Alco.IO;
 namespace Alco.Editor;
 
 /// <summary>
-/// Opens a different <see cref="AlcoProject"/> in a running editor: the new project
-/// file is loaded and validated first (a failure leaves the current project
-/// untouched), then open documents are closed, the mounted asset sources are swapped,
-/// and the new project is published through <see cref="EditorContext.SetProject"/>.
-/// The opener also performs the initial mount of the project the editor starts with,
-/// so mounting and unmounting stay symmetric in one owner.
-/// <para/>
-/// Must be used from the engine main thread: it touches documents, the asset system
-/// and editor state.
+/// Opens a different <see cref="AlcoProject"/> in a running editor: loads and validates the new file before touching the current state, then closes documents, swaps the mounted asset sources and publishes the project.
+/// It also performs the initial mount of the startup project and must be used from the engine main thread.
 /// </summary>
 public sealed class ProjectOpener
 {

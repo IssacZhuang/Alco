@@ -2,6 +2,9 @@ using System.Numerics;
 
 namespace Alco;
 
+/// <summary>
+/// Converts between screen-space points and world-space rays or positions.
+/// </summary>
 public static class CameraMathUtility
 {
     /// <summary>
@@ -48,6 +51,15 @@ public static class CameraMathUtility
         return Vector3.Normalize(new Vector3(worldPoint.X, worldPoint.Y, worldPoint.Z));
     }
 
+    /// <summary>
+    /// Creates a ray perpendicular to the XY plane through the world point under a screen pixel.
+    /// </summary>
+    /// <param name="screenPoint">The screen point in pixels.</param>
+    /// <param name="screenSize">The size of the screen in pixels.</param>
+    /// <param name="viewProjMatrix">The combined view-projection matrix.</param>
+    /// <param name="originZ">The Z coordinate of the ray origin.</param>
+    /// <param name="targetZ">The Z coordinate of the ray target.</param>
+    /// <returns>A ray from <paramref name="originZ"/> to <paramref name="targetZ"/> above the mapped world point.</returns>
     public static Ray3D ScreenPointToRay2D(Vector2 screenPoint, Vector2 screenSize, Matrix4x4 viewProjMatrix, float originZ, float targetZ)
     {
         Vector2  worldPoint = ScreenPointToWorld2D(screenPoint, screenSize, viewProjMatrix);
@@ -58,6 +70,13 @@ public static class CameraMathUtility
         return Ray3D.CreateWithStartAndEnd(origin, target);
     }
 
+    /// <summary>
+    /// Converts a screen pixel to its world-space XY position.
+    /// </summary>
+    /// <param name="screenPoint">The screen point in pixels.</param>
+    /// <param name="screenSize">The size of the screen in pixels.</param>
+    /// <param name="viewProjMatrix">The combined view-projection matrix.</param>
+    /// <returns>The world-space position under the screen point.</returns>
     public static Vector2 ScreenPointToWorld2D(Vector2 screenPoint, Vector2 screenSize, Matrix4x4 viewProjMatrix)
     {
         // Convert screen point to clip space

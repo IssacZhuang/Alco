@@ -42,17 +42,7 @@ public interface IGBufferRenderable
 }
 
 /// <summary>
-/// A G-buffer content provider of the deferred PBR pipeline. Compiles its per-asset
-/// G-buffer materials through the <see cref="MaterialCompiler"/> (the renderer is
-/// itself the pass strategy: the <c>GBuffer.slang</c> template composed per material
-/// asset — see <see cref="GetMaterial"/>) and holds a registry of
-/// <see cref="IGBufferRenderable"/> objects. Static objects are
-/// baked into an internal render bundle; dynamic objects are drawn immediately
-/// each frame. The owning <see cref="RGNode_GeometryPass"/> calls
-/// <see cref="OnRender"/> automatically inside its open G-buffer pass (register via
-/// <see cref="RGNode_GeometryPass.Content"/>).
-/// <br/>The renderer does <b>not</b> own the G-buffer render texture, attachment layout
-/// or render context — those are owned by the pass node.
+/// A G-buffer content provider of the deferred PBR pipeline that draws registered <see cref="IGBufferRenderable"/> objects, baking static items into a render bundle and drawing dynamic items every frame. Register it via <see cref="RGNode_GeometryPass.Content"/>; the pass node owns the G-buffer texture, attachment layout, and render context.
 /// </summary>
 public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
 {
@@ -107,11 +97,7 @@ public sealed unsafe class GBufferRenderer : AutoDisposable, IRenderPassContent
     // ── Per-asset materials ──
 
     /// <summary>
-    /// The G-buffer material of one material asset: compiled once per asset through
-    /// the material compiler (the G-buffer template composes with the asset's
-    /// surface; this renderer's factory applies the pass-mandated state) and
-    /// shared by every item using the asset. The material is derived per-asset
-    /// state, held weakly so its lifetime follows the asset's.
+    /// Gets the G-buffer material for a material asset, compiled and cached per asset.
     /// </summary>
     /// <param name="asset">The material asset; blend assets belong to the forward pass.</param>
     /// <exception cref="InvalidDataException">The asset is a blend material of a foreign family.</exception>

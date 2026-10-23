@@ -5,9 +5,11 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>Tests the JPEG decoder against a real-world image.</summary>
 [TestFixture]
 public unsafe class TestJpegDecoder
 {
+    /// <summary>Tests that decoding a real-world JPEG produces non-null pixels and positive dimensions.</summary>
     [Test]
     public void Decode_RealWorld_Jpg()
     {

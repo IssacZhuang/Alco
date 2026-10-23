@@ -29,20 +29,7 @@ public enum LightingDebugView
 }
 
 /// <summary>
-/// A deferred lighting graph node: draws a full-screen lighting material into the
-/// scene color target, resolving the G-buffer (plus the shadow map and AO/GI plugin
-/// outputs when wired) into lit HDR scene color. The scene color target shares the
-/// G-buffer's depth attachment (see
-/// <see cref="RenderGraphTextureDescriptor.DepthSource"/>), so the depth filled by
-/// the G-buffer pass stays available to later forward content — no depth copy.
-/// <br/>Per-frame data assembly and uniform uploads are delegated to
-/// <see cref="PrepareData"/>, invoked at the start of <see cref="Execute"/> — before
-/// any pass recording, since buffer writes are queue-side operations that must
-/// precede the recording of the pass that reads them. Plugin outputs
-/// are wired without the node knowing their types: set <see cref="AoInput"/> /
-/// <see cref="GiDiffuseInput"/> / <see cref="GiSpecularInput"/> (and bind the matching
-/// material parameter), or use <see cref="ExtraReads"/> for arbitrary additional
-/// inputs so their producers survive culling.
+/// A deferred lighting graph node that resolves the G-buffer into lit HDR scene color, optionally consuming shadow, AO, and GI inputs. Per-frame data assembly and uniform uploads are delegated to <see cref="PrepareData"/>.
 /// </summary>
 public sealed class RGNode_DeferredLighting : AutoDisposable, IRenderGraphNode
 {

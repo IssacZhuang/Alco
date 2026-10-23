@@ -74,6 +74,12 @@ public class ArrayBuffer<T>
         return _buffer.AsSpan(0, _length);
     }
 
+    /// <summary>
+    /// Returns a span over the given range of the buffer.
+    /// </summary>
+    /// <param name="start">The zero-based index at which the span starts.</param>
+    /// <param name="length">The number of elements in the span.</param>
+    /// <returns>A span over the requested range.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Span<T> AsSpan(int start, int length)
     {
@@ -81,9 +87,7 @@ public class ArrayBuffer<T>
     }
 
     /// <summary>
-    /// Ensures the buffer has at least the specified size. Uses intelligent expansion strategy:
-    /// - If buffer is empty, expands to DefaultCapacity first
-    /// - If still not enough, doubles capacity until requirement is met
+    /// Ensures the buffer can hold at least <paramref name="size"/> elements, growing capacity by doubling from <see cref="DefaultCapacity"/>.
     /// </summary>
     /// <param name="size">The minimum size required.</param>
     public void SetSize(int size)

@@ -12,6 +12,10 @@ public static unsafe class ProfileImageDecode
 {
     private const int DefaultIterations = 10_000;
 
+    /// <summary>
+    /// Runs the image decode profiling harness.
+    /// </summary>
+    /// <param name="args">The command-line arguments.</param>
     public static void Run(string[] args)
     {
         int iterations = DefaultIterations;

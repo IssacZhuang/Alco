@@ -10,13 +10,7 @@ using Alco.Rendering;
 namespace Alco.World3D.Test;
 
 /// <summary>
-/// The Slang material path of <see cref="MaterialCompiler"/>: pass templates compose
-/// with surface modules through slang's component system (composite + link-time
-/// specialization of the template's generic entry points — no generated wrappers),
-/// Slang's own reflection translated into the engine's shader reflection, and the
-/// reflection-driven mapping of <c>[MaterialParams]</c>-marked parameter blocks.
-/// Uses a NoGPU engine with the module's real Slang sources, mirroring
-/// <see cref="AssetPipeline.TestMaterialCompiler"/>.
+/// Covers the Slang material compiler path, including template composition, reflection translation, and material parameter mapping.
 /// </summary>
 public class TestSlangMaterialCompiler
 {
@@ -27,6 +21,7 @@ public class TestSlangMaterialCompiler
     private static ShaderLibrary Library(GameEngine engine, string moduleName)
         => engine.RenderingSystem.ShaderSystem.GetLibrary(moduleName);
 
+    /// <summary>Tests that a self-contained shader compiles from registered source.</summary>
     [Test]
     public void TrivialShaderCompilesFromRegisteredSource()
     {
@@ -60,6 +55,7 @@ public class TestSlangMaterialCompiler
         });
     }
 
+    /// <summary>Tests that the built-in PBR surface composes into the G-buffer template.</summary>
     [Test]
     public void BuiltInPbrSurfaceComposesIntoTheGBufferTemplate()
     {
@@ -90,6 +86,7 @@ public class TestSlangMaterialCompiler
         });
     }
 
+    /// <summary>Tests that composed reflection reports the expected engine layout.</summary>
     [Test]
     public void ComposedReflectionReportsTheEngineLayout()
     {
@@ -156,6 +153,7 @@ public class TestSlangMaterialCompiler
         });
     }
 
+    /// <summary>Tests that the shadow pass specializes alpha testing by value.</summary>
     [Test]
     public void ShadowPassSpecializesAlphaTestByValue()
     {
@@ -197,6 +195,7 @@ public class TestSlangMaterialCompiler
         });
     }
 
+    /// <summary>Tests that a Slang surface composes through the material compiler.</summary>
     [Test]
     public void SlangSurfaceComposesThroughTheMaterialCompiler()
     {

@@ -4,6 +4,9 @@ using System.Numerics;
 
 namespace Alco
 {
+    /// <summary>
+    /// Describes the atlas produced by <see cref="AlgoAtlasPacking.PackTiled"/>.
+    /// </summary>
     public struct AtlasPackResult
     {
         public int width;
@@ -12,6 +15,9 @@ namespace Alco
         public int numOutside;
     }
 
+    /// <summary>
+    /// Packs tiles into one of a fixed set of atlas sizes.
+    /// </summary>
     public static class AlgoAtlasPacking{
 
         private static readonly int2[] AltasSize = new int2[]
@@ -34,6 +40,14 @@ namespace Alco
             new int2(4096,2048),
             new int2(4096,4096),// max
         };
+        /// <summary>
+        /// Packs <paramref name="count"/> fixed-size tiles into the smallest supported atlas size.
+        /// </summary>
+        /// <param name="widthPerTile">Tile width in pixels.</param>
+        /// <param name="heightPerTile">Tile height in pixels.</param>
+        /// <param name="count">Number of tiles to pack.</param>
+        /// <param name="padding">Spacing in pixels between adjacent tiles.</param>
+        /// <returns>The packed atlas, including tile rectangles and the number of tiles that did not fit.</returns>
         public static AtlasPackResult PackTiled(int widthPerTile, int heightPerTile, int count, int padding = 0)
         {
             if (count <= 0)

@@ -5,6 +5,7 @@ using Alco.Graphics;
 using Alco;
 using Alco.IO;
 
+/// <summary>Sandbox demonstrating rotated text rendering with a custom font size.</summary>
 public class Game : GameEngine
 {
 
@@ -19,6 +20,8 @@ public class Game : GameEngine
     private float _fontSize = 16;
     private float _angle = 0;
 
+    /// <summary>Initializes the text renderer, camera, and font.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _shader = BuiltInAssets.Shader_Text;

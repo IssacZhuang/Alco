@@ -4,6 +4,9 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
+/// <summary>
+/// Resolves prompt icon sprites for keyboard, mouse, and gamepad inputs.
+/// </summary>
 public interface IInputPromptIconProvider
 {
     bool TryGetIcon(KeyCode key, [NotNullWhen(true)] out Sprite? icon);

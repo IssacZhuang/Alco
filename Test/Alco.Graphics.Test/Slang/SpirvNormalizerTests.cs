@@ -4,10 +4,8 @@ using NUnit.Framework;
 namespace Alco.Graphics.Test;
 
 /// <summary>
-/// Unit tests for <see cref="SpirvNormalizer"/>, ported one-to-one from the
-/// inline tests of alco-gpu's deleted shader_spirv.rs: synthetic modules built
-/// from raw words verify wrapper removal, tail expansion with fresh merge
-/// labels, hazard rejection, atomicity and idempotence.
+/// Tests that <see cref="SpirvNormalizer"/> removes break wrappers, expands selection tails,
+/// and rejects unsupported control flow without partial changes.
 /// </summary>
 [TestFixture]
 public class SpirvNormalizerTests
@@ -207,6 +205,9 @@ public class SpirvNormalizerTests
         throw new InvalidOperationException("pattern not found");
     }
 
+    /// <summary>
+    /// Tests that nested loop break wrappers are removed without changing block labels.
+    /// </summary>
     [Test]
     public void NestedLoopBreakWrappersAreRemovedWithoutChangingLabels()
     {
@@ -221,6 +222,9 @@ public class SpirvNormalizerTests
         Assert.That(again, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that source continue expands the selection tail with a unique merge block.
+    /// </summary>
     [Test]
     public void SourceContinueExpandsSelectionTailWithUniqueMerge()
     {
@@ -237,6 +241,9 @@ public class SpirvNormalizerTests
         Assert.That(again, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that an early-exit merge bearing phi instructions keeps its switch.
+    /// </summary>
     [Test]
     public void PhiBearingEarlyExitMergeKeepsItsSwitch()
     {
@@ -249,6 +256,9 @@ public class SpirvNormalizerTests
         Assert.That(ContainsSequence([.. words], phi), Is.True);
     }
 
+    /// <summary>
+    /// Tests that a switch inside a selection early exit remains unsupported.
+    /// </summary>
     [Test]
     public void SwitchInsideSelectionEarlyExitRemainsUnsupported()
     {
@@ -260,6 +270,9 @@ public class SpirvNormalizerTests
         Assert.That(() => SpirvNormalizer.Normalize(ToBytes(words)), Throws.TypeOf<ShaderCompilationException>());
     }
 
+    /// <summary>
+    /// Tests that a silent ancestor merge preserves the bypass path without forming a bridge cycle.
+    /// </summary>
     [Test]
     public void SilentAncestorMergePreservesBypassAndHasNoBridgeCycle()
     {
@@ -278,6 +291,9 @@ public class SpirvNormalizerTests
         Assert.That(again, Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Tests that ancestor tail work and a small id bound fail atomically.
+    /// </summary>
     [Test]
     public void AncestorTailWorkAndSmallIdBoundFailAtomically()
     {
@@ -291,6 +307,9 @@ public class SpirvNormalizerTests
         }
     }
 
+    /// <summary>
+    /// Tests that genuine switches and non-loop default switches are left unchanged.
+    /// </summary>
     [Test]
     public void GenuineSwitchAndNonLoopDefaultSwitchAreUnchanged()
     {
@@ -317,6 +336,9 @@ public class SpirvNormalizerTests
         }
     }
 
+    /// <summary>
+    /// Tests that phi instructions and predecessor ids are left unchanged.
+    /// </summary>
     [Test]
     public void PhiInstructionsAndPredecessorIdsAreUnchanged()
     {
@@ -330,6 +352,9 @@ public class SpirvNormalizerTests
         Assert.That(ContainsSequence(normalized, phi), Is.True);
     }
 
+    /// <summary>
+    /// Tests that independent functions are normalized separately.
+    /// </summary>
     [Test]
     public void IndependentFunctionsNormalizeSeparately()
     {
@@ -377,6 +402,9 @@ public class SpirvNormalizerTests
         Assert.That(removed, Is.EqualTo(4));
     }
 
+    /// <summary>
+    /// Tests that malformed modules fail without panicking or partial changes.
+    /// </summary>
     [Test]
     public void MalformedModulesFailWithoutPanickingOrPartialChanges()
     {

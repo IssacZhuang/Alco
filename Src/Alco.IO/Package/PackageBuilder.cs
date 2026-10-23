@@ -100,13 +100,9 @@ public sealed class PackageBuilder<TMeta> where TMeta : PackageMetaBase, IPackag
     }
 
     /// <summary>
-    /// Builds the package bytes:
-    /// [<see cref="IPackageMeta.Magic"/>][meta length (Int64 LE)][meta payload][content payload].
-    /// Entries are padded to <see cref="EntryAlignment"/> (content-relative). When
-    /// <see cref="EncryptionKey"/> is set, the meta payload is a single AEAD blob and each entry
-    /// is stored as encrypted 64 KiB chunks (see <c>PackageFormat.md</c>).
+    /// Builds the package into a byte array following the package format, with entries aligned to <see cref="EntryAlignment"/> and optionally encrypted.
     /// </summary>
-    /// <returns>Package bytes</returns>
+    /// <returns>The package bytes.</returns>
     public byte[] Build()
     {
         using PreparedPackage prepared = PrepareBuild();

@@ -4,9 +4,11 @@ using NUnit.Framework;
 
 namespace Alco.Test.Algorithm;
 
+/// <summary>Tests <see cref="GridFloodFiller"/> traversal, step limits and reuse.</summary>
 [TestFixture]
 public class TestGridFloodFiller
 {
+    /// <summary>Tests that a fill restricted to the start cell returns only that cell.</summary>
     [Test]
     public void SingleCellFill_Works()
     {
@@ -19,6 +21,7 @@ public class TestGridFloodFiller
         Assert.That(result[0], Is.EqualTo(new int2(1, 1)));
     }
 
+    /// <summary>Tests that a fill covers the entire grid when every cell is traversable.</summary>
     [Test]
     public void FillEntireGrid_WhenAllCellsTraversable()
     {
@@ -38,6 +41,7 @@ public class TestGridFloodFiller
         }
     }
 
+    /// <summary>Tests that a fill skips blocked cells.</summary>
     [Test]
     public void FillWithObstacles_Works()
     {
@@ -62,6 +66,7 @@ public class TestGridFloodFiller
         }
     }
 
+    /// <summary>Tests that maxStep limits the filled cells and returns false.</summary>
     [Test]
     public void FillWithMaxStep_LimitsResult()
     {
@@ -73,6 +78,7 @@ public class TestGridFloodFiller
         Assert.That(result.Length, Is.EqualTo(5));
     }
 
+    /// <summary>Tests that a zero maxStep returns an empty result.</summary>
     [Test]
     public void FillWithMaxStepZero_ReturnsEmpty()
     {
@@ -84,6 +90,7 @@ public class TestGridFloodFiller
         Assert.That(result.Length, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that an out-of-bounds start returns an empty result.</summary>
     [Test]
     public void FillOutOfBounds_ReturnsEmpty()
     {
@@ -95,6 +102,7 @@ public class TestGridFloodFiller
         Assert.That(result.Length, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that a non-traversable start returns an empty result.</summary>
     [Test]
     public void FillNonTraversableStart_ReturnsEmpty()
     {
@@ -106,6 +114,7 @@ public class TestGridFloodFiller
         Assert.That(result.Length, Is.EqualTo(0));
     }
 
+    /// <summary>Tests that a fill stops at the boundary of a traversable island.</summary>
     [Test]
     public void FillIsland_IslandOnly()
     {
@@ -124,6 +133,7 @@ public class TestGridFloodFiller
         }
     }
 
+    /// <summary>Tests that resizing the grid allows larger fills.</summary>
     [Test]
     public void Resize_Works()
     {
@@ -136,6 +146,7 @@ public class TestGridFloodFiller
         Assert.That(result.Length, Is.EqualTo(9));
     }
 
+    /// <summary>Tests that repeated fills reset the previous result.</summary>
     [Test]
     public void MultipleFills_ResetProperly()
     {
@@ -160,6 +171,7 @@ public class TestGridFloodFiller
         Assert.That(thirdResult.Length, Is.EqualTo(3));
     }
 
+    /// <summary>Tests that a fill returns false when maxStep is reached.</summary>
     [Test]
     public void FillReturnsFalse_WhenMaxStepReached()
     {

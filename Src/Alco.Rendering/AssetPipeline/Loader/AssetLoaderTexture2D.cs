@@ -8,13 +8,7 @@ using Alco;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Represents an asset loader for Texture2D assets.
-/// Creates and owns a <see cref="TextureOptionCache"/> internally for directory-level
-/// and per-file import option resolution.
-/// <br/>File-backed assets stream: the header is probed with minimal per-format reads,
-/// the texture is created at its final specification and returned immediately, and its
-/// content uploads in place asynchronously, so the texture's identity never changes.
-/// Preloaded (in-memory) contexts decode synchronously.
+/// Asset loader for <see cref="Texture2D"/> assets with optional import-option resolution and asynchronous file uploads.
 /// </summary>
 public class AssetLoaderTexture2D : IAssetLoader
 {

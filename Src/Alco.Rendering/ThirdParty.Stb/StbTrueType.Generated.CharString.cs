@@ -6,12 +6,26 @@ namespace StbTrueTypeSharp
 {
 	unsafe partial class StbTrueType
 	{
+		/// <summary>
+		/// Closes the current contour by adding a line back to its first point when needed.
+		/// </summary>
+		/// <param name="ctx">The charstring conversion context.</param>
 		public static void stbtt__csctx_close_shape(stbtt__csctx* ctx)
 		{
 			if (ctx->first_x != ctx->x || ctx->first_y != ctx->y)
 				stbtt__csctx_v(ctx, STBTT_vline, (int)ctx->first_x, (int)ctx->first_y, 0, 0, 0, 0);
 		}
 
+		/// <summary>
+		/// Adds a cubic Bezier curve relative to the current point.
+		/// </summary>
+		/// <param name="ctx">The charstring conversion context.</param>
+		/// <param name="dx1">The x offset of the first control point.</param>
+		/// <param name="dy1">The y offset of the first control point.</param>
+		/// <param name="dx2">The x offset of the second control point.</param>
+		/// <param name="dy2">The y offset of the second control point.</param>
+		/// <param name="dx3">The x offset of the end point.</param>
+		/// <param name="dy3">The y offset of the end point.</param>
 		public static void stbtt__csctx_rccurve_to(stbtt__csctx* ctx, float dx1, float dy1, float dx2, float dy2,
 			float dx3, float dy3)
 		{
@@ -24,6 +38,12 @@ namespace StbTrueTypeSharp
 			stbtt__csctx_v(ctx, STBTT_vcubic, (int)ctx->x, (int)ctx->y, (int)cx1, (int)cy1, (int)cx2, (int)cy2);
 		}
 
+		/// <summary>
+		/// Adds a line relative to the current point.
+		/// </summary>
+		/// <param name="ctx">The charstring conversion context.</param>
+		/// <param name="dx">The x offset of the line end point.</param>
+		/// <param name="dy">The y offset of the line end point.</param>
 		public static void stbtt__csctx_rline_to(stbtt__csctx* ctx, float dx, float dy)
 		{
 			ctx->x += dx;
@@ -31,6 +51,12 @@ namespace StbTrueTypeSharp
 			stbtt__csctx_v(ctx, STBTT_vline, (int)ctx->x, (int)ctx->y, 0, 0, 0, 0);
 		}
 
+		/// <summary>
+		/// Starts a new contour at a point relative to the current point.
+		/// </summary>
+		/// <param name="ctx">The charstring conversion context.</param>
+		/// <param name="dx">The x offset of the new contour start.</param>
+		/// <param name="dy">The y offset of the new contour start.</param>
 		public static void stbtt__csctx_rmove_to(stbtt__csctx* ctx, float dx, float dy)
 		{
 			stbtt__csctx_close_shape(ctx);
@@ -39,6 +65,17 @@ namespace StbTrueTypeSharp
 			stbtt__csctx_v(ctx, STBTT_vmove, (int)ctx->x, (int)ctx->y, 0, 0, 0, 0);
 		}
 
+		/// <summary>
+		/// Records a vertex, or expands the tracked bounds when in bounds mode.
+		/// </summary>
+		/// <param name="c">The charstring conversion context.</param>
+		/// <param name="type">The vertex type.</param>
+		/// <param name="x">The vertex x coordinate.</param>
+		/// <param name="y">The vertex y coordinate.</param>
+		/// <param name="cx">The first control point x coordinate.</param>
+		/// <param name="cy">The first control point y coordinate.</param>
+		/// <param name="cx1">The second control point x coordinate.</param>
+		/// <param name="cy1">The second control point y coordinate.</param>
 		public static void stbtt__csctx_v(stbtt__csctx* c, byte type, int x, int y, int cx, int cy, int cx1, int cy1)
 		{
 			if (c->bounds != 0)
@@ -60,6 +97,12 @@ namespace StbTrueTypeSharp
 			c->num_vertices++;
 		}
 
+		/// <summary>
+		/// Expands the tracked bounding box to include the given point.
+		/// </summary>
+		/// <param name="c">The charstring conversion context.</param>
+		/// <param name="x">The point x coordinate.</param>
+		/// <param name="y">The point y coordinate.</param>
 		public static void stbtt__track_vertex(stbtt__csctx* c, int x, int y)
 		{
 			if (x > c->max_x || c->started == 0)
@@ -73,6 +116,9 @@ namespace StbTrueTypeSharp
 			c->started = 1;
 		}
 
+		/// <summary>
+		/// The context used while converting CFF charstrings to vertices.
+		/// </summary>
 		[StructLayout(LayoutKind.Sequential)]
 		public struct stbtt__csctx
 		{

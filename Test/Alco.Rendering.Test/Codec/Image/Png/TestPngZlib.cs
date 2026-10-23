@@ -5,11 +5,13 @@ namespace Alco.Rendering.Test;
 
 using Alco.Rendering;
 
+/// <summary>Tests Adler-32, DEFLATE inflate and zlib decompression.</summary>
 [TestFixture]
 public class TestPngZlib
 {
     #region Adler32 Tests
 
+    /// <summary>Tests that Adler-32 of empty data is one.</summary>
     [Test]
     public void TestAdler32_Empty()
     {
@@ -18,6 +20,7 @@ public class TestPngZlib
         Assert.That(result, Is.EqualTo(1u));
     }
 
+    /// <summary>Tests that Adler-32 matches a known vector.</summary>
     [Test]
     public void TestAdler32_KnownVector()
     {
@@ -27,6 +30,7 @@ public class TestPngZlib
         Assert.That(result, Is.EqualTo(0x11E60398u));
     }
 
+    /// <summary>Tests that Adler-32 of zero bytes matches the expected value.</summary>
     [Test]
     public void TestAdler32_AllZeros()
     {
@@ -40,6 +44,7 @@ public class TestPngZlib
         Assert.That(result, Is.EqualTo(0x00640001u));
     }
 
+    /// <summary>Tests that Adler-32 matches a scalar reference for large input.</summary>
     [Test]
     public void TestAdler32_LargeInput()
     {
@@ -67,6 +72,7 @@ public class TestPngZlib
 
     #region Inflate Tests
 
+    /// <summary>Tests that a stored DEFLATE block inflates.</summary>
     [Test]
     public void TestInflate_StoredBlock()
     {
@@ -98,6 +104,7 @@ public class TestPngZlib
         Assert.That(output[..5].ToArray(), Is.EqualTo(rawData));
     }
 
+    /// <summary>Tests that a fixed-Huffman DEFLATE stream inflates.</summary>
     [Test]
     public void TestInflate_FixedHuffman()
     {
@@ -115,6 +122,7 @@ public class TestPngZlib
         Assert.That(output[..bytesWritten].ToArray(), Is.EqualTo(input));
     }
 
+    /// <summary>Tests that a dynamic-Huffman DEFLATE stream inflates.</summary>
     [Test]
     public void TestInflate_DynamicHuffman()
     {
@@ -132,6 +140,7 @@ public class TestPngZlib
         Assert.That(output[..bytesWritten].ToArray(), Is.EqualTo(input));
     }
 
+    /// <summary>Tests that overlapping back-references inflate correctly.</summary>
     [Test]
     public void TestInflate_OverlappingBackreference()
     {
@@ -175,6 +184,7 @@ public class TestPngZlib
 
     #region DecompressZlib Tests
 
+    /// <summary>Tests that a zlib stream round-trips.</summary>
     [Test]
     public void TestDecompressZlib_RoundTrip()
     {
@@ -189,6 +199,7 @@ public class TestPngZlib
         Assert.That(output[..bytesWritten].ToArray(), Is.EqualTo(input));
     }
 
+    /// <summary>Tests that an invalid zlib header is rejected.</summary>
     [Test]
     public void TestDecompressZlib_InvalidHeader()
     {
@@ -204,6 +215,7 @@ public class TestPngZlib
         Assert.That(ex!.Message, Does.Contain("CM field"));
     }
 
+    /// <summary>Tests that an empty zlib stream decompresses to zero bytes.</summary>
     [Test]
     public void TestDecompressZlib_Empty()
     {

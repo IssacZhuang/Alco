@@ -5,9 +5,11 @@ using System.Numerics;
 using Alco;
 using TestFramework;
 
+/// <summary>Tests 2D transform composition and matrix conversion.</summary>
 [TestFixture]
 public class TestTransform2D()
 {
+    /// <summary>Tests that transforming into a parent's local space inverts the parent transform.</summary>
     [Test]
     public void TestTransformRevert()
     {
@@ -32,6 +34,7 @@ public class TestTransform2D()
         AssertExt.AreEqual(child, transformed);
     }
 
+    /// <summary>Tests that the transform matrix matches manual point transformation.</summary>
     [Test]
     public void TestTransformMatrix()
     {

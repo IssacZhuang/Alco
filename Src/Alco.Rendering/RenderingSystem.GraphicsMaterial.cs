@@ -5,6 +5,9 @@ namespace Alco.Rendering;
 
 // material factory
 
+/// <summary>
+/// Graphics material creation.
+/// </summary>
 public partial class RenderingSystem
 {
     /// <summary>
@@ -18,9 +21,8 @@ public partial class RenderingSystem
     /// C# values (<c>false</c>, <c>3</c>) or slang expressions, normalized internally.</param>
     /// <returns>A new <see cref="GraphicsMaterial"/> instance with the specified shader and default buffers configured.</returns>
     /// <remarks>
-    /// Default properties:
-    /// _camera : camera matrix of <see cref="RenderingSystem.MainCamera"/> 
-    /// _globalRenderData : global render data of <see cref="RenderingSystem.GlobalRenderDataBuffer"/>
+    /// Binds <c>_camera</c> to <see cref="RenderingSystem.MainCamera"/> and
+    /// <c>_globalRenderData</c> to <see cref="RenderingSystem.GlobalRenderDataBuffer"/>.
     /// </remarks>
     public GraphicsMaterial CreateGraphicsMaterial(Shader shader, string name = "unamed_material",
         params ReadOnlySpan<object> specializations)

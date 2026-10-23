@@ -1,5 +1,8 @@
 namespace Alco.Audio;
 
+/// <summary>
+/// The host integration for an audio device, providing log output and a disposal notification.
+/// </summary>
 public interface IAudioDeviceHost
 {
     event Action OnDispose;

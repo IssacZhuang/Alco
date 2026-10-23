@@ -6,15 +6,8 @@ using System.Runtime.Intrinsics;
 namespace Alco
 {
     /// <summary>
-    /// A native implementation of a 4-wide Bounding Volume Hierarchy (BVH) for 2D collision detection.
-    /// Internal nodes store the bounds of up to four children structure-of-arrays style, so every
-    /// traversal step culls all children with a single <see cref="Vector128{T}"/> comparison per
-    /// axis, and leaves are 4-item blocks that run the same SoA AABB cull before the exact shape
-    /// tests (<c>IntersectRay</c> / <c>CollidesWith</c> / <c>IntersectPoint</c>) on the surviving
-    /// slots only.
-    /// The tree only owns storage and traversal; the construction algorithm is decoupled into
-    /// <see cref="IBvhBuilder2D"/> implementations that write the tree directly into the
-    /// pre-allocated buffers. The default build uses <see cref="MortonBvhBuilder2D"/>.
+    /// A native, 4-wide bounding volume hierarchy for 2D collision queries over unmanaged storage.
+    /// Construction is delegated to <see cref="IBvhBuilder2D"/> implementations and defaults to <see cref="MortonBvhBuilder2D"/>.
     /// </summary>
     public unsafe class NativeBvh2D : IDisposable
     {
@@ -62,10 +55,7 @@ namespace Alco
         }
 
         /// <summary>
-        /// Casts a ray against the BVH to find the closest hit.
-        /// Traversal is near-first with distance-stack pruning: the AABB entry fraction of a node
-        /// bounds any exact shape hit fraction inside it from below, so subtrees that cannot beat
-        /// the running best fraction are skipped.
+        /// Casts a ray against the BVH and returns the closest hit.
         /// This method is thread-safe for concurrent queries, but cannot be called concurrently with <see cref="BuildTree(ReadOnlySpan{ColliderRef2D}, IBvhBuilder2D)"/>.
         /// </summary>
         /// <param name="ray">The ray to cast.</param>

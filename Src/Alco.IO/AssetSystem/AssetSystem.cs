@@ -33,6 +33,7 @@ namespace Alco.IO
 
         private readonly IAssetSystemHost _host;
 
+        /// <summary>Gets or sets whether asset loading is profiled.</summary>
         public bool IsProfileEnabled { get; set; } = false;
 
         /// <summary>
@@ -41,8 +42,14 @@ namespace Alco.IO
         /// </summary>
         public int Version => _version;
 
+        /// <summary>Gets all registered file sources in priority order.</summary>
         public IReadOnlyList<IFileSource> AllFileSources => _fileSources;
 
+        /// <summary>
+        /// Initializes a new asset system bound to the given host.
+        /// </summary>
+        /// <param name="host">The host that owns the system's lifetime and logging.</param>
+        /// <param name="isProfileEnabled">Whether asset loading is profiled.</param>
         public AssetSystem(IAssetSystemHost host, bool isProfileEnabled = false)
         {
             IsProfileEnabled = isProfileEnabled;

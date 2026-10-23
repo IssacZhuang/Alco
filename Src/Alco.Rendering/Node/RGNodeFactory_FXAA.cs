@@ -3,14 +3,8 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// Factory for the FXAA chain-transform node: holds the node's
-/// <see cref="RGNode_FXAA.Descriptor"/> (the shader reference resolves through
-/// the shared shader system at load time; the quality and mode axes are
-/// generic value specializations of the fxaa module, one specialized shader
-/// per (preset, mode) pair). The post <see cref="RenderChain"/> and the
-/// chain's output layout come from the factory context's services; the
-/// optional <see cref="SceneDepthSource"/> service enables the descriptor's
-/// depth-aware modes.
+/// Factory for the FXAA chain-transform node, holding its descriptor and resolving the chain,
+/// output layout and optional depth source from the factory context services.
 /// </summary>
 public class RGNodeFactory_FXAA : RenderNodeFactory
 {

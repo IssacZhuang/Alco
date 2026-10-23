@@ -12,6 +12,7 @@ namespace Alco.ImGUI;
 /// </summary>
 public unsafe class ImGUIRenderer : AutoDisposable
 {
+    /// <summary>The active renderer instance, or null when no renderer exists.</summary>
     public static ImGUIRenderer? Instance { get; private set; }
 
     private readonly RenderingSystem _renderingSystem;
@@ -33,6 +34,12 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
     private readonly List<Texture2D> _textures = new List<Texture2D>();
 
+    /// <summary>
+    /// Creates the ImGui context and the GPU resources used to render ImGui draw data.
+    /// </summary>
+    /// <param name="renderingSystem">The rendering system that owns the GPU resources.</param>
+    /// <param name="material">The material used to draw ImGui geometry.</param>
+    /// <param name="name">The name used for the renderer's GPU resources.</param>
     public ImGUIRenderer(RenderingSystem renderingSystem, GraphicsMaterial material, string name)
     {
         _renderingSystem = renderingSystem;
@@ -85,6 +92,11 @@ public unsafe class ImGUIRenderer : AutoDisposable
 
 
 
+    /// <summary>
+    /// Registers a texture for the current frame and returns its ImGui texture id.
+    /// </summary>
+    /// <param name="texture">The texture to register for this frame.</param>
+    /// <returns>The texture id usable with ImGui draw commands.</returns>
     public IntPtr AddTexture(Texture2D texture)
     {
         ArgumentNullException.ThrowIfNull(texture);
@@ -243,11 +255,8 @@ public unsafe class ImGUIRenderer : AutoDisposable
     }
 
     /// <summary>
-    /// Add a font from memory with a predefined language range, all fonts at the
-    /// unified <see cref="FontSizePixels"/> size.
-    /// Deduplicated by language to avoid adding the same language multiple times.
-    /// Call with <see cref="FontLanguage.Basic"/> first to load the default UI
-    /// font; later languages merge their glyphs into it.
+    /// Adds a font with the given predefined language glyph range at the unified UI size,
+    /// merging additional languages into the default font; each language is added at most once.
     /// </summary>
     /// <param name="fontData">Font bytes.</param>
     /// <param name="language">Predefined language range.</param>

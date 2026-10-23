@@ -36,6 +36,12 @@ namespace Alco
             get => _type;
         }
 
+        /// <summary>
+        /// Creates a reference from a pointer to an unmanaged collider.
+        /// </summary>
+        /// <typeparam name="T">The collider type.</typeparam>
+        /// <param name="collider">The collider to reference; it must stay alive while the reference is used.</param>
+        /// <returns>A reference to the collider.</returns>
         public static ColliderRef3D Create<T>(T* collider) where T : unmanaged, ICollider3D
         {
 
@@ -48,6 +54,11 @@ namespace Alco
 
 
 
+        /// <summary>
+        /// Determines whether this collider overlaps another collider.
+        /// </summary>
+        /// <param name="other">The other collider reference.</param>
+        /// <returns>True when the colliders overlap.</returns>
         public bool CollidesWith(ColliderRef3D other)
         {
             switch (_type)
@@ -60,6 +71,10 @@ namespace Alco
             return false;
         }
 
+        /// <summary>
+        /// Gets the axis-aligned bounds enclosing the collider.
+        /// </summary>
+        /// <returns>The bounding box of the collider; empty when no collider is set.</returns>
         public BoundingBox3D GetBoundingBox()
         {
             switch (_type)
@@ -72,6 +87,12 @@ namespace Alco
             return new BoundingBox3D();
         }
 
+        /// <summary>
+        /// Tests whether the ray intersects the collider.
+        /// </summary>
+        /// <param name="ray">The ray to test.</param>
+        /// <param name="hitInfo">The hit details when an intersection occurs.</param>
+        /// <returns>True when the ray intersects the collider.</returns>
         public bool IntersectRay(Ray3D ray, out RaycastHit3D hitInfo)
         {
             switch (_type)
@@ -85,6 +106,11 @@ namespace Alco
             return false;
         }
 
+        /// <summary>
+        /// Determines whether the collider contains the given point.
+        /// </summary>
+        /// <param name="point">The point to test.</param>
+        /// <returns>True when the point lies inside the collider.</returns>
         public bool IntersectPoint(Vector3 point)
         {
             switch (_type)

@@ -3,6 +3,9 @@ using Alco.Graphics;
 
 namespace Alco.Rendering;
 
+/// <summary>
+/// Shader resource names shared by engine materials.
+/// </summary>
 public static class ShaderResourceId
 {
     public const string Camera = "camera";

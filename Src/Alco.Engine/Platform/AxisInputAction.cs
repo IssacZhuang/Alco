@@ -126,6 +126,11 @@ public sealed class AxisInputAction
         }
     }
 
+    /// <summary>
+    /// Gets the current input direction, or zero when it is inside the dead zone.
+    /// </summary>
+    /// <param name="value">The current direction, or zero when inactive.</param>
+    /// <returns>True if the input exceeds the dead zone; otherwise false.</returns>
     public bool IsInputing(out Vector2 value)
     {
         value = RawValue;

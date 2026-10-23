@@ -5,11 +5,7 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// Integration tests for bind group validation on the slang module path:
-/// real modules compile through the slang toolchain, so set contiguity (enforced
-/// by the reflection reader) and the device bind group limit (enforced by
-/// <see cref="ShaderSystem"/> via <see cref="ShaderReflectionUtility.ValidateBindGroupLayouts"/>)
-/// are both exercised against actual reflection output.
+/// Integration tests that slang bind group validation enforces contiguous sets and the device group limit.
 /// </summary>
 [TestFixture]
 public class TestShaderBindGroupValidation
@@ -108,6 +104,7 @@ public class TestShaderBindGroupValidation
             .GetShaderModules();
     }
 
+    /// <summary>Tests that a contiguous module under the device limit compiles without throwing.</summary>
     [Test(Description = "A valid contiguous module compiles without throwing")]
     public void CompileSlang_ContiguousUnderLimit_DoesNotThrow()
     {
@@ -115,6 +112,7 @@ public class TestShaderBindGroupValidation
             CompileSource("valid_shader", ThreeContiguousGroupsShader));
     }
 
+    /// <summary>Tests that a skipped bind group index is rejected during reflection.</summary>
     [Test(Description = "A module with a skipped set index is rejected by the reflection reader")]
     public void CompileSlang_SkippedGroup_Throws()
     {
@@ -123,6 +121,7 @@ public class TestShaderBindGroupValidation
         Assert.That(ex.Message, Does.Contain("non-contiguous set 2"));
     }
 
+    /// <summary>Tests that exceeding the device bind group limit throws a reflection exception.</summary>
     [Test(Description = "A module with more sets than the device limit throws ShaderReflectionException")]
     public void CompileSlang_TooManyGroups_Throws()
     {

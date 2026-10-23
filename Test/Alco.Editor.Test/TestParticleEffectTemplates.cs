@@ -17,6 +17,7 @@ public sealed class TestParticleEffectTemplates
     /// <summary>The minimal engine host for the asset/shader systems.</summary>
     private sealed class EngineHost() : GameEngine(GameEngineSetting.CreateNoGPU());
 
+    /// <summary>Tests that the 2D effect template parses as a self-contained 2D effect.</summary>
     [Test]
     public void Template2DParses()
     {
@@ -36,6 +37,7 @@ public sealed class TestParticleEffectTemplates
         Assert.That(effect.Groups[0].Behavior, Is.Null, "templates must stay self-contained");
     }
 
+    /// <summary>Tests that the 3D effect template parses as a 3D effect.</summary>
     [Test]
     public void Template3DParses()
     {
@@ -52,6 +54,7 @@ public sealed class TestParticleEffectTemplates
         Assert.That(effect.Groups, Has.Count.EqualTo(1));
     }
 
+    /// <summary>Tests that the 2D template survives a serialize-deserialize roundtrip.</summary>
     [Test]
     public void TemplateSurvivesSerializeRoundtrip()
     {

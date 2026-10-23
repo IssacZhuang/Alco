@@ -4,11 +4,8 @@ using System.Text.Json.Serialization;
 namespace Alco.Editor;
 
 /// <summary>
-/// An Alco editor project — the <c>.alco</c> JSON file that associates owned asset
-/// roots (editable by the editor) with referenced external assets such as engine
-/// built-ins (usable, but read-only). All paths inside the file are relative to the
-/// directory containing the file. This is an editor-only concept; game runtimes do
-/// not consume it.
+/// An editor project — the <c>.alco</c> JSON file associating owned editable asset roots with referenced read-only external assets.
+/// All paths inside the file are relative to its directory; game runtimes do not consume this format.
 /// </summary>
 public sealed class AlcoProject
 {

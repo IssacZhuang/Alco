@@ -10,6 +10,9 @@ namespace Alco.ImGUI.Test;
 [TestFixture]
 public class TestGizmoTranslate
 {
+    /// <summary>
+    /// Tests X translation direction in world mode under a perspective camera.
+    /// </summary>
     [Test]
     public void U5_TranslateX_Perspective_World()
     {
@@ -39,6 +42,9 @@ public class TestGizmoTranslate
         Assert.That(ctx.Using, Is.False);
     }
 
+    /// <summary>
+    /// Tests negative X translation in world mode under a perspective camera.
+    /// </summary>
     [Test]
     public void U5_TranslateX_Perspective_World_NegativeDirection()
     {
@@ -55,6 +61,9 @@ public class TestGizmoTranslate
         Assert.That(model.M41, Is.LessThan(-0.01f));
     }
 
+    /// <summary>
+    /// Tests local X translation on a rotated model under a perspective camera.
+    /// </summary>
     [Test]
     public void U5_TranslateX_Perspective_Local_RotatedModel()
     {
@@ -80,6 +89,9 @@ public class TestGizmoTranslate
         Assert.That(model.M43, Is.EqualTo(0f).Within(1e-4f));
     }
 
+    /// <summary>
+    /// Tests X translation in world mode under an orthographic camera.
+    /// </summary>
     [Test]
     public void U5_TranslateX_Orthographic_World()
     {
@@ -100,6 +112,9 @@ public class TestGizmoTranslate
         Assert.That(model.M42, Is.EqualTo(0f).Within(1e-4f));
     }
 
+    /// <summary>
+    /// Tests local X translation on a rotated model under an orthographic camera.
+    /// </summary>
     [Test]
     public void U5_TranslateX_Orthographic_Local_RotatedModel()
     {
@@ -120,6 +135,9 @@ public class TestGizmoTranslate
         Assert.That(model.M41, Is.EqualTo(0f).Within(1e-4f));
     }
 
+    /// <summary>
+    /// Tests that the <see cref="Transform3D"/> overload writes the translation back.
+    /// </summary>
     [Test]
     public void U5_Translate_Transform3DOverload_WritesBack()
     {
@@ -140,6 +158,9 @@ public class TestGizmoTranslate
         Assert.That(transform.Scale, Is.EqualTo(Vector3.One));
     }
 
+    /// <summary>
+    /// Tests that 2D translation leaves rotation and scale untouched.
+    /// </summary>
     [Test]
     public void U6_Translate2D_LeavesRotationAndScaleUntouched()
     {
@@ -168,6 +189,9 @@ public class TestGizmoTranslate
         AreEqual(originalScale, transform.Scale, 1e-5f);
     }
 
+    /// <summary>
+    /// Tests that the 2D plane handle moves both axes.
+    /// </summary>
     [Test]
     public void U6_Translate2D_PlaneHandle_MovesBothAxes()
     {

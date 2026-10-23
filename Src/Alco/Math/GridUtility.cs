@@ -276,8 +276,7 @@ public static class GridUtility
     /// using the 2D DDA (Amanatides–Woo) algorithm.
     /// </summary>
     /// <remarks>
-    /// Accepts floating-point endpoints and enumerates each grid cell crossed by the segment.
-    /// When the line hits a grid corner (tMaxX == tMaxY), both axes advance in the same step.
+    /// Enumerates every grid cell crossed by the segment; when the line hits a grid corner, both axes advance in the same step.
     /// </remarks>
     /// <param name="output">Collection filled with traversed cell coordinates. It is cleared first.</param>
     /// <param name="start">Start point in continuous space.</param>
@@ -336,6 +335,13 @@ public static class GridUtility
         }
     }
 
+    /// <summary>
+    /// Writes all grid cells intersected by the line segment from <paramref name="start"/> to <paramref name="end"/> into a span, stopping when the span is full.
+    /// </summary>
+    /// <param name="output">Destination span for traversed cell coordinates.</param>
+    /// <param name="start">Start point in continuous space.</param>
+    /// <param name="end">End point in continuous space.</param>
+    /// <returns>The number of cells written to <paramref name="output"/>.</returns>
     public static int GetSupercoverLineCornerBased(Span<int2> output, Vector2 start, Vector2 end)
     {
         int x = (int)MathF.Floor(start.X);
@@ -395,9 +401,7 @@ public static class GridUtility
     }
 
     /// <summary>
-    /// Traverses all grid cells intersected by the line segment when grid indices are center-based.
-    /// The first cell's center is at (0, 0), so cell boundaries are at half-integers.
-    /// This delegates to the corner-based implementation by offsetting coordinates by (+0.5, +0.5).
+    /// Traverses all grid cells intersected by the line segment when grid indices are center-based, with cell boundaries at half-integers.
     /// </summary>
     /// <param name="output">Collection filled with traversed cell coordinates. It is cleared first.</param>
     /// <param name="start">Start point in center-based continuous space.</param>

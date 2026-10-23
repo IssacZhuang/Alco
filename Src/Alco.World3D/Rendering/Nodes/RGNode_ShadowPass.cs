@@ -6,14 +6,7 @@ using Alco.Rendering;
 namespace Alco.World3D;
 
 /// <summary>
-/// A cascaded shadow map graph node: renders <see cref="CascadeCount"/> cascades into
-/// the quadrants of a 2x2 depth atlas, invoking every enabled
-/// <see cref="IShadowPassContent"/> in <see cref="Content"/> inside each cascade's
-/// pass. Only the first cascade's pass clears the atlas.
-/// <br/>The per-frame camera-space cascade view-projection matrices are shared with
-/// the caller through the array passed at construction (e.g. filled by
-/// <see cref="PBRSceneEnvironment.ComputeShadowCascades"/>); the node folds them into
-/// atlas quadrants and uploads the data buffer once, before recording the passes.
+/// A cascaded shadow map graph node rendering <see cref="CascadeCount"/> cascades into the quadrants of a 2x2 depth atlas and invoking every enabled <see cref="IShadowPassContent"/> provider per cascade. The per-frame cascade matrices are shared through the array passed at construction.
 /// </summary>
 public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
 {
@@ -53,13 +46,7 @@ public sealed class RGNode_ShadowPass : AutoDisposable, IRenderGraphNode
         _shadowMapSize = shadowMapSize;
     }
 
-    /// <summary>The caster content drawn inside each cascade's pass, in list order.
-    /// Register content providers here — the pipeline the pass belongs to is not
-    /// involved.
-    /// <br/>Ownership: the pass does not take ownership of registered providers;
-    /// disposing them (when disposable) is the caller's responsibility, unlike
-    /// nodes handed to <c>RenderGraph.Use</c>, which transfers ownership to the
-    /// graph.</summary>
+    /// <summary>The caster content drawn inside each cascade's pass in list order; registered providers are owned by the caller, not the pass.</summary>
     public List<IShadowPassContent> Content { get; } = new();
 
     /// <summary>Optional CPU/GPU stage instrumentation.</summary>

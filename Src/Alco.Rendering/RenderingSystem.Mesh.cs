@@ -5,6 +5,9 @@ namespace Alco.Rendering;
 
 // mesh factory
 
+/// <summary>
+/// Mesh creation.
+/// </summary>
 public partial class RenderingSystem
 {
 

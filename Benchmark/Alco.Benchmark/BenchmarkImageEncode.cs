@@ -172,6 +172,9 @@ file static unsafe class StbEncoder
 
 // ── Benchmark ───────────────────────────────────────────────────────────
 
+/// <summary>
+/// Benchmarks PNG encoding of small, large, and wall textures with the engine encoder, libpng, and STB.
+/// </summary>
 [Config(typeof(DefaultBenchmarkConfig))]
 [GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
 [CategoriesColumn]
@@ -190,6 +193,9 @@ public unsafe class BenchmarkImageEncode
     private GCHandle _pinLarge;
     private GCHandle _pinWall;
 
+    /// <summary>
+    /// Decodes the source images and pins their pixel buffers for the benchmarks.
+    /// </summary>
     [GlobalSetup]
     public void Setup()
     {
@@ -204,6 +210,9 @@ public unsafe class BenchmarkImageEncode
         _pinWall = GCHandle.Alloc(_pixelsWall, GCHandleType.Pinned);
     }
 
+    /// <summary>
+    /// Releases the pinned pixel buffers.
+    /// </summary>
     [GlobalCleanup]
     public void Cleanup()
     {
@@ -231,6 +240,9 @@ public unsafe class BenchmarkImageEncode
 
     // ── PNG Small ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the small image with the engine encoder.
+    /// </summary>
     [Benchmark(Description = "New")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_New()
@@ -239,6 +251,9 @@ public unsafe class BenchmarkImageEncode
         GC.KeepAlive(png);
     }
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the small image with libpng.
+    /// </summary>
     [Benchmark(Description = "Libpng")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_Libpng()
@@ -248,6 +263,9 @@ public unsafe class BenchmarkImageEncode
         NativeMemory.Free((byte*)buf);
     }
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the small image with STB.
+    /// </summary>
     [Benchmark(Description = "STB")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_Stb()
@@ -261,6 +279,9 @@ public unsafe class BenchmarkImageEncode
 
     // ── PNG Large ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the large image with the engine encoder.
+    /// </summary>
     [Benchmark(Description = "New")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_New()
@@ -269,6 +290,9 @@ public unsafe class BenchmarkImageEncode
         GC.KeepAlive(png);
     }
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the large image with libpng.
+    /// </summary>
     [Benchmark(Description = "Libpng")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_Libpng()
@@ -278,6 +302,9 @@ public unsafe class BenchmarkImageEncode
         NativeMemory.Free((byte*)buf);
     }
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the large image with STB.
+    /// </summary>
     [Benchmark(Description = "STB")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_Stb()
@@ -291,6 +318,9 @@ public unsafe class BenchmarkImageEncode
 
     // ── PNG Wall ──────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the wall texture with the engine encoder.
+    /// </summary>
     [Benchmark(Description = "New")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_New()
@@ -299,6 +329,9 @@ public unsafe class BenchmarkImageEncode
         GC.KeepAlive(png);
     }
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the wall texture with libpng.
+    /// </summary>
     [Benchmark(Description = "Libpng")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_Libpng()
@@ -308,6 +341,9 @@ public unsafe class BenchmarkImageEncode
         NativeMemory.Free((byte*)buf);
     }
 
+    /// <summary>
+    /// Benchmarks PNG encoding of the wall texture with STB.
+    /// </summary>
     [Benchmark(Description = "STB")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_Stb()

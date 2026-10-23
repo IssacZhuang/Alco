@@ -5,11 +5,7 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// Integration tests for depth texture handling on the slang module path:
-/// modules declare native <c>DepthTexture2D</c> parameters, slang emits the
-/// depth (shadow) image flavor in SPIR-V itself, and the reflection must report
-/// the depth sample type and the comparison sampler binding. No bytecode
-/// rewriting anywhere — reflection drives the depth bindings directly.
+/// Integration tests that slang reflection reports depth textures and comparison sampler bindings.
 /// </summary>
 [TestFixture]
 public class TestDepthTextureShader
@@ -75,6 +71,7 @@ public class TestDepthTextureShader
         throw new AssertionException($"Bind group {group} not found");
     }
 
+    /// <summary>Tests that a load-only depth texture is reflected with the depth sample type.</summary>
     [Test(Description = "A load-only DepthTexture2D is reflected with the Depth sample type")]
     public void CompileSlang_DepthReadTexture_ReflectedAsDepthSampleType()
     {
@@ -87,6 +84,7 @@ public class TestDepthTextureShader
         Assert.That(group.Bindings[0].Entry.TextureInfo!.SampleType, Is.EqualTo(TextureSampleType.Depth));
     }
 
+    /// <summary>Tests that a sampled depth texture is reflected with a depth texture and comparison sampler.</summary>
     [Test(Description = "A sampled DepthTexture2D pair is reflected as depth texture + comparison sampler")]
     public void CompileSlang_DepthSampledTexture_ReflectedAsDepthAndComparisonSampler()
     {

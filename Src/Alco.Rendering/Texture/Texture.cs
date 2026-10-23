@@ -34,8 +34,14 @@ public abstract class Texture : AutoDisposable
     private readonly ConcurrentDictionary<(GPUBindGroup Layout, GPUTextureView View), GPUResourceGroup> _layoutResourceGroups = new();
     private readonly Lock _createGroupLock = new();
 
+    /// <summary>
+    /// The debug name of the underlying GPU texture.
+    /// </summary>
     public string Name { get; }
 
+    /// <summary>
+    /// Whether the texture can be written to on the CPU side.
+    /// </summary>
     public bool IsWriteable => _texture.IsWriteable;
 
 
@@ -57,6 +63,9 @@ public abstract class Texture : AutoDisposable
         get => _texture.Depth;
     }
 
+    /// <summary>
+    /// The underlying GPU texture.
+    /// </summary>
     public GPUTexture NativeTexture => _texture;
 
     /// <summary>
@@ -95,6 +104,10 @@ public abstract class Texture : AutoDisposable
         Name = texture.Name;
     }
 
+    /// <summary>
+    /// Uploads one pixel per element from the array to the texture.
+    /// </summary>
+    /// <param name="data">The pixel data; its length must equal width times height.</param>
     public unsafe void SetPixels<T>(T[] data) where T : unmanaged
     {
         fixed (T* ptr = data)
@@ -103,6 +116,11 @@ public abstract class Texture : AutoDisposable
         }
     }
 
+    /// <summary>
+    /// Uploads pixel data from an unmanaged buffer to the texture.
+    /// </summary>
+    /// <param name="data">The pointer to the pixel data.</param>
+    /// <param name="length">The pixel count; must equal width times height.</param>
     public unsafe void SetPixels<T>(T* data, uint length) where T : unmanaged
     {
         if (!IsWriteable)
@@ -119,6 +137,11 @@ public abstract class Texture : AutoDisposable
         _device.WriteTexture(_texture, (byte*)data, length * (uint)sizeof(T));
     }
 
+    /// <summary>
+    /// Uploads raw bytes to the texture without validating the size.
+    /// </summary>
+    /// <param name="data">The pointer to the raw pixel bytes.</param>
+    /// <param name="size">The size of the data in bytes.</param>
     public unsafe void SetPixels(byte* data, uint size)
     {
         if (!IsWriteable)
@@ -129,11 +152,8 @@ public abstract class Texture : AutoDisposable
     }
 
     /// <summary>
-    /// Returns the bind group that binds the given view of this texture as the
-    /// only resource of a shader bind group with the given layout, creating it
-    /// on first use. The group is cached on the texture for its lifetime and
-    /// shared across all materials and frames, so cycling textures or mip views
-    /// through a material does not allocate a new bind group per change.
+    /// Returns the cached bind group that binds the given view of this texture as the only
+    /// resource of the given layout, creating it on first use.
     /// </summary>
     /// <param name="layout">The bind group layout of the consuming shader's group.</param>
     /// <param name="view">The texture view to bind (full-chain or single-mip).</param>

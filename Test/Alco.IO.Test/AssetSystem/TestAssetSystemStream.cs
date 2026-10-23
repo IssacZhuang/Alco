@@ -5,6 +5,9 @@ using Alco.IO;
 
 namespace Alco.IO.Test;
 
+/// <summary>
+/// Covers <see cref="AssetSystem"/> stream access and unloading of cached disposable assets.
+/// </summary>
 public class TestAssetSystemStream
 {
     private sealed class StreamTestHost : IAssetSystemHost, IDisposable
@@ -60,6 +63,9 @@ public class TestAssetSystemStream
         return (system, host, directory);
     }
 
+    /// <summary>
+    /// Tests that TryGetStream returns a seekable stream and reports missing files.
+    /// </summary>
     [Test]
     public void TryGetStreamOpensSeekableStreamWithoutLoading()
     {
@@ -95,6 +101,9 @@ public class TestAssetSystemStream
         }
     }
 
+    /// <summary>
+    /// Tests that Unload disposes cached assets and removes them from the cache.
+    /// </summary>
     [Test]
     public void UnloadRemovesCacheAndDisposesAsset()
     {

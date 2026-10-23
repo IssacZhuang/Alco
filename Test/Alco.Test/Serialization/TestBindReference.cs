@@ -5,29 +5,7 @@ using System.Collections.Generic;
 
 namespace Alco.Test;
 
-/// <summary>
-/// Tests for BindReference functionality in serialization to ensure that object references
-/// are properly handled during serialization, deserialization, and post-load phases.
-/// 
-/// The reference system works in three phases:
-/// 1. Save (Serialization): Objects implementing IReferenceable are assigned unique IDs and stored normally.
-///    BindReference stores the ID of referenced objects.
-/// 2. Load (Deserialization): Objects are recreated and registered in the reference context by their IDs.
-///    BindReference does nothing during this phase.
-/// 3. PostLoad: BindReference resolves the stored IDs to actual object instances from the reference context.
-/// 
-/// Key concepts tested:
-/// - Basic reference serialization/deserialization
-/// - Null reference handling
-/// - Shared references (multiple variables pointing to the same object)
-/// - Circular references (objects referencing each other)
-/// - Nested references (objects with child references)
-/// - Error handling for invalid reference IDs
-/// - Complex scenarios with multiple types of references
-/// - References with BindSerializable serialized objects
-/// - References with BindCollectionSerializable serialized collections
-/// - Mixed serialization methods with references
-/// </summary>
+/// <summary>Tests BindReference handling of object references through serialization and post-load resolution, including null, shared, circular, nested, collection, and error cases.</summary>
 public class TestBindReference
 {
     /// <summary>
@@ -92,6 +70,7 @@ public class TestBindReference
         }
     }
 
+    /// <summary>Tests that external references resolve to array items.</summary>
     [Test]
     public void TestExternalReferencesPointToArrayItems()
     {
@@ -116,6 +95,7 @@ public class TestBindReference
         Assert.That(ReferenceEquals(result.Items[2], result.RefItem2), Is.True);
     }
 
+    /// <summary>Tests that external references to items beyond the deserialized array length stay unresolved.</summary>
     [Test]
     public void TestExternalReferencesWithSizeMismatch()
     {
@@ -154,6 +134,7 @@ public class TestBindReference
         }
     }
 
+    /// <summary>Tests that array items holding external references resolve them after deserialization.</summary>
     [Test]
     public void TestArrayItemsHoldingExternalReferences()
     {
@@ -196,11 +177,7 @@ public class TestBindReference
         Assert.That(ReferenceEquals(targets[1], result.DirectRef), Is.True);
     }
 
-    /// <summary>
-    /// Container object that holds multiple references to test various scenarios.
-    /// The key insight is that objects must first be serialized normally (to register them in the reference context)
-    /// before they can be referenced by BindReference.
-    /// </summary>
+    /// <summary>Container with objects and references that must be serialized before they are referenced.</summary>
     private class ReferenceContainer : ISerializable
     {
         public string ContainerName = "";
@@ -231,11 +208,7 @@ public class TestBindReference
         }
     }
 
-    /// <summary>
-    /// Test object that creates circular references.
-    /// For circular references to work, we need to first serialize the object normally,
-    /// then handle the circular reference in a second pass.
-    /// </summary>
+    /// <summary>Container that serializes two objects forming a circular reference.</summary>
     private class CircularReferenceContainer : ISerializable
     {
         public CircularReferenceObject? ObjectA;
@@ -283,6 +256,7 @@ public class TestBindReference
         }
     }
 
+    /// <summary>Tests basic reference round-tripping through serialization and deserialization.</summary>
     [Test]
     public void TestBasicReferenceSerializationAndDeserialization()
     {
@@ -320,6 +294,7 @@ public class TestBindReference
         Assert.That(deserializedContainer.SharedReference, Is.Null);
     }
 
+    /// <summary>Tests that null references remain null after a round trip.</summary>
     [Test]
     public void TestNullReferenceHandling()
     {
@@ -349,6 +324,7 @@ public class TestBindReference
         Assert.That(deserializedContainer.SharedReference, Is.Null);
     }
 
+    /// <summary>Tests that multiple references to one object share the deserialized instance.</summary>
     [Test]
     public void TestSharedReferencesSameObject()
     {
@@ -389,6 +365,7 @@ public class TestBindReference
         Assert.That(deserializedContainer.OriginalObject.Value, Is.EqualTo(100));
     }
 
+    /// <summary>Tests that circular references are preserved.</summary>
     [Test]
     public void TestCircularReferences()
     {
@@ -425,6 +402,7 @@ public class TestBindReference
         Assert.That(ReferenceEquals(deserializedContainer.ObjectB, deserializedContainer.ObjectA.Partner), Is.True);
     }
 
+    /// <summary>Tests that nested child references are preserved.</summary>
     [Test]
     public void TestNestedReferences()
     {
@@ -474,6 +452,7 @@ public class TestBindReference
         Assert.That(ReferenceEquals(deserializedContainer.SecondObject, deserializedContainer.FirstReference.ChildReference), Is.True);
     }
 
+    /// <summary>Tests that invalid reference IDs are reported and leave the references null.</summary>
     [Test]
     public void TestReferenceErrorHandling()
     {
@@ -510,6 +489,7 @@ public class TestBindReference
         Assert.That(container.ContainerName, Is.EqualTo("Error Test")); // Other fields should still work
     }
 
+    /// <summary>Tests a complex scenario with multiple shared and nested references.</summary>
     [Test]
     public void TestComplexReferenceScenario()
     {
@@ -617,6 +597,7 @@ public class TestBindReference
         }
     }
 
+    /// <summary>Tests that objects serialized with BindSerializable can be referenced.</summary>
     [Test]
     public void TestBindSerializableWithReferences()
     {
@@ -651,6 +632,7 @@ public class TestBindReference
         Assert.That(ReferenceEquals(deserializedContainer.SerializedObject, deserializedContainer.ObjectReference), Is.True);
     }
 
+    /// <summary>Tests that collection objects serialized with BindCollectionSerializable can be referenced.</summary>
     [Test]
     public void TestBindCollectionSerializableWithReferences()
     {
@@ -694,6 +676,7 @@ public class TestBindReference
         Assert.That(ReferenceEquals(collectionArray[2], deserializedContainer.ThirdObjectRef), Is.True);
     }
 
+    /// <summary>Tests reference resolution across mixed serialization methods.</summary>
     [Test]
     public void TestMixedSerializationMethodsWithReferences()
     {
@@ -852,6 +835,7 @@ public class TestBindReference
         }
     }
 
+    /// <summary>Tests that collection objects referencing external and intra-collection objects resolve correctly.</summary>
     [Test]
     public void TestCollectionObjectsWithReferences()
     {

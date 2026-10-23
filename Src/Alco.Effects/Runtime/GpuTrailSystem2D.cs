@@ -6,35 +6,9 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// Renders any number of 2D trail ribbons GPU-resident: the CPU appends one point
-/// record per emission into the trail's ring slice of the shared point buffer, and
-/// the vertex stage handles validity, aging and quad expansion (module
-/// AlcoRendering_Trails2D). CPU work covers newly emitted points and bounded
-/// trail-slot scans for lifecycle, uploads and material batching; live points
-/// require no per-frame CPU simulation.
-/// <br/>Materials: the trail's <see cref="TrailEffect2D.Material"/> asset composes
-/// with the trail pass template (<see cref="RenderModule"/>, GpuTrail2D) through a
-/// <see cref="MaterialCompiler"/> the system owns — the asset's surface module
-/// (implementing ITrailSurface, module AlcoRendering_TrailSurface) shapes the look,
-/// the system compiles, caches per (asset, blend, depth), applies the pass state
-/// (premultiplied blend, depth-read, cull-none) and binds the shared buffers (the
-/// camera block and the trailPoints/trailParams/trailGlobals resources the template
-/// declares) — the same template-plus-surface design as the particle system's group
-/// materials. A null material selects the engine's default surface.
-/// <br/>Capacity model: one shared point buffer (sliced per trail in powers of two,
-/// clamped to 32..1024 points) plus one parameter record per trail slot, both fixed
-/// at construction — <see cref="TryCreateInstance"/> returns false when either is
-/// exhausted instead of growing, so the worst-case GPU cost is bounded by the budget.
-/// <br/>Draw batching: per frame (in <see cref="Render"/>) the live visible trails
-/// are bucketed by material, one <see cref="IndexedIndirectData"/> record per trail
-/// (firstInstance = trail slot, vertexOffset = sliceOffset * 4) is written
-/// contiguously per material, and every material draws with a single
-/// <see cref="RenderPassScope.MultiDrawIndexedIndirect(in Mesh, in GraphicsMaterial, GraphicsBuffer, uint, uint, in int)"/>
-/// — draw calls scale with the material count, not the trail count. Dead trails
-/// drop out of the plan entirely; dead segments collapse in the vertex stage.
-/// <br/>Threading: main-thread contract — creation, emission, <see cref="Update"/>
-/// and <see cref="Render"/> are all driven by the owning map service on the main
-/// thread, like <see cref="DynamicMeshRenderer"/>.
+/// Renders any number of 2D trail ribbons GPU-resident: the CPU appends point records into each trail's ring slice and the vertex stage handles validity, aging and quad expansion.
+/// Point slices and trail slots are fixed at construction, so <see cref="TryCreateInstance"/> returns false when either is exhausted.
+/// Creation, emission, <see cref="Update"/> and <see cref="Render"/> must all run on the main thread.
 /// </summary>
 public sealed class GpuTrailSystem2D : AutoDisposable
 {
@@ -264,12 +238,8 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// The 2D camera the trails render with; bound to every compiled material.
-    /// Accepts any view-projection matrix buffer (a <see cref="Camera2DBuffer"/>,
-    /// or the shared <see cref="RenderingSystem.MainCameraViewProjectionBuffer"/> to
-    /// track whatever camera is currently rendering). The compile path's factory
-    /// already binds the main camera buffer, so this only needs setting to override
-    /// it — materials compiled afterwards bind it at creation.
+    /// The view-projection matrix buffer the trails render with, bound to every compiled material.
+    /// Defaults to the main camera buffer; materials compiled after assignment bind it at creation.
     /// </summary>
     public GraphicsValueBuffer<Matrix4x4>? Camera
     {
@@ -375,11 +345,8 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     }
 
     /// <summary>
-    /// Flushes the dirty point/parameter ranges, rebuilds the draw plan and records
-    /// the batched indirect draws into the current pass: one multi-draw per material.
-    /// Call from the scene content (e.g. a map service's transparent-layer hook), the
-    /// same entry shape as <see cref="GpuParticleSystem2D.Render"/> — not available
-    /// while recording a render bundle (multi-draw indirect).
+    /// Flushes dirty point and parameter ranges, rebuilds the draw plan and records one batched multi-draw per material into the current pass.
+    /// Must be called from scene content, not while recording a render bundle.
     /// </summary>
     /// <param name="pass">The render pass scope of the scene pass.</param>
     public void Render(RenderPassScope pass)

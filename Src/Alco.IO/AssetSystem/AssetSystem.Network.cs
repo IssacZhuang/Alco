@@ -30,8 +30,7 @@ public sealed partial class AssetSystem
     /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>true if the asset was loaded successfully; otherwise, false.</returns>
     /// <remarks>
-    /// This method handles concurrent loading attempts through locking mechanisms and supports caching of loaded assets.
-    /// If the asset is already cached, it will be returned from the cache instead of downloading again.
+    /// Loads are serialized per URL, and cached assets are returned without downloading again.
     /// </remarks>
     public bool TryLoadRemote(string url, Type type, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string? failedReason, AssetCacheMode cacheMode = AssetCacheMode.None)
     {

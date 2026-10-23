@@ -7,6 +7,7 @@ using Alco.Rendering;
 using Alco;
 using Alco.IO;
 
+/// <summary>Sandbox demonstrating asynchronous asset loading of textures.</summary>
 public class Game : GameEngine
 {
     #region Shader Data
@@ -47,6 +48,8 @@ public class Game : GameEngine
 
     private float _timer = 0.0f;
 
+    /// <summary>Initializes the quad buffers and the asynchronous texture state.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         _commandBuffer = GraphicsDevice.CreateCommandBuffer();

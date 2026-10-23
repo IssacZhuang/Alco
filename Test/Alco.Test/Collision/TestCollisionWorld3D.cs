@@ -5,25 +5,45 @@ using TestFramework;
 
 namespace Alco.Test;
 
+/// <summary>
+/// Covers 3D collision world builds and shape, point, and ray casts.
+/// </summary>
 public class TestCollisionWorld3D
 {
+    /// <summary>
+    /// Test collision target backed by a 3D box shape.
+    /// </summary>
     public class TestBoxTarget
     {
         public int id;
         public ShapeBox3D shape;
     }
 
+    /// <summary>
+    /// Test collision target backed by a 3D sphere shape.
+    /// </summary>
     public class TestSphereTarget
     {
         public int id;
         public ShapeSphere3D shape;
     }
 
+    /// <summary>
+    /// Collects hit ids from collision and ray casts.
+    /// </summary>
     public struct TestCollector : ICollisionCastCollector, IRayCastCollector3D
     {
         public List<int> hitIds;
+        /// <summary>
+        /// Initializes an empty hit id list.
+        /// </summary>
         public TestCollector() { hitIds = new List<int>(); }
 
+        /// <summary>
+        /// Records the id of a hit box target and continues the cast.
+        /// </summary>
+        /// <param name="target">Object reported by the cast.</param>
+        /// <returns>True to continue collecting hits.</returns>
         public bool OnHit(object target)
         {
             if (target is TestBoxTarget box)
@@ -33,6 +53,12 @@ public class TestCollisionWorld3D
             return true;
         }
 
+        /// <summary>
+        /// Records the id of a hit box target and continues the cast.
+        /// </summary>
+        /// <param name="target">Object reported by the cast.</param>
+        /// <param name="hit">Hit details, which are ignored.</param>
+        /// <returns>True to continue collecting hits.</returns>
         public bool OnHit(object target, RaycastHit3D hit)
         {
             if (target is TestBoxTarget box)
@@ -43,6 +69,9 @@ public class TestCollisionWorld3D
         }
     }
 
+    /// <summary>
+    /// Tests sphere shape casts and world rebuild reuse.
+    /// </summary>
     [Test(Description = "collision world 3d")]
     public void TestShapeCast3D()
     {
@@ -112,6 +141,9 @@ public class TestCollisionWorld3D
         Assert.That(collector2.hitIds.Count, Is.EqualTo(21));
     }
 
+    /// <summary>
+    /// Tests that a point cast reports all boxes containing the point.
+    /// </summary>
     [Test]
     public void TestPointCast3D()
     {
@@ -159,6 +191,9 @@ public class TestCollisionWorld3D
         Assert.That(collector.hitIds.Count, Is.EqualTo(3));
     }
 
+    /// <summary>
+    /// Tests closest-hit ray casts for hit and miss cases.
+    /// </summary>
     [Test]
     public void TestRayCast3D()
     {
@@ -185,6 +220,9 @@ public class TestCollisionWorld3D
         Assert.That(hitTarget2, Is.Null);
     }
 
+    /// <summary>
+    /// Tests that a multi-hit ray cast reports every intersected box.
+    /// </summary>
     [Test]
     public void TestRayCastMulti3D()
     {
@@ -210,6 +248,9 @@ public class TestCollisionWorld3D
         Assert.That(collector.hitIds.Count, Is.EqualTo(5));
     }
 
+    /// <summary>
+    /// Tests that a ray starting inside a sphere reports no hit.
+    /// </summary>
     [Test]
     public void TestRayFromInsideSphere3D()
     {
@@ -228,6 +269,9 @@ public class TestCollisionWorld3D
         Assert.That(world.TryCastRayClosestHit<TestSphereTarget>(ray, out _, out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that a ray starting inside a box reports no hit.
+    /// </summary>
     [Test]
     public void TestRayFromInsideBox3D()
     {
@@ -246,6 +290,9 @@ public class TestCollisionWorld3D
         Assert.That(world.TryCastRayClosestHit<TestBoxTarget>(ray, out _, out _), Is.False);
     }
 
+    /// <summary>
+    /// Tests that a ray from outside a sphere reports a hit.
+    /// </summary>
     [Test]
     public void TestRayFromOutsideToInsideSphere3D()
     {

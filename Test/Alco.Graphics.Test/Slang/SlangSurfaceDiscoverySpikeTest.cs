@@ -26,6 +26,7 @@ namespace Alco.Graphics.Test;
 //      (Stack<Snow, Base>): multi-library composition without generating a
 //      wrapper module.
 // ─────────────────────────────────────────────────────────────────────────────
+/// <summary>Tests Slang reflection-based discovery and specialization of surface types.</summary>
 [TestFixture]
 public unsafe class SlangSurfaceDiscoverySpikeTest
 {
@@ -211,6 +212,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         }
         """;
 
+    /// <summary>Tests that the module declaration tree enumerates structs and subtype queries select conformers.</summary>
     [Test]
     public void ModuleDecl_EnumeratesStructs_AndIsSubTypeSelectsTheConformer()
     {
@@ -242,6 +244,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         Assert.That(SlangNative.spReflection_isSubType(layout, notSurfaceType, interfaceType), Is.False);
     }
 
+    /// <summary>Tests that a template's generic declaration exposes its interface constraint.</summary>
     [Test]
     public void TemplateDecl_ExposesItsGenericContract_InterfaceTypeIncluded()
     {
@@ -278,6 +281,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
             Does.Contain("ISurface"));
     }
 
+    /// <summary>Tests that a discovered type specializes by type kind and compiles.</summary>
     [Test]
     public void DiscoveredType_SpecializesByTypeKind_AndCompiles()
     {
@@ -315,6 +319,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         });
     }
 
+    /// <summary>Tests that type and value specializations mix in one call.</summary>
     [Test]
     public void DiscoveredType_MixesWithValueSpecialization()
     {
@@ -346,6 +351,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         });
     }
 
+    /// <summary>Tests that both conformers are discovered in an ambiguous module.</summary>
     [Test]
     public void TwoConformers_AreBothDiscovered()
     {
@@ -361,6 +367,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
 
     // ── production-path tests: GetComposedProgram runs the discovery itself ──
 
+    /// <summary>Tests that composed-program discovery handles a renamed conformer.</summary>
     [Test]
     public void GetComposedProgram_Discovery_ComposesARenamedConformer()
     {
@@ -378,6 +385,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
         });
     }
 
+    /// <summary>Tests that zero conformers fail with an error naming the contract.</summary>
     [Test]
     public void GetComposedProgram_ZeroConformers_FailsNamingTheContract()
     {
@@ -394,6 +402,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
             "the error must name the contract the module fails to implement");
     }
 
+    /// <summary>Tests that multiple conformers fail with an error listing the candidates.</summary>
     [Test]
     public void GetComposedProgram_MultipleConformers_FailsListingTheCandidates()
     {
@@ -409,6 +418,7 @@ public unsafe class SlangSurfaceDiscoverySpikeTest
             "an ambiguous module must fail listing every candidate");
     }
 
+    /// <summary>Tests that type-level specialization builds a generic aggregate without a wrapper module.</summary>
     [Test]
     public void SpecializeType_BuildsGenericAggregateWithoutWrapperModule()
     {

@@ -50,6 +50,11 @@ namespace Alco
             }
         }
 
+        /// <summary>
+        /// Decodes a binary table from a byte memory buffer.
+        /// </summary>
+        /// <param name="bytes">The bytes to decode.</param>
+        /// <returns>The deserialized binary table.</returns>
         public unsafe static BinaryTable DecodeTable(ReadOnlyMemory<byte> bytes)
         {
             return DecodeTable(bytes.Span);
