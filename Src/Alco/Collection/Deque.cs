@@ -125,12 +125,37 @@ public sealed class Deque<T> : ICollection<T>
         return true;
     }
 
-    /// <summary>
-    /// Attempts to remove the item at the tail of the deque.
-    /// </summary>
-    /// <param name="item">The removed item, or the default value when the deque is empty.</param>
-    /// <returns>True if an item was removed; otherwise, false.</returns>
-    public bool TryDequeueTail(out T item)
+        /// <summary>
+        /// Attempts to read the item at the given position from the head without removing it.
+        /// </summary>
+        /// <param name="index">Zero-based position from the head; the head itself is index 0.</param>
+        /// <param name="item">The item at the position, or the default value when the deque is
+        /// empty or the position is out of range.</param>
+        /// <returns>True if an item was read; otherwise, false.</returns>
+        public bool TryGetAt(int index, out T item)
+        {
+            if ((uint)index >= (uint)_size)
+            {
+                item = default!;
+                return false;
+            }
+
+            int arrayIndex = _head + index;
+            if (arrayIndex >= _array.Length)
+            {
+                arrayIndex -= _array.Length;
+            }
+
+            item = _array[arrayIndex];
+            return true;
+        }
+
+        /// <summary>
+        /// Attempts to remove the item at the tail of the deque.
+        /// </summary>
+        /// <param name="item">The removed item, or the default value when the deque is empty.</param>
+        /// <returns>True if an item was removed; otherwise, false.</returns>
+        public bool TryDequeueTail(out T item)
     {
         if (_size == 0)
         {
