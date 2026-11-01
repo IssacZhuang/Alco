@@ -26,13 +26,6 @@ public enum GPUCapabilities : ulong
     MetalLib = 1 << 1,
 
     /// <summary>
-    /// The native multi-draw-indirect path is available. The functionality
-    /// itself needs no feature (wgpu 30 emulates multi-draw when the native
-    /// path is absent); this capability marks the non-emulated path.
-    /// </summary>
-    MultiDrawIndirect = 1 << 2,
-
-    /// <summary>
     /// Timestamp writes inside open render/compute passes use the native
     /// extension instead of pass-boundary emulation.
     /// </summary>

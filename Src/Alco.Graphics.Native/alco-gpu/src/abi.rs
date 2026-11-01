@@ -102,8 +102,6 @@ pub mod capabilities {
     pub const PASSTHROUGH_SHADERS: u64 = 1 << 0;
     /// MetalLib passthrough source accepted by this build (Apple platforms).
     pub const METALLIB: u64 = 1 << 1;
-    /// MULTI_DRAW_INDIRECT native extension available.
-    pub const MULTI_DRAW_INDIRECT: u64 = 1 << 2;
     /// TIMESTAMP_QUERY_INSIDE_PASSES native feature available.
     pub const TIMESTAMP_INSIDE_PASSES: u64 = 1 << 3;
 }

@@ -113,7 +113,6 @@ pub(crate) mod gpu_features {
     pub const TIMESTAMP_QUERY: u64 = 1 << 1;
     pub const TIMESTAMP_QUERY_INSIDE_PASSES: u64 = 1 << 2;
     pub const INDIRECT_FIRST_INSTANCE: u64 = 1 << 4;
-    pub const MULTI_DRAW_INDIRECT: u64 = 1 << 5;
     pub const CLEAR_TEXTURE: u64 = 1 << 6;
 }
 
@@ -181,9 +180,6 @@ fn supported_gpu_features(adapter_features: wgt::Features) -> (u64, u64) {
     if adapter_features.contains(wgt::Features::CLEAR_TEXTURE) {
         features |= gpu_features::CLEAR_TEXTURE;
     }
-    // Multi-draw is always claimed: wgpu 30 supports multi_draw_* on all
-    // backends, emulating with per-record draws when no native path exists.
-    features |= gpu_features::MULTI_DRAW_INDIRECT;
     if adapter_features.contains(wgt::Features::PASSTHROUGH_SHADERS) {
         caps |= capabilities::PASSTHROUGH_SHADERS;
     }

@@ -165,8 +165,9 @@ public abstract class GPUCommandBuffer : BaseGPUObject
         /// <summary>
         /// Draws <paramref name="drawCount"/> consecutive indexed indirect records
         /// (20-byte stride) starting at <paramref name="offset"/> in
-        /// <paramref name="indirectBuffer"/>. Requires <see cref="GPUFeatures.MultiDrawIndirect"/>;
-        /// backends without it fall back to one indirect draw per record.
+        /// <paramref name="indirectBuffer"/>. Multi-draw needs no feature: wgpu 30
+        /// supports it on every backend, emulating with per-record draws where no
+        /// native multi-draw path exists.
         /// </summary>
         /// <param name="indirectBuffer">The buffer holding the indirect draw records.</param>
         /// <param name="offset">The byte offset of the first record.</param>
@@ -179,17 +180,7 @@ public abstract class GPUCommandBuffer : BaseGPUObject
             {
                 return;
             }
-            if (_commandBuffer.Device.IsFeatureSupported(GPUFeatures.MultiDrawIndirect))
-            {
-                _commandBuffer.MultiDrawIndexedIndirectCore(indirectBuffer, offset, drawCount);
-            }
-            else
-            {
-                for (uint i = 0; i < drawCount; i++)
-                {
-                    _commandBuffer.DrawIndexedIndirectCore(indirectBuffer, offset + i * 20);
-                }
-            }
+            _commandBuffer.MultiDrawIndexedIndirectCore(indirectBuffer, offset, drawCount);
         }
 
         /// <summary>

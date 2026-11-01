@@ -25,13 +25,6 @@ public enum GPUFeatures : ulong
     IndirectFirstInstance = 1 << 4,
 
     /// <summary>
-    /// One command draws many indirect records: wgpu-core's MultiDrawIndirect.
-    /// Requires <see cref="IndirectFirstInstance"/> in practice (the records of a
-    /// batch address data through firstInstance).
-    /// </summary>
-    MultiDrawIndirect = 1 << 5,
-
-    /// <summary>
     /// Command-buffer texture clearing (encoder-level ClearTexture). Buffer
     /// clearing needs no feature.
     /// </summary>

@@ -75,7 +75,6 @@ internal static unsafe partial class AlcoGPU
     {
         public const ulong PassthroughShaders = 1ul << 0;
         public const ulong MetalLib = 1ul << 1;
-        public const ulong MultiDrawIndirect = 1ul << 2;
         public const ulong TimestampInsidePasses = 1ul << 3;
     }
 
