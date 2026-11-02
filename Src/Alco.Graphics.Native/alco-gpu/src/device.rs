@@ -690,9 +690,10 @@ mod tests {
         assert_eq!(selected.unwrap().0, wgt::DeviceType::IntegratedGpu);
         assert!(adapter_rejection(wgt::Backend::Vulkan, base, 16, 16).is_none());
         assert!(adapter_rejection(wgt::Backend::Dx12, base, 16, 16).is_none());
-        assert!(adapter_rejection(wgt::Backend::Metal, base, 16, 16).is_some());
+        assert!(adapter_rejection(wgt::Backend::Metal, base, 16, 16).is_none());
+        assert!(adapter_rejection(wgt::Backend::Gl, base, 16, 16).is_some());
         assert!(adapter_rejection(
-            wgt::Backend::Metal,
+            wgt::Backend::Gl,
             base | wgt::Features::PASSTHROUGH_SHADERS,
             16,
             16
