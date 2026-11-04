@@ -16,6 +16,17 @@ public class NoInput : Input
     public override bool IsCursorVisible {get; set; } = true;
 
     /// <inheritdoc />
+    public override NativeCursor? CreateColorCursor(ReadOnlySpan<byte> encodedImage, int pixelWidth, int pixelHeight, Vector2 hotspot)
+    {
+        return null;
+    }
+
+    /// <inheritdoc />
+    public override void SetCursor(NativeCursor? cursor)
+    {
+    }
+
+    /// <inheritdoc />
     public override bool IsMouseRelativeMode { get; set; }
 
     /// <inheritdoc />

@@ -1,6 +1,9 @@
 using System.Collections.Frozen;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Threading;
+using Alco;
+using Alco.Rendering;
 using SDL3;
 using static SDL3.SDL3;
 
@@ -28,6 +31,7 @@ public unsafe class Sdl3Input : Input
     private Vector2 _lastMousePosition;
     private Vector2 _mousePosition;
     private Vector2 _mouseDelta;
+    private NativeCursor? _activeCursor;
     private Vector2 _mouseWheelDelta;
     private Vector2 _warpDelta;
     private Sdl3Window? _relativeMouseWindow;
@@ -40,6 +44,28 @@ public unsafe class Sdl3Input : Input
     private readonly Dictionary<SDL_JoystickID, Sdl3Gamepad> _gamepadMap = new();
     private readonly List<SDL_JoystickID> _toRemove = new();
     private bool _isGamepadInputting;
+
+    private sealed class SdlNativeCursor : NativeCursor
+    {
+        private SDL_Cursor _cursor;
+
+        public SdlNativeCursor(SDL_Cursor cursor)
+        {
+            _cursor = cursor;
+        }
+
+        public SDL_Cursor Handle => _cursor;
+
+        public override void Dispose()
+        {
+            if (_cursor.IsNull)
+            {
+                return;
+            }
+            SDL_DestroyCursor(_cursor);
+            _cursor = SDL_Cursor.Null;
+        }
+    }
 
 
     public override Vector2 MousePosition
@@ -86,6 +112,93 @@ public unsafe class Sdl3Input : Input
             {
                 SDL_HideCursor();
             }
+        }
+    }
+
+    /// <inheritdoc />
+    public override NativeCursor? CreateColorCursor(ReadOnlySpan<byte> encodedImage, int pixelWidth, int pixelHeight, Vector2 hotspot)
+    {
+        if (encodedImage.IsEmpty || pixelWidth <= 0 || pixelHeight <= 0)
+        {
+            return null;
+        }
+
+        byte* pixels = null;
+        SDL_Surface* source = null;
+        SDL_Surface* scaled = null;
+        try
+        {
+            byte[] imageBytes = encodedImage.ToArray();
+            pixels = ImageDecodeUtility.DecodeAuto(imageBytes, out int width, out int height);
+            if (width <= 0 || height <= 0)
+            {
+                return null;
+            }
+
+            source = SDL_CreateSurfaceFrom(width, height, SDL_PixelFormat.Rgba32, (nint)pixels, width * 4);
+            if (source == null)
+            {
+                return null;
+            }
+
+            SDL_Surface* cursorSurface = source;
+            if (width != pixelWidth || height != pixelHeight)
+            {
+                scaled = SDL_CreateSurface(pixelWidth, pixelHeight, SDL_PixelFormat.Rgba32);
+                if (scaled == null || !SDL_BlitSurfaceScaled(source, null, scaled, null, SDL_ScaleMode.Linear))
+                {
+                    return null;
+                }
+                cursorSurface = scaled;
+            }
+
+            int hotX = Math.Clamp((int)MathF.Round(hotspot.X * pixelWidth), 0, pixelWidth - 1);
+            int hotY = Math.Clamp((int)MathF.Round(hotspot.Y * pixelHeight), 0, pixelHeight - 1);
+
+            SDL_Cursor cursor = SDL_CreateColorCursor(cursorSurface, hotX, hotY);
+            if (cursor.IsNull)
+            {
+                Log.Warning($"Failed to create native cursor: {SDL_GetError()}");
+                return null;
+            }
+
+            return new SdlNativeCursor(cursor);
+        }
+        catch (Exception exception)
+        {
+            Log.Warning($"Failed to create native cursor: {exception.Message}");
+            return null;
+        }
+        finally
+        {
+            if (scaled != null)
+            {
+                SDL_DestroySurface(scaled);
+            }
+            if (source != null)
+            {
+                SDL_DestroySurface(source);
+            }
+            if (pixels != null)
+            {
+                NativeMemory.Free(pixels);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public override void SetCursor(NativeCursor? cursor)
+    {
+        if (ReferenceEquals(cursor, _activeCursor))
+        {
+            return;
+        }
+
+        _activeCursor = cursor;
+        SDL_Cursor handle = cursor is SdlNativeCursor sdlCursor ? sdlCursor.Handle : SDL_GetDefaultCursor();
+        if (!SDL_SetCursor(handle))
+        {
+            Log.Warning($"Failed to set native cursor: {SDL_GetError()}");
         }
     }
 

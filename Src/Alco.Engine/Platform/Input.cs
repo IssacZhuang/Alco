@@ -87,6 +87,25 @@ public abstract class Input
     public abstract bool IsCursorVisible { get; set; }
 
     /// <summary>
+    /// Creates a native color cursor from encoded image data (PNG or JPEG). The image is
+    /// scaled to the requested pixel size and the hotspot is normalized to the image bounds.
+    /// Returns <c>null</c> when the platform cannot create custom cursors; access on the main thread.
+    /// </summary>
+    /// <param name="encodedImage">The encoded image file bytes.</param>
+    /// <param name="pixelWidth">The width of the cursor image in pixels.</param>
+    /// <param name="pixelHeight">The height of the cursor image in pixels.</param>
+    /// <param name="hotspot">The hotspot in normalized image coordinates: (0,0) is top-left, (1,1) is bottom-right.</param>
+    /// <returns>The native cursor, or <c>null</c> when creation fails or is unsupported.</returns>
+    public abstract NativeCursor? CreateColorCursor(ReadOnlySpan<byte> encodedImage, int pixelWidth, int pixelHeight, Vector2 hotspot);
+
+    /// <summary>
+    /// Sets the active native cursor, or restores the platform default cursor when <c>null</c>;
+    /// access on the main thread.
+    /// </summary>
+    /// <param name="cursor">The cursor to activate, or <c>null</c> for the default cursor.</param>
+    public abstract void SetCursor(NativeCursor? cursor);
+
+    /// <summary>
     /// Gets or sets whether relative (raw) mouse input is used for the main view; while enabled,
     /// <see cref="MouseDelta"/> reports raw device counts instead of screen pixels.
     /// </summary>
