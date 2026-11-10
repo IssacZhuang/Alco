@@ -171,66 +171,15 @@ internal static unsafe class ObjDecoder
         if (span.IsEmpty)
             return 0f;
 
-        bool negative = false;
-        int index = 0;
-
-        if (span[0] == '-')
+        // Correctly-rounded parse: accumulating fraction digits against 0.1f powers drifts by
+        // an ulp from the shortest round-trippable text exporters emit.
+        if (System.Buffers.Text.Utf8Parser.TryParse(span, out float value, out int consumed)
+            && consumed == span.Length)
         {
-            negative = true;
-            index++;
-        }
-        else if (span[0] == '+')
-        {
-            index++;
+            return value;
         }
 
-        float result = 0f;
-        while (index < span.Length && span[index] >= '0' && span[index] <= '9')
-        {
-            result = result * 10 + (span[index] - '0');
-            index++;
-        }
-
-        if (index < span.Length && span[index] == '.')
-        {
-            index++;
-            float fraction = 0.1f;
-            while (index < span.Length && span[index] >= '0' && span[index] <= '9')
-            {
-                result += (span[index] - '0') * fraction;
-                fraction *= 0.1f;
-                index++;
-            }
-        }
-
-        if (index < span.Length && (span[index] == 'e' || span[index] == 'E'))
-        {
-            index++;
-            bool expNegative = false;
-            if (index < span.Length && span[index] == '-')
-            {
-                expNegative = true;
-                index++;
-            }
-            else if (index < span.Length && span[index] == '+')
-            {
-                index++;
-            }
-
-            int exponent = 0;
-            while (index < span.Length && span[index] >= '0' && span[index] <= '9')
-            {
-                exponent = exponent * 10 + (span[index] - '0');
-                index++;
-            }
-
-            if (expNegative)
-                exponent = -exponent;
-
-            result *= MathF.Pow(10, exponent);
-        }
-
-        return negative ? -result : result;
+        return 0f;
     }
 
     private static void ParseFace(
