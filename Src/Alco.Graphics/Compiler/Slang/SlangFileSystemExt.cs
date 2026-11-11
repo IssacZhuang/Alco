@@ -34,7 +34,7 @@ internal sealed unsafe class SlangFileSystemExt : IDisposable
     private static readonly Guid IidSlangFileSystem = new(0x003A09FC, 0x3A4D, 0x4BA0, 0xAD, 0x60, 0x1F, 0xD8, 0x63, 0xA9, 0x15, 0xAB);
     private static readonly Guid IidSlangFileSystemExt = new(0x5FB632D2, 0x979D, 0x4481, 0x9F, 0xEE, 0x66, 0x3C, 0x3F, 0x14, 0x49, 0xE1);
 
-    private static IntPtr* s_vtable;
+    private static readonly IntPtr Vtable = CreateVtable();
 
     private readonly SlangFileResolver _resolver;
     private readonly SlangPathExists? _exists;
@@ -48,7 +48,7 @@ internal sealed unsafe class SlangFileSystemExt : IDisposable
         _exists = exists;
         _self = GCHandle.Alloc(this);
         IntPtr* comObject = (IntPtr*)NativeMemory.Alloc(2, (nuint)IntPtr.Size);
-        comObject[0] = (IntPtr)GetOrCreateVtable();
+        comObject[0] = Vtable;
         comObject[1] = GCHandle.ToIntPtr(_self);
         _comObject = (IntPtr)comObject;
     }
@@ -70,12 +70,8 @@ internal sealed unsafe class SlangFileSystemExt : IDisposable
         }
     }
 
-    private static IntPtr* GetOrCreateVtable()
+    private static IntPtr CreateVtable()
     {
-        if (s_vtable != null)
-        {
-            return s_vtable;
-        }
         IntPtr* vtable = (IntPtr*)NativeMemory.Alloc(12, (nuint)IntPtr.Size);
         vtable[0] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int>)&FileSystem_QueryInterface;
         vtable[1] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint>)&FileSystem_AddRef;
@@ -89,8 +85,7 @@ internal sealed unsafe class SlangFileSystemExt : IDisposable
         vtable[9] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, void>)&FileSystem_ClearCache;
         vtable[10] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, IntPtr, IntPtr, IntPtr, int>)&FileSystem_EnumeratePathContents;
         vtable[11] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, byte>)&FileSystem_GetOSPathKind;
-        s_vtable = vtable;
-        return vtable;
+        return (IntPtr)vtable;
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
@@ -236,7 +231,7 @@ internal sealed unsafe class SlangFileSystemExt : IDisposable
     private static int TryCreateUtf8Blob(string text, IntPtr* outBlob)
     {
         byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text);
-        IntPtr blob = SlangNative.slang_createBlob(bytes, (nuint)bytes.Length);
+        IntPtr blob = SlangBlob.Create(bytes);
         if (blob == IntPtr.Zero)
             return unchecked((int)0x80004005);
         *outBlob = blob;

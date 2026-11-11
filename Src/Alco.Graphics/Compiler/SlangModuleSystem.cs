@@ -45,12 +45,11 @@ public sealed class SlangModuleSystem : IDisposable
     // process-wide (see SlangCompiler); only the per-system compile session is
     // rebuilt on invalidation.
     private readonly SlangCompiler _compiler = new();
-    private SlangCompileSession _session = null!;
+    private SlangCompileSession _session;
 
     private readonly Dictionary<string, ModuleEntry> _modules = new();
     private readonly Dictionary<string, HashSet<string>> _fileToModules = new(); // file → module names
     private readonly Dictionary<string, SlangProgram> _programs = new();         // cache key → program
-    private readonly List<SlangProgram> _livePrograms = [];
     private readonly HashSet<string> _rootLoadedPaths = new(StringComparer.OrdinalIgnoreCase);
 
     // Virtual module sources, resolved by name ahead of the file resolver:
@@ -83,11 +82,11 @@ public sealed class SlangModuleSystem : IDisposable
             Directory.CreateDirectory(Path.Combine(cacheDirectory, "modules"));
             Directory.CreateDirectory(Path.Combine(cacheDirectory, "programs"));
         }
-        CreateSession();
+        _session = CreateSession();
         BuildTag = _compiler.BuildTag;
     }
 
-    private void CreateSession()
+    private SlangCompileSession CreateSession()
     {
         // Virtual modules resolve ahead of the asset resolver so a wrapper's
         // import-by-name reaches generated modules.
@@ -103,7 +102,7 @@ public sealed class SlangModuleSystem : IDisposable
                 TargetProfile = _options.TargetProfile,
                 NormalizeSpirvForNaga = _options.NormalizeSpirvForNaga,
             };
-        _session = _compiler.CreateSession(sessionOptions);
+        return _compiler.CreateSession(sessionOptions);
     }
 
     /// <summary>
@@ -270,10 +269,10 @@ public sealed class SlangModuleSystem : IDisposable
         string templateModuleName, string companionModuleName,
         IReadOnlyList<string> valueSpecializationArgs)
     {
-        SlangModuleHandle template = GetOrLoadModule(templateModuleName);
-        SlangModuleHandle companion = GetOrLoadModule(companionModuleName);
         lock (_lock)
         {
+            SlangModuleHandle template = GetOrLoadModule(templateModuleName);
+            SlangModuleHandle companion = GetOrLoadModule(companionModuleName);
             ModuleEntry templateEntry = _modules[templateModuleName];
             ModuleEntry companionEntry = _modules[companionModuleName];
 
@@ -293,8 +292,7 @@ public sealed class SlangModuleSystem : IDisposable
                 long readStart = Stopwatch.GetTimestamp();
                 if (TryReadProgram(key, out SlangCachedProgram? payload))
                 {
-                    SlangProgram restored = SlangProgram.FromCache(logicalName, payload);
-                    TrackProgramLocked(restored);
+                    SlangProgram restored = RestoreCachedProgram(logicalName, payload);
                     _programs[key] = restored;
                     _options.Log?.Invoke(
                         $"slang program '{logicalName}' restored from disk cache in {ElapsedMs(readStart)}ms");
@@ -305,8 +303,6 @@ public sealed class SlangModuleSystem : IDisposable
             long linkStart = Stopwatch.GetTimestamp();
             SlangProgram program = _session.CompileComposed(
                 template, companion, valueSpecializationArgs);
-            program.Owner = this;
-            TrackProgramLocked(program);
             _programs[key] = program;
 
             if (_cacheDirectory != null)
@@ -333,10 +329,9 @@ public sealed class SlangModuleSystem : IDisposable
     /// </summary>
     public ShaderLibraryReflection GetModuleReflection(string moduleName)
     {
-        // Loads outside the module lock (same pattern as GetComposedProgram).
-        GetOrLoadModule(moduleName);
         lock (_lock)
         {
+            GetOrLoadModule(moduleName);
             ModuleEntry entry = _modules[moduleName];
             return entry.LibraryReflection ??= _session.GetModuleReflection(entry.Module);
         }
@@ -355,8 +350,7 @@ public sealed class SlangModuleSystem : IDisposable
             long readStart = Stopwatch.GetTimestamp();
             if (TryReadProgram(key, out SlangCachedProgram? payload))
             {
-                SlangProgram restored = SlangProgram.FromCache(moduleName, payload);
-                TrackProgramLocked(restored);
+                SlangProgram restored = RestoreCachedProgram(moduleName, payload);
                 _programs[key] = restored;
                 _options.Log?.Invoke(
                     $"slang program '{moduleName}' restored from disk cache in {ElapsedMs(readStart)}ms");
@@ -366,8 +360,6 @@ public sealed class SlangModuleSystem : IDisposable
 
         long linkStart = Stopwatch.GetTimestamp();
         SlangProgram program = compile(specializationArgs);
-        program.Owner = this;
-        TrackProgramLocked(program);
         _programs[key] = program;
 
         if (_cacheDirectory != null)
@@ -397,36 +389,25 @@ public sealed class SlangModuleSystem : IDisposable
         }
     }
 
-    internal void NotifyProgramDisposed(SlangProgram program)
-    {
-        lock (_lock)
-        {
-            _livePrograms.Remove(program);
-        }
-    }
-
     private void RebuildSessionLocked()
     {
-        // Release native programs while their session is still alive, then drop
-        // the session (imported slang modules are cached inside it and cannot
-        // be invalidated individually).
-        foreach (SlangProgram program in _livePrograms)
-        {
-            program.Linked?.Release();
-            program.Linked = null;
-        }
-        _livePrograms.Clear();
         _programs.Clear();
         _modules.Clear();
         _fileToModules.Clear();
         _rootLoadedPaths.Clear();
-        // Only the compile session is rebuilt — the global slang session is
-        // process-wide and stays valid (see SlangCompiler).
+        // Imported modules cannot be invalidated individually; compiled programs own only managed data.
         _session.Dispose();
-        CreateSession();
+        _session = CreateSession();
     }
 
-    private void TrackProgramLocked(SlangProgram program) => _livePrograms.Add(program);
+    private static SlangProgram RestoreCachedProgram(string moduleName, SlangCachedProgram cached)
+        => new()
+        {
+            ModuleName = moduleName,
+            EntryCode = cached.EntryCode,
+            Reflection = cached.Reflection,
+            EntryPoints = cached.EntryPoints,
+        };
 
     private ModuleEntry LoadModuleLocked(string key, string pathIdentity, string source)
     {
@@ -764,19 +745,11 @@ public sealed class SlangModuleSystem : IDisposable
         }
     }
 
-    /// <summary>
-    /// Releases the compile session and every live program's linked component.
-    /// </summary>
+    /// <summary>Releases the compile session and clears caches; compiled program data remains usable.</summary>
     public void Dispose()
     {
         lock (_lock)
         {
-            foreach (SlangProgram program in _livePrograms)
-            {
-                program.Linked?.Release();
-                program.Linked = null;
-            }
-            _livePrograms.Clear();
             _programs.Clear();
             _modules.Clear();
             _fileToModules.Clear();

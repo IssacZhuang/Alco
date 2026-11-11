@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Alco.Graphics;
@@ -110,6 +111,13 @@ internal sealed class SlangBlob
     public IntPtr NativePointer { get; }
     public SlangBlob(IntPtr nativePointer) => NativePointer = nativePointer;
 
+    /// <summary>Creates an owned blob, including a zero-sized blob for empty input.</summary>
+    /// <param name="data">The blob contents.</param>
+    /// <returns>The native blob pointer, or zero if the native factory fails.</returns>
+    public static IntPtr Create(byte[] data) => data.Length == 0
+        ? EmptyBlob.Create()
+        : SlangNative.slang_createBlob(data, (nuint)data.Length);
+
     public unsafe IntPtr GetBufferPointer() =>
         ((delegate* unmanaged[Stdcall]<IntPtr, IntPtr>)Com.Vcall(NativePointer, 3))(NativePointer);
 
@@ -138,6 +146,73 @@ internal sealed class SlangBlob
     }
 
     public void Release() => Com.Release(NativePointer);
+
+    // slang_createBlob rejects empty input; virtual empty files need a zero-sized, NUL-terminated blob.
+    private static unsafe class EmptyBlob
+    {
+        private static readonly Guid IidUnknown = new(0x00000000, 0x0000, 0x0000, 0xC0, 0, 0, 0, 0, 0, 0, 0x46);
+        private static readonly Guid IidBlob = new(0x8BA5FB08, 0x5195, 0x40E2, 0xAC, 0x58, 0x0D, 0x98, 0x9C, 0x3A, 0x01, 0x02);
+        private static readonly IntPtr Vtable = CreateVtable();
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeBlob
+        {
+            public IntPtr Vtable;
+            public int ReferenceCount;
+            public byte Terminator;
+        }
+
+        /// <summary>Creates an empty blob with one owned reference.</summary>
+        public static IntPtr Create()
+        {
+            NativeBlob* blob = (NativeBlob*)NativeMemory.AllocZeroed((nuint)sizeof(NativeBlob));
+            blob->Vtable = Vtable;
+            blob->ReferenceCount = 1;
+            return (IntPtr)blob;
+        }
+
+        private static IntPtr CreateVtable()
+        {
+            IntPtr* vtable = (IntPtr*)NativeMemory.Alloc(5, (nuint)IntPtr.Size);
+            vtable[0] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, Guid*, IntPtr*, int>)&QueryInterface;
+            vtable[1] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint>)&AddRef;
+            vtable[2] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, uint>)&Release;
+            vtable[3] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, IntPtr>)&GetBufferPointer;
+            vtable[4] = (IntPtr)(delegate* unmanaged[Stdcall]<IntPtr, nuint>)&GetBufferSize;
+            return (IntPtr)vtable;
+        }
+
+        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+        private static int QueryInterface(IntPtr thisPtr, Guid* guid, IntPtr* outObject)
+        {
+            if (guid != null && (*guid == IidUnknown || *guid == IidBlob))
+            {
+                Interlocked.Increment(ref ((NativeBlob*)thisPtr)->ReferenceCount);
+                *outObject = thisPtr;
+                return SlangNative.SLANG_OK;
+            }
+            *outObject = IntPtr.Zero;
+            return unchecked((int)0x80004002); // E_NOINTERFACE
+        }
+
+        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+        private static uint AddRef(IntPtr thisPtr) => (uint)Interlocked.Increment(ref ((NativeBlob*)thisPtr)->ReferenceCount);
+
+        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+        private static uint Release(IntPtr thisPtr)
+        {
+            int count = Interlocked.Decrement(ref ((NativeBlob*)thisPtr)->ReferenceCount);
+            if (count == 0)
+                NativeMemory.Free((void*)thisPtr);
+            return (uint)count;
+        }
+
+        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+        private static IntPtr GetBufferPointer(IntPtr thisPtr) => (IntPtr)(&((NativeBlob*)thisPtr)->Terminator);
+
+        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvStdcall)])]
+        private static nuint GetBufferSize(IntPtr thisPtr) => 0;
+    }
 }
 
 /// <summary>
@@ -201,6 +276,12 @@ internal sealed class SlangSession
     public IntPtr NativePointer { get; }
     public SlangGlobalSession GlobalSession { get; }
 
+    /// <summary>Whether the session has been released.</summary>
+    public bool IsDisposed { get; private set; }
+
+    /// <summary>Throws if the session has been released.</summary>
+    public void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(IsDisposed, this);
+
     internal SlangSession(IntPtr nativePointer)
     {
         NativePointer = nativePointer;
@@ -227,13 +308,13 @@ internal sealed class SlangSession
         return module == IntPtr.Zero ? null : new SlangModule(module);
     }
 
-    /// <summary>Loads a module from in-memory source (a virtual file).</summary>
+    /// <summary>Loads a module from in-memory UTF-8 source, including empty virtual files.</summary>
     public unsafe SlangModule? LoadModuleFromSource(string moduleName, string path, byte[] source, out string? diagnostics)
     {
         using SlangPinnedUtf8 name = new(moduleName);
         using SlangPinnedUtf8 pathUtf8 = new(path);
         using SlangPinnedBuffer sourceBuffer = new(source);
-        IntPtr blob = SlangNative.slang_createBlob(source, (nuint)source.Length);
+        IntPtr blob = SlangBlob.Create(source);
         if (blob == IntPtr.Zero)
             throw new InvalidOperationException("slang_createBlob failed for module source.");
         try
@@ -333,7 +414,14 @@ internal sealed class SlangSession
         }
     }
 
-    public void Release() => Com.Release(NativePointer);
+    /// <summary>Releases the session once; repeated calls have no effect.</summary>
+    public void Release()
+    {
+        if (IsDisposed)
+            return;
+        IsDisposed = true;
+        Com.Release(NativePointer);
+    }
 }
 
 /// <summary>IComponentType wrapper — composites, entry points, specialized and linked programs.</summary>

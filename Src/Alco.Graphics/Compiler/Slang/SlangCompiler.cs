@@ -7,9 +7,8 @@ namespace Alco.Graphics;
 // IGlobalSession is process-wide (see SlangCompiler); each
 // SlangCompileSession owns an ISession for one (search-path set, macros,
 // target options) combination.
-// Sessions (and everything derived from them) are NOT thread-safe — callers
-// serialize front-end operations and may then parallelize only per-entry
-// code generation on a fully linked program.
+// Native calls, including object creation, metadata queries and release, share
+// one process-wide lock. Modules borrow their owning session's lifetime.
 //
 // Compile = load module → select entry points → composite → (specialize) →
 // link → ProgramLayout + per-entry target code (SPIR-V / DXIL / MSL, one
@@ -92,21 +91,6 @@ public sealed class SlangProgram : IDisposable
     /// <summary>The names and stages of every entry point of the linked program.</summary>
     public required IReadOnlyList<(string Name, int Stage)> EntryPoints { get; init; }
 
-    internal SlangComponentType? Linked { get; set; }
-
-    /// <summary>Set when the program belongs to a SlangModuleSystem (tracks native lifetime).</summary>
-    internal SlangModuleSystem? Owner { get; set; }
-
-    /// <summary>Restores a program from the disk cache — no native objects are held.</summary>
-    internal static SlangProgram FromCache(string moduleName, SlangCachedProgram cached)
-        => new()
-        {
-            ModuleName = moduleName,
-            EntryCode = cached.EntryCode,
-            Reflection = cached.Reflection,
-            EntryPoints = cached.EntryPoints,
-        };
-
     /// <summary>
     /// The members of the named uniform block at their post-link offsets —
     /// delegates to <see cref="ShaderReflection"/>, the single owner of the
@@ -116,15 +100,9 @@ public sealed class SlangProgram : IDisposable
     public IReadOnlyList<ShaderUniformMember> GetUniformMembers(string cbufferName)
         => Reflection.GetUniformMembers(cbufferName);
 
-    /// <summary>
-    /// Releases the program's native linked component; a cache-restored program
-    /// holds none.
-    /// </summary>
+    /// <summary>No-op: compiled bytecode and reflection own no native resources and remain usable.</summary>
     public void Dispose()
     {
-        Owner?.NotifyProgramDisposed(this);
-        Linked?.Release();
-        Linked = null;
     }
 }
 
@@ -134,10 +112,7 @@ public sealed class SlangProgram : IDisposable
 /// </summary>
 public sealed class SlangCompiler : IDisposable
 {
-    private static SlangGlobalSession? _globalSession;
-
-    private static SlangGlobalSession GlobalSession =>
-        _globalSession ??= SlangGlobalSession.Create();
+    private static readonly Lazy<SlangGlobalSession> GlobalSession = new(SlangGlobalSession.Create);
 
     /// <summary>The pinned slang release's build tag (e.g. "2026.19..."), for cache key stamping.</summary>
     public string BuildTag { get; }
@@ -145,7 +120,10 @@ public sealed class SlangCompiler : IDisposable
     /// <summary>Creates a compiler over the process-wide slang global session, capturing its build tag.</summary>
     public SlangCompiler()
     {
-        BuildTag = GlobalSession.GetBuildTagString();
+        lock (SlangNative.NativeLock)
+        {
+            BuildTag = GlobalSession.Value.GetBuildTagString();
+        }
     }
 
     /// <summary>
@@ -153,13 +131,22 @@ public sealed class SlangCompiler : IDisposable
     /// probed once with a trial compile (the metallib codegen shells out to Apple's
     /// Metal toolchain) and cached for the process.
     /// </summary>
-    public bool MetalLibSupported => _metalLibSupported ??= ProbeMetalLibSupport();
+    public bool MetalLibSupported
+    {
+        get
+        {
+            lock (SlangNative.NativeLock)
+            {
+                return _metalLibSupported ??= ProbeMetalLibSupport();
+            }
+        }
+    }
 
     private bool? _metalLibSupported;
 
     private bool ProbeMetalLibSupport()
     {
-        if (!GlobalSession.CheckCompileTargetSupport(SlangNative.SLANG_METAL_LIB))
+        if (!GlobalSession.Value.CheckCompileTargetSupport(SlangNative.SLANG_METAL_LIB))
         {
             return false;
         }
@@ -187,7 +174,10 @@ public sealed class SlangCompiler : IDisposable
     public SlangCompileSession CreateSession(SlangCompilerOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        return new SlangCompileSession(GlobalSession, options);
+        lock (SlangNative.NativeLock)
+        {
+            return new SlangCompileSession(GlobalSession.Value, options);
+        }
     }
 
     /// <summary>No-op: the global session is process-wide and outlives every compiler.</summary>
@@ -199,143 +189,155 @@ public sealed class SlangCompiler : IDisposable
 /// <summary>A slang session: scope for module loading, composition, linking.</summary>
 public sealed class SlangCompileSession : IDisposable
 {
-    private readonly SlangGlobalSession _globalSession;
     private readonly SlangSession _session;
     private readonly SlangFileSystemExt? _fileSystem;
     private readonly bool _normalizeSpirv;
 
-    // Slang's native API is not thread-safe even across separate compile sessions: they all
-    // share the process-wide global session (see SlangCompiler), so concurrent loads/compiles
-    // from parallel engines corrupt native state and crash. Every native-touching method of
-    // every session serializes on this process-wide lock.
-    private static readonly Lock s_nativeLock = new();
-    private bool _disposed;
-
-    // The native session is freed on Dispose; a caller that outlives its owner
-    // (e.g. a background continuation whose engine was already torn down) must
-    // hit a managed exception instead of a use-after-free in native slang.
-    private void ThrowIfDisposed() => ObjectDisposedException.ThrowIf(_disposed, this);
+    private void ValidateModule(SlangModuleHandle module)
+    {
+        module.Owner.ThrowIfDisposed();
+        if (module.Owner != _session)
+        {
+            throw new ArgumentException("The module belongs to a different Slang session.", nameof(module));
+        }
+    }
 
     internal SlangSession Native => _session;
 
     internal SlangCompileSession(SlangGlobalSession globalSession, SlangCompilerOptions options)
     {
-        _globalSession = globalSession;
         _fileSystem = options.Resolver != null ? new SlangFileSystemExt(options.Resolver, options.Exists) : null;
         _normalizeSpirv = options.NormalizeSpirvForNaga && options.Target == SlangCodeTarget.Spirv;
 
-        unsafe
+        try
         {
-            int targetFormat = options.Target switch
+            unsafe
             {
-                SlangCodeTarget.Spirv => SlangNative.SLANG_SPIRV,
-                SlangCodeTarget.Dxil => SlangNative.SLANG_DXIL,
-                SlangCodeTarget.Msl => SlangNative.SLANG_METAL,
-                SlangCodeTarget.MetalLib => SlangNative.SLANG_METAL_LIB,
-                _ => throw new ArgumentException($"Unsupported slang code target {options.Target}.", nameof(options)),
-            };
-
-            SlangTargetDesc target = SlangTargetDesc.Create(targetFormat);
-            string profileName = options.EffectiveTargetProfile;
-            if (profileName.Length > 0)
-            {
-                target.Profile = globalSession.FindProfile(profileName);
-                if (target.Profile == SlangNative.SLANG_PROFILE_UNKNOWN)
+                int targetFormat = options.Target switch
                 {
-                    throw new ArgumentException(
-                        $"Unknown Slang target profile '{profileName}'.", nameof(options));
+                    SlangCodeTarget.Spirv => SlangNative.SLANG_SPIRV,
+                    SlangCodeTarget.Dxil => SlangNative.SLANG_DXIL,
+                    SlangCodeTarget.Msl => SlangNative.SLANG_METAL,
+                    SlangCodeTarget.MetalLib => SlangNative.SLANG_METAL_LIB,
+                    _ => throw new ArgumentException($"Unsupported slang code target {options.Target}.", nameof(options)),
+                };
+
+                SlangTargetDesc target = SlangTargetDesc.Create(targetFormat);
+                string profileName = options.EffectiveTargetProfile;
+                if (profileName.Length > 0)
+                {
+                    target.Profile = globalSession.FindProfile(profileName);
+                    if (target.Profile == SlangNative.SLANG_PROFILE_UNKNOWN)
+                    {
+                        throw new ArgumentException(
+                            $"Unknown Slang target profile '{profileName}'.", nameof(options));
+                    }
+                }
+
+                int optionCount = 1;
+                SlangCompilerOptionEntry* optionEntries = stackalloc SlangCompilerOptionEntry[2];
+                optionEntries[0] = new SlangCompilerOptionEntry
+                {
+                    Name = SlangNative.SLANG_COMPILER_OPTION_OPTIMIZATION,
+                    Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = options.OptimizationLevel },
+                };
+                if (options.Target == SlangCodeTarget.Spirv)
+                {
+                    // slang's direct SPIR-V emitter skips the glslang detour.
+                    optionEntries[1] = new SlangCompilerOptionEntry
+                    {
+                        Name = SlangNative.SLANG_COMPILER_OPTION_EMIT_SPIRV_DIRECTLY,
+                        Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = 1 },
+                    };
+                    optionCount = 2;
+                }
+                target.CompilerOptionEntries = optionEntries;
+                target.CompilerOptionEntryCount = (uint)optionCount;
+
+                SlangPinnedUtf8[] pinnedPaths = new SlangPinnedUtf8[options.SearchPaths.Count];
+                IntPtr* searchPaths = stackalloc IntPtr[options.SearchPaths.Count];
+                int pinnedCount = 0;
+                try
+                {
+                    for (int i = 0; i < options.SearchPaths.Count; i++)
+                    {
+                        pinnedPaths[i] = new SlangPinnedUtf8(options.SearchPaths[i]);
+                        pinnedCount++;
+                        searchPaths[i] = pinnedPaths[i].Pointer;
+                    }
+
+                    SlangSessionDesc desc = SlangSessionDesc.Create();
+                    desc.Targets = &target;
+                    desc.TargetCount = 1;
+                    // HLSL matrix packing is column-major, unlike Slang's session default.
+                    desc.DefaultMatrixLayoutMode = SlangNative.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
+                    desc.SearchPaths = options.SearchPaths.Count > 0 ? searchPaths : null;
+                    desc.SearchPathCount = options.SearchPaths.Count;
+                    desc.FileSystem = _fileSystem?.Pointer ?? IntPtr.Zero;
+                    desc.CompilerOptionEntries = optionEntries;
+                    desc.CompilerOptionEntryCount = (uint)optionCount;
+
+                    _session = globalSession.CreateSession(desc);
+                }
+                finally
+                {
+                    for (int i = 0; i < pinnedCount; i++)
+                    {
+                        pinnedPaths[i].Dispose();
+                    }
                 }
             }
-
-            int optionCount = 1;
-            SlangCompilerOptionEntry* optionEntries = stackalloc SlangCompilerOptionEntry[2];
-            optionEntries[0] = new SlangCompilerOptionEntry
-            {
-                Name = SlangNative.SLANG_COMPILER_OPTION_OPTIMIZATION,
-                Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = options.OptimizationLevel },
-            };
-            if (options.Target == SlangCodeTarget.Spirv)
-            {
-                // slang's direct SPIR-V emitter skips the glslang detour.
-                optionEntries[1] = new SlangCompilerOptionEntry
-                {
-                    Name = SlangNative.SLANG_COMPILER_OPTION_EMIT_SPIRV_DIRECTLY,
-                    Value = new SlangCompilerOptionValue { Kind = 0, IntValue0 = 1 },
-                };
-                optionCount = 2;
-            }
-            target.CompilerOptionEntries = optionEntries;
-            target.CompilerOptionEntryCount = (uint)optionCount;
-
-            SlangPinnedUtf8[] pinnedPaths = new SlangPinnedUtf8[options.SearchPaths.Count];
-            // stackalloc needs a variable declaration with a positive count; an
-            // empty array is represented by a null pointer and zero count.
-            IntPtr* searchPaths = stackalloc IntPtr[Math.Max(options.SearchPaths.Count, 1)];
-            for (int i = 0; i < options.SearchPaths.Count; i++)
-            {
-                pinnedPaths[i] = new SlangPinnedUtf8(options.SearchPaths[i]);
-                searchPaths[i] = pinnedPaths[i].Pointer;
-            }
-
-            SlangSessionDesc desc = SlangSessionDesc.Create();
-            desc.Targets = &target;
-            desc.TargetCount = 1;
-            // HLSL matrix packing defaults to column-major; slang's session
-            // default is row-major, so pin explicitly to match the DXC path.
-            desc.DefaultMatrixLayoutMode = SlangNative.SLANG_MATRIX_LAYOUT_COLUMN_MAJOR;
-            desc.SearchPaths = options.SearchPaths.Count > 0 ? searchPaths : null;
-            desc.SearchPathCount = options.SearchPaths.Count;
-            desc.FileSystem = _fileSystem?.Pointer ?? IntPtr.Zero;
-            desc.CompilerOptionEntries = optionEntries;
-            desc.CompilerOptionEntryCount = (uint)optionCount;
-
-            _session = globalSession.CreateSession(desc);
+        }
+        catch
+        {
+            _fileSystem?.Dispose();
+            throw;
         }
     }
 
     /// <summary>Loads (or returns the session-cached) module named <paramref name="moduleName"/>.</summary>
     public SlangModuleHandle LoadModule(string moduleName)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
             SlangModule? module = _session.LoadModule(moduleName, out string? diagnostics);
             if (module == null)
                 throw new ShaderCompilationException($"slang failed to load module '{moduleName}': {diagnostics}");
             if (HasErrors(diagnostics))
                 throw new ShaderCompilationException($"slang module '{moduleName}' reported errors: {diagnostics}");
-            return new SlangModuleHandle(module);
+            return new SlangModuleHandle(_session, module);
         }
     }
 
     /// <summary>Loads a module from in-memory source; the name must be unique per content.</summary>
     public SlangModuleHandle LoadModuleFromSource(string moduleName, string path, string source)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(source);
             SlangModule? module = _session.LoadModuleFromSource(moduleName, path, bytes, out string? diagnostics);
             if (module == null)
                 throw new ShaderCompilationException($"slang failed to parse module '{moduleName}' ({path}): {diagnostics}");
             if (HasErrors(diagnostics))
                 throw new ShaderCompilationException($"slang module '{moduleName}' ({path}) reported errors: {diagnostics}");
-            return new SlangModuleHandle(module);
+            return new SlangModuleHandle(_session, module);
         }
     }
 
     /// <summary>Restores a module from serialized IR (see <see cref="SlangModuleHandle.Serialize"/>).</summary>
     public SlangModuleHandle LoadModuleFromIRBlob(string moduleName, string path, byte[] ir)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
             SlangModule? module = _session.LoadModuleFromIRBlob(moduleName, path, ir, out string? diagnostics);
             if (module == null)
                 throw new ShaderCompilationException($"slang failed to load IR module '{moduleName}' ({path}): {diagnostics}");
             if (HasErrors(diagnostics))
                 throw new ShaderCompilationException($"slang IR module '{moduleName}' ({path}) reported errors: {diagnostics}");
-            return new SlangModuleHandle(module);
+            return new SlangModuleHandle(_session, module);
         }
     }
 
@@ -346,9 +348,9 @@ public sealed class SlangCompileSession : IDisposable
     /// </summary>
     public bool IsBinaryModuleUpToDate(string path, byte[] serializedModule)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
             return _session.IsBinaryModuleUpToDate(path, serializedModule);
         }
     }
@@ -356,9 +358,9 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Compiles one module's requested entry points into a linked program.</summary>
     public SlangProgram Compile(SlangModuleHandle module, IReadOnlyList<SlangEntryPointRequest> entryPoints)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
             return Compile(module, entryPoints, []);
         }
     }
@@ -366,9 +368,10 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Compiles with specialization arguments (generic value parameters and interface types).</summary>
     public SlangProgram Compile(SlangModuleHandle module, IReadOnlyList<SlangEntryPointRequest> entryPoints, IReadOnlyList<string> specializationArgs)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
+            ValidateModule(module);
             // [module, ep0, ep1, ...] — the module first keeps global parameter
             // order equal to the single-module layout; entry-point code indices
             // then follow the request order.
@@ -412,9 +415,11 @@ public sealed class SlangCompileSession : IDisposable
         SlangModuleHandle entryModule, SlangModuleHandle companionModule,
         IReadOnlyList<string> valueSpecializationArgs)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
+            ValidateModule(entryModule);
+            ValidateModule(companionModule);
             int count = entryModule.Native.DefinedEntryPointCount;
             if (count == 0)
                 throw new ShaderCompilationException(
@@ -648,9 +653,10 @@ public sealed class SlangCompileSession : IDisposable
     /// </summary>
     public ShaderLibraryReflection GetModuleReflection(SlangModuleHandle module)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
+            ValidateModule(module);
             IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
             if (layout == IntPtr.Zero)
                 throw new ShaderCompilationException(
@@ -666,9 +672,10 @@ public sealed class SlangCompileSession : IDisposable
     /// </summary>
     public SlangProgram CompileAllEntryPoints(SlangModuleHandle module, IReadOnlyList<string> specializationArgs)
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            ThrowIfDisposed();
+            _session.ThrowIfDisposed();
+            ValidateModule(module);
             int count = module.Native.DefinedEntryPointCount;
             if (count == 0)
                 throw new ShaderCompilationException(
@@ -702,19 +709,23 @@ public sealed class SlangCompileSession : IDisposable
         // Expression arguments pin their UTF-8 text for the Specialize call below.
         SlangPinnedUtf8[] pins = new SlangPinnedUtf8[specializationArgs.Count];
         SlangSpecializationArg[] args = new SlangSpecializationArg[specializationArgs.Count];
-        for (int i = 0; i < specializationArgs.Count; i++)
-        {
-            pins[i] = new SlangPinnedUtf8(specializationArgs[i]);
-            args[i] = SlangSpecializationArg.FromExpr(pins[i].Pointer);
-        }
+        int pinnedCount = 0;
         try
         {
+            for (int i = 0; i < specializationArgs.Count; i++)
+            {
+                pins[i] = new SlangPinnedUtf8(specializationArgs[i]);
+                pinnedCount++;
+                args[i] = SlangSpecializationArg.FromExpr(pins[i].Pointer);
+            }
             return CompileComponentsLocked(moduleName, components, entryCount, args);
         }
         finally
         {
-            foreach (SlangPinnedUtf8 pinned in pins)
-                pinned.Dispose();
+            for (int i = 0; i < pinnedCount; i++)
+            {
+                pins[i].Dispose();
+            }
         }
     }
 
@@ -734,7 +745,7 @@ public sealed class SlangCompileSession : IDisposable
                     current = specialized;
                 }
 
-                SlangComponentType? linked = current.Link(out string? linkDiagnostics);
+                SlangComponentType linked = current.Link(out string? linkDiagnostics);
                 try
                 {
                     IntPtr layout = linked.GetLayout(out string? layoutDiagnostics);
@@ -766,20 +777,17 @@ public sealed class SlangCompileSession : IDisposable
                     ShaderReflection reflection = SlangReflectionReader.BuildReflectionInfo(layout);
                     List<(string, int)> entries = SlangReflectionReader.GetEntryPoints(layout);
 
-                    SlangProgram program = new()
+                    return new SlangProgram
                     {
                         ModuleName = moduleName,
                         EntryCode = code,
                         Reflection = reflection,
                         EntryPoints = entries,
-                        Linked = linked,
                     };
-                    linked = null; // ownership transferred to the program
-                    return program;
                 }
                 finally
                 {
-                    linked?.Release();
+                    linked.Release();
                 }
             }
             finally
@@ -840,69 +848,121 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Releases the native session and its file-system callback object.</summary>
     public void Dispose()
     {
-        lock (s_nativeLock)
+        lock (SlangNative.NativeLock)
         {
-            if (_disposed)
+            if (_session.IsDisposed)
             {
                 return;
             }
-            _disposed = true;
             _session.Release();
             _fileSystem?.Dispose();
         }
     }
 }
 
-/// <summary>A handle to a loaded module; alive for the session's lifetime.</summary>
+/// <summary>A loaded module whose native metadata is valid until its owning session is disposed.</summary>
 public sealed class SlangModuleHandle
 {
     internal SlangModule Native { get; }
-    /// <summary>The module's name in the slang session; empty when slang reports none.</summary>
-    public string Name => Native.Name ?? string.Empty;
-    /// <summary>The module's source file path; null when slang reports none.</summary>
-    public string? FilePath => Native.FilePath;
+    internal readonly SlangSession Owner;
 
-    /// <summary>File paths this module depends on (its own source plus every transitively included file).</summary>
+    /// <summary>The module's name in its live session; empty when Slang reports none.</summary>
+    public string Name
+    {
+        get
+        {
+            lock (SlangNative.NativeLock)
+            {
+                Owner.ThrowIfDisposed();
+                return Native.Name ?? string.Empty;
+            }
+        }
+    }
+
+    /// <summary>The module's source file path in its live session; null when Slang reports none.</summary>
+    public string? FilePath
+    {
+        get
+        {
+            lock (SlangNative.NativeLock)
+            {
+                Owner.ThrowIfDisposed();
+                return Native.FilePath;
+            }
+        }
+    }
+
+    /// <summary>Gets source and transitive dependency paths from the live owning session.</summary>
     public List<string> GetDependencyFilePaths()
     {
-        List<string> paths = [];
-        int count = Native.DependencyFileCount;
-        for (int i = 0; i < count; i++)
+        lock (SlangNative.NativeLock)
         {
-            string? path = Native.GetDependencyFilePath(i);
-            if (path != null)
-                paths.Add(path);
+            Owner.ThrowIfDisposed();
+            List<string> paths = [];
+            int count = Native.DependencyFileCount;
+            for (int i = 0; i < count; i++)
+            {
+                string? path = Native.GetDependencyFilePath(i);
+                if (path != null)
+                    paths.Add(path);
+            }
+            return paths;
         }
-        return paths;
     }
 
     /// <summary>
-    /// The module's [shader(...)] entry point count and whether any entry point
-    /// declares generic parameters; (0, false) for import-only libraries.
+    /// Gets the live module's entry-point count and whether any entry point is generic;
+    /// returns (0, false) for import-only libraries.
     /// </summary>
     public (int Count, bool AnyGeneric) GetEntryPointInfo()
     {
-        int count = Native.DefinedEntryPointCount;
-        bool anyGeneric = false;
-        for (int i = 0; i < count && !anyGeneric; i++)
+        lock (SlangNative.NativeLock)
         {
-            SlangEntryPoint? entry = Native.GetDefinedEntryPoint(i);
-            if (entry != null && entry.AsComponentType().SpecializationParamCount > 0)
+            Owner.ThrowIfDisposed();
+            int count = Native.DefinedEntryPointCount;
+            bool anyGeneric = false;
+            for (int i = 0; i < count && !anyGeneric; i++)
             {
-                anyGeneric = true;
+                SlangEntryPoint? entry = Native.GetDefinedEntryPoint(i);
+                try
+                {
+                    if (entry != null && entry.AsComponentType().SpecializationParamCount > 0)
+                    {
+                        anyGeneric = true;
+                    }
+                }
+                finally
+                {
+                    entry?.Release();
+                }
             }
+            return (count, anyGeneric);
         }
-        return (count, anyGeneric);
     }
 
-    /// <summary>The module's serialized IR blob, or null when serialization fails.</summary>
-    public byte[]? Serialize() => Native.Serialize();
+    /// <summary>Serializes the live module's IR, or returns null when serialization fails.</summary>
+    public byte[]? Serialize()
+    {
+        lock (SlangNative.NativeLock)
+        {
+            Owner.ThrowIfDisposed();
+            return Native.Serialize();
+        }
+    }
 
-    /// <summary>
-    /// The module's declaration tree (a <c>DeclReflection*</c>) — the root for module-scope
-    /// type discovery (walk children, take struct decls, <c>spReflection_getTypeFromDecl</c>).
-    /// </summary>
-    internal IntPtr GetModuleDecl() => Native.GetModuleReflectionDecl();
+    /// <summary>Gets the declaration tree for native reflection tests while the session is alive.</summary>
+    internal IntPtr GetModuleDecl()
+    {
+        lock (SlangNative.NativeLock)
+        {
+            Owner.ThrowIfDisposed();
+            return Native.GetModuleReflectionDecl();
+        }
+    }
 
-    internal SlangModuleHandle(SlangModule module) => Native = module;
+    internal SlangModuleHandle(SlangSession owner, SlangModule module)
+    {
+        Owner = owner;
+        Native = module;
+    }
 }

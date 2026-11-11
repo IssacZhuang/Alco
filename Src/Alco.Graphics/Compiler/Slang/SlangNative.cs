@@ -18,6 +18,9 @@ namespace Alco.Graphics;
 
 internal static class SlangNative
 {
+    // Every object derived from the process-wide global session shares native state.
+    public static readonly Lock NativeLock = new();
+
     private const string Slang = "slang";
 
     // ── SlangResult ──
