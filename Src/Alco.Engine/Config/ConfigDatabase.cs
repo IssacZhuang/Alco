@@ -24,10 +24,11 @@ public class ConfigDatabase
 
     private readonly ConcurrentDictionary<Type, FrozenDictionary<string, Configable>> _configs = new();
     private readonly List<Configable> _configsList = new();
+    private readonly List<Configable> _runtimeConfigs = new();
     private readonly ArrayBuffer<Configable?> _tempConfigs = new();
 
     private readonly JsonPreprocessor _jsonPreprocessor;
-    private readonly JsonSerializerOptions _jsonSerializerOptions;
+    private JsonSerializerOptions _jsonSerializerOptions;
 
     private readonly Action<string> _onError;
 
@@ -163,6 +164,95 @@ public class ConfigDatabase
     }
 
     /// <summary>
+    /// Creates a copy of this database that shares the loaded config objects and preprocessed
+    /// documents but owns independent structural state (file sources, config list, version).
+    /// Mounting file sources, registering configs or reloading on the clone never affects the
+    /// source database and vice versa. The serializer options are rebuilt so config references
+    /// resolve against the clone; asset-linked converters stay shared with the source.
+    /// </summary>
+    /// <param name="onError">Error callback for the clone; when null, reuses this instance's callback.</param>
+    /// <returns>The cloned database.</returns>
+    public ConfigDatabase Clone(Action<string>? onError = null)
+    {
+        lock (_updateLock)
+        {
+            return new ConfigDatabase(this, onError ?? _onError);
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds the serializer options so converters carrying engine-bound state (textures,
+    /// shaders, materials) resolve through the given converters instead of the ones inherited
+    /// from the database's source engine, whose systems may be disposed. Converters whose
+    /// runtime type matches one of <paramref name="engineConverters"/> are replaced. Must be
+    /// called before the database is first used.
+    /// </summary>
+    /// <param name="engineConverters">Converters bound to the current engine's live systems.</param>
+    public void AddConverters(ReadOnlySpan<JsonConverter> engineConverters)
+    {
+        HashSet<Type> replacedTypes = new();
+        foreach (var converter in engineConverters)
+        {
+            replacedTypes.Add(converter.GetType());
+        }
+
+        var options = new JsonSerializerOptions
+        {
+            TypeInfoResolver = _jsonSerializerOptions.TypeInfoResolver,
+            WriteIndented = _jsonSerializerOptions.WriteIndented,
+            AllowTrailingCommas = _jsonSerializerOptions.AllowTrailingCommas,
+            ReadCommentHandling = _jsonSerializerOptions.ReadCommentHandling,
+            UnmappedMemberHandling = _jsonSerializerOptions.UnmappedMemberHandling
+        };
+        foreach (var converter in _jsonSerializerOptions.Converters)
+        {
+            if (converter is not JsonConverterConfigReferenceFactory && !replacedTypes.Contains(converter.GetType()))
+            {
+                options.Converters.Add(converter);
+            }
+        }
+        foreach (var converter in engineConverters)
+        {
+            options.Converters.Add(converter);
+        }
+        options.Converters.Add(new JsonConverterConfigReferenceFactory(this));
+        options.MakeReadOnly();
+        _jsonSerializerOptions = options;
+    }
+
+    /// <summary>Copy constructor for <see cref="Clone"/>; shares config objects, copies mutable containers.</summary>
+    private ConfigDatabase(ConfigDatabase source, Action<string> onError)
+    {
+        _onError = onError;
+        _accessTypeInfos = source._accessTypeInfos;
+
+        _jsonSerializerOptions = new JsonSerializerOptions
+        {
+            TypeInfoResolver = source._jsonSerializerOptions.TypeInfoResolver,
+            WriteIndented = source._jsonSerializerOptions.WriteIndented,
+            AllowTrailingCommas = source._jsonSerializerOptions.AllowTrailingCommas,
+            ReadCommentHandling = source._jsonSerializerOptions.ReadCommentHandling,
+            UnmappedMemberHandling = source._jsonSerializerOptions.UnmappedMemberHandling
+        };
+        foreach (var converter in source._jsonSerializerOptions.Converters)
+        {
+            if (converter is not JsonConverterConfigReferenceFactory)
+            {
+                _jsonSerializerOptions.Converters.Add(converter);
+            }
+        }
+        _jsonSerializerOptions.Converters.Add(new JsonConverterConfigReferenceFactory(this));
+        _jsonSerializerOptions.MakeReadOnly();
+
+        _jsonPreprocessor = source._jsonPreprocessor.Clone(onError);
+        _configsList = new List<Configable>(source._configsList);
+        _runtimeConfigs = new List<Configable>(source._runtimeConfigs);
+        _configs = new ConcurrentDictionary<Type, FrozenDictionary<string, Configable>>(source._configs);
+        _version = source._version;
+        _isDirty = source._isDirty;
+    }
+
+    /// <summary>
     /// Occurs right before processing JSON items in the underlying preprocessor.
     /// Handlers can inspect and modify the in-memory JSON documents before they are merged.
     /// This event is forwarded to <see cref="JsonPreprocessor.BeforeProcessJsonDocument"/>.
@@ -285,6 +375,55 @@ public class ConfigDatabase
     }
 
     /// <summary>
+    /// [Thread-safe] Adds a runtime-constructed config to the database, replacing any config
+    /// (file-loaded or previously registered) with the same id. Registered configs survive
+    /// reloads; they are re-applied on top of the file-loaded set after every update.
+    /// No file source is touched, so no reload is triggered.
+    /// </summary>
+    /// <param name="config">The config to register; its id must be non-empty.</param>
+    public void Register(Configable config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        ArgumentException.ThrowIfNullOrWhiteSpace(config.Id);
+
+        lock (_updateLock)
+        {
+            _runtimeConfigs.RemoveAll(c => c.Id == config.Id);
+            _runtimeConfigs.Add(config);
+
+            _configsList.RemoveAll(c => c.Id == config.Id);
+            _configsList.Add(config);
+
+            _configs.Clear();
+            IncreaseVersion();
+        }
+    }
+
+    /// <summary>
+    /// [Thread-safe] Removes a config previously added through <see cref="Register"/>.
+    /// The id becomes absent until the next reload restores the file-provided config (if any).
+    /// </summary>
+    /// <param name="id">The id the config was registered under.</param>
+    /// <returns>True if a registered config with the id existed and was removed; otherwise false.</returns>
+    public bool Unregister(string id)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(id);
+
+        lock (_updateLock)
+        {
+            if (_runtimeConfigs.RemoveAll(c => c.Id == id) == 0)
+            {
+                return false;
+            }
+
+            _configsList.RemoveAll(c => c.Id == id);
+            _configs.Clear();
+            IncreaseVersion();
+            return true;
+        }
+    }
+
+    /// <summary>
     /// Try to update configs from all file sources if it is dirty.
     /// </summary>
     /// <param name="isForced">If true, forces an update even if the database is not dirty.</param>
@@ -344,6 +483,14 @@ public class ConfigDatabase
                 {
                     _configsList.Add(config);
                 }
+            }
+
+            // re-apply registered configs on top of the freshly loaded set
+            for (int i = 0; i < _runtimeConfigs.Count; i++)
+            {
+                var runtimeConfig = _runtimeConfigs[i];
+                _configsList.RemoveAll(c => c.Id == runtimeConfig.Id);
+                _configsList.Add(runtimeConfig);
             }
 
             IncreaseVersion();

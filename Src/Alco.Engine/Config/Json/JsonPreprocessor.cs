@@ -213,6 +213,28 @@ public class JsonPreprocessor
         _onError = onError;
     }
 
+    /// <summary>
+    /// Copies the structural state of this preprocessor: the file source list is copied, while
+    /// the loaded (immutable) documents are shared. The clone's state is fully independent —
+    /// preprocessing or edits on the clone never modify the source.
+    /// </summary>
+    /// <param name="onError">Error callback for the clone; when null, reuses this instance's callback.</param>
+    /// <returns>The cloned preprocessor.</returns>
+    public JsonPreprocessor Clone(Action<string>? onError = null)
+    {
+        return new JsonPreprocessor(this, onError ?? _onError);
+    }
+
+    /// <summary>Copy constructor for <see cref="Clone"/>; shares loaded documents, copies mutable containers.</summary>
+    private JsonPreprocessor(JsonPreprocessor source, Action<string> onError)
+    {
+        _onError = onError;
+        _fileSources = new List<IFileSource>(source._fileSources);
+        _jsonItems = new Dictionary<string, JsonItem>(source._jsonItems);
+        _abstractJsonItems = new Dictionary<string, JsonItem>(source._abstractJsonItems);
+        _jsonItemsList = new List<JsonDocument>(source._jsonItemsList);
+    }
+
     /// <summary>Adds a JSON file source.</summary>
     /// <param name="fileSource">The file source to add.</param>
     public void AddFileSource(IFileSource fileSource)

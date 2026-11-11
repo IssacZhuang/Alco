@@ -258,11 +258,18 @@ IDisposable
     /// Initializes a new engine instance with the specified settings.
     /// </summary>
     /// <param name="setting">The engine configuration.</param>
-    public GameEngine(GameEngineSetting setting)
+    /// <param name="assetSystem">
+    /// Asset system to reuse instead of creating a fresh one. Its default file sources, loaders
+    /// and hot reloaders are then assumed to be registered already; load results (textures,
+    /// materials) are shared with the providing engine. Used to keep config-embedded asset
+    /// instances identical to the ones this engine loads.
+    /// </param>
+    public GameEngine(GameEngineSetting setting, AssetSystem? assetSystem = null)
     {
         _setting = setting;
         _synchronizationContext = new GameSynchronizationContext();
-        _assetSystem = new AssetSystem(this, _setting.Assets.IsProfilingEnabled);
+        bool ownsAssetSystem = assetSystem == null;
+        _assetSystem = assetSystem ?? new AssetSystem(this, _setting.Assets.IsProfilingEnabled);
 
         _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 0);
 
@@ -283,19 +290,22 @@ IDisposable
 
         _audioDevice = CreateAudioDevice(_setting.Audio);
 
-        foreach (var fileSource in CreateDefaultFileSources())
+        if (ownsAssetSystem)
         {
-            _assetSystem.AddFileSource(fileSource);
-        }
+            foreach (var fileSource in CreateDefaultFileSources())
+            {
+                _assetSystem.AddFileSource(fileSource);
+            }
 
-        foreach (var assetLoader in CreateDefaultAssetLoaders())
-        {
-            _assetSystem.RegisterAssetLoader(assetLoader);
-        }
+            foreach (var assetLoader in CreateDefaultAssetLoaders())
+            {
+                _assetSystem.RegisterAssetLoader(assetLoader);
+            }
 
-        foreach (var assetHotReloader in CreateDefaultAssetHotReloaders())
-        {
-            _assetSystem.RegisterAssetHotReloader(assetHotReloader);
+            foreach (var assetHotReloader in CreateDefaultAssetHotReloaders())
+            {
+                _assetSystem.RegisterAssetHotReloader(assetHotReloader);
+            }
         }
 
         _platform = _setting.Platform ?? new Sdl3Platform();
@@ -536,9 +546,11 @@ IDisposable
     }
 
     /// <summary>
-    /// Stops systems and releases engine resources.
+    /// Stops systems and releases engine resources. Virtual so derived engines can
+    /// suppress disposal when their systems must outlive them (e.g. a shared
+    /// config-database donor engine); overrides must respect <see cref="IsDisposed"/>.
     /// </summary>
-    public void Dispose()
+    public virtual void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
         OnSystemDispose();
