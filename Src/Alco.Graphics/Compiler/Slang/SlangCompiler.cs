@@ -203,7 +203,12 @@ public sealed class SlangCompileSession : IDisposable
     private readonly SlangSession _session;
     private readonly SlangFileSystemExt? _fileSystem;
     private readonly bool _normalizeSpirv;
-    private readonly Lock _lock = new();
+
+    // Slang's native API is not thread-safe even across separate compile sessions: they all
+    // share the process-wide global session (see SlangCompiler), so concurrent loads/compiles
+    // from parallel engines corrupt native state and crash. Every native-touching method of
+    // every session serializes on this process-wide lock.
+    private static readonly Lock s_nativeLock = new();
     private bool _disposed;
 
     // The native session is freed on Dispose; a caller that outlives its owner
@@ -291,7 +296,7 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Loads (or returns the session-cached) module named <paramref name="moduleName"/>.</summary>
     public SlangModuleHandle LoadModule(string moduleName)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             SlangModule? module = _session.LoadModule(moduleName, out string? diagnostics);
@@ -306,7 +311,7 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Loads a module from in-memory source; the name must be unique per content.</summary>
     public SlangModuleHandle LoadModuleFromSource(string moduleName, string path, string source)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             byte[] bytes = System.Text.Encoding.UTF8.GetBytes(source);
@@ -322,7 +327,7 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Restores a module from serialized IR (see <see cref="SlangModuleHandle.Serialize"/>).</summary>
     public SlangModuleHandle LoadModuleFromIRBlob(string moduleName, string path, byte[] ir)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             SlangModule? module = _session.LoadModuleFromIRBlob(moduleName, path, ir, out string? diagnostics);
@@ -341,7 +346,7 @@ public sealed class SlangCompileSession : IDisposable
     /// </summary>
     public bool IsBinaryModuleUpToDate(string path, byte[] serializedModule)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             return _session.IsBinaryModuleUpToDate(path, serializedModule);
@@ -351,7 +356,7 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Compiles one module's requested entry points into a linked program.</summary>
     public SlangProgram Compile(SlangModuleHandle module, IReadOnlyList<SlangEntryPointRequest> entryPoints)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             return Compile(module, entryPoints, []);
@@ -361,7 +366,7 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Compiles with specialization arguments (generic value parameters and interface types).</summary>
     public SlangProgram Compile(SlangModuleHandle module, IReadOnlyList<SlangEntryPointRequest> entryPoints, IReadOnlyList<string> specializationArgs)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             // [module, ep0, ep1, ...] — the module first keeps global parameter
@@ -407,7 +412,7 @@ public sealed class SlangCompileSession : IDisposable
         SlangModuleHandle entryModule, SlangModuleHandle companionModule,
         IReadOnlyList<string> valueSpecializationArgs)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             int count = entryModule.Native.DefinedEntryPointCount;
@@ -643,7 +648,7 @@ public sealed class SlangCompileSession : IDisposable
     /// </summary>
     public ShaderLibraryReflection GetModuleReflection(SlangModuleHandle module)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             IntPtr layout = module.Native.AsComponentType().GetLayout(out string? diagnostics);
@@ -661,7 +666,7 @@ public sealed class SlangCompileSession : IDisposable
     /// </summary>
     public SlangProgram CompileAllEntryPoints(SlangModuleHandle module, IReadOnlyList<string> specializationArgs)
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             ThrowIfDisposed();
             int count = module.Native.DefinedEntryPointCount;
@@ -835,7 +840,7 @@ public sealed class SlangCompileSession : IDisposable
     /// <summary>Releases the native session and its file-system callback object.</summary>
     public void Dispose()
     {
-        lock (_lock)
+        lock (s_nativeLock)
         {
             if (_disposed)
             {
