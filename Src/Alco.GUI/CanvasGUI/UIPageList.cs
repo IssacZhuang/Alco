@@ -471,7 +471,23 @@ public abstract class UIPageList<TData> : UINode, INavigationFocusable, IUIPageL
             NavDirection.Right => 1,
             _ => 0,
         };
-        return NavigateByOffset(fromIndex, offset);
+
+        int? moved = NavigateByOffset(fromIndex, offset);
+        if (moved == null)
+        {
+            OnNavigationBlocked(direction);
+        }
+
+        return moved;
+    }
+
+    /// <summary>
+    /// Called when a navigation request cannot move within the current page.
+    /// Subclasses can handle the blocked direction, for example by changing page.
+    /// </summary>
+    /// <param name="direction">The blocked navigation direction.</param>
+    protected virtual void OnNavigationBlocked(NavDirection direction)
+    {
     }
 
     /// <summary>
