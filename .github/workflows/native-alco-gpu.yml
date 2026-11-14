@@ -75,12 +75,14 @@ jobs:
           name: alco-gpu-win-x64
           path: staging/win-x64/alco_gpu.dll
           if-no-files-found: error
+          retention-days: 3
 
       - uses: actions/upload-artifact@v7
         with:
           name: alco-gpu-win-arm64
           path: staging/win-arm64/alco_gpu.dll
           if-no-files-found: error
+          retention-days: 3
 
   linux:
     name: Build linux-x64 + linux-arm64 (manylinux 2.28)
@@ -150,6 +152,7 @@ jobs:
           name: alco-gpu-${{ matrix.rid }}
           path: staging/${{ matrix.rid }}/libalco_gpu.so
           if-no-files-found: error
+          retention-days: 3
 
   macos:
     name: Build osx-x64 + osx-arm64
@@ -205,12 +208,14 @@ jobs:
           name: alco-gpu-osx-x64
           path: staging/osx-x64/libalco_gpu.dylib
           if-no-files-found: error
+          retention-days: 3
 
       - uses: actions/upload-artifact@v7
         with:
           name: alco-gpu-osx-arm64
           path: staging/osx-arm64/libalco_gpu.dylib
           if-no-files-found: error
+          retention-days: 3
 
   android:
     name: Build android-x64 + android-arm64 (NDK r29)
@@ -288,12 +293,14 @@ jobs:
           name: alco-gpu-android-arm64
           path: staging/android-arm64/libalco_gpu.so
           if-no-files-found: error
+          retention-days: 3
 
       - uses: actions/upload-artifact@v7
         with:
           name: alco-gpu-android-x64
           path: staging/android-x64/libalco_gpu.so
           if-no-files-found: error
+          retention-days: 3
 
   update-runtimes:
     name: Update runtimes and manifest
@@ -392,6 +399,7 @@ jobs:
             Src/Alco.Graphics/runtimes/*/native/*
             Src/Alco.Graphics/runtimes/alco-gpu-manifest.json
           if-no-files-found: error
+          retention-days: 3
 
       - name: Open pull request with the new binaries
         if: ${{ inputs.create-pr }}
