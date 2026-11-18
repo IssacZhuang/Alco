@@ -18,9 +18,11 @@ internal sealed partial class MainWindow : Window
     private TraceRecording? _recording;
     private TraceProfile? _profile;
     private ProfileAnalysis? _analysis;
-    private TraceRange? _range;
     private HeatmapData? _heatmap;
-    private (int? ThreadId, TraceScope Scope) _heatmapFilter;
+    private (int First, int Last)? _selectedColumns;
+    private int _slicePage;
+    private (int? ThreadId, TraceScope Scope, TraceSliceMode Mode, int Page) _heatmapFilter;
+    private (int? ThreadId, TraceScope Scope, TraceRange? Range) _analysisFilter;
     private CancellationTokenSource? _analysisCancellation;
     private CancellationTokenSource? _runtimeWait;
     private string _overlayStatus = "Ready to capture";
@@ -33,7 +35,7 @@ internal sealed partial class MainWindow : Window
         _target = target;
         _targetName = name;
         InitializeComponent();
-        Heatmap.RangeSelected += RangeSelected;
+        Heatmap.ColumnsSelected += ColumnsSelected;
         TargetLabel.Text = $"{name} · PID {target.Id}";
         StatusLabel.Text = "Waiting for .NET diagnostics…";
         target.Exited += TargetExited;
@@ -270,9 +272,17 @@ internal sealed partial class MainWindow : Window
         _profile = profile;
         _analysis = null;
         _heatmap = null;
-        _range = null;
+        _selectedColumns = null;
+        _slicePage = 0;
+        TickSlicesItem.IsEnabled = profile.GetSliceCount(TraceSliceMode.Tick) > 0;
+        UpdateSlicesItem.IsEnabled = profile.GetSliceCount(TraceSliceMode.Update) > 0;
+        if (profile.GetSliceCount(SliceMode) == 0)
+        {
+            SlicePicker.SelectedIndex = 0;
+        }
+
         ThreadPicker.ItemsSource = new[] { new ThreadChoice(null, "All threads") }.Concat(profile.Threads).ToArray();
-        ThreadPicker.SelectedIndex = profile.Threads[0].IsGameLoop ? 1 : 0;
+        ThreadPicker.SelectedIndex = profile.Threads.FirstOrDefault()?.IsGameLoop == true ? 1 : 0;
         ScopePicker.SelectedIndex = 0;
         await UpdateAnalysisAsync();
 
@@ -301,22 +311,40 @@ internal sealed partial class MainWindow : Window
         await UpdateAnalysisAsync();
     }
 
-    private async void RangeSelected(TraceRange? range)
+    private TraceSliceMode SliceMode => (TraceSliceMode)Math.Max(SlicePicker.SelectedIndex, 0);
+
+    private async void SliceModeChanged(object? sender, SelectionChangedEventArgs e) => await ShowSlicePageAsync(0);
+
+    private async void PreviousSlicePageClicked(object? sender, RoutedEventArgs e) => await ShowSlicePageAsync(_slicePage - 1);
+
+    private async void NextSlicePageClicked(object? sender, RoutedEventArgs e) => await ShowSlicePageAsync(_slicePage + 1);
+
+    private async Task ShowSlicePageAsync(int page)
+    {
+        if (!CanFilter() || _profile is not { } profile || page < 0 || page >= profile.GetPageCount(SliceMode))
+        {
+            return;
+        }
+
+        _slicePage = page;
+        _selectedColumns = null;
+        RefreshControls();
+        await UpdateAnalysisAsync();
+    }
+
+    private async void ColumnsSelected((int First, int Last)? selection)
     {
         if (!CanFilter())
         {
             return;
         }
 
-        _range = range;
+        _selectedColumns = selection;
         RefreshControls();
         await UpdateAnalysisAsync();
     }
 
-    private void ResetRangeClicked(object? sender, RoutedEventArgs e)
-    {
-        RangeSelected(null);
-    }
+    private void ResetRangeClicked(object? sender, RoutedEventArgs e) => ColumnsSelected(null);
 
     private async Task UpdateAnalysisAsync()
     {
@@ -329,18 +357,26 @@ internal sealed partial class MainWindow : Window
         using var cancellation = new CancellationTokenSource();
         _analysisCancellation = cancellation;
         CancellationToken token = cancellation.Token;
-        var filter = (ThreadId: (ThreadPicker.SelectedItem as ThreadChoice)?.Id, Scope: (TraceScope)Math.Max(ScopePicker.SelectedIndex, 0));
+        var filter = (ThreadId: (ThreadPicker.SelectedItem as ThreadChoice)?.Id,
+            Scope: (TraceScope)Math.Max(ScopePicker.SelectedIndex, 0), Mode: SliceMode, Page: _slicePage);
         HeatmapData? cachedHeatmap = _heatmapFilter == filter ? _heatmap : null;
-        TraceRange? range = _range;
-        Heatmap.Show(cachedHeatmap ?? _heatmap, range);
+        ProfileAnalysis? cachedAnalysis = _analysis;
+        var cachedAnalysisFilter = _analysisFilter;
+        var columns = _selectedColumns;
+        bool samePage = _heatmapFilter.Mode == filter.Mode && _heatmapFilter.Page == filter.Page;
+        Heatmap.Show(samePage ? _heatmap : null, columns);
         SelectionLabel.Text = "Updating selection…";
         try
         {
             var result = await Task.Run(() =>
             {
-                HeatmapData heatmap = cachedHeatmap ?? profile.BuildHeatmap(filter.ThreadId, filter.Scope, token);
-                ProfileAnalysis analysis = profile.Analyze(filter.ThreadId, filter.Scope, range, token);
-                return (Heatmap: heatmap, Analysis: analysis);
+                HeatmapData heatmap = cachedHeatmap ?? profile.BuildHeatmap(filter.ThreadId, filter.Scope, filter.Mode, filter.Page, token);
+                TraceRange? range = columns is { } selected
+                    ? new TraceRange(heatmap.Slices[selected.First].Range.StartMs, heatmap.Slices[selected.Last].Range.EndMs) : null;
+                var analysisFilter = (filter.ThreadId, filter.Scope, Range: range);
+                ProfileAnalysis analysis = cachedAnalysis != null && cachedAnalysisFilter == analysisFilter
+                    ? cachedAnalysis : profile.Analyze(filter.ThreadId, filter.Scope, range, token);
+                return (Heatmap: heatmap, Analysis: analysis, Filter: analysisFilter);
             }, token);
             if (token.IsCancellationRequested)
             {
@@ -349,14 +385,18 @@ internal sealed partial class MainWindow : Window
 
             _heatmap = result.Heatmap;
             _heatmapFilter = filter;
-            _analysis = result.Analysis;
-            Heatmap.Show(_heatmap, range);
-            FlameGraph.Show(_analysis.Root);
-            CallTree.ItemsSource = _analysis.Root?.Children;
-            ApplyMethodFilter();
+            _analysisFilter = result.Filter;
+            Heatmap.Show(_heatmap, columns);
+            if (!ReferenceEquals(_analysis, result.Analysis))
+            {
+                _analysis = result.Analysis;
+                FlameGraph.Show(_analysis.Root);
+                CallTree.ItemsSource = _analysis.Root?.Children;
+                ApplyMethodFilter();
+            }
 
-            string selection = range is TraceRange span ? $"{span.StartMs / 1000:F3}–{span.EndMs / 1000:F3} s" : "All time";
-            SelectionLabel.Text = $"{selection} · {_analysis.SampleCount:N0} stack samples · {_analysis.Methods.Length:N0} methods";
+            string selection = DescribeSelection(result.Heatmap, columns, result.Filter.Range);
+            SelectionLabel.Text = $"{selection} · {result.Analysis.SampleCount:N0} stack samples · {result.Analysis.Methods.Length:N0} methods";
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -368,6 +408,23 @@ internal sealed partial class MainWindow : Window
                 _analysisCancellation = null;
             }
         }
+    }
+
+    private static string DescribeSelection(HeatmapData heatmap, (int First, int Last)? columns, TraceRange? range)
+    {
+        if (range is not { } span)
+        {
+            return "All time";
+        }
+
+        if (heatmap.IsPerInvocation && columns is { } selected)
+        {
+            string kind = heatmap.Mode == TraceSliceMode.Tick ? "Tick" : "Update";
+            long sequence = heatmap.Slices[selected.First].Sequence;
+            return $"{kind} #{sequence:N0} · {span.StartMs:0.######}–{span.EndMs:0.######} ms · {span.EndMs - span.StartMs:0.######} ms elapsed";
+        }
+
+        return $"{span.StartMs / 1000:F3}–{span.EndMs / 1000:F3} s";
     }
 
     private void MethodFilterChanged(object? sender, RoutedEventArgs e)
@@ -418,7 +475,18 @@ internal sealed partial class MainWindow : Window
         ShowOverlayButton.IsEnabled = _overlaySupported && running && _runtimeReady && _overlay == null;
         OpenButton.IsEnabled = idle;
         HeatmapPanel.IsEnabled = CanFilter();
-        ResetRangeButton.IsEnabled = _range.HasValue;
+        ResetRangeButton.IsEnabled = _selectedColumns.HasValue;
+        TraceSliceMode mode = SliceMode;
+        int pages = _profile?.GetPageCount(mode) ?? 0;
+        SlicePagePanel.IsVisible = pages > 0 && mode != TraceSliceMode.Overview;
+        PreviousSlicePageButton.IsEnabled = _slicePage > 0;
+        NextSlicePageButton.IsEnabled = _slicePage + 1 < pages;
+        SlicePageLabel.Text = $"Page {_slicePage + 1:N0} / {pages:N0} · {_profile?.GetSliceCount(mode) ?? 0:N0} slices";
+        SliceHint.Text = mode is TraceSliceMode.Tick or TraceSliceMode.Update
+            ? "One invocation per column · hover for elapsed time"
+            : _profile != null && (!TickSlicesItem.IsEnabled || !UpdateSlicesItem.IsEnabled)
+                ? "Tick / Update slices require complete timing markers in the trace."
+                : null;
         _overlay?.UpdateCaptureControls(canStart, canStop, _overlayStatus, StatusLabel.Text);
     }
 

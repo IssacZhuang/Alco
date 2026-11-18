@@ -13,6 +13,7 @@ internal sealed class TraceRecording
     [
         new("Microsoft-DotNETCore-SampleProfiler", EventLevel.Informational),
         new("Microsoft-Windows-DotNETRuntime", EventLevel.Informational, 0x100003801DL),
+        new(TraceProfile.LoopTimingProviderName, EventLevel.Informational),
     ];
 
     private readonly EventPipeSession _session;

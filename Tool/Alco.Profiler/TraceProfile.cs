@@ -9,11 +9,30 @@ internal enum TraceScope : byte
     GameLoop = 4,
 }
 
+internal enum TraceSliceMode : byte
+{
+    Overview,
+    HalfSecond,
+    Second,
+    Tick,
+    Update,
+}
+
 /// <summary>A half-open selection on the capture timeline, in milliseconds.</summary>
 internal readonly record struct TraceRange(double StartMs, double EndMs);
 
-/// <summary>Elapsed-time buckets for the hottest sampled leaf methods.</summary>
-internal sealed record HeatmapData(double DurationMs, int ColumnCount, IReadOnlyList<HeatmapRow> Rows);
+/// <summary>A heatmap column's exact time range and sequence number.</summary>
+internal readonly record struct TraceSlice(TraceRange Range, long Sequence);
+
+/// <summary>A page of slices for the hottest sampled leaf methods.</summary>
+internal sealed record HeatmapData(TraceSliceMode Mode, IReadOnlyList<TraceSlice> Slices, IReadOnlyList<HeatmapRow> Rows)
+{
+    /// <summary>Gets the number of slices on this page.</summary>
+    public int ColumnCount => Slices.Count;
+
+    /// <summary>Gets whether each slice represents a recorded invocation.</summary>
+    public bool IsPerInvocation => Mode is TraceSliceMode.Tick or TraceSliceMode.Update;
+}
 
 /// <summary>The leaf sample counts of one method across the timeline.</summary>
 internal sealed record HeatmapRow(string Method, int[] Samples);
@@ -76,20 +95,27 @@ internal sealed partial class TraceProfile
     private readonly string[] _methods;
     private readonly StackInfo[] _stacks;
     private readonly Sample[] _samples;
+    private readonly TraceSlice[] _ticks;
+    private readonly TraceSlice[] _updates;
 
     private TraceProfile(string[] methods, StackInfo[] stacks, Sample[] samples, IReadOnlyList<ThreadChoice> threads,
-        double? sampleIntervalMs, int lostEvents)
+        TraceSlice[] ticks, TraceSlice[] updates, double? sampleIntervalMs, int lostEvents)
     {
         _methods = methods;
         _stacks = stacks;
         _samples = samples;
+        _ticks = ticks;
+        _updates = updates;
         Threads = threads;
-        DurationMs = Math.Max(1, Math.BitIncrement(samples[^1].TimeMs));
+        double sampleEnd = samples.Length == 0 ? 0 : Math.BitIncrement(samples[^1].TimeMs);
+        double tickEnd = ticks.Length == 0 ? 0 : ticks.Max(static slice => slice.Range.EndMs);
+        double updateEnd = updates.Length == 0 ? 0 : updates.Max(static slice => slice.Range.EndMs);
+        DurationMs = Math.Max(1, Math.Max(sampleEnd, Math.Max(tickEnd, updateEnd)));
         SampleIntervalMs = sampleIntervalMs;
         LostEvents = lostEvents;
     }
 
-    /// <summary>Gets the end of the sampled timeline in milliseconds.</summary>
+    /// <summary>Gets the end of the capture timeline in milliseconds.</summary>
     public double DurationMs { get; }
 
     /// <summary>Gets the number of retained stack samples.</summary>
@@ -104,18 +130,44 @@ internal sealed partial class TraceProfile
     /// <summary>Gets selectable threads from the trace.</summary>
     public IReadOnlyList<ThreadChoice> Threads { get; }
 
-    /// <summary>Builds a heatmap for the selected thread and stack scope across the capture.</summary>
-    public HeatmapData BuildHeatmap(int? threadId, TraceScope scope, CancellationToken token)
+    /// <summary>Gets the number of slices in a mode, or zero when it is unavailable.</summary>
+    public int GetSliceCount(TraceSliceMode mode) => mode switch
     {
-        int columns = (int)Math.Clamp(Math.Ceiling(DurationMs / 20), 1, MaxHeatmapColumns);
-        int[] methodCounts = new int[_methods.Length];
-        for (int i = 0; i < _samples.Length; i++)
+        TraceSliceMode.HalfSecond => (int)Math.Ceiling(DurationMs / 500),
+        TraceSliceMode.Second => (int)Math.Ceiling(DurationMs / 1000),
+        TraceSliceMode.Tick => _ticks.Length,
+        TraceSliceMode.Update => _updates.Length,
+        _ => (int)Math.Clamp(Math.Ceiling(DurationMs / 20), 1, MaxHeatmapColumns),
+    };
+
+    /// <summary>Gets the number of heatmap pages in a slice mode.</summary>
+    public int GetPageCount(TraceSliceMode mode)
+    {
+        int slices = GetSliceCount(mode);
+        return slices == 0 ? 0 : (slices - 1) / MaxHeatmapColumns + 1;
+    }
+
+    /// <summary>Builds a page of the heatmap for the selected thread, stack scope and slice mode.</summary>
+    public HeatmapData BuildHeatmap(int? threadId, TraceScope scope, TraceSliceMode mode, int page, CancellationToken token)
+    {
+        TraceSlice[] slices = GetPageSlices(mode, page);
+        var bounds = new (int From, int To)[slices.Length];
+        var methodCounts = new int[_methods.Length];
+        for (int column = 0; column < slices.Length; column++)
         {
-            CheckCancellation(i, token);
-            Sample sample = _samples[i];
-            if (Matches(sample, threadId, scope))
+            token.ThrowIfCancellationRequested();
+            TraceRange range = slices[column].Range;
+            int from = FindSampleAtOrAfter(range.StartMs);
+            int to = FindSampleAtOrAfter(range.EndMs);
+            bounds[column] = (from, to);
+            for (int i = from; i < to; i++)
             {
-                methodCounts[_stacks[sample.Stack].Method]++;
+                CheckCancellation(i, token);
+                Sample sample = _samples[i];
+                if (Matches(sample, threadId, scope))
+                {
+                    methodCounts[_stacks[sample.Stack].Method]++;
+                }
             }
         }
 
@@ -129,23 +181,59 @@ internal sealed partial class TraceProfile
         for (int i = 0; i < hottest.Length; i++)
         {
             int method = hottest[i];
-            int[] bins = new int[columns];
+            int[] bins = new int[slices.Length];
             binsByMethod.Add(method, bins);
             rows[i] = new HeatmapRow(_methods[method], bins);
         }
 
-        for (int i = 0; i < _samples.Length && rows.Length != 0; i++)
+        for (int column = 0; column < slices.Length && rows.Length != 0; column++)
         {
-            CheckCancellation(i, token);
-            Sample sample = _samples[i];
-            if (Matches(sample, threadId, scope) && binsByMethod.TryGetValue(_stacks[sample.Stack].Method, out int[]? bins))
+            var (from, to) = bounds[column];
+            for (int i = from; i < to; i++)
             {
-                int column = Math.Clamp((int)(sample.TimeMs * columns / DurationMs), 0, columns - 1);
-                bins[column]++;
+                CheckCancellation(i, token);
+                Sample sample = _samples[i];
+                if (Matches(sample, threadId, scope) && binsByMethod.TryGetValue(_stacks[sample.Stack].Method, out int[]? bins))
+                {
+                    bins[column]++;
+                }
             }
         }
 
-        return new HeatmapData(DurationMs, columns, rows);
+        return new HeatmapData(mode, slices, rows);
+    }
+
+    private TraceSlice[] GetPageSlices(TraceSliceMode mode, int page)
+    {
+        int total = GetSliceCount(mode);
+        int offset = page * MaxHeatmapColumns;
+        int count = Math.Min(total - offset, MaxHeatmapColumns);
+        if (count <= 0)
+        {
+            return [];
+        }
+
+        if (mode is TraceSliceMode.Tick or TraceSliceMode.Update)
+        {
+            TraceSlice[] invocations = mode == TraceSliceMode.Tick ? _ticks : _updates;
+            return invocations.AsSpan(offset, count).ToArray();
+        }
+
+        double width = mode switch
+        {
+            TraceSliceMode.HalfSecond => 500,
+            TraceSliceMode.Second => 1000,
+            _ => DurationMs / total,
+        };
+        var slices = new TraceSlice[count];
+        for (int i = 0; i < count; i++)
+        {
+            int index = offset + i;
+            double end = index + 1 == total ? DurationMs : (index + 1) * width;
+            slices[i] = new TraceSlice(new TraceRange(index * width, end), index + 1);
+        }
+
+        return slices;
     }
 
     /// <summary>Aggregates samples in the selection into call paths and method totals.</summary>

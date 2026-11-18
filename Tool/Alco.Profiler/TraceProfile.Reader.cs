@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
 using Microsoft.Diagnostics.Tracing.EventPipe;
 
@@ -6,7 +7,10 @@ namespace Alco.Profiler;
 
 internal sealed partial class TraceProfile
 {
-    /// <summary>Reads timestamped managed thread samples and resolves their methods from a .nettrace file.</summary>
+    /// <summary>Identifies the EventPipe provider for Alco loop boundaries.</summary>
+    public const string LoopTimingProviderName = "Alco-Engine-Timing";
+
+    /// <summary>Reads timestamped managed stacks and loop boundaries from a .nettrace file.</summary>
     public static bool TryOpen(string filePath, [NotNullWhen(true)] out TraceProfile? profile, out string error)
     {
         string scratch = Path.Combine(Path.GetTempPath(), $"alco-profiler-{Guid.NewGuid():N}.etlx");
@@ -19,6 +23,8 @@ internal sealed partial class TraceProfile
             var reader = new SampleReader();
             var parser = new SampleProfilerTraceEventParser(source);
             parser.ThreadSample += reader.Read;
+            source.Dynamic.AddCallbackForProviderEvents(static (provider, _) => provider == LoopTimingProviderName
+                ? EventFilterResponse.AcceptEvent : EventFilterResponse.RejectProvider, reader.ReadTimingMarker);
             source.Process();
             return reader.TryBuild(log.EventsLost, out profile, out error);
         }
@@ -53,6 +59,9 @@ internal sealed partial class TraceProfile
         private readonly List<StackInfo> _stacks = new();
         private readonly List<string> _methods = new();
         private readonly List<Sample> _samples = new();
+        private readonly Dictionary<(bool Tick, long Sequence, int ThreadId), double> _pendingInvocations = new();
+        private readonly List<TraceSlice> _ticks = new();
+        private readonly List<TraceSlice> _updates = new();
 
         /// <summary>Retains a sample and interns the managed stack it observed.</summary>
         public void Read(ClrThreadSampleTraceData sample)
@@ -74,17 +83,43 @@ internal sealed partial class TraceProfile
             _samples.Add(new Sample(sample.TimeStampRelativeMSec, key, stack));
         }
 
-        /// <summary>Creates a trace model when the file contains stack sampling events.</summary>
+        /// <summary>Pairs only complete boundaries from the same invocation and thread.</summary>
+        public void ReadTimingMarker(TraceEvent marker)
+        {
+            int id = (int)marker.ID;
+            if (id is < 1 or > 4 || marker.PayloadNames.Length != 1 || marker.PayloadValue(0) is not long sequence || sequence <= 0)
+            {
+                return;
+            }
+
+            bool tick = id is 1 or 2;
+            var key = (tick, sequence, marker.ThreadID);
+            double time = marker.TimeStampRelativeMSec;
+            if (id is 1 or 3)
+            {
+                _pendingInvocations[key] = time;
+                return;
+            }
+
+            if (_pendingInvocations.Remove(key, out double start) && time >= start)
+            {
+                (tick ? _ticks : _updates).Add(new TraceSlice(new TraceRange(start, time), sequence));
+            }
+        }
+
+        /// <summary>Creates a model from stack samples or closed loop intervals.</summary>
         public bool TryBuild(int lostEvents, [NotNullWhen(true)] out TraceProfile? profile, out string error)
         {
-            if (_samples.Count == 0)
+            if (_samples.Count == 0 && _ticks.Count == 0 && _updates.Count == 0)
             {
                 profile = null;
-                error = "No .NET thread samples found. Collect with the dotnet-sampled-thread-time profile.";
+                error = "No .NET thread samples or complete loop timings found. Collect with the dotnet-sampled-thread-time profile.";
                 return false;
             }
 
             _samples.Sort(static (x, y) => x.TimeMs.CompareTo(y.TimeMs));
+            _ticks.Sort(CompareSlices);
+            _updates.Sort(CompareSlices);
             ThreadChoice[] threads = _threads.Values
                 .OrderByDescending(thread => thread.LoopCount)
                 .ThenByDescending(thread => thread.Count)
@@ -93,11 +128,23 @@ internal sealed partial class TraceProfile
                     ? thread.Thread with { Label = $"Game loop · {thread.Thread.Label}", IsGameLoop = true }
                     : thread.Thread)
                 .ToArray();
-            var busiest = _threads.Values.MaxBy(thread => thread.Count);
-            double? intervalMs = EstimateInterval(busiest.Thread.Id!.Value, busiest.Count);
-            profile = new TraceProfile(_methods.ToArray(), _stacks.ToArray(), _samples.ToArray(), threads, intervalMs, lostEvents);
+            double? intervalMs = null;
+            if (_samples.Count > 0)
+            {
+                var busiest = _threads.Values.MaxBy(thread => thread.Count);
+                intervalMs = EstimateInterval(busiest.Thread.Id!.Value, busiest.Count);
+            }
+
+            profile = new TraceProfile(_methods.ToArray(), _stacks.ToArray(), _samples.ToArray(), threads,
+                _ticks.ToArray(), _updates.ToArray(), intervalMs, lostEvents);
             error = string.Empty;
             return true;
+        }
+
+        private static int CompareSlices(TraceSlice x, TraceSlice y)
+        {
+            int comparison = x.Range.StartMs.CompareTo(y.Range.StartMs);
+            return comparison != 0 ? comparison : x.Sequence.CompareTo(y.Sequence);
         }
 
         private int GetStack(TraceCallStack source)

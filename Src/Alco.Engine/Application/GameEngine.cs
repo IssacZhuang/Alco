@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
+using System.Diagnostics.Tracing;
 using System.Runtime;
 
 
@@ -419,6 +420,7 @@ IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void ExecuteTickBody(float delta)
     {
+        using var timing = EngineTimingEventSource.Instance.Begin(isTick: true);
         OnSystemTick(delta);
         try
         {
@@ -434,6 +436,7 @@ IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void InternalUpdate(float delta)
     {
+        using var timing = EngineTimingEventSource.Instance.Begin(isTick: false);
         _profiler.Update(Stopwatch.GetTimestamp());
 
         // Process any callbacks queued for the main thread
@@ -732,4 +735,79 @@ IDisposable
 
     #endregion
 
+    [EventSource(Name = "Alco-Engine-Timing")]
+    private sealed class EngineTimingEventSource : EventSource
+    {
+        public static readonly EngineTimingEventSource Instance = new();
+
+        private long _tickSequence;
+        private long _updateSequence;
+
+        private EngineTimingEventSource()
+        {
+        }
+
+        /// <summary>Starts a timing scope if Informational events are enabled.</summary>
+        [NonEvent]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public EngineTimingScope Begin(bool isTick)
+        {
+            if (!IsEnabled(EventLevel.Informational, EventKeywords.None))
+            {
+                return default;
+            }
+
+            long sequence;
+            if (isTick)
+            {
+                sequence = Interlocked.Increment(ref _tickSequence);
+                TickBegin(sequence);
+            }
+            else
+            {
+                sequence = Interlocked.Increment(ref _updateSequence);
+                UpdateBegin(sequence);
+            }
+
+            return new EngineTimingScope(sequence, isTick);
+        }
+
+        /// <summary>Marks the start of a tick.</summary>
+        [Event(1, Level = EventLevel.Informational)]
+        public void TickBegin(long sequence) => WriteEvent(1, sequence);
+
+        /// <summary>Marks the end of a tick.</summary>
+        [Event(2, Level = EventLevel.Informational)]
+        public void TickEnd(long sequence) => WriteEvent(2, sequence);
+
+        /// <summary>Marks the start of an update.</summary>
+        [Event(3, Level = EventLevel.Informational)]
+        public void UpdateBegin(long sequence) => WriteEvent(3, sequence);
+
+        /// <summary>Marks the end of an update.</summary>
+        [Event(4, Level = EventLevel.Informational)]
+        public void UpdateEnd(long sequence) => WriteEvent(4, sequence);
+    }
+
+    private readonly struct EngineTimingScope(long sequence, bool isTick) : IDisposable
+    {
+        /// <summary>Writes the matching end marker for an active scope.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Dispose()
+        {
+            if (sequence == 0)
+            {
+                return;
+            }
+
+            if (isTick)
+            {
+                EngineTimingEventSource.Instance.TickEnd(sequence);
+            }
+            else
+            {
+                EngineTimingEventSource.Instance.UpdateEnd(sequence);
+            }
+        }
+    }
 }

@@ -46,11 +46,11 @@
     </Grid>
 
     <Border Grid.Row="2" Classes="panel" x:Name="HeatmapPanel">
-      <Grid RowDefinitions="Auto,Auto" RowSpacing="6">
+      <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
           <StackPanel Spacing="2">
             <TextBlock Text="Method activity" FontWeight="SemiBold" />
-            <TextBlock Classes="muted caption" Text="Hottest leaf methods · sample counts per time bucket" TextWrapping="Wrap" />
+            <TextBlock Classes="muted caption" Text="Hottest leaf methods · stack samples per slice" TextWrapping="Wrap" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
             <ComboBox x:Name="ThreadPicker" MinWidth="140" SelectionChanged="FilterChanged"
@@ -70,7 +70,27 @@
             <Button x:Name="ResetRangeButton" Content="Reset range" Click="ResetRangeClicked" />
           </StackPanel>
         </Grid>
-        <local:TraceHeatmapView Grid.Row="1" x:Name="Heatmap" Height="184"
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <TextBlock Text="Time slices" VerticalAlignment="Center" />
+            <ComboBox x:Name="SlicePicker" SelectedIndex="0" MinWidth="125" SelectionChanged="SliceModeChanged"
+                      AutomationProperties.Name="Time slices">
+              <ComboBoxItem>Overview</ComboBoxItem>
+              <ComboBoxItem>0.5 s</ComboBoxItem>
+              <ComboBoxItem>1 s</ComboBoxItem>
+              <ComboBoxItem x:Name="TickSlicesItem" IsEnabled="False">Each Tick</ComboBoxItem>
+              <ComboBoxItem x:Name="UpdateSlicesItem" IsEnabled="False">Each Update</ComboBoxItem>
+            </ComboBox>
+          </StackPanel>
+          <TextBlock Grid.Column="1" x:Name="SliceHint" Classes="muted caption" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <StackPanel Grid.Column="2" x:Name="SlicePagePanel" Orientation="Horizontal" Spacing="6"
+                      VerticalAlignment="Center" IsVisible="False">
+            <Button x:Name="PreviousSlicePageButton" Content="Previous" Click="PreviousSlicePageClicked" />
+            <TextBlock x:Name="SlicePageLabel" Classes="muted caption" VerticalAlignment="Center" />
+            <Button x:Name="NextSlicePageButton" Content="Next" Click="NextSlicePageClicked" />
+          </StackPanel>
+        </Grid>
+        <local:TraceHeatmapView Grid.Row="2" x:Name="Heatmap" Height="184"
                                 AutomationProperties.Name="Method activity heatmap" />
       </Grid>
     </Border>
@@ -136,7 +156,7 @@
 
     <StackPanel Grid.Row="4" Margin="10,0" Spacing="3">
       <TextBlock Classes="muted caption" TextWrapping="Wrap"
-                 Text="Estimated sampled thread time, not CPU utilization or exact calls. Tick / Update labels filter stack ancestry, not individual invocations." />
+                 Text="Method times are sampling estimates. Tick / Update slices use recorded boundaries; stack filters match call ancestry." />
       <SelectableTextBlock x:Name="TracePathLabel" FontSize="14" Foreground="{StaticResource ImGuiMutedBrush}" TextWrapping="Wrap" />
     </StackPanel>
   </Grid>
