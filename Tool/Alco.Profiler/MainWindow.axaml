@@ -1,0 +1,155 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Alco.Profiler"
+        x:Class="Alco.Profiler.MainWindow"
+        x:ClassModifier="internal"
+        Title="Alco Profiler" Width="1260" Height="840" MinWidth="850" MinHeight="680"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource ImGuiWindowBrush}" Foreground="{StaticResource ImGuiTextBrush}"
+        FontSize="{StaticResource ControlContentThemeFontSize}">
+  <Window.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="Background" Value="{StaticResource ImGuiChildBrush}" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="Padding" Value="10" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{StaticResource ImGuiMutedBrush}" />
+    </Style>
+    <Style Selector="TextBlock.caption">
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="ListBox.methods ListBoxItem:nth-child(even)">
+      <Setter Property="Background" Value="{StaticResource ImGuiAlternateRowBrush}" />
+    </Style>
+  </Window.Styles>
+  <Grid Margin="10" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="6">
+    <Border Classes="panel" Padding="10,6">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Text="Alco Profiler" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock Classes="muted caption" Text="Managed thread-stack sampling · .NET EventPipe" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock Grid.Column="1" x:Name="TargetLabel" Text="No target running" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Classes="panel">
+      <Grid ColumnDefinitions="2*,*,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4">
+        <TextBlock Classes="muted caption" Text="Game executable · CoreCLR build" />
+        <TextBlock Grid.Column="1" Classes="muted caption" Text="Arguments" />
+        <TextBox Grid.Row="1" x:Name="ExecutableBox" Watermark="Path to the built game executable"
+                 AutomationProperties.Name="Game executable" />
+        <TextBox Grid.Row="1" Grid.Column="1" x:Name="ArgumentsBox" Watermark="Optional"
+                 AutomationProperties.Name="Game arguments" />
+        <Button Grid.Row="1" Grid.Column="2" x:Name="BrowseButton" Content="Browse…" Click="BrowseClicked" />
+        <Button Grid.Row="1" Grid.Column="3" x:Name="LaunchButton" Content="Launch game" Click="LaunchClicked" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="10,0">
+      <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <Button x:Name="StartButton" Content="Start capture" Click="StartClicked" />
+        <Button x:Name="StopButton" Content="Stop capture" Click="StopClicked" />
+        <Button x:Name="OpenButton" Content="Open .nettrace…" Click="OpenClicked" />
+      </StackPanel>
+      <TextBlock Grid.Column="1" x:Name="StatusLabel" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
+                 Text="Launch a game to capture, or open a trace collected with dotnet-trace." />
+    </Grid>
+
+    <Border Grid.Row="3" Classes="panel" x:Name="HeatmapPanel">
+      <Grid RowDefinitions="Auto,Auto" RowSpacing="6">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <StackPanel Spacing="2">
+            <TextBlock Text="Method activity" FontWeight="SemiBold" />
+            <TextBlock Classes="muted caption" Text="Hottest leaf methods · sample counts per time bucket" TextWrapping="Wrap" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+            <ComboBox x:Name="ThreadPicker" MinWidth="140" SelectionChanged="FilterChanged"
+                      AutomationProperties.Name="Thread filter">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="local:ThreadChoice">
+                  <TextBlock Text="{Binding Label}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <ComboBox x:Name="ScopePicker" SelectedIndex="0" MinWidth="140" SelectionChanged="FilterChanged"
+                      AutomationProperties.Name="Stack filter">
+              <ComboBoxItem>All stacks</ComboBoxItem>
+              <ComboBoxItem>Fixed Tick stacks</ComboBoxItem>
+              <ComboBoxItem>Update stacks</ComboBoxItem>
+            </ComboBox>
+            <Button x:Name="ResetRangeButton" Content="Reset range" Click="ResetRangeClicked" />
+          </StackPanel>
+        </Grid>
+        <local:TraceHeatmapView Grid.Row="1" x:Name="Heatmap" Height="184"
+                                AutomationProperties.Name="Method activity heatmap" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="4" Classes="panel" Padding="10,6,10,10">
+      <Grid RowDefinitions="Auto,*" RowSpacing="6">
+        <TextBlock x:Name="SelectionLabel" Classes="muted caption" Text="No trace loaded" />
+        <TabControl Grid.Row="1" x:Name="ResultsTabs">
+          <TabItem Header="Flame graph">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+              <local:FlameGraphView x:Name="FlameGraph" AutomationProperties.Name="Stack sample flame graph" />
+            </ScrollViewer>
+          </TabItem>
+          <TabItem Header="Call tree">
+            <TreeView x:Name="CallTree" AutomationProperties.Name="Sampled call tree">
+              <TreeView.ItemTemplate>
+                <TreeDataTemplate x:DataType="local:CallNode" ItemsSource="{Binding Children}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Classes="muted" Text="{Binding TotalSamples, StringFormat='{}{0:N0} samples'}" />
+                    <TextBlock Text="{Binding Method}" ToolTip.Tip="{Binding Method}" />
+                  </StackPanel>
+                </TreeDataTemplate>
+              </TreeView.ItemTemplate>
+            </TreeView>
+          </TabItem>
+          <TabItem Header="Methods">
+            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox x:Name="SearchBox" Watermark="Filter by method name" TextChanged="MethodFilterChanged"
+                         AutomationProperties.Name="Find method" />
+                <ComboBox Grid.Column="1" x:Name="SortPicker" SelectedIndex="0" SelectionChanged="MethodFilterChanged"
+                          AutomationProperties.Name="Method sort order">
+                  <ComboBoxItem>Sort by total</ComboBoxItem>
+                  <ComboBoxItem>Sort by self</ComboBoxItem>
+                </ComboBox>
+              </Grid>
+              <Border Grid.Row="1" Background="{StaticResource ImGuiFrameBrush}" CornerRadius="4" Padding="4,4,12,4">
+                <Grid ColumnDefinitions="*,104,104,144" ColumnSpacing="8">
+                  <TextBlock Text="Method" />
+                  <TextBlock Grid.Column="1" Text="Total ≈ ms" TextAlignment="Right" />
+                  <TextBlock Grid.Column="2" Text="Self ≈ ms" TextAlignment="Right" />
+                  <TextBlock Grid.Column="3" Text="Samples (total / self)" TextAlignment="Right" />
+                </Grid>
+              </Border>
+              <ListBox Grid.Row="2" x:Name="MethodsList" Classes="methods" Background="Transparent"
+                       AutomationProperties.Name="Sampled methods">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="local:MethodSummary">
+                    <Grid ColumnDefinitions="*,104,104,144" ColumnSpacing="8">
+                      <TextBlock Text="{Binding Method}" ToolTip.Tip="{Binding Method}" TextTrimming="CharacterEllipsis" />
+                      <TextBlock Grid.Column="1" Text="{Binding TotalMs, StringFormat={}{0:N2}, TargetNullValue=—}" TextAlignment="Right" />
+                      <TextBlock Grid.Column="2" Text="{Binding SelfMs, StringFormat={}{0:N2}, TargetNullValue=—}" TextAlignment="Right" />
+                      <TextBlock Grid.Column="3" Text="{Binding SampleCounts}" TextAlignment="Right" Classes="muted" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </TabItem>
+        </TabControl>
+      </Grid>
+    </Border>
+
+    <StackPanel Grid.Row="5" Margin="10,0" Spacing="3">
+      <TextBlock Classes="muted caption" TextWrapping="Wrap"
+                 Text="Estimated sampled thread time, not CPU utilization or exact calls. Tick / Update labels filter stack ancestry, not individual invocations." />
+      <SelectableTextBlock x:Name="TracePathLabel" FontSize="14" Foreground="{StaticResource ImGuiMutedBrush}" TextWrapping="Wrap" />
+    </StackPanel>
+  </Grid>
+</Window>

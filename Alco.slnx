@@ -89,4 +89,7 @@
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
     <Project Path="Test/TestFramework/TestFramework.csproj" />
   </Folder>
+  <Folder Name="/Tool/">
+    <Project Path="Tool/Alco.Profiler/Alco.Profiler.csproj" />
+  </Folder>
 </Solution>
