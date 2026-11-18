@@ -14,7 +14,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Alco.Profiler\Alco.Profiler.csproj" />
     <ProjectReference Include="..\Alco\Alco.csproj" />
     <ProjectReference Include="..\Alco.Audio\Alco.Audio.csproj" />
     <ProjectReference Include="..\Alco.Graphics\Alco.Graphics.csproj" />

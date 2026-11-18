@@ -1,9 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <RootNamespace>Alco.Profiler</RootNamespace>
-    <AssemblyName>Alco.Profiler</AssemblyName>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <MethodProfilerInfrastructureProject>true</MethodProfilerInfrastructureProject>
-  </PropertyGroup>
-</Project>

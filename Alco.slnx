@@ -1,7 +1,6 @@
 <Solution>
   <Configurations>
     <BuildType Name="Debug" />
-    <BuildType Name="Profile" />
     <BuildType Name="Release" />
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
@@ -71,17 +70,13 @@
     <Project Path="Src/Alco.ImGUI/Alco.ImGUI.csproj" />
     <Project Path="Src/Alco.IO/Alco.IO.csproj" />
     <Project Path="Src/Alco.LLM/Alco.LLM.csproj" />
-    <Project Path="Src/Alco.Profiler/Alco.Profiler.csproj" />
     <Project Path="Src/Alco.Effects/Alco.Effects.csproj" />
     <Project Path="Src/Alco.Rendering/Alco.Rendering.csproj" />
     <Project Path="Src/Alco.World3D/Alco.World3D.csproj" />
     <Project Path="Src/Alco/Alco.csproj" />
   </Folder>
   <Folder Name="/Test/">
-    <Project Path="Test/Alco.Profiler.Test/Alco.Profiler.Test.csproj" />
     <Project Path="Test/Alco.Effects.Test/Alco.Effects.Test.csproj" />
-    <Project Path="Test/Alco.Profiler.BuildTool.Fixture/Alco.Profiler.BuildTool.Fixture.csproj" />
-    <Project Path="Test/Alco.Profiler.BuildTool.Test/Alco.Profiler.BuildTool.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
     <Project Path="Test/Alco.AgentControlProtocol.Test/Alco.AgentControlProtocol.Test.csproj" />
     <Project Path="Test/Alco.Editor.Test/Alco.Editor.Test.csproj" />
@@ -93,8 +88,5 @@
     <Project Path="Test/Alco.World3D.Test/Alco.World3D.Test.csproj" />
     <Project Path="Test/Alco.Test/Alco.Test.csproj" />
     <Project Path="Test/TestFramework/TestFramework.csproj" />
-  </Folder>
-  <Folder Name="/Tool/">
-    <Project Path="Tool/Alco.Profiler.BuildTool/Alco.Profiler.BuildTool.csproj" />
   </Folder>
 </Solution>

@@ -12,7 +12,6 @@ using System.Text.Json.Serialization.Metadata;
 using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Runtime;
-using Alco.Profiler;
 
 
 namespace Alco.Engine;
@@ -228,11 +227,6 @@ IDisposable
     }
 
     /// <summary>
-    /// Gets the process-wide method profiler used by instrumented builds.
-    /// </summary>
-    public MethodProfilerRuntime MethodProfiler => MethodProfilerRuntime.Instance;
-
-    /// <summary>
     /// Check if the engine is disposed
     /// </summary>
     public bool IsDisposed => _disposed != 0;
@@ -379,7 +373,7 @@ IDisposable
 
         _mainThreadId = Environment.CurrentManagedThreadId;
 
-        _platform.OnTick += InternalTick;
+        _platform.OnTick += ExecuteTickBody;
         _platform.OnUpdate += InternalUpdate;
         InternalStart();
         _platform.RunMainLoop(_setting.RunOnce);
@@ -420,31 +414,6 @@ IDisposable
     protected virtual void OnStop()
     {
 
-    }
-
-    private void InternalTick(float delta)
-    {
-        if (!_setting.EnableMethodProfiling)
-        {
-            ExecuteTickBody(delta);
-            return;
-        }
-
-        MethodProfilerTickToken profilerTick = MethodProfiler.BeginTick();
-        if (!profilerTick.IsValid)
-        {
-            ExecuteTickBody(delta);
-            return;
-        }
-
-        try
-        {
-            ExecuteTickBody(delta);
-        }
-        finally
-        {
-            MethodProfiler.EndTick(profilerTick);
-        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

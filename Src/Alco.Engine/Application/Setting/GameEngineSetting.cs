@@ -53,11 +53,6 @@ namespace Alco.Engine
         public bool RunOnce;
 
         /// <summary>
-        /// Gets or sets whether instrumented methods may be collected by the method profiler.
-        /// </summary>
-        public bool EnableMethodProfiling { get; set; }
-
-        /// <summary>
         /// Gets or sets the JSON type metadata resolver used by all engine JSON surfaces; null selects reflection-based metadata.
         /// </summary>
         public IJsonTypeInfoResolver? TypeInfoResolver { get; set; }
