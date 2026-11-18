@@ -68,7 +68,7 @@ internal static class ImGuiTheme
             "TextControlPlaceholderForegroundFocused");
         Set(resources, disabled, "ButtonForegroundDisabled", "TextControlForegroundDisabled", "TextControlPlaceholderForegroundDisabled",
             "ComboBoxForegroundDisabled", "ComboBoxDropDownGlyphForegroundDisabled", "TabItemHeaderForegroundDisabled");
-        Set(resources, Accent, "SystemControlFocusVisualPrimaryBrush");
+        Set(resources, Accent, "ImGuiAccentBrush", "SystemControlFocusVisualPrimaryBrush");
         Set(resources, Selection, "TextControlSelectionHighlightColor");
         Set(resources, new ImmutableSolidColorBrush(0xFF3E635A), "ButtonBackgroundPointerOver");
         Set(resources, new ImmutableSolidColorBrush(0xFF3C7567), "ButtonBackgroundPressed");

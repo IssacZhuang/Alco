@@ -3,8 +3,8 @@
         xmlns:local="using:Alco.Profiler"
         x:Class="Alco.Profiler.MainWindow"
         x:ClassModifier="internal"
-        Title="Alco Profiler" Width="1260" Height="840" MinWidth="850" MinHeight="680"
-        WindowStartupLocation="CenterScreen"
+        Title="Alco Profiler — Analysis" Width="1260" Height="840" MinWidth="850" MinHeight="680"
+        WindowStartupLocation="CenterScreen" ShowActivated="False"
         Background="{StaticResource ImGuiWindowBrush}" Foreground="{StaticResource ImGuiTextBrush}"
         FontSize="{StaticResource ControlContentThemeFontSize}">
   <Window.Styles>
@@ -23,41 +23,29 @@
       <Setter Property="Background" Value="{StaticResource ImGuiAlternateRowBrush}" />
     </Style>
   </Window.Styles>
-  <Grid Margin="10" RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="6">
+  <Grid Margin="10" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="6">
     <Border Classes="panel" Padding="10,6">
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
         <StackPanel Orientation="Horizontal" Spacing="8">
           <TextBlock Text="Alco Profiler" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
           <TextBlock Classes="muted caption" Text="Managed thread-stack sampling · .NET EventPipe" VerticalAlignment="Center" />
         </StackPanel>
-        <TextBlock Grid.Column="1" x:Name="TargetLabel" Text="No target running" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" x:Name="TargetLabel" MaxWidth="280" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        <Button Grid.Column="2" x:Name="ChooseAppButton" Content="Choose app…" Click="ChooseAppClicked" VerticalAlignment="Center" />
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" Classes="panel">
-      <Grid ColumnDefinitions="2*,*,Auto,Auto" ColumnSpacing="8" RowDefinitions="Auto,Auto" RowSpacing="4">
-        <TextBlock Classes="muted caption" Text="Game executable · CoreCLR build" />
-        <TextBlock Grid.Column="1" Classes="muted caption" Text="Arguments" />
-        <TextBox Grid.Row="1" x:Name="ExecutableBox" Watermark="Path to the built game executable"
-                 AutomationProperties.Name="Game executable" />
-        <TextBox Grid.Row="1" Grid.Column="1" x:Name="ArgumentsBox" Watermark="Optional"
-                 AutomationProperties.Name="Game arguments" />
-        <Button Grid.Row="1" Grid.Column="2" x:Name="BrowseButton" Content="Browse…" Click="BrowseClicked" />
-        <Button Grid.Row="1" Grid.Column="3" x:Name="LaunchButton" Content="Launch game" Click="LaunchClicked" />
-      </Grid>
-    </Border>
-
-    <Grid Grid.Row="2" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="10,0">
+    <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="10,0">
       <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
         <Button x:Name="StartButton" Content="Start capture" Click="StartClicked" />
         <Button x:Name="StopButton" Content="Stop capture" Click="StopClicked" />
+        <Button x:Name="ShowOverlayButton" Content="Show overlay" Click="ShowOverlayClicked" />
         <Button x:Name="OpenButton" Content="Open .nettrace…" Click="OpenClicked" />
       </StackPanel>
-      <TextBlock Grid.Column="1" x:Name="StatusLabel" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap"
-                 Text="Launch a game to capture, or open a trace collected with dotnet-trace." />
+      <TextBlock Grid.Column="1" x:Name="StatusLabel" Classes="caption" VerticalAlignment="Center" TextWrapping="Wrap" />
     </Grid>
 
-    <Border Grid.Row="3" Classes="panel" x:Name="HeatmapPanel">
+    <Border Grid.Row="2" Classes="panel" x:Name="HeatmapPanel">
       <Grid RowDefinitions="Auto,Auto" RowSpacing="6">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
           <StackPanel Spacing="2">
@@ -87,7 +75,7 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="4" Classes="panel" Padding="10,6,10,10">
+    <Border Grid.Row="3" Classes="panel" Padding="10,6,10,10">
       <Grid RowDefinitions="Auto,*" RowSpacing="6">
         <TextBlock x:Name="SelectionLabel" Classes="muted caption" Text="No trace loaded" />
         <TabControl Grid.Row="1" x:Name="ResultsTabs">
@@ -146,7 +134,7 @@
       </Grid>
     </Border>
 
-    <StackPanel Grid.Row="5" Margin="10,0" Spacing="3">
+    <StackPanel Grid.Row="4" Margin="10,0" Spacing="3">
       <TextBlock Classes="muted caption" TextWrapping="Wrap"
                  Text="Estimated sampled thread time, not CPU utilization or exact calls. Tick / Update labels filter stack ancestry, not individual invocations." />
       <SelectableTextBlock x:Name="TracePathLabel" FontSize="14" Foreground="{StaticResource ImGuiMutedBrush}" TextWrapping="Wrap" />

@@ -1,7 +1,4 @@
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -9,11 +6,15 @@ using Avalonia.Threading;
 
 namespace Alco.Profiler;
 
+/// <summary>Displays the capture session and analyzed traces for a launched application.</summary>
 internal sealed partial class MainWindow : Window
 {
     private static readonly FilePickerFileType NetTrace = new(".NET traces") { Patterns = ["*.nettrace"] };
 
+    private readonly string _targetName;
+    private readonly bool _overlaySupported = CaptureOverlay.IsSupported;
     private Process? _target;
+    private CaptureOverlay? _overlay;
     private TraceRecording? _recording;
     private TraceProfile? _profile;
     private ProfileAnalysis? _analysis;
@@ -21,15 +22,36 @@ internal sealed partial class MainWindow : Window
     private HeatmapData? _heatmap;
     private (int? ThreadId, TraceScope Scope) _heatmapFilter;
     private CancellationTokenSource? _analysisCancellation;
+    private CancellationTokenSource? _runtimeWait;
+    private string _overlayStatus = "Ready to capture";
+    private bool _runtimeReady;
     private bool _busy;
 
-    /// <summary>Creates an independent process launcher and trace viewer.</summary>
-    public MainWindow()
+    /// <summary>Opens an analysis session that owns the target's process handle.</summary>
+    public MainWindow(Process target, string name)
     {
+        _target = target;
+        _targetName = name;
         InitializeComponent();
-        ExecutableBox.Text = FindGameExecutable();
         Heatmap.RangeSelected += RangeSelected;
+        TargetLabel.Text = $"{name} · PID {target.Id}";
+        StatusLabel.Text = "Waiting for .NET diagnostics…";
+        target.Exited += TargetExited;
+        target.EnableRaisingEvents = true;
         RefreshControls();
+    }
+
+    /// <summary>Requests a return to the app picker without stopping the target.</summary>
+    public event Action? ChooseApplicationRequested;
+
+    /// <inheritdoc />
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (_target is { HasExited: false } target)
+        {
+            _ = PrepareCaptureAsync(target);
+        }
     }
 
     /// <inheritdoc />
@@ -40,88 +62,52 @@ internal sealed partial class MainWindow : Window
             e.Cancel = true;
             StatusLabel.Text = _recording != null ? "Stop capture before closing the profiler." : "Wait for the current operation to finish.";
         }
-        else
-        {
-            _analysisCancellation?.Cancel();
-            _target?.Dispose();
-            _target = null;
-        }
 
         base.OnClosing(e);
     }
 
-    private async void BrowseClicked(object? sender, RoutedEventArgs e)
+    /// <inheritdoc />
+    protected override void OnClosed(EventArgs e)
     {
-        IReadOnlyList<IStorageFile> files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        _runtimeWait?.Cancel();
+        _analysisCancellation?.Cancel();
+        if (_target is { } target)
         {
-            Title = "Select a CoreCLR game executable",
-            FileTypeFilter = OperatingSystem.IsWindows()
-                ? [new FilePickerFileType("Executables") { Patterns = ["*.exe"] }, FilePickerFileTypes.All]
-                : [FilePickerFileTypes.All],
-        });
-        if (files.Count != 0 && files[0].TryGetLocalPath() is string path)
+            target.Exited -= TargetExited;
+            target.Dispose();
+            _target = null;
+        }
+        CloseOverlay();
+        base.OnClosed(e);
+    }
+
+    private void ChooseAppClicked(object? sender, RoutedEventArgs e)
+    {
+        if (!_busy && _recording == null)
         {
-            ExecutableBox.Text = path;
+            ChooseApplicationRequested?.Invoke();
         }
     }
 
-    private void LaunchClicked(object? sender, RoutedEventArgs e)
+    private async Task PrepareCaptureAsync(Process target)
     {
-        if (_target != null)
-        {
-            return;
-        }
-
-        if (!TryLaunch(ExecutableBox.Text?.Trim(), out Process? process, out string error))
-        {
-            StatusLabel.Text = error;
-            return;
-        }
-
-        _target = process;
-        TargetLabel.Text = $"{Path.GetFileNameWithoutExtension(process.StartInfo.FileName)} · PID {process.Id}";
-        StatusLabel.Text = "Game launched. Start capture once it is ready.";
+        using var cancellation = new CancellationTokenSource();
+        _runtimeWait = cancellation;
         RefreshControls();
-    }
-
-    private bool TryLaunch(string? path, [NotNullWhen(true)] out Process? process, out string error)
-    {
-        process = null;
-        if (!File.Exists(path))
+        string? error = await TraceRecording.WaitForRuntimeAsync(target.Id, cancellation.Token);
+        _runtimeWait = null;
+        if (cancellation.IsCancellationRequested || !ReferenceEquals(_target, target) || target.HasExited)
         {
-            error = "Select an existing game executable first.";
-            return false;
+            return;
         }
 
-        string executable = Path.GetFullPath(path);
-        var child = new Process
+        _runtimeReady = error == null;
+        StatusLabel.Text = error ?? (_overlaySupported ? "Ready to capture. Use the overlay while playing." : "Ready to capture using the analysis controls.");
+        RefreshControls();
+        if (_runtimeReady)
         {
-            StartInfo = new ProcessStartInfo(executable, ArgumentsBox.Text ?? string.Empty)
-            {
-                UseShellExecute = false,
-                WorkingDirectory = GetWorkingDirectory(executable),
-            },
-            EnableRaisingEvents = true,
-        };
-        child.Exited += TargetExited;
-        try
-        {
-            if (child.Start())
-            {
-                process = child;
-                error = string.Empty;
-                return true;
-            }
-
-            error = "The executable did not start a process.";
+            ShowOverlay();
         }
-        catch (Win32Exception exception)
-        {
-            error = $"Could not launch the game: {exception.Message}";
-        }
-
-        child.Dispose();
-        return false;
     }
 
     private void TargetExited(object? sender, EventArgs e)
@@ -133,24 +119,35 @@ internal sealed partial class MainWindow : Window
                 return;
             }
 
+            _runtimeWait?.Cancel();
             _target = null;
+            _runtimeReady = false;
             process.Dispose();
-            TargetLabel.Text = "Target exited";
+            CloseOverlay();
+            TargetLabel.Text = $"{_targetName} exited";
+            if (_recording == null && !_busy && _profile == null)
+            {
+                StatusLabel.Text = "The application exited before a capture was loaded.";
+            }
             RefreshControls();
         });
     }
 
-    private async void StartClicked(object? sender, RoutedEventArgs e)
+    private async void StartClicked(object? sender, RoutedEventArgs e) => await StartCaptureAsync();
+
+    private async Task StartCaptureAsync()
     {
-        if (_target is not { HasExited: false } target || _busy || _recording != null)
+        if (_target is not { HasExited: false } target || _busy || _recording != null || _runtimeWait != null)
         {
             return;
         }
 
         int pid = target.Id;
+        bool showOverlay = !_runtimeReady;
         _analysisCancellation?.Cancel();
-        SetBusy(true);
+        _overlayStatus = "Connecting…";
         StatusLabel.Text = "Connecting to the .NET runtime…";
+        SetBusy(true);
         try
         {
             var result = await Task.Run(() =>
@@ -160,11 +157,14 @@ internal sealed partial class MainWindow : Window
             });
             if (result.Recording is not TraceRecording recording)
             {
+                _overlayStatus = "Could not start capture";
                 StatusLabel.Text = $"Could not start capture. Check the target is a running CoreCLR build. {result.Error}";
                 return;
             }
 
+            _runtimeReady = true;
             _recording = recording;
+            _overlayStatus = "Recording";
             StatusLabel.Text = "Recording managed stacks. Stop capture to analyze the trace.";
             TracePathLabel.Text = recording.FilePath;
         }
@@ -173,6 +173,10 @@ internal sealed partial class MainWindow : Window
             SetBusy(false);
         }
 
+        if (showOverlay)
+        {
+            ShowOverlay();
+        }
         if (_recording is TraceRecording active)
         {
             _ = ObserveRecordingAsync(active);
@@ -201,8 +205,9 @@ internal sealed partial class MainWindow : Window
         }
 
         _recording = null;
-        SetBusy(true);
+        _overlayStatus = "Finalizing trace…";
         StatusLabel.Text = "Finishing trace and resolving method names…";
+        SetBusy(true);
         try
         {
             string? warning = await recording.FinishAsync(requestStop);
@@ -211,7 +216,8 @@ internal sealed partial class MainWindow : Window
                 warning = "The target disconnected. The trace may be incomplete.";
             }
 
-            await LoadTraceAsync(recording.FilePath, warning);
+            bool loaded = await TryLoadTraceAsync(recording.FilePath, warning);
+            _overlayStatus = !loaded ? "Could not analyze capture" : warning == null ? "Capture complete" : "Capture may be incomplete";
         }
         finally
         {
@@ -236,7 +242,7 @@ internal sealed partial class MainWindow : Window
             });
             if (files.Count != 0 && files[0].TryGetLocalPath() is string path)
             {
-                await LoadTraceAsync(path, null);
+                await TryLoadTraceAsync(path, null);
             }
         }
         finally
@@ -245,7 +251,7 @@ internal sealed partial class MainWindow : Window
         }
     }
 
-    private async Task LoadTraceAsync(string path, string? warning)
+    private async Task<bool> TryLoadTraceAsync(string path, string? warning)
     {
         _analysisCancellation?.Cancel();
         StatusLabel.Text = "Analyzing trace…";
@@ -258,7 +264,7 @@ internal sealed partial class MainWindow : Window
         if (result.Profile is not TraceProfile profile)
         {
             StatusLabel.Text = $"{warning} Could not analyze this trace: {result.Error}".TrimStart();
-            return;
+            return false;
         }
 
         _profile = profile;
@@ -282,6 +288,7 @@ internal sealed partial class MainWindow : Window
         }
 
         StatusLabel.Text = warning == null ? note : $"{warning} {note}";
+        return true;
     }
 
     private async void FilterChanged(object? sender, SelectionChangedEventArgs e)
@@ -403,62 +410,41 @@ internal sealed partial class MainWindow : Window
     {
         bool idle = !_busy && _recording == null;
         bool running = _target is { HasExited: false };
-        LaunchButton.IsEnabled = idle && _target == null;
-        BrowseButton.IsEnabled = LaunchButton.IsEnabled;
-        ExecutableBox.IsEnabled = LaunchButton.IsEnabled;
-        ArgumentsBox.IsEnabled = LaunchButton.IsEnabled;
-        StartButton.IsEnabled = idle && running;
-        StopButton.IsEnabled = !_busy && _recording != null;
+        ChooseAppButton.IsEnabled = idle;
+        bool canStart = idle && running && _runtimeWait == null;
+        bool canStop = !_busy && _recording != null;
+        StartButton.IsEnabled = canStart;
+        StopButton.IsEnabled = canStop;
+        ShowOverlayButton.IsEnabled = _overlaySupported && running && _runtimeReady && _overlay == null;
         OpenButton.IsEnabled = idle;
         HeatmapPanel.IsEnabled = CanFilter();
         ResetRangeButton.IsEnabled = _range.HasValue;
+        _overlay?.UpdateCaptureControls(canStart, canStop, _overlayStatus, StatusLabel.Text);
     }
 
-    private static string? FindGameExecutable()
+    private void ShowOverlayClicked(object? sender, RoutedEventArgs e) => ShowOverlay();
+
+    private void ShowOverlay()
     {
-        string? root = FindGameRoot(Environment.CurrentDirectory) ?? FindGameRoot(AppContext.BaseDirectory);
-        if (root == null)
+        if (!_overlaySupported || _overlay != null || !_runtimeReady || _target is not { HasExited: false })
         {
-            return null;
+            return;
         }
 
-        string executable = OperatingSystem.IsWindows() ? "Application.exe" : "Application";
-        string rid = RuntimeInformation.RuntimeIdentifier;
-        string[] directories =
-        [
-            Path.Combine(root, "Bin", "Release", "Publish", rid),
-            Path.Combine(root, "Bin", "Debug", "Application", rid),
-            Path.Combine(root, "Bin", "Debug", "Application"),
-            Path.Combine(root, "Bin", "Release", "Application", rid),
-            Path.Combine(root, "Bin", "Release", "Application"),
-        ];
-
-        return directories.Select(directory => Path.Combine(directory, executable)).FirstOrDefault(File.Exists);
-    }
-
-    private static string GetWorkingDirectory(string executable)
-    {
-        string directory = Path.GetDirectoryName(executable)!;
-        string? root = FindGameRoot(directory);
-        if (root == null)
+        var overlay = new CaptureOverlay(_targetName, StartCaptureAsync, () => FinishRecordingAsync(requestStop: true));
+        _overlay = overlay;
+        overlay.Closed += (_, _) =>
         {
-            return directory;
-        }
-
-        string relative = Path.GetRelativePath(Path.Combine(root, "Bin"), directory);
-        return relative.Split(Path.DirectorySeparatorChar) is ["Debug" or "Release", "Application", ..] ? root : directory;
-    }
-
-    private static string? FindGameRoot(string path)
-    {
-        for (DirectoryInfo? directory = new DirectoryInfo(path); directory != null; directory = directory.Parent)
+            _overlay = null;
+            RefreshControls();
+        };
+        if ((Screens.ScreenFromWindow(this) ?? Screens.Primary) is { } screen)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "Game.slnx")))
-            {
-                return directory.FullName;
-            }
+            overlay.PlaceOn(screen);
         }
-
-        return null;
+        RefreshControls();
+        overlay.Show();
     }
+
+    private void CloseOverlay() => _overlay?.Close();
 }

@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Alco.Profiler.CaptureOverlay" x:ClassModifier="internal"
+        Title="Alco Profiler — Capture" Width="326" SizeToContent="Height"
+        SystemDecorations="None" CanResize="False" Topmost="True" ShowInTaskbar="False" ShowActivated="False"
+        WindowStartupLocation="Manual" Background="Transparent" TransparencyLevelHint="Transparent, None"
+        TransparencyBackgroundFallback="{StaticResource ImGuiChildBrush}"
+        Foreground="{StaticResource ImGuiTextBrush}" FontSize="14">
+  <Border CornerRadius="10" Padding="12,8,12,12" Background="#DA252525" BorderBrush="#25FFFFFF" BorderThickness="1">
+    <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock Text="Alco Profiler" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <Button Grid.Column="1" Content="×" Focusable="False" Padding="6,2" Background="Transparent"
+                AutomationProperties.Name="Hide capture overlay" Click="DismissClicked" />
+      </Grid>
+      <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+        <Ellipse Width="7" Height="7" Fill="{StaticResource ImGuiAccentBrush}" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" x:Name="CaptureStatus" TextTrimming="CharacterEllipsis" />
+        <TextBlock Grid.Column="2" x:Name="OverlayTarget" MaxWidth="118" TextTrimming="CharacterEllipsis"
+                   Foreground="{StaticResource ImGuiMutedBrush}" />
+      </Grid>
+      <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="6">
+        <Button x:Name="OverlayStartButton" Content="Start capture" Focusable="False" Click="StartClicked"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        <Button Grid.Column="1" x:Name="OverlayStopButton" Content="Stop capture" Focusable="False" Click="StopClicked"
+                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

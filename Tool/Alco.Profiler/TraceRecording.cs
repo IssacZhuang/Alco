@@ -30,6 +30,29 @@ internal sealed class TraceRecording
     /// <summary>Gets the task that drains the runtime stream to disk.</summary>
     public Task Completion { get; }
 
+    /// <summary>Waits for the target's diagnostic endpoint and returns a message if it is unavailable.</summary>
+    public static async Task<string?> WaitForRuntimeAsync(int pid, CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        try
+        {
+            while (!DiagnosticsClient.GetPublishedProcesses().Contains(pid))
+            {
+                await Task.Delay(200, timeout.Token).ConfigureAwait(false);
+            }
+            return null;
+        }
+        catch (OperationCanceledException) when (timeout.IsCancellationRequested)
+        {
+            return "No .NET diagnostic endpoint responded. Use a CoreCLR app with diagnostics enabled.";
+        }
+        catch (Exception exception) when (IsRecordingFailure(exception))
+        {
+            return $"Could not connect to the .NET runtime: {exception.Message}";
+        }
+    }
+
     /// <summary>Starts a recording on a running CoreCLR process.</summary>
     public static bool TryStart(int pid, [NotNullWhen(true)] out TraceRecording? recording, out string error)
     {
