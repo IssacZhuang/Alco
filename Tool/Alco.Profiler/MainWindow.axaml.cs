@@ -17,6 +17,7 @@ internal sealed partial class MainWindow : Window
     private CaptureOverlay? _overlay;
     private TraceRecording? _recording;
     private TraceProfile? _profile;
+    private string? _profilePath;
     private ProfileAnalysis? _analysis;
     private HeatmapData? _heatmap;
     private (int First, int Last)? _selectedColumns;
@@ -45,6 +46,34 @@ internal sealed partial class MainWindow : Window
 
     /// <summary>Requests a return to the app picker without stopping the target.</summary>
     public event Action? ChooseApplicationRequested;
+
+    /// <summary>Gets the most recently loaded trace, which can be analyzed off the UI thread.</summary>
+    public TraceProfile? LoadedProfile => _profile;
+
+    /// <summary>Reports the current target, recording and loaded trace.</summary>
+    public object GetAgentStatus() => new
+    {
+        stage = "analysis",
+        targetName = _targetName,
+        pid = _target is { HasExited: false } target ? (int?)target.Id : null,
+        diagnosticsReady = _runtimeReady && _target is { HasExited: false },
+        waitingForDiagnostics = _runtimeWait != null,
+        isRecording = _recording != null,
+        busy = _busy,
+        message = StatusLabel.Text,
+        capturePath = _recording?.FilePath,
+        trace = _profile is not { } profile ? null : new
+        {
+            filePath = _profilePath,
+            profile.DurationMs,
+            profile.SampleCount,
+            profile.SampleIntervalMs,
+            profile.LostEvents,
+            tickCount = profile.GetSliceCount(TraceSliceMode.Tick),
+            updateCount = profile.GetSliceCount(TraceSliceMode.Update),
+            profile.Threads,
+        },
+    };
 
     /// <inheritdoc />
     protected override void OnOpened(EventArgs e)
@@ -137,11 +166,17 @@ internal sealed partial class MainWindow : Window
 
     private async void StartClicked(object? sender, RoutedEventArgs e) => await StartCaptureAsync();
 
-    private async Task StartCaptureAsync()
+    /// <summary>Starts recording and returns the trace path or an explanation of why capture could not start.</summary>
+    public async Task<(string? FilePath, string? Error)> StartCaptureAsync()
     {
-        if (_target is not { HasExited: false } target || _busy || _recording != null || _runtimeWait != null)
+        if (_target is not { HasExited: false } target)
         {
-            return;
+            return (null, "The target is no longer running.");
+        }
+
+        if (_recording != null || _busy || _runtimeWait != null)
+        {
+            return (null, "Wait for diagnostics or the current capture operation to finish.");
         }
 
         int pid = target.Id;
@@ -150,6 +185,7 @@ internal sealed partial class MainWindow : Window
         _overlayStatus = "Connecting…";
         StatusLabel.Text = "Connecting to the .NET runtime…";
         SetBusy(true);
+        TraceRecording active;
         try
         {
             var result = await Task.Run(() =>
@@ -160,12 +196,13 @@ internal sealed partial class MainWindow : Window
             if (result.Recording is not TraceRecording recording)
             {
                 _overlayStatus = "Could not start capture";
-                StatusLabel.Text = $"Could not start capture. Check the target is a running CoreCLR build. {result.Error}";
-                return;
+                string error = $"Could not start capture. Check the target is a running CoreCLR build. {result.Error}";
+                StatusLabel.Text = error;
+                return (null, error);
             }
 
             _runtimeReady = true;
-            _recording = recording;
+            active = _recording = recording;
             _overlayStatus = "Recording";
             StatusLabel.Text = "Recording managed stacks. Stop capture to analyze the trace.";
             TracePathLabel.Text = recording.FilePath;
@@ -179,10 +216,9 @@ internal sealed partial class MainWindow : Window
         {
             ShowOverlay();
         }
-        if (_recording is TraceRecording active)
-        {
-            _ = ObserveRecordingAsync(active);
-        }
+
+        _ = ObserveRecordingAsync(active);
+        return (active.FilePath, null);
     }
 
     private async Task ObserveRecordingAsync(TraceRecording recording)
@@ -199,11 +235,12 @@ internal sealed partial class MainWindow : Window
         await FinishRecordingAsync(requestStop: true);
     }
 
-    private async Task FinishRecordingAsync(bool requestStop)
+    /// <summary>Finalizes the active capture and reports its path, import outcome and any warning.</summary>
+    public async Task<(string? FilePath, bool Loaded, string? Message)> FinishRecordingAsync(bool requestStop)
     {
         if (_recording is not TraceRecording recording || _busy)
         {
-            return;
+            return (null, false, "There is no active recording to stop.");
         }
 
         _recording = null;
@@ -220,6 +257,7 @@ internal sealed partial class MainWindow : Window
 
             bool loaded = await TryLoadTraceAsync(recording.FilePath, warning);
             _overlayStatus = !loaded ? "Could not analyze capture" : warning == null ? "Capture complete" : "Capture may be incomplete";
+            return (recording.FilePath, loaded, loaded ? warning : StatusLabel.Text);
         }
         finally
         {
@@ -270,6 +308,7 @@ internal sealed partial class MainWindow : Window
         }
 
         _profile = profile;
+        _profilePath = path;
         _analysis = null;
         _heatmap = null;
         _selectedColumns = null;
@@ -446,10 +485,7 @@ internal sealed partial class MainWindow : Window
             methods = methods.Where(method => method.Method.Contains(query, StringComparison.OrdinalIgnoreCase));
         }
 
-        IOrderedEnumerable<MethodSummary> ordered = SortPicker.SelectedIndex == 1
-            ? methods.OrderByDescending(method => method.SelfSamples).ThenByDescending(method => method.TotalSamples)
-            : methods.OrderByDescending(method => method.TotalSamples).ThenByDescending(method => method.SelfSamples);
-        MethodsList.ItemsSource = ordered.ThenBy(method => method.Method, StringComparer.Ordinal).ToArray();
+        MethodsList.ItemsSource = MethodSummary.OrderByCost(methods, sortBySelf: SortPicker.SelectedIndex == 1).ToArray();
     }
 
     private bool CanFilter()

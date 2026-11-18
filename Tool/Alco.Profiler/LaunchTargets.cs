@@ -69,8 +69,9 @@ internal static class LaunchTargets
         return projects.Length == 0 ? ([], "This solution contains no C# projects.") : (projects, null);
     }
 
-    /// <summary>Starts an executable or builds and starts a C# project. The caller owns the returned process.</summary>
-    public static async Task<(Process? Process, string? Error)> StartAsync(string path, string? solutionPath, CancellationToken token)
+    /// <summary>Starts an application or a solution's startup project and transfers ownership of the process.</summary>
+    public static async Task<((Process Process, string Name)? Application, string? Error)> StartAsync(
+        string path, string? startupProject, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (!File.Exists(path))
@@ -78,12 +79,59 @@ internal static class LaunchTargets
             return (null, $"The selected file does not exist: {path}");
         }
 
-        if (IsSolution(path))
+        string target = Path.GetFullPath(path);
+        string? solution = null;
+        if (IsSolution(target))
         {
-            return (null, "Choose a startup project from the solution.");
+            solution = target;
+            var (projects, error) = await ReadSolutionAsync(solution, token).ConfigureAwait(false);
+            if (error != null)
+            {
+                return (null, error);
+            }
+
+            if (startupProject == null)
+            {
+                if (projects.Length != 1)
+                {
+                    return (null, "This solution has multiple projects. Choose a startup project.");
+                }
+
+                target = projects[0];
+            }
+            else
+            {
+                try
+                {
+                    target = Path.GetFullPath(startupProject, Path.GetDirectoryName(solution)!);
+                }
+                catch (Exception exception) when (exception is ArgumentException or IOException)
+                {
+                    return (null, $"Invalid startup project path: {exception.Message}");
+                }
+
+                if (!projects.Any(project => project.Equals(target, PathComparison)))
+                {
+                    return (null, $"The startup project is not in the selected solution: {startupProject}");
+                }
+            }
+
+            if (!File.Exists(target))
+            {
+                return (null, $"The startup project does not exist: {target}");
+            }
+        }
+        else if (startupProject != null)
+        {
+            return (null, "A startup project can only be specified for a solution.");
         }
 
-        string target = Path.GetFullPath(path);
+        var (process, launchError) = await StartResolvedAsync(target, solution, token).ConfigureAwait(false);
+        return process == null ? (null, launchError) : ((process, Path.GetFileNameWithoutExtension(target)), null);
+    }
+
+    private static async Task<(Process? Process, string? Error)> StartResolvedAsync(string target, string? solutionPath, CancellationToken token)
+    {
         if (!IsProject(target))
         {
             return StartProcess(target, string.Empty, GetExecutableWorkingDirectory(target), token);

@@ -11,5 +11,6 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="$(AvaloniaVersion)" />
     <PackageReference Include="Microsoft.Diagnostics.NETCore.Client" Version="0.2.661903" />
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.5" />
+    <ProjectReference Include="..\..\Src\Alco.AgentControlProtocol\Alco.AgentControlProtocol.csproj" />
   </ItemGroup>
 </Project>

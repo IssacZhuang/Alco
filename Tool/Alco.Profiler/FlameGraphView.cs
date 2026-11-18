@@ -10,6 +10,8 @@ using Avalonia.Media.Immutable;
 
 namespace Alco.Profiler;
 
+using Rect = Avalonia.Rect;
+
 /// <summary>Displays sample-weighted call paths with interactive subtree zoom.</summary>
 internal sealed class FlameGraphView : Control
 {

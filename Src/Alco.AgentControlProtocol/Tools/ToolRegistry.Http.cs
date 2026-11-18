@@ -21,12 +21,16 @@ public static class ToolRegistryHttpAdapter
     /// <param name="endpoints">The endpoint route builder to map endpoints to.</param>
     /// <param name="registry">The tool registry serving tool metadata and invocation.</param>
     public static void MapToolApi(this IEndpointRouteBuilder endpoints, ToolRegistry registry)
+        => endpoints.MapToolApi(registry, "Alco Game API", allowGetInvocation: true);
+
+    /// <summary>Maps discovery and invocation endpoints for the named tool host.</summary>
+    public static void MapToolApi(this IEndpointRouteBuilder endpoints, ToolRegistry registry, string apiName, bool allowGetInvocation)
     {
         endpoints.MapGet("/", () =>
         {
             return Results.Ok(new
             {
-                name = "Alco Game API",
+                name = apiName,
                 version = "1.0.0",
             });
         });
@@ -77,8 +81,11 @@ public static class ToolRegistryHttpAdapter
             });
         });
 
-        endpoints.MapGet("/tools/{toolName}", (string toolName, HttpContext context) =>
-            InvokeToolAsync(registry, toolName, default, context));
+        if (allowGetInvocation)
+        {
+            endpoints.MapGet("/tools/{toolName}", (string toolName, HttpContext context) =>
+                InvokeToolAsync(registry, toolName, default, context));
+        }
 
         endpoints.MapPost("/tools/{toolName}", async (string toolName, HttpContext context) =>
         {

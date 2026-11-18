@@ -48,6 +48,15 @@ internal sealed record MethodSummary(string Method, int TotalSamples, int SelfSa
 {
     /// <summary>Shows inclusive and self sample counts.</summary>
     public string SampleCounts => $"{TotalSamples:N0} / {SelfSamples:N0}";
+
+    /// <summary>Ranks methods by inclusive or self samples, highest first.</summary>
+    public static IOrderedEnumerable<MethodSummary> OrderByCost(IEnumerable<MethodSummary> methods, bool sortBySelf)
+    {
+        var ordered = sortBySelf
+            ? methods.OrderByDescending(method => method.SelfSamples).ThenByDescending(method => method.TotalSamples)
+            : methods.OrderByDescending(method => method.TotalSamples).ThenByDescending(method => method.SelfSamples);
+        return ordered.ThenBy(method => method.Method, StringComparer.Ordinal);
+    }
 }
 
 /// <summary>Aggregated paths and methods for a selected set of samples.</summary>

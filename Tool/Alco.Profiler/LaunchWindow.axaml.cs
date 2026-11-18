@@ -30,6 +30,9 @@ internal sealed partial class LaunchWindow : Window
     /// <summary>Reports the running target and transfers ownership of its process handle.</summary>
     public event Action<Process, string>? ApplicationLaunched;
 
+    /// <summary>Reports the picker state before an analysis session opens.</summary>
+    public object GetAgentStatus() => new { stage = "launcher", busy = _busy, message = LaunchStatus.Text };
+
     /// <inheritdoc />
     protected override void OnClosed(EventArgs e)
     {
@@ -90,33 +93,45 @@ internal sealed partial class LaunchWindow : Window
 
     private async void LaunchClicked(object? sender, RoutedEventArgs e)
     {
-        if (_busy || GetLaunchPath() is not string path)
+        if (_selectedFile is string path && GetLaunchPath() is string selected)
         {
-            return;
+            await LaunchAsync(path, ProjectPanel.IsVisible ? selected : null);
+        }
+    }
+
+    /// <summary>Launches the requested target, or reports an error without leaving the picker.</summary>
+    public async Task<string?> LaunchAsync(string path, string? startupProject)
+    {
+        if (_busy)
+        {
+            return "Wait for the current launcher operation to finish.";
         }
 
         CancellationToken token = _closing.Token;
         SetBusy(true);
-        LaunchStatus.Text = LaunchTargets.IsProject(path) ? "Building startup project…" : "Launching application…";
+        LaunchStatus.Text = LaunchTargets.IsProject(path) || LaunchTargets.IsSolution(path)
+            ? "Preparing startup project…" : "Launching application…";
         try
         {
-            var (process, error) = await LaunchTargets.StartAsync(path, ProjectPanel.IsVisible ? _selectedFile : null, token);
-            if (token.IsCancellationRequested || ApplicationLaunched is not { } onLaunched)
-            {
-                process?.Dispose();
-                return;
-            }
-
-            if (process == null)
+            var (application, error) = await LaunchTargets.StartAsync(path, startupProject, token);
+            if (application is not { } launched)
             {
                 LaunchStatus.Text = error;
-                return;
+                return error;
             }
 
-            onLaunched(process, Path.GetFileNameWithoutExtension(path));
+            if (token.IsCancellationRequested || ApplicationLaunched is not { } onLaunched)
+            {
+                launched.Process.Dispose();
+                return "The application picker was closed.";
+            }
+
+            onLaunched(launched.Process, launched.Name);
+            return null;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
+            return "The application picker was closed.";
         }
         finally
         {

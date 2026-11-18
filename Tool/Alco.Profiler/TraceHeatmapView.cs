@@ -10,6 +10,8 @@ using Avalonia.Media.Immutable;
 
 namespace Alco.Profiler;
 
+using Rect = Avalonia.Rect;
+
 /// <summary>Shows sampled methods by slice and lets the user select columns.</summary>
 internal sealed class TraceHeatmapView : Control
 {
