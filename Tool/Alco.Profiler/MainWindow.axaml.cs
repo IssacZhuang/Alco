@@ -22,8 +22,8 @@ internal sealed partial class MainWindow : Window
     private HeatmapData? _heatmap;
     private (int First, int Last)? _selectedColumns;
     private int _slicePage;
-    private (int? ThreadId, TraceScope Scope, TraceSliceMode Mode, int Page) _heatmapFilter;
-    private (int? ThreadId, TraceScope Scope, TraceRange? Range) _analysisFilter;
+    private (TraceMetric Metric, int? ThreadId, TraceScope Scope, TraceSliceMode Mode, int Page) _heatmapFilter;
+    private (TraceMetric Metric, int? ThreadId, TraceScope Scope, TraceRange? Range) _analysisFilter;
     private CancellationTokenSource? _analysisCancellation;
     private CancellationTokenSource? _runtimeWait;
     private string _overlayStatus = "Ready to capture";
@@ -62,11 +62,13 @@ internal sealed partial class MainWindow : Window
         busy = _busy,
         message = StatusLabel.Text,
         capturePath = _recording?.FilePath,
+        recordingIncludesAllocations = _recording?.IncludesAllocations,
         trace = _profile is not { } profile ? null : new
         {
             filePath = _profilePath,
             profile.DurationMs,
             profile.SampleCount,
+            profile.AllocationSampleCount,
             profile.SampleIntervalMs,
             profile.LostEvents,
             tickCount = profile.GetSliceCount(TraceSliceMode.Tick),
@@ -164,10 +166,12 @@ internal sealed partial class MainWindow : Window
         });
     }
 
-    private async void StartClicked(object? sender, RoutedEventArgs e) => await StartCaptureAsync();
+    private async void StartClicked(object? sender, RoutedEventArgs e) => await StartConfiguredCaptureAsync();
+
+    private Task StartConfiguredCaptureAsync() => StartCaptureAsync(IncludeAllocationsCheck.IsChecked == true);
 
     /// <summary>Starts recording and returns the trace path or an explanation of why capture could not start.</summary>
-    public async Task<(string? FilePath, string? Error)> StartCaptureAsync()
+    public async Task<(string? FilePath, string? Error)> StartCaptureAsync(bool includeAllocations)
     {
         if (_target is not { HasExited: false } target)
         {
@@ -190,7 +194,7 @@ internal sealed partial class MainWindow : Window
         {
             var result = await Task.Run(() =>
             {
-                TraceRecording.TryStart(pid, out TraceRecording? recording, out string error);
+                TraceRecording.TryStart(pid, includeAllocations, out TraceRecording? recording, out string error);
                 return (Recording: recording, Error: error);
             });
             if (result.Recording is not TraceRecording recording)
@@ -204,7 +208,9 @@ internal sealed partial class MainWindow : Window
             _runtimeReady = true;
             active = _recording = recording;
             _overlayStatus = "Recording";
-            StatusLabel.Text = "Recording managed stacks. Stop capture to analyze the trace.";
+            StatusLabel.Text = includeAllocations
+                ? "Recording managed stacks and allocation samples. Stop capture to analyze the trace."
+                : "Recording managed stacks. Stop capture to analyze the trace.";
             TracePathLabel.Text = recording.FilePath;
         }
         finally
@@ -255,7 +261,7 @@ internal sealed partial class MainWindow : Window
                 warning = "The target disconnected. The trace may be incomplete.";
             }
 
-            bool loaded = await TryLoadTraceAsync(recording.FilePath, warning);
+            bool loaded = await TryLoadTraceAsync(recording.FilePath, warning, recording.IncludesAllocations);
             _overlayStatus = !loaded ? "Could not analyze capture" : warning == null ? "Capture complete" : "Capture may be incomplete";
             return (recording.FilePath, loaded, loaded ? warning : StatusLabel.Text);
         }
@@ -291,7 +297,7 @@ internal sealed partial class MainWindow : Window
         }
     }
 
-    private async Task<bool> TryLoadTraceAsync(string path, string? warning)
+    private async Task<bool> TryLoadTraceAsync(string path, string? warning, bool allocationRequested = false)
     {
         _analysisCancellation?.Cancel();
         StatusLabel.Text = "Analyzing trace…";
@@ -313,6 +319,16 @@ internal sealed partial class MainWindow : Window
         _heatmap = null;
         _selectedColumns = null;
         _slicePage = 0;
+        AllocationMetricItem.IsEnabled = profile.AllocationSampleCount > 0;
+        if (!AllocationMetricItem.IsEnabled)
+        {
+            MetricPicker.SelectedIndex = (int)TraceMetric.Time;
+        }
+        else if (profile.SampleCount == 0)
+        {
+            MetricPicker.SelectedIndex = (int)TraceMetric.Allocation;
+        }
+
         TickSlicesItem.IsEnabled = profile.GetSliceCount(TraceSliceMode.Tick) > 0;
         UpdateSlicesItem.IsEnabled = profile.GetSliceCount(TraceSliceMode.Update) > 0;
         if (profile.GetSliceCount(SliceMode) == 0)
@@ -325,7 +341,14 @@ internal sealed partial class MainWindow : Window
         ScopePicker.SelectedIndex = 0;
         await UpdateAnalysisAsync();
 
-        string note = $"Loaded {profile.SampleCount:N0} samples across {profile.DurationMs / 1000:F2} s.";
+        string samples = profile.AllocationSampleCount > 0
+            ? $"{profile.SampleCount:N0} stack samples and {profile.AllocationSampleCount:N0} allocation samples"
+            : $"{profile.SampleCount:N0} stack samples";
+        string note = $"Loaded {samples} across {profile.DurationMs / 1000:F2} s.";
+        if (allocationRequested && profile.AllocationSampleCount == 0)
+        {
+            note += " No allocation samples were recorded. The target needs CoreCLR allocation sampling support and enough allocation activity.";
+        }
         if (profile.SampleIntervalMs is double interval)
         {
             note += $" Estimated {interval:F2} ms per sample.";
@@ -349,6 +372,8 @@ internal sealed partial class MainWindow : Window
 
         await UpdateAnalysisAsync();
     }
+
+    private TraceMetric Metric => MetricPicker.SelectedIndex == (int)TraceMetric.Allocation ? TraceMetric.Allocation : TraceMetric.Time;
 
     private TraceSliceMode SliceMode => (TraceSliceMode)Math.Max(SlicePicker.SelectedIndex, 0);
 
@@ -396,25 +421,25 @@ internal sealed partial class MainWindow : Window
         using var cancellation = new CancellationTokenSource();
         _analysisCancellation = cancellation;
         CancellationToken token = cancellation.Token;
-        var filter = (ThreadId: (ThreadPicker.SelectedItem as ThreadChoice)?.Id,
+        var filter = (Metric, ThreadId: (ThreadPicker.SelectedItem as ThreadChoice)?.Id,
             Scope: (TraceScope)Math.Max(ScopePicker.SelectedIndex, 0), Mode: SliceMode, Page: _slicePage);
         HeatmapData? cachedHeatmap = _heatmapFilter == filter ? _heatmap : null;
         ProfileAnalysis? cachedAnalysis = _analysis;
         var cachedAnalysisFilter = _analysisFilter;
         var columns = _selectedColumns;
-        bool samePage = _heatmapFilter.Mode == filter.Mode && _heatmapFilter.Page == filter.Page;
+        bool samePage = _heatmapFilter.Metric == filter.Metric && _heatmapFilter.Mode == filter.Mode && _heatmapFilter.Page == filter.Page;
         Heatmap.Show(samePage ? _heatmap : null, columns);
         SelectionLabel.Text = "Updating selection…";
         try
         {
             var result = await Task.Run(() =>
             {
-                HeatmapData heatmap = cachedHeatmap ?? profile.BuildHeatmap(filter.ThreadId, filter.Scope, filter.Mode, filter.Page, token);
+                HeatmapData heatmap = cachedHeatmap ?? profile.BuildHeatmap(filter.Metric, filter.ThreadId, filter.Scope, filter.Mode, filter.Page, token);
                 TraceRange? range = columns is { } selected
                     ? new TraceRange(heatmap.Slices[selected.First].Range.StartMs, heatmap.Slices[selected.Last].Range.EndMs) : null;
-                var analysisFilter = (filter.ThreadId, filter.Scope, Range: range);
+                var analysisFilter = (filter.Metric, filter.ThreadId, filter.Scope, Range: range);
                 ProfileAnalysis analysis = cachedAnalysis != null && cachedAnalysisFilter == analysisFilter
-                    ? cachedAnalysis : profile.Analyze(filter.ThreadId, filter.Scope, range, token);
+                    ? cachedAnalysis : profile.Analyze(filter.Metric, filter.ThreadId, filter.Scope, range, token);
                 return (Heatmap: heatmap, Analysis: analysis, Filter: analysisFilter);
             }, token);
             if (token.IsCancellationRequested)
@@ -426,16 +451,38 @@ internal sealed partial class MainWindow : Window
             _heatmapFilter = filter;
             _analysisFilter = result.Filter;
             Heatmap.Show(_heatmap, columns);
+            bool isAllocation = filter.Metric == TraceMetric.Allocation;
             if (!ReferenceEquals(_analysis, result.Analysis))
             {
                 _analysis = result.Analysis;
-                FlameGraph.Show(_analysis.Root);
+                FlameGraph.Show(_analysis.Root, filter.Metric);
                 CallTree.ItemsSource = _analysis.Root?.Children;
+                AllocationTypesList.ItemsSource = _analysis.Types;
+                if (!isAllocation && ReferenceEquals(ResultsTabs.SelectedItem, AllocationTypesTab))
+                {
+                    ResultsTabs.SelectedIndex = 0;
+                }
+                AllocationTypesTab.IsVisible = isAllocation;
+                HeatmapSubtitle.Text = isAllocation ? "Hottest leaf methods · estimated allocated bytes per slice" : "Hottest leaf methods · stack samples per slice";
+                TotalCostHeader.Text = isAllocation ? "Total ≈ bytes" : "Total ≈ ms";
+                SelfCostHeader.Text = isAllocation ? "Self ≈ bytes" : "Self ≈ ms";
                 ApplyMethodFilter();
             }
 
             string selection = DescribeSelection(result.Heatmap, columns, result.Filter.Range);
-            SelectionLabel.Text = $"{selection} · {result.Analysis.SampleCount:N0} stack samples · {result.Analysis.Methods.Length:N0} methods";
+            TraceCost total = result.Analysis.Total;
+            if (!isAllocation)
+            {
+                SelectionLabel.Text = $"{selection} · {total.Samples:N0} stack samples · {result.Analysis.Methods.Length:N0} methods";
+            }
+            else if (total.Samples == 0)
+            {
+                SelectionLabel.Text = $"{selection} · No allocation samples (not evidence of zero allocations)";
+            }
+            else
+            {
+                SelectionLabel.Text = $"{selection} · ≈ {TraceCost.FormatBytes(total.EstimatedBytes)} allocated · {total.Samples:N0} allocation samples · {result.Analysis.Types.Length:N0} types";
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -507,6 +554,7 @@ internal sealed partial class MainWindow : Window
         bool canStart = idle && running && _runtimeWait == null;
         bool canStop = !_busy && _recording != null;
         StartButton.IsEnabled = canStart;
+        IncludeAllocationsCheck.IsEnabled = canStart;
         StopButton.IsEnabled = canStop;
         ShowOverlayButton.IsEnabled = _overlaySupported && running && _runtimeReady && _overlay == null;
         OpenButton.IsEnabled = idle;
@@ -535,7 +583,7 @@ internal sealed partial class MainWindow : Window
             return;
         }
 
-        var overlay = new CaptureOverlay(_targetName, StartCaptureAsync, () => FinishRecordingAsync(requestStop: true));
+        var overlay = new CaptureOverlay(_targetName, StartConfiguredCaptureAsync, () => FinishRecordingAsync(requestStop: true));
         _overlay = overlay;
         overlay.Closed += (_, _) =>
         {

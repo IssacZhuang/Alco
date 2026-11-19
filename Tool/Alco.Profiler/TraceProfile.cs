@@ -18,14 +18,40 @@ internal enum TraceSliceMode : byte
     Update,
 }
 
+internal enum TraceMetric : byte
+{
+    Time,
+    Allocation,
+}
+
 /// <summary>A half-open selection on the capture timeline, in milliseconds.</summary>
 internal readonly record struct TraceRange(double StartMs, double EndMs);
 
 /// <summary>A heatmap column's exact time range and sequence number.</summary>
 internal readonly record struct TraceSlice(TraceRange Range, long Sequence);
 
+/// <summary>A count of recorded samples and their estimated allocation bytes, if applicable.</summary>
+internal readonly record struct TraceCost(int Samples, double EstimatedBytes = 0)
+{
+    /// <summary>Gets the chart and ranking weight for this sample source.</summary>
+    public double Weight => EstimatedBytes > 0 ? EstimatedBytes : Samples;
+
+    /// <summary>Combines costs from the same sample source.</summary>
+    public static TraceCost operator +(TraceCost left, TraceCost right)
+        => new(left.Samples + right.Samples, left.EstimatedBytes + right.EstimatedBytes);
+
+    /// <summary>Formats a byte count using binary units.</summary>
+    public static string FormatBytes(double bytes) => bytes switch
+    {
+        >= 1_073_741_824 => $"{bytes / 1_073_741_824:N2} GiB",
+        >= 1_048_576 => $"{bytes / 1_048_576:N2} MiB",
+        >= 1_024 => $"{bytes / 1_024:N2} KiB",
+        _ => $"{bytes:N0} B",
+    };
+}
+
 /// <summary>A page of slices for the hottest sampled leaf methods.</summary>
-internal sealed record HeatmapData(TraceSliceMode Mode, IReadOnlyList<TraceSlice> Slices, IReadOnlyList<HeatmapRow> Rows)
+internal sealed record HeatmapData(TraceMetric Metric, TraceSliceMode Mode, IReadOnlyList<TraceSlice> Slices, IReadOnlyList<HeatmapRow> Rows)
 {
     /// <summary>Gets the number of slices on this page.</summary>
     public int ColumnCount => Slices.Count;
@@ -34,33 +60,59 @@ internal sealed record HeatmapData(TraceSliceMode Mode, IReadOnlyList<TraceSlice
     public bool IsPerInvocation => Mode is TraceSliceMode.Tick or TraceSliceMode.Update;
 }
 
-/// <summary>The leaf sample counts of one method across the timeline.</summary>
-internal sealed record HeatmapRow(string Method, int[] Samples);
+/// <summary>The leaf costs of one method across the timeline.</summary>
+internal sealed record HeatmapRow(string Method, TraceCost[] Costs);
 
 /// <summary>A sampled stack path and the paths that extend it.</summary>
-internal sealed record CallNode(string Method, int TotalSamples, int SelfSamples, IReadOnlyList<CallNode> Children);
+internal sealed record CallNode(string Method, TraceCost Total, TraceCost Self, IReadOnlyList<CallNode> Children)
+{
+    /// <summary>Shows the inclusive cost in the units of the sampled data.</summary>
+    public string TotalLabel => Total.EstimatedBytes > 0 ? $"≈ {TraceCost.FormatBytes(Total.EstimatedBytes)}" : $"{Total.Samples:N0} samples";
+}
 
 /// <summary>A thread filter and its display label.</summary>
 internal sealed record ThreadChoice(int? Id, string Label, bool IsGameLoop = false);
 
-/// <summary>Sample counts and estimated times for one method across all selected paths.</summary>
-internal sealed record MethodSummary(string Method, int TotalSamples, int SelfSamples, double? TotalMs, double? SelfMs)
+/// <summary>Sample counts and estimated costs for one method across all selected paths.</summary>
+internal sealed record MethodSummary(string Method, TraceCost Total, TraceCost Self, double? SampleIntervalMs)
 {
-    /// <summary>Shows inclusive and self sample counts.</summary>
-    public string SampleCounts => $"{TotalSamples:N0} / {SelfSamples:N0}";
+    /// <summary>Gets the estimated inclusive time when analyzing thread stacks.</summary>
+    public double? TotalMs => Total.Samples * SampleIntervalMs;
 
-    /// <summary>Ranks methods by inclusive or self samples, highest first.</summary>
+    /// <summary>Gets the estimated self time when analyzing thread stacks.</summary>
+    public double? SelfMs => Self.Samples * SampleIntervalMs;
+
+    /// <summary>Shows the inclusive estimate in the units of the sampled data.</summary>
+    public string TotalLabel => FormatCost(Total, TotalMs);
+
+    /// <summary>Shows the self estimate in the units of the sampled data.</summary>
+    public string SelfLabel => FormatCost(Self, SelfMs);
+
+    /// <summary>Shows inclusive and self sample counts.</summary>
+    public string SampleCounts => $"{Total.Samples:N0} / {Self.Samples:N0}";
+
+    /// <summary>Ranks methods by inclusive or self cost, highest first.</summary>
     public static IOrderedEnumerable<MethodSummary> OrderByCost(IEnumerable<MethodSummary> methods, bool sortBySelf)
     {
         var ordered = sortBySelf
-            ? methods.OrderByDescending(method => method.SelfSamples).ThenByDescending(method => method.TotalSamples)
-            : methods.OrderByDescending(method => method.TotalSamples).ThenByDescending(method => method.SelfSamples);
+            ? methods.OrderByDescending(method => method.Self.Weight).ThenByDescending(method => method.Total.Weight)
+            : methods.OrderByDescending(method => method.Total.Weight).ThenByDescending(method => method.Self.Weight);
         return ordered.ThenBy(method => method.Method, StringComparer.Ordinal);
     }
+
+    private string FormatCost(TraceCost cost, double? milliseconds)
+        => Total.EstimatedBytes > 0 ? TraceCost.FormatBytes(cost.EstimatedBytes) : milliseconds?.ToString("N2") ?? "—";
 }
 
-/// <summary>Aggregated paths and methods for a selected set of samples.</summary>
-internal sealed record ProfileAnalysis(CallNode? Root, MethodSummary[] Methods, int SampleCount);
+/// <summary>The estimated allocated bytes and sample count for one managed object type.</summary>
+internal sealed record AllocationTypeSummary(string TypeName, TraceCost Cost)
+{
+    /// <summary>Shows the estimated size of allocations of this type.</summary>
+    public string CostLabel => TraceCost.FormatBytes(Cost.EstimatedBytes);
+}
+
+/// <summary>Aggregated calls, methods and types for a selected range and sample source.</summary>
+internal sealed record ProfileAnalysis(CallNode? Root, MethodSummary[] Methods, AllocationTypeSummary[] Types, TraceCost Total);
 
 internal static class MethodNameUtility
 {
@@ -100,26 +152,31 @@ internal sealed partial class TraceProfile
 
     private readonly record struct Sample(double TimeMs, int ThreadId, int Stack);
     private readonly record struct StackInfo(int Method, int Parent, TraceScope Scope, bool RepeatedMethod);
+    private readonly record struct AllocationWeight(int Type, double EstimatedBytes);
+    private sealed record AllocationData(Sample[] Samples, AllocationWeight[] Weights, string[] Types);
 
     private readonly string[] _methods;
     private readonly StackInfo[] _stacks;
     private readonly Sample[] _samples;
+    private readonly AllocationData? _allocations;
     private readonly TraceSlice[] _ticks;
     private readonly TraceSlice[] _updates;
 
-    private TraceProfile(string[] methods, StackInfo[] stacks, Sample[] samples, IReadOnlyList<ThreadChoice> threads,
-        TraceSlice[] ticks, TraceSlice[] updates, double? sampleIntervalMs, int lostEvents)
+    private TraceProfile(string[] methods, StackInfo[] stacks, Sample[] samples, AllocationData? allocations,
+        IReadOnlyList<ThreadChoice> threads, TraceSlice[] ticks, TraceSlice[] updates, double? sampleIntervalMs, int lostEvents)
     {
         _methods = methods;
         _stacks = stacks;
         _samples = samples;
+        _allocations = allocations;
         _ticks = ticks;
         _updates = updates;
         Threads = threads;
         double sampleEnd = samples.Length == 0 ? 0 : Math.BitIncrement(samples[^1].TimeMs);
+        double allocationEnd = allocations == null ? 0 : Math.BitIncrement(allocations.Samples[^1].TimeMs);
         double tickEnd = ticks.Length == 0 ? 0 : ticks.Max(static slice => slice.Range.EndMs);
         double updateEnd = updates.Length == 0 ? 0 : updates.Max(static slice => slice.Range.EndMs);
-        DurationMs = Math.Max(1, Math.Max(sampleEnd, Math.Max(tickEnd, updateEnd)));
+        DurationMs = Math.Max(1, Math.Max(Math.Max(sampleEnd, allocationEnd), Math.Max(tickEnd, updateEnd)));
         SampleIntervalMs = sampleIntervalMs;
         LostEvents = lostEvents;
     }
@@ -129,6 +186,9 @@ internal sealed partial class TraceProfile
 
     /// <summary>Gets the number of retained stack samples.</summary>
     public int SampleCount => _samples.Length;
+
+    /// <summary>Gets the number of retained allocation samples.</summary>
+    public int AllocationSampleCount => _allocations?.Samples.Length ?? 0;
 
     /// <summary>Gets the observed sampling interval used for time estimates, if known.</summary>
     public double? SampleIntervalMs { get; }
@@ -157,40 +217,42 @@ internal sealed partial class TraceProfile
     }
 
     /// <summary>Builds a page of the heatmap for the selected thread, stack scope and slice mode.</summary>
-    public HeatmapData BuildHeatmap(int? threadId, TraceScope scope, TraceSliceMode mode, int page, CancellationToken token)
+    public HeatmapData BuildHeatmap(TraceMetric metric, int? threadId, TraceScope scope, TraceSliceMode mode, int page, CancellationToken token)
     {
         TraceSlice[] slices = GetPageSlices(mode, page);
+        Sample[] samples = GetSamples(metric);
+        AllocationWeight[]? weights = GetAllocationWeights(metric);
         var bounds = new (int From, int To)[slices.Length];
-        var methodCounts = new int[_methods.Length];
+        var methodWeights = new double[_methods.Length];
         for (int column = 0; column < slices.Length; column++)
         {
             token.ThrowIfCancellationRequested();
             TraceRange range = slices[column].Range;
-            int from = FindSampleAtOrAfter(range.StartMs);
-            int to = FindSampleAtOrAfter(range.EndMs);
+            int from = FindSampleAtOrAfter(samples, range.StartMs);
+            int to = FindSampleAtOrAfter(samples, range.EndMs);
             bounds[column] = (from, to);
             for (int i = from; i < to; i++)
             {
                 CheckCancellation(i, token);
-                Sample sample = _samples[i];
+                Sample sample = samples[i];
                 if (Matches(sample, threadId, scope))
                 {
-                    methodCounts[_stacks[sample.Stack].Method]++;
+                    methodWeights[_stacks[sample.Stack].Method] += weights?[i].EstimatedBytes ?? 1;
                 }
             }
         }
 
         int[] hottest = Enumerable.Range(0, _methods.Length)
-            .Where(i => methodCounts[i] > 0)
-            .OrderByDescending(i => methodCounts[i])
+            .Where(i => methodWeights[i] > 0)
+            .OrderByDescending(i => methodWeights[i])
             .Take(HeatmapRowCount)
             .ToArray();
         var rows = new HeatmapRow[hottest.Length];
-        var binsByMethod = new Dictionary<int, int[]>(hottest.Length);
+        var binsByMethod = new Dictionary<int, TraceCost[]>(hottest.Length);
         for (int i = 0; i < hottest.Length; i++)
         {
             int method = hottest[i];
-            int[] bins = new int[slices.Length];
+            var bins = new TraceCost[slices.Length];
             binsByMethod.Add(method, bins);
             rows[i] = new HeatmapRow(_methods[method], bins);
         }
@@ -201,15 +263,15 @@ internal sealed partial class TraceProfile
             for (int i = from; i < to; i++)
             {
                 CheckCancellation(i, token);
-                Sample sample = _samples[i];
-                if (Matches(sample, threadId, scope) && binsByMethod.TryGetValue(_stacks[sample.Stack].Method, out int[]? bins))
+                Sample sample = samples[i];
+                if (Matches(sample, threadId, scope) && binsByMethod.TryGetValue(_stacks[sample.Stack].Method, out TraceCost[]? bins))
                 {
-                    bins[column]++;
+                    bins[column] += new TraceCost(1, weights?[i].EstimatedBytes ?? 0);
                 }
             }
         }
 
-        return new HeatmapData(mode, slices, rows);
+        return new HeatmapData(metric, mode, slices, rows);
     }
 
     private TraceSlice[] GetPageSlices(TraceSliceMode mode, int page)
@@ -245,45 +307,61 @@ internal sealed partial class TraceProfile
         return slices;
     }
 
-    /// <summary>Aggregates samples in the selection into call paths and method totals.</summary>
-    public ProfileAnalysis Analyze(int? threadId, TraceScope scope, TraceRange? range, CancellationToken token)
+    /// <summary>Aggregates the selected sample source into call paths, methods and allocation types.</summary>
+    public ProfileAnalysis Analyze(TraceMetric metric, int? threadId, TraceScope scope, TraceRange? range, CancellationToken token)
     {
-        int from = range.HasValue ? FindSampleAtOrAfter(range.Value.StartMs) : 0;
-        int to = range.HasValue ? FindSampleAtOrAfter(range.Value.EndMs) : _samples.Length;
-        int[] selfSamples = new int[_stacks.Length];
-        int sampleCount = 0;
+        Sample[] samples = GetSamples(metric);
+        int from = range.HasValue ? FindSampleAtOrAfter(samples, range.Value.StartMs) : 0;
+        int to = range.HasValue ? FindSampleAtOrAfter(samples, range.Value.EndMs) : samples.Length;
+        if (from == to)
+        {
+            return new ProfileAnalysis(null, [], [], default);
+        }
+
+        AllocationWeight[]? weights = GetAllocationWeights(metric);
+        TraceCost[] typeCosts = weights == null ? [] : new TraceCost[_allocations!.Types.Length];
+        var selfCosts = new TraceCost[_stacks.Length];
+        TraceCost selectedCost = default;
         for (int i = from; i < to; i++)
         {
             CheckCancellation(i, token);
-            Sample sample = _samples[i];
-            if (Matches(sample, threadId, scope))
+            Sample sample = samples[i];
+            if (!Matches(sample, threadId, scope))
             {
-                selfSamples[sample.Stack]++;
-                sampleCount++;
+                continue;
             }
+
+            var cost = new TraceCost(1, weights?[i].EstimatedBytes ?? 0);
+            if (weights != null)
+            {
+                typeCosts[weights[i].Type] += cost;
+            }
+
+            selfCosts[sample.Stack] += cost;
+            selectedCost += cost;
         }
 
-        if (sampleCount == 0)
+        if (selectedCost.Samples == 0)
         {
-            return new ProfileAnalysis(null, [], 0);
+            return new ProfileAnalysis(null, [], [], default);
         }
 
         var roots = new List<CallNode>();
         var children = new List<CallNode>?[_stacks.Length];
-        int[] totalSamples = (int[])selfSamples.Clone();
-        int[] methodTotals = new int[_methods.Length];
-        int[] methodSelf = new int[_methods.Length];
+        var totalCosts = (TraceCost[])selfCosts.Clone();
+        var methodTotals = new TraceCost[_methods.Length];
+        var methodSelf = new TraceCost[_methods.Length];
         for (int i = _stacks.Length - 1; i >= 0; i--)
         {
             CheckCancellation(i, token);
-            int total = totalSamples[i];
-            if (total == 0)
+            TraceCost total = totalCosts[i];
+            if (total.Samples == 0)
             {
                 continue;
             }
 
             StackInfo stack = _stacks[i];
-            int self = selfSamples[i];
+            TraceCost self = selfCosts[i];
             methodSelf[stack.Method] += self;
             if (!stack.RepeatedMethod)
             {
@@ -291,7 +369,7 @@ internal sealed partial class TraceProfile
             }
 
             List<CallNode>? branch = children[i];
-            branch?.Sort(CompareBySamples);
+            branch?.Sort(CompareByWeight);
             var node = new CallNode(_methods[stack.Method], total, self, branch is null ? [] : branch);
             if (stack.Parent < 0)
             {
@@ -299,32 +377,51 @@ internal sealed partial class TraceProfile
                 continue;
             }
 
-            totalSamples[stack.Parent] += total;
+            totalCosts[stack.Parent] += total;
             (children[stack.Parent] ??= []).Add(node);
         }
 
-        roots.Sort(CompareBySamples);
-        var summary = new List<MethodSummary>();
+        roots.Sort(CompareByWeight);
+        double? interval = metric == TraceMetric.Time ? SampleIntervalMs : null;
+        var methods = new List<MethodSummary>();
         for (int i = 0; i < _methods.Length; i++)
         {
-            if (methodTotals[i] > 0)
+            if (methodTotals[i].Samples > 0)
             {
-                summary.Add(new MethodSummary(_methods[i], methodTotals[i], methodSelf[i],
-                    methodTotals[i] * SampleIntervalMs, methodSelf[i] * SampleIntervalMs));
+                methods.Add(new MethodSummary(_methods[i], methodTotals[i], methodSelf[i], interval));
             }
         }
 
-        return new ProfileAnalysis(new CallNode("Selected samples", sampleCount, 0, roots), summary.ToArray(), sampleCount);
+        var types = new List<AllocationTypeSummary>();
+        for (int i = 0; i < typeCosts.Length; i++)
+        {
+            if (typeCosts[i].Samples > 0)
+            {
+                types.Add(new AllocationTypeSummary(_allocations!.Types[i], typeCosts[i]));
+            }
+        }
+        types.Sort(static (x, y) =>
+        {
+            int result = y.Cost.EstimatedBytes.CompareTo(x.Cost.EstimatedBytes);
+            return result != 0 ? result : StringComparer.Ordinal.Compare(x.TypeName, y.TypeName);
+        });
+
+        string rootLabel = metric == TraceMetric.Allocation ? "Selected allocations" : "Selected samples";
+        return new ProfileAnalysis(new CallNode(rootLabel, selectedCost, default, roots), methods.ToArray(), types.ToArray(), selectedCost);
     }
 
-    private int FindSampleAtOrAfter(double timeMs)
+    private Sample[] GetSamples(TraceMetric metric) => metric == TraceMetric.Allocation ? _allocations?.Samples ?? [] : _samples;
+
+    private AllocationWeight[]? GetAllocationWeights(TraceMetric metric) => metric == TraceMetric.Allocation ? _allocations?.Weights : null;
+
+    private static int FindSampleAtOrAfter(Sample[] samples, double timeMs)
     {
         int lo = 0;
-        int hi = _samples.Length;
+        int hi = samples.Length;
         while (lo < hi)
         {
             int mid = lo + (hi - lo) / 2;
-            if (_samples[mid].TimeMs < timeMs)
+            if (samples[mid].TimeMs < timeMs)
             {
                 lo = mid + 1;
             }
@@ -351,9 +448,9 @@ internal sealed partial class TraceProfile
         }
     }
 
-    private static int CompareBySamples(CallNode x, CallNode y)
+    private static int CompareByWeight(CallNode x, CallNode y)
     {
-        int result = y.TotalSamples.CompareTo(x.TotalSamples);
+        int result = y.Total.Weight.CompareTo(x.Total.Weight);
         return result != 0 ? result : StringComparer.Ordinal.Compare(x.Method, y.Method);
     }
 }

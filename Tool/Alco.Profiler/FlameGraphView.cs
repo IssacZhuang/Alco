@@ -33,6 +33,7 @@ internal sealed class FlameGraphView : Control
     private readonly TextBlock _tooltip = new() { MaxWidth = 560, TextWrapping = TextWrapping.Wrap };
     private CallNode? _root;
     private CallNode? _zoomedRoot;
+    private TraceMetric _metric;
     private double _layoutWidth = -1;
     private int _unboundedDepth;
     private int _hoveredBar = -1;
@@ -41,7 +42,7 @@ internal sealed class FlameGraphView : Control
     private FormattedText? _zoomedLabel;
     private FormattedText? _resetLabel;
 
-    private readonly record struct LayoutEntry(CallNode Node, int Start, int Depth);
+    private readonly record struct LayoutEntry(CallNode Node, double Start, int Depth);
     private readonly record struct Bar(CallNode Node, Rect Bounds, IBrush Brush, FormattedText? Label);
 
     static FlameGraphView() => AffectsRender<FlameGraphView>(IsFocusedProperty);
@@ -55,24 +56,25 @@ internal sealed class FlameGraphView : Control
         AutomationProperties.SetHelpText(this, _emptyMessage);
     }
 
-    /// <summary>Displays an aggregated call tree and resets zoom when the tree changes.</summary>
-    public void Show(CallNode? root)
+    /// <summary>Displays weighted call paths and resets zoom when the tree or metric changes.</summary>
+    public void Show(CallNode? root, TraceMetric metric)
     {
-        if (root is not { TotalSamples: > 0 })
-        {
-            root = null;
-        }
-        if (ReferenceEquals(_root, root))
+        if (ReferenceEquals(_root, root) && _metric == metric)
         {
             return;
         }
 
         _root = root;
         _zoomedRoot = null;
-        AutomationProperties.SetHelpText(this, root is null ? _emptyMessage
+        _metric = metric;
+        _emptyLabel = null;
+        _hintLabel = null;
+        AutomationProperties.SetHelpText(this, root is null ? EmptyMessage
             : "Click a call path to zoom. Choose Reset zoom, double-click, right-click, or press Escape to restore all call paths.");
         ResetLayout();
     }
+
+    private string EmptyMessage => _metric == TraceMetric.Allocation ? "No sampled allocation paths to display." : _emptyMessage;
 
     /// <inheritdoc />
     public override void Render(DrawingContext context)
@@ -245,7 +247,7 @@ internal sealed class FlameGraphView : Control
         }
 
         // Hit testing requires bars to stay ordered by depth, then by x.
-        double scale = plotWidth / root.TotalSamples;
+        double scale = plotWidth / root.Total.Weight;
         _pending.Enqueue(new LayoutEntry(root, 0, 0));
         while (_pending.TryDequeue(out var entry))
         {
@@ -254,7 +256,7 @@ internal sealed class FlameGraphView : Control
                 _levelStarts.Add(_bars.Count);
             }
 
-            double barWidth = entry.Node.TotalSamples * scale;
+            double barWidth = entry.Node.Total.Weight * scale;
             double visibleWidth = barWidth - Math.Clamp((barWidth - 1) * 0.2, 0, 1);
             var rect = new Rect(_padding + entry.Start * scale, _headerHeight + entry.Depth * _rowPitch,
                 visibleWidth, _rowHeight);
@@ -287,17 +289,18 @@ internal sealed class FlameGraphView : Control
 
     private void EnqueueChildren(LayoutEntry parent, double scale)
     {
-        int start = parent.Start;
-        IReadOnlyList<CallNode> children = parent.Node.Children;
+        double start = parent.Start;
+        var children = parent.Node.Children;
         for (int i = 0; i < children.Count; i++)
         {
             CallNode child = children[i];
-            if (child.TotalSamples * scale >= 1)
+            double weight = child.Total.Weight;
+            if (weight * scale >= 1)
             {
                 _pending.Enqueue(new LayoutEntry(child, start, parent.Depth + 1));
             }
-            // Hidden branches still occupy their share of the parent's sample span.
-            start += child.TotalSamples;
+            // Hidden branches still occupy their share of the parent's width.
+            start += weight;
         }
     }
 
@@ -351,7 +354,11 @@ internal sealed class FlameGraphView : Control
         else
         {
             CallNode node = _bars[index].Node;
-            _tooltip.Text = $"{node.Method}\nTotal samples: {node.TotalSamples:N0} · Self samples: {node.SelfSamples:N0}";
+            string samples = $"Total samples: {node.Total.Samples:N0} · Self samples: {node.Self.Samples:N0}";
+            string details = _metric == TraceMetric.Allocation
+                ? $"Total ≈ {TraceCost.FormatBytes(node.Total.EstimatedBytes)} · Self ≈ {TraceCost.FormatBytes(node.Self.EstimatedBytes)}\n{samples}"
+                : samples;
+            _tooltip.Text = $"{node.Method}\n{details}";
             ToolTip.SetTip(this, _tooltip);
             ToolTip.SetIsOpen(this, true);
         }
@@ -362,12 +369,13 @@ internal sealed class FlameGraphView : Control
     {
         if (_root is null)
         {
-            context.DrawText(_emptyLabel ??= ImGuiTheme.CreateChartLabel(_emptyMessage, ImGuiTheme.Muted), new Point(_padding, _padding));
+            context.DrawText(_emptyLabel ??= ImGuiTheme.CreateChartLabel(EmptyMessage, ImGuiTheme.Muted), new Point(_padding, _padding));
             return;
         }
         if (_zoomedRoot is null)
         {
-            context.DrawText(_hintLabel ??= ImGuiTheme.CreateChartLabel("Flame graph · Click a bar to zoom", ImGuiTheme.Muted), new Point(_padding, _padding));
+            string hint = _metric == TraceMetric.Allocation ? "Estimated allocation · Click a bar to zoom" : "Flame graph · Click a bar to zoom";
+            context.DrawText(_hintLabel ??= ImGuiTheme.CreateChartLabel(hint, ImGuiTheme.Muted), new Point(_padding, _padding));
             return;
         }
 

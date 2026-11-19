@@ -12,7 +12,7 @@ namespace Alco.Profiler;
 
 using Rect = Avalonia.Rect;
 
-/// <summary>Shows sampled methods by slice and lets the user select columns.</summary>
+/// <summary>Shows sampled method weights by slice and lets the user select columns.</summary>
 internal sealed class TraceHeatmapView : Control
 {
     private const double _preferredHeight = 185;
@@ -373,7 +373,7 @@ internal sealed class TraceHeatmapView : Control
             {
                 _rowLabels[row] = hasRows
                     ? ImGuiTheme.CreateChartLabel(MethodNameUtility.ShortName(data.Rows[row].Method), ImGuiTheme.Text, labelWidth)
-                    : ImGuiTheme.CreateChartLabel("No stack samples", ImGuiTheme.Muted, labelWidth);
+                    : ImGuiTheme.CreateChartLabel(NoSamplesLabel(data.Metric), ImGuiTheme.Muted, labelWidth);
             }
         }
 
@@ -389,11 +389,11 @@ internal sealed class TraceHeatmapView : Control
                 context.DrawText(_rowLabels[row], new Point(_padding, y + (rowHeight - _rowLabels[row].Height) / 2));
             }
 
-            int[]? samples = hasRows ? data.Rows[row].Samples : null;
+            TraceCost[]? costs = hasRows ? data.Rows[row].Costs : null;
             for (int col = 0; col < data.ColumnCount; col++)
             {
-                int count = samples?[col] ?? 0;
-                int intensity = Math.Min(_palette.Length - 1, (int)Math.Ceiling(Math.Sqrt(count) * _intensityScale));
+                double weight = costs?[col].Weight ?? 0;
+                int intensity = Math.Min(_palette.Length - 1, (int)Math.Ceiling(Math.Sqrt(weight) * _intensityScale));
                 context.FillRectangle(_palette[intensity], new Rect(plot.Left + col * columnWidth, y, cellWidth, cellHeight));
             }
         }
@@ -446,11 +446,15 @@ internal sealed class TraceHeatmapView : Control
         if (row >= 0)
         {
             HeatmapRow method = data.Rows[row];
-            _tooltip.Text = $"{method.Method}\n{method.Samples[col]:N0} samples · {time}";
+            TraceCost cost = method.Costs[col];
+            string amount = data.Metric == TraceMetric.Time ? $"{cost.Samples:N0} samples"
+                : cost.Samples == 0 ? NoSamplesLabel(data.Metric)
+                : $"≈ {TraceCost.FormatBytes(cost.EstimatedBytes)} allocated · {cost.Samples:N0} allocation samples";
+            _tooltip.Text = $"{method.Method}\n{amount} · {time}";
         }
         else
         {
-            _tooltip.Text = $"No stack samples on this page\n{time}";
+            _tooltip.Text = $"{NoSamplesLabel(data.Metric)} on this page\n{time}";
         }
 
         ToolTip.SetTip(this, _tooltip);
@@ -485,17 +489,19 @@ internal sealed class TraceHeatmapView : Control
 
     private double GetIntensityScale(HeatmapData data)
     {
-        int peak = 0;
+        double peak = 0;
         for (int row = 0; row < data.Rows.Count; row++)
         {
-            int[] samples = data.Rows[row].Samples;
-            for (int col = 0; col < samples.Length; col++)
+            TraceCost[] costs = data.Rows[row].Costs;
+            for (int col = 0; col < costs.Length; col++)
             {
-                peak = Math.Max(peak, samples[col]);
+                peak = Math.Max(peak, costs[col].Weight);
             }
         }
         return peak == 0 ? 0 : (_palette.Length - 1) / Math.Sqrt(peak);
     }
+
+    private static string NoSamplesLabel(TraceMetric metric) => metric == TraceMetric.Allocation ? "No allocation samples" : "No stack samples";
 
     private static int GetColumn(HeatmapData data, Rect plot, double x)
     {

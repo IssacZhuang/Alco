@@ -1,6 +1,7 @@
-using System.Diagnostics.Tracing;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Tracing;
 using Microsoft.Diagnostics.NETCore.Client;
+using Microsoft.Diagnostics.Tracing.Parsers;
 
 namespace Alco.Profiler;
 
@@ -8,25 +9,27 @@ internal sealed class TraceRecording
 {
     private const int CircularBufferMb = 64;
     private const int FileBufferBytes = 64 * 1024;
+    private const long RuntimeKeywords = 0x100003801DL;
 
-    private static readonly EventPipeProvider[] Providers =
-    [
-        new("Microsoft-DotNETCore-SampleProfiler", EventLevel.Informational),
-        new("Microsoft-Windows-DotNETRuntime", EventLevel.Informational, 0x100003801DL),
-        new(TraceProfile.LoopTimingProviderName, EventLevel.Informational),
-    ];
+    private static readonly EventPipeProvider[] Providers = CreateProviders(RuntimeKeywords);
+    private static readonly EventPipeProvider[] AllocationProviders = CreateProviders(
+        RuntimeKeywords | (long)ClrTraceEventParser.Keywords.AllocationSampling);
 
     private readonly EventPipeSession _session;
 
-    private TraceRecording(EventPipeSession session, FileStream file)
+    private TraceRecording(EventPipeSession session, FileStream file, bool includesAllocations)
     {
         _session = session;
         FilePath = file.Name;
+        IncludesAllocations = includesAllocations;
         Completion = WriteTraceAsync(session.EventStream, file);
     }
 
     /// <summary>Gets the path of the raw trace file.</summary>
     public string FilePath { get; }
+
+    /// <summary>Gets whether the recording requested randomized allocation events.</summary>
+    public bool IncludesAllocations { get; }
 
     /// <summary>Gets the task that drains the runtime stream to disk.</summary>
     public Task Completion { get; }
@@ -55,7 +58,7 @@ internal sealed class TraceRecording
     }
 
     /// <summary>Starts a recording on a running CoreCLR process.</summary>
-    public static bool TryStart(int pid, [NotNullWhen(true)] out TraceRecording? recording, out string error)
+    public static bool TryStart(int pid, bool includeAllocations, [NotNullWhen(true)] out TraceRecording? recording, out string error)
     {
         FileStream? file = null;
         EventPipeSession? session = null;
@@ -70,9 +73,10 @@ internal sealed class TraceRecording
 
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var client = new DiagnosticsClient(pid);
-            session = client.StartEventPipeSessionAsync(Providers, requestRundown: true, CircularBufferMb, timeout.Token)
+            EventPipeProvider[] providers = includeAllocations ? AllocationProviders : Providers;
+            session = client.StartEventPipeSessionAsync(providers, requestRundown: true, CircularBufferMb, timeout.Token)
                 .GetAwaiter().GetResult();
-            recording = new TraceRecording(session, file);
+            recording = new TraceRecording(session, file, includeAllocations);
             error = string.Empty;
             return true;
         }
@@ -135,6 +139,13 @@ internal sealed class TraceRecording
 
         return warning;
     }
+
+    private static EventPipeProvider[] CreateProviders(long runtimeKeywords) =>
+    [
+        new("Microsoft-DotNETCore-SampleProfiler", EventLevel.Informational),
+        new("Microsoft-Windows-DotNETRuntime", EventLevel.Informational, runtimeKeywords),
+        new(TraceProfile.LoopTimingProviderName, EventLevel.Informational),
+    ];
 
     private static async Task WriteTraceAsync(Stream source, FileStream file)
     {

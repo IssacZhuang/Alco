@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
 using Microsoft.Diagnostics.Tracing.EventPipe;
+using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 
 namespace Alco.Profiler;
 
@@ -10,7 +11,7 @@ internal sealed partial class TraceProfile
     /// <summary>Identifies the EventPipe provider for Alco loop boundaries.</summary>
     public const string LoopTimingProviderName = "Alco-Engine-Timing";
 
-    /// <summary>Reads timestamped managed stacks and loop boundaries from a .nettrace file.</summary>
+    /// <summary>Reads managed stack samples, allocation samples and loop boundaries from a .nettrace file.</summary>
     public static bool TryOpen(string filePath, [NotNullWhen(true)] out TraceProfile? profile, out string error)
     {
         string scratch = Path.Combine(Path.GetTempPath(), $"alco-profiler-{Guid.NewGuid():N}.etlx");
@@ -22,7 +23,8 @@ internal sealed partial class TraceProfile
             using TraceLogEventSource source = log.Events.GetSource();
             var reader = new SampleReader();
             var parser = new SampleProfilerTraceEventParser(source);
-            parser.ThreadSample += reader.Read;
+            parser.ThreadSample += reader.ReadTimeSample;
+            source.Clr.AllocationSampling += reader.ReadAllocationSample;
             source.Dynamic.AddCallbackForProviderEvents(static (provider, _) => provider == LoopTimingProviderName
                 ? EventFilterResponse.AcceptEvent : EventFilterResponse.RejectProvider, reader.ReadTimingMarker);
             source.Process();
@@ -50,21 +52,53 @@ internal sealed partial class TraceProfile
     private sealed class SampleReader
     {
         private const int MaxIntervalSamples = 4096;
+        // The CoreCLR AllocationSampled contract fixes this probability per allocated byte.
+        private const double AllocationSampleByteProbability = 1d / 102_400;
 
         private readonly Dictionary<CallStackIndex, int> _sourceStacks = new();
         private readonly Dictionary<(int Parent, int Method), int> _paths = new();
         private readonly Dictionary<string, int> _methodIds = new(StringComparer.Ordinal);
-        private readonly Dictionary<int, (ThreadChoice Thread, int Count, int LoopCount)> _threads = new();
+        private readonly Dictionary<string, int> _typeIds = new(StringComparer.Ordinal);
+        private readonly Dictionary<int, (ThreadChoice Thread, int TimeCount, int AllocationCount, int LoopCount)> _threads = new();
         private readonly List<TraceCallStack> _unseen = new();
         private readonly List<StackInfo> _stacks = new();
         private readonly List<string> _methods = new();
         private readonly List<Sample> _samples = new();
+        private readonly List<(Sample Sample, AllocationWeight Weight)> _allocations = new();
+        private readonly List<string> _types = new();
         private readonly Dictionary<(bool Tick, long Sequence, int ThreadId), double> _pendingInvocations = new();
         private readonly List<TraceSlice> _ticks = new();
         private readonly List<TraceSlice> _updates = new();
 
-        /// <summary>Retains a sample and interns the managed stack it observed.</summary>
-        public void Read(ClrThreadSampleTraceData sample)
+        /// <summary>Retains a thread-time stack sample.</summary>
+        public void ReadTimeSample(ClrThreadSampleTraceData sample) => _samples.Add(ReadSample(sample, isAllocation: false));
+
+        /// <summary>Retains a randomized allocation sample and its estimated byte contribution.</summary>
+        public void ReadAllocationSample(AllocationSampledTraceData sample)
+        {
+            double size = sample.ObjectSize;
+            if (size <= 0)
+            {
+                return;
+            }
+
+            string typeName = sample.TypeName;
+            if (string.IsNullOrEmpty(typeName))
+            {
+                typeName = "[Unknown type]";
+            }
+            if (!_typeIds.TryGetValue(typeName, out int type))
+            {
+                type = _types.Count;
+                _types.Add(typeName);
+                _typeIds.Add(typeName, type);
+            }
+
+            double probability = 1 - Math.Pow(1 - AllocationSampleByteProbability, size);
+            _allocations.Add((ReadSample(sample, isAllocation: true), new AllocationWeight(type, size / probability)));
+        }
+
+        private Sample ReadSample(TraceEvent sample, bool isAllocation)
         {
             TraceThread? thread = sample.Thread();
             int tid = sample.ThreadID;
@@ -72,15 +106,16 @@ internal sealed partial class TraceProfile
             if (!_threads.TryGetValue(key, out var info))
             {
                 string label = string.IsNullOrEmpty(thread?.ThreadInfo) ? $"Thread {tid}" : $"{thread.ThreadInfo} ({tid})";
-                info = (new ThreadChoice(key, label), 0, 0);
+                info = (new ThreadChoice(key, label), 0, 0, 0);
             }
 
             int stack = sample.CallStack() is TraceCallStack callStack
                 ? GetStack(callStack)
                 : InternPath(-1, "[No stack captured]");
-            int loopSamples = (_stacks[stack].Scope & TraceScope.GameLoop) != 0 ? 1 : 0;
-            _threads[key] = (info.Thread, info.Count + 1, info.LoopCount + loopSamples);
-            _samples.Add(new Sample(sample.TimeStampRelativeMSec, key, stack));
+            int loop = (_stacks[stack].Scope & TraceScope.GameLoop) != 0 ? 1 : 0;
+            _threads[key] = (info.Thread, info.TimeCount + (isAllocation ? 0 : 1),
+                info.AllocationCount + (isAllocation ? 1 : 0), info.LoopCount + loop);
+            return new Sample(sample.TimeStampRelativeMSec, key, stack);
         }
 
         /// <summary>Pairs only complete boundaries from the same invocation and thread.</summary>
@@ -107,13 +142,13 @@ internal sealed partial class TraceProfile
             }
         }
 
-        /// <summary>Creates a model from stack samples or closed loop intervals.</summary>
+        /// <summary>Creates a model from stack samples, allocations or closed loop intervals.</summary>
         public bool TryBuild(int lostEvents, [NotNullWhen(true)] out TraceProfile? profile, out string error)
         {
-            if (_samples.Count == 0 && _ticks.Count == 0 && _updates.Count == 0)
+            if (_samples.Count == 0 && _allocations.Count == 0 && _ticks.Count == 0 && _updates.Count == 0)
             {
                 profile = null;
-                error = "No .NET thread samples or complete loop timings found. Collect with the dotnet-sampled-thread-time profile.";
+                error = "No .NET thread samples, allocation samples or complete loop timings found.";
                 return false;
             }
 
@@ -122,7 +157,8 @@ internal sealed partial class TraceProfile
             _updates.Sort(CompareSlices);
             ThreadChoice[] threads = _threads.Values
                 .OrderByDescending(thread => thread.LoopCount)
-                .ThenByDescending(thread => thread.Count)
+                .ThenByDescending(thread => thread.TimeCount)
+                .ThenByDescending(thread => thread.AllocationCount)
                 .ThenBy(thread => thread.Thread.Label, StringComparer.Ordinal)
                 .Select(thread => thread.LoopCount > 0
                     ? thread.Thread with { Label = $"Game loop · {thread.Thread.Label}", IsGameLoop = true }
@@ -131,14 +167,31 @@ internal sealed partial class TraceProfile
             double? intervalMs = null;
             if (_samples.Count > 0)
             {
-                var busiest = _threads.Values.MaxBy(thread => thread.Count);
-                intervalMs = EstimateInterval(busiest.Thread.Id!.Value, busiest.Count);
+                var busiest = _threads.Values.MaxBy(thread => thread.TimeCount);
+                intervalMs = EstimateInterval(busiest.Thread.Id!.Value, busiest.TimeCount);
             }
 
-            profile = new TraceProfile(_methods.ToArray(), _stacks.ToArray(), _samples.ToArray(), threads,
+            profile = new TraceProfile(_methods.ToArray(), _stacks.ToArray(), _samples.ToArray(), GetAllocationData(), threads,
                 _ticks.ToArray(), _updates.ToArray(), intervalMs, lostEvents);
             error = string.Empty;
             return true;
+        }
+
+        private AllocationData? GetAllocationData()
+        {
+            if (_allocations.Count == 0)
+            {
+                return null;
+            }
+
+            _allocations.Sort(static (x, y) => x.Sample.TimeMs.CompareTo(y.Sample.TimeMs));
+            var samples = new Sample[_allocations.Count];
+            var weights = new AllocationWeight[_allocations.Count];
+            for (int i = 0; i < samples.Length; i++)
+            {
+                (samples[i], weights[i]) = _allocations[i];
+            }
+            return new AllocationData(samples, weights, _types.ToArray());
         }
 
         private static int CompareSlices(TraceSlice x, TraceSlice y)

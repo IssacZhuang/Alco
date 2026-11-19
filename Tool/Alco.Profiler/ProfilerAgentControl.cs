@@ -132,16 +132,17 @@ internal sealed class ProfilerAgentControl : IDisposable
         /// <summary>Starts the shared EventPipe recording.</summary>
         [AgentFunction(IsOnAgentThread = true)]
         [Description("Start collecting managed stacks for the launched application. Returns the raw trace path.")]
-        public Task<object> StartCapture() => RunOnUiAsync<object>(async () =>
-        {
-            if (desktop.MainWindow is not MainWindow analysis)
+        public Task<object> StartCapture([Description("Also collect randomized managed allocation samples.")] bool includeAllocations = false)
+            => RunOnUiAsync<object>(async () =>
             {
-                return Failure("Launch an application first.");
-            }
+                if (desktop.MainWindow is not MainWindow analysis)
+                {
+                    return Failure("Launch an application first.");
+                }
 
-            var (filePath, error) = await analysis.StartCaptureAsync();
-            return error != null ? Failure(error) : new { ok = true, filePath };
-        });
+                var (filePath, error) = await analysis.StartCaptureAsync(includeAllocations);
+                return error != null ? Failure(error) : new { ok = true, filePath, includeAllocations };
+            });
 
         /// <summary>Stops the recording and loads it into the analysis window.</summary>
         [AgentFunction(IsOnAgentThread = true)]
@@ -168,6 +169,56 @@ internal sealed class ProfilerAgentControl : IDisposable
             [Description("Optional inclusive start in relative milliseconds.")] double? startMs = null,
             [Description("Optional exclusive end in relative milliseconds.")] double? endMs = null)
         {
+            var (analysis, start, end, error) = await AnalyzeAsync(TraceMetric.Time, scope, limit, threadId, startMs, endMs).ConfigureAwait(false);
+            if (analysis == null)
+            {
+                return Failure(error!);
+            }
+
+            var methods = MethodSummary.OrderByCost(analysis.Methods, sortBySelf).Take(limit)
+                .Select(method => new { method.Method, totalSamples = method.Total.Samples, selfSamples = method.Self.Samples, method.TotalMs, method.SelfMs }).ToArray();
+            return new { ok = true, scope, threadId, startMs = start, endMs = end, sampleCount = analysis.Total.Samples, methods };
+        }
+
+        /// <summary>Ranks sampled allocation sources and object types by estimated bytes.</summary>
+        [AgentFunction(IsOnAgentThread = true)]
+        [Description("Rank methods and object types by estimated managed allocation bytes. A range with no samples has no byte estimate.")]
+        public async Task<object> GetTopAllocations(
+            [Description("Stack ancestry filter: all, tick, update, or gameLoop.")] string scope = "all",
+            [Description("Maximum methods and types to return per list (1–100).")] int limit = 20,
+            [Description("Rank methods by self bytes instead of inclusive bytes.")] bool sortBySelf = false,
+            [Description("Optional thread ID from GetProfilerStatus.")] int? threadId = null,
+            [Description("Optional inclusive start in relative milliseconds.")] double? startMs = null,
+            [Description("Optional exclusive end in relative milliseconds.")] double? endMs = null)
+        {
+            var (analysis, start, end, error) = await AnalyzeAsync(TraceMetric.Allocation, scope, limit, threadId, startMs, endMs).ConfigureAwait(false);
+            if (analysis == null)
+            {
+                return Failure(error!);
+            }
+
+            var methods = MethodSummary.OrderByCost(analysis.Methods, sortBySelf).Take(limit).Select(method => new
+            {
+                method.Method,
+                totalSamples = method.Total.Samples,
+                selfSamples = method.Self.Samples,
+                totalEstimatedBytes = method.Total.EstimatedBytes,
+                selfEstimatedBytes = method.Self.EstimatedBytes,
+            }).ToArray();
+            var types = analysis.Types.Take(limit).Select(type => new
+            {
+                type.TypeName,
+                sampleCount = type.Cost.Samples,
+                type.Cost.EstimatedBytes,
+            }).ToArray();
+            int sampleCount = analysis.Total.Samples;
+            double? estimatedBytes = sampleCount > 0 ? analysis.Total.EstimatedBytes : null;
+            return new { ok = true, scope, threadId, startMs = start, endMs = end, sampleCount, estimatedBytes, methods, types };
+        }
+
+        private async Task<(ProfileAnalysis? Analysis, double Start, double End, string? Error)> AnalyzeAsync(
+            TraceMetric metric, string scope, int limit, int? threadId, double? startMs, double? endMs)
+        {
             TraceScope? filter = scope?.ToLowerInvariant() switch
             {
                 "all" => TraceScope.All,
@@ -178,32 +229,34 @@ internal sealed class ProfilerAgentControl : IDisposable
             };
             if (filter == null || limit is < 1 or > 100)
             {
-                return Failure("Use scope all, tick, update, or gameLoop and a method limit from 1 to 100.");
+                return (null, 0, 0, "Use scope all, tick, update, or gameLoop and a limit from 1 to 100.");
             }
 
             TraceProfile? profile = await ReadOnUiAsync(() => (desktop.MainWindow as MainWindow)?.LoadedProfile).ConfigureAwait(false);
             if (profile == null)
             {
-                return Failure("There is no loaded trace.");
+                return (null, 0, 0, "There is no loaded trace.");
+            }
+
+            if (metric == TraceMetric.Allocation && profile.AllocationSampleCount == 0)
+            {
+                return (null, 0, 0, "There are no allocation samples in the loaded trace. Start capture with includeAllocations enabled.");
             }
 
             if (threadId.HasValue && !profile.Threads.Any(thread => thread.Id == threadId))
             {
-                return Failure("Use a thread ID from the loaded trace.");
+                return (null, 0, 0, "Use a thread ID from the loaded trace.");
             }
 
             double start = startMs ?? 0;
             double end = endMs ?? profile.DurationMs;
             if (!(start >= 0 && end > start && end <= profile.DurationMs))
             {
-                return Failure("The requested range must have positive length within the loaded trace.");
+                return (null, 0, 0, "The requested range must have positive length within the loaded trace.");
             }
 
             TraceRange? range = startMs.HasValue || endMs.HasValue ? new TraceRange(start, end) : null;
-            ProfileAnalysis analysis = profile.Analyze(threadId, filter.Value, range, stopping);
-            var methods = MethodSummary.OrderByCost(analysis.Methods, sortBySelf).Take(limit)
-                .Select(method => new { method.Method, method.TotalSamples, method.SelfSamples, method.TotalMs, method.SelfMs }).ToArray();
-            return new { ok = true, scope, threadId, startMs = start, endMs = end, analysis.SampleCount, methods };
+            return (profile.Analyze(metric, threadId, filter.Value, range, stopping), start, end, null);
         }
 
         private async Task<T> ReadOnUiAsync<T>(Func<T> read)
