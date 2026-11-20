@@ -4,6 +4,7 @@
 - High-performance game engine for optimal CPU and GPU utilization
 - Built with .NET 10.0
 - Cross-platform support (Windows, Linux, macOS)
+- This checkout is the `next-gen-gpu` branch inside the Game-Next workspace: the GPU and rendering systems are being rebuilt per the migration plan at `../Docs/Handoff/2026-11-20-next-gen-rendering-migration-plan.md` (in the parent game repo). Read it before changing `Alco.Graphics` or `Alco.Rendering`.
 
 ## Project Structure
 
