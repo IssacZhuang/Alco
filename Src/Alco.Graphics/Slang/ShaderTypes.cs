@@ -1,10 +1,10 @@
-﻿// Public shader target, stage, optimization, and compiler configuration types for NoGraphicsSharp.
+﻿// Public shader target, stage, optimization, and compiler configuration types for Alco.Graphics.
 
 using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
 
-/// <summary>Target bytecode or source format corresponding to an NGS backend.</summary>
+/// <summary>Target bytecode or source format corresponding to an Alco.Graphics backend.</summary>
 public enum ShaderTarget : byte
 {
     /// <summary>SPIR-V 1.5 for Vulkan with descriptor heaps and mesh shading.</summary>
@@ -23,7 +23,7 @@ public enum ShaderTarget : byte
     MetalLibrary = 4,
 }
 
-/// <summary>Programmable pipeline stages supported by NGS shaders; combinable flags.</summary>
+/// <summary>Programmable pipeline stages supported by Alco.Graphics shaders; combinable flags.</summary>
 [Flags]
 public enum ShaderStageKind : uint
 {
@@ -117,7 +117,7 @@ public sealed class ShaderCompilerOptions
     /// <summary>Preprocessor macros applied across compilations unless overridden per request.</summary>
     public IReadOnlyList<(string Name, string Value)> Defines { get; init; } = [];
 
-    /// <summary>Optional virtual file resolver consulted before disk search paths and built-in NGS headers.</summary>
+    /// <summary>Optional virtual file resolver consulted before disk search paths and built-in Alco.Graphics modules.</summary>
     public ShaderFileResolver? FileResolver { get; init; }
 
     /// <summary>Optional fast existence probe paired with <see cref="FileResolver"/>.</summary>
@@ -126,7 +126,7 @@ public sealed class ShaderCompilerOptions
     /// <summary>Compiler optimization level; defaults to <see cref="ShaderOptimization.Maximal"/>.</summary>
     public ShaderOptimization Optimization { get; init; } = ShaderOptimization.Maximal;
 
-    /// <summary>Validates NGS bindless ABI rules (global bindings and resolved threadgroup dimensions); defaults to true.</summary>
+    /// <summary>Validates Alco.Graphics bindless ABI rules (global bindings and resolved threadgroup dimensions); defaults to true.</summary>
     public bool ValidateAbi { get; init; } = true;
 
     /// <summary>Optional directory for persistent compiled shader artifacts keyed by target, options, and source hashes.</summary>
@@ -145,6 +145,6 @@ public sealed class ShaderCompileOptions
     /// <summary>Specialization expressions (concrete types or constant values) in declaration order.</summary>
     public IReadOnlyList<string> SpecializationArgs { get; init; } = [];
 
-    /// <summary>Optional per-compilation override for NGS ABI validation; null inherits compiler options.</summary>
+    /// <summary>Optional per-compilation override for Alco.Graphics ABI validation; null inherits compiler options.</summary>
     public bool? ValidateAbi { get; init; }
 }

@@ -11,7 +11,7 @@ using Vk = Vulkan;
 
 internal static unsafe class VulkanPipelineCacheTests
 {
-    private const string EnvironmentName = "NOGRAPHICS_VULKAN_PIPELINE_CACHE";
+    private const string EnvironmentName = "ALCO_GRAPHICS_VULKAN_PIPELINE_CACHE";
     private const string CacheName = "vulkan-v2-00ab-00cd-0012abcd.bin";
     private const string LegacyName = "vulkan-v1-00ab-00cd-0012abcd.bin";
     private const BindingFlags InstanceMembers = BindingFlags.Instance | BindingFlags.NonPublic;
@@ -32,7 +32,7 @@ internal static unsafe class VulkanPipelineCacheTests
         string? previousEnvironment = Environment.GetEnvironmentVariable(EnvironmentName);
         FieldInfo callback = typeof(Alco.Graphics.LowLevel.Gpu).GetField("ErrorCallback", BindingFlags.Static | BindingFlags.NonPublic)!;
         ErrorCallback? previousCallback = (ErrorCallback?)callback.GetValue(null);
-        string directory = Path.Combine(Path.GetTempPath(), "NoGraphicsSharp-PipelineCache-" + Guid.NewGuid().ToString("N"));
+        string directory = Path.Combine(Path.GetTempPath(), "Alco.Graphics-PipelineCache-" + Guid.NewGuid().ToString("N"));
         try
         {
             Directory.CreateDirectory(directory);
@@ -48,7 +48,7 @@ internal static unsafe class VulkanPipelineCacheTests
             check(CreateCount == 1 && InitialSize == 0 && InitialNull && GetCount == 2 && DestroyCount == 1 && NativeArgumentsValid &&
                 DiagnosticCount == 0, "missing cache creates once, queries native bytes, and saves on dirty shutdown");
             byte[] saved = File.ReadAllBytes(path);
-            check(saved.Length == 48 + Payload.Length && saved.AsSpan(0, 8).SequenceEqual("NGSVKPC2"u8),
+            check(saved.Length == 48 + Payload.Length && saved.AsSpan(0, 8).SequenceEqual("AGVKPC02"u8),
                 "v2 filename contains a 48-byte envelope with the expected magic");
             check(saved.Length >= 48 && BinaryPrimitives.ReadUInt64LittleEndian(saved.AsSpan(8, 8)) == (ulong)Payload.Length,
                 "saved envelope stores the exact payload byte length as little-endian UInt64");
@@ -177,7 +177,7 @@ internal static unsafe class VulkanPipelineCacheTests
     private static byte[] Envelope(byte[] payload)
     {
         byte[] contents = new byte[48 + payload.Length];
-        "NGSVKPC2"u8.CopyTo(contents);
+        "AGVKPC02"u8.CopyTo(contents);
         BinaryPrimitives.WriteUInt64LittleEndian(contents.AsSpan(8, 8), (ulong)payload.Length);
         SHA256.HashData(payload, contents.AsSpan(16, 32));
         payload.CopyTo(contents, 48);

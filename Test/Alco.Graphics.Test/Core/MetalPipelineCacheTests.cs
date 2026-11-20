@@ -10,7 +10,7 @@ using Mtl = Metal;
 
 internal static unsafe class MetalPipelineCacheTests
 {
-    private const string CacheVariable = "NOGRAPHICS_METAL_PIPELINE_CACHE";
+    private const string CacheVariable = "ALCO_GRAPHICS_METAL_PIPELINE_CACHE";
     private const int ByteCapacity = 8 * 1024 * 1024;
     private const string Source = """
         #include <metal_stdlib>
@@ -43,7 +43,7 @@ internal static unsafe class MetalPipelineCacheTests
         string? previousDirectory = Environment.GetEnvironmentVariable(CacheVariable);
         FieldInfo callback = typeof(Alco.Graphics.LowLevel.Gpu).GetField("ErrorCallback", BindingFlags.Static | BindingFlags.NonPublic)!;
         ErrorCallback? previousCallback = (ErrorCallback?)callback.GetValue(null);
-        DirectoryInfo temporary = Directory.CreateTempSubdirectory("NoGraphicsSharp.MetalCache-");
+        DirectoryInfo temporary = Directory.CreateTempSubdirectory("Alco.Graphics.MetalCache-");
         try
         {
             Environment.SetEnvironmentVariable(CacheVariable, null);

@@ -33,7 +33,7 @@ internal sealed unsafe partial class MetalDevice
 
     private void InitializePipelineCache(Mtl.MTL4CompilerDescriptor compiler)
     {
-        string? directory = Environment.GetEnvironmentVariable("NOGRAPHICS_METAL_PIPELINE_CACHE");
+        string? directory = Environment.GetEnvironmentVariable("ALCO_GRAPHICS_METAL_PIPELINE_CACHE");
         if (string.IsNullOrEmpty(directory)) return;
         try
         {

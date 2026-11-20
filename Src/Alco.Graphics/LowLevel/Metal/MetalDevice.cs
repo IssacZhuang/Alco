@@ -136,7 +136,7 @@ internal sealed unsafe partial class MetalDevice : GPUDevice
                 MetalQueue queue = device.MtlQueues[i];
                 queue.Kind = i < desc.DesiredQueueCount ? MetalQueueKind.General :
                              i < desc.DesiredQueueCount + desc.DesiredComputeQueueCount ? MetalQueueKind.Compute : MetalQueueKind.Copy;
-                ReadOnlySpan<byte> feedbackLabel = "NoGraphicsSharp Metal feedback"u8;
+                ReadOnlySpan<byte> feedbackLabel = "Alco.Graphics Metal feedback"u8;
                 fixed (byte* label = feedbackLabel)
                 {
                     queue.Feedback = MetalInterop.CreateFeedbackQueue(label);

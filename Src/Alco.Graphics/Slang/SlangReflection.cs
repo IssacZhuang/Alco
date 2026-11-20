@@ -27,9 +27,11 @@ internal static unsafe class SlangLayoutReader
         }
         else
         {
-            (type, generic) = FindGenericRootStruct(moduleDecl, 0);
-            if (generic == IntPtr.Zero)
+            (type, generic) = FindRootStruct(moduleDecl, 0);
+            if (type == IntPtr.Zero)
                 return null;
+            if (generic == IntPtr.Zero)
+                return ReadRootLayoutFromType(reflection, type);
         }
 
         IntPtr concrete = ReadGenericRootType(reflection, type, generic, entryCount, target, programName);
@@ -223,7 +225,7 @@ internal static unsafe class SlangLayoutReader
         };
     }
 
-    private static (IntPtr Type, IntPtr Generic) FindGenericRootStruct(IntPtr parentDecl, int depth)
+    private static (IntPtr Type, IntPtr Generic) FindRootStruct(IntPtr parentDecl, int depth)
     {
         if (parentDecl == IntPtr.Zero || depth > 16)
             return default;
@@ -236,9 +238,16 @@ internal static unsafe class SlangLayoutReader
             int kind = SlangNative.spReflectionDecl_getKind(child);
             if (kind == SlangNative.SLANG_DECL_KIND_NAMESPACE || kind == SlangNative.SLANG_DECL_KIND_MODULE)
             {
-                (IntPtr nestedType, IntPtr nestedGeneric) = FindGenericRootStruct(child, depth + 1);
+                (IntPtr nestedType, IntPtr nestedGeneric) = FindRootStruct(child, depth + 1);
                 if (nestedType != IntPtr.Zero)
                     return (nestedType, nestedGeneric);
+                continue;
+            }
+            if (kind == SlangNative.SLANG_DECL_KIND_STRUCT)
+            {
+                IntPtr structType = SlangNative.spReflection_getTypeFromDecl(child);
+                if (structType != IntPtr.Zero && HasTypeAttribute(structType, "GPURoot"))
+                    return (structType, IntPtr.Zero);
                 continue;
             }
             if (kind != SlangNative.SLANG_DECL_KIND_GENERIC)

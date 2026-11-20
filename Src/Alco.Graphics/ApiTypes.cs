@@ -1,4 +1,4 @@
-// Public API types of NoGraphicsSharp, ported from NoGraphicsAPI.hpp (namespace gpu) into idiomatic C#.
+// Public API types of Alco.Graphics.
 
 using System.Numerics;
 using Alco.Graphics.LowLevel;
@@ -630,7 +630,7 @@ public struct SwapchainDesc
 /// <summary>The graphics backend selected when creating a device.</summary>
 public enum GraphicsBackend : byte
 {
-    /// <summary>Uses NOGRAPHICS_BACKEND when set. Otherwise selects Dx12 on Windows, Metal on macOS, or Vulkan on Linux.</summary>
+    /// <summary>Uses ALCO_GRAPHICS_BACKEND when set. Otherwise selects Dx12 on Windows, Metal on macOS, or Vulkan on Linux.</summary>
     Auto,
 
     /// <summary>Selects Vulkan.</summary>

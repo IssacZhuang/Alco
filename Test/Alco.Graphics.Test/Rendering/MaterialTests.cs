@@ -10,7 +10,7 @@ using Buffer = Alco.Graphics.Buffer;
 internal static class MaterialTests
 {
     private const string MaterialShaderSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
 
         struct MaterialVertex
         {
@@ -18,6 +18,7 @@ internal static class MaterialTests
             float2 uv;
         };
 
+        [GPURoot]
         struct MaterialRoot
         {
             GPUBufferView vertices;
@@ -26,8 +27,6 @@ internal static class MaterialTests
             float4 tint;
             float4x4 transform;
         };
-
-        GPU_ROOT(MaterialRoot, root);
 
         struct VertexOutput
         {
@@ -38,6 +37,7 @@ internal static class MaterialTests
         [shader("vertex")]
         VertexOutput vertexMain(uint vertex_id : SV_VertexID)
         {
+            MaterialRoot root = gpu_load_root<MaterialRoot>();
             MaterialVertex vertex = gpu_load<MaterialVertex>(root.vertices, vertex_id);
             VertexOutput output;
             output.position = mul(root.transform, vertex.position);
@@ -48,6 +48,7 @@ internal static class MaterialTests
         [shader("pixel")]
         float4 pixelMain(VertexOutput input) : SV_Target0
         {
+            MaterialRoot root = gpu_load_root<MaterialRoot>();
             Texture2D<float4> albedo = gpu_texture<Texture2D<float4>>(root.albedo.index);
             SamplerState albedoSampler = gpu_sampler(root.sampler.index);
             return albedo.Sample(albedoSampler, input.uv) * root.tint;
@@ -56,15 +57,15 @@ internal static class MaterialTests
 
     private const uint RecordingSize = 16;
     private const string ScopedCommonSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
 
+        [GPURoot]
         struct ScopeRoot
         {
             GPUBufferView Values;
             uint Index;
             uint Value;
         };
-        GPU_ROOT(ScopeRoot, root);
 
         """;
 
@@ -73,6 +74,7 @@ internal static class MaterialTests
         [numthreads(4, 1, 1)]
         void writeMain(uint lane : SV_DispatchThreadID)
         {
+            ScopeRoot root = gpu_load_root<ScopeRoot>();
             if (lane == 3) gpu_store<uint>(root.Values, root.Index, root.Value);
         }
         """;
@@ -82,6 +84,7 @@ internal static class MaterialTests
         [numthreads(2, 2, 2)]
         void writeIndirectMain(uint3 thread : SV_DispatchThreadID)
         {
+            ScopeRoot root = gpu_load_root<ScopeRoot>();
             if (all(thread == uint3(3, 1, 1))) gpu_store<uint>(root.Values, root.Index, root.Value * 2);
         }
         """;
@@ -94,6 +97,7 @@ internal static class MaterialTests
         };
         ScreenVertex makeVertex(uint vertex)
         {
+            ScopeRoot root = gpu_load_root<ScopeRoot>();
             ScreenVertex output;
             output.Position = float4(float2((vertex << 1) & 2, vertex & 2) * 2.0 - 1.0, 0.5, 1.0);
             output.Color = float4(gpu_load<uint>(root.Values, 0), gpu_load<uint>(root.Values, 1), gpu_load<uint>(root.Values, 2), 255) / 255.0;
@@ -2696,7 +2700,7 @@ internal static class MaterialTests
         const string module = "material_variants_test";
         const string source = """
             module material_variants_test;
-            import NoGraphicsAPI;
+            import Core;
 
             public interface IShape { associatedtype Params; };
             public struct SmallParams
@@ -2831,7 +2835,7 @@ internal static class MaterialTests
     {
         const string contractSrc = """
             module mat_test_contract;
-            import NoGraphicsAPI;
+            import Core;
             public interface IMatTestSurface
             {
                 associatedtype Params;
@@ -2840,7 +2844,7 @@ internal static class MaterialTests
             """;
         const string computeTemplateSrc = """
             module mat_test_cs_template;
-            import NoGraphicsAPI;
+            import Core;
             import mat_test_contract;
 
             [GPURoot]
@@ -2864,7 +2868,7 @@ internal static class MaterialTests
             """;
         const string graphicsTemplateSrc = """
             module mat_test_gfx_template;
-            import NoGraphicsAPI;
+            import Core;
             import mat_test_contract;
 
             [GPURoot]
@@ -2897,7 +2901,7 @@ internal static class MaterialTests
             """;
         const string surfaceSrc = """
             module mat_test_surface;
-            import NoGraphicsAPI;
+            import Core;
             import mat_test_contract;
 
             public struct TestSurfaceParams

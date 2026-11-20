@@ -341,7 +341,7 @@ internal sealed class RenderGraphPools
         }
     }
 
-    // Because NGS barriers are global, any physical resource whose write scope is covered by this barrier gains visibility for covered reads.
+    // Because Alco.Graphics barriers are global, any physical resource whose write scope is covered by this barrier gains visibility for covered reads.
     internal void PropagateGlobalBarrier(Stage before, Access beforeAccess, Stage after, Access afterAccess)
     {
         RGUsage coveredReads = RGUsageInfo.CoveredReadUsages(after, afterAccess);

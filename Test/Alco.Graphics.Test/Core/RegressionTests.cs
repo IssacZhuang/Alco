@@ -58,7 +58,8 @@ internal static unsafe class RegressionTests
         }
         """;
     private const string CoordinateSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
+        [GPURoot]
         struct CoordinateData
         {
             float Depth;
@@ -66,7 +67,6 @@ internal static unsafe class RegressionTests
             uint SamplerIndex;
             uint Padding;
         };
-        GPU_ROOT(CoordinateData, root);
         struct CoordinateVertex
         {
             float4 Position : SV_Position;
@@ -75,6 +75,7 @@ internal static unsafe class RegressionTests
         };
         CoordinateVertex makeCoordinateVertex(uint vertex)
         {
+            CoordinateData root = gpu_load_root<CoordinateData>();
             float2 position = vertex == 0 ? float2(-0.75, 0.875) : vertex == 1 ? float2(0.75, 0.875) : float2(-0.75, 0.125);
             CoordinateVertex output;
             output.Position = float4(position, root.Depth, 1.0);
@@ -112,20 +113,21 @@ internal static unsafe class RegressionTests
         [shader("pixel")]
         float4 sampleMain(CoordinateVertex input) : SV_Target0
         {
+            CoordinateData root = gpu_load_root<CoordinateData>();
             Texture2D<float4> texture = gpu_texture<Texture2D<float4>>(root.TextureIndex);
             SamplerState sampler = gpu_sampler(root.SamplerIndex);
             return texture.SampleLevel(sampler, input.UV, 0);
         }
         """;
     private const string TopologySource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
+        [GPURoot]
         struct TopologyData
         {
             GPUBufferView Vertices;
             uint VertexCount;
             uint Padding;
         };
-        GPU_ROOT(TopologyData, root);
         struct VertexOutput
         {
             float4 Position : SV_Position;
@@ -133,14 +135,15 @@ internal static unsafe class RegressionTests
         };
         [shader("vertex")]
         VertexOutput vertexMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID
-        #if NOGRAPHICSAPI_METAL
+        #if ALCO_GRAPHICS_METAL
             , uint baseVertex : SV_StartVertexLocation, uint baseInstance : SV_StartInstanceLocation
         #endif
         )
         {
+            TopologyData root = gpu_load_root<TopologyData>();
             VertexOutput output;
             float2 position = float2(3.0, 3.0);
-        #if NOGRAPHICSAPI_METAL
+        #if ALCO_GRAPHICS_METAL
             if (baseVertex != 3 || baseInstance != 5) vertexId = root.VertexCount;
         #endif
             if (vertexId < root.VertexCount && instanceId == 0) position = gpu_load<float2>(root.Vertices, vertexId);
@@ -150,13 +153,14 @@ internal static unsafe class RegressionTests
         }
         [shader("vertex")]
         float4 plainVertexMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID
-        #if NOGRAPHICSAPI_METAL
+        #if ALCO_GRAPHICS_METAL
             , uint baseVertex : SV_StartVertexLocation, uint baseInstance : SV_StartInstanceLocation
         #endif
         ) : SV_Position
         {
+            TopologyData root = gpu_load_root<TopologyData>();
             float2 position = float2(3.0, 3.0);
-        #if NOGRAPHICSAPI_METAL
+        #if ALCO_GRAPHICS_METAL
             if (baseVertex != 3 || baseInstance != 5) vertexId = root.VertexCount;
         #endif
             if (vertexId < root.VertexCount && instanceId == 0) position = gpu_load<float2>(root.Vertices, vertexId);
@@ -166,24 +170,26 @@ internal static unsafe class RegressionTests
         float4 pixelMain() : SV_Target0 { return float4(1.0, 1.0, 1.0, 1.0); }
         """;
     private const string StencilSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
+        [GPURoot]
         struct StencilData
         {
             GPUBufferView Output;
             uint TextureIndex;
             uint Padding;
         };
-        GPU_ROOT(StencilData, root);
         [shader("compute")]
         [numthreads(4,4,1)]
         void computeMain(uint3 thread : SV_DispatchThreadID)
         {
+            StencilData root = gpu_load_root<StencilData>();
             Texture2D<uint> stencil = gpu_texture<Texture2D<uint>>(root.TextureIndex);
             gpu_store<uint>(root.Output, 1 + thread.y * 4 + thread.x, stencil.Load(int3(thread.xy, 0)));
         }
         """;
     private const string MeshSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
+        [GPURoot]
         struct MeshData
         {
             uint Seed;
@@ -191,7 +197,6 @@ internal static unsafe class RegressionTests
             uint Padding1;
             uint Padding2;
         };
-        GPU_ROOT(MeshData, root);
         struct MeshVertex
         {
             float4 Position : SV_Position;
@@ -209,6 +214,7 @@ internal static unsafe class RegressionTests
         [numthreads(1,1,1)]
         void taskMain()
         {
+            MeshData root = gpu_load_root<MeshData>();
             MeshPayload payload;
             payload.Value = root.Seed + 17;
             DispatchMesh(1, 1, 1, payload);
@@ -218,6 +224,7 @@ internal static unsafe class RegressionTests
         [numthreads(32,1,1)]
         void meshMain(uint lane : SV_GroupIndex, out vertices MeshVertex vertices[3], out indices uint3 triangles[1])
         {
+            MeshData root = gpu_load_root<MeshData>();
             SetMeshOutputCounts(3, 1);
             if (lane < 3) vertices[lane] = makeVertex(lane, root.Seed);
             if (lane == 0) triangles[0] = uint3(0, 1, 2);
@@ -236,18 +243,19 @@ internal static unsafe class RegressionTests
         float4 pixelMain(MeshVertex input) : SV_Target0 { return input.Color; }
         """;
     private const string BcSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
+        [GPURoot]
         struct BcData
         {
             GPUBufferView Output;
             uint Mip;
             uint Slice;
         };
-        GPU_ROOT(BcData, root);
         [shader("compute")]
         [numthreads(1,1,1)]
         void computeMain()
         {
+            BcData root = gpu_load_root<BcData>();
             for (uint view = 0; view < 2; ++view)
             {
                 Texture2DArray<float4> texture = gpu_texture<Texture2DArray<float4>>(view);
@@ -257,7 +265,7 @@ internal static unsafe class RegressionTests
         }
         """;
     private const string RootDeclarations = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
         struct RootData
         {
             GPUBufferView Output;
@@ -266,13 +274,21 @@ internal static unsafe class RegressionTests
             uint Values[60];
         };
         """;
-    private const string ConsumeSource = RootDeclarations + """
-
-        GPU_ROOT(RootData, root);
+    private const string ConsumeSource = """
+        import Core;
+        [GPURoot]
+        struct ConsumeData
+        {
+            GPUBufferView Output;
+            uint OutputIndex;
+            uint Seed;
+            uint Values[60];
+        };
         [shader("compute")]
         [numthreads(64,1,1)]
         void computeMain(uint lane : SV_GroupIndex)
         {
+            ConsumeData root = gpu_load_root<ConsumeData>();
             uint value = root.Seed + lane;
             for (uint index = 0; index < 60; ++index) value = (value * 33) ^ root.Values[index];
             gpu_store<uint>(root.Output, root.OutputIndex + lane, value);
@@ -280,6 +296,7 @@ internal static unsafe class RegressionTests
         """;
     private const string GenerateSource = RootDeclarations + """
 
+        [GPURoot]
         struct GenerateData
         {
             GPUBufferView Destination;
@@ -288,11 +305,11 @@ internal static unsafe class RegressionTests
             uint FirstIndex;
             uint Seed;
         };
-        GPU_ROOT(GenerateData, root);
         [shader("compute")]
         [numthreads(1,1,1)]
         void computeMain(uint3 group : SV_GroupID)
         {
+            GenerateData root = gpu_load_root<GenerateData>();
             uint seed = root.Seed + group.x;
             RootData generated;
             generated.Output = root.Output;
@@ -310,12 +327,13 @@ internal static unsafe class RegressionTests
         """;
 
     private const string BufferViewSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
         struct BufferViewEntry
         {
             GPUBufferView Source;
             GPUBufferView Destination;
         };
+        [GPURoot]
         struct BufferViewData
         {
             GPUBufferView Entries;
@@ -326,11 +344,11 @@ internal static unsafe class RegressionTests
             uint Padding0;
             uint Padding1;
         };
-        GPU_ROOT(BufferViewData, root);
         [shader("compute")]
         [numthreads(64,1,1)]
         void computeMain(uint lane : SV_GroupIndex)
         {
+            BufferViewData root = gpu_load_root<BufferViewData>();
             uint entryIndex = (lane * 3 + 1) % root.EntryCount;
             BufferViewEntry entry = gpu_load<BufferViewEntry>(root.Entries, entryIndex);
             uint value = gpu_load<uint>(gpu_offset_bytes(entry.Source, 4), lane / root.EntryCount);
@@ -595,7 +613,7 @@ internal static unsafe class RegressionTests
             "backend value 3 is undefined while Metal and VulkanCompact retain values 4 and 5");
         check(RejectsBackend((GraphicsBackend)3, "Invalid graphics backend"), "CreateDevice rejects backend value 3 without selecting a backend");
 
-        const string variable = "NOGRAPHICS_BACKEND";
+        const string variable = "ALCO_GRAPHICS_BACKEND";
         string? setting = Environment.GetEnvironmentVariable(variable);
         try
         {
@@ -634,7 +652,7 @@ internal static unsafe class RegressionTests
             _ => false,
         };
         check(expectedBackend, $"requested {requestedBackend ?? nameof(GraphicsBackend.Auto)} creates {backend}");
-        const string variable = "NOGRAPHICS_BACKEND";
+        const string variable = "ALCO_GRAPHICS_BACKEND";
         string? setting = Environment.GetEnvironmentVariable(variable);
         GPUDevice? explicitDevice = null;
         try
@@ -3139,9 +3157,9 @@ internal static unsafe class RegressionTests
             // NVIDIA 617.42 (RTX 4070 Ti) driver issue: repeated unsubmitted sampler-heap bindings can cause DeviceLost after heap memory is freed.
             // The Copy Engine can write to the freed reserved-range page even after command-buffer reset, pool destruction, and WaitIdle.
             // This also reproduces without shaders or application submissions; validation can mask it.
-            if (Environment.GetEnvironmentVariable("NOGRAPHICS_TEST_SAMPLER_HEAP_STRESS") != "1" && HasSamplerHeapRecordingDriverIssue(device))
+            if (Environment.GetEnvironmentVariable("ALCO_GRAPHICS_TEST_SAMPLER_HEAP_STRESS") != "1" && HasSamplerHeapRecordingDriverIssue(device))
                 Console.WriteLine("  [SKIP] sampler-heap recording allocation stress: NVIDIA 617.42 on RTX 4070 Ti; " +
-                    "set NOGRAPHICS_TEST_SAMPLER_HEAP_STRESS=1 to run");
+                    "set ALCO_GRAPHICS_TEST_SAMPLER_HEAP_STRESS=1 to run");
             else
             {
                 long allocatedBefore = 0;

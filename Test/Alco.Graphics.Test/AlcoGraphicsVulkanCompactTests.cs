@@ -11,35 +11,34 @@ namespace Alco.Graphics.Test;
 public sealed class AlcoGraphicsVulkanCompactTests
 {
     private const string ComputeWriteShaderSource = """
-        #include "NoGraphicsAPI/shader.slang"
+        import Core;
 
+        [GPURoot]
         struct ComputeRoot
         {
             GPUBufferView Output;
             float4 Value;
         };
 
-        GPU_ROOT(ComputeRoot, gRoot);
-
         [shader("compute")]
         [numthreads(1, 1, 1)]
         void csMain(uint3 id : SV_DispatchThreadID)
         {
-            gpu_store(gRoot.Output, id.x, gRoot.Value * float(id.x + 1));
+            ComputeRoot root = gpu_load_root<ComputeRoot>();
+            gpu_store(root.Output, id.x, root.Value * float(id.x + 1));
         }
         """;
 
     private const string QuadShaderSource = """
-        #include "NoGraphicsAPI/shader.slang"
+        import Core;
 
+        [GPURoot]
         struct QuadRoot
         {
             GpuTextureId Albedo;
             GpuSamplerId Sampler;
             float4 Tint;
         };
-
-        GPU_ROOT(QuadRoot, gRoot);
 
         struct VsOut
         {
@@ -60,8 +59,9 @@ public sealed class AlcoGraphicsVulkanCompactTests
         [shader("pixel")]
         float4 psMain(VsOut input) : SV_Target
         {
-            float4 sampled = gpu_texture<Texture2D>(gRoot.Albedo.index).Sample(gpu_sampler(gRoot.Sampler.index), input.Uv);
-            return sampled * gRoot.Tint;
+            QuadRoot root = gpu_load_root<QuadRoot>();
+            float4 sampled = gpu_texture<Texture2D>(root.Albedo.index).Sample(gpu_sampler(root.Sampler.index), input.Uv);
+            return sampled * root.Tint;
         }
         """;
 

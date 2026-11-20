@@ -151,7 +151,7 @@ public static unsafe partial class Gpu
         GraphicsBackend backend = desc.Backend;
         if (backend == GraphicsBackend.Auto)
         {
-            string? setting = Environment.GetEnvironmentVariable("NOGRAPHICS_BACKEND");
+            string? setting = Environment.GetEnvironmentVariable("ALCO_GRAPHICS_BACKEND");
             backend = setting switch
             {
                 null when OperatingSystem.IsWindows() => GraphicsBackend.Dx12,
@@ -163,7 +163,7 @@ public static unsafe partial class Gpu
                 "metal" => GraphicsBackend.Metal,
                 "nogpu" => GraphicsBackend.NoGPU,
                 _ => throw new GPUException(Error.Unsupported,
-                    $"Invalid NOGRAPHICS_BACKEND '{setting}'; expected vulkan, vulkan-compact, metal, dx12, or nogpu."),
+                    $"Invalid ALCO_GRAPHICS_BACKEND '{setting}'; expected vulkan, vulkan-compact, metal, dx12, or nogpu."),
             };
         }
         return backend switch

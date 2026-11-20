@@ -138,8 +138,8 @@ internal abstract unsafe partial class VulkanDeviceBase
         uint LayerCount = EnumerateInstanceLayers(layers);
         ReadOnlySpan<Vk.VkLayerProperties> layerAvailable = layers.AsSpan(0, (int)LayerCount);
         // Validation builds that predate VK_EXT_descriptor_heap crash inside vkCreateGraphicsPipelines as soon as a
-        // shader-descriptor mapping covers a live resource, so the layer is opt-in via NOGRAPHICS_VALIDATION=1.
-        bool validationAvailable = Environment.GetEnvironmentVariable("NOGRAPHICS_VALIDATION") == "1" &&
+        // shader-descriptor mapping covers a live resource, so the layer is opt-in via ALCO_GRAPHICS_VALIDATION=1.
+        bool validationAvailable = Environment.GetEnvironmentVariable("ALCO_GRAPHICS_VALIDATION") == "1" &&
                                     HasLayerName(layerAvailable, "VK_LAYER_KHRONOS_validation"u8);
 #endif
 
@@ -178,8 +178,8 @@ internal abstract unsafe partial class VulkanDeviceBase
                     CopyExtensionName(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME, nameStorage, ref instanceNameCursor);
         }
 
-        byte* applicationName = Backend.utf8("NoGraphicsSharp application", stackalloc byte[64]);
-        byte* engineName = Backend.utf8("NoGraphicsSharp", stackalloc byte[32]);
+        byte* applicationName = Backend.utf8("Alco application", stackalloc byte[64]);
+        byte* engineName = Backend.utf8("Alco.Graphics", stackalloc byte[32]);
         Vk.VkApplicationInfo appInfo = new()
         {
             pApplicationName = applicationName,

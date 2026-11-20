@@ -1,4 +1,4 @@
-﻿// Immutable NGS shader reflection snapshots: root arguments, types, entry points, attributes, and generic parameters.
+﻿// Immutable Alco.Graphics shader reflection snapshots: root arguments, types, entry points, attributes, and generic parameters.
 
 using System.Runtime.CompilerServices;
 
@@ -59,7 +59,7 @@ public enum ShaderMatrixLayout : byte
     ColumnMajor = 2,
 }
 
-/// <summary>NGS bindless resource semantic inferred from a reflected field type.</summary>
+/// <summary>Alco.Graphics bindless resource semantic inferred from a reflected field type.</summary>
 public enum ShaderFieldSemantic : byte
 {
     /// <summary>Ordinary uniform or structured data.</summary>
@@ -104,7 +104,7 @@ public sealed class ShaderAttribute
     public required IReadOnlyList<ShaderAttributeArgument> Arguments { get; init; }
 }
 
-/// <summary>One struct field with its byte offset, size, NGS semantic, and type layout.</summary>
+/// <summary>One struct field with its byte offset, size, Alco.Graphics semantic, and type layout.</summary>
 public sealed class ShaderFieldLayout
 {
     /// <summary>The declared field name (or dotted path for resolved nested lookups).</summary>
@@ -116,7 +116,7 @@ public sealed class ShaderFieldLayout
     /// <summary>The field size in bytes.</summary>
     public required uint SizeBytes { get; init; }
 
-    /// <summary>The NGS bindless resource semantic of this field.</summary>
+    /// <summary>The Alco.Graphics bindless resource semantic of this field.</summary>
     public required ShaderFieldSemantic Semantic { get; init; }
 
     /// <summary>The field's type layout.</summary>
@@ -135,7 +135,7 @@ public sealed class ShaderTypeLayout
     /// <summary>The declared name of a named type, or null for built-in types.</summary>
     public string? TypeName { get; init; }
 
-    /// <summary>The size in bytes under NGS C/structured layout, or zero when unsized.</summary>
+    /// <summary>The size in bytes under C/structured layout, or zero when unsized.</summary>
     public required uint SizeBytes { get; init; }
 
     /// <summary>The required byte alignment of this type.</summary>
@@ -165,7 +165,7 @@ public sealed class ShaderTypeLayout
     /// <summary>The storage layout of a matrix type.</summary>
     public ShaderMatrixLayout MatrixLayout { get; init; }
 
-    /// <summary>The inferred NGS resource semantic of this type.</summary>
+    /// <summary>The inferred Alco.Graphics resource semantic of this type.</summary>
     public ShaderFieldSemantic Semantic { get; init; }
 
     /// <summary>Fields of a struct type in declaration order.</summary>
@@ -354,11 +354,11 @@ public sealed class ShaderParameterInfo
 /// <param name="HasGenericParameters">Whether the entry point declares generic specialization parameters.</param>
 public readonly record struct ShaderModuleEntryPoint(string Name, ShaderStageKind Stage, bool HasGenericParameters);
 
-/// <summary>Pure-managed, lifetime-independent reflection snapshot of a compiled NGS shader program.</summary>
+/// <summary>Pure-managed, lifetime-independent reflection snapshot of a compiled Alco.Graphics shader program.</summary>
 public sealed class ShaderReflection
 {
     /// <summary>
-    /// The concrete <c>GPU_ROOT</c> or generic <c>[GPURoot]</c> layout, if present. Generic root parameters bind to entry-point
+    /// The concrete <c>[GPURoot]</c> or generic <c>[GPURoot]</c> layout, if present. Generic root parameters bind to entry-point
     /// parameters by name and kind, or in order when the remaining parameters of that kind have equal counts.
     /// </summary>
     public ShaderRootLayout? Root { get; init; }

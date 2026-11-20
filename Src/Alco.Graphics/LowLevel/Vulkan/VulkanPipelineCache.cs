@@ -18,7 +18,7 @@ internal abstract unsafe partial class VulkanDeviceBase
 
     private void InitializePipelineCache()
     {
-        string? directory = Environment.GetEnvironmentVariable("NOGRAPHICS_VULKAN_PIPELINE_CACHE");
+        string? directory = Environment.GetEnvironmentVariable("ALCO_GRAPHICS_VULKAN_PIPELINE_CACHE");
         byte[]? initial = null;
         if (!string.IsNullOrEmpty(directory))
         {
@@ -29,7 +29,7 @@ internal abstract unsafe partial class VulkanDeviceBase
                 if (File.Exists(PipelineCachePath))
                 {
                     byte[] contents = File.ReadAllBytes(PipelineCachePath);
-                    if (contents.Length >= PipelineCacheHeaderSize && contents.AsSpan(0, 8).SequenceEqual("NGSVKPC2"u8) &&
+                    if (contents.Length >= PipelineCacheHeaderSize && contents.AsSpan(0, 8).SequenceEqual("AGVKPC02"u8) &&
                         BinaryPrimitives.ReadUInt64LittleEndian(contents.AsSpan(8, sizeof(ulong))) == (ulong)(contents.Length - PipelineCacheHeaderSize))
                     {
                         Span<byte> checksum = stackalloc byte[SHA256.HashSizeInBytes];
@@ -83,7 +83,7 @@ internal abstract unsafe partial class VulkanDeviceBase
                             temporary = PipelineCachePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
                             ReadOnlySpan<byte> contents = new(data, (int)size);
                             Span<byte> header = stackalloc byte[PipelineCacheHeaderSize];
-                            "NGSVKPC2"u8.CopyTo(header);
+                            "AGVKPC02"u8.CopyTo(header);
                             BinaryPrimitives.WriteUInt64LittleEndian(header.Slice(8, sizeof(ulong)), (ulong)size);
                             SHA256.HashData(contents, header[16..]);
                             using (FileStream file = File.Create(temporary))

@@ -1,47 +1,47 @@
 // Shared sampler access requires the RenderingSystem sampler heap and its fixed bank slots.
 
-#pragma once
+module SharedSampler;
 
-#include <NoGraphicsAPI/shader.slang>
+import Core;
 
 [ForceInline]
-SamplerState shared_sampler_linear_repeat()
+public SamplerState shared_sampler_linear_repeat()
 {
     return gpu_sampler(0);
 }
 
 [ForceInline]
-SamplerState shared_sampler_linear_clamp()
+public SamplerState shared_sampler_linear_clamp()
 {
     return gpu_sampler(1);
 }
 
 [ForceInline]
-SamplerState shared_sampler_nearest_repeat()
+public SamplerState shared_sampler_nearest_repeat()
 {
     return gpu_sampler(2);
 }
 
 [ForceInline]
-SamplerState shared_sampler_nearest_clamp()
+public SamplerState shared_sampler_nearest_clamp()
 {
     return gpu_sampler(3);
 }
 
 [ForceInline]
-SamplerState shared_sampler_anisotropic_repeat()
+public SamplerState shared_sampler_anisotropic_repeat()
 {
     return gpu_sampler(4);
 }
 
 [ForceInline]
-SamplerState shared_sampler_anisotropic_clamp()
+public SamplerState shared_sampler_anisotropic_clamp()
 {
     return gpu_sampler(5);
 }
 
 [ForceInline]
-SamplerComparisonState shared_sampler_depth_comparison()
+public SamplerComparisonState shared_sampler_depth_comparison()
 {
     return gpu_sampler<SamplerComparisonState>(6);
 }

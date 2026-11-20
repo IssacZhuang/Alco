@@ -1,4 +1,4 @@
-﻿// Official NGS Slang shader compiler wrapper, built-in virtual file system, ABI validator, and optional disk cache.
+﻿// Official Alco.Graphics Slang shader compiler wrapper, built-in virtual file system, ABI validator, and optional disk cache.
 
 using System.Globalization;
 using System.Reflection;
@@ -10,18 +10,18 @@ using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
 
-/// <summary>Thread-safe NGS shader compiler wrapping Slang with automatic backend targeting and ABI enforcement.</summary>
+/// <summary>Thread-safe Alco.Graphics shader compiler wrapping Slang with automatic backend targeting and ABI enforcement.</summary>
 public sealed class ShaderCompiler : IDisposable
 {
-    private const string BuiltinRoot = "/__nographics_builtin__";
-    private const string BuiltinPrefix = "/__nographics_builtin__/";
-    private const string BuiltinShaderRelativePath = "NoGraphicsAPI/shader.slang";
-    private const string BuiltinShaderVirtualPath = "/__nographics_builtin__/NoGraphicsAPI/shader.slang";
-    private const string BuiltinModuleRelativePath = "NoGraphicsAPI.slang";
-    private const string BuiltinModuleVirtualPath = "/__nographics_builtin__/NoGraphicsAPI.slang";
+    private const string BuiltinRoot = "/__alco_graphics_builtin__";
+    private const string BuiltinPrefix = "/__alco_graphics_builtin__/";
+    private const string BuiltinModuleRelativePath = "Core.slang";
+    private const string BuiltinModuleVirtualPath = "/__alco_graphics_builtin__/Core.slang";
+    private const string BuiltinSharedSamplerRelativePath = "SharedSampler.slang";
+    private const string BuiltinSharedSamplerVirtualPath = "/__alco_graphics_builtin__/SharedSampler.slang";
 
-    private static readonly byte[] BuiltinShaderBytes = LoadEmbeddedShader("NoGraphicsAPI/shader.slang");
-    private static readonly byte[] BuiltinModuleBytes = LoadEmbeddedShader("NoGraphicsAPI.slang");
+    private static readonly byte[] BuiltinModuleBytes = LoadEmbeddedShader("Core.slang");
+    private static readonly byte[] BuiltinSharedSamplerBytes = LoadEmbeddedShader("SharedSampler.slang");
 
     private readonly SlangCompiler _nativeCompiler = new();
     private readonly ShaderCompilerOptions _options;
@@ -56,7 +56,7 @@ public sealed class ShaderCompiler : IDisposable
     /// <summary>The underlying compiler version tag suitable for external cache keys.</summary>
     public string CompilerVersionTag => _nativeCompiler.BuildTag;
 
-    /// <summary>Maps an NGS <see cref="GraphicsBackend"/> to its official <see cref="ShaderTarget"/>.</summary>
+    /// <summary>Maps an Alco.Graphics <see cref="GraphicsBackend"/> to its official <see cref="ShaderTarget"/>.</summary>
     /// <param name="backend">The active graphics backend.</param>
     /// <returns>The matching shader target format.</returns>
     /// <exception cref="GPUException">The backend is <see cref="GraphicsBackend.Auto"/> or unsupported.</exception>
@@ -402,7 +402,7 @@ public sealed class ShaderCompiler : IDisposable
     {
         List<(string Name, string Value)> merged = MergeDefines(_options.Defines, requestDefines);
         if (Target is ShaderTarget.MetalSource or ShaderTarget.MetalLibrary)
-            AddDefineIfAbsent(merged, "NOGRAPHICSAPI_METAL", "1");
+            AddDefineIfAbsent(merged, "ALCO_GRAPHICS_METAL", "1");
         string key = BuildDefinesKey(merged);
 
         lock (_sessionLock)
@@ -434,10 +434,10 @@ public sealed class ShaderCompiler : IDisposable
     private byte[]? LoadVirtualOrDiskBytes(string path)
     {
         string norm = SlangPathUtility.NormalizePath(path);
-        if (norm == BuiltinShaderVirtualPath)
-            return BuiltinShaderBytes;
         if (norm == BuiltinModuleVirtualPath)
             return BuiltinModuleBytes;
+        if (norm == BuiltinSharedSamplerVirtualPath)
+            return BuiltinSharedSamplerBytes;
         if (norm.StartsWith(BuiltinPrefix, StringComparison.Ordinal))
             return null;
 
@@ -451,10 +451,10 @@ public sealed class ShaderCompiler : IDisposable
         if (File.Exists(norm))
             return File.ReadAllBytes(norm);
 
-        if (norm.Equals(BuiltinShaderRelativePath, StringComparison.OrdinalIgnoreCase))
-            return BuiltinShaderBytes;
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
             return BuiltinModuleBytes;
+        if (norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
+            return BuiltinSharedSamplerBytes;
 
         return null;
     }
@@ -462,9 +462,9 @@ public sealed class ShaderCompiler : IDisposable
     private SlangPathKind ProbeVirtualOrDiskPath(string path)
     {
         string norm = SlangPathUtility.NormalizePath(path);
-        if (norm == BuiltinRoot || norm == BuiltinRoot + "/NoGraphicsAPI")
+        if (norm == BuiltinRoot)
             return SlangPathKind.Directory;
-        if (norm == BuiltinShaderVirtualPath || norm == BuiltinModuleVirtualPath)
+        if (norm == BuiltinModuleVirtualPath || norm == BuiltinSharedSamplerVirtualPath)
             return SlangPathKind.File;
         if (norm.StartsWith(BuiltinPrefix, StringComparison.Ordinal))
             return SlangPathKind.None;
@@ -477,8 +477,8 @@ public sealed class ShaderCompiler : IDisposable
             return SlangPathKind.File;
         if (Directory.Exists(norm))
             return SlangPathKind.Directory;
-        if (norm.Equals(BuiltinShaderRelativePath, StringComparison.OrdinalIgnoreCase) ||
-            norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
+        if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase) ||
+            norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
             return SlangPathKind.File;
 
         return SlangPathKind.None;
@@ -487,16 +487,16 @@ public sealed class ShaderCompiler : IDisposable
     private string CanonicalizeVirtualOrDiskPath(string path)
     {
         string norm = SlangPathUtility.NormalizePath(path);
-        if (norm == BuiltinShaderVirtualPath || norm == BuiltinModuleVirtualPath)
+        if (norm == BuiltinModuleVirtualPath || norm == BuiltinSharedSamplerVirtualPath)
             return norm;
         if (_options.FileResolver != null && _options.FileResolver(norm) != null)
             return norm;
         if (File.Exists(norm))
             return SlangPathUtility.NormalizePath(Path.GetFullPath(norm));
-        if (norm.Equals(BuiltinShaderRelativePath, StringComparison.OrdinalIgnoreCase))
-            return BuiltinShaderVirtualPath;
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
             return BuiltinModuleVirtualPath;
+        if (norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
+            return BuiltinSharedSamplerVirtualPath;
         return norm;
     }
 
@@ -509,7 +509,7 @@ public sealed class ShaderCompiler : IDisposable
             ShaderParameterInfo global = reflection.Globals[i];
             bool isRootStorage = hasRoot && global.BindingSpace == 0 &&
                 (isMetal || global.BindingIndex == 0) &&
-                global.Name.EndsWith("_storage", StringComparison.Ordinal);
+                global.Name == "gpu_root_storage";
             bool isBufferTable = global.BindingSpace == 0 &&
                 (isMetal || global.BindingIndex == 3) &&
                 global.Name == "gpu_buffer_table";
@@ -519,7 +519,7 @@ public sealed class ShaderCompiler : IDisposable
             {
                 throw new ShaderCompilationException(
                     $"Shader '{moduleName}' declares global parameter '{global.Name}' (space {global.BindingSpace}, binding {global.BindingIndex}), " +
-                    "violating the NGS bindless ABI. Move parameters, GPUBufferView, GpuTextureId, or GpuSamplerId fields into GPU_ROOT.",
+                    "violating the Alco.Graphics bindless ABI. Move parameters, GPUBufferView, GpuTextureId, or GpuSamplerId fields into the [GPURoot] struct.",
                     target, moduleName);
             }
         }
@@ -533,7 +533,7 @@ public sealed class ShaderCompiler : IDisposable
             return false;
 
         string key = BuildCacheKey(moduleName, sourceHash, selectorKey, options);
-        string artifactPath = Path.Combine(cacheDir, key + ".ngsshader");
+        string artifactPath = Path.Combine(cacheDir, key + ".agshader");
         string depsPath = Path.Combine(cacheDir, key + ".deps");
         if (!File.Exists(artifactPath) || !File.Exists(depsPath))
             return false;
@@ -575,7 +575,7 @@ public sealed class ShaderCompiler : IDisposable
         {
             Directory.CreateDirectory(cacheDir);
             string key = BuildCacheKey(moduleName, sourceHash, selectorKey, options);
-            string artifactPath = Path.Combine(cacheDir, key + ".ngsshader");
+            string artifactPath = Path.Combine(cacheDir, key + ".agshader");
             string depsPath = Path.Combine(cacheDir, key + ".deps");
 
             string? normalizedPrimary = sourceHash != null && primaryVirtualPath != null
@@ -617,7 +617,7 @@ public sealed class ShaderCompiler : IDisposable
     private string BuildCacheKey(string moduleName, string? sourceHash, string selectorKey, ShaderCompileOptions? options)
     {
         StringBuilder sb = new(256);
-        sb.Append("ngs-root-layout-2|").Append(CompilerVersionTag).Append('|')
+        sb.Append("alco-graphics-root-layout-2|").Append(CompilerVersionTag).Append('|')
             .Append((int)Target).Append('|')
             .Append((int)_options.Optimization).Append('|')
             .Append(options?.ValidateAbi ?? _options.ValidateAbi).Append('|')
@@ -742,7 +742,7 @@ public sealed class ShaderCompiler : IDisposable
     {
         Assembly assembly = typeof(ShaderCompiler).Assembly;
         using Stream stream = assembly.GetManifestResourceStream(resourceName)
-            ?? throw new InvalidOperationException($"Missing embedded NGS shader resource '{resourceName}'.");
+            ?? throw new InvalidOperationException($"Missing embedded Alco.Graphics shader resource '{resourceName}'.");
         byte[] bytes = new byte[stream.Length];
         stream.ReadExactly(bytes);
         return bytes;

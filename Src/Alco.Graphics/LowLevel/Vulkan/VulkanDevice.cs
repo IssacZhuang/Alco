@@ -1,4 +1,4 @@
-﻿// Vulkan backend for NoGraphicsSharp, ported from NoGraphicsAPI.cpp.
+﻿// Vulkan backend for Alco.Graphics.
 // External synchronization everywhere; immediate destruction; asserts for programmer errors.
 
 using System.Diagnostics;
@@ -478,7 +478,7 @@ internal static unsafe partial class VulkanBackend
         if ((severity & (Vk.VkDebugUtilsMessageSeverityFlagsEXT.Warning | Vk.VkDebugUtilsMessageSeverityFlagsEXT.Error)) != 0 &&
             callbackData != null && callbackData->pMessage != null)
         {
-            Console.Error.WriteLine($"NoGraphicsSharp validation: {Backend.ReadVkString(callbackData->pMessage)}");
+            Console.Error.WriteLine($"Alco.Graphics validation: {Backend.ReadVkString(callbackData->pMessage)}");
         }
         return 0;
     }

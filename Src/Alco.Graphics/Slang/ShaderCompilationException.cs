@@ -1,10 +1,10 @@
-﻿// Exception reported when shader loading, compilation, reflection, or NGS ABI validation fails.
+﻿// Exception reported when shader loading, compilation, reflection, or Alco.Graphics ABI validation fails.
 
 using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
 
-/// <summary>Thrown when shader compilation, linking, or NGS ABI validation fails.</summary>
+/// <summary>Thrown when shader compilation, linking, or Alco.Graphics ABI validation fails.</summary>
 public class ShaderCompilationException : Exception
 {
     /// <summary>The target format involved in the failure, or null when target-independent.</summary>

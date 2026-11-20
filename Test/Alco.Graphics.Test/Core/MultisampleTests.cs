@@ -338,10 +338,10 @@ internal static unsafe class MultisampleTests
 
     private static void CheckPartialCoverage(Action<bool, string> check, int partial, bool knownFailure, string path)
     {
-        if (partial < 2 && knownFailure && Environment.GetEnvironmentVariable("NOGRAPHICS_TEST_MSAA_COVERAGE") != "1")
+        if (partial < 2 && knownFailure && Environment.GetEnvironmentVariable("ALCO_GRAPHICS_TEST_MSAA_COVERAGE") != "1")
         {
             Console.WriteLine("  [SKIP] partial resolve coverage is not observed with NVIDIA Vulkan 617.42 on RTX 4070 Ti; " +
-                "set NOGRAPHICS_TEST_MSAA_COVERAGE=1 to assert");
+                "set ALCO_GRAPHICS_TEST_MSAA_COVERAGE=1 to assert");
             return;
         }
         check(partial >= 2, $"{path} resolve produces partial edge coverage ({partial} pixels)");

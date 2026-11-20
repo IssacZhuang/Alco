@@ -7,7 +7,7 @@ using Alco.Graphics.LowLevel;
 internal static class ShaderCompilerTests
 {
     private const string EmbeddedIncludeSource = """
-        #include <NoGraphicsAPI/shader.slang>
+        import Core;
 
         [__AttributeUsage(_AttributeTargets.Struct)]
         struct StructTagAttribute
@@ -39,6 +39,7 @@ internal static class ShaderCompilerTests
             uint Flags;
         };
 
+        [GPURoot]
         [StructTag("root-struct", 42, 2.5)]
         struct SampleRoot
         {
@@ -50,8 +51,6 @@ internal static class ShaderCompilerTests
             float2x3 Transform;
             NestedData Nested;
         };
-
-        GPU_ROOT(SampleRoot, root);
 
         interface IShadingModel
         {
@@ -73,6 +72,7 @@ internal static class ShaderCompilerTests
         [FuncTag("entry-tag", 9, 0.5)]
         void computeMain<TModel : IShadingModel>(uint3 tid : SV_DispatchThreadID)
         {
+            SampleRoot root = gpu_load_root<SampleRoot>();
             TModel model;
             float v = model.Eval(root.Weight);
             gpu_store<float>(root.Output, 0, v + float(tid.x) * 0.0);
@@ -112,7 +112,7 @@ internal static class ShaderCompilerTests
             ShaderCompiler.TargetForBackend(GraphicsBackend.VulkanCompact) == ShaderTarget.SpirvCompact &&
             ShaderCompiler.TargetForBackend(GraphicsBackend.Dx12) == ShaderTarget.Dxil &&
             ShaderCompiler.TargetForBackend(GraphicsBackend.Metal) == ShaderTarget.MetalSource,
-            "ShaderCompiler.TargetForBackend maps every NGS graphics backend to its official shader target");
+            "ShaderCompiler.TargetForBackend maps every Alco.Graphics backend to its official shader target");
 
         check(ShaderCompiler.IsTargetSupported(ShaderTarget.Spirv) &&
             ShaderCompiler.IsTargetSupported(ShaderTarget.SpirvCompact) &&
@@ -223,9 +223,10 @@ internal static class ShaderCompilerTests
             "ShaderRootLayout.Find traverses dotted paths and accumulates nested byte offsets");
 
         ShaderTypeLayout? sampleType = reflection.FindType("SampleRoot");
+        var structTag = sampleType?.Attributes.FirstOrDefault(attr => attr.Name == "StructTag");
         check(sampleType != null && sampleType.AlignmentBytes > 0 &&
-            sampleType.Attributes.Count == 1 && sampleType.Attributes[0].Name == "StructTag" &&
-            sampleType.Attributes[0].Arguments[1].IntValue == 42,
+            sampleType.Attributes.Any(attr => attr.Name == "GPURoot") &&
+            structTag != null && structTag.Arguments[1].IntValue == 42,
             "ShaderReflection.FindType includes module struct declarations with alignment and attributes");
 
         ShaderEntryPointReflection? entry = reflection.FindEntryPoint("computeMain");
@@ -318,7 +319,7 @@ internal static class ShaderCompilerTests
     private static void TestSpecializedRoots(Action<bool, string> check)
     {
         const string namedRootSource = """
-            import NoGraphicsAPI;
+            import Core;
             struct Payload { uint First; uint Second; };
             struct GPURootArguments<T> { GPUBufferView Output; T Data; uint Tail; };
             [shader("compute")] [numthreads(1, 1, 1)]
@@ -329,7 +330,7 @@ internal static class ShaderCompilerTests
             }
             """;
         const string valueRootSource = """
-            import NoGraphicsAPI;
+            import Core;
             namespace Pass
             {
                 [GPURoot]
@@ -370,7 +371,7 @@ internal static class ShaderCompilerTests
     private static void TestSelectedEntryComposition(Action<bool, string> check)
     {
         const string source = """
-            import NoGraphicsAPI;
+            import Core;
             interface ISurface { associatedtype Params; float Eval(Params params); };
             struct Parameters { float Gain; };
             struct Surface : ISurface
@@ -458,8 +459,8 @@ internal static class ShaderCompilerTests
                     ShaderPipelineKind.Compute, new ShaderCompileOptions { SpecializationArgs = ["MatteModel"] });
             }
 
-            string[] cacheFiles = Directory.Exists(tempDir) ? Directory.GetFiles(tempDir, "*.ngsshader") : [];
-            check(cacheFiles.Length == 1, "CacheDirectory persists compiled .ngsshader artifact to disk");
+            string[] cacheFiles = Directory.Exists(tempDir) ? Directory.GetFiles(tempDir, "*.agshader") : [];
+            check(cacheFiles.Length == 1, "CacheDirectory persists compiled .agshader artifact to disk");
 
             byte[] blob = first.Serialize();
             CompiledShader deserialized = CompiledShader.Deserialize(blob);
@@ -556,25 +557,22 @@ internal static class ShaderCompilerTests
 
         // 2. Auto pipeline kind inference
         const string graphicsSrc = """
-            #include <NoGraphicsAPI/shader.slang>
-            struct R { float4 Color; };
-            GPU_ROOT(R, root);
+            import Core;
+            [GPURoot] struct R { float4 Color; };
             struct V { float4 Pos : SV_Position; };
             [shader("vertex")] V vs(uint id : SV_VertexID) { V o; o.Pos = float4(0, 0, 0, 1); return o; }
-            [shader("pixel")] float4 ps(V i) : SV_Target0 { return root.Color; }
+            [shader("pixel")] float4 ps(V i) : SV_Target0 { return gpu_load_root<R>().Color; }
             """;
         const string computeSrc = """
-            #include <NoGraphicsAPI/shader.slang>
-            struct R { GPUBufferView Out; };
-            GPU_ROOT(R, root);
-            [shader("compute")] [numthreads(4, 1, 1)] void cs(uint3 tid : SV_DispatchThreadID) { gpu_store<uint>(root.Out, tid.x, tid.x); }
+            import Core;
+            [GPURoot] struct R { GPUBufferView Out; };
+            [shader("compute")] [numthreads(4, 1, 1)] void cs(uint3 tid : SV_DispatchThreadID) { gpu_store<uint>(gpu_load_root<R>().Out, tid.x, tid.x); }
             """;
         const string ambiguousSrc = """
-            #include <NoGraphicsAPI/shader.slang>
-            struct R { GPUBufferView Out; };
-            GPU_ROOT(R, root);
+            import Core;
+            [GPURoot] struct R { GPUBufferView Out; };
             [shader("vertex")] float4 vs(uint id : SV_VertexID) : SV_Position { return float4(0, 0, 0, 1); }
-            [shader("compute")] [numthreads(1, 1, 1)] void cs(uint3 tid : SV_DispatchThreadID) { gpu_store<uint>(root.Out, 0, 1); }
+            [shader("compute")] [numthreads(1, 1, 1)] void cs(uint3 tid : SV_DispatchThreadID) { gpu_store<uint>(gpu_load_root<R>().Out, 0, 1); }
             """;
 
         using (ShaderCompiler autoCompiler = new(ShaderTarget.Spirv))
@@ -603,7 +601,7 @@ internal static class ShaderCompilerTests
         // 3. Compositional compilation (Scheme A: [GPURoot] struct PassRoot<T : ISurface> with T.Params material)
         const string contractSrc = """
             module test_contract;
-            import NoGraphicsAPI;
+            import Core;
             public interface ITestSurface
             {
                 associatedtype Params;
@@ -612,7 +610,7 @@ internal static class ShaderCompilerTests
             """;
         const string templateSrc = """
             module test_template;
-            import NoGraphicsAPI;
+            import Core;
             import test_contract;
 
             [GPURoot]
@@ -636,7 +634,7 @@ internal static class ShaderCompilerTests
             """;
         const string surfaceASrc = """
             module test_surface_a;
-            import NoGraphicsAPI;
+            import Core;
             import test_contract;
 
             public struct SurfaceAParams
@@ -657,7 +655,7 @@ internal static class ShaderCompilerTests
             """;
         const string surfaceBSrc = """
             module test_surface_b;
-            import NoGraphicsAPI;
+            import Core;
             import test_contract;
 
             public struct SurfaceBParams

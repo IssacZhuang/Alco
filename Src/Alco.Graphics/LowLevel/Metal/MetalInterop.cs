@@ -112,7 +112,7 @@ internal static unsafe partial class MetalInterop
     {
         string description = error.NativePtr != 0 ? $"{error.LocalizedDescription} (native error {error.Code})" : "creation failed";
         string message = $"Metal {operation}: {description}";
-        Console.Error.WriteLine($"NoGraphicsSharp Metal: {operation}: {description}");
+        Console.Error.WriteLine($"Alco.Graphics Metal: {operation}: {description}");
         Gpu.ReportError(message, false);
         return message;
     }

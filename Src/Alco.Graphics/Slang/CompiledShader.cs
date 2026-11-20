@@ -38,7 +38,7 @@ public sealed class CompiledShaderStage
 /// <summary>Immutable compiled shader program containing target code, dependencies, and pure-managed reflection.</summary>
 public sealed class CompiledShader
 {
-    private const uint Magic = 0x5353474Eu; // "NGSS"
+    private const uint Magic = 0x48534741u; // "AGSH"
     private const ushort FormatVersion = 1;
 
     /// <summary>The compiled shader module name.</summary>
@@ -184,10 +184,10 @@ public sealed class CompiledShader
     public static CompiledShader Deserialize(ReadOnlySpan<byte> data)
     {
         if (data.Length < 8 || BinaryPrimitives.ReadUInt32LittleEndian(data) != Magic)
-            throw new InvalidDataException("Invalid NGS compiled shader artifact header.");
+            throw new InvalidDataException("Invalid Alco.Graphics compiled shader artifact header.");
         ushort version = BinaryPrimitives.ReadUInt16LittleEndian(data.Slice(4, 2));
         if (version != FormatVersion)
-            throw new InvalidDataException($"Unsupported NGS compiled shader artifact version {version}.");
+            throw new InvalidDataException($"Unsupported Alco.Graphics compiled shader artifact version {version}.");
 
         using MemoryStream stream = new(data.ToArray(), writable: false);
         using BinaryReader reader = new(stream, Encoding.UTF8, leaveOpen: true);

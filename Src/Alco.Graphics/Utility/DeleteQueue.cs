@@ -1,5 +1,5 @@
-﻿// DeleteQueue ported 1:1 from NoGraphicsAPIUtility/deleteQueue.hpp + deleteQueue.cpp (namespace gpu).
-// The C++ FixedFunction inline storage is dropped: entries hold the Action directly.
+﻿// Deferred GPU resource deletion queue.
+// Entries hold the deletion Action directly.
 
 using System.Diagnostics;
 

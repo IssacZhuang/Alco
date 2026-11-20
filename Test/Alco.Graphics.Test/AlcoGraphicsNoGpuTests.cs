@@ -10,36 +10,35 @@ namespace Alco.Graphics.Test;
 public sealed class AlcoGraphicsNoGpuTests
 {
     private const string ComputeAddShaderSource = """
-        #include "NoGraphicsAPI/shader.slang"
+        import Core;
 
+        [GPURoot]
         struct ComputeRoot
         {
             GPUBufferView Output;
             float4 Factor;
         };
 
-        GPU_ROOT(ComputeRoot, gRoot);
-
         [shader("compute")]
         [numthreads(1, 1, 1)]
         void csMain(uint3 id : SV_DispatchThreadID)
         {
-            float4 val = gRoot.Factor * float(id.x + 1);
-            gpu_store(gRoot.Output, id.x, val);
+            ComputeRoot root = gpu_load_root<ComputeRoot>();
+            float4 val = root.Factor * float(id.x + 1);
+            gpu_store(root.Output, id.x, val);
         }
         """;
 
     private const string GraphicsQuadShaderSource = """
-        #include "NoGraphicsAPI/shader.slang"
+        import Core;
 
+        [GPURoot]
         struct DrawRoot
         {
             GpuTextureId Albedo;
             GpuSamplerId Sampler;
             float4 Tint;
         };
-
-        GPU_ROOT(DrawRoot, gRoot);
 
         struct VsOut
         {
@@ -60,8 +59,9 @@ public sealed class AlcoGraphicsNoGpuTests
         [shader("pixel")]
         float4 psMain(VsOut input) : SV_Target
         {
-            float4 tex = gpu_texture<Texture2D>(gRoot.Albedo.index).Sample(gpu_sampler(gRoot.Sampler.index), input.Uv);
-            return tex * gRoot.Tint;
+            DrawRoot root = gpu_load_root<DrawRoot>();
+            float4 tex = gpu_texture<Texture2D>(root.Albedo.index).Sample(gpu_sampler(root.Sampler.index), input.Uv);
+            return tex * root.Tint;
         }
         """;
 

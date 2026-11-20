@@ -309,7 +309,7 @@ internal sealed class SlangCompileSession : IDisposable
             }
             if (Target is SlangCodeTarget.Dxil or SlangCodeTarget.SpirvCompact)
             {
-                string name = Target == SlangCodeTarget.Dxil ? "nographics_dxil_descriptors" : "nographics_vkcompact_descriptors";
+                string name = Target == SlangCodeTarget.Dxil ? "alco_dxil_descriptors" : "alco_vkcompact_descriptors";
                 string source = Target == SlangCodeTarget.Dxil ? DxilDescriptorAdapterSource : VulkanCompactDescriptorAdapterSource;
                 _descriptorAdapter = _session.LoadModuleFromSource(name, name + ".slang", System.Text.Encoding.UTF8.GetBytes(source), out string? diagnostics);
                 if (_descriptorAdapter == null || HasErrors(diagnostics))

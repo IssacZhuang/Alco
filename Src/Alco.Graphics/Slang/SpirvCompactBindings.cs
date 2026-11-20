@@ -1,4 +1,4 @@
-﻿// Lowers the pinned Slang compiler's NoGraphics buffer bindings to Vulkan 1.2 device addresses.
+﻿// Lowers Slang compiler bindless buffer bindings to Vulkan 1.2 device addresses.
 
 using System.Runtime.InteropServices;
 using Alco.Graphics;

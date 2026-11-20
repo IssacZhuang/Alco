@@ -14,12 +14,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Shaders\NoGraphicsAPI\shader.slang" LogicalName="NoGraphicsAPI/shader.slang" />
-    <EmbeddedResource Include="Shaders\NoGraphicsAPI.slang" LogicalName="NoGraphicsAPI.slang" />
+    <EmbeddedResource Include="Shaders\Core.slang" LogicalName="Core.slang" />
+    <EmbeddedResource Include="Shaders\SharedSampler.slang" LogicalName="SharedSampler.slang" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Shaders\NoGraphicsRendering\samplers.slang" Link="NoGraphicsRendering\samplers.slang" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="runtimes/$(_SlangRid)/native/*" Condition="Exists('runtimes/$(_SlangRid)/native')">
       <Link>%(Filename)%(Extension)</Link>

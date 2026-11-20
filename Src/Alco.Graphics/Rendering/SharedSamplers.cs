@@ -7,7 +7,7 @@ namespace Alco.Graphics;
 /// <summary>A rendering system's immutable sampler bank. Individual samplers are borrowed and must not be destroyed.</summary>
 public sealed class SharedSamplers
 {
-    // The slot layout is shared with NoGraphicsRendering/samplers.slang.
+    // The slot layout is shared with the built-in SharedSampler Slang module.
     internal const uint LinearRepeatIndex = 0;
     internal const uint LinearClampIndex = 1;
     internal const uint NearestRepeatIndex = 2;

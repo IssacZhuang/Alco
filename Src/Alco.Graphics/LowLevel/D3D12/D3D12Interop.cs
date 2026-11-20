@@ -27,7 +27,7 @@ internal static unsafe partial class D3D12Interop
         lock (InitializationLock)
         {
             if (Initialized) return;
-            string? validation = Environment.GetEnvironmentVariable("NOGRAPHICS_VALIDATION");
+            string? validation = Environment.GetEnvironmentVariable("ALCO_GRAPHICS_VALIDATION");
             ValidationEnabled = int.TryParse(validation, out int enabled) && enabled != 0;
             if (ValidationEnabled)
             {
@@ -46,7 +46,7 @@ internal static unsafe partial class D3D12Interop
     internal static void ValidationMessage(int category, int severity, int id, byte* description, void* context)
     {
         if (severity > 2) return;
-        Console.Error.WriteLine($"NoGraphicsSharp D3D12 validation: [{severity}:{id}] {Marshal.PtrToStringUTF8((nint)description)}");
+        Console.Error.WriteLine($"Alco.Graphics D3D12 validation: [{severity}:{id}] {Marshal.PtrToStringUTF8((nint)description)}");
     }
 
     internal static GPUException CreationFailure(int result, string operation, Error error = Error.DriverError)

@@ -12,7 +12,8 @@ internal static unsafe class SharedSamplerTests
 {
     private const string ModuleName = "shared_sampler_test";
     private const string ShaderSource = """
-        #include <NoGraphicsRendering/samplers.slang>
+        import Core;
+        import SharedSampler;
 
         struct SampleData
         {
@@ -21,14 +22,13 @@ internal static unsafe class SharedSamplerTests
             float Reference;
         };
 
+        [GPURoot]
         struct SharedSamplerRoot
         {
             GpuTextureId Color;
             GpuTextureId Depth;
             GPUBufferView Samples;
         };
-
-        GPU_ROOT(SharedSamplerRoot, root);
 
         struct ScreenVertex
         {
@@ -47,6 +47,7 @@ internal static unsafe class SharedSamplerTests
         [shader("pixel")]
         float4 pixelMain(ScreenVertex input) : SV_Target0
         {
+            SharedSamplerRoot root = gpu_load_root<SharedSamplerRoot>();
             SampleData data = gpu_load<SampleData>(root.Samples, uint(input.Position.x));
             if (data.Helper == 6)
             {
@@ -78,11 +79,9 @@ internal static unsafe class SharedSamplerTests
         check(sizeof(SampleData) == 16 && (int)Marshal.OffsetOf<SampleData>(nameof(SampleData.Helper)) == 8 &&
             (int)Marshal.OffsetOf<SampleData>(nameof(SampleData.Reference)) == 12,
             "shared sampler cases retain the shader's 16-byte UV/helper/reference stride");
-        check(File.Exists(Path.Combine(AppContext.BaseDirectory, "NoGraphicsRendering", "samplers.slang")),
-            "the shared sampler include is copied recursively beside the test executable");
         try
         {
-            using ShaderCompiler compiler = new(ShaderTarget.MetalSource, new ShaderCompilerOptions { SearchPaths = [AppContext.BaseDirectory] });
+            using ShaderCompiler compiler = new(ShaderTarget.MetalSource);
             CompiledShader compiled = compiler.CompileSource(ModuleName, ModuleName + ".slang", ShaderSource, ShaderPipelineKind.Graphics);
             ReadOnlySpan<string> entryPoints = ["vertexMain", "pixelMain"];
             for (int index = 0; index < entryPoints.Length; ++index)
