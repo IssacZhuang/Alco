@@ -48,7 +48,9 @@ public sealed class GraphicsCoreTests
         {
             RegressionTests.RunCpu(check);
             VulkanPipelineCacheTests.Run(check);
+            VulkanBindingTests.Run(check);
             D3D12BindingTests.Run(check);
+            MetalBindingTests.Run(check);
             GPURangeTests.Run(check);
             HeapPoolRangeTests.Run(check);
         });

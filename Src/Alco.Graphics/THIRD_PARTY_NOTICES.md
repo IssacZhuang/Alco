@@ -2,9 +2,9 @@
 
 ## Vortice.Vulkan
 
-The files under `src/Vulkan` are a vendored copy of
-[Vortice.Vulkan](https://github.com/amerkoleci/Vortice.Vulkan) (commit `b5f06ab`, version 3.3.0),
-with the namespace changed from `Vortice.Vulkan` to `Vulkan`.
+The files under `Bindings/Vulkan` are minimal handwritten Vulkan bindings following the
+[Vortice.Vulkan](https://github.com/amerkoleci/Vortice.Vulkan) (commit `b5f06ab`, version 3.3.0)
+API style and `Vulkan` namespace conventions, scoped to the subset used by `Alco.Graphics`.
 
 Original license (MIT):
 
@@ -34,9 +34,9 @@ SOFTWARE.
 
 ## SharpMetal
 
-The files under `src/Metal` are a vendored copy of
-[SharpMetal](https://github.com/IsaacMarovitz/SharpMetal) (commit `107263f`),
-with all namespaces flattened to `Metal` and the `[SupportedOSPlatform]` attributes removed.
+The files under `Bindings/Metal` are minimal handwritten Metal/Objective-C bindings following
+[SharpMetal](https://github.com/IsaacMarovitz/SharpMetal) (commit `107263f`)
+API style and `Metal` namespace conventions, scoped to the subset used by `Alco.Graphics`.
 
 Original license (MIT):
 
