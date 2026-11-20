@@ -1,0 +1,98 @@
+
+namespace Metal
+{
+    public struct MTLParallelRenderCommandEncoder : IDisposable
+    {
+        public IntPtr NativePtr;
+        public static implicit operator IntPtr(MTLParallelRenderCommandEncoder obj) => obj.NativePtr;
+        public static implicit operator MTLCommandEncoder(MTLParallelRenderCommandEncoder obj) => new(obj.NativePtr);
+        public MTLParallelRenderCommandEncoder(IntPtr ptr) => NativePtr = ptr;
+
+        public void Dispose()
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_release);
+        }
+
+        public MTLDevice Device => new(ObjectiveCRuntime.IntPtr_objc_msgSend(NativePtr, sel_device));
+
+        public NSString Label
+        {
+            get => new(ObjectiveCRuntime.IntPtr_objc_msgSend(NativePtr, sel_label));
+            set => ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setLabel, value);
+        }
+
+        public MTLRenderCommandEncoder RenderCommandEncoder => new(ObjectiveCRuntime.IntPtr_objc_msgSend(NativePtr, sel_renderCommandEncoder));
+
+        public void BarrierAfterQueueStages(MTLStages afterQueueStages, MTLStages beforeStages)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_barrierAfterQueueStagesbeforeStages, (ulong)afterQueueStages, (ulong)beforeStages);
+        }
+
+        public void EndEncoding()
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_endEncoding);
+        }
+
+        public void InsertDebugSignpost(NSString nsString)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_insertDebugSignpost, nsString);
+        }
+
+        public void PopDebugGroup()
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_popDebugGroup);
+        }
+
+        public void PushDebugGroup(NSString nsString)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_pushDebugGroup, nsString);
+        }
+
+        public void SetColorStoreAction(MTLStoreAction storeAction, ulong colorAttachmentIndex)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setColorStoreActionatIndex, (ulong)storeAction, colorAttachmentIndex);
+        }
+
+        public void SetColorStoreActionOptions(MTLStoreActionOptions storeActionOptions, ulong colorAttachmentIndex)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setColorStoreActionOptionsatIndex, (ulong)storeActionOptions, colorAttachmentIndex);
+        }
+
+        public void SetDepthStoreAction(MTLStoreAction storeAction)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setDepthStoreAction, (ulong)storeAction);
+        }
+
+        public void SetDepthStoreActionOptions(MTLStoreActionOptions storeActionOptions)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setDepthStoreActionOptions, (ulong)storeActionOptions);
+        }
+
+        public void SetStencilStoreAction(MTLStoreAction storeAction)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setStencilStoreAction, (ulong)storeAction);
+        }
+
+        public void SetStencilStoreActionOptions(MTLStoreActionOptions storeActionOptions)
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setStencilStoreActionOptions, (ulong)storeActionOptions);
+        }
+
+        private static readonly Selector sel_barrierAfterQueueStagesbeforeStages = "barrierAfterQueueStages:beforeStages:";
+        private static readonly Selector sel_device = "device";
+        private static readonly Selector sel_endEncoding = "endEncoding";
+        private static readonly Selector sel_insertDebugSignpost = "insertDebugSignpost:";
+        private static readonly Selector sel_label = "label";
+        private static readonly Selector sel_popDebugGroup = "popDebugGroup";
+        private static readonly Selector sel_pushDebugGroup = "pushDebugGroup:";
+        private static readonly Selector sel_renderCommandEncoder = "renderCommandEncoder";
+        private static readonly Selector sel_setColorStoreActionatIndex = "setColorStoreAction:atIndex:";
+        private static readonly Selector sel_setColorStoreActionOptionsatIndex = "setColorStoreActionOptions:atIndex:";
+        private static readonly Selector sel_setDepthStoreAction = "setDepthStoreAction:";
+        private static readonly Selector sel_setDepthStoreActionOptions = "setDepthStoreActionOptions:";
+        private static readonly Selector sel_setLabel = "setLabel:";
+        private static readonly Selector sel_setStencilStoreAction = "setStencilStoreAction:";
+        private static readonly Selector sel_setStencilStoreActionOptions = "setStencilStoreActionOptions:";
+        private static readonly Selector sel_release = "release";
+    }
+}

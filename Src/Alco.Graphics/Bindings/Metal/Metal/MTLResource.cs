@@ -1,0 +1,136 @@
+
+namespace Metal
+{
+    public enum MTLBufferSparseTier : long
+    {
+        None = 0,
+        Tier1 = 1,
+    }
+
+    public enum MTLCPUCacheMode : ulong
+    {
+        DefaultCache = 0,
+        WriteCombined = 1,
+    }
+
+    public enum MTLHazardTrackingMode : ulong
+    {
+        Default = 0,
+        Untracked = 1,
+        Tracked = 2,
+    }
+
+    public enum MTLPurgeableState : ulong
+    {
+        KeepCurrent = 1,
+        NonVolatile = 2,
+        Volatile = 3,
+        Empty = 4,
+    }
+
+    [Flags]
+    public enum MTLResourceOptions : ulong
+    {
+        ResourceCPUCacheModeDefaultCache = 0,
+        ResourceCPUCacheModeWriteCombined = 1,
+        ResourceStorageModeShared = 0,
+        ResourceStorageModeManaged = 1 << 4,
+        ResourceStorageModePrivate = 1 << 5,
+        ResourceStorageModeMemoryless = 1 << 5,
+        ResourceHazardTrackingModeDefault = 0,
+        ResourceHazardTrackingModeUntracked = 1 << 8,
+        ResourceHazardTrackingModeTracked = 1 << 9,
+        CPUCacheModeDefault = 0,
+        CPUCacheModeWriteCombined = 1,
+    }
+
+    public enum MTLSparsePageSize : long
+    {
+        Size16 = 101,
+        Size64 = 102,
+        Size256 = 103,
+    }
+
+    public enum MTLStorageMode : ulong
+    {
+        Shared = 0,
+        Managed = 1,
+        Private = 2,
+        Memoryless = 3,
+    }
+
+    public enum MTLTextureSparseTier : long
+    {
+        None = 0,
+        Tier1 = 1,
+        Tier2 = 2,
+    }
+
+    public struct MTLResource : IDisposable
+    {
+        public IntPtr NativePtr;
+        public static implicit operator IntPtr(MTLResource obj) => obj.NativePtr;
+        public static implicit operator MTLAllocation(MTLResource obj) => new(obj.NativePtr);
+        public MTLResource(IntPtr ptr) => NativePtr = ptr;
+
+        public void Dispose()
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_release);
+        }
+
+        public ulong AllocatedSize => ObjectiveCRuntime.ulong_objc_msgSend(NativePtr, sel_allocatedSize);
+
+        public MTLCPUCacheMode CpuCacheMode => (MTLCPUCacheMode)ObjectiveCRuntime.ulong_objc_msgSend(NativePtr, sel_cpuCacheMode);
+
+        public MTLDevice Device => new(ObjectiveCRuntime.IntPtr_objc_msgSend(NativePtr, sel_device));
+
+        public MTLHazardTrackingMode HazardTrackingMode => (MTLHazardTrackingMode)ObjectiveCRuntime.ulong_objc_msgSend(NativePtr, sel_hazardTrackingMode);
+
+        public MTLHeap Heap => new(ObjectiveCRuntime.IntPtr_objc_msgSend(NativePtr, sel_heap));
+
+        public ulong HeapOffset => ObjectiveCRuntime.ulong_objc_msgSend(NativePtr, sel_heapOffset);
+
+        public bool IsAliasable => ObjectiveCRuntime.bool_objc_msgSend(NativePtr, sel_isAliasable);
+
+        public NSString Label
+        {
+            get => new(ObjectiveCRuntime.IntPtr_objc_msgSend(NativePtr, sel_label));
+            set => ObjectiveCRuntime.objc_msgSend(NativePtr, sel_setLabel, value);
+        }
+
+        public MTLResourceOptions ResourceOptions => (MTLResourceOptions)ObjectiveCRuntime.ulong_objc_msgSend(NativePtr, sel_resourceOptions);
+
+        public MTLStorageMode StorageMode => (MTLStorageMode)ObjectiveCRuntime.ulong_objc_msgSend(NativePtr, sel_storageMode);
+
+        public void MakeAliasable()
+        {
+            ObjectiveCRuntime.objc_msgSend(NativePtr, sel_makeAliasable);
+        }
+
+        public int SetOwner(IntPtr task_id_token)
+        {
+            return ObjectiveCRuntime.int_objc_msgSend(NativePtr, sel_setOwnerWithIdentity, task_id_token);
+        }
+
+        public MTLPurgeableState SetPurgeableState(MTLPurgeableState state)
+        {
+            return (MTLPurgeableState)ObjectiveCRuntime.ulong_objc_msgSend(NativePtr, sel_setPurgeableState, (ulong)state);
+        }
+
+        private static readonly Selector sel_allocatedSize = "allocatedSize";
+        private static readonly Selector sel_cpuCacheMode = "cpuCacheMode";
+        private static readonly Selector sel_device = "device";
+        private static readonly Selector sel_hazardTrackingMode = "hazardTrackingMode";
+        private static readonly Selector sel_heap = "heap";
+        private static readonly Selector sel_heapOffset = "heapOffset";
+        private static readonly Selector sel_isAliasable = "isAliasable";
+        private static readonly Selector sel_label = "label";
+        private static readonly Selector sel_makeAliasable = "makeAliasable";
+        private static readonly Selector sel_resourceOptions = "resourceOptions";
+        private static readonly Selector sel_setLabel = "setLabel:";
+        private static readonly Selector sel_setOwnerWithIdentity = "setOwnerWithIdentity:";
+        private static readonly Selector sel_setPurgeableState = "setPurgeableState:";
+        private static readonly Selector sel_storageMode = "storageMode";
+        private static readonly Selector sel_release = "release";
+    }
+}
