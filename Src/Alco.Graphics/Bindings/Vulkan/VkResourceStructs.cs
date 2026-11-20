@@ -656,12 +656,20 @@ internal unsafe partial struct VkDescriptorSetAndBindingMappingEXT
     }
 }
 
-// Preserves the 56-byte size and pointer alignment of the full C union.
-[StructLayout(LayoutKind.Explicit, Size = 56)]
+[StructLayout(LayoutKind.Explicit)]
 internal unsafe partial struct VkDescriptorMappingSourceDataEXT
 {
-    [FieldOffset(0)] private void* _alignment;
+    // VkDescriptorMappingSourceIndirectIndexEXT determines the union's size and alignment.
+    [FieldOffset(0)] private readonly IndirectIndexLayout _indirectIndex;
     [FieldOffset(0)] public uint pushAddressOffset;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct IndirectIndexLayout
+    {
+        private fixed uint _heapFields[5];
+        private readonly VkSamplerCreateInfo* _embeddedSampler;
+        private fixed uint _samplerFields[6];
+    }
 }
 
 internal unsafe partial struct VkShaderDescriptorSetAndBindingMappingInfoEXT

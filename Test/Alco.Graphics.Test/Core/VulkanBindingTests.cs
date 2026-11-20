@@ -46,7 +46,16 @@ internal static unsafe class VulkanBindingTests
 
     private static void RunStructureLayoutChecks(Action<bool, string> check)
     {
-        if (sizeof(nint) != 8)
+        bool is64Bit = sizeof(nint) == 8;
+        check(sizeof(Vk.VkDescriptorMappingSourceDataEXT) == (is64Bit ? 56 : 48) &&
+            (int)Marshal.OffsetOf<Vk.VkDescriptorMappingSourceDataEXT>(nameof(Vk.VkDescriptorMappingSourceDataEXT.pushAddressOffset)) == 0 &&
+            sizeof(Vk.VkDescriptorSetAndBindingMappingEXT) == (is64Bit ? 96 : 76) &&
+            (int)Marshal.OffsetOf<Vk.VkDescriptorSetAndBindingMappingEXT>(nameof(Vk.VkDescriptorSetAndBindingMappingEXT.source)) == (is64Bit ? 32 : 24) &&
+            (int)Marshal.OffsetOf<Vk.VkDescriptorSetAndBindingMappingEXT>(nameof(Vk.VkDescriptorSetAndBindingMappingEXT.sourceData)) == (is64Bit ? 40 : 28),
+            "Vulkan descriptor mappings retain the native union layout and array stride for the current pointer width");
+        CheckPointerAlignment<Vk.VkDescriptorMappingSourceDataEXT>(check);
+
+        if (!is64Bit)
         {
             Console.WriteLine("  [SKIP] 64-bit Vulkan ABI offset checks");
             return;
@@ -84,16 +93,10 @@ internal static unsafe class VulkanBindingTests
             (int)Marshal.OffsetOf<Vk.VkGraphicsPipelineCreateInfo>(nameof(Vk.VkGraphicsPipelineCreateInfo.layout)) == 104 &&
             (int)Marshal.OffsetOf<Vk.VkGraphicsPipelineCreateInfo>(nameof(Vk.VkGraphicsPipelineCreateInfo.basePipelineIndex)) == 136,
             "VkGraphicsPipelineCreateInfo retains its 144-byte layout");
-        check(sizeof(Vk.VkDescriptorMappingSourceDataEXT) == 56 &&
-            sizeof(Vk.VkDescriptorSetAndBindingMappingEXT) == 96 &&
-            (int)Marshal.OffsetOf<Vk.VkDescriptorSetAndBindingMappingEXT>(nameof(Vk.VkDescriptorSetAndBindingMappingEXT.source)) == 32 &&
-            (int)Marshal.OffsetOf<Vk.VkDescriptorSetAndBindingMappingEXT>(nameof(Vk.VkDescriptorSetAndBindingMappingEXT.sourceData)) == 40,
-            "VkDescriptorMappingSourceDataEXT preserves its 56-byte size and 8-byte pointer alignment inside VkDescriptorSetAndBindingMappingEXT");
-        CheckAlignment<Vk.VkDescriptorMappingSourceDataEXT>(check);
         check(sizeof(Vk.VkResourceDescriptorDataEXT) == 8 && sizeof(Vk.VkResourceDescriptorInfoEXT) == 32 &&
             (int)Marshal.OffsetOf<Vk.VkResourceDescriptorInfoEXT>(nameof(Vk.VkResourceDescriptorInfoEXT.data)) == 24,
             "VkResourceDescriptorInfoEXT retains its 32-byte layout and 8-byte union at offset 24");
-        CheckAlignment<Vk.VkResourceDescriptorDataEXT>(check);
+        CheckPointerAlignment<Vk.VkResourceDescriptorDataEXT>(check);
         check(sizeof(Vk.VkImageMemoryBarrier2) == 96 &&
             (int)Marshal.OffsetOf<Vk.VkImageMemoryBarrier2>(nameof(Vk.VkImageMemoryBarrier2.oldLayout)) == 48 &&
             (int)Marshal.OffsetOf<Vk.VkImageMemoryBarrier2>(nameof(Vk.VkImageMemoryBarrier2.image)) == 64 &&
@@ -127,11 +130,12 @@ internal static unsafe class VulkanBindingTests
             "parameterless constructors auto-initialize Vulkan sType fields");
     }
 
-    private static void CheckAlignment<T>(Action<bool, string> check) where T : unmanaged
+    private static void CheckPointerAlignment<T>(Action<bool, string> check) where T : unmanaged
     {
         AlignmentProbe<T> probe = new();
-        check((byte*)&probe.Value - (byte*)&probe == 8 && sizeof(AlignmentProbe<T>) == sizeof(T) + 8,
-            $"{typeof(T).Name} preserves native 8-byte alignment when embedded after a byte");
+        int pointerSize = sizeof(nint);
+        check((byte*)&probe.Value - (byte*)&probe == pointerSize && sizeof(AlignmentProbe<T>) == sizeof(T) + pointerSize,
+            $"{typeof(T).Name} preserves native {pointerSize}-byte alignment when embedded after a byte");
     }
 
     [StructLayout(LayoutKind.Sequential)]
