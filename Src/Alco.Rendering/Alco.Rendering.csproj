@@ -10,10 +10,12 @@
     <ProjectReference Include="..\Alco\Alco.csproj" />
     <ProjectReference Include="..\Alco.Graphics\Alco.Graphics.csproj" />
     <ProjectReference Include="..\Alco.IO\Alco.IO.csproj" />
+    <PackageReference Include="SharpAstro.Fonts" Version="2.0.1171" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.0" />
 
   </ItemGroup>
    <ItemGroup>
+    <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SvgRasterize.slang" LogicalName="SvgRasterize.slang" />
     <Content
       Condition="'$(UseAssetsPack)' == 'false'"
       Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">

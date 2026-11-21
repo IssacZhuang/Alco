@@ -70,6 +70,7 @@
   <Folder Name="/Test/">
     <Project Path="Test/Alco.Effects.Test/Alco.Effects.Test.csproj" />
     <Project Path="Test/Alco.Engine.Test/Alco.Engine.Test.csproj" />
+    <Project Path="Test/Alco.GUI.Test/Alco.GUI.Test.csproj" />
     <Project Path="Test/Alco.AgentControlProtocol.Test/Alco.AgentControlProtocol.Test.csproj" />
     <Project Path="Test/Alco.Editor.Test/Alco.Editor.Test.csproj" />
     <Project Path="Test/Alco.Graphics.Test/Alco.Graphics.Test.csproj" />

@@ -1,346 +1,237 @@
 using System.Numerics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 using Alco.Rendering;
-using NUnit.Framework;
 
 namespace Alco.GUI.Test;
 
-/// <summary>Verifies injected canvas material libraries without a game asset system or GPU.</summary>
+/// <summary>NoGPU unit tests covering Canvas batching, custom IUISurface material snapshots, mask modes, and control layout.</summary>
 [TestFixture]
-public sealed class CanvasMaterialTests
+public class CanvasMaterialTests
 {
-    private sealed class RenderingHost : IRenderingSystemHost, IDisposable
-    {
-        /// <summary>Notifies the rendering system that its owner is disposing.</summary>
-        public event Action OnDispose = delegate { };
-        /// <summary>Accepts update subscriptions without scheduling frames.</summary>
-        public event Action<float> OnUpdate { add { } remove { } }
-        /// <summary>Releases rendering-owned resources.</summary>
-        public void Dispose() => OnDispose();
-    }
+    private const string CustomSurfaceSource = """
+        #language slang 2025
+        module NoGpuTestSurface;
 
-    /// <summary>Composes ordinary and asset-based UI materials from explicitly resolved libraries.</summary>
-    [Test]
-    public void InjectedMaterials_WorkWithoutGameSetup()
-    {
-        GPUDevice device = GraphicsDeviceFactory.GetNoGPUDevice();
-        using RenderingHost host = new();
-        RenderingSystem rendering = new(host, device, PixelFormat.RGBA16Float, PixelFormat.Depth24PlusStencil8);
-        ShaderLibrary spriteTemplate = rendering.ShaderSystem.GetLibrary("AlcoRendering_UISprite");
-        ShaderLibrary textTemplate = rendering.ShaderSystem.GetLibrary("AlcoRendering_UIText");
-        ShaderLibrary defaultSurface = rendering.ShaderSystem.GetLibrary("AlcoRendering_UIStandard");
-        using Font font = rendering.CreateFont(rendering.TextureWhite, new GlyphInfo[128]);
-        using Canvas first = rendering.CreateCanvas(new FakeInputTracker(), spriteTemplate, textTemplate, defaultSurface, font);
-        using Canvas second = rendering.CreateCanvas(new FakeInputTracker(), spriteTemplate, textTemplate, defaultSurface, font);
-        MaterialAsset asset = new() { Name = "DefaultUI" };
+        import Core;
+        import SharedSampler;
+        import AlcoGUI_Surface;
 
-        GraphicsMaterial sprite = first.GetSpriteMaterial(asset, BlendState.AlphaBlend);
-        GraphicsMaterial text = first.GetTextMaterial(asset);
-        GraphicsMaterial otherCanvasSprite = second.GetSpriteMaterial(asset, BlendState.AlphaBlend);
-        GraphicsMaterial otherCanvasText = second.GetTextMaterial(asset);
-        GraphicsMaterial defaultSprite = GetDefaultSpriteMaterial(first);
-        GraphicsMaterial defaultText = GetDefaultTextMaterial(first);
-        GraphicsMaterial secondDefaultSprite = GetDefaultSpriteMaterial(second);
-        GraphicsMaterial secondDefaultText = GetDefaultTextMaterial(second);
-
-        Assert.Multiple(() =>
+        public struct NoGpuTestParams
         {
-            Assert.That(sprite.Shader, Is.SameAs(rendering.MaterialCompiler.ComposeGraphics(spriteTemplate, defaultSurface)));
-            Assert.That(text.Shader, Is.SameAs(rendering.MaterialCompiler.ComposeGraphics(textTemplate, defaultSurface)));
-            Assert.That(defaultSprite.Shader, Is.SameAs(sprite.Shader), "Ordinary sprites must use the injected composition.");
-            Assert.That(defaultText.Shader, Is.SameAs(text.Shader), "Ordinary glyphs must use the injected composition.");
-            Assert.That(sprite.Shader, Is.Not.SameAs(text.Shader));
-            Assert.That(defaultSprite.BlendState, Is.EqualTo(BlendState.AlphaBlend));
-            Assert.That(defaultText.BlendState, Is.EqualTo(BlendState.PremultipliedAlpha));
-            Assert.That(defaultSprite.Specializations, Is.EqualTo(new[] { "false" }), "UI nearest defaults to false.");
-            Assert.That(defaultText.Specializations, Is.EqualTo(new[] { "false" }), "UI nearest defaults to false.");
-            Assert.That(sprite.Specializations, Is.EqualTo(new[] { "false" }));
-            Assert.That(text.Specializations, Is.EqualTo(new[] { "false" }));
-            Assert.That(first.GetSpriteMaterial(asset, BlendState.AlphaBlend), Is.SameAs(sprite));
-            Assert.That(first.GetTextMaterial(asset), Is.SameAs(text));
-            Assert.That(text.BlendState, Is.EqualTo(BlendState.PremultipliedAlpha));
-            Assert.That(first.GetSpriteMaterial(asset, BlendState.PremultipliedAlpha), Is.Not.SameAs(sprite));
-            Assert.That(otherCanvasSprite, Is.Not.SameAs(sprite));
-            Assert.That(otherCanvasSprite.Shader, Is.SameAs(sprite.Shader));
-            Assert.That(otherCanvasText, Is.Not.SameAs(text));
-            Assert.That(otherCanvasText.Shader, Is.SameAs(text.Shader));
-            Assert.That(secondDefaultSprite, Is.Not.SameAs(defaultSprite));
-            Assert.That(secondDefaultSprite.Shader, Is.SameAs(defaultSprite.Shader));
-            Assert.That(secondDefaultText, Is.Not.SameAs(defaultText));
-            Assert.That(secondDefaultText.Shader, Is.SameAs(defaultText.Shader));
-            Assert.That(GetEffectiveTexture(defaultSprite, ShaderResourceId.Texture), Is.SameAs(rendering.TextureWhite));
-            Assert.That(asset.Surface, Is.Null, "Selecting the UI default must not mutate the asset.");
-            Assert.That(asset.Textures, Is.Empty);
-            Assert.That(asset.Parameters, Is.Empty);
-            Assert.That(asset.Specializations, Is.Empty);
-            Assert.Throws<InvalidDataException>(() => rendering.MaterialCompiler.SurfaceOf(asset),
-                "Canvas defaults must not configure the rendering-owned compiler.");
-        });
-
-        defaultSprite.SetTexture(ShaderResourceId.Texture, rendering.TextureBlack);
-        Assert.That(GetEffectiveTexture(secondDefaultSprite, ShaderResourceId.Texture), Is.SameAs(rendering.TextureWhite),
-            "Ordinary drawing bindings must remain canvas-local.");
-
-        sprite.Dispose();
-        GraphicsMaterial recreated = first.GetSpriteMaterial(asset, BlendState.AlphaBlend);
-        Assert.Multiple(() =>
-        {
-            Assert.That(recreated, Is.Not.SameAs(sprite));
-            Assert.That(recreated.Shader, Is.SameAs(sprite.Shader));
-        });
-    }
-
-    /// <summary>Uses replacement templates and fallback surfaces without looking up built-in UI modules.</summary>
-    [Test]
-    public void InjectedLibraries_ReplaceTemplatesAndDefaultSurface()
-    {
-        const string spriteModule = "CanvasTest_Sprite";
-        const string textModule = "CanvasTest_Text";
-        const string surfaceModule = "CanvasTest_Surface";
-        const string alternateSurfaceModule = "CanvasTest_AlternateSurface";
-        Dictionary<string, string> files = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["AlcoRendering_Core.slang"] = ReadDeployedModule("AlcoRendering_Core"),
-            ["AlcoRendering_UI.slang"] = ReadDeployedModule("AlcoRendering_UI"),
-            [$"{spriteModule}.slang"] = ReadDeployedModule("AlcoRendering_UISprite")
-                .Replace("AlcoRendering_UISprite", spriteModule),
-            [$"{textModule}.slang"] = ReadDeployedModule("AlcoRendering_UIText")
-                .Replace("AlcoRendering_UIText", textModule),
-            [$"{surfaceModule}.slang"] = ReadDeployedModule("AlcoRendering_UIStandard")
-                .Replace("AlcoRendering_UIStandard", surfaceModule),
-            [$"{alternateSurfaceModule}.slang"] = ReadDeployedModule("AlcoRendering_UIStandard")
-                .Replace("AlcoRendering_UIStandard", alternateSurfaceModule)
-                .Replace("public Texture2D texture;", "public Texture2D texture; public Texture2D injectedTexture;")
-                .Replace("return material.texture.Sample(input.mainSampler, input.uv) * input.tint;",
-                    "return material.texture.Sample(input.mainSampler, input.uv) * material.injectedTexture.Sample(input.mainSampler, input.uv) * input.tint;"),
+            public float4 Accent;
+            public float MixAmount;
+            public float3 _Pad;
         };
-        SlangFileResolver resolver = ShaderModuleResolver.Create(
-            path => files.TryGetValue(path, out string? source) ? new MemoryStream(Encoding.UTF8.GetBytes(source)) : null,
-            () => files.Keys);
-        GPUDevice device = GraphicsDeviceFactory.GetNoGPUDevice();
-        using RenderingHost host = new();
-        RenderingSystem rendering = new(host, device, PixelFormat.RGBA16Float, PixelFormat.Depth24PlusStencil8, resolver);
-        ShaderSystem shaders = rendering.ShaderSystem;
-        ShaderLibrary spriteTemplate = shaders.GetLibrary(spriteModule);
-        ShaderLibrary textTemplate = shaders.GetLibrary(textModule);
-        ShaderLibrary defaultSurface = shaders.GetLibrary(surfaceModule);
-        ShaderLibrary alternateSurface = shaders.GetLibrary(alternateSurfaceModule);
-        using Font font = rendering.CreateFont(rendering.TextureWhite, new GlyphInfo[128]);
-        using Canvas first = rendering.CreateCanvas(new FakeInputTracker(), spriteTemplate, textTemplate, defaultSurface, font);
-        using Canvas second = new(rendering, new FakeInputTracker(), spriteTemplate, textTemplate, alternateSurface, font);
-        MaterialAsset asset = new() { Name = "InjectedDefaultUI" };
-        GraphicsMaterial sprite = first.GetSpriteMaterial(asset, BlendState.AlphaBlend);
-        GraphicsMaterial text = first.GetTextMaterial(asset);
-        GraphicsMaterial alternateSprite = second.GetSpriteMaterial(asset, BlendState.AlphaBlend);
-        GraphicsMaterial alternateText = second.GetTextMaterial(asset);
-        GraphicsMaterial defaultSprite = GetDefaultSpriteMaterial(second);
-        GraphicsMaterial defaultText = GetDefaultTextMaterial(second);
-        MaterialAsset explicitAsset = new() { Name = "ExplicitUI", Surface = defaultSurface };
 
-        Assert.Multiple(() =>
+        public struct NoGpuTestSurface : IUISurface
         {
-            Assert.That(sprite.Shader, Is.SameAs(rendering.MaterialCompiler.ComposeGraphics(spriteTemplate, defaultSurface)));
-            Assert.That(text.Shader, Is.SameAs(rendering.MaterialCompiler.ComposeGraphics(textTemplate, defaultSurface)));
-            Assert.That(GetDefaultSpriteMaterial(first).Shader, Is.SameAs(sprite.Shader));
-            Assert.That(GetDefaultTextMaterial(first).Shader, Is.SameAs(text.Shader));
-            Assert.That(alternateSprite.Shader, Is.SameAs(rendering.MaterialCompiler.ComposeGraphics(spriteTemplate, alternateSurface)));
-            Assert.That(alternateText.Shader, Is.SameAs(rendering.MaterialCompiler.ComposeGraphics(textTemplate, alternateSurface)));
-            Assert.That(defaultSprite.Shader, Is.SameAs(alternateSprite.Shader));
-            Assert.That(defaultText.Shader, Is.SameAs(alternateText.Shader));
-            Assert.That(alternateSprite.Shader, Is.Not.SameAs(sprite.Shader));
-            Assert.That(alternateText.Shader, Is.Not.SameAs(text.Shader));
-            Assert.That(sprite.TryGetResourceId("injectedTexture", out _), Is.False);
-            Assert.That(text.TryGetResourceId("injectedTexture", out _), Is.False);
-            Assert.That(defaultSprite.TryGetResourceId("injectedTexture", out _), Is.True,
-                "The injected surface must change the ordinary sprite's linked resource layout.");
-            Assert.That(defaultText.TryGetResourceId("injectedTexture", out _), Is.True,
-                "The injected surface must change the ordinary text's linked resource layout.");
-            Assert.That(GetEffectiveTexture(defaultSprite, "injectedTexture"), Is.SameAs(rendering.TextureWhite));
-            Assert.That(GetEffectiveTexture(defaultText, "injectedTexture"), Is.SameAs(rendering.TextureWhite));
-            Assert.That(defaultSprite.Specializations, Is.EqualTo(new[] { "false" }));
-            Assert.That(defaultText.Specializations, Is.EqualTo(new[] { "false" }));
-            Assert.That(alternateSprite.Specializations, Is.EqualTo(new[] { "false" }));
-            Assert.That(alternateText.Specializations, Is.EqualTo(new[] { "false" }));
-            Assert.That(second.GetSpriteMaterial(explicitAsset, BlendState.AlphaBlend).Shader, Is.SameAs(sprite.Shader),
-                "An authored surface must take precedence over the injected fallback.");
-            Assert.That(second.GetTextMaterial(explicitAsset).Shader, Is.SameAs(text.Shader));
-            Assert.That(explicitAsset.Surface, Is.SameAs(defaultSurface));
-            Assert.That(asset.Surface, Is.Null);
-            Assert.That(asset.Textures, Is.Empty);
-            Assert.That(asset.Parameters, Is.Empty);
-            Assert.That(asset.Specializations, Is.Empty);
-            Assert.Throws<InvalidDataException>(() => rendering.MaterialCompiler.SurfaceOf(asset));
-            Assert.That(shaders.Modules.GetModuleSource("AlcoRendering_UISprite"), Is.Null);
-            Assert.That(shaders.Modules.GetModuleSource("AlcoRendering_UIText"), Is.Null);
-            Assert.That(shaders.Modules.GetModuleSource("AlcoRendering_UIStandard"), Is.Null);
-        });
-    }
-
-    /// <summary>The canvas cache must not keep otherwise unused material assets alive.</summary>
-    [Test]
-    public void MaterialCache_DoesNotRetainUnusedAssets()
-    {
-        GPUDevice device = GraphicsDeviceFactory.GetNoGPUDevice();
-        using RenderingHost host = new();
-        RenderingSystem rendering = new(host, device, PixelFormat.RGBA16Float, PixelFormat.Depth24PlusStencil8);
-        ShaderLibrary spriteTemplate = rendering.ShaderSystem.GetLibrary("AlcoRendering_UISprite");
-        ShaderLibrary textTemplate = rendering.ShaderSystem.GetLibrary("AlcoRendering_UIText");
-        ShaderLibrary defaultSurface = rendering.ShaderSystem.GetLibrary("AlcoRendering_UIStandard");
-        using Font font = rendering.CreateFont(rendering.TextureWhite, new GlyphInfo[128]);
-        using Canvas canvas = rendering.CreateCanvas(new FakeInputTracker(), spriteTemplate, textTemplate, defaultSurface, font);
-        WeakReference<MaterialAsset> asset = CacheTemporaryAsset(canvas);
-
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        Assert.That(asset.TryGetTarget(out _), Is.False);
-        GC.KeepAlive(canvas);
-    }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static WeakReference<MaterialAsset> CacheTemporaryAsset(Canvas canvas)
-    {
-        MaterialAsset asset = new() { Name = "TemporaryUI" };
-        canvas.GetSpriteMaterial(asset, BlendState.AlphaBlend);
-        return new WeakReference<MaterialAsset>(asset);
-    }
-
-    /// <summary>Keeps node overrides isolated and recreates instances when moved to another canvas.</summary>
-    [Test]
-    public void NodeInstances_AreIsolatedAndFollowTheirCanvas()
-    {
-        GPUDevice device = GraphicsDeviceFactory.GetNoGPUDevice();
-        using RenderingHost host = new();
-        RenderingSystem rendering = new(host, device, PixelFormat.RGBA16Float, PixelFormat.Depth24PlusStencil8);
-        ShaderLibrary spriteTemplate = rendering.ShaderSystem.GetLibrary("AlcoRendering_UISprite");
-        ShaderLibrary textTemplate = rendering.ShaderSystem.GetLibrary("AlcoRendering_UIText");
-        ShaderLibrary defaultSurface = rendering.ShaderSystem.GetLibrary("AlcoRendering_UIStandard");
-        using Font font = rendering.CreateFont(rendering.TextureWhite, new GlyphInfo[128]);
-        using Canvas first = rendering.CreateCanvas(new FakeInputTracker(), spriteTemplate, textTemplate, defaultSurface, font);
-        using Canvas second = rendering.CreateCanvas(new FakeInputTracker(), spriteTemplate, textTemplate, defaultSurface, font);
-        MaterialAsset asset = new() { Name = "SharedUI" };
-        UIImage image = new() { Material = asset, Size = new Vector2(100f) };
-        UIImage other = new() { Material = asset, Size = new Vector2(100f) };
-        UIText text = new() { Material = asset, Font = font, Size = new Vector2(100f) };
-        UIGeometryIcon icon = new() { Material = asset, Size = new Vector2(100f) };
-        first.Root.Add(image);
-        image.Texture = rendering.TextureWhite;
-        first.Root.Add(other);
-        first.Root.Add(text);
-        first.Root.Add(icon);
-
-        GraphicsMaterialInstance imageInstance = image.GetMaterialInstance(first);
-        GraphicsMaterialInstance otherInstance = other.GetMaterialInstance(first);
-        GraphicsMaterialInstance textInstance = text.GetMaterialInstance(first);
-        GraphicsMaterialInstance iconInstance = icon.GetMaterialInstance(first);
-        Assert.Multiple(() =>
-        {
-            Assert.That(image.GetMaterialInstance(first), Is.SameAs(imageInstance));
-            Assert.That(otherInstance, Is.Not.SameAs(imageInstance));
-            Assert.That(text.GetMaterialInstance(first), Is.SameAs(textInstance));
-            Assert.That(icon.GetMaterialInstance(first), Is.SameAs(iconInstance));
-            Assert.That(iconInstance.BlendState, Is.EqualTo(BlendState.PremultipliedAlpha));
-        });
-
-        ShaderParameterSet imageParameters = GetParameters(imageInstance);
-        Assert.That(imageParameters.GetTexture(ShaderResourceId.Texture), Is.SameAs(rendering.TextureWhite));
-        image.Texture = null;
-        Assert.That(image.GetMaterialInstance(first), Is.SameAs(imageInstance));
-        Assert.That(imageParameters.GetTexture(ShaderResourceId.Texture), Is.Null);
-        using GraphicsMaterialInstance fresh = first.CreateUIMaterialInstance(first.GetSpriteMaterial(asset, BlendState.AlphaBlend));
-        uint textureId = imageInstance.GetResourceId(ShaderResourceId.Texture);
-        int textureGroup = imageInstance.ReflectionInfo.ResourceLocations[(int)textureId].GroupIndex;
-        Assert.That(imageInstance[textureGroup], Is.Not.Null);
-        Assert.That(fresh[textureGroup], Is.Not.Null);
-
-        first.Root.Remove(image);
-        Assert.That(imageInstance.IsDisposed, Is.True);
-        second.Root.Add(image);
-        using GraphicsMaterialInstance moved = image.GetMaterialInstance(second);
-        using GraphicsMaterialInstance cameraReference = second.CreateUIMaterialInstance(second.GetSpriteMaterial(asset, BlendState.AlphaBlend));
-        ShaderParameterSet movedParameters = GetParameters(moved);
-        ShaderParameterSet referenceParameters = GetParameters(cameraReference);
-        Assert.That(movedParameters.TryGetBuffer(ShaderResourceId.Camera, out GraphicsBuffer? movedCamera), Is.True);
-        Assert.That(referenceParameters.TryGetBuffer(ShaderResourceId.Camera, out GraphicsBuffer? expectedCamera), Is.True);
-        Assert.Multiple(() =>
-        {
-            Assert.That(moved, Is.Not.SameAs(imageInstance));
-            Assert.That(movedCamera, Is.SameAs(expectedCamera));
-        });
-
-        other.Material = null;
-        Assert.That(otherInstance.IsDisposed, Is.True);
-        Assert.Throws<InvalidOperationException>(() => other.GetMaterialInstance(first));
-        text.Material = null;
-        icon.Material = null;
-        Assert.Multiple(() =>
-        {
-            Assert.That(textInstance.IsDisposed, Is.True);
-            Assert.That(iconInstance.IsDisposed, Is.True);
-        });
-
-        UIInputBox input = new() { Size = new Vector2(100f) };
-        second.Root.Add(input);
-        second.SetTextInputArea(input, input.Bound, 0);
-        Assert.That(second.IsCapturingKeyboard, Is.True);
-        second.Dispose();
-        Assert.Multiple(() =>
-        {
-            Assert.That(moved.IsDisposed, Is.True);
-            Assert.That(image.Parent, Is.Null);
-            Assert.That(second.IsCapturingKeyboard, Is.False);
-            Assert.That(((FakeInputTracker)second.InputTracker).TextInputRequestCount, Is.EqualTo(1));
-            Assert.That(((FakeInputTracker)second.InputTracker).TextInputReleaseCount, Is.EqualTo(1));
-        });
-    }
-
-    private static string ReadDeployedModule(string module)
-    {
-        string shaders = Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders");
-        string path = Directory.EnumerateFiles(shaders, $"{module}.slang", SearchOption.AllDirectories).Single();
-        return File.ReadAllText(path);
-    }
-
-    private static GraphicsMaterial GetDefaultSpriteMaterial(Canvas canvas)
-    {
-        SpriteRenderer renderer = GetPrivateField<SpriteRenderer>(canvas, "_spriteRenderer");
-        return GetPrivateField<GraphicsMaterial>(renderer, "_material");
-    }
-
-    private static GraphicsMaterial GetDefaultTextMaterial(Canvas canvas)
-    {
-        TextRenderer renderer = GetPrivateField<TextRenderer>(canvas, "_textRenderer");
-        return GetPrivateField<GraphicsMaterial>(renderer, "_material");
-    }
-
-    private static T GetPrivateField<T>(object owner, string name)
-    {
-        return (T)owner.GetType().GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(owner)!;
-    }
-
-    private static Texture2D? GetEffectiveTexture(GraphicsMaterial material, string name)
-    {
-        ShaderParameterSet? parameters = GetParameters(material);
-        while (parameters != null)
-        {
-            if (parameters.TryGetTexture(name, out Texture2D? texture))
+            public typedef NoGpuTestParams Params;
+            public float4 Shade(UISurfaceInput input, Params p)
             {
-                return texture;
+                return lerp(input.BaseColor, float4(p.Accent.rgb * p.Accent.a, p.Accent.a), p.MixAmount);
             }
-            parameters = (ShaderParameterSet?)typeof(ShaderParameterSet)
-                .GetProperty("Fallback", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(parameters);
+        };
+        """;
+
+    private sealed class MutatingImage(Action onBeforeDraw) : UIImage
+    {
+        protected override void OnUpdate(Canvas canvas, float delta)
+        {
+            onBeforeDraw();
+            base.OnUpdate(canvas, delta);
         }
-        return null;
     }
 
-    private static ShaderParameterSet GetParameters(GraphicsMaterial material)
+    /// <summary>Verifies custom surface composition, merging of identical parameter bytes, and splitting upon mid-frame mutation.</summary>
+    [Test]
+    public void CustomMaterial_MergesIdenticalAndSplitsOnMidFrameMutation()
     {
-        return (ShaderParameterSet)typeof(GraphicsMaterial)
-            .GetProperty("Parameters", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(material)!;
+        using UITestHost host = new(GraphicsBackend.NoGPU);
+        Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
+        using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(128, 128));
+        Texture target = host.CreateColorTarget(128, 128);
+        Texture stencil = host.CreateStencilTarget(128, 128);
+        try
+        {
+            Material mat = canvas.CreateCustomSurfaceMaterialFromSource(
+                "NoGpuTestSurface", "NoGpuTestSurface.slang", CustomSurfaceSource, "NoGpuCustom");
+            Vector4 red = new(1, 0, 0, 1);
+            float mix = 0.5f;
+            mat.SetData("Material.Accent", ref red);
+            mat.SetData("Material.MixAmount", ref mix);
+
+            UIImage a = new() { Size = new Vector2(32, 32), Position = new Vector2(-20, 0), Material = mat };
+            UIImage b = new() { Size = new Vector2(32, 32), Position = new Vector2(20, 0), Material = mat };
+            canvas.Root.Add(a);
+            canvas.Root.Add(b);
+
+            canvas.Tick(0f);
+            canvas.PrepareRender(0f);
+            host.Context.BeginFrame();
+            UIFrameStats merged = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
+            host.Context.Submit().Wait();
+            Assert.That(merged.QuadCount, Is.EqualTo(2));
+            Assert.That(merged.ContentDraws, Is.EqualTo(1), "Consecutive identical custom material bytes must merge.");
+
+            // Replace b with a node that mutates mat mid-frame -> must split into 2 draws!
+            canvas.Root.Remove(b);
+            Vector4 blue = new(0, 0, 1, 1);
+            MutatingImage mutator = new(() => mat.SetData("Material.Accent", ref blue))
+            {
+                Size = new Vector2(32, 32),
+                Position = new Vector2(20, 0),
+                Material = mat,
+            };
+            canvas.Root.Add(mutator);
+
+            canvas.Tick(0f);
+            canvas.PrepareRender(0f);
+            host.Context.BeginFrame();
+            UIFrameStats split = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
+            host.Context.Submit().Wait();
+            Assert.That(split.QuadCount, Is.EqualTo(2));
+            Assert.That(split.ContentDraws, Is.EqualTo(2), "Mid-frame mutation on shared Material must snapshot per run and split draw.");
+        }
+        finally
+        {
+            stencil.Destroy();
+            target.Destroy();
+        }
+    }
+
+    /// <summary>Verifies scissor fast-path, rotated/textured stencil push-pop, empty mask elision, and no-stencil fallback.</summary>
+    [Test]
+    public void Masks_ClassifyScissorVsStencilElideEmptyAndFallbackWithoutStencil()
+    {
+        using UITestHost host = new(GraphicsBackend.NoGPU);
+        Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
+        using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(128, 128));
+        using Texture2D maskTex = host.CreateRgba8Texture(2, 2, [255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0]);
+        Texture target = host.CreateColorTarget(128, 128);
+        Texture stencil = host.CreateStencilTarget(128, 128);
+        try
+        {
+            // 1. Axis-aligned untextured mask -> Scissor only, zero mask draws.
+            UIMask scissorMask = new() { Size = new Vector2(40, 40) };
+            scissorMask.Add(new UIImage { Size = new Vector2(30, 30) });
+            canvas.Root.Add(scissorMask);
+
+            canvas.PrepareRender(0f);
+            host.Context.BeginFrame();
+            UIFrameStats s1 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
+            host.Context.Submit().Wait();
+            Assert.That(s1.ScissorMaskCount, Is.EqualTo(1));
+            Assert.That(s1.StencilMaskCount, Is.EqualTo(0));
+            Assert.That(s1.MaskDraws, Is.EqualTo(0));
+            Assert.That(s1.ContentDraws, Is.EqualTo(1));
+
+            // 2. Empty stencil mask (rotated, no children) -> Elided completely.
+            canvas.Root.RemoveAllChildren();
+            UIMask emptyRotated = new() { Size = new Vector2(40, 40), LocalTransform = new Transform2D(Vector2.Zero, new Rotation2D(45f)) };
+            canvas.Root.Add(emptyRotated);
+
+            canvas.PrepareRender(0f);
+            host.Context.BeginFrame();
+            UIFrameStats s2 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
+            host.Context.Submit().Wait();
+            Assert.That(s2.ElidedMaskCount, Is.EqualTo(1));
+            Assert.That(s2.StencilMaskCount, Is.EqualTo(0));
+            Assert.That(s2.MaskDraws, Is.EqualTo(0));
+
+            // 3. Textured mask with visible child -> Push + Pop stencil draws (2).
+            canvas.Root.RemoveAllChildren();
+            UIMask textured = new() { Size = new Vector2(40, 40), Texture = maskTex };
+            textured.Add(new UIImage { Size = new Vector2(30, 30) });
+            canvas.Root.Add(textured);
+
+            canvas.PrepareRender(0f);
+            host.Context.BeginFrame();
+            UIFrameStats s3 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128), stencil.RenderView, Format.S8Uint);
+            host.Context.Submit().Wait();
+            Assert.That(s3.StencilMaskCount, Is.EqualTo(1));
+            Assert.That(s3.MaskDraws, Is.EqualTo(2));
+            Assert.That(s3.ContentDraws, Is.EqualTo(1));
+
+            // 4. Same textured/rotated tree without stencil attachment -> graceful fallback with 0 mask draws.
+            canvas.PrepareRender(0f);
+            host.Context.BeginFrame();
+            UIFrameStats s4 = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128));
+            host.Context.Submit().Wait();
+            Assert.That(s4.MaskDraws, Is.EqualTo(0));
+            Assert.That(s4.ContentDraws, Is.EqualTo(1));
+        }
+        finally
+        {
+            stencil.Destroy();
+            target.Destroy();
+        }
+    }
+
+    /// <summary>Verifies compressed 9-slice clamping, rich text + wrapping with Rune, UIInputBox selection, and control Material properties.</summary>
+    [Test]
+    public void Controls_SupportMaterialNineSliceClampingRichTextAndInputBox()
+    {
+        using UITestHost host = new(GraphicsBackend.NoGPU);
+        Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
+        using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(200, 200));
+        using Texture2D tex = host.CreateRgba8Texture(32, 32, new byte[32 * 32 * 4]);
+        Texture target = host.CreateColorTarget(200, 200);
+        try
+        {
+            Material custom = canvas.CreateCustomSurfaceMaterialFromSource(
+                "NoGpuTestSurface", "NoGpuTestSurface.slang", CustomSurfaceSource, "ControlCustom");
+
+            // Compressed 9-slice: Size=10x10 smaller than borders (16+16) -> 4 positive patches (single draw!)
+            UIImage sliced = new()
+            {
+                Texture = tex,
+                ImageType = ImageType.Sliced,
+                SliceBorders = new Vector4(16, 16, 16, 16),
+                Size = new Vector2(10, 10),
+                Material = custom,
+            };
+
+            UIText rich = new()
+            {
+                Font = font,
+                FontSize = 14,
+                Size = new Vector2(60, 80),
+                OverflowHorizontal = OverflowModeHorizontal.NextLine,
+                IsRichText = true,
+                Text = "Hello <color=#ff0000>World</color> 😊",
+                Material = custom,
+            };
+
+            UIInputBox input = new()
+            {
+                Font = font,
+                FontSize = 14,
+                Size = new Vector2(80, 30),
+                Text = "Editable",
+            };
+            input.SelectAll();
+
+            UIGeometryIcon icon = new() { Size = new Vector2(32, 32), Material = custom };
+            Assert.That(icon.Material, Is.SameAs(custom));
+
+            canvas.Root.Add(sliced);
+            canvas.Root.Add(rich);
+            canvas.Root.Add(input);
+            canvas.Root.Add(icon);
+
+            canvas.Tick(0f);
+            canvas.PrepareRender(0f);
+            host.Context.BeginFrame();
+            UIFrameStats stats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(200, 200));
+            host.Context.Submit().Wait();
+
+            Assert.That(stats.QuadCount, Is.GreaterThanOrEqualTo(10));
+            Assert.That(rich.ContentHeight, Is.GreaterThan(14f), "Wrapped rich text + emoji should span multiple lines cleanly.");
+        }
+        finally
+        {
+            target.Destroy();
+        }
     }
 }
-

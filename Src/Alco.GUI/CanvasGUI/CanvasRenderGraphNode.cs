@@ -1,0 +1,77 @@
+using System.Numerics;
+using Alco.Graphics;
+using Alco.Graphics.LowLevel;
+
+namespace Alco.GUI;
+
+/// <summary>RenderGraph node that prepares, uploads, and draws a <see cref="Canvas"/> with transient <c>S8Uint</c> stencil masking.</summary>
+public sealed class CanvasRenderGraphNode : RenderGraphNode
+{
+    private readonly Canvas _canvas;
+    private readonly RenderChain? _chain;
+    private readonly LoadOp _colorLoadOp;
+    private readonly Vector4 _clearColor;
+
+    private RGTexture _colorTarget;
+    private RGTexture _stencilTarget;
+
+    /// <summary>Creates a render graph overlay node driving <paramref name="canvas"/>.</summary>
+    /// <param name="canvas">The UI canvas to prepare and draw each frame.</param>
+    /// <param name="chain">Optional linear render chain; when null the pass targets <see cref="RenderGraphBuilder.Output"/>.</param>
+    /// <param name="colorLoadOp">Color load operation (<see cref="LoadOp.Load"/> compositing onto scene vs <see cref="LoadOp.Clear"/>).</param>
+    /// <param name="clearColor">Clear color used when <paramref name="colorLoadOp"/> is <see cref="LoadOp.Clear"/>.</param>
+    /// <param name="name">Diagnostic render pass name.</param>
+    public CanvasRenderGraphNode(
+        Canvas canvas,
+        RenderChain? chain = null,
+        LoadOp colorLoadOp = LoadOp.Load,
+        Vector4 clearColor = default,
+        string name = "AlcoGUI")
+        : base(name)
+    {
+        _canvas = canvas ?? throw new ArgumentNullException(nameof(canvas));
+        _chain = chain;
+        _colorLoadOp = colorLoadOp;
+        _clearColor = clearColor;
+    }
+
+    /// <summary>The canvas driven by this node.</summary>
+    public Canvas Canvas => _canvas;
+
+    /// <inheritdoc/>
+    protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
+    {
+        _colorTarget = _chain != null ? _chain.Current : builder.Output;
+        if (_colorLoadOp == LoadOp.Load)
+            pass.ReadWrite(_colorTarget, RGUsage.ColorAttachment);
+        else
+            pass.Write(_colorTarget, RGUsage.ColorAttachmentWrite);
+
+        _stencilTarget = builder.CreateTexture(new RGTextureDesc
+        {
+            Name = $"{Name}_Stencil",
+            Format = Format.S8Uint,
+            Usage = TextureUsage.DepthStencilAttachment,
+        });
+        pass.Write(_stencilTarget, RGUsage.DepthStencil);
+    }
+
+    /// <inheritdoc/>
+    protected override void ExecutePass(in RenderGraphContext context)
+    {
+        _canvas.PrepareRender(context.DeltaTime);
+        Format colorFormat = context.GetFormat(_colorTarget);
+        GPURenderView colorView = context.GetRenderView(_colorTarget);
+        GPURenderView stencilView = context.GetRenderView(_stencilTarget);
+
+        _canvas.Draw(
+            context.RenderContext,
+            colorView,
+            colorFormat,
+            context.Viewport,
+            stencilView,
+            Format.S8Uint,
+            _colorLoadOp,
+            _clearColor);
+    }
+}

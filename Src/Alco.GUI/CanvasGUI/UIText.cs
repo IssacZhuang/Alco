@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Text;
 using Alco.Graphics;
 using Alco.Rendering;
 
@@ -35,9 +36,6 @@ public class UIText : UISelectable
     private int _richTextLength;
     private List<TextSlice>? _richSlices;
     private ArrayBuffer<TextSlice>? _lineSlices;
-    private MaterialAsset? _material;
-    private GraphicsMaterialInstance? _materialInstance;
-    private Canvas? _materialCanvas;
 
     /// <summary>
     /// The font for rendering text. The text will not display if the font is null.
@@ -45,25 +43,8 @@ public class UIText : UISelectable
     /// <value></value>
     public Font? Font { get; set; }
 
-    /// <summary>
-    /// The material asset whose surface shades the glyphs instead of the plain text
-    /// material. The surface must implement the engine's <c>IUISurface</c> protocol
-    /// and return straight RGBA; the text pass applies glyph coverage and
-    /// premultiplies the output.
-    /// </summary>
-    public MaterialAsset? Material
-    {
-        get => _material;
-        set
-        {
-            if (_material == value)
-            {
-                return;
-            }
-            _material = value;
-            DisposeMaterialInstance();
-        }
-    }
+    /// <summary>Optional custom <c>AlcoGUI_Pass</c> surface material shading glyphs instead of the default text shader.</summary>
+    public Material? Material { get; set; }
 
     /// <summary>
     /// The font size for rendering text.
@@ -229,92 +210,34 @@ public class UIText : UISelectable
         set => _textPivot.X = value;
     }
 
-    /// <summary>
-    /// Creates a non-interactable text node.
-    /// </summary>
+    /// <summary>Creates a non-interactable text node.</summary>
     public UIText()
     {
-        //default false, override by InputBox
         IsInteractable = false;
-    }
-
-    /// <summary>
-    /// Gets this node's material instance, creating it with the canvas camera and
-    /// stencil state when needed. Overrides on the returned instance do not modify
-    /// the shared base material and are preserved while the instance is reused.
-    /// </summary>
-    /// <param name="canvas">The canvas that will draw the text.</param>
-    /// <returns>The instance used for drawing, valid until the material or canvas
-    /// changes, the node detaches, or the instance is disposed.</returns>
-    /// <exception cref="InvalidOperationException"><see cref="Material"/> is null.</exception>
-    public GraphicsMaterialInstance GetMaterialInstance(Canvas canvas)
-    {
-        if (_material == null)
-        {
-            throw new InvalidOperationException($"UIText '{Name}': Material must be set before requesting a material instance.");
-        }
-
-        if (_materialInstance == null || _materialInstance.IsDisposed || !ReferenceEquals(_materialCanvas, canvas))
-        {
-            DisposeMaterialInstance();
-            _materialInstance = canvas.CreateUIMaterialInstance(canvas.GetTextMaterial(_material));
-            _materialCanvas = canvas;
-        }
-
-        return _materialInstance;
-    }
-
-    private void DisposeMaterialInstance()
-    {
-        _materialInstance?.Dispose();
-        _materialInstance = null;
-        _materialCanvas = null;
-    }
-
-    protected override void OnDetachFromTree(Canvas canvas)
-    {
-        DisposeMaterialInstance();
-        base.OnDetachFromTree(canvas);
     }
 
     protected unsafe override void OnUpdate(Canvas canvas, float delta)
     {
         base.OnUpdate(canvas, delta);
         if (Font == null)
-        {
             return;
-        }
-
-        if (_material != null)
-        {
-            GetMaterialInstance(canvas);
-        }
 
         if (_isTmpStrWriteDirty)
-        {
             SetText(_tmpStr);
-        }
 
         if (_isLineBreakDirty)
-        {
             TryRefreshTextLineBreak();
-        }
 
         Span<char> renderText = RenderTextSpan;
         if (renderText.Length == 0)
-        {
             return;
-        }
 
-
-        //use local transform
         Transform2D transform = Transform2D.Identity;
         transform.Position = Size * TextPivot;
         transform.Scale = new Vector2(FontSize);
-        float lineHeight = LineSpacing* FontSize;
+        float lineHeight = LineSpacing * FontSize;
         float offsetY = (_lines.Count - 1) * lineHeight * (0.5f - TextPivot.Y);
         transform.Position.Y += offsetY;
-
 
         for (int i = 0; i < _lines.Count; i++)
         {
@@ -376,10 +299,10 @@ public class UIText : UISelectable
     {
         if (_isRichText && _richSlices!.Count > 0)
         {
-            canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, GetLineSlices(line), 1f, _materialInstance);
+            canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, GetLineSlices(line), 1f, Material);
             return;
         }
-        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, 1f, _materialInstance);
+        canvas.DrawChars(Font!, chars, math.transform(WorldTransform, textLineTransform).Matrix, TextPivot, RenderColor, 1f, Material);
     }
 
     /// <summary>
@@ -536,15 +459,17 @@ public class UIText : UISelectable
         int lastBreakIndex = -1;
         float lastBreakWidth = 0;
 
-        for (int i = 0; i < text.Length; i++)
+        for (int i = 0; i < text.Length;)
         {
-            char c = text[i];
-            GlyphInfo glyph = Font!.GetGlyph(c);
-            float charWidth = glyph.Advance;
-
-            if (c == '\n' || c == '\r')
+            if (Rune.DecodeFromUtf16(text[i..], out Rune rune, out int consumed) != System.Buffers.OperationStatus.Done)
             {
-                currentLineCount++;
+                rune = Rune.ReplacementChar;
+                consumed = Math.Max(1, consumed);
+            }
+
+            if (rune.Value is '\n' or '\r')
+            {
+                currentLineCount += consumed;
                 _lines.Add(new Line
                 {
                     start = currentLineStart,
@@ -552,13 +477,15 @@ public class UIText : UISelectable
                     width = currentLineWidth
                 });
 
-                currentLineStart = i + 1;
+                i += consumed;
+                currentLineStart = i;
                 currentLineCount = 0;
                 currentLineWidth = 0;
                 lastBreakIndex = -1;
                 continue;
             }
 
+            float charWidth = Font!.GetAdvance(rune);
             if (_overflowHorizontal == OverflowModeHorizontal.NextLine && (currentLineWidth + charWidth) * _fontSize > Size.X)
             {
                 if (lastBreakIndex != -1 && lastBreakIndex >= currentLineStart)
@@ -566,11 +493,11 @@ public class UIText : UISelectable
                     _lines.Add(new Line
                     {
                         start = currentLineStart,
-                        count = lastBreakIndex - currentLineStart + 1,
+                        count = lastBreakIndex - currentLineStart,
                         width = lastBreakWidth
                     });
 
-                    currentLineStart = lastBreakIndex + 1;
+                    currentLineStart = lastBreakIndex;
                     i = lastBreakIndex;
                     currentLineCount = 0;
                     currentLineWidth = 0;
@@ -587,7 +514,6 @@ public class UIText : UISelectable
                     });
 
                     currentLineStart = i;
-                    i--;
                     currentLineCount = 0;
                     currentLineWidth = 0;
                     lastBreakIndex = -1;
@@ -596,9 +522,10 @@ public class UIText : UISelectable
             }
 
             currentLineWidth += charWidth;
-            currentLineCount++;
+            currentLineCount += consumed;
+            i += consumed;
 
-            if (char.IsWhiteSpace(c) || c == '-' || c >= 0x2E80)
+            if (Rune.IsWhiteSpace(rune) || rune.Value == '-' || rune.Value >= 0x2E80)
             {
                 lastBreakIndex = i;
                 lastBreakWidth = currentLineWidth;

@@ -21,15 +21,16 @@ public partial class GameEngine
         var jsonConverters = CreateDefaultJsonConverters();
         var jsonConvertersList = jsonConverters.ToList();
 
+        // fonts
+        yield return new AssetLoaderFontTTF();
+
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
-            yield return new AssetLoaderFontTTF(RenderingSystem, CreateFontCacheDirectory(Setting.Graphics));
             yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
         else
         {
-            yield return new AssetLoaderFontTTFNoGPU(RenderingSystem);
             yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
 

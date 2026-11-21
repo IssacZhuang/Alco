@@ -21,4 +21,11 @@
     <ProjectReference Include="..\..\Src\Alco.GUI\Alco.GUI.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\Src\Alco.Engine\Assets\Fonts\Default.ttf">
+      <Link>Files\Fonts\Default.ttf</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

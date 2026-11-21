@@ -36,6 +36,7 @@ IDisposable
 
     private readonly RenderingSystem _renderingSystem;
     private readonly ShaderSystem _shaderSystem;
+    private readonly GlyphCache _glyphCache;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
     private readonly PngReadbackPipeline _captureReadback;
@@ -171,6 +172,15 @@ IDisposable
     }
 
     /// <summary>
+    /// Gets the shared SDF glyph atlas cache owned by this engine.
+    /// </summary>
+    public GlyphCache GlyphCache
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _glyphCache;
+    }
+
+    /// <summary>
     /// The shared PNG readback pipeline behind the capture systems. Pumped by the
     /// engine each update; capture owners register a completion callback when
     /// beginning a read.
@@ -295,6 +305,8 @@ IDisposable
                 () => _assetSystem.AllAssetNames),
             CacheDirectory = CreateShaderCacheDirectory(_setting.Graphics),
         });
+
+        _glyphCache = new GlyphCache(_renderingSystem);
 
         _builtInAssets = new BuiltInAssets(_assetSystem, _shaderSystem);
 
@@ -544,6 +556,7 @@ IDisposable
         _captureReadback.Dispose();
 
         EventOnDispose?.Invoke();
+        _glyphCache.Dispose();
         _shaderSystem.Dispose();
         _renderingSystem.Destroy();
         _graphicsDevice.Destroy();

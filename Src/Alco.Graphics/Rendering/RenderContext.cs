@@ -200,7 +200,7 @@ public sealed class RenderContext : RenderingResource
     public GPUCommandBuffer EndFrame()
     {
         GPUCommandBuffer commands = EndRecording();
-        _system.FlushInitializations();
+        _system.FlushUploads();
         return commands;
     }
 
@@ -515,6 +515,14 @@ public sealed class RenderContext : RenderingResource
             left.Front.DepthFail == right.Front.DepthFail && left.Front.Reference == right.Front.Reference &&
             left.Back.Compare == right.Back.Compare && left.Back.Fail == right.Back.Fail && left.Back.Pass == right.Back.Pass &&
             left.Back.DepthFail == right.Back.DepthFail && left.Back.Reference == right.Back.Reference;
+    }
+
+    /// <summary>Retains a rendering resource until this active frame finishes recording and is submitted or discarded.</summary>
+    /// <param name="resource">The buffer, texture, sampler, or shader referenced by recorded commands.</param>
+    public void Retain(RenderingResource resource)
+    {
+        Debug.Assert(!IsDestroyed && _recording && _commands != null);
+        RetainResource(resource);
     }
 
     internal void RetainResource(RenderingResource resource)

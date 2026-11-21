@@ -3,11 +3,28 @@
   <ItemGroup>
     <ProjectReference Include="..\Alco.Rendering\Alco.Rendering.csproj" />
     <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
+    <InternalsVisibleTo Include="Alco.GUI.Test" />
   </ItemGroup>
 
   <PropertyGroup>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Shaders\AlcoGUI_Surface.slang" LogicalName="AlcoGUI_Surface.slang" />
+    <EmbeddedResource Include="Shaders\AlcoGUI_Pass.slang" LogicalName="AlcoGUI_Pass.slang" />
+    <EmbeddedResource Include="Shaders\AlcoGUI_Default.slang" LogicalName="AlcoGUI_Default.slang" />
+    <EmbeddedResource Include="Shaders\AlcoGUI_Mask.slang" LogicalName="AlcoGUI_Mask.slang" />
+    <EmbeddedResource Include="Shaders\AlcoGUI_Mesh.slang" LogicalName="AlcoGUI_Mesh.slang" />
+    <Content Include="Shaders\AlcoGUI_Surface.slang">
+      <Link>Assets/Shaders/UI/AlcoGUI_Surface.slang</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Shaders\AlcoGUI_Pass.slang">
+      <Link>Assets/Shaders/UI/AlcoGUI_Pass.slang</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
 </Project>

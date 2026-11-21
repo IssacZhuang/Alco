@@ -24,12 +24,17 @@ public class Game : GameEngine
         List,
         VirtualList,
         VirtualGridList,
-        GeometryIcon
+        GeometryIcon,
+        BatchShowcase
     }
 
-    private readonly RenderPipeline _mainPipeline;
+    private readonly RenderGraph _renderGraph;
     private readonly Canvas _canvas;
     private readonly Font _font;
+    private readonly Material _pulseMaterial;
+    private UINode _showcaseRoot = null!;
+    private UIImage _showcaseCustomImage = null!;
+    private float _showcaseTime;
 
     private CanvasUIFactory _factory;
 
@@ -94,36 +99,6 @@ public class Game : GameEngine
     /// <param name="setting">The engine and view settings.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
-        _mainPipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
-        {
-            SceneLayout = RenderingSystem.PreferredHDRPass,
-            BlitShader = BuiltInAssets.Shader_Blit,
-            Width = MainView.Size.X,
-            Height = MainView.Size.Y,
-        });
-
-        // The node chain: scene content first, then tone mapping.
-        _mainPipeline.Use(new SceneNode(this, _mainPipeline.Graph, _mainPipeline.Chain));
-
-        var tonemapNode = new RGNode_Tonemap(
-            RenderingSystem,
-            _mainPipeline.Graph,
-            _mainPipeline.Chain,
-            _mainPipeline.PostProcessLayout,
-            new RGNode_Tonemap.Descriptor
-            {
-                BlitShader = BuiltInAssets.Shader_Blit,
-                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
-                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
-                AcesShader = BuiltInAssets.Shader_AcesTonemap,
-                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
-                AgxShader = BuiltInAssets.Shader_AgxTonemap,
-            });
-        _mainPipeline.Use(tonemapNode);
-
-        MainPresenter.OnResize += size => _mainPipeline.Resize(size.X, size.Y);
-
         _font = BuiltInAssets.Font_Default;
 
         CavanUIFactoryStyle style = new CavanUIFactoryStyle
@@ -152,14 +127,47 @@ public class Game : GameEngine
 
         UIInputTracker inputTracker = new UIInputTracker(Input, MainView);
 
-        ShaderSystem shaderSystem = RenderingSystem.ShaderSystem;
-        _canvas = RenderingSystem.CreateCanvas(inputTracker,
-            shaderSystem.GetLibrary("AlcoRendering_UISprite"),
-            shaderSystem.GetLibrary("AlcoRendering_UIText"),
-            shaderSystem.GetLibrary("AlcoRendering_UIStandard"),
-            _font);
-        _canvas.Size = new Vector2(setting.View.Width, setting.View.Height);
+        _canvas = RenderingSystem.CreateCanvas(inputTracker, _font, new Vector2(setting.View.Width, setting.View.Height), GlyphCache);
         _canvas.DebugDrawColor = new Vector4(0, 1, 0, 1);
+
+        _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "CanvasUISandbox");
+        _renderGraph.Use(new CanvasRenderGraphNode(_canvas, colorLoadOp: LoadOp.Clear, clearColor: new Vector4(0.08f, 0.1f, 0.14f, 1.0f)));
+        MainPresenter.OnResize += size =>
+        {
+            _renderGraph.Resize(new Extent2D(size.X, size.Y));
+            _canvas.Size = new Vector2(size.X, size.Y);
+        };
+
+        const string PulseSurfaceSource = """
+            #language slang 2025
+            module SandboxPulseSurface;
+            import AlcoGUI_Surface;
+
+            public struct SandboxPulseParams
+            {
+                public float4 GlowColor;
+                public float Pulse;
+                public float3 _Pad;
+            };
+
+            public struct SandboxPulseSurface : IUISurface
+            {
+                public typedef SandboxPulseParams Params;
+                public float4 Shade(UISurfaceInput input, Params p)
+                {
+                    float2 d = input.LocalUv - float2(0.5, 0.5);
+                    float ring = smoothstep(0.15, 0.48, length(d)) * p.Pulse;
+                    float4 glow = float4(p.GlowColor.rgb * p.GlowColor.a, p.GlowColor.a) * ring;
+                    return input.BaseColor + glow * (1.0 - input.BaseColor.a * 0.5);
+                }
+            };
+            """;
+        _pulseMaterial = _canvas.CreateCustomSurfaceMaterialFromSource(
+            "SandboxPulseSurface", "SandboxPulseSurface.slang", PulseSurfaceSource, "SandboxPulse");
+        Vector4 glowColor = new(0.2f, 0.7f, 1.0f, 0.9f);
+        float pulse = 0.6f;
+        _pulseMaterial.SetData("Material.GlowColor", ref glowColor);
+        _pulseMaterial.SetData("Material.Pulse", ref pulse);
 
         _root = _canvas.Root;
 
@@ -368,6 +376,41 @@ public class Game : GameEngine
 
         AddSystem(new ImGUISystem(this));
 
+        _showcaseRoot = new UINode { Size = new Vector2(420, 260) };
+        _showcaseCustomImage = new UIImage
+        {
+            Texture = texSelection,
+            Position = new Vector2(-110, 40),
+            Size = new Vector2(120, 120),
+            Color = new ColorFloat(0.25f, 0.35f, 0.55f, 1f),
+            Material = _pulseMaterial,
+        };
+        UIMask rotatedShowcaseMask = new()
+        {
+            Position = new Vector2(110, 40),
+            Size = new Vector2(90, 90),
+            LocalTransform = new Transform2D(new Vector2(110, 40), new Rotation2D(25f)),
+        };
+        rotatedShowcaseMask.Add(new UIImage
+        {
+            Size = new Vector2(130, 130),
+            Color = new ColorFloat(0.25f, 0.85f, 0.65f, 1f),
+        });
+        UIText showcaseText = new()
+        {
+            Font = _font,
+            FontSize = 20,
+            Position = new Vector2(0, -70),
+            Size = new Vector2(400, 60),
+            IsRichText = true,
+            AlignHorizontal = TextAlign.Center,
+            Text = "<color=#7bd88f>Bindless</color> <color=#ffd166>UI</color> + Stencil + SDF",
+        };
+        _showcaseRoot.Add(_showcaseCustomImage);
+        _showcaseRoot.Add(rotatedShowcaseMask);
+        _showcaseRoot.Add(showcaseText);
+        _root.Add(_showcaseRoot);
+
         // default display
         UpdateDisplayActive();
     }
@@ -449,6 +492,15 @@ public class Game : GameEngine
         {
             UpdateDisplayActive();
         }
+
+        bool splitDraws = _canvas.SplitDraws;
+        if (ImGui.Checkbox("Split draws (debug)", ref splitDraws))
+            _canvas.SplitDraws = splitDraws;
+
+        UIFrameStats stats = _canvas.LastFrameStats;
+        ImGui.Text($"Quads: {stats.QuadCount} | Content draws: {stats.ContentDraws} | Mask draws: {stats.MaskDraws} | Mesh draws: {stats.MeshDraws}");
+        ImGui.Text($"Scissors: {stats.ScissorMaskCount} (switches {stats.ScissorChanges}) | Stencils: {stats.StencilMaskCount} (elided {stats.ElidedMaskCount})");
+        ImGui.Text($"Font pages: {stats.FontPageCount} ({stats.FontAtlasBytes / 1024f:0.0} KB) | Uploaded: {stats.FontGlyphsUploaded}");
 
         // Parameters per display
         switch (_display)
@@ -753,16 +805,37 @@ public class Game : GameEngine
                 ImGui.Text(stretchTexture != null ? $"Stretch texture: {stretchTexture.Width}x{stretchTexture.Height}" : "Stretch texture: <rasterizing...>");
                 break;
             }
+
+            case Display.BatchShowcase:
+            {
+                _showcaseTime += delta;
+                float p = 0.5f + 0.5f * MathF.Sin(_showcaseTime * 3f);
+                _pulseMaterial.SetData("Material.Pulse", ref p);
+                ImGui.Text($"Pulse shader strength: {p:0.00}");
+                break;
+            }
         }
 
         ImGui.End();
 
         // UI Tree Inspector Window
         ImGui.Begin("UI Tree Inspector");
-        _root.DrawDebugTreeWithInspector(ref _selectedNode);
+        DrawDebugTree(_root, ref _selectedNode);
+        if (_selectedNode != null)
+        {
+            ImGui.Separator();
+            ImGui.Text($"Selected: {_selectedNode.GetType().Name} ({_selectedNode.Name})");
+            ImGui.Text($"Pos: {_selectedNode.Position} | Size: {_selectedNode.Size} | Enable: {_selectedNode.IsEnable}");
+        }
         ImGui.End();
 
-        _mainPipeline.Render(MainPresenter.FrameBuffer);
+        if (MainPresenter.HasValidFrame)
+        {
+            _renderGraph.Execute(
+                MainPresenter.FrameContext,
+                RenderGraphTarget.FromSwapchain(MainPresenter.CurrentFrame, MainPresenter.SurfaceFormat),
+                delta);
+        }
     }
 
     private void PopulateIntList(int count)
@@ -826,10 +899,25 @@ public class Game : GameEngine
         Log.Info("TestAsync 3");
     }
 
+    private static void DrawDebugTree(UINode node, ref UINode? selected)
+    {
+        string label = string.IsNullOrEmpty(node.Name) ? node.GetType().Name : $"{node.Name} ({node.GetType().Name})";
+        bool open = ImGui.TreeNode($"{label}##{node.GetHashCode()}");
+        if (ImGui.IsItemClicked())
+            selected = node;
+        if (open)
+        {
+            for (int i = 0; i < node.Children.Count; ++i)
+                DrawDebugTree(node.Children[i], ref selected);
+            ImGui.TreePop();
+        }
+    }
+
     protected override void OnStop()
     {
+        GraphicsDevice.WaitIdle();
         _canvas.Dispose();
-        _mainPipeline.Dispose();
+        _renderGraph.Destroy();
     }
 
     private void UpdateDisplayActive()
@@ -850,6 +938,7 @@ public class Game : GameEngine
         _geometryIconStretchPanel.IsEnable = false;
         _geometryIconStretch.IsEnable = false;
         _geometryIconResize.IsEnable = false;
+        _showcaseRoot.IsEnable = false;
         if (_listSlider != null) _listSlider.IsEnable = false;
         if (_virtualListSlider != null) _virtualListSlider.IsEnable = false;
         if (_virtualGridListSlider != null) _virtualGridListSlider.IsEnable = false;
@@ -916,24 +1005,9 @@ public class Game : GameEngine
                 _geometryIconStretch.IsEnable = true;
                 _geometryIconResize.IsEnable = true;
                 break;
-        }
-    }
-
-    /// <summary>
-    /// Content node updating and drawing the canvas UI into the pipeline-assigned target.
-    /// </summary>
-    private sealed class SceneNode : RGNode_SceneContent
-    {
-        private readonly Game _game;
-
-        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
-        {
-            _game = game;
-        }
-
-        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
-        {
-            _game._canvas.Update(target, _game._delta);
+            case Display.BatchShowcase:
+                _showcaseRoot.IsEnable = true;
+                break;
         }
     }
 }

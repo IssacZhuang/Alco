@@ -22,6 +22,8 @@ public enum PipelineMissPolicy : byte
 /// <remarks>Initialize and destroy with exclusive access; keep the device alive until destruction.</remarks>
 public sealed class RenderingSystem
 {
+    private const ulong DefaultUploadStagingByteCount = 4 * 1024 * 1024;
+
     private readonly GPUDevice _device;
     private readonly GPUHeapPool _bufferPool;
     private readonly TextureHeapPool _texturePool;
@@ -31,8 +33,8 @@ public sealed class RenderingSystem
     private readonly DescriptorSlotAllocator _samplerSlots;
     private readonly Texture _textureWhite;
     private readonly SharedSamplers _samplers;
-    private readonly UploadQueue _initializationQueue;
-    private readonly TimelinePoint _initializationTimeline;
+    private readonly UploadQueue _uploadQueue;
+    private readonly TimelinePoint _uploadTimeline;
     private readonly GPUTimelineSemaphore _frameTimeline;
     private GPUCommandBuffer[] _submitCommands = new GPUCommandBuffer[1];
     private ulong _frameValue;
@@ -40,7 +42,8 @@ public sealed class RenderingSystem
     private readonly Lock _textureLock = new();
     private readonly Lock _samplerLock = new();
     private readonly Lock _releaseLock = new();
-    private readonly Lock _initializationLock = new();
+    private readonly Lock _uploadLock = new();
+    private readonly Lock _queueZeroSubmitLock = new();
     private readonly Lock _shaderLock = new();
     private ShaderSystem? _shaders;
     private readonly List<PendingRelease> _pendingReleases = [];
@@ -94,7 +97,7 @@ public sealed class RenderingSystem
         GPUHeapPool? buffers = null;
         GPUTextureDescriptorHeap? textureDescriptors = null;
         GPUSamplerDescriptorHeap? samplerDescriptors = null;
-        UploadQueue? initializationQueue = null;
+        UploadQueue? uploadQueue = null;
         Texture? textureWhite = null;
         SharedSamplers? samplers = null;
         try
@@ -110,8 +113,12 @@ public sealed class RenderingSystem
             _textureSlots = new DescriptorSlotAllocator(textureDescriptors.Capacity);
             _samplerSlots = new DescriptorSlotAllocator(samplerDescriptors.Capacity, SharedSamplers.Count);
 
-            initializationQueue = _initializationQueue = new UploadQueue(device, 16);
-            _initializationTimeline = _initializationQueue.Flush();
+            unsafe
+            {
+                uploadQueue = _uploadQueue = new UploadQueue(device, DefaultUploadStagingByteCount);
+                _uploadQueue.SetSubmitCallback(SubmitUploadBatch);
+            }
+            _uploadTimeline = _uploadQueue.Flush();
 
             // Descriptor slot 0 retains the default white texture and linear-repeat sampler.
             textureWhite = _textureWhite = CreateTexture(new TextureDesc
@@ -121,7 +128,7 @@ public sealed class RenderingSystem
                 Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
             });
             InitializeTexture(textureWhite.Initialization);
-            _initializationQueue.UploadTexture(textureWhite.NativeTexture, [0xff, 0xff, 0xff, 0xff]);
+            _uploadQueue.UploadTexture(textureWhite.NativeTexture, [0xff, 0xff, 0xff, 0xff]);
             samplers = _samplers = new SharedSamplers(this);
             _frameTimeline = device.CreateTimelineSemaphore();
         }
@@ -129,9 +136,9 @@ public sealed class RenderingSystem
         {
             samplers?.Destroy();
             textureWhite?.Destroy();
-            initializationQueue?.Wait();
+            uploadQueue?.Wait();
             ReclaimTextures();
-            initializationQueue?.Destroy();
+            uploadQueue?.Destroy();
             samplerDescriptors?.Destroy();
             textureDescriptors?.Destroy();
             buffers?.Destroy();
@@ -212,20 +219,50 @@ public sealed class RenderingSystem
         return new ShaderSystem(this, options);
     }
 
-    /// <summary>Submits pending texture initialization on queue zero; serialize this with other submissions to that queue.</summary>
+    /// <summary>Copies CPU pixel data into system-owned staging and queues its texture upload on queue zero.</summary>
+    /// <param name="texture">The destination texture created with <see cref="TextureUsage.TransferDestination"/>.</param>
+    /// <param name="source">The region data including pitch padding; copied before this method returns.</param>
+    /// <param name="copy">The destination mip, slices, region, and source memory pitches; default writes full mip zero.</param>
+    public void UploadTexture(Texture texture, ReadOnlySpan<byte> source, in TextureCopyDesc copy = default)
+    {
+        Debug.Assert(!_destroyed && texture != null && !texture.IsDestroyed && texture.System == this);
+        Debug.Assert((texture.Desc.Usage & TextureUsage.TransferDestination) != 0);
+        if (source.IsEmpty)
+            return;
+
+        lock (_uploadLock)
+        {
+            if (texture.Initialization.Index >= 0)
+                InitializeTexture(texture.Initialization);
+            TextureUpload.UploadTexture(_uploadQueue, texture.NativeTexture, texture.Desc, source, copy);
+            UploadQueueStats stats = _uploadQueue.Stats;
+            texture.Initialization.Completion = new TimelinePoint
+            {
+                Semaphore = _uploadTimeline.Semaphore,
+                Value = stats.PendingOperations > 0 ? stats.Submissions + 1 : stats.Submissions,
+            };
+        }
+    }
+
+    /// <summary>Submits pending texture initializations and system-queued uploads on queue zero; serialize this with other submissions to that queue.</summary>
     /// <returns>The completion borrowed until system destruction; include it in other queues' submission waits before texture use.</returns>
-    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
-    public TimelinePoint FlushInitializations()
+    /// <exception cref="GPUException">Upload command recording could not begin.</exception>
+    public TimelinePoint FlushUploads()
     {
         Debug.Assert(!_destroyed);
-        lock (_initializationLock)
+        lock (_uploadLock)
         {
             while (_initializations.Count != 0)
                 InitializeTexture(_initializations[^1]);
-            _initializationQueue.Reclaim();
-            return _initializationQueue.Flush();
+            _uploadQueue.Reclaim();
+            return _uploadQueue.Flush();
         }
     }
+
+    /// <summary>Submits pending texture initializations and system-queued uploads on queue zero; serialize this with other submissions to that queue.</summary>
+    /// <returns>The completion borrowed until system destruction; include it in other queues' submission waits before texture use.</returns>
+    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
+    public TimelinePoint FlushInitializations() => FlushUploads();
 
     /// <summary>Ends and submits active frames in the given order without presenting or waiting for their completion.</summary>
     /// <param name="contexts">A nonempty list of distinct contexts from this system, each recording with no open scope.</param>
@@ -253,10 +290,10 @@ public sealed class RenderingSystem
         return SubmitPrepared(contexts, swapchain, waits, PrepareSubmission());
     }
 
-    // Complete fallible texture initialization before associating a readback with the next signal.
+    // Complete fallible texture initialization and queued uploads before associating a readback with the next signal.
     internal TimelinePoint PrepareSubmission()
     {
-        FlushInitializations();
+        FlushUploads();
         return new TimelinePoint { Semaphore = _frameTimeline, Value = _frameValue + 1 };
     }
 
@@ -276,10 +313,13 @@ public sealed class RenderingSystem
                 commands[index] = context.EndRecording();
             }
             SubmitDesc desc = new() { Commands = commands, Waits = waits, Completion = completion };
-            if (swapchain == null)
-                _device.Submit(desc);
-            else
-                _device.SubmitAndPresent(desc, swapchain);
+            lock (_queueZeroSubmitLock)
+            {
+                if (swapchain == null)
+                    _device.Submit(desc);
+                else
+                    _device.SubmitAndPresent(desc, swapchain);
+            }
         }
         finally
         {
@@ -293,13 +333,19 @@ public sealed class RenderingSystem
         return completion;
     }
 
+    private unsafe void SubmitUploadBatch(void* context, GPUDevice device, GPUCommandBuffer commands, TimelinePoint completion, uint queueIndex)
+    {
+        lock (_queueZeroSubmitLock)
+            device.Submit(new SubmitDesc { Commands = [commands], Completion = completion }, queueIndex);
+    }
+
     private void InitializeTexture(Texture.InitializationState state)
     {
-        _initializationQueue.InitializeTexture(state.Texture);
-        UploadQueueStats stats = _initializationQueue.Stats;
+        _uploadQueue.InitializeTexture(state.Texture);
+        UploadQueueStats stats = _uploadQueue.Stats;
         state.Completion = new TimelinePoint
         {
-            Semaphore = _initializationTimeline.Semaphore,
+            Semaphore = _uploadTimeline.Semaphore,
             Value = stats.Submissions + 1,
         };
         RemoveInitialization(state);
@@ -413,7 +459,7 @@ public sealed class RenderingSystem
             ++_liveTextures;
         }
         Texture texture = new(this, desc, allocation, sampledIndex, storageIndex, storageMipIndices);
-        lock (_initializationLock)
+        lock (_uploadLock)
         {
             texture.Initialization.Index = _initializations.Count;
             _initializations.Add(texture.Initialization);
@@ -459,9 +505,9 @@ public sealed class RenderingSystem
         Debug.Assert(!_destroyed);
         if (Interlocked.CompareExchange(ref _ticking, 1, 0) != 0)
             return;
-        lock (_initializationLock)
+        lock (_uploadLock)
         {
-            _initializationQueue.Reclaim();
+            _uploadQueue.Reclaim();
             ReclaimTextures();
         }
         ulong completedValue;
@@ -523,13 +569,13 @@ public sealed class RenderingSystem
         foreach (PendingRelease entry in _pendingReleases)
             entry.Target.Reclaim();
         _pendingReleases.Clear();
-        _initializationQueue.Wait();
+        _uploadQueue.Wait();
         ReclaimTextures();
         _submissions.Clear();
         _frameTimeline.Destroy();
         _samplers.Destroy();
         _textureWhite.Destroy();
-        _initializationQueue.Destroy();
+        _uploadQueue.Destroy();
         Debug.Assert(_liveBuffers == 0 && _liveTextures == 0 && _liveSamplers == 0);
         _samplerDescriptors.Destroy();
         _textureDescriptors.Destroy();
@@ -588,7 +634,7 @@ public sealed class RenderingSystem
     internal void ReleaseTexture(ref PlacedTexture allocation, uint sampledIndex, uint storageIndex, uint[]? storageMipIndices,
         Texture.InitializationState initialization)
     {
-        lock (_initializationLock)
+        lock (_uploadLock)
         {
             if (initialization.Index >= 0)
                 RemoveInitialization(initialization);

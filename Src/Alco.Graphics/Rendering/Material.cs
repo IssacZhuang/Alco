@@ -307,8 +307,11 @@ public class Material
 
     internal virtual uint ResourceVersion => _resourceVersion;
 
-    internal virtual void CopyRoot(Span<byte> destination)
+    /// <summary>Copies the resolved root bytes into <paramref name="destination"/>.</summary>
+    /// <param name="destination">Destination span of length matching at least <see cref="RootLayout.SizeBytes"/>.</param>
+    public virtual void CopyRoot(Span<byte> destination)
     {
+        Debug.Assert(destination.Length >= _staging.Length);
         _staging.CopyTo(destination);
     }
 

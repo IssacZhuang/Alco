@@ -130,7 +130,14 @@ public sealed class MaterialInstance : Material
         _overrides[first] = (start, end - start);
     }
 
-    internal override void CopyRoot(Span<byte> destination) => CopyRoot(destination, 0);
+    /// <summary>Copies the resolved root bytes into <paramref name="destination"/>.</summary>
+    /// <param name="destination">Destination span at least <see cref="RootLayout.SizeBytes"/> bytes long.</param>
+    public override void CopyRoot(Span<byte> destination)
+    {
+        int size = (int)Variant.Root.SizeBytes;
+        Debug.Assert(destination.Length >= size);
+        CopyRoot(destination[..size], 0);
+    }
 
     internal override void CopyRoot(Span<byte> destination, int offset)
     {

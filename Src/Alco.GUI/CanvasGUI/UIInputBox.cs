@@ -234,7 +234,6 @@ public class UIInputBox : UIText, ITextInput
         int start = textLine.start;
         float offset = 0;
         char c;
-        GlyphInfo glyph;
 
         Span<char> text = TextSpan;
 
@@ -244,13 +243,13 @@ public class UIInputBox : UIText, ITextInput
         {
             int index = start + i;
             c = text[index];
-            glyph = Font.GetGlyph(c);
+            float advance = Font.GetAdvance(c);
 
-            offset += glyph.Advance;
+            offset += advance;
 
             //the line break is not calculated for the cursor position
             //otherwise, the text input will be on the next line
-            if (textStartX + (offset - glyph.Advance * 0.5) * FontSize > localMousePosition.X || c == '\n' || c == '\r')
+            if (textStartX + (offset - advance * 0.5) * FontSize > localMousePosition.X || c == '\n' || c == '\r')
             {
                 charIndex = index;
                 break;

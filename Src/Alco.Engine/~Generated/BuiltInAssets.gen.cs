@@ -42,8 +42,7 @@ public partial class BuiltInAssets
     public Shader Shader_GaussianBlurRgba8 => GetShader("GaussianBlurRgba8");
 
     public Shader Shader_SvgRasterize => GetShader("SvgRasterize");
-
-    public Shader Shader_TextSdf => GetShader("TextSdf");
+
 
     public Shader Shader_BloomBlit => GetShader("BloomBlit");
 

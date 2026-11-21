@@ -5,220 +5,177 @@ using Alco.Rendering;
 
 namespace Alco.GUI;
 
-public partial class Canvas : AutoDisposable
+public partial class Canvas
 {
-    /// <summary>
-    /// Draws a solid-color quad.
-    /// </summary>
-    /// <param name="matrix">The model transformation matrix.</param>
-    /// <param name="color">The quad color.</param>
+    /// <summary>Draws a solid-color quad using the batcher.</summary>
+    /// <param name="matrix">Model transformation matrix mapping the centered unit quad into canvas space.</param>
+    /// <param name="color">Quad color in straight RGBA.</param>
+    /// <param name="material">Optional custom UI surface material.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawQuad(Matrix4x4 matrix, ColorFloat color)
+    public void DrawQuad(Matrix4x4 matrix, ColorFloat color, Material? material = null)
     {
-        DrawSprite(_renderingSystem.TextureWhite, matrix, Rect.One, color);
+        DrawSprite(null, matrix, Rect.One, color, premultiplied: false, nearestFilter: false, material);
     }
 
-    /// <summary>
-    /// Draws a sprite using the full texture UV rectangle.
-    /// </summary>
-    /// <param name="texture">The texture to draw; null uses the white texture.</param>
-    /// <param name="matrix">The model transformation matrix.</param>
-    /// <param name="color">The color multiplied with the texture.</param>
+    /// <summary>Draws a textured sprite covering <see cref="Rect.One"/>.</summary>
+    /// <param name="texture">Texture to draw, or null for solid white.</param>
+    /// <param name="matrix">Model transformation matrix.</param>
+    /// <param name="color">Color tint in straight RGBA.</param>
+    /// <param name="premultiplied">True when <paramref name="texture"/> already stores premultiplied alpha.</param>
+    /// <param name="nearestFilter">True to sample using point/nearest filtering.</param>
+    /// <param name="material">Optional custom UI surface material.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D? texture, Matrix4x4 matrix, ColorFloat color)
+    public void DrawSprite(
+        Texture2D? texture,
+        Matrix4x4 matrix,
+        ColorFloat color,
+        bool premultiplied = false,
+        bool nearestFilter = false,
+        Material? material = null)
     {
-        DrawSprite(texture, matrix, Rect.One, color);
+        DrawSprite(texture, matrix, Rect.One, color, premultiplied, nearestFilter, material);
     }
 
-    /// <summary>
-    /// Draws a sub-rectangle of a sprite texture.
-    /// </summary>
-    /// <param name="texture">The texture to draw; null uses the white texture.</param>
-    /// <param name="matrix">The model transformation matrix.</param>
-    /// <param name="uvRect">The UV rectangle selecting the texture region.</param>
-    /// <param name="color">The color multiplied with the texture.</param>
+    /// <summary>Draws a sub-rectangle of a sprite texture.</summary>
+    /// <param name="texture">Texture to draw, or null for solid white.</param>
+    /// <param name="matrix">Model transformation matrix.</param>
+    /// <param name="uvRect">Normalized UV rectangle.</param>
+    /// <param name="color">Color tint in straight RGBA.</param>
+    /// <param name="premultiplied">True when <paramref name="texture"/> stores premultiplied alpha (e.g. SVG).</param>
+    /// <param name="nearestFilter">True to sample with nearest filtering.</param>
+    /// <param name="material">Optional custom UI surface material.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void DrawSprite(Texture2D? texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
+    public void DrawSprite(
+        Texture2D? texture,
+        Matrix4x4 matrix,
+        Rect uvRect,
+        ColorFloat color,
+        bool premultiplied = false,
+        bool nearestFilter = false,
+        Material? material = null)
     {
-        _renderContext.Pass.SetStencilReference(_mask);
-        _spriteRenderer.Draw(texture?? _renderingSystem.TextureWhite, matrix, uvRect, color);
+        Texture? nativeTex = texture?.NativeTexture;
+        UIBatchRenderer.QuadKind kind = UIBatchRenderer.ResolveImageKind(premultiplied && nativeTex != null, tiled: false, nearestFilter);
+        _batchRenderer.DrawQuad(matrix, nativeTex, uvRect, color, kind, material);
     }
 
-    /// <summary>
-    /// Draws a sprite whose texture stores premultiplied-alpha pixels (e.g. an SVG
-    /// rasterization) with the canvas's premultiplied-blend sprite material.
-    /// </summary>
-    /// <param name="texture">The texture to apply. If null, a white texture will be used.</param>
-    /// <param name="matrix">The transformation matrix to apply.</param>
-    /// <param name="uvRect">The UV rectangle that defines the portion of the texture to use.</param>
-    /// <param name="color">The color to multiply with the texture.</param>
-    public void DrawSpritePremultiplied(Texture2D? texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
+    /// <summary>Draws a 9-slice sprite by emitting up to nine proportionally clamped quads in batch order.</summary>
+    /// <param name="texture">Source sprite texture.</param>
+    /// <param name="matrix">Model transformation matrix scaled to the node render size.</param>
+    /// <param name="uvRect">Full sprite UV rectangle.</param>
+    /// <param name="color">Color tint.</param>
+    /// <param name="sliceBorders">9-slice borders in texels: (left, top, right, bottom).</param>
+    /// <param name="premultiplied">True for premultiplied textures.</param>
+    /// <param name="nearestFilter">True for nearest sampling.</param>
+    /// <param name="material">Optional custom UI surface material.</param>
+    public void DrawNineSlice(
+        Texture2D texture,
+        Matrix4x4 matrix,
+        Rect uvRect,
+        ColorFloat color,
+        Vector4 sliceBorders,
+        bool premultiplied = false,
+        bool nearestFilter = false,
+        Material? material = null)
     {
-        SpriteConstant constant = new SpriteConstant
-        {
-            Model = matrix,
-            Color = color,
-            UvRect = uvRect
-        };
-
-        _premultipliedSpriteMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
-        DrawMaterial(_premultipliedSpriteMaterial, in constant);
+        ArgumentNullException.ThrowIfNull(texture);
+        _batchRenderer.DrawNineSlice(matrix, texture.NativeTexture, uvRect, color, sliceBorders, premultiplied, nearestFilter, material);
     }
 
-    /// <summary>
-    /// Draws a sprite with custom vertices and indices using the specified texture, transformation matrix, UV rectangle, and color.
-    /// </summary>
-    /// <param name="vertices">The custom vertices to draw.</param>
-    /// <param name="indices">The indices defining the triangulation of the vertices.</param>
-    /// <param name="texture">The texture to apply to the sprite. If null, a white texture will be used.</param>
-    /// <param name="matrix">The transformation matrix to apply to the vertices.</param>
-    /// <param name="uvRect">The UV rectangle that defines the portion of the texture to use.</param>
-    /// <param name="color">The color to multiply with the texture.</param>
-    public void DrawSpriteWithCustomMesh(ReadOnlySpan<Vertex> vertices, ReadOnlySpan<ushort> indices, Texture2D? texture, Matrix4x4 matrix, Rect uvRect, ColorFloat color)
+    /// <summary>Draws a repeating tiled sprite using linear-repeat wrap sampling.</summary>
+    /// <param name="texture">Tileable source texture.</param>
+    /// <param name="matrix">Model transformation matrix scaled to the node render size.</param>
+    /// <param name="uvRect">Base UV sub-rectangle.</param>
+    /// <param name="tilingScale">Tile repeat frequency multiplier.</param>
+    /// <param name="color">Color tint.</param>
+    /// <param name="premultiplied">True for premultiplied textures.</param>
+    /// <param name="material">Optional custom UI surface material.</param>
+    public void DrawTiledSprite(
+        Texture2D texture,
+        Matrix4x4 matrix,
+        Rect uvRect,
+        Vector2 tilingScale,
+        ColorFloat color,
+        bool premultiplied = false,
+        Material? material = null)
     {
-        SpriteConstant constant = new SpriteConstant
-        {
-            Model = matrix,
-            Color = color,
-            UvRect = uvRect
-        };
-
-        _renderContext.Pass.SetStencilReference(_mask);
-        _spriteMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
-
-        _dynamicMeshRenderer.DrawWithConstant(vertices, indices, _spriteMaterial, constant);
+        ArgumentNullException.ThrowIfNull(texture);
+        float worldW = new Vector2(matrix.M11, matrix.M12).Length();
+        float worldH = new Vector2(matrix.M21, matrix.M22).Length();
+        float texW = MathF.Max(1f, texture.Width);
+        float texH = MathF.Max(1f, texture.Height);
+        Rect tiledUv = new(
+            uvRect.Origin.X,
+            uvRect.Origin.Y,
+            uvRect.Size.X * (worldW * tilingScale.X / texW),
+            uvRect.Size.Y * (worldH * tilingScale.Y / texH));
+        UIBatchRenderer.QuadKind kind = UIBatchRenderer.ResolveImageKind(premultiplied, tiled: true, nearestFilter: false);
+        _batchRenderer.DrawQuad(matrix, texture.NativeTexture, tiledUv, color, kind, material);
     }
 
-    /// <summary>
-    /// Draws a sprite with custom vertices and indices using the specified material —
-    /// the custom-material counterpart of <see cref="DrawSpriteWithCustomMesh"/>: no
-    /// texture is injected, the material owns its resource bindings.
-    /// </summary>
-    /// <param name="vertices">The custom vertices to draw.</param>
-    /// <param name="indices">The indices defining the triangulation of the vertices.</param>
-    /// <param name="material">The material to draw with.</param>
-    /// <param name="constant">The sprite constant data containing model matrix, color, and UV rect.</param>
-    public void DrawSpriteWithCustomMaterial(ReadOnlySpan<Vertex> vertices, ReadOnlySpan<ushort> indices, GraphicsMaterial material, in SpriteConstant constant)
+    /// <summary>Draws arbitrary triangulated 2D UI geometry in painter order.</summary>
+    /// <param name="vertices">Triangle vertices in canvas world coordinates.</param>
+    /// <param name="indices">Triangle list index buffer.</param>
+    /// <param name="texture">Optional texture; null uses solid white.</param>
+    /// <param name="premultiplied">True when <paramref name="texture"/> stores premultiplied alpha.</param>
+    /// <param name="tiled">True to use repeat wrap sampling.</param>
+    /// <param name="nearestFilter">True to use nearest filtering.</param>
+    public void DrawMesh(
+        ReadOnlySpan<UIMeshVertex> vertices,
+        ReadOnlySpan<ushort> indices,
+        Texture2D? texture = null,
+        bool premultiplied = false,
+        bool tiled = false,
+        bool nearestFilter = false)
     {
-        _renderContext.Pass.SetStencilReference(_mask);
-        _dynamicMeshRenderer.DrawWithConstant(vertices, indices, material, constant);
+        Texture? nativeTex = texture?.NativeTexture;
+        UIBatchRenderer.QuadKind kind = UIBatchRenderer.ResolveImageKind(premultiplied && nativeTex != null, tiled, nearestFilter);
+        _batchRenderer.DrawMesh(vertices, indices, nativeTex, kind);
     }
 
-    /// <summary>
-    /// Draws text with a uniform color.
-    /// </summary>
-    /// <param name="font">The font to render with; null uses the default font.</param>
-    /// <param name="str">The characters to draw.</param>
-    /// <param name="matrix">The transformation matrix.</param>
-    /// <param name="pivot">The text pivot.</param>
-    /// <param name="color">The text color.</param>
-    /// <param name="lineSpacing">The normalized line spacing.</param>
-    /// <param name="material">The material to draw with; null uses the default text material.</param>
-    /// <returns>The normalized width of the drawn text.</returns>
+    /// <summary>Draws uniform-color SDF text aligned to <paramref name="pivot"/>.</summary>
+    /// <param name="font">Font to draw with, or null for <see cref="Canvas.DefaultFont"/>.</param>
+    /// <param name="str">Characters to draw.</param>
+    /// <param name="matrix">Text baseline/em transform matrix.</param>
+    /// <param name="pivot">Alignment pivot.</param>
+    /// <param name="color">Text color.</param>
+    /// <param name="lineSpacing">Line spacing in em units.</param>
+    /// <param name="material">Optional custom UI surface material.</param>
+    /// <returns>Widest drawn line width in em units.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, float lineSpacing, GraphicsMaterial? material = null)
+    public float DrawChars(
+        Font? font,
+        ReadOnlySpan<char> str,
+        Matrix4x4 matrix,
+        Pivot pivot,
+        ColorFloat color,
+        float lineSpacing = 1f,
+        Material? material = null)
     {
-        font ??= DefaultFont;
-        _renderContext.Pass.SetStencilReference(_mask);
-        return _textRenderer.DrawText(font, str, matrix, pivot, color, lineSpacing, material);
+        return _batchRenderer.DrawChars(font ?? DefaultFont, str, matrix, pivot, color, default, lineSpacing, material);
     }
 
-    /// <summary>
-    /// Draws characters with a default color and per-range color slices.
-    /// Characters not covered by any slice use the default color.
-    /// </summary>
-    /// <param name="font">The font to render with. If null, the default font is used.</param>
-    /// <param name="str">The characters to draw.</param>
-    /// <param name="matrix">The transformation matrix.</param>
-    /// <param name="pivot">The text pivot.</param>
-    /// <param name="color">The default color for characters not covered by any slice.</param>
-    /// <param name="slices">The color slices. Later slices override earlier ones.</param>
-    /// <param name="lineSpacing">The normalized line spacing.</param>
-    /// <returns>The normalized width of the drawn text.</returns>
+    /// <summary>Draws rich-colored SDF text aligned to <paramref name="pivot"/> using per-range <paramref name="slices"/>.</summary>
+    /// <param name="font">Font to draw with, or null for <see cref="Canvas.DefaultFont"/>.</param>
+    /// <param name="str">Characters to draw.</param>
+    /// <param name="matrix">Text baseline/em transform matrix.</param>
+    /// <param name="pivot">Alignment pivot.</param>
+    /// <param name="color">Fallback text color.</param>
+    /// <param name="slices">Color override spans.</param>
+    /// <param name="lineSpacing">Line spacing in em units.</param>
+    /// <param name="material">Optional custom UI surface material.</param>
+    /// <returns>Widest drawn line width in em units.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe float DrawChars(Font? font, ReadOnlySpan<char> str, Matrix4x4 matrix, Pivot pivot, ColorFloat color, ReadOnlySpan<TextSlice> slices, float lineSpacing, GraphicsMaterial? material = null)
+    public float DrawChars(
+        Font? font,
+        ReadOnlySpan<char> str,
+        Matrix4x4 matrix,
+        Pivot pivot,
+        ColorFloat color,
+        ReadOnlySpan<TextSlice> slices,
+        float lineSpacing = 1f,
+        Material? material = null)
     {
-        font ??= DefaultFont;
-        _renderContext.Pass.SetStencilReference(_mask);
-        return _textRenderer.DrawText(font, str, matrix, pivot, color, slices, lineSpacing, material);
-    }
-
-    protected void IncreaceStencil(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
-    {
-        SpriteConstant constant = new SpriteConstant
-        {
-            Model = matrix,
-            Color = new ColorFloat(1, 1, 1, 0),
-            UvRect = uvRect
-        };
-
-        _renderContext.Pass.SetStencilReference(_mask);
-        _mask = (_mask + 1) % 0xFF;
-        _stencilIncreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
-        _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilIncreaseMaterial, constant);
-    }
-
-    protected void DecreaseMask(Texture2D? texture, Matrix4x4 matrix, Rect uvRect)
-    {
-        SpriteConstant constant = new SpriteConstant
-        {
-            Model = matrix,
-            Color = new ColorFloat(1, 1, 1, 0),
-            UvRect = uvRect
-        };
-
-        _renderContext.Pass.SetStencilReference(_mask);
-
-        if (_mask == 0)
-        {
-            _mask = 0xFF;
-        }
-        else
-        {
-            _mask--;
-        }
-        _stencilDecreaseMaterial.SetTexture(_shaderId_texture, texture ?? _renderingSystem.TextureWhite);
-        _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, _stencilDecreaseMaterial, constant);
-    }
-
-    /// <summary>
-    /// Creates a material instance prepared for canvas drawing: stencil clipping
-    /// enabled (the canvas mask convention) and the canvas camera bound. Nodes
-    /// drawing with a custom material own the returned instance.
-    /// </summary>
-    /// <param name="material">The shared material to instance.</param>
-    /// <returns>The prepared material instance.</returns>
-    public GraphicsMaterialInstance CreateUIMaterialInstance(GraphicsMaterial material)
-    {
-        GraphicsMaterialInstance instance = material.CreateInstance();
-        instance.DepthStencilState = DepthStencilState.Default with
-        {
-            FrontFace = StencilFaceState.CompareEqual,
-            BackFace = StencilFaceState.CompareEqual,
-            StencilReadMask = 0xFF,
-            StencilWriteMask = 0xFF,
-        };
-        BindCameraToMaterial(instance);
-        return instance;
-    }
-
-    /// <summary>
-    /// Binds the canvas camera buffer to the material.
-    /// </summary>
-    /// <param name="material">The material to bind the camera to.</param>
-    public void BindCameraToMaterial(GraphicsMaterial material)
-    {
-        material.TrySetBuffer(ShaderResourceId.Camera, _camera);
-    }
-
-    /// <summary>
-    /// Draws a quad using the specified material and constant data.
-    /// </summary>
-    /// <param name="material">The material to use for rendering.</param>
-    /// <param name="constant">The sprite constant data containing model matrix, color, and UV rect.</param>
-    public void DrawMaterial(GraphicsMaterial material, in SpriteConstant constant)
-    {
-        _renderContext.Pass.SetStencilReference(_mask);
-        _renderContext.Pass.DrawWithConstant(_renderingSystem.MeshCenteredSprite, material, constant);
+        return _batchRenderer.DrawChars(font ?? DefaultFont, str, matrix, pivot, color, slices, lineSpacing, material);
     }
 }

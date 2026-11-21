@@ -367,6 +367,96 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
+    /// <summary>Verifies RenderContext DiscardFrame/Retain, public Material.CopyRoot, and system-owned UploadTexture/FlushUploads.</summary>
+    [Test]
+    public void NoGpuContext_DiscardRetainCopyRootAndSystemUploadTexture()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        RenderingSystem system = new(device, textureHeapByteCount: 1024 * 1024, bufferHeapByteCount: 1024 * 1024);
+        RenderContext context = new(system);
+        try
+        {
+            Buffer dummy = system.CreateBuffer(64);
+            Texture uploadTarget = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(8, 8, 1),
+                Format = Format.R8Unorm,
+                Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
+            });
+            Shader shader = system.Shaders.GetShaderFromSource("copy_root_test", "copy_root_test.slang", GraphicsQuadShaderSource);
+            Material parent = shader.CreateMaterial("parent");
+            MaterialInstance child = parent.CreateInstance();
+            try
+            {
+                // System-queued UploadTexture survives a discarded RenderContext frame and retires cleanly.
+                Span<byte> texels = stackalloc byte[4 * 4];
+                texels.Fill(0x7f);
+                system.UploadTexture(uploadTarget, texels, new TextureCopyDesc
+                {
+                    Offset = new Extent3D(1, 1, 0),
+                    Extent = new Extent3D(4, 4, 1),
+                    RowPitchBytes = 4,
+                });
+
+                context.BeginFrame();
+                context.Retain(dummy);
+                context.Retain(uploadTarget);
+                context.DiscardFrame();
+                Assert.That(uploadTarget.IsDestroyed, Is.False);
+
+                TimelinePoint uploadCompletion = system.FlushUploads();
+                uploadCompletion.Wait();
+                Assert.That(uploadCompletion.Semaphore, Is.Not.Null);
+
+                // Queue another upload and destroy before flushing to verify deferred reclamation at shutdown.
+                system.UploadTexture(uploadTarget, texels, new TextureCopyDesc
+                {
+                    Offset = new Extent3D(2, 2, 0),
+                    Extent = new Extent3D(4, 4, 1),
+                    RowPitchBytes = 4,
+                });
+                uploadTarget.Destroy();
+                Assert.That(uploadTarget.IsDestroyed, Is.True);
+
+                context.BeginFrame();
+                context.Submit().Wait();
+
+                // CopyRoot on Material and MaterialInstance (including padded destination span).
+                Vector4 parentTint = new(0.25f, 0.5f, 0.75f, 1.0f);
+                Vector4 childTint = new(1.0f, 0.25f, 0.5f, 0.75f);
+                parent.SetData("Tint", ref parentTint);
+                child.SetData("Tint", ref childTint);
+
+                Span<byte> parentBytes = new byte[(int)parent.Root.SizeBytes + 16];
+                Span<byte> childBytes = new byte[(int)child.Root.SizeBytes + 16];
+                parent.CopyRoot(parentBytes);
+                child.CopyRoot(childBytes);
+
+                uint tintOffset = 0;
+                foreach (RootField field in shader.Root.LeafFields)
+                {
+                    if (field.Name == "Tint")
+                        tintOffset = field.Offset;
+                }
+                Assert.That(MemoryMarshal.Read<Vector4>(parentBytes.Slice((int)tintOffset, 16)), Is.EqualTo(parentTint));
+                Assert.That(MemoryMarshal.Read<Vector4>(childBytes.Slice((int)tintOffset, 16)), Is.EqualTo(childTint));
+            }
+            finally
+            {
+                shader.Destroy();
+                if (!uploadTarget.IsDestroyed)
+                    uploadTarget.Destroy();
+                dummy.Destroy();
+            }
+        }
+        finally
+        {
+            context.Destroy();
+            system.Destroy();
+            device.Destroy();
+        }
+    }
+
     private readonly struct GPUDeviceScope(GPUDevice device) : IDisposable
     {
         public GPUDevice Device { get; } = device;
