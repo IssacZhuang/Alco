@@ -59,15 +59,19 @@ public static unsafe class ObjectiveCRuntime
     [DllImport(ObjCLibrary, EntryPoint = "objc_msgSend")]
     public static extern IntPtr IntPtr_objc_msgSend(IntPtr receiver, Selector selector);
 
-    /// <summary>Sends a message returning a reference to an unmanaged value.</summary>
+    /// <summary>Sends a message returning a handle wrapper backed by an unmanaged pointer-sized struct.</summary>
     /// <param name="receiver">The message receiver.</param>
     /// <param name="selector">The message selector.</param>
-    /// <returns>A reference to the returned value.</returns>
-    public static ref T objc_msgSend<T>(IntPtr receiver, Selector selector) where T : unmanaged
+    /// <returns>The wrapped return handle.</returns>
+    public static T objc_msgSend<T>(IntPtr receiver, Selector selector) where T : unmanaged
     {
+        if (sizeof(T) != sizeof(IntPtr))
+        {
+            throw new InvalidOperationException($"Type {typeof(T).Name} must match IntPtr size.");
+        }
+
         IntPtr value = IntPtr_objc_msgSend(receiver, selector);
-        T* ptr = (T*)value;
-        return ref *ptr;
+        return *(T*)&value;
     }
 
     /// <summary>Reads a null-terminated UTF-8 string.</summary>
@@ -103,12 +107,14 @@ public unsafe readonly struct Selector
     /// <param name="name">The selector name.</param>
     public Selector(string name)
     {
-        int byteCount = Encoding.UTF8.GetMaxByteCount(name.Length);
-        byte* utf8BytesPtr = stackalloc byte[byteCount];
+        int maxBytes = Encoding.UTF8.GetMaxByteCount(name.Length);
+        byte* utf8BytesPtr = stackalloc byte[maxBytes + 1];
+        int written;
         fixed (char* namePtr = name)
         {
-            Encoding.UTF8.GetBytes(namePtr, name.Length, utf8BytesPtr, byteCount);
+            written = Encoding.UTF8.GetBytes(namePtr, name.Length, utf8BytesPtr, maxBytes);
         }
+        utf8BytesPtr[written] = 0;
 
         NativePtr = sel_registerName(utf8BytesPtr);
     }
@@ -134,6 +140,7 @@ public static class Selectors
 {
     internal static readonly Selector alloc = "alloc";
     internal static readonly Selector init = "init";
+    internal static readonly Selector release = "release";
 }
 
 /// <summary>An Objective-C class handle.</summary>
@@ -150,12 +157,14 @@ public unsafe readonly struct ObjCClass
     /// <param name="name">The class name.</param>
     public ObjCClass(string name)
     {
-        int byteCount = Encoding.UTF8.GetMaxByteCount(name.Length);
-        byte* utf8BytesPtr = stackalloc byte[byteCount];
+        int maxBytes = Encoding.UTF8.GetMaxByteCount(name.Length);
+        byte* utf8BytesPtr = stackalloc byte[maxBytes + 1];
+        int written;
         fixed (char* namePtr = name)
         {
-            Encoding.UTF8.GetBytes(namePtr, name.Length, utf8BytesPtr, byteCount);
+            written = Encoding.UTF8.GetBytes(namePtr, name.Length, utf8BytesPtr, maxBytes);
         }
+        utf8BytesPtr[written] = 0;
 
         NativePtr = objc_getClass(utf8BytesPtr);
     }
@@ -165,10 +174,14 @@ public unsafe readonly struct ObjCClass
     /// <returns>The allocated and initialized instance.</returns>
     public T AllocInit<T>() where T : unmanaged
     {
+        if (sizeof(T) != sizeof(IntPtr))
+        {
+            throw new InvalidOperationException($"Type {typeof(T).Name} must match IntPtr size.");
+        }
+
         IntPtr value = IntPtr_objc_msgSend(NativePtr, Selectors.alloc);
-        objc_msgSend(value, Selectors.init);
-        T* ptr = (T*)value;
-        return *ptr;
+        value = IntPtr_objc_msgSend(value, Selectors.init);
+        return *(T*)&value;
     }
 }
 

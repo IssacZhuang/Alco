@@ -18,10 +18,12 @@ public unsafe readonly struct NSWindow
         NativePtr = ptr;
     }
 
+    private static readonly Selector s_contentView = "contentView";
+
     /// <summary>
     /// Gets the content view of the window.
     /// </summary>
-    public ref NSView contentView => ref objc_msgSend<NSView>(NativePtr, "contentView");
+    public NSView contentView => new(IntPtr_objc_msgSend(NativePtr, s_contentView));
 
     /// <summary>
     /// Creates and attaches a CAMetalLayer to the window's content view.

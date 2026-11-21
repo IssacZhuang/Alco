@@ -297,9 +297,11 @@ public unsafe partial class Sdl3Window : View
         else if (OperatingSystem.IsMacOS() || OperatingSystem.IsMacCatalyst())
         {
             NSWindow nsWindow = new NSWindow(SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_NS_WINDOW, IntPtr.Zero));
+            NSView contentView = nsWindow.contentView;
             CAMetalLayer layer = CAMetalLayer.New();
-            nsWindow.contentView.wantsLayer = true;
-            nsWindow.contentView.layer = layer.Handle;
+            contentView.wantsLayer = true;
+            contentView.layer = layer.Handle;
+            ObjectiveCRuntime.objc_msgSend(layer.Handle, Selectors.release);
 
             return SurfaceSource.FromMetalLayer(layer.Handle);
         }
