@@ -1,6 +1,7 @@
-using System.Runtime.CompilerServices;
+using System.Buffers;
+using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.Runtime.Intrinsics;
 
 namespace Alco.Rendering;
 
@@ -11,7 +12,14 @@ namespace Alco.Rendering;
 /// </summary>
 internal static unsafe class PngDecoder
 {
-    /// <summary>PNG signature bytes: 89 50 4E 47 0D 0A 1A 0A</summary>
+    private const int HeaderSize = 33;
+    private const int MaxPooledIdatBytes = 1 << 20;
+    private const uint Ihdr = 0x49484452;
+    private const uint Plte = 0x504C5445;
+    private const uint Trns = 0x74524E53;
+    private const uint Idat = 0x49444154;
+    private const uint Iend = 0x49454E44;
+
     private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
     /// <summary>
@@ -24,150 +32,95 @@ internal static unsafe class PngDecoder
     /// <exception cref="ImageDecodeException">Invalid or unsupported PNG data.</exception>
     public static byte* Decode(ReadOnlySpan<byte> data, out int width, out int height)
     {
-        ValidateSignature(data);
+        ReadHeader(data, out width, out height, out int bitDepth, out int colorType, out int interlace);
 
-        width = 0;
-        height = 0;
-        int bitDepth = 0;
-        int colorType = 0;
-        int interlace = 0;
-        byte[]? palette = null;
-        byte[]? transparency = null;
+        ReadOnlySpan<byte> palette = default;
+        ReadOnlySpan<byte> transparency = default;
+        int idatStart = 0;
+        int idatEnd = 0;
         int idatLength = 0;
         int idatChunkCount = 0;
-        int firstIdatOffset = -1;
-        int firstIdatLength = 0;
-        bool ihdrSeen = false;
-        bool idatSeen = false;
+        bool transparencySeen = false;
+        bool endSeen = false;
+        int pos = HeaderSize;
 
-        int pos = 8; // skip signature
-
-        // Parse chunks and total IDAT size first, then copy all IDAT data once.
-        while (pos < data.Length)
+        while (pos < data.Length && !endSeen)
         {
-            if (pos + 8 > data.Length)
-                throw new ImageDecodeException("Truncated chunk header.");
-
-            int chunkLength = ReadBigEndianInt32(data.Slice(pos, 4));
-            pos += 4;
-            if (chunkLength < 0)
-                throw new ImageDecodeException($"Invalid chunk length: {chunkLength}.");
-
-            uint chunkType = ReadBigEndianUInt32(data.Slice(pos, 4));
-            pos += 4;
-
-            if (pos + chunkLength + 4 > data.Length)
-                throw new ImageDecodeException($"Truncated chunk data for type 0x{chunkType:X8}.");
-
-            ReadOnlySpan<byte> chunkData = data.Slice(pos, chunkLength);
-            pos += chunkLength;
-            pos += 4; // skip CRC
+            int chunkStart = pos;
+            ReadOnlySpan<byte> chunkData = ReadChunk(data, ref pos, out uint chunkType);
 
             switch (chunkType)
             {
-                case 0x49484452u: // IHDR
-                    if (ihdrSeen)
-                        throw new ImageDecodeException("Duplicate IHDR chunk.");
+                case Ihdr:
+                    throw new ImageDecodeException("Duplicate IHDR chunk.");
 
-                    if (chunkLength != 13)
-                        throw new ImageDecodeException($"Invalid IHDR chunk length: {chunkLength} (expected 13).");
+                case Plte:
+                    if (idatChunkCount != 0 || !palette.IsEmpty || transparencySeen ||
+                        colorType is 0 or 4 || chunkData.Length is < 3 or > 768 || chunkData.Length % 3 != 0 ||
+                        (colorType == 3 && chunkData.Length / 3 > (1 << bitDepth)))
+                        throw new ImageDecodeException("Invalid PLTE chunk.");
 
-                    ParseIHDR(chunkData, out width, out height, out bitDepth, out colorType, out interlace);
-                    ihdrSeen = true;
+                    palette = chunkData;
                     break;
 
-                case 0x504C5445u: // PLTE
-                    if (!ihdrSeen)
-                        throw new ImageDecodeException("PLTE chunk before IHDR.");
+                case Trns:
+                    if (idatChunkCount != 0 || transparencySeen ||
+                        !IsValidTransparency(chunkData.Length, colorType, palette.Length / 3))
+                        throw new ImageDecodeException("Invalid tRNS chunk.");
 
-                    palette = chunkData.ToArray();
+                    transparency = chunkData;
+                    transparencySeen = true;
                     break;
 
-                case 0x74524E53u: // tRNS
-                    if (!ihdrSeen)
-                        throw new ImageDecodeException("tRNS chunk before IHDR.");
-
-                    transparency = chunkData.ToArray();
-                    break;
-
-                case 0x49444154u: // IDAT
-                    if (!ihdrSeen)
-                        throw new ImageDecodeException("IDAT chunk before IHDR.");
-
-                    idatLength = checked(idatLength + chunkLength);
+                case Idat:
                     if (idatChunkCount == 0)
-                    {
-                        firstIdatOffset = pos - chunkLength - 4;
-                        firstIdatLength = chunkLength;
-                    }
+                        idatStart = chunkStart;
+                    else if (chunkStart != idatEnd)
+                        throw new ImageDecodeException("IDAT chunks must be consecutive.");
+
+                    idatLength += chunkData.Length;
+                    idatEnd = pos;
                     idatChunkCount++;
-                    idatSeen = true;
                     break;
 
-                case 0x49454E44u: // IEND
-                    goto DoneParsing;
+                case Iend:
+                    if (!chunkData.IsEmpty)
+                        throw new ImageDecodeException("Invalid IEND chunk.");
+
+                    endSeen = true;
+                    break;
 
                 default:
-                    // Unknown chunk: already skipped
+                    if ((chunkType & 0x20000000u) == 0)
+                        throw new ImageDecodeException($"Unsupported critical PNG chunk: 0x{chunkType:X8}.");
                     break;
             }
         }
 
-    DoneParsing:
+        if (!endSeen)
+            throw new ImageDecodeException("No IEND chunk found.");
 
-        if (!ihdrSeen)
-            throw new ImageDecodeException("No IHDR chunk found.");
+        if (idatLength < 6)
+            throw new ImageDecodeException("Missing or incomplete PNG image data.");
 
-        if (!idatSeen)
-            throw new ImageDecodeException("No IDAT chunk found.");
-
-        if (colorType == 3 && palette == null)
+        if (colorType == 3 && palette.IsEmpty)
             throw new ImageDecodeException("Indexed color type (3) requires PLTE chunk.");
 
-        // Validate output size with checked arithmetic
-        nuint outputSize;
+        if (idatChunkCount == 1)
+            return DecodePixels(data.Slice(idatStart + 8, idatLength), width, height, bitDepth, colorType, interlace, palette, transparency);
+
+        bool pooled = idatLength <= MaxPooledIdatBytes;
+        byte[] combined = pooled ? ArrayPool<byte>.Shared.Rent(idatLength) : GC.AllocateUninitializedArray<byte>(idatLength);
         try
         {
-            outputSize = checked((nuint)width * (nuint)height * 4);
+            Span<byte> idatData = combined.AsSpan(0, idatLength);
+            CopyIdatData(data[idatStart..idatEnd], idatData);
+            return DecodePixels(idatData, width, height, bitDepth, colorType, interlace, palette, transparency);
         }
-        catch (OverflowException)
+        finally
         {
-            throw new ImageDecodeException($"Image dimensions overflow: {width}x{height} RGBA8.");
-        }
-
-        // Allocate RGBA8 output buffer
-        byte* output = (byte*)NativeMemory.Alloc(outputSize);
-
-        try
-        {
-            byte[]? combinedIdat = null;
-            ReadOnlySpan<byte> idatData = idatChunkCount == 1
-                ? data.Slice(firstIdatOffset, firstIdatLength)
-                : (combinedIdat = CopyIdatData(data, idatLength));
-
-            // Calculate bytes-per-pixel and stride for the source format
-            int bytesPerPixel = GetBytesPerPixel(bitDepth, colorType);
-            int stride = GetStride(width, bitDepth, colorType);
-
-            if (interlace == 0)
-            {
-                DecodeNonInterlaced(idatData, output,
-                    width, height, bitDepth, colorType, bytesPerPixel, stride,
-                    palette, transparency);
-            }
-            else
-            {
-                DecodeInterlaced(idatData, output,
-                    width, height, bitDepth, colorType, bytesPerPixel, stride,
-                    palette, transparency);
-            }
-
-            return output;
-        }
-        catch
-        {
-            NativeMemory.Free(output);
-            throw;
+            if (pooled)
+                ArrayPool<byte>.Shared.Return(combined);
         }
     }
 
@@ -179,51 +132,32 @@ internal static unsafe class PngDecoder
     /// <exception cref="ImageDecodeException">Invalid PNG header.</exception>
     public static (int Width, int Height) GetInfo(ReadOnlySpan<byte> data)
     {
-        ValidateSignature(data);
-
-        if (data.Length < 8 + 8 + 13 + 4)
-            throw new ImageDecodeException("PNG data too short for IHDR chunk.");
-
-        // Read first chunk header
-        int chunkLength = ReadBigEndianInt32(data.Slice(8, 4));
-        uint chunkType = ReadBigEndianUInt32(data.Slice(12, 4));
-
-        if (chunkType != 0x49484452u) // IHDR
-            throw new ImageDecodeException("First chunk is not IHDR.");
-
-        if (chunkLength != 13)
-            throw new ImageDecodeException($"Invalid IHDR chunk length: {chunkLength}.");
-
-        ReadOnlySpan<byte> ihdrData = data.Slice(16, 13);
-        int width = ReadBigEndianInt32(ihdrData.Slice(0, 4));
-        int height = ReadBigEndianInt32(ihdrData.Slice(4, 4));
-
-        if (width <= 0 || height <= 0)
-            throw new ImageDecodeException($"Invalid PNG dimensions: {width}x{height}.");
-
+        ReadHeader(data, out int width, out int height, out _, out _, out _);
         return (width, height);
     }
 
     #region Chunk Parsing Helpers
 
-    private static void ValidateSignature(ReadOnlySpan<byte> data)
-    {
-        if (data.Length < 8 || !data.Slice(0, 8).SequenceEqual(PngSignature))
-            throw new ImageDecodeException("Invalid PNG signature.");
-    }
-
-    private static void ParseIHDR(ReadOnlySpan<byte> ihdr, out int width, out int height,
+    private static void ReadHeader(ReadOnlySpan<byte> data, out int width, out int height,
         out int bitDepth, out int colorType, out int interlace)
     {
-        width = ReadBigEndianInt32(ihdr.Slice(0, 4));
-        height = ReadBigEndianInt32(ihdr.Slice(4, 4));
+        if (data.Length < HeaderSize || !data[..8].SequenceEqual(PngSignature))
+            throw new ImageDecodeException("Invalid or truncated PNG header.");
+
+        if (BinaryPrimitives.ReadUInt32BigEndian(data[8..]) != 13 || BinaryPrimitives.ReadUInt32BigEndian(data[12..]) != Ihdr)
+            throw new ImageDecodeException("PNG must start with a 13-byte IHDR chunk.");
+
+        ValidateCrc(data[12..29], data[29..]);
+        ReadOnlySpan<byte> ihdr = data[16..29];
+        width = BinaryPrimitives.ReadInt32BigEndian(ihdr);
+        height = BinaryPrimitives.ReadInt32BigEndian(ihdr[4..]);
         bitDepth = ihdr[8];
         colorType = ihdr[9];
         int compression = ihdr[10];
         int filter = ihdr[11];
         interlace = ihdr[12];
 
-        if (width <= 0 || height <= 0)
+        if (width <= 0 || height <= 0 || (long)width * height > int.MaxValue / 4)
             throw new ImageDecodeException($"Invalid PNG dimensions: {width}x{height}.");
 
         if (bitDepth is not (1 or 2 or 4 or 8 or 16))
@@ -232,14 +166,7 @@ internal static unsafe class PngDecoder
         if (colorType is not (0 or 2 or 3 or 4 or 6))
             throw new ImageDecodeException($"Unsupported color type: {colorType}.");
 
-        // Validate bit depth / color type combinations
-        if (colorType == 3 && bitDepth is not (1 or 2 or 4 or 8))
-            throw new ImageDecodeException($"Invalid bit depth {bitDepth} for indexed color type (3).");
-
-        if ((colorType == 0 || colorType == 4) && bitDepth is not (1 or 2 or 4 or 8 or 16))
-            throw new ImageDecodeException($"Invalid bit depth {bitDepth} for grayscale color type ({colorType}).");
-
-        if ((colorType == 2 || colorType == 6) && bitDepth is not (8 or 16))
+        if ((colorType == 3 && bitDepth == 16) || (colorType is 2 or 4 or 6 && bitDepth < 8))
             throw new ImageDecodeException($"Invalid bit depth {bitDepth} for color type {colorType}.");
 
         if (compression != 0)
@@ -252,44 +179,47 @@ internal static unsafe class PngDecoder
             throw new ImageDecodeException($"Unsupported interlace method: {interlace}.");
     }
 
-    private static int ReadBigEndianInt32(ReadOnlySpan<byte> bytes)
+    private static ReadOnlySpan<byte> ReadChunk(ReadOnlySpan<byte> data, scoped ref int pos, out uint type)
     {
-        return (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+        int remaining = data.Length - pos;
+        if (remaining < 12)
+            throw new ImageDecodeException("Truncated PNG chunk.");
+
+        uint length = BinaryPrimitives.ReadUInt32BigEndian(data[pos..]);
+        if (length > (uint)(remaining - 12))
+            throw new ImageDecodeException("PNG chunk exceeds the input size.");
+
+        type = BinaryPrimitives.ReadUInt32BigEndian(data[(pos + 4)..]);
+        int dataStart = pos + 8;
+        int crcStart = dataStart + (int)length;
+        ValidateCrc(data[(pos + 4)..crcStart], data[crcStart..]);
+        pos = crcStart + 4;
+        return data[dataStart..crcStart];
     }
 
-    private static uint ReadBigEndianUInt32(ReadOnlySpan<byte> bytes)
+    private static void ValidateCrc(ReadOnlySpan<byte> typeAndData, ReadOnlySpan<byte> crc)
     {
-        return ((uint)bytes[0] << 24) | ((uint)bytes[1] << 16) | ((uint)bytes[2] << 8) | bytes[3];
+        if (PngCrc32.Compute(typeAndData) != BinaryPrimitives.ReadUInt32BigEndian(crc))
+            throw new ImageDecodeException("PNG chunk CRC mismatch.");
     }
 
-    private static byte[] CopyIdatData(ReadOnlySpan<byte> data, int idatLength)
+    private static bool IsValidTransparency(int length, int colorType, int paletteSize) => colorType switch
     {
-        byte[] combinedIdat = new byte[idatLength];
-        Span<byte> destination = combinedIdat;
-        int writeOffset = 0;
-        int pos = 8;
+        0 => length == 2,
+        2 => length == 6,
+        3 => paletteSize > 0 && length <= paletteSize,
+        _ => false,
+    };
 
-        while (pos < data.Length)
+    private static void CopyIdatData(ReadOnlySpan<byte> chunks, Span<byte> destination)
+    {
+        while (!chunks.IsEmpty)
         {
-            int chunkLength = ReadBigEndianInt32(data.Slice(pos, 4));
-            pos += 4;
-
-            uint chunkType = ReadBigEndianUInt32(data.Slice(pos, 4));
-            pos += 4;
-
-            if (chunkType == 0x49444154u) // IDAT
-            {
-                data.Slice(pos, chunkLength).CopyTo(destination.Slice(writeOffset));
-                writeOffset += chunkLength;
-            }
-
-            pos += chunkLength + 4; // data + CRC
-
-            if (chunkType == 0x49454E44u) // IEND
-                break;
+            int length = BinaryPrimitives.ReadInt32BigEndian(chunks);
+            chunks.Slice(8, length).CopyTo(destination);
+            destination = destination[length..];
+            chunks = chunks[(length + 12)..];
         }
-
-        return combinedIdat;
     }
 
     #endregion
@@ -304,7 +234,7 @@ internal static unsafe class PngDecoder
     {
         return colorType switch
         {
-            0 => bitDepth >= 8 ? Math.DivRem(bitDepth, 8, out _) : 1, // grayscale
+            0 => Math.Max(1, bitDepth / 8), // grayscale
             2 => 3 * (bitDepth / 8),  // RGB
             3 => 1,                    // indexed (always 1 for defiltering)
             4 => 2 * (bitDepth / 8),  // grayscale + alpha
@@ -328,324 +258,148 @@ internal static unsafe class PngDecoder
             _ => throw new ImageDecodeException($"Unsupported color type: {colorType}.")
         };
 
-        return (width * bitsPerPixel + 7) / 8;
+        return GetBufferSize(((long)width * bitsPerPixel + 7) / 8);
+    }
+
+    private static int GetBufferSize(long bytes)
+    {
+        if (bytes > int.MaxValue)
+            throw new ImageDecodeException("PNG scanlines exceed the supported buffer size.");
+
+        return (int)bytes;
     }
 
     #endregion
 
-    #region Non-interlaced Decode
-
-    private static void DecodeNonInterlaced(
-        ReadOnlySpan<byte> idatData, byte* output,
-        int width, int height, int bitDepth, int colorType,
-        int bytesPerPixel, int stride,
-        byte[]? palette, byte[]? transparency)
+    private static byte* DecodePixels(ReadOnlySpan<byte> idatData, int width, int height,
+        int bitDepth, int colorType, int interlace, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> transparency)
     {
-        int decompressedSize = height * (1 + stride);
-        byte* decompressed = (byte*)NativeMemory.Alloc((nuint)decompressedSize);
+        const int presetDictionaryFlag = 0x20;
+        if ((idatData[1] & presetDictionaryFlag) != 0)
+            throw new ImageDecodeException("PNG zlib streams cannot use a preset dictionary.");
 
+        int stride = GetStride(width, bitDepth, colorType);
+        int bytesPerPixel = GetBytesPerPixel(bitDepth, colorType);
+        if (interlace == 0)
+            return DecodeNonInterlaced(idatData, width, height, bitDepth, colorType, bytesPerPixel, stride, palette, transparency);
+
+        return DecodeInterlaced(idatData, width, height, bitDepth, colorType, bytesPerPixel, stride, palette, transparency);
+    }
+
+    private static byte* DecodeNonInterlaced(ReadOnlySpan<byte> idatData, int width, int height,
+        int bitDepth, int colorType, int bytesPerPixel, int stride, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> transparency)
+    {
+        int size = GetBufferSize(height * (1L + stride));
+        byte* scanlines = (byte*)NativeMemory.Alloc((nuint)size);
         try
         {
-            Span<byte> decompressedSpan = new(decompressed, decompressedSize);
-            PngZlib.DecompressZlib(idatData, decompressedSpan, skipChecksum: true);
-
-            // Fast path: RGBA 8-bit — defilter directly into output buffer (single pass).
-            // Skips the separate ConvertToRGBA8 step by combining defilter + copy.
+            Span<byte> filtered = new(scanlines, size);
+            InflateExact(idatData, filtered);
             if (colorType == 6 && bitDepth == 8)
             {
-                DefilterAndCopyRgba8(decompressed, output, width, height, stride);
+                PngDefilter.CompactRgba8(filtered, height, stride);
+                byte* pixels = scanlines;
+                scanlines = null;
+                return pixels;
             }
-            else
-            {
-                // General path: defilter in-place, then convert to RGBA8
-                PngDefilter.Defilter(decompressedSpan, width, height, bytesPerPixel, stride);
-                ConvertToRGBA8(output, decompressed, width, height, stride,
-                    bitDepth, colorType, palette, transparency, hasFilterBytes: true);
-            }
+
+            PngDefilter.Defilter(filtered, width, height, bytesPerPixel, stride);
+            return ConvertToPixels(scanlines, width, height, stride, bitDepth, colorType, palette, transparency, hasFilterBytes: true);
         }
         finally
         {
-            NativeMemory.Free(decompressed);
+            NativeMemory.Free(scanlines);
         }
     }
 
-    /// <summary>
-    /// Defilter RGBA 8-bit scanlines and copy directly into the output buffer in one pass.
-    /// Eliminates the separate ConvertToRGBA8 step for the most common PNG format.
-    /// </summary>
-    private static unsafe void DefilterAndCopyRgba8(
-        byte* decompressed, byte* output, int width, int height, int stride)
+    private static void InflateExact(ReadOnlySpan<byte> idatData, Span<byte> filtered)
     {
-        int bpp = 4; // RGBA 8-bit
-        int rowSize = 1 + stride; // filter byte + pixel data
-
-        // Previous row pointer for defiltering (starts null for first row)
-        byte* prevRow = null;
-
-        for (int y = 0; y < height; y++)
+        fixed (byte* compressed = idatData)
         {
-            int rowOffset = y * rowSize;
-            byte filterType = decompressed[rowOffset];
-            byte* srcRow = decompressed + rowOffset + 1;
-            byte* dstRow = output + y * stride;
-
-            if (y == 0)
+            using IdatInputStream input = new(compressed, idatData.Length);
+            using ZLibStream zlib = new(input, CompressionMode.Decompress, leaveOpen: true);
+            try
             {
-                DefilterFirstRowCopyRgba8(srcRow, dstRow, stride, bpp, filterType);
+                zlib.ReadExactly(filtered);
+                // A full output buffer does not guarantee that zlib has consumed and checked its trailer.
+                Span<byte> extra = stackalloc byte[1];
+                if (zlib.Read(extra) != 0)
+                    throw new ImageDecodeException("PNG decompressed data exceeds the expected scanline size.");
             }
-            else
+            catch (Exception ex) when (ex is InvalidDataException or IOException)
             {
-                DefilterRowCopyRgba8(srcRow, dstRow, prevRow, stride, bpp, filterType);
+                throw new ImageDecodeException("Invalid or incomplete PNG zlib stream.", ex);
             }
-
-            prevRow = dstRow;
         }
     }
 
-    private static void DefilterFirstRowCopyRgba8(byte* src, byte* dst, int stride, int bpp, byte filterType)
+    private sealed class IdatInputStream(byte* data, int length) : UnmanagedMemoryStream(data, length)
     {
-        // Copy source to destination first, then defilter in-place in dst
-        Buffer.MemoryCopy(src, dst, stride, stride);
-
-        switch (filterType)
+        /// <inheritdoc />
+        public override int Read(byte[] buffer, int offset, int count)
         {
-            case 0: // None — already copied
-                break;
-            case 1: // Sub — SIMD pixel-at-a-time prefix sum
-            case 4: // Paeth with b=c=0 reduces to Sub
-                DefilterSubPointer4(dst, stride);
-                break;
-            case 3: // Average with b=c=0 — a/2
-                for (int i = bpp; i < stride; i++)
-                    dst[i] += (byte)(dst[i - bpp] >> 1);
-                break;
-            case 2: // Up with no prev row — no change needed
-                break;
+            int read = base.Read(buffer, offset, count);
+            // ZLibStream can otherwise report EOF for a truncated stream with a missing trailer.
+            if (read == 0 && count != 0)
+                throw new EndOfStreamException("Unexpected end of PNG zlib input.");
+
+            return read;
         }
     }
-
-    private static void DefilterRowCopyRgba8(byte* src, byte* dst, byte* prev, int stride, int bpp, byte filterType)
-    {
-        // Copy source to destination first, then apply filter correction in dst
-        Buffer.MemoryCopy(src, dst, stride, stride);
-
-        switch (filterType)
-        {
-            case 0: // None
-                break;
-            case 1: // Sub — SIMD pixel-at-a-time prefix sum
-                DefilterSubPointer4(dst, stride);
-                break;
-            case 2: // Up — SIMD-accelerated
-                DefilterUpPointer(dst, prev, stride);
-                break;
-            case 3: // Average
-                for (int i = 0; i < bpp && i < stride; i++)
-                    dst[i] += (byte)(prev[i] >> 1);
-                for (int i = bpp; i < stride; i++)
-                    dst[i] += (byte)((prev[i] + dst[i - bpp]) >> 1);
-                break;
-            case 4: // Paeth
-                for (int i = 0; i < bpp && i < stride; i++)
-                    dst[i] += prev[i];
-                for (int i = bpp; i < stride; i++)
-                    dst[i] += PaethPredictor(dst[i - bpp], prev[i], prev[i - bpp]);
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Pointer-based SIMD Up defilter for the RGBA8 fast path.
-    /// dst[i] += prev[i], using AVX2 (32 bytes) or SSE2 (16 bytes) per iteration.
-    /// </summary>
-    private static void DefilterUpPointer(byte* dst, byte* prev, int stride)
-    {
-        if (Vector256.IsHardwareAccelerated && stride >= Vector256<byte>.Count)
-        {
-            int i = 0;
-            int simdLimit = stride - (stride % Vector256<byte>.Count);
-
-            while (i < simdLimit)
-            {
-                Vector256<byte> current = Unsafe.ReadUnaligned<Vector256<byte>>(dst + i);
-                Vector256<byte> prevVec = Unsafe.ReadUnaligned<Vector256<byte>>(prev + i);
-                Unsafe.WriteUnaligned(dst + i, current + prevVec);
-                i += Vector256<byte>.Count;
-            }
-
-            for (; i < stride; i++)
-                dst[i] += prev[i];
-        }
-        else if (Vector128.IsHardwareAccelerated && stride >= Vector128<byte>.Count)
-        {
-            int i = 0;
-            int simdLimit = stride - (stride % Vector128<byte>.Count);
-
-            while (i < simdLimit)
-            {
-                Vector128<byte> current = Unsafe.ReadUnaligned<Vector128<byte>>(dst + i);
-                Vector128<byte> prevVec = Unsafe.ReadUnaligned<Vector128<byte>>(prev + i);
-                Unsafe.WriteUnaligned(dst + i, current + prevVec);
-                i += Vector128<byte>.Count;
-            }
-
-            for (; i < stride; i++)
-                dst[i] += prev[i];
-        }
-        else
-        {
-            for (int i = 0; i < stride; i++)
-                dst[i] += prev[i];
-        }
-    }
-
-    /// <summary>
-    /// Pointer-based SIMD Sub defilter for RGBA (bpp=4) in the fast path.
-    /// Uses Vector128 as a 4-byte running accumulator for the prefix sum.
-    /// Byte-width add wraps mod 256 automatically.
-    /// </summary>
-    private static void DefilterSubPointer4(byte* dst, int stride)
-    {
-        if (Vector128.IsHardwareAccelerated && stride >= 4)
-        {
-            Vector128<byte> d = Vector128<byte>.Zero;
-            int i = 0;
-
-            while (i <= stride - 4)
-            {
-                Vector128<byte> a = d;
-                d = Unsafe.ReadUnaligned<Vector128<byte>>(dst + i);
-                d += a;
-                // Write only 4 bytes — writing all 16 would corrupt raw data beyond this pixel
-                dst[i] = d.GetElement(0);
-                dst[i + 1] = d.GetElement(1);
-                dst[i + 2] = d.GetElement(2);
-                dst[i + 3] = d.GetElement(3);
-                i += 4;
-            }
-
-            for (; i < stride; i++)
-                dst[i] += dst[i - 4];
-        }
-        else
-        {
-            for (int i = 4; i < stride; i++)
-                dst[i] += dst[i - 4];
-        }
-    }
-
-    #endregion
 
     #region Interlaced (Adam7) Decode
 
-    private static void DecodeInterlaced(
-        ReadOnlySpan<byte> idatData, byte* output,
-        int width, int height, int bitDepth, int colorType,
-        int bytesPerPixel, int stride,
-        byte[]? palette, byte[]? transparency)
+    private static byte* DecodeInterlaced(ReadOnlySpan<byte> idatData, int width, int height,
+        int bitDepth, int colorType, int bytesPerPixel, int stride, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> transparency)
     {
-        // Calculate total decompressed size across all passes
-        int totalSize = 0;
-        int[] passSizes = new int[7];
-        int[] passStrides = new int[7];
-        (int PassWidth, int PassHeight)[] passDims = new (int, int)[7];
-
-        for (int pass = 0; pass < 7; pass++)
+        Span<(int Width, int Height, int Stride, int Size)> passes = stackalloc (int, int, int, int)[7];
+        long totalSize = 0;
+        for (int pass = 0; pass < passes.Length; pass++)
         {
             var (pw, ph) = PngAdam7.GetPassSize(pass, width, height);
-            passDims[pass] = (pw, ph);
-
-            if (pw == 0 || ph == 0)
-            {
-                passSizes[pass] = 0;
-                passStrides[pass] = 0;
-                continue;
-            }
-
             int passStride = GetStride(pw, bitDepth, colorType);
-            passStrides[pass] = passStride;
-            int passSize = ph * (1 + passStride);
-            passSizes[pass] = passSize;
+            int passSize = ph == 0 ? 0 : GetBufferSize(ph * (1L + passStride));
+            passes[pass] = (pw, ph, passStride, passSize);
             totalSize += passSize;
         }
 
-        byte* decompressed = (byte*)NativeMemory.Alloc((nuint)totalSize);
-
+        int size = GetBufferSize(totalSize);
+        bool packedSamples = bitDepth < 8;
+        int mergedSize = packedSamples ? width * height * 4 : GetBufferSize((long)stride * height);
+        byte* decompressed = (byte*)NativeMemory.Alloc((nuint)size);
         try
         {
-            Span<byte> decompressedSpan = new(decompressed, totalSize);
-            PngZlib.DecompressZlib(idatData, decompressedSpan, skipChecksum: true);
+            Span<byte> scanlines = new(decompressed, size);
+            InflateExact(idatData, scanlines);
 
-            // For sub-byte depths (1, 2, 4 bit), we cannot merge into a source-format buffer
-            // because pixels are packed at bit boundaries. Instead, convert each pass directly
-            // to RGBA8 and write to the output buffer at the correct positions.
-            bool isSubByte = bitDepth < 8;
-
-            if (isSubByte)
+            byte* merged = (byte*)NativeMemory.Alloc((nuint)mergedSize);
+            try
             {
-                int offset = 0;
-                for (int pass = 0; pass < 7; pass++)
+                for (int pass = 0; pass < passes.Length; pass++)
                 {
-                    var (pw, ph) = passDims[pass];
-                    if (pw == 0 || ph == 0)
-                    {
+                    var (pw, ph, passStride, passSize) = passes[pass];
+                    if (passSize == 0)
                         continue;
-                    }
 
-                    int passSize = passSizes[pass];
-                    int passStride = passStrides[pass];
-
-                    Span<byte> passData = decompressedSpan.Slice(offset, passSize);
-
-                    // Defilter this pass in-place
+                    Span<byte> passData = scanlines[..passSize];
+                    scanlines = scanlines[passSize..];
                     PngDefilter.Defilter(passData, pw, ph, bytesPerPixel, passStride);
-
-                    // Convert sub-byte pass pixels directly to RGBA8 output
-                    ConvertInterlacedPassToRGBA8(output, passData, passStride,
-                        pass, width, height, pw, ph, bitDepth, colorType, palette, transparency);
-
-                    offset += passSize;
+                    if (packedSamples)
+                        ConvertInterlacedPassToRGBA8(merged, passData, passStride, pass, width, pw, ph, bitDepth, colorType, palette, transparency);
+                    else
+                        PngAdam7.MergePass(merged, stride, passData, 1 + passStride, pass, width, height, bytesPerPixel);
                 }
+
+                if (!packedSamples)
+                    return ConvertToPixels(merged, width, height, stride, bitDepth, colorType, palette, transparency, hasFilterBytes: false);
+
+                byte* pixels = merged;
+                merged = null;
+                return pixels;
             }
-            else
+            finally
             {
-                // Byte-aligned depths: merge into source buffer, then convert all at once
-                int sourceStride = stride;
-                nuint sourceBufferSize = (nuint)(height * sourceStride);
-                byte* sourceBuffer = (byte*)NativeMemory.Alloc(sourceBufferSize);
-
-                try
-                {
-                    NativeMemory.Fill(sourceBuffer, sourceBufferSize, 0);
-
-                    int offset = 0;
-                    for (int pass = 0; pass < 7; pass++)
-                    {
-                        var (pw, ph) = passDims[pass];
-                        if (pw == 0 || ph == 0)
-                            continue;
-
-                        int passSize = passSizes[pass];
-                        int passStride = passStrides[pass];
-
-                        Span<byte> passData = decompressedSpan.Slice(offset, passSize);
-
-                        PngDefilter.Defilter(passData, pw, ph, bytesPerPixel, passStride);
-
-                        PngAdam7.MergePass(sourceBuffer, sourceStride,
-                            passData, 1 + passStride,
-                            pass, width, height, bytesPerPixel);
-
-                        offset += passSize;
-                    }
-
-                    ConvertToRGBA8(output, sourceBuffer, width, height, sourceStride,
-                        bitDepth, colorType, palette, transparency, hasFilterBytes: false);
-                }
-                finally
-                {
-                    NativeMemory.Free(sourceBuffer);
-                }
+                NativeMemory.Free(merged);
             }
         }
         finally
@@ -660,12 +414,13 @@ internal static unsafe class PngDecoder
     /// </summary>
     private static unsafe void ConvertInterlacedPassToRGBA8(
         byte* output, ReadOnlySpan<byte> passData, int passStride,
-        int pass, int imageWidth, int imageHeight,
+        int pass, int imageWidth,
         int passWidth, int passHeight, int bitDepth, int colorType,
-        byte[]? palette, byte[]? transparency)
+        ReadOnlySpan<byte> palette, ReadOnlySpan<byte> transparency)
     {
         var (startX, startY, incX, incY) = PngAdam7.PassParams[pass];
         int mask = (1 << bitDepth) - 1;
+        int transparentGray = colorType == 0 && !transparency.IsEmpty ? BinaryPrimitives.ReadUInt16BigEndian(transparency) : -1;
 
         for (int y = 0; y < passHeight; y++)
         {
@@ -690,19 +445,19 @@ internal static unsafe class PngDecoder
                         {
                             byte gray = ScaleToByte(sample, bitDepth);
                             r = g = b = gray;
-                            a = 0xFF;
+                            a = sample == transparentGray ? (byte)0 : (byte)0xFF;
                         }
                         break;
                     case 3: // Indexed
                         {
                             int index = sample;
-                            int maxIndex = palette!.Length / 3 - 1;
+                            int maxIndex = palette.Length / 3 - 1;
                             if (index > maxIndex)
                                 index = maxIndex;
                             r = palette[index * 3 + 0];
                             g = palette[index * 3 + 1];
                             b = palette[index * 3 + 2];
-                            a = (transparency != null && index < transparency.Length)
+                            a = (index < transparency.Length)
                                 ? transparency[index]
                                 : (byte)0xFF;
                         }
@@ -731,47 +486,46 @@ internal static unsafe class PngDecoder
 
     #region Color Type Conversion
 
-    /// <summary>
-    /// Convert source-format pixel data to RGBA8.
-    /// For interlaced images, the source data is already deinterlaced into full-size image layout.
-    /// </summary>
-    /// <param name="hasFilterBytes">If true, each row in source starts with a filter byte (stride becomes 1+sourceStride).</param>
-    private static void ConvertToRGBA8(
-        byte* output, byte* source, int width, int height, int sourceStride,
-        int bitDepth, int colorType, byte[]? palette, byte[]? transparency,
-        bool hasFilterBytes)
+    private static byte* ConvertToPixels(byte* source, int width, int height, int sourceStride,
+        int bitDepth, int colorType, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> transparency, bool hasFilterBytes)
     {
-        // Compute the actual row-to-row distance in source data
         int rowStride = hasFilterBytes ? 1 + sourceStride : sourceStride;
-
-        switch (colorType)
+        byte* output = (byte*)NativeMemory.Alloc((nuint)(width * height * 4));
+        try
         {
-            case 0: // Grayscale
-                ConvertGrayscale(output, source, width, height, sourceStride, rowStride, bitDepth, transparency, hasFilterBytes);
-                break;
-            case 2: // RGB
-                ConvertRGB(output, source, width, height, sourceStride, rowStride, bitDepth, transparency, hasFilterBytes);
-                break;
-            case 3: // Indexed
-                ConvertIndexed(output, source, width, height, sourceStride, rowStride, bitDepth, palette!, transparency, hasFilterBytes);
-                break;
-            case 4: // Grayscale + Alpha
-                ConvertGrayscaleAlpha(output, source, width, height, sourceStride, rowStride, bitDepth, hasFilterBytes);
-                break;
-            case 6: // RGBA
-                ConvertRGBA(output, source, width, height, sourceStride, rowStride, bitDepth, hasFilterBytes);
-                break;
+            switch (colorType)
+            {
+                case 0:
+                    ConvertGrayscale(output, source, width, height, rowStride, bitDepth, transparency, hasFilterBytes);
+                    break;
+                case 2:
+                    ConvertRGB(output, source, width, height, rowStride, bitDepth, transparency, hasFilterBytes);
+                    break;
+                case 3:
+                    ConvertIndexed(output, source, width, height, rowStride, bitDepth, palette, transparency, hasFilterBytes);
+                    break;
+                case 4:
+                    ConvertGrayscaleAlpha(output, source, width, height, rowStride, bitDepth, hasFilterBytes);
+                    break;
+                case 6:
+                    ConvertRGBA(output, source, width, height, rowStride, bitDepth, hasFilterBytes);
+                    break;
+            }
+
+            return output;
+        }
+        catch
+        {
+            NativeMemory.Free(output);
+            throw;
         }
     }
 
     private static void ConvertGrayscale(
-        byte* output, byte* source, int width, int height, int sourceStride,
-        int rowStride, int bitDepth, byte[]? transparency, bool hasFilterBytes)
+        byte* output, byte* source, int width, int height,
+        int rowStride, int bitDepth, ReadOnlySpan<byte> transparency, bool hasFilterBytes)
     {
-        ushort tRNSValue = 0;
-        bool hasTRNS = transparency != null && transparency.Length >= 2;
-        if (hasTRNS)
-            tRNSValue = (ushort)((transparency![0] << 8) | transparency[1]);
+        int transparentGray = transparency.IsEmpty ? -1 : BinaryPrimitives.ReadUInt16BigEndian(transparency);
 
         int pixelOffset = hasFilterBytes ? 1 : 0;
 
@@ -787,7 +541,7 @@ internal static unsafe class PngDecoder
                     byte gray = srcRow[x];
                     byte alpha = 0xFF;
 
-                    if (hasTRNS && gray == (byte)tRNSValue)
+                    if (gray == transparentGray)
                         alpha = 0x00;
 
                     dstRow[x * 4 + 0] = gray;
@@ -810,7 +564,7 @@ internal static unsafe class PngDecoder
                     byte gray = srcRow[x * 2];
                     byte alpha = 0xFF;
 
-                    if (hasTRNS && tRNSValue == ((srcRow[x * 2] << 8) | srcRow[x * 2 + 1]))
+                    if (transparentGray >= 0 && transparentGray == ((srcRow[x * 2] << 8) | srcRow[x * 2 + 1]))
                         alpha = 0x00;
 
                     dstRow[x * 4 + 0] = gray;
@@ -842,7 +596,7 @@ internal static unsafe class PngDecoder
                     dstRow[x * 4 + 0] = gray;
                     dstRow[x * 4 + 1] = gray;
                     dstRow[x * 4 + 2] = gray;
-                    dstRow[x * 4 + 3] = 0xFF;
+                    dstRow[x * 4 + 3] = sample == transparentGray ? (byte)0 : (byte)0xFF;
 
                     bitPos += bitDepth;
                     if (bitPos == 8)
@@ -856,16 +610,16 @@ internal static unsafe class PngDecoder
     }
 
     private static void ConvertRGB(
-        byte* output, byte* source, int width, int height, int sourceStride,
-        int rowStride, int bitDepth, byte[]? transparency, bool hasFilterBytes)
+        byte* output, byte* source, int width, int height,
+        int rowStride, int bitDepth, ReadOnlySpan<byte> transparency, bool hasFilterBytes)
     {
-        bool hasTRNS = transparency != null && transparency.Length >= 6;
+        bool hasTRNS = !transparency.IsEmpty;
         ushort tRNSR = 0, tRNSG = 0, tRNSB = 0;
         if (hasTRNS)
         {
-            tRNSR = (ushort)((transparency![0] << 8) | transparency[1]);
-            tRNSG = (ushort)((transparency[2] << 8) | transparency[3]);
-            tRNSB = (ushort)((transparency[4] << 8) | transparency[5]);
+            tRNSR = BinaryPrimitives.ReadUInt16BigEndian(transparency);
+            tRNSG = BinaryPrimitives.ReadUInt16BigEndian(transparency[2..]);
+            tRNSB = BinaryPrimitives.ReadUInt16BigEndian(transparency[4..]);
         }
 
         int pixelOffset = hasFilterBytes ? 1 : 0;
@@ -928,8 +682,8 @@ internal static unsafe class PngDecoder
     }
 
     private static void ConvertIndexed(
-        byte* output, byte* source, int width, int height, int sourceStride,
-        int rowStride, int bitDepth, byte[] palette, byte[]? transparency, bool hasFilterBytes)
+        byte* output, byte* source, int width, int height,
+        int rowStride, int bitDepth, ReadOnlySpan<byte> palette, ReadOnlySpan<byte> transparency, bool hasFilterBytes)
     {
         int mask = (1 << bitDepth) - 1;
         int pixelOffset = hasFilterBytes ? 1 : 0;
@@ -953,7 +707,7 @@ internal static unsafe class PngDecoder
                 byte r = palette[index * 3 + 0];
                 byte g = palette[index * 3 + 1];
                 byte b = palette[index * 3 + 2];
-                byte a = (transparency != null && index < transparency.Length)
+                byte a = (index < transparency.Length)
                     ? transparency[index]
                     : (byte)0xFF;
 
@@ -973,7 +727,7 @@ internal static unsafe class PngDecoder
     }
 
     private static void ConvertGrayscaleAlpha(
-        byte* output, byte* source, int width, int height, int sourceStride,
+        byte* output, byte* source, int width, int height,
         int rowStride, int bitDepth, bool hasFilterBytes)
     {
         int pixelOffset = hasFilterBytes ? 1 : 0;
@@ -1019,7 +773,7 @@ internal static unsafe class PngDecoder
     }
 
     private static void ConvertRGBA(
-        byte* output, byte* source, int width, int height, int sourceStride,
+        byte* output, byte* source, int width, int height,
         int rowStride, int bitDepth, bool hasFilterBytes)
     {
         int pixelOffset = hasFilterBytes ? 1 : 0;
@@ -1065,31 +819,6 @@ internal static unsafe class PngDecoder
             4 => (byte)(sample * 17),            // 0->0, 15->255
             _ => (byte)sample
         };
-    }
-
-    #endregion
-
-    #region Paeth Predictor
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static byte PaethPredictor(byte a, byte b, byte c)
-    {
-        int pa = Abs(b - c);
-        int pb = Abs(a - c);
-        int pc = Abs(a + b - (c << 1));
-
-        if (pa <= pb && pa <= pc)
-            return a;
-        if (pb <= pc)
-            return b;
-        return c;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int Abs(int value)
-    {
-        int mask = value >> 31;
-        return (value ^ mask) - mask;
     }
 
     #endregion

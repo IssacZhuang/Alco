@@ -41,6 +41,10 @@ file static unsafe class LibpngNative
     public static extern void png_set_read_fn(
         PngStruct* png, void* io_ptr, PngRwPtr read_fn);
 
+    /// <summary>Sets how libpng handles critical and ancillary chunk CRC errors.</summary>
+    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
+    public static extern void png_set_crc_action(PngStruct* png, int critical, int ancillary);
+
     [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
     public static extern void png_read_info(PngStruct* png, PngInfo* info);
 
@@ -102,7 +106,8 @@ file static unsafe class LibpngDecoder
         reader.Offset += len;
     }
 
-    public static void Decode(byte[] pngData)
+    /// <summary>Decodes a trusted benchmark fixture to tightly packed RGBA8 and optionally checks the pixels.</summary>
+    public static void Decode(byte[] pngData, ReadOnlySpan<byte> expected = default)
     {
         var reader = new MemoryReader
         {
@@ -124,6 +129,8 @@ file static unsafe class LibpngDecoder
 
         try
         {
+            const int quitOnBadCrc = 1;
+            LibpngNative.png_set_crc_action(png, quitOnBadCrc, quitOnBadCrc);
             LibpngNative.png_set_sig_bytes(png, 8);
             LibpngNative.png_set_read_fn(png, Unsafe.AsPointer(ref reader), _readCallback);
             LibpngNative.png_read_info(png, info);
@@ -137,19 +144,20 @@ file static unsafe class LibpngDecoder
             uint height = LibpngNative.png_get_image_height(png, info);
             nuint rowBytes = LibpngNative.png_get_rowbytes(png, info);
 
-            byte** rowPtrs = (byte**)NativeMemory.Alloc((nuint)height, (nuint)sizeof(byte*));
-            for (uint i = 0; i < height; i++)
-                rowPtrs[i] = (byte*)NativeMemory.Alloc(rowBytes, 1);
-
+            byte** rowPtrs = (byte**)NativeMemory.Alloc(height, rowBytes + (nuint)sizeof(byte*));
             try
             {
+                byte* pixels = (byte*)(rowPtrs + height);
+                for (uint i = 0; i < height; i++)
+                    rowPtrs[i] = pixels + i * rowBytes;
+
                 LibpngNative.png_read_image(png, rowPtrs);
                 LibpngNative.png_read_end(png, info);
+                if (!expected.IsEmpty && !new ReadOnlySpan<byte>(pixels, checked((int)(height * rowBytes))).SequenceEqual(expected))
+                    throw new InvalidOperationException("Libpng and the engine decoder produced different RGBA8 pixels.");
             }
             finally
             {
-                for (uint i = 0; i < height; i++)
-                    NativeMemory.Free(rowPtrs[i]);
                 NativeMemory.Free(rowPtrs);
             }
         }
@@ -186,6 +194,29 @@ public unsafe class BenchmarkImageDecode
         _pngLarge = File.ReadAllBytes("Files/Image/png-large.png");
         _pngWall = File.ReadAllBytes("Files/Image/wall.png");
         _jpegReal = File.ReadAllBytes("Files/Image/jpeg-real.jpg");
+
+        VerifyPngComparison(_pngSmall);
+        VerifyPngComparison(_pngLarge);
+        VerifyPngComparison(_pngWall);
+    }
+
+    private static void VerifyPngComparison(byte[] data)
+    {
+        byte* engine = ImageDecodeUtility.DecodePng(data, out int width, out int height);
+        try
+        {
+            ReadOnlySpan<byte> pixels = new(engine, checked(width * height * 4));
+            using ImageResultBuffer stb = ImageResultBuffer.FromMemory(data, ColorComponents.RedGreenBlueAlpha);
+            if (!pixels.SequenceEqual(stb.Data))
+                throw new InvalidOperationException("STB and the engine decoder produced different RGBA8 pixels.");
+
+            if (OperatingSystem.IsWindows())
+                LibpngDecoder.Decode(data, pixels);
+        }
+        finally
+        {
+            NativeMemory.Free(engine);
+        }
     }
 
     // ── PNG Small ─────────────────────────────────────────────────────────
@@ -193,7 +224,7 @@ public unsafe class BenchmarkImageDecode
     /// <summary>
     /// Benchmarks decoding a small PNG with STB.
     /// </summary>
-    [Benchmark(Baseline = true, Description = "STB")]
+    [Benchmark(Description = "STB (no CRC or Adler-32)")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_Stb()
     {
@@ -203,7 +234,7 @@ public unsafe class BenchmarkImageDecode
     /// <summary>
     /// Benchmarks decoding a small PNG with the engine decoder.
     /// </summary>
-    [Benchmark(Description = "New")]
+    [Benchmark(Baseline = true, Description = "Alco (checked)")]
     [BenchmarkCategory("PNG Small")]
     public void PngSmall_New()
     {
@@ -226,7 +257,7 @@ public unsafe class BenchmarkImageDecode
     /// <summary>
     /// Benchmarks decoding a large PNG with STB.
     /// </summary>
-    [Benchmark(Baseline = true, Description = "STB")]
+    [Benchmark(Description = "STB (no CRC or Adler-32)")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_Stb()
     {
@@ -236,7 +267,7 @@ public unsafe class BenchmarkImageDecode
     /// <summary>
     /// Benchmarks decoding a large PNG with the engine decoder.
     /// </summary>
-    [Benchmark(Description = "New")]
+    [Benchmark(Baseline = true, Description = "Alco (checked)")]
     [BenchmarkCategory("PNG Large")]
     public void PngLarge_New()
     {
@@ -259,7 +290,7 @@ public unsafe class BenchmarkImageDecode
     /// <summary>
     /// Benchmarks decoding a wall-sized PNG with STB.
     /// </summary>
-    [Benchmark(Baseline = true, Description = "STB")]
+    [Benchmark(Description = "STB (no CRC or Adler-32)")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_Stb()
     {
@@ -269,7 +300,7 @@ public unsafe class BenchmarkImageDecode
     /// <summary>
     /// Benchmarks decoding a wall-sized PNG with the engine decoder.
     /// </summary>
-    [Benchmark(Description = "New")]
+    [Benchmark(Baseline = true, Description = "Alco (checked)")]
     [BenchmarkCategory("PNG Wall")]
     public void PngWall_New()
     {
