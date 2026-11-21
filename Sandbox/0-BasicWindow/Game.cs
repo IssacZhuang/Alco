@@ -33,7 +33,6 @@ public class Game : GameEngine
         Shader shader = ShaderSystem.GetShader("Triangle");
         _material = shader.CreateMaterial("classic_triangle");
         _material.SetBuffer("Vertices", _vertexBuffer);
-        _material.GetPipeline([MainPresenter.SurfaceFormat], Format.Undefined);
     }
 
     /// <summary>Renders the classic RGB triangle into the swapchain frame.</summary>
@@ -58,7 +57,7 @@ public class Game : GameEngine
             Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
         };
         RenderingDesc pass = new() { Colors = [color] };
-        using RenderContext.RenderScope render = MainPresenter.FrameContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]);
+        using RenderContext.RenderScope render = MainPresenter.FrameContext.BeginRenderPass(pass);
         render.Draw(_material, 3);
     }
 

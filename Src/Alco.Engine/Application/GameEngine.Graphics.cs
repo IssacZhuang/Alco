@@ -66,7 +66,24 @@ public partial class GameEngine
         return null;
     }
 
-    private static GPUDevice CreateGraphicsDevice(GraphicsSetting setting, bool headless)
+    /// <summary>
+    /// Resolves the persistent GPU pipeline cache directory, or null when
+    /// the setting disables pipeline caching.
+    /// </summary>
+    public virtual string? CreatePipelineCacheDirectory(GraphicsSetting setting)
+    {
+        if (!setting.IsPipelineCacheEnabled)
+            return null;
+        if (string.IsNullOrEmpty(setting.PipelineCachePath))
+        {
+            Log.Warning("Pipeline cache is enabled but path is not set");
+            return null;
+        }
+        Log.Info("Pipeline cache is enabled, path: ", setting.PipelineCachePath);
+        return setting.PipelineCachePath;
+    }
+
+    private GPUDevice CreateGraphicsDevice(GraphicsSetting setting, bool headless)
     {
         Gpu.SetErrorCallback(OnGpuError);
 
@@ -74,6 +91,7 @@ public partial class GameEngine
         {
             Backend = setting.Backend,
             Headless = headless,
+            PipelineCacheDirectory = CreatePipelineCacheDirectory(setting),
         });
     }
 

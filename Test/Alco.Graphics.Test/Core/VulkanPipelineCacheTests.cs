@@ -37,14 +37,16 @@ internal static unsafe class VulkanPipelineCacheTests
         {
             Directory.CreateDirectory(directory);
             Gpu.SetErrorCallback(OnDiagnostic);
-            Environment.SetEnvironmentVariable(EnvironmentName, null);
-            Cycle(true);
+            Environment.SetEnvironmentVariable(EnvironmentName, Path.Combine(directory, "ignored-env"));
+            Cycle(true, null);
             check(CreateCount == 1 && InitialSize == 0 && InitialNull && GetCount == 0 && DestroyCount == 1 && NativeArgumentsValid &&
-                Directory.GetFileSystemEntries(directory).Length == 0, "unset cache environment creates an empty native cache without persistence");
+                Directory.GetFileSystemEntries(directory).Length == 0,
+                "null cache directory ignores the legacy environment variable and creates an empty native cache without persistence");
+            Environment.SetEnvironmentVariable(EnvironmentName, null);
 
-            Environment.SetEnvironmentVariable(EnvironmentName, Path.Combine(directory, "round-trip"));
-            string path = Path.Combine(directory, "round-trip", CacheName);
-            Cycle(true);
+            string roundTripDirectory = Path.Combine(directory, "round-trip");
+            string path = Path.Combine(roundTripDirectory, CacheName);
+            Cycle(true, roundTripDirectory);
             check(CreateCount == 1 && InitialSize == 0 && InitialNull && GetCount == 2 && DestroyCount == 1 && NativeArgumentsValid &&
                 DiagnosticCount == 0, "missing cache creates once, queries native bytes, and saves on dirty shutdown");
             byte[] saved = File.ReadAllBytes(path);
@@ -55,7 +57,7 @@ internal static unsafe class VulkanPipelineCacheTests
             check(saved.Length >= 48 && saved.AsSpan(16, 32).SequenceEqual(SHA256.HashData(Payload)),
                 "saved envelope stores the SHA256 digest of the original native payload");
             check(saved.Length >= 48 && saved.AsSpan(48).SequenceEqual(Payload), "save preserves every raw Vulkan payload byte");
-            Cycle(false);
+            Cycle(false, roundTripDirectory);
             check(CreateCount == 1 && InitialSize == (nuint)Payload.Length && !InitialNull && Captured.AsSpan(0, Payload.Length).SequenceEqual(Payload),
                 "round-trip load passes only the original payload pointer and length to native creation");
             check(GetCount == 0 && DestroyCount == 1 && NativeArgumentsValid && File.ReadAllBytes(path).AsSpan().SequenceEqual(saved),
@@ -63,7 +65,7 @@ internal static unsafe class VulkanPipelineCacheTests
 
             NativeData = (byte[])Payload.Clone();
             NativeData[^1] ^= 0x5a;
-            Cycle(true);
+            Cycle(true, roundTripDirectory);
             check(File.ReadAllBytes(path).AsSpan().SequenceEqual(Envelope(NativeData)),
                 "dirty save replaces an existing cache with a complete new envelope");
             check(GetCount == 2 && DestroyCount == 1 && NativeArgumentsValid && DiagnosticCount == 0 &&
@@ -74,7 +76,6 @@ internal static unsafe class VulkanPipelineCacheTests
 
             string malformedDirectory = Path.Combine(directory, "malformed");
             Directory.CreateDirectory(malformedDirectory);
-            Environment.SetEnvironmentVariable(EnvironmentName, malformedDirectory);
             byte[] valid = Envelope(Payload);
             (string Name, byte[] Data)[] malformed =
             [
@@ -97,7 +98,7 @@ internal static unsafe class VulkanPipelineCacheTests
                     case "bad payload": data[^1] ^= 1; break;
                 }
                 File.WriteAllBytes(Path.Combine(malformedDirectory, CacheName), data);
-                Cycle(false);
+                Cycle(false, malformedDirectory);
                 check(CreateCount == 1 && InitialSize == 0 && InitialNull && GetCount == 0 && DestroyCount == 1 && NativeArgumentsValid &&
                     DiagnosticCount == 0, $"{name} cache is rejected before exactly one empty native creation, never a nonempty retry");
             }
@@ -106,8 +107,7 @@ internal static unsafe class VulkanPipelineCacheTests
             Directory.CreateDirectory(legacyDirectory);
             string legacyPath = Path.Combine(legacyDirectory, LegacyName);
             File.WriteAllBytes(legacyPath, Payload);
-            Environment.SetEnvironmentVariable(EnvironmentName, legacyDirectory);
-            Cycle(true);
+            Cycle(true, legacyDirectory);
             check(CreateCount == 1 && InitialSize == 0 && InitialNull && NativeArgumentsValid, "valid legacy v1 raw cache is ignored by v2 loading");
             check(File.ReadAllBytes(legacyPath).AsSpan().SequenceEqual(Payload) &&
                 File.ReadAllBytes(Path.Combine(legacyDirectory, CacheName)).AsSpan().SequenceEqual(valid),
@@ -115,8 +115,7 @@ internal static unsafe class VulkanPipelineCacheTests
 
             string blockedDirectory = Path.Combine(directory, "blocked-save");
             Directory.CreateDirectory(Path.Combine(blockedDirectory, CacheName));
-            Environment.SetEnvironmentVariable(EnvironmentName, blockedDirectory);
-            Cycle(true);
+            Cycle(true, blockedDirectory);
             check(DiagnosticCount == 1 && !DiagnosticFatal && Diagnostic.StartsWith("Vulkan pipeline cache save:", StringComparison.Ordinal) &&
                 GetCount == 2 && DestroyCount == 1 && NativeArgumentsValid, "blocked save reports a nonfatal diagnostic and still destroys the cache");
             check(Directory.Exists(Path.Combine(blockedDirectory, CacheName)) && Directory.GetFiles(blockedDirectory).Length == 0,
@@ -131,7 +130,7 @@ internal static unsafe class VulkanPipelineCacheTests
         }
     }
 
-    private static void Cycle(bool dirty)
+    private static void Cycle(bool dirty, string? cacheDirectory)
     {
         CreateCount = GetCount = DestroyCount = DiagnosticCount = 0;
         InitialSize = 0;
@@ -154,7 +153,7 @@ internal static unsafe class VulkanPipelineCacheTests
         DeviceType.GetField("PhysicalProperties", InstanceMembers)!.SetValue(device, properties);
         try
         {
-            Initialize.Invoke(device, null);
+            Initialize.Invoke(device, [cacheDirectory]);
             if (dirty) DeviceType.GetField("PipelineCacheDirty", InstanceMembers)!.SetValue(device, true);
         }
         finally

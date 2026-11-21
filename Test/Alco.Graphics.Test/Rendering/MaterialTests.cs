@@ -350,6 +350,7 @@ internal static class MaterialTests
             CheckBorrowedTimelineLifetime(device, TimelineRetirement.Destroy, check);
             CheckVariantLayoutsAndCaching(system, vertices, indices, checker, check);
             CheckShaderSystemCompositionAndSpecialization(system, check);
+            CheckAutomaticPipelinesAndWarmUp(device, check);
         }
         finally
         {
@@ -717,21 +718,29 @@ internal static class MaterialTests
             reused.BeginFrame();
             reused.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
             bool unprepared = false;
-            using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+            system.PipelineMissPolicy = PipelineMissPolicy.Throw;
+            try
             {
-                Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
-            }, [Format.Rgba8Unorm]))
+                using (RenderContext.RenderScope pass = reused.BeginRenderPass(new RenderingDesc
+                {
+                    Colors = [new() { RenderView = views[0], Load = LoadOp.Clear }],
+                }, [Format.Rgba8Unorm]))
+                {
+                    pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                    pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
+                    try
+                    {
+                        pass.Draw(material, 3);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        unprepared = true;
+                    }
+                }
+            }
+            finally
             {
-                pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
-                pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
-                try
-                {
-                    pass.Draw(material, 3);
-                }
-                catch (InvalidOperationException)
-                {
-                    unprepared = true;
-                }
+                system.PipelineMissPolicy = PipelineMissPolicy.Create;
             }
             reused.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
             reused.CopyTextureToMemory(targets[0].NativeTexture, pixels[0].GPURange);
@@ -2652,12 +2661,15 @@ internal static class MaterialTests
         RasterizationState rasterization = material.Rasterization;
         material.Rasterization = new RasterizationState { Cull = CullMode.Clockwise };
         check(material.GetPipeline(colorFormats, Format.D32Float) != original, "changing rasterization replaces the pipeline for the same pass formats");
+        material.Rasterization = new RasterizationState { Fill = FillMode.Wireframe };
+        check(material.GetPipeline(colorFormats, Format.D32Float) != original, "changing rasterization fill mode replaces the pipeline for the same pass formats");
         material.Rasterization = rasterization;
         check(material.GetPipeline(colorFormats, Format.D32Float) == original, "restoring rasterization reuses the original pipeline");
         Span<RasterizationState> paddedState = stackalloc RasterizationState[1];
         MemoryMarshal.AsBytes(paddedState).Fill(0xa5);
         ref RasterizationState paddedRasterization = ref paddedState[0];
         paddedRasterization.Cull = rasterization.Cull;
+        paddedRasterization.Fill = rasterization.Fill;
         paddedRasterization.DepthBiasConstant = rasterization.DepthBiasConstant;
         paddedRasterization.DepthBiasClamp = rasterization.DepthBiasClamp;
         paddedRasterization.DepthBiasSlope = rasterization.DepthBiasSlope;
@@ -3060,6 +3072,386 @@ internal static class MaterialTests
             context?.Destroy();
             target?.Destroy();
             outputBuffer?.Destroy();
+            readback.Destroy();
+        }
+    }
+
+    private static unsafe void CheckAutomaticPipelinesAndWarmUp(GPUDevice device, Action<bool, string> check)
+    {
+        const string specializedSource = """
+            import Core;
+
+            [GPURoot]
+            struct SpecRoot
+            {
+                float4 Tint;
+            };
+
+            struct VsOut
+            {
+                float4 Position : SV_Position;
+            };
+
+            [shader("vertex")]
+            VsOut vertexMain(uint vertex : SV_VertexID)
+            {
+                float2 uv = float2((vertex << 1) & 2, vertex & 2);
+                VsOut o;
+                o.Position = float4(uv * 2.0 - 1.0, 0.5, 1.0);
+                return o;
+            }
+
+            [shader("pixel")]
+            float4 pixelMain<let Scale : int>(VsOut input) : SV_Target0
+            {
+                SpecRoot root = gpu_load_root<SpecRoot>();
+                return float4(root.Tint.rgb * (1.0 / float(Scale)), root.Tint.a);
+            }
+            """;
+
+        RenderPassSignature emptySig = default;
+        RenderPassSignature explicitEmptySig = new([], Format.Undefined, Format.Undefined, 1);
+        check(emptySig.ColorCount == 0 && emptySig.DepthFormat == Format.Undefined &&
+            emptySig.StencilFormat == Format.Undefined && emptySig.SampleCount == 1 &&
+            emptySig.Equals(explicitEmptySig) && emptySig.GetHashCode() == explicitEmptySig.GetHashCode(),
+            "default RenderPassSignature matches an empty single-sample pass");
+
+        RenderPassSignature msaaPassSig = new([Format.Rgba8Unorm, Format.Rgba16Float], Format.D32Float, Format.S8Uint, 4);
+        RenderPassSignature msaaPassSigCopy = new([Format.Rgba8Unorm, Format.Rgba16Float], Format.D32Float, Format.S8Uint, 4);
+        RenderPassSignature singleSamplePassSig = new([Format.Rgba8Unorm, Format.Rgba16Float], Format.D32Float, Format.S8Uint, 1);
+        Span<Format> copied = stackalloc Format[2];
+        msaaPassSig.CopyColorFormats(copied);
+        check(msaaPassSig.ColorCount == 2 && msaaPassSig.GetColorFormat(0) == Format.Rgba8Unorm &&
+            msaaPassSig.GetColorFormat(1) == Format.Rgba16Float && copied[0] == Format.Rgba8Unorm && copied[1] == Format.Rgba16Float &&
+            msaaPassSig.DepthFormat == Format.D32Float && msaaPassSig.StencilFormat == Format.S8Uint && msaaPassSig.SampleCount == 4 &&
+            msaaPassSig.Equals(msaaPassSigCopy) && msaaPassSig.GetHashCode() == msaaPassSigCopy.GetHashCode() &&
+            !msaaPassSig.Equals(singleSamplePassSig),
+            "RenderPassSignature packs multi-target formats, depth/stencil, and sample count accurately");
+
+        RenderingSystem? system = null;
+        Shader? shader = null;
+        Shader? specializedShader = null;
+        Texture? target = null;
+        Texture? depth = null;
+        Texture? msaaTarget = null;
+        Buffer? vertices = null;
+        RenderContext? context = null;
+        GPUHeap readback = default;
+        ErrorCallback? previousCallback = Gpu.ErrorCallback;
+        try
+        {
+            system = new RenderingSystem(device, 8 * 1024 * 1024);
+            using (ShaderCompiler compiler = new(device))
+            {
+                ShaderModule module = compiler.LoadModuleFromSource("auto_pso_mat", "auto_pso_mat.slang", MaterialShaderSource);
+                shader = new Shader(system, module, name: "auto_pso_mat");
+            }
+            specializedShader = system.Shaders.GetShaderFromSource("auto_pso_spec", "auto_pso_spec.slang", specializedSource);
+
+            target = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(RecordingSize, RecordingSize, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
+            });
+            depth = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(RecordingSize, RecordingSize, 1),
+                Format = Format.D32Float,
+                Usage = TextureUsage.DepthStencilAttachment,
+            });
+            msaaTarget = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(RecordingSize, RecordingSize, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.ColorAttachment,
+                SampleCount = 4,
+            });
+
+            check(target.RenderView.Format == Format.Rgba8Unorm && target.RenderView.SampleCount == 1 &&
+                depth.RenderView.Format == Format.D32Float && depth.RenderView.SampleCount == 1 &&
+                msaaTarget.RenderView.Format == Format.Rgba8Unorm && msaaTarget.RenderView.SampleCount == 4,
+                "GPURenderView exposes underlying attachment format and sample count");
+
+            RenderingDesc autoPassDesc = new()
+            {
+                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+            };
+            RenderPassSignature derivedSig = RenderPassSignature.From(in autoPassDesc);
+            RenderingDesc msaaPassDesc = new()
+            {
+                Colors = [new() { RenderView = msaaTarget.RenderView, Load = LoadOp.Clear }],
+            };
+            RenderPassSignature msaaDerivedSig = RenderPassSignature.From(in msaaPassDesc);
+            check(derivedSig.ColorCount == 1 && derivedSig.GetColorFormat(0) == Format.Rgba8Unorm &&
+                derivedSig.DepthFormat == Format.D32Float && derivedSig.StencilFormat == Format.Undefined && derivedSig.SampleCount == 1 &&
+                msaaDerivedSig.ColorCount == 1 && msaaDerivedSig.GetColorFormat(0) == Format.Rgba8Unorm && msaaDerivedSig.SampleCount == 4,
+                "RenderPassSignature.From derives color, depth, stencil, and sample count from RenderingDesc");
+
+            ReadOnlySpan<TestVertex> quadTriangle =
+            [
+                new() { Position = new Vector4(-1, -1, 0.5f, 1), Uv = new Vector2(0.5f, 0.5f) },
+                new() { Position = new Vector4(3, -1, 0.5f, 1), Uv = new Vector2(0.5f, 0.5f) },
+                new() { Position = new Vector4(-1, 3, 0.5f, 1), Uv = new Vector2(0.5f, 0.5f) },
+            ];
+            vertices = system.CreateBuffer(quadTriangle);
+            Matrix4x4 identity = Matrix4x4.Identity;
+            Vector4 tint = new(0.25f, 0.5f, 0.75f, 1.0f);
+
+            Material material = shader.CreateMaterial("auto_pso");
+            material.SetBuffer("vertices", vertices);
+            material.SetData("transform", ref identity);
+            material.SetData("tint", ref tint);
+            material.Blend = new BlendState
+            {
+                Enabled = true,
+                Color = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+            };
+
+            readback = device.CreateGPUHeap(RecordingSize * RecordingSize * 4, MemoryType.Readback);
+            context = new RenderContext(system, 4096);
+
+            // 1. Automatic on-demand PSO creation during BeginRenderPass(desc) + Draw with zero manual GetPipeline.
+            context.BeginFrame();
+            context.Barrier(Stage.DepthStencilTests, Access.DepthStencilWrite, Stage.DepthStencilTests, Access.DepthStencilWrite);
+            using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+            {
+                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+            }))
+            {
+                pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
+                pass.Draw(material, 3);
+            }
+            context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
+            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
+            context.Submit().Wait();
+            check(PixelMatches(readback.Range, Format.Rgba8Unorm, 8, 8, tint),
+                "unprepared material draws automatically using BeginRenderPass(desc) without calling GetPipeline");
+
+            // 2. Warmed automatic BeginRenderPass(desc) + Draw allocates zero managed bytes.
+            long drawAllocations = 0;
+            for (int frame = 0; frame < 6; ++frame)
+            {
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                context.BeginFrame();
+                context.Barrier(Stage.Transfer | Stage.ColorOutput, Access.TransferRead | Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
+                using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+                {
+                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                }))
+                {
+                    pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                    pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
+                    pass.Draw(material, 3);
+                }
+                context.Submit();
+                long frameAllocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                if (frame >= 2)
+                    drawAllocations += frameAllocated;
+            }
+            context.Wait();
+            check(drawAllocations == 0, $"warmed BeginRenderPass(desc) + Draw path allocates zero managed bytes (actual={drawAllocations})");
+
+            // 3. PipelineMissPolicy.CreateAndWarn emits exactly one nonfatal diagnostic on miss and none on cache hit.
+            int missWarnings = 0;
+            bool nonfatalOnly = true;
+            Gpu.SetErrorCallback((string message, bool fatal) =>
+            {
+                if (message.Contains("Pipeline miss", StringComparison.Ordinal))
+                {
+                    ++missWarnings;
+                    nonfatalOnly &= !fatal;
+                }
+            });
+            system.PipelineMissPolicy = PipelineMissPolicy.CreateAndWarn;
+            material.WriteMask = 0x7;
+            try
+            {
+                context.BeginFrame();
+                context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
+                using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+                {
+                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                }))
+                {
+                    pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                    pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
+                    pass.Draw(material, 3);
+                    pass.Draw(material, 3);
+                }
+                context.Submit().Wait();
+            }
+            finally
+            {
+                system.PipelineMissPolicy = PipelineMissPolicy.Create;
+                Gpu.SetErrorCallback(previousCallback);
+            }
+            check(missWarnings == 1 && nonfatalOnly,
+                $"PipelineMissPolicy.CreateAndWarn emits one nonfatal diagnostic on miss (count={missWarnings})");
+
+            // 4. Material.WarmUpPipeline populates cache in background so PipelineMissPolicy.Throw succeeds, and warmed calls allocate 0 bytes.
+            material.WriteMask = 0x3;
+            Task materialWarmup = material.WarmUpPipeline(derivedSig);
+            materialWarmup.GetAwaiter().GetResult();
+            Task warmHitTask = material.WarmUpPipeline(derivedSig);
+            bool hitReturnedCompleted = ReferenceEquals(warmHitTask, Task.CompletedTask);
+            long warmAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+            for (int iteration = 0; iteration < 256; ++iteration)
+            {
+                _ = material.WarmUpPipeline(derivedSig);
+                _ = material.WarmUpPipeline([Format.Rgba8Unorm], Format.D32Float);
+            }
+            long warmAllocBytes = GC.GetAllocatedBytesForCurrentThread() - warmAllocBefore;
+            check(hitReturnedCompleted && warmAllocBytes == 0,
+                $"warmed Material.WarmUpPipeline returns Task.CompletedTask with zero allocations (actual={warmAllocBytes})");
+
+            system.PipelineMissPolicy = PipelineMissPolicy.Throw;
+            try
+            {
+                context.BeginFrame();
+                context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.ColorOutput, Access.ColorWrite);
+                using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+                {
+                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                }))
+                {
+                    pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                    pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
+                    pass.Draw(material, 3);
+                }
+                context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
+                context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+                context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
+                context.Submit().Wait();
+            }
+            finally
+            {
+                system.PipelineMissPolicy = PipelineMissPolicy.Create;
+            }
+            Vector4 expectedRgMask = new(tint.X, tint.Y, 0.0f, 1.0f);
+            check(PixelMatches(readback.Range, Format.Rgba8Unorm, 8, 8, expectedRgMask),
+                "Material.WarmUpPipeline prepares the pipeline for PipelineMissPolicy.Throw and renders with write mask 0x3");
+
+            // 5. Concurrent Shader.WarmUpPipeline (including specializations) deduplicates and succeeds under PipelineMissPolicy.Throw.
+            PipelineState concurrentState = new() { WriteMask = 0x5 };
+            Task[] concurrentTasks = new Task[4];
+            using (Barrier gate = new(concurrentTasks.Length))
+            {
+                Thread[] workers = new Thread[concurrentTasks.Length];
+                for (int index = 0; index < workers.Length; ++index)
+                {
+                    int worker = index;
+                    workers[worker] = new Thread(() =>
+                    {
+                        gate.SignalAndWait();
+                        concurrentTasks[worker] = specializedShader.WarmUpPipeline(in concurrentState, derivedSig, 2);
+                    });
+                    workers[worker].Start();
+                }
+                for (int index = 0; index < workers.Length; ++index)
+                    workers[index].Join();
+            }
+            Task.WhenAll(concurrentTasks).GetAwaiter().GetResult();
+
+            Material specMat = specializedShader.CreateMaterial("warmed_spec", 2);
+            specMat.WriteMask = 0x5;
+            Vector4 specTint = new(0.8f, 0.4f, 0.6f, 1.0f);
+            specMat.SetData("Tint", ref specTint);
+            system.PipelineMissPolicy = PipelineMissPolicy.Throw;
+            try
+            {
+                context.BeginFrame();
+                context.Barrier(Stage.Transfer, Access.TransferRead, Stage.ColorOutput, Access.ColorWrite);
+                using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+                {
+                    Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+                    Depth = new DepthAttachment { RenderView = depth.RenderView, Load = LoadOp.Clear, Store = StoreOp.Discard },
+                }))
+                {
+                    pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                    pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
+                    pass.Draw(specMat, 3);
+                }
+                context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
+                context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+                context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
+                context.Submit().Wait();
+            }
+            finally
+            {
+                system.PipelineMissPolicy = PipelineMissPolicy.Create;
+            }
+            Vector4 expectedSpec = new(0.4f, 0.0f, 0.3f, 1.0f);
+            check(PixelMatches(readback.Range, Format.Rgba8Unorm, 8, 8, expectedSpec),
+                "concurrent specialized Shader.WarmUpPipeline satisfies PipelineMissPolicy.Throw and renders expected output");
+
+            // 6. Lifecycle safety: destroying RenderingSystem (with ShaderSystem) and standalone Shader while warmups are in-flight drains cleanly.
+            RenderPassSignature rgbaPass = new(Format.Rgba8Unorm);
+            RenderingSystem? shutdownSystem = new(device, 2 * 1024 * 1024);
+            List<Task> shutdownTasks = new(8);
+            try
+            {
+                Shader systemOwnedShader = shutdownSystem.Shaders.GetShaderFromSource("shutdown_warm_sys", "shutdown_warm_sys.slang", specializedSource);
+                for (int index = 0; index < 4; ++index)
+                {
+                    PipelineState state = new() { WriteMask = (byte)(index + 1) };
+                    shutdownTasks.Add(systemOwnedShader.WarmUpPipeline(in state, rgbaPass, index + 1));
+                }
+                shutdownSystem.Destroy();
+                shutdownSystem = null;
+            }
+            finally
+            {
+                shutdownSystem?.Destroy();
+            }
+
+            RenderingSystem? standaloneSystem = new(device, 2 * 1024 * 1024);
+            Shader? standaloneShader = null;
+            using (ShaderCompiler standaloneCompiler = new(device))
+            {
+                try
+                {
+                    ShaderModule specModule = standaloneCompiler.LoadModuleFromSource("shutdown_warm_standalone",
+                        "shutdown_warm_standalone.slang", specializedSource);
+                    standaloneShader = new Shader(standaloneSystem, specModule, name: "shutdown_warm_standalone");
+                    for (int index = 0; index < 4; ++index)
+                    {
+                        PipelineState state = new() { WriteMask = (byte)(index + 5) };
+                        shutdownTasks.Add(standaloneShader.WarmUpPipeline(in state, rgbaPass, index + 1));
+                    }
+                    standaloneShader.Destroy();
+                    standaloneShader = null;
+                    standaloneSystem.Destroy();
+                    standaloneSystem = null;
+                }
+                finally
+                {
+                    standaloneShader?.Destroy();
+                    standaloneSystem?.Destroy();
+                }
+            }
+            Task.WhenAll(shutdownTasks).GetAwaiter().GetResult();
+            check(true, "in-flight background WarmUpPipeline tasks drain cleanly when Shader and RenderingSystem are destroyed");
+        }
+        finally
+        {
+            Gpu.SetErrorCallback(previousCallback);
+            device.WaitIdle();
+            context?.DiscardFrame();
+            context?.Destroy();
+            shader?.Destroy();
+            vertices?.Destroy();
+            msaaTarget?.Destroy();
+            depth?.Destroy();
+            target?.Destroy();
+            system?.Destroy();
             readback.Destroy();
         }
     }

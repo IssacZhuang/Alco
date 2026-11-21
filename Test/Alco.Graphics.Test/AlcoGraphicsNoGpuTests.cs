@@ -193,7 +193,6 @@ public sealed class AlcoGraphicsNoGpuTests
             gfxMat.SetSampler("Sampler", system.Samplers.LinearClamp);
             Vector4 tint = Vector4.One;
             gfxMat.SetData("Tint", ref tint);
-            gfxMat.GetPipeline([Format.Rgba8Unorm], Format.Undefined);
 
             try
             {
@@ -206,13 +205,15 @@ public sealed class AlcoGraphicsNoGpuTests
                 {
                     Colors = [new ColorAttachment { RenderView = offscreen.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store }],
                 };
-                using (var render = context.BeginRenderPass(passDesc, [Format.Rgba8Unorm]))
+                using (var render = context.BeginRenderPass(passDesc))
                 {
                     render.Draw(gfxMat, 3);
                 }
                 TimelinePoint point = context.Submit();
                 point.Wait();
                 Assert.That(point.Semaphore?.CompletedValue, Is.GreaterThanOrEqualTo(point.Value));
+                gfxMat.WriteMask = 0x7;
+                gfxMat.WarmUpPipeline([Format.Rgba8Unorm]).GetAwaiter().GetResult();
             }
             finally
             {

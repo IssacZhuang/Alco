@@ -15,6 +15,7 @@ public class Material
     private protected byte[] _staging;
     private ShaderVariant _variant;
     private PipelineState _state = new();
+    private PipelineStateKey _stateKey;
     private DepthStencilState _depthStencil;
     private uint _version;
     private uint _resourceVersion;
@@ -26,6 +27,7 @@ public class Material
         _shader = shader;
         Name = name.Length != 0 ? name : shader.Name;
         _variant = variant;
+        _stateKey = new PipelineStateKey(in _state, shader.Kind);
         _staging = CreateInitializedStaging(variant.Root, shader.System);
     }
 
@@ -67,6 +69,7 @@ public class Material
         {
             Debug.Assert(_shader.Kind != ShaderKind.Compute);
             _state.Blend = value;
+            _stateKey = new PipelineStateKey(in _state, _shader.Kind);
             ++_version;
         }
     }
@@ -79,6 +82,7 @@ public class Material
         {
             Debug.Assert(_shader.Kind != ShaderKind.Compute);
             _state.WriteMask = value;
+            _stateKey = new PipelineStateKey(in _state, _shader.Kind);
             ++_version;
         }
     }
@@ -91,6 +95,7 @@ public class Material
         {
             Debug.Assert(_shader.Kind != ShaderKind.Compute);
             _state.Rasterization = value;
+            _stateKey = new PipelineStateKey(in _state, _shader.Kind);
             ++_version;
         }
     }
@@ -103,6 +108,7 @@ public class Material
         {
             Debug.Assert(_shader.Kind != ShaderKind.Compute);
             _state.Topology = value;
+            _stateKey = new PipelineStateKey(in _state, _shader.Kind);
             ++_version;
         }
     }
@@ -226,14 +232,46 @@ public class Material
         ++_version;
     }
 
-    /// <summary>Gets or creates a shared graphics or mesh pipeline for this material's active specialization; prepare each pass signature before drawing.</summary>
+    /// <summary>Gets or creates a shared graphics or mesh pipeline for this material's active specialization.</summary>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <returns>The pipeline; owned by the material's shader.</returns>
+    public GPUPipeline GetPipeline(RenderPassSignature pass)
+    {
+        return Variant.GetPipeline(in _state, in _stateKey, in pass, out _);
+    }
+
+    /// <summary>Gets or creates a shared graphics or mesh pipeline for this material's active specialization.</summary>
     /// <param name="colorFormats">The render pass color target formats.</param>
     /// <param name="depthFormat">The render pass depth target format.</param>
     /// <param name="stencilFormat">The render pass stencil format.</param>
+    /// <param name="sampleCount">The render pass sample count.</param>
     /// <returns>The pipeline; owned by the material's shader.</returns>
-    public GPUPipeline GetPipeline(ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat = Format.Undefined)
+    public GPUPipeline GetPipeline(ReadOnlySpan<Format> colorFormats, Format depthFormat,
+        Format stencilFormat = Format.Undefined, uint sampleCount = 1)
     {
-        return Variant.GetPipeline(_state, colorFormats, depthFormat, stencilFormat);
+        return Variant.GetPipeline(in _state, in _stateKey,
+            new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount), out _);
+    }
+
+    /// <summary>Schedules background warmup of a pipeline for this material's current state and active specialization.</summary>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    public Task WarmUpPipeline(RenderPassSignature pass)
+    {
+        return Variant.WarmUpPipeline(in _state, in _stateKey, in pass);
+    }
+
+    /// <summary>Schedules background warmup of a pipeline for this material's current state and active specialization.</summary>
+    /// <param name="colorFormats">The render pass color target formats.</param>
+    /// <param name="depthFormat">The render pass depth target format.</param>
+    /// <param name="stencilFormat">The render pass stencil format.</param>
+    /// <param name="sampleCount">The render pass sample count.</param>
+    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    public Task WarmUpPipeline(ReadOnlySpan<Format> colorFormats, Format depthFormat = Format.Undefined,
+        Format stencilFormat = Format.Undefined, uint sampleCount = 1)
+    {
+        return Variant.WarmUpPipeline(in _state, in _stateKey,
+            new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
     }
 
     /// <summary>Copies resolved root data into per-frame storage; direct command use leaves shader and bound-resource retention to the caller.</summary>
@@ -250,6 +288,8 @@ public class Material
     }
 
     internal PipelineState State => _state;
+
+    internal PipelineStateKey StateKey => _stateKey;
 
     internal virtual ShaderVariant Variant => _variant;
 

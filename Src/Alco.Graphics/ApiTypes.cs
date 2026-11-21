@@ -671,6 +671,9 @@ public unsafe struct DeviceDesc
     /// <summary>The graphics backend to use; defaults to <see cref="GraphicsBackend.Auto"/>.</summary>
     public GraphicsBackend Backend;
 
+    /// <summary>Optional directory for persistent GPU pipeline cache files; null or empty disables on-disk persistence.</summary>
+    public string? PipelineCacheDirectory;
+
     /// <summary>Initializes a headless device description with one general queue and 256 timestamp slots per command buffer.</summary>
     public DeviceDesc()
     {

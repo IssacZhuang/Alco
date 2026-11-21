@@ -31,9 +31,7 @@ public sealed unsafe class RenderBundle : RenderingResource
         internal int DrawEnd;
     }
 
-    private readonly Format[] ColorFormats;
-    private readonly Format DepthFormat;
-    private readonly Format StencilFormat;
+    private readonly RenderPassSignature _passSignature;
     private readonly List<RenderingResource> Resources = new(32);
     private DrawRecord[] Draws = [];
     private StateRun[] Runs = [];
@@ -47,17 +45,24 @@ public sealed unsafe class RenderBundle : RenderingResource
     private uint RetainedResourceVersion;
     private Buffer? RetainedIndices;
 
+    /// <summary>Starts recording for the given pass signature; recording is externally synchronized.</summary>
+    /// <param name="system">The rendering system supplying the device and descriptor heaps.</param>
+    /// <param name="pass">The attachment signature of compatible passes.</param>
+    public RenderBundle(RenderingSystem system, RenderPassSignature pass) : base(system)
+    {
+        _passSignature = pass;
+    }
+
     /// <summary>Starts recording for the given attachment formats; recording is externally synchronized.</summary>
     /// <param name="system">The rendering system supplying the device and descriptor heaps.</param>
     /// <param name="colorFormats">The color attachment formats of compatible passes.</param>
     /// <param name="depthFormat">The depth attachment format, or undefined when absent.</param>
     /// <param name="stencilFormat">The stencil attachment format, or undefined when absent.</param>
+    /// <param name="sampleCount">The raster sample count of compatible passes.</param>
     public RenderBundle(RenderingSystem system, ReadOnlySpan<Format> colorFormats,
-        Format depthFormat = Format.Undefined, Format stencilFormat = Format.Undefined) : base(system)
+        Format depthFormat = Format.Undefined, Format stencilFormat = Format.Undefined, uint sampleCount = 1) : base(system)
     {
-        ColorFormats = colorFormats.ToArray();
-        DepthFormat = depthFormat;
-        StencilFormat = stencilFormat;
+        _passSignature = new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount);
     }
 
     /// <summary>The number of recorded draws.</summary>
@@ -140,10 +145,9 @@ public sealed unsafe class RenderBundle : RenderingResource
         Sealed = true;
     }
 
-    internal bool IsCompatible(RenderingSystem system, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat)
+    internal bool IsCompatible(RenderingSystem system, RenderPassSignature pass)
     {
-        return !IsDestroyed && Sealed && system == _system && DepthFormat == depthFormat && StencilFormat == stencilFormat &&
-            ColorFormats.AsSpan().SequenceEqual(colorFormats);
+        return !IsDestroyed && Sealed && system == _system && _passSignature.Equals(pass);
     }
 
     internal void Replay(RenderContext context, GPUCommandBuffer commands)
@@ -188,7 +192,7 @@ public sealed unsafe class RenderBundle : RenderingResource
     private int PrepareDraw(Material material)
     {
         Debug.Assert(!IsDestroyed && !Sealed && material.Shader.System == _system && material.Shader.Kind == ShaderKind.Graphics);
-        GPUPipeline pipeline = material.GetPipeline(ColorFormats, DepthFormat, StencilFormat);
+        GPUPipeline pipeline = material.GetPipeline(_passSignature);
         DepthStencilState depthStencil = material.DepthStencilState;
         if (RunCount == 0 || Runs[RunCount - 1].Pipeline != pipeline ||
             !RenderContext.DepthStencilMatches(Runs[RunCount - 1].DepthStencil, depthStencil))

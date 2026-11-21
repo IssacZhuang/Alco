@@ -119,6 +119,12 @@ internal sealed unsafe partial class D3D12RenderView : GPURenderView
     internal bool SwapchainView;
     internal bool IsDepth;
 
+    /// <summary>The pixel format of the underlying attachment texture.</summary>
+    public override Format Format => Texture.Desc.Format;
+
+    /// <summary>The sample count of the underlying attachment texture.</summary>
+    public override uint SampleCount => Texture.Desc.SampleCount == 0 ? 1u : Texture.Desc.SampleCount;
+
     /// <summary>Releases an owned attachment view after every render pass use has finished.</summary>
     public override void Destroy()
     {

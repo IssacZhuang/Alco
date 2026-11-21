@@ -278,6 +278,12 @@ public abstract partial class GPURenderView
 {
     private protected GPURenderView() { }
 
+    /// <summary>The pixel format of the underlying attachment texture.</summary>
+    public abstract Format Format { get; }
+
+    /// <summary>The sample count of the underlying attachment texture.</summary>
+    public abstract uint SampleCount { get; }
+
     /// <summary>Releases the view after no recorded or executing render pass uses it.</summary>
     public abstract void Destroy();
 }

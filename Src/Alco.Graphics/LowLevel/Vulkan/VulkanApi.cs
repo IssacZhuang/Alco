@@ -480,7 +480,7 @@ internal abstract unsafe partial class VulkanDeviceBase
             throw CreationFailure(Error.DriverError, "The graphics driver did not provide the enabled Vulkan presentation commands.");
         }
 
-        device.InitializePipelineCache();
+        device.InitializePipelineCache(desc.PipelineCacheDirectory);
 
         device.BufferViewTable = device.CreateBackingBuffer(BufferViewSlots.Capacity * sizeof(ulong),
             Vk.VkBufferUsageFlags.ShaderDeviceAddress | Vk.VkBufferUsageFlags.StorageBuffer, Backend.CpuVisibleMemoryProperties, 0);

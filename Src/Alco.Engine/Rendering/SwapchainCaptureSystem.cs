@@ -151,7 +151,6 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
             EnsureStaging(frame.Extent, stagingFormat);
 
             blit.SetTexture("Texture", _surfaceCopy);
-            _ = blit.GetPipeline([stagingFormat], Format.Undefined);
 
             _renderContext.BeginFrame();
             begun = true;
@@ -173,7 +172,7 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
                 ],
             };
 
-            using (RenderContext.RenderScope render = _renderContext.BeginRenderPass(pass, [stagingFormat]))
+            using (RenderContext.RenderScope render = _renderContext.BeginRenderPass(pass))
             {
                 render.SetViewport(new Viewport { Width = frame.Extent.X, Height = frame.Extent.Y });
                 render.SetScissor(new Scissor { Width = frame.Extent.X, Height = frame.Extent.Y });

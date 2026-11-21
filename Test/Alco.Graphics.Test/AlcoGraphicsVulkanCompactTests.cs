@@ -151,7 +151,6 @@ public sealed class AlcoGraphicsVulkanCompactTests
             material.SetSampler("Sampler", system.Samplers.NearestClamp);
             Vector4 tint = new(1.0f, 0.5f, 0.25f, 1.0f);
             material.SetData("Tint", ref tint);
-            material.GetPipeline([Format.Rgba8Unorm], Format.Undefined);
 
             GPUHeap readback = device.AllocateGPUHeap(4 * 4 * 4, MemoryType.Readback);
             try
@@ -161,7 +160,7 @@ public sealed class AlcoGraphicsVulkanCompactTests
                 {
                     Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store }],
                 };
-                using (var render = context.BeginRenderPass(passDesc, [Format.Rgba8Unorm]))
+                using (var render = context.BeginRenderPass(passDesc))
                 {
                     render.SetViewport(new Viewport { Width = 4, Height = 4, MaxDepth = 1 });
                     render.SetScissor(new Scissor { Width = 4, Height = 4 });

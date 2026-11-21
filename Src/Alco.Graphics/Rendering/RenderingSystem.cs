@@ -5,6 +5,19 @@ using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
 
+/// <summary>Policy applied when a material draw encounters an uncached graphics or mesh pipeline.</summary>
+public enum PipelineMissPolicy : byte
+{
+    /// <summary>Compile and cache the pipeline automatically on demand.</summary>
+    Create,
+
+    /// <summary>Compile and cache the pipeline on demand and report a nonfatal diagnostic.</summary>
+    CreateAndWarn,
+
+    /// <summary>Throw an <see cref="InvalidOperationException"/> without compiling a pipeline.</summary>
+    Throw,
+}
+
 /// <summary>Owns shared GPU storage and descriptor heaps. Independent resources may be created and reclaimed concurrently.</summary>
 /// <remarks>Initialize and destroy with exclusive access; keep the device alive until destruction.</remarks>
 public sealed class RenderingSystem
@@ -40,6 +53,10 @@ public sealed class RenderingSystem
     private uint _liveBuffers;
     private uint _liveTextures;
     private uint _liveSamplers;
+    private byte _pipelineMissPolicy;
+    private readonly object _warmupSync = new();
+    private int _activeWarmups;
+    private bool _warmupClosed;
     private bool _destroyed;
 
     /// <summary>Creates growable buffer and texture storage without a total byte budget, and the device's standard bindless descriptor heaps.</summary>
@@ -178,6 +195,15 @@ public sealed class RenderingSystem
             }
         }
     }
+
+    /// <summary>Controls how <see cref="RenderContext"/> handles uncached graphics or mesh pipelines during draw recording.</summary>
+    public PipelineMissPolicy PipelineMissPolicy
+    {
+        get => (PipelineMissPolicy)Volatile.Read(ref _pipelineMissPolicy);
+        set => Volatile.Write(ref _pipelineMissPolicy, (byte)value);
+    }
+
+    internal bool IsWarmUpClosed => Volatile.Read(ref _warmupClosed);
 
     /// <summary>Creates an independent shader system with custom compiler options targeting this rendering system.</summary>
     /// <param name="options">Optional compiler search paths, defines, virtual file resolver, and cache settings.</param>
@@ -483,6 +509,7 @@ public sealed class RenderingSystem
             Debug.Assert(false);
             return;
         }
+        DrainWarmUps();
         _shaders?.Dispose();
         _shaders = null;
         // The device is idle here: reclaim every finalized wrapper without waiting on the timeline.
@@ -686,6 +713,131 @@ public sealed class RenderingSystem
         {
             Debug.Assert(index < _nextIndex && _freeCount < (uint)_freeIndices.Length);
             _freeIndices[_freeCount++] = index;
+        }
+    }
+
+    internal Task EnqueueWarmUp(ShaderVariant variant, in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass)
+    {
+        lock (_warmupSync)
+        {
+            if (_warmupClosed || _destroyed)
+                return Task.CompletedTask;
+            ++_activeWarmups;
+        }
+
+        WarmUpWorkItem item = new(this, variant, null, null, in state, in stateKey, in pass);
+        try
+        {
+            ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
+        }
+        catch
+        {
+            CompleteWarmUp();
+            throw;
+        }
+        return item.Task;
+    }
+
+    internal Task EnqueueShaderWarmUp(Shader shader, string[] normalizedSpecializations, in PipelineState state,
+        in PipelineStateKey stateKey, in RenderPassSignature pass)
+    {
+        lock (_warmupSync)
+        {
+            if (_warmupClosed || _destroyed)
+                return Task.CompletedTask;
+            ++_activeWarmups;
+        }
+
+        WarmUpWorkItem item = new(this, null, shader, normalizedSpecializations, in state, in stateKey, in pass);
+        try
+        {
+            ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
+        }
+        catch
+        {
+            CompleteWarmUp();
+            throw;
+        }
+        return item.Task;
+    }
+
+    private void CompleteWarmUp()
+    {
+        lock (_warmupSync)
+        {
+            --_activeWarmups;
+            if (_activeWarmups == 0)
+                Monitor.PulseAll(_warmupSync);
+        }
+    }
+
+    private void DrainWarmUps()
+    {
+        lock (_warmupSync)
+        {
+            Volatile.Write(ref _warmupClosed, true);
+            while (_activeWarmups > 0)
+                Monitor.Wait(_warmupSync);
+        }
+    }
+
+    private sealed class WarmUpWorkItem : IThreadPoolWorkItem
+    {
+        private readonly RenderingSystem _system;
+        private readonly ShaderVariant? _variant;
+        private readonly Shader? _shader;
+        private readonly string[]? _specializations;
+        private readonly PipelineState _state;
+        private readonly PipelineStateKey _stateKey;
+        private readonly RenderPassSignature _pass;
+        private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal WarmUpWorkItem(
+            RenderingSystem system,
+            ShaderVariant? variant,
+            Shader? shader,
+            string[]? specializations,
+            in PipelineState state,
+            in PipelineStateKey stateKey,
+            in RenderPassSignature pass)
+        {
+            _system = system;
+            _variant = variant;
+            _shader = shader;
+            _specializations = specializations;
+            _state = state;
+            _stateKey = stateKey;
+            _pass = pass;
+        }
+
+        internal Task Task => _completion.Task;
+
+        public void Execute()
+        {
+            try
+            {
+                if (!_system.IsWarmUpClosed)
+                {
+                    if (_variant != null)
+                    {
+                        _variant.WarmUpPipelineCore(in _state, in _stateKey, in _pass);
+                    }
+                    else if (_shader != null && _specializations != null)
+                    {
+                        ShaderVariant? variant = _shader.TryGetOrCompileVariant(_specializations);
+                        variant?.WarmUpPipelineCore(in _state, in _stateKey, in _pass);
+                    }
+                }
+                _completion.TrySetResult();
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                _completion.TrySetException(exception);
+            }
+            finally
+            {
+                _system.CompleteWarmUp();
+            }
         }
     }
 }

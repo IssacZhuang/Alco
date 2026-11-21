@@ -161,7 +161,7 @@ internal sealed unsafe partial class MetalDevice : GPUDevice
             }
             using Mtl.MTL4CompilerDescriptor compiler = new();
             if (compiler.NativePtr == 0) throw MetalBackend.CreationFailure(default, "pipeline compiler descriptor");
-            device.InitializePipelineCache(compiler);
+            device.InitializePipelineCache(compiler, desc.PipelineCacheDirectory);
             error = default;
             device.MtlCompiler = device.MtlDevice.NewCompiler(compiler, ref error);
             if (device.MtlCompiler.NativePtr == 0) throw MetalBackend.CreationFailure(error, "pipeline compiler");

@@ -240,13 +240,26 @@ internal sealed class NoGPUTexture : GPUTexture
         _desc = desc;
     }
 
-    public override GPURenderView CreateRenderView(RenderViewDesc desc) => new NoGPURenderView();
+    public override GPURenderView CreateRenderView(RenderViewDesc desc) => new NoGPURenderView(_desc.Format, _desc.SampleCount);
 
     public override void Destroy() { }
 }
 
 internal sealed class NoGPURenderView : GPURenderView
 {
+    internal Format ViewFormat;
+    internal uint ViewSampleCount;
+
+    internal NoGPURenderView(Format format, uint sampleCount = 1)
+    {
+        ViewFormat = format;
+        ViewSampleCount = sampleCount == 0 ? 1u : sampleCount;
+    }
+
+    public override Format Format => ViewFormat;
+
+    public override uint SampleCount => ViewSampleCount;
+
     public override void Destroy() { }
 }
 
@@ -304,7 +317,7 @@ internal sealed class NoGPUSwapchain : GPUSwapchain
             Format = _format,
             Usage = TextureUsage.ColorAttachment | TextureUsage.TransferDestination,
         });
-        BackbufferView = new NoGPURenderView();
+        BackbufferView = new NoGPURenderView(_format, 1u);
     }
 
     public override Extent2D DrawableExtent => _extent;
@@ -325,6 +338,7 @@ internal sealed class NoGPUSwapchain : GPUSwapchain
     public override bool TrySetFormat(Format format, ColorSpace colorSpace, out Error error)
     {
         _format = format == Format.Undefined ? Format.Bgra8Unorm : format;
+        BackbufferView.ViewFormat = _format;
         _colorSpace = colorSpace;
         error = Error.None;
         return true;

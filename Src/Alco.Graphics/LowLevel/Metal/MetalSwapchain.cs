@@ -71,6 +71,7 @@ internal sealed class MetalSwapchain : GPUSwapchain
         ReleaseDrawable();
         Layer.PixelFormat = MetalInterop.PixelFormat(format);
         CurrentFormat = format;
+        DrawableTexture.Desc.Format = format;
         CurrentColorSpace = colorSpace;
         error = Error.None;
         return true;

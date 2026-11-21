@@ -1,6 +1,7 @@
 ﻿// Example-level frame recording and submission with render and compute scopes and per-frame storage.
 
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
@@ -60,12 +61,9 @@ public sealed class RenderContext : RenderingResource
     private bool _recording;
     private ScopeKind _scope;
     private uint _scopeId;
-    private Format[] _colorFormats = [];
-    private int _colorFormatCount;
-    private Format _depthFormat;
-    private Format _stencilFormat;
+    private RenderPassSignature _passSignature;
     private ShaderVariant? _lastVariant;
-    private PipelineState _lastState;
+    private PipelineStateKey _lastStateKey;
     private GPUPipeline? _lastPipeline;
     private DepthStencilState LastDepthStencil;
     private bool HasDepthStencil;
@@ -396,6 +394,31 @@ public sealed class RenderContext : RenderingResource
         RetainResource(texture);
     }
 
+    /// <summary>Begins a render pass within the active frame, deriving attachment formats and sample count from <paramref name="desc"/>.</summary>
+    /// <param name="desc">The attachments and their operations.</param>
+    /// <returns>The borrowed scope, valid until the pass ends or the frame is discarded.</returns>
+    public RenderScope BeginRenderPass(scoped RenderingDesc desc)
+    {
+        return BeginRenderPass(desc, RenderPassSignature.From(in desc));
+    }
+
+    /// <summary>Begins a render pass within the active frame using an explicit pass signature.</summary>
+    /// <param name="desc">The attachments and their operations.</param>
+    /// <param name="signature">The pass attachment formats and sample count.</param>
+    /// <returns>The borrowed scope, valid until the pass ends or the frame is discarded.</returns>
+    public RenderScope BeginRenderPass(scoped RenderingDesc desc, RenderPassSignature signature)
+    {
+        GPUCommandBuffer commands = CommandsBetweenScopes;
+        Debug.Assert(signature.ColorCount == desc.Colors.Length);
+        _passSignature = signature;
+
+        commands.SetTextureDescriptorHeap(_system.TextureDescriptorHeap);
+        commands.SetSamplerDescriptorHeap(_system.SamplerDescriptorHeap);
+        commands.BeginRenderPass(desc);
+        _scope = ScopeKind.Render;
+        return new RenderScope(this, ++_scopeId);
+    }
+
     /// <summary>Begins a render pass within the active frame. No other scope may be open.</summary>
     /// <param name="desc">The attachments and their operations.</param>
     /// <param name="colorFormats">The formats matching the color attachments in order.</param>
@@ -405,20 +428,24 @@ public sealed class RenderContext : RenderingResource
     public RenderScope BeginRenderPass(scoped RenderingDesc desc, scoped ReadOnlySpan<Format> colorFormats,
         Format depthFormat = Format.Undefined, Format stencilFormat = Format.Undefined)
     {
-        GPUCommandBuffer commands = CommandsBetweenScopes;
         Debug.Assert(colorFormats.Length == desc.Colors.Length);
-        if (_colorFormats.Length < colorFormats.Length)
-            _colorFormats = new Format[colorFormats.Length];
-        colorFormats.CopyTo(_colorFormats);
-        _colorFormatCount = colorFormats.Length;
-        _depthFormat = depthFormat;
-        _stencilFormat = stencilFormat;
+        uint sampleCount = DeriveSampleCount(in desc);
+        return BeginRenderPass(desc, new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
+    }
 
-        commands.SetTextureDescriptorHeap(_system.TextureDescriptorHeap);
-        commands.SetSamplerDescriptorHeap(_system.SamplerDescriptorHeap);
-        commands.BeginRenderPass(desc);
-        _scope = ScopeKind.Render;
-        return new RenderScope(this, ++_scopeId);
+    private static uint DeriveSampleCount(scoped in RenderingDesc desc)
+    {
+        for (int index = 0; index < desc.Colors.Length; ++index)
+        {
+            GPURenderView? view = desc.Colors[index].RenderView;
+            if (view != null)
+                return view.SampleCount;
+        }
+        if (desc.Depth.RenderView != null)
+            return desc.Depth.RenderView.SampleCount;
+        if (desc.Stencil.RenderView != null)
+            return desc.Stencil.RenderView.SampleCount;
+        return 1;
     }
 
     /// <summary>Begins a pass for prepacked roots and caller-owned bindings; do not record material draws in it.</summary>
@@ -527,6 +554,7 @@ public sealed class RenderContext : RenderingResource
     private void ResetScope()
     {
         _scope = ScopeKind.None;
+        _passSignature = default;
         _lastVariant = null;
         _lastPipeline = null;
         HasDepthStencil = false;
@@ -554,16 +582,43 @@ public sealed class RenderContext : RenderingResource
         Shader shader = material.Shader;
         Debug.Assert(!shader.IsDestroyed && shader.Kind == kind);
         ShaderVariant variant = material.Variant;
-        PipelineState state = material.State;
+        PipelineStateKey stateKey = material.StateKey;
         GPUPipeline? pipeline = _lastPipeline;
-        if (pipeline == null || _lastVariant != variant || !_lastState.Matches(state, kind))
+        if (pipeline == null || _lastVariant != variant || !_lastStateKey.Equals(stateKey))
         {
-            pipeline = variant.GetPreparedPipeline(state, _colorFormats.AsSpan(0, _colorFormatCount), _depthFormat, _stencilFormat);
+            pipeline = ResolveDrawPipeline(variant, material.State, in stateKey);
             _lastVariant = variant;
-            _lastState = state;
+            _lastStateKey = stateKey;
         }
         ApplyDrawState(pipeline, depthStencil);
         RetainMaterial(material);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private GPUPipeline ResolveDrawPipeline(ShaderVariant variant, in PipelineState state, in PipelineStateKey stateKey)
+    {
+        return variant.TryGetCachedPipeline(in _passSignature, in stateKey) ??
+            ResolveUncachedPipeline(variant, in state, in stateKey);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private GPUPipeline ResolveUncachedPipeline(ShaderVariant variant, in PipelineState state, in PipelineStateKey stateKey)
+    {
+        PipelineMissPolicy policy = _system.PipelineMissPolicy;
+        if (policy == PipelineMissPolicy.Throw)
+        {
+            throw new InvalidOperationException(
+                $"Shader '{variant.OwnerName}' needs a prepared pipeline; call Material.GetPipeline or WarmUpPipeline for this state and pass.");
+        }
+
+        GPUPipeline pipeline = variant.GetPipeline(in state, in stateKey, in _passSignature, out bool created);
+        if (created && policy == PipelineMissPolicy.CreateAndWarn)
+        {
+            Gpu.ReportError(
+                $"Pipeline miss: compiled '{variant.OwnerName}' pipeline on draw (Colors={_passSignature.ColorCount}, Depth={_passSignature.DepthFormat}, Stencil={_passSignature.StencilFormat}, Samples={_passSignature.SampleCount}).",
+                false);
+        }
+        return pipeline;
     }
 
     private GPURange PrepareDispatch(Material material)
@@ -644,13 +699,13 @@ public sealed class RenderContext : RenderingResource
             PreparedCommands.Draw(root, vertexCount);
         }
 
-        /// <summary>Records a draw with a fresh root snapshot; prepare the material's pipeline before recording.</summary>
+        /// <summary>Records a draw with a fresh root snapshot.</summary>
         /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
         /// <param name="vertexCount">The number of vertices per instance.</param>
         /// <param name="instanceCount">The number of instances.</param>
         /// <param name="firstVertex">The index of the first vertex.</param>
         /// <param name="firstInstance">The index of the first instance.</param>
-        /// <exception cref="InvalidOperationException">The material state and pass formats have no prepared pipeline.</exception>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void Draw(Material material, uint vertexCount, uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0)
         {
             _context.AssertScope(ScopeKind.Render, _id);
@@ -659,14 +714,14 @@ public sealed class RenderContext : RenderingResource
         }
 
         /// <summary>Records a draw with prepacked root data and draw-local depth and stencil state.</summary>
-        /// <param name="material">The material whose pipeline is prepared for this pass; do not mutate it during parallel recording.</param>
+        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
         /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
         /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
         /// <param name="vertexCount">The number of vertices per instance.</param>
         /// <param name="instanceCount">The number of instances.</param>
         /// <param name="firstVertex">The index of the first vertex.</param>
         /// <param name="firstInstance">The index of the first instance.</param>
-        /// <exception cref="InvalidOperationException">The material state and pass formats have no prepared pipeline.</exception>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void Draw(Material material, GPURange root, DepthStencilState depthStencil, uint vertexCount,
             uint instanceCount = 1, uint firstVertex = 0, uint firstInstance = 0)
         {
@@ -676,7 +731,7 @@ public sealed class RenderContext : RenderingResource
             _context.RecordingCommands.Draw(root, vertexCount, instanceCount, firstVertex, firstInstance);
         }
 
-        /// <summary>Records an indexed draw with a fresh root snapshot; prepare the material's pipeline before recording.</summary>
+        /// <summary>Records an indexed draw with a fresh root snapshot.</summary>
         /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
         /// <param name="indices">The index buffer, retained until submission registration or discard.</param>
         /// <param name="type">The index element type.</param>
@@ -686,7 +741,7 @@ public sealed class RenderContext : RenderingResource
         /// <param name="vertexOffset">The offset added to each fetched index.</param>
         /// <param name="firstInstance">The index of the first instance.</param>
         /// <param name="byteOffset">The index buffer's byte offset; firstIndex is relative to the resulting subrange.</param>
-        /// <exception cref="InvalidOperationException">The material state and pass formats have no prepared pipeline.</exception>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void DrawIndexed(Material material, Buffer indices, IndexType type, uint indexCount, uint instanceCount = 1,
             uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0, ulong byteOffset = 0)
         {
@@ -698,7 +753,7 @@ public sealed class RenderContext : RenderingResource
                 firstInstance);
         }
 
-        /// <summary>Records indexed indirect draws with a fresh root snapshot; prepare the material's pipeline before recording.</summary>
+        /// <summary>Records indexed indirect draws with a fresh root snapshot.</summary>
         /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
         /// <param name="indices">The index buffer, retained through submission registration or discard.</param>
         /// <param name="type">The index element type.</param>
@@ -707,7 +762,7 @@ public sealed class RenderContext : RenderingResource
         /// <param name="stride">The record stride in bytes; zero selects tightly packed 20-byte records.</param>
         /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
         /// <param name="indexByteOffset">The index buffer's byte offset.</param>
-        /// <exception cref="InvalidOperationException">The material state and pass formats have no prepared pipeline.</exception>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
         public void DrawIndexedIndirect(Material material, Buffer indices, IndexType type, Buffer arguments,
             uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0, ulong indexByteOffset = 0)
         {
@@ -721,7 +776,7 @@ public sealed class RenderContext : RenderingResource
                 arguments.Range.Slice(argumentByteOffset), drawCount, stride);
         }
 
-        /// <summary>Records a mesh draw with a fresh root snapshot and a prepared pipeline.</summary>
+        /// <summary>Records a mesh draw with a fresh root snapshot.</summary>
         /// <param name="material">The mesh material, unchanged during parallel recording.</param>
         /// <param name="groupCount">The task or mesh workgroup counts.</param>
         public void DrawMeshlets(Material material, Extent3D groupCount)
@@ -730,7 +785,7 @@ public sealed class RenderContext : RenderingResource
             _context.RecordingCommands.DrawMeshlets(_context.PrepareDraw(material, ShaderKind.Mesh), groupCount);
         }
 
-        /// <summary>Records indirect mesh draws with a fresh root snapshot and a prepared pipeline.</summary>
+        /// <summary>Records indirect mesh draws with a fresh root snapshot.</summary>
         /// <param name="material">The mesh material, unchanged during parallel recording.</param>
         /// <param name="arguments">The argument buffer, retained through submission registration.</param>
         /// <param name="drawCount">The number of argument records.</param>
@@ -750,8 +805,7 @@ public sealed class RenderContext : RenderingResource
         public void ExecuteBundle(RenderBundle bundle)
         {
             _context.AssertScope(ScopeKind.Render, _id);
-            Debug.Assert(bundle.IsCompatible(_context._system, _context._colorFormats.AsSpan(0, _context._colorFormatCount),
-                _context._depthFormat, _context._stencilFormat));
+            Debug.Assert(bundle.IsCompatible(_context._system, _context._passSignature));
             _context.RetainResource(bundle);
             bundle.Replay(_context, _context.RecordingCommands);
             _context._lastVariant = null;

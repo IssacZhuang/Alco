@@ -66,6 +66,16 @@ public struct GraphicsSetting
     public string? FontCachePath { get; set; }
 
     /// <summary>
+    /// Whether to enable the persistent GPU pipeline cache.
+    /// </summary>
+    public bool IsPipelineCacheEnabled { get; set; }
+
+    /// <summary>
+    /// The path to the GPU pipeline cache directory.
+    /// </summary>
+    public string? PipelineCachePath { get; set; }
+
+    /// <summary>
     /// The default graphics setting
     /// </summary>
     public static readonly GraphicsSetting Default = new GraphicsSetting
@@ -81,6 +91,8 @@ public struct GraphicsSetting
         ShaderCachePath = ".cache/shader",
         IsFontCacheEnabled = true,
         FontCachePath = ".cache/font",
+        IsPipelineCacheEnabled = true,
+        PipelineCachePath = ".cache/pipeline",
     };
 
     /// <summary>
@@ -99,6 +111,8 @@ public struct GraphicsSetting
         ShaderCachePath = ".cache/shader",
         IsFontCacheEnabled = true,
         FontCachePath = ".cache/font",
+        IsPipelineCacheEnabled = true,
+        PipelineCachePath = ".cache/pipeline",
     };
 
 
@@ -118,5 +132,7 @@ public struct GraphicsSetting
         ShaderCachePath = null,
         IsFontCacheEnabled = false,
         FontCachePath = null,
+        IsPipelineCacheEnabled = false,
+        PipelineCachePath = null,
     };
 }

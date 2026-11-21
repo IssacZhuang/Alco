@@ -409,6 +409,12 @@ internal sealed unsafe partial class VulkanTexture
 
 internal sealed unsafe partial class VulkanRenderView
 {
+    /// <summary>The pixel format of the underlying attachment texture.</summary>
+    public override Format Format => Source.Format;
+
+    /// <summary>The sample count of the underlying attachment texture.</summary>
+    public override uint SampleCount => Source.SampleCount == 0 ? 1u : Source.SampleCount;
+
     /// <summary>Releases the view after no recorded or executing render pass uses it.</summary>
     public override void Destroy()
     {

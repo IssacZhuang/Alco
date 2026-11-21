@@ -1,6 +1,9 @@
 ﻿// Example-level shader handle: automatic stage inference, template/interface composition, lazy specialization variants, and shared pipelines.
 
 using System.Diagnostics;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using Alco.Graphics.LowLevel;
 
 namespace Alco.Graphics;
@@ -212,9 +215,58 @@ public struct PipelineState
             Blend.Alpha.Operation == state.Blend.Alpha.Operation && WriteMask == state.WriteMask &&
             (kind != ShaderKind.Graphics || Topology == state.Topology) &&
             Rasterization.Cull == state.Rasterization.Cull &&
+            Rasterization.Fill == state.Rasterization.Fill &&
             Rasterization.DepthBiasConstant.Equals(state.Rasterization.DepthBiasConstant) &&
             Rasterization.DepthBiasClamp.Equals(state.Rasterization.DepthBiasClamp) &&
             Rasterization.DepthBiasSlope.Equals(state.Rasterization.DepthBiasSlope);
+    }
+}
+
+internal readonly struct PipelineStateKey : IEquatable<PipelineStateKey>
+{
+    internal readonly ulong Word0;
+    internal readonly ulong Word1;
+    internal readonly ulong Word2;
+
+    internal PipelineStateKey(in PipelineState state, ShaderKind kind)
+    {
+        ulong w0 = state.Blend.Enabled ? 1ul : 0ul;
+        w0 |= (ulong)(byte)state.Blend.Color.Source << 8;
+        w0 |= (ulong)(byte)state.Blend.Color.Destination << 16;
+        w0 |= (ulong)(byte)state.Blend.Color.Operation << 24;
+        w0 |= (ulong)(byte)state.Blend.Alpha.Source << 32;
+        w0 |= (ulong)(byte)state.Blend.Alpha.Destination << 40;
+        w0 |= (ulong)(byte)state.Blend.Alpha.Operation << 48;
+        w0 |= (ulong)state.WriteMask << 56;
+        Word0 = w0;
+
+        byte topology = kind == ShaderKind.Graphics ? (byte)state.Topology : (byte)0;
+        ulong w1 = topology;
+        w1 |= (ulong)(byte)state.Rasterization.Cull << 8;
+        w1 |= (ulong)(byte)state.Rasterization.Fill << 16;
+        w1 |= (ulong)CanonicalFloatBits(state.Rasterization.DepthBiasConstant) << 32;
+        Word1 = w1;
+
+        ulong w2 = CanonicalFloatBits(state.Rasterization.DepthBiasClamp);
+        w2 |= (ulong)CanonicalFloatBits(state.Rasterization.DepthBiasSlope) << 32;
+        Word2 = w2;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool Equals(PipelineStateKey other) => Word0 == other.Word0 && Word1 == other.Word1 && Word2 == other.Word2;
+
+    public override bool Equals(object? obj) => obj is PipelineStateKey other && Equals(other);
+
+    public override int GetHashCode() => HashCode.Combine(Word0, Word1, Word2);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static uint CanonicalFloatBits(float value)
+    {
+        if (value == 0.0f)
+            return 0u;
+        if (float.IsNaN(value))
+            return 0x7FC00000u;
+        return BitConverter.SingleToUInt32Bits(value);
     }
 }
 
@@ -226,8 +278,11 @@ internal sealed class ShaderVariant
     private readonly CompiledShaderStage? _task;
     private readonly CompiledShaderStage? _pixel;
     private readonly GPUPipeline? _computePipeline;
-    private readonly Lock _pipelineLock = new();
-    private PipelineEntry[] _pipelines = [];
+    private readonly object _pipelineSync = new();
+    private PipelineTable _pipelineTable = PipelineTable.Empty;
+    private List<InFlightPipeline>? _inFlight;
+    private int _activeCreates;
+    private bool _destroyed;
 
     internal ShaderVariant(Shader owner, CompiledShader compiled, ShaderKind kind, string[] specializations)
     {
@@ -261,83 +316,295 @@ internal sealed class ShaderVariant
     internal CompiledShader Compiled { get; }
     internal RootLayout Root { get; }
     internal IReadOnlyList<string> Specializations { get; }
+    internal string OwnerName => _owner.Name;
 
     internal GPUPipeline GetComputePipeline()
     {
         return _computePipeline ?? throw new InvalidOperationException($"Shader '{_owner.Name}' is not a compute shader.");
     }
 
-    internal GPUPipeline GetPipeline(in PipelineState state, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal GPUPipeline? TryGetCachedPipeline(in RenderPassSignature pass, in PipelineStateKey stateKey)
     {
-        if (_owner.Kind == ShaderKind.Compute)
-            throw new InvalidOperationException($"Compute shader '{_owner.Name}' has no raster pipeline.");
-        GPUPipeline? cached = FindPipeline(Volatile.Read(ref _pipelines), state, colorFormats, depthFormat, stencilFormat);
-        if (cached != null)
-            return cached;
-
-        lock (_pipelineLock)
+        PipelineTable table = Volatile.Read(ref _pipelineTable);
+        PipelineSlot[] slots = table.Slots;
+        int mask = table.Mask;
+        ulong hash = ComputeKeyHash(in pass, in stateKey);
+        int index = (int)hash & mask;
+        while (true)
         {
-            PipelineEntry[] pipelines = _pipelines;
-            cached = FindPipeline(pipelines, state, colorFormats, depthFormat, stencilFormat);
-            if (cached != null)
-                return cached;
-
-            ColorTargetDesc[] targets = new ColorTargetDesc[colorFormats.Length];
-            for (int index = 0; index < targets.Length; index++)
-                targets[index] = new ColorTargetDesc { Format = colorFormats[index], Blend = state.Blend, WriteMask = state.WriteMask };
-            PipelineEntry[] updated = new PipelineEntry[pipelines.Length + 1];
-            pipelines.CopyTo(updated, 0);
-            PipelineKey key = new(colorFormats, depthFormat, stencilFormat, state);
-            GPUPipeline pipeline = _owner.Kind == ShaderKind.Mesh
-                ? _owner.System.Device.CreateMeshPipeline(new MeshPipelineDesc
-                {
-                    Task = _task != null ? _task.ToGpuStage() : default,
-                    Mesh = _primary!.ToGpuStage(),
-                    Pixel = _pixel != null ? _pixel.ToGpuStage() : default,
-                    ColorTargets = targets,
-                    DepthFormat = depthFormat,
-                    StencilFormat = stencilFormat,
-                    Rasterization = state.Rasterization,
-                })
-                : _owner.System.Device.CreateGraphicsPipeline(new GraphicsPipelineDesc
-                {
-                    Vertex = _primary!.ToGpuStage(),
-                    Pixel = _pixel != null ? _pixel.ToGpuStage() : default,
-                    ColorTargets = targets,
-                    DepthFormat = depthFormat,
-                    StencilFormat = stencilFormat,
-                    Rasterization = state.Rasterization,
-                    Topology = state.Topology,
-                });
-            updated[^1] = new PipelineEntry { Key = key, Pipeline = pipeline };
-            Volatile.Write(ref _pipelines, updated);
-            return pipeline;
+            ref readonly PipelineSlot slot = ref slots[index];
+            GPUPipeline? pipeline = slot.Pipeline;
+            if (pipeline == null)
+                return null;
+            if (slot.Hash == hash && slot.Pass.Equals(pass) && slot.StateKey.Equals(stateKey))
+                return pipeline;
+            index = (index + 1) & mask;
         }
     }
 
-    internal GPUPipeline GetPreparedPipeline(PipelineState state, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat)
+    internal GPUPipeline GetPipeline(in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass, out bool created)
     {
-        return FindPipeline(Volatile.Read(ref _pipelines), state, colorFormats, depthFormat, stencilFormat) ??
-            throw new InvalidOperationException($"Shader '{_owner.Name}' needs a prepared pipeline; call Material.GetPipeline for this state and pass.");
+        if (_owner.Kind == ShaderKind.Compute)
+            throw new InvalidOperationException($"Compute shader '{_owner.Name}' has no raster pipeline.");
+        GPUPipeline? cached = TryGetCachedPipeline(in pass, in stateKey);
+        if (cached != null)
+        {
+            created = false;
+            return cached;
+        }
+        return GetOrCreatePipelineSlow(in state, in stateKey, in pass, allowDestroyedReturnNull: false, out created)!;
+    }
+
+    internal Task WarmUpPipeline(in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass)
+    {
+        if (_owner.Kind == ShaderKind.Compute)
+            throw new InvalidOperationException($"Compute shader '{_owner.Name}' has no raster pipeline.");
+        if (TryGetCachedPipeline(in pass, in stateKey) != null)
+            return Task.CompletedTask;
+
+        lock (_pipelineSync)
+        {
+            if (_destroyed || TryGetCachedPipeline(in pass, in stateKey) != null)
+                return Task.CompletedTask;
+            if (_inFlight != null)
+            {
+                for (int index = 0; index < _inFlight.Count; ++index)
+                {
+                    InFlightPipeline candidate = _inFlight[index];
+                    if (candidate.Pass.Equals(pass) && candidate.StateKey.Equals(stateKey))
+                        return candidate.Completion.Task;
+                }
+            }
+        }
+
+        return _owner.System.EnqueueWarmUp(this, in state, in stateKey, in pass);
+    }
+
+    internal void WarmUpPipelineCore(in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass)
+    {
+        GetOrCreatePipelineSlow(in state, in stateKey, in pass, allowDestroyedReturnNull: true, out _);
     }
 
     internal void Destroy()
     {
+        PipelineTable table;
+        lock (_pipelineSync)
+        {
+            _destroyed = true;
+            while (_activeCreates > 0)
+                Monitor.Wait(_pipelineSync);
+            table = _pipelineTable;
+            Volatile.Write(ref _pipelineTable, PipelineTable.Empty);
+        }
+
         _computePipeline?.Destroy();
-        foreach (PipelineEntry entry in _pipelines)
-            entry.Pipeline.Destroy();
-        _pipelines = [];
+        PipelineSlot[] slots = table.Slots;
+        for (int index = 0; index < slots.Length; ++index)
+            slots[index].Pipeline?.Destroy();
     }
 
-    private GPUPipeline? FindPipeline(PipelineEntry[] pipelines, PipelineState state, ReadOnlySpan<Format> colorFormats,
-        Format depthFormat, Format stencilFormat)
+    private GPUPipeline? GetOrCreatePipelineSlow(in PipelineState state, in PipelineStateKey stateKey,
+        in RenderPassSignature pass, bool allowDestroyedReturnNull, out bool created)
     {
-        foreach (PipelineEntry entry in pipelines)
+        created = false;
+        InFlightPipeline? existingInFlight = null;
+        InFlightPipeline? ownedInFlight = null;
+
+        lock (_pipelineSync)
         {
-            if (entry.Key.Matches(colorFormats, depthFormat, stencilFormat, state, _owner.Kind))
-                return entry.Pipeline;
+            GPUPipeline? cached = TryGetCachedPipeline(in pass, in stateKey);
+            if (cached != null)
+                return cached;
+            if (_destroyed)
+            {
+                if (allowDestroyedReturnNull)
+                    return null;
+                throw new ObjectDisposedException(nameof(Shader), $"Shader '{_owner.Name}' has been destroyed.");
+            }
+
+            if (_inFlight != null)
+            {
+                for (int index = 0; index < _inFlight.Count; ++index)
+                {
+                    InFlightPipeline candidate = _inFlight[index];
+                    if (candidate.Pass.Equals(pass) && candidate.StateKey.Equals(stateKey))
+                    {
+                        existingInFlight = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (existingInFlight == null)
+            {
+                ownedInFlight = new InFlightPipeline(in pass, in stateKey);
+                _inFlight ??= [];
+                _inFlight.Add(ownedInFlight);
+                ++_activeCreates;
+            }
         }
-        return null;
+
+        if (existingInFlight != null)
+        {
+            GPUPipeline? awaited = existingInFlight.Completion.Task.GetAwaiter().GetResult();
+            if (awaited == null && !allowDestroyedReturnNull)
+                throw new ObjectDisposedException(nameof(Shader), $"Shader '{_owner.Name}' has been destroyed.");
+            return awaited;
+        }
+
+        GPUPipeline? createdPipeline = null;
+        Exception? failure = null;
+        try
+        {
+            createdPipeline = CreateNativePipeline(in state, in pass);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+
+        GPUPipeline? publishedPipeline = null;
+        bool destroyOrphan = false;
+        lock (_pipelineSync)
+        {
+            _inFlight?.Remove(ownedInFlight!);
+            if (createdPipeline != null)
+            {
+                if (_destroyed)
+                {
+                    destroyOrphan = true;
+                }
+                else
+                {
+                    ulong hash = ComputeKeyHash(in pass, in stateKey);
+                    PipelineTable updated = InsertEntry(_pipelineTable, hash, in pass, in stateKey, createdPipeline);
+                    Volatile.Write(ref _pipelineTable, updated);
+                    publishedPipeline = createdPipeline;
+                    created = true;
+                }
+            }
+        }
+
+        try
+        {
+            if (destroyOrphan)
+                createdPipeline!.Destroy();
+        }
+        finally
+        {
+            lock (_pipelineSync)
+            {
+                --_activeCreates;
+                if (_activeCreates == 0)
+                    Monitor.PulseAll(_pipelineSync);
+            }
+
+            if (failure != null)
+            {
+                ownedInFlight!.Completion.TrySetException(failure);
+                _ = ownedInFlight.Completion.Task.Exception;
+            }
+            else
+            {
+                ownedInFlight!.Completion.TrySetResult(publishedPipeline);
+            }
+        }
+
+        if (failure != null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+        if (publishedPipeline == null && !allowDestroyedReturnNull)
+            throw new ObjectDisposedException(nameof(Shader), $"Shader '{_owner.Name}' has been destroyed.");
+        return publishedPipeline;
+    }
+
+    private GPUPipeline CreateNativePipeline(in PipelineState state, in RenderPassSignature pass)
+    {
+        int colorCount = pass.ColorCount;
+        Span<ColorTargetDesc> targetStorage = stackalloc ColorTargetDesc[(int)Backend.MaxColorAttachments];
+        Span<ColorTargetDesc> targets = targetStorage[..colorCount];
+        for (int index = 0; index < colorCount; ++index)
+        {
+            targets[index] = new ColorTargetDesc
+            {
+                Format = pass.GetColorFormat(index),
+                Blend = state.Blend,
+                WriteMask = state.WriteMask,
+            };
+        }
+
+        return _owner.Kind == ShaderKind.Mesh
+            ? _owner.System.Device.CreateMeshPipeline(new MeshPipelineDesc
+            {
+                Task = _task != null ? _task.ToGpuStage() : default,
+                Mesh = _primary!.ToGpuStage(),
+                Pixel = _pixel != null ? _pixel.ToGpuStage() : default,
+                ColorTargets = targets,
+                DepthFormat = pass.DepthFormat,
+                StencilFormat = pass.StencilFormat,
+                Rasterization = state.Rasterization,
+                SampleCount = pass.SampleCount,
+            })
+            : _owner.System.Device.CreateGraphicsPipeline(new GraphicsPipelineDesc
+            {
+                Vertex = _primary!.ToGpuStage(),
+                Pixel = _pixel != null ? _pixel.ToGpuStage() : default,
+                ColorTargets = targets,
+                DepthFormat = pass.DepthFormat,
+                StencilFormat = pass.StencilFormat,
+                Rasterization = state.Rasterization,
+                SampleCount = pass.SampleCount,
+                Topology = state.Topology,
+            });
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ulong ComputeKeyHash(in RenderPassSignature pass, in PipelineStateKey stateKey)
+    {
+        ulong hash = pass.ColorFormatsPacked ^ ((ulong)pass.MetaPacked * 0x9E3779B97F4A7C15ul);
+        hash = BitOperations.RotateLeft(hash ^ stateKey.Word0, 17) * 0xBF58476D1CE4E5B9ul;
+        hash = BitOperations.RotateLeft(hash ^ stateKey.Word1, 23) * 0x94D049BB133111EBul;
+        hash ^= stateKey.Word2;
+        hash ^= hash >> 30;
+        hash *= 0xBF58476D1CE4E5B9ul;
+        hash ^= hash >> 27;
+        return hash == 0 ? 1ul : hash;
+    }
+
+    private static PipelineTable InsertEntry(PipelineTable current, ulong hash, in RenderPassSignature pass,
+        in PipelineStateKey stateKey, GPUPipeline pipeline)
+    {
+        int nextCount = current.Count + 1;
+        int capacity = current.Slots.Length < 8 ? 8 : current.Slots.Length;
+        if (nextCount * 2 > capacity)
+            capacity *= 2;
+        PipelineSlot[] nextSlots = new PipelineSlot[capacity];
+        int mask = capacity - 1;
+
+        PipelineSlot[] oldSlots = current.Slots;
+        for (int index = 0; index < oldSlots.Length; ++index)
+        {
+            ref readonly PipelineSlot existing = ref oldSlots[index];
+            if (existing.Pipeline == null)
+                continue;
+            int destination = (int)existing.Hash & mask;
+            while (nextSlots[destination].Pipeline != null)
+                destination = (destination + 1) & mask;
+            nextSlots[destination] = existing;
+        }
+
+        int target = (int)hash & mask;
+        while (nextSlots[target].Pipeline != null)
+            target = (target + 1) & mask;
+        nextSlots[target] = new PipelineSlot
+        {
+            Hash = hash,
+            Pass = pass,
+            StateKey = stateKey,
+            Pipeline = pipeline,
+        };
+        return new PipelineTable(nextSlots, nextCount);
     }
 
     private static CompiledShaderStage? FindUniqueOptionalStage(CompiledShader compiled, ShaderStageKind stage)
@@ -354,31 +621,41 @@ internal sealed class ShaderVariant
         return match;
     }
 
-    private struct PipelineEntry
+    private struct PipelineSlot
     {
-        public PipelineKey Key;
-        public GPUPipeline Pipeline;
+        public ulong Hash;
+        public RenderPassSignature Pass;
+        public PipelineStateKey StateKey;
+        public GPUPipeline? Pipeline;
     }
 
-    private readonly struct PipelineKey
+    private sealed class PipelineTable
     {
-        public readonly Format[] ColorFormats;
-        public readonly Format DepthFormat;
-        public readonly Format StencilFormat;
-        public readonly PipelineState State;
+        internal static readonly PipelineTable Empty = new(new PipelineSlot[1], 0);
 
-        public PipelineKey(ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat, in PipelineState state)
+        internal readonly PipelineSlot[] Slots;
+        internal readonly int Mask;
+        internal readonly int Count;
+
+        internal PipelineTable(PipelineSlot[] slots, int count)
         {
-            ColorFormats = colorFormats.ToArray();
-            DepthFormat = depthFormat;
-            StencilFormat = stencilFormat;
-            State = state;
+            Slots = slots;
+            Mask = slots.Length - 1;
+            Count = count;
         }
+    }
 
-        public bool Matches(ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat, in PipelineState state, ShaderKind kind)
+    private sealed class InFlightPipeline
+    {
+        internal readonly RenderPassSignature Pass;
+        internal readonly PipelineStateKey StateKey;
+        internal readonly TaskCompletionSource<GPUPipeline?> Completion =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        internal InFlightPipeline(in RenderPassSignature pass, in PipelineStateKey stateKey)
         {
-            return DepthFormat == depthFormat && StencilFormat == stencilFormat &&
-                ColorFormats.AsSpan().SequenceEqual(colorFormats) && State.Matches(state, kind);
+            Pass = pass;
+            StateKey = stateKey;
         }
     }
 }
@@ -390,6 +667,7 @@ public sealed class Shader : RenderingResource
     private readonly Lock _variantLock = new();
     private VariantEntry[] _variants = [];
     private ShaderVariant? _defaultVariant;
+    private bool _released;
 
     /// <summary>Creates a shader handle for a module, automatically inferring Graphics, Compute, or Mesh when <paramref name="kind"/> is null.</summary>
     /// <param name="system">The rendering system that owns the device.</param>
@@ -540,6 +818,28 @@ public sealed class Shader : RenderingResource
 
     /// <summary>Gets or creates a shared graphics or mesh pipeline for the default variant.</summary>
     /// <param name="state">The pipeline-defining material state.</param>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <returns>The pipeline; owned and destroyed by this shader.</returns>
+    public GPUPipeline GetPipeline(in PipelineState state, RenderPassSignature pass)
+    {
+        Debug.Assert(!IsDestroyed);
+        return DefaultVariant.GetPipeline(in state, new PipelineStateKey(in state, Kind), in pass, out _);
+    }
+
+    /// <summary>Gets or creates a shared graphics or mesh pipeline for a specific specialization.</summary>
+    /// <param name="state">The pipeline-defining material state.</param>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <param name="specializations">The specialization arguments for the variant.</param>
+    /// <returns>The pipeline; owned and destroyed by this shader.</returns>
+    public GPUPipeline GetPipeline(in PipelineState state, RenderPassSignature pass, params ReadOnlySpan<object> specializations)
+    {
+        Debug.Assert(!IsDestroyed);
+        ShaderVariant variant = specializations.IsEmpty ? DefaultVariant : GetOrCompileVariant(NormalizeSpecializations(specializations));
+        return variant.GetPipeline(in state, new PipelineStateKey(in state, Kind), in pass, out _);
+    }
+
+    /// <summary>Gets or creates a shared graphics or mesh pipeline for the default variant.</summary>
+    /// <param name="state">The pipeline-defining material state.</param>
     /// <param name="colorFormats">The render pass color target formats.</param>
     /// <param name="depthFormat">The render pass depth format.</param>
     /// <param name="stencilFormat">The render pass stencil format.</param>
@@ -547,7 +847,8 @@ public sealed class Shader : RenderingResource
     public GPUPipeline GetPipeline(in PipelineState state, ReadOnlySpan<Format> colorFormats, Format depthFormat, Format stencilFormat)
     {
         Debug.Assert(!IsDestroyed);
-        return DefaultVariant.GetPipeline(state, colorFormats, depthFormat, stencilFormat);
+        return DefaultVariant.GetPipeline(in state, new PipelineStateKey(in state, Kind),
+            new RenderPassSignature(colorFormats, depthFormat, stencilFormat), out _);
     }
 
     /// <summary>Gets or creates a shared graphics or mesh pipeline for a specific specialization.</summary>
@@ -562,7 +863,61 @@ public sealed class Shader : RenderingResource
     {
         Debug.Assert(!IsDestroyed);
         ShaderVariant variant = specializations.IsEmpty ? DefaultVariant : GetOrCompileVariant(NormalizeSpecializations(specializations));
-        return variant.GetPipeline(state, colorFormats, depthFormat, stencilFormat);
+        return variant.GetPipeline(in state, new PipelineStateKey(in state, Kind),
+            new RenderPassSignature(colorFormats, depthFormat, stencilFormat), out _);
+    }
+
+    /// <summary>Schedules background warmup of a graphics or mesh pipeline for the default specialization.</summary>
+    /// <param name="state">The pipeline-defining material state.</param>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    public Task WarmUpPipeline(in PipelineState state, RenderPassSignature pass)
+    {
+        if (Kind == ShaderKind.Compute)
+            throw new InvalidOperationException($"Compute shader '{Name}' has no raster pipeline.");
+        if (Volatile.Read(ref _released) || IsDestroyed)
+            return Task.CompletedTask;
+
+        PipelineStateKey stateKey = new(in state, Kind);
+        ShaderVariant? variant = Volatile.Read(ref _defaultVariant) ?? FindVariant(Volatile.Read(ref _variants), []);
+        if (variant != null)
+            return variant.WarmUpPipeline(in state, in stateKey, in pass);
+        return _system.EnqueueShaderWarmUp(this, [], in state, in stateKey, in pass);
+    }
+
+    /// <summary>Schedules background warmup of a graphics or mesh pipeline for a specific specialization.</summary>
+    /// <param name="state">The pipeline-defining material state.</param>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <param name="specializations">The specialization arguments for the variant.</param>
+    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    public Task WarmUpPipeline(in PipelineState state, RenderPassSignature pass, params ReadOnlySpan<object> specializations)
+    {
+        if (Kind == ShaderKind.Compute)
+            throw new InvalidOperationException($"Compute shader '{Name}' has no raster pipeline.");
+        if (Volatile.Read(ref _released) || IsDestroyed)
+            return Task.CompletedTask;
+        if (specializations.IsEmpty)
+            return WarmUpPipeline(in state, pass);
+
+        string[] normalized = NormalizeSpecializations(specializations);
+        PipelineStateKey stateKey = new(in state, Kind);
+        ShaderVariant? existing = FindVariant(Volatile.Read(ref _variants), normalized);
+        if (existing != null)
+            return existing.WarmUpPipeline(in state, in stateKey, in pass);
+        return _system.EnqueueShaderWarmUp(this, normalized, in state, in stateKey, in pass);
+    }
+
+    /// <summary>Schedules background warmup of a graphics or mesh pipeline for the default specialization.</summary>
+    /// <param name="state">The pipeline-defining material state.</param>
+    /// <param name="colorFormats">The render pass color target formats.</param>
+    /// <param name="depthFormat">The render pass depth format.</param>
+    /// <param name="stencilFormat">The render pass stencil format.</param>
+    /// <param name="sampleCount">The render pass sample count.</param>
+    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    public Task WarmUpPipeline(in PipelineState state, ReadOnlySpan<Format> colorFormats,
+        Format depthFormat = Format.Undefined, Format stencilFormat = Format.Undefined, uint sampleCount = 1)
+    {
+        return WarmUpPipeline(in state, new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
     }
 
     internal ShaderVariant GetOrCompileVariant(string[] normalizedSpecializations)
@@ -574,6 +929,35 @@ public sealed class Shader : RenderingResource
 
         lock (_variantLock)
         {
+            if (_released)
+                throw new ObjectDisposedException(nameof(Shader), $"Shader '{Name}' has been destroyed.");
+            VariantEntry[] variants = _variants;
+            cached = FindVariant(variants, normalizedSpecializations);
+            if (cached != null)
+                return cached;
+
+            CompiledShader compiled = _compileVariant(normalizedSpecializations);
+            ShaderVariant created = new(this, compiled, Kind, normalizedSpecializations);
+            VariantEntry[] updated = new VariantEntry[variants.Length + 1];
+            variants.CopyTo(updated, 0);
+            updated[^1] = new VariantEntry { Key = normalizedSpecializations, Variant = created };
+            Volatile.Write(ref _variants, updated);
+            return created;
+        }
+    }
+
+    internal ShaderVariant? TryGetOrCompileVariant(string[] normalizedSpecializations)
+    {
+        if (Volatile.Read(ref _released) || IsDestroyed)
+            return null;
+        ShaderVariant? cached = FindVariant(Volatile.Read(ref _variants), normalizedSpecializations);
+        if (cached != null)
+            return cached;
+
+        lock (_variantLock)
+        {
+            if (_released || IsDestroyed)
+                return null;
             VariantEntry[] variants = _variants;
             cached = FindVariant(variants, normalizedSpecializations);
             if (cached != null)
@@ -592,10 +976,17 @@ public sealed class Shader : RenderingResource
     /// <summary>Destroys all variants' pipelines.</summary>
     protected override void Release()
     {
-        foreach (VariantEntry entry in _variants)
+        VariantEntry[] snapshot;
+        lock (_variantLock)
+        {
+            Volatile.Write(ref _released, true);
+            snapshot = _variants;
+            _variants = [];
+            _defaultVariant = null;
+        }
+
+        foreach (VariantEntry entry in snapshot)
             entry.Variant.Destroy();
-        _variants = [];
-        _defaultVariant = null;
     }
 
     private static ShaderVariant? FindVariant(VariantEntry[] variants, ReadOnlySpan<string> specializations)

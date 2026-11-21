@@ -16,9 +16,8 @@ internal abstract unsafe partial class VulkanDeviceBase
     internal Vk.VkPipelineCache PipelineCache;
     internal bool PipelineCacheDirty;
 
-    private void InitializePipelineCache()
+    private void InitializePipelineCache(string? directory)
     {
-        string? directory = Environment.GetEnvironmentVariable("ALCO_GRAPHICS_VULKAN_PIPELINE_CACHE");
         byte[]? initial = null;
         if (!string.IsNullOrEmpty(directory))
         {

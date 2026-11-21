@@ -31,9 +31,8 @@ internal sealed unsafe partial class MetalDevice
     private Mtl.MTL4CompilerTaskOptions PipelineTaskOptions;
     private bool PipelineCacheDirty;
 
-    private void InitializePipelineCache(Mtl.MTL4CompilerDescriptor compiler)
+    private void InitializePipelineCache(Mtl.MTL4CompilerDescriptor compiler, string? directory)
     {
-        string? directory = Environment.GetEnvironmentVariable("ALCO_GRAPHICS_METAL_PIPELINE_CACHE");
         if (string.IsNullOrEmpty(directory)) return;
         try
         {
@@ -106,7 +105,7 @@ internal sealed unsafe partial class MetalDevice
 
     private void DestroyShaderCache()
     {
-        if (PipelineCachePath != null && PipelineCacheDirty)
+        if (PipelineCachePath != null && Volatile.Read(ref PipelineCacheDirty))
         {
             string? temporary = null;
             try

@@ -46,8 +46,9 @@ internal static unsafe class MetalPipelineCacheTests
         DirectoryInfo temporary = Directory.CreateTempSubdirectory("Alco.Graphics.MetalCache-");
         try
         {
-            Environment.SetEnvironmentVariable(CacheVariable, null);
+            Environment.SetEnvironmentVariable(CacheVariable, Path.Combine(temporary.FullName, "ignored-env"));
             RunLibraries(check);
+            Environment.SetEnvironmentVariable(CacheVariable, null);
             RunByteBudget(check);
             check(temporary.GetFileSystemInfos().Length == 0, "disabled Metal archive caching creates no files");
             RunArchives(temporary.FullName, check);
@@ -280,10 +281,9 @@ internal static unsafe class MetalPipelineCacheTests
     private static void RunArchives(string temporary, Action<bool, string> check)
     {
         string directory = Path.Combine(temporary, "archives");
-        Environment.SetEnvironmentVariable(CacheVariable, directory);
         byte[] code = Encoding.UTF8.GetBytes(Source);
         string path = string.Empty;
-        GPUDevice cold = Gpu.CreateDevice(new DeviceDesc());
+        GPUDevice cold = Gpu.CreateDevice(new DeviceDesc { PipelineCacheDirectory = directory });
         GPUPipeline? pipeline = null;
         try
         {
@@ -324,7 +324,7 @@ internal static unsafe class MetalPipelineCacheTests
         byte[] sentinelBytes = "unrelated cache-directory sentinel"u8.ToArray();
         File.WriteAllBytes(sentinel, sentinelBytes);
 
-        GPUDevice warm = Gpu.CreateDevice(new DeviceDesc());
+        GPUDevice warm = Gpu.CreateDevice(new DeviceDesc { PipelineCacheDirectory = directory });
         GPUPipeline? miss = null;
         try
         {
@@ -362,7 +362,7 @@ internal static unsafe class MetalPipelineCacheTests
             ++diagnostics;
             nonfatalCacheDiagnostics &= !fatal && message.Contains("pipeline cache", StringComparison.OrdinalIgnoreCase);
         });
-        GPUDevice recovered = Gpu.CreateDevice(new DeviceDesc());
+        GPUDevice recovered = Gpu.CreateDevice(new DeviceDesc { PipelineCacheDirectory = directory });
         try
         {
             check(Field<Mtl.MTL4Archive>(recovered, "PipelineArchive").NativePtr == 0 &&
@@ -383,7 +383,7 @@ internal static unsafe class MetalPipelineCacheTests
             File.ReadAllBytes(sentinel).AsSpan().SequenceEqual(sentinelBytes) && Directory.GetFileSystemEntries(directory).Length == 3,
             "corruption reports a nonfatal cache diagnostic and replaces only the damaged archive");
         saved = File.ReadAllBytes(path);
-        GPUDevice repaired = Gpu.CreateDevice(new DeviceDesc());
+        GPUDevice repaired = Gpu.CreateDevice(new DeviceDesc { PipelineCacheDirectory = directory });
         try
         {
             check(Field<Mtl.MTL4Archive>(repaired, "PipelineArchive").NativePtr != 0 && !Field<bool>(repaired, "PipelineCacheDirty"),
@@ -402,7 +402,7 @@ internal static unsafe class MetalPipelineCacheTests
             else File.WriteAllBytes(path + ".sha256", new byte[variant == 1 ? 1 : 32]);
             diagnostics = 0;
             nonfatalCacheDiagnostics = true;
-            GPUDevice invalidChecksum = Gpu.CreateDevice(new DeviceDesc());
+            GPUDevice invalidChecksum = Gpu.CreateDevice(new DeviceDesc { PipelineCacheDirectory = directory });
             try
             {
                 check(Field<Mtl.MTL4Archive>(invalidChecksum, "PipelineArchive").NativePtr == 0 && diagnostics > 0 && nonfatalCacheDiagnostics,
@@ -421,10 +421,9 @@ internal static unsafe class MetalPipelineCacheTests
 
         string blocked = Path.Combine(temporary, "blocked-directory");
         File.WriteAllBytes(blocked, sentinelBytes);
-        Environment.SetEnvironmentVariable(CacheVariable, blocked);
         diagnostics = 0;
         nonfatalCacheDiagnostics = true;
-        GPUDevice unwritable = Gpu.CreateDevice(new DeviceDesc());
+        GPUDevice unwritable = Gpu.CreateDevice(new DeviceDesc { PipelineCacheDirectory = blocked });
         try
         {
             pipeline = unwritable.CreateComputePipeline(new ShaderStage { Code = code, EntryPoint = "cacheMain" });

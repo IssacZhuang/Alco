@@ -369,8 +369,9 @@ internal static unsafe class RegressionTests
         check(device.Backend == GraphicsBackend.Auto && default(DeviceDesc).Backend == GraphicsBackend.Auto,
             "both new and zero-initialized device descriptions select the backend automatically");
         check(device.Headless && device.DesiredQueueCount == 1 && device.DesiredComputeQueueCount == 0 &&
-            device.DesiredCopyQueueCount == 0 && device.TimestampQueryCount == 256,
-            "new device descriptions default to headless without changing queue or timestamp defaults");
+            device.DesiredCopyQueueCount == 0 && device.TimestampQueryCount == 256 &&
+            device.PipelineCacheDirectory == null && default(DeviceDesc).PipelineCacheDirectory == null,
+            "new device descriptions default to headless without changing queue, timestamp, or pipeline cache defaults");
         RunInvalidBackendSelections(check);
         SwapchainDesc swapchain = new();
         check(swapchain.Surface.Equals(default(SurfaceSource)) && swapchain.Extent.X == 0 && swapchain.Extent.Y == 0 &&

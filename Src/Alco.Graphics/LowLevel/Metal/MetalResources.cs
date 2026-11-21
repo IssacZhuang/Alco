@@ -86,6 +86,12 @@ internal sealed unsafe partial class MetalRenderView : GPURenderView
 
     internal Extent2D Extent => new(Math.Max((uint)Texture.Width >> (int)Mip, 1u), Math.Max((uint)Texture.Height >> (int)Mip, 1u));
 
+    /// <summary>The pixel format of the underlying attachment texture.</summary>
+    public override Format Format => Swapchain != null ? Swapchain.CurrentFormat : Source.Desc.Format;
+
+    /// <summary>The sample count of the underlying attachment texture.</summary>
+    public override uint SampleCount => Source.Desc.SampleCount == 0 ? 1u : Source.Desc.SampleCount;
+
     /// <summary>Releases an owned view after every render pass use has finished; swapchain views are borrowed.</summary>
     public override void Destroy()
     {
