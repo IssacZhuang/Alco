@@ -15,6 +15,11 @@ public partial class GameEngine
     /// <returns>The created view.</returns>
     public View CreateView(ViewSetting setting)
     {
+        if (setting.SurfaceFormat is null or Format.Undefined)
+        {
+            setting.SurfaceFormat = _setting.Graphics.PreferredSurfaceFormat;
+        }
+
         return _platform.CreateView(_graphicsDevice, setting);
     }
 

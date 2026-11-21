@@ -60,6 +60,13 @@ public struct ViewSetting
     public bool LinuxUseWayland { get; set; }
 
     /// <summary>
+    /// Requested swapchain surface format for this view; <see langword="null"/> or
+    /// <see cref="Format.Undefined"/> inherits <see cref="GraphicsSetting.PreferredSurfaceFormat"/>
+    /// or uses the backend default non-sRGB SDR format.
+    /// </summary>
+    public Format? SurfaceFormat { get; set; }
+
+    /// <summary>
     /// The default window setting
     /// </summary>
     public static readonly ViewSetting Default = new ViewSetting

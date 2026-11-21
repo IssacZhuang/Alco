@@ -164,6 +164,7 @@ public unsafe partial class Sdl3Window : View
             {
                 Surface = GetSurfaceSource(_window, setting.LinuxUseWayland),
                 Extent = new Extent2D(Size.X, Size.Y),
+                Format = setting.SurfaceFormat ?? Format.Undefined,
                 VSync = setting.VSync,
             };
 
@@ -180,7 +181,7 @@ public unsafe partial class Sdl3Window : View
         }
     }
 
-    internal Sdl3Window(GPUDevice device, SDL_Window window)
+    private Sdl3Window(GPUDevice device, SDL_Window window, Format surfaceFormat)
     {
         _window = window;
         try
@@ -190,6 +191,7 @@ public unsafe partial class Sdl3Window : View
             {
                 Surface = GetSurfaceSource(_window, false),
                 Extent = new Extent2D(Size.X, Size.Y),
+                Format = surfaceFormat,
             });
         }
         catch
@@ -339,7 +341,7 @@ public unsafe partial class Sdl3Window : View
                 throw new Exception($"Failed to create SDL window: {SDL_GetError()}");
             }
 
-            return new Sdl3Window(device, window);
+            return new Sdl3Window(device, window, setting.SurfaceFormat ?? Format.Undefined);
         }
         finally
         {
@@ -366,7 +368,7 @@ public unsafe partial class Sdl3Window : View
                 throw new Exception($"Failed to create SDL window: {SDL_GetError()}");
             }
 
-            return new Sdl3Window(device, window);
+            return new Sdl3Window(device, window, setting.SurfaceFormat ?? Format.Undefined);
         }
         finally
         {
@@ -398,7 +400,7 @@ public unsafe partial class Sdl3Window : View
                 throw new Exception($"Failed to create SDL window: {SDL_GetError()}");
             }
 
-            return new Sdl3Window(device, window);
+            return new Sdl3Window(device, window, setting.SurfaceFormat ?? Format.Undefined);
         }
         finally
         {
@@ -425,7 +427,7 @@ public unsafe partial class Sdl3Window : View
                 throw new Exception($"Failed to create SDL window: {SDL_GetError()}");
             }
 
-            return new Sdl3Window(device, window);
+            return new Sdl3Window(device, window, setting.SurfaceFormat ?? Format.Undefined);
         }
         finally
         {

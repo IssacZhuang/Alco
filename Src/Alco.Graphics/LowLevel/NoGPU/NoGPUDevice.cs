@@ -314,13 +314,16 @@ internal sealed class NoGPUSwapchain : GPUSwapchain
         BackbufferTexture = new NoGPUTexture(new TextureDesc
         {
             Extent = new Extent3D(Math.Max(1u, _extent.X), Math.Max(1u, _extent.Y), 1),
-            Format = ResolveFormat(desc.Format),
+            Format = ResolveFormat(desc.Format, desc.ColorSpace),
             Usage = TextureUsage.ColorAttachment | TextureUsage.TransferDestination,
         });
         BackbufferView = BackbufferTexture.CreateRenderView(default);
     }
 
-    private static Format ResolveFormat(Format format) => format == Format.Undefined ? Format.Bgra8Unorm : format;
+    private static Format ResolveFormat(Format format, ColorSpace colorSpace) =>
+        format == Format.Undefined
+            ? colorSpace == ColorSpace.ExtendedSrgbLinear ? Format.Rgba16Float : Format.Bgra8Unorm
+            : format;
 
     public override Extent2D DrawableExtent => _extent;
 
@@ -341,7 +344,7 @@ internal sealed class NoGPUSwapchain : GPUSwapchain
     /// <inheritdoc />
     public override bool TrySetFormat(Format format, ColorSpace colorSpace, out Error error)
     {
-        BackbufferTexture.Format = ResolveFormat(format);
+        BackbufferTexture.Format = ResolveFormat(format, colorSpace);
         _colorSpace = colorSpace;
         error = Error.None;
         return true;

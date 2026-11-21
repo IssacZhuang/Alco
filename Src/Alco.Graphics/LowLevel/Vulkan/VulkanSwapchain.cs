@@ -129,7 +129,7 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
     }
 
     /// <summary>Changes the presentation format, cancelling an acquired frame after its GPU use has completed.</summary>
-    /// <param name="format">The requested format, or Undefined to select a supported BGRA format.</param>
+    /// <param name="format">The requested format, or Undefined to select the default non-sRGB presentation format for the color space.</param>
     /// <param name="colorSpace">The presentation color space.</param>
     /// <param name="error">None on success, or the configuration error without changing an unsupported configuration.</param>
     /// <returns>true if the configuration was applied; otherwise false.</returns>
@@ -338,7 +338,9 @@ internal sealed unsafe class VulkanSwapchain : GPUSwapchain
         Error error = CheckSurfaceResult(result, "vkGetPhysicalDeviceSurfaceFormatsKHR");
         if (error != Error.None)
             return error;
-        ReadOnlySpan<Format> defaultFormats = [Format.Bgra8Srgb, Format.Bgra8Unorm];
+        ReadOnlySpan<Format> defaultFormats = colorSpace == ColorSpace.ExtendedSrgbLinear
+            ? [Format.Rgba16Float]
+            : [Format.Bgra8Unorm, Format.Rgba8Unorm];
         bool found = false;
         Format selectedFormat = format;
         for (int candidate = 0; candidate < (format == Format.Undefined ? defaultFormats.Length : 1) && !found; ++candidate)

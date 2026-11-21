@@ -603,7 +603,7 @@ public struct SwapchainDesc
     /// <summary>The initial framebuffer extent in pixels; a zero dimension suspends presentation.</summary>
     public Extent2D Extent;
 
-    /// <summary>The presentation format; Undefined selects the platform default.</summary>
+    /// <summary>The presentation format; Undefined selects the default non-sRGB presentation format for the color space.</summary>
     public Format Format;
 
     /// <summary>The presentation color space.</summary>

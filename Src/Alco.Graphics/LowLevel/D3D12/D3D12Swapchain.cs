@@ -64,7 +64,7 @@ internal sealed unsafe partial class D3D12Swapchain : GPUSwapchain
     }
 
     /// <summary>Cancels the acquired frame and selects an exact native format and color space without fallback.</summary>
-    /// <param name="format">The logical presentation format; Undefined selects the color space's default.</param>
+    /// <param name="format">The logical presentation format; Undefined selects Bgra8Unorm for Srgb or Rgba16Float for ExtendedSrgbLinear.</param>
     /// <param name="colorSpace">sRGB for 8-bit formats, or extended linear sRGB for RGBA16 float.</param>
     /// <param name="error">None on success, or the configuration error.</param>
     /// <returns>true if the requested configuration was applied; otherwise false.</returns>
@@ -177,7 +177,7 @@ internal sealed unsafe partial class D3D12Swapchain : GPUSwapchain
     private Error ResolveFormat(Format requested, ColorSpace colorSpace, out Format format, out uint nativeFormat, out uint viewFormat)
     {
         format = requested == Format.Undefined
-            ? colorSpace == ColorSpace.ExtendedSrgbLinear ? Format.Rgba16Float : Format.Bgra8Srgb
+            ? colorSpace == ColorSpace.ExtendedSrgbLinear ? Format.Rgba16Float : Format.Bgra8Unorm
             : requested;
         nativeFormat = 0;
         viewFormat = 0;

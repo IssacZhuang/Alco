@@ -23,10 +23,12 @@ public sealed class TestSwapchainCapture
         private Task<RenderCaptureResult>? _captureTask;
 
         public RenderCaptureResult? CaptureResult { get; private set; }
+        public Format CapturedSurfaceFormat { get; }
 
         public ClearWindowGame(GameEngineSetting setting, Vector4 clearColor) : base(setting)
         {
             _clearColor = clearColor;
+            CapturedSurfaceFormat = MainPresenter.SurfaceFormat;
         }
 
         protected override void OnUpdate(float delta)
@@ -70,37 +72,86 @@ public sealed class TestSwapchainCapture
     }
 
     /// <summary>
-    /// Verifies that capturing a presented swapchain frame preserves RGB output and forces alpha to 255.
+    /// Verifies that the default swapchain selects Bgra8Unorm and captures presented RGB without implicit hardware sRGB encoding, forcing alpha to 255.
     /// </summary>
     /// <param name="backend">The graphics backend to test.</param>
     [TestCase(GraphicsBackend.Auto)]
     [TestCase(GraphicsBackend.Dx12)]
     [TestCase(GraphicsBackend.VulkanCompact)]
     [TestCase(GraphicsBackend.Vulkan)]
-    public unsafe void CapturesPresentedFrameWithOpaqueAlphaAndExpectedColor(GraphicsBackend backend)
+    public void CapturesPresentedFrameWithOpaqueAlphaAndExpectedColor(GraphicsBackend backend)
     {
-        const uint width = 128;
-        const uint height = 96;
-        Vector4 linearClear = new(0.2f, 0.2f, 0.4f, 0.0f);
-
+        Vector4 clearColor = new(0.2f, 0.2f, 0.4f, 0.0f);
         GameEngineSetting setting = new()
         {
             StopWhenError = true,
-            View = new ViewSetting((int)width, (int)height, "Swapchain Capture Test"),
+            View = new ViewSetting(128, 96, "Swapchain Capture Test"),
             Graphics = GraphicsSetting.Default with { Backend = backend },
         };
 
+        RunAndVerifyCapture(
+            setting,
+            clearColor,
+            Format.Bgra8Unorm,
+            ToUnormByte(clearColor.X),
+            ToUnormByte(clearColor.Y),
+            ToUnormByte(clearColor.Z));
+    }
+
+    /// <summary>
+    /// Verifies that explicitly requesting Bgra8Srgb applies hardware linear-to-sRGB encoding on presentation capture.
+    /// </summary>
+    /// <param name="backend">The graphics backend to test.</param>
+    [TestCase(GraphicsBackend.Dx12)]
+    [TestCase(GraphicsBackend.VulkanCompact)]
+    public void CapturesPresentedSrgbFrameWhenExplicitlyRequested(GraphicsBackend backend)
+    {
+        Vector4 linearClear = new(0.2f, 0.2f, 0.4f, 0.0f);
+        GameEngineSetting setting = new()
+        {
+            StopWhenError = true,
+            View = new ViewSetting(128, 96, "Swapchain sRGB Capture Test"),
+            Graphics = GraphicsSetting.Default with
+            {
+                Backend = backend,
+                PreferredSurfaceFormat = Format.Bgra8Srgb,
+            },
+        };
+
+        RunAndVerifyCapture(
+            setting,
+            linearClear,
+            Format.Bgra8Srgb,
+            LinearToSrgbByte(linearClear.X),
+            LinearToSrgbByte(linearClear.Y),
+            LinearToSrgbByte(linearClear.Z));
+    }
+
+    private static unsafe void RunAndVerifyCapture(
+        GameEngineSetting setting,
+        Vector4 clearColor,
+        Format expectedFormat,
+        byte expectedR,
+        byte expectedG,
+        byte expectedB)
+    {
+        int width = setting.View.Width;
+        int height = setting.View.Height;
+
         RenderCaptureResult? result;
-        using (ClearWindowGame game = new(setting, linearClear))
+        Format actualFormat;
+        using (ClearWindowGame game = new(setting, clearColor))
         {
             game.Run();
             result = game.CaptureResult;
+            actualFormat = game.CapturedSurfaceFormat;
         }
 
+        Assert.That(actualFormat, Is.EqualTo(expectedFormat));
         Assert.That(result, Is.Not.Null, "Swapchain capture did not complete within 240 frames.");
         Assert.That(result!.Success, Is.True, result.Error);
-        Assert.That(result.Width, Is.EqualTo((int)width));
-        Assert.That(result.Height, Is.EqualTo((int)height));
+        Assert.That(result.Width, Is.EqualTo(width));
+        Assert.That(result.Height, Is.EqualTo(height));
         Assert.That(result.PngBytes, Is.Not.Null.And.Not.Empty);
 
         fixed (byte* png = result.PngBytes!)
@@ -108,17 +159,13 @@ public sealed class TestSwapchainCapture
             byte* decoded = ImageDecodeUtility.DecodePng(new ReadOnlySpan<byte>(png, result.PngBytes!.Length), out int w, out int h);
             try
             {
-                Assert.That(w, Is.EqualTo((int)width));
-                Assert.That(h, Is.EqualTo((int)height));
-
-                byte expectedR = LinearToSrgbByte(linearClear.X);
-                byte expectedG = LinearToSrgbByte(linearClear.Y);
-                byte expectedB = LinearToSrgbByte(linearClear.Z);
+                Assert.That(w, Is.EqualTo(width));
+                Assert.That(h, Is.EqualTo(height));
 
                 int centerOffset = ((h / 2) * w + (w / 2)) * 4;
-                Assert.That(decoded[centerOffset + 0], Is.InRange((byte)(expectedR - 2), (byte)(expectedR + 2)), "red");
-                Assert.That(decoded[centerOffset + 1], Is.InRange((byte)(expectedG - 2), (byte)(expectedG + 2)), "green");
-                Assert.That(decoded[centerOffset + 2], Is.InRange((byte)(expectedB - 2), (byte)(expectedB + 2)), "blue");
+                Assert.That(decoded[centerOffset + 0], Is.InRange((byte)Math.Max(0, expectedR - 2), (byte)Math.Min(255, expectedR + 2)), "red");
+                Assert.That(decoded[centerOffset + 1], Is.InRange((byte)Math.Max(0, expectedG - 2), (byte)Math.Min(255, expectedG + 2)), "green");
+                Assert.That(decoded[centerOffset + 2], Is.InRange((byte)Math.Max(0, expectedB - 2), (byte)Math.Min(255, expectedB + 2)), "blue");
                 Assert.That(decoded[centerOffset + 3], Is.EqualTo(255), "opaque capture must force alpha to 255");
             }
             finally
@@ -126,6 +173,11 @@ public sealed class TestSwapchainCapture
                 NativeMemory.Free(decoded);
             }
         }
+    }
+
+    private static byte ToUnormByte(float value)
+    {
+        return (byte)Math.Clamp(MathF.Round(value * 255.0f), 0.0f, 255.0f);
     }
 
     private static byte LinearToSrgbByte(float linear)

@@ -19,13 +19,15 @@ public struct GraphicsSetting
     public bool DebugInfo { get; set; }
 
     /// <summary>
-    /// The preferred pixel format for swap chain surface presentation
+    /// The preferred swapchain presentation format. <see cref="Format.Undefined"/> lets each backend
+    /// pick its default non-sRGB SDR format (<see cref="Format.Bgra8Unorm"/>, or
+    /// <see cref="Format.Rgba8Unorm"/> on Vulkan surfaces that lack BGRA8).
     /// </summary>
     public Format PreferredSurfaceFormat { get; set; }
 
     /// <summary>
-    /// The pixel format of the pipeline's main HDR scene target. Does not affect the swapchain —
-    /// its format is <see cref="PreferredSurfaceFormat"/>.
+    /// The pixel format of the pipeline's main HDR scene target. Does not affect the swapchain,
+    /// whose format is configured by <see cref="PreferredSurfaceFormat"/>.
     /// </summary>
     public Format PreferredHDRFormat { get; set; }
 
@@ -81,7 +83,7 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Default = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        PreferredSurfaceFormat = Format.Bgra8Unorm,
+        PreferredSurfaceFormat = Format.Undefined,
         PreferredHDRFormat = Format.Rgba16Float,
         PreferredDepthStencilFormat = Format.D24UnormS8Uint,
         BufferHeapByteCount = 64ul * 1024 * 1024,
@@ -101,7 +103,7 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Debug = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        PreferredSurfaceFormat = Format.Bgra8Unorm,
+        PreferredSurfaceFormat = Format.Undefined,
         PreferredHDRFormat = Format.Rgba16Float,
         PreferredDepthStencilFormat = Format.D24UnormS8Uint,
         BufferHeapByteCount = 64ul * 1024 * 1024,
@@ -122,7 +124,7 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting NoGPU = new GraphicsSetting
     {
         Backend = GraphicsBackend.NoGPU,
-        PreferredSurfaceFormat = Format.Bgra8Unorm,
+        PreferredSurfaceFormat = Format.Undefined,
         PreferredHDRFormat = Format.Rgba16Float,
         PreferredDepthStencilFormat = Format.D24UnormS8Uint,
         BufferHeapByteCount = 1ul * 1024 * 1024,

@@ -207,6 +207,46 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
+    /// <summary>Verifies that NoGPU swapchains resolve Undefined to Bgra8Unorm for Srgb and Rgba16Float for ExtendedSrgbLinear.</summary>
+    [Test]
+    public void NoGpuSwapchain_UndefinedFormat_ResolvesDefaultPerColorSpace()
+    {
+        using GPUDeviceScope deviceScope = new(Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU }));
+        GPUDevice device = deviceScope.Device;
+        GPUSwapchain srgbSwapchain = device.CreateSwapchain(new SwapchainDesc
+        {
+            Extent = new Extent2D(16, 16),
+            Format = Format.Undefined,
+            ColorSpace = ColorSpace.Srgb,
+        });
+        GPUSwapchain hdrSwapchain = device.CreateSwapchain(new SwapchainDesc
+        {
+            Extent = new Extent2D(16, 16),
+            Format = Format.Undefined,
+            ColorSpace = ColorSpace.ExtendedSrgbLinear,
+        });
+        try
+        {
+            Assert.That(srgbSwapchain.Format, Is.EqualTo(Format.Bgra8Unorm));
+            Assert.That(hdrSwapchain.Format, Is.EqualTo(Format.Rgba16Float));
+
+            Assert.That(srgbSwapchain.TrySetFormat(Format.Undefined, ColorSpace.ExtendedSrgbLinear, out Error error), Is.True);
+            Assert.That(error, Is.EqualTo(Error.None));
+            Assert.That(srgbSwapchain.Format, Is.EqualTo(Format.Rgba16Float));
+            Assert.That(srgbSwapchain.ColorSpace, Is.EqualTo(ColorSpace.ExtendedSrgbLinear));
+
+            Assert.That(srgbSwapchain.TrySetFormat(Format.Undefined, ColorSpace.Srgb, out error), Is.True);
+            Assert.That(error, Is.EqualTo(Error.None));
+            Assert.That(srgbSwapchain.Format, Is.EqualTo(Format.Bgra8Unorm));
+            Assert.That(srgbSwapchain.ColorSpace, Is.EqualTo(ColorSpace.Srgb));
+        }
+        finally
+        {
+            hdrSwapchain.Destroy();
+            srgbSwapchain.Destroy();
+        }
+    }
+
     /// <summary>Verifies Slang SpirvCompact compilation, root reflection, RenderingSystem, Material, and RenderContext under NoGPU.</summary>
     [Test]
     public void NoGpuRenderingSystem_SlangShaderAndContext_ExecuteCleanly()

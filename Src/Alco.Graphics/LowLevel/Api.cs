@@ -206,7 +206,7 @@ public abstract class GPUSwapchain
     public abstract bool TryResize(Extent2D extent, out Error error);
 
     /// <summary>Cancels any acquired frame and changes the presentation format and color space.</summary>
-    /// <param name="format">The presentation format; Undefined selects a platform default.</param>
+    /// <param name="format">The presentation format; Undefined selects the default non-sRGB presentation format for the color space.</param>
     /// <param name="colorSpace">The presentation color space.</param>
     /// <param name="error">None on success, or the reason the configuration is unsupported.</param>
     /// <returns>true if the configuration was applied; otherwise false.</returns>

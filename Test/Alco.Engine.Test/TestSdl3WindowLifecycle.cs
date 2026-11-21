@@ -42,6 +42,7 @@ public sealed class TestSdl3WindowLifecycle
             platform = new Sdl3Platform();
 
             var first = (Sdl3Window)platform.CreateView(device, new ViewSetting(128, 96, "SDL close regression"));
+            Assert.That(first.Swapchain!.Format, Is.EqualTo(Format.Bgra8Unorm));
             SDL_WindowID firstId = SDL_GetWindowID(first.NativeWindow);
             RenderContext firstContext = new(rendering);
             try
@@ -65,6 +66,7 @@ public sealed class TestSdl3WindowLifecycle
             var second = (Sdl3Window)platform.CreateView(device, new ViewSetting(128, 96, "SDL replacement regression"));
             SDL_WindowID secondId = SDL_GetWindowID(second.NativeWindow);
             GPUSwapchain secondSwapchain = second.Swapchain!;
+            Assert.That(secondSwapchain.Format, Is.EqualTo(Format.Bgra8Unorm));
             RenderContext secondContext = new(rendering);
             try
             {
