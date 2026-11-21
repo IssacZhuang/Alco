@@ -67,14 +67,6 @@ public partial struct SDL_GamepadBinding
 
 unsafe partial class SDL3
 {
-    /// <summary>Returns the identifiers of all connected gamepads.</summary>
-    /// <returns>A span over the gamepad identifiers.</returns>
-    public static ReadOnlySpan<SDL_JoystickID> SDL_GetGamepads()
-    {
-        SDL_JoystickID* ptr = SDL_GetGamepads(out int count);
-        return new(ptr, count);
-    }
-
     //public static ReadOnlySpan<SDL_GamepadBinding> SDL_GetGamepadBindings(SDL_Gamepad gamepad)
     //{
     //    SDL_GamepadBinding* ptr = SDL_GetGamepadBindings(gamepad, out int count);

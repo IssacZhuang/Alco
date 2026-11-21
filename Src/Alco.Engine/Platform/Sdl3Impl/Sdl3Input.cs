@@ -306,8 +306,7 @@ public unsafe class Sdl3Input : Input
 
         // Check if any gamepads are connected at startup
         // If so, default to gamepad mode so UI navigation works immediately
-        ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
-        if (gamepads.Length > 0)
+        if (SDL_HasGamepad())
         {
             _isGamepadInputting = true;
         }
@@ -377,23 +376,29 @@ public unsafe class Sdl3Input : Input
         _toRemove.Clear();
 
         _gamepadsWrite.Clear();
-        ReadOnlySpan<SDL_JoystickID> gamepads = SDL_GetGamepads();
-
-        for (int i = 0; i < gamepads.Length; i++)
+        SDL_JoystickID* ids = SDL_GetGamepads(out int count);
+        try
         {
-            SDL_JoystickID id = gamepads[i];
-            if (_gamepadMap.TryGetValue(id, out Sdl3Gamepad? g))
+            ReadOnlySpan<SDL_JoystickID> gamepads = ids == null ? default : new(ids, count);
+            for (int i = 0; i < gamepads.Length; i++)
             {
-                _gamepadsWrite.Add(g);
-            }
-            else
-            {
+                SDL_JoystickID id = gamepads[i];
+                if (_gamepadMap.TryGetValue(id, out Sdl3Gamepad? g))
+                {
+                    _gamepadsWrite.Add(g);
+                    continue;
+                }
+
                 SDL_Gamepad gamepad = SDL_OpenGamepad(id);
                 g = new Sdl3Gamepad(gamepad);
                 _gamepadMap[id] = g;
                 _gamepadsWrite.Add(g);
                 DoGamepadConnected(g);
             }
+        }
+        finally
+        {
+            SDL_free((nint)ids);
         }
 
         var oldRead = Interlocked.Exchange(ref _gamepadsRead, _gamepadsWrite);
