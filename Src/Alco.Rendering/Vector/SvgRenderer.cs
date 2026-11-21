@@ -62,27 +62,25 @@ public sealed class SvgRenderer : AutoDisposable
     /// <summary>Allocates a premultiplied <see cref="Format.Rgba8Unorm"/> target texture ready for compute output and sampling.</summary>
     /// <param name="width">Target width in pixels.</param>
     /// <param name="height">Target height in pixels.</param>
-    /// <param name="name">Optional diagnostic texture name.</param>
-    /// <returns>The newly allocated <see cref="Texture2D"/> owned by the caller.</returns>
-    public Texture2D AllocateTargetTexture(uint width, uint height, string name = "svg")
+    /// <returns>The newly allocated GPU <see cref="Texture"/> owned by the caller.</returns>
+    public Texture AllocateTargetTexture(uint width, uint height)
     {
         ArgumentOutOfRangeException.ThrowIfZero(width);
         ArgumentOutOfRangeException.ThrowIfZero(height);
 
-        Texture texture = _system.CreateTexture(new TextureDesc
+        return _system.CreateTexture(new TextureDesc
         {
             Extent = new Extent3D(width, height, 1),
             Format = Format.Rgba8Unorm,
             Usage = TextureUsage.Storage | TextureUsage.Sampled | TextureUsage.TransferSource,
         });
-        return Texture2DUtility.CreateTexture2D(_system, texture, name, ownsResources: true);
     }
 
     /// <summary>Uploads geometry into a pooled buffer and records the compute rasterization pass into <paramref name="context"/>.</summary>
     /// <param name="context">Active recording frame context (between scopes).</param>
     /// <param name="data">Flattened SVG geometry and paint payload.</param>
     /// <param name="target">Pre-allocated destination texture created with storage usage.</param>
-    public unsafe void RecordRasterize(RenderContext context, in SvgRasterizeData data, Texture2D target)
+    public unsafe void RecordRasterize(RenderContext context, in SvgRasterizeData data, Texture target)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(data);
@@ -120,7 +118,7 @@ public sealed class SvgRenderer : AutoDisposable
         _material.SetBuffer("ShapeColors", geometry, data.ShapeColors.Count > 0 ? offsetColors : 0);
         _material.SetBuffer("GradientXforms", geometry, data.GradientXforms.Count > 0 ? offsetXforms : 0);
         _material.SetBuffer("GradientRamps", geometry, data.GradientRamps.Count > 0 ? offsetRamps : 0);
-        _material.SetStorageTexture("Output", target.NativeTexture);
+        _material.SetStorageTexture("Output", target);
 
         uint2 texSize = new(data.Width, data.Height);
         uint shapeCount = (uint)data.ShapeMeta.Count;
@@ -128,7 +126,7 @@ public sealed class SvgRenderer : AutoDisposable
         _material.SetData("ShapeCount", ref shapeCount);
 
         context.Retain(geometry);
-        context.Retain(target.NativeTexture);
+        context.Retain(target);
 
         Extent3D groups = new((data.Width + 7) / 8, (data.Height + 7) / 8, 1);
         using (RenderContext.ComputeScope compute = context.BeginCompute())
@@ -146,12 +144,11 @@ public sealed class SvgRenderer : AutoDisposable
     /// <summary>Allocates a target texture and records its compute rasterization in a single call.</summary>
     /// <param name="context">Active recording frame context (between scopes).</param>
     /// <param name="data">Flattened SVG geometry and paint payload.</param>
-    /// <param name="name">Optional diagnostic name.</param>
-    /// <returns>The newly allocated destination texture (contents ready after GPU executes the frame).</returns>
-    public Texture2D Rasterize(RenderContext context, in SvgRasterizeData data, string name = "svg")
+    /// <returns>The newly allocated GPU destination texture (contents ready after GPU executes the frame).</returns>
+    public Texture Rasterize(RenderContext context, in SvgRasterizeData data)
     {
         ArgumentNullException.ThrowIfNull(data);
-        Texture2D target = AllocateTargetTexture(data.Width, data.Height, name);
+        Texture target = AllocateTargetTexture(data.Width, data.Height);
         try
         {
             RecordRasterize(context, in data, target);
@@ -159,7 +156,10 @@ public sealed class SvgRenderer : AutoDisposable
         }
         catch
         {
-            target.Dispose();
+            if (!target.IsDestroyed)
+            {
+                target.Destroy();
+            }
             throw;
         }
     }

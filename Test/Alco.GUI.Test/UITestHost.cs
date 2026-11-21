@@ -24,14 +24,15 @@ internal sealed unsafe class UITestHost : IDisposable
         return File.ReadAllBytes(path);
     }
 
-    public Texture2D CreateRgba8Texture(int width, int height, ReadOnlySpan<byte> rgba, string name = "test_tex")
+    public Texture CreateRgba8Texture(int width, int height, ReadOnlySpan<byte> rgba)
     {
-        return Texture2DUtility.CreateTexture2D(
+        return TextureUtility.CreateTexture(
             RenderingSystem,
             rgba,
             (uint)width,
             (uint)height,
-            ImageLoadOption.Default with { Format = Format.Rgba8Unorm, Name = name });
+            Format.Rgba8Unorm,
+            ImageLoadOption.DefaultUsage);
     }
 
     public Texture CreateColorTarget(uint width, uint height)

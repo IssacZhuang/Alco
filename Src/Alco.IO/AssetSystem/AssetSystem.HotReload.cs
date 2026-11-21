@@ -59,6 +59,12 @@ public sealed partial class AssetSystem
     {
         _host.PostToMainThread(() =>
         {
+            filename = ParseEntry(filename);
+            if (IsFileExist(filename, out string realFilename))
+            {
+                filename = realFilename;
+            }
+
             // Cancel existing task if any
             if (_hotReloadTasks.TryGetValue(filename, out var existingTask))
             {
@@ -67,8 +73,7 @@ public sealed partial class AssetSystem
                 _host.LogInfo($"Hot reload task for {filename} interrupted with a new task");
             }
 
-            AssetHandle handle = GetAssetHandle(filename);
-            if (handle.CachedAsset is null)
+            if (!_assetLookup.TryGetValue(filename, out AssetHandle? handle) || handle.CachedAsset is null)
             {
                 return;
             }
@@ -86,25 +91,6 @@ public sealed partial class AssetSystem
                 _host.LogError($"File source for {filename} not found");
             }
         });
-    }
-
-    private void HotReload(string filename, ReadOnlySpan<byte> data)
-    {
-        AssetHandle handle = GetAssetHandle(filename);
-        object? cachedAsset = handle.CachedAsset;
-        if (cachedAsset is null)
-        {
-            return;
-        }
-
-        if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out IAssetHotReloader? hotReloader))
-        {
-            hotReloader.HotReload(cachedAsset, data);
-        }
-        else
-        {
-            throw new Exception($"No hot reloader found for type {cachedAsset.GetType().Name}");
-        }
     }
 
     private static async Task<SafeMemoryHandle?> GetHotReloadIOTask(string filename, IFileSource fileSource, CancellationToken cancellationToken)
@@ -133,33 +119,68 @@ public sealed partial class AssetSystem
     {
         using SafeMemoryHandle? data = await hotReloadTask.Task;
 
-        if (data is null)
+        if (data is null || hotReloadTask.CancellationSource.IsCancellationRequested)
         {
+            RemoveTaskIfCurrent(filename, hotReloadTask);
             return;
         }
 
-        if (hotReloadTask.CancellationSource.IsCancellationRequested)
+        if (!_assetLookup.TryGetValue(filename, out AssetHandle? handle) || handle.CachedAsset is not object cachedAsset)
         {
+            RemoveTaskIfCurrent(filename, hotReloadTask);
             return;
         }
 
-        AssetHandle handle = GetAssetHandle(filename);
-        object? cachedAsset = handle.CachedAsset;
-        if (cachedAsset is null)
-        {
-            return;
-        }
-
-        if (_hotReloaders.TryGetValue(cachedAsset.GetType(), out IAssetHotReloader? hotReloader))
+        Type assetType = cachedAsset.GetType();
+        if (_hotReloaders.TryGetValue(assetType, out IAssetHotReloader? hotReloader))
         {
             hotReloader.HotReload(cachedAsset, data.AsReadOnlySpan());
             OnHotReload?.Invoke(filename, cachedAsset);
-            _hotReloadTasks.TryRemove(filename, out _);
+            RemoveTaskIfCurrent(filename, hotReloadTask);
+            _host.LogSuccess($"Hot reload asset {filename} success");
+            return;
+        }
+
+        // Replace the cache entry with a freshly loaded immutable instance without disposing
+        // the prior asset so in-flight GPU commands or held references stay valid.
+        data.Dispose();
+        if (!TryGetLoader(filename, assetType, out IAssetLoader? loader))
+        {
+            RemoveTaskIfCurrent(filename, hotReloadTask);
+            _host.LogError($"No asset loader or hot reloader found for {filename} ({assetType.Name})");
+            return;
+        }
+
+        var newHandle = new AssetHandle();
+        object? reloadedAsset;
+        string failedReason;
+        lock (newHandle)
+        {
+            if (!TryLoadAssetCore(filename, assetType, newHandle, loader, out reloadedAsset, out failedReason))
+            {
+                RemoveTaskIfCurrent(filename, hotReloadTask);
+                _host.LogError($"Hot reload asset {filename} failed: {failedReason}");
+                return;
+            }
+
+            newHandle.SetCache(reloadedAsset, handle.CacheMode);
+        }
+
+        if (_assetLookup.TryUpdate(filename, newHandle, handle))
+        {
+            OnHotReload?.Invoke(filename, reloadedAsset);
             _host.LogSuccess($"Hot reload asset {filename} success");
         }
-        else
+
+        RemoveTaskIfCurrent(filename, hotReloadTask);
+    }
+
+    private void RemoveTaskIfCurrent(string filename, HotReloadTask expectedTask)
+    {
+        if (_hotReloadTasks.TryGetValue(filename, out var currentTask)
+            && ReferenceEquals(currentTask.CancellationSource, expectedTask.CancellationSource))
         {
-            throw new Exception($"No hot reloader found for type {cachedAsset.GetType().Name}");
+            _hotReloadTasks.TryRemove(filename, out _);
         }
     }
 }

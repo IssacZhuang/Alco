@@ -92,7 +92,7 @@ public sealed class TestImGuiRenderer
 
         Texture? rawSampled = null;
         Texture? offscreen = null;
-        Texture2D? imageTex = null;
+        Texture? imageTex = null;
         ImGUIRenderer? renderer = null;
         try
         {
@@ -109,7 +109,7 @@ public sealed class TestImGuiRenderer
                 Format = Format.Rgba8Unorm,
                 Usage = TextureUsage.ColorAttachment,
             });
-            imageTex = Texture2DUtility.CreateTexture2D(system, new byte[8 * 8 * 4], 8, 8);
+            imageTex = TextureUtility.CreateTexture(system, new byte[8 * 8 * 4], 8, 8);
 
             // Frame 1: exercise Image/ImageButton overloads (valid + null fallback) and overlay Draw.
             renderer.Begin(128, 128, 1.0f / 60.0f);
@@ -120,7 +120,6 @@ public sealed class TestImGuiRenderer
                 ImGui.Text("Hello Alco.ImGUI");
                 ImGui.Image(imageTex, new Vector2(16, 16));
                 ImGui.Image(rawSampled, new Vector2(16, 16), new Rect(0, 0, 1, 1), new ColorFloat(1f, 1f, 1f, 1f));
-                ImGui.Image((Texture2D?)null, new Vector2(8, 8));
                 ImGui.Image((Texture?)null, new Vector2(8, 8));
                 _ = ImGui.ImageButton("btn1", imageTex, new Vector2(16, 16));
                 _ = ImGui.ImageButton("btn2", rawSampled, new Vector2(16, 16));
@@ -180,7 +179,10 @@ public sealed class TestImGuiRenderer
         finally
         {
             renderer?.Dispose();
-            imageTex?.Dispose();
+            if (imageTex != null && !imageTex.IsDestroyed)
+            {
+                imageTex.Destroy();
+            }
             if (offscreen != null && !offscreen.IsDestroyed)
             {
                 offscreen.Destroy();
@@ -197,7 +199,7 @@ public sealed class TestImGuiRenderer
     }
 
     /// <summary>
-    /// Verifies offscreen ImGui rendering across GPU backends: vertex colors, bindless Texture2D sampling, scissor clipping, and alpha blending.
+    /// Verifies offscreen ImGui rendering across GPU backends: vertex colors, bindless Texture sampling, scissor clipping, and alpha blending.
     /// </summary>
     [TestCase(GraphicsBackend.Dx12)]
     [TestCase(GraphicsBackend.VulkanCompact)]
@@ -222,7 +224,7 @@ public sealed class TestImGuiRenderer
         ShaderSystem? shaderSystem = null;
         RenderContext? context = null;
         Texture? target = null;
-        Texture2D? greenTex = null;
+        Texture? greenTex = null;
         ImGUIRenderer? renderer = null;
         GPUHeap readback = default;
         try
@@ -249,11 +251,7 @@ public sealed class TestImGuiRenderer
                 greenPixels[i + 2] = 0;
                 greenPixels[i + 3] = 255;
             }
-            greenTex = Texture2DUtility.CreateTexture2D(system, greenPixels, 4, 4, ImageLoadOption.Default with
-            {
-                Format = Format.Rgba8Unorm,
-                Name = "green_4x4",
-            });
+            greenTex = TextureUtility.CreateTexture(system, greenPixels, 4, 4, Format.Rgba8Unorm, ImageLoadOption.DefaultUsage);
 
             renderer.Begin(targetSize, targetSize, 1.0f / 60.0f);
             ImDrawListPtr fg = ImGui.GetForegroundDrawList();
@@ -263,14 +261,14 @@ public sealed class TestImGuiRenderer
             fg.AddRectFilled(new Vector2(0, 0), new Vector2(32, 32), ImGui.GetColorU32(new Vector4(1f, 0f, 0f, 1f)));
             fg.PopClipRect();
 
-            // 2. Bindless Texture2D sampling via ImGui.GetTextureId (no AddTexture registration).
+            // 2. Bindless Texture sampling via ImGui.GetTextureId (no AddTexture registration).
             fg.AddImage(ImGui.GetTextureId(greenTex), new Vector2(32, 0), new Vector2(64, 32));
 
             // 3. Alpha blending: opaque green base at [0..32, 32..64] + 50% alpha blue overlay.
             fg.AddRectFilled(new Vector2(0, 32), new Vector2(32, 64), ImGui.GetColorU32(new Vector4(0f, 1f, 0f, 1f)));
             fg.AddRectFilled(new Vector2(0, 32), new Vector2(32, 64), ImGui.GetColorU32(new Vector4(0f, 0f, 1f, 0.5f)));
 
-            // 4. ImGui.Image(Texture2D, ...) inside a borderless window covering [32..64, 32..64].
+            // 4. ImGui.Image(Texture, ...) inside a borderless window covering [32..64, 32..64].
             ImGui.SetNextWindowPos(new Vector2(32, 32));
             ImGui.SetNextWindowSize(new Vector2(32, 32));
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
@@ -305,14 +303,17 @@ public sealed class TestImGuiRenderer
             AssertPixel(pixels, targetSize, 24, 16, 0, 0, 0, 255, "scissor-clipped region remains black");
             AssertPixel(pixels, targetSize, 48, 16, 0, 255, 0, 255, "bindless green AddImage");
             AssertPixel(pixels, targetSize, 16, 48, 0, 128, 128, 255, "alpha-blended blue over green", tolerance: 3);
-            AssertPixel(pixels, targetSize, 48, 48, 0, 255, 0, 255, "ImGui.Image(Texture2D) inside window");
+            AssertPixel(pixels, targetSize, 48, 48, 0, 255, 0, 255, "ImGui.Image(Texture) inside window");
         }
         finally
         {
             device.WaitIdle();
             context?.DiscardFrame();
             renderer?.Dispose();
-            greenTex?.Dispose();
+            if (greenTex != null && !greenTex.IsDestroyed)
+            {
+                greenTex.Destroy();
+            }
             if (target != null && !target.IsDestroyed)
             {
                 target.Destroy();

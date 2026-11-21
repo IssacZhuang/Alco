@@ -7,12 +7,13 @@ namespace Alco.GUI;
 /// <summary>UI node that draws a solid, stretched, 9-sliced, or tiled sprite image.</summary>
 public class UIImage : UINode
 {
-    private Texture2D? _texture;
+    private Texture? _texture;
     private ImageType _imageType = ImageType.Simple;
     private Vector2 _tilingScale = Vector2.One;
+    private Rect _uvRect = Rect.One;
 
-    /// <summary>The texture of the sprite; null draws a solid-colored quad.</summary>
-    public Texture2D? Texture
+    /// <summary>The GPU texture drawn by this node; null draws a solid-colored quad.</summary>
+    public Texture? Texture
     {
         get => _texture;
         set
@@ -33,7 +34,7 @@ public class UIImage : UINode
     /// <summary>True to sample <see cref="Texture"/> using nearest-neighbor filtering instead of linear.</summary>
     public bool NearestFilter { get; set; }
 
-    /// <summary>Explicit 9-slice borders in texels (left, top, right, bottom); falls back to <see cref="Texture2D.SlicePadding"/> when zero.</summary>
+    /// <summary>9-slice borders in texels (left, top, right, bottom).</summary>
     public Vector4 SliceBorders { get; set; }
 
     /// <summary>The draw mode used for the image (simple, 9-sliced, or tiled).</summary>
@@ -50,7 +51,15 @@ public class UIImage : UINode
     }
 
     /// <summary>Normalized UV sub-rectangle sampled from <see cref="Texture"/>.</summary>
-    public Rect UvRect { get; set; } = Rect.One;
+    public Rect UvRect
+    {
+        get => _uvRect;
+        set
+        {
+            _uvRect = value;
+            SetRenderDataDirty();
+        }
+    }
 
     /// <summary>Tiling repeat scale multiplier when <see cref="ImageType"/> is <see cref="ImageType.Tiled"/>.</summary>
     public Vector2 TilingScale
@@ -70,19 +79,62 @@ public class UIImage : UINode
     {
     }
 
-    /// <summary>Resizes this node to match the texel dimensions of <see cref="Texture"/>.</summary>
+    /// <summary>Creates an image UI node initialized from an <see cref="Image"/> asset.</summary>
+    /// <param name="image">Optional image asset supplying texture and import parameters.</param>
+    public UIImage(Image? image)
+    {
+        if (image != null)
+        {
+            SetImage(image);
+        }
+    }
+
+    /// <summary>Resizes this node to match the texel dimensions of the currently displayed sprite region.</summary>
     public void SetNativeSize()
     {
         if (Texture != null)
-            Size = new Vector2(Texture.Width, Texture.Height);
+        {
+            Size = new Vector2(Texture.Extent.X * _uvRect.Size.X, Texture.Extent.Y * _uvRect.Size.Y);
+        }
     }
 
-    /// <summary>Assigns both <see cref="Texture"/> and <see cref="UvRect"/> from <paramref name="sprite"/>.</summary>
-    /// <param name="sprite">Sprite region to display.</param>
-    public void SetSprite(Sprite sprite)
+    /// <summary>Assigns texture, UVs, 9-slice borders, filter mode, and alpha mode from an <see cref="Image"/> asset.</summary>
+    /// <param name="image">Image asset to apply, or null to clear.</param>
+    public void SetImage(Image? image)
     {
+        SetSprite(image?.DefaultSprite);
+    }
+
+    /// <summary>Assigns texture, UVs, 9-slice borders, filter mode, and alpha mode from a named sprite of an <see cref="Image"/> asset.</summary>
+    /// <param name="image">Image asset containing the sprite.</param>
+    /// <param name="spriteName">Named sprite inside <paramref name="image"/> (falls back to default sprite when absent).</param>
+    public void SetImage(Image image, string spriteName)
+    {
+        ArgumentNullException.ThrowIfNull(image);
+        SetSprite(image.GetSprite(spriteName));
+    }
+
+    /// <summary>Assigns <see cref="Texture"/>, <see cref="UvRect"/>, <see cref="SliceBorders"/>, <see cref="NearestFilter"/>, and <see cref="Premultiplied"/> from <paramref name="sprite"/>.</summary>
+    /// <param name="sprite">Sprite region to display, or null to clear.</param>
+    public void SetSprite(Sprite? sprite)
+    {
+        if (sprite == null)
+        {
+            Texture = null;
+            UvRect = Rect.One;
+            SliceBorders = default;
+            NearestFilter = false;
+            Premultiplied = false;
+            SetRenderDataDirty();
+            return;
+        }
+
         Texture = sprite.Texture;
         UvRect = sprite.UvRect;
+        SliceBorders = new Vector4(sprite.SlicePadding.Left, sprite.SlicePadding.Top, sprite.SlicePadding.Right, sprite.SlicePadding.Bottom);
+        NearestFilter = sprite.FilterMode == Filter.Nearest;
+        Premultiplied = sprite.IsPremultiplied;
+        SetRenderDataDirty();
     }
 
     protected override void OnUpdate(Canvas canvas, float delta)
@@ -91,10 +143,7 @@ public class UIImage : UINode
 
         if (ImageType == ImageType.Sliced && Texture != null)
         {
-            Vector4 borders = SliceBorders == default
-                ? new Vector4(Texture.SlicePadding.Left, Texture.SlicePadding.Top, Texture.SlicePadding.Right, Texture.SlicePadding.Bottom)
-                : SliceBorders;
-            canvas.DrawNineSlice(Texture, RenderTransform.Matrix, UvRect, RenderColor, borders, Premultiplied, NearestFilter, Material);
+            canvas.DrawNineSlice(Texture, RenderTransform.Matrix, UvRect, RenderColor, SliceBorders, Premultiplied, NearestFilter, Material);
             return;
         }
 

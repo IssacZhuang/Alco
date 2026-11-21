@@ -106,7 +106,7 @@ public sealed class DebugStatsRenderer : IDisposable
     /// <param name="size">The texture size.</param>
     /// <param name="texture">The texture to draw.</param>
     /// <param name="color">The texture tint.</param>
-    public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
+    public void DrawTexture(Vector2 position, Vector2 size, Texture texture, ColorFloat color)
     {
         _commands.Add(new DrawCommand
         {

@@ -54,7 +54,7 @@ public class CanvasBatchingTests
 
     private sealed class MeshDrawNode : UINode
     {
-        public Texture2D? Texture { get; set; }
+        public Texture? Texture { get; set; }
 
         protected override void OnUpdate(Canvas canvas, float delta)
         {
@@ -81,16 +81,16 @@ public class CanvasBatchingTests
         using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(Size, Size));
 
         // 2x2 pixel-art texture: TL=red, TR=green, BL=blue, BR=white
-        using Texture2D crispTex = host.CreateRgba8Texture(2, 2, [
+        Texture crispTex = host.CreateRgba8Texture(2, 2, [
             255, 0, 0, 255,     0, 255, 0, 255,
             0, 0, 255, 255,     255, 255, 255, 255,
-        ], "crisp");
+        ]);
 
         // Premultiplied half-alpha blue square (premul RGB=(0,0,128), A=128)
-        using Texture2D premulTex = host.CreateRgba8Texture(2, 2, [
+        Texture premulTex = host.CreateRgba8Texture(2, 2, [
             0, 0, 128, 128,     0, 0, 128, 128,
             0, 0, 128, 128,     0, 0, 128, 128,
-        ], "premul");
+        ]);
 
         // 8x8 9-slice border frame: outer 2px yellow border, inner 4x4 dark cyan
         byte[] slicePixels = new byte[8 * 8 * 4];
@@ -106,7 +106,7 @@ public class CanvasBatchingTests
                 slicePixels[p + 3] = 255;
             }
         }
-        using Texture2D sliceTex = host.CreateRgba8Texture(8, 8, slicePixels, "slice");
+        Texture sliceTex = host.CreateRgba8Texture(8, 8, slicePixels);
 
         // Top row: Solid, Straight crisp nearest, Premul overlay, Tiled 2x2
         canvas.Root.Add(new UIImage { Position = new Vector2(-48, 44), Size = new Vector2(20, 20), Color = new ColorFloat(0.8f, 0.2f, 0.1f, 1f) });
@@ -185,6 +185,9 @@ public class CanvasBatchingTests
             stencil.Destroy();
             splitTex.Destroy();
             batchedTex.Destroy();
+            sliceTex.Destroy();
+            premulTex.Destroy();
+            crispTex.Destroy();
         }
     }
 
@@ -199,7 +202,7 @@ public class CanvasBatchingTests
         using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(Size, Size));
 
         // Left column (pixel x=0) opaque white, right column (pixel x=1) transparent zero.
-        using Texture2D halfMask = host.CreateRgba8Texture(2, 1, [255, 255, 255, 255, 0, 0, 0, 0], "half_mask");
+        Texture halfMask = host.CreateRgba8Texture(2, 1, [255, 255, 255, 255, 0, 0, 0, 0]);
 
         Texture target = host.CreateColorTarget(Size, Size);
         Texture targetNoStencil = host.CreateColorTarget(Size, Size);
@@ -278,6 +281,7 @@ public class CanvasBatchingTests
             stencil.Destroy();
             targetNoStencil.Destroy();
             target.Destroy();
+            halfMask.Destroy();
         }
     }
 
@@ -391,10 +395,10 @@ public class CanvasBatchingTests
         using UITestHost host = new(backend);
         Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
         using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(Size, Size));
-        using Texture2D overlayTex = host.CreateRgba8Texture(2, 2, [
+        Texture overlayTex = host.CreateRgba8Texture(2, 2, [
             255, 255, 255, 255,  255, 255, 255, 255,
             255, 255, 255, 255,  255, 255, 255, 255,
-        ], "overlay");
+        ]);
 
         Material sharedMat = canvas.CreateCustomSurfaceMaterialFromSource(
             "TintOverlaySurface", "TintOverlaySurface.slang", TintOverlaySurfaceSource, "TintOverlay");
@@ -472,6 +476,7 @@ public class CanvasBatchingTests
         finally
         {
             target.Destroy();
+            overlayTex.Destroy();
         }
     }
 

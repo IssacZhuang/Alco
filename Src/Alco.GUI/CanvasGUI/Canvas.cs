@@ -24,17 +24,17 @@ public partial class Canvas : AutoDisposable, INavigationContext
         }
     }
 
-    private struct PendingSvgUpload(SvgRasterizeData data, Texture2D target)
+    private struct PendingSvgUpload(SvgRasterizeData data, Texture target)
     {
         public SvgRasterizeData Data = data;
-        public Texture2D Target = target;
+        public Texture Target = target;
     }
 
-    private struct RetiredTexture(RenderContext? context, ulong frameId, Texture2D texture)
+    private struct RetiredTexture(RenderContext? context, ulong frameId, Texture texture)
     {
         public RenderContext? Context = context;
         public ulong FrameId = frameId;
-        public Texture2D Texture = texture;
+        public Texture Texture = texture;
     }
 
     private readonly RenderingSystem _renderingSystem;
@@ -372,22 +372,22 @@ public partial class Canvas : AutoDisposable, INavigationContext
     }
 
     /// <summary>Allocates a target texture and schedules its compute SVG rasterization during the next <see cref="Upload"/>.</summary>
+    /// <summary>Queues GPU compute rasterization for flattened SVG data executed during the next <see cref="End"/>.</summary>
     /// <param name="data">Flattened CPU SVG geometry.</param>
-    /// <param name="name">Optional diagnostic texture name.</param>
-    /// <returns>The pre-allocated destination texture ready for quad emission within the same frame.</returns>
-    public Texture2D EnqueueSvgRasterize(in SvgRasterizeData data, string name = "svg")
+    /// <returns>The pre-allocated destination GPU texture ready for quad emission within the same frame.</returns>
+    public Texture EnqueueSvgRasterize(in SvgRasterizeData data)
     {
         ArgumentNullException.ThrowIfNull(data);
-        Texture2D target = SvgRenderer.AllocateTargetTexture(data.Width, data.Height, name);
+        Texture target = SvgRenderer.AllocateTargetTexture(data.Width, data.Height);
         _pendingSvgUploads.Add(new PendingSvgUpload(data, target));
         return target;
     }
 
-    /// <summary>Retires an ephemeral texture so it is disposed only after its last recording frame completes on GPU.</summary>
+    /// <summary>Retires an ephemeral texture so it is destroyed only after its last recording frame completes on GPU.</summary>
     /// <param name="texture">Texture to retire, or null.</param>
-    public void RetireTexture(Texture2D? texture)
+    public void RetireTexture(Texture? texture)
     {
-        if (texture == null || texture.IsDisposed)
+        if (texture == null || texture.IsDestroyed)
             return;
         _retiredTextures.Add(new RetiredTexture(_lastUploadContext, _lastUploadFrameId, texture));
     }
@@ -483,7 +483,11 @@ public partial class Canvas : AutoDisposable, INavigationContext
                 Root.Remove(Root.Children[^1]);
 
             for (int i = 0; i < _pendingSvgUploads.Count; ++i)
-                _pendingSvgUploads[i].Target.Dispose();
+            {
+                Texture pending = _pendingSvgUploads[i].Target;
+                if (!pending.IsDestroyed)
+                    pending.Destroy();
+            }
             _pendingSvgUploads.Clear();
 
             for (int i = 0; i < _retiredTextures.Count; ++i)
@@ -491,8 +495,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
                 RetiredTexture retired = _retiredTextures[i];
                 if (retired.Context != null && !retired.Context.IsDestroyed && retired.Context.IsFramePending(retired.FrameId))
                     retired.Context.Wait();
-                if (!retired.Texture.IsDisposed)
-                    retired.Texture.Dispose();
+                if (!retired.Texture.IsDestroyed)
+                    retired.Texture.Destroy();
             }
             _retiredTextures.Clear();
 
@@ -522,8 +526,8 @@ public partial class Canvas : AutoDisposable, INavigationContext
             if (retired.Context != null && !retired.Context.IsDestroyed && retired.Context.IsFramePending(retired.FrameId))
                 continue;
 
-            if (!retired.Texture.IsDisposed)
-                retired.Texture.Dispose();
+            if (!retired.Texture.IsDestroyed)
+                retired.Texture.Destroy();
             _retiredTextures.RemoveAt(i);
         }
     }
@@ -756,7 +760,7 @@ public partial class Canvas : AutoDisposable, INavigationContext
         {
             _batchRenderer.PushMask(
                 maskNode.MaskTransform.Matrix,
-                maskNode.MaskTexture?.NativeTexture,
+                maskNode.MaskTexture,
                 maskNode.MaskTextureUvRect);
         }
 

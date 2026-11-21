@@ -136,25 +136,21 @@ public class UIButton : UISelectable
     //for TransitionMode.SpriteSwap, use TransitionTarget as the target
 
     /// <summary>
-    /// The sprite of the button in normal state
+    /// The texture of the button in normal state.
     /// </summary>
-    /// <value></value>
-    public Texture2D? ImageNormal { get; set; } = null;
+    public Texture? ImageNormal { get; set; } = null;
     /// <summary>
-    /// The sprite of the button in hover state
+    /// The texture of the button in hover state.
     /// </summary>
-    /// <value></value>
-    public Texture2D? ImageHover { get; set; } = null;
+    public Texture? ImageHover { get; set; } = null;
     /// <summary>
-    /// The sprite of the button in pressing state
+    /// The texture of the button in pressing state.
     /// </summary>
-    /// <value></value>
-    public Texture2D? ImagePressing { get; set; } = null;
+    public Texture? ImagePressing { get; set; } = null;
     /// <summary>
-    /// The sprite of the button in disabled state
+    /// The texture of the button in disabled state.
     /// </summary>
-    /// <value></value>
-    public Texture2D? ImageDisabled { get; set; } = null;
+    public Texture? ImageDisabled { get; set; } = null;
 
     //for TransitionMode.NodeSwap, TransitionTarget not used
 

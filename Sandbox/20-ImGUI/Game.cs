@@ -15,7 +15,7 @@ public class Game : GameEngine
     private Vector3 color = new(0.4f, 0.7f, 0.2f);
     private bool toggleValue = true;
 
-    private readonly Texture2D _texture;
+    private readonly Image _image;
 
     /// <summary>Initializes the ImGui system and loads the demo texture and fonts.</summary>
     /// <param name="setting">Engine settings for the game instance.</param>
@@ -23,7 +23,7 @@ public class Game : GameEngine
     {
         AddSystem(new ImGUISystem(this));
 
-        _texture = AssetSystem.Load<Texture2D>("Textures/Grid.png");
+        _image = AssetSystem.Load<Image>("Textures/Grid.png");
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
             Span<byte> span = data.AsSpan();
@@ -70,7 +70,7 @@ public class Game : GameEngine
         }
 
         GraphicsDevice.WaitIdle();
-        _texture.Dispose();
+        _image.Dispose();
         base.Dispose();
     }
 
@@ -134,7 +134,7 @@ public class Game : GameEngine
                 ImGui.TextColored(new Vector4(1.0f, 0.0f, 0.0f, 1.0f), "Toggle is ON");
             }
 
-            ImGui.Image(_texture, new Vector2(100, 100));
+            ImGui.Image(_image.Texture, new Vector2(100, 100));
 
             ImGui.End();
         }

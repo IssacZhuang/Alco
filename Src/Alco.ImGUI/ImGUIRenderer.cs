@@ -30,7 +30,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     private readonly List<RetiredTexture> _retiredFontTextures = new(2);
 
     private IntPtr _imGuiContext;
-    private Texture2D _fontTexture;
+    private Texture _fontTexture;
     private bool _fontTextureDirty;
     private RenderContext? _lastDrawContext;
     private ulong _lastDrawFrameId;
@@ -98,7 +98,10 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
         }
         catch
         {
-            _fontTexture?.Dispose();
+            if (_fontTexture != null && !_fontTexture.IsDestroyed)
+            {
+                _fontTexture.Destroy();
+            }
             if (_imGuiContext != IntPtr.Zero)
             {
                 ImGui.DestroyContext(_imGuiContext);
@@ -413,18 +416,18 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
         _fontTextureDirty = true;
     }
 
-    private Texture2D BuildFontTexture(ImGuiIOPtr io)
+    private Texture BuildFontTexture(ImGuiIOPtr io)
     {
         io.Fonts.GetTexDataAsRGBA32(out byte* pixels, out int width, out int height, out int bytesPerPixel);
         ReadOnlySpan<byte> fontTextureData = new(pixels, checked(width * height * bytesPerPixel));
-        ImageLoadOption option = ImageLoadOption.Default with
-        {
-            Format = Format.Rgba8Unorm,
-            Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
-            Name = $"{_name}_font_atlas",
-        };
 
-        Texture2D texture = Texture2DUtility.CreateTexture2D(_renderingSystem, fontTextureData, (uint)width, (uint)height, option);
+        Texture texture = TextureUtility.CreateTexture(
+            _renderingSystem,
+            fontTextureData,
+            (uint)width,
+            (uint)height,
+            Format.Rgba8Unorm,
+            TextureUsage.Sampled | TextureUsage.TransferDestination);
         io.Fonts.SetTexID((IntPtr)texture.SampledIndex);
         io.Fonts.ClearTexData();
         io.Fonts.TexReady = true;
@@ -435,11 +438,11 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     {
         ReclaimRetiredTextures();
         ImGuiIOPtr io = ImGui.GetIO();
-        Texture2D nextTexture = BuildFontTexture(io);
-        Texture2D previousTexture = _fontTexture;
+        Texture nextTexture = BuildFontTexture(io);
+        Texture previousTexture = _fontTexture;
         _fontTexture = nextTexture;
 
-        if (previousTexture != null && !previousTexture.IsDisposed)
+        if (previousTexture != null && !previousTexture.IsDestroyed)
         {
             if (_lastDrawContext != null && !_lastDrawContext.IsDestroyed && _lastDrawContext.IsFramePending(_lastDrawFrameId))
             {
@@ -447,7 +450,7 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
             }
             else
             {
-                previousTexture.Dispose();
+                previousTexture.Destroy();
             }
         }
     }
@@ -462,9 +465,9 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
                 continue;
             }
 
-            if (!retired.Texture.IsDisposed)
+            if (!retired.Texture.IsDestroyed)
             {
-                retired.Texture.Dispose();
+                retired.Texture.Destroy();
             }
             _retiredFontTextures.RemoveAt(i);
         }
@@ -555,16 +558,16 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
             for (int i = 0; i < _retiredFontTextures.Count; i++)
             {
                 WaitIfPending(_retiredFontTextures[i].Context, _retiredFontTextures[i].FrameId);
-                if (!_retiredFontTextures[i].Texture.IsDisposed)
+                if (!_retiredFontTextures[i].Texture.IsDestroyed)
                 {
-                    _retiredFontTextures[i].Texture.Dispose();
+                    _retiredFontTextures[i].Texture.Destroy();
                 }
             }
             _retiredFontTextures.Clear();
 
-            if (_fontTexture != null && !_fontTexture.IsDisposed)
+            if (_fontTexture != null && !_fontTexture.IsDestroyed)
             {
-                _fontTexture.Dispose();
+                _fontTexture.Destroy();
             }
 
             if (_imGuiContext != IntPtr.Zero)
@@ -601,9 +604,9 @@ public sealed unsafe class ImGUIRenderer : AutoDisposable
     {
         public readonly RenderContext? Context;
         public readonly ulong FrameId;
-        public readonly Texture2D Texture;
+        public readonly Texture Texture;
 
-        public RetiredTexture(RenderContext? context, ulong frameId, Texture2D texture)
+        public RetiredTexture(RenderContext? context, ulong frameId, Texture texture)
         {
             Context = context;
             FrameId = frameId;

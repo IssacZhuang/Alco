@@ -420,17 +420,28 @@ public unsafe class TestPngEncoder
         new Random(34).NextBytes(pixels);
         pixels[3] = 0;
         using RenderingTestHost host = Utility.CreateRenderingSystem(GraphicsBackend.Auto);
-        ImageLoadOption option = ImageLoadOption.Default with
-        {
-            Usage = TextureUsage.Sampled | TextureUsage.TransferSource | TextureUsage.TransferDestination,
-        };
-        using Texture2D texture = Texture2DUtility.CreateTexture2D(host.RenderingSystem, pixels, width, height, option);
+        Texture texture = TextureUtility.CreateTexture(
+            host.RenderingSystem,
+            pixels,
+            width,
+            height,
+            Format.Rgba8Unorm,
+            TextureUsage.Sampled | TextureUsage.TransferSource | TextureUsage.TransferDestination);
         using WriteOnlyStream destination = new();
+        try
+        {
+            TextureUtility.EncodeTextureToPNG(host.RenderingSystem, texture, destination);
 
-        Texture2DUtility.EncodeTextureToPNG(texture, destination);
-
-        Assert.That(destination.CanWrite, Is.True);
-        AssertPixels(destination.ToArray(), width, height, pixels);
+            Assert.That(destination.CanWrite, Is.True);
+            AssertPixels(destination.ToArray(), width, height, pixels);
+        }
+        finally
+        {
+            if (!texture.IsDestroyed)
+            {
+                texture.Destroy();
+            }
+        }
     }
 
     private static int ValidateChunks(ReadOnlySpan<byte> png)

@@ -18,7 +18,7 @@ public class UIGeometryIcon : UINode
     public const float MaxStaleRatio = 1.5f;
 
     private string? _svg;
-    private Texture2D? _texture;
+    private Texture? _texture;
     private Canvas? _attachedCanvas;
     private uint _rasterWidth;
     private uint _rasterHeight;
@@ -60,8 +60,8 @@ public class UIGeometryIcon : UINode
         }
     }
 
-    /// <summary>Current rasterized premultiplied RGBA texture, or null until geometry preparation completes.</summary>
-    public Texture2D? Texture => _texture;
+    /// <summary>Current rasterized premultiplied RGBA GPU texture, or null until geometry preparation completes.</summary>
+    public Texture? Texture => _texture;
 
     /// <summary>Active background SVG parse and flatten task, if one is currently in flight.</summary>
     public Task? PendingParseTask => _parseTask;
@@ -121,15 +121,15 @@ public class UIGeometryIcon : UINode
 
     private void RetireCurrentTexture(Canvas? canvas)
     {
-        Texture2D? previous = _texture;
+        Texture? previous = _texture;
         _texture = null;
         if (previous == null)
             return;
 
         if (canvas != null)
             canvas.RetireTexture(previous);
-        else
-            previous.Dispose();
+        else if (!previous.IsDestroyed)
+            previous.Destroy();
     }
 
     private void PollParseTask(Canvas canvas)
@@ -160,7 +160,7 @@ public class UIGeometryIcon : UINode
         if (ReferenceEquals(_parseTaskSvg, _svg))
         {
             RetireCurrentTexture(canvas);
-            _texture = canvas.EnqueueSvgRasterize(in data, string.IsNullOrEmpty(Name) ? "svg_icon" : Name);
+            _texture = canvas.EnqueueSvgRasterize(in data);
             _rasterWidth = data.Width;
             _rasterHeight = data.Height;
         }

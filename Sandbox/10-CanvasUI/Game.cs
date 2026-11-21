@@ -271,10 +271,9 @@ public class Game : GameEngine
         button2.Add(button3);
 
 
-        Texture2D texSelection = AssetSystem.Load<Texture2D>("Selection.png");
-        _sprite = new UIImage()
+        Image imgSelection = AssetSystem.Load<Image>("Selection.png");
+        _sprite = new UIImage(imgSelection)
         {
-            Texture = texSelection,
             Size = new Vector2(100, 100),
             Position = Vector2.Zero,
             ImageType = ImageType.Sliced,
@@ -377,9 +376,8 @@ public class Game : GameEngine
         AddSystem(new ImGUISystem(this));
 
         _showcaseRoot = new UINode { Size = new Vector2(420, 260) };
-        _showcaseCustomImage = new UIImage
+        _showcaseCustomImage = new UIImage(imgSelection)
         {
-            Texture = texSelection,
             Position = new Vector2(-110, 40),
             Size = new Vector2(120, 120),
             Color = new ColorFloat(0.25f, 0.35f, 0.55f, 1f),
@@ -799,10 +797,10 @@ public class Game : GameEngine
                     _geometryIconSettleSeconds = settle;
                     _geometryIconResize.ResizeSettleSeconds = settle;
                 }
-                Texture2D? resizeTexture = _geometryIconResize.Texture;
-                ImGui.Text(resizeTexture != null ? $"Icon texture: {resizeTexture.Width}x{resizeTexture.Height}" : "Icon texture: <rasterizing...>");
-                Texture2D? stretchTexture = _geometryIconStretch.Texture;
-                ImGui.Text(stretchTexture != null ? $"Stretch texture: {stretchTexture.Width}x{stretchTexture.Height}" : "Stretch texture: <rasterizing...>");
+                Texture? resizeTexture = _geometryIconResize.Texture;
+                ImGui.Text(resizeTexture != null ? $"Icon texture: {resizeTexture.Extent.X}x{resizeTexture.Extent.Y}" : "Icon texture: <rasterizing...>");
+                Texture? stretchTexture = _geometryIconStretch.Texture;
+                ImGui.Text(stretchTexture != null ? $"Stretch texture: {stretchTexture.Extent.X}x{stretchTexture.Extent.Y}" : "Stretch texture: <rasterizing...>");
                 break;
             }
 

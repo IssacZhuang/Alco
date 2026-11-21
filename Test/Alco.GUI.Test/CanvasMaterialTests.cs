@@ -107,7 +107,7 @@ public class CanvasMaterialTests
         using UITestHost host = new(GraphicsBackend.NoGPU);
         Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
         using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(128, 128));
-        using Texture2D maskTex = host.CreateRgba8Texture(2, 2, [255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0]);
+        Texture maskTex = host.CreateRgba8Texture(2, 2, [255, 255, 255, 255, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0]);
         Texture target = host.CreateColorTarget(128, 128);
         Texture stencil = host.CreateStencilTarget(128, 128);
         try
@@ -165,6 +165,7 @@ public class CanvasMaterialTests
         {
             stencil.Destroy();
             target.Destroy();
+            maskTex.Destroy();
         }
     }
 
@@ -175,7 +176,7 @@ public class CanvasMaterialTests
         using UITestHost host = new(GraphicsBackend.NoGPU);
         Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
         using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(200, 200));
-        using Texture2D tex = host.CreateRgba8Texture(32, 32, new byte[32 * 32 * 4]);
+        Texture tex = host.CreateRgba8Texture(32, 32, new byte[32 * 32 * 4]);
         Texture target = host.CreateColorTarget(200, 200);
         try
         {
@@ -232,6 +233,71 @@ public class CanvasMaterialTests
         finally
         {
             target.Destroy();
+            tex.Destroy();
+        }
+    }
+
+    /// <summary>Verifies UIImage(Image), SetImage, and Canvas Image/Sprite drawing overloads propagate import settings cleanly.</summary>
+    [Test]
+    public void UIImage_And_CanvasOverloads_ApplyImageAndSpriteMetadata()
+    {
+        using UITestHost host = new(GraphicsBackend.NoGPU);
+        Font font = Font.Create(UITestHost.LoadDefaultFontBytes());
+        using Canvas canvas = host.RenderingSystem.CreateCanvas(new TestInputTracker(), font, new Vector2(128, 128));
+        Texture gpuTex = host.CreateRgba8Texture(16, 16, new byte[16 * 16 * 4]);
+        Texture target = host.CreateColorTarget(128, 128);
+        try
+        {
+            ImageLoadOption option = ImageLoadOption.Default with
+            {
+                Name = "UiSheet.png",
+                FilterMode = Filter.Nearest,
+                PremultiplyAlpha = true,
+                SlicePadding = new Padding(3, 4, 5, 6),
+            };
+            var sprites = new Dictionary<string, RectInt> { ["icon"] = new RectInt(4, 4, 8, 8) };
+            using Image sheet = ImageUtility.CreateFromTexture(gpuTex, option, sprites, ownsResource: false);
+
+            UIImage fromCtor = new(sheet);
+            Assert.That(fromCtor.Texture, Is.SameAs(gpuTex));
+            Assert.That(fromCtor.NearestFilter, Is.True);
+            Assert.That(fromCtor.Premultiplied, Is.True);
+            Assert.That(fromCtor.SliceBorders, Is.EqualTo(new Vector4(3, 4, 5, 6)));
+
+            fromCtor.SetImage(sheet, "icon");
+            fromCtor.SetNativeSize();
+            Assert.That(fromCtor.UvRect, Is.EqualTo(new Rect(0.25f, 0.25f, 0.5f, 0.5f)));
+            Assert.That(fromCtor.Size, Is.EqualTo(new Vector2(8, 8)));
+
+            fromCtor.ImageType = ImageType.Sliced;
+            canvas.Root.Add(fromCtor);
+
+            canvas.PrepareRender(0f);
+            Span<UIMeshVertex> verts =
+            [
+                new UIMeshVertex { Position = new Vector2(0, 0), Uv = new Vector2(0, 0), Color = ColorFloat.White },
+                new UIMeshVertex { Position = new Vector2(16, 0), Uv = new Vector2(1, 0), Color = ColorFloat.White },
+                new UIMeshVertex { Position = new Vector2(8, 16), Uv = new Vector2(0.5f, 1), Color = ColorFloat.White },
+            ];
+            Span<ushort> indices = [0, 1, 2];
+
+            canvas.DrawSprite(sheet, Matrix4x4.Identity, ColorFloat.White);
+            canvas.DrawSprite(sheet.GetSprite("icon"), Matrix4x4.Identity, ColorFloat.White);
+            canvas.DrawNineSlice(sheet, Matrix4x4.CreateScale(32, 32, 1), ColorFloat.White);
+            canvas.DrawTiledSprite(sheet, Matrix4x4.CreateScale(32, 32, 1), Vector2.One, ColorFloat.White);
+            canvas.DrawMesh(verts, indices, sheet);
+
+            host.Context.BeginFrame();
+            UIFrameStats stats = canvas.Draw(host.Context, target.RenderView, Format.Rgba8Unorm, new Extent2D(128, 128));
+            host.Context.Submit().Wait();
+
+            Assert.That(stats.MeshDraws, Is.EqualTo(1));
+            Assert.That(stats.ContentDraws, Is.GreaterThanOrEqualTo(1));
+        }
+        finally
+        {
+            target.Destroy();
+            gpuTex.Destroy();
         }
     }
 }

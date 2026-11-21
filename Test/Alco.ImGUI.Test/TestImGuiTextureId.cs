@@ -20,12 +20,11 @@ public sealed class TestImGuiTextureId
         RenderingSystem system = new(device, textureHeapByteCount: 1024 * 1024, bufferHeapByteCount: 1024 * 1024);
         Texture? sampled = null;
         Texture? attachmentOnly = null;
-        Texture2D? texture2D = null;
+        Texture? utilityTex = null;
         try
         {
             Assert.That(system.TextureWhite.SampledIndex, Is.EqualTo(0u));
             Assert.That(ImGui.GetTextureId((Texture?)null), Is.EqualTo(IntPtr.Zero));
-            Assert.That(ImGui.GetTextureId((Texture2D?)null), Is.EqualTo(IntPtr.Zero));
 
             sampled = system.CreateTexture(new TextureDesc
             {
@@ -49,16 +48,19 @@ public sealed class TestImGuiTextureId
             Assert.That(ImGui.GetTextureId(attachmentOnly), Is.EqualTo(IntPtr.Zero));
 
             byte[] pixels = new byte[4 * 4 * 4];
-            texture2D = Texture2DUtility.CreateTexture2D(system, pixels, 4, 4);
-            Assert.That(texture2D.SampledIndex, Is.Not.EqualTo(0u));
-            Assert.That(ImGui.GetTextureId(texture2D), Is.EqualTo((IntPtr)texture2D.SampledIndex));
+            utilityTex = TextureUtility.CreateTexture(system, pixels, 4, 4);
+            Assert.That(utilityTex.SampledIndex, Is.Not.EqualTo(0u));
+            Assert.That(ImGui.GetTextureId(utilityTex), Is.EqualTo((IntPtr)utilityTex.SampledIndex));
 
-            texture2D.Dispose();
-            Assert.That(ImGui.GetTextureId(texture2D), Is.EqualTo(IntPtr.Zero));
+            utilityTex.Destroy();
+            Assert.That(ImGui.GetTextureId(utilityTex), Is.EqualTo(IntPtr.Zero));
         }
         finally
         {
-            texture2D?.Dispose();
+            if (utilityTex != null && !utilityTex.IsDestroyed)
+            {
+                utilityTex.Destroy();
+            }
             if (attachmentOnly != null && !attachmentOnly.IsDestroyed)
             {
                 attachmentOnly.Destroy();

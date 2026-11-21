@@ -1,5 +1,8 @@
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Alco.Engine;
 using Alco.Graphics;
 using Alco.Graphics.LowLevel;
 using Alco.IO;
@@ -8,9 +11,9 @@ using NUnit.Framework;
 
 namespace Alco.Engine.Test;
 
-/// <summary>Covers Texture2D asset streaming, including header probing, in-place uploads, and decode fallbacks.</summary>
+/// <summary>Covers <see cref="Image"/> asset streaming, including header probing, in-place uploads, and decode fallbacks.</summary>
 [TestFixture]
-public class TestAssetLoaderTexture2DStreaming
+public class TestAssetLoaderImageStreaming
 {
     private class LifeCycleProvider : IAssetSystemHost, IDisposable
     {
@@ -25,7 +28,7 @@ public class TestAssetLoaderTexture2DStreaming
         public void LogInfo(ReadOnlySpan<char> message) { }
         public void LogSuccess(ReadOnlySpan<char> message) { }
         public void LogWarning(ReadOnlySpan<char> message) { }
-        void IAssetSystemHost.PostToMainThread(Action action) { }
+        void IAssetSystemHost.PostToMainThread(Action action) => action();
     }
 
     private sealed class TrackingStream : MemoryStream
@@ -122,7 +125,12 @@ public class TestAssetLoaderTexture2DStreaming
         _assetSystem = new AssetSystem(_lifeCycle);
         _fileSource = new TestFileSource();
         _assetSystem.AddFileSource(_fileSource);
-        _assetSystem.RegisterAssetLoader(new AssetLoaderTexture2D(_renderingSystem, _assetSystem));
+        _assetSystem.RegisterAssetLoader(new AssetLoaderImage(_renderingSystem, _assetSystem));
+        _assetSystem.RegisterAssetLoader(new AssetLoaderMeta(new JsonSerializerOptions
+        {
+            AllowTrailingCommas = true,
+            Converters = { new JsonStringEnumConverter(), new JsonConverterPadding() },
+        }));
     }
 
     /// <summary>Disposes the asset system, rendering system, device, and file source.</summary>
@@ -142,24 +150,24 @@ public class TestAssetLoaderTexture2DStreaming
     {
         _fileSource.AddFile("textures/wall.png", Png32);
 
-        Texture2D texture = _assetSystem.Load<Texture2D>("textures/wall.png");
+        Image image = _assetSystem.Load<Image>("textures/wall.png");
 
         // The specification is final before any content arrived.
-        Assert.That(texture.Width, Is.EqualTo(32));
-        Assert.That(texture.Height, Is.EqualTo(32));
-        Assert.That(texture.MipLevels, Is.EqualTo(1));
-        Assert.That(texture.Format, Is.EqualTo(Format.Rgba8Unorm));
+        Assert.That(image.Width, Is.EqualTo(32));
+        Assert.That(image.Height, Is.EqualTo(32));
+        Assert.That(image.MipLevels, Is.EqualTo(1));
+        Assert.That(image.Format, Is.EqualTo(Format.Rgba8Unorm));
 
-        Texture native = texture.NativeTexture;
+        Texture gpuTexture = image.Texture;
 
         // The upload task disposes the asset stream when done.
         Assert.That(_fileSource.OpenedStreams, Has.Count.EqualTo(1));
         Assert.That(SpinWait.SpinUntil(() => _fileSource.OpenedStreams[0].Disposed, TimeSpan.FromSeconds(10)), Is.True);
 
         // Content arrived in place: the identity never changed.
-        Assert.That(texture.NativeTexture, Is.SameAs(native));
-        Assert.That(texture.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
-        Assert.That(texture.IsContentLoaded, Is.True);
+        Assert.That(image.Texture, Is.SameAs(gpuTexture));
+        Assert.That(image.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        Assert.That(image.IsContentLoaded, Is.True);
     }
 
     /// <summary>Tests that a DDS on a BC-capable device streams its BC1 mip chain in place.</summary>
@@ -168,31 +176,31 @@ public class TestAssetLoaderTexture2DStreaming
     {
         _fileSource.AddFile("textures/compressed.dds", CreateDds8x8());
 
-        Texture2D texture = _assetSystem.Load<Texture2D>("textures/compressed.dds");
+        Image image = _assetSystem.Load<Image>("textures/compressed.dds");
 
         // NoGPUDevice reports BC support; only the block-aligned 8x8 and 4x4 levels survive.
-        Assert.That(texture.Width, Is.EqualTo(8));
-        Assert.That(texture.Height, Is.EqualTo(8));
-        Assert.That(texture.MipLevels, Is.EqualTo(2));
-        Assert.That(texture.Format, Is.EqualTo(Format.Bc1Unorm));
+        Assert.That(image.Width, Is.EqualTo(8));
+        Assert.That(image.Height, Is.EqualTo(8));
+        Assert.That(image.MipLevels, Is.EqualTo(2));
+        Assert.That(image.Format, Is.EqualTo(Format.Bc1Unorm));
 
-        Texture native = texture.NativeTexture;
+        Texture gpuTexture = image.Texture;
         Assert.That(_fileSource.OpenedStreams, Has.Count.EqualTo(1));
         Assert.That(SpinWait.SpinUntil(() => _fileSource.OpenedStreams[0].Disposed, TimeSpan.FromSeconds(10)), Is.True);
-        Assert.That(texture.NativeTexture, Is.SameAs(native));
-        Assert.That(texture.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
-        Assert.That(texture.IsContentLoaded, Is.True);
+        Assert.That(image.Texture, Is.SameAs(gpuTexture));
+        Assert.That(image.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        Assert.That(image.IsContentLoaded, Is.True);
     }
 
     /// <summary>Tests that a preloaded context decodes synchronously without opening a stream.</summary>
     [Test]
     public void PreloadedContext_DecodesSynchronously()
     {
-        Assert.That(_assetSystem.TryDecode("wall.png", typeof(Texture2D), Png32, out object? asset), Is.True);
+        Assert.That(_assetSystem.TryDecode("wall.png", typeof(Image), Png32, out object? asset), Is.True);
 
-        using Texture2D texture = (Texture2D)asset!;
-        Assert.That(texture.Width, Is.EqualTo(32));
-        Assert.That(texture.Height, Is.EqualTo(32));
+        using Image image = (Image)asset!;
+        Assert.That(image.Width, Is.EqualTo(32));
+        Assert.That(image.Height, Is.EqualTo(32));
 
         // Preloaded contexts never open a stream.
         Assert.That(_fileSource.OpenedStreams, Is.Empty);
@@ -204,6 +212,61 @@ public class TestAssetLoaderTexture2DStreaming
     {
         _fileSource.AddFile("textures/corrupt.png", new byte[256]);
 
-        Assert.Throws<AssetLoadException>(() => _assetSystem.Load<Texture2D>("textures/corrupt.png"));
+        Assert.Throws<AssetLoadException>(() => _assetSystem.Load<Image>("textures/corrupt.png"));
+    }
+
+    /// <summary>
+    /// Tests that <see cref="AssetLoaderImage"/> resolves directory options and per-file <see cref="ImageMeta"/>
+    /// at load time and hot-reloads into a fresh immutable <see cref="Image"/> without disposing the prior asset.
+    /// </summary>
+    [Test]
+    public void MetaAndHotReload_ResolvesOptionsAndReplacesImmutableImageSafely()
+    {
+        _fileSource.AddFile("textures/.texture-option.meta", System.Text.Encoding.UTF8.GetBytes("""
+            {
+                "FilterMode": "Nearest",
+                "AddressMode": "ClampToEdge",
+                "Anisotropy": 4,
+                "PremultiplyAlpha": true
+            }
+            """));
+        _fileSource.AddFile("textures/wall.png", Png32);
+        _fileSource.AddFile("textures/wall.png.meta", System.Text.Encoding.UTF8.GetBytes("""
+            {
+                "SlicePadding": { "Left": 2, "Top": 4, "Right": 6, "Bottom": 8 },
+                "Sprites": {
+                    "tile": { "X": 0, "Y": 0, "Width": 16, "Height": 16 }
+                }
+            }
+            """));
+
+        Image first = _assetSystem.Load<Image>("textures/wall.png");
+        Assert.That(first.FilterMode, Is.EqualTo(Filter.Nearest));
+        Assert.That(first.AddressMode, Is.EqualTo(AddressMode.ClampToEdge));
+        Assert.That(first.Anisotropy, Is.EqualTo(4));
+        Assert.That(first.IsPremultiplied, Is.True);
+        Assert.That(first.SlicePadding, Is.EqualTo(new Padding(2, 4, 6, 8)));
+        Assert.That(first.TryGetSprite("tile", out Sprite? tileSprite), Is.True);
+        Assert.That(tileSprite!.UvRect, Is.EqualTo(new Rect(0, 0, 0.5f, 0.5f)));
+        Assert.That(first.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+        using ManualResetEventSlim reloadedEvent = new(false);
+        object? eventAsset = null;
+        _assetSystem.OnHotReload += (_, asset) =>
+        {
+            eventAsset = asset;
+            reloadedEvent.Set();
+        };
+
+        _assetSystem.EnqueueHotReload("textures/wall.png");
+        Assert.That(reloadedEvent.Wait(TimeSpan.FromSeconds(10)), Is.True);
+
+        Image second = _assetSystem.Load<Image>("textures/wall.png");
+        Assert.That(second, Is.Not.SameAs(first));
+        Assert.That(second, Is.SameAs(eventAsset));
+        Assert.That(second.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        Assert.That(first.IsDisposed, Is.False);
+        Assert.That(first.Texture.IsDestroyed, Is.False);
+        first.Dispose();
     }
 }

@@ -101,5 +101,5 @@ public struct ImageLoadOption
     /// <summary>
     /// Whether to convert the image from straight alpha to premultiplied alpha during loading.
     /// </summary>
-    public bool PremultiplyAlpha { get; init; } = true;
+    public bool PremultiplyAlpha { get; init; } = false;
 }

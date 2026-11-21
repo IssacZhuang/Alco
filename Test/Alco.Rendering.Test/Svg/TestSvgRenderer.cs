@@ -61,42 +61,54 @@ public unsafe class TestSvgRenderer
             Assert.That(SvgRenderer.TryParseAndBuild(GradientSvg, 64, 64, out SvgRasterizeData gradData), Is.True);
 
             context.BeginFrame();
-            using Texture2D rectTex = renderer.Rasterize(context, in rectData, "svg_rect");
-            using Texture2D circleTex = renderer.Rasterize(context, in circleData, "svg_circle");
-            using Texture2D gradTex = renderer.Rasterize(context, in gradData, "svg_grad");
-            context.Submit().Wait();
-
-            if (backend == GraphicsBackend.NoGPU)
-                return;
-
-            byte[] rectPixels = ReadbackRgba8(host.Device, context, rectTex.NativeTexture, 64, 64);
-            // Outside (2, 2): transparent zero
-            AssertPixel(rectPixels, 64, 2, 2, 0, 0, 0, 0);
-            // Center (32, 32): opaque green (0, 255, 0, 255)
-            AssertPixel(rectPixels, 64, 32, 32, 0, 255, 0, 255);
-
-            byte[] circlePixels = ReadbackRgba8(host.Device, context, circleTex.NativeTexture, 64, 64);
-            // Inside center (32, 32): half-alpha red premultiplied (~128, 0, 0, 128)
-            int centerIdx = (32 * 64 + 32) * 4;
-            Assert.That(circlePixels[centerIdx + 0], Is.InRange((byte)124, (byte)132));
-            Assert.That(circlePixels[centerIdx + 1], Is.EqualTo((byte)0));
-            Assert.That(circlePixels[centerIdx + 2], Is.EqualTo((byte)0));
-            Assert.That(circlePixels[centerIdx + 3], Is.InRange((byte)124, (byte)132));
-            // Premultiplied invariant across entire image
-            for (int i = 0; i < circlePixels.Length; i += 4)
+            Texture rectTex = renderer.Rasterize(context, in rectData);
+            Texture circleTex = renderer.Rasterize(context, in circleData);
+            Texture gradTex = renderer.Rasterize(context, in gradData);
+            try
             {
-                Assert.That(circlePixels[i + 0], Is.LessThanOrEqualTo(circlePixels[i + 3]));
-                Assert.That(circlePixels[i + 1], Is.LessThanOrEqualTo(circlePixels[i + 3]));
-                Assert.That(circlePixels[i + 2], Is.LessThanOrEqualTo(circlePixels[i + 3]));
-            }
+                context.Submit().Wait();
 
-            byte[] gradPixels = ReadbackRgba8(host.Device, context, gradTex.NativeTexture, 64, 64);
-            int leftIdx = (32 * 64 + 2) * 4;
-            int rightIdx = (32 * 64 + 61) * 4;
-            Assert.That(gradPixels[leftIdx + 0], Is.GreaterThan((byte)220));
-            Assert.That(gradPixels[leftIdx + 2], Is.LessThan((byte)35));
-            Assert.That(gradPixels[rightIdx + 2], Is.GreaterThan((byte)220));
-            Assert.That(gradPixels[rightIdx + 0], Is.LessThan((byte)35));
+                if (backend == GraphicsBackend.NoGPU)
+                    return;
+
+                byte[] rectPixels = ReadbackRgba8(host.Device, context, rectTex, 64, 64);
+                // Outside (2, 2): transparent zero
+                AssertPixel(rectPixels, 64, 2, 2, 0, 0, 0, 0);
+                // Center (32, 32): opaque green (0, 255, 0, 255)
+                AssertPixel(rectPixels, 64, 32, 32, 0, 255, 0, 255);
+
+                byte[] circlePixels = ReadbackRgba8(host.Device, context, circleTex, 64, 64);
+                // Inside center (32, 32): half-alpha red premultiplied (~128, 0, 0, 128)
+                int centerIdx = (32 * 64 + 32) * 4;
+                Assert.That(circlePixels[centerIdx + 0], Is.InRange((byte)124, (byte)132));
+                Assert.That(circlePixels[centerIdx + 1], Is.EqualTo((byte)0));
+                Assert.That(circlePixels[centerIdx + 2], Is.EqualTo((byte)0));
+                Assert.That(circlePixels[centerIdx + 3], Is.InRange((byte)124, (byte)132));
+                // Premultiplied invariant across entire image
+                for (int i = 0; i < circlePixels.Length; i += 4)
+                {
+                    Assert.That(circlePixels[i + 0], Is.LessThanOrEqualTo(circlePixels[i + 3]));
+                    Assert.That(circlePixels[i + 1], Is.LessThanOrEqualTo(circlePixels[i + 3]));
+                    Assert.That(circlePixels[i + 2], Is.LessThanOrEqualTo(circlePixels[i + 3]));
+                }
+
+                byte[] gradPixels = ReadbackRgba8(host.Device, context, gradTex, 64, 64);
+                int leftIdx = (32 * 64 + 2) * 4;
+                int rightIdx = (32 * 64 + 61) * 4;
+                Assert.That(gradPixels[leftIdx + 0], Is.GreaterThan((byte)220));
+                Assert.That(gradPixels[leftIdx + 2], Is.LessThan((byte)35));
+                Assert.That(gradPixels[rightIdx + 2], Is.GreaterThan((byte)220));
+                Assert.That(gradPixels[rightIdx + 0], Is.LessThan((byte)35));
+            }
+            finally
+            {
+                if (!gradTex.IsDestroyed)
+                    gradTex.Destroy();
+                if (!circleTex.IsDestroyed)
+                    circleTex.Destroy();
+                if (!rectTex.IsDestroyed)
+                    rectTex.Destroy();
+            }
         }
         finally
         {

@@ -6,7 +6,10 @@ internal class AssetHandle
 {
     private WeakReference? _weakReference;
     private object? _strongReference;
+    private AssetCacheMode _cacheMode;
     private bool _isLoading = false;
+
+    public AssetCacheMode CacheMode => _cacheMode;
 
     public bool IsLoading
     {
@@ -32,6 +35,7 @@ internal class AssetHandle
 
     public void SetCache(object obj, AssetCacheMode cacheMode)
     {
+        _cacheMode = cacheMode;
         if (cacheMode == AssetCacheMode.Recyclable)
         {
             _weakReference = new WeakReference(obj);

@@ -1,6 +1,4 @@
-
-using System.Numerics;
-using Alco.Rendering;
+using Alco.Graphics;
 
 namespace Alco.GUI;
 
@@ -10,11 +8,11 @@ namespace Alco.GUI;
 public class UIMask : UINode, IUIMask
 {
     /// <summary>
-    /// The mask texture; a white quad is used when it is null.
+    /// The mask GPU texture; a white quad is used when it is null.
     /// </summary>
-    public Texture2D? Texture { get; set; } = null;
+    public Texture? Texture { get; set; } = null;
 
-    Texture2D? IUIMask.MaskTexture => Texture;
+    Texture? IUIMask.MaskTexture => Texture;
 
     Transform2D IUIMask.MaskTransform => RenderTransform;
 

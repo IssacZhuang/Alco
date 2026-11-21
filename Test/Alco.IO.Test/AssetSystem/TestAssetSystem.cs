@@ -731,5 +731,100 @@ public class TestAssetSystem
         }
     }
 
+    private sealed class ImmediateHotReloadHost : IAssetSystemHost, IDisposable
+    {
+        public event Action? OnDispose;
+        public void Dispose() => OnDispose?.Invoke();
+        public void LogError(ReadOnlySpan<char> message) { }
+        public void LogInfo(ReadOnlySpan<char> message) { }
+        public void LogSuccess(ReadOnlySpan<char> message) { }
+        public void LogWarning(ReadOnlySpan<char> message) { }
+        public void PostToMainThread(Action action) => action();
+    }
+
+    private sealed class ImmutableDisposableAsset : IDisposable
+    {
+        public string Content { get; }
+        public bool IsDisposed { get; private set; }
+        public ImmutableDisposableAsset(string content) => Content = content;
+        public void Dispose() => IsDisposed = true;
+    }
+
+    private sealed class ImmutableDisposableAssetLoader : IAssetLoader
+    {
+        public string Name => "ImmutableDisposableAssetLoader";
+        public IReadOnlyList<string> FileExtensions => [".imm"];
+        public bool CanHandleType(Type type) => type == typeof(ImmutableDisposableAsset);
+        public object CreateAsset(in AssetLoadContext context)
+            => new ImmutableDisposableAsset(Encoding.UTF8.GetString(context.GetData()));
+    }
+
+    private sealed class MutableStringFileSource : IFileSource, IDisposable
+    {
+        private readonly Dictionary<string, byte[]> _files = new();
+        public string Name => "MutableStringFileSource";
+        public int Priority => 0;
+        public IEnumerable<string> AllFileNames => _files.Keys;
+        public void SetFile(string path, string content) => _files[path] = Encoding.UTF8.GetBytes(content);
+        public bool TryGetData(string path, [NotNullWhen(true)] out SafeMemoryHandle data, [NotNullWhen(false)] out string? failureReason)
+        {
+            if (_files.TryGetValue(path, out byte[]? bytes))
+            {
+                data = new SafeMemoryHandle(bytes);
+                failureReason = null;
+                return true;
+            }
+            data = SafeMemoryHandle.Empty;
+            failureReason = $"Missing file: {path}";
+            return false;
+        }
+        public bool TryGetStream(string path, [NotNullWhen(true)] out Stream? stream, [NotNullWhen(false)] out string? failureReason)
+        {
+            stream = null;
+            failureReason = "Streams unsupported";
+            return false;
+        }
+        public void Dispose() => _files.Clear();
+    }
+
+    /// <summary>
+    /// Verifies that hot-reloading an immutable asset without a registered reloader replaces the cached
+    /// handle with a fresh instance without disposing the old instance still held by callers.
+    /// </summary>
+    [Test]
+    public void HotReload_WithoutRegisteredReloader_ReplacesCacheAndLeavesOldAssetUndisposed()
+    {
+        using ImmediateHotReloadHost host = new();
+        AssetSystem assetSystem = new(host);
+        using MutableStringFileSource fileSource = new();
+        fileSource.SetFile("items/card.imm", "v1");
+        assetSystem.AddFileSource(fileSource);
+        assetSystem.RegisterAssetLoader(new ImmutableDisposableAssetLoader());
+
+        ImmutableDisposableAsset first = assetSystem.Load<ImmutableDisposableAsset>("items/card.imm");
+        Assert.That(first.Content, Is.EqualTo("v1"));
+
+        string? reloadedPath = null;
+        object? reloadedObj = null;
+        using ManualResetEventSlim fired = new(false);
+        assetSystem.OnHotReload += (path, asset) =>
+        {
+            reloadedPath = path;
+            reloadedObj = asset;
+            fired.Set();
+        };
+
+        fileSource.SetFile("items/card.imm", "v2");
+        assetSystem.EnqueueHotReload("items/card.imm");
+
+        Assert.That(fired.Wait(TimeSpan.FromSeconds(5)), Is.True);
+        Assert.That(reloadedPath, Is.EqualTo("items/card.imm"));
+
+        ImmutableDisposableAsset second = assetSystem.Load<ImmutableDisposableAsset>("items/card.imm");
+        Assert.That(second, Is.Not.SameAs(first));
+        Assert.That(second, Is.SameAs(reloadedObj));
+        Assert.That(second.Content, Is.EqualTo("v2"));
+        Assert.That(first.IsDisposed, Is.False);
+    }
 
 }

@@ -24,14 +24,14 @@ public partial class GameEngine
         // fonts
         yield return new AssetLoaderFontTTF();
 
-        // texture — loaders create their own option cache internally
+        // image — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
-            yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
+            yield return new AssetLoaderImage(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
         else
         {
-            yield return new AssetLoaderTexture2DNoGPU(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
+            yield return new AssetLoaderImageNoGPU(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
 
         // audio
@@ -56,8 +56,6 @@ public partial class GameEngine
     /// <returns>The default asset hot reloaders.</returns>
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
     {
-        yield return new AssetHotReloaderTexture2D();
-
         if (Setting.HasAudio)
         {
             yield return new AssetHotReloaderAudioVorbis(AudioDevice);
@@ -113,7 +111,7 @@ public partial class GameEngine
         yield return new JsonConverterQuaternion();
         yield return new JsonConverterColor32();
         yield return new JsonConverterColorFloat();
-        yield return new JsonConverterTexture2D(AssetSystem);
+        yield return new JsonConverterImage(AssetSystem);
         yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterShader(ShaderSystem);
         yield return new JsonConverterDepthStencilState();

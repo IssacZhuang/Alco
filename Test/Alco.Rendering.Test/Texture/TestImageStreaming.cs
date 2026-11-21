@@ -6,11 +6,11 @@ using NUnit.Framework;
 namespace Alco.Rendering.Test;
 
 /// <summary>
-/// Tests header-driven texture creation and in-place content upload, including streaming, BC fallback,
-/// and error paths on the NoGPU device.
+/// Tests header-driven <see cref="Image"/> creation and in-place content upload, including streaming,
+/// BC fallback, and error paths on the NoGPU device.
 /// </summary>
 [TestFixture]
-public class TestTexture2DStreaming
+public class TestImageStreaming
 {
     private const uint FourCcDxt1 = 0x31545844; // "DXT1"
 
@@ -31,7 +31,7 @@ public class TestTexture2DStreaming
         return data;
     }
 
-    /// <summary>Tests that a PNG header creates an empty texture at the file specification.</summary>
+    /// <summary>Tests that a PNG header creates an empty image at the file specification.</summary>
     [Test]
     public void CreateFromHeader_Png_CreatesEmptyAtFileSpec()
     {
@@ -42,12 +42,12 @@ public class TestTexture2DStreaming
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
         var option = ImageLoadOption.Default with { Format = Format.Rgba8Srgb };
 
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info, option);
+        using Image image = ImageUtility.CreateFromHeader(rendering, info, option);
 
-        Assert.That(texture.Width, Is.EqualTo(32));
-        Assert.That(texture.Height, Is.EqualTo(32));
-        Assert.That(texture.MipLevels, Is.EqualTo(1));
-        Assert.That(texture.Format, Is.EqualTo(Format.Rgba8Srgb));
+        Assert.That(image.Width, Is.EqualTo(32));
+        Assert.That(image.Height, Is.EqualTo(32));
+        Assert.That(image.MipLevels, Is.EqualTo(1));
+        Assert.That(image.Format, Is.EqualTo(Format.Rgba8Srgb));
     }
 
     /// <summary>Tests that DDS without BC support falls back to a single-level RGBA8 texture.</summary>
@@ -57,17 +57,16 @@ public class TestTexture2DStreaming
         using RenderingTestHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
 
-        // 8x8 BC1, header claims 3 levels but only 8x8 and 4x4 are block-aligned.
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
         Assert.That(info.MipLevels, Is.EqualTo(2));
 
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info, option: null, bcSupported: false);
+        using Image image = ImageUtility.CreateFromHeader(rendering, info, option: null, sprites: null, bcSupported: false);
 
-        Assert.That(texture.Width, Is.EqualTo(8));
-        Assert.That(texture.Height, Is.EqualTo(8));
-        Assert.That(texture.MipLevels, Is.EqualTo(1));
-        Assert.That(texture.Format, Is.EqualTo(Format.Rgba8Unorm));
+        Assert.That(image.Width, Is.EqualTo(8));
+        Assert.That(image.Height, Is.EqualTo(8));
+        Assert.That(image.MipLevels, Is.EqualTo(1));
+        Assert.That(image.Format, Is.EqualTo(Format.Rgba8Unorm));
     }
 
     /// <summary>Tests that DDS with BC support uses the file's BC1 specification and mip count.</summary>
@@ -77,16 +76,15 @@ public class TestTexture2DStreaming
         using RenderingTestHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
 
-        // 8x8 BC1, header claims 3 levels but only 8x8 and 4x4 are block-aligned.
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
 
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info, option: null, bcSupported: true);
+        using Image image = ImageUtility.CreateFromHeader(rendering, info, option: null, sprites: null, bcSupported: true);
 
-        Assert.That(texture.Width, Is.EqualTo(8));
-        Assert.That(texture.Height, Is.EqualTo(8));
-        Assert.That(texture.MipLevels, Is.EqualTo(2));
-        Assert.That(texture.Format, Is.EqualTo(Format.Bc1Unorm));
+        Assert.That(image.Width, Is.EqualTo(8));
+        Assert.That(image.Height, Is.EqualTo(8));
+        Assert.That(image.MipLevels, Is.EqualTo(2));
+        Assert.That(image.Format, Is.EqualTo(Format.Bc1Unorm));
     }
 
     /// <summary>Tests that uploading PNG content preserves texture identity.</summary>
@@ -98,12 +96,12 @@ public class TestTexture2DStreaming
 
         byte[] data = LoadTestFile("Png", "basn6a08.png");
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info);
-        Texture native = texture.NativeTexture;
+        using Image image = ImageUtility.CreateFromHeader(rendering, info);
+        Texture gpuTexture = image.Texture;
 
-        Assert.DoesNotThrow(() => Texture2DUtility.UploadTexture2DContent(texture, data));
+        Assert.DoesNotThrow(() => ImageUtility.UploadContent(rendering, image, data));
 
-        Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(image.Texture, Is.SameAs(gpuTexture));
     }
 
     /// <summary>Tests that DDS upload without BC support decodes level 0 and marks content loaded.</summary>
@@ -115,15 +113,15 @@ public class TestTexture2DStreaming
 
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info, option: null, bcSupported: false);
-        Assert.That(texture.Format, Is.EqualTo(Format.Rgba8Unorm));
-        Assert.That(texture.IsContentLoaded, Is.False);
-        Texture native = texture.NativeTexture;
+        using Image image = ImageUtility.CreateFromHeader(rendering, info, option: null, sprites: null, bcSupported: false);
+        Assert.That(image.Format, Is.EqualTo(Format.Rgba8Unorm));
+        Assert.That(image.IsContentLoaded, Is.False);
+        Texture gpuTexture = image.Texture;
 
-        Assert.DoesNotThrow(() => Texture2DUtility.UploadTexture2DContent(texture, data));
+        Assert.DoesNotThrow(() => ImageUtility.UploadContent(rendering, image, data));
 
-        Assert.That(texture.IsContentLoaded, Is.True);
-        Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(image.IsContentLoaded, Is.True);
+        Assert.That(image.Texture, Is.SameAs(gpuTexture));
     }
 
     /// <summary>Tests that DDS upload with BC support keeps identity and marks content loaded.</summary>
@@ -135,14 +133,14 @@ public class TestTexture2DStreaming
 
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 40);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info, option: null, bcSupported: true);
-        Assert.That(texture.Format, Is.EqualTo(Format.Bc1Unorm));
-        Texture native = texture.NativeTexture;
+        using Image image = ImageUtility.CreateFromHeader(rendering, info, option: null, sprites: null, bcSupported: true);
+        Assert.That(image.Format, Is.EqualTo(Format.Bc1Unorm));
+        Texture gpuTexture = image.Texture;
 
-        Assert.DoesNotThrow(() => Texture2DUtility.UploadTexture2DContent(texture, data));
+        Assert.DoesNotThrow(() => ImageUtility.UploadContent(rendering, image, data));
 
-        Assert.That(texture.IsContentLoaded, Is.True);
-        Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(image.IsContentLoaded, Is.True);
+        Assert.That(image.Texture, Is.SameAs(gpuTexture));
     }
 
     /// <summary>Tests that a truncated DDS payload throws.</summary>
@@ -152,15 +150,14 @@ public class TestTexture2DStreaming
         using RenderingTestHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
 
-        // Header claims 8x8 with mips but the payload is missing entirely.
         byte[] data = CreateDdsBytes(8, 8, 3, payloadBytes: 0);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info);
+        using Image image = ImageUtility.CreateFromHeader(rendering, info);
 
-        Assert.Throws<ImageDecodeException>(() => Texture2DUtility.UploadTexture2DContent(texture, data));
+        Assert.Throws<ImageDecodeException>(() => ImageUtility.UploadContent(rendering, image, data));
     }
 
-    /// <summary>Tests that uploading content that does not match the texture specification throws and preserves identity.</summary>
+    /// <summary>Tests that uploading content that does not match the image specification throws and preserves identity.</summary>
     [Test]
     public void UploadContent_SpecMismatch_Throws()
     {
@@ -168,12 +165,13 @@ public class TestTexture2DStreaming
         RenderingSystem rendering = host.RenderingSystem;
 
         byte[] data = LoadTestFile("Png", "basn6a08.png"); // 32x32
-        using Texture2D texture = Texture2DUtility.CreateTexture2D(rendering, 16, 16);
-        Texture native = texture.NativeTexture;
+        Texture raw = TextureUtility.CreateTexture(rendering, 16, 16);
+        using Image image = ImageUtility.CreateFromTexture(raw, ownsResource: true);
+        Texture gpuTexture = image.Texture;
 
-        Assert.Throws<ImageDecodeException>(() => Texture2DUtility.UploadTexture2DContent(texture, data));
+        Assert.Throws<ImageDecodeException>(() => ImageUtility.UploadContent(rendering, image, data));
 
-        Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(image.Texture, Is.SameAs(gpuTexture));
     }
 
     private sealed class TrackingStream : MemoryStream
@@ -187,7 +185,7 @@ public class TestTexture2DStreaming
         }
     }
 
-    /// <summary>Tests that streaming pre-creates the texture, uploads in place, and disposes the stream.</summary>
+    /// <summary>Tests that streaming pre-creates the image, uploads in place, and disposes the stream.</summary>
     [Test]
     public void CreateStreaming_Png_PreCreatesThenUploadsInPlace()
     {
@@ -196,15 +194,15 @@ public class TestTexture2DStreaming
 
         byte[] data = LoadTestFile("Png", "basn6a08.png");
         var stream = new TrackingStream(data);
-        using Texture2D texture = Texture2DUtility.CreateTexture2DStreaming(rendering, stream);
+        using Image image = ImageUtility.CreateStreaming(rendering, stream);
 
-        Assert.That(texture.Width, Is.EqualTo(32));
-        Assert.That(texture.Height, Is.EqualTo(32));
-        Assert.That(texture.MipLevels, Is.EqualTo(1));
-        Texture native = texture.NativeTexture;
+        Assert.That(image.Width, Is.EqualTo(32));
+        Assert.That(image.Height, Is.EqualTo(32));
+        Assert.That(image.MipLevels, Is.EqualTo(1));
+        Texture gpuTexture = image.Texture;
 
         Assert.That(SpinWait.SpinUntil(() => stream.Disposed, TimeSpan.FromSeconds(10)), Is.True);
-        Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(image.Texture, Is.SameAs(gpuTexture));
     }
 
     /// <summary>Tests that a corrupt streaming header throws and leaves the stream to the caller.</summary>
@@ -215,13 +213,13 @@ public class TestTexture2DStreaming
         RenderingSystem rendering = host.RenderingSystem;
 
         var stream = new TrackingStream(new byte[256]);
-        Assert.Throws<ImageDecodeException>(() => Texture2DUtility.CreateTexture2DStreaming(rendering, stream));
+        Assert.Throws<ImageDecodeException>(() => ImageUtility.CreateStreaming(rendering, stream));
 
         Assert.That(stream.Disposed, Is.False);
         Assert.DoesNotThrow(() => stream.Dispose());
     }
 
-    /// <summary>Tests that a header-created texture reports content loaded only after upload.</summary>
+    /// <summary>Tests that a header-created image reports content loaded only after upload.</summary>
     [Test]
     public void CreateFromHeader_Png_ContentNotLoadedUntilUpload()
     {
@@ -230,26 +228,27 @@ public class TestTexture2DStreaming
 
         byte[] data = LoadTestFile("Png", "basn6a08.png");
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
-        using Texture2D texture = Texture2DUtility.CreateTexture2DFromHeader(rendering, info);
+        using Image image = ImageUtility.CreateFromHeader(rendering, info);
 
-        Assert.That(texture.IsContentLoaded, Is.False);
-        Assert.That(texture.ContentArrival.IsCompleted, Is.True);
+        Assert.That(image.IsContentLoaded, Is.False);
+        Assert.That(image.ContentArrival.IsCompleted, Is.True);
 
-        Texture2DUtility.UploadTexture2DContent(texture, data);
-        Assert.That(texture.IsContentLoaded, Is.True);
+        ImageUtility.UploadContent(rendering, image, data);
+        Assert.That(image.IsContentLoaded, Is.True);
     }
 
-    /// <summary>Tests that a texture created with content reports content loaded immediately.</summary>
+    /// <summary>Tests that an image created over a ready texture reports content loaded immediately.</summary>
     [Test]
-    public void CreateFromColor_ReportsContentLoadedByDefault()
+    public void CreateFromTexture_ReportsContentLoadedByDefault()
     {
         using RenderingTestHost host = Utility.CreateRenderingSystem();
         RenderingSystem rendering = host.RenderingSystem;
 
-        using Texture2D texture = Texture2DUtility.CreateTexture2D(rendering, 4, 4, Color32.White);
+        Texture raw = TextureUtility.CreateTexture(rendering, 4, 4, Color32.White);
+        using Image image = ImageUtility.CreateFromTexture(raw, ownsResource: true);
 
-        Assert.That(texture.IsContentLoaded, Is.True);
-        Assert.That(texture.ContentArrival.IsCompleted, Is.True);
+        Assert.That(image.IsContentLoaded, Is.True);
+        Assert.That(image.ContentArrival.IsCompleted, Is.True);
     }
 
     /// <summary>Tests that streaming content arrival completes and marks content loaded.</summary>
@@ -260,10 +259,10 @@ public class TestTexture2DStreaming
         RenderingSystem rendering = host.RenderingSystem;
 
         byte[] data = LoadTestFile("Png", "basn6a08.png");
-        using Texture2D texture = Texture2DUtility.CreateTexture2DStreaming(rendering, new MemoryStream(data));
+        using Image image = ImageUtility.CreateStreaming(rendering, new MemoryStream(data));
 
-        Assert.That(texture.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
-        Assert.That(texture.ContentArrival.IsCompletedSuccessfully, Is.True);
-        Assert.That(texture.IsContentLoaded, Is.True);
+        Assert.That(image.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        Assert.That(image.ContentArrival.IsCompletedSuccessfully, Is.True);
+        Assert.That(image.IsContentLoaded, Is.True);
     }
 }

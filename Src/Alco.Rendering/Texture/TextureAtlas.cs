@@ -1,18 +1,19 @@
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
+using Alco.Graphics;
 
 namespace Alco.Rendering;
 
 /// <summary>
-/// A 2D texture holding a collection of named sprites packed into one atlas.
+/// A GPU texture atlas holding a collection of named sprites packed into one texture.
 /// </summary>
 public sealed class TextureAtlas : AutoDisposable
 {
     private readonly List<Sprite> _sprites;
     private readonly FrozenDictionary<string, Sprite> _spritesLookup;
 
-    /// <summary>The texture containing the packed sprites; disposed with the atlas.</summary>
-    public Texture2D Texture { get; }
+    /// <summary>The GPU texture containing the packed sprites; destroyed with the atlas.</summary>
+    public Texture Texture { get; }
 
     /// <summary>The number of sprites in the atlas.</summary>
     public int Count => _sprites.Count;
@@ -28,10 +29,10 @@ public sealed class TextureAtlas : AutoDisposable
     /// <param name="index">The sprite index.</param>
     public Sprite this[int index] => _sprites[index];
 
-    /// <summary>Creates an atlas over the given texture and sprite list.</summary>
-    /// <param name="texture">The texture containing the packed sprites; ownership transfers to the atlas.</param>
+    /// <summary>Creates an atlas over the given GPU texture and sprite list.</summary>
+    /// <param name="texture">The GPU texture containing the packed sprites; ownership transfers to the atlas.</param>
     /// <param name="sprites">The sprites to include in the atlas.</param>
-    public TextureAtlas(Texture2D texture, List<Sprite> sprites)
+    public TextureAtlas(Texture texture, List<Sprite> sprites)
     {
         ArgumentNullException.ThrowIfNull(texture);
         ArgumentNullException.ThrowIfNull(sprites);
@@ -52,9 +53,9 @@ public sealed class TextureAtlas : AutoDisposable
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (disposing && !Texture.IsDestroyed)
         {
-            Texture.Dispose();
+            Texture.Destroy();
         }
         _sprites.Clear();
     }

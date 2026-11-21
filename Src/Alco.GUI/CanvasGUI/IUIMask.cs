@@ -1,5 +1,4 @@
-using System.Numerics;
-using Alco.Rendering;
+using Alco.Graphics;
 
 namespace Alco.GUI;
 
@@ -9,9 +8,9 @@ namespace Alco.GUI;
 public interface IUIMask
 {
     /// <summary>
-    /// Gets the texture sampled by the mask.
+    /// Gets the GPU texture sampled by the mask.
     /// </summary>
-    Texture2D? MaskTexture { get; }
+    Texture? MaskTexture { get; }
     /// <summary>
     /// Gets the transform applied to the mask geometry.
     /// </summary>
