@@ -221,18 +221,27 @@ internal static unsafe class SlangEmptyBlob
 /// IGlobalSession wrapper. Created once per process via slang_createGlobalSession
 /// (SlangCompiler holds it for the process lifetime); owns the slang core module.
 /// </summary>
-/// <remarks>Vtable slots: 0-2 IUnknown, 3 createSession, 4 findProfile, 8 getBuildTagString, 17 checkCompileTargetSupport, 22 findCapability.</remarks>
+/// <remarks>Vtable slots: 0-2 IUnknown, 3 createSession, 4 findProfile, 5 setDownstreamCompilerPath, 8 getBuildTagString, 17 checkCompileTargetSupport, 22 findCapability.</remarks>
 internal sealed class SlangGlobalSession
 {
     public IntPtr NativePointer { get; }
 
     internal SlangGlobalSession(IntPtr nativePointer) => NativePointer = nativePointer;
 
-    public static SlangGlobalSession Create()
+    /// <summary>Creates a global session that resolves the bundled SPIR-V tools from the application directory.</summary>
+    /// <returns>The global session.</returns>
+    public static unsafe SlangGlobalSession Create()
     {
+        using SlangPinnedUtf8 compilerDirectory = new(AppContext.BaseDirectory);
         int hr = SlangNative.slang_createGlobalSession(0, out IntPtr ptr);
         if (hr < 0 || ptr == IntPtr.Zero)
             throw new InvalidOperationException($"slang_createGlobalSession failed with HRESULT 0x{hr:X8}.");
+
+        var setDownstreamCompilerPath = (delegate* unmanaged[Stdcall]<IntPtr, int, IntPtr, void>)Com.Vcall(ptr, 5);
+        setDownstreamCompilerPath(ptr, SlangNative.SLANG_PASS_THROUGH_GLSLANG, compilerDirectory.Pointer);
+        setDownstreamCompilerPath(ptr, SlangNative.SLANG_PASS_THROUGH_SPIRV_DIS, compilerDirectory.Pointer);
+        setDownstreamCompilerPath(ptr, SlangNative.SLANG_PASS_THROUGH_SPIRV_OPT, compilerDirectory.Pointer);
+        setDownstreamCompilerPath(ptr, SlangNative.SLANG_PASS_THROUGH_SPIRV_LINK, compilerDirectory.Pointer);
         return new SlangGlobalSession(ptr);
     }
 

@@ -31,6 +31,12 @@ internal static class SlangNative
     public const int SLANG_METAL = 24;
     public const int SLANG_METAL_LIB = 25;
 
+    // ── SlangPassThrough ──
+    public const int SLANG_PASS_THROUGH_GLSLANG = 3;
+    public const int SLANG_PASS_THROUGH_SPIRV_DIS = 4;
+    public const int SLANG_PASS_THROUGH_SPIRV_OPT = 11;
+    public const int SLANG_PASS_THROUGH_SPIRV_LINK = 14;
+
     // 鈹€鈹€ SlangProfileID 鈹€鈹€
     public const int SLANG_PROFILE_UNKNOWN = 0;
 
