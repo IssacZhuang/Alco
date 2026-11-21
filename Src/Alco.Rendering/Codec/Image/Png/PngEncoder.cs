@@ -1,185 +1,273 @@
 using System.Buffers;
+using System.Buffers.Binary;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 
 namespace Alco.Rendering;
 
-/// <summary>
-/// Encodes RGBA8 pixel data to PNG format.
-/// Implements PNG 1.2: IHDR, IDAT (zlib-compressed filtered scanlines), IEND.
-/// Uses adaptive row filtering (minimum-sum heuristic) for optimal DEFLATE compression.
-/// </summary>
-internal static unsafe class PngEncoder
+/// <summary>Encodes non-interlaced RGBA8 PNG images.</summary>
+internal static class PngEncoder
 {
-    /// <summary>PNG signature bytes.</summary>
-    private static ReadOnlySpan<byte> PngSignature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    private const int ScanlineBatchBytes = 64 * 1024;
+    private const int ChunkHeaderBytes = 8;
+    private const int ChunkOverhead = ChunkHeaderBytes + 4;
+    private const int SignatureBytes = 8;
+    private const int IhdrBytes = 13;
+    private const int PngHeaderBytes = SignatureBytes + IhdrBytes + ChunkOverhead;
 
-    /// <summary>IHDR chunk type bytes.</summary>
-    private static ReadOnlySpan<byte> IhdrType => "IHDR"u8;
+    private static ReadOnlySpan<byte> Signature => [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
 
-    /// <summary>IDAT chunk type bytes.</summary>
-    private static ReadOnlySpan<byte> IdatType => "IDAT"u8;
+    /// <summary>Encodes a PNG to a caller-owned byte array.</summary>
+    public static byte[] Encode(ReadOnlySpan<byte> rgba, int width, int height, PngEncodeMode mode, int rowStrideBytes)
+        => EncodeCore(rgba, width, height, mode, rowStrideBytes, destination: null)!;
 
-    /// <summary>IEND chunk type bytes.</summary>
-    private static ReadOnlySpan<byte> IendType => "IEND"u8;
-
-    /// <summary>
-    /// Encode RGBA8 pixel data to a complete PNG file.
-    /// </summary>
-    /// <param name="rgba">RGBA8 pixel data (width * height * 4 bytes, row-major).</param>
-    /// <param name="width">Image width in pixels.</param>
-    /// <param name="height">Image height in pixels.</param>
-    /// <returns>PNG-encoded file bytes.</returns>
-    /// <exception cref="ImageEncodeException">Invalid dimensions or encoding failure.</exception>
-    public static byte[] Encode(ReadOnlySpan<byte> rgba, int width, int height)
+    /// <summary>Encodes PNG from a pointer to tightly packed RGBA8 pixels.</summary>
+    public static unsafe byte[] Encode(byte* rgba, int width, int height)
     {
-        ValidateInput(rgba, width, height);
+        int rowBytes = GetRowBytes(width, height);
+        long length = (long)rowBytes * height;
+        if (rgba == null || length > int.MaxValue)
+        {
+            throw new ImageEncodeException("A valid RGBA8 pixel pointer and a span-sized image are required.");
+        }
 
-        int stride = width * 4;
-        int filteredRowSize = 1 + stride; // filter byte + pixel bytes
-        int filteredSize = height * filteredRowSize;
+        return Encode(new ReadOnlySpan<byte>(rgba, (int)length), width, height, PngEncodeMode.Balanced, rowBytes);
+    }
 
-        byte[] filtered = ArrayPool<byte>.Shared.Rent(filteredSize);
-        byte[] tempRow = ArrayPool<byte>.Shared.Rent(stride);
+    /// <summary>Writes one PNG to a writable stream without seeking or closing it.</summary>
+    public static void Write(ReadOnlySpan<byte> rgba, int width, int height, Stream destination, PngEncodeMode mode, int rowStrideBytes)
+    {
+        ArgumentNullException.ThrowIfNull(destination);
+        if (!destination.CanWrite)
+        {
+            throw new ArgumentException("The PNG destination must be writable.", nameof(destination));
+        }
 
+        EncodeCore(rgba, width, height, mode, rowStrideBytes, destination);
+    }
+
+    private static byte[]? EncodeCore(ReadOnlySpan<byte> rgba, int width, int height, PngEncodeMode mode, int rowStrideBytes, Stream? destination)
+    {
+        int rowBytes = GetRowBytes(width, height);
+        if (rowStrideBytes == 0)
+        {
+            rowStrideBytes = rowBytes;
+        }
+
+        if (rowStrideBytes < rowBytes)
+        {
+            throw new ImageEncodeException($"RGBA8 row stride {rowStrideBytes} is smaller than {rowBytes} bytes.");
+        }
+
+        long requiredBytes = (height - 1L) * rowStrideBytes + rowBytes;
+        if (rgba.Length < requiredBytes)
+        {
+            throw new ImageEncodeException($"Insufficient pixel data: expected {requiredBytes} bytes, got {rgba.Length}.");
+        }
+
+        ZLibCompressionOptions options = new()
+        {
+            CompressionLevel = mode switch
+            {
+                PngEncodeMode.Balanced => 5,
+                PngEncodeMode.Fast => 1,
+                _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+            },
+        };
+
+        if (destination != null)
+        {
+            Span<byte> header = stackalloc byte[PngHeaderBytes];
+            FormatHeader(header, width, height);
+            destination.Write(header);
+        }
+
+        using IdatStream idat = new(destination);
+        using (ZLibStream zlib = new(idat, options, leaveOpen: true))
+        {
+            WriteScanlines(rgba, height, rowBytes, rowStrideBytes, mode, zlib);
+        }
+
+        return idat.Finish(width, height);
+    }
+
+    private static int GetRowBytes(int width, int height)
+    {
+        if (width <= 0 || width > int.MaxValue / 4 || height <= 0)
+        {
+            throw new ImageEncodeException($"Invalid RGBA8 image dimensions: {width}x{height}.");
+        }
+
+        return width * 4;
+    }
+
+    private static void FormatHeader(Span<byte> header, int width, int height)
+    {
+        Signature.CopyTo(header);
+        Span<byte> chunk = header[SignatureBytes..];
+        Span<byte> ihdr = chunk.Slice(ChunkHeaderBytes, IhdrBytes);
+        BinaryPrimitives.WriteInt32BigEndian(ihdr, width);
+        BinaryPrimitives.WriteInt32BigEndian(ihdr[4..], height);
+        ihdr[8] = 8;
+        ihdr[9] = 6;
+        ihdr[10..].Clear();
+        FormatChunk(chunk, "IHDR"u8);
+    }
+
+    private static void FormatChunk(Span<byte> chunk, ReadOnlySpan<byte> type)
+    {
+        BinaryPrimitives.WriteInt32BigEndian(chunk, chunk.Length - ChunkOverhead);
+        type.CopyTo(chunk[4..ChunkHeaderBytes]);
+        BinaryPrimitives.WriteUInt32BigEndian(chunk[^4..], PngCrc32.Compute(chunk[4..^4]));
+    }
+
+    private static void WriteScanlines(ReadOnlySpan<byte> rgba, int height, int rowBytes, int rowStrideBytes, PngEncodeMode mode, ZLibStream zlib)
+    {
+        int scanlineBytes = rowBytes + 1;
+        int rowsPerBatch = Math.Min(height, Math.Max(1, ScanlineBatchBytes / scanlineBytes));
+        byte[] buffer = ArrayPool<byte>.Shared.Rent(rowsPerBatch * scanlineBytes);
         try
         {
-            PngFilter.FilterAdaptive(rgba, width, height, filtered.AsSpan(0, filteredSize), tempRow.AsSpan(0, stride));
+            ReadOnlySpan<byte> previous = default;
+            for (int y = 0; y < height;)
+            {
+                int count = Math.Min(rowsPerBatch, height - y);
+                for (int i = 0; i < count; i++, y++)
+                {
+                    ReadOnlySpan<byte> row = rgba.Slice(y * rowStrideBytes, rowBytes);
+                    PngFilter.FilterRow(row, previous, buffer.AsSpan(i * scanlineBytes, scanlineBytes), mode);
+                    previous = row;
+                }
 
-            byte[] compressed = CompressZlib(filtered.AsSpan(0, filteredSize));
-
-            return AssemblePng(width, height, compressed);
+                zlib.Write(buffer.AsSpan(0, count * scanlineBytes));
+            }
         }
         finally
         {
-            ArrayPool<byte>.Shared.Return(filtered);
-            ArrayPool<byte>.Shared.Return(tempRow);
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
-    /// <summary>
-    /// Encode RGBA8 pixel data from a pointer to a complete PNG file.
-    /// </summary>
-    public static byte[] Encode(byte* rgba, int width, int height)
+    private sealed class IdatStream : Stream
     {
-        int stride = width * 4;
-        int totalBytes = height * stride;
-        ReadOnlySpan<byte> span = new(rgba, totalBytes);
-        return Encode(span, width, height);
-    }
+        private const int ChunkBytes = 64 * 1024;
+        private const int PayloadBytes = ChunkBytes - ChunkOverhead;
 
-    private static void ValidateInput(ReadOnlySpan<byte> rgba, int width, int height)
-    {
-        if (width <= 0)
-            throw new ImageEncodeException($"Width must be positive, got {width}.");
+        private readonly Stream? _destination;
+        private readonly List<byte[]>? _fullChunks;
+        private byte[]? _buffer;
+        private int _count;
+        private bool _disposed;
 
-        if (height <= 0)
-            throw new ImageEncodeException($"Height must be positive, got {height}.");
-
-        long expectedBytes = (long)width * height * 4;
-        if (rgba.Length < expectedBytes)
-            throw new ImageEncodeException($"Insufficient pixel data: expected {expectedBytes} bytes for {width}x{height} RGBA8, got {rgba.Length}.");
-    }
-
-    /// <summary>
-    /// Compress data using zlib (RFC 1950) wrapping DEFLATE (RFC 1951).
-    /// Uses <see cref="ZLibStream"/> for standards-compliant zlib output.
-    /// </summary>
-    private static byte[] CompressZlib(ReadOnlySpan<byte> data)
-    {
-        using var outputStream = new MemoryStream(data.Length);
-
-        // ZLibStream handles the 2-byte zlib header, DEFLATE compression, and Adler-32 trailer
-        using (var zlibStream = new ZLibStream(outputStream, CompressionLevel.Optimal, leaveOpen: true))
+        public IdatStream(Stream? destination)
         {
-            zlibStream.Write(data);
+            _destination = destination;
+            _fullChunks = destination == null ? new List<byte[]>() : null;
         }
 
-        return outputStream.ToArray();
-    }
+        public override bool CanWrite => !_disposed;
+        public override bool CanRead => false;
+        public override bool CanSeek => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
 
-    /// <summary>
-    /// Assemble the complete PNG file from IHDR, compressed IDAT, and IEND chunks.
-    /// </summary>
-    private static byte[] AssemblePng(int width, int height, byte[] compressedData)
-    {
-        // PNG file layout: an 8-byte signature followed by three chunks — IHDR
-        // (13-byte data), IDAT (the compressed scanlines), IEND (no data).
-        // Each chunk frames its payload with a 4-byte big-endian length,
-        // a 4-byte type and a 4-byte CRC32.
-        int pngSize =
-            8 +
-            (12 + 13) +
-            (12 + compressedData.Length) +
-            12;
+        public override void Write(byte[] buffer, int offset, int count) => Write(buffer.AsSpan(offset, count));
 
-        byte[] png = new byte[pngSize];
-        int pos = 0;
+        public override void Write(ReadOnlySpan<byte> data)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            while (!data.IsEmpty)
+            {
+                byte[] buffer = _buffer ??= ArrayPool<byte>.Shared.Rent(ChunkBytes);
+                int size = Math.Min(data.Length, PayloadBytes - _count);
+                data[..size].CopyTo(buffer.AsSpan(ChunkHeaderBytes + _count, size));
+                _count += size;
+                data = data[size..];
+                if (_count == PayloadBytes)
+                {
+                    PublishFullChunk(buffer);
+                }
+            }
+        }
 
-        PngSignature.CopyTo(png.AsSpan(pos, 8));
-        pos += 8;
+        public byte[]? Finish(int width, int height)
+        {
+            Span<byte> tail = default;
+            if (_count != 0)
+            {
+                tail = _buffer.AsSpan(0, _count + ChunkOverhead);
+                FormatChunk(tail, "IDAT"u8);
+            }
 
-        pos = WriteChunk(png, pos, IhdrType, WriteIHDR(width, height));
+            if (_destination != null)
+            {
+                if (!tail.IsEmpty)
+                {
+                    _destination.Write(tail);
+                }
 
-        pos = WriteChunk(png, pos, IdatType, compressedData);
+                Span<byte> end = stackalloc byte[ChunkOverhead];
+                FormatChunk(end, "IEND"u8);
+                _destination.Write(end);
+                return null;
+            }
 
-        WriteChunk(png, pos, IendType, ReadOnlySpan<byte>.Empty);
+            List<byte[]> fullChunks = _fullChunks!;
+            int size = checked(PngHeaderBytes + fullChunks.Count * ChunkBytes + tail.Length + ChunkOverhead);
+            byte[] png = GC.AllocateUninitializedArray<byte>(size);
+            FormatHeader(png.AsSpan(0, PngHeaderBytes), width, height);
+            int offset = PngHeaderBytes;
+            for (int i = 0; i < fullChunks.Count; i++)
+            {
+                fullChunks[i].AsSpan(0, ChunkBytes).CopyTo(png.AsSpan(offset, ChunkBytes));
+                offset += ChunkBytes;
+            }
 
-        return png;
-    }
+            tail.CopyTo(png.AsSpan(offset, tail.Length));
+            FormatChunk(png.AsSpan(offset + tail.Length), "IEND"u8);
+            return png;
+        }
 
-    /// <summary>
-    /// Build the 13-byte IHDR data for an 8-bit RGBA image (color type 6, no interlace).
-    /// </summary>
-    private static byte[] WriteIHDR(int width, int height)
-    {
-        byte[] ihdr = new byte[13];
-        WriteBigEndianInt32(ihdr, 0, width);
-        WriteBigEndianInt32(ihdr, 4, height);
-        ihdr[8] = 8;   // bit depth
-        ihdr[9] = 6;   // color type: RGBA
-        ihdr[10] = 0;  // compression method: deflate
-        ihdr[11] = 0;  // filter method: standard
-        ihdr[12] = 0;  // interlace method: none
-        return ihdr;
-    }
+        private void PublishFullChunk(byte[] buffer)
+        {
+            Span<byte> chunk = buffer.AsSpan(0, ChunkBytes);
+            FormatChunk(chunk, "IDAT"u8);
+            _count = 0;
+            if (_destination != null)
+            {
+                _destination.Write(chunk);
+                return;
+            }
 
-    /// <summary>
-    /// Write a PNG chunk: length (4 BE) + type (4) + data + CRC32 (4 BE).
-    /// </summary>
-    private static int WriteChunk(byte[] output, int offset, ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
-    {
-        WriteBigEndianInt32(output, offset, data.Length);
-        offset += 4;
+            _fullChunks!.Add(buffer);
+            _buffer = null;
+        }
 
-        type.CopyTo(output.AsSpan(offset, 4));
-        offset += 4;
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
 
-        data.CopyTo(output.AsSpan(offset, data.Length));
-        offset += data.Length;
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing && !_disposed)
+            {
+                _disposed = true;
+                if (_buffer != null)
+                {
+                    ArrayPool<byte>.Shared.Return(_buffer);
+                    _buffer = null;
+                }
 
-        uint crc = PngCrc32.Compute(type, data);
-        WriteBigEndianUInt32(output, offset, crc);
-        offset += 4;
+                if (_fullChunks != null)
+                {
+                    for (int i = 0; i < _fullChunks.Count; i++)
+                    {
+                        ArrayPool<byte>.Shared.Return(_fullChunks[i]);
+                    }
+                }
+            }
 
-        return offset;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteBigEndianInt32(byte[] buf, int offset, int value)
-    {
-        buf[offset] = (byte)(value >> 24);
-        buf[offset + 1] = (byte)(value >> 16);
-        buf[offset + 2] = (byte)(value >> 8);
-        buf[offset + 3] = (byte)value;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void WriteBigEndianUInt32(byte[] buf, int offset, uint value)
-    {
-        buf[offset] = (byte)(value >> 24);
-        buf[offset + 1] = (byte)(value >> 16);
-        buf[offset + 2] = (byte)(value >> 8);
-        buf[offset + 3] = (byte)value;
+            base.Dispose(disposing);
+        }
     }
 }

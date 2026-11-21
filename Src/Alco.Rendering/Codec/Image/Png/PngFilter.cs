@@ -1,253 +1,191 @@
+using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace Alco.Rendering;
 
-/// <summary>
-/// Forward PNG row filtering (encoding direction).
-/// For each scanline, applies one of five filter types and selects the one
-/// that minimizes the sum of absolute byte values — a heuristic correlated
-/// with better DEFLATE compression.
-/// </summary>
-internal static unsafe class PngFilter
+/// <summary>Selects and applies a PNG filter to an RGBA8 scanline.</summary>
+internal static class PngFilter
 {
-    /// <summary>
-    /// Filter all rows using adaptive heuristic selection (minimum sum of absolute values).
-    /// Output layout: one filter-type byte followed by filtered pixel bytes per row.
-    /// </summary>
-    /// <param name="rgba">Source RGBA8 pixel data (width * height * 4 bytes, row-major).</param>
-    /// <param name="width">Image width in pixels.</param>
-    /// <param name="height">Image height in pixels.</param>
-    /// <param name="filtered">Output buffer (height * (1 + width*4) bytes). Written with filter byte + filtered row data per row.</param>
-    /// <param name="tempRow">Temporary buffer for trial filtering (width*4 bytes minimum). Avoids per-row allocation.</param>
-    public static void FilterAdaptive(
-        ReadOnlySpan<byte> rgba, int width, int height,
-        Span<byte> filtered, Span<byte> tempRow)
+    private const int PixelBytes = 4;
+
+    private enum Filter : byte
     {
-        int stride = width * 4;
-        int prevRowBase = 0; // offset into rgba for previous row
+        None,
+        Sub,
+        Up,
+        Average,
+        Paeth,
+    }
 
-        for (int y = 0; y < height; y++)
+    /// <summary>Writes the selected filter byte and its residuals to the scanline.</summary>
+    public static void FilterRow(ReadOnlySpan<byte> row, ReadOnlySpan<byte> previous, Span<byte> scanline, PngEncodeMode mode)
+    {
+        Filter best = Filter.None;
+        long bestScore = ProcessRow(row, previous, Filter.None);
+        Filter last = mode == PngEncodeMode.Fast ? Filter.Up : Filter.Paeth;
+        for (Filter candidate = Filter.Sub; candidate <= last && bestScore != 0; candidate++)
         {
-            int rowBase = y * stride;
-            ReadOnlySpan<byte> row = rgba.Slice(rowBase, stride);
-            ReadOnlySpan<byte> prevRow = y > 0 ? rgba.Slice(prevRowBase, stride) : ReadOnlySpan<byte>.Empty;
-            Span<byte> outRow = filtered.Slice(y * (stride + 1), stride + 1);
-
-            // Try all filters, pick the one with minimum sum of absolute values
-            int bestFilter = 0;
-            int bestSum = int.MaxValue;
-
-            for (int f = 0; f <= 4; f++)
+            if (previous.IsEmpty && candidate is Filter.Up or Filter.Paeth)
             {
-                ApplyFilter(row, prevRow, tempRow, stride, f);
-                int sum = SumAbs(tempRow);
-
-                if (sum < bestSum)
-                {
-                    bestSum = sum;
-                    bestFilter = f;
-
-                    // For filter 0 (None), the data is already identical to row
-                    // so we can skip the copy if it ends up being selected.
-                    // We'll do a single copy at the end for the chosen filter.
-                }
+                continue;
             }
 
-            // Re-apply the winning filter directly into the output
-            outRow[0] = (byte)bestFilter;
-
-            if (bestFilter == 0)
+            long score = ProcessRow(row, previous, candidate);
+            if (score < bestScore)
             {
-                // None filter: raw copy
-                row.CopyTo(outRow.Slice(1));
+                best = candidate;
+                bestScore = score;
             }
-            else
-            {
-                ApplyFilter(row, prevRow, outRow.Slice(1), stride, bestFilter);
-            }
-
-            prevRowBase = rowBase;
         }
-    }
 
-    /// <summary>
-    /// Apply a single filter type to a row of pixel data.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void ApplyFilter(
-        ReadOnlySpan<byte> row, ReadOnlySpan<byte> prevRow,
-        Span<byte> output, int stride, int filterType)
-    {
-        switch (filterType)
+        scanline[0] = (byte)best;
+        if (best == Filter.None)
         {
-            case 0: // None
-                row.CopyTo(output);
-                break;
-
-            case 1: // Sub
-                FilterSub(row, output, stride);
-                break;
-
-            case 2: // Up
-                FilterUp(row, prevRow, output, stride);
-                break;
-
-            case 3: // Average
-                FilterAverage(row, prevRow, output, stride);
-                break;
-
-            case 4: // Paeth
-                FilterPaeth(row, prevRow, output, stride);
-                break;
-        }
-    }
-
-    /// <summary>
-    /// Filter Sub (1): output[i] = raw[i] - raw[i - bpp] (mod 256).
-    /// bpp = 4 for RGBA8.
-    /// </summary>
-    private static void FilterSub(ReadOnlySpan<byte> row, Span<byte> output, int stride)
-    {
-        // First 4 bytes: no left neighbor, output = raw
-        output[0] = row[0];
-        output[1] = row[1];
-        output[2] = row[2];
-        output[3] = row[3];
-
-        ref byte r = ref Unsafe.AsRef(in row[0]);
-        ref byte o = ref output[0];
-
-        for (int i = 4; i < stride; i++)
-            Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - Unsafe.Add(ref r, i - 4));
-    }
-
-    /// <summary>
-    /// Filter Up (2): output[i] = raw[i] - prev[i] (mod 256).
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void FilterUp(ReadOnlySpan<byte> row, ReadOnlySpan<byte> prevRow, Span<byte> output, int stride)
-    {
-        if (prevRow.IsEmpty)
-        {
-            row.CopyTo(output);
+            row.CopyTo(scanline[1..]);
             return;
         }
 
-        ref byte r = ref Unsafe.AsRef(in row[0]);
-        ref byte p = ref Unsafe.AsRef(in prevRow[0]);
-        ref byte o = ref output[0];
-
-        for (int i = 0; i < stride; i++)
-            Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - Unsafe.Add(ref p, i));
+        ProcessRow(row, previous, best, scanline[1..]);
     }
 
-    /// <summary>
-    /// Filter Average (3): output[i] = raw[i] - (raw[i-bpp] + prev[i]) / 2 (truncating division).
-    /// </summary>
-    private static void FilterAverage(ReadOnlySpan<byte> row, ReadOnlySpan<byte> prevRow, Span<byte> output, int stride)
+    private static long ProcessRow(ReadOnlySpan<byte> row, ReadOnlySpan<byte> previous, Filter filter, Span<byte> output = default)
     {
-        ref byte r = ref Unsafe.AsRef(in row[0]);
-        ref byte o = ref output[0];
-
-        // First 4 bytes: a = 0, so predictor = prev[i] / 2 (or 0 if no prev row)
-        if (prevRow.IsEmpty)
+        long score = 0;
+        int prefix = filter is Filter.None or Filter.Up ? 0 : PixelBytes;
+        int i = 0;
+        for (; i < prefix; i++)
         {
-            for (int i = 0; i < 4 && i < stride; i++)
-                Unsafe.Add(ref o, i) = Unsafe.Add(ref r, i);
-        }
-        else
-        {
-            ref byte p = ref Unsafe.AsRef(in prevRow[0]);
-            for (int i = 0; i < 4 && i < stride; i++)
-                Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - (Unsafe.Add(ref p, i) >> 1));
+            score += ProcessByte(row, previous, filter, output, i);
         }
 
-        // Remaining bytes
-        if (prevRow.IsEmpty)
+        if (Vector.IsHardwareAccelerated && i <= row.Length - Vector<byte>.Count)
         {
-            ref byte rp = ref Unsafe.AsRef(in row[0]);
-            for (int i = 4; i < stride; i++)
-                Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - (Unsafe.Add(ref rp, i - 4) >> 1));
-        }
-        else
-        {
-            ref byte p = ref Unsafe.AsRef(in prevRow[0]);
-            for (int i = 4; i < stride; i++)
-                Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - ((Unsafe.Add(ref r, i - 4) + Unsafe.Add(ref p, i)) >> 1));
-        }
-    }
-
-    /// <summary>
-    /// Filter Paeth (4): output[i] = raw[i] - PaethPredictor(raw[i-bpp], prev[i], prev[i-bpp]).
-    /// </summary>
-    private static void FilterPaeth(ReadOnlySpan<byte> row, ReadOnlySpan<byte> prevRow, Span<byte> output, int stride)
-    {
-        ref byte r = ref Unsafe.AsRef(in row[0]);
-        ref byte o = ref output[0];
-
-        if (prevRow.IsEmpty)
-        {
-            // No previous row: PaethPredictor(a, 0, 0) = a for first bpp bytes,
-            // then PaethPredictor(a, 0, 0) = a for rest.
-            // So output = raw - raw[i-4] = same as Sub filter
-            output[0] = row[0];
-            output[1] = row[1];
-            output[2] = row[2];
-            output[3] = row[3];
-
-            for (int i = 4; i < stride; i++)
-                Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - Unsafe.Add(ref r, i - 4));
-        }
-        else
-        {
-            ref byte p = ref Unsafe.AsRef(in prevRow[0]);
-
-            // First 4 bytes: a = 0, c = 0 → PaethPredictor(0, b, 0) = b
-            for (int i = 0; i < 4 && i < stride; i++)
-                Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - Unsafe.Add(ref p, i));
-
-            // Remaining bytes
-            for (int i = 4; i < stride; i++)
+            ref byte current = ref MemoryMarshal.GetReference(row);
+            ref byte above = ref MemoryMarshal.GetReference(previous);
+            ref byte destination = ref MemoryMarshal.GetReference(output);
+            bool scoreOnly = output.IsEmpty;
+            for (; i <= row.Length - Vector<byte>.Count; i += Vector<byte>.Count)
             {
-                byte a = Unsafe.Add(ref r, i - 4);
-                byte b = Unsafe.Add(ref p, i);
-                byte c = Unsafe.Add(ref p, i - 4);
-                Unsafe.Add(ref o, i) = (byte)(Unsafe.Add(ref r, i) - PaethPredictor(a, b, c));
+                nuint offset = (nuint)i;
+                Vector<byte> delta = Vector.LoadUnsafe(ref current, offset)
+                    - PredictVector(ref current, ref above, offset, filter, !previous.IsEmpty);
+                if (scoreOnly)
+                {
+                    Vector<byte> magnitude = Vector.Min(delta, Vector<byte>.Zero - delta);
+                    score += Vector.Sum(Vector.WidenLower(magnitude) + Vector.WidenUpper(magnitude));
+                }
+                else
+                {
+                    Vector.StoreUnsafe(delta, ref destination, offset);
+                }
             }
         }
-    }
 
-    /// <summary>
-    /// Paeth predictor: p = a + b - c, pick the neighbor closest to p.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static byte PaethPredictor(byte a, byte b, byte c)
-    {
-        int p = a + b - c;
-        int pa = Abs(p - a);
-        int pb = Abs(p - b);
-        int pc = Abs(p - c);
+        for (; i < row.Length; i++)
+        {
+            score += ProcessByte(row, previous, filter, output, i);
+        }
 
-        if (pa <= pb && pa <= pc)
-            return a;
-        if (pb <= pc)
-            return b;
-        return c;
+        return score;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int Abs(int x) => x >= 0 ? x : -x;
-
-    /// <summary>
-    /// Sum of absolute byte values. Used as heuristic for filter selection —
-    /// lower sums correlate with better DEFLATE compression.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int SumAbs(Span<byte> data)
+    private static int ProcessByte(ReadOnlySpan<byte> row, ReadOnlySpan<byte> previous, Filter filter, Span<byte> output, int i)
     {
-        int sum = 0;
-        for (int i = 0; i < data.Length; i++)
-            sum += data[i];
-        return sum;
+        byte delta = unchecked((byte)(row[i] - PredictByte(row, previous, filter, i)));
+        if (output.IsEmpty)
+        {
+            return Math.Abs((int)unchecked((sbyte)delta));
+        }
+
+        output[i] = delta;
+        return 0;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int PredictByte(ReadOnlySpan<byte> row, ReadOnlySpan<byte> previous, Filter filter, int i)
+    {
+        if (filter == Filter.None)
+        {
+            return 0;
+        }
+
+        int left = i < PixelBytes ? 0 : row[i - PixelBytes];
+        if (filter == Filter.Sub)
+        {
+            return left;
+        }
+
+        int above = previous.IsEmpty ? 0 : previous[i];
+        return filter switch
+        {
+            Filter.Up => above,
+            Filter.Average => (left + above) >> 1,
+            _ => PredictPaeth(left, above, i < PixelBytes ? 0 : previous[i - PixelBytes]),
+        };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector<byte> PredictVector(ref byte row, ref byte previous, nuint i, Filter filter, bool hasPrevious)
+    {
+        if (filter == Filter.None)
+        {
+            return Vector<byte>.Zero;
+        }
+
+        if (filter == Filter.Up)
+        {
+            return Vector.LoadUnsafe(ref previous, i);
+        }
+
+        Vector<byte> left = Vector.LoadUnsafe(ref row, i - PixelBytes);
+        if (filter == Filter.Sub)
+        {
+            return left;
+        }
+
+        Vector<byte> above = hasPrevious ? Vector.LoadUnsafe(ref previous, i) : Vector<byte>.Zero;
+        if (filter == Filter.Average)
+        {
+            return (left & above) + Vector.ShiftRightLogical(left ^ above, 1);
+        }
+
+        Vector<byte> upperLeft = Vector.LoadUnsafe(ref previous, i - PixelBytes);
+        Vector.Widen(left, out Vector<ushort> leftLo, out Vector<ushort> leftHi);
+        Vector.Widen(above, out Vector<ushort> aboveLo, out Vector<ushort> aboveHi);
+        Vector.Widen(upperLeft, out Vector<ushort> cornerLo, out Vector<ushort> cornerHi);
+        return Vector.Narrow(PredictPaeth(leftLo, aboveLo, cornerLo), PredictPaeth(leftHi, aboveHi, cornerHi));
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int PredictPaeth(int left, int above, int upperLeft)
+    {
+        int leftDelta = above - upperLeft;
+        int aboveDelta = left - upperLeft;
+        int leftDistance = Math.Abs(leftDelta);
+        int aboveDistance = Math.Abs(aboveDelta);
+        int cornerDistance = Math.Abs(leftDelta + aboveDelta);
+        if (leftDistance <= aboveDistance && leftDistance <= cornerDistance)
+        {
+            return left;
+        }
+
+        return aboveDistance <= cornerDistance ? above : upperLeft;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static Vector<ushort> PredictPaeth(Vector<ushort> left, Vector<ushort> above, Vector<ushort> upperLeft)
+    {
+        Vector<short> leftDelta = Vector.AsVectorInt16(above - upperLeft);
+        Vector<short> aboveDelta = Vector.AsVectorInt16(left - upperLeft);
+        Vector<short> leftDistance = Vector.Abs(leftDelta);
+        Vector<short> aboveDistance = Vector.Abs(aboveDelta);
+        Vector<short> cornerDistance = Vector.Abs(leftDelta + aboveDelta);
+        Vector<short> useLeft = Vector.LessThanOrEqual(leftDistance, aboveDistance)
+            & Vector.LessThanOrEqual(leftDistance, cornerDistance);
+        Vector<short> useAbove = Vector.LessThanOrEqual(aboveDistance, cornerDistance);
+        return Vector.ConditionalSelect(Vector.AsVectorUInt16(useLeft), left,
+            Vector.ConditionalSelect(Vector.AsVectorUInt16(useAbove), above, upperLeft));
     }
 }

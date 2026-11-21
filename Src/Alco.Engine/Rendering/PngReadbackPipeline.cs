@@ -39,6 +39,9 @@ public sealed class PngReadbackPipeline : IDisposable
     /// </summary>
     public ulong StagingCapacityBytes { get; set; } = 32ul * 1024 * 1024;
 
+    /// <summary>Gets the encoding preset used for this pipeline's captures.</summary>
+    public PngEncodeMode EncodingMode { get; init; } = PngEncodeMode.Balanced;
+
     /// <summary>
     /// Creates the pipeline.
     /// </summary>
@@ -268,9 +271,8 @@ public sealed class PngReadbackPipeline : IDisposable
         return true;
     }
 
-    private unsafe RenderCaptureResult Encode()
+    private RenderCaptureResult Encode()
     {
-        nint pixelAddress = (nint)_readbackBuffer.UnsafePointer;
         int width = checked((int)_width);
         int height = checked((int)_height);
         DateTimeOffset capturedAtUtc = _capturedAtUtc;
@@ -278,7 +280,7 @@ public sealed class PngReadbackPipeline : IDisposable
 
         long encodeStartTimestamp = Stopwatch.GetTimestamp();
 
-        byte[] png = ImageEncodeUtility.EncodePng((byte*)pixelAddress, width, height);
+        byte[] png = ImageEncodeUtility.EncodePng(_readbackBuffer.AsSpan(), width, height, EncodingMode);
         double encodeTimeMs = GetElapsedMilliseconds(encodeStartTimestamp);
         return RenderCaptureResult.CreateSuccess(png, width, height, capturedAtUtc, readbackTimeMs, encodeTimeMs);
     }

@@ -3,8 +3,6 @@ using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using Alco.Graphics;
 using Alco.Graphics.LowLevel;
-using StbImageSharp;
-using StbImageWriteSharp;
 using static Alco.MemoryUtility;
 
 namespace Alco.Rendering;
@@ -509,7 +507,7 @@ public static unsafe class Texture2DUtility
 
     /// <summary>Reads back an RGBA8 <see cref="Texture2D"/> and writes it as a PNG stream.</summary>
     /// <param name="texture">The RGBA8 texture created with <see cref="TextureUsage.TransferSource"/>.</param>
-    /// <param name="output">The destination stream.</param>
+    /// <param name="output">The writable destination stream, which is left open.</param>
     public static void EncodeTextureToPNG(Texture2D texture, Stream output)
     {
         ArgumentNullException.ThrowIfNull(texture);
@@ -529,9 +527,9 @@ public static unsafe class Texture2DUtility
             throw new InvalidOperationException("Texture must be created with TextureUsage.TransferSource for PNG encoding.");
         }
 
-        uint width = texture.Width;
-        uint height = texture.Height;
-        ulong dataSize = (ulong)width * height * 4;
+        int width = checked((int)texture.Width);
+        int height = checked((int)texture.Height);
+        int dataSize = checked(width * height * 4);
         RenderingSystem system = texture.RenderingSystem;
         GPUDevice device = system.Device;
 
@@ -543,7 +541,7 @@ public static unsafe class Texture2DUtility
             lock (s_uploadLock)
             {
                 system.FlushInitializations();
-                readback = device.CreateGPUHeap(dataSize, MemoryType.Readback);
+                readback = device.CreateGPUHeap((ulong)dataSize, MemoryType.Readback);
                 pool = device.CreateCommandPool(0);
                 timeline = device.CreateTimelineSemaphore();
                 GPUCommandBuffer commands = pool.BeginCommands();
@@ -556,8 +554,7 @@ public static unsafe class Texture2DUtility
                 completion.Wait();
             }
 
-            ImageWriter writer = new();
-            writer.WritePng(readback.Range.Cpu, (int)width, (int)height, ColorComponents.RedGreenBlueAlpha, output);
+            ImageEncodeUtility.WritePng(new ReadOnlySpan<byte>(readback.Range.Cpu, dataSize), width, height, output);
         }
         finally
         {

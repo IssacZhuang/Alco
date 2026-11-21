@@ -1,357 +1,225 @@
-using System.Runtime.CompilerServices;
+using System.Globalization;
 using System.Runtime.InteropServices;
-using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
-using BenchmarkFramework;
-using StbImageWriteSharp;
 using Alco.Rendering;
+using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Columns;
+using BenchmarkDotNet.Configs;
+using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Reports;
+using BenchmarkDotNet.Running;
+using Perfolizer.Mathematics.OutlierDetection;
+using StbImageSharp;
+using StbImageWriteSharp;
 
 namespace Alco.Benchmark;
 
-// ── Minimal P/Invoke bindings for libpng16 write ────────────────────────
-
-file static unsafe class LibpngWriteNative
-{
-    const string Dll = "libpng16";
-
-    public struct PngStruct { }
-    public struct PngInfo { }
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void PngErrorPtr(PngStruct* png, byte* msg);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void PngRwPtr(PngStruct* png, byte* data, nuint length);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    public delegate void PngFlushPtr(PngStruct* png);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern PngStruct* png_create_write_struct(
-        IntPtr user_png_ver, IntPtr error_ptr, IntPtr error_fn, IntPtr warn_fn);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern PngInfo* png_create_info_struct(PngStruct* png);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void png_destroy_write_struct(PngStruct** png, PngInfo** info);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void png_set_write_fn(
-        PngStruct* png, void* io_ptr, PngRwPtr write_fn, PngFlushPtr flush_fn);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void png_set_IHDR(
-        PngStruct* png, PngInfo* info,
-        uint width, uint height, int bit_depth, int color_type,
-        int interlace_method, int compression_method, int filter_method);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void png_write_info(PngStruct* png, PngInfo* info);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void png_write_image(PngStruct* png, byte** row_pointers);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void png_write_end(PngStruct* png, PngInfo* info);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void* png_get_io_ptr(PngStruct* png);
-
-    [DllImport(Dll, CallingConvention = CallingConvention.Cdecl)]
-    public static extern void png_set_compression_level(PngStruct* png, int level);
-}
-
-// ── Libpng encode helper ────────────────────────────────────────────────
-
-file static unsafe class LibpngEncoder
-{
-    private static readonly LibpngWriteNative.PngErrorPtr _noopCallback = Noop;
-    private static readonly LibpngWriteNative.PngRwPtr _writeCallback = WriteCallback;
-    private static readonly LibpngWriteNative.PngFlushPtr _flushCallback = FlushCallback;
-    private static readonly byte[] _verBytes = "1.6.47\0"u8.ToArray();
-
-    private static void Noop(LibpngWriteNative.PngStruct* png, byte* msg) { }
-
-    private struct LibpngOutputBuffer
-    {
-        public byte* Buffer;
-        public int Length;
-        public int Capacity;
-    }
-
-    private static void WriteCallback(LibpngWriteNative.PngStruct* png, byte* data, nuint length)
-    {
-        void* ioPtr = LibpngWriteNative.png_get_io_ptr(png);
-        ref var stream = ref Unsafe.AsRef<LibpngOutputBuffer>(ioPtr);
-        int len = (int)length;
-
-        if (stream.Length + len > stream.Capacity)
-        {
-            int newCapacity = Math.Max(stream.Capacity * 2, stream.Length + len);
-            byte* newBuf = (byte*)NativeMemory.Alloc((nuint)newCapacity);
-            if (stream.Buffer != null)
-            {
-                Unsafe.CopyBlock(newBuf, stream.Buffer, (uint)stream.Length);
-                NativeMemory.Free(stream.Buffer);
-            }
-            stream.Buffer = newBuf;
-            stream.Capacity = newCapacity;
-        }
-
-        Unsafe.CopyBlock(stream.Buffer + stream.Length, data, (uint)len);
-        stream.Length += len;
-    }
-
-    private static void FlushCallback(LibpngWriteNative.PngStruct* png) { }
-
-    /// <summary>
-    /// Encode RGBA8 pixels to PNG via libpng. Returns allocated buffer that caller must free.
-    /// </summary>
-    public static (IntPtr Ptr, int Length) Encode(byte* rgba, int width, int height)
-    {
-        var stream = new LibpngOutputBuffer { Buffer = null, Length = 0, Capacity = 0 };
-
-        LibpngWriteNative.PngStruct* png;
-        fixed (byte* pVer = _verBytes)
-        {
-            IntPtr pErrFn = Marshal.GetFunctionPointerForDelegate(_noopCallback);
-            IntPtr pWarnFn = Marshal.GetFunctionPointerForDelegate(_noopCallback);
-            png = LibpngWriteNative.png_create_write_struct(
-                (IntPtr)pVer, IntPtr.Zero, pErrFn, pWarnFn);
-        }
-
-        LibpngWriteNative.PngInfo* info = LibpngWriteNative.png_create_info_struct(png);
-
-        try
-        {
-            LibpngWriteNative.png_set_compression_level(png, 6); // Z_DEFAULT_COMPRESSION
-            LibpngWriteNative.png_set_write_fn(png, Unsafe.AsPointer(ref stream), _writeCallback, _flushCallback);
-            LibpngWriteNative.png_set_IHDR(png, info,
-                (uint)width, (uint)height, 8, 6, // 8-bit RGBA
-                0, 0, 0); // no interlace, default compression, default filter
-            LibpngWriteNative.png_write_info(png, info);
-
-            int stride = width * 4;
-            byte** rowPtrs = (byte**)NativeMemory.Alloc((nuint)height, (nuint)sizeof(byte*));
-            for (int i = 0; i < height; i++)
-                rowPtrs[i] = rgba + i * stride;
-
-            try
-            {
-                LibpngWriteNative.png_write_image(png, rowPtrs);
-            }
-            finally
-            {
-                NativeMemory.Free(rowPtrs);
-            }
-
-            LibpngWriteNative.png_write_end(png, info);
-        }
-        finally
-        {
-            LibpngWriteNative.png_destroy_write_struct(&png, &info);
-        }
-
-        return ((IntPtr)stream.Buffer, stream.Length);
-    }
-}
-
-// ── STB encode helper (uses StbImageWriteSharp) ─────────────────────────
-
-file static unsafe class StbEncoder
-{
-    public static byte[] Encode(byte* rgba, int width, int height)
-    {
-        using var ms = new MemoryStream();
-        var writer = new ImageWriter();
-        writer.WritePng(rgba, width, height, StbImageSharp.ColorComponents.RedGreenBlueAlpha, ms);
-        return ms.ToArray();
-    }
-}
-
-// ── Benchmark ───────────────────────────────────────────────────────────
-
-/// <summary>
-/// Benchmarks PNG encoding of small, large, and wall textures with the engine encoder, libpng, and STB.
-/// </summary>
-[Config(typeof(DefaultBenchmarkConfig))]
-[GroupBenchmarksBy(BenchmarkLogicalGroupRule.ByCategory)]
-[CategoriesColumn]
+/// <summary>Compares PNG encoders that return an owned byte array from predecoded RGBA8 pixels.</summary>
+[Config(typeof(PngBenchmarkConfig))]
 public unsafe class BenchmarkImageEncode
 {
-    // Decoded RGBA8 pixel data for each test image
-    private byte[] _pixelsSmall = null!;
-    private byte[] _pixelsLarge = null!;
-    private byte[] _pixelsWall = null!;
-    private int _wSmall, _hSmall;
-    private int _wLarge, _hLarge;
-    private int _wWall, _hWall;
+    private const string PngSizePrefix = "// Alco PNG bytes: ";
+    private (byte[] Pixels, int Width, int Height) _image = ([], 0, 0);
+    private int _outputBytes;
 
-    // Pinned pointers for libpng (avoids pinning per iteration)
-    private GCHandle _pinSmall;
-    private GCHandle _pinLarge;
-    private GCHandle _pinWall;
+    /// <summary>Identifies the RGBA8 input fixture.</summary>
+    public enum Fixture
+    {
+        /// <summary>The existing 32×32 grayscale PNG fixture.</summary>
+        TinyGray,
+        /// <summary>The existing 32×32 RGB PNG fixture.</summary>
+        TinyRgb,
+        /// <summary>The existing 512×768 RGBA wall atlas.</summary>
+        WallAtlas,
+        /// <summary>A 1920×1080 screenshot from ALCO_BENCH_PNG_1080P or the generated scene.</summary>
+        Screenshot1080p,
+        /// <summary>A 3840×2160 screenshot from ALCO_BENCH_PNG_4K or the generated scene.</summary>
+        Screenshot4K,
+        /// <summary>Deterministic random RGBA8 pixels at 1920×1080.</summary>
+        HighEntropy1080p,
+    }
 
-    /// <summary>
-    /// Decodes the source images and pins their pixel buffers for the benchmarks.
-    /// </summary>
+    /// <summary>Gets or sets the image to encode.</summary>
+    [Params(Fixture.TinyGray, Fixture.TinyRgb, Fixture.WallAtlas, Fixture.Screenshot1080p,
+        Fixture.Screenshot4K, Fixture.HighEntropy1080p)]
+    public Fixture Image { get; set; }
+
+    /// <summary>Loads or generates one fixture outside the measured workload.</summary>
     [GlobalSetup]
     public void Setup()
     {
-        // Decoded once; reused read-only across iterations.
-        (_pixelsSmall, _wSmall, _hSmall) = DecodeToPixels("Files/Image/png-small.png");
-        (_pixelsLarge, _wLarge, _hLarge) = DecodeToPixels("Files/Image/png-large.png");
-        (_pixelsWall, _wWall, _hWall) = DecodeToPixels("Files/Image/wall.png");
-
-        // Pinned once; addresses stay valid across all iterations.
-        _pinSmall = GCHandle.Alloc(_pixelsSmall, GCHandleType.Pinned);
-        _pinLarge = GCHandle.Alloc(_pixelsLarge, GCHandleType.Pinned);
-        _pinWall = GCHandle.Alloc(_pixelsWall, GCHandleType.Pinned);
+        _image = Image switch
+        {
+            Fixture.TinyGray => Decode(AssetPath("png-small.png")),
+            Fixture.TinyRgb => Decode(AssetPath("png-large.png")),
+            Fixture.WallAtlas => Decode(AssetPath("wall.png")),
+            Fixture.Screenshot1080p => LoadScreenshot("ALCO_BENCH_PNG_1080P", 1920, 1080),
+            Fixture.Screenshot4K => LoadScreenshot("ALCO_BENCH_PNG_4K", 3840, 2160),
+            Fixture.HighEntropy1080p => CreateNoise(1920, 1080),
+            _ => throw new ArgumentOutOfRangeException(nameof(Image)),
+        };
     }
 
-    /// <summary>
-    /// Releases the pinned pixel buffers.
-    /// </summary>
+    /// <summary>Encodes an owned file using the previous STB writer and a memory stream.</summary>
+    [Benchmark(Baseline = true, Description = "STB")]
+    public byte[] Stb()
+    {
+        using var destination = new MemoryStream();
+        fixed (byte* rgba = _image.Pixels)
+        {
+            new ImageWriter().WritePng(rgba, _image.Width, _image.Height, ColorComponents.RedGreenBlueAlpha, destination);
+        }
+        return RecordSize(destination.ToArray());
+    }
+
+    /// <summary>Encodes an owned file using the Fast preset.</summary>
+    [Benchmark]
+    public byte[] Fast() => RecordSize(ImageEncodeUtility.EncodePng(_image.Pixels, _image.Width, _image.Height, PngEncodeMode.Fast));
+
+    /// <summary>Encodes an owned file using the Balanced preset.</summary>
+    [Benchmark]
+    public byte[] Balanced() => RecordSize(ImageEncodeUtility.EncodePng(_image.Pixels, _image.Width, _image.Height, PngEncodeMode.Balanced));
+
+    /// <summary>Reports the actual output length to the benchmark host outside the timed iterations.</summary>
     [GlobalCleanup]
-    public void Cleanup()
+    public void ReportOutputSize() => Console.WriteLine(PngSizePrefix + _outputBytes.ToString(CultureInfo.InvariantCulture));
+
+    private byte[] RecordSize(byte[] png)
     {
-        _pinSmall.Free();
-        _pinLarge.Free();
-        _pinWall.Free();
+        _outputBytes = png.Length;
+        return png;
     }
 
-    private static (byte[] Pixels, int W, int H) DecodeToPixels(string path)
+    private static string AssetPath(string name) => Path.Combine(AppContext.BaseDirectory, "Files", "Image", name);
+
+    private static (byte[] Pixels, int Width, int Height) Decode(string path)
     {
-        byte[] fileData = File.ReadAllBytes(path);
-        byte* ptr = ImageDecodeUtility.DecodePng(fileData, out int w, out int h);
+        byte* pixels = ImageDecodeUtility.DecodeAuto(File.ReadAllBytes(path), out int width, out int height);
         try
         {
-            int totalBytes = w * h * 4;
-            byte[] pixels = new byte[totalBytes];
-            Unsafe.CopyBlock(Unsafe.AsPointer(ref pixels[0]), ptr, (uint)totalBytes);
-            return (pixels, w, h);
+            return (new ReadOnlySpan<byte>(pixels, checked(width * height * 4)).ToArray(), width, height);
         }
         finally
         {
-            NativeMemory.Free(ptr);
+            NativeMemory.Free(pixels);
         }
     }
 
-    // ── PNG Small ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Benchmarks PNG encoding of the small image with the engine encoder.
-    /// </summary>
-    [Benchmark(Description = "New")]
-    [BenchmarkCategory("PNG Small")]
-    public void PngSmall_New()
+    private static (byte[] Pixels, int Width, int Height) LoadScreenshot(string variable, int width, int height)
     {
-        byte[] png = ImageEncodeUtility.EncodePng(_pixelsSmall, _wSmall, _hSmall);
-        GC.KeepAlive(png);
+        var path = Environment.GetEnvironmentVariable(variable);
+        if (string.IsNullOrEmpty(path))
+            return CreateScreenshot(width, height);
+
+        if (!Path.IsPathFullyQualified(path))
+            throw new InvalidOperationException($"{variable} must be an absolute path to a PNG or JPEG screenshot.");
+
+        var screenshot = Decode(path);
+        if (screenshot.Width != width || screenshot.Height != height)
+            throw new InvalidOperationException($"{variable} must be {width}×{height}; '{path}' is {screenshot.Width}×{screenshot.Height}.");
+
+        return screenshot;
     }
 
-    /// <summary>
-    /// Benchmarks PNG encoding of the small image with libpng.
-    /// </summary>
-    [Benchmark(Description = "Libpng")]
-    [BenchmarkCategory("PNG Small")]
-    public void PngSmall_Libpng()
+    private static (byte[] Pixels, int Width, int Height) CreateScreenshot(int width, int height)
     {
-        byte* ptr = (byte*)_pinSmall.AddrOfPinnedObject();
-        var (buf, _) = LibpngEncoder.Encode(ptr, _wSmall, _hSmall);
-        NativeMemory.Free((byte*)buf);
-    }
-
-    /// <summary>
-    /// Benchmarks PNG encoding of the small image with STB.
-    /// </summary>
-    [Benchmark(Description = "STB")]
-    [BenchmarkCategory("PNG Small")]
-    public void PngSmall_Stb()
-    {
-        fixed (byte* ptr = _pixelsSmall)
+        // A textured road with surrounding terrain, broad lighting/shadow, and sharp HUD edges.
+        // Sample the detail texture at native pixel density rather than upscaling the 1080p frame.
+        var (texture, textureWidth, textureHeight) = Decode(AssetPath("jpeg-real.jpg"));
+        byte[] pixels = new byte[width * height * 4];
+        for (int y = 0; y < height; y++)
         {
-            byte[] png = StbEncoder.Encode(ptr, _wSmall, _hSmall);
-            GC.KeepAlive(png);
+            int textureRow = y % textureHeight * textureWidth;
+            int roadLeft = width / 5 + y / 3;
+            int roadRight = width * 4 / 5 - y / 6;
+            for (int x = 0; x < width; x++)
+            {
+                int source = (textureRow + (x + y / 3) % textureWidth) * 4;
+                int destination = (y * width + x) * 4;
+                int light = 175 + (x + y) * 80 / (width + height) - (x + y / 2 > width * 3 / 4 ? 35 : 0);
+                bool onRoad = x >= roadLeft && x < roadRight;
+                int grain = texture[source + 1] / 6;
+                int red = onRoad ? texture[source] : 39 + grain;
+                int green = onRoad ? texture[source + 1] : 61 + grain;
+                int blue = onRoad ? texture[source + 2] : 32 + grain;
+
+                if (y >= height * 7 / 8 && x >= width / 4 && x < width * 3 / 4)
+                {
+                    int slotX = (x - width / 4) % (width / 16);
+                    int slotY = y - height * 7 / 8;
+                    bool border = slotX < width / 400 || slotY < height / 180;
+                    bool icon = slotX >= width / 48 && slotX < width / 24 && slotY >= height / 30 && slotY < height / 12;
+                    red = border ? 28 : icon ? 142 : 54;
+                    green = border ? 32 : icon ? 116 : 61;
+                    blue = border ? 36 : icon ? 64 : 66;
+                    light = 255;
+                }
+
+                pixels[destination] = (byte)(red * light / 255);
+                pixels[destination + 1] = (byte)(green * light / 255);
+                pixels[destination + 2] = (byte)(blue * light / 255);
+                pixels[destination + 3] = 255;
+            }
+        }
+        return (pixels, width, height);
+    }
+
+    private static (byte[] Pixels, int Width, int Height) CreateNoise(int width, int height)
+    {
+        byte[] pixels = new byte[width * height * 4];
+        new Random(0x504E47).NextBytes(pixels);
+        return (pixels, width, height);
+    }
+
+    private sealed class PngBenchmarkConfig : ManualConfig
+    {
+        /// <summary>Sets up an image-latency job and report independent of the framework's batched job.</summary>
+        public PngBenchmarkConfig()
+        {
+            Add(DefaultConfig.Instance);
+            UnionRule = ConfigUnionRule.AlwaysUseLocal;
+            AddJob(Job.Default.WithId("PNG")
+                .RunOncePerIteration()
+                .WithWarmupCount(3)
+                .WithIterationCount(20)
+                .WithOutlierMode(OutlierMode.DontRemove));
+            AddDiagnoser(MemoryDiagnoser.Default);
+            AddColumn(StatisticColumn.P95, new PngSizeColumn());
         }
     }
 
-    // ── PNG Large ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Benchmarks PNG encoding of the large image with the engine encoder.
-    /// </summary>
-    [Benchmark(Description = "New")]
-    [BenchmarkCategory("PNG Large")]
-    public void PngLarge_New()
+    private sealed class PngSizeColumn : IColumn
     {
-        byte[] png = ImageEncodeUtility.EncodePng(_pixelsLarge, _wLarge, _hLarge);
-        GC.KeepAlive(png);
-    }
+        string IColumn.Id => nameof(PngSizeColumn);
+        string IColumn.ColumnName => "PNG bytes";
+        bool IColumn.AlwaysShow => true;
+        ColumnCategory IColumn.Category => ColumnCategory.Custom;
+        int IColumn.PriorityInCategory => 0;
+        bool IColumn.IsNumeric => true;
+        UnitType IColumn.UnitType => UnitType.Dimensionless;
+        string IColumn.Legend => "Length of the returned PNG file in bytes.";
 
-    /// <summary>
-    /// Benchmarks PNG encoding of the large image with libpng.
-    /// </summary>
-    [Benchmark(Description = "Libpng")]
-    [BenchmarkCategory("PNG Large")]
-    public void PngLarge_Libpng()
-    {
-        byte* ptr = (byte*)_pinLarge.AddrOfPinnedObject();
-        var (buf, _) = LibpngEncoder.Encode(ptr, _wLarge, _hLarge);
-        NativeMemory.Free((byte*)buf);
-    }
+        bool IColumn.IsAvailable(Summary summary) => true;
+        bool IColumn.IsDefault(Summary summary, BenchmarkCase benchmarkCase) => false;
+        string IColumn.GetValue(Summary summary, BenchmarkCase benchmarkCase) => GetValue(summary, benchmarkCase);
+        string IColumn.GetValue(Summary summary, BenchmarkCase benchmarkCase, SummaryStyle style) => GetValue(summary, benchmarkCase);
 
-    /// <summary>
-    /// Benchmarks PNG encoding of the large image with STB.
-    /// </summary>
-    [Benchmark(Description = "STB")]
-    [BenchmarkCategory("PNG Large")]
-    public void PngLarge_Stb()
-    {
-        fixed (byte* ptr = _pixelsLarge)
+        private static string GetValue(Summary summary, BenchmarkCase benchmarkCase)
         {
-            byte[] png = StbEncoder.Encode(ptr, _wLarge, _hLarge);
-            GC.KeepAlive(png);
-        }
-    }
+            if (summary[benchmarkCase] is not { Success: true } report)
+                return "NA";
 
-    // ── PNG Wall ──────────────────────────────────────────────────────────
+            foreach (var run in report.ExecuteResults)
+            {
+                // The teardown writes to stdout, not BenchmarkDotNet's measurement pipe.
+                foreach (string line in run.StandardOutput)
+                {
+                    if (line.StartsWith(PngSizePrefix, StringComparison.Ordinal))
+                        return line[PngSizePrefix.Length..];
+                }
+            }
 
-    /// <summary>
-    /// Benchmarks PNG encoding of the wall texture with the engine encoder.
-    /// </summary>
-    [Benchmark(Description = "New")]
-    [BenchmarkCategory("PNG Wall")]
-    public void PngWall_New()
-    {
-        byte[] png = ImageEncodeUtility.EncodePng(_pixelsWall, _wWall, _hWall);
-        GC.KeepAlive(png);
-    }
-
-    /// <summary>
-    /// Benchmarks PNG encoding of the wall texture with libpng.
-    /// </summary>
-    [Benchmark(Description = "Libpng")]
-    [BenchmarkCategory("PNG Wall")]
-    public void PngWall_Libpng()
-    {
-        byte* ptr = (byte*)_pinWall.AddrOfPinnedObject();
-        var (buf, _) = LibpngEncoder.Encode(ptr, _wWall, _hWall);
-        NativeMemory.Free((byte*)buf);
-    }
-
-    /// <summary>
-    /// Benchmarks PNG encoding of the wall texture with STB.
-    /// </summary>
-    [Benchmark(Description = "STB")]
-    [BenchmarkCategory("PNG Wall")]
-    public void PngWall_Stb()
-    {
-        fixed (byte* ptr = _pixelsWall)
-        {
-            byte[] png = StbEncoder.Encode(ptr, _wWall, _hWall);
-            GC.KeepAlive(png);
+            return "NA";
         }
     }
 }

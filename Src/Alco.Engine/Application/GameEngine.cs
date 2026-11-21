@@ -332,7 +332,7 @@ IDisposable
         // Engine-managed capture systems: one shared PNG readback pipeline serves both
         // offscreen render captures and swapchain captures. Headless (no swapchain)
         // swapchain captures fall back to the render-graph chain tail.
-        _captureReadback = new PngReadbackPipeline(_graphicsDevice);
+        _captureReadback = new PngReadbackPipeline(_graphicsDevice) { EncodingMode = PngEncodeMode.Fast };
         _renderCaptureSystem = new RenderCaptureSystem(this, _captureReadback);
         AddSystem(_renderCaptureSystem);
         _swapchainCaptureSystem = new SwapchainCaptureSystem(this, _captureReadback)

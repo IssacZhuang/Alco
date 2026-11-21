@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using StbImageSharp;
 using Alco.Graphics;
 using Alco.IO;
 using Alco;

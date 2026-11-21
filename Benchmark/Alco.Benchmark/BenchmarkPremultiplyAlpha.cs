@@ -39,6 +39,6 @@ public unsafe class BenchmarkPremultiplyAlpha
     public void DecodeAndPremultiply()
     {
         using ImageResultBuffer image = ImageResultBuffer.FromMemory(_fileBytes, ColorComponents.RedGreenBlueAlpha);
-        RenderingSystem.PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
+        Texture2DUtility.PremultiplyAlpha(image.UnsafePointer, image.Width * image.Height);
     }
 }

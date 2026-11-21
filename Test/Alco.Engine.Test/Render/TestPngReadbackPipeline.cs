@@ -19,13 +19,14 @@ public class TestPngReadbackPipeline
     /// <summary>
     /// Verifies that GPU readback encodes RGBA8 bands with alpha 0, 128, and 255 verbatim.
     /// </summary>
-    [Test]
+    [TestCase(PngEncodeMode.Balanced)]
+    [TestCase(PngEncodeMode.Fast)]
     [Category("AlcoGpu")]
     [NonParallelizable]
-    public unsafe void TestReadbackEncodesTextureAlphaVerbatim()
+    public void TestReadbackEncodesTextureAlphaVerbatim(PngEncodeMode mode)
     {
         byte[] source = CreateBandedPixels();
-        byte[] decoded = ReadBackThroughPipeline(source);
+        byte[] decoded = ReadBackThroughPipeline(source, mode);
 
         Assert.That(decoded.Length, Is.EqualTo(source.Length));
         for (int i = 0; i < decoded.Length; i += 4)
@@ -37,7 +38,7 @@ public class TestPngReadbackPipeline
         }
     }
 
-    private static unsafe byte[] ReadBackThroughPipeline(byte[] source)
+    private static unsafe byte[] ReadBackThroughPipeline(byte[] source, PngEncodeMode mode)
     {
         const uint size = TestImageSize;
         GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.Auto, Headless = true });
@@ -49,7 +50,7 @@ public class TestPngReadbackPipeline
             Format = Format.Rgba8Unorm,
             Usage = TextureUsage.Sampled | TextureUsage.TransferSource | TextureUsage.TransferDestination,
         });
-        PngReadbackPipeline pipeline = new(device);
+        PngReadbackPipeline pipeline = new(device) { EncodingMode = mode };
         RenderCaptureResult? result = null;
         try
         {
