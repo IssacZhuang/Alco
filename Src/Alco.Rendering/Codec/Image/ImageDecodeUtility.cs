@@ -73,7 +73,7 @@ public static unsafe class ImageDecodeUtility
                     stream.ReadExactly(header[128..148]);
                     headerLength = 148;
                 }
-                DdsDecoder.ParseHeader(header[..headerLength], srgb, out _, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+                DdsDecoder.ParseHeader(header[..headerLength], srgb, out _, out Format format, out int width, out int height, out int mipLevels, out int dataOffset);
                 return new ImageFileInfo
                 {
                     Width = width,
@@ -97,7 +97,7 @@ public static unsafe class ImageDecodeUtility
             Width = width,
             Height = height,
             IsBlockCompressed = false,
-            Format = PixelFormat.RGBA8Unorm,
+            Format = Format.Rgba8Unorm,
             MipLevels = 1,
             DataOffset = 0,
         };
@@ -117,7 +117,7 @@ public static unsafe class ImageDecodeUtility
     {
         if (DdsDecoder.IsDds(data))
         {
-            DdsDecoder.ParseHeader(data, srgb, out _, out PixelFormat format, out int width, out int height, out int mipLevels, out int dataOffset);
+            DdsDecoder.ParseHeader(data, srgb, out _, out Format format, out int width, out int height, out int mipLevels, out int dataOffset);
             return new ImageFileInfo
             {
                 Width = width,
@@ -135,7 +135,7 @@ public static unsafe class ImageDecodeUtility
             Width = imageWidth,
             Height = imageHeight,
             IsBlockCompressed = false,
-            Format = PixelFormat.RGBA8Unorm,
+            Format = Format.Rgba8Unorm,
             MipLevels = 1,
             DataOffset = 0,
         };

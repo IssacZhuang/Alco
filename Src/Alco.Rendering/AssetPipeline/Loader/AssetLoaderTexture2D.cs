@@ -97,17 +97,17 @@ public class AssetLoaderTexture2D : IAssetLoader
             Stream stream = context.GetStream();
             try
             {
-                texture = _renderingSystem.CreateTexture2DStreaming(stream, option);
+                texture = Texture2DUtility.CreateTexture2DStreaming(_renderingSystem, stream, option);
             }
             catch (ImageDecodeException)
             {
                 stream.Dispose();
-                texture = _renderingSystem.CreateTexture2DFromFile(context.GetData(), option);
+                texture = Texture2DUtility.CreateTexture2DFromFile(_renderingSystem, context.GetData(), option);
             }
         }
         else
         {
-            texture = _renderingSystem.CreateTexture2DFromFile(context.GetData(), option);
+            texture = Texture2DUtility.CreateTexture2DFromFile(_renderingSystem, context.GetData(), option);
         }
 
         // Sprites (only from .meta)

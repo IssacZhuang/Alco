@@ -29,7 +29,7 @@ public readonly struct ImageFileInfo
     /// <see cref="IsBlockCompressed"/> is true; already resolved to the sRGB variant
     /// requested by the probing caller.
     /// </summary>
-    public PixelFormat Format { get; init; }
+    public Format Format { get; init; }
 
     /// <summary>
     /// The number of mip levels dictated by the file. Only block-compressed files carry

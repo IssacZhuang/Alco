@@ -39,11 +39,9 @@
     <Project Path="Sandbox/24-FloodFill/24-FloodFill.csproj" />
     <Project Path="Sandbox/25-TextureCompression/25-TextureCompression.csproj" />
     <Project Path="Sandbox/26-ImGUI/26-ImGUI.csproj" />
-    <Project Path="Sandbox/27-Particles/27-Particles.csproj" />
     <Project Path="Sandbox/28-Gizmo/28-Gizmo.csproj" />
     <Project Path="Sandbox/29-Noise/29-Noise.csproj" />
     <Project Path="Sandbox/3-TextureBinding/3-TextureBinding.csproj" />
-    <Project Path="Sandbox/30-ParticleBatching/30-ParticleBatching.csproj" />
     <Project Path="Sandbox/31-FilePicker/31-FilePicker.csproj" />
     <Project Path="Sandbox/32-Gamepad/32-Gamepad.csproj" />
     <Project Path="Sandbox/33-LLM/33-LLM.csproj" />

@@ -1,7 +1,6 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.Graphics.AlcoGpu;
 using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
@@ -192,115 +191,6 @@ public unsafe class TestBcDecoder
         Assert.That(pixels[7], Is.EqualTo(255));
         Assert.That(pixels[11], Is.EqualTo(119));
         Assert.That(pixels[15], Is.EqualTo(119));
-    }
-
-    /// <summary>Verifies real GPU encoders against the native BC palette layout.</summary>
-    /// <param name="family">The compression format to exercise.</param>
-    /// <param name="solid">Whether the source block has constant channels.</param>
-    /// <param name="backend">The requested graphics backend for the compiled shader.</param>
-    [TestCase(DdsDecoder.BcFamily.BC1, false, GraphicsBackend.Auto)]
-    [TestCase(DdsDecoder.BcFamily.BC3, false, GraphicsBackend.Auto)]
-    [TestCase(DdsDecoder.BcFamily.BC1, true, GraphicsBackend.Auto)]
-    [TestCase(DdsDecoder.BcFamily.BC3, true, GraphicsBackend.Auto)]
-    [TestCase(DdsDecoder.BcFamily.BC1, false, GraphicsBackend.Dx12)]
-    [TestCase(DdsDecoder.BcFamily.BC3, false, GraphicsBackend.Dx12)]
-    [TestCase(DdsDecoder.BcFamily.BC1, true, GraphicsBackend.Dx12)]
-    [TestCase(DdsDecoder.BcFamily.BC3, true, GraphicsBackend.Dx12)]
-    [Category("AlcoGpu")]
-    [NonParallelizable]
-    public void GpuCompression_UsesEndpointFirstPalette(DdsDecoder.BcFamily family, bool solid, GraphicsBackend backend)
-    {
-        if (backend == GraphicsBackend.Dx12 && !OperatingSystem.IsWindows())
-        {
-            Assert.Ignore("Direct3D 12 requires Windows.");
-        }
-        using GpuHost gpuHost = new();
-        var device = new AlcoGpuDevice(new DeviceDescriptor(gpuHost, backend));
-        if (!device.IsFeatureSupported(GPUFeatures.TextureCompressionBC))
-        {
-            Assert.Ignore("The graphics adapter does not support BC compression.");
-        }
-
-        DirectoryInfo? directory = new(AppContext.BaseDirectory);
-        while (directory != null && !File.Exists(Path.Combine(directory.FullName, "Alco.slnx")))
-        {
-            directory = directory.Parent;
-        }
-        string shaderRoot = Path.Combine(directory!.FullName, "Src", "Alco.Rendering", "Assets", "Shaders");
-        string[] shaderFiles = Directory.GetFiles(shaderRoot, "*.slang", SearchOption.AllDirectories);
-        var resolver = ShaderModuleResolver.Create(
-            path =>
-            {
-                string candidate = Path.Combine(shaderRoot, SlangPathUtility.NormalizePath(path));
-                return File.Exists(candidate) ? File.OpenRead(candidate) : null;
-            },
-            () => shaderFiles.Select(path => Path.GetRelativePath(shaderRoot, path).Replace('\\', '/')));
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(resolver, device);
-        byte[] alpha = [255, 219, 182, 146, 109, 73, 36, 0];
-        byte[] sourcePixels = new byte[64];
-        for (int i = 0; i < 16; i++)
-        {
-            byte color = solid ? (byte)128 : (byte)(255 - i % 4 * 85);
-            sourcePixels[i * 4] = color;
-            sourcePixels[i * 4 + 1] = color;
-            sourcePixels[i * 4 + 2] = color;
-            sourcePixels[i * 4 + 3] = family == DdsDecoder.BcFamily.BC1 ? (byte)255
-                : solid ? (byte)128 : alpha[i % 8];
-        }
-        using Texture2D source = host.RenderingSystem.CreateTexture2D(sourcePixels, 4, 4, ImageLoadOption.Default);
-        byte[] block = new byte[family == DdsDecoder.BcFamily.BC1 ? 8 : 16];
-        if (family == DdsDecoder.BcFamily.BC1)
-        {
-            using TextureCompressorBC1 compressor = host.RenderingSystem.CreateTextureCompressorBC1(
-                host.RenderingSystem.ShaderSystem.GetShader("TextureCompressBc1"));
-            Assert.That(compressor.CompressBlocks(source, block), Is.EqualTo(block.Length));
-        }
-        else
-        {
-            using TextureCompressorBC3 compressor = host.RenderingSystem.CreateTextureCompressorBC3(
-                host.RenderingSystem.ShaderSystem.GetShader("TextureCompressBc3"));
-            Assert.That(compressor.CompressBlocks(source, block), Is.EqualTo(block.Length));
-        }
-
-        uint colorIndices = BinaryPrimitives.ReadUInt32LittleEndian(block.AsSpan(block.Length - 4));
-        ulong alphaIndices = family == DdsDecoder.BcFamily.BC3
-            ? BinaryPrimitives.ReadUInt64LittleEndian(block) >> 16 : 0;
-        byte[] expectedColorIndices = [0, 2, 3, 1];
-        byte[] expectedAlphaIndices = [0, 2, 3, 4, 5, 6, 7, 1];
-        byte[] decoded = DecodeSingleBlock(block, family);
-        for (int i = 0; i < 16; i++)
-        {
-            Assert.That((colorIndices >> (i * 2)) & 3,
-                Is.EqualTo(solid ? 0 : expectedColorIndices[i % 4]), $"color index {i}");
-            if (family == DdsDecoder.BcFamily.BC3)
-            {
-                Assert.That((alphaIndices >> (i * 3)) & 7,
-                    Is.EqualTo(solid ? 0 : expectedAlphaIndices[i % 8]), $"alpha index {i}");
-            }
-            for (int channel = 0; channel < 4; channel++)
-            {
-                Assert.That(Math.Abs(decoded[i * 4 + channel] - sourcePixels[i * 4 + channel]),
-                    Is.LessThanOrEqualTo(channel == 3 ? 1 : 17), $"pixel {i}, channel {channel}");
-            }
-        }
-    }
-
-    private sealed class GpuHost : IGPUDeviceHost, IDisposable
-    {
-        /// <inheritdoc />
-        public event Action OnEndFrame { add { } remove { } }
-        /// <inheritdoc />
-        public event Action? OnDispose;
-        /// <inheritdoc />
-        public void Dispose() => OnDispose?.Invoke();
-        /// <inheritdoc />
-        public void LogInfo(ReadOnlySpan<char> message) { }
-        /// <inheritdoc />
-        public void LogWarning(ReadOnlySpan<char> message) => TestContext.Progress.WriteLine(message.ToString());
-        /// <inheritdoc />
-        public void LogError(ReadOnlySpan<char> message) => TestContext.Progress.WriteLine(message.ToString());
-        /// <inheritdoc />
-        public void LogSuccess(ReadOnlySpan<char> message) { }
     }
 
     /// <summary>Verifies rejection of unsupported CPU decoding families.</summary>

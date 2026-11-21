@@ -13,7 +13,7 @@ public unsafe class TestPremultiplyAlpha
         byte[] pixels = [255, 128, 64, 0];
 
         fixed (byte* ptr = pixels)
-            RenderingSystem.PremultiplyAlpha(ptr, 1);
+            Texture2DUtility.PremultiplyAlpha(ptr, 1);
 
         Assert.Multiple(() =>
         {
@@ -31,7 +31,7 @@ public unsafe class TestPremultiplyAlpha
         byte[] pixels = [200, 100, 50, 255];
 
         fixed (byte* ptr = pixels)
-            RenderingSystem.PremultiplyAlpha(ptr, 1);
+            Texture2DUtility.PremultiplyAlpha(ptr, 1);
 
         Assert.Multiple(() =>
         {
@@ -49,7 +49,7 @@ public unsafe class TestPremultiplyAlpha
         byte[] pixels = [255, 128, 64, 128];
 
         fixed (byte* ptr = pixels)
-            RenderingSystem.PremultiplyAlpha(ptr, 1);
+            Texture2DUtility.PremultiplyAlpha(ptr, 1);
 
         Assert.Multiple(() =>
         {
@@ -72,7 +72,7 @@ public unsafe class TestPremultiplyAlpha
             byte expectedA = a;
 
             fixed (byte* ptr = pixels)
-                RenderingSystem.PremultiplyAlpha(ptr, 1);
+                Texture2DUtility.PremultiplyAlpha(ptr, 1);
 
             Assert.That(pixels[3], Is.EqualTo(expectedA), $"Alpha {a} not preserved");
         }
@@ -114,7 +114,7 @@ public unsafe class TestPremultiplyAlpha
         }
 
         fixed (byte* ptr = pixels)
-            RenderingSystem.PremultiplyAlpha(ptr, pixelCount);
+            Texture2DUtility.PremultiplyAlpha(ptr, pixelCount);
 
         for (int i = 0; i < pixelCount; i++)
         {
@@ -143,7 +143,7 @@ public unsafe class TestPremultiplyAlpha
                 byte[] pixels = [(byte)c, (byte)c, (byte)c, (byte)a];
 
                 fixed (byte* ptr = pixels)
-                    RenderingSystem.PremultiplyAlpha(ptr, 1);
+                    Texture2DUtility.PremultiplyAlpha(ptr, 1);
 
                 int expected = (c * a + 128) / 255;
                 Assert.That(pixels[0], Is.EqualTo(expected).Within(1),

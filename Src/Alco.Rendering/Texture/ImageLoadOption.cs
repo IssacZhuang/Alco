@@ -8,15 +8,19 @@ namespace Alco.Rendering;
 /// </summary>
 public struct ImageLoadOption
 {
+    /// <summary>Default texture usage flags for loaded 2D images.</summary>
+    public const TextureUsage DefaultUsage =
+        TextureUsage.Sampled | TextureUsage.TransferDestination | TextureUsage.TransferSource;
+
     /// <summary>
     /// Default image load options with common settings.
     /// </summary>
     public static readonly ImageLoadOption Default = new ImageLoadOption
     {
-        Format = PixelFormat.RGBA8Unorm,
-        Usage = TextureUsage.Standard,
+        Format = Format.Rgba8Unorm,
+        Usage = DefaultUsage,
         MipLevels = 1,
-        FilterMode = FilterMode.Linear,
+        FilterMode = Filter.Linear,
         AddressMode = AddressMode.Repeat,
         SlicePadding = Padding.Zero,
         PremultiplyAlpha = false,
@@ -34,10 +38,10 @@ public struct ImageLoadOption
     /// <param name="slicePadding">The slice padding for 9-slice textures.</param>
     /// <param name="name">The name of the texture for debugging.</param>
     public ImageLoadOption(
-        PixelFormat format = PixelFormat.RGBA8Unorm,
-        TextureUsage usage = TextureUsage.Standard,
+        Format format = Format.Rgba8Unorm,
+        TextureUsage usage = DefaultUsage,
         uint mipLevels = 1,
-        FilterMode filterMode = FilterMode.Linear,
+        Filter filterMode = Filter.Linear,
         AddressMode addressMode = AddressMode.Repeat,
         Padding slicePadding = default,
         string name = "unnamed_texture"
@@ -55,7 +59,7 @@ public struct ImageLoadOption
     /// <summary>
     /// The pixel format of the texture.
     /// </summary>
-    public PixelFormat Format { get; init; } = PixelFormat.RGBA8Unorm;
+    public Format Format { get; init; } = Format.Rgba8Unorm;
 
     /// <summary>
     /// The number of mipmap levels.
@@ -65,12 +69,12 @@ public struct ImageLoadOption
     /// <summary>
     /// The usage flags for the texture.
     /// </summary>
-    public TextureUsage Usage { get; init; } = TextureUsage.Standard;
+    public TextureUsage Usage { get; init; } = DefaultUsage;
 
     /// <summary>
     /// The texture filtering mode.
     /// </summary>
-    public FilterMode FilterMode { get; init; } = FilterMode.Linear;
+    public Filter FilterMode { get; init; } = Filter.Linear;
 
     /// <summary>
     /// The maximum anisotropy for texture sampling; 1 disables anisotropic filtering.

@@ -22,11 +22,11 @@ public class TestDdsEncoder
         byte[] chain = new byte[5440];
         byte[] file = DdsEncoder.Encode(64, 64, DdsDecoder.BcFamily.BC3, chain, mipLevels: 4);
 
-        DdsDecoder.ParseHeader(file, srgb: false, out DdsDecoder.BcFamily family, out PixelFormat format,
+        DdsDecoder.ParseHeader(file, srgb: false, out DdsDecoder.BcFamily family, out Format format,
             out int width, out int height, out int mipLevels, out int dataOffset);
 
         Assert.That(family, Is.EqualTo(DdsDecoder.BcFamily.BC3));
-        Assert.That(format, Is.EqualTo(PixelFormat.BC3RGBAUnorm));
+        Assert.That(format, Is.EqualTo(Format.Bc3Unorm));
         Assert.That(width, Is.EqualTo(64));
         Assert.That(height, Is.EqualTo(64));
         Assert.That(mipLevels, Is.EqualTo(4));
@@ -44,10 +44,10 @@ public class TestDdsEncoder
         byte[] chain = new byte[32];
         byte[] file = DdsEncoder.Encode(8, 8, DdsDecoder.BcFamily.BC1, chain, mipLevels: 1);
 
-        DdsDecoder.ParseHeader(file, srgb: true, out _, out PixelFormat format,
+        DdsDecoder.ParseHeader(file, srgb: true, out _, out Format format,
             out int width, out int height, out int mipLevels, out int dataOffset);
 
-        Assert.That(format, Is.EqualTo(PixelFormat.BC1RGBAUnormSrgb));
+        Assert.That(format, Is.EqualTo(Format.Bc1Srgb));
         Assert.That(width, Is.EqualTo(8));
         Assert.That(height, Is.EqualTo(8));
         Assert.That(mipLevels, Is.EqualTo(1));
@@ -68,7 +68,7 @@ public class TestDdsEncoder
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(stream, srgb: false);
 
         Assert.That(info.IsBlockCompressed, Is.True);
-        Assert.That(info.Format, Is.EqualTo(PixelFormat.BC3RGBAUnorm));
+        Assert.That(info.Format, Is.EqualTo(Format.Bc3Unorm));
         Assert.That(info.Width, Is.EqualTo(16));
         Assert.That(info.Height, Is.EqualTo(16));
         Assert.That(info.MipLevels, Is.EqualTo(2));

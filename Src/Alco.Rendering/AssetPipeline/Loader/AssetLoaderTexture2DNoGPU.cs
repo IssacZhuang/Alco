@@ -76,6 +76,6 @@ public class AssetLoaderTexture2DNoGPU : IAssetLoader
             }
         }
 
-        return _renderingSystem.CreateTexture2D(1, 1, option);
+        return Texture2DUtility.CreateTexture2D(_renderingSystem, 1, 1, option);
     }
 }

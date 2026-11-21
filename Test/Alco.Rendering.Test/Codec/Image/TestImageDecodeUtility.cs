@@ -172,7 +172,7 @@ public unsafe class TestImageDecodeUtility
         Assert.That(info.Width, Is.EqualTo(64));
         Assert.That(info.Height, Is.EqualTo(64));
         Assert.That(info.IsBlockCompressed, Is.True);
-        Assert.That(info.Format, Is.EqualTo(PixelFormat.BC1RGBAUnorm));
+        Assert.That(info.Format, Is.EqualTo(Format.Bc1Unorm));
         Assert.That(info.MipLevels, Is.EqualTo(5));
         Assert.That(info.DataOffset, Is.EqualTo(128));
     }
@@ -183,7 +183,7 @@ public unsafe class TestImageDecodeUtility
     {
         byte[] data = CreateDdsBytes(64, 64, 1, FourCcDxt1);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data, srgb: true);
-        Assert.That(info.Format, Is.EqualTo(PixelFormat.BC1RGBAUnormSrgb));
+        Assert.That(info.Format, Is.EqualTo(Format.Bc1Srgb));
     }
 
     /// <summary>Tests that a DX10 extended DDS header resolves its DXGI format.</summary>
@@ -194,7 +194,7 @@ public unsafe class TestImageDecodeUtility
         byte[] data = CreateDdsBytes(16, 16, 3, FourCcDx10, dxgiFormat: 98);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(data);
         Assert.That(info.IsBlockCompressed, Is.True);
-        Assert.That(info.Format, Is.EqualTo(PixelFormat.BC7RGBAUnorm));
+        Assert.That(info.Format, Is.EqualTo(Format.Bc7Unorm));
         Assert.That(info.MipLevels, Is.EqualTo(3));
         Assert.That(info.DataOffset, Is.EqualTo(148));
     }
@@ -253,7 +253,7 @@ public unsafe class TestImageDecodeUtility
         byte[] data = CreateDdsBytes(16, 16, 3, FourCcDx10, dxgiFormat: 98, payloadBytes: 4096);
         using var stream = new MemoryStream(data);
         ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(stream);
-        Assert.That(info.Format, Is.EqualTo(PixelFormat.BC7RGBAUnorm));
+        Assert.That(info.Format, Is.EqualTo(Format.Bc7Unorm));
         Assert.That(info.DataOffset, Is.EqualTo(148));
         Assert.That(stream.Position, Is.EqualTo(148));
     }

@@ -14,6 +14,8 @@ public partial class BuiltInAssets
     
     public Font Font_Default => GetFont("Fonts/Default.ttf");
 
+    public Shader Shader_AlcoRenderingUIStandard => GetShader("AlcoRendering-UIStandard");
+
     public Shader Shader_Blit => GetShader("Blit");
 
     public Shader Shader_BlitDepth => GetShader("BlitDepth");
@@ -39,6 +41,8 @@ public partial class BuiltInAssets
     public Shader Shader_GaussianBlurRgba32f => GetShader("GaussianBlurRgba32f");
 
     public Shader Shader_GaussianBlurRgba8 => GetShader("GaussianBlurRgba8");
+
+    public Shader Shader_SvgRasterize => GetShader("SvgRasterize");
 
     public Shader Shader_TextSdf => GetShader("TextSdf");
 
@@ -66,10 +70,6 @@ public partial class BuiltInAssets
 
     public Shader Shader_Uncharted2Tonemap => GetShader("Uncharted2Tonemap");
 
-    public Shader Shader_Particle2D => GetShader("Particle2D");
-
-    public Shader Shader_Particle2DAnimated => GetShader("Particle2DAnimated");
-
     public Shader Shader_Sprite => GetShader("Sprite");
 
     public Shader Shader_SpriteInstanced => GetShader("SpriteInstanced");
@@ -81,6 +81,10 @@ public partial class BuiltInAssets
     public Shader Shader_TileWaterInstanced => GetShader("TileWaterInstanced");
 
     public Shader Shader_Unlit => GetShader("Unlit");
+
+    public Shader Shader_AlcoRenderingUISprite => GetShader("AlcoRendering-UISprite");
+
+    public Shader Shader_AlcoRenderingUIText => GetShader("AlcoRendering-UIText");
 
 
 }

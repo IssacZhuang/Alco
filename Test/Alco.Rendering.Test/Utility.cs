@@ -1,40 +1,31 @@
 using Alco.Graphics;
-using Alco.Graphics.NoGPU;
-using Alco.Rendering;
+using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering.Test;
 
-internal static class Utility
+internal sealed class RenderingTestHost : IDisposable
 {
+    public GPUDevice Device { get; }
+    public RenderingSystem RenderingSystem { get; }
 
-    internal static DummyRenderingSystemHost CreateRenderingSystem(SlangFileResolver? resolver = null, GPUDevice? device = null)
+    public RenderingTestHost(GraphicsBackend backend = GraphicsBackend.NoGPU)
     {
-        GPUDevice gpuDevice = device ?? GraphicsDeviceFactory.GetNoGPUDevice();
-        DummyRenderingSystemHost host = new DummyRenderingSystemHost();
-        // Tests register module sources explicitly (GetShaderFromModule); a
-        // resolver is only passed when a test serves importable files.
-        RenderingSystem renderingSystem = new RenderingSystem(
-            host,
-            gpuDevice,
-            PixelFormat.RGBA16Float,
-            PixelFormat.Depth24PlusStencil8,
-            resolver
-        );
-        host.RenderingSystem = renderingSystem;
-        return host;
+        Device = Gpu.CreateDevice(new DeviceDesc { Backend = backend, Headless = true });
+        RenderingSystem = new RenderingSystem(Device, textureHeapByteCount: 16 * 1024 * 1024);
+    }
+
+    public void Dispose()
+    {
+        Device.WaitIdle();
+        RenderingSystem.Destroy();
+        Device.Destroy();
     }
 }
 
-/// <summary>
-/// A NoGPU device that reports BC texture compression support, so tests can
-/// exercise the block-compressed creation and upload paths (writes are still
-/// discarded like on the plain NoDevice).
-/// </summary>
-internal sealed class BcCapableNoDevice : NoDevice
+internal static class Utility
 {
-    public override GPUFeatures SupportedFeatures => GPUFeatures.TextureCompressionBC;
+    internal static RenderingTestHost CreateRenderingSystem(GraphicsBackend backend = GraphicsBackend.NoGPU)
+    {
+        return new RenderingTestHost(backend);
+    }
 }
-
-
-
-

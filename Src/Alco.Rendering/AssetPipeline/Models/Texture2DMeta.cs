@@ -32,7 +32,7 @@ public class Texture2DMeta : Meta
     }
 
     /// <summary>The texture filter mode; null inherits the directory or engine default.</summary>
-    public FilterMode? FilterMode { get; set; }
+    public Filter? FilterMode { get; set; }
     /// <summary>The texture address mode; null inherits the directory or engine default.</summary>
     public AddressMode? AddressMode { get; set; }
 

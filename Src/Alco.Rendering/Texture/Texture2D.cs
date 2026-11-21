@@ -1,58 +1,54 @@
-using Alco.Graphics;
-using System.Runtime.CompilerServices;
-using System.Numerics;
-using Alco;
 using System.Diagnostics.CodeAnalysis;
+using Alco.Graphics;
 
 namespace Alco.Rendering;
 
 /// <summary>
-/// A 2D GPU texture with optional named sprites and 9-slice padding.
+/// A 2D GPU texture wrapping <see cref="Texture"/> with optional named sprites, 9-slice padding,
+/// streaming arrival state, and hot-reload replacement.
 /// </summary>
-public sealed class Texture2D : Texture
+public sealed class Texture2D : AutoDisposable
 {
+    private readonly RenderingSystem _system;
+    private Texture _texture;
+    private bool _ownsResource;
     private readonly Sprite _defaultSprite;
-    private readonly Dictionary<string, Sprite> _sprites = new Dictionary<string, Sprite>();
-
-    // bind group only include texture
-    private GPUResourceGroup? _resourcesRead;
-
-    private GPUBindGroup? _bindGroupStorage;
-    private readonly GPUResourceGroup?[] _resourcesStorage;
-    private readonly GPUResourceGroup?[] _resourcesReadMip;
-    private readonly GPUTextureView?[] _mipViews;
+    private readonly Dictionary<string, Sprite> _sprites = new();
 
     private volatile Task? _contentUpload;
     private volatile int _contentPresent = 1;
 
-    /// <summary>
-    /// The number of mip levels of the texture.
-    /// </summary>
-    public uint MipLevels { get; }
+    internal readonly Lock UploadLock = new();
 
+    /// <summary>The owning graphics rendering system.</summary>
+    public RenderingSystem RenderingSystem => _system;
 
-    public override GPUResourceGroup EntryReadonly
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            if (_resourcesRead == null)
-            {
-                _resourcesRead = CreateResourceGroupRead();
-            }
+    /// <summary>The underlying GPU texture handle in <see cref="Alco.Graphics"/>.</summary>
+    public Texture NativeTexture => _texture;
 
-            return _resourcesRead;
-        }
-    }
+    /// <summary>The diagnostic name of this texture.</summary>
+    public string Name { get; private set; }
 
-    public override GPUResourceGroup EntryWriteable
-    {
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        get
-        {
-            return EntryStorage(0);
-        }
-    }
+    /// <summary>The texture width in texels.</summary>
+    public uint Width { get; private set; }
+
+    /// <summary>The texture height in texels.</summary>
+    public uint Height { get; private set; }
+
+    /// <summary>The pixel format of the underlying texture.</summary>
+    public Format Format { get; private set; }
+
+    /// <summary>The number of mip levels of the texture.</summary>
+    public uint MipLevels { get; private set; }
+
+    /// <summary>Whether the texture can receive CPU pixel uploads via transfer destination usage.</summary>
+    public bool IsWriteable { get; private set; }
+
+    /// <summary>Bindless sampled descriptor slot index for shaders.</summary>
+    public uint SampledIndex => _texture.SampledIndex;
+
+    /// <summary>Bindless storage descriptor slot index for mip 0.</summary>
+    public uint StorageIndex => _texture.StorageIndex;
 
     /// <summary>The 9-slice padding, in texels, applied to sprites of this texture.</summary>
     public Padding SlicePadding { get; }
@@ -65,151 +61,47 @@ public sealed class Texture2D : Texture
 
     /// <summary>
     /// Whether the texture's content is present on the GPU. False only between a
-    /// streaming load's creation and its successful in-place upload; sampling the
-    /// texture meanwhile yields transparent black.
+    /// streaming load's creation and its successful in-place upload.
     /// </summary>
     public bool IsContentLoaded => _contentPresent != 0;
 
-    /// <summary>
-    /// Marks the texture as awaiting streamed content: <see cref="IsContentLoaded"/>
-    /// stays false until <see cref="MarkContentLoaded"/> follows a successful upload.
-    /// </summary>
+    internal Texture2D(
+        RenderingSystem system,
+        Texture texture,
+        string name = "unnamed_texture",
+        Padding? slicePadding = null,
+        bool ownsResources = true)
+    {
+        ArgumentNullException.ThrowIfNull(system);
+        ArgumentNullException.ThrowIfNull(texture);
+
+        _system = system;
+        _texture = texture;
+        _ownsResource = ownsResources;
+        Name = name;
+        SlicePadding = slicePadding ?? Padding.Zero;
+        CacheTextureMetadata(texture);
+        _defaultSprite = new Sprite("default", this, Rect.One);
+    }
+
+    /// <summary>Gets the bindless storage descriptor slot index for a specific mip level.</summary>
+    /// <param name="mipLevel">The mip level (0 = full resolution).</param>
+    /// <returns>The storage descriptor index.</returns>
+    public uint GetStorageIndex(uint mipLevel) => _texture.GetStorageIndex(mipLevel);
+
     internal void MarkContentPending()
     {
         _contentPresent = 0;
     }
 
-    /// <summary>
-    /// Attaches the streaming upload task exposed through <see cref="ContentArrival"/>.
-    /// </summary>
-    /// <param name="upload">The upload task; it must never fault.</param>
     internal void SetContentUpload(Task upload)
     {
         _contentUpload = upload;
     }
 
-    /// <summary>
-    /// Marks the texture's content as present after a successful full upload.
-    /// </summary>
     internal void MarkContentLoaded()
     {
         _contentPresent = 1;
-    }
-
-    internal Texture2D(
-        GPUDevice device,
-        GPUTexture texture,
-        GPUTextureView textureView,
-        Padding? slicePadding = null,
-        bool ownsResources = true
-        ) :
-        base(device, texture, textureView, ownsResources)
-    {
-        if (slicePadding.HasValue)
-        {
-            SlicePadding = slicePadding.Value;
-        }
-        else
-        {
-            SlicePadding = Padding.Zero;
-        }
-
-        MipLevels = texture.MipLevelCount;
-        _resourcesStorage = new GPUResourceGroup?[MipLevels];
-        _resourcesReadMip = new GPUResourceGroup?[MipLevels];
-        _mipViews = new GPUTextureView?[MipLevels];
-        _defaultSprite = new Sprite("default", this, Rect.One);
-    }
-
-    /// <summary>
-    /// The read-only resource group bound to the single-mip view of the given mip level.
-    /// Use it instead of <see cref="EntryReadonly"/> when the same dispatch writes another mip.
-    /// </summary>
-    /// <param name="mipLevel">The mip level to read (0 = full resolution).</param>
-    /// <returns>The read-only resource group for the mip level.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">The mip level is out of range.</exception>
-    public GPUResourceGroup EntryReadonlyMip(uint mipLevel)
-    {
-        CheckMipLevel(mipLevel);
-
-        if (_resourcesReadMip[mipLevel] == null)
-        {
-            ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-                _device.BindGroupTexture2DRead,
-                new ResourceBindingEntry[]{
-                    new ResourceBindingEntry(0, GetMipView(mipLevel)),
-                }
-            );
-
-            _resourcesReadMip[mipLevel] = _device.CreateResourceGroup(descriptor);
-        }
-
-        return _resourcesReadMip[mipLevel]!;
-    }
-
-    /// <summary>
-    /// The storage resource group bound to the single-mip view of the given mip
-    /// level, for compute passes that write that mip.
-    /// </summary>
-    /// <param name="mipLevel">The mip level to write (0 = full resolution).</param>
-    /// <returns>The storage resource group for the mip level.</returns>
-    /// <exception cref="ArgumentOutOfRangeException">The mip level is out of range.</exception>
-    public GPUResourceGroup EntryStorage(uint mipLevel)
-    {
-        CheckMipLevel(mipLevel);
-
-        if (_bindGroupStorage == null)
-        {
-            _bindGroupStorage = _device.CreateBindGroup(new BindGroupDescriptor
-            {
-                Name = $"{Name}_bind_group_storage_texture",
-                Bindings = new BindGroupEntry[]{
-                    new BindGroupEntry(
-                        0,
-                        ShaderStage.Standard,
-                        BindingType.StorageTexture,
-                        null,
-                        new StorageTextureBindingInfo(AccessMode.ReadWrite, TextureViewDimension.Texture2D, _texture.PixelFormat)),
-                }
-            });
-        }
-
-        if (_resourcesStorage[mipLevel] == null)
-        {
-            ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-                _bindGroupStorage,
-                new ResourceBindingEntry[]{
-                    new ResourceBindingEntry(0, GetMipView(mipLevel)),
-                }
-            );
-
-            _resourcesStorage[mipLevel] = _device.CreateResourceGroup(descriptor);
-        }
-
-        return _resourcesStorage[mipLevel]!;
-    }
-
-    internal GPUTextureView GetMipView(uint mipLevel)
-    {
-        if (_mipViews[mipLevel] == null)
-        {
-            _mipViews[mipLevel] = _device.CreateTextureView(new TextureViewDescriptor(
-                _texture,
-                TextureViewDimension.Texture2D,
-                mipLevel,
-                1,
-                name: $"{Name}_mip_view_{mipLevel}"));
-        }
-
-        return _mipViews[mipLevel]!;
-    }
-
-    private void CheckMipLevel(uint mipLevel)
-    {
-        if (mipLevel >= MipLevels)
-        {
-            throw new ArgumentOutOfRangeException(nameof(mipLevel), mipLevel, "The mip level is out of range.");
-        }
     }
 
     /// <summary>Removes all named sprites.</summary>
@@ -247,42 +139,40 @@ public sealed class Texture2D : Texture
         return _defaultSprite;
     }
 
-    /// <summary>
-    /// Implicitly converts a Texture2D to its default Sprite.
-    /// </summary>
+    /// <summary>Implicitly converts a <see cref="Texture2D"/> to its default <see cref="Sprite"/>.</summary>
     /// <param name="texture">The texture to convert.</param>
     /// <returns>The default sprite of the texture.</returns>
-    public static implicit operator Sprite(Texture2D texture)
-    {
-        return texture._defaultSprite;
-    }
+    public static implicit operator Sprite(Texture2D texture) => texture._defaultSprite;
+
+    /// <summary>Implicitly converts a <see cref="Texture2D"/> to its underlying <see cref="Texture"/>.</summary>
+    /// <param name="texture">The texture wrapper.</param>
+    /// <returns>The underlying GPU texture.</returns>
+    public static implicit operator Texture(Texture2D texture) => texture._texture;
 
     /// <summary>Uploads a CPU bitmap to the texture, replacing the whole content.</summary>
     /// <typeparam name="T">The pixel type; must match the texture's format.</typeparam>
     /// <param name="bitmap">The CPU bitmap to upload.</param>
     public unsafe void SetPixels<T>(Bitmap<T> bitmap) where T : unmanaged
     {
+        ArgumentNullException.ThrowIfNull(bitmap);
         if (!IsWriteable)
         {
-            throw new InvalidOperationException("The texture is not writeable");
+            throw new InvalidOperationException("The texture is not writeable.");
         }
-
-
         if (bitmap.Width != Width || bitmap.Height != Height)
         {
-            throw new ArgumentException("The size of the bitmap does not match the size of the texture");
+            throw new ArgumentException("The size of the bitmap does not match the size of the texture.");
         }
 
-        _device.WriteTexture(_texture, bitmap);
+        Texture2DUtility.UploadTextureData(
+            _system,
+            _texture,
+            new ReadOnlySpan<byte>(bitmap.UnsafePointer, checked(bitmap.Width * bitmap.Height * sizeof(T))));
         MarkContentLoaded();
     }
 
-    /// <summary>
-    /// Uploads a sub-rectangle of a same-sized CPU bitmap into this texture, leaving texels outside
-    /// the rectangle untouched. Rows are repacked into a grow-only scratch buffer at a 256-byte
-    /// aligned stride (a queue-write requirement), so steady-state region uploads allocate nothing.
-    /// </summary>
-    /// <typeparam name="T">The pixel type; must match the texture's format, as in <see cref="SetPixels{T}(Bitmap{T})"/>.</typeparam>
+    /// <summary>Uploads a sub-rectangle of a CPU bitmap into this texture, leaving outside texels untouched.</summary>
+    /// <typeparam name="T">The pixel type; must match the texture's format.</typeparam>
     /// <param name="bitmap">The CPU bitmap holding the region's source data.</param>
     /// <param name="x">The x origin of the region, in texels.</param>
     /// <param name="y">The y origin of the region, in texels.</param>
@@ -293,7 +183,7 @@ public sealed class Texture2D : Texture
         ArgumentNullException.ThrowIfNull(bitmap);
         if (!IsWriteable)
         {
-            throw new InvalidOperationException("The texture is not writeable");
+            throw new InvalidOperationException("The texture is not writeable.");
         }
         ArgumentOutOfRangeException.ThrowIfNegative(x);
         ArgumentOutOfRangeException.ThrowIfNegative(y);
@@ -301,88 +191,81 @@ public sealed class Texture2D : Texture
         ArgumentOutOfRangeException.ThrowIfNegative(height);
         if (x + width > Width || y + height > Height || x + width > bitmap.Width || y + height > bitmap.Height)
         {
-            throw new ArgumentOutOfRangeException($"The region ({x}, {y}, {width}, {height}) exceeds the texture size ({Width}, {Height}) or the bitmap size ({bitmap.Width}, {bitmap.Height})");
+            throw new ArgumentOutOfRangeException(
+                $"The region ({x}, {y}, {width}, {height}) exceeds the texture size ({Width}, {Height}) or bitmap size ({bitmap.Width}, {bitmap.Height}).");
         }
         if (width == 0 || height == 0)
         {
             return;
         }
 
-        uint pixelSize = (uint)sizeof(T);
-        uint tightRow = (uint)width * pixelSize;
-        uint alignedRow = (tightRow + 255u) & ~255u;
-        uint dataSize = alignedRow * ((uint)height - 1) + tightRow;
+        int pixelSize = sizeof(T);
+        long srcRowBytes = (long)bitmap.Width * pixelSize;
+        byte* start = (byte*)bitmap.UnsafePointer + (long)y * srcRowBytes + (long)x * pixelSize;
+        int regionSliceLength = checked((int)((long)(height - 1) * srcRowBytes + (long)width * pixelSize));
 
-        if (_regionScratch is null || _regionScratch.Length < dataSize)
-        {
-            _regionScratch = new byte[dataSize];
-        }
-
-        T* src = bitmap.UnsafePointer;
-        int srcStride = bitmap.Width;
-        fixed (byte* scratch = _regionScratch)
-        {
-            for (int row = 0; row < height; row++)
+        Texture2DUtility.UploadTextureData(
+            _system,
+            _texture,
+            new ReadOnlySpan<byte>(start, regionSliceLength),
+            new TextureCopyDesc
             {
-                T* srcLine = src + (long)(y + row) * srcStride + x;
-                Buffer.MemoryCopy(srcLine, scratch + (long)row * alignedRow, tightRow, tightRow);
-            }
-
-            _device.WriteTextureRegion(_texture, scratch, dataSize, alignedRow, (uint)x, (uint)y, (uint)width, (uint)height);
-        }
+                Offset = new Extent3D((uint)x, (uint)y, 0),
+                Extent = new Extent3D((uint)width, (uint)height, 1),
+                RowPitchBytes = (ulong)srcRowBytes,
+            });
         MarkContentLoaded();
     }
 
-    private byte[]? _regionScratch;
-
-    /// <summary>Replaces the underlying GPU texture and view, invalidating cached bind groups.</summary>
+    /// <summary>Replaces the underlying GPU texture in place for hot reloading.</summary>
     /// <param name="texture">The new GPU texture.</param>
-    /// <param name="textureView">The new GPU texture view.</param>
-    public void UnsafeHotReload(GPUTexture texture, GPUTextureView textureView)
+    /// <param name="name">Optional replacement name; null keeps the existing name.</param>
+    /// <param name="ownsResources">Whether this wrapper owns and destroys the new texture.</param>
+    public void UnsafeHotReload(Texture texture, string? name = null, bool ownsResources = true)
     {
-        _texture = texture;
-        _textureView = textureView;
+        ArgumentNullException.ThrowIfNull(texture);
 
-        //just let them collect by GC
-        _resourcesRead = null;
-        _bindGroupStorage = null;
-        for (int i = 0; i < _resourcesStorage.Length; i++)
+        lock (UploadLock)
         {
-            _resourcesStorage[i] = null;
-            _resourcesReadMip[i] = null;
-            _mipViews[i] = null;
-        }
-
-        DiscardLayoutResourceGroups();
-    }
-
-    private GPUResourceGroup CreateResourceGroupRead()
-    {
-        ResourceGroupDescriptor descriptor = new ResourceGroupDescriptor(
-            _device.BindGroupTexture2DRead,
-            new ResourceBindingEntry[]{
-                new ResourceBindingEntry(0, _textureView),
+            ObjectDisposedException.ThrowIf(IsDisposed, this);
+            if (_ownsResource && !_texture.IsDestroyed && !ReferenceEquals(_texture, texture))
+            {
+                _texture.Destroy();
             }
-        );
 
-        return _device.CreateResourceGroup(descriptor);
+            _texture = texture;
+            _ownsResource = ownsResources;
+            if (name != null)
+            {
+                Name = name;
+            }
+            CacheTextureMetadata(texture);
+        }
     }
 
+    private void CacheTextureMetadata(Texture texture)
+    {
+        Width = texture.Extent.X;
+        Height = texture.Extent.Y;
+        Format = texture.Format;
+        MipLevels = texture.MipLevels;
+        IsWriteable = (texture.Desc.Usage & TextureUsage.TransferDestination) != 0;
+    }
+
+    /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        base.Dispose(disposing);
-        if (disposing)
+        if (!disposing)
         {
-            //dispose non-private managed resources
-            _resourcesRead?.Dispose();
-            _bindGroupStorage?.Dispose();
-            for (int i = 0; i < _resourcesStorage.Length; i++)
-            {
-                _resourcesStorage[i]?.Dispose();
-                _resourcesReadMip[i]?.Dispose();
-                _mipViews[i]?.Dispose();
-            }
+            return;
         }
 
+        lock (UploadLock)
+        {
+            if (_ownsResource && !_texture.IsDestroyed)
+            {
+                _texture.Destroy();
+            }
+        }
     }
 }

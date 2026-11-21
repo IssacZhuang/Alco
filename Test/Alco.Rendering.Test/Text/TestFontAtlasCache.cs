@@ -184,7 +184,7 @@ public class TestFontAtlasCache
     [Test]
     public void AssetLoaderFontTTF_SecondLoad_HitsCacheAndMatchesGlyphs()
     {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
+        using RenderingTestHost host = Utility.CreateRenderingSystem();
         string directory = CreateTempCacheDirectory();
         try
         {

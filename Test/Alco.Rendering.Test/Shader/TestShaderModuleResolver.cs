@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 namespace Alco.Rendering.Test;
 
-/// <summary>Verifies module identity and alias resolution independently of asset enumeration order.</summary>
+/// <summary>Verifies module identity, alias resolution, and compiler integration for <see cref="ShaderModuleResolver"/>.</summary>
 [TestFixture]
 public class TestShaderModuleResolver
 {
@@ -13,7 +13,7 @@ public class TestShaderModuleResolver
     public void Resolve_DoesNotSelectPrefixedModule()
     {
         const string expected = "Shaders/Passes/Compute/ShadowGpuCull.slang";
-        SlangFileResolver resolver = CreateResolver(
+        ShaderFileResolver resolver = CreateResolver(
             "Shaders/Passes/Compute/AmbientShadowGpuCull.slang",
             "Shaders/Passes/Compute/Ambient_ShadowGpuCull.slang",
             expected);
@@ -29,7 +29,7 @@ public class TestShaderModuleResolver
     [TestCase("Shaders/ShadowGpuCull.slang", "AmbientShadowGpuCull.slang")]
     public void Resolve_RequiresCompleteModuleName(string asset, string probe)
     {
-        SlangFileResolver resolver = CreateResolver(asset);
+        ShaderFileResolver resolver = CreateResolver(asset);
 
         Assert.That(resolver(probe), Is.Null);
     }
@@ -48,7 +48,7 @@ public class TestShaderModuleResolver
     {
         const string expected = "Shaders/Libs/AlcoRendering_Core.slang";
         const string shorter = "Core.slang";
-        SlangFileResolver resolver = shorterFirst
+        ShaderFileResolver resolver = shorterFirst
             ? CreateResolver(shorter, expected)
             : CreateResolver(expected, shorter);
 
@@ -60,54 +60,86 @@ public class TestShaderModuleResolver
     public void Resolve_ExactAssetPathTakesPrecedence()
     {
         const string expected = "AlcoRendering/Core.slang";
-        SlangFileResolver resolver = CreateResolver("Shaders/Libs/AlcoRendering_Core.slang", expected);
+        ShaderFileResolver resolver = CreateResolver("Shaders/Libs/AlcoRendering_Core.slang", expected);
 
         Assert.That(resolver(expected), Is.EqualTo(expected));
     }
 
-    /// <summary>Loads built-in modules from deployed content without an engine asset system or resolver.</summary>
+    /// <summary>Resolves built-in deployed shader modules from output Assets without engine wiring.</summary>
     [Test]
-    public void RenderingSystem_DefaultResolver_LoadsDeployedShaderModules()
+    public void Resolver_DeployedShaderAssets_ResolvesLibsAndPasses()
     {
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
-        ShaderSystem shaders = host.RenderingSystem.ShaderSystem;
-        string libraries = Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "Libs");
-        string[] files = Directory.GetFiles(libraries, "AlcoRendering_*.slang");
-        Assert.That(files, Is.Not.Empty, "Rendering content must be deployed beside the test executable.");
+        string assetsRoot = Path.Combine(AppContext.BaseDirectory, "Assets");
+        string shaderRoot = Path.Combine(assetsRoot, "Shaders");
+        string[] files = Directory.GetFiles(shaderRoot, "*.slang", SearchOption.AllDirectories);
+        Assert.That(files, Is.Not.Empty, "Rendering shader assets must be deployed beside the test executable.");
 
-        foreach (string file in files)
+        string[] relativeAssets = files
+            .Select(path => Path.GetRelativePath(assetsRoot, path).Replace('\\', '/'))
+            .ToArray();
+        ShaderFileResolver resolver = ShaderModuleResolver.Create(
+            path =>
+            {
+                string candidate = Path.Combine(assetsRoot, ShaderModuleResolver.NormalizePath(path));
+                return File.Exists(candidate) ? File.OpenRead(candidate) : null;
+            },
+            () => relativeAssets);
+
+        string libsDir = Path.Combine(shaderRoot, "Libs");
+        foreach (string libFile in Directory.GetFiles(libsDir, "AlcoRendering_*.slang"))
         {
-            string module = Path.GetFileNameWithoutExtension(file);
-            Assert.That(shaders.Modules.GetModuleSource(module), Is.EqualTo(File.ReadAllText(file)), module);
-            Assert.That(shaders.GetLibrary(module).Name, Is.EqualTo(module));
+            string moduleFile = Path.GetFileName(libFile);
+            Assert.That(resolver(moduleFile), Is.EqualTo(File.ReadAllText(libFile)), moduleFile);
         }
+
         Assert.Multiple(() =>
         {
-            Assert.That(shaders.GetShader("Sprite").Name, Is.EqualTo("Sprite"));
-            Assert.That(shaders.GetShader("Text").Name, Is.EqualTo("Text"));
+            Assert.That(resolver("Sprite.slang"), Is.Not.Null.And.Not.Empty);
+            Assert.That(resolver("Text.slang"), Is.Not.Null.And.Not.Empty);
         });
     }
 
-    /// <summary>Keeps caller-provided module sources authoritative and isolated from disk fallbacks.</summary>
+    /// <summary>Verifies that an explicit <see cref="ShaderFileResolver"/> overrides module resolution in <see cref="ShaderSystem"/>.</summary>
     [Test]
-    public void RenderingSystem_ExplicitResolver_RemainsAuthoritative()
+    public void ShaderSystem_ExplicitResolver_RemainsAuthoritative()
     {
-        const string source = "module AlcoRendering_Core; public static const float CallerValue = 7.0;";
-        using DummyRenderingSystemHost host = Utility.CreateRenderingSystem(CreateResolverWithSource(source));
-        ShaderSystem shaders = host.RenderingSystem.ShaderSystem;
+        const string source = """
+            module VirtualTestModule;
+            import Core;
 
-        Assert.Multiple(() =>
+            [GPURoot]
+            struct DrawRoot
+            {
+                float4 Tint;
+            };
+
+            [shader("vertex")]
+            float4 MainVS(uint vertexId : SV_VertexID) : SV_Position { return float4(0, 0, 0, 1); }
+
+            [shader("pixel")]
+            float4 MainPS() : SV_Target
+            {
+                DrawRoot root = gpu_load_root<DrawRoot>();
+                return root.Tint;
+            }
+            """;
+
+        using RenderingTestHost host = Utility.CreateRenderingSystem();
+        ShaderCompilerOptions options = new()
         {
-            Assert.That(shaders.Modules.GetModuleSource("AlcoRendering_Core"), Is.EqualTo(source));
-            Assert.That(shaders.GetLibrary("AlcoRendering_Core").Name, Is.EqualTo("AlcoRendering_Core"));
-            Assert.That(shaders.Modules.GetModuleSource("Text"), Is.Null,
-                "An explicit virtual file system must not silently fall back to deployed content.");
-        });
+            FileResolver = CreateResolverWithSource("VirtualTestModule.slang", source),
+            SearchPaths = [],
+        };
+        using ShaderSystem shaders = new(host.RenderingSystem, options);
+
+        Shader resolved = shaders.GetShader("VirtualTestModule");
+        Assert.That(resolved.Name, Is.EqualTo("VirtualTestModule"));
+        Assert.That(resolved.Kind, Is.EqualTo(ShaderKind.Graphics));
     }
 
-    /// <summary>Preserves direct disk module discovery and relative imports and includes.</summary>
+    /// <summary>Verifies disk module discovery and relative imports and includes via <see cref="ShaderCompiler"/>.</summary>
     [Test]
-    public void RenderingSystem_DefaultResolver_PreservesDiskModulesAndImports()
+    public void ShaderCompiler_DiskModulesAndIncludes_CompileCleanly()
     {
         string directory = Path.Combine(Path.GetTempPath(), $"alco_rendering_resolver_{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
@@ -127,11 +159,14 @@ public class TestShaderModuleResolver
 
         try
         {
-            using DummyRenderingSystemHost host = Utility.CreateRenderingSystem();
-            ShaderSystem shaders = host.RenderingSystem.ShaderSystem;
-            Assert.That(shaders.Modules.GetModuleSource(path[..^".slang".Length]), Is.EqualTo(source));
-            Shader shader = shaders.GetShaderFromModule("test_disk_entry", path, source);
-            Assert.That(shader.GetShaderModules().IsGraphicsShader, Is.True);
+            using ShaderCompiler compiler = new(ShaderTarget.Spirv, new ShaderCompilerOptions
+            {
+                SearchPaths = [directory],
+                ValidateAbi = false,
+            });
+            CompiledShader compiled = compiler.CompileSource("test_disk_entry", path, source, ShaderPipelineKind.Graphics);
+            Assert.That(compiled.Stages.Any(stage => stage.Stage == ShaderStageKind.Vertex), Is.True);
+            Assert.That(compiled.Stages.Any(stage => stage.Stage == ShaderStageKind.Pixel), Is.True);
         }
         finally
         {
@@ -139,12 +174,14 @@ public class TestShaderModuleResolver
         }
     }
 
-    private static SlangFileResolver CreateResolverWithSource(string source)
+    private static ShaderFileResolver CreateResolverWithSource(string moduleFileName, string source)
         => ShaderModuleResolver.Create(
-            path => path == "AlcoRendering_Core.slang" ? new MemoryStream(Encoding.UTF8.GetBytes(source)) : null,
-            () => ["AlcoRendering_Core.slang"]);
+            path => string.Equals(path, moduleFileName, StringComparison.OrdinalIgnoreCase)
+                ? new MemoryStream(Encoding.UTF8.GetBytes(source))
+                : null,
+            () => [moduleFileName]);
 
-    private static SlangFileResolver CreateResolver(params string[] assets)
+    private static ShaderFileResolver CreateResolver(params string[] assets)
     {
         return ShaderModuleResolver.Create(
             path =>

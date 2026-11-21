@@ -9,6 +9,8 @@ public static partial class BuiltInAssetsPath
     
    public const string Font_Default = "Fonts/Default.ttf";
 
+   public const string Shader_AlcoRenderingUIStandard = "AlcoRendering-UIStandard";
+
    public const string Shader_Blit = "Blit";
 
    public const string Shader_BlitDepth = "BlitDepth";
@@ -34,6 +36,8 @@ public static partial class BuiltInAssetsPath
    public const string Shader_GaussianBlurRgba32f = "GaussianBlurRgba32f";
 
    public const string Shader_GaussianBlurRgba8 = "GaussianBlurRgba8";
+
+   public const string Shader_SvgRasterize = "SvgRasterize";
 
    public const string Shader_TextSdf = "TextSdf";
 
@@ -61,10 +65,6 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_Uncharted2Tonemap = "Uncharted2Tonemap";
 
-   public const string Shader_Particle2D = "Particle2D";
-
-   public const string Shader_Particle2DAnimated = "Particle2DAnimated";
-
    public const string Shader_Sprite = "Sprite";
 
    public const string Shader_SpriteInstanced = "SpriteInstanced";
@@ -76,6 +76,10 @@ public static partial class BuiltInAssetsPath
    public const string Shader_TileWaterInstanced = "TileWaterInstanced";
 
    public const string Shader_Unlit = "Unlit";
+
+   public const string Shader_AlcoRenderingUISprite = "AlcoRendering-UISprite";
+
+   public const string Shader_AlcoRenderingUIText = "AlcoRendering-UIText";
 
 
 }

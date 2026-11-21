@@ -1,14 +1,15 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
+using Alco.Graphics;
 using Alco.IO;
 
 namespace Alco.Rendering;
 
 /// <summary>
 /// Asset loader for Wavefront OBJ model files.
-/// Creates a <see cref="Mesh"/> from the OBJ geometry data.
+/// Creates a <see cref="ModelGeometry"/> from decoded OBJ vertex and index data.
 /// </summary>
-public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
+public unsafe class AssetLoaderMeshObj : BaseAssetLoader<ModelGeometry>
 {
     private readonly RenderingSystem _renderingSystem;
 
@@ -21,7 +22,7 @@ public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
     /// <summary>
     /// Initializes a new instance of the <see cref="AssetLoaderMeshObj"/> class.
     /// </summary>
-    /// <param name="renderingSystem">The rendering system used to create meshes.</param>
+    /// <param name="renderingSystem">The rendering system used to allocate GPU geometry buffers.</param>
     public AssetLoaderMeshObj(RenderingSystem renderingSystem)
     {
         _renderingSystem = renderingSystem ?? throw new ArgumentNullException(nameof(renderingSystem));
@@ -45,7 +46,6 @@ public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
             var vertexSpan = new ReadOnlySpan<VertexPBR>(vertices, vertexCount);
             var indexSpan = new ReadOnlySpan<uint>(indices, indexCount);
 
-            PrimitiveMesh mesh = _renderingSystem.CreatePrimitiveMesh(vertexSpan, indexSpan, context.Filename);
             Vector3 min = new(float.MaxValue);
             Vector3 max = new(float.MinValue);
             for (int i = 0; i < vertexSpan.Length; i++)
@@ -53,8 +53,7 @@ public unsafe class AssetLoaderMeshObj : BaseAssetLoader<Mesh>
                 min = Vector3.Min(min, vertexSpan[i].Position);
                 max = Vector3.Max(max, vertexSpan[i].Position);
             }
-            mesh.SetLocalBounds(min, max);
-            return mesh;
+            return ModelGeometry.Create(_renderingSystem, vertexSpan, indexSpan, min, max, context.Filename);
         }
         finally
         {

@@ -7,29 +7,36 @@ using Alco.Graphics;
 namespace Alco.Rendering;
 
 /// <summary>
-/// JSON converter for DepthStencilState type.
-/// Supports string format that maps to static readonly presets: "None", "Write", "Read", "Default"
+/// JSON converter for <see cref="DepthStencilState"/> preset names.
+/// Supports: "None", "Write", "Read", "WriteReverseZ", "ReadReverseZ", "Default".
 /// </summary>
 public class JsonConverterDepthStencilState : JsonConverter<DepthStencilState>
 {
+    private static readonly DepthStencilState PresetNone = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Never };
+    private static readonly DepthStencilState PresetWrite = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.LessEqual };
+    private static readonly DepthStencilState PresetRead = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.LessEqual };
+    private static readonly DepthStencilState PresetWriteReverseZ = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.GreaterEqual };
+    private static readonly DepthStencilState PresetReadReverseZ = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.GreaterEqual };
+    private static readonly DepthStencilState PresetDefault = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Always };
+
     private static readonly Dictionary<string, DepthStencilState> PresetMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "None", DepthStencilState.None },
-        { "Write", DepthStencilState.Write },
-        { "Read", DepthStencilState.Read },
-        { "WriteReverseZ", DepthStencilState.WriteReverseZ },
-        { "ReadReverseZ", DepthStencilState.ReadReverseZ },
-        { "Default", DepthStencilState.Default }
+        { "None", PresetNone },
+        { "Write", PresetWrite },
+        { "Read", PresetRead },
+        { "WriteReverseZ", PresetWriteReverseZ },
+        { "ReadReverseZ", PresetReadReverseZ },
+        { "Default", PresetDefault }
     };
 
     private static readonly Dictionary<DepthStencilState, string> ReverseMap = new()
     {
-        { DepthStencilState.None, "None" },
-        { DepthStencilState.Write, "Write" },
-        { DepthStencilState.Read, "Read" },
-        { DepthStencilState.WriteReverseZ, "WriteReverseZ" },
-        { DepthStencilState.ReadReverseZ, "ReadReverseZ" },
-        { DepthStencilState.Default, "Default" }
+        { PresetNone, "None" },
+        { PresetWrite, "Write" },
+        { PresetRead, "Read" },
+        { PresetWriteReverseZ, "WriteReverseZ" },
+        { PresetReadReverseZ, "ReadReverseZ" },
+        { PresetDefault, "Default" }
     };
 
     /// <summary>

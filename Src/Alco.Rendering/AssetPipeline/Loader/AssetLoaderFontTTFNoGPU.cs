@@ -1,3 +1,4 @@
+using Alco.Graphics;
 using Alco.IO;
 
 namespace Alco.Rendering;
@@ -28,6 +29,6 @@ public class AssetLoaderFontTTFNoGPU : BaseAssetLoader<Font>
     {
         // Skip FontAtlasPacker entirely — create a 1x1 dummy font atlas
         ReadOnlySpan<byte> emptyBitmap = [0];
-        return _renderingSystem.CreateFont(emptyBitmap, 1, 1, Array.Empty<GlyphInfo>(), context.Filename);
+        return Font.Create(_renderingSystem, emptyBitmap, 1, 1, Array.Empty<GlyphInfo>(), context.Filename);
     }
 }

@@ -18,13 +18,13 @@ public static class ShaderModuleResolver
     /// <param name="openStream">Opens an asset by its exact asset-system path.</param>
     /// <param name="listNames">Lists all asset names (used for probe matching).</param>
     /// <returns>The resolver used by the slang compiler.</returns>
-    public static SlangFileResolver Create(
+    public static ShaderFileResolver Create(
         Func<string, Stream?> openStream,
         Func<IEnumerable<string>> listNames)
     {
         return path =>
         {
-            string key = SlangPathUtility.NormalizePath(path);
+            string key = NormalizePath(path);
             if (key.StartsWith("assets/", StringComparison.OrdinalIgnoreCase))
             {
                 key = key["assets/".Length..];
@@ -111,5 +111,47 @@ public static class ShaderModuleResolver
     {
         using StreamReader reader = new(stream, System.Text.Encoding.UTF8);
         return reader.ReadToEnd();
+    }
+
+    internal static string NormalizePath(string path)
+    {
+        string slash = path.Replace('\\', '/');
+        string prefix = string.Empty;
+        string remainder = slash;
+        if (slash.Length >= 2 && char.IsLetter(slash[0]) && slash[1] == ':')
+        {
+            bool hasRootSlash = slash.Length >= 3 && slash[2] == '/';
+            prefix = hasRootSlash ? slash[..3] : slash[..2] + "/";
+            remainder = hasRootSlash ? slash[3..] : slash[2..];
+        }
+        else if (slash.StartsWith("//", StringComparison.Ordinal))
+        {
+            prefix = "//";
+            remainder = slash[2..];
+        }
+        else if (slash.StartsWith('/'))
+        {
+            prefix = "/";
+            remainder = slash[1..];
+        }
+
+        bool rooted = prefix.Length != 0;
+        List<string> segments = [];
+        foreach (string segment in remainder.Split('/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (segment == ".")
+                continue;
+            if (segment == "..")
+            {
+                if (segments.Count > 0 && segments[^1] != "..")
+                    segments.RemoveAt(segments.Count - 1);
+                else if (!rooted)
+                    segments.Add(segment);
+                continue;
+            }
+            segments.Add(segment);
+        }
+        string combined = string.Join("/", segments);
+        return prefix.Length != 0 ? prefix + combined : combined;
     }
 }

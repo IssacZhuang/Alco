@@ -91,7 +91,7 @@ public static class DdsDecoder
         ReadOnlySpan<byte> data,
         bool srgb,
         out BcFamily family,
-        out PixelFormat format,
+        out Format format,
         out int width,
         out int height,
         out int mipLevels,
@@ -123,7 +123,7 @@ public static class DdsDecoder
         ReadOnlySpan<byte> data,
         bool srgb,
         out BcFamily family,
-        out PixelFormat format,
+        out Format format,
         out int width,
         out int height,
         out int mipLevels,
@@ -243,15 +243,15 @@ public static class DdsDecoder
         };
     }
 
-    private static PixelFormat ToPixelFormat(BcFamily family, bool srgb) => family switch
+    private static Format ToPixelFormat(BcFamily family, bool srgb) => family switch
     {
-        BcFamily.BC1 => srgb ? PixelFormat.BC1RGBAUnormSrgb : PixelFormat.BC1RGBAUnorm,
-        BcFamily.BC2 => srgb ? PixelFormat.BC2RGBAUnormSrgb : PixelFormat.BC2RGBAUnorm,
-        BcFamily.BC3 => srgb ? PixelFormat.BC3RGBAUnormSrgb : PixelFormat.BC3RGBAUnorm,
-        BcFamily.BC4 => PixelFormat.BC4RUnorm,
-        BcFamily.BC5 => PixelFormat.BC5RGUnorm,
-        BcFamily.BC6H => PixelFormat.BC6HRGBUfloat,
-        BcFamily.BC7 => srgb ? PixelFormat.BC7RGBAUnormSrgb : PixelFormat.BC7RGBAUnorm,
+        BcFamily.BC1 => srgb ? Format.Bc1Srgb : Format.Bc1Unorm,
+        BcFamily.BC2 => srgb ? Format.Bc2Srgb : Format.Bc2Unorm,
+        BcFamily.BC3 => srgb ? Format.Bc3Srgb : Format.Bc3Unorm,
+        BcFamily.BC4 => Format.Bc4Unorm,
+        BcFamily.BC5 => Format.Bc5Rg,
+        BcFamily.BC6H => Format.Bc6HUfloat,
+        BcFamily.BC7 => srgb ? Format.Bc7Srgb : Format.Bc7Unorm,
         _ => throw new ImageDecodeException($"Unsupported DDS BC family {family}."),
     };
 
