@@ -37,6 +37,7 @@ IDisposable
     private readonly RenderingSystem _renderingSystem;
     private readonly ShaderSystem _shaderSystem;
     private readonly GlyphCache _glyphCache;
+    private readonly ImageUploadQueue _imageUploadQueue;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
     private readonly PngReadbackPipeline _captureReadback;
@@ -181,6 +182,15 @@ IDisposable
     }
 
     /// <summary>
+    /// Gets the streaming image upload queue pumped each frame by this engine.
+    /// </summary>
+    public ImageUploadQueue ImageUploadQueue
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _imageUploadQueue;
+    }
+
+    /// <summary>
     /// The shared PNG readback pipeline behind the capture systems. Pumped by the
     /// engine each update; capture owners register a completion callback when
     /// beginning a read.
@@ -296,7 +306,10 @@ IDisposable
         ulong bufferHeapBytes = _setting.Graphics.BufferHeapByteCount > 0
             ? _setting.Graphics.BufferHeapByteCount
             : (_setting.HasGPU ? 64ul * 1024 * 1024 : 1ul * 1024 * 1024);
-        _renderingSystem = new RenderingSystem(_graphicsDevice, textureHeapBytes, bufferHeapBytes);
+        ulong uploadStagingBytes = _setting.Graphics.UploadStagingByteCount > 0
+            ? _setting.Graphics.UploadStagingByteCount
+            : (_setting.HasGPU ? 16ul * 1024 * 1024 : 1ul * 1024 * 1024);
+        _renderingSystem = new RenderingSystem(_graphicsDevice, textureHeapBytes, bufferHeapBytes, uploadStagingByteCount: uploadStagingBytes);
 
         _shaderSystem = _renderingSystem.CreateShaderSystem(new ShaderCompilerOptions
         {
@@ -307,6 +320,7 @@ IDisposable
         });
 
         _glyphCache = new GlyphCache(_renderingSystem);
+        _imageUploadQueue = new ImageUploadQueue(_renderingSystem);
 
         _builtInAssets = new BuiltInAssets(_assetSystem, _shaderSystem);
 
@@ -467,6 +481,10 @@ IDisposable
         using var timing = EngineTimingEventSource.Instance.Begin(isTick: false);
         _profiler.Update(Stopwatch.GetTimestamp());
 
+        // Reclaim completed GPU uploads and pump budgeted streaming texture uploads before callbacks.
+        _renderingSystem.Tick();
+        _imageUploadQueue.Pump();
+
         // Process any callbacks queued for the main thread
         _synchronizationContext.ProcessCallbacks();
 
@@ -554,6 +572,7 @@ IDisposable
         MainView.Close();
         _platform.Dispose();
         _captureReadback.Dispose();
+        _imageUploadQueue.Dispose();
 
         EventOnDispose?.Invoke();
         _glyphCache.Dispose();

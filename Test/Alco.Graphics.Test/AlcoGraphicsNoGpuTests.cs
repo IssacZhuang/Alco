@@ -457,6 +457,127 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
+    /// <summary>Verifies configurable upload staging capacity, double-buffered tiling flushes, and UploadTexture/ReadTexture validation.</summary>
+    [Test]
+    public void NoGpu_UploadStagingDoubleBufferAndReadTextureValidation()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        try
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                new RenderingSystem(device, textureHeapByteCount: 1024 * 1024, uploadStagingByteCount: 8));
+
+            RenderingSystem defaultSystem = new(device, textureHeapByteCount: 1024 * 1024);
+            try
+            {
+                Assert.That(defaultSystem.UploadStagingByteCount, Is.EqualTo(16ul * 1024 * 1024));
+            }
+            finally
+            {
+                defaultSystem.Destroy();
+            }
+
+            RenderingSystem system = new(
+                device,
+                textureHeapByteCount: 1024 * 1024,
+                bufferHeapByteCount: 1024 * 1024,
+                uploadStagingByteCount: 1025);
+            try
+            {
+                Assert.That(system.UploadStagingByteCount, Is.EqualTo(1040ul));
+
+                Texture noDestination = system.CreateTexture(new TextureDesc
+                {
+                    Extent = new Extent3D(4, 4, 1),
+                    Format = Format.Rgba8Unorm,
+                    Usage = TextureUsage.Sampled,
+                });
+                Texture uploadOnly = system.CreateTexture(new TextureDesc
+                {
+                    Extent = new Extent3D(4, 4, 1),
+                    Format = Format.Rgba8Unorm,
+                    Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
+                });
+                Texture readWrite = system.CreateTexture(new TextureDesc
+                {
+                    Extent = new Extent3D(4, 4, 1),
+                    Format = Format.Rgba8Unorm,
+                    Usage = TextureUsage.Sampled | TextureUsage.TransferDestination | TextureUsage.TransferSource,
+                });
+                try
+                {
+                    byte[] pixels = new byte[4 * 4 * 4];
+                    Assert.Throws<InvalidOperationException>(() => system.UploadTexture(noDestination, pixels));
+                    Assert.Throws<InvalidOperationException>(() => system.ReadTexture(uploadOnly, pixels));
+                    Assert.Throws<ArgumentException>(() => system.ReadTexture(readWrite, new byte[4]));
+
+                    system.UploadTexture(readWrite, pixels);
+                    byte[] readback = new byte[4 * 4 * 4];
+                    system.ReadTexture(readWrite, readback);
+
+                    readWrite.Destroy();
+                    Assert.Throws<ObjectDisposedException>(() => system.UploadTexture(readWrite, pixels));
+                    Assert.Throws<ObjectDisposedException>(() => system.ReadTexture(readWrite, readback));
+                }
+                finally
+                {
+                    if (!readWrite.IsDestroyed)
+                        readWrite.Destroy();
+                    uploadOnly.Destroy();
+                    noDestination.Destroy();
+                }
+
+                // Double-buffered UploadQueue splits uploads exceeding capacity at half-capacity batch boundaries.
+                UploadQueue tiledQueue = new(device, capacity: 64, maxPendingBatches: 2);
+                GPUTextureHeap tileHeap = device.CreateTextureHeap(device.GetTextureSizeAlign(new TextureDesc
+                {
+                    Extent = new Extent3D(4, 8, 1),
+                    Format = Format.Rgba8Unorm,
+                    Usage = TextureUsage.TransferDestination,
+                }).Size);
+                GPUTexture tileTarget = device.CreateTexture(new TextureDesc
+                {
+                    Extent = new Extent3D(4, 8, 1),
+                    Format = Format.Rgba8Unorm,
+                    Usage = TextureUsage.TransferDestination,
+                }, tileHeap, 0);
+                try
+                {
+                    tiledQueue.InitializeTexture(tileTarget);
+                    TextureUpload.UploadTexture(
+                        tiledQueue,
+                        tileTarget,
+                        new TextureDesc
+                        {
+                            Extent = new Extent3D(4, 8, 1),
+                            Format = Format.Rgba8Unorm,
+                            Usage = TextureUsage.TransferDestination,
+                        },
+                        new byte[4 * 8 * 4]);
+                    tiledQueue.Wait();
+                    UploadQueueStats stats = tiledQueue.Stats;
+                    Assert.That(stats.Submissions, Is.GreaterThanOrEqualTo(2ul));
+                    Assert.That(stats.PeakBytes, Is.LessThanOrEqualTo(64ul));
+                    Assert.That(stats.BytesInUse, Is.Zero);
+                }
+                finally
+                {
+                    tiledQueue.Destroy();
+                    tileTarget.Destroy();
+                    tileHeap.Destroy();
+                }
+            }
+            finally
+            {
+                system.Destroy();
+            }
+        }
+        finally
+        {
+            device.Destroy();
+        }
+    }
+
     private readonly struct GPUDeviceScope(GPUDevice device) : IDisposable
     {
         public GPUDevice Device { get; } = device;

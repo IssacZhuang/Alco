@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 
 namespace Alco.Rendering;
 
@@ -158,7 +159,7 @@ public static unsafe class ImageUtility
             (uint)mipLevels);
         try
         {
-            TextureUtility.UploadDdsMipChain(system, texture, fileBytes, dataOffset, width, height, mipLevels, blockBytes);
+            UploadDdsMipChain(system, texture, fileBytes, dataOffset, width, height, mipLevels, blockBytes);
             return new Image(texture, optionReal, sprites, ownsResource: true);
         }
         catch
@@ -172,38 +173,23 @@ public static unsafe class ImageUtility
     }
 
     /// <summary>
-    /// Creates an <see cref="Image"/> whose texel content streams in asynchronously while keeping its asset identity fixed.
-    /// Stream ownership transfers to the streaming task on success; on header probe failure the caller retains ownership.
+    /// Creates an <see cref="Image"/> whose texel content decodes in the background and uploads in budget slices via <paramref name="uploadQueue"/>.
+    /// Stream ownership transfers on success; on header probe failure the caller retains ownership.
     /// </summary>
-    /// <param name="system">The graphics rendering system.</param>
+    /// <param name="uploadQueue">The streaming image upload queue.</param>
     /// <param name="stream">A seekable stream positioned at the start of the image file.</param>
     /// <param name="option">Optional import settings.</param>
     /// <param name="sprites">Optional named sprite regions in pixel coordinates.</param>
     /// <returns>A new <see cref="Image"/> whose <see cref="Image.ContentArrival"/> tracks upload completion.</returns>
     /// <exception cref="ImageDecodeException">Unrecognized, truncated, or corrupt header.</exception>
     public static Image CreateStreaming(
-        RenderingSystem system,
+        ImageUploadQueue uploadQueue,
         Stream stream,
         ImageLoadOption? option = null,
         IReadOnlyDictionary<string, RectInt>? sprites = null)
     {
-        ArgumentNullException.ThrowIfNull(system);
-        ArgumentNullException.ThrowIfNull(stream);
-
-        ImageLoadOption optionReal = option ?? ImageLoadOption.Default;
-        bool srgb = TextureUtility.IsSrgbFormat(optionReal.Format);
-        ImageFileInfo info = ImageDecodeUtility.GetImageFileInfo(stream, srgb);
-        try
-        {
-            Image image = CreateFromHeader(system, info, optionReal, sprites);
-            image.SetContentUpload(StreamContentAsync(system, image, stream, optionReal));
-            return image;
-        }
-        catch
-        {
-            stream.Dispose();
-            throw;
-        }
+        ArgumentNullException.ThrowIfNull(uploadQueue);
+        return uploadQueue.CreateStreaming(stream, option, sprites);
     }
 
     /// <summary>Wraps an existing GPU <see cref="Texture"/> as an <see cref="Image"/> asset.</summary>
@@ -358,29 +344,31 @@ public static unsafe class ImageUtility
         lock (image.UploadLock)
         {
             ObjectDisposedException.ThrowIf(image.IsDisposed, image);
-            TextureUtility.UploadDdsMipChain(system, target, fileBytes, dataOffset, width, height, mipLevels, blockBytes);
+            UploadDdsMipChain(system, target, fileBytes, dataOffset, width, height, mipLevels, blockBytes);
             image.MarkContentLoaded();
         }
     }
 
-    private static async Task StreamContentAsync(RenderingSystem system, Image image, Stream stream, ImageLoadOption option)
+    private static void UploadDdsMipChain(
+        RenderingSystem system,
+        Texture target,
+        ReadOnlySpan<byte> fileBytes,
+        int dataOffset,
+        int width,
+        int height,
+        int mipLevels,
+        uint blockBytes)
     {
-        try
+        int offset = dataOffset;
+        for (int level = 0; level < mipLevels; level++)
         {
-            await Task.Run(() =>
-            {
-                using (stream)
-                {
-                    using var fileData = new SafeMemoryHandle(stream.Length);
-                    stream.Position = 0;
-                    stream.ReadExactly(fileData.AsSpan());
-                    UploadContent(system, image, fileData.AsReadOnlySpan(), option);
-                }
-            }).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"Failed to stream image '{image.Name}': {ex.Message}");
+            uint byteCount = DdsDecoder.GetMipByteCount(width, height, level, blockBytes);
+            TextureUtility.UploadTextureData(
+                system,
+                target,
+                fileBytes.Slice(offset, checked((int)byteCount)),
+                new TextureCopyDesc { MipLevel = (uint)level });
+            offset += (int)byteCount;
         }
     }
 

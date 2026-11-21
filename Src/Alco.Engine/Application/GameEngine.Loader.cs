@@ -27,7 +27,7 @@ public partial class GameEngine
         // image — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
-            yield return new AssetLoaderImage(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
+            yield return new AssetLoaderImage(ImageUploadQueue, AssetSystem, Setting.TypeInfoResolver);
         }
         else
         {

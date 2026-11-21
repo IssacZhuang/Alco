@@ -10,10 +10,6 @@ namespace Alco.Rendering;
 /// </summary>
 public static unsafe class TextureUtility
 {
-    private const ulong MinStagingBytes = 4096;
-    private const ulong MaxStagingBytes = 4UL * 1024 * 1024;
-    private static readonly Lock s_uploadLock = new();
-
     /// <summary>Returns whether the device supports BC-family block-compressed textures.</summary>
     /// <param name="system">The graphics rendering system.</param>
     /// <returns><c>true</c> when BC textures are supported; otherwise, <c>false</c>.</returns>
@@ -165,42 +161,7 @@ public static unsafe class TextureUtility
         in TextureCopyDesc copy = default)
     {
         ArgumentNullException.ThrowIfNull(system);
-        ArgumentNullException.ThrowIfNull(target);
-        if (target.IsDestroyed)
-        {
-            throw new ObjectDisposedException(nameof(Texture), "Cannot upload data to a destroyed texture.");
-        }
-        if ((target.Desc.Usage & TextureUsage.TransferDestination) == 0)
-        {
-            throw new InvalidOperationException("Texture must be created with TextureUsage.TransferDestination to receive uploads.");
-        }
-        if (data.IsEmpty)
-        {
-            return;
-        }
-
-        TextureDesc desc = target.Desc;
-        TextureFormatInfo formatInfo = Gpu.GetTextureFormatInfo(desc.Format);
-        uint copyWidth = copy.Extent.X != 0 ? copy.Extent.X : Math.Max(1u, desc.Extent.X >> (int)copy.MipLevel);
-        ulong blocksX = (copyWidth + formatInfo.BlockExtent.X - 1) / formatInfo.BlockExtent.X;
-        ulong minRowBytes = blocksX * formatInfo.BytesPerBlock;
-        ulong stagingBytes = AlignStagingCapacity(Math.Max(TextureUpload.GetSizeBytes(desc, copy), minRowBytes), minRowBytes);
-
-        lock (s_uploadLock)
-        {
-            system.FlushInitializations();
-            UploadQueue? queue = null;
-            try
-            {
-                queue = new UploadQueue(system.Device, stagingBytes, queueIndex: 0, maxPendingBatches: 1);
-                TextureUpload.UploadTexture(queue, target.NativeTexture, desc, data, copy);
-                queue.Wait();
-            }
-            finally
-            {
-                queue?.Destroy();
-            }
-        }
+        system.UploadTexture(target, data, copy);
     }
 
     /// <summary>Uploads a full CPU bitmap into a GPU <see cref="Texture"/>.</summary>
@@ -310,84 +271,23 @@ public static unsafe class TextureUtility
         int width = checked((int)texture.Extent.X);
         int height = checked((int)texture.Extent.Y);
         int dataSize = checked(width * height * 4);
-        GPUDevice device = system.Device;
-
-        GPUHeap readback = default;
-        GPUCommandPool? pool = null;
-        GPUTimelineSemaphore? timeline = null;
+        byte* pixels = Alloc<byte>(dataSize);
         try
         {
-            lock (s_uploadLock)
-            {
-                system.FlushInitializations();
-                readback = device.CreateGPUHeap((ulong)dataSize, MemoryType.Readback);
-                pool = device.CreateCommandPool(0);
-                timeline = device.CreateTimelineSemaphore();
-                GPUCommandBuffer commands = pool.BeginCommands();
-                commands.Barrier(Stage.AllCommands, Access.ShaderRead | Access.TransferWrite, Stage.Transfer, Access.TransferRead);
-                commands.CopyTextureToMemory(texture.NativeTexture, readback.Range.GPURange);
-                commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-                commands.EndCommands();
-                TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
-                device.Submit(new SubmitDesc { Commands = [commands], Completion = completion });
-                completion.Wait();
-            }
-
-            ImageEncodeUtility.WritePng(new ReadOnlySpan<byte>(readback.Range.Cpu, dataSize), width, height, output);
+            system.ReadTexture(texture, new Span<byte>(pixels, dataSize));
+            ImageEncodeUtility.WritePng(new ReadOnlySpan<byte>(pixels, dataSize), width, height, output);
         }
         finally
         {
-            timeline?.Destroy();
-            pool?.Destroy();
-            readback.Destroy();
+            Free(pixels);
         }
     }
 
-    internal static void UploadDdsMipChain(
-        RenderingSystem system,
-        Texture target,
-        ReadOnlySpan<byte> fileBytes,
-        int dataOffset,
-        int width,
-        int height,
-        int mipLevels,
-        uint blockBytes)
-    {
-        TextureDesc desc = target.Desc;
-        uint largestMipBytes = DdsDecoder.GetMipByteCount(width, height, 0, blockBytes);
-        uint topBlocksX = ((uint)width + 3u) / 4u;
-        ulong minRowBytes = (ulong)topBlocksX * blockBytes;
-        ulong stagingBytes = AlignStagingCapacity(largestMipBytes, minRowBytes);
-
-        lock (s_uploadLock)
-        {
-            system.FlushInitializations();
-            UploadQueue? queue = null;
-            try
-            {
-                queue = new UploadQueue(system.Device, stagingBytes, queueIndex: 0, maxPendingBatches: 1);
-                int offset = dataOffset;
-                for (int level = 0; level < mipLevels; level++)
-                {
-                    uint byteCount = DdsDecoder.GetMipByteCount(width, height, level, blockBytes);
-                    TextureUpload.UploadTexture(
-                        queue,
-                        target.NativeTexture,
-                        desc,
-                        fileBytes.Slice(offset, checked((int)byteCount)),
-                        new TextureCopyDesc { MipLevel = (uint)level });
-                    offset += (int)byteCount;
-                }
-                queue.Wait();
-            }
-            finally
-            {
-                queue?.Destroy();
-            }
-        }
-    }
-
-    internal static bool TryGetBlockBytes(Format format, out uint blockBytes)
+    /// <summary>Gets the byte size per compressed 4x4 block for a block-compressed pixel format.</summary>
+    /// <param name="format">The pixel format to inspect.</param>
+    /// <param name="blockBytes">When this method returns <c>true</c>, the bytes per compressed block; otherwise, <c>0</c>.</param>
+    /// <returns><c>true</c> when <paramref name="format"/> is block-compressed; otherwise, <c>false</c>.</returns>
+    public static bool TryGetBlockBytes(Format format, out uint blockBytes)
     {
         TextureFormatInfo info = Gpu.GetTextureFormatInfo(format);
         if (info.BlockExtent.X <= 1 && info.BlockExtent.Y <= 1)
@@ -400,7 +300,10 @@ public static unsafe class TextureUtility
         return blockBytes > 0;
     }
 
-    internal static bool IsSrgbFormat(Format format) => format switch
+    /// <summary>Returns whether <paramref name="format"/> uses an sRGB transfer function.</summary>
+    /// <param name="format">The pixel format to inspect.</param>
+    /// <returns><c>true</c> when the format is sRGB; otherwise, <c>false</c>.</returns>
+    public static bool IsSrgbFormat(Format format) => format switch
     {
         Format.R8Srgb or
         Format.Rg8Srgb or
@@ -413,12 +316,4 @@ public static unsafe class TextureUtility
         Format.Bc7Srgb => true,
         _ => false,
     };
-
-    private static ulong AlignStagingCapacity(ulong desiredBytes, ulong minRowBytes)
-    {
-        ulong clamped = Math.Min(desiredBytes, MaxStagingBytes);
-        ulong minimum = Math.Max(MinStagingBytes, minRowBytes);
-        ulong capacity = Math.Max(clamped, minimum);
-        return (capacity + (UploadQueue.Alignment - 1)) & ~(UploadQueue.Alignment - 1);
-    }
 }

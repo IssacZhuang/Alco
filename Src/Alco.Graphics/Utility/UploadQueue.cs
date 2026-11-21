@@ -46,6 +46,7 @@ public sealed unsafe class UploadQueue
         public GPUCommandBuffer? Commands = null;
         public ulong Head = 0;
         public ulong Tail = 0;
+        public ulong BatchStart = 0;
         public Batch[]? Batches = null;
         public uint MaxPendingBatches = 0;
         public uint QueueIndex = 0;
@@ -178,7 +179,13 @@ public sealed unsafe class UploadQueue
             ulong offset = (state.Head % storage.SizeBytes + Alignment - 1) & ~(Alignment - 1);
             if (byteSize > storage.SizeBytes - offset) offset = storage.SizeBytes;
             ulong start = state.Head - state.Head % storage.SizeBytes + offset;
-            if (state.Head == state.Tail && state.RetirementCount == 0) { state.Head = start; state.Tail = start; }
+            if (state.Head == state.Tail && state.RetirementCount == 0)
+            {
+                state.Head = start;
+                state.Tail = start;
+                if (state.Commands == null)
+                    state.BatchStart = start;
+            }
             if (start + byteSize - state.Tail <= storage.SizeBytes)
             {
                 state.Head = start + byteSize;
@@ -305,6 +312,7 @@ public sealed unsafe class UploadQueue
         ++state.Submissions;
         state.Commands = null;
         state.OperationCount = 0;
+        state.BatchStart = state.Head;
         return state.Completion;
     }
 

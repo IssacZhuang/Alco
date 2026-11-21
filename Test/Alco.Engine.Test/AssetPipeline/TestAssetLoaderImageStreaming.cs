@@ -110,6 +110,7 @@ public class TestAssetLoaderImageStreaming
 
     private GPUDevice _device;
     private RenderingSystem _renderingSystem;
+    private ImageUploadQueue _imageUploadQueue;
     private LifeCycleProvider _lifeCycle;
     private AssetSystem _assetSystem;
     private TestFileSource _fileSource;
@@ -120,12 +121,13 @@ public class TestAssetLoaderImageStreaming
     {
         _device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU, Headless = true });
         _renderingSystem = new RenderingSystem(_device, textureHeapByteCount: 4 * 1024 * 1024, bufferHeapByteCount: 1 * 1024 * 1024);
+        _imageUploadQueue = new ImageUploadQueue(_renderingSystem);
 
         _lifeCycle = new LifeCycleProvider();
         _assetSystem = new AssetSystem(_lifeCycle);
         _fileSource = new TestFileSource();
         _assetSystem.AddFileSource(_fileSource);
-        _assetSystem.RegisterAssetLoader(new AssetLoaderImage(_renderingSystem, _assetSystem));
+        _assetSystem.RegisterAssetLoader(new AssetLoaderImage(_imageUploadQueue, _assetSystem));
         _assetSystem.RegisterAssetLoader(new AssetLoaderMeta(new JsonSerializerOptions
         {
             AllowTrailingCommas = true,
@@ -138,6 +140,7 @@ public class TestAssetLoaderImageStreaming
     public void TearDown()
     {
         _device.WaitIdle();
+        _imageUploadQueue?.Dispose();
         _lifeCycle?.Dispose();
         _fileSource?.Dispose();
         _renderingSystem?.Destroy();
@@ -165,8 +168,8 @@ public class TestAssetLoaderImageStreaming
         Assert.That(SpinWait.SpinUntil(() => _fileSource.OpenedStreams[0].Disposed, TimeSpan.FromSeconds(10)), Is.True);
 
         // Content arrived in place: the identity never changed.
+        PumpUntilArrived(image);
         Assert.That(image.Texture, Is.SameAs(gpuTexture));
-        Assert.That(image.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
         Assert.That(image.IsContentLoaded, Is.True);
     }
 
@@ -187,8 +190,8 @@ public class TestAssetLoaderImageStreaming
         Texture gpuTexture = image.Texture;
         Assert.That(_fileSource.OpenedStreams, Has.Count.EqualTo(1));
         Assert.That(SpinWait.SpinUntil(() => _fileSource.OpenedStreams[0].Disposed, TimeSpan.FromSeconds(10)), Is.True);
+        PumpUntilArrived(image);
         Assert.That(image.Texture, Is.SameAs(gpuTexture));
-        Assert.That(image.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
         Assert.That(image.IsContentLoaded, Is.True);
     }
 
@@ -248,7 +251,7 @@ public class TestAssetLoaderImageStreaming
         Assert.That(first.SlicePadding, Is.EqualTo(new Padding(2, 4, 6, 8)));
         Assert.That(first.TryGetSprite("tile", out Sprite? tileSprite), Is.True);
         Assert.That(tileSprite!.UvRect, Is.EqualTo(new Rect(0, 0, 0.5f, 0.5f)));
-        Assert.That(first.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        PumpUntilArrived(first);
 
         using ManualResetEventSlim reloadedEvent = new(false);
         object? eventAsset = null;
@@ -264,9 +267,19 @@ public class TestAssetLoaderImageStreaming
         Image second = _assetSystem.Load<Image>("textures/wall.png");
         Assert.That(second, Is.Not.SameAs(first));
         Assert.That(second, Is.SameAs(eventAsset));
-        Assert.That(second.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
+        PumpUntilArrived(second);
         Assert.That(first.IsDisposed, Is.False);
         Assert.That(first.Texture.IsDestroyed, Is.False);
         first.Dispose();
+    }
+
+    private void PumpUntilArrived(Image image)
+    {
+        bool completed = SpinWait.SpinUntil(() =>
+        {
+            _imageUploadQueue.Pump();
+            return image.ContentArrival.IsCompleted;
+        }, TimeSpan.FromSeconds(10));
+        Assert.That(completed, Is.True, $"Timed out waiting for '{image.Name}' streaming upload.");
     }
 }

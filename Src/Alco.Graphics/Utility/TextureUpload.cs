@@ -74,7 +74,15 @@ public static unsafe class TextureUpload
         Extent3D granularity = queue._state.TextureGranularity;
         if (!volume) granularity.Z = 1;
         if (format.Depth || format.Stencil) granularity = new Extent3D(columns, rows, volume ? slices : 1);
-        Extent3D tile = TextureUploadTile(new Extent3D(columns, rows, slices), granularity, format.BytesPerBlock, capacity);
+        uint maxPendingBatches = queue._state.MaxPendingBatches;
+        Extent3D tile = TextureUploadTile(
+            new Extent3D(columns, rows, slices),
+            granularity,
+            format.BytesPerBlock,
+            capacity,
+            maxPendingBatches,
+            out ulong tileBudget);
+        ulong totalBytes = rowBytes * rows * slices;
 
         fixed (byte* sourceData = source)
         {
@@ -100,7 +108,15 @@ public static unsafe class TextureUpload
                         if (part.Extent.X > region.Extent.X - column * format.BlockExtent.X) part.Extent.X = region.Extent.X - column * format.BlockExtent.X;
                         ulong packedRowBytes = (ulong)partColumns * format.BytesPerBlock;
                         ulong packedSliceBytes = packedRowBytes * partRows;
-                        GPUAllocation<byte> staging = queue.Reserve(packedSliceBytes * partSlices);
+                        ulong tileBytes = packedSliceBytes * partSlices;
+                        ulong alignedTileBytes = (tileBytes + UploadQueue.Alignment - 1) & ~(UploadQueue.Alignment - 1);
+                        if (maxPendingBatches > 1 && totalBytes > capacity && queue._state.Commands != null
+                            && queue._state.Head > queue._state.BatchStart
+                            && (queue._state.Head - queue._state.BatchStart) + alignedTileBytes > tileBudget)
+                        {
+                            queue.Flush();
+                        }
+                        GPUAllocation<byte> staging = queue.Reserve(tileBytes);
                         byte* input = sourceData + slice * slicePitch + row * rowPitch + (ulong)column * format.BytesPerBlock;
                         CopyRows(input, staging.Cpu, packedRowBytes, partRows, partSlices, rowPitch, slicePitch);
                         queue.Begin().CopyMemoryToTexture(staging.GPURange, destination, part);
@@ -160,7 +176,13 @@ public static unsafe class TextureUpload
         }
     }
 
-    private static Extent3D TextureUploadTile(Extent3D blocks, Extent3D granularity, uint bytesPerBlock, ulong capacity)
+    private static Extent3D TextureUploadTile(
+        Extent3D blocks,
+        Extent3D granularity,
+        uint bytesPerBlock,
+        ulong capacity,
+        uint maxPendingBatches,
+        out ulong tileBudget)
     {
         if (granularity.X == 0) granularity.X = blocks.X;
         if (granularity.Y == 0) granularity.Y = blocks.Y;
@@ -175,14 +197,18 @@ public static unsafe class TextureUpload
         if (capacity < minimumBytes)
             throw new InvalidOperationException($"Texture upload requires at least {minimumBytes} bytes of staging capacity for one legal copy, " +
                 $"but the queue has {capacity} bytes.");
+        ulong perBatchShare = maxPendingBatches > 1
+            ? (capacity / maxPendingBatches) & ~(UploadQueue.Alignment - 1)
+            : capacity;
+        tileBudget = Math.Max(minimumBytes, perBatchShare);
         Extent3D tile = default;
-        ulong limit = capacity / ((ulong)minimum.Y * minimum.Z * bytesPerBlock);
+        ulong limit = tileBudget / ((ulong)minimum.Y * minimum.Z * bytesPerBlock);
         tile.X = limit < blocks.X ? (uint)limit : blocks.X;
         if (tile.X < blocks.X) tile.X -= tile.X % granularity.X;
-        limit = capacity / ((ulong)tile.X * minimum.Z * bytesPerBlock);
+        limit = tileBudget / ((ulong)tile.X * minimum.Z * bytesPerBlock);
         tile.Y = limit < blocks.Y ? (uint)limit : blocks.Y;
         if (tile.Y < blocks.Y) tile.Y -= tile.Y % granularity.Y;
-        limit = capacity / ((ulong)tile.X * tile.Y * bytesPerBlock);
+        limit = tileBudget / ((ulong)tile.X * tile.Y * bytesPerBlock);
         tile.Z = limit < blocks.Z ? (uint)limit : blocks.Z;
         if (tile.Z < blocks.Z) tile.Z -= tile.Z % granularity.Z;
         return tile;

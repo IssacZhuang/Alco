@@ -22,7 +22,7 @@ public enum PipelineMissPolicy : byte
 /// <remarks>Initialize and destroy with exclusive access; keep the device alive until destruction.</remarks>
 public sealed class RenderingSystem
 {
-    private const ulong DefaultUploadStagingByteCount = 4 * 1024 * 1024;
+    private const ulong DefaultUploadStagingByteCount = 16 * 1024 * 1024;
 
     private readonly GPUDevice _device;
     private readonly GPUHeapPool _bufferPool;
@@ -42,6 +42,7 @@ public sealed class RenderingSystem
     private readonly Lock _textureLock = new();
     private readonly Lock _samplerLock = new();
     private readonly Lock _releaseLock = new();
+    private readonly Lock _initializationLock = new();
     private readonly Lock _uploadLock = new();
     private readonly Lock _queueZeroSubmitLock = new();
     private readonly Lock _shaderLock = new();
@@ -67,9 +68,12 @@ public sealed class RenderingSystem
     /// <param name="textureHeapByteCount">The initial texture heap size in bytes; storage grows without moving live textures.</param>
     /// <param name="bufferHeapByteCount">The initial buffer heap size, a positive multiple of 16 bytes; live buffers never move.</param>
     /// <param name="bufferCapacity">The initial buffer allocation metadata capacity, not a live allocation limit.</param>
+    /// <param name="uploadStagingByteCount">The upload staging ring capacity in bytes, aligned up to 16 bytes.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="uploadStagingByteCount"/> is smaller than the minimum staging alignment.</exception>
     /// <exception cref="GPUException">A system-owned GPU resource could not be created.</exception>
     public RenderingSystem(GPUDevice device, ulong textureHeapByteCount,
-        ulong bufferHeapByteCount = 64 * 1024 * 1024, uint bufferCapacity = 1024)
+        ulong bufferHeapByteCount = 64 * 1024 * 1024, uint bufferCapacity = 1024,
+        ulong uploadStagingByteCount = DefaultUploadStagingByteCount)
         : this(device, new HeapPoolDesc
         {
             InitialHeapSize = bufferHeapByteCount,
@@ -79,7 +83,7 @@ public sealed class RenderingSystem
         {
             InitialHeapSize = textureHeapByteCount,
             MaxHeapSize = Math.Max(textureHeapByteCount, 256UL * 1024 * 1024),
-        })
+        }, uploadStagingByteCount)
     {
     }
 
@@ -87,11 +91,22 @@ public sealed class RenderingSystem
     /// <param name="device">The device; it must outlive this system.</param>
     /// <param name="bufferPool">The buffer storage growth policy and byte budget.</param>
     /// <param name="texturePool">The texture storage growth policy and byte budget, including the default white texture.</param>
+    /// <param name="uploadStagingByteCount">The upload staging ring capacity in bytes, aligned up to 16 bytes.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="uploadStagingByteCount"/> is smaller than the minimum staging alignment.</exception>
     /// <exception cref="InvalidOperationException">The texture pool budget cannot accommodate the default white texture.</exception>
     /// <exception cref="GPUException">A system-owned GPU resource could not be created.</exception>
-    public RenderingSystem(GPUDevice device, in HeapPoolDesc bufferPool, in HeapPoolDesc texturePool)
+    public RenderingSystem(GPUDevice device, in HeapPoolDesc bufferPool, in HeapPoolDesc texturePool,
+        ulong uploadStagingByteCount = DefaultUploadStagingByteCount)
     {
         Debug.Assert(device != null);
+        if (uploadStagingByteCount < UploadQueue.Alignment || uploadStagingByteCount > ulong.MaxValue - (UploadQueue.Alignment - 1))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(uploadStagingByteCount),
+                uploadStagingByteCount,
+                $"Upload staging capacity must be at least {UploadQueue.Alignment} bytes.");
+        }
+        ulong alignedUploadStaging = (uploadStagingByteCount + (UploadQueue.Alignment - 1)) & ~(UploadQueue.Alignment - 1);
 
         TextureHeapPool textures = new(device, texturePool);
         GPUHeapPool? buffers = null;
@@ -115,7 +130,7 @@ public sealed class RenderingSystem
 
             unsafe
             {
-                uploadQueue = _uploadQueue = new UploadQueue(device, DefaultUploadStagingByteCount);
+                uploadQueue = _uploadQueue = new UploadQueue(device, alignedUploadStaging);
                 _uploadQueue.SetSubmitCallback(SubmitUploadBatch);
             }
             _uploadTimeline = _uploadQueue.Flush();
@@ -127,8 +142,7 @@ public sealed class RenderingSystem
                 Format = Format.Rgba8Unorm,
                 Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
             });
-            InitializeTexture(textureWhite.Initialization);
-            _uploadQueue.UploadTexture(textureWhite.NativeTexture, [0xff, 0xff, 0xff, 0xff]);
+            UploadTexture(textureWhite, [0xff, 0xff, 0xff, 0xff]);
             samplers = _samplers = new SharedSamplers(this);
             _frameTimeline = device.CreateTimelineSemaphore();
         }
@@ -149,6 +163,9 @@ public sealed class RenderingSystem
 
     /// <summary>The device that owns the heaps and created resources.</summary>
     public GPUDevice Device => _device;
+
+    /// <summary>The capacity of the system-owned upload staging ring in bytes.</summary>
+    public ulong UploadStagingByteCount => _uploadQueue.Stats.Capacity;
 
     /// <summary>The bindless texture descriptor heap that records bind through <see cref="GPUCommandBuffer.SetTextureDescriptorHeap"/>.</summary>
     public GPUTextureDescriptorHeap TextureDescriptorHeap => _textureDescriptors;
@@ -225,22 +242,120 @@ public sealed class RenderingSystem
     /// <param name="copy">The destination mip, slices, region, and source memory pitches; default writes full mip zero.</param>
     public void UploadTexture(Texture texture, ReadOnlySpan<byte> source, in TextureCopyDesc copy = default)
     {
-        Debug.Assert(!_destroyed && texture != null && !texture.IsDestroyed && texture.System == this);
-        Debug.Assert((texture.Desc.Usage & TextureUsage.TransferDestination) != 0);
+        ArgumentNullException.ThrowIfNull(texture);
+        ObjectDisposedException.ThrowIf(_destroyed, this);
+        ObjectDisposedException.ThrowIf(texture.IsDestroyed, texture);
+        if (texture.System != this)
+            throw new ArgumentException("The texture does not belong to this rendering system.", nameof(texture));
+        if ((texture.Desc.Usage & TextureUsage.TransferDestination) == 0)
+            throw new InvalidOperationException("Texture must be created with TextureUsage.TransferDestination to receive uploads.");
         if (source.IsEmpty)
             return;
 
         lock (_uploadLock)
         {
-            if (texture.Initialization.Index >= 0)
-                InitializeTexture(texture.Initialization);
-            TextureUpload.UploadTexture(_uploadQueue, texture.NativeTexture, texture.Desc, source, copy);
-            UploadQueueStats stats = _uploadQueue.Stats;
-            texture.Initialization.Completion = new TimelinePoint
+            TimelinePoint previousCompletion;
+            bool needsInit;
+            lock (_initializationLock)
             {
-                Semaphore = _uploadTimeline.Semaphore,
-                Value = stats.PendingOperations > 0 ? stats.Submissions + 1 : stats.Submissions,
-            };
+                previousCompletion = texture.Initialization.Completion;
+                needsInit = texture.Initialization.Index >= 0;
+                if (needsInit)
+                    RemoveInitialization(texture.Initialization);
+                // Guard against ReleaseTexture freeing the backing allocation while TextureUpload tiles or waits.
+                texture.Initialization.Completion = new TimelinePoint
+                {
+                    Semaphore = _uploadTimeline.Semaphore,
+                    Value = ulong.MaxValue,
+                };
+            }
+
+            UploadQueueStats before = _uploadQueue.Stats;
+            try
+            {
+                if (needsInit)
+                    _uploadQueue.InitializeTexture(texture.NativeTexture);
+                TextureUpload.UploadTexture(_uploadQueue, texture.NativeTexture, texture.Desc, source, copy);
+            }
+            finally
+            {
+                UploadQueueStats after = _uploadQueue.Stats;
+                TimelinePoint completion = after.Submissions != before.Submissions || after.PendingOperations != before.PendingOperations
+                    ? new TimelinePoint
+                    {
+                        Semaphore = _uploadTimeline.Semaphore,
+                        Value = after.PendingOperations > 0 ? after.Submissions + 1 : after.Submissions,
+                    }
+                    : previousCompletion;
+                lock (_initializationLock)
+                {
+                    texture.Initialization.Completion = completion;
+                }
+            }
+        }
+    }
+
+    /// <summary>Synchronously reads a texture region into tightly packed CPU memory on queue zero.</summary>
+    /// <param name="texture">The source texture created with <see cref="TextureUsage.TransferSource"/>.</param>
+    /// <param name="destination">The CPU destination buffer large enough for the tightly packed region bytes.</param>
+    /// <param name="copy">The source region to read back; defaults to full mip zero.</param>
+    public unsafe void ReadTexture(Texture texture, Span<byte> destination, in TextureCopyDesc copy = default)
+    {
+        ArgumentNullException.ThrowIfNull(texture);
+        ObjectDisposedException.ThrowIf(_destroyed, this);
+        ObjectDisposedException.ThrowIf(texture.IsDestroyed, texture);
+        if (texture.System != this)
+            throw new ArgumentException("The texture does not belong to this rendering system.", nameof(texture));
+        if ((texture.Desc.Usage & TextureUsage.TransferSource) == 0)
+            throw new InvalidOperationException("Texture must be created with TextureUsage.TransferSource to be read back.");
+
+        TextureDesc desc = texture.Desc;
+        if (copy.MipLevel >= desc.MipLevels)
+            throw new ArgumentOutOfRangeException(nameof(copy), copy.MipLevel, "Mip level exceeds the texture mip count.");
+
+        TextureFormatInfo format = Gpu.GetTextureFormatInfo(desc.Format);
+        Extent3D blocks = TextureUpload.GetRegionBlocks(desc, copy, format, out TextureCopyDesc region);
+        ulong byteCount = (ulong)blocks.X * blocks.Y * blocks.Z * format.BytesPerBlock;
+        if (byteCount == 0)
+            return;
+        if ((ulong)destination.Length < byteCount)
+            throw new ArgumentException(
+                $"Destination buffer ({destination.Length} bytes) is smaller than the texture region ({byteCount} bytes).",
+                nameof(destination));
+
+        FlushUploads();
+
+        GPUHeap readback = default;
+        GPUCommandPool? pool = null;
+        GPUTimelineSemaphore? timeline = null;
+        try
+        {
+            readback = _device.CreateGPUHeap(byteCount, MemoryType.Readback);
+            pool = _device.CreateCommandPool(0);
+            timeline = _device.CreateTimelineSemaphore();
+            GPUCommandBuffer commands = pool.BeginCommands();
+            commands.Barrier(
+                Stage.AllCommands,
+                Access.ShaderRead | Access.ShaderWrite | Access.ColorWrite | Access.DepthStencilWrite | Access.TransferWrite,
+                Stage.Transfer,
+                Access.TransferRead);
+            commands.CopyTextureToMemory(texture.NativeTexture, readback.Range.GPURange, region);
+            commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
+            commands.EndCommands();
+            TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
+            lock (_queueZeroSubmitLock)
+            {
+                _device.Submit(new SubmitDesc { Commands = [commands], Completion = completion });
+            }
+            completion.Wait();
+
+            new ReadOnlySpan<byte>(readback.Range.Cpu, checked((int)byteCount)).CopyTo(destination);
+        }
+        finally
+        {
+            timeline?.Destroy();
+            pool?.Destroy();
+            readback.Destroy();
         }
     }
 
@@ -252,8 +367,7 @@ public sealed class RenderingSystem
         Debug.Assert(!_destroyed);
         lock (_uploadLock)
         {
-            while (_initializations.Count != 0)
-                InitializeTexture(_initializations[^1]);
+            DrainInitializationsLocked();
             _uploadQueue.Reclaim();
             return _uploadQueue.Flush();
         }
@@ -339,16 +453,47 @@ public sealed class RenderingSystem
             device.Submit(new SubmitDesc { Commands = [commands], Completion = completion }, queueIndex);
     }
 
-    private void InitializeTexture(Texture.InitializationState state)
+    private void DrainInitializationsLocked()
     {
-        _uploadQueue.InitializeTexture(state.Texture);
-        UploadQueueStats stats = _uploadQueue.Stats;
-        state.Completion = new TimelinePoint
+        while (true)
         {
-            Semaphore = _uploadTimeline.Semaphore,
-            Value = stats.Submissions + 1,
-        };
-        RemoveInitialization(state);
+            Texture.InitializationState? state;
+            TimelinePoint previousCompletion;
+            lock (_initializationLock)
+            {
+                if (_initializations.Count == 0)
+                    return;
+                state = _initializations[^1];
+                previousCompletion = state.Completion;
+                RemoveInitialization(state);
+                state.Completion = new TimelinePoint
+                {
+                    Semaphore = _uploadTimeline.Semaphore,
+                    Value = ulong.MaxValue,
+                };
+            }
+
+            UploadQueueStats before = _uploadQueue.Stats;
+            try
+            {
+                _uploadQueue.InitializeTexture(state.Texture);
+            }
+            finally
+            {
+                UploadQueueStats after = _uploadQueue.Stats;
+                TimelinePoint completion = after.Submissions != before.Submissions || after.PendingOperations != before.PendingOperations
+                    ? new TimelinePoint
+                    {
+                        Semaphore = _uploadTimeline.Semaphore,
+                        Value = after.PendingOperations > 0 ? after.Submissions + 1 : after.Submissions,
+                    }
+                    : previousCompletion;
+                lock (_initializationLock)
+                {
+                    state.Completion = completion;
+                }
+            }
+        }
     }
 
     private void RemoveInitialization(Texture.InitializationState state)
@@ -459,7 +604,7 @@ public sealed class RenderingSystem
             ++_liveTextures;
         }
         Texture texture = new(this, desc, allocation, sampledIndex, storageIndex, storageMipIndices);
-        lock (_uploadLock)
+        lock (_initializationLock)
         {
             texture.Initialization.Index = _initializations.Count;
             _initializations.Add(texture.Initialization);
@@ -505,44 +650,57 @@ public sealed class RenderingSystem
         Debug.Assert(!_destroyed);
         if (Interlocked.CompareExchange(ref _ticking, 1, 0) != 0)
             return;
-        lock (_uploadLock)
+        try
         {
-            _uploadQueue.Reclaim();
+            if (_uploadLock.TryEnter())
+            {
+                try
+                {
+                    _uploadQueue.Reclaim();
+                }
+                finally
+                {
+                    _uploadLock.Exit();
+                }
+            }
             ReclaimTextures();
-        }
-        ulong completedValue;
-        lock (_releaseLock)
-        {
-            if (_postedReleases != null)
+            ulong completedValue;
+            lock (_releaseLock)
             {
-                foreach (PendingRelease entry in _postedReleases)
-                    _pendingReleases.Add(entry);
-                _postedReleases.Clear();
+                if (_postedReleases != null)
+                {
+                    foreach (PendingRelease entry in _postedReleases)
+                        _pendingReleases.Add(entry);
+                    _postedReleases.Clear();
+                }
+                completedValue = _submissionValue;
+                int pending = 0;
+                for (int index = 0; index < _submissions.Count; ++index)
+                {
+                    Submission entry = _submissions[index];
+                    bool completed = Completed(entry.Point);
+                    if (!completed)
+                        completedValue = Math.Min(completedValue, entry.Value - 1);
+                    if (!completed)
+                        _submissions[pending++] = entry;
+                }
+                _submissions.RemoveRange(pending, _submissions.Count - pending);
             }
-            completedValue = _submissionValue;
-            int pending = 0;
-            for (int index = 0; index < _submissions.Count; ++index)
+            int keep = 0;
+            for (int index = 0; index < _pendingReleases.Count; ++index)
             {
-                Submission entry = _submissions[index];
-                bool completed = Completed(entry.Point);
-                if (!completed)
-                    completedValue = Math.Min(completedValue, entry.Value - 1);
-                if (!completed)
-                    _submissions[pending++] = entry;
+                PendingRelease entry = _pendingReleases[index];
+                if (entry.RetireValue <= completedValue)
+                    entry.Target.Reclaim();
+                else
+                    _pendingReleases[keep++] = entry;
             }
-            _submissions.RemoveRange(pending, _submissions.Count - pending);
+            _pendingReleases.RemoveRange(keep, _pendingReleases.Count - keep);
         }
-        int keep = 0;
-        for (int index = 0; index < _pendingReleases.Count; ++index)
+        finally
         {
-            PendingRelease entry = _pendingReleases[index];
-            if (entry.RetireValue <= completedValue)
-                entry.Target.Reclaim();
-            else
-                _pendingReleases[keep++] = entry;
+            Volatile.Write(ref _ticking, 0);
         }
-        _pendingReleases.RemoveRange(keep, _pendingReleases.Count - keep);
-        Volatile.Write(ref _ticking, 0);
     }
 
     /// <summary>Destroys owned GPU resources after the device is idle; destroy other live wrappers first.</summary>
@@ -634,7 +792,7 @@ public sealed class RenderingSystem
     internal void ReleaseTexture(ref PlacedTexture allocation, uint sampledIndex, uint storageIndex, uint[]? storageMipIndices,
         Texture.InitializationState initialization)
     {
-        lock (_uploadLock)
+        lock (_initializationLock)
         {
             if (initialization.Index >= 0)
                 RemoveInitialization(initialization);
@@ -646,7 +804,7 @@ public sealed class RenderingSystem
                     SampledIndex = sampledIndex,
                     StorageIndex = storageIndex,
                     StorageMipIndices = storageMipIndices,
-                    Completion = initialization.Completion,
+                    Initialization = initialization,
                 });
                 allocation = default;
                 return;
@@ -657,16 +815,19 @@ public sealed class RenderingSystem
 
     private void ReclaimTextures()
     {
-        int keep = 0;
-        for (int index = 0; index < _textureReleases.Count; ++index)
+        lock (_initializationLock)
         {
-            PendingTextureRelease entry = _textureReleases[index];
-            if (Completed(entry.Completion))
-                FreeTexture(ref entry.Allocation, entry.SampledIndex, entry.StorageIndex, entry.StorageMipIndices);
-            else
-                _textureReleases[keep++] = entry;
+            int keep = 0;
+            for (int index = 0; index < _textureReleases.Count; ++index)
+            {
+                PendingTextureRelease entry = _textureReleases[index];
+                if (Completed(entry.Initialization.Completion))
+                    FreeTexture(ref entry.Allocation, entry.SampledIndex, entry.StorageIndex, entry.StorageMipIndices);
+                else
+                    _textureReleases[keep++] = entry;
+            }
+            _textureReleases.RemoveRange(keep, _textureReleases.Count - keep);
         }
-        _textureReleases.RemoveRange(keep, _textureReleases.Count - keep);
     }
 
     private void FreeTexture(ref PlacedTexture allocation, uint sampledIndex, uint storageIndex, ReadOnlySpan<uint> storageMipIndices)
@@ -721,7 +882,7 @@ public sealed class RenderingSystem
         internal uint SampledIndex;
         internal uint StorageIndex;
         internal uint[]? StorageMipIndices;
-        internal TimelinePoint Completion;
+        internal Texture.InitializationState Initialization;
     }
 
     private struct PendingRelease

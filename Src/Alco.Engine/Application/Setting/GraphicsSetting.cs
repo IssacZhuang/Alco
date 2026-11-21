@@ -47,6 +47,11 @@ public struct GraphicsSetting
     public ulong TextureHeapByteCount { get; set; }
 
     /// <summary>
+    /// Upload staging ring capacity in bytes reserved by the rendering system.
+    /// </summary>
+    public ulong UploadStagingByteCount { get; set; }
+
+    /// <summary>
     /// Whether to enable shader cache
     /// </summary>
     public bool IsShaderCacheEnabled { get; set; }
@@ -77,6 +82,7 @@ public struct GraphicsSetting
         PreferredDepthStencilFormat = Format.D24UnormS8Uint,
         BufferHeapByteCount = 64ul * 1024 * 1024,
         TextureHeapByteCount = 64ul * 1024 * 1024,
+        UploadStagingByteCount = 16ul * 1024 * 1024,
         DebugInfo = false,
         IsShaderCacheEnabled = true,
         ShaderCachePath = ".cache/shader",
@@ -95,6 +101,7 @@ public struct GraphicsSetting
         PreferredDepthStencilFormat = Format.D24UnormS8Uint,
         BufferHeapByteCount = 64ul * 1024 * 1024,
         TextureHeapByteCount = 64ul * 1024 * 1024,
+        UploadStagingByteCount = 16ul * 1024 * 1024,
         DebugInfo = true,
         IsShaderCacheEnabled = true,
         ShaderCachePath = ".cache/shader",
@@ -114,6 +121,7 @@ public struct GraphicsSetting
         PreferredDepthStencilFormat = Format.D24UnormS8Uint,
         BufferHeapByteCount = 1ul * 1024 * 1024,
         TextureHeapByteCount = 4ul * 1024 * 1024,
+        UploadStagingByteCount = 1ul * 1024 * 1024,
         DebugInfo = false,
         IsShaderCacheEnabled = false,
         ShaderCachePath = null,
