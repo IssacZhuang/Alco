@@ -24,6 +24,7 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
         internal nint Native;
     }
 
+    private const ulong UInt32StripCutKey = 1ul << 46;
     private readonly Lock CacheLock = new();
     private Variant[] Variants = [];
     private int VariantCount;
@@ -32,6 +33,10 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
     private PipelineMeshStream MeshPipeline;
     private bool HasDepth;
     private bool HasStencil;
+
+    private bool UsesStripCut => Topology is PrimitiveTopology.LineStrip or PrimitiveTopology.TriangleStrip;
+
+    internal int CachedVariantCount => Volatile.Read(ref VariantCount);
 
     private PipelineShaderBytecode CopyShader(ReadOnlySpan<byte> code, ref nuint offset)
     {
@@ -61,8 +66,7 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
             StripCut = new PipelineUintSubobject { Type = 13 },
             Output = OutputStream(desc.ColorTargets, desc.DepthFormat, desc.StencilFormat, desc.Rasterization, desc.Topology, desc.SampleCount),
         };
-        Native = GetPipeline(new DepthStencilState());
-        if (Topology is PrimitiveTopology.LineStrip or PrimitiveTopology.TriangleStrip) GetPipeline(new DepthStencilState(), IndexType.UInt32);
+        Native = PrepareDepthStencilVariants(new DepthStencilState());
     }
 
     internal void InitializeMesh(MeshPipelineDesc desc)
@@ -81,7 +85,7 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
             Output = OutputStream(desc.ColorTargets, desc.DepthFormat, desc.StencilFormat, desc.Rasterization,
                 PrimitiveTopology.TriangleList, desc.SampleCount),
         };
-        Native = GetPipeline(new DepthStencilState());
+        Native = PrepareDepthStencilVariants(new DepthStencilState());
     }
 
     internal void InitializeCompute(ShaderStage compute)
@@ -170,17 +174,21 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
         return result;
     }
 
-    private ulong StateKey(DepthStencilState state, IndexType indices)
+    /// <summary>Identifies the native pipeline state for the present depth and stencil aspects.</summary>
+    /// <param name="state">The draw's depth and stencil state.</param>
+    /// <param name="hasDepth">Whether the pass has a depth attachment.</param>
+    /// <param name="hasStencil">Whether the pass has a stencil attachment.</param>
+    /// <returns>The native state key, excluding the index type.</returns>
+    public static ulong DepthStencilKey(in DepthStencilState state, bool hasDepth, bool hasStencil)
     {
         ulong key = 0;
-        if (HasDepth && state.DepthTest) key = 1ul | (state.DepthWrite ? 2ul : 0ul) | (ulong)state.DepthCompare << 2;
-        if (HasStencil && state.StencilTest)
+        if (hasDepth && state.DepthTest) key = 1ul | (state.DepthWrite ? 2ul : 0ul) | (ulong)state.DepthCompare << 2;
+        if (hasStencil && state.StencilTest)
         {
             key |= 1ul << 5 | (ulong)state.StencilReadMask << 6 | (ulong)state.StencilWriteMask << 14;
             key |= (ulong)state.Front.Compare << 22 | (ulong)state.Front.Fail << 25 | (ulong)state.Front.Pass << 28 | (ulong)state.Front.DepthFail << 31;
             key |= (ulong)state.Back.Compare << 34 | (ulong)state.Back.Fail << 37 | (ulong)state.Back.Pass << 40 | (ulong)state.Back.DepthFail << 43;
         }
-        if (Topology is PrimitiveTopology.LineStrip or PrimitiveTopology.TriangleStrip && indices == IndexType.UInt32) key |= 1ul << 46;
         return key;
     }
 
@@ -222,7 +230,7 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
         {
             PipelineGraphicsStream stream = Graphics;
             stream.Output.DepthStencil.Value = depthStencil;
-            if (Topology is PrimitiveTopology.LineStrip or PrimitiveTopology.TriangleStrip) stream.StripCut.Value = indices == IndexType.UInt16 ? 1u : 2u;
+            if (UsesStripCut) stream.StripCut.Value = indices == IndexType.UInt16 ? 1u : 2u;
             hr = PipelineCreateState(Owner.Native, &stream, (nuint)sizeof(PipelineGraphicsStream), out result);
         }
         if (hr < 0)
@@ -233,21 +241,45 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
         return result;
     }
 
+    /// <summary>Checks whether the depth and stencil state is cached for all applicable index types.</summary>
+    /// <param name="key">The native depth and stencil state key.</param>
+    /// <returns>Whether every required native variant is ready.</returns>
+    public bool HasDepthStencilVariants(ulong key)
+    {
+        int count = Volatile.Read(ref VariantCount);
+        Variant[] entries = Volatile.Read(ref Variants);
+        return TryFindVariant(entries, count, key, out _) &&
+            (!UsesStripCut || TryFindVariant(entries, count, key | UInt32StripCutKey, out _));
+    }
+
+    /// <summary>Prepares the native variants for a draw's depth and stencil state.</summary>
+    /// <param name="state">The state to prepare.</param>
+    /// <returns>The native pipeline for non-indexed and 16-bit indexed draws.</returns>
+    public nint PrepareDepthStencilVariants(DepthStencilState state)
+    {
+        nint pipeline = GetPipeline(state);
+        if (UsesStripCut)
+            GetPipeline(state, IndexType.UInt32);
+        return pipeline;
+    }
+
     internal nint GetPipeline(DepthStencilState state, IndexType indices = IndexType.UInt16)
     {
         if (Compute) return Native;
-        ulong key = StateKey(state, indices);
+        ulong key = DepthStencilKey(in state, HasDepth, HasStencil);
+        if (UsesStripCut && indices == IndexType.UInt32)
+            key |= UInt32StripCutKey;
         int count = Volatile.Read(ref VariantCount);
         Variant[] entries = Volatile.Read(ref Variants);
-        for (int i = 0; i < count; ++i)
-            if (entries[i].Key == key) return entries[i].Native;
+        if (TryFindVariant(entries, count, key, out nint pipeline))
+            return pipeline;
         lock (CacheLock)
         {
             count = VariantCount;
             entries = Variants;
-            for (int i = 0; i < count; ++i)
-                if (entries[i].Key == key) return entries[i].Native;
-            nint pipeline = CreateVariant(state, indices);
+            if (TryFindVariant(entries, count, key, out pipeline))
+                return pipeline;
+            pipeline = CreateVariant(state, indices);
             if (count == entries.Length)
             {
                 Variant[] replacement = new Variant[Math.Max(8, count * 2)];
@@ -259,6 +291,19 @@ internal sealed unsafe partial class D3D12Pso : GPUPipeline
             Volatile.Write(ref VariantCount, count + 1);
             return pipeline;
         }
+    }
+
+    private static bool TryFindVariant(Variant[] entries, int count, ulong key, out nint pipeline)
+    {
+        for (int i = 0; i < count; ++i)
+        {
+            if (entries[i].Key != key)
+                continue;
+            pipeline = entries[i].Native;
+            return true;
+        }
+        pipeline = 0;
+        return false;
     }
 
     /// <summary>Releases every native pipeline variant after all recorded and executing uses have finished.</summary>

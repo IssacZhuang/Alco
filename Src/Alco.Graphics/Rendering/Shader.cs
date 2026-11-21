@@ -281,7 +281,7 @@ internal sealed class ShaderVariant
     private readonly object _pipelineSync = new();
     private PipelineTable _pipelineTable = PipelineTable.Empty;
     private List<InFlightPipeline>? _inFlight;
-    private int _activeCreates;
+    private int _activePipelineOperations;
     private bool _destroyed;
 
     internal ShaderVariant(Shader owner, CompiledShader compiled, ShaderKind kind, string[] specializations)
@@ -356,34 +356,32 @@ internal sealed class ShaderVariant
         return GetOrCreatePipelineSlow(in state, in stateKey, in pass, allowDestroyedReturnNull: false, out created)!;
     }
 
-    internal Task WarmUpPipeline(in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass)
+    internal void WarmUpPipelineCore(in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass,
+        DepthStencilState depthStencil, bool needsDepthStencilVariants)
     {
-        if (_owner.Kind == ShaderKind.Compute)
-            throw new InvalidOperationException($"Compute shader '{_owner.Name}' has no raster pipeline.");
-        if (TryGetCachedPipeline(in pass, in stateKey) != null)
-            return Task.CompletedTask;
-
-        lock (_pipelineSync)
+        if (!needsDepthStencilVariants)
         {
-            if (_destroyed || TryGetCachedPipeline(in pass, in stateKey) != null)
-                return Task.CompletedTask;
-            if (_inFlight != null)
-            {
-                for (int index = 0; index < _inFlight.Count; ++index)
-                {
-                    InFlightPipeline candidate = _inFlight[index];
-                    if (candidate.Pass.Equals(pass) && candidate.StateKey.Equals(stateKey))
-                        return candidate.Completion.Task;
-                }
-            }
+            GetOrCreatePipelineSlow(in state, in stateKey, in pass, allowDestroyedReturnNull: true, out _);
+            return;
         }
 
-        return _owner.System.EnqueueWarmUp(this, in state, in stateKey, in pass);
-    }
-
-    internal void WarmUpPipelineCore(in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass)
-    {
-        GetOrCreatePipelineSlow(in state, in stateKey, in pass, allowDestroyedReturnNull: true, out _);
+        // A shader may be destroyed before its rendering system drains the queue.
+        lock (_pipelineSync)
+        {
+            if (_destroyed)
+                return;
+            ++_activePipelineOperations;
+        }
+        try
+        {
+            if (GetOrCreatePipelineSlow(in state, in stateKey, in pass, allowDestroyedReturnNull: true, out _) is D3D12Pso pipeline)
+                pipeline.PrepareDepthStencilVariants(depthStencil);
+        }
+        finally
+        {
+            lock (_pipelineSync)
+                EndPipelineOperation();
+        }
     }
 
     internal void Destroy()
@@ -392,7 +390,7 @@ internal sealed class ShaderVariant
         lock (_pipelineSync)
         {
             _destroyed = true;
-            while (_activeCreates > 0)
+            while (_activePipelineOperations > 0)
                 Monitor.Wait(_pipelineSync);
             table = _pipelineTable;
             Volatile.Write(ref _pipelineTable, PipelineTable.Empty);
@@ -441,7 +439,7 @@ internal sealed class ShaderVariant
                 ownedInFlight = new InFlightPipeline(in pass, in stateKey);
                 _inFlight ??= [];
                 _inFlight.Add(ownedInFlight);
-                ++_activeCreates;
+                ++_activePipelineOperations;
             }
         }
 
@@ -454,28 +452,14 @@ internal sealed class ShaderVariant
         }
 
         GPUPipeline? createdPipeline = null;
+        GPUPipeline? publishedPipeline = null;
         Exception? failure = null;
         try
         {
             createdPipeline = CreateNativePipeline(in state, in pass);
-        }
-        catch (Exception ex)
-        {
-            failure = ex;
-        }
-
-        GPUPipeline? publishedPipeline = null;
-        bool destroyOrphan = false;
-        lock (_pipelineSync)
-        {
-            _inFlight?.Remove(ownedInFlight!);
-            if (createdPipeline != null)
+            lock (_pipelineSync)
             {
-                if (_destroyed)
-                {
-                    destroyOrphan = true;
-                }
-                else
+                if (!_destroyed)
                 {
                     ulong hash = ComputeKeyHash(in pass, in stateKey);
                     PipelineTable updated = InsertEntry(_pipelineTable, hash, in pass, in stateKey, createdPipeline);
@@ -485,29 +469,33 @@ internal sealed class ShaderVariant
                 }
             }
         }
-
-        try
+        catch (Exception ex)
         {
-            if (destroyOrphan)
-                createdPipeline!.Destroy();
+            failure = ex;
         }
         finally
         {
-            lock (_pipelineSync)
+            try
             {
-                --_activeCreates;
-                if (_activeCreates == 0)
-                    Monitor.PulseAll(_pipelineSync);
+                if (publishedPipeline == null)
+                    createdPipeline?.Destroy();
             }
-
-            if (failure != null)
+            finally
             {
-                ownedInFlight!.Completion.TrySetException(failure);
-                _ = ownedInFlight.Completion.Task.Exception;
-            }
-            else
-            {
-                ownedInFlight!.Completion.TrySetResult(publishedPipeline);
+                lock (_pipelineSync)
+                {
+                    _inFlight!.Remove(ownedInFlight!);
+                    if (failure != null)
+                    {
+                        ownedInFlight!.Completion.SetException(failure);
+                        _ = ownedInFlight.Completion.Task.Exception;
+                    }
+                    else
+                    {
+                        ownedInFlight!.Completion.SetResult(publishedPipeline);
+                    }
+                    EndPipelineOperation();
+                }
             }
         }
 
@@ -517,6 +505,12 @@ internal sealed class ShaderVariant
         if (publishedPipeline == null && !allowDestroyedReturnNull)
             throw new ObjectDisposedException(nameof(Shader), $"Shader '{_owner.Name}' has been destroyed.");
         return publishedPipeline;
+    }
+
+    private void EndPipelineOperation()
+    {
+        if (--_activePipelineOperations == 0)
+            Monitor.PulseAll(_pipelineSync);
     }
 
     private GPUPipeline CreateNativePipeline(in PipelineState state, in RenderPassSignature pass)
@@ -867,47 +861,47 @@ public sealed class Shader : RenderingResource
             new RenderPassSignature(colorFormats, depthFormat, stencilFormat), out _);
     }
 
-    /// <summary>Schedules background warmup of a graphics or mesh pipeline for the default specialization.</summary>
+    /// <summary>Warms up the default specialization in the background with depth and stencil tests disabled.</summary>
     /// <param name="state">The pipeline-defining material state.</param>
     /// <param name="pass">The render-pass attachment signature.</param>
-    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    /// <returns>A task completing when the pipeline is ready or warmup is skipped due to shutdown.</returns>
     public Task WarmUpPipeline(in PipelineState state, RenderPassSignature pass)
     {
-        if (Kind == ShaderKind.Compute)
-            throw new InvalidOperationException($"Compute shader '{Name}' has no raster pipeline.");
-        if (Volatile.Read(ref _released) || IsDestroyed)
-            return Task.CompletedTask;
-
-        PipelineStateKey stateKey = new(in state, Kind);
-        ShaderVariant? variant = Volatile.Read(ref _defaultVariant) ?? FindVariant(Volatile.Read(ref _variants), []);
-        if (variant != null)
-            return variant.WarmUpPipeline(in state, in stateKey, in pass);
-        return _system.EnqueueShaderWarmUp(this, [], in state, in stateKey, in pass);
+        return WarmUpPipeline(in state, pass, default(DepthStencilState));
     }
 
-    /// <summary>Schedules background warmup of a graphics or mesh pipeline for a specific specialization.</summary>
+    /// <summary>Warms up a specialization in the background with depth and stencil tests disabled.</summary>
     /// <param name="state">The pipeline-defining material state.</param>
     /// <param name="pass">The render-pass attachment signature.</param>
     /// <param name="specializations">The specialization arguments for the variant.</param>
-    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    /// <returns>A task completing when the pipeline is ready or warmup is skipped due to shutdown.</returns>
     public Task WarmUpPipeline(in PipelineState state, RenderPassSignature pass, params ReadOnlySpan<object> specializations)
+    {
+        return WarmUpPipeline(in state, pass, default(DepthStencilState), specializations);
+    }
+
+    /// <summary>Warms up a graphics or mesh pipeline in the background for the specified draw state.</summary>
+    /// <param name="state">The pipeline-defining material state.</param>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <param name="depthStencil">The draw's depth and stencil state.</param>
+    /// <param name="specializations">The specialization arguments, if any.</param>
+    /// <returns>A task completing when the pipeline is ready or warmup is skipped due to shutdown.</returns>
+    public Task WarmUpPipeline(in PipelineState state, RenderPassSignature pass, DepthStencilState depthStencil,
+        params ReadOnlySpan<object> specializations)
     {
         if (Kind == ShaderKind.Compute)
             throw new InvalidOperationException($"Compute shader '{Name}' has no raster pipeline.");
-        if (Volatile.Read(ref _released) || IsDestroyed)
+        if (IsDestroyed)
             return Task.CompletedTask;
-        if (specializations.IsEmpty)
-            return WarmUpPipeline(in state, pass);
 
-        string[] normalized = NormalizeSpecializations(specializations);
+        string[] normalized = specializations.IsEmpty ? [] : NormalizeSpecializations(specializations);
         PipelineStateKey stateKey = new(in state, Kind);
-        ShaderVariant? existing = FindVariant(Volatile.Read(ref _variants), normalized);
-        if (existing != null)
-            return existing.WarmUpPipeline(in state, in stateKey, in pass);
-        return _system.EnqueueShaderWarmUp(this, normalized, in state, in stateKey, in pass);
+        ShaderVariant? variant = (specializations.IsEmpty ? Volatile.Read(ref _defaultVariant) : null) ??
+            FindVariant(Volatile.Read(ref _variants), normalized);
+        return _system.EnqueueShaderWarmUp(this, variant, variant == null ? normalized : null, in state, in stateKey, in pass, in depthStencil);
     }
 
-    /// <summary>Schedules background warmup of a graphics or mesh pipeline for the default specialization.</summary>
+    /// <summary>Warms up the default specialization in the background with depth and stencil tests disabled.</summary>
     /// <param name="state">The pipeline-defining material state.</param>
     /// <param name="colorFormats">The render pass color target formats.</param>
     /// <param name="depthFormat">The render pass depth format.</param>

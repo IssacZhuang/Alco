@@ -154,6 +154,59 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
+    /// <summary>Verifies that both views of a reacquired swapchain image give the same render-pass signature.</summary>
+    [Test]
+    public void NoGpuSwapchain_FormatChangeKeepsAttachmentSignaturesInSync()
+    {
+        using GPUDeviceScope deviceScope = new(Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU }));
+        GPUDevice device = deviceScope.Device;
+        GPUSwapchain swapchain = device.CreateSwapchain(new SwapchainDesc
+        {
+            Extent = new Extent2D(16, 16),
+            Format = Format.Bgra8Unorm,
+        });
+        GPUCommandPool? pool = null;
+        GPURenderView? freshView = null;
+        try
+        {
+            pool = device.CreateCommandPool(0);
+            GPUCommandBuffer commands = pool.BeginCommands();
+            SwapchainFrame initialFrame = commands.Acquire(swapchain);
+            commands.EndCommands();
+            Assert.That(initialFrame.RenderView?.Format, Is.EqualTo(Format.Bgra8Unorm));
+
+            Assert.That(swapchain.TrySetFormat(Format.Bgra8Srgb, ColorSpace.Srgb, out Error error), Is.True);
+            Assert.That(error, Is.EqualTo(Error.None));
+            pool.Reset();
+            commands = pool.BeginCommands();
+            SwapchainFrame frame = commands.Acquire(swapchain);
+            commands.EndCommands();
+
+            Assert.That(swapchain.Format, Is.EqualTo(Format.Bgra8Srgb));
+            Assert.That(frame.RenderView?.Format, Is.EqualTo(swapchain.Format));
+            Assert.That(frame.Texture, Is.Not.Null);
+            freshView = frame.Texture!.CreateRenderView(default);
+            Assert.That(freshView.Format, Is.EqualTo(swapchain.Format));
+
+            RenderPassSignature borrowedPass = RenderPassSignature.From(new RenderingDesc
+            {
+                Colors = [new ColorAttachment { RenderView = frame.RenderView }],
+            });
+            RenderPassSignature freshPass = RenderPassSignature.From(new RenderingDesc
+            {
+                Colors = [new ColorAttachment { RenderView = freshView }],
+            });
+            Assert.That(borrowedPass, Is.EqualTo(new RenderPassSignature(Format.Bgra8Srgb)));
+            Assert.That(freshPass, Is.EqualTo(borrowedPass));
+        }
+        finally
+        {
+            freshView?.Destroy();
+            pool?.Destroy();
+            swapchain.Destroy();
+        }
+    }
+
     /// <summary>Verifies Slang SpirvCompact compilation, root reflection, RenderingSystem, Material, and RenderContext under NoGPU.</summary>
     [Test]
     public void NoGpuRenderingSystem_SlangShaderAndContext_ExecuteCleanly()

@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
 using Alco.Graphics.LowLevel;
+using Alco.Graphics.Slang;
 using Buffer = Alco.Graphics.Buffer;
 
 internal static class MaterialTests
@@ -3295,10 +3296,17 @@ internal static class MaterialTests
             check(missWarnings == 1 && nonfatalOnly,
                 $"PipelineMissPolicy.CreateAndWarn emits one nonfatal diagnostic on miss (count={missWarnings})");
 
-            // 4. Material.WarmUpPipeline populates cache in background so PipelineMissPolicy.Throw succeeds, and warmed calls allocate 0 bytes.
             material.WriteMask = 0x3;
-            Task materialWarmup = material.WarmUpPipeline(derivedSig);
-            materialWarmup.GetAwaiter().GetResult();
+            material.Topology = PrimitiveTopology.TriangleStrip;
+            material.WarmUpPipeline(derivedSig, default(DepthStencilState)).GetAwaiter().GetResult();
+            DepthStencilState warmedDepth = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.Less };
+            material.DepthStencilState = warmedDepth;
+            material.WarmUpPipeline(derivedSig).GetAwaiter().GetResult();
+            D3D12Pso? d3d12Pipeline = material.Variant.TryGetCachedPipeline(in derivedSig, material.StateKey) as D3D12Pso;
+            int warmedVariantCount = d3d12Pipeline?.CachedVariantCount ?? 0;
+            if (device.ActiveBackend == GraphicsBackend.Dx12)
+                check(warmedVariantCount == 4, "material warmup prepares depth-enabled D3D12 variants for both strip index types");
+
             Task warmHitTask = material.WarmUpPipeline(derivedSig);
             bool hitReturnedCompleted = ReferenceEquals(warmHitTask, Task.CompletedTask);
             long warmAllocBefore = GC.GetAllocatedBytesForCurrentThread();
@@ -3337,13 +3345,18 @@ internal static class MaterialTests
             }
             Vector4 expectedRgMask = new(tint.X, tint.Y, 0.0f, 1.0f);
             check(PixelMatches(readback.Range, Format.Rgba8Unorm, 8, 8, expectedRgMask),
-                "Material.WarmUpPipeline prepares the pipeline for PipelineMissPolicy.Throw and renders with write mask 0x3");
+                "Material.WarmUpPipeline prepares the depth-tested draw for PipelineMissPolicy.Throw and write mask 0x3");
+            if (d3d12Pipeline != null)
+                check(d3d12Pipeline.CachedVariantCount == warmedVariantCount, "the first warmed draw creates no D3D12 native variants");
 
-            // 5. Concurrent Shader.WarmUpPipeline (including specializations) deduplicates and succeeds under PipelineMissPolicy.Throw.
             PipelineState concurrentState = new() { WriteMask = 0x5 };
+            DepthStencilState alternateDepth = warmedDepth;
+            alternateDepth.DepthCompare = CompareOp.Always;
             Task[] concurrentTasks = new Task[4];
-            using (Barrier gate = new(concurrentTasks.Length))
+            Task alternateDepthTask;
+            lock (SlangCompiler.NativeLock)
             {
+                using Barrier gate = new(concurrentTasks.Length);
                 Thread[] workers = new Thread[concurrentTasks.Length];
                 for (int index = 0; index < workers.Length; ++index)
                 {
@@ -3351,17 +3364,26 @@ internal static class MaterialTests
                     workers[worker] = new Thread(() =>
                     {
                         gate.SignalAndWait();
-                        concurrentTasks[worker] = specializedShader.WarmUpPipeline(in concurrentState, derivedSig, 2);
+                        concurrentTasks[worker] = specializedShader.WarmUpPipeline(in concurrentState, derivedSig, warmedDepth, 2);
                     });
                     workers[worker].Start();
                 }
                 for (int index = 0; index < workers.Length; ++index)
                     workers[index].Join();
+
+                check(!concurrentTasks[0].IsCompleted && Array.TrueForAll(concurrentTasks, task => ReferenceEquals(task, concurrentTasks[0])),
+                    "concurrent requests share one task before specialization compilation finishes");
+                alternateDepthTask = specializedShader.WarmUpPipeline(in concurrentState, derivedSig, alternateDepth, 2);
+                bool sharesDepthTask = ReferenceEquals(concurrentTasks[0], alternateDepthTask);
+                check(sharesDepthTask == (device.ActiveBackend != GraphicsBackend.Dx12),
+                    "warmup distinguishes depth states only when the backend needs separate native pipelines");
             }
             Task.WhenAll(concurrentTasks).GetAwaiter().GetResult();
+            alternateDepthTask.GetAwaiter().GetResult();
 
             Material specMat = specializedShader.CreateMaterial("warmed_spec", 2);
             specMat.WriteMask = 0x5;
+            specMat.DepthStencilState = warmedDepth;
             Vector4 specTint = new(0.8f, 0.4f, 0.6f, 1.0f);
             specMat.SetData("Tint", ref specTint);
             system.PipelineMissPolicy = PipelineMissPolicy.Throw;
@@ -3437,8 +3459,8 @@ internal static class MaterialTests
                     standaloneSystem?.Destroy();
                 }
             }
+            check(shutdownTasks.TrueForAll(task => task.IsCompleted), "destroying the rendering systems completes all queued warmup tasks");
             Task.WhenAll(shutdownTasks).GetAwaiter().GetResult();
-            check(true, "in-flight background WarmUpPipeline tasks drain cleanly when Shader and RenderingSystem are destroyed");
         }
         finally
         {

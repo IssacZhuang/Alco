@@ -233,34 +233,36 @@ internal sealed class NoGPUTimelineSemaphore : GPUTimelineSemaphore
 
 internal sealed class NoGPUTexture : GPUTexture
 {
-    private readonly TextureDesc _desc;
-
     internal NoGPUTexture(in TextureDesc desc)
     {
-        _desc = desc;
+        Format = desc.Format;
+        SampleCount = Math.Max(1u, desc.SampleCount);
     }
 
-    public override GPURenderView CreateRenderView(RenderViewDesc desc) => new NoGPURenderView(_desc.Format, _desc.SampleCount);
+    /// <summary>The texture format, which can change when the owning swapchain is reconfigured.</summary>
+    public Format Format { get; set; }
+
+    /// <summary>The attachment sample count.</summary>
+    public uint SampleCount { get; }
+
+    /// <inheritdoc />
+    public override GPURenderView CreateRenderView(RenderViewDesc desc) => new NoGPURenderView(this);
 
     public override void Destroy() { }
-}
 
-internal sealed class NoGPURenderView : GPURenderView
-{
-    internal Format ViewFormat;
-    internal uint ViewSampleCount;
-
-    internal NoGPURenderView(Format format, uint sampleCount = 1)
+    private sealed class NoGPURenderView(NoGPUTexture texture) : GPURenderView
     {
-        ViewFormat = format;
-        ViewSampleCount = sampleCount == 0 ? 1u : sampleCount;
+        private readonly NoGPUTexture _texture = texture;
+
+        /// <inheritdoc />
+        public override Format Format => _texture.Format;
+
+        /// <inheritdoc />
+        public override uint SampleCount => _texture.SampleCount;
+
+        /// <inheritdoc />
+        public override void Destroy() { }
     }
-
-    public override Format Format => ViewFormat;
-
-    public override uint SampleCount => ViewSampleCount;
-
-    public override void Destroy() { }
 }
 
 internal sealed class NoGPUPipeline : GPUPipeline
@@ -299,30 +301,31 @@ internal sealed class NoGPUSamplerDescriptorHeap : GPUSamplerDescriptorHeap
 internal sealed class NoGPUSwapchain : GPUSwapchain
 {
     private Extent2D _extent;
-    private Format _format;
     private ColorSpace _colorSpace;
     private bool _vsync;
     internal readonly NoGPUTexture BackbufferTexture;
-    internal readonly NoGPURenderView BackbufferView;
+    internal readonly GPURenderView BackbufferView;
 
     internal NoGPUSwapchain(in SwapchainDesc desc)
     {
         _extent = desc.Extent;
-        _format = desc.Format == Format.Undefined ? Format.Bgra8Unorm : desc.Format;
         _colorSpace = desc.ColorSpace;
         _vsync = desc.VSync;
         BackbufferTexture = new NoGPUTexture(new TextureDesc
         {
             Extent = new Extent3D(Math.Max(1u, _extent.X), Math.Max(1u, _extent.Y), 1),
-            Format = _format,
+            Format = ResolveFormat(desc.Format),
             Usage = TextureUsage.ColorAttachment | TextureUsage.TransferDestination,
         });
-        BackbufferView = new NoGPURenderView(_format, 1u);
+        BackbufferView = BackbufferTexture.CreateRenderView(default);
     }
+
+    private static Format ResolveFormat(Format format) => format == Format.Undefined ? Format.Bgra8Unorm : format;
 
     public override Extent2D DrawableExtent => _extent;
 
-    public override Format Format => _format;
+    /// <inheritdoc />
+    public override Format Format => BackbufferTexture.Format;
 
     public override ColorSpace ColorSpace => _colorSpace;
 
@@ -335,10 +338,10 @@ internal sealed class NoGPUSwapchain : GPUSwapchain
         return true;
     }
 
+    /// <inheritdoc />
     public override bool TrySetFormat(Format format, ColorSpace colorSpace, out Error error)
     {
-        _format = format == Format.Undefined ? Format.Bgra8Unorm : format;
-        BackbufferView.ViewFormat = _format;
+        BackbufferTexture.Format = ResolveFormat(format);
         _colorSpace = colorSpace;
         error = Error.None;
         return true;

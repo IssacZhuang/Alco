@@ -55,7 +55,7 @@ public sealed class RenderingSystem
     private uint _liveSamplers;
     private byte _pipelineMissPolicy;
     private readonly object _warmupSync = new();
-    private int _activeWarmups;
+    private readonly Dictionary<WarmUpKey, Task> _pendingWarmups = [];
     private bool _warmupClosed;
     private bool _destroyed;
 
@@ -202,8 +202,6 @@ public sealed class RenderingSystem
         get => (PipelineMissPolicy)Volatile.Read(ref _pipelineMissPolicy);
         set => Volatile.Write(ref _pipelineMissPolicy, (byte)value);
     }
-
-    internal bool IsWarmUpClosed => Volatile.Read(ref _warmupClosed);
 
     /// <summary>Creates an independent shader system with custom compiler options targeting this rendering system.</summary>
     /// <param name="options">Optional compiler search paths, defines, virtual file resolver, and cache settings.</param>
@@ -716,57 +714,62 @@ public sealed class RenderingSystem
         }
     }
 
-    internal Task EnqueueWarmUp(ShaderVariant variant, in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass)
+    internal Task EnqueueShaderWarmUp(Shader shader, ShaderVariant? variant, string[]? normalizedSpecializations,
+        in PipelineState state, in PipelineStateKey stateKey, in RenderPassSignature pass, in DepthStencilState depthStencil)
     {
+        if (shader.Kind == ShaderKind.Compute)
+            throw new InvalidOperationException($"Compute shader '{shader.Name}' has no raster pipeline.");
+        if (shader.IsDestroyed || Volatile.Read(ref _warmupClosed))
+            return Task.CompletedTask;
+
+        ulong depthStencilKey = _device.ActiveBackend == GraphicsBackend.Dx12
+            ? D3D12Pso.DepthStencilKey(in depthStencil, pass.DepthFormat != Format.Undefined, pass.StencilFormat != Format.Undefined)
+            : 0;
+        if (IsPipelineWarmed(variant, in pass, in stateKey, depthStencilKey))
+            return Task.CompletedTask;
+
+        WarmUpKey key = new(shader, variant?.Specializations ?? normalizedSpecializations!, stateKey, pass, depthStencilKey);
         lock (_warmupSync)
         {
-            if (_warmupClosed || _destroyed)
+            if (_warmupClosed || shader.IsDestroyed)
                 return Task.CompletedTask;
-            ++_activeWarmups;
-        }
+            if (_pendingWarmups.TryGetValue(key, out Task? pending))
+                return pending;
+            if (IsPipelineWarmed(variant, in pass, in stateKey, depthStencilKey))
+                return Task.CompletedTask;
 
-        WarmUpWorkItem item = new(this, variant, null, null, in state, in stateKey, in pass);
-        try
-        {
-            ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
+            TaskCompletionSource completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            WarmUpWorkItem item = new(this, key, variant, normalizedSpecializations, in state, in depthStencil, completion);
+            _pendingWarmups.Add(key, completion.Task);
+            try
+            {
+                ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
+            }
+            catch
+            {
+                _pendingWarmups.Remove(key);
+                throw;
+            }
+            return completion.Task;
         }
-        catch
-        {
-            CompleteWarmUp();
-            throw;
-        }
-        return item.Task;
     }
 
-    internal Task EnqueueShaderWarmUp(Shader shader, string[] normalizedSpecializations, in PipelineState state,
-        in PipelineStateKey stateKey, in RenderPassSignature pass)
+    private static bool IsPipelineWarmed(ShaderVariant? variant, in RenderPassSignature pass, in PipelineStateKey stateKey, ulong depthStencilKey)
     {
-        lock (_warmupSync)
-        {
-            if (_warmupClosed || _destroyed)
-                return Task.CompletedTask;
-            ++_activeWarmups;
-        }
-
-        WarmUpWorkItem item = new(this, null, shader, normalizedSpecializations, in state, in stateKey, in pass);
-        try
-        {
-            ThreadPool.UnsafeQueueUserWorkItem(item, preferLocal: false);
-        }
-        catch
-        {
-            CompleteWarmUp();
-            throw;
-        }
-        return item.Task;
+        GPUPipeline? pipeline = variant?.TryGetCachedPipeline(in pass, in stateKey);
+        return pipeline != null && (depthStencilKey == 0 || pipeline is D3D12Pso d3d12 && d3d12.HasDepthStencilVariants(depthStencilKey));
     }
 
-    private void CompleteWarmUp()
+    private void CompleteWarmUp(WarmUpKey key, TaskCompletionSource completion, Exception? failure)
     {
         lock (_warmupSync)
         {
-            --_activeWarmups;
-            if (_activeWarmups == 0)
+            _pendingWarmups.Remove(key);
+            if (failure != null)
+                completion.SetException(failure);
+            else
+                completion.SetResult();
+            if (_pendingWarmups.Count == 0)
                 Monitor.PulseAll(_warmupSync);
         }
     }
@@ -776,67 +779,82 @@ public sealed class RenderingSystem
         lock (_warmupSync)
         {
             Volatile.Write(ref _warmupClosed, true);
-            while (_activeWarmups > 0)
+            while (_pendingWarmups.Count > 0)
                 Monitor.Wait(_warmupSync);
+        }
+    }
+
+    private readonly record struct WarmUpKey(Shader Shader, IReadOnlyList<string> Specializations,
+        PipelineStateKey StateKey, RenderPassSignature Pass, ulong DepthStencilKey)
+    {
+        /// <inheritdoc />
+        public bool Equals(WarmUpKey other)
+        {
+            if (Shader != other.Shader || !StateKey.Equals(other.StateKey) || !Pass.Equals(other.Pass) ||
+                DepthStencilKey != other.DepthStencilKey || Specializations.Count != other.Specializations.Count)
+                return false;
+            for (int index = 0; index < Specializations.Count; ++index)
+            {
+                if (Specializations[index] != other.Specializations[index])
+                    return false;
+            }
+            return true;
+        }
+
+        /// <inheritdoc />
+        public override int GetHashCode()
+        {
+            HashCode hash = new();
+            hash.Add(Shader);
+            hash.Add(StateKey);
+            hash.Add(Pass);
+            hash.Add(DepthStencilKey);
+            for (int index = 0; index < Specializations.Count; ++index)
+                hash.Add(Specializations[index]);
+            return hash.ToHashCode();
         }
     }
 
     private sealed class WarmUpWorkItem : IThreadPoolWorkItem
     {
         private readonly RenderingSystem _system;
+        private readonly WarmUpKey _key;
         private readonly ShaderVariant? _variant;
-        private readonly Shader? _shader;
         private readonly string[]? _specializations;
         private readonly PipelineState _state;
-        private readonly PipelineStateKey _stateKey;
-        private readonly RenderPassSignature _pass;
-        private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly DepthStencilState _depthStencil;
+        private readonly TaskCompletionSource _completion;
 
-        internal WarmUpWorkItem(
-            RenderingSystem system,
-            ShaderVariant? variant,
-            Shader? shader,
-            string[]? specializations,
-            in PipelineState state,
-            in PipelineStateKey stateKey,
-            in RenderPassSignature pass)
+        public WarmUpWorkItem(RenderingSystem system, WarmUpKey key, ShaderVariant? variant, string[]? specializations,
+            in PipelineState state, in DepthStencilState depthStencil, TaskCompletionSource completion)
         {
             _system = system;
+            _key = key;
             _variant = variant;
-            _shader = shader;
             _specializations = specializations;
             _state = state;
-            _stateKey = stateKey;
-            _pass = pass;
+            _depthStencil = depthStencil;
+            _completion = completion;
         }
 
-        internal Task Task => _completion.Task;
-
+        /// <inheritdoc />
         public void Execute()
         {
+            Exception? failure = null;
             try
             {
-                if (!_system.IsWarmUpClosed)
-                {
-                    if (_variant != null)
-                    {
-                        _variant.WarmUpPipelineCore(in _state, in _stateKey, in _pass);
-                    }
-                    else if (_shader != null && _specializations != null)
-                    {
-                        ShaderVariant? variant = _shader.TryGetOrCompileVariant(_specializations);
-                        variant?.WarmUpPipelineCore(in _state, in _stateKey, in _pass);
-                    }
-                }
-                _completion.TrySetResult();
+                if (Volatile.Read(ref _system._warmupClosed))
+                    return;
+                ShaderVariant? variant = _variant ?? _key.Shader.TryGetOrCompileVariant(_specializations!);
+                variant?.WarmUpPipelineCore(in _state, _key.StateKey, _key.Pass, _depthStencil, _key.DepthStencilKey != 0);
             }
-            catch (Exception exception) when (exception is not OutOfMemoryException)
+            catch (Exception exception)
             {
-                _completion.TrySetException(exception);
+                failure = exception;
             }
             finally
             {
-                _system.CompleteWarmUp();
+                _system.CompleteWarmUp(_key, _completion, failure);
             }
         }
     }

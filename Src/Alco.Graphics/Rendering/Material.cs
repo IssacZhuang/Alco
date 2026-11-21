@@ -253,25 +253,33 @@ public class Material
             new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount), out _);
     }
 
-    /// <summary>Schedules background warmup of a pipeline for this material's current state and active specialization.</summary>
+    /// <summary>Warms up the pipeline in the background for this material's current specialization and draw state.</summary>
     /// <param name="pass">The render-pass attachment signature.</param>
-    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    /// <returns>A task completing when the pipeline is ready or warmup is skipped due to shutdown.</returns>
     public Task WarmUpPipeline(RenderPassSignature pass)
     {
-        return Variant.WarmUpPipeline(in _state, in _stateKey, in pass);
+        return WarmUpPipeline(pass, _depthStencil);
     }
 
-    /// <summary>Schedules background warmup of a pipeline for this material's current state and active specialization.</summary>
+    /// <summary>Warms up the pipeline in the background for a draw that overrides this material's depth and stencil state.</summary>
+    /// <param name="pass">The render-pass attachment signature.</param>
+    /// <param name="depthStencil">The overridden depth and stencil state.</param>
+    /// <returns>A task completing when the pipeline is ready or warmup is skipped due to shutdown.</returns>
+    public Task WarmUpPipeline(RenderPassSignature pass, DepthStencilState depthStencil)
+    {
+        return _shader.System.EnqueueShaderWarmUp(_shader, Variant, null, in _state, in _stateKey, in pass, in depthStencil);
+    }
+
+    /// <summary>Warms up the pipeline in the background for this material's current specialization and draw state.</summary>
     /// <param name="colorFormats">The render pass color target formats.</param>
     /// <param name="depthFormat">The render pass depth target format.</param>
     /// <param name="stencilFormat">The render pass stencil format.</param>
     /// <param name="sampleCount">The render pass sample count.</param>
-    /// <returns>A task completing when the pipeline is cached or skipped due to shutdown.</returns>
+    /// <returns>A task completing when the pipeline is ready or warmup is skipped due to shutdown.</returns>
     public Task WarmUpPipeline(ReadOnlySpan<Format> colorFormats, Format depthFormat = Format.Undefined,
         Format stencilFormat = Format.Undefined, uint sampleCount = 1)
     {
-        return Variant.WarmUpPipeline(in _state, in _stateKey,
-            new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
+        return WarmUpPipeline(new RenderPassSignature(colorFormats, depthFormat, stencilFormat, sampleCount));
     }
 
     /// <summary>Copies resolved root data into per-frame storage; direct command use leaves shader and bound-resource retention to the caller.</summary>
