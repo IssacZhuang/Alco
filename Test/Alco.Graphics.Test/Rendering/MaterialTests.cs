@@ -352,6 +352,7 @@ internal static class MaterialTests
             CheckVariantLayoutsAndCaching(system, vertices, indices, checker, check);
             CheckShaderSystemCompositionAndSpecialization(system, check);
             CheckAutomaticPipelinesAndWarmUp(device, check);
+            CheckPrepackedDrawIndexed(device, system, shader, check);
         }
         finally
         {
@@ -3478,6 +3479,78 @@ internal static class MaterialTests
         }
     }
 
+    private static unsafe void CheckPrepackedDrawIndexed(GPUDevice device, RenderingSystem system, Shader shader, Action<bool, string> check)
+    {
+        Buffer? vertices = null;
+        Buffer? indices = null;
+        Texture? target = null;
+        RenderContext? context = null;
+        GPUHeap readback = default;
+        try
+        {
+            ReadOnlySpan<TestVertex> vertexData =
+            [
+                // Leading sentinel vertex skipped via Buffer.View.OffsetBy.
+                new() { Position = new Vector4(0, 0, 0.5f, 1), Uv = new Vector2(0.5f, 0.5f) },
+                new() { Position = new Vector4(-1, -1, 0.5f, 1), Uv = new Vector2(0.5f, 0.5f) },
+                new() { Position = new Vector4(3, -1, 0.5f, 1), Uv = new Vector2(0.5f, 0.5f) },
+                new() { Position = new Vector4(-1, 3, 0.5f, 1), Uv = new Vector2(0.5f, 0.5f) },
+            ];
+            vertices = system.CreateBuffer(vertexData);
+            indices = system.CreateBuffer<ushort>([99, 99, 0, 1, 2]);
+            check(vertices.View.Index != 0, "Buffer.View exposes a nonzero shader-visible descriptor index");
+
+            target = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(RecordingSize, RecordingSize, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
+            });
+            readback = device.CreateGPUHeap(RecordingSize * RecordingSize * 4, MemoryType.Readback);
+            context = new RenderContext(system, 4096);
+            Material material = shader.CreateMaterial("prepacked_indexed");
+            Vector4 expectedTint = new(0.25f, 0.75f, 0.5f, 1.0f);
+
+            context.BeginFrame();
+            GPUAllocation<PrepackedMaterialRoot> root = context.FrameData.Allocate<PrepackedMaterialRoot>();
+            *root.Cpu = new PrepackedMaterialRoot
+            {
+                Vertices = vertices.View.OffsetBy((uint)sizeof(TestVertex)),
+                Albedo = system.TextureWhite.SampledIndex,
+                Sampler = system.SamplerDefault.Index,
+                Tint = expectedTint,
+                Transform = Matrix4x4.Identity,
+            };
+
+            using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc
+            {
+                Colors = [new() { RenderView = target.RenderView, Load = LoadOp.Clear }],
+            }))
+            {
+                pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                pass.SetScissor(new Scissor { Width = RecordingSize, Height = RecordingSize });
+                pass.DrawIndexed(material, root.GPURange, default, indices, IndexType.UInt16, 3, firstIndex: 1, byteOffset: sizeof(ushort));
+            }
+            context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
+            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
+            context.Submit().Wait();
+
+            check(PixelMatches(readback.Range, Format.Rgba8Unorm, 8, 8, expectedTint),
+                "RenderScope.DrawIndexed with prepacked GPURange root and Buffer.View.OffsetBy renders expected pixels");
+        }
+        finally
+        {
+            device.WaitIdle();
+            context?.DiscardFrame();
+            context?.Destroy();
+            target?.Destroy();
+            indices?.Destroy();
+            vertices?.Destroy();
+            readback.Destroy();
+        }
+    }
+
     private static T ReadRoot<T>(Material material, int offset) where T : unmanaged
     {
         Span<byte> root = stackalloc byte[(int)material.Root.SizeBytes];
@@ -3493,6 +3566,16 @@ internal static class MaterialTests
         public GPUBufferView Values;
         public uint Index;
         public uint Value;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PrepackedMaterialRoot
+    {
+        public GPUBufferView Vertices;
+        public uint Albedo;
+        public uint Sampler;
+        public Vector4 Tint;
+        public Matrix4x4 Transform;
     }
 
     [StructLayout(LayoutKind.Sequential)]

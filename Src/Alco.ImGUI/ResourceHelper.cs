@@ -1,73 +1,53 @@
 using System.Reflection;
 using System.Text;
 using Alco.Graphics;
-using Alco.Rendering;
 
 namespace Alco.ImGUI;
 
 /// <summary>
-/// Helper class for accessing embedded resources in the assembly
+/// Helper class for accessing embedded resources in the assembly.
 /// </summary>
 public static class ImGUIResourceHelper
 {
-    /// <summary>Creates the shader used to render ImGui geometry.</summary>
-    /// <param name="renderingSystem">The rendering system that compiles the shader.</param>
+    /// <summary>Gets or compiles the shared shader used to render ImGui geometry.</summary>
+    /// <param name="shaderSystem">The shader system that compiles and caches the shader.</param>
     /// <returns>The compiled ImGui shader.</returns>
-    public static Shader GetImGUIShader(RenderingSystem renderingSystem)
+    public static Shader GetImGUIShader(ShaderSystem shaderSystem)
     {
-        // Compiles through the shared slang module system: source registered
-        // under "ImGUI" with ImGui's packed vertex layout.
+        ArgumentNullException.ThrowIfNull(shaderSystem);
         string source = GetEmbeddedResourceString("ImGUI.slang");
-        return renderingSystem.ShaderSystem.GetShaderFromModule("ImGUI", "ImGUI.slang", source,
-        [
-            new(){
-                Elements = new VertexElement[] {
-                    new(0, 0, VertexFormat.Float32x2, "POSITION"),
-                    new(1, 8, VertexFormat.Float32x2, "TEXCOORD0"),
-                    new(2, 16, VertexFormat.Unorm8x4, "COLOR"),//the ImGUI vertex use uint as color
-                },
-                Stride = 20,
-                StepMode = VertexStepMode.Vertex,
-            }
-        ]);
+        return shaderSystem.GetShaderFromSource("ImGUI", "ImGUI.slang", source, ShaderKind.Graphics, "ImGUI");
     }
+
     /// <summary>
-    /// Gets the embedded resource content as string
+    /// Gets the embedded resource content as a UTF-8 string.
     /// </summary>
-    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang")</param>
-    /// <returns>Content of the resource as string</returns>
+    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang").</param>
+    /// <returns>Content of the resource as a string.</returns>
     public static string GetEmbeddedResourceString(string resourceName)
     {
-        var assembly = typeof(ImGUIResourceHelper).Assembly;
-        var fullResourceName = $"{assembly.GetName().Name}.{resourceName}";
+        Assembly assembly = typeof(ImGUIResourceHelper).Assembly;
+        string fullResourceName = $"{assembly.GetName().Name}.{resourceName}";
 
-        using var stream = assembly.GetManifestResourceStream(fullResourceName);
-        if (stream == null)
-        {
-            throw new ArgumentException($"Resource '{fullResourceName}' not found in assembly '{assembly.GetName().Name}'");
-        }
-
-        using var reader = new StreamReader(stream, Encoding.UTF8);
+        using Stream stream = assembly.GetManifestResourceStream(fullResourceName)
+            ?? throw new ArgumentException($"Resource '{fullResourceName}' not found in assembly '{assembly.GetName().Name}'");
+        using StreamReader reader = new(stream, Encoding.UTF8);
         return reader.ReadToEnd();
     }
 
     /// <summary>
-    /// Gets the embedded resource content as byte array
+    /// Gets the embedded resource content as a byte array.
     /// </summary>
-    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang")</param>
-    /// <returns>Content of the resource as byte array</returns>
+    /// <param name="resourceName">Resource name (e.g. "ImGUI.slang").</param>
+    /// <returns>Content of the resource as a byte array.</returns>
     public static byte[] GetEmbeddedResourceBytes(string resourceName)
     {
-        var assembly = typeof(ImGUIResourceHelper).Assembly;
-        var fullResourceName = $"{assembly.GetName().Name}.{resourceName}";
+        Assembly assembly = typeof(ImGUIResourceHelper).Assembly;
+        string fullResourceName = $"{assembly.GetName().Name}.{resourceName}";
 
-        using var stream = assembly.GetManifestResourceStream(fullResourceName);
-        if (stream == null)
-        {
-            throw new ArgumentException($"Resource '{fullResourceName}' not found in assembly '{assembly.GetName().Name}'");
-        }
-
-        using var memoryStream = new MemoryStream();
+        using Stream stream = assembly.GetManifestResourceStream(fullResourceName)
+            ?? throw new ArgumentException($"Resource '{fullResourceName}' not found in assembly '{assembly.GetName().Name}'");
+        using MemoryStream memoryStream = new();
         stream.CopyTo(memoryStream);
         return memoryStream.ToArray();
     }

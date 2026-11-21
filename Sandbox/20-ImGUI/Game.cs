@@ -1,38 +1,32 @@
 using System.Numerics;
-using Alco.Engine;
-using Alco.Rendering;
 using Alco;
+using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
-
+using Alco.Rendering;
 
 /// <summary>Sandbox demonstrating ImGui windows and common widgets.</summary>
 public class Game : GameEngine
 {
-    private readonly GPUCommandBuffer _commandBuffer;
-
     private bool showDemoWindow = true;
     private bool showCustomWindow = true;
     private float sliderValue = 0.5f;
-    private Vector3 color = new Vector3(0.4f, 0.7f, 0.2f);
+    private Vector3 color = new(0.4f, 0.7f, 0.2f);
     private bool toggleValue = true;
 
-    private ColorFloat colorFloat = new ColorFloat(0.4f, 0.7f, 0.2f, 1.0f);
-
-    private Texture2D _texture;
+    private readonly Texture2D _texture;
 
     /// <summary>Initializes the ImGui system and loads the demo texture and fonts.</summary>
     /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
         AddSystem(new ImGUISystem(this));
-        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
 
         _texture = AssetSystem.Load<Texture2D>("Textures/Grid.png");
         if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle data))
         {
-            var span = data.AsSpan();
+            Span<byte> span = data.AsSpan();
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Basic);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Chinese);
             ImGUIRenderer.Instance!.AddFontForLanguage(span, FontLanguage.Japanese);
@@ -41,6 +35,7 @@ public class Game : GameEngine
         }
     }
 
+    /// <inheritdoc />
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
@@ -48,17 +43,35 @@ public class Game : GameEngine
             Stop();
         }
 
-        if (MainPresenter.FrameBuffer is { } frameBuffer)
+        if (MainPresenter.HasValidFrame)
         {
-            _commandBuffer.Begin();
-            using (_commandBuffer.BeginRender(frameBuffer, ColorFloat.Black))
+            ColorAttachment colorAttachment = new()
+            {
+                RenderView = MainPresenter.CurrentFrame.RenderView,
+                Load = LoadOp.Clear,
+                Store = StoreOp.Store,
+                Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+            };
+            RenderingDesc pass = new() { Colors = [colorAttachment] };
+            using (MainPresenter.FrameContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
             {
             }
-            _commandBuffer.End();
-            GraphicsDevice.Submit(_commandBuffer);
         }
 
         RenderImGUIContent();
+    }
+
+    /// <inheritdoc />
+    public override void Dispose()
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        GraphicsDevice.WaitIdle();
+        _texture.Dispose();
+        base.Dispose();
     }
 
     private void RenderImGUIContent()
@@ -74,7 +87,7 @@ public class Game : GameEngine
         {
             ImGui.Begin("Custom Window", ref showCustomWindow);
 
-            FixedString8 strFramerate = new FixedString8();
+            FixedString8 strFramerate = new();
             strFramerate.Append(FrameRate);
 
             ImGui.Text(strFramerate);

@@ -753,6 +753,31 @@ public sealed class RenderContext : RenderingResource
                 firstInstance);
         }
 
+        /// <summary>Records an indexed draw with prepacked root data and draw-local depth and stencil state.</summary>
+        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
+        /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
+        /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
+        /// <param name="indices">The index buffer, retained until submission registration or discard.</param>
+        /// <param name="type">The index element type.</param>
+        /// <param name="indexCount">The number of indices per instance.</param>
+        /// <param name="instanceCount">The number of instances.</param>
+        /// <param name="firstIndex">The index of the first index-buffer element.</param>
+        /// <param name="vertexOffset">The offset added to each fetched index.</param>
+        /// <param name="firstInstance">The index of the first instance.</param>
+        /// <param name="byteOffset">The index buffer's byte offset; firstIndex is relative to the resulting subrange.</param>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
+        public void DrawIndexed(Material material, GPURange root, DepthStencilState depthStencil, Buffer indices, IndexType type,
+            uint indexCount, uint instanceCount = 1, uint firstIndex = 0, int vertexOffset = 0, uint firstInstance = 0, ulong byteOffset = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
+            Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && byteOffset < indices.SizeBytes);
+            _context.BindMaterial(material, depthStencil);
+            _context.RetainIndexBuffer(indices);
+            _context.RecordingCommands.DrawIndexed(root, indices.Range.Slice(byteOffset), type, indexCount, instanceCount, firstIndex, vertexOffset,
+                firstInstance);
+        }
+
         /// <summary>Records indexed indirect draws with a fresh root snapshot.</summary>
         /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
         /// <param name="indices">The index buffer, retained through submission registration or discard.</param>

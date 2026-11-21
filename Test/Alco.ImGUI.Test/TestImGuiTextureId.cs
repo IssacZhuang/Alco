@@ -1,0 +1,74 @@
+using Alco.Graphics;
+using Alco.Graphics.LowLevel;
+using Alco.Rendering;
+
+namespace Alco.ImGUI.Test;
+
+/// <summary>
+/// Verifies stable bindless <see cref="ImGui.GetTextureId(Texture?)"/> resolution and fallback behavior.
+/// </summary>
+[TestFixture]
+public sealed class TestImGuiTextureId
+{
+    /// <summary>
+    /// Verifies that null, non-sampled, destroyed, and valid textures resolve to expected ImGui texture IDs.
+    /// </summary>
+    [Test]
+    public void GetTextureId_ResolvesSampledSlotAndFallsBackToWhiteSlotZero()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        RenderingSystem system = new(device, textureHeapByteCount: 1024 * 1024, bufferHeapByteCount: 1024 * 1024);
+        Texture? sampled = null;
+        Texture? attachmentOnly = null;
+        Texture2D? texture2D = null;
+        try
+        {
+            Assert.That(system.TextureWhite.SampledIndex, Is.EqualTo(0u));
+            Assert.That(ImGui.GetTextureId((Texture?)null), Is.EqualTo(IntPtr.Zero));
+            Assert.That(ImGui.GetTextureId((Texture2D?)null), Is.EqualTo(IntPtr.Zero));
+
+            sampled = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(8, 8, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.Sampled,
+            });
+            Assert.That(sampled.SampledIndex, Is.Not.EqualTo(0u));
+            Assert.That(ImGui.GetTextureId(sampled), Is.EqualTo((IntPtr)sampled.SampledIndex));
+
+            sampled.Destroy();
+            Assert.That(ImGui.GetTextureId(sampled), Is.EqualTo(IntPtr.Zero));
+
+            attachmentOnly = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(8, 8, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.ColorAttachment,
+            });
+            Assert.That(attachmentOnly.SampledIndex, Is.EqualTo(Texture.NoIndex));
+            Assert.That(ImGui.GetTextureId(attachmentOnly), Is.EqualTo(IntPtr.Zero));
+
+            byte[] pixels = new byte[4 * 4 * 4];
+            texture2D = Texture2DUtility.CreateTexture2D(system, pixels, 4, 4);
+            Assert.That(texture2D.SampledIndex, Is.Not.EqualTo(0u));
+            Assert.That(ImGui.GetTextureId(texture2D), Is.EqualTo((IntPtr)texture2D.SampledIndex));
+
+            texture2D.Dispose();
+            Assert.That(ImGui.GetTextureId(texture2D), Is.EqualTo(IntPtr.Zero));
+        }
+        finally
+        {
+            texture2D?.Dispose();
+            if (attachmentOnly != null && !attachmentOnly.IsDestroyed)
+            {
+                attachmentOnly.Destroy();
+            }
+            if (sampled != null && !sampled.IsDestroyed)
+            {
+                sampled.Destroy();
+            }
+            system.Destroy();
+            device.Destroy();
+        }
+    }
+}

@@ -1,18 +1,14 @@
 ﻿using Alco;
 using Alco.Engine;
-using Alco.Graphics;
 
-GameEngineSetting setting = new GameEngineSetting
+GameEngineSetting setting = new()
 {
     StopWhenError = true,
     View = new ViewSetting(640, 360, "ImGUI"),
-    Graphics = GraphicsSetting.Default with
-    {
-        Backend = GraphicsBackend.Vulkan
-    },
+    Graphics = GraphicsSetting.Default,
 };
 
-using (Game game = new Game(setting))
+using (Game game = new(setting))
 {
     game.Run();
 }

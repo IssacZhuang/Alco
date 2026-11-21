@@ -230,6 +230,7 @@ public sealed class AlcoGraphicsNoGpuTests
             Assert.That(gfxShader.Root.Find("Tint")?.Kind, Is.EqualTo(MaterialFieldKind.Data));
 
             Buffer outputBuffer = system.CreateBuffer(256);
+            Buffer indexBuffer = system.CreateBuffer<ushort>([0, 1, 2]);
             Texture offscreen = system.CreateTexture(new TextureDesc
             {
                 Extent = new Extent3D(16, 16, 1),
@@ -249,6 +250,7 @@ public sealed class AlcoGraphicsNoGpuTests
 
             try
             {
+                Assert.That(outputBuffer.View.Index, Is.Not.EqualTo(0u));
                 context.BeginFrame();
                 using (var compute = context.BeginCompute())
                 {
@@ -258,9 +260,11 @@ public sealed class AlcoGraphicsNoGpuTests
                 {
                     Colors = [new ColorAttachment { RenderView = offscreen.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store }],
                 };
+                GPUAllocation<byte> packedRoot = gfxMat.AllocateRoot(context.FrameData);
                 using (var render = context.BeginRenderPass(passDesc))
                 {
                     render.Draw(gfxMat, 3);
+                    render.DrawIndexed(gfxMat, packedRoot.GPURange, default, indexBuffer, IndexType.UInt16, 3);
                 }
                 TimelinePoint point = context.Submit();
                 point.Wait();
@@ -271,6 +275,7 @@ public sealed class AlcoGraphicsNoGpuTests
             finally
             {
                 outputBuffer.Destroy();
+                indexBuffer.Destroy();
                 offscreen.Destroy();
             }
         }

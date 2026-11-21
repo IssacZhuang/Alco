@@ -1,62 +1,104 @@
 using System.Numerics;
+using Alco.Graphics;
 using Alco.Rendering;
 
 namespace Alco.ImGUI;
 
 public static unsafe partial class ImGui
 {
-    private static readonly IntPtr WhiteTexture = (IntPtr)(-2);
+    /// <summary>Gets the ImGui texture identifier for a GPU texture, or slot 0 (white) when unavailable.</summary>
+    /// <param name="texture">The GPU texture, or null.</param>
+    /// <returns>The bindless sampled texture identifier usable with ImGui draw commands.</returns>
+    public static IntPtr GetTextureId(Texture? texture)
+    {
+        if (texture == null || texture.IsDestroyed)
+        {
+            return IntPtr.Zero;
+        }
+
+        uint index = texture.SampledIndex;
+        return index == Texture.NoIndex ? IntPtr.Zero : (IntPtr)index;
+    }
+
+    /// <summary>Gets the ImGui texture identifier for a 2D texture asset, or slot 0 (white) when unavailable.</summary>
+    /// <param name="texture2D">The 2D texture asset, or null.</param>
+    /// <returns>The bindless sampled texture identifier usable with ImGui draw commands.</returns>
+    public static IntPtr GetTextureId(Texture2D? texture2D)
+    {
+        if (texture2D == null || texture2D.IsDisposed)
+        {
+            return IntPtr.Zero;
+        }
+
+        return GetTextureId(texture2D.NativeTexture);
+    }
+
+    /// <summary>Draws a texture with the given screen size.</summary>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The drawn size in pixels.</param>
+    public static void Image(Texture? texture, Vector2 size)
+    {
+        Image(GetTextureId(texture), size);
+    }
+
+    /// <summary>Draws a texture region with the given screen size.</summary>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The drawn size in pixels.</param>
+    /// <param name="uvRect">The texture-space rectangle to sample.</param>
+    public static void Image(Texture? texture, Vector2 size, Rect uvRect)
+    {
+        Vector2 uv0 = uvRect.Origin;
+        Vector2 uv1 = uvRect.Origin + uvRect.Size;
+        Image(GetTextureId(texture), size, uv0, uv1);
+    }
+
+    /// <summary>Draws a texture tinted by the given color.</summary>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The drawn size in pixels.</param>
+    /// <param name="color">The tint color.</param>
+    public static void Image(Texture? texture, Vector2 size, ColorFloat color)
+    {
+        Image(GetTextureId(texture), size, Vector2.Zero, Vector2.One, color);
+    }
+
+    /// <summary>Draws a tinted texture region with the given screen size.</summary>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The drawn size in pixels.</param>
+    /// <param name="uvRect">The texture-space rectangle to sample.</param>
+    /// <param name="color">The tint color.</param>
+    public static void Image(Texture? texture, Vector2 size, Rect uvRect, ColorFloat color)
+    {
+        Vector2 uv0 = uvRect.Origin;
+        Vector2 uv1 = uvRect.Origin + uvRect.Size;
+        Image(GetTextureId(texture), size, uv0, uv1, color);
+    }
 
     /// <summary>Draws a texture with the given screen size.</summary>
     /// <param name="texture2D">The texture to draw.</param>
     /// <param name="size">The drawn size in pixels.</param>
-    public static void Image(Texture2D texture2D, Vector2 size)
+    public static void Image(Texture2D? texture2D, Vector2 size)
     {
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            Image(WhiteTexture, size);//it will render a white texture
-            return;
-        }
-
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);
-        Image(textureId, size);
+        Image(GetTextureId(texture2D), size);
     }
 
     /// <summary>Draws a texture region with the given screen size.</summary>
     /// <param name="texture2D">The texture to draw.</param>
     /// <param name="size">The drawn size in pixels.</param>
     /// <param name="uvRect">The texture-space rectangle to sample.</param>
-    public static void Image(Texture2D texture2D, Vector2 size, Rect uvRect)
+    public static void Image(Texture2D? texture2D, Vector2 size, Rect uvRect)
     {
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            Image(WhiteTexture, size);//it will render a white texture
-            return;
-        }
-
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);
-        
         Vector2 uv0 = uvRect.Origin;
         Vector2 uv1 = uvRect.Origin + uvRect.Size;
-
-        Image(textureId, size, uv0, uv1);
+        Image(GetTextureId(texture2D), size, uv0, uv1);
     }
 
     /// <summary>Draws a texture tinted by the given color.</summary>
     /// <param name="texture2D">The texture to draw.</param>
     /// <param name="size">The drawn size in pixels.</param>
     /// <param name="color">The tint color.</param>
-    public static void Image(Texture2D texture2D, Vector2 size, ColorFloat color)
+    public static void Image(Texture2D? texture2D, Vector2 size, ColorFloat color)
     {
-        Vector4 tint = color;
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            Image(WhiteTexture, size, Vector2.Zero, Vector2.One, tint);
-            return;
-        }
-
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);
-        Image(textureId, size, Vector2.Zero, Vector2.One, tint);
+        Image(GetTextureId(texture2D), size, Vector2.Zero, Vector2.One, color);
     }
 
     /// <summary>Draws a tinted texture region with the given screen size.</summary>
@@ -64,19 +106,59 @@ public static unsafe partial class ImGui
     /// <param name="size">The drawn size in pixels.</param>
     /// <param name="uvRect">The texture-space rectangle to sample.</param>
     /// <param name="color">The tint color.</param>
-    public static void Image(Texture2D texture2D, Vector2 size, Rect uvRect, ColorFloat color)
+    public static void Image(Texture2D? texture2D, Vector2 size, Rect uvRect, ColorFloat color)
     {
         Vector2 uv0 = uvRect.Origin;
         Vector2 uv1 = uvRect.Origin + uvRect.Size;
-        Vector4 tint = color;
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            Image(WhiteTexture, size, uv0, uv1, tint);
-            return;
-        }
+        Image(GetTextureId(texture2D), size, uv0, uv1, color);
+    }
 
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);
-        Image(textureId, size, uv0, uv1, tint);
+    /// <summary>Draws a texture button and returns whether it was clicked.</summary>
+    /// <param name="label">The button label.</param>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The button size in pixels.</param>
+    /// <returns>True when the button was clicked.</returns>
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture? texture, Vector2 size)
+    {
+        return ImageButton(label, GetTextureId(texture), size);
+    }
+
+    /// <summary>Draws a texture-region button and returns whether it was clicked.</summary>
+    /// <param name="label">The button label.</param>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The button size in pixels.</param>
+    /// <param name="uvRect">The texture-space rectangle to sample.</param>
+    /// <returns>True when the button was clicked.</returns>
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture? texture, Vector2 size, Rect uvRect)
+    {
+        Vector2 uv0 = uvRect.Origin;
+        Vector2 uv1 = uvRect.Origin + uvRect.Size;
+        return ImageButton(label, GetTextureId(texture), size, uv0, uv1);
+    }
+
+    /// <summary>Draws a tinted texture button and returns whether it was clicked.</summary>
+    /// <param name="label">The button label.</param>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The button size in pixels.</param>
+    /// <param name="color">The tint color.</param>
+    /// <returns>True when the button was clicked.</returns>
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture? texture, Vector2 size, ColorFloat color)
+    {
+        return ImageButton(label, GetTextureId(texture), size, Vector2.Zero, Vector2.One, default, color);
+    }
+
+    /// <summary>Draws a tinted texture-region button and returns whether it was clicked.</summary>
+    /// <param name="label">The button label.</param>
+    /// <param name="texture">The GPU texture to draw.</param>
+    /// <param name="size">The button size in pixels.</param>
+    /// <param name="uvRect">The texture-space rectangle to sample.</param>
+    /// <param name="color">The tint color.</param>
+    /// <returns>True when the button was clicked.</returns>
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture? texture, Vector2 size, Rect uvRect, ColorFloat color)
+    {
+        Vector2 uv0 = uvRect.Origin;
+        Vector2 uv1 = uvRect.Origin + uvRect.Size;
+        return ImageButton(label, GetTextureId(texture), size, uv0, uv1, default, color);
     }
 
     /// <summary>Draws a texture button and returns whether it was clicked.</summary>
@@ -84,15 +166,9 @@ public static unsafe partial class ImGui
     /// <param name="texture2D">The texture to draw.</param>
     /// <param name="size">The button size in pixels.</param>
     /// <returns>True when the button was clicked.</returns>
-    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D texture2D, Vector2 size)
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D? texture2D, Vector2 size)
     {
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            return ImageButton(label, WhiteTexture, size);
-        }
-
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);
-        return ImageButton(label, textureId, size);
+        return ImageButton(label, GetTextureId(texture2D), size);
     }
 
     /// <summary>Draws a texture-region button and returns whether it was clicked.</summary>
@@ -101,18 +177,11 @@ public static unsafe partial class ImGui
     /// <param name="size">The button size in pixels.</param>
     /// <param name="uvRect">The texture-space rectangle to sample.</param>
     /// <returns>True when the button was clicked.</returns>
-    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D texture2D, Vector2 size, Rect uvRect)
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D? texture2D, Vector2 size, Rect uvRect)
     {
         Vector2 uv0 = uvRect.Origin;
         Vector2 uv1 = uvRect.Origin + uvRect.Size;
-
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            return ImageButton(label, WhiteTexture, size, uv0, uv1);
-        }
-
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);        
-        return ImageButton(label, textureId, size, uv0, uv1);
+        return ImageButton(label, GetTextureId(texture2D), size, uv0, uv1);
     }
 
     /// <summary>Draws a tinted texture button and returns whether it was clicked.</summary>
@@ -121,15 +190,9 @@ public static unsafe partial class ImGui
     /// <param name="size">The button size in pixels.</param>
     /// <param name="color">The tint color.</param>
     /// <returns>True when the button was clicked.</returns>
-    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D texture2D, Vector2 size, ColorFloat color)
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D? texture2D, Vector2 size, ColorFloat color)
     {
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            return ImageButton(label, WhiteTexture, size, Vector2.Zero, Vector2.One, default, color);
-        }
-
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);
-        return ImageButton(label, textureId, size, Vector2.Zero, Vector2.One, default, color);
+        return ImageButton(label, GetTextureId(texture2D), size, Vector2.Zero, Vector2.One, default, color);
     }
 
     /// <summary>Draws a tinted texture-region button and returns whether it was clicked.</summary>
@@ -139,17 +202,10 @@ public static unsafe partial class ImGui
     /// <param name="uvRect">The texture-space rectangle to sample.</param>
     /// <param name="color">The tint color.</param>
     /// <returns>True when the button was clicked.</returns>
-    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D texture2D, Vector2 size, Rect uvRect, ColorFloat color)
+    public static bool ImageButton(ReadOnlySpan<char> label, Texture2D? texture2D, Vector2 size, Rect uvRect, ColorFloat color)
     {
         Vector2 uv0 = uvRect.Origin;
         Vector2 uv1 = uvRect.Origin + uvRect.Size;
-
-        if (texture2D.IsDisposed || ImGUIRenderer.Instance == null)
-        {
-            return ImageButton(label, WhiteTexture, size, uv0, uv1, default, color);
-        }
-
-        IntPtr textureId = ImGUIRenderer.Instance.AddTexture(texture2D);
-        return ImageButton(label, textureId, size, uv0, uv1, default, color);
+        return ImageButton(label, GetTextureId(texture2D), size, uv0, uv1, default, color);
     }
 }

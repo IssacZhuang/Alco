@@ -46,7 +46,15 @@ public sealed unsafe class Buffer : RenderingResource
 
     internal RenderingSystem System => _system;
 
-    internal GPUBufferView View => _allocation.Range.View;
+    /// <summary>The borrowed shader-visible buffer view; using it directly does not retain this buffer.</summary>
+    public GPUBufferView View
+    {
+        get
+        {
+            Debug.Assert(!IsDestroyed);
+            return _allocation.Range.View;
+        }
+    }
 
     /// <summary>Returns the owned storage to the rendering system.</summary>
     protected override void Release()
