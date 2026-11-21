@@ -1,7 +1,5 @@
 using Alco.Audio;
-using Alco.Graphics;
 using Alco.IO;
-using Alco.Rendering;
 
 namespace Alco.Engine;
 
@@ -9,15 +7,11 @@ namespace Alco.Engine;
 /// Host interface implementations that connect engine services.
 /// </summary>
 public partial class GameEngine :
-IGPUDeviceHost,
 IAssetSystemHost,
-IRenderingSystemHost,
 IAudioDeviceHost
 {
     #region Host Interface
-    private event Action? EventOnEndFrame;
     private event Action? EventOnDispose;
-    private event Action<float>? EventOnUpdate;
 
     event Action IAssetSystemHost.OnDispose
     {
@@ -25,31 +19,7 @@ IAudioDeviceHost
         remove => EventOnDispose -= value;
     }
 
-    event Action IGPUDeviceHost.OnEndFrame
-    {
-        add => EventOnEndFrame += value;
-        remove => EventOnEndFrame -= value;
-    }
-
-    event Action IGPUDeviceHost.OnDispose
-    {
-        add => EventOnDispose += value;
-        remove => EventOnDispose -= value;
-    }
-
     event Action IAudioDeviceHost.OnDispose
-    {
-        add => EventOnDispose += value;
-        remove => EventOnDispose -= value;
-    }
-
-    event Action<float> IRenderingSystemHost.OnUpdate
-    {
-        add => EventOnUpdate += value;
-        remove => EventOnUpdate -= value;
-    }
-
-    event Action IRenderingSystemHost.OnDispose
     {
         add => EventOnDispose += value;
         remove => EventOnDispose -= value;
@@ -75,26 +45,6 @@ IAudioDeviceHost
         Log.Success(message);
     }
 
-    void IGPUDeviceHost.LogInfo(ReadOnlySpan<char> message)
-    {
-        Log.Info(message);
-    }
-
-    void IGPUDeviceHost.LogWarning(ReadOnlySpan<char> message)
-    {
-        Log.Warning(message);
-    }
-
-    void IGPUDeviceHost.LogError(ReadOnlySpan<char> message)
-    {
-        Log.Error(message);
-    }
-
-    void IGPUDeviceHost.LogSuccess(ReadOnlySpan<char> message)
-    {
-        Log.Success(message);
-    }
-
     void IAudioDeviceHost.LogInfo(ReadOnlySpan<char> message)
     {
         Log.Info(message);
@@ -115,7 +65,5 @@ IAudioDeviceHost
         Log.Success(message);
     }
 
-    
     #endregion
-
 }

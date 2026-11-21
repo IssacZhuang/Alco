@@ -1,6 +1,6 @@
 
 
-using System;
+using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
 
@@ -12,22 +12,22 @@ namespace Alco.Engine;
 public partial class BuiltInAssets
 {
     private readonly AssetSystem _assets;
-    private readonly RenderingSystem _rendering;
+    private readonly ShaderSystem _shaderSystem;
 
     /// <summary>
     /// Initializes a new instance of <see cref="BuiltInAssets"/>.
     /// </summary>
     /// <param name="assets">Asset system used to load built-in assets.</param>
-    /// <param name="rendering">Rendering system used to obtain built-in shaders.</param>
-    public BuiltInAssets(AssetSystem assets, RenderingSystem rendering)
+    /// <param name="shaderSystem">Shader system used to obtain built-in shaders.</param>
+    public BuiltInAssets(AssetSystem assets, ShaderSystem shaderSystem)
     {
         _assets = assets;
-        _rendering = rendering;
+        _shaderSystem = shaderSystem;
     }
 
     private Shader GetShader(string moduleName)
     {
-        return _rendering.ShaderSystem.GetShader(moduleName);
+        return _shaderSystem.GetShader(moduleName);
     }
 
     private Font GetFont(string path)

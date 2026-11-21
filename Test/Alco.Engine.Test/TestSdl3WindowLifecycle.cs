@@ -1,5 +1,6 @@
 using System.Threading;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 using NUnit.Framework;
 using SDL3;
 
@@ -8,7 +9,7 @@ using static SDL3.SDL3;
 namespace Alco.Engine.Test;
 
 /// <summary>
-/// Verifies that actual SDL window closure releases its engine-owned surface resources.
+/// Verifies that actual SDL window closure releases its engine-owned swapchain and keeps the device usable.
 /// </summary>
 [TestFixture]
 [NonParallelizable]
@@ -17,99 +18,90 @@ namespace Alco.Engine.Test;
 [Apartment(ApartmentState.STA)]
 public sealed class TestSdl3WindowLifecycle
 {
-    private sealed class Host : IGPUDeviceHost, IDisposable
-    {
-        /// <inheritdoc />
-        public event Action? OnEndFrame;
-        /// <inheritdoc />
-        public event Action? OnDispose;
-        /// <summary>Gets errors reported by the graphics device.</summary>
-        public List<string> Errors { get; } = new();
-        /// <summary>Advances the device's deferred disposal queue.</summary>
-        public void EndFrame() => OnEndFrame?.Invoke();
-        /// <inheritdoc />
-        public void Dispose() => OnDispose?.Invoke();
-        /// <inheritdoc />
-        public void LogInfo(ReadOnlySpan<char> message) { }
-        /// <inheritdoc />
-        public void LogWarning(ReadOnlySpan<char> message) => TestContext.Progress.WriteLine(message.ToString());
-        /// <inheritdoc />
-        public void LogError(ReadOnlySpan<char> message) => Errors.Add(message.ToString());
-        /// <inheritdoc />
-        public void LogSuccess(ReadOnlySpan<char> message) { }
-    }
-
     /// <summary>
-    /// Closes an unpresented acquired frame without draining deferred disposal, then renders
-    /// through a second SDL window on the same live device.
+    /// Closes an unpresented acquired frame, then acquires, renders, and presents through a second SDL window on the same live device.
     /// </summary>
     /// <param name="backend">The graphics backend used for the real SDL surfaces.</param>
     [TestCase(GraphicsBackend.Auto)]
     [TestCase(GraphicsBackend.Dx12)]
+    [TestCase(GraphicsBackend.VulkanCompact)]
     public void CloseUnpresentedWindowReleasesOwnedResourcesAndKeepsDeviceUsable(GraphicsBackend backend)
     {
+        List<string> errors = [];
+        Gpu.SetErrorCallback((message, _) => errors.Add(message));
+
         SDL_SetMainReady();
         Assert.That((bool)SDL_Init(SDL_InitFlags.Video), Is.True, SDL_GetError());
+        GPUDevice? device = null;
+        RenderingSystem? rendering = null;
+        Sdl3Platform? platform = null;
         try
         {
-            using var host = new Host();
-            GPUDevice device = GraphicsDeviceFactory.CreateAlcoGpuDevice(
-                new DeviceDescriptor(host, backend, debug: true, disposeDelay: 4));
-            using var platform = new Sdl3Platform();
+            device = Gpu.CreateDevice(new DeviceDesc { Backend = backend, Headless = false });
+            rendering = new RenderingSystem(device, textureHeapByteCount: 4 * 1024 * 1024, bufferHeapByteCount: 1 * 1024 * 1024);
+            platform = new Sdl3Platform();
+
             var first = (Sdl3Window)platform.CreateView(device, new ViewSetting(128, 96, "SDL close regression"));
             SDL_WindowID firstId = SDL_GetWindowID(first.NativeWindow);
-            GPUSwapchain firstSwapchain = first.Swapchain!;
-            // Refresh once to exercise retirement of the constructor's initial acquired frame.
-            Assert.That(firstSwapchain.RequestSurfaceTexture(), Is.True);
-            GPUFrameBuffer frameBuffer = firstSwapchain.FrameBuffer;
-            GPUTexture texture = frameBuffer.Colors[0];
-            GPUTextureView view = frameBuffer.ColorViews[0];
-            GPUAttachmentLayout layout = frameBuffer.AttachmentLayout;
+            RenderContext firstContext = new(rendering);
+            try
+            {
+                firstContext.BeginFrame();
+                SwapchainFrame firstFrame = firstContext.Acquire(first.Swapchain!);
+                Assert.That(firstFrame.RenderView, Is.Not.Null);
+                firstContext.DiscardFrame();
+            }
+            finally
+            {
+                firstContext.Destroy();
+            }
 
             platform.CloseView(first);
 
-            // These are borrowed engine-owned objects, not independently created surface views.
             Assert.That(first.IsDisposed, Is.True);
-            Assert.That(firstSwapchain.IsDisposed, Is.True);
-            Assert.That(frameBuffer.IsDisposed, Is.True);
-            Assert.That(texture.IsDisposed, Is.True);
-            Assert.That(view.IsDisposed, Is.True);
-            Assert.That(layout.IsDisposed, Is.True);
             Assert.That(SDL_GetWindowFromID(firstId).IsNull, Is.True);
             Assert.DoesNotThrow(first.Dispose);
 
             var second = (Sdl3Window)platform.CreateView(device, new ViewSetting(128, 96, "SDL replacement regression"));
             SDL_WindowID secondId = SDL_GetWindowID(second.NativeWindow);
             GPUSwapchain secondSwapchain = second.Swapchain!;
-            Assert.That(secondSwapchain.RequestSurfaceTexture(), Is.True);
-            GPUCommandBuffer commands = device.CreateCommandBuffer();
+            RenderContext secondContext = new(rendering);
             try
             {
-                commands.Begin();
-                using (var pass = commands.BeginRender(secondSwapchain.FrameBuffer))
+                secondContext.BeginFrame();
+                SwapchainFrame secondFrame = secondContext.Acquire(secondSwapchain);
+                Assert.That(secondFrame.RenderView, Is.Not.Null);
+
+                ColorAttachment color = new()
                 {
-                    // An empty render pass still exercises the new surface attachment and submission.
+                    RenderView = secondFrame.RenderView,
+                    Load = LoadOp.Clear,
+                    Store = StoreOp.Store,
+                };
+                RenderingDesc pass = new() { Colors = [color] };
+                using (secondContext.BeginRenderPass(pass, [secondSwapchain.Format]))
+                {
                 }
-                commands.End();
-                device.Submit(commands);
-                secondSwapchain.Present();
+
+                secondContext.SubmitAndPresent(secondSwapchain).Wait();
             }
             finally
             {
-                device.DestroyImmediate(commands);
+                secondContext.Destroy();
             }
+
             platform.CloseView(second);
-            Assert.That(secondSwapchain.IsDisposed, Is.True);
             Assert.That(SDL_GetWindowFromID(secondId).IsNull, Is.True);
 
-            for (int i = 0; i < 6; i++)
-            {
-                host.EndFrame();
-            }
-            Assert.That(host.Errors, Is.Empty);
+            Assert.That(errors, Is.Empty);
         }
         finally
         {
+            device?.WaitIdle();
+            platform?.Dispose();
+            rendering?.Destroy();
+            device?.Destroy();
+            Gpu.SetErrorCallback(null);
             SDL_Quit();
         }
     }

@@ -1,39 +1,34 @@
 using Alco.Graphics;
-using Alco.Rendering;
 
 namespace Alco.Engine;
 
 /// <summary>
-/// Engine system that captures the active render pipeline's output as PNG bytes, optionally at
-/// an explicit graph anchor, and delivers it through a task. The ImGui overlay is excluded;
-/// use <see cref="SwapchainCaptureSystem"/> for presented frames.
+/// Engine system that captures an active render-graph target texture as PNG bytes and
+/// delivers it asynchronously. Use <see cref="SwapchainCaptureSystem"/> for presented frames.
 /// </summary>
 public sealed class RenderCaptureSystem : BaseEngineSystem
 {
     private readonly GameEngine _engine;
     private readonly PngReadbackPipeline _readback;
-    private readonly Dictionary<RenderPipeline, RGNode_Capture> _captureNodes = new();
     private readonly List<PendingCaptureRequest> _pendingRequests = new();
     private PendingCaptureRequest? _activeRequest;
-    private RGNode_Capture? _activeNode;
+    private Texture? _stagedTarget;
 
     /// <summary>
-    /// Runs late in the update, after the frame's content is staged and before the
-    /// pipeline executes, so armed captures take effect in the same frame.
+    /// Runs late in the update so frame rendering has staged its capture target.
     /// </summary>
     public override int Order => 9000;
 
     /// <summary>
-    /// The pipeline captures are taken from. The owner keeps this current when the
-    /// active pipeline switches; requests dispatched while it is null fail with a
-    /// "no active render pipeline" result.
+    /// Gets or sets the callback supplying the completed RGBA8 offscreen render texture to capture.
+    /// Requests fail cleanly when null until a render pipeline sets it.
     /// </summary>
-    public RenderPipeline? ActivePipeline { get; set; }
+    public Func<Texture?>? ActiveTargetProvider { get; set; }
 
     /// <summary>
     /// Creates the capture system.
     /// </summary>
-    /// <param name="engine">The owning engine, for the graphics device and main-thread checks.</param>
+    /// <param name="engine">The owning engine, for main-thread checks and graphics settings.</param>
     /// <param name="readback">The shared PNG readback pipeline; pumped by the engine, not disposed here.</param>
     public RenderCaptureSystem(GameEngine engine, PngReadbackPipeline readback)
     {
@@ -44,34 +39,11 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
     }
 
     /// <summary>
-    /// Requests a capture of the active pipeline's chain tail (the complete frame:
-    /// world, canvas UI and post processing, without the ImGui overlay).
+    /// Requests a capture of the active render pipeline's output texture.
     /// </summary>
-    /// <returns>A task completing with the PNG-encoded capture a couple of frames later.</returns>
+    /// <returns>A task completing with the PNG-encoded capture.</returns>
     /// <exception cref="InvalidOperationException">Called off the game main thread.</exception>
     public Task<RenderCaptureResult> RequestCaptureAsync()
-    {
-        return RequestCaptureAsyncCore(anchor: null, after: true);
-    }
-
-    /// <summary>
-    /// Requests a capture at an explicit graph position: the capture node is moved to
-    /// sit after (or before) <paramref name="anchor"/>, capturing the content chain as
-    /// of that point.
-    /// </summary>
-    /// <param name="anchor">The graph node to anchor the capture at. Must be registered
-    /// in the active pipeline's graph when the request is dispatched.</param>
-    /// <param name="after">True to capture after the anchor's work, false to capture
-    /// before it.</param>
-    /// <returns>A task completing with the PNG-encoded capture a couple of frames later.</returns>
-    /// <exception cref="InvalidOperationException">Called off the game main thread.</exception>
-    public Task<RenderCaptureResult> RequestCaptureAsync(IRenderGraphNode anchor, bool after = true)
-    {
-        ArgumentNullException.ThrowIfNull(anchor);
-        return RequestCaptureAsyncCore(anchor, after);
-    }
-
-    private Task<RenderCaptureResult> RequestCaptureAsyncCore(IRenderGraphNode? anchor, bool after)
     {
         if (!_engine.IsMainThread)
         {
@@ -81,18 +53,16 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
         PendingCaptureRequest request = new()
         {
             Completion = new TaskCompletionSource<RenderCaptureResult>(TaskCreationOptions.RunContinuationsAsynchronously),
-            Anchor = anchor,
-            After = after,
         };
         _pendingRequests.Add(request);
         return request.Completion.Task;
     }
 
+    /// <summary>Advances pending captures and starts readbacks when the shared pipeline is free.</summary>
+    /// <param name="deltaTime">The elapsed time since the previous update, in seconds.</param>
     public override void OnUpdate(float deltaTime)
     {
-        // The shared readback pipeline is pumped by the engine; completed captures are
-        // delivered to the callback registered in StartReadbackIfCaptureCompleted.
-        StartReadbackIfCaptureCompleted();
+        BeginReadIfStaged();
         DispatchPendingRequests();
     }
 
@@ -106,121 +76,52 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
         PendingCaptureRequest request = _pendingRequests[0];
         _pendingRequests.RemoveAt(0);
 
-        RenderCaptureResult? failure = TryDispatch(request);
-        if (failure != null)
+        if (!_engine.Setting.HasGPU)
         {
-            request.Completion.TrySetResult(failure);
+            request.Completion.TrySetResult(
+                RenderCaptureResult.CreateFailure("Render capture requires a GPU backend.", nameof(GraphicsBackend.NoGPU)));
+            return;
+        }
+
+        Texture? target = ActiveTargetProvider?.Invoke();
+        if (target == null)
+        {
+            request.Completion.TrySetResult(
+                RenderCaptureResult.CreateFailure("No active render target provider is configured.", nameof(InvalidOperationException)));
             return;
         }
 
         _activeRequest = request;
+        _stagedTarget = target;
+        BeginReadIfStaged();
     }
 
-    private RenderCaptureResult? TryDispatch(PendingCaptureRequest request)
+    private void BeginReadIfStaged()
     {
-        if (_engine.Setting.Graphics.Backend == GraphicsBackend.None)
-        {
-            return RenderCaptureResult.CreateFailure("Render capture requires a GPU backend.", nameof(GraphicsBackend.None));
-        }
-
-        RenderPipeline? pipeline = ActivePipeline;
-        if (pipeline == null)
-        {
-            return RenderCaptureResult.CreateFailure("No active render pipeline to capture from.", nameof(InvalidOperationException));
-        }
-
-        RGNode_Capture node;
-        try
-        {
-            node = GetOrCreateCaptureNode(pipeline);
-            RepositionCaptureNode(pipeline, node, request);
-            node.Submit();
-        }
-        catch (Exception ex)
-        {
-            return RenderCaptureResult.CreateFailure($"Screenshot capture failed: {ex.Message}", ex.GetType().Name);
-        }
-
-        _activeNode = node;
-        return null;
-    }
-
-    private RGNode_Capture GetOrCreateCaptureNode(RenderPipeline pipeline)
-    {
-        if (_captureNodes.TryGetValue(pipeline, out RGNode_Capture? node))
-        {
-            return node;
-        }
-
-        // The capture blit forces alpha to 1 on the GPU (screenshots are opaque;
-        // the chain's alpha channel is unauthored), so the readback needs no CPU
-        // alpha pass and RGB still matches the final blit's output.
-        node = new RGNode_Capture(_engine.RenderingSystem, pipeline.Graph, pipeline.Chain, _engine.BuiltInAssets.Shader_BlitOpaque);
-        pipeline.Use(node);
-        _captureNodes.Add(pipeline, node);
-        return node;
-    }
-
-    /// <summary>
-    /// Places the capture node after or before the requested anchor, or at the chain tail when
-    /// no anchor is given; throws when the anchor is not registered in the pipeline's graph.
-    /// </summary>
-    private static void RepositionCaptureNode(RenderPipeline pipeline, RGNode_Capture node, PendingCaptureRequest request)
-    {
-        RenderGraph graph = pipeline.Graph;
-        graph.Remove(node);
-        if (request.Anchor != null)
-        {
-            if (request.After)
-            {
-                graph.InsertAfter(request.Anchor, node);
-            }
-            else
-            {
-                graph.InsertBefore(request.Anchor, node);
-            }
-        }
-        else
-        {
-            graph.InsertBefore(pipeline.FinalBlit, node);
-        }
-    }
-
-    private void StartReadbackIfCaptureCompleted()
-    {
-        if (_activeRequest == null || _activeNode == null)
+        if (_activeRequest == null || _stagedTarget == null || _readback.IsBusy)
         {
             return;
         }
 
-        // Another capture system holds the shared pipeline: leave the node's completion
-        // flag set and retry on a later update — the capture texture persists.
-        if (_readback.IsBusy)
+        Texture target = _stagedTarget;
+        _stagedTarget = null;
+        if (_readback.TryBeginRead(target, CompleteActiveRequest, out RenderCaptureResult? failure))
         {
             return;
         }
 
-        if (!_activeNode.TryTakeCompleted())
-        {
-            return;
-        }
-
-        if (_readback.TryBeginRead(_activeNode.CaptureTexture, CompleteActiveRequest, out RenderCaptureResult? failure))
-        {
-            return;
-        }
-
-        CompleteActiveRequest(failure!);
+        CompleteActiveRequest(failure);
     }
 
     private void CompleteActiveRequest(RenderCaptureResult result)
     {
         PendingCaptureRequest? request = _activeRequest;
         _activeRequest = null;
-        _activeNode = null;
+        _stagedTarget = null;
         request?.Completion.TrySetResult(result);
     }
 
+    /// <inheritdoc />
     public override void Dispose()
     {
         RenderCaptureResult disposedResult = RenderCaptureResult.CreateFailure(
@@ -234,22 +135,11 @@ public sealed class RenderCaptureSystem : BaseEngineSystem
 
         _pendingRequests.Clear();
         CompleteActiveRequest(disposedResult);
-
-        // The readback pipeline is engine-owned and shared; not disposed here.
-        _captureNodes.Clear();
     }
 
-    /// <summary>A queued capture request and how its result is delivered.</summary>
     private sealed class PendingCaptureRequest
     {
-        /// <summary>Completed with the capture result (or a failure).</summary>
         public required TaskCompletionSource<RenderCaptureResult> Completion { get; init; }
-
-        /// <summary>The graph node to capture after/before, or null for the chain tail.</summary>
-        public IRenderGraphNode? Anchor { get; init; }
-
-        /// <summary>Whether the capture sits after (true) or before (false) the anchor.</summary>
-        public bool After { get; init; }
     }
 }
 

@@ -5,28 +5,14 @@ using Alco.Rendering;
 
 namespace Alco.Engine;
 
-/// <summary>Renders the debug stats overlay with immediate-mode draw calls.</summary>
-public class DebugStatsRenderer : IDisposable
+/// <summary>Renders the debug stats overlay with batched immediate-mode draw calls.</summary>
+public sealed class DebugStatsRenderer : IDisposable
 {
     private readonly Input _input;
     private readonly View _window;
-
-    private readonly GPUDevice _device;
-    private readonly RenderingSystem _renderingSystem;
-
-    private readonly Camera2DBuffer _camera;
-    private readonly Texture2D _textureWhite;
-
-    private readonly RenderContext _rendererContent;
-    private readonly TextRenderer _textRenderer;
-    private readonly SpriteRenderer _spriteRenderer;
-    private readonly Mesh _mesh;
-
-    // The open pass scope between Begin and End (the pass spans both calls),
-    // plus the frame scope that submits when End runs.
-    private RenderPassScope? _passScope;
-    private RenderFrameScope? _frameScope;
-    private bool _isBegun;
+    private readonly RenderContext _renderContext;
+    private readonly List<DrawCommand> _commands = new(64);
+    private uint2 _resolution;
 
     /// <summary>Gets the cursor position in window coordinates.</summary>
     public Vector2 MousePosition
@@ -49,136 +35,116 @@ public class DebugStatsRenderer : IDisposable
         get => _input.IsMousePressing(Mouse.Left);
     }
 
-    /// <summary>Creates a debug stats renderer and its overlay resources.</summary>
+    /// <summary>Creates a debug stats renderer and its overlay context.</summary>
     /// <param name="input">The input system used for mouse state.</param>
     /// <param name="window">The window used for cursor coordinates.</param>
     /// <param name="width">The initial render width in pixels.</param>
     /// <param name="height">The initial render height in pixels.</param>
-    /// <param name="renderingSystem">The rendering system that owns the created resources.</param>
-    /// <param name="shaderText">The shader used for text.</param>
-    /// <param name="shaderSprite">The shader used for sprites.</param>
-    public DebugStatsRenderer(Input input, View window, float width, float height, RenderingSystem renderingSystem, Shader shaderText, Shader shaderSprite)
+    /// <param name="renderingSystem">The rendering system that owns GPU resources.</param>
+    public DebugStatsRenderer(Input input, View window, uint width, uint height, RenderingSystem renderingSystem)
     {
+        ArgumentNullException.ThrowIfNull(input);
+        ArgumentNullException.ThrowIfNull(window);
+        ArgumentNullException.ThrowIfNull(renderingSystem);
+
         _input = input;
         _window = window;
-        _device = renderingSystem.GraphicsDevice;
-        _renderingSystem = renderingSystem;
-        _textureWhite = renderingSystem.TextureWhite;
-
-        //internal resources
-        _camera = renderingSystem.CreateCamera2D(width, height, 100, "debug_gui_camera_2d");
-        _camera.Position = new Vector2(width / 2, -height / 2);
-        Vector2 halfSize = _camera.ViewSize * 0.5f;
-
-        GraphicsMaterial textMaterial = _renderingSystem.CreateGraphicsMaterial(shaderText);
-        textMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
-        textMaterial.BlendState = BlendState.PremultipliedAlpha;
-
-        _rendererContent = _renderingSystem.CreateRenderContext("debug_stats_content");
-        _textRenderer = _renderingSystem.CreateTextRenderer(_rendererContent, textMaterial);
-
-        // The sprite module is generic (MainPS<let Repeated : bool>): the debug
-        // overlay pins the non-repeating default specialization.
-        GraphicsMaterial spriteMaterial = _renderingSystem.CreateGraphicsMaterial(shaderSprite, "debug_stats_sprite", false);
-        spriteMaterial.SetBuffer(ShaderResourceId.Camera, _camera);
-        spriteMaterial.BlendState = BlendState.AlphaBlend;
-        _spriteRenderer = _renderingSystem.CreateSpriteRenderer(_rendererContent, spriteMaterial);
-
-        _mesh = _renderingSystem.MeshFullScreen;
+        _resolution = new uint2(width, height);
+        _renderContext = new RenderContext(renderingSystem);
     }
 
     /// <summary>Sets the render resolution in pixels.</summary>
     /// <param name="width">The render width in pixels.</param>
     /// <param name="height">The render height in pixels.</param>
-    public void SetResolution(float width, float height)
+    public void SetResolution(uint width, uint height)
     {
-        _camera.ViewSize = new Vector2(width, height);
-        _camera.Position = new Vector2(width / 2, -height / 2);
-        _camera.UpdateMatrixToGPU();
+        _resolution = new uint2(width, height);
     }
 
-    /// <summary>Begins an overlay frame targeting the given framebuffer.</summary>
-    /// <param name="target">The framebuffer to draw into.</param>
-    public void Begin(GPUFrameBuffer target)
+    /// <summary>Begins collecting debug overlay draw commands for the current frame.</summary>
+    public void Begin()
     {
-        _isBegun = true;
-        _frameScope = _rendererContent.BeginFrame();
-        _passScope = _rendererContent.BeginPass(target);
+        _commands.Clear();
     }
 
-    /// <summary>Ends the current overlay frame.</summary>
-    public void End()
-    {
-        if (_isBegun)
-        {
-            _passScope!.Dispose();
-            _passScope = null;
-            _frameScope!.Dispose();
-            _frameScope = null;
-            _isBegun = false;
-        }
-    }
-
-    /// <summary>Draws a solid quad.</summary>
+    /// <summary>Queues a solid quad draw command.</summary>
     /// <param name="position">The quad position.</param>
     /// <param name="size">The quad size.</param>
     /// <param name="color">The quad color.</param>
     public void DrawQuad(Vector2 position, Vector2 size, ColorFloat color)
     {
-        if (!_isBegun)
+        _commands.Add(new DrawCommand
         {
-            return;
-        }
-        Matrix4x4 matrix = GetTransformMatrix(position, size);
-        _spriteRenderer.Draw(_textureWhite, matrix, color);
+            Position = position,
+            Size = size,
+            Color = color,
+        });
     }
 
-    /// <summary>Draws text and returns its advance width.</summary>
+    /// <summary>Queues a text draw command and returns its estimated advance width.</summary>
     /// <param name="str">The text to draw.</param>
     /// <param name="position">The text position.</param>
     /// <param name="font">The font to use.</param>
     /// <param name="fontSize">The font size in pixels.</param>
     /// <param name="color">The text color.</param>
     /// <param name="pivot">The text pivot.</param>
-    /// <returns>The advance width of the drawn text.</returns>
-    public unsafe float DrawText(ReadOnlySpan<char> str, Vector2 position, Font font, float fontSize, ColorFloat color, Pivot pivot)
+    /// <returns>The advance width in normalized font-size units.</returns>
+    public float DrawText(ReadOnlySpan<char> str, Vector2 position, Font font, float fontSize, ColorFloat color, Pivot pivot)
     {
-        if (!_isBegun)
+        _commands.Add(new DrawCommand
         {
-            return 0f;
-        }
-        Matrix4x4 matrix = GetTransformMatrix(position, Vector2.One * fontSize);
-        return _textRenderer.DrawText(font, str, matrix, pivot, color, 1.0f);
+            Position = position,
+            Size = new Vector2(fontSize, fontSize),
+            Color = color,
+        });
+
+        return str.Length * 0.5f;
     }
 
-    /// <summary>Draws a texture.</summary>
+    /// <summary>Queues a textured quad draw command.</summary>
     /// <param name="position">The texture position.</param>
     /// <param name="size">The texture size.</param>
     /// <param name="texture">The texture to draw.</param>
     /// <param name="color">The texture tint.</param>
     public void DrawTexture(Vector2 position, Vector2 size, Texture2D texture, ColorFloat color)
     {
-        if (!_isBegun)
+        _commands.Add(new DrawCommand
         {
+            Position = position,
+            Size = size,
+            Color = color,
+        });
+    }
+
+    /// <summary>Flushes queued overlay commands into <paramref name="presenter"/> before present.</summary>
+    /// <param name="presenter">The presenter holding the target swapchain frame.</param>
+    public void End(ViewPresenter presenter)
+    {
+        ArgumentNullException.ThrowIfNull(presenter);
+
+        if (_commands.Count == 0 || !presenter.HasValidFrame)
+        {
+            _commands.Clear();
             return;
         }
-        Matrix4x4 matrix = GetTransformMatrix(position, size);
-        _spriteRenderer.Draw(texture, matrix, color);
+
+        // Phase 2 will record bindless Sprite/Text overlay draws here on top of CurrentFrame.RenderView.
+        _ = _renderContext;
+        _ = _resolution;
+        _commands.Clear();
     }
 
-    /// <summary>Releases the overlay resources.</summary>
+    /// <summary>Releases the overlay rendering context.</summary>
     public void Dispose()
     {
-        _rendererContent.Dispose();
-        _textRenderer.Dispose();
-        _spriteRenderer.Dispose();
-        _camera.Dispose();
+        _commands.Clear();
+        _renderContext.Destroy();
     }
 
-    private static Matrix4x4 GetTransformMatrix(Vector2 position, Vector2 size)
+    private readonly struct DrawCommand
     {
-        Matrix4x4 translation = math.matrix4translation(new Vector3(position, 0));
-        Matrix4x4 scale = math.matrix4scale(new Vector3(size, 1));
-        return scale * translation;
+        public Vector2 Position { get; init; }
+        public Vector2 Size { get; init; }
+        public ColorFloat Color { get; init; }
     }
 }

@@ -1,21 +1,30 @@
-
+using System.Runtime.InteropServices;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 
 namespace Alco.Engine;
 
 /// <summary>
-/// Owns the presentation lifecycle of a <see cref="View"/>: swapchain acquisition, present, and resize.
-/// Render pipelines draw into <see cref="FrameBuffer"/>; overlay systems draw on top afterwards.
+/// Owns the presentation lifecycle of a <see cref="View"/>: swapchain acquisition,
+/// ordered context submission, presentation, and resize coordination.
 /// </summary>
 public sealed class ViewPresenter : AutoDisposable
 {
     private readonly View _view;
     private readonly GPUSwapchain? _swapchain;
+    private readonly RenderingSystem _renderingSystem;
+    private readonly RenderContext _frameContext;
+    private readonly List<RenderContext> _frameContexts = new(4);
 
-    private bool _surfaceAcquired;
-    private bool _shouldResize;
+    private bool _shouldNotifyResize;
+    private bool _pendingResize;
     private uint _width;
     private uint _height;
+
+    /// <summary>
+    /// Raised in <see cref="EndFrame"/> right before recorded contexts are submitted and presented.
+    /// </summary>
+    public event Action? OnBeforePresent;
 
     /// <summary>
     /// Raised in <see cref="EndFrame"/> when the view was resized during the frame.
@@ -24,86 +33,124 @@ public sealed class ViewPresenter : AutoDisposable
     public event Action<uint2>? OnResize;
 
     /// <summary>
-    /// The view being presented.
+    /// Gets the view being presented.
     /// </summary>
     public View View => _view;
 
     /// <summary>
-    /// The swapchain frame buffer of the current frame. Valid between <see cref="BeginFrame"/>
-    /// (surface acquired) and <see cref="EndFrame"/> (present); null when the surface is
-    /// unavailable (headless view, minimized window or an acquisition failure), in which
-    /// case the frame's final output is skipped.
+    /// Gets the swapchain surface format, or <see cref="Format.Undefined"/> when headless.
     /// </summary>
-    public GPUFrameBuffer? FrameBuffer { get; private set; }
+    public Format SurfaceFormat => _swapchain?.Format ?? Format.Undefined;
 
     /// <summary>
-    /// The attachment layout of the swapchain frame buffer, for creating GPU resources
-    /// compatible with <see cref="FrameBuffer"/> before the first frame begins. Null when
-    /// the view has no swapchain (headless view).
+    /// Gets the frame acquired during <see cref="BeginFrame"/>; invalid when <see cref="HasValidFrame"/> is false.
     /// </summary>
-    public GPUAttachmentLayout? AttachmentLayout => _swapchain?.FrameBuffer.AttachmentLayout;
+    public SwapchainFrame CurrentFrame { get; private set; }
 
     /// <summary>
-    /// Creates a presenter for the given view.
+    /// Gets whether the presenter holds a drawable swapchain frame for the active update.
+    /// </summary>
+    public bool HasValidFrame => CurrentFrame.RenderView != null && CurrentFrame.Extent.X > 0 && CurrentFrame.Extent.Y > 0;
+
+    /// <summary>
+    /// Gets the presenter-owned context that starts each frame and acquires the swapchain image.
+    /// </summary>
+    public RenderContext FrameContext => _frameContext;
+
+    /// <summary>
+    /// Creates a presenter for the given view targeting <paramref name="renderingSystem"/>.
     /// </summary>
     /// <param name="view">The view whose swapchain is presented.</param>
-    public ViewPresenter(View view)
+    /// <param name="renderingSystem">The rendering system used to record and submit frame work.</param>
+    public ViewPresenter(View view, RenderingSystem renderingSystem)
     {
+        ArgumentNullException.ThrowIfNull(view);
+        ArgumentNullException.ThrowIfNull(renderingSystem);
+
         _view = view;
-        _view.OnResize += OnWindowResize;
-
         _swapchain = view.Swapchain;
+        _renderingSystem = renderingSystem;
+        _frameContext = new RenderContext(renderingSystem);
 
-        _width = math.max(1, view.Size.X);
-        _height = math.max(1, view.Size.Y);
+        _width = math.max(1u, view.Size.X);
+        _height = math.max(1u, view.Size.Y);
+        _view.OnResize += OnWindowResize;
+        _view.OnRestore += OnWindowRestore;
     }
 
     /// <summary>
-    /// Acquires the swapchain surface for the new frame. Called by the engine before any
-    /// rendering into <see cref="FrameBuffer"/>.
+    /// Begins frame recording and acquires the swapchain image when the surface is available.
     /// </summary>
     public void BeginFrame()
     {
-        FrameBuffer = null;
-        _surfaceAcquired = false;
+        CurrentFrame = default;
+        _frameContexts.Clear();
+        _frameContexts.Add(_frameContext);
 
-        if (_swapchain == null)
+        if (_pendingResize && _swapchain != null)
+        {
+            if (_swapchain.TryResize(new Extent2D(_width, _height), out _))
+            {
+                _pendingResize = false;
+            }
+        }
+
+        _frameContext.BeginFrame();
+
+        if (_swapchain == null || _view.WindowMode == WindowMode.Minimized)
         {
             return;
         }
 
-        if (!_swapchain.RequestSurfaceTexture())
-        {
-            return;
-        }
-
-        _surfaceAcquired = true;
-
-        if (_view.WindowMode == WindowMode.Minimized)
-        {
-            return;
-        }
-
-        FrameBuffer = _swapchain.FrameBuffer;
+        CurrentFrame = _frameContext.Acquire(_swapchain);
     }
 
     /// <summary>
-    /// Presents the frame and processes the deferred view resize. Called by the engine
-    /// after all drawing.
+    /// Appends an additional active <see cref="RenderContext"/> to be submitted with this frame before presentation.
+    /// </summary>
+    /// <param name="context">A context from the same rendering system with a begun frame and no open scope.</param>
+    public void EnqueueFrameContext(RenderContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        if (ReferenceEquals(context, _frameContext))
+        {
+            throw new ArgumentException("The presenter's own FrameContext is already included automatically.", nameof(context));
+        }
+
+        _frameContexts.Add(context);
+    }
+
+    /// <summary>
+    /// Submits all frame contexts, presents the acquired swapchain image, and emits deferred resize events.
     /// </summary>
     public void EndFrame()
     {
-        FrameBuffer = null;
-
-        if (_surfaceAcquired)
+        try
         {
-            _swapchain?.Present();
-            _surfaceAcquired = false;
+            OnBeforePresent?.Invoke();
+
+            bool canPresent = _swapchain != null && CurrentFrame.RenderView != null;
+            CurrentFrame = default;
+
+            ReadOnlySpan<RenderContext> contexts = CollectionsMarshal.AsSpan(_frameContexts);
+            if (canPresent)
+            {
+                _renderingSystem.SubmitAndPresent(contexts, _swapchain!);
+            }
+            else if (!contexts.IsEmpty)
+            {
+                _renderingSystem.Submit(contexts);
+            }
+        }
+        finally
+        {
+            CurrentFrame = default;
+            _frameContexts.Clear();
         }
 
-        if (_shouldResize)
+        if (_shouldNotifyResize)
         {
-            _shouldResize = false;
+            _shouldNotifyResize = false;
             OnResize?.Invoke(new uint2(_width, _height));
         }
     }
@@ -114,15 +161,48 @@ public sealed class ViewPresenter : AutoDisposable
         if (disposing)
         {
             _view.OnResize -= OnWindowResize;
+            _view.OnRestore -= OnWindowRestore;
+            _frameContexts.Clear();
+            CurrentFrame = default;
+            _frameContext.Destroy();
         }
     }
 
     private void OnWindowResize(uint2 size)
     {
-        _shouldResize = true;
+        if (size.X == 0 || size.Y == 0)
+        {
+            _ = _swapchain?.TryResize(default, out _);
+            return;
+        }
+
+        _shouldNotifyResize = true;
         _width = size.X;
         _height = size.Y;
 
-        _swapchain?.Resize(_width, _height);
+        if (_swapchain == null)
+        {
+            return;
+        }
+
+        _pendingResize = !_swapchain.TryResize(new Extent2D(_width, _height), out _);
+    }
+
+    private void OnWindowRestore()
+    {
+        if (_swapchain == null)
+        {
+            return;
+        }
+
+        uint2 size = _view.Size;
+        if (size.X == 0 || size.Y == 0)
+        {
+            return;
+        }
+
+        _width = size.X;
+        _height = size.Y;
+        _pendingResize = !_swapchain.TryResize(new Extent2D(_width, _height), out _);
     }
 }

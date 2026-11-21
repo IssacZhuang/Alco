@@ -67,6 +67,11 @@ public static partial class DebugStats
     /// <param name="color">The text color</param>
     public static void Text(ReadOnlySpan<char> str, ColorFloat color)
     {
+        if (_renderer == null)
+        {
+            return;
+        }
+
         Vector2 drawPos = ProcessPosition();
         drawPos.Y = -drawPos.Y;
 

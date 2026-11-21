@@ -1,44 +1,39 @@
 using Alco.Graphics;
-using Alco.Rendering;
 
 namespace Alco.Engine;
 
 /// <summary>
-/// Engine system that captures the main view's presented swapchain surface, including the ImGui
-/// overlay, as PNG bytes and delivers it through a task. In headless mode requests are routed
-/// through <see cref="OffscreenFallback"/>.
+/// Engine system that captures the main view's presented swapchain surface as PNG bytes and
+/// delivers it through a task. In headless mode requests route through <see cref="OffscreenFallback"/>.
 /// </summary>
 public sealed class SwapchainCaptureSystem : BaseEngineSystem
 {
     private readonly GameEngine _engine;
     private readonly PngReadbackPipeline _readback;
     private readonly RenderContext? _renderContext;
-    private readonly GraphicsMaterial? _blitMaterial;
     private readonly List<PendingCaptureRequest> _pendingRequests = new();
+    private Material? _blitMaterial;
     private PendingCaptureRequest? _activeRequest;
-    private RenderTexture? _staging;
-    private Texture2D? _surfaceCopy;
+    private Texture? _surfaceCopy;
+    private Texture? _staging;
     private bool _readArmed;
     private bool _readStaged;
     private Task<RenderCaptureResult>? _fallbackTask;
 
     /// <summary>
-    /// Gets or sets the fallback used when no swapchain exists, typically the render-graph chain
-    /// tail; requests fail when null.
+    /// Gets or sets the fallback used when no swapchain exists; requests fail when null.
     /// </summary>
     public Func<Task<RenderCaptureResult>>? OffscreenFallback { get; set; }
 
     /// <summary>
-    /// Runs after <see cref="RenderCaptureSystem"/> (order 9000) so a render-graph
-    /// capture issued in the same frame reads back first when both contend for the
-    /// shared readback pipeline.
+    /// Runs after <see cref="RenderCaptureSystem"/> so offscreen captures read back first on contention.
     /// </summary>
     public override int Order => 9500;
 
     /// <summary>
-    /// Creates the capture system and hooks the post-ImGui / pre-present window.
+    /// Creates the capture system and hooks the pre-present presenter window.
     /// </summary>
-    /// <param name="engine">The owning engine, for the presenter, graphics device and main-thread checks.</param>
+    /// <param name="engine">The owning engine.</param>
     /// <param name="readback">The shared PNG readback pipeline; pumped by the engine, not disposed here.</param>
     public SwapchainCaptureSystem(GameEngine engine, PngReadbackPipeline readback)
     {
@@ -47,21 +42,18 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         _engine = engine;
         _readback = readback;
 
-        if (engine.Setting.Graphics.Backend != GraphicsBackend.None)
+        if (engine.Setting.HasGPU)
         {
-            _renderContext = engine.RenderingSystem.CreateRenderContext("swapchain_capture_context");
-            // The opaque blit forces alpha to 1 on the GPU — the presented surface's
-            // alpha channel is unauthored — so the readback needs no CPU alpha pass.
-            _blitMaterial = engine.RenderingSystem.CreateGraphicsMaterial(engine.BuiltInAssets.Shader_BlitOpaque, "swapchain_capture_blit");
+            _renderContext = new RenderContext(engine.RenderingSystem);
         }
 
-        ((IGPUDeviceHost)engine).OnEndFrame += OnEndFrame;
+        _engine.MainPresenter.OnBeforePresent += OnBeforePresent;
     }
 
     /// <summary>
-    /// Requests a screenshot of the presented frame (ImGui overlay included).
+    /// Requests a screenshot of the presented frame.
     /// </summary>
-    /// <returns>A task completing with the PNG-encoded screenshot a couple of frames later.</returns>
+    /// <returns>A task completing with the PNG-encoded screenshot.</returns>
     /// <exception cref="InvalidOperationException">Called off the game main thread.</exception>
     public Task<RenderCaptureResult> RequestCaptureAsync()
     {
@@ -82,18 +74,11 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
     /// <param name="deltaTime">The elapsed time since the previous update, in seconds.</param>
     public override void OnUpdate(float deltaTime)
     {
-        // The shared readback pipeline is pumped by the engine; completed readbacks are
-        // delivered to the callback registered when the read began.
         CompleteFallbackIfFinished();
         BeginReadIfStaged();
         DispatchPendingRequests();
     }
 
-    /// <summary>
-    /// Resolves the active request from the finished offscreen-fallback capture (the
-    /// fallback's task completes on the render-graph system's own update, which runs
-    /// just before this system in update order).
-    /// </summary>
     private void CompleteFallbackIfFinished()
     {
         if (_fallbackTask == null || !_fallbackTask.IsCompleted)
@@ -116,16 +101,13 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         PendingCaptureRequest request = _pendingRequests[0];
         _pendingRequests.RemoveAt(0);
 
-        if (_engine.Setting.Graphics.Backend == GraphicsBackend.None)
+        if (!_engine.Setting.HasGPU)
         {
             request.Completion.TrySetResult(
-                RenderCaptureResult.CreateFailure("Swapchain capture requires a GPU backend.", nameof(GraphicsBackend.None)));
+                RenderCaptureResult.CreateFailure("Swapchain capture requires a GPU backend.", nameof(GraphicsBackend.NoGPU)));
             return;
         }
 
-        // Headless/offscreen mode: no swapchain to hook, so the OnEndFrame arm below
-        // would never fire. Route the request through the offscreen fallback instead
-        // (typically the render-graph chain tail).
         if (_engine.MainView.Swapchain == null)
         {
             if (OffscreenFallback == null)
@@ -141,147 +123,158 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
             return;
         }
 
-        // Arm the one-shot conversion: it fires in this frame's post-ImGui /
-        // pre-present window, when the swapchain texture holds the final pixels.
         _activeRequest = request;
         _readArmed = true;
     }
 
-    private void OnEndFrame()
+    private void OnBeforePresent()
     {
-        if (!_readArmed)
+        if (!_readArmed || !_engine.MainPresenter.HasValidFrame)
         {
             return;
         }
 
-        GPUFrameBuffer? frameBuffer = _engine.MainPresenter.FrameBuffer;
-        if (frameBuffer == null || frameBuffer.Colors.Length == 0)
+        SwapchainFrame frame = _engine.MainPresenter.CurrentFrame;
+        Format surfaceFormat = _engine.MainPresenter.SurfaceFormat;
+        if (frame.Texture == null || surfaceFormat == Format.Undefined || _renderContext == null)
         {
-            // No surface this frame (e.g. minimized window): stay armed and retry on
-            // the next presented frame instead of failing the request.
             return;
         }
 
         _readArmed = false;
+        Format stagingFormat = SelectStagingFormat(surfaceFormat);
+        bool begun = false;
         try
         {
-            EnsureStaging(frameBuffer.Width, frameBuffer.Height);
-            BlitSurface(frameBuffer);
+            Material blit = EnsureBlitMaterial();
+            EnsureSurfaceCopy(frame.Extent, surfaceFormat);
+            EnsureStaging(frame.Extent, stagingFormat);
 
-            // Another capture system holds the shared readback pipeline: keep the staged
-            // pixels (the staging texture persists) and begin the read on a later update.
-            if (_readback.IsBusy)
+            blit.SetTexture("Texture", _surfaceCopy);
+            _ = blit.GetPipeline([stagingFormat], Format.Undefined);
+
+            _renderContext.BeginFrame();
+            begun = true;
+
+            _renderContext.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
+            _renderContext.CopyTexture(frame.Texture, _surfaceCopy!.NativeTexture);
+            _renderContext.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Pixel, Access.ShaderRead);
+
+            RenderingDesc pass = new()
             {
-                _readStaged = true;
-            }
-            else if (_readback.TryBeginRead(_staging!, CompleteActiveRequest, out RenderCaptureResult? failure))
+                Colors =
+                [
+                    new ColorAttachment
+                    {
+                        RenderView = _staging!.RenderView,
+                        Load = LoadOp.Discard,
+                        Store = StoreOp.Store,
+                    },
+                ],
+            };
+
+            using (RenderContext.RenderScope render = _renderContext.BeginRenderPass(pass, [stagingFormat]))
             {
-                return;
+                render.SetViewport(new Viewport { Width = frame.Extent.X, Height = frame.Extent.Y });
+                render.SetScissor(new Scissor { Width = frame.Extent.X, Height = frame.Extent.Y });
+                render.Draw(blit, 3);
             }
-            else
-            {
-                CompleteActiveRequest(failure!);
-            }
+
+            _renderContext.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
+            _engine.MainPresenter.EnqueueFrameContext(_renderContext);
+            _readStaged = true;
         }
         catch (Exception ex)
         {
-            CompleteActiveRequest(RenderCaptureResult.CreateFailure(
-                $"Swapchain capture failed: {ex.Message}",
-                ex.GetType().Name));
+            if (begun)
+            {
+                _renderContext.DiscardFrame();
+            }
+
+            CompleteActiveRequest(RenderCaptureResult.CreateFailure($"Swapchain capture failed: {ex.Message}", ex.GetType().Name));
         }
     }
 
-    /// <summary>Begins the staged readback once the shared pipeline is free.</summary>
+    private Material EnsureBlitMaterial()
+    {
+        if (_blitMaterial == null)
+        {
+            _blitMaterial = _engine.BuiltInAssets.Shader_BlitOpaque.CreateMaterial("swapchain_capture_blit");
+            _blitMaterial.Rasterization = new RasterizationState { Cull = CullMode.None };
+        }
+
+        return _blitMaterial;
+    }
+
+    private static Format SelectStagingFormat(Format surfaceFormat)
+    {
+        return surfaceFormat is Format.Bgra8Srgb or Format.Rgba8Srgb or Format.Rgba16Float
+            ? Format.Rgba8Srgb
+            : Format.Rgba8Unorm;
+    }
+
     private void BeginReadIfStaged()
     {
-        if (!_readStaged || _activeRequest == null || _readback.IsBusy)
+        if (!_readStaged || _activeRequest == null || _staging == null || _readback.IsBusy)
         {
             return;
         }
 
         _readStaged = false;
-        if (_readback.TryBeginRead(_staging!, CompleteActiveRequest, out RenderCaptureResult? failure))
+        if (_readback.TryBeginRead(_staging, CompleteActiveRequest, out RenderCaptureResult? failure))
         {
             return;
         }
 
-        CompleteActiveRequest(failure!);
+        CompleteActiveRequest(failure);
     }
 
-    /// <summary>Keeps the RGBA8 staging texture at the surface's current size.</summary>
-    private void EnsureStaging(uint width, uint height)
+    private void EnsureSurfaceCopy(Extent2D extent, Format format)
     {
-        if (_staging == null)
+        if (_surfaceCopy != null &&
+            _surfaceCopy.Extent.X == extent.X &&
+            _surfaceCopy.Extent.Y == extent.Y &&
+            _surfaceCopy.Format == format)
         {
-            _staging = _engine.RenderingSystem.CreateRenderTexture(
-                _engine.RenderingSystem.PreferredRGBATexturePass, width, height, "swapchain_capture_staging");
-        }
-        else
-        {
-            _staging.Resize(width, height);
-        }
-    }
-
-    /// <summary>Keeps a sampleable copy at the acquired surface texture's size and format.</summary>
-    private Texture2D EnsureSurfaceCopy(GPUTexture surface)
-    {
-        if (_surfaceCopy != null && _surfaceCopy.Width == surface.Width &&
-            _surfaceCopy.Height == surface.Height && _surfaceCopy.NativeTexture.PixelFormat == surface.PixelFormat)
-        {
-            return _surfaceCopy;
+            return;
         }
 
-        Texture2D copy = _engine.RenderingSystem.CreateTexture2D(surface.Width, surface.Height, ImageLoadOption.Default with
+        if (_surfaceCopy != null)
         {
-            Format = surface.PixelFormat,
-            Usage = TextureUsage.Write | TextureUsage.TextureBinding,
-            Name = "swapchain_capture_surface_copy",
+            _engine.GraphicsDevice.WaitIdle();
+            _surfaceCopy.Destroy();
+        }
+
+        _surfaceCopy = _engine.RenderingSystem.CreateTexture(new TextureDesc
+        {
+            Extent = new Extent3D(extent.X, extent.Y, 1),
+            Format = format,
+            Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
         });
-        _surfaceCopy?.Dispose();
-        _surfaceCopy = copy;
-        return copy;
     }
 
-    /// <summary>
-    /// Converts the surface's first color attachment into the RGBA8 staging texture
-    /// with a full-screen blit, first copying surfaces that cannot be sampled. Both
-    /// operations share one submission, ordered before the frame's present.
-    /// </summary>
-    private void BlitSurface(GPUFrameBuffer frameBuffer)
+    private void EnsureStaging(Extent2D extent, Format format)
     {
-        GPUTexture surface = frameBuffer.Colors[0];
-        bool needsCopy = (surface.Usage & TextureUsage.TextureBinding) == 0;
-        if (needsCopy && (surface.Usage & TextureUsage.Read) == 0)
+        if (_staging != null &&
+            _staging.Extent.X == extent.X &&
+            _staging.Extent.Y == extent.Y &&
+            _staging.Format == format)
         {
-            throw new NotSupportedException("The surface texture supports neither sampling nor copy-source usage for capture.");
+            return;
         }
 
-        Texture2D source = needsCopy
-            ? EnsureSurfaceCopy(surface)
-            : _engine.RenderingSystem.CreateTexture2D(surface, frameBuffer.ColorViews[0]);
-        try
+        if (_staging != null)
         {
-            _blitMaterial!.SetTexture(ShaderResourceId.Texture, source);
-            using (RenderFrameScope frame = _renderContext!.BeginFrame())
-            {
-                if (needsCopy)
-                {
-                    _renderContext.CommandBuffer.CopyTexture(surface, source.NativeTexture);
-                }
+            _engine.GraphicsDevice.WaitIdle();
+            _staging.Destroy();
+        }
 
-                using (RenderPassScope pass = _renderContext.BeginPass(_staging!.FrameBuffer))
-                {
-                    pass.Draw(_engine.RenderingSystem.MeshFullScreen, _blitMaterial);
-                }
-            }
-        }
-        finally
+        _staging = _engine.RenderingSystem.CreateTexture(new TextureDesc
         {
-            if (!needsCopy)
-            {
-                source.Dispose();
-            }
-        }
+            Extent = new Extent3D(extent.X, extent.Y, 1),
+            Format = format,
+            Usage = TextureUsage.ColorAttachment | TextureUsage.TransferSource,
+        });
     }
 
     private void CompleteActiveRequest(RenderCaptureResult result)
@@ -294,10 +287,10 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         request?.Completion.TrySetResult(result);
     }
 
-    /// <summary>Unhooks frame capture, completes outstanding requests, and releases capture-owned GPU resources.</summary>
+    /// <inheritdoc />
     public override void Dispose()
     {
-        ((IGPUDeviceHost)_engine).OnEndFrame -= OnEndFrame;
+        _engine.MainPresenter.OnBeforePresent -= OnBeforePresent;
 
         RenderCaptureResult disposedResult = RenderCaptureResult.CreateFailure(
             "Swapchain capture system is disposed.",
@@ -311,17 +304,20 @@ public sealed class SwapchainCaptureSystem : BaseEngineSystem
         _pendingRequests.Clear();
         CompleteActiveRequest(disposedResult);
 
-        // The readback pipeline is engine-owned and shared; not disposed here.
-        _staging?.Dispose();
-        _surfaceCopy?.Dispose();
-        _blitMaterial?.Dispose();
-        _renderContext?.Dispose();
+        if (_renderContext != null || _staging != null || _surfaceCopy != null)
+        {
+            _engine.GraphicsDevice.WaitIdle();
+        }
+
+        _staging?.Destroy();
+        _staging = null;
+        _surfaceCopy?.Destroy();
+        _surfaceCopy = null;
+        _renderContext?.Destroy();
     }
 
-    /// <summary>A queued capture request and how its result is delivered.</summary>
     private sealed class PendingCaptureRequest
     {
-        /// <summary>Completed with the capture result (or a failure).</summary>
         public required TaskCompletionSource<RenderCaptureResult> Completion { get; init; }
     }
 }

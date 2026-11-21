@@ -1,14 +1,13 @@
-﻿using Alco;
-using Alco.Engine;
-using Alco.Graphics;
+﻿using Alco.Engine;
 
-GameEngineSetting setting = new GameEngineSetting
+GameEngineSetting setting = new()
 {
     StopWhenError = true,
-    View = new ViewSetting(640, 360, "Basic Window"),
+    View = new ViewSetting(800, 600, "Basic Window - Vulkan Triangle")
+    {
+        VSync = true,
+    },
 };
 
-using (Game game = new Game(setting))
-{
-    game.Run();
-}
+using Game game = new(setting);
+game.Run();

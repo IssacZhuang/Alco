@@ -1,6 +1,5 @@
-using System.Runtime.CompilerServices;
 using Alco.Graphics;
-using Alco.Rendering;
+using Alco.Graphics.LowLevel;
 
 namespace Alco.Engine;
 
@@ -20,13 +19,13 @@ public partial class GameEngine
     }
 
     /// <summary>
-    /// Creates a presenter for an additional view. The caller drives it manually
-    /// (<see cref="ViewPresenter.BeginFrame"/>/<see cref="ViewPresenter.EndFrame"/>) and pairs
-    /// it with a <see cref="RenderPipeline"/> that resolves into the presenter's frame buffer.
+    /// Creates a presenter for an additional view.
     /// </summary>
+    /// <param name="view">The view to present.</param>
+    /// <returns>The created presenter.</returns>
     public ViewPresenter CreateViewPresenter(View view)
     {
-        return new ViewPresenter(view);
+        return new ViewPresenter(view, _renderingSystem);
     }
 
     /// <summary>
@@ -67,27 +66,25 @@ public partial class GameEngine
         return null;
     }
 
-    private GPUDevice CreateGraphicsDevice(GraphicsSetting setting, uint disposeDelay)
+    private static GPUDevice CreateGraphicsDevice(GraphicsSetting setting, bool headless)
     {
-        if (setting.Backend == GraphicsBackend.None)
-        {
-            return GraphicsDeviceFactory.GetNoGPUDevice();
-        }
+        Gpu.SetErrorCallback(OnGpuError);
 
-        DeviceDescriptor deviceDescriptor = new DeviceDescriptor()
+        return Gpu.CreateDevice(new DeviceDesc
         {
-            Host = this,
-            Debug = setting.DebugInfo,
             Backend = setting.Backend,
-            PreferredSurfaceFormat = setting.PreferredSurfaceFormat,
-            PushConstantsSize = 128,
-            DisposeDelay = disposeDelay,
-            Name = "graphics_device"
-        };
-
-        // every backend runs through the alco-gpu Rust layer over wgpu-core;
-        // the device maps the requested backend onto its adapter selection
-        return GraphicsDeviceFactory.CreateAlcoGpuDevice(deviceDescriptor);
+            Headless = headless,
+        });
     }
 
+    private static void OnGpuError(string message, bool fatal)
+    {
+        if (fatal)
+        {
+            Log.Error("[GPU Fatal] ", message);
+            return;
+        }
+
+        Log.Error("[GPU Error] ", message);
+    }
 }

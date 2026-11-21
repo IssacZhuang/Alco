@@ -1,43 +1,40 @@
 // file "BlitOpaque.slang" - module "BlitOpaque"
-//
-// Resources are grouped as ParameterBlocks — the compiler assigns each block
-// its own descriptor set in declaration order; members resolve by bare field name.
 
 #language slang 2025
 module BlitOpaque;
 
+import Core;
+import SharedSampler;
 
-import AlcoRendering_Core;
-
-public struct PassParams
+[GPURoot]
+public struct BlitOpaqueRoot
 {
-    public Texture2D texture;
+    public GpuTextureId Texture;
 };
 
-public ParameterBlock<PassParams> pass;
-
-struct Vertex {
-  float3 position : POSITION;
-  float2 uv : TEXCOORD0;
-};
-
-struct V2F {
-  float4 position : SV_POSITION;
-  float2 uv : TEXCOORD0;
+struct V2F
+{
+    float4 Position : SV_Position;
+    float2 Uv : TEXCOORD0;
 };
 
 [shader("vertex")]
-V2F MainVS(Vertex input) {
-  V2F output = (V2F)0;
-  output.position = float4(input.position, 1.0f);
-  output.uv = input.uv;
-  return output;
+V2F MainVS(uint vertexIndex : SV_VertexID)
+{
+    // Fullscreen triangle covering [-1, 1] x [-1, 1] with top-left UV (0, 0).
+    float2 uv = float2((vertexIndex << 1) & 2, vertexIndex & 2);
+    V2F output;
+    output.Position = float4(uv * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), 0.0f, 1.0f);
+    output.Uv = uv;
+    return output;
 }
 
-// A plain copy that forces alpha to 1: capture blits route unauthored source
-// alpha (the presented chain's channel is don't-care) into read-back RGBA8, so
-// opaque screenshots never need a CPU-side alpha pass.
-[shader("fragment")]
-float4 MainPS(V2F input) : SV_TARGET {
-  return float4(pass.texture.Sample(samplers.linearClamp, input.uv).rgb, 1.0f);
+// Forces alpha to 1 on the GPU so opaque captures from swapchains or unauthored
+// render targets never require a CPU-side alpha pass before PNG encoding.
+[shader("pixel")]
+float4 MainPS(V2F input) : SV_Target0
+{
+    BlitOpaqueRoot root = gpu_load_root<BlitOpaqueRoot>();
+    Texture2D<float4> source = gpu_texture<Texture2D<float4>>(root.Texture.index);
+    return float4(source.SampleLevel(shared_sampler_linear_clamp(), input.Uv, 0.0f).rgb, 1.0f);
 }

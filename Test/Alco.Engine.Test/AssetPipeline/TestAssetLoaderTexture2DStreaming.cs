@@ -1,53 +1,21 @@
 using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
-using System.Text;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 using Alco.IO;
 using Alco.Rendering;
 using NUnit.Framework;
 
 namespace Alco.Engine.Test;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Texture2D asset streaming: the loader probes the header with minimal
-// per-format reads, pre-creates the texture at its final specification and streams
-// the content in asynchronously, uploading in place so the texture's identity never
-// changes. Completion is observable through the texture's ContentArrival task
-// (cross-checked by the disposal of the asset stream, which the upload task owns).
-// Runs on the NoGPU device with an in-memory file source.
-// ─────────────────────────────────────────────────────────────────────────────
 /// <summary>Covers Texture2D asset streaming, including header probing, in-place uploads, and decode fallbacks.</summary>
 [TestFixture]
 public class TestAssetLoaderTexture2DStreaming
 {
-    /// <summary>Minimal <see cref="IRenderingSystemHost"/> for a headless rendering system.</summary>
-    private class RenderingHost : IRenderingSystemHost
-    {
-        // This fake ignores per-frame host updates: subscribers are dropped, so the
-        // event intentionally has no backing field to initialize.
-        public event Action<float> OnUpdate
-        {
-            add { }
-            remove { }
-        }
-
-        // Field-like event: raised by Dispose below, initialized in the constructor.
-        public event Action OnDispose;
-
-        public RenderingHost()
-        {
-            OnDispose += () => { };
-        }
-
-        public void Dispose() { OnDispose?.Invoke(); }
-    }
-
-    /// <summary>Minimal <see cref="IAssetSystemHost"/> satisfying the constructor contract.</summary>
     private class LifeCycleProvider : IAssetSystemHost, IDisposable
     {
         public LifeCycleProvider()
         {
-            // The fake ignores host callbacks; subscribing keeps the event non-null.
             OnDispose += () => { };
         }
 
@@ -60,8 +28,6 @@ public class TestAssetLoaderTexture2DStreaming
         void IAssetSystemHost.PostToMainThread(Action action) { }
     }
 
-    /// <summary>A stream that records disposal — the streaming contract disposes the
-    /// stream when the upload task finishes, which is how tests observe completion.</summary>
     private sealed class TrackingStream : MemoryStream
     {
         public TrackingStream(byte[] buffer) : base(buffer) { }
@@ -73,7 +39,6 @@ public class TestAssetLoaderTexture2DStreaming
         }
     }
 
-    /// <summary>In-memory <see cref="IFileSource"/> for injecting test files.</summary>
     private class TestFileSource : IFileSource
     {
         public string Name => "Test";
@@ -82,7 +47,6 @@ public class TestAssetLoaderTexture2DStreaming
 
         private readonly Dictionary<string, byte[]> _files = new();
 
-        /// <summary>Streams handed out so far, for observing the streaming lifecycle.</summary>
         public List<TrackingStream> OpenedStreams { get; } = new();
 
         public void AddFile(string filename, byte[] content)
@@ -141,7 +105,7 @@ public class TestAssetLoaderTexture2DStreaming
         return data;
     }
 
-    private RenderingHost _renderingHost;
+    private GPUDevice _device;
     private RenderingSystem _renderingSystem;
     private LifeCycleProvider _lifeCycle;
     private AssetSystem _assetSystem;
@@ -151,27 +115,25 @@ public class TestAssetLoaderTexture2DStreaming
     [SetUp]
     public void SetUp()
     {
-        _renderingHost = new RenderingHost();
-        _renderingSystem = new RenderingSystem(
-            _renderingHost,
-            GraphicsDeviceFactory.GetNoGPUDevice(),
-            PixelFormat.RGBA16Float,
-            PixelFormat.Depth24PlusStencil8);
+        _device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU, Headless = true });
+        _renderingSystem = new RenderingSystem(_device, textureHeapByteCount: 4 * 1024 * 1024, bufferHeapByteCount: 1 * 1024 * 1024);
 
         _lifeCycle = new LifeCycleProvider();
         _assetSystem = new AssetSystem(_lifeCycle);
         _fileSource = new TestFileSource();
         _assetSystem.AddFileSource(_fileSource);
-        _assetSystem.RegisterAssetLoader(new AssetLoaderTexture2D(_renderingSystem));
+        _assetSystem.RegisterAssetLoader(new AssetLoaderTexture2D(_renderingSystem, _assetSystem));
     }
 
-    /// <summary>Disposes the rendering host, asset system host, and file source.</summary>
+    /// <summary>Disposes the asset system, rendering system, device, and file source.</summary>
     [TearDown]
     public void TearDown()
     {
-        _renderingHost?.Dispose();
+        _device.WaitIdle();
         _lifeCycle?.Dispose();
         _fileSource?.Dispose();
+        _renderingSystem?.Destroy();
+        _device?.Destroy();
     }
 
     /// <summary>Tests that a file-backed PNG is pre-created at load and uploaded in place.</summary>
@@ -186,9 +148,9 @@ public class TestAssetLoaderTexture2DStreaming
         Assert.That(texture.Width, Is.EqualTo(32));
         Assert.That(texture.Height, Is.EqualTo(32));
         Assert.That(texture.MipLevels, Is.EqualTo(1));
-        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
+        Assert.That(texture.Format, Is.EqualTo(Format.Rgba8Unorm));
 
-        GPUTexture native = texture.NativeTexture;
+        Texture native = texture.NativeTexture;
 
         // The upload task disposes the asset stream when done.
         Assert.That(_fileSource.OpenedStreams, Has.Count.EqualTo(1));
@@ -200,25 +162,25 @@ public class TestAssetLoaderTexture2DStreaming
         Assert.That(texture.IsContentLoaded, Is.True);
     }
 
-    /// <summary>Tests that a DDS without BC support streams an uncompressed RGBA fallback in place.</summary>
+    /// <summary>Tests that a DDS on a BC-capable device streams its BC1 mip chain in place.</summary>
     [Test]
-    public void FileBackedDds_StreamsFallbackRgbaInPlace()
+    public void FileBackedDds_PreCreatedAtBcSpecThenUploadedInPlace()
     {
         _fileSource.AddFile("textures/compressed.dds", CreateDds8x8());
 
         Texture2D texture = _assetSystem.Load<Texture2D>("textures/compressed.dds");
 
-        // The NoGPU device has no BC support: the loader streams an uncompressed
-        // RGBA8 fallback texture (level 0 only) instead of the BC1 mip chain.
+        // NoGPUDevice reports BC support; only the block-aligned 8x8 and 4x4 levels survive.
         Assert.That(texture.Width, Is.EqualTo(8));
         Assert.That(texture.Height, Is.EqualTo(8));
-        Assert.That(texture.MipLevels, Is.EqualTo(1));
-        Assert.That(texture.NativeTexture.PixelFormat, Is.EqualTo(PixelFormat.RGBA8Unorm));
+        Assert.That(texture.MipLevels, Is.EqualTo(2));
+        Assert.That(texture.Format, Is.EqualTo(Format.Bc1Unorm));
 
-        GPUTexture native = texture.NativeTexture;
+        Texture native = texture.NativeTexture;
         Assert.That(_fileSource.OpenedStreams, Has.Count.EqualTo(1));
         Assert.That(SpinWait.SpinUntil(() => _fileSource.OpenedStreams[0].Disposed, TimeSpan.FromSeconds(10)), Is.True);
         Assert.That(texture.NativeTexture, Is.SameAs(native));
+        Assert.That(texture.ContentArrival.Wait(TimeSpan.FromSeconds(10)), Is.True);
         Assert.That(texture.IsContentLoaded, Is.True);
     }
 
@@ -228,7 +190,7 @@ public class TestAssetLoaderTexture2DStreaming
     {
         Assert.That(_assetSystem.TryDecode("wall.png", typeof(Texture2D), Png32, out object? asset), Is.True);
 
-        Texture2D texture = (Texture2D)asset!;
+        using Texture2D texture = (Texture2D)asset!;
         Assert.That(texture.Width, Is.EqualTo(32));
         Assert.That(texture.Height, Is.EqualTo(32));
 

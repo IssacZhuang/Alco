@@ -33,6 +33,18 @@ public static partial class DebugStats
     }
 
     /// <summary>
+    /// Detaches <paramref name="renderer"/> when it is the active overlay renderer.
+    /// </summary>
+    /// <param name="renderer">The renderer being disposed.</param>
+    public static void Shutdown(DebugStatsRenderer renderer)
+    {
+        if (ReferenceEquals(_renderer, renderer))
+        {
+            _renderer = null;
+        }
+    }
+
+    /// <summary>
     /// Places the next overlay element on the same line as the previous one.
     /// </summary>
     public static void SameLine()

@@ -1,8 +1,8 @@
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using Alco.GUI;
+using Alco.Engine;
 
-namespace Alco.Engine;
+namespace Alco.GUI;
 
 /// <summary>Adapts engine input to the UI input interface.</summary>
 public class UIInputTracker : IUIInputTracker
@@ -167,7 +167,6 @@ public class UIInputTracker : IUIInputTracker
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get => _input.IsKeyPressing(KeyCode.ControlLeft) && _input.IsKeyPressing(KeyCode.V);
     }
-
 
     /// <summary>Gets the current scroll delta from the mouse wheel or gamepad stick.</summary>
     /// <param name="delta">The scroll delta when scrolling is active.</param>

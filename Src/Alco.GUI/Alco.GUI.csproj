@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Alco.Rendering\Alco.Rendering.csproj" />
+    <ProjectReference Include="..\Alco.Engine\Alco.Engine.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

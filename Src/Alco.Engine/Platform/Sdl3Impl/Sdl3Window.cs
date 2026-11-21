@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using SDL3;
 using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 using Alco.Engine.MacOS;
 
 using static SDL3.SDL3;
@@ -29,7 +30,6 @@ public unsafe partial class Sdl3Window : View
     private static readonly byte* PropertyId_X11_WINDOW = Utf8CustomMarshaller.ConvertToUnmanaged("SDL.window.x11.window");
 
 
-    private readonly GPUDevice _device;
     private readonly SDL_Window _window;
     private readonly GPUSwapchain _swapchain;
     private string _title;
@@ -139,7 +139,6 @@ public unsafe partial class Sdl3Window : View
     /// <param name="setting">The window and presentation settings.</param>
     public Sdl3Window(GPUDevice device, ViewSetting setting)
     {
-        _device = device;
         _title = setting.Title;
         try
         {
@@ -161,14 +160,11 @@ public unsafe partial class Sdl3Window : View
                 throw new Exception("Failed to create SDL window");
             }
 
-            SwapchainDescriptor descriptor = new SwapchainDescriptor()
+            SwapchainDesc descriptor = new()
             {
-                Name = $"{Title}_swapchain",
-                SurfaceSource = GetSurfaceSource(_window, setting.LinuxUseWayland),
-                Width = Size.X,
-                Height = Size.Y,
-                ColorFormat = device.PreferredSurfaceFormat,
-                IsVSyncEnabled = setting.VSync,
+                Surface = GetSurfaceSource(_window, setting.LinuxUseWayland),
+                Extent = new Extent2D(Size.X, Size.Y),
+                VSync = setting.VSync,
             };
 
             _swapchain = device.CreateSwapchain(descriptor);
@@ -186,17 +182,14 @@ public unsafe partial class Sdl3Window : View
 
     internal Sdl3Window(GPUDevice device, SDL_Window window)
     {
-        _device = device;
         _window = window;
         try
         {
             _title = SDL_GetWindowTitle(window) ?? string.Empty;
-            _swapchain = device.CreateSwapchain(new SwapchainDescriptor()
+            _swapchain = device.CreateSwapchain(new SwapchainDesc
             {
-                Name = $"{_title}_swapchain",
-                SurfaceSource = GetSurfaceSource(_window, false),
-                Width = Size.X,
-                Height = Size.Y,
+                Surface = GetSurfaceSource(_window, false),
+                Extent = new Extent2D(Size.X, Size.Y),
             });
         }
         catch
@@ -234,18 +227,15 @@ public unsafe partial class Sdl3Window : View
     /// <param name="disposing">Whether disposal was explicitly requested on the SDL main thread.</param>
     protected override void Dispose(bool disposing)
     {
-        try
+        if (disposing)
         {
-            // The native window must outlive the surface and its acquired texture and view.
-            _device.DestroyImmediate(_swapchain);
-        }
-        catch (Exception) when (!disposing)
-        {
-            // Native cleanup consumes its resources even when it reports an error.
-        }
-        finally
-        {
-            SDL_DestroyWindow(_window);
+            // The native window and main thread must outlive the swapchain.
+            _swapchain.Destroy();
+
+            if (!_window.IsNull)
+            {
+                SDL_DestroyWindow(_window);
+            }
         }
     }
 
@@ -300,7 +290,7 @@ public unsafe partial class Sdl3Window : View
 
             IntPtr hwnd = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_HWND, IntPtr.Zero);
             IntPtr hinstance = GetModuleHandleW(null);
-            return SurfaceSource.CreateWin32Window(hwnd, hinstance);
+            return SurfaceSource.FromWin32(hwnd, hinstance);
         }
         else if (OperatingSystem.IsMacOS() || OperatingSystem.IsMacCatalyst())
         {
@@ -309,7 +299,7 @@ public unsafe partial class Sdl3Window : View
             nsWindow.contentView.wantsLayer = true;
             nsWindow.contentView.layer = layer.Handle;
 
-            return SurfaceSource.CreateMetalLayer(layer.Handle);
+            return SurfaceSource.FromMetalLayer(layer.Handle);
         }
         else if (OperatingSystem.IsLinux())
         {
@@ -317,13 +307,13 @@ public unsafe partial class Sdl3Window : View
             {
                 IntPtr display = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_WAYLAND_DISPLAY, IntPtr.Zero);
                 IntPtr surface = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_WAYLAND_SURFACE, IntPtr.Zero);
-                return SurfaceSource.CreateWaylandSurface(display, surface);
+                return SurfaceSource.FromWayland(display, surface);
             }
             else
             {
                 IntPtr display = SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_X11_DISPLAY, IntPtr.Zero);
                 ulong xWindow = (ulong)SDL_GetPointerProperty(SDL_GetWindowProperties(window), PropertyId_X11_WINDOW, IntPtr.Zero);
-                return SurfaceSource.CreateXlibWindow(display, xWindow);
+                return SurfaceSource.FromXlib(display, (nuint)xWindow);
             }
         }
 

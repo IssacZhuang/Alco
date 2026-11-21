@@ -64,6 +64,14 @@ namespace Alco.IO
 
         private void Dispose()
         {
+            foreach (string filename in _assetLookup.Keys)
+            {
+                if (_assetLookup.TryRemove(filename, out AssetHandle? handle) && handle.CachedAsset is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+
             // Do not clear file sources here — pending async loads may still
             // need them. Everything will be collected when this object is GC'd.
             _host.LogInfo("Asset system closed");

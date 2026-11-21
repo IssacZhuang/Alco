@@ -21,16 +21,10 @@ public partial class GameEngine
         var jsonConverters = CreateDefaultJsonConverters();
         var jsonConvertersList = jsonConverters.ToList();
 
-        // material
-        yield return new AssetLoaderMaterialAsset(AssetSystem, RenderingSystem.ShaderSystem, Setting.TypeInfoResolver);
-
-        // render node factories (shader bindings for render nodes)
-        yield return new AssetLoaderRenderNodeFactory(RenderingSystem.ShaderSystem, Setting.TypeInfoResolver);
-
         // texture — loaders create their own option cache internally
         if (Setting.HasGPU)
         {
-            yield return new AssetLoaderFontTTF(RenderingSystem, BuiltInAssets.Shader_TextSdf, generateSdf: false, cacheDirectory: CreateFontCacheDirectory(Setting.Graphics));
+            yield return new AssetLoaderFontTTF(RenderingSystem, CreateFontCacheDirectory(Setting.Graphics));
             yield return new AssetLoaderTexture2D(RenderingSystem, AssetSystem, Setting.TypeInfoResolver);
         }
         else
@@ -61,7 +55,7 @@ public partial class GameEngine
     /// <returns>The default asset hot reloaders.</returns>
     public virtual IEnumerable<IAssetHotReloader> CreateDefaultAssetHotReloaders()
     {
-        yield return new AssetHotReloaderTexture2D(RenderingSystem);
+        yield return new AssetHotReloaderTexture2D();
 
         if (Setting.HasAudio)
         {
@@ -120,9 +114,7 @@ public partial class GameEngine
         yield return new JsonConverterColorFloat();
         yield return new JsonConverterTexture2D(AssetSystem);
         yield return new JsonConverterFont(AssetSystem);
-        yield return new JsonConverterShader(RenderingSystem.ShaderSystem);
-        yield return new JsonConverterShaderLibrary(RenderingSystem.ShaderSystem);
-        yield return new JsonConverterMaterialAsset(AssetSystem);
+        yield return new JsonConverterShader(ShaderSystem);
         yield return new JsonConverterDepthStencilState();
         yield return new JsonConverterBlendState();
         yield return new JsonConverterPivot();

@@ -1,44 +1,35 @@
-using System.Numerics;
-using Alco.Graphics;
-
 namespace Alco.Engine;
 
 /// <summary>
 /// Engine system that owns the <see cref="DebugStatsRenderer"/> and drives the
-/// debug-stats overlay lifecycle automatically. Producers call <see cref="DebugStats.Text"/>
-/// etc. from anywhere during the frame; this system handles begin and end-of-frame
-/// submission without any manual calls from game code.
+/// debug-stats overlay lifecycle automatically.
 /// </summary>
-public class DebugStatsSystem : BaseEngineSystem
+public sealed class DebugStatsSystem : BaseEngineSystem
 {
     private readonly GameEngine _engine;
     private readonly DebugStatsRenderer _renderer;
     private readonly Action<uint2> _resizeHandler;
 
     /// <summary>
-    /// Runs just before <see cref="ImGUISystem"/> so the overlay sits below ImGui.
+    /// Runs just before <c>ImGUISystem</c> so the overlay sits below ImGui.
     /// </summary>
     public override int Order => int.MaxValue - 1;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="DebugStatsSystem"/> using the engine's built-in assets.
+    /// Initializes a new instance of <see cref="DebugStatsSystem"/>.
     /// </summary>
     /// <param name="engine">The engine that owns the main view and rendering system.</param>
     public DebugStatsSystem(GameEngine engine)
     {
+        ArgumentNullException.ThrowIfNull(engine);
         _engine = engine;
 
-        BuiltInAssets assets = engine.BuiltInAssets;
         View view = engine.MainView;
-
-        _renderer = new DebugStatsRenderer(
-            engine.Input, view, view.Size.X, view.Size.Y,
-            engine.RenderingSystem,
-            assets.Shader_Text, assets.Shader_Sprite);
+        _renderer = new DebugStatsRenderer(engine.Input, view, view.Size.X, view.Size.Y, engine.RenderingSystem);
 
         DebugStatsStyle style = new DebugStatsStyle
         {
-            Font = assets.Font_Default,
+            Font = engine.BuiltInAssets.Font_Default,
             FontSize = 16,
             SliderWidth = 140,
             SliderThumbWidth = 16,
@@ -53,8 +44,8 @@ public class DebugStatsSystem : BaseEngineSystem
             CheckBoxColor = 0x2a2a2a,
             CheckBoxHoverColor = 0x3a3a3a,
             CheckBoxCheckColor = 0x007ACC,
-            Margin = new Vector4(2, 2, 2, 2),
-            Padding = new Vector2(10, 4)
+            Margin = new System.Numerics.Vector4(2, 2, 2, 2),
+            Padding = new System.Numerics.Vector2(10, 4)
         };
         DebugStats.Initialize(_renderer, style);
 
@@ -62,24 +53,24 @@ public class DebugStatsSystem : BaseEngineSystem
         engine.MainPresenter.OnResize += _resizeHandler;
     }
 
+    /// <inheritdoc />
     public override void OnUpdate(float deltaTime)
     {
-        GPUFrameBuffer? target = _engine.MainPresenter.FrameBuffer;
-        if (target != null)
-        {
-            _renderer.Begin(target);
-        }
+        _renderer.Begin();
         DebugStats.ResetPosition();
     }
 
+    /// <inheritdoc />
     public override void OnEndFrame(float deltaTime)
     {
-        _renderer.End();
+        _renderer.End(_engine.MainPresenter);
     }
 
+    /// <inheritdoc />
     public override void Dispose()
     {
         _engine.MainPresenter.OnResize -= _resizeHandler;
+        DebugStats.Shutdown(_renderer);
         _renderer.Dispose();
     }
 }

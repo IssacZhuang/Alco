@@ -13,6 +13,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 using System.Runtime;
+using Alco.Graphics.LowLevel;
 
 
 namespace Alco.Engine;
@@ -34,6 +35,7 @@ IDisposable
     private readonly AssetSystem _assetSystem;
 
     private readonly RenderingSystem _renderingSystem;
+    private readonly ShaderSystem _shaderSystem;
     private readonly PriorityList<IEngineSystem> _systems = new PriorityList<IEngineSystem>((x, y) => x.Order.CompareTo(y.Order));
 
     private readonly PngReadbackPipeline _captureReadback;
@@ -160,6 +162,15 @@ IDisposable
     }
 
     /// <summary>
+    /// Gets the engine shader system configured with asset-system module resolution and caching.
+    /// </summary>
+    public ShaderSystem ShaderSystem
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        get => _shaderSystem;
+    }
+
+    /// <summary>
     /// The shared PNG readback pipeline behind the capture systems. Pumped by the
     /// engine each update; capture owners register a completion callback when
     /// beginning a read.
@@ -266,22 +277,26 @@ IDisposable
         bool ownsAssetSystem = assetSystem == null;
         _assetSystem = assetSystem ?? new AssetSystem(this, _setting.Assets.IsProfilingEnabled);
 
-        _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, 0);
+        bool headless = _setting.Platform is ConsolePlatform || !_setting.HasGPU;
+        _graphicsDevice = CreateGraphicsDevice(_setting.Graphics, headless);
 
-        _renderingSystem = new RenderingSystem(
-            this,
-            _graphicsDevice,
-            _setting.Graphics.PreferredHDRFormat,
-            _setting.Graphics.PreferredDepthStencilFormat,
-            // Module-name probes resolve via dashed-name matching over
-            // asset-system assets.
-            ShaderModuleResolver.Create(
+        ulong textureHeapBytes = _setting.Graphics.TextureHeapByteCount > 0
+            ? _setting.Graphics.TextureHeapByteCount
+            : (_setting.HasGPU ? 64ul * 1024 * 1024 : 4ul * 1024 * 1024);
+        ulong bufferHeapBytes = _setting.Graphics.BufferHeapByteCount > 0
+            ? _setting.Graphics.BufferHeapByteCount
+            : (_setting.HasGPU ? 64ul * 1024 * 1024 : 1ul * 1024 * 1024);
+        _renderingSystem = new RenderingSystem(_graphicsDevice, textureHeapBytes, bufferHeapBytes);
+
+        _shaderSystem = _renderingSystem.CreateShaderSystem(new ShaderCompilerOptions
+        {
+            FileResolver = ShaderModuleResolver.Create(
                 path => _assetSystem.TryGetStream(path, out Stream? stream) ? stream : null,
                 () => _assetSystem.AllAssetNames),
-            CreateShaderCacheDirectory(_setting.Graphics)
-            );
+            CacheDirectory = CreateShaderCacheDirectory(_setting.Graphics),
+        });
 
-        _builtInAssets = new BuiltInAssets(_assetSystem, _renderingSystem);
+        _builtInAssets = new BuiltInAssets(_assetSystem, _shaderSystem);
 
         _audioDevice = CreateAudioDevice(_setting.Audio);
 
@@ -312,13 +327,11 @@ IDisposable
 
         //main view
         _mainView = CreateView(_setting.View);
-        _mainPresenter = new ViewPresenter(_mainView);
+        _mainPresenter = new ViewPresenter(_mainView, _renderingSystem);
 
         // Engine-managed capture systems: one shared PNG readback pipeline serves both
-        // the render-graph captures (content chain, ImGui excluded) and the swapchain
-        // captures (presented frame, ImGui included). Hosts assign the active render
-        // pipeline to RenderCaptureSystem when they build their pipelines. Headless
-        // (no swapchain) swapchain captures fall back to the render-graph chain tail.
+        // offscreen render captures and swapchain captures. Headless (no swapchain)
+        // swapchain captures fall back to the render-graph chain tail.
         _captureReadback = new PngReadbackPipeline(_graphicsDevice);
         _renderCaptureSystem = new RenderCaptureSystem(this, _captureReadback);
         AddSystem(_renderCaptureSystem);
@@ -328,8 +341,10 @@ IDisposable
         };
         AddSystem(_swapchainCaptureSystem);
 
-        // Auto-initialize debug stats overlay as an engine-managed system.
-        AddSystem(new DebugStatsSystem(this));
+        if (_setting.EnableDebugStats)
+        {
+            AddSystem(new DebugStatsSystem(this));
+        }
 
         _preferenceSerializerOption = new JsonSerializerOptions
         {
@@ -373,6 +388,7 @@ IDisposable
 
 
         _mainThreadId = Environment.CurrentManagedThreadId;
+        Gpu.SetErrorCallback(OnGpuError);
 
         _platform.OnTick += ExecuteTickBody;
         _platform.OnUpdate += InternalUpdate;
@@ -451,8 +467,6 @@ IDisposable
         // Acquire the swapchain surface for this frame
         _mainPresenter.BeginFrame();
 
-        EventOnUpdate?.Invoke(delta);
-
         OnSystemUpdate(delta);
 
         try
@@ -466,9 +480,6 @@ IDisposable
         }
 
         OnSystemEndFrame(delta);
-
-        // Per-frame resource disposal (deferred GPU resource destruction)
-        EventOnEndFrame?.Invoke();
 
         // Present the frame
         _mainPresenter.EndFrame();
@@ -525,6 +536,7 @@ IDisposable
     public virtual void Dispose()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _graphicsDevice.WaitIdle();
         OnSystemDispose();
         _mainPresenter.Dispose();
         MainView.Close();
@@ -532,6 +544,10 @@ IDisposable
         _captureReadback.Dispose();
 
         EventOnDispose?.Invoke();
+        _shaderSystem.Dispose();
+        _renderingSystem.Destroy();
+        _graphicsDevice.Destroy();
+        Gpu.SetErrorCallback(null);
         GC.SuppressFinalize(this);
     }
 

@@ -21,22 +21,28 @@ public struct GraphicsSetting
     /// <summary>
     /// The preferred pixel format for swap chain surface presentation
     /// </summary>
-    public PixelFormat PreferredSurfaceFormat { get; set; }
+    public Format PreferredSurfaceFormat { get; set; }
 
     /// <summary>
-    /// The pixel format of the pipeline's main HDR scene target (and the
-    /// <c>PreferredHDRPass</c> scene layout). Does not affect the swapchain —
+    /// The pixel format of the pipeline's main HDR scene target. Does not affect the swapchain —
     /// its format is <see cref="PreferredSurfaceFormat"/>.
     /// </summary>
-    public PixelFormat PreferredHDRFormat { get; set; }
+    public Format PreferredHDRFormat { get; set; }
 
     /// <summary>
-    /// The depth-stencil format of the <c>PreferredHDRPass</c> scene layout (the
-    /// default for forward-style scene targets). The deferred pipeline's own
-    /// targets (G-buffer, shadow map) always use Depth32Float regardless of this
-    /// setting. The swapchain has no depth buffer.
+    /// The depth-stencil format of forward-style scene targets.
     /// </summary>
-    public PixelFormat PreferredDepthStencilFormat { get; set; }
+    public Format PreferredDepthStencilFormat { get; set; }
+
+    /// <summary>
+    /// Initial GPU buffer heap pool size in bytes reserved by the rendering system.
+    /// </summary>
+    public ulong BufferHeapByteCount { get; set; }
+
+    /// <summary>
+    /// Initial GPU texture heap pool size in bytes reserved by the rendering system.
+    /// </summary>
+    public ulong TextureHeapByteCount { get; set; }
 
     /// <summary>
     /// Whether to enable shader cache
@@ -65,9 +71,11 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Default = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
-        PreferredHDRFormat = PixelFormat.RGBA16Float,
-        PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
+        PreferredSurfaceFormat = Format.Bgra8Unorm,
+        PreferredHDRFormat = Format.Rgba16Float,
+        PreferredDepthStencilFormat = Format.D24UnormS8Uint,
+        BufferHeapByteCount = 64ul * 1024 * 1024,
+        TextureHeapByteCount = 64ul * 1024 * 1024,
         DebugInfo = false,
         IsShaderCacheEnabled = true,
         ShaderCachePath = ".cache/shader",
@@ -81,9 +89,11 @@ public struct GraphicsSetting
     public static readonly GraphicsSetting Debug = new GraphicsSetting
     {
         Backend = GraphicsBackend.Auto,
-        PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
-        PreferredHDRFormat = PixelFormat.RGBA16Float,
-        PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
+        PreferredSurfaceFormat = Format.Bgra8Unorm,
+        PreferredHDRFormat = Format.Rgba16Float,
+        PreferredDepthStencilFormat = Format.D24UnormS8Uint,
+        BufferHeapByteCount = 64ul * 1024 * 1024,
+        TextureHeapByteCount = 64ul * 1024 * 1024,
         DebugInfo = true,
         IsShaderCacheEnabled = true,
         ShaderCachePath = ".cache/shader",
@@ -97,10 +107,12 @@ public struct GraphicsSetting
     /// </summary>
     public static readonly GraphicsSetting NoGPU = new GraphicsSetting
     {
-        Backend = GraphicsBackend.None,
-        PreferredSurfaceFormat = PixelFormat.BGRA8Unorm,
-        PreferredHDRFormat = PixelFormat.RGBA16Float,
-        PreferredDepthStencilFormat = PixelFormat.Depth24PlusStencil8,
+        Backend = GraphicsBackend.NoGPU,
+        PreferredSurfaceFormat = Format.Bgra8Unorm,
+        PreferredHDRFormat = Format.Rgba16Float,
+        PreferredDepthStencilFormat = Format.D24UnormS8Uint,
+        BufferHeapByteCount = 1ul * 1024 * 1024,
+        TextureHeapByteCount = 4ul * 1024 * 1024,
         DebugInfo = false,
         IsShaderCacheEnabled = false,
         ShaderCachePath = null,

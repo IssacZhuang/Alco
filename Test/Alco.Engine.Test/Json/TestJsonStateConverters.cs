@@ -1,4 +1,3 @@
-using System;
 using System.Text.Json;
 using NUnit.Framework;
 using Alco.Graphics;
@@ -11,6 +10,62 @@ namespace Alco.Engine.Test;
 /// </summary>
 public class TestJsonStateConverters
 {
+    private static readonly DepthStencilState DepthNone = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Never };
+    private static readonly DepthStencilState DepthWrite = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.LessEqual };
+    private static readonly DepthStencilState DepthRead = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.LessEqual };
+    private static readonly DepthStencilState DepthWriteReverseZ = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.GreaterEqual };
+    private static readonly DepthStencilState DepthReadReverseZ = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.GreaterEqual };
+    private static readonly DepthStencilState DepthDefault = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Always };
+
+    private static readonly BlendState BlendOpaque = new()
+    {
+        Enabled = false,
+        Color = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+    };
+
+    private static readonly BlendState BlendAlphaBlend = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+    };
+
+    private static readonly BlendState BlendAdditive = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.One, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.One, Operation = BlendOp.Add },
+    };
+
+    private static readonly BlendState BlendPremultipliedAlpha = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+    };
+
+    private static readonly BlendState BlendNonPremultipliedAlpha = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+    };
+
+    private static readonly BlendState BlendMultiply = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.DestinationColor, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+    };
+
+    private static readonly BlendState BlendAlphaBlendNoAccumulation = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.One, Operation = BlendOp.Maximum },
+    };
+
     /// <summary>
     /// Tests depth-stencil state JSON round-tripping for all presets.
     /// </summary>
@@ -22,23 +77,22 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterDepthStencilState() }
         };
 
-        // Test all presets
         var presets = new (DepthStencilState state, string name)[]
         {
-            (DepthStencilState.None, "None"),
-            (DepthStencilState.Write, "Write"),
-            (DepthStencilState.Read, "Read"),
-            (DepthStencilState.Default, "Default")
+            (DepthNone, "None"),
+            (DepthWrite, "Write"),
+            (DepthRead, "Read"),
+            (DepthWriteReverseZ, "WriteReverseZ"),
+            (DepthReadReverseZ, "ReadReverseZ"),
+            (DepthDefault, "Default")
         };
 
         foreach (var (state, name) in presets)
         {
-            // Test serialization
             string json = JsonSerializer.Serialize(state, options);
             TestContext.WriteLine($"DepthStencilState.{name} JSON: {json}");
             Assert.That(json, Is.EqualTo($"\"{name}\""));
 
-            // Test deserialization
             var deserialized = JsonSerializer.Deserialize<DepthStencilState>(json, options);
             Assert.That(deserialized, Is.EqualTo(state), $"Failed to deserialize {name}");
         }
@@ -55,15 +109,8 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterDepthStencilState() }
         };
 
-        // Test case insensitive deserialization
-        var testCases = new string[] { "none", "WRITE", "ReAd", "DEFAULT" };
-        var expected = new DepthStencilState[] 
-        { 
-            DepthStencilState.None, 
-            DepthStencilState.Write, 
-            DepthStencilState.Read, 
-            DepthStencilState.Default 
-        };
+        string[] testCases = ["none", "WRITE", "ReAd", "DEFAULT"];
+        DepthStencilState[] expected = [DepthNone, DepthWrite, DepthRead, DepthDefault];
 
         for (int i = 0; i < testCases.Length; i++)
         {
@@ -84,7 +131,7 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterDepthStencilState() }
         };
 
-        Assert.Throws<JsonException>(() => 
+        Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize<DepthStencilState>("\"InvalidPreset\"", options));
     }
 
@@ -99,9 +146,9 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterDepthStencilState() }
         };
 
-        Assert.Throws<JsonException>(() => 
+        Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize<DepthStencilState>("123", options));
-        Assert.Throws<JsonException>(() => 
+        Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize<DepthStencilState>("{\"test\": \"value\"}", options));
     }
 
@@ -116,25 +163,23 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterBlendState() }
         };
 
-        // Test all presets
         var presets = new (BlendState state, string name)[]
         {
-            (BlendState.Opaque, "Opaque"),
-            (BlendState.AlphaBlend, "AlphaBlend"),
-            (BlendState.Additive, "Additive"),
-            (BlendState.PremultipliedAlpha, "PremultipliedAlpha"),
-            (BlendState.NonPremultipliedAlpha, "NonPremultipliedAlpha"),
-            (BlendState.Multiply, "Multiply")
+            (BlendOpaque, "Opaque"),
+            (BlendAlphaBlend, "AlphaBlend"),
+            (BlendAdditive, "Additive"),
+            (BlendPremultipliedAlpha, "PremultipliedAlpha"),
+            (BlendNonPremultipliedAlpha, "NonPremultipliedAlpha"),
+            (BlendMultiply, "Multiply"),
+            (BlendAlphaBlendNoAccumulation, "AlphaBlendNoAccumulation")
         };
 
         foreach (var (state, name) in presets)
         {
-            // Test serialization
             string json = JsonSerializer.Serialize(state, options);
             TestContext.WriteLine($"BlendState.{name} JSON: {json}");
             Assert.That(json, Is.EqualTo($"\"{name}\""));
 
-            // Test deserialization
             var deserialized = JsonSerializer.Deserialize<BlendState>(json, options);
             Assert.That(deserialized, Is.EqualTo(state), $"Failed to deserialize {name}");
         }
@@ -151,14 +196,8 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterBlendState() }
         };
 
-        // Test case insensitive deserialization
-        var testCases = new string[] { "opaque", "ALPHABLEND", "AdDiTiVe" };
-        var expected = new BlendState[] 
-        { 
-            BlendState.Opaque, 
-            BlendState.AlphaBlend, 
-            BlendState.Additive
-        };
+        string[] testCases = ["opaque", "ALPHABLEND", "AdDiTiVe"];
+        BlendState[] expected = [BlendOpaque, BlendAlphaBlend, BlendAdditive];
 
         for (int i = 0; i < testCases.Length; i++)
         {
@@ -179,7 +218,7 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterBlendState() }
         };
 
-        Assert.Throws<JsonException>(() => 
+        Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize<BlendState>("\"InvalidPreset\"", options));
     }
 
@@ -194,9 +233,9 @@ public class TestJsonStateConverters
             Converters = { new JsonConverterBlendState() }
         };
 
-        Assert.Throws<JsonException>(() => 
+        Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize<BlendState>("123", options));
-        Assert.Throws<JsonException>(() => 
+        Assert.Throws<JsonException>(() =>
             JsonSerializer.Deserialize<BlendState>("{\"test\": \"value\"}", options));
     }
-} 
+}

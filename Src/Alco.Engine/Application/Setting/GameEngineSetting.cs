@@ -26,8 +26,13 @@ namespace Alco.Engine
         /// </summary>
         public bool HasGPU
         {
-            get => Graphics.Backend != GraphicsBackend.None;
+            get => Graphics.Backend != GraphicsBackend.NoGPU;
         }
+
+        /// <summary>
+        /// Gets or sets whether the built-in debug stats overlay system is initialized at startup.
+        /// </summary>
+        public bool EnableDebugStats { get; set; }
 
         /// <summary>
         /// Check if the game engine requires audio interface

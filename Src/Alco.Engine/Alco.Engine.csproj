@@ -18,7 +18,6 @@
     <ProjectReference Include="..\Alco.Audio\Alco.Audio.csproj" />
     <ProjectReference Include="..\Alco.Graphics\Alco.Graphics.csproj" />
     <ProjectReference Include="..\Alco.Rendering\Alco.Rendering.csproj" />
-    <ProjectReference Include="..\Alco.GUI\Alco.GUI.csproj" />
     <ProjectReference Include="..\Alco.IO\Alco.IO.csproj" />
     <InternalsVisibleTo Include="$(AssemblyName).Test" />
   </ItemGroup>

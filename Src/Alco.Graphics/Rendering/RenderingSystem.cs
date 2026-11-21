@@ -215,6 +215,20 @@ public sealed class RenderingSystem
         return SubmitPrepared(contexts, null, waits, PrepareSubmission());
     }
 
+    /// <summary>Ends and submits active frames in order and presents the specified swapchain image. Close all scopes first.</summary>
+    /// <param name="contexts">A nonempty list of distinct contexts from this system, ordered with the acquiring context.</param>
+    /// <param name="swapchain">The swapchain whose acquired image to present.</param>
+    /// <param name="waits">The GPU dependencies for this submission.</param>
+    /// <returns>The shared GPU completion point, borrowing the system's timeline. Do not signal or destroy it.</returns>
+    /// <remarks>Serialize access to the contexts and with other submissions on queue zero.</remarks>
+    /// <exception cref="GPUException">Initialization command recording could not begin.</exception>
+    public TimelinePoint SubmitAndPresent(scoped ReadOnlySpan<RenderContext> contexts, GPUSwapchain swapchain,
+        scoped ReadOnlySpan<TimelinePoint> waits = default)
+    {
+        Debug.Assert(!contexts.IsEmpty && swapchain != null);
+        return SubmitPrepared(contexts, swapchain, waits, PrepareSubmission());
+    }
+
     // Complete fallible texture initialization before associating a readback with the next signal.
     internal TimelinePoint PrepareSubmission()
     {
