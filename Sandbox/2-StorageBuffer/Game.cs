@@ -1,0 +1,244 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Text;
+using Alco.Graphics;
+using Alco.Engine;
+using Alco.Rendering;
+using Alco;
+
+/// <summary>Sandbox demonstrating storage buffers shared between compute and graphics passes.</summary>
+public class Game : GameEngine
+{
+    #region Shader Data
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Vertex
+    {
+        public Vector2 Position;
+        public Vector2 TexCoord;
+    }
+
+    private static readonly Vertex[] Vertices =
+    {
+        new Vertex {Position = new Vector2(-0.5f, 0.5f), TexCoord = new Vector2(0, 0)},
+        new Vertex {Position = new Vector2(0.5f, 0.5f), TexCoord = new Vector2(1, 0)},
+        new Vertex {Position = new Vector2(0.5f, -0.5f), TexCoord = new Vector2(1, 1)},
+        new Vertex {Position = new Vector2(-0.5f, -0.5f), TexCoord = new Vector2(0, 1)}
+    };
+
+    private static readonly ushort[] Indices = { 0, 1, 2, 0, 2, 3 };
+
+    #endregion
+
+    private CameraData2D camera;
+
+    private GPUCommandBuffer _commandBuffer;
+    private GPUBuffer _vertexBuffer;
+    private GPUBuffer _indexBuffer;
+    private GraphicsValueBuffer<Matrix4x4> _cameraBuffer;
+    private GraphicsValueBuffer<float> _timerBuffer;
+    private GraphicsArrayBuffer<Vector4> _positionsBuffer;
+
+    private GPUPipeline _graphicsPipeline;
+    private GPUPipeline _computePipeline;
+    private Texture2D _texWhite;
+
+    private Transform2D _transform1;
+    private float _timer = 0.0f;
+
+    /// <summary>Initializes the graphics and compute pipelines and the storage buffers.</summary>
+    /// <param name="setting">Engine settings for the game instance.</param>
+    public Game(GameEngineSetting setting) : base(setting)
+    {
+        _commandBuffer = GraphicsDevice.CreateCommandBuffer();
+        _graphicsPipeline = CreateGraphicsPipeline();
+        _computePipeline = CreateComputePipeline();
+
+        _vertexBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Vertex Buffer",
+            Size = (uint)(Marshal.SizeOf<Vertex>() * Vertices.Length),
+            Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
+        }, Vertices);
+
+        _indexBuffer = GraphicsDevice.CreateBuffer(new BufferDescriptor
+        {
+            Name = "Index Buffer",
+            Size = (uint)(sizeof(ushort) * Indices.Length),
+            Usage = BufferUsage.Index | BufferUsage.CopyDst,
+        }, Indices);
+
+        _cameraBuffer = RenderingSystem.CreateGraphicsValueBuffer<Matrix4x4>("camera_buffer");
+
+        _texWhite = RenderingSystem.CreateTexture2D(16, 16, new ColorFloat(1, 1, 1, 1));
+
+        camera = new CameraData2D();
+        camera.Transform.Position = new Vector2(0, 2);
+        camera.Size = new Vector2(160, 90);
+        Log.Info(camera.ViewProjectionMatrix);
+
+        _positionsBuffer = RenderingSystem.CreateGraphicsArrayBuffer<Vector4>(500, "positions_buffer");
+        _timerBuffer = RenderingSystem.CreateGraphicsValueBuffer<float>("timer_buffer");
+
+        _transform1 = Transform2D.Identity;
+
+        _transform1.Position.X = -32;
+
+    }
+
+    protected override void OnUpdate(float delta)
+    {
+        if (Input.IsKeyDown(KeyCode.Escape))
+        {
+            Stop();
+        }
+
+        _cameraBuffer.UpdateBuffer(camera.ViewProjectionMatrix);
+        _timer += delta;
+        _timerBuffer.UpdateBuffer(_timer);
+        // use compute shader instead
+        // for (int i = 0; i < 500; i++)
+        // {
+        //     _positionsBuffer[i] = new Vector4(i, (float)math.cos(_timer + i * 0.1f) * 5, 0, 1);
+        // }
+
+        if (MainPresenter.FrameBuffer is not { } frameBuffer) return;
+        _commandBuffer.Begin();
+
+        using (var computePass = _commandBuffer.BeginCompute())
+        {
+            computePass.SetPipeline(_computePipeline);
+            computePass.SetResources(0, _positionsBuffer.EntryReadWrite);
+            computePass.SetResources(1, _timerBuffer.EntryReadonly);
+            computePass.DispatchCompute((500 / 8) + 1, 1, 1);
+        }
+
+        using (var renderPass = _commandBuffer.BeginRender(frameBuffer))
+        {
+            renderPass.SetPipeline(_graphicsPipeline);
+            renderPass.SetVertexBuffer(0, _vertexBuffer);
+            renderPass.SetIndexBuffer(_indexBuffer, IndexFormat.UInt16);
+            renderPass.SetResources(0, _cameraBuffer.EntryReadonly);
+            renderPass.SetResources(1, _texWhite.EntryReadonly);
+            renderPass.SetResources(2, _positionsBuffer.EntryReadonly);
+            renderPass.PushConstants(_transform1.Matrix);
+            renderPass.DrawIndexed((uint)Indices.Length, 100, 0, 0, 0);
+        }
+
+        _commandBuffer.End();
+        GraphicsDevice.Submit(_commandBuffer);
+    }
+
+    protected override void OnStop()
+    {
+        _commandBuffer.Dispose();
+        _texWhite.Dispose();
+    }
+
+    private unsafe GPUPipeline CreateGraphicsPipeline()
+    {
+        // slang module program: every [shader(...)] entry point compiled to SPIR-V
+        SlangProgram program = CompileProgram("sandbox2_shader", "shader.slang");
+        ShaderModule vertSource = StageModule(program, "MainVS");
+        ShaderModule fragSource = StageModule(program, "MainPS");
+
+        ShaderReflection info = program.Reflection;
+
+        Log.Info(info);
+
+        DebugSaveFile("vertex.spv", vertSource.Source);
+        DebugSaveFile("fragment.spv", fragSource.Source);
+
+        GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Count];
+        for (int i = 0; i < info.BindGroups.Count; i++)
+        {
+            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor("bind_group_" + i));
+        }
+
+        RasterizerState rasterizer = RasterizerState.CullNone;
+        BlendState blend = BlendState.NonPremultipliedAlpha;
+        DepthStencilState depthStencil = DepthStencilState.Default;
+
+        GPUAttachmentLayout attachmentLayout = MainPresenter.AttachmentLayout!;
+
+        GraphicsPipelineDescriptor descriptor = new GraphicsPipelineDescriptor(
+            bindGroups,
+            new ShaderModule[] { vertSource, fragSource },
+            info.VertexLayouts.ToArray(),
+            rasterizer,
+            blend,
+            depthStencil,
+            new PixelFormat[] { attachmentLayout.Colors[0].Format },
+            attachmentLayout.Depth.HasValue ? attachmentLayout.Depth.Value.Format : null,
+            (uint)info.PushConstantsSize,
+            "quad_pipline"
+        );
+
+        return GraphicsDevice.CreateGraphicsPipeline(descriptor);
+    }
+
+    private GPUPipeline CreateComputePipeline()
+    {
+        SlangProgram program = CompileProgram("sandbox2_compute_position", "compute-position.slang");
+        ShaderModule computeSource = StageModule(program, "MainCS");
+
+        ShaderReflection info = program.Reflection;
+
+        Log.Info(info);
+
+        DebugSaveFile("compute.spv", computeSource.Source);
+
+        GPUBindGroup[] bindGroups = new GPUBindGroup[info.BindGroups.Count];
+        for (int i = 0; i < info.BindGroups.Count; i++)
+        {
+            bindGroups[i] = GraphicsDevice.CreateBindGroup(info.BindGroups[i].ToDescriptor("bind_group_" + i));
+        }
+
+        ComputePipelineDescriptor descriptor = new ComputePipelineDescriptor(
+            computeSource,
+            bindGroups,
+            0,
+            "compute_pipline"
+        );
+
+        return GraphicsDevice.CreateComputePipeline(descriptor);
+    }
+
+    private SlangProgram CompileProgram(string moduleName, string fileName)
+    {
+        string path = Path.Combine("Assets", fileName);
+        SlangModuleSystem modules = RenderingSystem.ShaderSystem.Modules;
+        modules.GetOrLoadModule(moduleName, path, File.ReadAllText(path));
+        return modules.GetProgramAllEntries(moduleName, []);
+    }
+
+    private static ShaderModule StageModule(SlangProgram program, string entryName)
+    {
+        for (int i = 0; i < program.EntryPoints.Count; i++)
+        {
+            if (program.EntryPoints[i].Name == entryName)
+            {
+                return new ShaderModule(
+                    SlangCompileSession.SlangStageToEngine(program.EntryPoints[i].Stage),
+                    ShaderLanguage.SPIRV,
+                    program.EntryCode[i],
+                    "main");
+            }
+        }
+        throw new ArgumentException($"Entry point '{entryName}' not found in module '{program.ModuleName}'.");
+    }
+
+    private static byte[] LoadFile(string path)
+    {
+        return File.ReadAllBytes(Path.Combine("Assets", path));
+    }
+
+    private static void DebugSaveFile(string path, ReadOnlyMemory<byte> data)
+    {
+        if (!Directory.Exists(".Debug"))
+        {
+            Directory.CreateDirectory(".Debug");
+        }
+        File.WriteAllBytes(Path.Combine(".Debug", path), data.ToArray());
+    }
+}
