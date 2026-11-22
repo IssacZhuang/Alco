@@ -1,18 +1,18 @@
-// FXAA anti-aliasing chain-transform node. Quality and mode are generic value
-// specializations of the fxaa module (MainPS<let Quality : int,
-// let Mode : int>): the node requests each (preset, mode) pair's specialized
-// pipeline on demand. The depth-aware modes additionally require a
-// SceneDepthSource service on the factory context.
+// FXAA anti-aliasing chain-transform node. Quality, mode, and color space are
+// generic value specializations of FXAACompute / FXAAGraphics.
 {
     "$type": "Alco.Rendering.RGNodeFactory_FXAA",
     "descriptor": {
-        "sceneCopyShader": "Blit",
-        "fxaaShader": "FXAA",
+        "computeShader": "FXAACompute",
+        "graphicsShader": "FXAAGraphics",
         "quality": "Medium",
         "mode": "Luma",
+        "colorSpace": "Gamma",
         "threshold": 0.125,
+        "thresholdMin": 0.0312,
         "subpix": 0.75,
         "depthThresholdMin": 0.000244140625,
-        "depthThresholdRel": 0.015625
+        "depthThresholdRel": 0.015625,
+        "colorVisibilityFloor": 0.015625
     }
 }

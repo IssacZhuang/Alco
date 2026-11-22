@@ -53,7 +53,9 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_ColorGrading = "ColorGrading";
 
-   public const string Shader_FXAA = "FXAA";
+   public const string Shader_FXAACompute = "FXAACompute";
+
+   public const string Shader_FXAAGraphics = "FXAAGraphics";
 
    public const string Shader_AcesTonemap = "AcesTonemap";
 

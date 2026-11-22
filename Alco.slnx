@@ -47,7 +47,7 @@
     <Project Path="Sandbox/31-SvgRendering/31-SvgRendering.csproj" />
     <Project Path="Sandbox/4-AsyncAssetLoading/4-AsyncAssetLoading.csproj" />
     <Project Path="Sandbox/5-AssetLoaderHLSL/5-AssetLoaderHLSL.csproj" />
-    <Project Path="Sandbox/6-SpriteRendering/6-SpriteRendering.csproj" />
+    <Project Path="Sandbox/6-AntiAliasing/6-AntiAliasing.csproj" />
     <Project Path="Sandbox/7-BloomHDR/7-BloomHDR.csproj" />
     <Project Path="Sandbox/8-Collision/8-Collision.csproj" />
     <Project Path="Sandbox/9-SpacePartition/9-SpacePartition.csproj" />

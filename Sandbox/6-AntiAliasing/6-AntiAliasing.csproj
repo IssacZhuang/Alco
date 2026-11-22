@@ -2,17 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <RootNamespace>_6_SpriteRendering</RootNamespace>
+    <RootNamespace>_6_AntiAliasing</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
-      <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+    <ProjectReference Include="..\..\Src\Alco.ImGUI\Alco.ImGUI.csproj" />
   </ItemGroup>
 </Project>

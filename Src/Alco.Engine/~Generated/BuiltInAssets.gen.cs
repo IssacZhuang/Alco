@@ -57,7 +57,9 @@ public partial class BuiltInAssets
 
     public Shader Shader_ColorGrading => GetShader("ColorGrading");
 
-    public Shader Shader_FXAA => GetShader("FXAA");
+    public Shader Shader_FXAACompute => GetShader("FXAACompute");
+
+    public Shader Shader_FXAAGraphics => GetShader("FXAAGraphics");
 
     public Shader Shader_AcesTonemap => GetShader("AcesTonemap");
 

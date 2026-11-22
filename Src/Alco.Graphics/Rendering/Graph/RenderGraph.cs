@@ -896,6 +896,20 @@ public sealed unsafe class RenderGraph
         return _resources[index].Format;
     }
 
+    internal bool SupportsTextureUsage(RGTexture handle, RGUsage usage)
+    {
+        int index = ValidateTextureHandle(handle);
+        ref ResourceSlot slot = ref _resources[index];
+        if (usage == RGUsage.None)
+            return true;
+        if (slot.ExplicitUsage != TextureUsage.None && !RGUsageInfo.IsTextureUsageCompatible(slot.ExplicitUsage, usage))
+            return false;
+        if (_system == null)
+            return true;
+        TextureUsage required = RGUsageInfo.RequiredTextureUsage(usage);
+        return required == TextureUsage.None || _system.Device.SupportsTextureFormat(slot.Format, required);
+    }
+
     internal ulong GetBufferSizeBytes(RGBuffer handle)
     {
         int index = ValidateBufferHandle(handle);

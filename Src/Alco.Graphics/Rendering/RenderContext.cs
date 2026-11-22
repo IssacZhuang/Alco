@@ -178,6 +178,20 @@ public sealed class RenderContext : RenderingResource
         }
     }
 
+    /// <summary>Allocates and writes one frame-scoped root struct into <see cref="FrameData"/>.</summary>
+    /// <typeparam name="TRoot">The unmanaged root struct type.</typeparam>
+    /// <param name="value">The root payload to copy into per-frame storage.</param>
+    /// <returns>The 16-byte-aligned <see cref="GPURange"/> covering the written root data.</returns>
+    /// <exception cref="InvalidOperationException">Per-frame root storage is exhausted.</exception>
+    public unsafe GPURange AllocateRoot<TRoot>(in TRoot value) where TRoot : unmanaged
+    {
+        GPUAllocation<TRoot> allocation = FrameData.Allocate<TRoot>();
+        if (allocation.SizeBytes == 0)
+            throw new InvalidOperationException("The recording frame's root storage is exhausted.");
+        *allocation.Cpu = value;
+        return allocation.GPURange;
+    }
+
     /// <summary>Waits for the next slot, collects its timestamps, and begins recording; resolve the previous frame before calling.</summary>
     /// <exception cref="GPUException">Command recording could not begin.</exception>
     public void BeginFrame()
@@ -622,7 +636,7 @@ public sealed class RenderContext : RenderingResource
 
     private void BindCompute(Shader shader, Material? material)
     {
-        Debug.Assert(_recording && _scope == ScopeKind.Compute && _commands != null && !shader.IsDestroyed && shader.System == _system);
+        Debug.Assert(_recording && _scope == ScopeKind.Compute && _commands != null && !shader.IsDestroyed && shader.Kind == ShaderKind.Compute && shader.System == _system);
         ShaderVariant variant = material != null ? material.Variant : shader.DefaultVariant;
         if (_lastVariant != variant)
         {
@@ -902,6 +916,18 @@ public sealed class RenderContext : RenderingResource
             _context.RecordingCommands.Dispatch(_context.PrepareDispatch(material), groupCount);
         }
 
+        /// <summary>Records a dispatch with prepacked data matching <paramref name="material"/>'s active specialization.</summary>
+        /// <param name="material">The compute material; its active specialization selects the pipeline.</param>
+        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
+        /// <param name="groupCount">The number of workgroups along each axis.</param>
+        public void Dispatch(Material material, GPURange root, Extent3D groupCount)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            Debug.Assert(material != null && root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
+            _context.BindCompute(material.Shader, material);
+            _context.RecordingCommands.Dispatch(root, groupCount);
+        }
+
         /// <summary>Records a dispatch with prepacked data matching the compute shader's root layout.</summary>
         /// <param name="shader">The compute shader.</param>
         /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
@@ -923,6 +949,34 @@ public sealed class RenderContext : RenderingResource
             _context.AssertScope(ScopeKind.Compute, _id);
             Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDispatch(material);
+            _context.RecordingCommands.DispatchIndirect(root, arguments.Range.Slice(byteOffset));
+        }
+
+        /// <summary>Records an indirect dispatch with prepacked data matching <paramref name="material"/>'s active specialization.</summary>
+        /// <param name="material">The compute material; its active specialization selects the pipeline.</param>
+        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
+        /// <param name="arguments">The argument buffer.</param>
+        /// <param name="byteOffset">The byte offset of the dispatch record.</param>
+        public void DispatchIndirect(Material material, GPURange root, Buffer arguments, ulong byteOffset = 0)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            Debug.Assert(material != null && root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
+            Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
+            _context.BindCompute(material.Shader, material);
+            _context.RecordingCommands.DispatchIndirect(root, arguments.Range.Slice(byteOffset));
+        }
+
+        /// <summary>Records an indirect dispatch with prepacked data matching the compute shader's root layout.</summary>
+        /// <param name="shader">The compute shader.</param>
+        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
+        /// <param name="arguments">The argument buffer.</param>
+        /// <param name="byteOffset">The byte offset of the dispatch record.</param>
+        public void DispatchIndirect(Shader shader, GPURange root, Buffer arguments, ulong byteOffset = 0)
+        {
+            _context.AssertScope(ScopeKind.Compute, _id);
+            Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= shader.Root.SizeBytes);
+            Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
+            _context.BindCompute(shader, null);
             _context.RecordingCommands.DispatchIndirect(root, arguments.Range.Slice(byteOffset));
         }
 

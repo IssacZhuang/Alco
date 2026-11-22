@@ -188,7 +188,7 @@ internal static unsafe class RenderGraphTests
         check(caughtReleased, "Validation rejects released retained handle");
         g3.Destroy();
 
-        // 4. Incompatible explicit TextureUsage rejected.
+        // 4. Incompatible explicit TextureUsage rejected and SupportsUsage reports capabilities accurately.
         RenderGraph g4 = new(new Extent2D(128, 128), "ValUsage");
         RGTexture colorOnly = g4.CreateTransientTexture(new RGTextureDesc
         {
@@ -196,8 +196,21 @@ internal static unsafe class RenderGraphTests
             Format = Format.Rgba8Unorm,
             Usage = TextureUsage.ColorAttachment,
         });
+        RGTexture autoTransient = g4.CreateTransientTexture(new RGTextureDesc
+        {
+            Name = "auto_transient",
+            Format = Format.Rgba8Unorm,
+        });
+        bool supportsChecksOk = false;
         g4.Use(new LambdaNode(b =>
         {
+            supportsChecksOk =
+                !b.SupportsUsage(colorOnly, RGUsage.ComputeWrite) &&
+                b.SupportsUsage(colorOnly, RGUsage.ColorAttachmentWrite) &&
+                b.SupportsUsage(autoTransient, RGUsage.ComputeWrite) &&
+                !b.SupportsUsage(b.Output, RGUsage.ComputeWrite) &&
+                b.SupportsUsage(b.Output, RGUsage.ColorAttachmentWrite);
+
             RenderGraphPassBuilder p = b.AddPass("BadStorage", NullNode.Instance);
             p.Write(colorOnly, RGUsage.ComputeWrite);
             p.ProducesOutput();
@@ -205,7 +218,7 @@ internal static unsafe class RenderGraphTests
         bool caughtBadUsage = false;
         try { g4.CompileDryRun(target); }
         catch (InvalidOperationException) { caughtBadUsage = true; }
-        check(caughtBadUsage, "Validation rejects incompatible explicit TextureUsage");
+        check(supportsChecksOk && caughtBadUsage, "SupportsUsage accurately reports texture capabilities and validation rejects incompatible explicit TextureUsage");
         g4.Destroy();
 
         // 5. Same-pass texture feedback conflict rejected (even when declared via separate Read + Write calls).

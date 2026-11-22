@@ -91,6 +91,12 @@ public sealed class RenderGraphBuilder
     /// <returns>The texture format.</returns>
     public Format GetFormat(RGTexture texture) => Graph.GetTextureFormat(texture);
 
+    /// <summary>Reports whether <paramref name="texture"/> supports all accesses in <paramref name="usage"/> on this device.</summary>
+    /// <param name="texture">A valid texture handle belonging to this graph.</param>
+    /// <param name="usage">The intended pass usage flags.</param>
+    /// <returns><see langword="true"/> when the texture and device format support <paramref name="usage"/>.</returns>
+    public bool SupportsUsage(RGTexture texture, RGUsage usage) => Graph.SupportsTextureUsage(texture, usage);
+
     /// <summary>Gets the logical byte size of a valid buffer handle.</summary>
     /// <param name="buffer">A valid buffer handle belonging to this graph.</param>
     /// <returns>The buffer size in bytes.</returns>

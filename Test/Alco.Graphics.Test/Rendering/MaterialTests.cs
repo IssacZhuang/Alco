@@ -493,6 +493,31 @@ internal static class MaterialTests
                 check(PixelMatches(readback.Range, format, halfWidth + halfWidth / 2, halfWidth, expected),
                     "mesh scope draw reads the same compute buffer and produces its own output");
             }
+
+            context.BeginFrame();
+            GPURange packedWrite = context.AllocateRoot(new ScopeRoot { Values = values.View, Index = 0, Value = 32 });
+            GPURange packedIndirectMaterial = context.AllocateRoot(new ScopeRoot { Values = values.View, Index = 1, Value = 48 });
+            GPURange packedIndirectShader = context.AllocateRoot(new ScopeRoot { Values = values.View, Index = 2, Value = 80 });
+            using (RenderContext.ComputeScope compute = context.BeginCompute())
+            {
+                compute.Dispatch(write, packedWrite, oneGroup);
+                compute.DispatchIndirect(writeIndirect, packedIndirectMaterial, arguments, byteOffset: 4 * sizeof(uint));
+                compute.DispatchIndirect(indirect, packedIndirectShader, arguments, byteOffset: 4 * sizeof(uint));
+                compute.Barrier(Stage.Compute, Access.ShaderWrite, readers, Access.ShaderRead);
+            }
+            using (RenderContext.RenderScope pass = context.BeginRenderPass(new RenderingDesc { Colors = colors }, formats))
+            {
+                pass.SetViewport(new Viewport { Width = RecordingSize, Height = RecordingSize });
+                pass.SetScissor(new Scissor { Width = halfWidth, Height = RecordingSize });
+                pass.Draw(draw, 3);
+            }
+            context.Barrier(Stage.ColorOutput, Access.ColorWrite, Stage.Transfer, Access.TransferRead);
+            context.CopyTextureToMemory(target.NativeTexture, readback.Range.GPURange);
+            context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
+            context.Submit().Wait();
+            Vector4 expectedPacked = new Vector4(32, 96, 160, 255) / 255;
+            check(PixelMatches(readback.Range, format, halfWidth / 2, halfWidth, expectedPacked),
+                "ComputeScope prepacked root Dispatch and DispatchIndirect overloads execute on Material and Shader");
         }
         finally
         {
