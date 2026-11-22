@@ -4,10 +4,11 @@
     "$type": "Alco.Rendering.RGNodeFactory_Bloom",
     "descriptor": {
         "blitShader": "BloomBlit",
+        "compositeShader": "BloomComposite",
         "setupShader": "BloomSetup",
         "downsampleShader": "BloomDownsample",
-        "gaussianShader": "BloomGaussian",
-        "sceneCopyShader": "Blit",
+        "gaussianHShader": "BloomGaussianH",
+        "gaussianVShader": "BloomGaussianV",
         "threshold": 0.0,
         "intensity": 1.0,
         "sizeScale": 1.0

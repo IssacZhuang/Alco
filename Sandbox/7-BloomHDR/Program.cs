@@ -2,16 +2,32 @@
 using Alco.Engine;
 using Alco.Graphics;
 
-GameEngineSetting setting = new GameEngineSetting
+GraphicsBackend backend = GraphicsBackend.Auto;
+for (int i = 0; i < args.Length; i++)
+{
+    string arg = args[i];
+    if (arg.StartsWith("--backend=", StringComparison.OrdinalIgnoreCase))
+    {
+        if (!Enum.TryParse<GraphicsBackend>(arg["--backend=".Length..], ignoreCase: true, out backend) ||
+            !Enum.IsDefined(backend))
+        {
+            Log.Error($"Invalid --backend value: {arg}");
+            return 1;
+        }
+    }
+}
+
+GameEngineSetting setting = new()
 {
     StopWhenError = true,
     View = new ViewSetting(960, 540, "Bloom HDR"),
-    Graphics = GraphicsSetting.Default with{
-        Backend = GraphicsBackend.Vulkan
+    Graphics = GraphicsSetting.Default with
+    {
+        Backend = backend,
     },
 };
 
-using (Game game = new Game(setting))
+using (Game game = new(setting, args))
 {
     game.Run();
 }
@@ -19,3 +35,4 @@ using (Game game = new Game(setting))
 GC.Collect();
 GC.WaitForFullGCComplete();
 AllocationTracker.CheckAllocated();
+return 0;

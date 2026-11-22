@@ -38,13 +38,16 @@ public static partial class BuiltInAssetsPath
    public const string Shader_GaussianBlurRgba8 = "GaussianBlurRgba8";
 
    public const string Shader_SvgRasterize = "SvgRasterize";
-
 
    public const string Shader_BloomBlit = "BloomBlit";
 
+   public const string Shader_BloomComposite = "BloomComposite";
+
    public const string Shader_BloomDownsample = "BloomDownsample";
 
-   public const string Shader_BloomGaussian = "BloomGaussian";
+   public const string Shader_BloomGaussianH = "BloomGaussianH";
+
+   public const string Shader_BloomGaussianV = "BloomGaussianV";
 
    public const string Shader_BloomSetup = "BloomSetup";
 

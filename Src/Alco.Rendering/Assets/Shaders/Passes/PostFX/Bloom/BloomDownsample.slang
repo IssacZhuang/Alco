@@ -1,54 +1,45 @@
 // file "BloomDownsample.slang" - module "BloomDownsample"
 //
-// Resources are grouped as ParameterBlocks — the compiler assigns each block
-// its own descriptor set in declaration order; members resolve by bare field name.
+// Bloom 4-tap bilinear downsample compute pass averaging to a 4x4 box footprint.
+// Accepts separate InvSourceSize and InvDestSize to preserve exact odd-dimension UV parity.
 
 #language slang 2025
 module BloomDownsample;
 
-import AlcoRendering_Core;
+import Core;
+import SharedSampler;
+import AlcoRendering_Bloom;
 
-struct Constants {
-    float2 invTextureSize;
-};
-
-public struct PassParams
+[GPURoot]
+public struct BloomDownsampleRoot
 {
-    public Texture2D texture;
+    public GpuTextureId Source;
+    public GpuTextureId Dest;
+    public float2 InvSourceSize;
+    public float2 InvDestSize;
+    public uint2 DestSize;
 };
 
-public ParameterBlock<PassParams> pass;
-[[vk::push_constant]] Constants constants;
+[shader("compute")]
+[numthreads(BLOOM_DOWNSAMPLE_THREADS, BLOOM_DOWNSAMPLE_THREADS, 1)]
+void mainCS(uint3 id : SV_DispatchThreadID)
+{
+    BloomDownsampleRoot root = gpu_load_root<BloomDownsampleRoot>();
+    if (id.x >= root.DestSize.x || id.y >= root.DestSize.y)
+    {
+        return;
+    }
 
-struct Vertex {
-  float3 position : POSITION;
-  float2 uv : TEXCOORD0;
-};
+    float2 uv = (float2(id.xy) + 0.5f) * root.InvDestSize;
+    float2 texel = root.InvSourceSize;
+    Texture2D<float4> source = gpu_texture<Texture2D<float4>>(root.Source.index);
+    SamplerState linearClamp = shared_sampler_linear_clamp();
 
-struct V2F {
-  float4 position : SV_POSITION;
-  float2 uv : TEXCOORD0;
-};
+    float3 color = source.SampleLevel(linearClamp, uv + texel * float2(-1.0f, -1.0f), 0.0f).rgb;
+    color += source.SampleLevel(linearClamp, uv + texel * float2(1.0f, -1.0f), 0.0f).rgb;
+    color += source.SampleLevel(linearClamp, uv + texel * float2(-1.0f, 1.0f), 0.0f).rgb;
+    color += source.SampleLevel(linearClamp, uv + texel * float2(1.0f, 1.0f), 0.0f).rgb;
 
-[shader("vertex")]
-V2F MainVS(Vertex input) {
-  V2F output = (V2F)0;
-  output.position = float4(input.position, 1.0f);
-  output.uv = input.uv;
-  return output;
-}
-
-// High-quality downsample: four bilinear taps on the diagonal texel corners,
-// averaging to a 4x4 box footprint. Negative results are clamped away so the
-// bloom chain never feeds NaNs or negative energy downward.
-[shader("fragment")]
-float4 MainPS(V2F input) : SV_TARGET {
-  float2 texel = constants.invTextureSize;
-
-  float3 color = pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(-1, -1)).rgb;
-  color += pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(1, -1)).rgb;
-  color += pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(-1, 1)).rgb;
-  color += pass.texture.Sample(samplers.linearClamp, input.uv + texel * float2(1, 1)).rgb;
-
-  return float4(max(color * 0.25, 0.0), 1.0);
+    RWTexture2D<float4> dest = gpu_texture<RWTexture2D<float4>>(root.Dest.index);
+    dest[id.xy] = float4(max(color * 0.25f, 0.0f), 1.0f);
 }

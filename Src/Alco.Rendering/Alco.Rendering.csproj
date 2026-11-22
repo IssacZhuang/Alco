@@ -15,7 +15,9 @@
 
   </ItemGroup>
    <ItemGroup>
+    <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_Bloom.slang" LogicalName="AlcoRendering_Bloom.slang" />
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SvgRasterize.slang" LogicalName="SvgRasterize.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\Bloom\*.slang" LogicalName="%(Filename)%(Extension)" />
     <Content
       Condition="'$(UseAssetsPack)' == 'false'"
       Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">

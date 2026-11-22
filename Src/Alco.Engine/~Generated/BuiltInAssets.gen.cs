@@ -42,13 +42,16 @@ public partial class BuiltInAssets
     public Shader Shader_GaussianBlurRgba8 => GetShader("GaussianBlurRgba8");
 
     public Shader Shader_SvgRasterize => GetShader("SvgRasterize");
-
 
     public Shader Shader_BloomBlit => GetShader("BloomBlit");
 
+    public Shader Shader_BloomComposite => GetShader("BloomComposite");
+
     public Shader Shader_BloomDownsample => GetShader("BloomDownsample");
 
-    public Shader Shader_BloomGaussian => GetShader("BloomGaussian");
+    public Shader Shader_BloomGaussianH => GetShader("BloomGaussianH");
+
+    public Shader Shader_BloomGaussianV => GetShader("BloomGaussianV");
 
     public Shader Shader_BloomSetup => GetShader("BloomSetup");
 
