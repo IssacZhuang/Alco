@@ -57,17 +57,9 @@ public static partial class BuiltInAssetsPath
 
    public const string Shader_FXAAGraphics = "FXAAGraphics";
 
-   public const string Shader_AcesTonemap = "AcesTonemap";
+   public const string Shader_TonemapCompute = "TonemapCompute";
 
-   public const string Shader_AgxTonemap = "AgxTonemap";
-
-   public const string Shader_FilmicTonemap = "FilmicTonemap";
-
-   public const string Shader_NeutralTonemap = "NeutralTonemap";
-
-   public const string Shader_ReinhardLuminanceTonemap = "ReinhardLuminanceTonemap";
-
-   public const string Shader_Uncharted2Tonemap = "Uncharted2Tonemap";
+   public const string Shader_TonemapGraphics = "TonemapGraphics";
 
    public const string Shader_Sprite = "Sprite";
 

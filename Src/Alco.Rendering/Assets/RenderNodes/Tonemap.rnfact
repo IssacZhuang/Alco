@@ -1,14 +1,11 @@
-// HDR tone-mapping chain-transform node. The default operator is Reinhard;
-// the node switches operators at runtime.
+// Tonemap chain-transform node. Operator and 8-bit dither mode are generic value
+// specializations of TonemapCompute / TonemapGraphics.
 {
     "$type": "Alco.Rendering.RGNodeFactory_Tonemap",
     "descriptor": {
-        "blitShader": "Blit",
-        "reinhardShader": "ReinhardLuminanceTonemap",
-        "uncharted2Shader": "Uncharted2Tonemap",
-        "filmicShader": "FilmicTonemap",
-        "acesShader": "AcesTonemap",
-        "neutralShader": "NeutralTonemap",
-        "agxShader": "AgxTonemap"
+        "computeShader": "TonemapCompute",
+        "graphicsShader": "TonemapGraphics",
+        "operator": "Neutral",
+        "ditherEnabled": true
     }
 }

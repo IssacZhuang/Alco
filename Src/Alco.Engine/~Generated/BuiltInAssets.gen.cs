@@ -61,17 +61,9 @@ public partial class BuiltInAssets
 
     public Shader Shader_FXAAGraphics => GetShader("FXAAGraphics");
 
-    public Shader Shader_AcesTonemap => GetShader("AcesTonemap");
+    public Shader Shader_TonemapCompute => GetShader("TonemapCompute");
 
-    public Shader Shader_AgxTonemap => GetShader("AgxTonemap");
-
-    public Shader Shader_FilmicTonemap => GetShader("FilmicTonemap");
-
-    public Shader Shader_NeutralTonemap => GetShader("NeutralTonemap");
-
-    public Shader Shader_ReinhardLuminanceTonemap => GetShader("ReinhardLuminanceTonemap");
-
-    public Shader Shader_Uncharted2Tonemap => GetShader("Uncharted2Tonemap");
+    public Shader Shader_TonemapGraphics => GetShader("TonemapGraphics");
 
     public Shader Shader_Sprite => GetShader("Sprite");
 
