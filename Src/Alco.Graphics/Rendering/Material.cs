@@ -232,6 +232,21 @@ public class Material
         ++_version;
     }
 
+    /// <summary>Writes raw pre-packed bytes matching a root data field's exact layout size.</summary>
+    /// <param name="name">The root field name or dotted nested path.</param>
+    /// <param name="data">The packed bytes; length must match the field's <see cref="RootField.SizeBytes"/>.</param>
+    /// <exception cref="InvalidOperationException">The field does not exist or the byte length differs from the field size.</exception>
+    public void SetRawData(string name, ReadOnlySpan<byte> data)
+    {
+        RootField field = Field(name, MaterialFieldKind.Data);
+        if (field.SizeBytes != (uint)data.Length)
+            throw new InvalidOperationException($"Value of {data.Length} bytes does not fit field '{name}' of {field.SizeBytes} bytes in material '{Name}'.");
+        SynchronizeStaging(Variant);
+        data.CopyTo(_staging.AsSpan((int)field.Offset, data.Length));
+        OnFieldSet(field, true);
+        ++_version;
+    }
+
     /// <summary>Gets or creates a shared graphics or mesh pipeline for this material's active specialization.</summary>
     /// <param name="pass">The render-pass attachment signature.</param>
     /// <returns>The pipeline; owned by the material's shader.</returns>

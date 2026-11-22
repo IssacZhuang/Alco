@@ -1,29 +1,27 @@
 // file "ParticleSurfaceDefault.slang" - module "ParticleSurfaceDefault"
 //
-// The default particle surface: the "texture" slot (the particle sprite)
-// multiplied by the particle color - the visual of every group whose material
-// names no surface module of its own. The particle systems compose it as the
-// material compiler's default surface (ParticleAssetPipeline.DefaultSurface).
+// The default particle surface: samples the emitter's sprite texture
+// (delivered bindlessly via input.spriteTexture) multiplied by particle color.
 
 #language slang 2025
 module ParticleSurfaceDefault;
 
-import AlcoRendering_Core; // samplers
-import AlcoParticles_Surface; // IParticleSurface, ParticleSurfaceInput
+import Core;
+import SharedSampler;
+import AlcoParticles_Surface;
 
-public struct MaterialParamsData
+public struct ParticleDefaultParams
 {
-    public Texture2D texture;
+    public GpuTextureId texture;
 };
 
-public ParameterBlock<MaterialParamsData> material;
-
-// Fragment-only: the vertex hook keeps its default (position unchanged), so the
-// module serves the 2D and the 3D pass alike.
 public struct Surface : IParticleSurface
 {
-    public override float4 getColor(ParticleSurfaceInput input)
+    public typedef ParticleDefaultParams Params;
+
+    public override float4 getColor(ParticleSurfaceInput input, Params p)
     {
-        return material.texture.Sample(samplers.linearClamp, input.uv) * input.color;
+        return gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(input.spriteTexture.index))
+            .Sample(shared_sampler_linear_clamp(), input.uv) * input.color;
     }
 }

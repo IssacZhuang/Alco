@@ -1,40 +1,33 @@
 using System.Numerics;
 using Alco;
+using Alco.Effects;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
-using Alco.Effects;
 using Alco.Rendering;
-using SandboxUtils;
 
-/// <summary>Sandbox demonstrating the 2D GPU particle system with six effect assets, live instance management, and per-group parameter editing.</summary>
+/// <summary>Sandbox demonstrating the 2D GPU particle system with seven effect assets, live instance management, and per-group parameter editing.</summary>
 /// <remarks>Use <c>--screenshot=&lt;path.png&gt;</c> to capture a frame, <c>--stress=N</c> to spawn many instances, and <c>--particles=N</c> to fill the pool.</remarks>
 public class Game : GameEngine
 {
-    private readonly RenderPipeline _pipeline;
-    private readonly Camera2DBuffer _camera;
+    private readonly RenderGraph _renderGraph;
+    private readonly RenderContext _renderContext;
+    private readonly CameraData2D _camera;
     private readonly GpuParticleSystem2D _particles;
     private readonly Dictionary<string, ParticleEffect2D> _effects = new();
     private readonly List<string> _effectNames = [];
     private readonly List<InstanceEntry> _instances = [];
     private FastRandom _random = new(12345);
 
-    // The selected instance (panel selection + gizmo target); null when none.
     private InstanceEntry? _selected;
     private int _nextInstanceId = 1;
-
-    // The gizmo operation of the selected instance: plane translate / view-axis rotate.
     private GizmoOperation _gizmoOperation = GizmoOperation.TranslateXY;
 
-    // Auto spawner (frequent create/destroy exercise).
     private bool _autoSpawn = true;
     private float _autoSpawnInterval = 0.8f;
     private float _autoSpawnTimer;
 
-    // Screenshot mode: the swapchain capture service reads the presented frame
-    // (ImGui overlay included — a render-graph capture stops before it by design),
-    // so the panel and the gizmo are part of the image.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
     private int _frameCount;
@@ -42,85 +35,44 @@ public class Game : GameEngine
     private Task<RenderCaptureResult>? _screenshotRequest;
     private bool _screenshotSaved;
 
-    // Stress mode (--stress=N): a grid of N flame/vortex instances plus rapid-fire
-    // explosions, with the frame rate logged to the console once per second.
-    private readonly int _stressCount;
-    private float _stressLogTimer;
-
-    // Fill mode (--particles=N [--particlesize=S]): spawns enough saturating
-    // 8192-particle groups to keep ~N particles live (opt-in stress scenario;
-    // the demo defaults stay untouched without the flag). Stats log once per
-    // second: fps, avg/max frame ms of the window, instance/group counts, live
-    // estimate, pooled/allocated capacity and the managed allocation rate.
     private readonly int _particleTarget;
     private readonly float _particleSize;
+    private readonly int _stressCount;
+    private float _stressLogTimer;
     private double _statFrameMs;
     private float _statFrameMsMax;
     private int _statFrames;
     private long _statAllocatedBytes;
 
     /// <summary>Creates the GPU particle sandbox.</summary>
-    /// <param name="setting">The engine settings for this sandbox.</param>
-    /// <param name="args">Command-line arguments selecting screenshot, stress and fill modes.</param>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 90;
         if (_screenshotPath != null)
-        {
             _swapchainCapture = SwapchainCapture;
-        }
 
         AddSystem(new ImGUISystem(this));
 
-        _camera = RenderingSystem.CreateCamera2D(64, 36, 100);
+        _camera = new CameraData2D
+        {
+            Size = new Vector2(64f, 36f),
+            Near = -100f,
+            Far = 100f,
+        };
         Gizmo.IsOrthographic = true;
 
-        // The particle system and its asset loader; the shared pool starts large
-        // enough for the stress scenario and grows geometrically when exhausted.
-        _particles = new GpuParticleSystem2D(RenderingSystem, particleCapacity: 1 << 18, emitterSlots: 512)
-        {
-            Camera = _camera,
-        };
+        _particles = new GpuParticleSystem2D(RenderingSystem, ShaderSystem, particleCapacity: 1 << 18, emitterSlots: 512);
 
-        // The pipeline: clear + blit shell, then (in registration order) the
-        // particle simulation, the scene content the particles draw into and the
-        // HDR tonemap.
-        _pipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
-        {
-            SceneLayout = RenderingSystem.PreferredHDRPass,
-            BlitShader = BuiltInAssets.Shader_Blit,
-            Width = MainView.Size.X,
-            Height = MainView.Size.Y,
-            Name = "gpu_particles_2d",
-        });
-        _pipeline.Use(new RGNode_Callback { Callback = context => _particles.RecordSimulation(context.RenderContext.CommandBuffer, context.DeltaTime) });
-        _pipeline.Use(new SceneNode(_particles, _pipeline.Graph, _pipeline.Chain));
-        var tonemapNode = new RGNode_Tonemap(
-            RenderingSystem,
-            _pipeline.Graph,
-            _pipeline.Chain,
-            _pipeline.PostProcessLayout,
-            new RGNode_Tonemap.Descriptor
-            {
-                BlitShader = BuiltInAssets.Shader_Blit,
-                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
-                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
-                AcesShader = BuiltInAssets.Shader_AcesTonemap,
-                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
-                AgxShader = BuiltInAssets.Shader_AgxTonemap,
-            });
-        tonemapNode.Operator = TonemapType.ACES;
-        // Linear-to-sRGB: the ACES default gamma of 1 leaves the frame in linear space.
-        ACESTonemapData acesData = tonemapNode.ACESData;
-        acesData.Gamma = 2.2f;
-        tonemapNode.ACESData = acesData;
-        _pipeline.Use(tonemapNode);
+        _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "gpu_particles_2d");
+        _renderGraph.Use(new ParticleSimulateNode2D(_particles));
+        _renderGraph.Use(new ParticleRenderNode2D(
+            _particles,
+            () => _camera,
+            colorLoadOp: LoadOp.Clear,
+            clearColor: new Vector4(0.05f, 0.06f, 0.09f, 1f)));
+        _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);
 
-        MainPresenter.OnResize += size => _pipeline.Resize(size.X, size.Y);
-
-        // The effect assets.
         _effects["Explosion"] = AssetSystem.Load<ParticleEffect2D>("Effects/Explosion.afx");
         _effects["Flame"] = AssetSystem.Load<ParticleEffect2D>("Effects/Flame.afx");
         _effects["Fountain"] = AssetSystem.Load<ParticleEffect2D>("Effects/Fountain.afx");
@@ -130,10 +82,6 @@ public class Game : GameEngine
         _effects["Rainbow"] = AssetSystem.Load<ParticleEffect2D>("Effects/Rainbow.afx");
         _effectNames.AddRange(_effects.Keys);
 
-        // The static scene (deterministic seeds keep screenshot mode reproducible).
-        // The flame starts selected: it doubles as the gizmo showcase (its
-        // world-space particles leave a trail when it moves). Its spot sits clear
-        // of the panel's default window rectangle so the gizmo stays visible.
         _selected = Spawn("Flame", new Vector2(6, -4), 101);
         Spawn("Fountain", new Vector2(18, -15), 102);
         Spawn("Vortex", new Vector2(0, 5), 103);
@@ -141,8 +89,6 @@ public class Game : GameEngine
         Spawn("Dissolve", new Vector2(-26, 8), 105);
         Spawn("Rainbow", new Vector2(-2, -13), 106);
 
-        // Stress mode: a grid of alternating flame/vortex instances (~2300/4100
-        // pooled particles each) and rapid-fire explosions on top.
         _stressCount = int.TryParse(GetArgValue(args, "--stress="), out int stress) ? stress : 0;
         if (_stressCount > 0)
         {
@@ -156,11 +102,6 @@ public class Game : GameEngine
             _autoSpawnInterval = 0.1f;
         }
 
-        // Fill mode: build the saturating fill effect in code and spawn enough of
-        // it to hold ~N particles live. The pool starts at its default 262k and
-        // grows geometrically to 1M on the way, exercising buffer migration and
-        // material rebinding. Auto-spawn defaults off for clean numbers (the
-        // panel can re-enable it).
         _particleTarget = int.TryParse(GetArgValue(args, "--particles="), out int particleTarget) ? particleTarget : 0;
         _particleSize = float.TryParse(GetArgValue(args, "--particlesize="), out float particleSize) ? particleSize : 2f;
         if (_particleTarget > 0)
@@ -171,13 +112,8 @@ public class Game : GameEngine
         }
     }
 
-    // The fill effect: one saturating group whose rate × mean lifetime equals its
-    // slice capacity, so the ring buffer stays exactly full (live == pooled)
-    // without overwrite churn. Particle size is a CLI knob: authored-like sizes
-    // stress the rasterizer, tiny quads isolate the simulation cost.
     private ParticleEffect2D CreateFillEffect(float size)
-    {
-        return new ParticleEffect2D
+        => new()
         {
             Name = "Fill",
             Groups =
@@ -196,18 +132,17 @@ public class Game : GameEngine
                     EndColor = new ColorFloat(0.4f, 0.1f, 0.6f, 0f),
                     FadeIn = 0.05f,
                     FadeOut = 0.5f,
-                    Texture = AssetSystem.Load<Texture2D>("Glow"),
+                    Texture = AssetSystem.Load<Image>("Glow"),
                     Blend = BlendState.Additive,
                 },
             ],
         };
-    }
 
     private void SpawnFill(int target)
     {
         const int groupSize = 8192;
         int count = (target + groupSize - 1) / groupSize;
-        int columns = (int)Math.Ceiling(Math.Sqrt(count * 64.0 / 36.0)); // ~view aspect
+        int columns = (int)Math.Ceiling(Math.Sqrt(count * 64.0 / 36.0));
         for (int i = 0; i < count; i++)
         {
             float x = (i % columns - (columns - 1) * 0.5f) * 5.0f;
@@ -216,14 +151,12 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Registers the particle effect asset loader (.afx) on top of the defaults.</summary>
+    /// <summary>Registers the particle effect asset loader (<c>.afx</c>) on top of the defaults.</summary>
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         foreach (IAssetLoader loader in base.CreateDefaultAssetLoaders())
-        {
             yield return loader;
-        }
-        yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.ShaderSystem);
+        yield return new AssetLoaderParticleEffect(AssetSystem, ShaderSystem);
     }
 
     private InstanceEntry Spawn(string effectName, Vector2 position, int seed)
@@ -234,30 +167,18 @@ public class Game : GameEngine
         return entry;
     }
 
-    // Spawns at (roughly) the screen center so the new effect is immediately
-    // visible — the manual spawn buttons use this, unlike the ambient
-    // auto-spawner which keeps scattering explosions randomly.
     private InstanceEntry SpawnVisible(string effectName)
-    {
-        Vector2 position = new(_random.NextFloat(-3, 3), _random.NextFloat(-3, 3));
-        return Spawn(effectName, position, (int)_random.NextUint());
-    }
+        => Spawn(effectName, new Vector2(_random.NextFloat(-3, 3), _random.NextFloat(-3, 3)), (int)_random.NextUint());
 
     private InstanceEntry SpawnRandom(string effectName)
-    {
-        Vector2 position = new(_random.NextFloat(-28, 28), _random.NextFloat(-15, 15));
-        return Spawn(effectName, position, (int)_random.NextUint());
-    }
+        => Spawn(effectName, new Vector2(_random.NextFloat(-28, 28), _random.NextFloat(-15, 15)), (int)_random.NextUint());
 
+    /// <inheritdoc />
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
-        {
             Stop();
-        }
 
-        // The auto spawner: a steady stream of one-shot explosions; finished
-        // (fully decayed) instances dispose themselves below.
         if (_autoSpawn)
         {
             _autoSpawnTimer -= delta;
@@ -268,15 +189,12 @@ public class Game : GameEngine
             }
         }
 
-        // Destroy instances whose particles have all died (frequent create/destroy).
         for (int i = _instances.Count - 1; i >= 0; i--)
         {
             if (!_instances[i].Instance.IsActive)
             {
                 if (_instances[i] == _selected)
-                {
                     _selected = null;
-                }
                 _instances[i].Instance.Dispose();
                 _instances.RemoveAt(i);
             }
@@ -305,15 +223,10 @@ public class Game : GameEngine
                     foreach (ParticleGroup2D group in entry.Instance.Asset.Groups)
                     {
                         groups++;
-                        // The slice capacity (what the simulate pass touches) and the
-                        // steady-state live estimate: rate × mean lifetime, clamped to
-                        // the slice (ring overwrite keeps it full once saturated).
-                        long capacity = Math.Max(64, (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(group.MaxParticles, 1)));
+                        long capacity = Math.Max(64, (int)BitOperations.RoundUpToPowerOf2((uint)Math.Max(group.MaxParticles, 1)));
                         pooled += capacity;
                         if (group.Looping || group.Duration <= 0f)
-                        {
                             live += Math.Min(capacity, (long)(group.EmissionRate * (group.Lifetime.Min + group.Lifetime.Max) * 0.5f));
-                        }
                     }
                 }
                 long allocatedNow = GC.GetTotalAllocatedBytes(false);
@@ -332,19 +245,41 @@ public class Game : GameEngine
 
         _frameCount++;
         if (_screenshotPath != null && _screenshotRequest == null && !_screenshotSaved && _frameCount >= _screenshotFrames)
-        {
-            // The request completes a couple of frames later with the presented
-            // frame's PNG (scene, post processing and the ImGui overlay on top).
             _screenshotRequest = _swapchainCapture!.RequestCaptureAsync();
-        }
 
-        _pipeline.Render(MainPresenter.FrameBuffer);
+        if (MainPresenter.HasValidFrame)
+        {
+            SwapchainFrame frame = MainPresenter.CurrentFrame;
+            _renderGraph.Resize(frame.Extent);
+
+            bool begun = false;
+            try
+            {
+                _renderContext.BeginFrame();
+                begun = true;
+                _renderGraph.Execute(
+                    _renderContext,
+                    RenderGraphTarget.FromSwapchain(frame, MainPresenter.SurfaceFormat),
+                    delta,
+                    outputFinalUsage: RGUsage.ColorAttachment);
+                MainPresenter.EnqueueFrameContext(_renderContext);
+            }
+            catch
+            {
+                if (begun)
+                    _renderContext.DiscardFrame();
+                throw;
+            }
+        }
 
         if (_screenshotRequest is { IsCompletedSuccessfully: true })
         {
             RenderCaptureResult result = _screenshotRequest.Result;
             if (result.Success && result.PngBytes != null)
             {
+                string? dir = Path.GetDirectoryName(_screenshotPath!);
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir);
                 File.WriteAllBytes(_screenshotPath!, result.PngBytes);
                 Console.WriteLine($"Screenshot saved to {_screenshotPath}");
             }
@@ -365,32 +300,23 @@ public class Game : GameEngine
 
     private void DrawImGuiPanel()
     {
-        // Two columns, the editor's BeginChild + SameLine idiom: the instance list
-        // with spawn/delete on the left, the selected instance's parameter editor
-        // on the right. 'Appearing' (not 'FirstUseEver') so a stale imgui.ini
-        // cannot shrink the window.
         ImGui.SetNextWindowSize(new Vector2(680, 700), ImGuiCond.Appearing);
         ImGui.Begin("GPU Particles 2D");
 
         int groups = 0;
         foreach (InstanceEntry entry in _instances)
-        {
             groups += entry.Instance.Asset.Groups.Count;
-        }
         ImGui.Text($"Instances: {_instances.Count}   Emitter groups: {groups}");
 
         const float inspectorWidth = 340f;
         if (ImGui.BeginChild("##instances", new Vector2(-inspectorWidth, -1)))
         {
-            // The live instances (click to select); dead ones are pruned in OnUpdate.
             ImGui.SeparatorText("Instances");
             foreach (InstanceEntry entry in _instances)
             {
                 string state = entry.Instance.IsPlaying ? "playing" : "fading";
                 if (ImGui.Selectable($"{entry.Instance.Asset.Name} #{entry.Id} ({state})", entry == _selected))
-                {
                     _selected = entry;
-                }
             }
             ImGui.BeginDisabled(_selected == null);
             if (ImGui.Button("Delete Selected") && _selected != null)
@@ -404,21 +330,16 @@ public class Game : GameEngine
             if (ImGui.Button("Destroy All"))
             {
                 foreach (InstanceEntry entry in _instances)
-                {
                     entry.Instance.Dispose();
-                }
                 _instances.Clear();
                 _selected = null;
             }
 
-            // Manual spawns land at the screen center so they are immediately visible.
             ImGui.SeparatorText("Spawn");
             foreach (string effectName in _effectNames)
             {
                 if (ImGui.Button(effectName))
-                {
                     _selected = SpawnVisible(effectName);
-                }
             }
 
             ImGui.SeparatorText("Auto Spawn");
@@ -429,8 +350,6 @@ public class Game : GameEngine
 
         ImGui.SameLine();
 
-        // The selected instance: gizmo mode, numeric transform fallback and the
-        // live per-group parameter overrides.
         if (ImGui.BeginChild("##selected", new Vector2(0, -1)))
         {
             if (_selected != null)
@@ -441,27 +360,19 @@ public class Game : GameEngine
                 ImGui.Text("Gizmo:");
                 ImGui.SameLine();
                 if (ImGui.RadioButton("Translate", _gizmoOperation == GizmoOperation.TranslateXY))
-                {
                     _gizmoOperation = GizmoOperation.TranslateXY;
-                }
                 ImGui.SameLine();
                 if (ImGui.RadioButton("Rotate", _gizmoOperation == GizmoOperation.RotateZ))
-                {
                     _gizmoOperation = GizmoOperation.RotateZ;
-                }
 
                 Transform2D transform = instance.Transform;
                 if (ImGui.EditTransform2D(ref transform))
-                {
                     instance.Transform = transform;
-                }
 
                 for (int i = 0; i < instance.GroupCount; i++)
                 {
                     if (ImGui.CollapsingHeader($"{instance.GetGroupName(i)}##group{i}", ImGuiTreeNodeFlags.DefaultOpen))
-                    {
                         DrawGroupEditor(instance, i);
-                    }
                 }
             }
             else
@@ -474,22 +385,14 @@ public class Game : GameEngine
         ImGui.End();
     }
 
-    /// <summary>
-    /// The selection gizmo: translate in the view plane or rotate around the view
-    /// axis, depending on the mode chosen in the panel. Drawn outside the panel
-    /// window so the handles are not clipped to it (the pattern of the
-    /// 8-Collision / 21-Gizmo sandboxes).
-    /// </summary>
     private void DrawSelectionGizmo()
     {
         if (_selected == null)
-        {
             return;
-        }
         Transform2D transform = _selected.Instance.Transform;
         if (Gizmo.Manipulate(
-            _camera.Data.ViewMatrix,
-            _camera.Data.ProjectionMatrix,
+            _camera.ViewMatrix,
+            _camera.ProjectionMatrix,
             _gizmoOperation,
             GizmoMode.Local,
             ref transform))
@@ -498,19 +401,15 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Draws live editing controls for one emitter group of the selected instance.</summary>
     private static void DrawGroupEditor(ParticleEffectInstance2D instance, int groupIndex)
     {
         ImGui.PushID(groupIndex);
         EmitterParams2D parameters = instance.GetGroupParams(groupIndex);
         bool edited = false;
 
-        // CPU-side per-instance emission rate (future spawns).
         float rate = instance.GetGroupEmissionRate(groupIndex);
         if (ImGui.DragFloat("Emission Rate", ref rate, 1f, 0f, 5000f))
-        {
             instance.SetGroupEmissionRate(groupIndex, rate);
-        }
 
         Vector2 lifetime = new(parameters.Life.X, parameters.Life.Y);
         if (ImGui.DragFloat2("Lifetime", ref lifetime, 0.05f, 0.05f, 60f))
@@ -542,8 +441,6 @@ public class Game : GameEngine
         }
         parameters.Size = new Vector4(sizeMin.X, sizeMin.Y, sizeMax.X, sizeMax.Y);
 
-        // Gravity as a scale of the authored value (keeps its direction); groups
-        // authored without gravity edit the vector directly.
         Vector2 assetGravity = instance.Asset.Groups[groupIndex].Gravity;
         Vector2 gravity = new(parameters.Motion.X, parameters.Motion.Y);
         if (assetGravity.LengthSquared() > 1e-10f)
@@ -569,7 +466,6 @@ public class Game : GameEngine
             edited = true;
         }
 
-        // Velocity stretch (2D: only meaningful with align-rotation-to-velocity).
         bool alignToVelocity = parameters.Speed.Z > 0.5f;
         bool stretch = (parameters.Flags & EmitterParams2D.FlagVelocityStretch) != 0u;
         ImGui.BeginDisabled(!alignToVelocity);
@@ -603,16 +499,17 @@ public class Game : GameEngine
         }
 
         if (edited)
-        {
             instance.SetGroupParams(groupIndex, parameters);
-        }
         ImGui.PopID();
     }
 
+    /// <inheritdoc />
     protected override void OnStop()
     {
+        GraphicsDevice.WaitIdle();
         _particles.Dispose();
-        _pipeline.Dispose();
+        _renderGraph.Destroy();
+        _renderContext.Destroy();
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -620,30 +517,11 @@ public class Game : GameEngine
         foreach (string arg in args)
         {
             if (arg.StartsWith(prefix, StringComparison.Ordinal))
-            {
                 return arg[prefix.Length..];
-            }
         }
         return null;
     }
 
-    /// <summary>The scene content node the particles draw into (in place, on the chain target).</summary>
-    private sealed class SceneNode(GpuParticleSystem2D particles, RenderGraph graph, RenderChain chain)
-        : RGNode_SceneContent(graph, chain)
-    {
-        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
-        {
-            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
-            {
-                particles.Render(pass);
-            }
-        }
-    }
-
-    /// <summary>
-    /// A live instance plus its stable list id — the instance list prunes and
-    /// reorders, the id keeps the panel labels unique and recognizable.
-    /// </summary>
     private sealed class InstanceEntry(ParticleEffectInstance2D instance, int id)
     {
         public readonly ParticleEffectInstance2D Instance = instance;

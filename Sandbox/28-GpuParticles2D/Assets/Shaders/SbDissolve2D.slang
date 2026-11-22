@@ -4,35 +4,34 @@
 // burns away over its life, driven by the material's shared noise texture,
 // with a glowing edge. Demonstrates the material-asset path of particle
 // groups: the surface module, the shared noise texture and the uniform
-// parameters all come from the .amat; the group derives only its own sprite
-// over the surface's "texture" slot.
+// parameters all come from the .amat; the group supplies its own bindless sprite.
 
 #language slang 2025
 module SbDissolve2D;
 
-import AlcoRendering_Core; // samplers, [MaterialParams]
-import AlcoParticles_Surface; // IParticleSurface, ParticleSurfaceInput
+import Core;
+import SharedSampler;
+import AlcoParticles_Surface;
 
 public struct DissolveParamsData
 {
     public float noiseScale;       // noise UV tiling over the particle quad
     public float edgeWidth;        // width of the glowing dissolve edge (noise units)
     public float3 edgeColor;       // edge glow color (linear)
-
-    public Texture2D noiseTexture; // shared, bound by the .amat
-    public Texture2D texture;      // the group's sprite (overridden per group)
+    public GpuTextureId noiseTexture; // shared, bound by the .amat
+    public GpuTextureId texture;      // optional surface texture slot
 };
-
-[MaterialParams]
-public ParameterBlock<DissolveParamsData> dissolveParams;
 
 public struct Surface : IParticleSurface
 {
-    public override float4 getColor(ParticleSurfaceInput input)
+    public typedef DissolveParamsData Params;
+
+    public override float4 getColor(ParticleSurfaceInput input, Params p)
     {
-        float4 texel = dissolveParams.texture.Sample(samplers.linearClamp, input.uv);
-        float noise = dissolveParams.noiseTexture.Sample(
-            samplers.linearRepeat, input.uv * dissolveParams.noiseScale).r;
+        float4 texel = gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(input.spriteTexture.index))
+            .Sample(shared_sampler_linear_clamp(), input.uv);
+        float noise = gpu_texture<Texture2D<float4>>(gpu_nonuniform_index(p.noiseTexture.index))
+            .Sample(shared_sampler_linear_repeat(), input.uv * p.noiseScale).r;
         // The burn front sweeps from 1 (fully present) to 0 (fully dissolved)
         // over the particle's age.
         float cut = 1.0 - input.age01;
@@ -40,9 +39,9 @@ public struct Surface : IParticleSurface
         {
             discard;
         }
-        float edge = smoothstep(cut - dissolveParams.edgeWidth, cut, noise);
+        float edge = smoothstep(cut - p.edgeWidth, cut, noise);
         float4 color = texel * input.color;
-        color.rgb += dissolveParams.edgeColor * edge * 2.0;
+        color.rgb += p.edgeColor * edge * 2.0;
         return color;
     }
 }

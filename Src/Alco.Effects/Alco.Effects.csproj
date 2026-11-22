@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="Assets\Shaders\**\*.slang" LogicalName="%(Filename)%(Extension)" />
     <Content Include="$(MSBuildThisFileDirectory)Assets\**\*.*">
       <Link>Assets/%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Alco.Graphics;
@@ -6,40 +7,27 @@ using Alco.Rendering;
 namespace Alco.Effects;
 
 /// <summary>
-/// Renders any number of 2D trail ribbons GPU-resident: the CPU appends point records into each trail's ring slice and the vertex stage handles validity, aging and quad expansion.
-/// Point slices and trail slots are fixed at construction, so <see cref="TryCreateInstance"/> returns false when either is exhausted.
-/// Creation, emission, <see cref="Update"/> and <see cref="Render"/> must all run on the main thread.
+/// Renders 2D trail ribbons GPU-resident using segment instancing and vertex pulling over <see cref="Alco.Graphics"/>.
+/// Callers drive point emission, <see cref="Update"/>, <see cref="PrepareRender"/>, and <see cref="Render"/> on the main thread.
 /// </summary>
 public sealed class GpuTrailSystem2D : AutoDisposable
 {
     /// <summary>The module name of the built-in 2D trail render pass template.</summary>
     public const string RenderModule = "GpuTrail2D";
 
-    /// <summary>
-    /// The module name of the default trail surface (the color gradient with a soft
-    /// across-ribbon edge), composed with the render pass template for trails whose
-    /// material names no surface module of its own.
-    /// </summary>
+    /// <summary>The module name of the default 2D trail surface.</summary>
     public const string DefaultSurface = "TrailSurfaceDefault";
 
     /// <summary>One trail point record (GPU twin of TrailPoint2D in AlcoRendering_Trails2D, 32 bytes).</summary>
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     internal struct TrailPoint2D
     {
-        /// <summary>xy: world position, z: render depth.</summary>
         public Vector3 PosDepth;
-
-        /// <summary>The renderer clock value at emission (seconds).</summary>
         public float EmitTime;
-
-        /// <summary>The ribbon normal at the point.</summary>
         public Vector2 Normal;
-
-        /// <summary>The arc length in world units.</summary>
         public float U;
-
-#pragma warning disable CS0169 // never assigned to — GPU layout padding
-        private readonly float _Pad;
+#pragma warning disable CS0169
+        private readonly float _pad;
 #pragma warning restore CS0169
     }
 
@@ -47,49 +35,40 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     [StructLayout(LayoutKind.Sequential, Pack = 4)]
     internal struct TrailParams2D
     {
-        /// <summary>x: life (s), y: width0, z: width1, w: opacity.</summary>
         public Vector4 Envelope;
-
-        /// <summary>The ribbon color of a freshly emitted point.</summary>
         public Vector4 Color0;
-
-        /// <summary>The ribbon color of a fully aged point.</summary>
         public Vector4 Color1;
-
-        /// <summary>The material-defined custom data of <see cref="TrailEffect2D.UserData"/>.</summary>
         public Vector4 UserData;
-
-        /// <summary>The slice's absolute first point slot in the shared buffer.</summary>
         public uint SliceOffset;
-
-        /// <summary>The slice's capacity in points (power of two).</summary>
         public uint Capacity;
-
-        /// <summary>The ring write cursor (the next slice-local slot to write).</summary>
         public uint Cursor;
-
-        /// <summary>The total written point count, monotonic (the live window is min(Written, Capacity)).</summary>
         public uint Written;
-
-        /// <summary>x: random seed, y: fadeIn (life fraction), z: fadeOut (life fraction).</summary>
         public Vector4 Misc;
     }
 
-    /// <summary>The renderer's per-frame globals (the trailGlobals uniform block).</summary>
-    [StructLayout(LayoutKind.Sequential, Pack = 4)]
-    internal struct TrailGlobals2D
+    /// <summary>One segment instance record (GPU twin of TrailSegment in AlcoRendering_Trails2D, 8 bytes).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct TrailSegment
     {
-        /// <summary>The renderer clock in seconds; point age is time - emitTime.</summary>
+        public uint TrailSlot;
+        public uint Segment;
+    }
+
+    [StructLayout(LayoutKind.Sequential, Pack = 4)]
+    private struct TrailPassData2D
+    {
+        public Matrix4x4 ViewProjection;
+        public GPUBufferView TrailPoints;
+        public GPUBufferView TrailParams;
+        public GPUBufferView Segments;
         public float Time;
     }
 
-    /// <summary>The per-slot CPU state of one trail: lifecycle, ring bookkeeping and the emission cursor.</summary>
     private struct TrailState
     {
         public TrailEffectInstance2D? Instance;
-        public GraphicsMaterial? Material;
-
-        /// <summary>Slot generation: bumped on recycle so a stale instance object turns inert.</summary>
+        public CachedMaterial? CachedMat;
+        public DepthStencilState DepthStencil;
         public uint Generation;
 
         public uint SliceOffset;
@@ -101,8 +80,6 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         public Vector2 LastDirection;
         public float Spacing;
         public float Life;
-
-        /// <summary>The clock value of the newest point (the fade-out deadline once emission stopped).</summary>
         public float LastPointTime;
 
         public bool Emitting;
@@ -113,98 +90,92 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         public uint PointDirtyMax;
     }
 
-    /// <summary>One material-homogeneous run of the per-frame draw plan.</summary>
-    private readonly record struct DrawBatch(GraphicsMaterial Material, uint First, uint Count);
-
-    /// <summary>A contiguous free range in the shared point buffer.</summary>
+    private sealed record CachedMaterial(Material Material, int PassRootOffset);
+    private readonly record struct DrawBatch(Material Material, int PassRootOffset, DepthStencilState DepthStencil, uint FirstSegment, uint SegmentCount);
     private readonly record struct PointRange(uint Offset, uint Count);
 
-    // The graphics state structs expose object-based equality. Compare their
-    // values directly so cache hits do not box them on the creation path.
-    private sealed class MaterialKeyComparer : IEqualityComparer<(MaterialAsset Asset, BlendState Blend, DepthStencilState Depth)>
+    private sealed class MaterialKeyComparer : IEqualityComparer<(MaterialAsset Asset, BlendState Blend)>
     {
-        /// <inheritdoc />
-        public bool Equals(
-            (MaterialAsset Asset, BlendState Blend, DepthStencilState Depth) x,
-            (MaterialAsset Asset, BlendState Blend, DepthStencilState Depth) y)
-        {
-            return ReferenceEquals(x.Asset, y.Asset) && x.Blend == y.Blend && x.Depth == y.Depth
-                && x.Depth.StencilReadMask == y.Depth.StencilReadMask
-                && x.Depth.StencilWriteMask == y.Depth.StencilWriteMask;
-        }
+        public bool Equals((MaterialAsset Asset, BlendState Blend) x, (MaterialAsset Asset, BlendState Blend) y)
+            => ReferenceEquals(x.Asset, y.Asset) && x.Blend == y.Blend;
 
-        /// <inheritdoc />
-        public int GetHashCode((MaterialAsset Asset, BlendState Blend, DepthStencilState Depth) key)
-        {
-            return HashCode.Combine(key.Asset, key.Blend, key.Depth);
-        }
+        public int GetHashCode((MaterialAsset Asset, BlendState Blend) key)
+            => HashCode.Combine(key.Asset, key.Blend);
     }
 
-    /// <summary>The smallest trail slice, in points.</summary>
-    private const uint MinSlicePoints = 32;
+    private sealed class BatchKeyComparer : IEqualityComparer<(Material Material, DepthStencilState Depth)>
+    {
+        public bool Equals((Material Material, DepthStencilState Depth) x, (Material Material, DepthStencilState Depth) y)
+            => ReferenceEquals(x.Material, y.Material) && x.Depth == y.Depth;
 
-    /// <summary>The largest trail slice, in points (sizes the static index pattern).</summary>
+        public int GetHashCode((Material Material, DepthStencilState Depth) key)
+            => HashCode.Combine(key.Material, key.Depth);
+    }
+
+    private const uint MinSlicePoints = 32;
     private const uint MaxSlicePoints = 1024;
 
-    /// <summary>The indirect record stride in bytes (see <see cref="IndexedIndirectData"/>).</summary>
-    private const uint DrawArgsStride = 20;
-
     private readonly RenderingSystem _rendering;
-    private readonly MaterialCompiler _materialCompiler;
-    private readonly ShaderLibrary _renderTemplate;
-    private readonly GraphicsArrayBuffer<TrailPoint2D> _points;
-    private readonly GraphicsArrayBuffer<TrailParams2D> _params;
-    private readonly GraphicsValueBuffer<TrailGlobals2D> _globals;
-    private readonly GraphicsBuffer _drawArgs;
-    private readonly IndexedIndirectData[] _drawArgsData;
-    private readonly PrimitiveMesh _indexMesh;
+    private readonly ShaderSystem _shaders;
+    private readonly string _renderTemplateModule;
+    private readonly Alco.Graphics.Buffer _gpuPoints;
+    private readonly Alco.Graphics.Buffer _gpuParams;
+    private readonly TrailPoint2D[] _cpuPoints;
+    private readonly TrailParams2D[] _cpuParams;
+    private readonly TransientBufferPool _stagingPool;
+    private readonly TransientBufferPool _segmentPool;
     private readonly TrailState[] _states;
     private readonly Stack<int> _freeSlots;
-    // Sorted by offset; adjacent ranges merge on release. There can be at most
-    // one more free range than live trails, so the list never needs to grow.
     private readonly List<PointRange> _freeSlices;
-    // The compiled materials of the (asset, blend, depth) pairs the trails named so
-    // far: one compile per pair, shared by every trail of the pair.
-    private readonly Dictionary<(MaterialAsset Asset, BlendState Blend, DepthStencilState Depth), GraphicsMaterial> _materials = new(new MaterialKeyComparer());
+    private readonly Dictionary<(MaterialAsset Asset, BlendState Blend), CachedMaterial> _materials = new(new MaterialKeyComparer());
     private readonly MaterialAsset _defaultAsset = new() { Name = "trails2d-default" };
-    private GraphicsValueBuffer<Matrix4x4>? _camera;
-    // The per-frame draw plan (rebuilt in Render): trails bucketed by material in
-    // first-seen order, flattened into the draw-args records plus one batch per material.
-    private readonly Dictionary<GraphicsMaterial, List<int>> _drawBuckets = [];
-    private readonly List<GraphicsMaterial> _drawMaterials = [];
+
+    private readonly Dictionary<(Material Material, DepthStencilState Depth), List<int>> _drawBuckets = new(new BatchKeyComparer());
+    private readonly List<(Material Material, DepthStencilState Depth)> _drawBucketKeys = [];
     private readonly List<DrawBatch> _drawBatches = [];
+    private readonly List<TrailSegment> _segments = [];
+    private Alco.Graphics.Buffer? _activeSegmentBuffer;
+    private ulong _preparedFrameId;
     private float _time;
     private uint _paramsDirtyMin = uint.MaxValue;
     private uint _paramsDirtyMax;
 
-    /// <summary>
-    /// Creates the system with its fixed budgets and the trail pass template. Both
-    /// buffers are preallocated and never grow, so the steady state performs no
-    /// per-frame GC allocations and the worst-case GPU cost is bounded by the budgets.
-    /// </summary>
-    /// <param name="rendering">The rendering system.</param>
-    /// <param name="pointCapacity">The shared point buffer size in points (all trails combined).</param>
-    /// <param name="trailSlots">The maximum number of simultaneously-live trails.</param>
-    /// <param name="renderTemplate">
-    /// The pass-template library trail surfaces compose with; null uses the built-in
-    /// <see cref="RenderModule"/>. A custom template must keep the built-in pass's
-    /// vertex stage and resource contract.
-    /// </param>
-    public GpuTrailSystem2D(RenderingSystem rendering, int pointCapacity = 65536, int trailSlots = 1024, ShaderLibrary? renderTemplate = null)
+    /// <summary>Creates a 2D trail system using <paramref name="rendering"/>'s default <see cref="RenderingSystem.Shaders"/>.</summary>
+    public GpuTrailSystem2D(
+        RenderingSystem rendering,
+        int pointCapacity = 65536,
+        int trailSlots = 1024,
+        string? renderTemplate = null)
+        : this(rendering, (rendering ?? throw new ArgumentNullException(nameof(rendering))).Shaders, pointCapacity, trailSlots, renderTemplate)
+    {
+    }
+
+    /// <summary>Creates a 2D trail system using an explicit <see cref="ShaderSystem"/> for custom surfaces.</summary>
+    public unsafe GpuTrailSystem2D(
+        RenderingSystem rendering,
+        ShaderSystem shaders,
+        int pointCapacity = 65536,
+        int trailSlots = 1024,
+        string? renderTemplate = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
+        ArgumentNullException.ThrowIfNull(shaders);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(pointCapacity, 0);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(trailSlots, 0);
 
         _rendering = rendering;
-        ShaderSystem shaderSystem = rendering.ShaderSystem;
-        _materialCompiler = new MaterialCompiler(rendering, shaderSystem.GetLibrary(DefaultSurface));
-        _renderTemplate = renderTemplate ?? shaderSystem.GetLibrary(RenderModule);
-        _points = rendering.CreateGraphicsArrayBuffer<TrailPoint2D>(pointCapacity, "trails2d_points");
-        _params = rendering.CreateGraphicsArrayBuffer<TrailParams2D>(trailSlots, "trails2d_params");
-        _globals = rendering.CreateGraphicsValueBuffer(new TrailGlobals2D(), "trails2d_globals");
-        _drawArgs = rendering.CreateGraphicsBuffer((uint)(trailSlots * DrawArgsStride), "trails2d_draw_args");
-        _drawArgsData = new IndexedIndirectData[trailSlots];
+        _shaders = shaders;
+        _renderTemplateModule = string.IsNullOrWhiteSpace(renderTemplate) ? RenderModule : renderTemplate.Trim();
+
+        AlcoEffectsShaders.EnsureBuiltInModulesLoaded(shaders);
+
+        _cpuPoints = new TrailPoint2D[pointCapacity];
+        _cpuParams = new TrailParams2D[trailSlots];
+        _gpuPoints = rendering.CreateBuffer((ulong)pointCapacity * (ulong)sizeof(TrailPoint2D));
+        _gpuParams = rendering.CreateBuffer((ulong)trailSlots * (ulong)sizeof(TrailParams2D));
+        _stagingPool = new TransientBufferPool(rendering, "trails2d_staging");
+        _segmentPool = new TransientBufferPool(rendering, "trails2d_segments");
+
         _states = new TrailState[trailSlots];
         _freeSlots = new Stack<int>(trailSlots);
         _freeSlices = new List<PointRange>(Math.Min(trailSlots, pointCapacity / (int)MinSlicePoints) + 1)
@@ -212,61 +183,22 @@ public sealed class GpuTrailSystem2D : AutoDisposable
             new(0, (uint)pointCapacity),
         };
         for (int i = trailSlots - 1; i >= 0; i--)
-        {
             _freeSlots.Push(i);
-        }
-
-        // The static index pattern every trail draws with: quad-strip segments of 4
-        // vertices and 6 indices, segment k covering vertices 4k..4k+3. A trail's
-        // vertexOffset identifies its slice; the shader maps logical segment k
-        // to consecutive ring points starting at the oldest written point.
-        var indices = new uint[(MaxSlicePoints - 1) * 6];
-        for (uint k = 0; k < MaxSlicePoints - 1; k++)
-        {
-            uint v = k * 4;
-            uint i = k * 6;
-            indices[i] = v;
-            indices[i + 1] = v + 1;
-            indices[i + 2] = v + 2;
-            indices[i + 3] = v + 1;
-            indices[i + 4] = v + 3;
-            indices[i + 5] = v + 2;
-        }
-        // The vertex stage fetches by builtin ids only, so the vertex buffer is a
-        // never-read placeholder the mesh contract requires.
-        _indexMesh = rendering.CreatePrimitiveMesh<uint>([0u], indices, "trails2d_index_mesh");
     }
 
-    /// <summary>
-    /// The view-projection matrix buffer the trails render with, bound to every compiled material.
-    /// Defaults to the main camera buffer; materials compiled after assignment bind it at creation.
-    /// </summary>
-    public GraphicsValueBuffer<Matrix4x4>? Camera
+    internal int PlannedBatchCount => _drawBatches.Count;
+    internal int PlannedSegmentCount => _segments.Count;
+    internal ReadOnlySpan<TrailPoint2D> PointsSpan => _cpuPoints;
+    internal ReadOnlySpan<TrailParams2D> ParamsSpan => _cpuParams;
+    internal ReadOnlySpan<TrailSegment> SegmentsSpan => CollectionsMarshal.AsSpan(_segments);
+
+    internal void SetSeed(int slot, float seed)
     {
-        get => _camera;
-        set
-        {
-            _camera = value;
-            if (value != null)
-            {
-                foreach (GraphicsMaterial material in _materials.Values)
-                {
-                    material.SetBuffer(ShaderResourceId.Camera, value);
-                }
-            }
-        }
+        _cpuParams[slot].Misc.X = seed;
+        MarkParamsDirty(slot);
     }
 
-    /// <summary>
-    /// Creates a trail that starts emitting immediately, anchored at
-    /// <paramref name="position"/> (the first <see cref="TrailEffectInstance2D.ExtendTo"/>
-    /// walks from the anchor, so emission covers the anchor even when the head has
-    /// already moved). Threading: main thread.
-    /// </summary>
-    /// <param name="effect">The trail description (snapshotted at creation).</param>
-    /// <param name="position">The world position of the trail head at creation.</param>
-    /// <param name="instance">The new instance, when creation succeeded.</param>
-    /// <returns>False when the trail-slot or point budget is exhausted; the caller decides the eviction policy.</returns>
+    /// <summary>Creates a trail that starts emitting immediately, anchored at <paramref name="position"/>.</summary>
     public bool TryCreateInstance(TrailEffect2D effect, Vector2 position, out TrailEffectInstance2D instance)
     {
         instance = null!;
@@ -275,18 +207,14 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(effect.Life, 0f);
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(effect.Spacing, 0f);
 
-        // Compile before allocating: a material that fails to compose must not leak
-        // the slot or slice (the compile throws with no allocation to roll back).
-        GraphicsMaterial material = GetOrCreateMaterial(effect);
-
+        CachedMaterial cachedMat = GetOrCreateMaterial(effect);
         if (_freeSlots.Count == 0 || !TryAllocateSlice(effect.ExpectedPoints, out uint sliceOffset, out uint sliceCapacity))
-        {
             return false;
-        }
-        int slot = _freeSlots.Pop();
 
+        int slot = _freeSlots.Pop();
         ref TrailState state = ref _states[slot];
-        state.Material = material;
+        state.CachedMat = cachedMat;
+        state.DepthStencil = effect.Depth ?? DepthStencilState.Read;
         state.SliceOffset = sliceOffset;
         state.Capacity = sliceCapacity;
         state.Cursor = 0;
@@ -301,7 +229,7 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         state.Visible = true;
         state.PointsDirty = false;
 
-        _params[slot] = new TrailParams2D
+        _cpuParams[slot] = new TrailParams2D
         {
             Envelope = new Vector4(effect.Life, effect.Width0, effect.Width1, effect.Opacity),
             Color0 = effect.Color0.value,
@@ -321,108 +249,185 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         return true;
     }
 
-    /// <summary>
-    /// Advances the renderer clock and recycles the trails whose points have all
-    /// outlived their age budget after emission stopped. Point uploads and the draw
-    /// plan are not flushed here but in <see cref="Render"/>, so emissions between
-    /// the two (the game's update phase) land in the same frame.
-    /// </summary>
-    /// <param name="delta">The elapsed time in seconds since the last update.</param>
+    /// <summary>Advances the renderer clock and recycles trails whose points have all expired.</summary>
     public void Update(float delta)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
         _time += delta;
-        _globals.UpdateBuffer(new TrailGlobals2D { Time = _time });
         for (int slot = 0; slot < _states.Length; slot++)
         {
             ref TrailState state = ref _states[slot];
             if (state.Instance == null || state.Emitting || _time - state.LastPointTime <= state.Life)
-            {
                 continue;
-            }
             RecycleSlot(slot, ref state);
         }
     }
 
     /// <summary>
-    /// Flushes dirty point and parameter ranges, rebuilds the draw plan and records one batched multi-draw per material into the current pass.
-    /// Must be called from scene content, not while recording a render bundle.
+    /// Uploads dirty point/parameter ranges and segment instances onto <paramref name="context"/> outside any render pass.
+    /// Must be called each frame before <see cref="Render(RenderContext, RenderContext.RenderScope, ICamera)"/>.
     /// </summary>
-    /// <param name="pass">The render pass scope of the scene pass.</param>
-    public void Render(RenderPassScope pass)
+    public unsafe void PrepareRender(RenderContext context)
     {
-        ArgumentNullException.ThrowIfNull(pass);
+        ArgumentNullException.ThrowIfNull(context);
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        FlushUploads();
+        bool hasDirtyParams = _paramsDirtyMax >= _paramsDirtyMin;
+        ulong paramElemSize = (ulong)sizeof(TrailParams2D);
+        ulong pointElemSize = (ulong)sizeof(TrailPoint2D);
+        ulong totalStagingBytes = 0;
+
+        if (hasDirtyParams)
+        {
+            uint pCount = _paramsDirtyMax - _paramsDirtyMin + 1;
+            totalStagingBytes += (ulong)pCount * paramElemSize;
+        }
+
+        for (int slot = 0; slot < _states.Length; slot++)
+        {
+            ref TrailState state = ref _states[slot];
+            if (!state.PointsDirty)
+                continue;
+            uint count = state.PointDirtyMax - state.PointDirtyMin + 1;
+            totalStagingBytes += (ulong)count * pointElemSize;
+        }
+
+        bool copied = false;
+        if (totalStagingBytes > 0)
+        {
+            Alco.Graphics.Buffer staging = _stagingPool.Acquire(context, totalStagingBytes);
+            ulong writeOffset = 0;
+
+            if (hasDirtyParams)
+            {
+                uint pMin = _paramsDirtyMin;
+                uint pCount = _paramsDirtyMax - pMin + 1;
+                ulong byteSize = (ulong)pCount * paramElemSize;
+                staging.SetData(_cpuParams.AsSpan((int)pMin, (int)pCount), writeOffset);
+                context.CopyMemory(
+                    staging.Range.Slice(writeOffset, byteSize),
+                    _gpuParams.Range.Slice((ulong)pMin * paramElemSize, byteSize));
+                writeOffset += byteSize;
+                _paramsDirtyMin = uint.MaxValue;
+                _paramsDirtyMax = 0;
+                copied = true;
+            }
+
+            for (int slot = 0; slot < _states.Length; slot++)
+            {
+                ref TrailState state = ref _states[slot];
+                if (!state.PointsDirty)
+                    continue;
+                state.PointsDirty = false;
+                uint first = state.SliceOffset + state.PointDirtyMin;
+                uint count = state.PointDirtyMax - state.PointDirtyMin + 1;
+                ulong byteSize = (ulong)count * pointElemSize;
+                staging.SetData(_cpuPoints.AsSpan((int)first, (int)count), writeOffset);
+                context.CopyMemory(
+                    staging.Range.Slice(writeOffset, byteSize),
+                    _gpuPoints.Range.Slice((ulong)first * pointElemSize, byteSize));
+                writeOffset += byteSize;
+                copied = true;
+            }
+        }
+
         BuildDrawPlan();
-        if (_drawBatches.Count == 0)
+
+        if (_segments.Count > 0)
         {
-            return;
+            _activeSegmentBuffer = _segmentPool.Acquire(context, (ulong)_segments.Count * (ulong)sizeof(TrailSegment));
+            _activeSegmentBuffer.SetData(CollectionsMarshal.AsSpan(_segments));
         }
-        int drawArgCount = 0;
-        foreach (DrawBatch batch in _drawBatches)
+        else
         {
-            drawArgCount += (int)batch.Count;
+            _activeSegmentBuffer = null;
         }
-        _drawArgs.UpdateBuffer(_drawArgsData.AsSpan(0, drawArgCount), 0);
-        foreach (DrawBatch batch in _drawBatches)
+
+        if (copied)
         {
-            pass.MultiDrawIndexedIndirect(_indexMesh, batch.Material, _drawArgs, batch.First * DrawArgsStride, batch.Count);
+            context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Vertex, Access.ShaderRead);
         }
+
+        _preparedFrameId = context.CurrentFrameId;
     }
 
-    /// <summary>Whether the trail of the given slot identity still emits.</summary>
-    internal bool GetEmitting(int slot, uint generation)
+    /// <summary>Records batched segment-instanced draws into <paramref name="render"/> using <paramref name="camera"/>.</summary>
+    public void Render(RenderContext context, RenderContext.RenderScope render, ICamera camera)
     {
-        return !IsDisposed && IsValid(slot, generation) && _states[slot].Emitting;
+        ArgumentNullException.ThrowIfNull(camera);
+        Render(context, render, camera.ViewProjectionMatrix);
     }
 
-    /// <summary>Whether the trail of the given slot identity still emits or has live points.</summary>
+    /// <summary>Records batched segment-instanced draws into <paramref name="render"/> using <paramref name="viewProjection"/>.</summary>
+    public unsafe void Render(RenderContext context, RenderContext.RenderScope render, in Matrix4x4 viewProjection)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+
+        if (_drawBatches.Count == 0)
+            return;
+
+        if (_preparedFrameId != context.CurrentFrameId || _activeSegmentBuffer == null)
+            throw new InvalidOperationException("GpuTrailSystem2D.PrepareRender(context) must be called outside any pass before Render() each frame.");
+
+        BumpAllocator frameData = context.FrameData;
+        GPUBufferView pointsView = _gpuPoints.View;
+        GPUBufferView paramsView = _gpuParams.View;
+        GPUBufferView segmentsBaseView = _activeSegmentBuffer.View;
+
+        for (int i = 0; i < _drawBatches.Count; i++)
+        {
+            DrawBatch batch = _drawBatches[i];
+            var passData = new TrailPassData2D
+            {
+                ViewProjection = viewProjection,
+                TrailPoints = pointsView,
+                TrailParams = paramsView,
+                Segments = segmentsBaseView.OffsetBy(batch.FirstSegment * (uint)sizeof(TrailSegment)),
+                Time = _time,
+            };
+
+            GPUAllocation<byte> alloc = frameData.Allocate(batch.Material.Root.SizeBytes);
+            batch.Material.CopyRoot(alloc.CpuSpan);
+            MemoryMarshal.Write(alloc.CpuSpan.Slice(batch.PassRootOffset, sizeof(TrailPassData2D)), in passData);
+
+            render.Draw(batch.Material, alloc.GPURange, batch.DepthStencil, vertexCount: 6u, instanceCount: batch.SegmentCount);
+        }
+    }
+
+    internal bool GetEmitting(int slot, uint generation)
+        => !IsDisposed && IsValid(slot, generation) && _states[slot].Emitting;
+
     internal bool GetAlive(int slot, uint generation)
     {
         if (IsDisposed || !IsValid(slot, generation))
-        {
             return false;
-        }
         ref TrailState state = ref _states[slot];
         return state.Emitting || _time - state.LastPointTime <= state.Life;
     }
 
-    /// <summary>Whether the trail of the given slot identity draws.</summary>
     internal bool GetVisible(int slot, uint generation)
-    {
-        return !IsDisposed && IsValid(slot, generation) && _states[slot].Visible;
-    }
+        => !IsDisposed && IsValid(slot, generation) && _states[slot].Visible;
 
-    /// <summary>Shows or hides the trail of the given slot identity (a culling hook).</summary>
     internal void SetVisible(int slot, uint generation, bool visible)
     {
-        if (IsDisposed || !IsValid(slot, generation))
-        {
-            return;
-        }
-        _states[slot].Visible = visible;
+        if (!IsDisposed && IsValid(slot, generation))
+            _states[slot].Visible = visible;
     }
 
-    /// <summary>The <see cref="TrailEffectInstance2D.ExtendTo"/> implementation (slot identity already resolved).</summary>
     internal void ExtendTo(int slot, uint generation, Vector2 position, float depth)
     {
         if (IsDisposed || !IsValid(slot, generation))
-        {
             return;
-        }
         ref TrailState state = ref _states[slot];
         if (!state.Emitting)
-        {
             return;
-        }
+
         Vector2 segment = position - state.LastEmitPosition;
         float length = segment.Length();
         if (length < state.Spacing)
-        {
             return;
-        }
+
         Vector2 direction = segment / length;
         state.LastDirection = direction;
         Vector2 normal = new(-direction.Y, direction.X);
@@ -433,19 +438,16 @@ public sealed class GpuTrailSystem2D : AutoDisposable
             cursor += direction * state.Spacing;
             remaining -= state.Spacing;
             state.Distance += state.Spacing;
-            WritePoint(ref state, slot, cursor, normal, state.Distance, depth);
+            WritePoint(ref state, cursor, normal, state.Distance, depth);
         }
         state.LastEmitPosition = cursor;
         SyncParams(slot, ref state);
     }
 
-    /// <summary>The <see cref="TrailEffectInstance2D.Finish"/> implementation: the final segment lands only when it is ahead of the emitted path.</summary>
     internal void Finish(int slot, uint generation, Vector2 position, float depth)
     {
         if (IsDisposed || !IsValid(slot, generation))
-        {
             return;
-        }
         ref TrailState state = ref _states[slot];
         Vector2 segment = position - state.LastEmitPosition;
         float length = segment.Length();
@@ -462,12 +464,12 @@ public sealed class GpuTrailSystem2D : AutoDisposable
                     cursor += direction * state.Spacing;
                     remaining -= state.Spacing;
                     state.Distance += state.Spacing;
-                    WritePoint(ref state, slot, cursor, normal, state.Distance, depth);
+                    WritePoint(ref state, cursor, normal, state.Distance, depth);
                 }
                 if (remaining > 0.001f)
                 {
                     state.Distance += remaining;
-                    WritePoint(ref state, slot, position, normal, state.Distance, depth);
+                    WritePoint(ref state, position, normal, state.Distance, depth);
                 }
                 state.LastEmitPosition = position;
                 state.LastDirection = direction;
@@ -477,97 +479,73 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         StopCore(ref state);
     }
 
-    /// <summary>The <see cref="TrailEffectInstance2D.Stop"/> implementation.</summary>
     internal void Stop(int slot, uint generation)
     {
-        if (IsDisposed || !IsValid(slot, generation))
-        {
-            return;
-        }
-        StopCore(ref _states[slot]);
+        if (!IsDisposed && IsValid(slot, generation))
+            StopCore(ref _states[slot]);
     }
 
-    /// <summary>
-    /// The immediate-teardown path of <see cref="TrailEffectInstance2D.Dispose"/>: the slot
-    /// and slice return to the pool now instead of after the fade-out.
-    /// </summary>
     internal void ReleaseTrail(int slot, uint generation)
     {
-        if (IsDisposed || !IsValid(slot, generation))
-        {
-            return;
-        }
-        RecycleSlot(slot, ref _states[slot]);
+        if (!IsDisposed && IsValid(slot, generation))
+            RecycleSlot(slot, ref _states[slot]);
     }
 
     /// <inheritdoc />
     protected override void Dispose(bool disposing)
     {
-        if (disposing)
+        if (!disposing)
+            return;
+
+        _gpuPoints.Destroy();
+        _gpuParams.Destroy();
+        _stagingPool.Dispose();
+        _segmentPool.Dispose();
+        for (int slot = 0; slot < _states.Length; slot++)
         {
-            _points.Dispose();
-            _params.Dispose();
-            _globals.Dispose();
-            _drawArgs.Dispose();
-            _indexMesh.Dispose();
-            foreach (GraphicsMaterial material in _materials.Values)
-            {
-                material.Dispose();
-            }
-            _materialCompiler.Dispose();
-            // Live instances turn inert: their generation check fails against the
-            // cleared states, and every renderer entry short-circuits on IsDisposed.
-            for (int slot = 0; slot < _states.Length; slot++)
-            {
-                _states[slot].Instance = null;
-                _states[slot].Material = null;
-            }
+            _states[slot].Instance = null;
+            _states[slot].CachedMat = null;
         }
     }
 
     private bool IsValid(int slot, uint generation)
-    {
-        return _states[slot].Instance != null && _states[slot].Generation == generation;
-    }
+        => _states[slot].Instance != null && _states[slot].Generation == generation;
 
-    // The effect's render material: one compile per (asset, blend, depth) pair —
-    // the asset's surface composes with the trail pass template, the pair's state
-    // overrides (or the pass defaults) apply, and the shared trail resources bind.
-    // The compiler owns the composed shader cache; this system owns the materials.
-    private GraphicsMaterial GetOrCreateMaterial(TrailEffect2D effect)
+    private unsafe CachedMaterial GetOrCreateMaterial(TrailEffect2D effect)
     {
         MaterialAsset asset = effect.Material ?? _defaultAsset;
         BlendState blend = effect.Blend ?? BlendState.PremultipliedAlpha;
-        DepthStencilState depth = effect.Depth ?? DepthStencilState.Read;
-        var key = (asset, blend, depth);
-        if (_materials.TryGetValue(key, out GraphicsMaterial? cached))
-        {
+        var key = (asset, blend);
+        if (_materials.TryGetValue(key, out CachedMaterial? cached))
             return cached;
-        }
-        GraphicsMaterial material = _materialCompiler.Compile(
-            asset,
-            _renderTemplate,
-            (materialAsset, shader) => _rendering.CreateGraphicsMaterial(shader, $"trails2d:{materialAsset.Name}"));
-        material.BlendState = blend;
-        material.DepthStencilState = depth;
-        // Ribbon triangles are not consistently wound after surface displacement
-        // (turbulence wander), so the pass never culls.
-        material.RasterizerState = RasterizerState.CullNone;
-        material.SetBuffer(ShaderResourceId.TrailPoints, _points);
-        material.SetBuffer(ShaderResourceId.TrailParams, _params);
-        material.SetBuffer(ShaderResourceId.TrailGlobals, _globals);
-        if (_camera != null)
-        {
-            material.SetBuffer(ShaderResourceId.Camera, _camera);
-        }
-        _materials[key] = material;
-        return material;
+
+        string surfaceModule = string.IsNullOrWhiteSpace(asset.Surface)
+            ? DefaultSurface
+            : asset.Surface.Trim().Replace('-', '_');
+
+        Shader shader = _shaders.Compose(_renderTemplateModule, surfaceModule, ShaderKind.Graphics, $"trails2d:{surfaceModule}");
+        Material material = shader.CreateMaterial($"trails2d:{asset.Name}");
+        material.Blend = blend;
+        material.DepthStencilState = effect.Depth ?? DepthStencilState.Read;
+        material.Rasterization = RasterizationState.CullNone;
+
+        if (!ReferenceEquals(asset, _defaultAsset))
+            asset.ApplyTo(material, ParticleShaderKeys.Material + ".");
+
+        RootField? passField = material.Root.Find(ParticleShaderKeys.Pass);
+        if (passField == null || passField.SizeBytes != (uint)sizeof(TrailPassData2D))
+            throw new InvalidDataException(
+                $"Trail render template '{_renderTemplateModule}' does not declare expected '{ParticleShaderKeys.Pass}' block ({sizeof(TrailPassData2D)}B).");
+
+        var created = new CachedMaterial(material, (int)passField.Offset);
+        _materials[key] = created;
+        return created;
     }
 
-    private void WritePoint(ref TrailState state, int slot, Vector2 position, Vector2 normal, float u, float depth)
+    private void WritePoint(ref TrailState state, Vector2 position, Vector2 normal, float u, float depth)
     {
         uint local = state.Cursor;
-        _points[(int)(state.SliceOffset + local)] = new TrailPoint2D
+        _cpuPoints[state.SliceOffset + local] = new TrailPoint2D
         {
             PosDepth = new Vector3(position, depth),
             EmitTime = _time,
@@ -592,10 +570,9 @@ public sealed class GpuTrailSystem2D : AutoDisposable
 
     private void SyncParams(int slot, ref TrailState state)
     {
-        TrailParams2D parameters = _params[slot];
+        ref TrailParams2D parameters = ref _cpuParams[slot];
         parameters.Cursor = state.Cursor;
         parameters.Written = state.Written;
-        _params[slot] = parameters;
         MarkParamsDirty(slot);
     }
 
@@ -605,15 +582,12 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         _paramsDirtyMax = Math.Max(_paramsDirtyMax, (uint)slot);
     }
 
-    private static void StopCore(ref TrailState state)
-    {
-        state.Emitting = false;
-    }
+    private static void StopCore(ref TrailState state) => state.Emitting = false;
 
     private void RecycleSlot(int slot, ref TrailState state)
     {
         state.Instance = null;
-        state.Material = null;
+        state.CachedMat = null;
         state.PointsDirty = false;
         state.Generation++;
         FreeSlice(state.SliceOffset, state.Capacity);
@@ -627,19 +601,13 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         {
             PointRange range = _freeSlices[i];
             if (range.Count < rounded)
-            {
                 continue;
-            }
             offset = range.Offset;
             capacity = rounded;
             if (range.Count == rounded)
-            {
                 _freeSlices.RemoveAt(i);
-            }
             else
-            {
                 _freeSlices[i] = new PointRange(range.Offset + rounded, range.Count - rounded);
-            }
             return true;
         }
         offset = 0;
@@ -651,9 +619,7 @@ public sealed class GpuTrailSystem2D : AutoDisposable
     {
         int index = 0;
         while (index < _freeSlices.Count && _freeSlices[index].Offset < offset)
-        {
             index++;
-        }
         if (index > 0 && _freeSlices[index - 1].Offset + _freeSlices[index - 1].Count == offset)
         {
             PointRange previous = _freeSlices[--index];
@@ -669,74 +635,59 @@ public sealed class GpuTrailSystem2D : AutoDisposable
         _freeSlices.Insert(index, new PointRange(offset, capacity));
     }
 
-    private void FlushUploads()
-    {
-        if (_paramsDirtyMin <= _paramsDirtyMax)
-        {
-            _params.UpdateBufferRanged(_paramsDirtyMin, _paramsDirtyMax - _paramsDirtyMin + 1);
-            _paramsDirtyMin = uint.MaxValue;
-            _paramsDirtyMax = 0;
-        }
-        for (int slot = 0; slot < _states.Length; slot++)
-        {
-            ref TrailState state = ref _states[slot];
-            if (!state.PointsDirty)
-            {
-                continue;
-            }
-            state.PointsDirty = false;
-            _points.UpdateBufferRanged(state.SliceOffset + state.PointDirtyMin, state.PointDirtyMax - state.PointDirtyMin + 1);
-        }
-    }
-
     private void BuildDrawPlan()
     {
-        foreach (KeyValuePair<GraphicsMaterial, List<int>> bucket in _drawBuckets)
-        {
-            bucket.Value.Clear();
-        }
-        _drawMaterials.Clear();
+        foreach (List<int> bucket in _drawBuckets.Values)
+            bucket.Clear();
+        _drawBucketKeys.Clear();
         _drawBatches.Clear();
+        _segments.Clear();
+
         for (int slot = 0; slot < _states.Length; slot++)
         {
             ref TrailState state = ref _states[slot];
-            if (state.Instance == null || !state.Visible)
-            {
+            if (state.Instance == null || !state.Visible || state.CachedMat == null)
                 continue;
-            }
             uint window = Math.Min(state.Written, state.Capacity);
             if (window < 2)
-            {
                 continue;
-            }
-            if (!_drawBuckets.TryGetValue(state.Material!, out List<int>? bucket))
+
+            var key = (state.CachedMat.Material, state.DepthStencil);
+            if (!_drawBuckets.TryGetValue(key, out List<int>? bucket))
             {
                 bucket = [];
-                _drawBuckets[state.Material!] = bucket;
+                _drawBuckets[key] = bucket;
             }
-            // Buckets persist across frames (cleared above, never removed), so the
-            // first add into an empty bucket is this frame's first sight of the
-            // material — gating on bucket creation instead would only ever list the
-            // material on the very first plan and drop every later frame's draws.
             if (bucket.Count == 0)
-            {
-                _drawMaterials.Add(state.Material!);
-            }
+                _drawBucketKeys.Add(key);
             bucket.Add(slot);
         }
-        int drawArgCount = 0;
-        foreach (GraphicsMaterial material in _drawMaterials)
+
+        for (int k = 0; k < _drawBucketKeys.Count; k++)
         {
-            List<int> bucket = _drawBuckets[material];
-            uint first = (uint)drawArgCount;
-            foreach (int slot in bucket)
+            (Material material, DepthStencilState depthStencil) = _drawBucketKeys[k];
+            List<int> bucket = _drawBuckets[(material, depthStencil)];
+            uint firstSegment = (uint)_segments.Count;
+            int passOffset = _states[bucket[0]].CachedMat!.PassRootOffset;
+
+            for (int b = 0; b < bucket.Count; b++)
             {
+                int slot = bucket[b];
                 ref TrailState state = ref _states[slot];
                 uint window = Math.Min(state.Written, state.Capacity);
-                _drawArgsData[drawArgCount++] = new IndexedIndirectData(
-                    (window - 1) * 6, 1, 0, state.SliceOffset * 4, (uint)slot);
+                uint segCount = window - 1;
+                for (uint s = 0; s < segCount; s++)
+                {
+                    _segments.Add(new TrailSegment
+                    {
+                        TrailSlot = (uint)slot,
+                        Segment = s,
+                    });
+                }
             }
-            _drawBatches.Add(new DrawBatch(material, first, (uint)(drawArgCount - first)));
+
+            uint batchSegments = (uint)_segments.Count - firstSegment;
+            _drawBatches.Add(new DrawBatch(material, passOffset, depthStencil, firstSegment, batchSegments));
         }
     }
 }

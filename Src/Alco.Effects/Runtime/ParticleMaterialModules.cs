@@ -1,13 +1,11 @@
 using System.Threading;
-using Alco.Rendering;
+using Alco.Graphics;
 
 namespace Alco.Effects;
 
 /// <summary>
-/// The material modules registered with one particle system, serialized on the
-/// owning system's shared gate so registration, publication and binding refresh are
-/// atomic. The gate is reentrant, so a module may call back into its system from
-/// <see cref="IParticleMaterialModule.ConfigureMaterial"/>.
+/// Thread-safe collection of <see cref="IParticleMaterialModule"/> registrations sharing the owning
+/// particle system's reentrant gate so registration, publication, and binding refresh are atomic.
 /// </summary>
 internal sealed class ParticleMaterialModules
 {
@@ -15,15 +13,14 @@ internal sealed class ParticleMaterialModules
     private readonly List<IParticleMaterialModule> _modules = [];
 
     /// <summary>Creates the module list sharing the owning system's gate.</summary>
-    /// <param name="gate">The owning system's shared, reentrant gate.</param>
+    /// <param name="gate">The owning system's shared reentrant lock.</param>
     public ParticleMaterialModules(Lock gate)
     {
         _gate = gate;
     }
 
-    /// <summary>Registers the module.</summary>
+    /// <summary>Registers a module and returns a disposable unregistration handle.</summary>
     /// <param name="module">The module to register.</param>
-    /// <returns>The unregistration handle; dispose it to remove the module.</returns>
     public IDisposable Add(IParticleMaterialModule module)
     {
         lock (_gate)
@@ -33,16 +30,14 @@ internal sealed class ParticleMaterialModules
         return new Registration(this, module);
     }
 
-    /// <summary>Applies every registered module to one material.</summary>
-    /// <param name="material">The material to configure.</param>
-    public void Apply(GraphicsMaterial material)
+    /// <summary>Applies all registered modules onto <paramref name="material"/>.</summary>
+    /// <param name="material">The target render material.</param>
+    public void Apply(Material material)
     {
         lock (_gate)
         {
             for (int i = 0; i < _modules.Count; i++)
-            {
                 _modules[i].ConfigureMaterial(material);
-            }
         }
     }
 
@@ -56,9 +51,6 @@ internal sealed class ParticleMaterialModules
 
     private sealed class Registration(ParticleMaterialModules owner, IParticleMaterialModule module) : IDisposable
     {
-        public void Dispose()
-        {
-            owner.Remove(module);
-        }
+        public void Dispose() => owner.Remove(module);
     }
 }

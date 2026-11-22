@@ -1,40 +1,30 @@
 // file "TrailSurfaceDefault.slang" - module "TrailSurfaceDefault"
 //
-// The default 2D/3D trail surface: the trail's color gradient (color0 -> color1
-// over the point's age, with the fade envelope applied to alpha) shaped by a
-// soft across-ribbon edge - the visual of every trail whose material names no
-// surface module of its own. Both trail systems compose it as the material
-// compiler's default surface. The fragment output premultiplies RGB by alpha.
-//
-// The edge parameters read zero when the material asset authors none:
-// edgeStart 0 spreads the falloff over the whole half width, edgeSharpness 0
-// keeps the curve unsharpened - a sensible bare default.
+// The default 2D/3D trail surface: shades the ribbon gradient with a soft
+// across-ribbon edge (premultiplied alpha).
 
 #language slang 2025
 module TrailSurfaceDefault;
 
-import AlcoRendering_Core; // [MaterialParams]
-import AlcoRendering_TrailSurface; // ITrailSurface, TrailSurfaceInput
+import Core;
+import AlcoRendering_TrailSurface;
 
 public struct DefaultParamsData
 {
-    public float edgeStart;     // where the across-ribbon falloff begins, in 0..1 of |across|
-    public float edgeSharpness; // sharpens the falloff curve beyond the base slope
+    public float edgeStart;
+    public float edgeSharpness;
 };
 
-[MaterialParams]
-public ParameterBlock<DefaultParamsData> material;
-
-// Fragment-only: the vertex hook keeps its default (ribbon unchanged).
 public struct Surface : ITrailSurface
 {
-    public override float4 getColor(TrailSurfaceInput input)
+    public typedef DefaultParamsData Params;
+
+    public override float4 getColor(TrailSurfaceInput input, Params p)
     {
-        float edge = pow(1.0 - smoothstep(material.edgeStart, 1.0, abs(input.uv.y)),
-                         1.0 + max(material.edgeSharpness, 0.0));
+        float edge = pow(1.0 - smoothstep(p.edgeStart, 1.0, abs(input.uv.y)),
+                         1.0 + max(p.edgeSharpness, 0.0));
         float4 color = input.color;
         color.a *= edge;
-        // Premultiplied alpha (the trail pass's blend state).
         return float4(color.rgb * color.a, color.a);
     }
 }

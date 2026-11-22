@@ -2,18 +2,18 @@
 //
 // The 2D GPU particle contract: the particle record, the per-emitter parameter
 // block (CPU-authored every frame), the draw-args record, the hash RNG and the
-// simulation behavior interface with full default implementations. Custom
-// behavior modules export exactly one struct implementing IParticleBehavior2D
-// and override only the pieces they change; the emit/simulate pass templates
-// compose with the module through slang link-time specialization.
+// simulation behavior interface with full default implementations.
 //
 // The C# twins of ParticleData2D / EmitterParams2D / GpuDrawArgs (Alco.Effects)
-// must match these layouts field for field.
+// must match these layouts field for field (row-major matrices, ForceCLayout).
 
 #language slang 2025
 module AlcoParticles_Core2D;
 
-import AlcoRendering_Core;
+import Core;
+
+public static const float PI = 3.14159265359;
+public static const float TAU = 6.28318530718;
 
 // ── particle record (92 bytes) ──────────────────────────────────────────────
 
@@ -47,10 +47,8 @@ public struct EmitterParams2D
     public float deltaTime;
     public float emitterTime;      // seconds on the emitter timeline
     public uint frameSeed;         // per-frame RNG seed
-    public uint flags;             // bit0: world-space simulation, bit1: color gradient lookup,
-                                   // bit2: size curve lookup, bit3: velocity-stretched quads,
-                                   // bit4: flipbook plays in reverse
-    // emitter transform (spawn only, world space)
+    public uint flags;             // PARTICLE_FLAG_* bits
+    // emitter transform (spawn only, world space, row-major)
     public float4x4 worldMatrix;
     // emission shape: x = type (0 point, 1 circle, 2 box), y = radius,
     // z = hollow inner radius fraction [0, 1]
@@ -74,51 +72,35 @@ public struct EmitterParams2D
     public float4 tint;
     public float4 flipbook;        // x = rows, y = cols, z = lifetime-relative cycles,
                                    // w = frames per anim (0 = whole sheet, one anim)
-    // Tail block, laid out as flat scalars so positionOffset can be added without
-    // breaking the 16-byte std430 buffer stride (C# twin: EmitterParams2D).
-    public uint indexCount;        // quad mesh index count for indirect draw args
-    public float customData;       // custom per-instance data (surfaced to material
-                                   // vertex hooks as ParticleVertexInput.customData)
-    public float emitterHeight;    // base height added to world-space spawns
-    public float depthBase;        // base world z of the group's depth plane; with
-                                   // PARTICLE_FLAG_DEPTH_BASE the render pass writes
-                                   // world.z = depthBase - particle height (2D only)
-    public float2 positionOffset;     // fixed spawn offset in emitter-local space
-    public float2 reserved3;       // pads the struct to the 16-byte std430 buffer stride
+    // Tail block (32 bytes, total 368 bytes):
+    public uint spriteTextureId;         // bindless sprite Texture2D descriptor index
+    public float customData;             // custom per-instance channel
+    public float emitterHeight;          // base height added to world-space spawns
+    public float depthBase;              // base world z of the group's depth plane (2D only)
+    public float2 positionOffset;        // fixed spawn offset in emitter-local space
+    public uint colorGradientTextureId;  // bindless 256x1 color gradient Texture2D index
+    public uint sizeCurveTextureId;      // bindless 256x1 size curve Texture2D index
 };
 
 // ── emitter flag bits ───────────────────────────────────────────────────────
-// Shared by the 2D and 3D emitter parameter blocks (same bit positions); the
-// C# twins mirror them as EmitterParams2D.Flag*/EmitterParams3D.Flag*.
-// PARTICLE_FLAG_DEPTH_BASE is 2D-only: the 3D pass takes depth from projection.
-public static const uint PARTICLE_FLAG_WORLD_SPACE = 1u;       // world-space simulation
-public static const uint PARTICLE_FLAG_COLOR_GRADIENT = 2u;    // color-gradient lookup bound
-public static const uint PARTICLE_FLAG_SIZE_CURVE = 4u;        // size-curve lookup bound
-public static const uint PARTICLE_FLAG_VELOCITY_STRETCH = 8u;  // velocity-stretched quads
-public static const uint PARTICLE_FLAG_FLIPBOOK_REVERSE = 16u; // flipbook plays in reverse
-public static const uint PARTICLE_FLAG_DEPTH_BASE = 32u;       // render pass writes world z
-                                                               // from EmitterParams2D.depthBase
+public static const uint PARTICLE_FLAG_WORLD_SPACE = 1u;
+public static const uint PARTICLE_FLAG_COLOR_GRADIENT = 2u;
+public static const uint PARTICLE_FLAG_SIZE_CURVE = 4u;
+public static const uint PARTICLE_FLAG_VELOCITY_STRETCH = 8u;
+public static const uint PARTICLE_FLAG_FLIPBOOK_REVERSE = 16u;
+public static const uint PARTICLE_FLAG_DEPTH_BASE = 32u;
 
-// ── indirect draw record (matches Alco.Graphics.IndexedIndirectData) ────────
+// ── indirect draw record (16 bytes, non-indexed DrawIndirect) ───────────────
 
 public struct GpuDrawArgs
 {
-    public uint indexCount;
+    public uint vertexCount;
     public uint instanceCount;
-    public uint firstIndex;
-    public uint vertexOffset;
+    public uint firstVertex;
     public uint firstInstance;
 };
 
 // ── per-draw instance record (8 bytes, one per live particle per frame) ─────
-//
-// The simulate pass writes one record per surviving particle into the pool's
-// instance-data buffer at drawStart + the particle's compacted instance slot;
-// the render pass binds that buffer as the instance-step vertex buffer ("drawData"
-// vertex input) of the batched indirect draws, each record's firstInstance
-// addressing its draw's run. This routes the per-draw identity through vertex
-// fetch instead of the instance-id builtin, whose firstInstance semantics differ
-// between Vulkan (absolute) and D3D12 (per-draw).
 
 public struct GpuInstanceData
 {
@@ -127,22 +109,29 @@ public struct GpuInstanceData
 };
 
 // ── batched dispatch work record (16 bytes, one per 64-thread block) ────────
-//
-// The CPU buckets the frame's active emitter groups by behavior material and
-// records one wide emit/simulate dispatch per bucket instead of one dispatch
-// per group; each 64-thread block of the wide dispatch looks up its work record
-// at workBlockBase + SV_GroupID.x and derives its thread index within the
-// group's dispatch span as threadBase + SV_GroupThreadID.x (see
-// GpuParticleEmit2D/Simulate2D). The C# twin (GpuParticleWorkBlock) must match
-// this layout field for field.
 
 public struct GpuWorkBlock
 {
     public uint emitterSlot;   // the emitter slot the block's threads work on
-    public uint drawIndex;     // the group's record slot in this frame's draw-args array
-    public uint drawStart;     // the draw's firstInstance / instance-data base
+    public uint drawIndex;     // the batch's record slot in this frame's draw-args array
+    public uint drawStart;     // the batch's base index inside the instance-data buffer
     public uint threadBase;    // the block's first thread index within the group's span
 };
+
+// ── procedural centered quad (vertexId 0..5, clockwise front face) ─────────
+
+public void particleQuadVertex(uint vertexId, out float2 cornerPos, out float2 uv)
+{
+    switch (vertexId)
+    {
+    case 0u: cornerPos = float2(-0.5,  0.5); uv = float2(0.0, 0.0); break;
+    case 1u: cornerPos = float2( 0.5,  0.5); uv = float2(1.0, 0.0); break;
+    case 2u: cornerPos = float2( 0.5, -0.5); uv = float2(1.0, 1.0); break;
+    case 3u: cornerPos = float2(-0.5,  0.5); uv = float2(0.0, 0.0); break;
+    case 4u: cornerPos = float2( 0.5, -0.5); uv = float2(1.0, 1.0); break;
+    default: cornerPos = float2(-0.5, -0.5); uv = float2(0.0, 1.0); break;
+    }
+}
 
 // ── hash RNG (PCG) ──────────────────────────────────────────────────────────
 
@@ -171,10 +160,6 @@ public float particleRange(inout uint state, float minValue, float maxValue)
     return lerp(minValue, maxValue, particleRandom(state));
 }
 
-// Flipbook anim pick, shared by the 2D and 3D spawn defaults: when the sheet
-// packs several anims (flipbook.w frames per anim), draws one anim at random
-// and returns its first frame; 0 for a whole-sheet single animation. Trailing
-// cells are skipped when the anim length does not divide the sheet evenly.
 public uint particlePickFlipbookAnim(float4 flipbook, inout uint state)
 {
     if (flipbook.w < 0.5)
@@ -205,7 +190,6 @@ public float2 particleNormalizeSafe(float2 v, float2 fallback)
 
 // ── default spawn/simulate pieces (reusable by custom behaviors) ────────────
 
-// Samples the emission shape in emitter-local space.
 public float2 particleSampleShape2D(EmitterParams2D emitter, inout uint rng)
 {
     uint type = uint(emitter.shape.x);
@@ -223,7 +207,6 @@ public float2 particleSampleShape2D(EmitterParams2D emitter, inout uint rng)
     return float2(0.0, 0.0);
 }
 
-// Picks the initial velocity from the emission direction parameters.
 public float2 particleSampleVelocity2D(EmitterParams2D emitter, float2 localPosition, inout uint rng)
 {
     float2 direction;
@@ -239,21 +222,16 @@ public float2 particleSampleVelocity2D(EmitterParams2D emitter, float2 localPosi
     return direction * particleRange(rng, emitter.speed.x, emitter.speed.y);
 }
 
-// The default spawn: shape sample, velocity pick, lifetime/size/rotation/color
-// ranges, optional transform into world space.
 public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2D emitter, inout uint rng)
 {
     float2 localPosition = particleSampleShape2D(emitter, rng);
-    // The authored spawn offset: shifts the spawn point in emitter-local space
-    // before any transform, so it rotates with the emitter in both simulation
-    // spaces (a muzzle flash stays past the muzzle point).
     localPosition += emitter.positionOffset;
     float2 velocity = particleSampleVelocity2D(emitter, localPosition, rng);
     float2 position = localPosition;
-    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u) // world space: spawn through the emitter transform
+    if ((emitter.flags & PARTICLE_FLAG_WORLD_SPACE) != 0u)
     {
-        position = mul(emitter.worldMatrix, float4(localPosition, 0.0, 1.0)).xy;
-        velocity = mul(emitter.worldMatrix, float4(velocity, 0.0, 0.0)).xy;
+        position = mul(float4(localPosition, 0.0, 1.0), emitter.worldMatrix).xy;
+        velocity = mul(float4(velocity, 0.0, 0.0), emitter.worldMatrix).xy;
     }
     particle.position = position;
     particle.velocity = velocity;
@@ -270,7 +248,7 @@ public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2
         particleRange(rng, emitter.size.y, emitter.size.w));
     particle.scale = particle.startScale;
     particle.rotation = particleRange(rng, emitter.rotation2.x, emitter.rotation2.y);
-    if (emitter.speed.z > 0.5) // align rotation to velocity
+    if (emitter.speed.z > 0.5)
     {
         particle.rotation = atan2(velocity.y, velocity.x);
     }
@@ -282,9 +260,6 @@ public void particleSpawnDefault2D(inout ParticleData2D particle, EmitterParams2
     particle.animStart = particlePickFlipbookAnim(emitter.flipbook, rng);
 }
 
-// The default simulate: gravity, exponential drag, integration, rotation,
-// color/size over life, fade in/out. Dead particles keep their state except the
-// lifetime (the slot is free once lifetime <= 0).
 public void particleSimulateDefault2D(inout ParticleData2D particle, EmitterParams2D emitter)
 {
     float dt = emitter.deltaTime;
@@ -311,25 +286,13 @@ public void particleSimulateDefault2D(inout ParticleData2D particle, EmitterPara
 
 // ── the behavior contract ───────────────────────────────────────────────────
 
-// The simulation behavior of a 2D particle group. Both methods carry full
-// defaults; a custom behavior module exports exactly one public struct
-// implementing this interface and overrides only what it changes:
-//
-//   import AlcoParticles_Core2D;
-//   public struct MyBehavior : IParticleBehavior2D
-//   {
-//       public override void simulate(inout ParticleData2D particle, EmitterParams2D emitter) { ... }
-//   }
 public interface IParticleBehavior2D
 {
-    // Initializes a freshly spawned particle. `rng` is seeded per particle.
     public void spawn(inout ParticleData2D particle, EmitterParams2D emitter, inout uint rng)
     {
         particleSpawnDefault2D(particle, emitter, rng);
     }
 
-    // Advances one live particle by emitter.deltaTime; decrement the lifetime
-    // and let it reach <= 0 to kill the particle.
     public void simulate(inout ParticleData2D particle, EmitterParams2D emitter)
     {
         particleSimulateDefault2D(particle, emitter);

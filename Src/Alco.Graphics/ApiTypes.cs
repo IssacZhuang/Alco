@@ -840,6 +840,62 @@ public record struct BlendComponentState
 /// <summary>Color and alpha blending configuration.</summary>
 public record struct BlendState
 {
+    /// <summary>Blending disabled (opaque overwrite).</summary>
+    public static readonly BlendState Opaque = new()
+    {
+        Enabled = false,
+        Color = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+    };
+
+    /// <summary>Standard straight-alpha source-over blending.</summary>
+    public static readonly BlendState AlphaBlend = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+    };
+
+    /// <summary>Additive alpha-weighted blending.</summary>
+    public static readonly BlendState Additive = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.One, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.One, Operation = BlendOp.Add },
+    };
+
+    /// <summary>Premultiplied-alpha source-over blending.</summary>
+    public static readonly BlendState PremultipliedAlpha = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+    };
+
+    /// <summary>Non-premultiplied alpha blending with symmetric alpha weights.</summary>
+    public static readonly BlendState NonPremultipliedAlpha = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+    };
+
+    /// <summary>Multiplicative color blending.</summary>
+    public static readonly BlendState Multiply = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.DestinationColor, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
+    };
+
+    /// <summary>Straight-alpha color blending that preserves the maximum destination alpha.</summary>
+    public static readonly BlendState AlphaBlendNoAccumulation = new()
+    {
+        Enabled = true,
+        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
+        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.One, Operation = BlendOp.Maximum },
+    };
+
     public bool Enabled;
     public BlendComponentState Color;
     public BlendComponentState Alpha;
@@ -870,6 +926,13 @@ public record struct ColorTargetDesc
 /// <summary>Rasterizer configuration.</summary>
 public record struct RasterizationState
 {
+    /// <summary>Solid fill with no face culling.</summary>
+    public static readonly RasterizationState CullNone = new()
+    {
+        Cull = CullMode.None,
+        Fill = FillMode.Solid,
+    };
+
     public CullMode Cull; // None
     public FillMode Fill; // Solid
     public float DepthBiasConstant;
@@ -932,6 +995,24 @@ public record struct StencilFaceState
 /// <summary>Depth and stencil test configuration.</summary>
 public record struct DepthStencilState
 {
+    /// <summary>Depth testing and writing disabled (compare Never).</summary>
+    public static readonly DepthStencilState None = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Never };
+
+    /// <summary>Standard depth testing and depth writes enabled (LessEqual).</summary>
+    public static readonly DepthStencilState Write = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.LessEqual };
+
+    /// <summary>Standard read-only depth testing enabled (LessEqual).</summary>
+    public static readonly DepthStencilState Read = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.LessEqual };
+
+    /// <summary>Reverse-Z depth testing and depth writes enabled (GreaterEqual).</summary>
+    public static readonly DepthStencilState WriteReverseZ = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.GreaterEqual };
+
+    /// <summary>Reverse-Z read-only depth testing enabled (GreaterEqual).</summary>
+    public static readonly DepthStencilState ReadReverseZ = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.GreaterEqual };
+
+    /// <summary>Depth testing and writing disabled (compare Always).</summary>
+    public static readonly DepthStencilState Default = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Always };
+
     public bool DepthTest;
     public bool DepthWrite;
     public CompareOp DepthCompare; // LessEqual

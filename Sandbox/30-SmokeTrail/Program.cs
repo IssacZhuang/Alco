@@ -2,7 +2,7 @@ using Alco;
 using Alco.Engine;
 using Alco.Graphics;
 
-GraphicsBackend backend = GraphicsBackend.Vulkan;
+GraphicsBackend backend = GraphicsBackend.Auto;
 for (int i = 0; i < args.Length; i++)
 {
     string arg = args[i];
@@ -25,6 +25,10 @@ GameEngineSetting setting = new GameEngineSetting
     // presentation allows, interpolating the tick-driven bodies between ticks.
     TargetFrameRate = 0,
     View = new ViewSetting(1280, 720, "Smoke Trail Arena"),
+    Assets = AssetsSetting.Default with
+    {
+        AssetsPath = Path.Combine(AppContext.BaseDirectory, "Assets"),
+    },
     Graphics = GraphicsSetting.Default with
     {
         Backend = backend

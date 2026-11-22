@@ -753,6 +753,40 @@ public sealed class RenderContext : RenderingResource
                 firstInstance);
         }
 
+        /// <summary>Records non-indexed indirect draws with a fresh root snapshot.</summary>
+        /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
+        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
+        /// <param name="drawCount">The number of draw records.</param>
+        /// <param name="stride">The record stride in bytes; zero selects tightly packed 16-byte records.</param>
+        /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
+        public void DrawIndirect(Material material, Buffer arguments, uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
+            GPURange root = _context.PrepareDraw(material);
+            _context.RecordingCommands.DrawIndirect(root, arguments.Range.Slice(argumentByteOffset), drawCount, stride);
+        }
+
+        /// <summary>Records non-indexed indirect draws with prepacked root data and draw-local depth and stencil state.</summary>
+        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
+        /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
+        /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
+        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
+        /// <param name="drawCount">The number of draw records.</param>
+        /// <param name="stride">The record stride in bytes; zero selects tightly packed 16-byte records.</param>
+        /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
+        public void DrawIndirect(Material material, GPURange root, DepthStencilState depthStencil, Buffer arguments,
+            uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
+            Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndirect(root, arguments.Range.Slice(argumentByteOffset), drawCount, stride);
+        }
+
         /// <summary>Records indexed indirect draws with a fresh root snapshot.</summary>
         /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
         /// <param name="indices">The index buffer.</param>

@@ -1,153 +1,220 @@
-using NUnit.Framework;
-using Alco.Engine;
+using System.Runtime.InteropServices;
 using Alco.Graphics;
-using Alco.Rendering;
+using NUnit.Framework;
 
 namespace Alco.Effects.Test;
 
 /// <summary>
-/// Compiles every Alco.Effects shader module and verifies emit/simulate compositions with default and custom particle behaviors.
+/// Validates all built-in and fixture <c>Alco.Effects</c> Slang shaders across every
+/// supported <see cref="ShaderTarget"/> and verifies C-layout ABI alignment with C# structs.
 /// </summary>
-public class ValidateEffectShaders
+[TestFixture]
+public sealed unsafe class ValidateEffectShaders
 {
-    /// <summary>
-    /// Uses the plain no-GPU setting (shader cache disabled): this test must exercise real
-    /// slang compilation, so a cached hit would defeat its purpose.
-    /// </summary>
-    public GameEngineSetting Setting = GameEngineSetting.CreateNoGPU();
+    private static readonly ShaderTarget[] SupportedTargets =
+    [
+        ShaderTarget.SpirvCompact,
+        ShaderTarget.Spirv,
+        ShaderTarget.Dxil,
+        ShaderTarget.MetalSource,
+    ];
 
-    /// <summary>The minimal engine host for the shader system.</summary>
-    public class ShaderValidator(GameEngineSetting setting) : GameEngine(setting);
-
-    /// <summary>Tests that every Alco.Effects shader module compiles and non-generic entry modules link.</summary>
-    [Test(Description = "Validate all Alco.Effects shader modules")]
-    public void ValidateAllEffectShaders()
+    /// <summary>Standalone compute shaders compile cleanly across every target and match their root layouts.</summary>
+    [TestCaseSource(nameof(SupportedTargets))]
+    public void StandaloneComputeShadersCompileAcrossAllTargets(ShaderTarget target)
     {
-        using ShaderValidator engine = new(Setting);
-        // Every .slang file of the module's shader tree compiles; the load name
-        // is the file stem (docs/SlangCodingStandard.md). Test fixture behavior
-        // modules count too.
-        string[] files = engine.AssetSystem.AllAssetNames
-            .Where(x => x.EndsWith(".slang", StringComparison.OrdinalIgnoreCase)
-                && (x.Contains("Particle") || x.Contains("Trail") || x.Contains("TestBehavior")))
-            .ToArray();
+        using var compiler = CreateCompiler(target);
 
-        Assert.That(files, Is.Not.Empty,
-            "No Alco.Effects shader modules were found; the module assets failed to flow into the test output.");
+        CompiledShader reset = compiler.Compile("GpuParticleResetArgs", ShaderPipelineKind.Compute);
+        Assert.That(reset.Target, Is.EqualTo(target));
+        Assert.That(reset.Stages, Has.Count.EqualTo(1));
+        Assert.That(reset.Reflection.Root, Is.Not.Null);
+        Assert.That(reset.Reflection.Root!.Find("drawArgs")?.SizeBytes, Is.EqualTo(8u));
+        Assert.That(reset.Reflection.Root.Find("drawCount")?.SizeBytes, Is.EqualTo(4u));
 
-        try
+        foreach (string initModule in new[] { "GpuParticleInit2D", "GpuParticleInit3D" })
         {
-            foreach (string file in files)
-            {
-                string moduleName = Path.GetFileNameWithoutExtension(file);
-                var (entryCount, anyGeneric) = engine.RenderingSystem.ShaderSystem.Modules
-                    .GetOrLoadModule(moduleName).GetEntryPointInfo();
-                if (entryCount > 0 && !anyGeneric)
-                {
-                    // Non-generic entry modules (the init passes) additionally
-                    // link unspecialized; the generic render pass templates link
-                    // through the composition test below.
-                    _ = engine.RenderingSystem.ShaderSystem.GetShader(moduleName).GetShaderModules();
-                }
-            }
-        }
-        catch (Exception e)
-        {
-            Assert.Fail($"Failed to load shader: {e}");
+            CompiledShader init = compiler.Compile(initModule, ShaderPipelineKind.Compute);
+            Assert.That(init.Stages, Has.Count.EqualTo(1));
+            Assert.That(init.Reflection.Root, Is.Not.Null);
+            Assert.That(init.Reflection.Root!.Find("particles")?.SizeBytes, Is.EqualTo(8u));
+            Assert.That(init.Reflection.Root.Find("sliceOffset")?.SizeBytes, Is.EqualTo(4u));
+            Assert.That(init.Reflection.Root.Find("count")?.SizeBytes, Is.EqualTo(4u));
         }
     }
 
-    /// <summary>Tests that the emit and simulate templates compose with default and custom behaviors.</summary>
-    [Test(Description = "Compose the emit/simulate templates with default and custom behaviors")]
-    public void ComposeSimulationTemplates()
+    /// <summary>Composed emit and simulate compute pipelines compile across every target for default and custom behaviors.</summary>
+    [TestCaseSource(nameof(SupportedTargets))]
+    public void ComposedParticleBehaviorShadersCompileAcrossAllTargets(ShaderTarget target)
     {
-        using ShaderValidator engine = new(Setting);
-        ShaderSystem shaderSystem = engine.RenderingSystem.ShaderSystem;
-        using var compiler = new MaterialCompiler(engine.RenderingSystem);
+        using var compiler = CreateCompiler(target);
 
-        foreach (string dimension in new[] { "2D", "3D" })
+        (string Template, string Behavior)[] cases =
+        [
+            ("GpuParticleEmit2D", "AlcoParticles_Default2D"),
+            ("GpuParticleEmit2D", "TestBehavior2D"),
+            ("GpuParticleEmit3D", "AlcoParticles_Default3D"),
+            ("GpuParticleEmit3D", "TestBehavior3D"),
+            ("GpuParticleSimulate2D", "AlcoParticles_Default2D"),
+            ("GpuParticleSimulate2D", "TestBehavior2D"),
+            ("GpuParticleSimulate3D", "AlcoParticles_Default3D"),
+            ("GpuParticleSimulate3D", "TestBehavior3D"),
+        ];
+
+        foreach ((string template, string behavior) in cases)
         {
-            ShaderLibrary emit = shaderSystem.GetLibrary($"GpuParticleEmit{dimension}");
-            ShaderLibrary simulate = shaderSystem.GetLibrary($"GpuParticleSimulate{dimension}");
-            foreach (string behavior in new[] { $"AlcoParticles-Default{dimension}", $"TestBehavior{dimension}" })
-            {
-                ShaderLibrary behaviorLibrary = shaderSystem.GetLibrary(behavior);
-                // Link + layout + codegen for both compositions.
-                ShaderReflection emitReflection = compiler.ComposeCompute(emit, behaviorLibrary)
-                    .GetShaderModules().ReflectionInfo;
-                ShaderReflection simulateReflection = compiler.ComposeCompute(simulate, behaviorLibrary)
-                    .GetShaderModules().ReflectionInfo;
+            CompiledShader compiled = compiler.CompileComposed(template, behavior, ShaderPipelineKind.Compute);
+            Assert.That(compiled.Target, Is.EqualTo(target));
+            Assert.That(compiled.Stages, Has.Count.EqualTo(1), $"{template}+{behavior}");
+            Assert.That(compiled.Reflection.Root, Is.Not.Null);
+            Assert.That(compiled.Reflection.Root!.Find(ParticleShaderKeys.Particles), Is.Not.Null, $"{template}+{behavior}");
+            Assert.That(compiled.Reflection.Root.Find(ParticleShaderKeys.Emitters), Is.Not.Null, $"{template}+{behavior}");
+            Assert.That(compiled.Reflection.Root.Find(ParticleShaderKeys.WorkBlocks), Is.Not.Null, $"{template}+{behavior}");
+            Assert.That(compiled.Reflection.Root.Find(ParticleShaderKeys.WorkBlockBase), Is.Not.Null, $"{template}+{behavior}");
+        }
+    }
 
-                Assert.That(simulateReflection.TryGetResourceLocation("particles", out _), Is.True,
-                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'particles'");
-                Assert.That(simulateReflection.TryGetResourceLocation("emitters", out _), Is.True,
-                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'emitters'");
-                Assert.That(simulateReflection.TryGetResourceLocation("renderList", out _), Is.True,
-                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'renderList'");
-                Assert.That(simulateReflection.TryGetResourceLocation("drawArgs", out _), Is.True,
-                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'drawArgs'");
-                Assert.That(simulateReflection.TryGetResourceLocation("instanceData", out _), Is.True,
-                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'instanceData'");
-                Assert.That(simulateReflection.TryGetResourceLocation("workBlocks", out _), Is.True,
-                    $"GpuParticleSimulate{dimension} × {behavior}: missing 'workBlocks'");
-                Assert.That(emitReflection.TryGetResourceLocation("particles", out _), Is.True,
-                    $"GpuParticleEmit{dimension} × {behavior}: missing 'particles'");
-                Assert.That(emitReflection.TryGetResourceLocation("drawArgs", out _), Is.True,
-                    $"GpuParticleEmit{dimension} × {behavior}: missing 'drawArgs'");
-                Assert.That(emitReflection.TryGetResourceLocation("workBlocks", out _), Is.True,
-                    $"GpuParticleEmit{dimension} × {behavior}: missing 'workBlocks'");
+    /// <summary>Composed 2D/3D particle and trail graphics shaders compile across every target with valid Pass and Material roots.</summary>
+    [TestCaseSource(nameof(SupportedTargets))]
+    public void ComposedGraphicsShadersCompileAcrossAllTargets(ShaderTarget target)
+    {
+        using var compiler = CreateCompiler(target);
+
+        (string Template, string Surface, string? ProbeField)[] cases =
+        [
+            ("GpuParticle2D", "ParticleSurfaceDefault", null),
+            ("GpuParticle2D", "TestParticleSurface", "Material.edgeWidth"),
+            ("GpuParticle3D", "ParticleSurfaceDefault", null),
+            ("GpuParticle3D", "TestParticleSurface", "Material.noiseScale"),
+            ("GpuTrail2D", "TrailSurfaceDefault", null),
+            ("GpuTrail2D", "TrailSurfaceSmoke", "Material.smokeColor"),
+            ("GpuTrail2D", "TrailContractProbe", null),
+            ("GpuTrail2D", "TrailInheritedSurface", null),
+            ("GpuTrail3D", "TrailSurfaceDefault", null),
+            ("GpuTrail3D", "TrailSurfaceSmoke", "Material.smokeColor"),
+            ("GpuTrail3D", "TrailContractProbe", null),
+            ("GpuTrail3D", "TrailInheritedSurface", null),
+        ];
+
+        foreach ((string template, string surface, string? probeField) in cases)
+        {
+            CompiledShader compiled = compiler.CompileComposed(template, surface, ShaderPipelineKind.Graphics);
+            Assert.That(compiled.Target, Is.EqualTo(target));
+            Assert.That(compiled.Stages, Has.Count.EqualTo(2), $"{template}+{surface}");
+            Assert.That(compiled.Reflection.Root, Is.Not.Null);
+            Assert.That(compiled.Reflection.Root!.Find(ParticleShaderKeys.Pass), Is.Not.Null,
+                $"{template}+{surface} missing Pass root field");
+            if (probeField != null)
+            {
+                Assert.That(compiled.Reflection.Root.Find(probeField), Is.Not.Null,
+                    $"{template}+{surface} missing {probeField}");
             }
         }
     }
 
-    /// <summary>Tests that the render pass templates compose with default and custom surfaces.</summary>
-    [Test(Description = "Compose the render pass templates with the default and a custom surface")]
-    public void ValidateRenderPassReflection()
+    /// <summary>Verifies C# unmanaged struct sizes and Slang C-layout ABI offsets match byte-for-byte.</summary>
+    [Test]
+    public void ShaderStructsMatchCSharpCLayout()
     {
-        using ShaderValidator engine = new(Setting);
-        ShaderSystem shaderSystem = engine.RenderingSystem.ShaderSystem;
-        using var compiler = new MaterialCompiler(
-            engine.RenderingSystem, shaderSystem.GetLibrary(ParticleAssetPipeline.DefaultSurface));
-
-        // The render passes are generic pass templates now: the resource contract
-        // shows in the composed (template × surface) reflection, not in a plain
-        // module link. The default surface covers the "texture" slot; the custom
-        // fixture surface (TestParticleSurface) covers the .amat surface path.
-        foreach (string module in new[] { ParticleAssetPipeline.RenderModule2D, ParticleAssetPipeline.RenderModule3D })
-        {
-            ShaderReflection reflection = compiler.ComposeSurfaceShader(null, shaderSystem.GetLibrary(module))
-                .GetShaderModules().ReflectionInfo;
-            Assert.Multiple(() =>
-            {
-                Assert.That(reflection.TryGetResourceLocation("camera", out _), Is.True, $"{module}: missing 'camera'");
-                Assert.That(reflection.TryGetResourceLocation("particles", out _), Is.True, $"{module}: missing 'particles'");
-                Assert.That(reflection.TryGetResourceLocation("emitters", out _), Is.True, $"{module}: missing 'emitters'");
-                Assert.That(reflection.TryGetResourceLocation("texture", out _), Is.True, $"{module}: missing 'texture'");
-                Assert.That(reflection.TryGetResourceLocation("colorGradient", out _), Is.True, $"{module}: missing 'colorGradient'");
-                Assert.That(reflection.TryGetResourceLocation("sizeCurve", out _), Is.True, $"{module}: missing 'sizeCurve'");
-            });
-            // The batching contract: the vertex input splits into the mesh buffer
-            // (vertex-step) and the simulate-written per-draw records — the
-            // instance-step "drawData" field, one GpuInstanceData record (8 bytes,
-            // two uints) per particle instance fetched through firstInstance.
-            Assert.That(reflection.VertexLayouts.Count, Is.EqualTo(2), $"{module}: vertex layout count");
-            Assert.That(reflection.VertexLayouts[0].StepMode, Is.EqualTo(VertexStepMode.Vertex), $"{module}: mesh layout must be vertex-step");
-            Assert.That(reflection.VertexLayouts[1].StepMode, Is.EqualTo(VertexStepMode.Instance), $"{module}: drawData layout must be instance-step");
-            Assert.That(reflection.VertexLayouts[1].Stride, Is.EqualTo(8u), $"{module}: drawData stride");
-            Assert.That(reflection.VertexLayouts[1].Elements.Length, Is.EqualTo(1), $"{module}: drawData element count");
-            Assert.That(reflection.VertexLayouts[1].Elements[0].Format, Is.EqualTo(VertexFormat.Uint32x2), $"{module}: drawData format");
-            Assert.That(reflection.VertexLayouts[1].Elements[0].Name, Is.EqualTo("drawData"), $"{module}: drawData element name");
-        }
-
-        ShaderReflection customReflection = compiler.ComposeGraphics(
-                shaderSystem.GetLibrary(ParticleAssetPipeline.RenderModule2D),
-                shaderSystem.GetLibrary("TestParticleSurface"))
-            .GetShaderModules().ReflectionInfo;
         Assert.Multiple(() =>
         {
-            Assert.That(customReflection.TryGetResourceLocation("texture", out _), Is.True, "custom surface: missing 'texture'");
-            Assert.That(customReflection.TryGetResourceLocation("noiseTexture", out _), Is.True, "custom surface: missing 'noiseTexture'");
-            Assert.That(customReflection.TryGetResourceLocation("dissolveParams", out _), Is.True, "custom surface: missing 'dissolveParams'");
+            Assert.That(sizeof(EmitterParams2D), Is.EqualTo(368));
+            Assert.That(sizeof(EmitterParams3D), Is.EqualTo(336));
+            Assert.That(sizeof(GpuParticle2D), Is.EqualTo(92));
+            Assert.That(sizeof(GpuParticle3D), Is.EqualTo(84));
+            Assert.That(sizeof(GpuDrawArgs), Is.EqualTo(16));
+            Assert.That(sizeof(GpuInstanceData), Is.EqualTo(8));
+            Assert.That(sizeof(GpuParticleWorkBlock), Is.EqualTo(16));
+            Assert.That(sizeof(GpuTrailSystem2D.TrailPoint2D), Is.EqualTo(32));
+            Assert.That(sizeof(GpuTrailSystem2D.TrailParams2D), Is.EqualTo(96));
+            Assert.That(sizeof(GpuTrailSystem3D.TrailPoint3D), Is.EqualTo(32));
+            Assert.That(sizeof(GpuTrailSystem3D.TrailParams3D), Is.EqualTo(96));
+            Assert.That(sizeof(GpuTrailSystem2D.TrailSegment), Is.EqualTo(8));
         });
+
+        const string probeSource = """
+            #language slang 2025
+            module EffectsLayoutProbe;
+            import Core;
+            import AlcoParticles_Core2D;
+            import AlcoParticles_Core3D;
+            import AlcoRendering_Trails2D;
+            import AlcoRendering_Trails3D;
+
+            [GPURoot]
+            public struct AbiProbeRoot
+            {
+                public EmitterParams2D E2;
+                public EmitterParams3D E3;
+                public ParticleData2D P2;
+                public ParticleData3D P3;
+                public GpuDrawArgs DrawArgs;
+                public GpuInstanceData InstanceData;
+                public GpuWorkBlock WorkBlock;
+                public TrailPoint2D TP2;
+                public TrailParams2D TR2;
+                public TrailPoint3D TP3;
+                public TrailParams3D TR3;
+                public TrailSegment Seg;
+                public GPUBufferView Sink;
+            };
+
+            [shader("compute")]
+            [numthreads(1, 1, 1)]
+            public void mainCS()
+            {
+                AbiProbeRoot root = gpu_load_root<AbiProbeRoot>();
+                gpu_store(root.Sink, 0u, root.E2.spriteTextureId + root.E3.sizeCurveTextureId
+                    + root.P2.animStart + root.P3.animStart + root.DrawArgs.instanceCount
+                    + root.InstanceData.particleIndex + root.WorkBlock.threadBase
+                    + uint(root.TP2.emitTime) + root.TR2.ring.w
+                    + uint(root.TP3.emitTime) + root.TR3.ring.w + root.Seg.segment);
+            }
+            """;
+
+        using var compiler = CreateCompiler(ShaderTarget.SpirvCompact);
+        CompiledShader probe = compiler.CompileSource("EffectsLayoutProbe", "EffectsLayoutProbe.slang", probeSource, ShaderPipelineKind.Compute);
+        ShaderRootLayout root = probe.Reflection.Root!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(root.Find("E2")?.SizeBytes, Is.EqualTo((uint)sizeof(EmitterParams2D)));
+            Assert.That(root.Find("E3")?.SizeBytes, Is.EqualTo((uint)sizeof(EmitterParams3D)));
+            Assert.That(root.Find("P2")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuParticle2D)));
+            Assert.That(root.Find("P3")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuParticle3D)));
+            Assert.That(root.Find("DrawArgs")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuDrawArgs)));
+            Assert.That(root.Find("InstanceData")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuInstanceData)));
+            Assert.That(root.Find("WorkBlock")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuParticleWorkBlock)));
+            Assert.That(root.Find("TP2")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuTrailSystem2D.TrailPoint2D)));
+            Assert.That(root.Find("TR2")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuTrailSystem2D.TrailParams2D)));
+            Assert.That(root.Find("TP3")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuTrailSystem3D.TrailPoint3D)));
+            Assert.That(root.Find("TR3")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuTrailSystem3D.TrailParams3D)));
+            Assert.That(root.Find("Seg")?.SizeBytes, Is.EqualTo((uint)sizeof(GpuTrailSystem2D.TrailSegment)));
+
+            uint e2Base = root.Find("E2")!.OffsetBytes;
+            Assert.That(root.Find("E2.worldMatrix")!.OffsetBytes - e2Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams2D>(nameof(EmitterParams2D.WorldMatrix))));
+            Assert.That(root.Find("E2.spriteTextureId")!.OffsetBytes - e2Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams2D>(nameof(EmitterParams2D.SpriteTextureId))));
+            Assert.That(root.Find("E2.colorGradientTextureId")!.OffsetBytes - e2Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams2D>(nameof(EmitterParams2D.ColorGradientTextureId))));
+            Assert.That(root.Find("E2.sizeCurveTextureId")!.OffsetBytes - e2Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams2D>(nameof(EmitterParams2D.SizeCurveTextureId))));
+
+            uint e3Base = root.Find("E3")!.OffsetBytes;
+            Assert.That(root.Find("E3.worldMatrix")!.OffsetBytes - e3Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams3D>(nameof(EmitterParams3D.WorldMatrix))));
+            Assert.That(root.Find("E3.spriteTextureId")!.OffsetBytes - e3Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams3D>(nameof(EmitterParams3D.SpriteTextureId))));
+            Assert.That(root.Find("E3.colorGradientTextureId")!.OffsetBytes - e3Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams3D>(nameof(EmitterParams3D.ColorGradientTextureId))));
+            Assert.That(root.Find("E3.sizeCurveTextureId")!.OffsetBytes - e3Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams3D>(nameof(EmitterParams3D.SizeCurveTextureId))));
+            Assert.That(root.Find("E3.reserved3")!.OffsetBytes - e3Base, Is.EqualTo((uint)Marshal.OffsetOf<EmitterParams3D>(nameof(EmitterParams3D.Reserved3))));
+        });
+    }
+
+    private static ShaderCompiler CreateCompiler(ShaderTarget target)
+    {
+        var compiler = new ShaderCompiler(target, EffectsTestHost.CreateCompilerOptions());
+        for (int i = 0; i < AlcoEffectsShaders.BuiltInModuleOrder.Count; i++)
+        {
+            string moduleName = AlcoEffectsShaders.BuiltInModuleOrder[i];
+            compiler.LoadModuleFromSource(moduleName, moduleName + ".slang",
+                AlcoEffectsShaders.LoadEmbeddedSource(moduleName + ".slang"));
+        }
+        return compiler;
     }
 }

@@ -12,75 +12,26 @@ namespace Alco.Rendering;
 /// </summary>
 public class JsonConverterBlendState : JsonConverter<BlendState>
 {
-    private static readonly BlendState PresetOpaque = new()
-    {
-        Enabled = false,
-        Color = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
-        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
-    };
-
-    private static readonly BlendState PresetAlphaBlend = new()
-    {
-        Enabled = true,
-        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
-        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
-    };
-
-    private static readonly BlendState PresetAdditive = new()
-    {
-        Enabled = true,
-        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.One, Operation = BlendOp.Add },
-        Alpha = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.One, Operation = BlendOp.Add },
-    };
-
-    private static readonly BlendState PresetPremultipliedAlpha = new()
-    {
-        Enabled = true,
-        Color = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
-        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
-    };
-
-    private static readonly BlendState PresetNonPremultipliedAlpha = new()
-    {
-        Enabled = true,
-        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
-        Alpha = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
-    };
-
-    private static readonly BlendState PresetMultiply = new()
-    {
-        Enabled = true,
-        Color = new BlendComponentState { Source = BlendFactor.DestinationColor, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
-        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero, Operation = BlendOp.Add },
-    };
-
-    private static readonly BlendState PresetAlphaBlendNoAccumulation = new()
-    {
-        Enabled = true,
-        Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha, Operation = BlendOp.Add },
-        Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.One, Operation = BlendOp.Maximum },
-    };
-
     private static readonly Dictionary<string, BlendState> PresetMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "Opaque", PresetOpaque },
-        { "AlphaBlend", PresetAlphaBlend },
-        { "Additive", PresetAdditive },
-        { "PremultipliedAlpha", PresetPremultipliedAlpha },
-        { "NonPremultipliedAlpha", PresetNonPremultipliedAlpha },
-        { "Multiply", PresetMultiply },
-        { "AlphaBlendNoAccumulation", PresetAlphaBlendNoAccumulation }
+        { "Opaque", BlendState.Opaque },
+        { "AlphaBlend", BlendState.AlphaBlend },
+        { "Additive", BlendState.Additive },
+        { "PremultipliedAlpha", BlendState.PremultipliedAlpha },
+        { "NonPremultipliedAlpha", BlendState.NonPremultipliedAlpha },
+        { "Multiply", BlendState.Multiply },
+        { "AlphaBlendNoAccumulation", BlendState.AlphaBlendNoAccumulation }
     };
 
     private static readonly Dictionary<BlendState, string> ReverseMap = new()
     {
-        { PresetOpaque, "Opaque" },
-        { PresetAlphaBlend, "AlphaBlend" },
-        { PresetAdditive, "Additive" },
-        { PresetPremultipliedAlpha, "PremultipliedAlpha" },
-        { PresetNonPremultipliedAlpha, "NonPremultipliedAlpha" },
-        { PresetMultiply, "Multiply" },
-        { PresetAlphaBlendNoAccumulation, "AlphaBlendNoAccumulation" }
+        { BlendState.Opaque, "Opaque" },
+        { BlendState.AlphaBlend, "AlphaBlend" },
+        { BlendState.Additive, "Additive" },
+        { BlendState.PremultipliedAlpha, "PremultipliedAlpha" },
+        { BlendState.NonPremultipliedAlpha, "NonPremultipliedAlpha" },
+        { BlendState.Multiply, "Multiply" },
+        { BlendState.AlphaBlendNoAccumulation, "AlphaBlendNoAccumulation" }
     };
 
     /// <summary>

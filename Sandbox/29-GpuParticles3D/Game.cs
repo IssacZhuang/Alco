@@ -1,52 +1,146 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Alco;
+using Alco.Effects;
 using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
 using Alco.IO;
-using Alco.Effects;
 using Alco.Rendering;
-using SandboxUtils;
 
-/// <summary>Sandbox demonstrating the 3D GPU particle system with camera-facing billboards, live instance management, and per-group parameter editing.</summary>
+/// <summary>Sandbox demonstrating the 3D GPU particle system with camera-facing billboards, depth-tested static props, and live parameter editing.</summary>
 /// <remarks>Middle mouse orbits, left mouse drags the gizmo, and ESC exits; <c>--screenshot=&lt;path.png&gt;</c> captures a frame and <c>--particles=N</c> fills the pool.</remarks>
-public class Game : GameEngine
+public unsafe class Game : GameEngine
 {
-    private readonly RenderPipeline _pipeline;
-    private readonly CameraPerspectiveBuffer _camera;
+    private const string PropsShaderSource = """
+        #language slang 2025
+        module SandboxPropsCube3D;
+        import Core;
+
+        public struct PropInstance
+        {
+            public float4x4 worldMatrix;
+            public float4 color;
+        };
+
+        [GPURoot]
+        public struct PropsRoot
+        {
+            public float4x4 viewProjection;
+            public GPUBufferView instances;
+        };
+
+        public struct V2F
+        {
+            public float4 position : SV_POSITION;
+            public float3 normal : TEXCOORD0;
+            public float4 color : COLOR0;
+        };
+
+        static const float3 CubePositions[36] =
+        {
+            // +X
+            float3( 0.5, -0.5, -0.5), float3( 0.5,  0.5, -0.5), float3( 0.5,  0.5,  0.5),
+            float3( 0.5, -0.5, -0.5), float3( 0.5,  0.5,  0.5), float3( 0.5, -0.5,  0.5),
+            // -X
+            float3(-0.5,  0.5, -0.5), float3(-0.5, -0.5, -0.5), float3(-0.5, -0.5,  0.5),
+            float3(-0.5,  0.5, -0.5), float3(-0.5, -0.5,  0.5), float3(-0.5,  0.5,  0.5),
+            // +Y
+            float3( 0.5,  0.5, -0.5), float3(-0.5,  0.5, -0.5), float3(-0.5,  0.5,  0.5),
+            float3( 0.5,  0.5, -0.5), float3(-0.5,  0.5,  0.5), float3( 0.5,  0.5,  0.5),
+            // -Y
+            float3(-0.5, -0.5, -0.5), float3( 0.5, -0.5, -0.5), float3( 0.5, -0.5,  0.5),
+            float3(-0.5, -0.5, -0.5), float3( 0.5, -0.5,  0.5), float3(-0.5, -0.5,  0.5),
+            // +Z
+            float3(-0.5, -0.5,  0.5), float3( 0.5, -0.5,  0.5), float3( 0.5,  0.5,  0.5),
+            float3(-0.5, -0.5,  0.5), float3( 0.5,  0.5,  0.5), float3(-0.5,  0.5,  0.5),
+            // -Z
+            float3(-0.5,  0.5, -0.5), float3( 0.5,  0.5, -0.5), float3( 0.5, -0.5, -0.5),
+            float3(-0.5,  0.5, -0.5), float3( 0.5, -0.5, -0.5), float3(-0.5, -0.5, -0.5),
+        };
+
+        static const float3 CubeNormals[6] =
+        {
+            float3( 1,  0,  0),
+            float3(-1,  0,  0),
+            float3( 0,  1,  0),
+            float3( 0, -1,  0),
+            float3( 0,  0,  1),
+            float3( 0,  0, -1),
+        };
+
+        [shader("vertex")]
+        public V2F mainVS(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
+        {
+            PropsRoot root = gpu_load_root<PropsRoot>();
+            PropInstance inst = gpu_load<PropInstance>(root.instances, instanceId);
+            float3 localPos = CubePositions[vertexId];
+            float3 localNrm = CubeNormals[vertexId / 6u];
+
+            float4 worldPos = mul(float4(localPos, 1.0), inst.worldMatrix);
+            float3 worldNrm = mul(float4(localNrm, 0.0), inst.worldMatrix).xyz;
+
+            V2F o;
+            o.position = mul(worldPos, root.viewProjection);
+            o.normal = worldNrm;
+            o.color = inst.color;
+            return o;
+        }
+
+        [shader("pixel")]
+        public float4 mainFS(V2F input) : SV_TARGET
+        {
+            float3 n = normalize(input.normal);
+            float3 lightDir = normalize(float3(0.45, -0.35, 0.82));
+            float ndl = max(dot(n, lightDir), 0.0);
+            float sky = 0.5 + 0.5 * n.z;
+            float3 lit = input.color.rgb * (0.28 + 0.22 * sky + 0.68 * ndl);
+            return float4(lit, input.color.a);
+        }
+        """;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PropInstanceData
+    {
+        public Matrix4x4 WorldMatrix;
+        public Vector4 Color;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PropsRootData
+    {
+        public Matrix4x4 ViewProjection;
+        public GPUBufferView Instances;
+    }
+
+    private readonly RenderGraph _renderGraph;
+    private readonly RenderContext _renderContext;
+    private readonly PropsRenderNode _propsNode;
+    private CameraDataPerspective _camera;
     private readonly GpuParticleSystem3D _particles;
     private readonly Dictionary<string, ParticleEffect3D> _effects = new();
     private readonly List<string> _effectNames = [];
     private readonly List<InstanceEntry> _instances = [];
     private FastRandom _random = new(54321);
 
-    // The selected instance (panel selection + gizmo target); null when none.
     private InstanceEntry? _selected;
     private int _nextInstanceId = 1;
-
-    // The gizmo operation of the selected instance: translate / rotate.
     private GizmoOperation _gizmoOperation = GizmoOperation.Translate;
 
-    // Static scene: a ground slab and two pillars (depth-tested against particles).
-    private readonly GraphicsMaterial _sceneMaterial;
-    private readonly Mesh _cubeMesh;
-    private readonly (Transform3D Transform, ColorFloat Color)[] _props;
+    private readonly Material _propsMaterial;
+    private readonly Alco.Graphics.Buffer _propsBuffer;
+    private readonly int _propCount;
 
-    // Camera orbit state.
     private float _yaw = 0.35f;
     private float _pitch = 0.42f;
     private readonly float _distance = 20f;
     private readonly Vector3 _lookAt = new(1f, 0f, 2f);
     private const float RawMouseCountScale = 5f;
 
-    // Auto spawner (frequent create/destroy exercise).
     private bool _autoSpawn = true;
     private float _autoSpawnInterval = 1.0f;
     private float _autoSpawnTimer;
 
-    // Screenshot mode: the swapchain capture service reads the presented frame
-    // (ImGui overlay included — a render-graph capture stops before it by design),
-    // so the panel and the gizmo are part of the image.
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
     private int _frameCount;
@@ -54,11 +148,6 @@ public class Game : GameEngine
     private Task<RenderCaptureResult>? _screenshotRequest;
     private bool _screenshotSaved;
 
-    // Fill mode (--particles=N [--particlesize=S]): spawns enough saturating
-    // 8192-particle groups to keep ~N particles live (opt-in stress scenario;
-    // the demo defaults stay untouched without the flag). Stats log once per
-    // second: fps, avg/max frame ms of the window, instance/group counts, live
-    // estimate, pooled/allocated capacity and the managed allocation rate.
     private readonly int _particleTarget;
     private readonly float _particleSize;
     private float _stressLogTimer;
@@ -67,72 +156,35 @@ public class Game : GameEngine
     private int _statFrames;
     private long _statAllocatedBytes;
 
-    /// <summary>Initializes the 3D particle sandbox and its render pipeline.</summary>
-    /// <param name="setting">Engine settings for the game instance.</param>
-    /// <param name="args">Command-line arguments, including optional screenshot and particle-fill options.</param>
+    /// <summary>Initializes the 3D particle sandbox and its render graph.</summary>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
         _screenshotFrames = int.TryParse(GetArgValue(args, "--frames="), out int frames) ? frames : 90;
         if (_screenshotPath != null)
-        {
             _swapchainCapture = SwapchainCapture;
-        }
 
         AddSystem(new ImGUISystem(this));
 
-        // Normal (non-reversed) depth: the plain pipeline clears depth to 1.
-        _camera = RenderingSystem.CreateCameraPerspective(0.9f, 16f / 9, 0.1f, 300f);
-
-        _particles = new GpuParticleSystem3D(RenderingSystem, particleCapacity: 1 << 18, emitterSlots: 512)
+        _camera = new CameraDataPerspective
         {
-            Camera = _camera,
+            Fov = 0.9f,
+            AspectRatio = MainView.Size.Y > 0 ? (float)MainView.Size.X / MainView.Size.Y : 16f / 9f,
+            Near = 0.1f,
+            Far = 300f,
+            ReverseInfiniteDepth = false,
+        };
+
+        _particles = new GpuParticleSystem3D(RenderingSystem, ShaderSystem, particleCapacity: 1 << 18, emitterSlots: 512)
+        {
             DepthStencilState = DepthStencilState.Read,
         };
 
-        _pipeline = new RenderPipeline(RenderingSystem, new RenderPipeline.Descriptor
-        {
-            SceneLayout = RenderingSystem.PreferredHDRPass,
-            BlitShader = BuiltInAssets.Shader_Blit,
-            Width = MainView.Size.X,
-            Height = MainView.Size.Y,
-            Name = "gpu_particles_3d",
-        });
-        _pipeline.ClearColor = new ColorFloat(0.06f, 0.07f, 0.09f, 1);
-        _pipeline.Use(new RGNode_Callback { Callback = context => _particles.RecordSimulation(context.RenderContext.CommandBuffer, context.DeltaTime) });
-        _pipeline.Use(new SceneNode(this, _pipeline.Graph, _pipeline.Chain));
-        var tonemapNode = new RGNode_Tonemap(
-            RenderingSystem,
-            _pipeline.Graph,
-            _pipeline.Chain,
-            _pipeline.PostProcessLayout,
-            new RGNode_Tonemap.Descriptor
-            {
-                BlitShader = BuiltInAssets.Shader_Blit,
-                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
-                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
-                AcesShader = BuiltInAssets.Shader_AcesTonemap,
-                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
-                AgxShader = BuiltInAssets.Shader_AgxTonemap,
-            });
-        tonemapNode.Operator = TonemapType.ACES;
-        ACESTonemapData acesData = tonemapNode.ACESData;
-        acesData.Gamma = 2.2f;
-        tonemapNode.ACESData = acesData;
-        _pipeline.Use(tonemapNode);
-
-        MainPresenter.OnResize += size =>
-        {
-            _camera.AspectRatio = (float)size.X / size.Y;
-            _pipeline.Resize(size.X, size.Y);
-        };
-
-        // Static scene props (unlit, depth-written so particles occlude correctly).
-        _sceneMaterial = RenderingSystem.CreateGraphicsMaterial(BuiltInAssets.Shader_Unlit, "props");
-        _sceneMaterial.SetBuffer("camera", _camera);
-        _sceneMaterial.DepthStencilState = DepthStencilState.Write;
-        _cubeMesh = RenderingSystem.MeshCube;
+        Shader propsShader = ShaderSystem.GetShaderFromSource(
+            "SandboxPropsCube3D", "SandboxPropsCube3D.slang", PropsShaderSource, ShaderKind.Graphics);
+        _propsMaterial = propsShader.CreateMaterial("SandboxProps");
+        _propsMaterial.Blend = BlendState.Opaque;
+        _propsMaterial.Rasterization = RasterizationState.CullNone;
 
         Transform3D ground = Transform3D.Identity;
         ground.Position = new Vector3(0, 0, -0.5f);
@@ -143,29 +195,36 @@ public class Game : GameEngine
         Transform3D pillarB = Transform3D.Identity;
         pillarB.Position = new Vector3(8, -5, 2);
         pillarB.Scale = new Vector3(2.4f, 2.4f, 4);
-        _props =
-        [
-            (ground, new ColorFloat(0.16f, 0.17f, 0.2f, 1)),
-            (pillarA, new ColorFloat(0.35f, 0.3f, 0.25f, 1)),
-            (pillarB, new ColorFloat(0.25f, 0.3f, 0.35f, 1)),
-        ];
 
-        // The effect assets.
+        PropInstanceData[] props =
+        [
+            new() { WorldMatrix = ground.Matrix, Color = new Vector4(0.16f, 0.17f, 0.20f, 1f) },
+            new() { WorldMatrix = pillarA.Matrix, Color = new Vector4(0.35f, 0.30f, 0.25f, 1f) },
+            new() { WorldMatrix = pillarB.Matrix, Color = new Vector4(0.25f, 0.30f, 0.35f, 1f) },
+        ];
+        _propCount = props.Length;
+        _propsBuffer = RenderingSystem.CreateBuffer((ulong)(_propCount * sizeof(PropInstanceData)));
+        _propsBuffer.SetData<PropInstanceData>(props);
+
+        _propsNode = new PropsRenderNode(this);
+        _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "gpu_particles_3d");
+        _renderGraph.Use(new ParticleSimulateNode3D(_particles));
+        _renderGraph.Use(_propsNode);
+        _renderGraph.Use(new ParticleRenderNode3D(
+            _particles,
+            () => _camera,
+            colorLoadOp: LoadOp.Load,
+            depthHandleProvider: () => _propsNode.DepthTarget));
+        _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);
+
         _effects["Flare"] = AssetSystem.Load<ParticleEffect3D>("Effects/Flare3D.afx");
         _effects["Explosion"] = AssetSystem.Load<ParticleEffect3D>("Effects/Explosion3D.afx");
         _effects["Vortex"] = AssetSystem.Load<ParticleEffect3D>("Effects/Vortex3D.afx");
         _effectNames.AddRange(_effects.Keys);
 
-        // The static scene (deterministic seeds keep screenshot mode reproducible).
-        // The flare starts selected: it doubles as the gizmo showcase.
         _selected = Spawn("Flare", new Vector3(-6, -3, 0), 201);
         Spawn("Vortex", new Vector3(5, 3, 3), 202);
 
-        // Fill mode: build the saturating fill effect in code and spawn enough of
-        // it to hold ~N particles live. The pool starts at its default 262k and
-        // grows geometrically to 1M on the way, exercising buffer migration and
-        // material rebinding. Auto-spawn defaults off for clean numbers (the
-        // panel can re-enable it).
         _particleTarget = int.TryParse(GetArgValue(args, "--particles="), out int particleTarget) ? particleTarget : 0;
         _particleSize = float.TryParse(GetArgValue(args, "--particlesize="), out float particleSize) ? particleSize : 0.5f;
         if (_particleTarget > 0)
@@ -176,13 +235,8 @@ public class Game : GameEngine
         }
     }
 
-    // The fill effect: one saturating group whose rate × mean lifetime equals its
-    // slice capacity, so the ring buffer stays exactly full (live == pooled)
-    // without overwrite churn. Particle size is a CLI knob: authored-like sizes
-    // stress the rasterizer, tiny quads isolate the simulation cost.
     private ParticleEffect3D CreateFillEffect(float size)
-    {
-        return new ParticleEffect3D
+        => new()
         {
             Name = "Fill",
             Groups =
@@ -201,12 +255,11 @@ public class Game : GameEngine
                     EndColor = new ColorFloat(0.4f, 0.1f, 0.6f, 0f),
                     FadeIn = 0.05f,
                     FadeOut = 0.5f,
-                    Texture = AssetSystem.Load<Texture2D>("Glow"),
+                    Texture = AssetSystem.Load<Image>("Glow"),
                     Blend = BlendState.Additive,
                 },
             ],
         };
-    }
 
     private void SpawnFill(int target)
     {
@@ -215,8 +268,6 @@ public class Game : GameEngine
         int columns = (int)Math.Ceiling(Math.Sqrt(count));
         for (int i = 0; i < count; i++)
         {
-            // A wide grid in the view plane with three depth layers around the
-            // orbit target, so the million particles spread instead of stacking.
             float x = _lookAt.X + (i % columns - (columns - 1) * 0.5f) * 2.2f;
             float y = (i / columns - (columns - 1) * 0.5f) * 1.6f;
             float z = _lookAt.Z + (i % 3 - 1) * 1.5f;
@@ -224,14 +275,12 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Registers the particle effect asset loader (.afx) on top of the defaults.</summary>
+    /// <summary>Registers the particle effect asset loader (<c>.afx</c>) on top of the defaults.</summary>
     public override IEnumerable<IAssetLoader> CreateDefaultAssetLoaders()
     {
         foreach (IAssetLoader loader in base.CreateDefaultAssetLoaders())
-        {
             yield return loader;
-        }
-        yield return new AssetLoaderParticleEffect(AssetSystem, RenderingSystem.ShaderSystem);
+        yield return new AssetLoaderParticleEffect(AssetSystem, ShaderSystem);
     }
 
     private InstanceEntry Spawn(string effectName, Vector3 position, int seed)
@@ -244,9 +293,6 @@ public class Game : GameEngine
         return entry;
     }
 
-    // Spawns around the camera's orbit target so the new effect is immediately
-    // visible — the manual spawn buttons use this, unlike the ambient
-    // auto-spawner which keeps scattering explosions randomly.
     private InstanceEntry SpawnVisible(string effectName)
     {
         Vector3 position = _lookAt + new Vector3(
@@ -257,20 +303,16 @@ public class Game : GameEngine
     }
 
     private InstanceEntry SpawnRandom(string effectName)
-    {
-        Vector3 position = new(
+        => Spawn(effectName, new Vector3(
             _random.NextFloat(-4f, 12f),
             _random.NextFloat(-7f, 7f),
-            _random.NextFloat(0f, 5f));
-        return Spawn(effectName, position, (int)_random.NextUint());
-    }
+            _random.NextFloat(0f, 5f)), (int)_random.NextUint());
 
+    /// <inheritdoc />
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
-        {
             Stop();
-        }
 
         UpdateCamera();
 
@@ -284,15 +326,12 @@ public class Game : GameEngine
             }
         }
 
-        // Destroy instances whose particles have all died (frequent create/destroy).
         for (int i = _instances.Count - 1; i >= 0; i--)
         {
             if (!_instances[i].Instance.IsActive)
             {
                 if (_instances[i] == _selected)
-                {
                     _selected = null;
-                }
                 _instances[i].Instance.Dispose();
                 _instances.RemoveAt(i);
             }
@@ -321,15 +360,10 @@ public class Game : GameEngine
                     foreach (ParticleGroup3D group in entry.Instance.Asset.Groups)
                     {
                         groups++;
-                        // The slice capacity (what the simulate pass touches) and the
-                        // steady-state live estimate: rate × mean lifetime, clamped to
-                        // the slice (ring overwrite keeps it full once saturated).
-                        long capacity = Math.Max(64, (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(group.MaxParticles, 1)));
+                        long capacity = Math.Max(64, (int)BitOperations.RoundUpToPowerOf2((uint)Math.Max(group.MaxParticles, 1)));
                         pooled += capacity;
                         if (group.Looping || group.Duration <= 0f)
-                        {
                             live += Math.Min(capacity, (long)(group.EmissionRate * (group.Lifetime.Min + group.Lifetime.Max) * 0.5f));
-                        }
                     }
                 }
                 long allocatedNow = GC.GetTotalAllocatedBytes(false);
@@ -348,19 +382,43 @@ public class Game : GameEngine
 
         _frameCount++;
         if (_screenshotPath != null && _screenshotRequest == null && !_screenshotSaved && _frameCount >= _screenshotFrames)
-        {
-            // The request completes a couple of frames later with the presented
-            // frame's PNG (scene, post processing and the ImGui overlay on top).
             _screenshotRequest = _swapchainCapture!.RequestCaptureAsync();
-        }
 
-        _pipeline.Render(MainPresenter.FrameBuffer);
+        if (MainPresenter.HasValidFrame)
+        {
+            SwapchainFrame frame = MainPresenter.CurrentFrame;
+            if (frame.Extent.Y > 0)
+                _camera.AspectRatio = (float)frame.Extent.X / frame.Extent.Y;
+            _renderGraph.Resize(frame.Extent);
+
+            bool begun = false;
+            try
+            {
+                _renderContext.BeginFrame();
+                begun = true;
+                _renderGraph.Execute(
+                    _renderContext,
+                    RenderGraphTarget.FromSwapchain(frame, MainPresenter.SurfaceFormat),
+                    delta,
+                    outputFinalUsage: RGUsage.ColorAttachment);
+                MainPresenter.EnqueueFrameContext(_renderContext);
+            }
+            catch
+            {
+                if (begun)
+                    _renderContext.DiscardFrame();
+                throw;
+            }
+        }
 
         if (_screenshotRequest is { IsCompletedSuccessfully: true })
         {
             RenderCaptureResult result = _screenshotRequest.Result;
             if (result.Success && result.PngBytes != null)
             {
+                string? dir = Path.GetDirectoryName(_screenshotPath!);
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir);
                 File.WriteAllBytes(_screenshotPath!, result.PngBytes);
                 Console.WriteLine($"Screenshot saved to {_screenshotPath}");
             }
@@ -381,8 +439,6 @@ public class Game : GameEngine
 
     private void UpdateCamera()
     {
-        // The orbit yields to the gizmo: no camera rotation while the pointer is
-        // over a handle or a handle drag is active (IsOver includes both).
         bool rotating = MainView.IsFocused && Input.IsMousePressing(Mouse.Middle) && !Gizmo.IsOver;
         Input.IsMouseRelativeMode = rotating;
         if (rotating)
@@ -392,46 +448,33 @@ public class Game : GameEngine
             _pitch = Math.Clamp(_pitch + mouseDelta.Y * 0.008f, -1.4f, 1.4f);
         }
 
-        // Orbit: the camera sits on a sphere around the look-at point (engine
-        // convention: forward = +X, right = +Y, up = +Z).
         Vector3 offset = new(
             -MathF.Cos(_pitch) * MathF.Cos(_yaw),
             -MathF.Cos(_pitch) * MathF.Sin(_yaw),
             MathF.Sin(_pitch));
         Vector3 position = _lookAt + offset * _distance;
         _camera.Transform = new Transform3D(position, LookRotation(_lookAt - position, Vector3.UnitZ));
-        _camera.UpdateMatrixToGPU();
     }
 
     private void DrawImGuiPanel()
     {
-        // Two columns, the editor's BeginChild + SameLine idiom: the instance list
-        // with spawn/delete on the left, the selected instance's parameter editor
-        // on the right. 'Appearing' (not 'FirstUseEver') so a stale imgui.ini
-        // cannot shrink the window. The height stays modest so the window does not
-        // cover the gizmo of the pre-selected flare near the bottom of the view.
         ImGui.SetNextWindowSize(new Vector2(680, 480), ImGuiCond.Appearing);
         ImGui.Begin("GPU Particles 3D");
 
         int groups = 0;
         foreach (InstanceEntry entry in _instances)
-        {
             groups += entry.Instance.Asset.Groups.Count;
-        }
         ImGui.Text($"Instances: {_instances.Count}   Emitter groups: {groups}");
 
         const float inspectorWidth = 340f;
         if (ImGui.BeginChild("##instances", new Vector2(-inspectorWidth, -1)))
         {
-            // The live instances (click to select); dead ones are pruned in OnUpdate.
             ImGui.SeparatorText("Instances");
             foreach (InstanceEntry entry in _instances)
             {
                 string state = entry.Instance.IsPlaying ? "playing" : "fading";
                 if (ImGui.Selectable($"{entry.Instance.Asset.Name} #{entry.Id} ({state})", entry == _selected))
-                {
                     _selected = entry;
-                }
             }
             ImGui.BeginDisabled(_selected == null);
             if (ImGui.Button("Delete Selected") && _selected != null)
@@ -445,21 +488,16 @@ public class Game : GameEngine
             if (ImGui.Button("Destroy All"))
             {
                 foreach (InstanceEntry entry in _instances)
-                {
                     entry.Instance.Dispose();
-                }
                 _instances.Clear();
                 _selected = null;
             }
 
-            // Manual spawns land at the orbit target so they are immediately visible.
             ImGui.SeparatorText("Spawn");
             foreach (string effectName in _effectNames)
             {
                 if (ImGui.Button(effectName))
-                {
                     _selected = SpawnVisible(effectName);
-                }
             }
 
             ImGui.SeparatorText("Auto Spawn");
@@ -470,8 +508,6 @@ public class Game : GameEngine
 
         ImGui.SameLine();
 
-        // The selected instance: gizmo mode, numeric transform fallback and the
-        // live per-group parameter overrides.
         if (ImGui.BeginChild("##selected", new Vector2(0, -1)))
         {
             if (_selected != null)
@@ -482,27 +518,19 @@ public class Game : GameEngine
                 ImGui.Text("Gizmo:");
                 ImGui.SameLine();
                 if (ImGui.RadioButton("Translate", _gizmoOperation == GizmoOperation.Translate))
-                {
                     _gizmoOperation = GizmoOperation.Translate;
-                }
                 ImGui.SameLine();
                 if (ImGui.RadioButton("Rotate", _gizmoOperation == GizmoOperation.Rotate))
-                {
                     _gizmoOperation = GizmoOperation.Rotate;
-                }
 
                 Transform3D transform = instance.Transform;
                 if (ImGui.EditTransform3D(ref transform))
-                {
                     instance.Transform = transform;
-                }
 
                 for (int i = 0; i < instance.GroupCount; i++)
                 {
                     if (ImGui.CollapsingHeader($"{instance.GetGroupName(i)}##group{i}", ImGuiTreeNodeFlags.DefaultOpen))
-                    {
                         DrawGroupEditor(instance, i);
-                    }
                 }
             }
             else
@@ -515,22 +543,14 @@ public class Game : GameEngine
         ImGui.End();
     }
 
-    /// <summary>
-    /// The selection gizmo: standard translate / rotate on the instance's 3D
-    /// transform. Drawn outside the panel window so the handles are not clipped
-    /// to it (the pattern of the 8-Collision / 21-Gizmo sandboxes);
-    /// the camera orbit yields to it (<see cref="UpdateCamera"/>).
-    /// </summary>
     private void DrawSelectionGizmo()
     {
         if (_selected == null)
-        {
             return;
-        }
         Transform3D transform = _selected.Instance.Transform;
         if (Gizmo.Manipulate(
-            _camera.Data.ViewMatrix,
-            _camera.Data.ProjectionMatrix,
+            _camera.ViewMatrix,
+            _camera.ProjectionMatrix,
             _gizmoOperation,
             GizmoMode.Local,
             ref transform))
@@ -539,19 +559,15 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Draws live editing controls for one emitter group of the selected instance.</summary>
     private static void DrawGroupEditor(ParticleEffectInstance3D instance, int groupIndex)
     {
         ImGui.PushID(groupIndex);
         EmitterParams3D parameters = instance.GetGroupParams(groupIndex);
         bool edited = false;
 
-        // CPU-side per-instance emission rate (future spawns).
         float rate = instance.GetGroupEmissionRate(groupIndex);
         if (ImGui.DragFloat("Emission Rate", ref rate, 1f, 0f, 5000f))
-        {
             instance.SetGroupEmissionRate(groupIndex, rate);
-        }
 
         Vector2 lifetime = new(parameters.Life.X, parameters.Life.Y);
         if (ImGui.DragFloat2("Lifetime", ref lifetime, 0.05f, 0.05f, 60f))
@@ -583,8 +599,6 @@ public class Game : GameEngine
         }
         parameters.Size = new Vector4(sizeMin, sizeMax, parameters.Size.Z, parameters.Size.W);
 
-        // Gravity as a scale of the authored value (keeps its direction); groups
-        // authored without gravity edit the vector directly.
         Vector3 assetGravity = instance.Asset.Groups[groupIndex].Gravity;
         Vector3 gravity = new(parameters.Motion.X, parameters.Motion.Y, parameters.Motion.Z);
         if (assetGravity.LengthSquared() > 1e-10f)
@@ -610,7 +624,6 @@ public class Game : GameEngine
             edited = true;
         }
 
-        // Velocity stretch (3D billboards; no alignment prerequisite).
         bool stretch = (parameters.Flags & EmitterParams3D.FlagVelocityStretch) != 0u;
         if (ImGui.Checkbox("Velocity Stretch", ref stretch))
         {
@@ -636,16 +649,18 @@ public class Game : GameEngine
         }
 
         if (edited)
-        {
             instance.SetGroupParams(groupIndex, parameters);
-        }
         ImGui.PopID();
     }
 
+    /// <inheritdoc />
     protected override void OnStop()
     {
+        GraphicsDevice.WaitIdle();
         _particles.Dispose();
-        _pipeline.Dispose();
+        _propsBuffer.Destroy();
+        _renderGraph.Destroy();
+        _renderContext.Destroy();
     }
 
     private static string? GetArgValue(string[] args, string prefix)
@@ -653,9 +668,7 @@ public class Game : GameEngine
         foreach (string arg in args)
         {
             if (arg.StartsWith(prefix, StringComparison.Ordinal))
-            {
                 return arg[prefix.Length..];
-            }
         }
         return null;
     }
@@ -673,41 +686,70 @@ public class Game : GameEngine
         return Quaternion.CreateFromRotationMatrix(m);
     }
 
-    /// <summary>The scene content node: static props (depth-written), then the particles.</summary>
-    private sealed class SceneNode : RGNode_SceneContent
+    private sealed class PropsRenderNode(Game game) : RenderGraphNode("PropsScene3D")
     {
-        private readonly Game _game;
+        private RGTexture _colorTarget;
+        public RGTexture DepthTarget { get; private set; }
 
-        public SceneNode(Game game, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
         {
-            _game = game;
-        }
-
-        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
-        {
-            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            _colorTarget = builder.Output;
+            DepthTarget = builder.CreateTexture(new RGTextureDesc
             {
-                foreach ((Transform3D transform, ColorFloat color) in _game._props)
+                Name = "SceneDepth",
+                Format = Format.D32Float,
+                Usage = TextureUsage.DepthStencilAttachment,
+            });
+            pass.Write(_colorTarget, RGUsage.ColorAttachmentWrite);
+            pass.Write(DepthTarget, RGUsage.DepthStencilWrite);
+        }
+
+        protected override void ExecutePass(in RenderGraphContext context)
+        {
+            RenderContext rc = context.RenderContext;
+            var desc = new RenderingDesc
+            {
+                Colors =
+                [
+                    new ColorAttachment
+                    {
+                        RenderView = context.GetRenderView(_colorTarget),
+                        Load = LoadOp.Clear,
+                        Store = StoreOp.Store,
+                        Clear = new Vector4(0.06f, 0.07f, 0.09f, 1f),
+                    },
+                ],
+                Depth = new DepthAttachment
                 {
-                    pass.DrawWithConstant(_game._cubeMesh, _game._sceneMaterial,
-                        new PropConstant { Matrix = transform.Matrix, Color = color });
-                }
-                _game._particles.Render(pass);
-            }
+                    RenderView = context.GetRenderView(DepthTarget),
+                    Load = LoadOp.Clear,
+                    Store = StoreOp.Store,
+                    Clear = 1.0f,
+                },
+            };
+            var sig = new RenderPassSignature([context.GetFormat(_colorTarget)], context.GetFormat(DepthTarget));
+            Extent2D vp = context.Viewport;
+
+            GPUAllocation<byte> alloc = rc.FrameData.Allocate((ulong)sizeof(PropsRootData));
+            var root = new PropsRootData
+            {
+                ViewProjection = game._camera.ViewProjectionMatrix,
+                Instances = game._propsBuffer.View,
+            };
+            MemoryMarshal.Write(alloc.CpuSpan, in root);
+
+            using RenderContext.RenderScope render = rc.BeginRenderPass(desc, sig);
+            render.SetViewport(new Viewport { Width = vp.X, Height = vp.Y });
+            render.SetScissor(new Scissor { Width = vp.X, Height = vp.Y });
+            render.Draw(
+                game._propsMaterial,
+                alloc.GPURange,
+                DepthStencilState.Write,
+                vertexCount: 36,
+                instanceCount: (uint)game._propCount);
         }
     }
 
-    /// <summary>The per-draw constant of the unlit scene props.</summary>
-    private struct PropConstant
-    {
-        public Matrix4x4 Matrix;
-        public ColorFloat Color;
-    }
-
-    /// <summary>
-    /// A live instance plus its stable list id — the instance list prunes and
-    /// reorders, the id keeps the panel labels unique and recognizable.
-    /// </summary>
     private sealed class InstanceEntry(ParticleEffectInstance3D instance, int id)
     {
         public readonly ParticleEffectInstance3D Instance = instance;

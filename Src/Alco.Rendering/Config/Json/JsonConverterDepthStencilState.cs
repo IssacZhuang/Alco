@@ -12,31 +12,24 @@ namespace Alco.Rendering;
 /// </summary>
 public class JsonConverterDepthStencilState : JsonConverter<DepthStencilState>
 {
-    private static readonly DepthStencilState PresetNone = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Never };
-    private static readonly DepthStencilState PresetWrite = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.LessEqual };
-    private static readonly DepthStencilState PresetRead = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.LessEqual };
-    private static readonly DepthStencilState PresetWriteReverseZ = new() { DepthTest = true, DepthWrite = true, DepthCompare = CompareOp.GreaterEqual };
-    private static readonly DepthStencilState PresetReadReverseZ = new() { DepthTest = true, DepthWrite = false, DepthCompare = CompareOp.GreaterEqual };
-    private static readonly DepthStencilState PresetDefault = new() { DepthTest = false, DepthWrite = false, DepthCompare = CompareOp.Always };
-
     private static readonly Dictionary<string, DepthStencilState> PresetMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        { "None", PresetNone },
-        { "Write", PresetWrite },
-        { "Read", PresetRead },
-        { "WriteReverseZ", PresetWriteReverseZ },
-        { "ReadReverseZ", PresetReadReverseZ },
-        { "Default", PresetDefault }
+        { "None", DepthStencilState.None },
+        { "Write", DepthStencilState.Write },
+        { "Read", DepthStencilState.Read },
+        { "WriteReverseZ", DepthStencilState.WriteReverseZ },
+        { "ReadReverseZ", DepthStencilState.ReadReverseZ },
+        { "Default", DepthStencilState.Default }
     };
 
     private static readonly Dictionary<DepthStencilState, string> ReverseMap = new()
     {
-        { PresetNone, "None" },
-        { PresetWrite, "Write" },
-        { PresetRead, "Read" },
-        { PresetWriteReverseZ, "WriteReverseZ" },
-        { PresetReadReverseZ, "ReadReverseZ" },
-        { PresetDefault, "Default" }
+        { DepthStencilState.None, "None" },
+        { DepthStencilState.Write, "Write" },
+        { DepthStencilState.Read, "Read" },
+        { DepthStencilState.WriteReverseZ, "WriteReverseZ" },
+        { DepthStencilState.ReadReverseZ, "ReadReverseZ" },
+        { DepthStencilState.Default, "Default" }
     };
 
     /// <summary>

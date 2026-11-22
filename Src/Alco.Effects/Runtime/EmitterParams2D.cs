@@ -5,7 +5,7 @@ namespace Alco.Effects;
 
 /// <summary>
 /// The per-emitter parameter record of a 2D particle group, written by the CPU every frame and read by the emit/simulate/render shaders.
-/// The layout must match the slang <c>EmitterParams2D</c> struct exactly, with the total size a multiple of 16.
+/// The layout must match the slang <c>EmitterParams2D</c> struct (368 bytes, row-major matrices).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct EmitterParams2D
@@ -33,11 +33,10 @@ public struct EmitterParams2D
 
     /// <summary>
     /// Packed control flags (world-space simulation, gradients, size curves, velocity stretch, reversed flipbook, depth base).
-    /// The values correspond to the <c>Flag*</c> constants below and to the PARTICLE_FLAG_* constants in AlcoParticles_Core2D.slang.
     /// </summary>
     public uint Flags;
 
-    /// <summary>The emitter's transform matrix (used at spawn in world space, at draw in local space).</summary>
+    /// <summary>The emitter's row-major transform matrix (used at spawn in world space, at draw in local space).</summary>
     public Matrix4x4 WorldMatrix;
 
     /// <summary>Emission shape: x = type (0 point, 1 circle, 2 box), y = radius, z = inner radius fraction.</summary>
@@ -67,9 +66,7 @@ public struct EmitterParams2D
     /// <summary>Motion: xy = planar gravity, z = drag, w = height acceleration.</summary>
     public Vector4 Motion;
 
-    /// <summary>
-    /// Height motion: x/y = initial height min/max, z/w = initial height velocity min/max.
-    /// </summary>
+    /// <summary>Height motion: x/y = initial height min/max, z/w = initial height velocity min/max.</summary>
     public Vector4 HeightMotion;
 
     /// <summary>Spawn color range lower bound.</summary>
@@ -87,40 +84,26 @@ public struct EmitterParams2D
     /// <summary>Flipbook: x = rows, y = cols, z = lifetime-relative cycle count, w = frames per anim (0 = whole sheet).</summary>
     public Vector4 Flipbook;
 
-    /// <summary>The quad mesh's index count (written into the indirect draw record).</summary>
-    public uint IndexCount;
+    /// <summary>Bindless sampled descriptor index of this emitter's sprite texture.</summary>
+    public uint SpriteTextureId;
 
-    /// <summary>
-    /// A custom per-instance float channel for vertex hooks (<c>ParticleVertexInput.customData</c>); the built-in passes never read it, so a project shader defines its meaning.
-    /// Set per instance through <see cref="ParticleEffectInstance2D.SetGroupParams"/>.
-    /// </summary>
+    /// <summary>A custom per-instance float channel surfaced as <c>ParticleVertexInput.customData</c>.</summary>
     public float CustomData;
 
-    /// <summary>
-    /// The emitter's height above its ground-plane transform. World-space groups
-    /// bake it into particles at spawn; local-space groups add it while rendering.
-    /// </summary>
+    /// <summary>The emitter's height above its ground-plane transform.</summary>
     public float EmitterHeight;
 
-    /// <summary>
-    /// The group's base world z for scene-depth arbitration (2D only); when <see cref="FlagDepthBase"/> is set, the render pass writes <c>world.z = DepthBase - height</c>.
-    /// Written per frame by the instance from <see cref="ParticleEffectInstance2D.DepthBase"/>.
-    /// </summary>
+    /// <summary>The group's base world z for scene-depth arbitration (2D only).</summary>
     public float DepthBase;
 
-    /// <summary>
-    /// The fixed spawn offset in emitter-local space: shifts every spawned
-    /// particle by this vector before the world transform, so it follows the
-    /// emitter's rotation in both simulation spaces. Offsets a directional
-    /// effect away from its anchor (e.g. a muzzle flash off the muzzle point).
-    /// </summary>
+    /// <summary>Fixed spawn offset in emitter-local space.</summary>
     public Vector2 PositionOffset;
 
-    /// <summary>
-    /// Trailing pad that keeps the struct size a multiple of 16 — the std430
-    /// buffer element stride on the slang side.
-    /// </summary>
-    public Vector2 Reserved3;
+    /// <summary>Bindless sampled descriptor index of this emitter's 256x1 color gradient texture.</summary>
+    public uint ColorGradientTextureId;
+
+    /// <summary>Bindless sampled descriptor index of this emitter's 256x1 size curve texture.</summary>
+    public uint SizeCurveTextureId;
 
     /// <summary>The world-space-simulation flag bit of <see cref="Flags"/>.</summary>
     public const uint FlagWorldSpace = 1u;
@@ -137,20 +120,12 @@ public struct EmitterParams2D
     /// <summary>The reversed-flipbook flag bit of <see cref="Flags"/>.</summary>
     public const uint FlagFlipbookReverse = 16u;
 
-    /// <summary>
-    /// The depth-base flag bit of <see cref="Flags"/> (2D only): the render pass
-    /// writes world z from <see cref="DepthBase"/> minus the particle's height.
-    /// Set from the group's authored <see cref="ParticleGroup.Depth"/> state —
-    /// a group that depth-tests the scene needs a meaningful world z.
-    /// </summary>
+    /// <summary>The depth-base flag bit of <see cref="Flags"/> (2D only).</summary>
     public const uint FlagDepthBase = 32u;
 
     /// <summary>
-    /// Merges an edited record into the live slot record: field values come from <paramref name="edited"/>, while slot-bound and per-frame fields keep their live values.
+    /// Merges an edited record into the live slot record, preserving slot-bound, per-frame, and bindless texture ID fields.
     /// </summary>
-    /// <param name="live">The current slot record.</param>
-    /// <param name="edited">The record carrying the edited static fields.</param>
-    /// <returns>The merged record to store back into the slot.</returns>
     internal static EmitterParams2D MergeEdited(in EmitterParams2D live, in EmitterParams2D edited)
     {
         EmitterParams2D merged = edited;
@@ -164,18 +139,19 @@ public struct EmitterParams2D
         merged.WorldMatrix = live.WorldMatrix;
         merged.EmitterHeight = live.EmitterHeight;
         merged.DepthBase = live.DepthBase;
-        merged.IndexCount = live.IndexCount;
+        merged.SpriteTextureId = live.SpriteTextureId;
+        merged.ColorGradientTextureId = live.ColorGradientTextureId;
+        merged.SizeCurveTextureId = live.SizeCurveTextureId;
         return merged;
     }
 
     /// <summary>
     /// Fills the static (asset-authored) fields of the record from a group asset;
-    /// the per-frame fields (control, timing, matrix) are written by the instance.
+    /// bindless descriptor IDs and per-frame fields are filled by the system and instance.
     /// </summary>
     /// <param name="group">The group asset.</param>
-    /// <param name="indexCount">The quad mesh's index count.</param>
     /// <returns>The filled record.</returns>
-    public static EmitterParams2D FromAsset(ParticleGroup2D group, uint indexCount)
+    public static EmitterParams2D FromAsset(ParticleGroup2D group)
     {
         ArgumentNullException.ThrowIfNull(group);
         EmitterParams2D parameters = default;
@@ -225,31 +201,18 @@ public struct EmitterParams2D
                 flipbook.Cycles,
                 Math.Clamp(flipbook.FramesPerAnim, 0, flipbook.Rows * flipbook.Cols))
             : new Vector4(1f, 1f, 0f, 0f);
-        parameters.IndexCount = indexCount;
         parameters.PositionOffset = group.PositionOffset;
         parameters.Flags = group.SimulationSpace == ParticleSimulationSpace.World ? FlagWorldSpace : 0u;
         if (group.ColorGradient is { Count: > 0 })
-        {
             parameters.Flags |= FlagColorGradient;
-        }
         if (group.SizeCurve is { Count: > 0 })
-        {
             parameters.Flags |= FlagSizeCurve;
-        }
         if (group.VelocityStretch && group.AlignRotationToVelocity)
-        {
             parameters.Flags |= FlagVelocityStretch;
-        }
         if (flipbook is { Reverse: true })
-        {
             parameters.Flags |= FlagFlipbookReverse;
-        }
         if (group.Depth is not null)
-        {
-            // A group that depth-tests the scene needs a meaningful world z: the
-            // render pass then writes DepthBase - height (see FlagDepthBase).
             parameters.Flags |= FlagDepthBase;
-        }
         return parameters;
     }
 }

@@ -1,23 +1,33 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using Alco.Graphics;
 using Alco.IO;
 using Alco.Rendering;
 
 namespace Alco.Effects;
 
 /// <summary>
-/// Loads particle effect asset files (<c>.afx</c>) directly into <see cref="ParticleEffect"/>s without a DTO layer.
-/// Texture and behavior-module references resolve and validate at load time, so bad references or unknown fields fail with the file's name.
+/// Loads particle effect asset files (<c>.afx</c>) directly into <see cref="ParticleEffect"/>s.
+/// Image, material, and optional behavior-module references validate at load time.
 /// </summary>
 public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
 {
     private readonly JsonSerializerOptions _options;
+    private readonly ShaderSystem? _shaderSystem;
 
-    /// <summary>Creates the loader with the serializer options of <see cref="CreateJsonOptions"/>.</summary>
-    public AssetLoaderParticleEffect(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
+    /// <summary>Creates the loader without eager shader-module validation.</summary>
+    public AssetLoaderParticleEffect(AssetSystem assetSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
+        : this(assetSystem, null, typeInfoResolver)
     {
-        _options = CreateJsonOptions(assetSystem, shaderSystem, typeInfoResolver);
+    }
+
+    /// <summary>Creates the loader with serializer options from <see cref="CreateJsonOptions"/> and optional behavior validation.</summary>
+    public AssetLoaderParticleEffect(AssetSystem assetSystem, ShaderSystem? shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
+    {
+        ArgumentNullException.ThrowIfNull(assetSystem);
+        _shaderSystem = shaderSystem;
+        _options = CreateJsonOptions(assetSystem, typeInfoResolver);
     }
 
     /// <inheritdoc />
@@ -26,24 +36,16 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
     /// <inheritdoc />
     public override IReadOnlyList<string> FileExtensions => [ParticleAssetPipeline.EffectExtension];
 
-    /// <summary>
-    /// Particle effect files are polymorphic: the concrete effect type is picked by
-    /// the file's <c>$type</c> discriminator, so any type assignable to
-    /// <see cref="ParticleEffect"/> is a valid load request.
-    /// </summary>
-    /// <param name="type">The type of the asset.</param>
-    /// <returns>True if the type is <see cref="ParticleEffect"/> or one of its family types.</returns>
-    public override bool CanHandleType(Type type)
-    {
-        return type.IsAssignableTo(typeof(ParticleEffect));
-    }
+    /// <inheritdoc />
+    public override bool CanHandleType(Type type) => type.IsAssignableTo(typeof(ParticleEffect));
 
     /// <summary>
-    /// The serializer options particle effect files parse with: camelCase, comments and trailing commas tolerated, strict about unmapped members, polymorphic over <see cref="ParticleEffect"/>.
-    /// Exposed for tests and tooling that parse effect files outside the asset system.
+    /// Creates the serializer options particle effect files parse with: camelCase, comments and trailing commas,
+    /// disallowed unmapped members, and polymorphic dispatch over <see cref="ParticleEffect"/>.
     /// </summary>
-    public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, ShaderSystem shaderSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
+    public static JsonSerializerOptions CreateJsonOptions(AssetSystem assetSystem, IJsonTypeInfoResolver? typeInfoResolver = null)
     {
+        ArgumentNullException.ThrowIfNull(assetSystem);
         var options = new JsonSerializerOptions(JsonSerializerDefaults.Web)
         {
             AllowTrailingCommas = true,
@@ -56,10 +58,8 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
         options.Converters.Add(new JsonConverterParticleVector2());
         options.Converters.Add(new JsonConverterParticleRange());
         options.Converters.Add(new JsonConverterParticleColor());
-        options.Converters.Add(new JsonConverterTexture2D(assetSystem));
+        options.Converters.Add(new JsonConverterImage(assetSystem));
         options.Converters.Add(new JsonConverterMaterialAsset(assetSystem));
-        options.Converters.Add(new JsonConverterShader(shaderSystem));
-        options.Converters.Add(new JsonConverterShaderLibrary(shaderSystem));
         options.Converters.Add(new JsonConverterBlendState());
         options.Converters.Add(new JsonConverterDepthStencilState());
         options.Converters.Add(new JsonStringEnumConverter());
@@ -73,7 +73,10 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
         ParticleEffect asset;
         try
         {
-            asset = JsonSerializer.Deserialize<ParticleEffect>(context.GetData(), _options)
+            ReadOnlySpan<byte> data = context.GetData();
+            if (data.StartsWith([(byte)0xEF, (byte)0xBB, (byte)0xBF]))
+                data = data[3..];
+            asset = JsonSerializer.Deserialize<ParticleEffect>(data, _options)
                 ?? throw new InvalidDataException("The file is empty.");
         }
         catch (Exception exception) when (exception is JsonException or InvalidDataException)
@@ -90,9 +93,39 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
                 $"Particle effect asset '{context.Filename}' is a {asset.GetType().Name} and cannot be loaded as {context.AssetType.Name}.");
         }
 
+        if (_shaderSystem != null)
+            ValidateBehaviors(asset, context.Filename, _shaderSystem);
+
         asset.Name = string.IsNullOrWhiteSpace(asset.Name)
             ? Path.GetFileNameWithoutExtension(context.Filename)
             : asset.Name.Trim();
         return asset;
+    }
+
+    private static void ValidateBehaviors(ParticleEffect effect, string filename, ShaderSystem shaders)
+    {
+        IEnumerable<ParticleGroup> groups = effect switch
+        {
+            ParticleEffect2D e2 => e2.Groups,
+            ParticleEffect3D e3 => e3.Groups,
+            _ => [],
+        };
+
+        foreach (ParticleGroup group in groups)
+        {
+            if (string.IsNullOrEmpty(group.Behavior))
+                continue;
+            try
+            {
+                AlcoEffectsShaders.EnsureBuiltInModulesLoaded(shaders);
+                shaders.Compiler.LoadModule(group.Behavior);
+            }
+            catch (Exception exception)
+            {
+                throw new InvalidDataException(
+                    $"Particle effect asset '{filename}' references unknown behavior module '{group.Behavior}': {exception.Message}",
+                    exception);
+            }
+        }
     }
 }

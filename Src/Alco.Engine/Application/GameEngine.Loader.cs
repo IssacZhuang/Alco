@@ -46,6 +46,9 @@ public partial class GameEngine
             yield return new AssetLoaderAudioNoLoad(AudioDevice);
         }
 
+        // material
+        yield return new AssetLoaderMaterialAsset(AssetSystem, Setting.TypeInfoResolver);
+
         //meta
         yield return new AssetLoaderMeta(jsonConvertersList, Setting.TypeInfoResolver);
     }
@@ -112,6 +115,7 @@ public partial class GameEngine
         yield return new JsonConverterColor32();
         yield return new JsonConverterColorFloat();
         yield return new JsonConverterImage(AssetSystem);
+        yield return new JsonConverterMaterialAsset(AssetSystem);
         yield return new JsonConverterFont(AssetSystem);
         yield return new JsonConverterShader(ShaderSystem);
         yield return new JsonConverterDepthStencilState();

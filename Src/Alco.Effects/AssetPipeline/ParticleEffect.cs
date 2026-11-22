@@ -45,6 +45,8 @@ public sealed class ParticleEffect2D : ParticleEffect
     {
         base.OnDeserialized();
         _groups.RemoveAll(group => group == null!);
+        foreach (ParticleGroup2D group in _groups)
+            group.Normalize();
     }
 }
 
@@ -65,6 +67,8 @@ public sealed class ParticleEffect3D : ParticleEffect
     {
         base.OnDeserialized();
         _groups.RemoveAll(group => group == null!);
+        foreach (ParticleGroup3D group in _groups)
+            group.Normalize();
     }
 }
 
@@ -161,12 +165,11 @@ public abstract class ParticleGroup
     public ParticleSimulationSpace SimulationSpace { get; set; } = ParticleSimulationSpace.World;
 
     /// <summary>
-    /// The slang shader library module defining this group's simulation behavior:
-    /// exactly one struct implementing <c>IParticleBehavior2D</c> (2D effects) or
-    /// <c>IParticleBehavior3D</c> (3D effects); null selects the built-in default
-    /// behavior.
+    /// The slang shader module name defining this group's simulation behavior:
+    /// exports one struct implementing <c>IParticleBehavior2D</c> (2D) or
+    /// <c>IParticleBehavior3D</c> (3D); null selects the built-in default behavior.
     /// </summary>
-    public ShaderLibrary? Behavior { get; set; }
+    public string? Behavior { get; set; }
 
     /// <summary>
     /// The material asset (<c>.amat</c>) defining the group's visuals: its surface
@@ -177,12 +180,21 @@ public abstract class ParticleGroup
     public MaterialAsset? Material { get; set; }
 
     /// <summary>
-    /// The particle texture: overrides the material's <c>texture</c> slot on the
-    /// group's own material instance (the .amat provides the shared resources, this
-    /// provides the per-group sprite — material-instance derivation). Null keeps the
-    /// material's own binding (or its fallback).
+    /// The per-group sprite image delivered bindlessly per emitter so groups with different
+    /// sprites batch into one draw call; null falls back to the material's <c>texture</c>
+    /// slot or white.
     /// </summary>
-    public Texture2D? Texture { get; set; }
+    public Image? Texture { get; set; }
+
+    /// <summary>Normalizes authored string fields after deserialization.</summary>
+    internal void Normalize()
+    {
+        if (Behavior != null)
+        {
+            string trimmed = Behavior.Trim().Replace('-', '_');
+            Behavior = trimmed.Length == 0 ? null : trimmed;
+        }
+    }
 
     /// <summary>
     /// The blend state preset name (<c>"AlphaBlend"</c>, <c>"Additive"</c>, …);

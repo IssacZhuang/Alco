@@ -1,3 +1,4 @@
+using System.Numerics;
 using System.Threading;
 using Alco.Graphics;
 using Alco.Rendering;
@@ -21,8 +22,10 @@ internal readonly struct ParticleSlice
 }
 
 /// <summary>
-/// The shared GPU buffers of one particle dimension (2D or 3D): the particle pool, per-emitter render lists, indirect draw arguments, instance data and the CPU-mirrored parameter array.
-/// Effect instances allocate slices and slots instead of owning buffers; buffers grow geometrically when exhausted, migrating live contents via <see cref="RecordMigration"/> and raising <see cref="Reallocated"/>.
+/// The shared GPU buffers of one particle dimension (2D or 3D): the particle pool,
+/// per-batch indirect draw arguments, compacted instance records, and the CPU-mirrored parameter array.
+/// Buffers grow geometrically when exhausted, migrating live contents via <see cref="RecordUploadsAndMigration"/>
+/// and retiring outgrown buffers once their last referencing GPU frame has completed.
 /// </summary>
 /// <typeparam name="TParticle">The particle record type (GPU layout twin).</typeparam>
 /// <typeparam name="TParams">The per-emitter parameter record type (GPU layout twin).</typeparam>
@@ -34,17 +37,14 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
 
     private readonly RenderingSystem _rendering;
     private readonly string _name;
-
-    /// <summary>
-    /// Serializes all bookkeeping mutations and parameter writes/uploads; the owning particle system passes its own gate so both share one reentrant lock.
-    /// </summary>
     private readonly Lock _gate;
+    private readonly TransientBufferPool _stagingPool;
 
-    private GraphicsBuffer _particles;
-    private GraphicsBuffer _renderList;
-    private GraphicsBuffer _drawArgs;
-    private GraphicsBuffer _instanceData;
-    private GraphicsArrayBuffer<TParams> _params;
+    private Alco.Graphics.Buffer _particles;
+    private Alco.Graphics.Buffer _drawArgs;
+    private Alco.Graphics.Buffer _instanceData;
+    private Alco.Graphics.Buffer _params;
+    private TParams[] _cpuParams;
 
     private int _particleCapacity;
     private uint _highWater;
@@ -53,72 +53,58 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     private int _slotCapacity;
     private readonly Stack<uint> _freeSlots = new();
 
-    private readonly List<(GraphicsBuffer Source, GraphicsBuffer Target, ulong Bytes)> _pendingCopies = [];
-    private readonly List<(GraphicsBuffer Buffer, int FramesLeft)> _retired = [];
+    private readonly List<(Alco.Graphics.Buffer Source, Alco.Graphics.Buffer Target, ulong Bytes)> _pendingCopies = [];
+    private readonly List<(Alco.Graphics.Buffer Buffer, ulong FrameId)> _retired = [];
     private readonly List<(uint Offset, uint Count)> _pendingKills = [];
 
-    /// <summary>
-    /// Creates the pool with its initial capacities.
-    /// </summary>
-    /// <param name="rendering">The rendering system.</param>
-    /// <param name="particleCapacity">The initial particle pool size in particles.</param>
-    /// <param name="emitterSlots">The initial emitter-slot count (one slot per emitter group instance).</param>
-    /// <param name="name">The diagnostic name prefix of the pool's buffers.</param>
-    /// <param name="gate">
-    /// The gate to serialize this pool's state with — pass the owning particle
-    /// system's gate so pool and system operations share one reentrant lock (growth
-    /// raises <see cref="Reallocated"/> with the gate held and the system handler
-    /// re-enters system state under it; a second lock could deadlock). Null creates
-    /// a private gate.
-    /// </param>
+    private int _dirtyMin = int.MaxValue;
+    private int _dirtyMax = -1;
+    private ulong _lastRecordedFrameId;
+
+    /// <summary>Creates the shared particle pool with initial capacities.</summary>
     public unsafe ParticleBufferPool(
-        RenderingSystem rendering, int particleCapacity = 65536, int emitterSlots = 256, string name = "particles",
+        RenderingSystem rendering,
+        int particleCapacity = 65536,
+        int emitterSlots = 256,
+        string name = "particles",
         Lock? gate = null)
     {
         ArgumentNullException.ThrowIfNull(rendering);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(particleCapacity, 0);
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(emitterSlots, 0);
+
         _rendering = rendering;
         _name = name;
         _gate = gate ?? new Lock();
+        _stagingPool = new TransientBufferPool(rendering, $"{name}_params_stage");
+
         _particleCapacity = particleCapacity;
-        _particles = rendering.CreateGraphicsBuffer((uint)(particleCapacity * sizeof(TParticle)), $"{name}_pool");
-        _renderList = rendering.CreateGraphicsBuffer((uint)(particleCapacity * sizeof(uint)), $"{name}_render_list");
-        // Per-draw instance records: the simulate pass writes them as storage, the
-        // render pass fetches them as the instance-step vertex buffer of batched
-        // indirect draws (see GpuParticleSystem2D.Render). One record per particle
-        // slot bounds the per-frame drawStart addressing.
-        _instanceData = rendering.CreateGraphicsBuffer(
-            (uint)(particleCapacity * sizeof(uint) * 2), BufferUsage.Storage | BufferUsage.Vertex, $"{name}_instance_data");
+        _particles = rendering.CreateBuffer((ulong)particleCapacity * (ulong)sizeof(TParticle));
+        _instanceData = rendering.CreateBuffer((ulong)particleCapacity * (ulong)sizeof(GpuInstanceData));
+
         _slotCapacity = emitterSlots;
-        _drawArgs = rendering.CreateGraphicsBuffer((uint)(emitterSlots * 20), $"{name}_draw_args");
-        _params = rendering.CreateGraphicsArrayBuffer<TParams>(emitterSlots, $"{name}_params");
+        _drawArgs = rendering.CreateBuffer((ulong)emitterSlots * (ulong)sizeof(GpuDrawArgs));
+        _params = rendering.CreateBuffer((ulong)emitterSlots * (ulong)sizeof(TParams));
+        _cpuParams = new TParams[emitterSlots];
+
         for (int i = emitterSlots - 1; i >= 0; i--)
-        {
             _freeSlots.Push((uint)i);
-        }
     }
 
-    /// <summary>The shared particle pool buffer (RWStructuredBuffer&lt;TParticle&gt;).</summary>
-    public GraphicsBuffer Particles => _particles;
+    /// <summary>The shared particle pool buffer (<c>ParticleData2D/3D</c>).</summary>
+    public Alco.Graphics.Buffer Particles => _particles;
 
-    /// <summary>The shared render-list buffer (per-slice compacted particle indices).</summary>
-    public GraphicsBuffer RenderList => _renderList;
+    /// <summary>The per-frame instance records (<see cref="GpuInstanceData"/>).</summary>
+    public Alco.Graphics.Buffer InstanceData => _instanceData;
 
-    /// <summary>
-    /// The per-draw instance records (see <see cref="GpuParticleSystem2D"/>): the
-    /// simulate pass writes one record per live particle at its draw's
-    /// firstInstance-based offset; the render pass binds the buffer as the
-    /// instance-step vertex buffer of the batched indirect draws.
-    /// </summary>
-    public GraphicsBuffer InstanceData => _instanceData;
+    /// <summary>The per-batch non-indexed indirect draw argument records (<see cref="GpuDrawArgs"/>).</summary>
+    public Alco.Graphics.Buffer DrawArgs => _drawArgs;
 
-    /// <summary>The per-frame draw-args buffer of the material-batched indirect
-    /// draws: one <see cref="IndexedIndirectData"/> record per visible group,
-    /// compacted per material in drawIndex order (the pool sizes it by the emitter
-    /// slot count, an upper bound of the per-frame draw count).</summary>
-    public GraphicsBuffer DrawArgs => _drawArgs;
+    /// <summary>The GPU buffer holding the uploaded <typeparamref name="TParams"/> array.</summary>
+    public Alco.Graphics.Buffer Params => _params;
 
-    /// <summary>The CPU-mirrored per-emitter parameter array.</summary>
-    public GraphicsArrayBuffer<TParams> Params => _params;
+    /// <summary>The CPU mirror span for reading/modifying per-slot parameters before upload.</summary>
+    public Span<TParams> ParamsSpan => _cpuParams;
 
     /// <summary>The current particle capacity of the pool.</summary>
     public int ParticleCapacity => _particleCapacity;
@@ -138,14 +124,22 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         }
     }
 
-    /// <summary>
-    /// Raised after any pool buffer was reallocated (growth): every material bound
-    /// to the pool must rebind its buffer slots. Raised with the pool's gate held;
-    /// handlers may re-enter pool and owning-system members (the gate is reentrant).
-    /// </summary>
+    /// <summary>Whether a buffer migration copy is queued for the next frame recording.</summary>
+    public bool HasPendingMigration
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _pendingCopies.Count > 0;
+            }
+        }
+    }
+
+    /// <summary>Raised under the pool gate whenever any pool buffer grows and swaps.</summary>
     public event Action? Reallocated;
 
-    /// <summary>The slices that must be killed (zeroed) by the next simulation, before any emit.</summary>
+    /// <summary>The slices queued to be zeroed by the next simulation before emit.</summary>
     public IReadOnlyList<(uint Offset, uint Count)> PendingKills
     {
         get
@@ -157,7 +151,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         }
     }
 
-    /// <summary>Drops the consumed pending-kill list.</summary>
+    /// <summary>Clears pending kills (diagnostics / test helper).</summary>
     public void ClearPendingKills()
     {
         lock (_gate)
@@ -166,10 +160,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         }
     }
 
-    /// <summary>
-    /// Atomically moves the pending kill ranges into the caller-owned sink under the gate, so a kill queued concurrently with the drain is never lost.
-    /// </summary>
-    /// <param name="kills">The reusable sink to drain into.</param>
+    /// <summary>Atomically drains pending kills into <paramref name="kills"/>.</summary>
     public void DrainPendingKills(List<(uint Offset, uint Count)> kills)
     {
         ArgumentNullException.ThrowIfNull(kills);
@@ -181,90 +172,65 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         }
     }
 
-    /// <summary>
-    /// Writes one emitter's parameter record into the CPU mirror (thread-safe;
-    /// see <see cref="UpdateParams"/> for the upload).
-    /// </summary>
-    /// <param name="slot">The emitter slot to write.</param>
-    /// <param name="value">The record to store.</param>
+    /// <summary>Writes one emitter's parameter record into the CPU mirror and marks it dirty for upload.</summary>
     public void SetParams(uint slot, in TParams value)
     {
         lock (_gate)
         {
-            _params[(int)slot] = value;
+            _cpuParams[slot] = value;
+            MarkDirtyUnlocked((int)slot, 1);
         }
     }
 
-    /// <summary>
-    /// Uploads a range of the CPU-mirrored parameter array to the GPU buffer
-    /// (thread-safe; serialized against concurrent writes and uploads, including
-    /// the frame simulation's dirty-range upload).
-    /// </summary>
-    /// <param name="start">The first slot of the range.</param>
-    /// <param name="count">The number of slots to upload.</param>
+    /// <summary>Marks a slot range as dirty so it will be staged and copied to GPU on the next upload.</summary>
     public void UpdateParams(uint start, uint count)
     {
+        if (count == 0)
+            return;
         lock (_gate)
         {
-            _params.UpdateBufferRanged(start, count);
+            MarkDirtyUnlocked((int)start, (int)count);
         }
     }
 
-    /// <summary>
-    /// Allocates a particle slice of at least <paramref name="capacity"/> particles.
-    /// Grows the pool when exhausted (see the class remarks). A freshly bump-allocated
-    /// slice starts zeroed by the backend; a recycled slice is killed by the pending
-    /// kill the freeing side queued.
-    /// </summary>
-    /// <param name="capacity">The minimum number of particles the slice must hold.</param>
-    /// <returns>The allocated slice.</returns>
+    private void MarkDirtyUnlocked(int start, int count)
+    {
+        _dirtyMin = Math.Min(_dirtyMin, start);
+        _dirtyMax = Math.Max(_dirtyMax, start + count);
+    }
+
+    /// <summary>Allocates a power-of-two particle slice of at least <paramref name="capacity"/> slots.</summary>
     public ParticleSlice AllocateSlice(int capacity)
     {
-        int rounded = Math.Max(1 << MinSliceShift, (int)System.Numerics.BitOperations.RoundUpToPowerOf2((uint)Math.Max(capacity, 1)));
+        int rounded = Math.Max(1 << MinSliceShift,
+            (int)BitOperations.RoundUpToPowerOf2((uint)Math.Max(capacity, 1)));
         lock (_gate)
         {
             if (_freeSlices.TryGetValue(rounded, out Stack<uint>? free) && free.Count > 0)
-            {
                 return new ParticleSlice(free.Pop(), (uint)rounded);
-            }
             if (_highWater + rounded > (uint)_particleCapacity)
-            {
                 GrowParticles(_highWater + (uint)rounded);
-            }
             ParticleSlice slice = new(_highWater, (uint)rounded);
             _highWater += (uint)rounded;
             return slice;
         }
     }
 
-    /// <summary>
-    /// Queues a slice's kill dispatch (the GPU zeroing happens at the next
-    /// simulation, before any new tenant's first emit) without freeing it — used
-    /// by effect restarts that keep their slice.
-    /// </summary>
-    /// <param name="slice">The slice to zero.</param>
+    /// <summary>Queues a slice zeroing pass before any new emissions.</summary>
     public void QueueKill(in ParticleSlice slice)
     {
         lock (_gate)
         {
             if (slice.Capacity > 0)
-            {
                 _pendingKills.Add((slice.Offset, slice.Capacity));
-            }
         }
     }
 
-    /// <summary>
-    /// Returns a slice to the pool and queues its kill dispatch (the GPU zeroing
-    /// happens at the next simulation, before any new tenant's first emit).
-    /// </summary>
-    /// <param name="slice">The slice to return.</param>
+    /// <summary>Returns a slice to the free list and queues its GPU zeroing pass.</summary>
     public void FreeSlice(in ParticleSlice slice)
     {
         if (slice.Capacity == 0)
-        {
             return;
-        }
         lock (_gate)
         {
             if (!_freeSlices.TryGetValue((int)slice.Capacity, out Stack<uint>? free))
@@ -277,21 +243,18 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         }
     }
 
-    /// <summary>Allocates an emitter slot (an index into the params and draw-args arrays).</summary>
+    /// <summary>Allocates an emitter slot (index into <see cref="Params"/>).</summary>
     public uint AllocateSlot()
     {
         lock (_gate)
         {
             if (_freeSlots.Count == 0)
-            {
                 GrowSlots(_slotCapacity * 2);
-            }
             return _freeSlots.Pop();
         }
     }
 
     /// <summary>Returns an emitter slot to the pool.</summary>
-    /// <param name="slot">The slot to return.</param>
     public void FreeSlot(uint slot)
     {
         lock (_gate)
@@ -301,85 +264,106 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     }
 
     /// <summary>
-    /// Records the pending growth copies into the frame's command buffer. Must run
-    /// before any particle dispatch or draw of the frame, outside any pass.
+    /// Reclaims completed retired buffers, records pending growth migration copies, and stages
+    /// dirty emitter parameters into the GPU buffer via <see cref="TransientBufferPool"/>.
+    /// Must be called inside an active <see cref="RenderContext"/> frame outside any scope.
     /// </summary>
-    /// <param name="commandBuffer">The frame's shared command buffer.</param>
-    public void RecordMigration(GPUCommandBuffer commandBuffer)
+    /// <returns>True when at least one <see cref="RenderContext.CopyMemory"/> command was recorded.</returns>
+    public unsafe bool RecordUploadsAndMigration(RenderContext context)
     {
-        ArgumentNullException.ThrowIfNull(commandBuffer);
+        ArgumentNullException.ThrowIfNull(context);
         lock (_gate)
         {
-            foreach ((GraphicsBuffer source, GraphicsBuffer target, ulong bytes) in _pendingCopies)
-            {
-                commandBuffer.CopyBuffer(source.NativeBuffer, target.NativeBuffer, 0, 0, bytes);
-                _retired.Add((source, 2));
-            }
-            _pendingCopies.Clear();
+            ulong frameId = context.CurrentFrameId;
+            _lastRecordedFrameId = frameId;
+
             for (int i = _retired.Count - 1; i >= 0; i--)
             {
-                (GraphicsBuffer buffer, int framesLeft) = _retired[i];
-                framesLeft--;
-                if (framesLeft <= 0)
+                (Alco.Graphics.Buffer buffer, ulong retiredFrame) = _retired[i];
+                if (context.IsFrameCompleted(retiredFrame))
                 {
-                    buffer.Dispose();
+                    buffer.Destroy();
                     _retired.RemoveAt(i);
                 }
-                else
-                {
-                    _retired[i] = (buffer, framesLeft);
-                }
             }
+
+            bool copied = false;
+            for (int i = 0; i < _pendingCopies.Count; i++)
+            {
+                if (i > 0)
+                {
+                    // Guard chained growth copies (A -> B -> C) recorded in the same frame.
+                    context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Transfer, Access.TransferRead);
+                }
+                (Alco.Graphics.Buffer source, Alco.Graphics.Buffer target, ulong bytes) = _pendingCopies[i];
+                context.CopyMemory(source.Range.Slice(0, bytes), target.Range.Slice(0, bytes));
+                _retired.Add((source, frameId));
+                copied = true;
+            }
+            _pendingCopies.Clear();
+
+            if (_dirtyMax > _dirtyMin)
+            {
+                int min = Math.Max(0, _dirtyMin);
+                int max = Math.Min(_slotCapacity, _dirtyMax);
+                int count = max - min;
+                if (count > 0)
+                {
+                    ulong elemSize = (ulong)sizeof(TParams);
+                    ulong byteOffset = (ulong)min * elemSize;
+                    ulong byteSize = (ulong)count * elemSize;
+                    Alco.Graphics.Buffer staging = _stagingPool.Acquire(context, byteSize);
+                    staging.SetData(_cpuParams.AsSpan(min, count));
+                    context.CopyMemory(staging.Range.Slice(0, byteSize), _params.Range.Slice(byteOffset, byteSize));
+                    copied = true;
+                }
+                _dirtyMin = int.MaxValue;
+                _dirtyMax = -1;
+            }
+
+            return copied;
         }
     }
 
-    /// <summary>
-    /// Whether a growth copy is pending (visible in diagnostics only).
-    /// </summary>
-    public bool HasPendingMigration => _pendingCopies.Count > 0;
-
     private unsafe void GrowParticles(uint required)
     {
-        int newCapacity = (int)Math.Max((uint)_particleCapacity * 2, System.Numerics.BitOperations.RoundUpToPowerOf2(required));
-        GraphicsBuffer newParticles = _rendering.CreateGraphicsBuffer((uint)(newCapacity * sizeof(TParticle)), $"{_name}_pool");
-        GraphicsBuffer newRenderList = _rendering.CreateGraphicsBuffer((uint)(newCapacity * sizeof(uint)), $"{_name}_render_list");
-        GraphicsBuffer newInstanceData = _rendering.CreateGraphicsBuffer(
-            (uint)(newCapacity * sizeof(uint) * 2), BufferUsage.Storage | BufferUsage.Vertex, $"{_name}_instance_data");
+        int newCapacity = (int)Math.Max((uint)_particleCapacity * 2, BitOperations.RoundUpToPowerOf2(required));
+        Alco.Graphics.Buffer newParticles = _rendering.CreateBuffer(
+            (ulong)newCapacity * (ulong)sizeof(TParticle));
+        Alco.Graphics.Buffer newInstanceData = _rendering.CreateBuffer(
+            (ulong)newCapacity * (ulong)sizeof(GpuInstanceData));
+
         ulong particleBytes = (ulong)_highWater * (ulong)sizeof(TParticle);
         if (particleBytes > 0)
-        {
             _pendingCopies.Add((_particles, newParticles, particleBytes));
-            _pendingCopies.Add((_renderList, newRenderList, (ulong)_highWater * sizeof(uint)));
-        }
         else
-        {
-            _retired.Add((_particles, 2));
-            _retired.Add((_renderList, 2));
-        }
-        // The instance records are per-frame transient (every drawn group rewrites
-        // its whole run each simulate pass), so growth swaps without a copy.
-        _retired.Add((_instanceData, 2));
+            _retired.Add((_particles, _lastRecordedFrameId));
+
+        _retired.Add((_instanceData, _lastRecordedFrameId));
         _particles = newParticles;
-        _renderList = newRenderList;
         _instanceData = newInstanceData;
         _particleCapacity = newCapacity;
         Reallocated?.Invoke();
     }
 
-    private void GrowSlots(int newCapacity)
+    private unsafe void GrowSlots(int newCapacity)
     {
-        GraphicsBuffer newDrawArgs = _rendering.CreateGraphicsBuffer((uint)(newCapacity * 20), $"{_name}_draw_args");
-        GraphicsArrayBuffer<TParams> newParams = _rendering.CreateGraphicsArrayBuffer<TParams>(newCapacity, $"{_name}_params");
-        _params.AsSpan().CopyTo(newParams.AsSpan());
-        newParams.UpdateBuffer();
-        _pendingCopies.Add((_drawArgs, newDrawArgs, (ulong)_slotCapacity * 20));
-        _retired.Add((_params, 2));
+        Alco.Graphics.Buffer newDrawArgs = _rendering.CreateBuffer(
+            (ulong)newCapacity * (ulong)sizeof(GpuDrawArgs));
+        Alco.Graphics.Buffer newParams = _rendering.CreateBuffer(
+            (ulong)newCapacity * (ulong)sizeof(TParams));
+
+        int oldCapacity = _slotCapacity;
+        Array.Resize(ref _cpuParams, newCapacity);
+        MarkDirtyUnlocked(0, oldCapacity);
+
+        _retired.Add((_drawArgs, _lastRecordedFrameId));
+        _retired.Add((_params, _lastRecordedFrameId));
         _drawArgs = newDrawArgs;
         _params = newParams;
-        for (int i = newCapacity - 1; i >= _slotCapacity; i--)
-        {
+
+        for (int i = newCapacity - 1; i >= oldCapacity; i--)
             _freeSlots.Push((uint)i);
-        }
         _slotCapacity = newCapacity;
         Reallocated?.Invoke();
     }
@@ -388,26 +372,21 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     protected override void Dispose(bool disposing)
     {
         if (!disposing)
-        {
             return;
-        }
-        _particles.Dispose();
-        _renderList.Dispose();
-        _drawArgs.Dispose();
-        _instanceData.Dispose();
-        _params.Dispose();
-        foreach ((GraphicsBuffer buffer, _) in _retired)
+
+        lock (_gate)
         {
-            buffer.Dispose();
+            _particles.Destroy();
+            _drawArgs.Destroy();
+            _instanceData.Destroy();
+            _params.Destroy();
+            for (int i = 0; i < _retired.Count; i++)
+                _retired[i].Buffer.Destroy();
+            _retired.Clear();
+            for (int i = 0; i < _pendingCopies.Count; i++)
+                _pendingCopies[i].Source.Destroy();
+            _pendingCopies.Clear();
+            _stagingPool.Dispose();
         }
-        _retired.Clear();
-        // Sources of growth copies that were never recorded (the pool died before
-        // the next RecordMigration) never moved to the retired list — dispose them
-        // here. The targets are the live fields above; disposal is idempotent.
-        foreach ((GraphicsBuffer source, _, _) in _pendingCopies)
-        {
-            source.Dispose();
-        }
-        _pendingCopies.Clear();
     }
 }

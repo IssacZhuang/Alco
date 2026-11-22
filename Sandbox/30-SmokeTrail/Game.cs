@@ -1,69 +1,169 @@
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Alco;
-using Alco.Engine;
 using Alco.Effects;
+using Alco.Engine;
 using Alco.Graphics;
 using Alco.ImGUI;
-using Alco.IO;
 using Alco.Rendering;
-using Alco.World3D;
-using SandboxUtils;
 
-/// <summary>Top-down twin-stick arena shooter demonstrating the deferred PBR pipeline and the 3D GPU trail renderer.</summary>
+/// <summary>Top-down twin-stick arena shooter demonstrating the forward 3D arena renderer and 3D GPU smoke trail ribbons.</summary>
 /// <remarks>Controls: WASD move, mouse aim, left mouse fires, ESC exits. Pass <c>--screenshot=&lt;path.png&gt; [--frames=N]</c> to run a scripted demo and capture a frame.</remarks>
-public class Game : GameEngine
+public unsafe class Game : GameEngine
 {
-    // ── Rendering ────────────────────────────────────────────────────────────
-    private readonly CameraPerspectiveBuffer _camera;
-    private readonly MaterialCompiler _materialCompiler;
-    private readonly PBRDeferredPreset _preset;
-    private readonly PBRSceneEnvironment _environment;
-    private readonly GBufferRenderer _gbufferRenderer;
-    private readonly ShadowRenderer _shadowRenderer;
-    private readonly GpuTrailSystem3D _trails;
-    private readonly TrailEffect3D _bulletTrailEffect;
-    private readonly TrailEffect3D _puffTrailEffect;
-    private readonly PrimitiveMesh _cubeMesh;
+    private const string ArenaBoxShaderSource = """
+        #language slang 2025
+        module SandboxArenaBoxes3D;
+        import Core;
+
+        public struct ArenaBoxInstance
+        {
+            public float4x4 worldMatrix;
+            public float4 baseColor;
+            public float4 emissiveChecker; // xyz = emissive, w > 0.5 enables ground checker
+        };
+
+        [GPURoot]
+        public struct ArenaRoot
+        {
+            public float4x4 viewProjection;
+            public float4 sunDirIntensity; // xyz = direction TO sun, w = sun scale
+            public float4 sunColor;
+            public float4 skyHorizon;
+            public float4 skyZenith;
+            public GPUBufferView instances;
+        };
+
+        public struct V2F
+        {
+            public float4 position : SV_POSITION;
+            public float3 worldPos : TEXCOORD0;
+            public float3 normal : TEXCOORD1;
+            public float4 baseColor : COLOR0;
+            public nointerpolation float4 emissiveChecker : TEXCOORD2;
+        };
+
+        static const float3 CubePositions[36] =
+        {
+            float3( 0.5, -0.5, -0.5), float3( 0.5,  0.5, -0.5), float3( 0.5,  0.5,  0.5),
+            float3( 0.5, -0.5, -0.5), float3( 0.5,  0.5,  0.5), float3( 0.5, -0.5,  0.5),
+            float3(-0.5,  0.5, -0.5), float3(-0.5, -0.5, -0.5), float3(-0.5, -0.5,  0.5),
+            float3(-0.5,  0.5, -0.5), float3(-0.5, -0.5,  0.5), float3(-0.5,  0.5,  0.5),
+            float3( 0.5,  0.5, -0.5), float3(-0.5,  0.5, -0.5), float3(-0.5,  0.5,  0.5),
+            float3( 0.5,  0.5, -0.5), float3(-0.5,  0.5,  0.5), float3( 0.5,  0.5,  0.5),
+            float3(-0.5, -0.5, -0.5), float3( 0.5, -0.5, -0.5), float3( 0.5, -0.5,  0.5),
+            float3(-0.5, -0.5, -0.5), float3( 0.5, -0.5,  0.5), float3(-0.5, -0.5,  0.5),
+            float3(-0.5, -0.5,  0.5), float3( 0.5, -0.5,  0.5), float3( 0.5,  0.5,  0.5),
+            float3(-0.5, -0.5,  0.5), float3( 0.5,  0.5,  0.5), float3(-0.5,  0.5,  0.5),
+            float3(-0.5,  0.5, -0.5), float3( 0.5,  0.5, -0.5), float3( 0.5, -0.5, -0.5),
+            float3(-0.5,  0.5, -0.5), float3( 0.5, -0.5, -0.5), float3(-0.5, -0.5, -0.5),
+        };
+
+        static const float3 CubeNormals[6] =
+        {
+            float3( 1,  0,  0),
+            float3(-1,  0,  0),
+            float3( 0,  1,  0),
+            float3( 0, -1,  0),
+            float3( 0,  0,  1),
+            float3( 0,  0, -1),
+        };
+
+        [shader("vertex")]
+        public V2F mainVS(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
+        {
+            ArenaRoot root = gpu_load_root<ArenaRoot>();
+            ArenaBoxInstance inst = gpu_load<ArenaBoxInstance>(root.instances, instanceId);
+
+            float3 localPos = CubePositions[vertexId];
+            float3 localNrm = CubeNormals[vertexId / 6u];
+
+            float4 worldPos = mul(float4(localPos, 1.0), inst.worldMatrix);
+            float3 worldNrm = mul(float4(localNrm, 0.0), inst.worldMatrix).xyz;
+
+            V2F o;
+            o.position = mul(worldPos, root.viewProjection);
+            o.worldPos = worldPos.xyz;
+            o.normal = worldNrm;
+            o.baseColor = inst.baseColor;
+            o.emissiveChecker = inst.emissiveChecker;
+            return o;
+        }
+
+        [shader("pixel")]
+        public float4 mainFS(V2F input) : SV_TARGET
+        {
+            ArenaRoot root = gpu_load_root<ArenaRoot>();
+            float3 n = normalize(input.normal);
+            float3 albedo = input.baseColor.rgb;
+            if (input.emissiveChecker.w > 0.5)
+            {
+                int cx = int(floor(input.worldPos.x * 0.5));
+                int cy = int(floor(input.worldPos.y * 0.5));
+                float checker = ((cx + cy) & 1) == 0 ? 1.05 : 0.85;
+                albedo *= checker;
+            }
+
+            float ndl = max(dot(n, root.sunDirIntensity.xyz), 0.0);
+            float skyT = clamp(n.z * 0.5 + 0.5, 0.0, 1.0);
+            float3 ambient = lerp(root.skyHorizon.rgb, root.skyZenith.rgb, skyT) * 0.45;
+            float3 hdr = albedo * (ambient + root.sunColor.rgb * (ndl * root.sunDirIntensity.w))
+                       + input.emissiveChecker.xyz;
+
+            // Filmic tone curve + sRGB gamma for swapchain presentation.
+            float3 mapped = hdr / (hdr + float3(1.0, 1.0, 1.0));
+            return float4(pow(max(mapped, float3(0.0)), float3(1.0 / 2.2)), 1.0);
+        }
+        """;
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ArenaBoxInstanceData
+    {
+        public Matrix4x4 WorldMatrix;
+        public Vector4 BaseColor;
+        public Vector4 EmissiveChecker;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ArenaRootData
+    {
+        public Matrix4x4 ViewProjection;
+        public Vector4 SunDirIntensity;
+        public Vector4 SunColor;
+        public Vector4 SkyHorizon;
+        public Vector4 SkyZenith;
+        public GPUBufferView Instances;
+    }
+
+    private sealed class SceneBox
+    {
+        public Transform3D Transform = Transform3D.Identity;
+        public Vector3 BaseColor;
+        public Vector3 Emissive;
+        public bool IsCheckerGround;
+    }
 
     private const float CameraNear = 0.1f;
     private const float CameraFov = 0.78f;
-    // The camera hovers north-above the ship looking south-down: screen-right is
-    // world +X and screen-up is world -Y, and the tilt shows the lit south faces
-    // and the long golden-hour shadows of the props.
     private static readonly Vector3 CameraOffset = new(0f, 12.5f, 19f);
 
-    // ── Scene objects (the adapter the deferred renderers batch and draw) ─────
-    private sealed class SceneObject : IGBufferRenderable, IShadowRenderable
-    {
-        public required PrimitiveMesh Mesh;
-        public Transform3D Transform = Transform3D.Identity;
-        public Vector3 BaseColor;
-        public float Metallic;
-        public float Roughness;
-        public Vector3 Emissive;
-        public bool CastsShadow = true;
-        public bool Static;
+    private readonly RenderGraph _renderGraph;
+    private readonly RenderContext _renderContext;
+    private readonly ArenaSceneNode _arenaNode;
+    private CameraDataPerspective _camera;
+    private readonly Material _arenaMaterial;
+    private readonly Alco.Graphics.Buffer[] _boxBuffers;
+    private readonly ArenaBoxInstanceData[] _boxStaging;
+    private const int MaxArenaBoxes = 512;
+    private int _frameParity;
 
-        public PbrMaterialAsset Material { get; set; } = PbrMaterialAsset.Default;
-        public bool IsStatic => Static;
-        Mesh IGBufferRenderable.Mesh => Mesh;
-        Matrix4x4 IGBufferRenderable.WorldMatrix => Transform.Matrix;
-        Vector4 IGBufferRenderable.BaseColor => new(BaseColor, 1f);
-        Vector4 IGBufferRenderable.MetallicRoughnessAO => new(Metallic, Roughness, 1f, 1f);
-        Vector3 IGBufferRenderable.EmissiveFactor => Emissive;
-        float IGBufferRenderable.AlphaCutoff => 0f;
+    private readonly GpuTrailSystem3D _trails;
+    private readonly TrailEffect3D _bulletTrailEffect;
+    private readonly TrailEffect3D _puffTrailEffect;
 
-        bool IShadowRenderable.IsStatic => Static;
-        bool IShadowRenderable.CastsShadow => CastsShadow;
-        Mesh IShadowRenderable.Mesh => Mesh;
-        Matrix4x4 IShadowRenderable.WorldMatrix => Transform.Matrix;
-        float IShadowRenderable.AlphaCutoff => 0f;
-        float IShadowRenderable.BaseColorAlpha => 1f;
-        Vector4 IShadowRenderable.RsmBaseColor => new(BaseColor, 1f);
-    }
+    private readonly List<SceneBox> _sceneBoxes = [];
 
-    // ── World: static props double as the movement/bullet collision set ──────
     private readonly record struct Box(Vector3 Min, Vector3 Max)
     {
         public Vector3 Center => (Min + Max) * 0.5f;
@@ -76,9 +176,8 @@ public class Game : GameEngine
     private const float ArenaHalf = 21f;
     private const float BoundsHalf = 20.2f;
 
-    // ── Player ────────────────────────────────────────────────────────────────
-    private readonly SceneObject _playerBody;
-    private readonly SceneObject _playerVisor;
+    private readonly SceneBox _playerBody;
+    private readonly SceneBox _playerVisor;
     private Vector3 _playerPosition = new(0f, 0f, PlayerZ);
     private float _playerYaw;
     private float _playerHp = MaxHp;
@@ -91,13 +190,12 @@ public class Game : GameEngine
     private const float MoveSpeed = 9.5f;
     private const float MaxHp = 100f;
 
-    // ── Bullets ──────────────────────────────────────────────────────────────
     private sealed class Bullet
     {
         public required Vector3 Position;
         public Vector3 PreviousPosition;
         public required Vector3 Direction;
-        public required SceneObject Body;
+        public required SceneBox Body;
         public TrailEffectInstance3D? Trail;
         public float Age;
     }
@@ -110,12 +208,11 @@ public class Game : GameEngine
     private const float BulletSpeed = 48f;
     private const float BulletMaxAge = 1.4f;
 
-    // ── Enemies (drones) ─────────────────────────────────────────────────────
     private sealed class Enemy
     {
         public required Vector3 Position;
         public Vector3 PreviousPosition;
-        public required SceneObject Body;
+        public required SceneBox Body;
         public float Speed;
         public float Phase;
     }
@@ -131,7 +228,6 @@ public class Game : GameEngine
     private const float EnemyRadius = 0.6f;
     private const float ContactDamage = 15f;
 
-    // ── Death effects: pooled explosion lights and smoke puffs ───────────────
     private sealed class Puff
     {
         public required TrailEffectInstance3D Trail;
@@ -140,24 +236,15 @@ public class Game : GameEngine
     }
 
     private readonly List<Puff> _puffs = [];
-    private readonly List<(Vector3 Position, float Timer)> _explosions = [];
-    private readonly PBRSceneEnvironment.PointLight[] _pointLights =
-        new PBRSceneEnvironment.PointLight[16];
     private FastRandom _random = new(987654);
     private float _time;
 
-    // ── Screenshot mode (see the class remarks) ──────────────────────────────
     private readonly string? _screenshotPath;
     private readonly int _screenshotFrames;
     private SwapchainCaptureSystem? _swapchainCapture;
     private Task<RenderCaptureResult>? _screenshotRequest;
     private bool _screenshotSaved;
 
-    // ── Fixed-tick bookkeeping ───────────────────────────────────────────────
-    // The simulation runs on the engine's fixed 60 Hz tick (OnTick); OnUpdate
-    // runs per rendered frame (uncapped). RenderAlpha is the fraction of the
-    // current tick interval elapsed — tick-simulated bodies interpolate their
-    // render transforms between the previous and current tick positions.
     private int _tickCount;
     private long _lastTickTimestamp;
 
@@ -171,8 +258,6 @@ public class Game : GameEngine
     }
 
     /// <summary>Initializes the arena, rendering resources, and optional screenshot mode.</summary>
-    /// <param name="setting">Engine settings for the game instance.</param>
-    /// <param name="args">Command-line arguments, including optional screenshot options.</param>
     public Game(GameEngineSetting setting, string[] args) : base(setting)
     {
         _screenshotPath = GetArgValue(args, "--screenshot=");
@@ -180,81 +265,49 @@ public class Game : GameEngine
         if (_screenshotPath != null)
         {
             _swapchainCapture = SwapchainCapture;
-            // The demo aims itself; keep the cursor out of the capture.
             Input.IsCursorVisible = false;
         }
 
         AddSystem(new ImGUISystem(this));
 
-        // Reversed infinite-far depth: the deferred G-buffer clears depth to 0
-        // and tests GreaterEqual.
-        _camera = RenderingSystem.CreateCameraPerspective(CameraFov, 16f / 9, CameraNear, 4096f);
-        _camera.ReverseInfiniteDepth = true;
-
-        _materialCompiler = World3DAssetPipeline.CreateMaterialCompiler(RenderingSystem);
-
-        _preset = RenderPipelines.CreatePBRDeferred(
-            RenderingSystem,
-            RenderingSystem.ShaderSystem.GetShader("DeferredLighting"),
-            RenderingSystem.ShaderSystem.GetLibrary("AlcoWorld3D_PBRCommon"),
-            BuiltInAssets.Shader_Blit,
-            shadowMapSize: 2048,
-            width: (uint)MainView.Size.X,
-            height: (uint)MainView.Size.Y);
-        _environment = _preset.Environment;
-        _environment.Camera = _camera;
-
-        _gbufferRenderer = new GBufferRenderer(
-            RenderingSystem, _materialCompiler, RenderingSystem.ShaderSystem.GetLibrary("GBuffer"));
-        _gbufferRenderer.SetCamera(_camera);
-        _shadowRenderer = new ShadowRenderer(
-            RenderingSystem,
-            _materialCompiler,
-            RenderingSystem.ShaderSystem.GetLibrary("ShadowDepth"),
-            RenderingSystem.ShaderSystem.GetLibrary("Rsm"),
-            _preset.ShadowLayout,
-            _environment.ShadowDataBuffer);
-        _preset.GBufferPass.Content.Add(_gbufferRenderer);
-        _preset.ShadowPass.Content.Add(_shadowRenderer);
-
-        // HBAO+ for contact grounding; the factory asset supplies the shader
-        // bindings and Attach wires the node and the lighting AO input.
-        var nodeServices = new RenderNodeFactoryServices()
-            .Add(_preset.PostChain)
-            .Add(_preset.PostProcessLayout)
-            .Add(_materialCompiler)
-            .Add(_camera)
-            .Add(_environment);
-        var nodeFactoryContext = new RenderNodeFactoryContext(RenderingSystem, _preset.Graph, nodeServices);
-        var hbaoFactory = AssetSystem.Load<RenderNodeFactory>("RenderNodes/HBAO.rnfact") as RGNodeFactory_HBAO
-            ?? throw new InvalidDataException("RenderNodes/HBAO.rnfact is not an RGNodeFactory_HBAO.");
-        hbaoFactory.CreateNode<RGNode_HBAO>(nodeFactoryContext)
-            .Attach(_preset.Graph, _preset.Lighting, _preset.GBufferResource, _environment);
-
-        // The 3D trail system: one shared point buffer for bullet ribbons and
-        // death puffs. Ribbons face CameraPosition, updated per frame.
-        _trails = new GpuTrailSystem3D(RenderingSystem, pointCapacity: 1 << 17, trailSlots: 256)
+        _camera = new CameraDataPerspective
         {
-            Camera = _camera,
+            Fov = CameraFov,
+            AspectRatio = MainView.Size.Y > 0 ? (float)MainView.Size.X / MainView.Size.Y : 16f / 9f,
+            Near = CameraNear,
+            Far = 4096f,
+            ReverseInfiniteDepth = true,
+        };
+
+        Shader arenaShader = ShaderSystem.GetShaderFromSource(
+            "SandboxArenaBoxes3D", "SandboxArenaBoxes3D.slang", ArenaBoxShaderSource, ShaderKind.Graphics);
+        _arenaMaterial = arenaShader.CreateMaterial("ArenaBoxes");
+        _arenaMaterial.Blend = BlendState.Opaque;
+        _arenaMaterial.Rasterization = RasterizationState.CullNone;
+
+        ulong bufBytes = (ulong)(MaxArenaBoxes * sizeof(ArenaBoxInstanceData));
+        _boxBuffers = [RenderingSystem.CreateBuffer(bufBytes), RenderingSystem.CreateBuffer(bufBytes)];
+        _boxStaging = new ArenaBoxInstanceData[MaxArenaBoxes];
+
+        _trails = new GpuTrailSystem3D(RenderingSystem, ShaderSystem, pointCapacity: 1 << 17, trailSlots: 256)
+        {
+            DepthStencilState = DepthStencilState.ReadReverseZ,
         };
         _bulletTrailEffect = new TrailEffect3D
         {
             Life = 1.8f,
             Spacing = 0.35f,
-            // Constant base width with the shared smoke surface's turbulence
-            // and age erosion.
             Width0 = 0.18f,
             Width1 = 0.18f,
             Opacity = 1f,
             FadeIn = 0.04f,
             FadeOut = 0.55f,
             ExpectedPoints = 512,
-            // The deferred scene color shares the G-buffer depth (reverse-Z).
             Depth = DepthStencilState.ReadReverseZ,
             Material = new MaterialAsset
             {
                 Name = "bullet-smoke",
-                Surface = RenderingSystem.ShaderSystem.GetLibrary("TrailSurfaceSmoke"),
+                Surface = "TrailSurfaceSmoke",
                 Parameters = new Dictionary<string, ShaderValue>
                 {
                     ["smokeColor"] = new Vector4(0.45f, 0.48f, 0.55f, 0.65f),
@@ -264,8 +317,6 @@ public class Game : GameEngine
                 },
             },
         };
-        // The drone death puff: a stationary emitter whose overlapping points
-        // rise and erode into a single warm blast cloud.
         _puffTrailEffect = new TrailEffect3D
         {
             Life = 1.1f,
@@ -280,7 +331,7 @@ public class Game : GameEngine
             Material = new MaterialAsset
             {
                 Name = "blast-smoke",
-                Surface = RenderingSystem.ShaderSystem.GetLibrary("TrailSurfaceSmoke"),
+                Surface = "TrailSurfaceSmoke",
                 Parameters = new Dictionary<string, ShaderValue>
                 {
                     ["smokeColor"] = new Vector4(0.4f, 0.3f, 0.22f, 0.7f),
@@ -292,149 +343,41 @@ public class Game : GameEngine
             },
         };
 
-        // Node order after deferred lighting: trails (alpha-blended into the HDR
-        // scene color, depth-tested against the G-buffer) → bloom → ACES → FXAA.
-        _preset.Pipeline.Use(new TrailNode(_trails, _preset.Graph, _preset.PostChain));
-        _preset.Pipeline.Use(new RGNode_Bloom(
-            RenderingSystem,
-            _preset.Graph,
-            _preset.PostChain,
-            _preset.PostProcessLayout,
-            new RGNode_Bloom.Descriptor
-            {
-                BlitShader = BuiltInAssets.Shader_BloomBlit,
-                SetupShader = BuiltInAssets.Shader_BloomSetup,
-                DownsampleShader = BuiltInAssets.Shader_BloomDownsample,
-                GaussianShader = BuiltInAssets.Shader_BloomGaussian,
-                SceneCopyShader = BuiltInAssets.Shader_Blit,
-                Threshold = 0.7f,
-                Intensity = 0.9f,
-            }));
-        var tonemapNode = new RGNode_Tonemap(
-            RenderingSystem,
-            _preset.Graph,
-            _preset.PostChain,
-            _preset.PostProcessLayout,
-            new RGNode_Tonemap.Descriptor
-            {
-                BlitShader = BuiltInAssets.Shader_Blit,
-                ReinhardShader = BuiltInAssets.Shader_ReinhardLuminanceTonemap,
-                Uncharted2Shader = BuiltInAssets.Shader_Uncharted2Tonemap,
-                FilmicShader = BuiltInAssets.Shader_FilmicTonemap,
-                AcesShader = BuiltInAssets.Shader_AcesTonemap,
-                NeutralShader = BuiltInAssets.Shader_NeutralTonemap,
-                AgxShader = BuiltInAssets.Shader_AgxTonemap,
-            });
-        tonemapNode.Operator = TonemapType.ACES;
-        ACESTonemapData acesData = tonemapNode.ACESData;
-        acesData.Exposure = 0.95f;
-        acesData.Gamma = 2.2f;
-        tonemapNode.ACESData = acesData;
-        _preset.Pipeline.Use(tonemapNode);
-        _preset.Pipeline.Use(new RGNode_FXAA(
-            RenderingSystem,
-            _preset.Graph,
-            _preset.PostChain,
-            _preset.PostProcessLayout,
-            new RGNode_FXAA.Descriptor
-            {
-                SceneCopyShader = BuiltInAssets.Shader_Blit,
-                FxaaShader = BuiltInAssets.Shader_FXAA,
-            }));
+        _arenaNode = new ArenaSceneNode(this);
+        _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "smoke_trail_arena");
+        _renderGraph.Use(_arenaNode);
+        _renderGraph.Use(new TrailRenderNode3D(
+            _trails,
+            () => _camera,
+            colorLoadOp: LoadOp.Load,
+            depthHandleProvider: () => _arenaNode.DepthTarget));
+        _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);
 
-        MainPresenter.OnResize += size =>
-        {
-            _camera.AspectRatio = (float)size.X / size.Y;
-            _preset.Pipeline.Resize(size.X, size.Y);
-        };
-
-        SetupGoldenHourLighting();
-        _cubeMesh = CreateCubeMesh();
         BuildWorld();
 
-        // The player ship: a metallic blue hull with an emissive cyan visor at
-        // the nose; both yaw toward the mouse aim every frame.
-        _playerBody = new SceneObject
+        _playerBody = new SceneBox
         {
-            Mesh = _cubeMesh,
-            Static = false,
             BaseColor = new Vector3(0.3f, 0.55f, 0.85f),
-            Metallic = 0.85f,
-            Roughness = 0.3f,
             Transform = new Transform3D(_playerPosition, Quaternion.Identity, new Vector3(1.15f, 0.72f, 0.38f)),
         };
-        _playerVisor = new SceneObject
+        _playerVisor = new SceneBox
         {
-            Mesh = _cubeMesh,
-            Static = false,
-            CastsShadow = false,
             BaseColor = new Vector3(0.05f, 0.1f, 0.12f),
-            Metallic = 0.2f,
-            Roughness = 0.2f,
-            Emissive = new Vector3(0.5f, 4.5f, 5.5f),
+            Emissive = new Vector3(0.5f, 3.2f, 4.0f),
         };
-        _gbufferRenderer.Add(_playerBody);
-        _shadowRenderer.Add(_playerBody);
-        _gbufferRenderer.Add(_playerVisor);
+        _sceneBoxes.Add(_playerBody);
+        _sceneBoxes.Add(_playerVisor);
     }
 
-    /// <summary>
-    /// Fixes the time of day at golden hour: a warm low sun (long soft shadows),
-    /// its color and intensity derived from the atmosphere transmittance, and the
-    /// matching sky radiance gradient as ambient.
-    /// </summary>
-    private void SetupGoldenHourLighting()
-    {
-        Vector3 directionToSun = ProceduralSkyUtility.GetDirectionToSun(17.1f, 48f, -0.9f);
-        Vector3 sunTint = ProceduralSkyUtility.GetSunColor(directionToSun);
-        // Artistic warm tint so the evening light reads golden, not neutral.
-        sunTint = Vector3.Lerp(sunTint, sunTint * new Vector3(1.0f, 0.72f, 0.45f), 0.6f);
-        float sunScale = ProceduralSkyUtility.GetSunLightScale(directionToSun);
-        ProceduralSkyUtility.GetSkyRadianceGradient(
-            directionToSun, 1.0f, 0.35f, 0.6f, 0.03f, 20f,
-            out Vector3 skyHorizonColor, out Vector3 skyZenithColor);
-
-        _environment.SunDirection = -directionToSun;
-        _environment.SunColor = sunTint;
-        _environment.SunIntensity = 9f * sunScale;
-        _environment.SkyHorizonColor = skyHorizonColor;
-        _environment.SkyZenithColor = skyZenithColor;
-        _environment.SkyParams = new Vector4(1.0f, 0.35f, 0.88f, 0.6f);
-        _environment.SkyParams2 = new Vector4(0.7f, 0.03f, 20f, 0.14f);
-
-        // Arena-scale shadows: a short distance keeps the cascades sharp.
-        _environment.ShadowDistance = 75f;
-        _environment.ShadowCasterExtension = 75f;
-        _environment.ShadowSplitLambda = 0.65f;
-    }
-
-    /// <summary>
-    /// The arena: a checkered concrete floor, perimeter walls with glowing top
-    /// strips, scattered cover crates and four corner pylons carrying cyan lamps
-    /// (emissive cubes + static point lights) that contrast the warm sun.
-    /// </summary>
     private void BuildWorld()
     {
-        // The floor (top at z = 0; it only receives shadows).
-        Texture2D checker = CreateCheckerTexture(256);
-        var groundAsset = new PbrMaterialAsset
+        _sceneBoxes.Add(new SceneBox
         {
-            Name = "ground",
-            Textures = new Dictionary<string, Texture2D> { ["albedoTexture"] = checker },
-        };
-        var ground = new SceneObject
-        {
-            Mesh = CreateGroundMesh(120f, 8, 8f),
-            Static = true,
-            CastsShadow = false,
-            BaseColor = new Vector3(0.16f, 0.17f, 0.2f),
-            Metallic = 0.05f,
-            Roughness = 0.92f,
-            Material = groundAsset,
-        };
-        _gbufferRenderer.Add(ground);
+            BaseColor = new Vector3(0.16f, 0.17f, 0.20f),
+            Transform = new Transform3D(new Vector3(0f, 0f, -0.5f), Quaternion.Identity, new Vector3(120f, 120f, 1f)),
+            IsCheckerGround = true,
+        });
 
-        // Perimeter walls (collision boxes included) and their emissive top trim.
         (Vector3 Center, Vector3 Size)[] walls =
         [
             (new Vector3(ArenaHalf + 0.5f, 0, 1.2f), new Vector3(1, 44.5f, 2.4f)),
@@ -443,9 +386,8 @@ public class Game : GameEngine
             (new Vector3(0, -ArenaHalf - 0.5f, 1.2f), new Vector3(44.5f, 1, 2.4f)),
         ];
         foreach ((Vector3 center, Vector3 size) in walls)
-        {
-            AddStaticBox(center, size, new Vector3(0.26f, 0.27f, 0.3f), 0.65f, 0.5f, collides: true);
-        }
+            AddStaticBox(center, size, new Vector3(0.26f, 0.27f, 0.30f), collides: true);
+
         (Vector3 Center, Vector3 Size)[] trims =
         [
             (new Vector3(ArenaHalf, 0, 2.46f), new Vector3(0.2f, 43f, 0.12f)),
@@ -454,12 +396,8 @@ public class Game : GameEngine
             (new Vector3(0, -ArenaHalf, 2.46f), new Vector3(43f, 0.2f, 0.12f)),
         ];
         foreach ((Vector3 center, Vector3 size) in trims)
-        {
-            AddStaticBox(center, size, new Vector3(0.3f, 0.15f, 0.05f), 0f, 0.4f,
-                collides: false, castsShadow: false, emissive: new Vector3(3.0f, 1.4f, 0.45f));
-        }
+            AddStaticBox(center, size, new Vector3(0.3f, 0.15f, 0.05f), collides: false, emissive: new Vector3(1.8f, 0.85f, 0.28f));
 
-        // Cover crates: wood, steel and olive boxes of varying sizes.
         (Vector3 Center, Vector3 Size, int Kind)[] crates =
         [
             (new Vector3(-8, -4, 0.9f), new Vector3(2.5f, 2.5f, 1.8f), 0),
@@ -476,48 +414,29 @@ public class Game : GameEngine
             (new Vector3(17, -12, 0.9f), new Vector3(1.8f, 1.8f, 1.8f), 0),
         ];
         Vector3[] kindColors = [new(0.4f, 0.26f, 0.14f), new(0.3f, 0.34f, 0.42f), new(0.32f, 0.36f, 0.22f)];
-        float[] kindMetallic = [0f, 0.9f, 0.15f];
-        float[] kindRoughness = [0.8f, 0.35f, 0.7f];
         foreach ((Vector3 center, Vector3 size, int kind) in crates)
-        {
-            AddStaticBox(center, size, kindColors[kind], kindMetallic[kind], kindRoughness[kind], collides: true);
-        }
+            AddStaticBox(center, size, kindColors[kind], collides: true);
 
-        // Corner pylons: a dark metal mast, an emissive cyan lamp head and a
-        // matching static point light (the cool fill against the warm sun).
         Vector2[] corners = [new(17, 17), new(-17, 17), new(17, -17), new(-17, -17)];
         for (int i = 0; i < corners.Length; i++)
         {
             Vector2 c = corners[i];
-            AddStaticBox(new Vector3(c, 1.7f), new Vector3(1.7f, 1.7f, 3.4f),
-                new Vector3(0.2f, 0.21f, 0.25f), 0.85f, 0.4f, collides: true);
+            AddStaticBox(new Vector3(c, 1.7f), new Vector3(1.7f, 1.7f, 3.4f), new Vector3(0.2f, 0.21f, 0.25f), collides: true);
             Vector3 lamp = new(c.X, c.Y, 3.7f);
             AddStaticBox(lamp, new Vector3(1.0f, 1.0f, 0.55f), new Vector3(0.06f, 0.1f, 0.12f),
-                0.3f, 0.25f, collides: false, castsShadow: false, emissive: new Vector3(0.6f, 3.5f, 4.2f));
+                collides: false, emissive: new Vector3(0.35f, 2.2f, 2.8f));
             _lampPositions[i] = lamp + new Vector3(0, 0, 0.6f);
         }
     }
 
-    /// <summary>Registers a static box prop and optionally its collision volume.</summary>
-    private void AddStaticBox(Vector3 center, Vector3 size, Vector3 color, float metallic, float roughness,
-        bool collides, bool castsShadow = true, Vector3 emissive = default)
+    private void AddStaticBox(Vector3 center, Vector3 size, Vector3 color, bool collides, Vector3 emissive = default)
     {
-        var obj = new SceneObject
+        _sceneBoxes.Add(new SceneBox
         {
-            Mesh = _cubeMesh,
-            Static = true,
-            CastsShadow = castsShadow,
             BaseColor = color,
-            Metallic = metallic,
-            Roughness = roughness,
             Emissive = emissive,
             Transform = new Transform3D(center, Quaternion.Identity, size),
-        };
-        _gbufferRenderer.Add(obj);
-        if (castsShadow)
-        {
-            _shadowRenderer.Add(obj);
-        }
+        });
         if (collides)
         {
             Vector3 half = size * 0.5f;
@@ -525,55 +444,64 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>
-    /// Per-frame body (uncapped): input-responsive player movement and aim, the
-    /// chase camera, interpolated render transforms for the tick-simulated
-    /// bodies, visual effect decay, lighting uploads, the HUD and the render.
-    /// </summary>
+    /// <inheritdoc />
     protected override void OnUpdate(float delta)
     {
         if (Input.IsKeyDown(KeyCode.Escape))
-        {
             Stop();
-        }
         _time += delta;
 
         UpdatePlayer(delta);
         UpdateCamera(delta);
         ApplyRenderTransforms(RenderAlpha);
 
-        // Visual-only timers decay per frame for smoothness.
         _muzzleFlash = MathF.Max(0f, _muzzleFlash - delta / 0.07f);
         if (_waveBannerTimer > 0f)
-        {
             _waveBannerTimer -= delta;
-        }
 
-        // Per-frame lighting: fit the cascades to the following camera, then
-        // upload the lamps, muzzle flash and live explosions.
-        _environment.ComputeShadowCascades(CameraNear);
-        UploadPointLights(delta);
-
-        _trails.CameraPosition = _camera.Transform.Position;
         _trails.Update(delta);
 
         DrawHud();
         DebugStats.Text(FrameRate);
 
         if (_screenshotPath != null && _screenshotRequest == null && !_screenshotSaved && _tickCount >= _screenshotFrames)
-        {
-            // The request completes a couple of frames later with the presented
-            // frame's PNG (scene, post processing and the ImGui overlay on top).
             _screenshotRequest = _swapchainCapture!.RequestCaptureAsync();
-        }
 
-        _preset.Pipeline.Render(MainPresenter.FrameBuffer);
+        if (MainPresenter.HasValidFrame)
+        {
+            SwapchainFrame frame = MainPresenter.CurrentFrame;
+            if (frame.Extent.Y > 0)
+                _camera.AspectRatio = (float)frame.Extent.X / frame.Extent.Y;
+            _renderGraph.Resize(frame.Extent);
+
+            bool begun = false;
+            try
+            {
+                _renderContext.BeginFrame();
+                begun = true;
+                _renderGraph.Execute(
+                    _renderContext,
+                    RenderGraphTarget.FromSwapchain(frame, MainPresenter.SurfaceFormat),
+                    delta,
+                    outputFinalUsage: RGUsage.ColorAttachment);
+                MainPresenter.EnqueueFrameContext(_renderContext);
+            }
+            catch
+            {
+                if (begun)
+                    _renderContext.DiscardFrame();
+                throw;
+            }
+        }
 
         if (_screenshotRequest is { IsCompletedSuccessfully: true })
         {
             RenderCaptureResult result = _screenshotRequest.Result;
             if (result.Success && result.PngBytes != null)
             {
+                string? dir = Path.GetDirectoryName(_screenshotPath!);
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir);
                 File.WriteAllBytes(_screenshotPath!, result.PngBytes);
                 Console.WriteLine($"Screenshot saved to {_screenshotPath}");
             }
@@ -592,21 +520,14 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>
-    /// Fixed 60 Hz simulation tick (the engine's physics tick): shooting cadence,
-    /// bullet kinematics and collision, drone AI and contact damage, waves, puff
-    /// emission and gameplay timers. Frame-rate independent by construction, so
-    /// the game plays identically at any render rate.
-    /// </summary>
+    /// <inheritdoc />
     protected override void OnTick(float delta)
     {
         _lastTickTimestamp = Stopwatch.GetTimestamp();
         _tickCount++;
 
         if (_screenshotPath != null)
-        {
             TickScriptedDemo();
-        }
         TickShooting(delta);
         TickBullets(delta);
         TickEnemies(delta);
@@ -614,12 +535,9 @@ public class Game : GameEngine
         TickWaves(delta);
 
         if (_invulnerabilityTimer > 0f)
-        {
             _invulnerabilityTimer -= delta;
-        }
     }
 
-    /// <summary>The chase camera: a fixed north-above offset smoothly tracking the ship.</summary>
     private void UpdateCamera(float delta)
     {
         float blend = 1f - MathF.Exp(-8f * delta);
@@ -627,17 +545,10 @@ public class Game : GameEngine
         Vector3 eye = _cameraFocus + CameraOffset;
         Vector3 forward = Vector3.Normalize(_cameraFocus - eye);
         _camera.Transform = new Transform3D(eye, LookRotation(forward, Vector3.UnitZ));
-        _camera.UpdateMatrixToGPU();
     }
 
-    /// <summary>
-    /// WASD in the camera's ground plane, a circle-vs-AABB push-out against the
-    /// props, arena clamping, and the mouse aim: the cursor's screen ray is
-    /// intersected with the ship's flight plane to get the world aim point.
-    /// </summary>
     private void UpdatePlayer(float delta)
     {
-        // Movement basis on the ground: the camera's forward/right flattened to XY.
         Vector3 cameraForward = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, _camera.Transform.Rotation));
         Vector2 flatForward = Vector2.Normalize(new Vector2(cameraForward.X, cameraForward.Y));
         Vector2 flatRight = new(-flatForward.Y, flatForward.X);
@@ -651,17 +562,13 @@ public class Game : GameEngine
             if (Input.IsKeyPressing(KeyCode.A)) move -= flatRight;
         }
         if (move.LengthSquared() > 0f)
-        {
             _playerPosition += new Vector3(Vector2.Normalize(move), 0f) * MoveSpeed * delta;
-        }
 
         PushOutOfColliders(ref _playerPosition, PlayerRadius);
         _playerPosition.X = Math.Clamp(_playerPosition.X, -BoundsHalf, BoundsHalf);
         _playerPosition.Y = Math.Clamp(_playerPosition.Y, -BoundsHalf, BoundsHalf);
         _playerPosition.Z = PlayerZ;
 
-        // Aim: mouse ray onto the flight plane; keep the last direction when the
-        // cursor sits on the ship. The scripted demo steers the aim itself.
         if (_screenshotPath == null)
         {
             Ray3D aimRay = ScreenPointToWorldRay(MainView.MousePosition);
@@ -673,9 +580,7 @@ public class Game : GameEngine
                     Vector2 aimPoint = new Vector2(aimRay.Origin.X, aimRay.Origin.Y) + t * new Vector2(aimRay.Displacement.X, aimRay.Displacement.Y);
                     Vector2 toAim = aimPoint - new Vector2(_playerPosition.X, _playerPosition.Y);
                     if (toAim.LengthSquared() > 0.04f)
-                    {
                         _aimDirection = Vector2.Normalize(toAim);
-                    }
                 }
             }
         }
@@ -687,31 +592,18 @@ public class Game : GameEngine
         _playerVisor.Transform = new Transform3D(_playerPosition + visorOffset, yawRotation, new Vector3(0.4f, 0.42f, 0.16f));
     }
 
-    /// <summary>
-    /// Unprojects a window-local pixel position to a world ray from the camera.
-    /// Implemented locally because <c>CameraMathUtility.ScreenPointToDirectionPerspective</c>
-    /// forgets to subtract the camera position, so it only works for a camera at the origin.
-    /// </summary>
     private Ray3D ScreenPointToWorldRay(Vector2 screenPoint)
     {
         Vector2 size = new(MainView.Size.X, MainView.Size.Y);
         Vector2 clip = new(2f * screenPoint.X / size.X - 1f, 1f - 2f * screenPoint.Y / size.Y);
-        Matrix4x4.Invert(_camera.Data.ViewProjectionMatrix, out Matrix4x4 inverseViewProjection);
-        Vector4 point = Vector4.Transform(new Vector4(clip, 1f, 1f), inverseViewProjection);
+        Matrix4x4.Invert(_camera.ViewProjectionMatrix, out Matrix4x4 inverseViewProjection);
+        Vector4 point = Vector4.Transform(new Vector4(clip, 0.5f, 1f), inverseViewProjection);
         if (point.W != 0f)
-        {
             point /= point.W;
-        }
         Vector3 cameraPosition = _camera.Transform.Position;
         return new Ray3D(cameraPosition, Vector3.Normalize(new Vector3(point.X, point.Y, point.Z) - cameraPosition));
     }
 
-    /// <summary>
-    /// Render transforms for the tick-simulated bodies: positions interpolate
-    /// between the previous and current tick by the tick-interval fraction, so
-    /// drones and tracers glide smoothly at any render rate; the bob, spin and
-    /// core pulse are visual-only and key off the frame clock.
-    /// </summary>
     private void ApplyRenderTransforms(float alpha)
     {
         foreach (Enemy enemy in _enemies)
@@ -723,7 +615,7 @@ public class Game : GameEngine
                 Quaternion.CreateFromAxisAngle(Vector3.UnitZ, _time * 1.6f + enemy.Phase),
                 new Vector3(1.0f));
             float pulse = 0.7f + 0.3f * MathF.Sin(_time * 4f + enemy.Phase);
-            enemy.Body.Emissive = new Vector3(4.0f, 0.5f, 0.12f) * pulse;
+            enemy.Body.Emissive = new Vector3(2.4f, 0.32f, 0.08f) * pulse;
         }
         foreach (Bullet bullet in _bullets)
         {
@@ -732,7 +624,6 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Left mouse fires at a fixed cadence toward the aim direction (tick-driven).</summary>
     private void TickShooting(float delta)
     {
         _fireCooldown -= delta;
@@ -741,9 +632,7 @@ public class Game : GameEngine
             ? _enemies.Count > 0 && _tickCount >= 70
             : MainView.IsFocused && Input.IsMousePressing(Mouse.Left);
         if (!wantsFire || _fireCooldown > 0f)
-        {
             return;
-        }
         _fireCooldown = FireInterval;
 
         Vector3 direction = new(_aimDirection, 0f);
@@ -752,25 +641,17 @@ public class Game : GameEngine
         _lastMuzzle = muzzle;
         _muzzleFlash = 1f;
 
-        var body = new SceneObject
+        var body = new SceneBox
         {
-            Mesh = _cubeMesh,
-            Static = false,
-            CastsShadow = false,
             BaseColor = new Vector3(1f, 0.6f, 0.2f),
-            Metallic = 0f,
-            Roughness = 0.4f,
-            Emissive = new Vector3(6f, 2.5f, 0.8f),
+            Emissive = new Vector3(4f, 1.8f, 0.5f),
             Transform = new Transform3D(muzzle, Quaternion.CreateFromAxisAngle(Vector3.UnitZ, _playerYaw),
                 new Vector3(0.32f, 0.15f, 0.15f)),
         };
-        _gbufferRenderer.Add(body);
+        _sceneBoxes.Add(body);
 
         if (!_trails.TryCreateInstance(_bulletTrailEffect, muzzle, out TrailEffectInstance3D trail))
-        {
-            // The trail budget is exhausted: skip the shot's trail, not the shot.
             trail = null!;
-        }
         _bullets.Add(new Bullet
         {
             Position = muzzle,
@@ -782,12 +663,6 @@ public class Game : GameEngine
         _shots++;
     }
 
-    /// <summary>
-    /// Integrates the bullets with a segment sweep against the props and the
-    /// drones (tick-driven). On a hit the trail finishes at the impact point and
-    /// fades; in flight the head extends the ribbon. The render transform lerps
-    /// between tick positions in <see cref="ApplyRenderTransforms"/>.
-    /// </summary>
     private void TickBullets(float delta)
     {
         for (int i = _bullets.Count - 1; i >= 0; i--)
@@ -823,15 +698,10 @@ public class Game : GameEngine
 
     private void RemoveBullet(int index)
     {
-        _gbufferRenderer.Remove(_bullets[index].Body);
+        _sceneBoxes.Remove(_bullets[index].Body);
         _bullets.RemoveAt(index);
     }
 
-    /// <summary>
-    /// The nearest intersection of the segment with the collision boxes (slab
-    /// test) and the drones (closest-approach sphere test). Returns the hit point
-    /// and the hit drone (null for static geometry).
-    /// </summary>
     private bool TryHitWorld(Vector3 from, Vector3 to, out Vector3 hit, out Enemy? hitEnemy)
     {
         hitEnemy = null;
@@ -850,9 +720,7 @@ public class Game : GameEngine
             Vector3 segment = to - from;
             float length = segment.Length();
             if (length < 1e-5f)
-            {
                 continue;
-            }
             Vector3 toEnemy = enemy.Position - from;
             float t = Math.Clamp(Vector3.Dot(toEnemy, segment / length) / length, 0f, 1f);
             if (Vector3.DistanceSquared(from + segment * t, enemy.Position) < EnemyRadius * EnemyRadius && t < bestT)
@@ -870,12 +738,6 @@ public class Game : GameEngine
         return true;
     }
 
-    /// <summary>
-    /// The drones (tick-driven): chase the ship, keep off each other and the
-    /// props, and detonate on contact (damaging the ship unless it is briefly
-    /// invulnerable). Destroyed drones score and burst into light and smoke. The
-    /// render transform (bob, spin, core pulse) lives in ApplyRenderTransforms.
-    /// </summary>
     private void TickEnemies(float delta)
     {
         for (int i = _enemies.Count - 1; i >= 0; i--)
@@ -885,23 +747,16 @@ public class Game : GameEngine
             Vector3 toPlayer = _playerPosition - enemy.Position;
             float distance = new Vector2(toPlayer.X, toPlayer.Y).Length();
             if (distance > 1e-4f)
-            {
                 enemy.Position += toPlayer / distance * enemy.Speed * delta;
-            }
 
-            // Pairwise separation so the pack does not stack into one drone.
             for (int j = 0; j < _enemies.Count; j++)
             {
                 if (j == i)
-                {
                     continue;
-                }
                 Vector2 apart = new(enemy.Position.X - _enemies[j].Position.X, enemy.Position.Y - _enemies[j].Position.Y);
                 float apartLength = apart.Length();
                 if (apartLength is > 1e-4f and < 1.1f)
-                {
                     enemy.Position += new Vector3(apart / apartLength * (1.1f - apartLength) * 0.5f, 0f);
-                }
             }
 
             PushOutOfColliders(ref enemy.Position, EnemyRadius);
@@ -918,7 +773,6 @@ public class Game : GameEngine
                 KillEnemy(enemy);
                 if (_playerHp <= 0f)
                 {
-                    // The reset clears the whole enemy list — leave the loop.
                     OnPlayerDeath();
                     break;
                 }
@@ -927,30 +781,19 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>Wave spawner: a short breather, then a bigger pack from the arena edges.</summary>
     private void TickWaves(float delta)
     {
-        if (_screenshotPath != null)
-        {
-            return; // The scripted demo spawns its own ring once.
-        }
-        if (_enemies.Count > 0)
-        {
+        if (_screenshotPath != null || _enemies.Count > 0)
             return;
-        }
         _wavePauseTimer -= delta;
         if (_wavePauseTimer > 0f)
-        {
             return;
-        }
 
         _wave++;
         _waveBannerTimer = 2.5f;
         int count = Math.Min(3 + 2 * _wave, 18);
         for (int i = 0; i < count; i++)
-        {
             SpawnEnemy(RandomEdgePosition(9f));
-        }
     }
 
     private Vector3 RandomEdgePosition(float minPlayerDistance)
@@ -963,27 +806,20 @@ public class Game : GameEngine
             position.X = Math.Clamp(position.X, -BoundsHalf, BoundsHalf);
             position.Y = Math.Clamp(position.Y, -BoundsHalf, BoundsHalf);
             if (Vector3.Distance(position, _playerPosition) >= minPlayerDistance)
-            {
                 return position;
-            }
         }
         return new Vector3(BoundsHalf, BoundsHalf, 0.6f);
     }
 
     private void SpawnEnemy(Vector3 position)
     {
-        var body = new SceneObject
+        var body = new SceneBox
         {
-            Mesh = _cubeMesh,
-            Static = false,
             BaseColor = new Vector3(0.42f, 0.08f, 0.06f),
-            Metallic = 0.7f,
-            Roughness = 0.35f,
-            Emissive = new Vector3(4.0f, 0.5f, 0.12f),
+            Emissive = new Vector3(2.4f, 0.32f, 0.08f),
             Transform = new Transform3D(position, Quaternion.Identity, new Vector3(1.0f)),
         };
-        _gbufferRenderer.Add(body);
-        _shadowRenderer.Add(body);
+        _sceneBoxes.Add(body);
         _enemies.Add(new Enemy
         {
             Position = position,
@@ -994,25 +830,15 @@ public class Game : GameEngine
         });
     }
 
-    /// <summary>Explosion light plus a smoke puff; the drone's body unregisters.</summary>
     private void KillEnemy(Enemy enemy)
     {
-        _gbufferRenderer.Remove(enemy.Body);
-        _shadowRenderer.Remove(enemy.Body);
+        _sceneBoxes.Remove(enemy.Body);
         _enemies.Remove(enemy);
 
-        _explosions.Add((enemy.Position, 0f));
         if (_trails.TryCreateInstance(_puffTrailEffect, enemy.Position, out TrailEffectInstance3D puff))
-        {
             _puffs.Add(new Puff { Trail = puff, Position = enemy.Position, EmitTimer = 0.18f });
-        }
     }
 
-    /// <summary>
-    /// Death puffs: the head jitters around the blast point for a moment so the
-    /// spacing emitter lays a tight cluster of points, then finishes; the smoke
-    /// surface's buoyancy and erosion do the rest.
-    /// </summary>
     private void TickPuffs(float delta)
     {
         for (int i = _puffs.Count - 1; i >= 0; i--)
@@ -1027,20 +853,15 @@ public class Game : GameEngine
                     _random.NextFloat(0f, 0.25f));
                 puff.Trail.ExtendTo(puff.Position + jitter);
                 if (puff.EmitTimer <= 0f)
-                {
                     puff.Trail.Finish(puff.Position);
-                }
             }
             if (!puff.Trail.IsAlive)
-            {
                 _puffs.RemoveAt(i);
-            }
         }
     }
 
     private void OnPlayerDeath()
     {
-        _explosions.Add((_playerPosition, 0f));
         _bestScore = Math.Max(_bestScore, _score);
         _score = 0;
         _wave = 0;
@@ -1049,9 +870,7 @@ public class Game : GameEngine
         _playerPosition = new Vector3(0f, 0f, PlayerZ);
         _invulnerabilityTimer = 2f;
         for (int i = _enemies.Count - 1; i >= 0; i--)
-        {
             KillEnemy(_enemies[i]);
-        }
         for (int i = _bullets.Count - 1; i >= 0; i--)
         {
             _bullets[i].Trail?.Finish(_bullets[i].Position);
@@ -1059,9 +878,6 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>The scripted demo behind --screenshot (tick-keyed, so it is
-    /// deterministic at any render rate): a converging ring of drones and an
-    /// auto-firing ship, so the capture shows tracers, smoke and blasts.</summary>
     private void TickScriptedDemo()
     {
         if (_tickCount == 5)
@@ -1072,7 +888,6 @@ public class Game : GameEngine
                 SpawnEnemy(new Vector3(MathF.Cos(angle) * 15.5f, MathF.Sin(angle) * 15.5f, 0.6f));
             }
         }
-        // Aim at the nearest drone (the fire cadence lives in TickShooting).
         Enemy? nearest = null;
         float nearestDistance = float.MaxValue;
         foreach (Enemy enemy in _enemies)
@@ -1088,58 +903,16 @@ public class Game : GameEngine
         {
             Vector2 toEnemy = new(nearest.Position.X - _playerPosition.X, nearest.Position.Y - _playerPosition.Y);
             if (toEnemy.LengthSquared() > 0.04f)
-            {
                 _aimDirection = Vector2.Normalize(toEnemy);
-            }
         }
     }
 
-    /// <summary>Lamps, the decaying muzzle flash and the live explosion pool.</summary>
-    private void UploadPointLights(float delta)
+    private static void PushOutOfCollidersImpl(List<Box> colliders, ref Vector3 position, float radius)
     {
-        int count = 0;
-        Vector3 lampColor = new(0.35f, 0.75f, 1.0f);
-        for (int i = 0; i < _lampPositions.Length; i++)
-        {
-            _pointLights[count++] = new PBRSceneEnvironment.PointLight(_lampPositions[i], lampColor, 3.2f, 14f);
-        }
-        if (_muzzleFlash > 0f)
-        {
-            _pointLights[count++] = new PBRSceneEnvironment.PointLight(
-                _lastMuzzle, new Vector3(1f, 0.8f, 0.45f), 6f * _muzzleFlash, 7f);
-        }
-        // A soft cyan hero light above the ship keeps it readable on the dark floor.
-        _pointLights[count++] = new PBRSceneEnvironment.PointLight(
-            _playerPosition + new Vector3(0, 0, 2.6f), new Vector3(0.5f, 0.8f, 1f), 2.2f, 8f);
-        for (int i = _explosions.Count - 1; i >= 0; i--)
-        {
-            (Vector3 position, float timer) = _explosions[i];
-            timer += delta;
-            float fade = 1f - timer / 0.45f;
-            if (fade <= 0f)
-            {
-                _explosions.RemoveAt(i);
-                continue;
-            }
-            _explosions[i] = (position, timer);
-            if (count < _pointLights.Length)
-            {
-                _pointLights[count++] = new PBRSceneEnvironment.PointLight(
-                    position + new Vector3(0, 0, 0.6f), new Vector3(1f, 0.5f, 0.22f), 12f * fade * fade, 11f);
-            }
-        }
-        _environment.UpdatePointLights(_pointLights.AsSpan(0, count));
-    }
-
-    /// <summary>Pushes a mover's XY circle out of any prop it overlaps in z.</summary>
-    private void PushOutOfColliders(ref Vector3 position, float radius)
-    {
-        foreach (Box box in _colliders)
+        foreach (Box box in colliders)
         {
             if (position.Z + radius * 0.5f <= box.Min.Z || position.Z - radius * 0.5f >= box.Max.Z)
-            {
                 continue;
-            }
             Vector2 closest = new(
                 Math.Clamp(position.X, box.Min.X, box.Max.X),
                 Math.Clamp(position.Y, box.Min.Y, box.Max.Y));
@@ -1153,7 +926,9 @@ public class Game : GameEngine
         }
     }
 
-    /// <summary>The crosshair, health bar and status line, drawn onto the foreground draw list.</summary>
+    private void PushOutOfColliders(ref Vector3 position, float radius)
+        => PushOutOfCollidersImpl(_colliders, ref position, radius);
+
     private void DrawHud()
     {
         ImDrawListPtr drawList = ImGui.GetForegroundDrawList();
@@ -1179,7 +954,6 @@ public class Game : GameEngine
                 "WASD move   mouse aim   LMB fire   ESC exit");
         }
 
-        // Health bar, bottom-left.
         Vector2 barPos = new(12, MainView.Size.Y - 30f);
         Vector2 barSize = new(220, 14);
         float fraction = Math.Clamp(_playerHp / MaxHp, 0f, 1f);
@@ -1207,16 +981,17 @@ public class Game : GameEngine
         }
     }
 
+    /// <inheritdoc />
     protected override void OnStop()
     {
+        GraphicsDevice.WaitIdle();
         _trails.Dispose();
-        _gbufferRenderer.Dispose();
-        _shadowRenderer.Dispose();
-        _preset.Dispose();
-        _materialCompiler.Dispose();
+        _boxBuffers[0].Destroy();
+        _boxBuffers[1].Destroy();
+        _renderGraph.Destroy();
+        _renderContext.Destroy();
     }
 
-    /// <summary>Slab intersection of the segment from->to with an AABB; t in [0, 1].</summary>
     private static bool RayBox(Vector3 from, Vector3 to, in Box box, out float t)
     {
         t = 0f;
@@ -1231,159 +1006,22 @@ public class Game : GameEngine
             if (MathF.Abs(direction) < 1e-8f)
             {
                 if (origin < min || origin > max)
-                {
                     return false;
-                }
                 continue;
             }
             float inv = 1f / direction;
             float t1 = (min - origin) * inv;
             float t2 = (max - origin) * inv;
             if (t1 > t2)
-            {
                 (t1, t2) = (t2, t1);
-            }
             t = MathF.Max(t, t1);
             tMax = MathF.Min(tMax, t2);
             if (t > tMax)
-            {
                 return false;
-            }
         }
         return true;
     }
 
-    /// <summary>24-vertex unit cube (outward normals, CCW winding) in the VertexPBR layout.</summary>
-    private PrimitiveMesh CreateCubeMesh()
-    {
-        Span<VertexPBR> vertices = stackalloc VertexPBR[24];
-        Span<ushort> indices = stackalloc ushort[36];
-
-        // face data: normal, tangent axis a, tangent axis b (a x b == normal)
-        Span<Vector3> normals = stackalloc Vector3[]
-        {
-            new(0, 0, 1), new(0, 0, -1),
-            new(1, 0, 0), new(-1, 0, 0),
-            new(0, 1, 0), new(0, -1, 0),
-        };
-        Span<Vector3> aAxes = stackalloc Vector3[]
-        {
-            new(1, 0, 0), new(1, 0, 0),
-            new(0, 1, 0), new(0, -1, 0),
-            new(0, 0, 1), new(0, 0, -1),
-        };
-        Span<Vector3> bAxes = stackalloc Vector3[]
-        {
-            new(0, 1, 0), new(0, -1, 0),
-            new(0, 0, 1), new(0, 0, 1),
-            new(1, 0, 0), new(1, 0, 0),
-        };
-
-        int vertexIndex = 0;
-        int indexIndex = 0;
-        Span<Vector2> uvs = stackalloc Vector2[]
-        {
-            new(0, 0), new(1, 0), new(1, 1), new(0, 1),
-        };
-        Span<Vector3> corners = stackalloc Vector3[4];
-        for (int face = 0; face < 6; face++)
-        {
-            Vector3 normal = normals[face];
-            Vector3 a = aAxes[face];
-            Vector3 b = bAxes[face];
-            Vector3 center = normal * 0.5f;
-            Vector3 aHalf = a * 0.5f;
-            Vector3 bHalf = b * 0.5f;
-
-            corners[0] = center - aHalf - bHalf;
-            corners[1] = center + aHalf - bHalf;
-            corners[2] = center + aHalf + bHalf;
-            corners[3] = center - aHalf + bHalf;
-
-            for (int i = 0; i < 4; i++)
-            {
-                vertices[vertexIndex] = new VertexPBR(corners[i], normal, uvs[i], new Vector4(a, 1));
-                vertexIndex++;
-            }
-
-            indices[indexIndex++] = (ushort)(face * 4 + 0);
-            indices[indexIndex++] = (ushort)(face * 4 + 1);
-            indices[indexIndex++] = (ushort)(face * 4 + 2);
-            indices[indexIndex++] = (ushort)(face * 4 + 0);
-            indices[indexIndex++] = (ushort)(face * 4 + 2);
-            indices[indexIndex++] = (ushort)(face * 4 + 3);
-        }
-
-        return RenderingSystem.CreatePrimitiveMesh(vertices, indices, "cube");
-    }
-
-    /// <summary>A flat ground plane in the VertexPBR layout, UVs tiled for the checker.</summary>
-    private PrimitiveMesh CreateGroundMesh(float size, int segments, float uvTiles)
-    {
-        int vertexCount = (segments + 1) * (segments + 1);
-        int indexCount = segments * segments * 6;
-        VertexPBR[] vertices = new VertexPBR[vertexCount];
-        ushort[] indices = new ushort[indexCount];
-
-        int vertexIndex = 0;
-        for (int j = 0; j <= segments; j++)
-        {
-            for (int i = 0; i <= segments; i++)
-            {
-                float x = (float)i / segments * size - size * 0.5f;
-                float y = (float)j / segments * size - size * 0.5f;
-                vertices[vertexIndex++] = new VertexPBR(
-                    new Vector3(x, y, 0),
-                    Vector3.UnitZ,
-                    new Vector2((float)i / segments * uvTiles, (float)j / segments * uvTiles));
-            }
-        }
-
-        int indexIndex = 0;
-        for (int j = 0; j < segments; j++)
-        {
-            for (int i = 0; i < segments; i++)
-            {
-                int i0 = j * (segments + 1) + i;
-                int i1 = i0 + 1;
-                int i2 = i0 + (segments + 1);
-                int i3 = i2 + 1;
-                // CCW when viewed from +Z.
-                indices[indexIndex++] = (ushort)i0;
-                indices[indexIndex++] = (ushort)i1;
-                indices[indexIndex++] = (ushort)i2;
-                indices[indexIndex++] = (ushort)i1;
-                indices[indexIndex++] = (ushort)i3;
-                indices[indexIndex++] = (ushort)i2;
-            }
-        }
-
-        return RenderingSystem.CreatePrimitiveMesh(vertices, indices, "ground");
-    }
-
-    private Texture2D CreateCheckerTexture(int size)
-    {
-        const int tileSize = 16;
-        byte[] data = new byte[size * size * 4];
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                bool light = ((x / tileSize) + (y / tileSize)) % 2 == 0;
-                byte value = light ? (byte)175 : (byte)150;
-                int index = (y * size + x) * 4;
-                data[index] = value;
-                data[index + 1] = value;
-                data[index + 2] = value;
-                data[index + 3] = 255;
-            }
-        }
-        return RenderingSystem.CreateTexture2D(data, (uint)size, (uint)size,
-            new ImageLoadOption(format: PixelFormat.RGBA8UnormSrgb, addressMode: AddressMode.Repeat, filterMode: FilterMode.Linear, name: "checker_albedo"));
-    }
-
-    // Build a quaternion so that Transform(UnitX, q) == forward and the up axis
-    // stays as close to worldUp as the forward direction allows (+X-forward / +Z-up).
     private static Quaternion LookRotation(Vector3 forward, Vector3 worldUp)
     {
         forward = Vector3.Normalize(forward);
@@ -1402,31 +1040,92 @@ public class Game : GameEngine
         foreach (string arg in args)
         {
             if (arg.StartsWith(prefix, StringComparison.Ordinal))
-            {
                 return arg[prefix.Length..];
-            }
         }
         return null;
     }
 
-    /// <summary>The trail node: the bullet ribbons and death puffs, alpha-blended
-    /// into the HDR scene color after deferred lighting (depth-tested against the
-    /// shared G-buffer depth), ahead of bloom and tonemapping.</summary>
-    private sealed class TrailNode : RGNode_SceneContent
+    private sealed class ArenaSceneNode(Game game) : RenderGraphNode("ArenaScene3D")
     {
-        private readonly GpuTrailSystem3D _trails;
+        private RGTexture _colorTarget;
+        public RGTexture DepthTarget { get; private set; }
 
-        public TrailNode(GpuTrailSystem3D trails, RenderGraph graph, RenderChain chain) : base(graph, chain)
+        protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
         {
-            _trails = trails;
+            _colorTarget = builder.Output;
+            DepthTarget = builder.CreateTexture(new RGTextureDesc
+            {
+                Name = "ArenaDepth",
+                Format = Format.D32Float,
+                Usage = TextureUsage.DepthStencilAttachment,
+            });
+            pass.Write(_colorTarget, RGUsage.ColorAttachmentWrite);
+            pass.Write(DepthTarget, RGUsage.DepthStencilWrite);
         }
 
-        protected override void OnRender(in RenderGraphContext context, GPUFrameBuffer target, GPUAttachmentLayout layout)
+        protected override void ExecutePass(in RenderGraphContext context)
         {
-            using (RenderPassScope pass = context.RenderContext.BeginPass(target))
+            int count = Math.Min(game._sceneBoxes.Count, MaxArenaBoxes);
+            for (int i = 0; i < count; i++)
             {
-                _trails.Render(pass);
+                SceneBox box = game._sceneBoxes[i];
+                game._boxStaging[i] = new ArenaBoxInstanceData
+                {
+                    WorldMatrix = box.Transform.Matrix,
+                    BaseColor = new Vector4(box.BaseColor, 1f),
+                    EmissiveChecker = new Vector4(box.Emissive, box.IsCheckerGround ? 1f : 0f),
+                };
             }
+
+            Alco.Graphics.Buffer boxBuffer = game._boxBuffers[game._frameParity];
+            game._frameParity ^= 1;
+            boxBuffer.SetData<ArenaBoxInstanceData>(game._boxStaging.AsSpan(0, count));
+
+            RenderContext rc = context.RenderContext;
+            var desc = new RenderingDesc
+            {
+                Colors =
+                [
+                    new ColorAttachment
+                    {
+                        RenderView = context.GetRenderView(_colorTarget),
+                        Load = LoadOp.Clear,
+                        Store = StoreOp.Store,
+                        Clear = new Vector4(0.08f, 0.06f, 0.07f, 1f),
+                    },
+                ],
+                Depth = new DepthAttachment
+                {
+                    RenderView = context.GetRenderView(DepthTarget),
+                    Load = LoadOp.Clear,
+                    Store = StoreOp.Store,
+                    Clear = 0.0f,
+                },
+            };
+            var sig = new RenderPassSignature([context.GetFormat(_colorTarget)], context.GetFormat(DepthTarget));
+            Extent2D vp = context.Viewport;
+
+            GPUAllocation<byte> alloc = rc.FrameData.Allocate((ulong)sizeof(ArenaRootData));
+            var root = new ArenaRootData
+            {
+                ViewProjection = game._camera.ViewProjectionMatrix,
+                SunDirIntensity = new Vector4(Vector3.Normalize(new Vector3(-0.65f, -0.52f, 0.55f)), 2.2f),
+                SunColor = new Vector4(1.0f, 0.72f, 0.42f, 1.0f),
+                SkyHorizon = new Vector4(0.55f, 0.42f, 0.36f, 1.0f),
+                SkyZenith = new Vector4(0.24f, 0.34f, 0.52f, 1.0f),
+                Instances = boxBuffer.View,
+            };
+            MemoryMarshal.Write(alloc.CpuSpan, in root);
+
+            using RenderContext.RenderScope render = rc.BeginRenderPass(desc, sig);
+            render.SetViewport(new Viewport { Width = vp.X, Height = vp.Y });
+            render.SetScissor(new Scissor { Width = vp.X, Height = vp.Y });
+            render.Draw(
+                game._arenaMaterial,
+                alloc.GPURange,
+                DepthStencilState.WriteReverseZ,
+                vertexCount: 36,
+                instanceCount: (uint)count);
         }
     }
 }

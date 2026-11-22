@@ -4,11 +4,14 @@
 #language slang 2025
 module TrailContractProbe;
 
+import Core;
 import AlcoRendering_TrailSurface;
 
 public struct Surface : ITrailSurface
 {
-    public override TrailVertexResult getVertexAdjustment(TrailVertexInput input)
+    public typedef EmptyTrailParams Params;
+
+    public override TrailVertexResult getVertexAdjustment(TrailVertexInput input, Params p)
     {
         TrailVertexResult result;
         result.worldOffset = input.tangent * 0.125 + input.side * 0.125
@@ -18,7 +21,7 @@ public struct Surface : ITrailSurface
         return result;
     }
 
-    public override float4 getColor(TrailSurfaceInput input)
+    public override float4 getColor(TrailSurfaceInput input, Params p)
     {
         return float4(input.worldPosition, 1.0);
     }

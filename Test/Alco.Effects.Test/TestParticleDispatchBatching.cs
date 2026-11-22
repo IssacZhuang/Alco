@@ -1,3 +1,4 @@
+using System.Numerics;
 using NUnit.Framework;
 using Alco.Engine;
 using Alco.Graphics;
@@ -5,144 +6,145 @@ using Alco.Rendering;
 
 namespace Alco.Effects.Test;
 
-/// <summary>Tests compute dispatch batching for particle groups in the 2D and 3D systems.</summary>
+/// <summary>Verifies batched emit/simulate dispatch planning and draw-group merging across default and custom behavior shaders.</summary>
 public class TestParticleDispatchBatching
 {
-    /// <summary>The minimal engine host (real shader compilation on the no-GPU backend).</summary>
-    public class Host(GameEngineSetting setting) : GameEngine(setting);
+    /// <summary>Minimal no-GPU engine host.</summary>
+    public sealed class Host(GameEngineSetting setting) : GameEngine(setting);
 
     private Host _engine = null!;
 
     /// <summary>Creates the shared no-GPU engine host.</summary>
     [OneTimeSetUp]
-    public void SetUp()
-    {
-        _engine = new Host(GameEngineSetting.CreateNoGPU());
-    }
+    public void SetUp() => _engine = new Host(GameEngineSetting.CreateNoGPU());
 
     /// <summary>Disposes the shared engine host.</summary>
     [OneTimeTearDown]
-    public void TearDown()
+    public void TearDown() => _engine.Dispose();
+
+    /// <summary>2D: groups sharing a behavior coalesce into batched dispatches, while custom behaviors separate cleanly and 0-spawn skips emit.</summary>
+    [Test]
+    public void EmitAndSimulateBatchByBehavior2D()
     {
-        _engine.Dispose();
-    }
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 4096, emitterSlots: 64);
 
-    /// <summary>Tests that groups sharing a behavior merge into one emit and simulate dispatch in 2D.</summary>
-    [Test(Description = "Groups sharing the default behavior merge into one emit and one simulate dispatch")]
-    public void SharedBehaviorMergesDispatches2D()
-    {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D("A"), CreateGroup2D("B"));
-        using ParticleEffectInstance2D instance1 = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(-1f, 0f)), seed: 1);
-        using ParticleEffectInstance2D instance2 = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(1f, 0f)), seed: 2);
-
-        using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
-        commands.Begin();
-        system.RecordSimulation(commands, 1f / 60f);
-
-        Assert.Multiple(() =>
+        var defaultEffect = new ParticleEffect2D
         {
-            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(4), "both instances' groups must be in the plan");
-            Assert.That(system.PlannedEmitDispatchCount, Is.EqualTo(1), "same-behavior groups must share one emit dispatch");
-            Assert.That(system.PlannedSimulateDispatchCount, Is.EqualTo(1), "same-behavior groups must share one simulate dispatch");
-            // One emit block per group (zero/few spawns still dispatch one block for
-            // the args reset), two simulate blocks per 128-particle slice.
-            Assert.That(system.PlannedEmitBlockCount, Is.EqualTo(4), "every active group must contribute an emit block");
-            Assert.That(system.PlannedSimulateBlockCount, Is.EqualTo(8), "128-particle slices must map to two 64-thread blocks each");
-        });
-    }
-
-    /// <summary>Tests that groups with distinct behaviors split into separate dispatches in 2D.</summary>
-    [Test(Description = "Groups with distinct behavior libraries split into one dispatch pair each")]
-    public void DistinctBehaviorsSplitDispatches2D()
-    {
-        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleGroup2D custom = CreateGroup2D("Custom");
-        custom.Behavior = _engine.RenderingSystem.ShaderSystem.GetLibrary("TestBehavior2D");
-        ParticleEffect2D effect = CreateEffect2D(CreateGroup2D("Default"), custom);
-        using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(new System.Numerics.Vector2(0f, 0f)), seed: 1);
-
-        using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
-        commands.Begin();
-        system.RecordSimulation(commands, 1f / 60f);
-
-        Assert.Multiple(() =>
+            Name = "default2d",
+            Groups =
+            [
+                new ParticleGroup2D { Name = "A", MaxParticles = 128, EmissionRate = 100f, Lifetime = new ParticleRange(1f, 2f) },
+                new ParticleGroup2D { Name = "B", MaxParticles = 128, EmissionRate = 100f, Lifetime = new ParticleRange(1f, 2f) },
+            ],
+        };
+        var customEffect = new ParticleEffect2D
         {
-            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(2));
-            Assert.That(system.PlannedEmitDispatchCount, Is.EqualTo(2), "distinct behaviors must not share an emit dispatch");
-            Assert.That(system.PlannedSimulateDispatchCount, Is.EqualTo(2), "distinct behaviors must not share a simulate dispatch");
-            Assert.That(system.PlannedEmitBlockCount, Is.EqualTo(2), "each group's bucket covers exactly its own blocks");
-            Assert.That(system.PlannedSimulateBlockCount, Is.EqualTo(4));
-        });
-    }
-
-    /// <summary>Tests that groups sharing a behavior merge into one emit and simulate dispatch in 3D.</summary>
-    [Test(Description = "The 3D system merges same-behavior groups into one emit and one simulate dispatch too")]
-    public void SharedBehaviorMergesDispatches3D()
-    {
-        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleEffect3D effect = CreateEffect3D(CreateGroup3D("A"), CreateGroup3D("B"));
-        using ParticleEffectInstance3D instance1 = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(-1f, 0f, 0f)), seed: 1);
-        using ParticleEffectInstance3D instance2 = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(1f, 0f, 0f)), seed: 2);
-
-        using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
-        commands.Begin();
-        system.RecordSimulation(commands, 1f / 60f);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(4));
-            Assert.That(system.PlannedEmitDispatchCount, Is.EqualTo(1), "same-behavior groups must share one emit dispatch");
-            Assert.That(system.PlannedSimulateDispatchCount, Is.EqualTo(1), "same-behavior groups must share one simulate dispatch");
-            Assert.That(system.PlannedEmitBlockCount, Is.EqualTo(4));
-            Assert.That(system.PlannedSimulateBlockCount, Is.EqualTo(8));
-        });
-    }
-
-    /// <summary>Tests that groups with distinct behaviors split into separate dispatches in 3D.</summary>
-    [Test(Description = "The 3D system splits groups with distinct behavior libraries")]
-    public void DistinctBehaviorsSplitDispatches3D()
-    {
-        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, particleCapacity: 4096, emitterSlots: 8);
-        ParticleGroup3D custom = CreateGroup3D("Custom");
-        custom.Behavior = _engine.RenderingSystem.ShaderSystem.GetLibrary("TestBehavior3D");
-        ParticleEffect3D effect = CreateEffect3D(CreateGroup3D("Default"), custom);
-        using ParticleEffectInstance3D instance = system.CreateInstance(effect, new Transform3D(new System.Numerics.Vector3(0f, 0f, 0f)), seed: 1);
-
-        using GPUCommandBuffer commands = _engine.GraphicsDevice.CreateCommandBuffer("test");
-        commands.Begin();
-        system.RecordSimulation(commands, 1f / 60f);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(2));
-            Assert.That(system.PlannedEmitDispatchCount, Is.EqualTo(2), "distinct behaviors must not share an emit dispatch");
-            Assert.That(system.PlannedSimulateDispatchCount, Is.EqualTo(2), "distinct behaviors must not share a simulate dispatch");
-        });
-    }
-
-    private static ParticleGroup2D CreateGroup2D(string name)
-        => new()
-        {
-            Name = name,
-            MaxParticles = 128,
-            EmissionRate = 100f,
-            Looping = true,
-            Lifetime = new ParticleRange(1f, 2f),
+            Name = "custom2d",
+            Groups =
+            [
+                new ParticleGroup2D
+                {
+                    Name = "C",
+                    MaxParticles = 128,
+                    EmissionRate = 100f,
+                    Lifetime = new ParticleRange(1f, 2f),
+                    Behavior = "TestBehavior2D",
+                },
+            ],
         };
 
-    private static ParticleEffect2D CreateEffect2D(params ParticleGroup2D[] groups)
-        => new() { Name = "TestEffect", Groups = [.. groups] };
+        using ParticleEffectInstance2D inst1 = system.CreateInstance(defaultEffect, new Transform2D(Vector2.Zero));
+        using ParticleEffectInstance2D inst2 = system.CreateInstance(defaultEffect, new Transform2D(Vector2.One));
+        using ParticleEffectInstance2D inst3 = system.CreateInstance(customEffect, new Transform2D(Vector2.UnitX));
 
-    private static ParticleGroup3D CreateGroup3D(string name)
-        => new()
+        var context = new RenderContext(_engine.RenderingSystem);
+        try
         {
-            Name = name,
-            MaxParticles = 128,
-            EmissionRate = 100f,
-            Lifetime = new ParticleRange(1f, 2f),
+            context.BeginFrame();
+            system.RecordSimulation(context, 1f / 60f);
+            context.DiscardFrame();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
+                Assert.That(system.PlannedEmitDispatchCount, Is.EqualTo(2));
+                Assert.That(system.PlannedSimulateDispatchCount, Is.EqualTo(2));
+                Assert.That(system.PlannedEmitBlockCount, Is.EqualTo(5));
+                Assert.That(system.PlannedSimulateBlockCount, Is.EqualTo(10));
+            });
+
+            // A zero-dt tick produces zero spawns -> zero emit blocks, while simulation & draw-args reset continue.
+            context.BeginFrame();
+            system.RecordSimulation(context, 0f);
+            context.DiscardFrame();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(system.PlannedEmitDispatchCount, Is.Zero);
+                Assert.That(system.PlannedEmitBlockCount, Is.Zero);
+                Assert.That(system.PlannedSimulateDispatchCount, Is.EqualTo(2));
+            });
+        }
+        finally
+        {
+            context.Destroy();
+        }
+    }
+
+    /// <summary>3D: groups sharing a behavior coalesce into batched dispatches, while custom behaviors separate cleanly.</summary>
+    [Test]
+    public void EmitAndSimulateBatchByBehavior3D()
+    {
+        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 4096, emitterSlots: 64);
+
+        var defaultEffect = new ParticleEffect3D
+        {
+            Name = "default3d",
+            Groups =
+            [
+                new ParticleGroup3D { Name = "A", MaxParticles = 128, EmissionRate = 100f, Lifetime = new ParticleRange(1f, 2f) },
+                new ParticleGroup3D { Name = "B", MaxParticles = 128, EmissionRate = 100f, Lifetime = new ParticleRange(1f, 2f) },
+            ],
+        };
+        var customEffect = new ParticleEffect3D
+        {
+            Name = "custom3d",
+            Groups =
+            [
+                new ParticleGroup3D
+                {
+                    Name = "C",
+                    MaxParticles = 128,
+                    EmissionRate = 100f,
+                    Lifetime = new ParticleRange(1f, 2f),
+                    Behavior = "TestBehavior3D",
+                },
+            ],
         };
 
-    private static ParticleEffect3D CreateEffect3D(params ParticleGroup3D[] groups)
-        => new() { Name = "TestEffect", Groups = [.. groups] };
+        using ParticleEffectInstance3D inst1 = system.CreateInstance(defaultEffect, new Transform3D(Vector3.Zero));
+        using ParticleEffectInstance3D inst2 = system.CreateInstance(defaultEffect, new Transform3D(Vector3.One));
+        using ParticleEffectInstance3D inst3 = system.CreateInstance(customEffect, new Transform3D(Vector3.UnitX));
+
+        var context = new RenderContext(_engine.RenderingSystem);
+        try
+        {
+            context.BeginFrame();
+            system.RecordSimulation(context, 1f / 60f);
+            context.DiscardFrame();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
+                Assert.That(system.PlannedEmitDispatchCount, Is.EqualTo(2));
+                Assert.That(system.PlannedSimulateDispatchCount, Is.EqualTo(2));
+                Assert.That(system.PlannedEmitBlockCount, Is.EqualTo(5));
+                Assert.That(system.PlannedSimulateBlockCount, Is.EqualTo(10));
+            });
+        }
+        finally
+        {
+            context.Destroy();
+        }
+    }
 }

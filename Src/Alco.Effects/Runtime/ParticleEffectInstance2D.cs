@@ -1,83 +1,33 @@
-using Alco;
-using Alco.Rendering;
+using Alco.Graphics;
 
 namespace Alco.Effects;
 
 /// <summary>
-/// A live instance of a 2D particle effect asset that owns the per-group runtime state (pool slice, emitter slot, emission timeline) and the emitter transform.
-/// Created through <see cref="GpuParticleSystem2D.CreateInstance"/>; disposal returns its slices and slots to the shared pool.
+/// A live instance of a 2D particle effect asset owning per-group runtime state (pool slice,
+/// emitter slot, emission timeline) and emitter transform. Created through
+/// <see cref="GpuParticleSystem2D.CreateInstance"/>; disposal returns slices and slots to the pool.
 /// </summary>
 public sealed class ParticleEffectInstance2D : AutoDisposable
 {
-    /// <summary>
-    /// The per-group runtime state of a 2D effect instance, stored as a value record in the instance's group array.
-    /// Mutate array elements through <c>ref</c> locals only; copies taken elsewhere are value snapshots.
-    /// </summary>
+    /// <summary>Per-group runtime state stored by value in the instance's group array.</summary>
     internal struct GroupState
     {
-        /// <summary>The group asset.</summary>
         public required ParticleGroup2D Asset;
-
-        /// <summary>The emitter slot (params/draw-args index).</summary>
         public uint Slot;
-
-        /// <summary>The pool slice.</summary>
         public ParticleSlice Slice;
-
-        /// <summary>The ring-buffer write cursor.</summary>
         public uint Cursor;
-
-        /// <summary>The unwrapped emission timeline position.</summary>
         public float Time;
-
-        /// <summary>The fractional-particle accumulator.</summary>
         public float Accumulator;
-
-        /// <summary>The time since emission stopped (drives deactivation).</summary>
         public float IdleTimer;
-
-        /// <summary>The spawn count of the current frame.</summary>
         public uint SpawnCount;
-
-        /// <summary>Whether the group still does GPU work (emitting or has live particles).</summary>
         public bool Active;
-
-        /// <summary>
-        /// Whether the group draws and simulates (per-instance state; the asset is
-        /// never mutated). A hidden group drops out of the draw plan — its live
-        /// particles freeze — while its emission timeline keeps advancing,
-        /// mirroring <see cref="ParticleEffectInstance2D.IsVisible"/>.
-        /// </summary>
         public bool Visible;
-
-        /// <summary>The group's render material (shared per group asset).</summary>
-        public required GraphicsMaterial Material;
-
-        /// <summary>
-        /// The group's behavior emit compute material (shared per behavior library,
-        /// resolved once at creation so the frame loop needs no cache lookup).
-        /// </summary>
-        public required ComputeMaterial EmitMaterial;
-
-        /// <summary>
-        /// The group's behavior simulate compute material (shared per behavior
-        /// library, resolved once at creation so the frame loop needs no cache
-        /// lookup).
-        /// </summary>
-        public required ComputeMaterial SimulateMaterial;
-
-        /// <summary>
-        /// The live emission rate in particles per second (per-instance; initialized
-        /// from the asset, editable through <see cref="SetGroupEmissionRate"/>).
-        /// </summary>
+        public required Material Material;
+        public required int PassRootOffset;
+        public required DepthStencilState DepthStencil;
+        public required Shader EmitShader;
+        public required Shader SimulateShader;
         public float EmissionRate;
-
-        /// <summary>
-        /// The live lifetime range in seconds (per-instance; initialized from the
-        /// asset, synchronized with the GPU record by <see cref="SetGroupParams"/>).
-        /// Drives the deactivation timeout once emission ends (stopped, or a
-        /// finished one-shot timeline).
-        /// </summary>
         public ParticleRange Lifetime;
     }
 
@@ -105,34 +55,22 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// <summary>The effect asset this instance plays.</summary>
     public ParticleEffect2D Asset { get; }
 
-    /// <summary>The emitter transform of the whole effect (all groups).</summary>
+    /// <summary>The emitter transform applied to every group of the effect.</summary>
     public Transform2D Transform { get; set; }
 
-    /// <summary>
-    /// The emitter's height above its ground-plane <see cref="Transform"/>. World-space
-    /// particles capture it at spawn; local-space particles follow it while alive.
-    /// </summary>
+    /// <summary>The emitter's height above its ground-plane transform.</summary>
     public float Height { get; set; }
 
-    /// <summary>
-    /// The effect's base world z for scene-depth arbitration, written into every group's per-frame parameters (see <see cref="EmitterParams2D.DepthBase"/>).
-    /// Groups with the depth-base flag render at <c>z = DepthBase - particle height</c>; ignored by groups without it.
-    /// </summary>
+    /// <summary>The base world z written into <see cref="EmitterParams2D.DepthBase"/> when depth testing is enabled.</summary>
     public float DepthBase { get; set; }
 
-    /// <summary>Whether the effect is emitting (starts playing on creation).</summary>
+    /// <summary>Whether the effect is currently emitting.</summary>
     public bool IsPlaying { get; private set; }
 
     /// <summary>Whether the instance still does GPU work (emitting or particles alive).</summary>
     public bool IsActive { get; private set; } = true;
 
-    /// <summary>
-    /// Whether the instance is visible to the camera (culling hook driven by the
-    /// caller, e.g. a spatial grid). An invisible instance skips its emit/simulate
-    /// dispatches and its draw — GPU cost drops to zero — while its emission
-    /// timeline keeps advancing, so a looping effect resumes seamlessly instead of
-    /// bursting when it becomes visible again.
-    /// </summary>
+    /// <summary>Whether the instance is visible for simulation and rendering.</summary>
     public bool IsVisible { get; set; } = true;
 
     /// <summary>The unwrapped emission timeline position in seconds.</summary>
@@ -144,60 +82,37 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// <summary>The number of emitter groups of the effect.</summary>
     public int GroupCount => _groups.Length;
 
-    /// <summary>The name of one of the instance's emitter groups.</summary>
-    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
-    /// <returns>The asset name of the group.</returns>
+    /// <summary>Gets the authored name of the group at <paramref name="groupIndex"/>.</summary>
     public string GetGroupName(int groupIndex) => _groups[groupIndex].Asset.Name;
 
-    /// <summary>The live emission rate of a group, in particles per second.</summary>
-    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
-    /// <returns>The per-instance emission rate.</returns>
+    /// <summary>Gets the live emission rate of a group in particles per second.</summary>
     public float GetGroupEmissionRate(int groupIndex) => _groups[groupIndex].EmissionRate;
 
-    /// <summary>
-    /// Overrides the emission rate of a group for this instance (the asset is not
-    /// mutated); applies to future spawns.
-    /// </summary>
-    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
-    /// <param name="rate">The new rate in particles per second (clamped to &gt;= 0).</param>
+    /// <summary>Overrides the emission rate of a group for future spawns without mutating the asset.</summary>
     public void SetGroupEmissionRate(int groupIndex, float rate)
     {
         _groups[groupIndex].EmissionRate = Math.Max(rate, 0f);
     }
 
-    /// <summary>Whether a group is visible (drawn and simulated) on this instance.</summary>
-    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
+    /// <summary>Whether a group is visible for simulation and rendering.</summary>
     public bool IsGroupVisible(int groupIndex) => _groups[groupIndex].Visible;
 
-    /// <summary>
-    /// Shows or hides a group for this instance (the asset is not mutated). A
-    /// hidden group drops out of the draw plan — its emit/simulate dispatches and
-    /// draw are skipped, so its live particles freeze — while its emission
-    /// timeline keeps advancing, mirroring <see cref="IsVisible"/>.
-    /// </summary>
-    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
-    /// <param name="visible">True to draw and simulate the group.</param>
+    /// <summary>Shows or hides a group on this instance without mutating the asset.</summary>
     public void SetGroupVisible(int groupIndex, bool visible)
     {
         _groups[groupIndex].Visible = visible;
     }
 
-    /// <summary>A copy of the group's live parameter record (static and per-frame fields).</summary>
-    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
-    /// <returns>The slot's current record.</returns>
+    /// <summary>Returns a copy of the group's live <see cref="EmitterParams2D"/> record.</summary>
     public EmitterParams2D GetGroupParams(int groupIndex) => _system.ParamsRef(_groups[groupIndex].Slot);
 
-    /// <summary>
-    /// Replaces the static (asset-authored) parameter fields of a group for this instance only, without respawning it; slot-bound and per-frame fields keep their live values and the asset is not mutated.
-    /// The group's CPU-side lifetime follows <see cref="EmitterParams2D.Life"/>.X/Y; active groups upload the same frame, dormant groups when they reactivate.
-    /// </summary>
-    /// <param name="groupIndex">The group index (0 .. <see cref="GroupCount"/> - 1).</param>
-    /// <param name="parameters">The record carrying the edited static fields.</param>
+    /// <summary>Replaces the static parameter fields of a group for this instance without respawning.</summary>
     public void SetGroupParams(int groupIndex, in EmitterParams2D parameters)
     {
         ref GroupState group = ref _groups[groupIndex];
         EmitterParams2D merged = EmitterParams2D.MergeEdited(_system.ParamsRef(group.Slot), parameters);
         _system.ParamsRef(group.Slot) = merged;
+        _system.Pool.UpdateParams(group.Slot, 1);
         group.Lifetime = new ParticleRange(merged.Life.X, merged.Life.Y);
     }
 
@@ -213,7 +128,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         IsActive = true;
     }
 
-    /// <summary>Stops emission; the live particles die out naturally.</summary>
+    /// <summary>Stops emission; live particles die out naturally.</summary>
     public void Stop()
     {
         IsPlaying = false;
@@ -236,10 +151,6 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         IsActive = true;
     }
 
-    /// <summary>
-    /// Advances every group's emission timeline by one frame and writes the
-    /// per-frame parameter fields into the pool's CPU mirror.
-    /// </summary>
     internal void AdvanceFrame(float deltaTime, ref uint dirtyMin, ref uint dirtyMax)
     {
         bool anyActive = false;
@@ -247,9 +158,6 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         {
             ref GroupState group = ref _groups[i];
             ParticleGroup2D asset = group.Asset;
-            // The lifecycle step gates emission per group: a one-shot group whose
-            // timeline ran out idles and deactivates even while the instance still
-            // plays, so finished effects are destroyable (IsActive -> false).
             group.SpawnCount = ParticleEmission.AdvanceLifecycle(
                 ref group.Time,
                 ref group.Accumulator,
@@ -266,9 +174,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
                 out bool active);
             group.Active = active;
             if (!group.Active)
-            {
                 continue;
-            }
             anyActive = true;
 
             ref EmitterParams2D parameters = ref _system.ParamsRef(group.Slot);
@@ -291,8 +197,6 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     protected override void Dispose(bool disposing)
     {
         if (disposing)
-        {
             _system.ReleaseInstance(this);
-        }
     }
 }
