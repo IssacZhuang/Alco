@@ -10,6 +10,7 @@ public abstract class RenderingResource
 {
     private int _destroyed;
     private protected readonly RenderingSystem _system;
+    internal readonly ulong BirthEpoch;
 
     /// <summary>Gets whether this resource has been destroyed or has begun its garbage-collected release.</summary>
     public bool IsDestroyed => Volatile.Read(ref _destroyed) != 0;
@@ -46,5 +47,6 @@ public abstract class RenderingResource
     {
         Debug.Assert(system != null);
         _system = system;
+        BirthEpoch = system.ReadEpoch();
     }
 }

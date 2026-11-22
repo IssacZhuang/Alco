@@ -51,8 +51,11 @@ public sealed class RenderingSystem
     private readonly List<Submission> _submissions = [];
     private readonly List<Texture.InitializationState> _initializations = [];
     private readonly List<PendingTextureRelease> _textureReleases = [];
+    private readonly List<ActiveRecording> _activeRecordings = [];
     private List<PendingRelease>? _postedReleases;
+    private List<UnresolvedRelease>? _unresolvedReleases;
     private ulong _submissionValue;
+    private ulong _epoch;
     private int _ticking;
     private uint _liveBuffers;
     private uint _liveTextures;
@@ -441,7 +444,7 @@ public sealed class RenderingSystem
         }
 
         _frameValue = completion.Value;
-        ulong submissionValue = OnSubmitted(completion);
+        ulong submissionValue = OnSubmitted(completion, contexts);
         foreach (RenderContext context in contexts)
             context.RegisterSubmission(completion, submissionValue);
         return completion;
@@ -643,8 +646,8 @@ public sealed class RenderingSystem
         return new Sampler(this, desc, index);
     }
 
-    /// <summary>Reclaims finalized wrappers after their registered uses complete; also called by <see cref="RenderContext.BeginFrame"/>.</summary>
-    /// <remarks>Keep wrappers reachable until submission registration or discard. Material draws retain their bound resources until then.</remarks>
+    /// <summary>Reclaims finalized wrappers after their registered uses and overlapping recordings complete; also called by <see cref="RenderContext.BeginFrame"/>.</summary>
+    /// <remarks>Finalized resources alive during an active <see cref="RenderContext"/> recording retire automatically after that frame completes or is discarded.</remarks>
     public void Tick()
     {
         Debug.Assert(!_destroyed);
@@ -667,6 +670,19 @@ public sealed class RenderingSystem
             ulong completedValue;
             lock (_releaseLock)
             {
+                if (_unresolvedReleases != null && _unresolvedReleases.Count > 0)
+                {
+                    int unresolvedKeep = 0;
+                    for (int index = 0; index < _unresolvedReleases.Count; ++index)
+                    {
+                        UnresolvedRelease entry = _unresolvedReleases[index];
+                        if (!HasOverlappingActiveRecordingLocked(entry.BirthEpoch, entry.DeathEpoch))
+                            _pendingReleases.Add(new PendingRelease { RetireValue = entry.RetireValue, Target = entry.Target });
+                        else
+                            _unresolvedReleases[unresolvedKeep++] = entry;
+                    }
+                    _unresolvedReleases.RemoveRange(unresolvedKeep, _unresolvedReleases.Count - unresolvedKeep);
+                }
                 if (_postedReleases != null)
                 {
                     foreach (PendingRelease entry in _postedReleases)
@@ -717,12 +733,19 @@ public sealed class RenderingSystem
         // The device is idle here: reclaim every finalized wrapper without waiting on the timeline.
         lock (_releaseLock)
         {
+            if (_unresolvedReleases != null)
+            {
+                foreach (UnresolvedRelease entry in _unresolvedReleases)
+                    _pendingReleases.Add(new PendingRelease { RetireValue = entry.RetireValue, Target = entry.Target });
+                _unresolvedReleases.Clear();
+            }
             if (_postedReleases != null)
             {
                 foreach (PendingRelease entry in _postedReleases)
-                    entry.Target.Reclaim();
+                    _pendingReleases.Add(entry);
                 _postedReleases.Clear();
             }
+            _activeRecordings.Clear();
         }
         foreach (PendingRelease entry in _pendingReleases)
             entry.Target.Reclaim();
@@ -742,22 +765,152 @@ public sealed class RenderingSystem
         _destroyed = true;
     }
 
+    internal ulong ReadEpoch() => Volatile.Read(ref _epoch);
+
+    internal ulong OnBeginRecording()
+    {
+        lock (_releaseLock)
+        {
+            ulong beginEpoch = Interlocked.Increment(ref _epoch);
+            _activeRecordings.Add(new ActiveRecording
+            {
+                Id = beginEpoch,
+                BeginEpoch = beginEpoch,
+                EndEpoch = ulong.MaxValue,
+            });
+            return beginEpoch;
+        }
+    }
+
+    internal void OnEndRecording(ulong recordingId)
+    {
+        if (recordingId == 0)
+            return;
+        lock (_releaseLock)
+        {
+            ulong endEpoch = Interlocked.Increment(ref _epoch);
+            for (int index = 0; index < _activeRecordings.Count; ++index)
+            {
+                ActiveRecording entry = _activeRecordings[index];
+                if (entry.Id != recordingId)
+                    continue;
+                entry.EndEpoch = endEpoch;
+                _activeRecordings[index] = entry;
+                return;
+            }
+        }
+    }
+
+    internal void OnDiscardRecording(ulong recordingId)
+    {
+        if (recordingId == 0)
+            return;
+        lock (_releaseLock)
+        {
+            RemoveActiveRecordingLocked(recordingId, out _);
+        }
+    }
+
     internal void PostRelease(RenderingResource resource)
     {
         lock (_releaseLock)
         {
+            // Detach an abandoned recording context before testing overlap so it cannot block its own retirement.
+            if (resource is RenderContext abandoned)
+            {
+                ulong recordingId = abandoned.DetachActiveRecording();
+                if (recordingId != 0)
+                    RemoveActiveRecordingLocked(recordingId, out _);
+            }
+            ulong deathEpoch = Volatile.Read(ref _epoch);
+            ulong birthEpoch = resource.BirthEpoch;
+            if (HasOverlappingActiveRecordingLocked(birthEpoch, deathEpoch))
+            {
+                _unresolvedReleases ??= [];
+                _unresolvedReleases.Add(new UnresolvedRelease
+                {
+                    BirthEpoch = birthEpoch,
+                    DeathEpoch = deathEpoch,
+                    RetireValue = _submissionValue,
+                    Target = resource,
+                });
+                return;
+            }
             _postedReleases ??= [];
             _postedReleases.Add(new PendingRelease { RetireValue = _submissionValue, Target = resource });
         }
     }
 
-    internal ulong OnSubmitted(TimelinePoint completion)
+    internal ulong OnSubmitted(TimelinePoint completion, ulong recordingId)
     {
         lock (_releaseLock)
         {
             ulong value = ++_submissionValue;
             _submissions.Add(new Submission { Value = value, Point = completion });
+            if (recordingId != 0 && RemoveActiveRecordingLocked(recordingId, out ActiveRecording recording))
+                ApplySubmissionToUnresolvedLocked(in recording, value);
             return value;
+        }
+    }
+
+    private ulong OnSubmitted(TimelinePoint completion, scoped ReadOnlySpan<RenderContext> contexts)
+    {
+        lock (_releaseLock)
+        {
+            ulong value = ++_submissionValue;
+            _submissions.Add(new Submission { Value = value, Point = completion });
+            for (int index = 0; index < contexts.Length; ++index)
+            {
+                ulong recordingId = contexts[index].DetachActiveRecording();
+                if (recordingId != 0 && RemoveActiveRecordingLocked(recordingId, out ActiveRecording recording))
+                    ApplySubmissionToUnresolvedLocked(in recording, value);
+            }
+            return value;
+        }
+    }
+
+    private static bool Overlaps(in ActiveRecording recording, ulong birthEpoch, ulong deathEpoch) =>
+        recording.BeginEpoch <= deathEpoch && birthEpoch < recording.EndEpoch;
+
+    private bool HasOverlappingActiveRecordingLocked(ulong birthEpoch, ulong deathEpoch)
+    {
+        for (int index = 0; index < _activeRecordings.Count; ++index)
+        {
+            ActiveRecording recording = _activeRecordings[index];
+            if (Overlaps(in recording, birthEpoch, deathEpoch))
+                return true;
+        }
+        return false;
+    }
+
+    private bool RemoveActiveRecordingLocked(ulong recordingId, out ActiveRecording removed)
+    {
+        for (int index = 0; index < _activeRecordings.Count; ++index)
+        {
+            ActiveRecording entry = _activeRecordings[index];
+            if (entry.Id != recordingId)
+                continue;
+            removed = entry;
+            _activeRecordings[index] = _activeRecordings[^1];
+            _activeRecordings.RemoveAt(_activeRecordings.Count - 1);
+            return true;
+        }
+        removed = default;
+        return false;
+    }
+
+    private void ApplySubmissionToUnresolvedLocked(in ActiveRecording recording, ulong submissionValue)
+    {
+        if (_unresolvedReleases == null)
+            return;
+        for (int index = 0; index < _unresolvedReleases.Count; ++index)
+        {
+            UnresolvedRelease entry = _unresolvedReleases[index];
+            if (Overlaps(in recording, entry.BirthEpoch, entry.DeathEpoch) && entry.RetireValue < submissionValue)
+            {
+                entry.RetireValue = submissionValue;
+                _unresolvedReleases[index] = entry;
+            }
         }
     }
 
@@ -889,6 +1042,21 @@ public sealed class RenderingSystem
     {
         public ulong RetireValue;
         public RenderingResource Target;
+    }
+
+    private struct ActiveRecording
+    {
+        internal ulong Id;
+        internal ulong BeginEpoch;
+        internal ulong EndEpoch;
+    }
+
+    private struct UnresolvedRelease
+    {
+        internal ulong BirthEpoch;
+        internal ulong DeathEpoch;
+        internal ulong RetireValue;
+        internal RenderingResource Target;
     }
 
     // LIFO free list over a monotonically growing range: slots are recycled only after the wrapper is destroyed.

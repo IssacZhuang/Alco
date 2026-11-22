@@ -151,6 +151,7 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
     private readonly List<DrawRun> _runs = new(64);
     private readonly List<ClipRect> _scissorRects = new(16);
     private readonly List<MaskEntry> _maskStack = new(16);
+    // Keeps collected textures alive across PrepareRender() before RenderContext.BeginFrame() starts.
     private readonly HashSet<Texture> _usedTextures = new(32);
 
     private readonly List<PooledBuffer> _quadPool = new(4);
@@ -616,18 +617,11 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
         _lastFontPageCount = _glyphCache.PageCount;
         _lastFontAtlasBytes = _glyphCache.AtlasBytes;
 
-        foreach (Texture tex in _usedTextures)
-        {
-            if (!tex.IsDestroyed)
-                context.Retain(tex);
-        }
-
         if (_quads.Count > 0)
         {
             ulong quadBytes = checked((ulong)_quads.Count * (ulong)sizeof(UIQuad));
             _activeQuadBuffer = AcquireTransientBuffer(_quadPool, context, quadBytes, MinQuadBufferBytes);
             _activeQuadBuffer.SetData(CollectionsMarshal.AsSpan(_quads));
-            context.Retain(_activeQuadBuffer);
         }
 
         if (_meshVertices.Count > 0 && _meshIndices.Count > 0)
@@ -638,8 +632,6 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
             _activeMeshIndexBuffer = AcquireTransientBuffer(_meshIndexPool, context, idxBytes, MinMeshIndexBufferBytes);
             _activeMeshVertexBuffer.SetData(CollectionsMarshal.AsSpan(_meshVertices));
             _activeMeshIndexBuffer.SetData(CollectionsMarshal.AsSpan(_meshIndices));
-            context.Retain(_activeMeshVertexBuffer);
-            context.Retain(_activeMeshIndexBuffer);
         }
     }
 

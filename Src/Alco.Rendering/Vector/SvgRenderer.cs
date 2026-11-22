@@ -125,9 +125,6 @@ public sealed class SvgRenderer : AutoDisposable
         _material.SetData("TexSize", ref texSize);
         _material.SetData("ShapeCount", ref shapeCount);
 
-        context.Retain(geometry);
-        context.Retain(target);
-
         Extent3D groups = new((data.Width + 7) / 8, (data.Height + 7) / 8, 1);
         using (RenderContext.ComputeScope compute = context.BeginCompute())
         {

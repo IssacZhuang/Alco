@@ -68,10 +68,7 @@ public sealed class RenderContext : RenderingResource
     private GPUPipeline? _lastPipeline;
     private DepthStencilState LastDepthStencil;
     private bool HasDepthStencil;
-    private readonly List<RenderingResource> _resources = new(32);
-    private Material? _retainedResourceOwner;
-    private uint _retainedResourceVersion;
-    private Buffer? _retainedIndices;
+    private ulong _recordingId;
 
     /// <summary>Creates and prewarms two command pools with independent root storage; failed creation releases partial resources.</summary>
     /// <param name="system">The rendering system supplying the device and descriptor heaps.</param>
@@ -122,6 +119,8 @@ public sealed class RenderContext : RenderingResource
     }
 
     internal RenderingSystem System => _system;
+
+    internal ulong DetachActiveRecording() => Interlocked.Exchange(ref _recordingId, 0);
 
     /// <summary>Monotonic identifier of the active recording frame, or zero when no frame is recording.</summary>
     public ulong CurrentFrameId => _activeFrameId;
@@ -192,6 +191,7 @@ public sealed class RenderContext : RenderingResource
         frame.UploadData?.Reset();
         _commands = frame.Pool.BeginCommands();
         _recording = true;
+        _recordingId = _system.OnBeginRecording();
         frame.FrameId = ++_nextFrameId;
         _activeFrameId = frame.FrameId;
         _recordedTimestampCount = 0;
@@ -230,11 +230,11 @@ public sealed class RenderContext : RenderingResource
 
     /// <summary>Registers the completion covering all uses of a caller-submitted frame and advances to the other slot.</summary>
     /// <param name="completion">A completion ordered after all frame uses; retain its semaphore until this slot is reclaimed or waited.</param>
-    /// <remarks>Material draws and dispatches retain their bound resources through this call. Prepared passes and copies borrow their operands.</remarks>
+    /// <remarks>Finalized resources alive during the recorded frame retire automatically after <paramref name="completion"/> completes.</remarks>
     public void MarkSubmitted(TimelinePoint completion)
     {
         Debug.Assert(!IsDestroyed && !_recording && _commands != null && completion.Semaphore != null);
-        RegisterSubmission(completion, _system.OnSubmitted(completion));
+        RegisterSubmission(completion, _system.OnSubmitted(completion, DetachActiveRecording()));
     }
 
     internal GPUCommandBuffer EndRecording()
@@ -242,6 +242,7 @@ public sealed class RenderContext : RenderingResource
         GPUCommandBuffer commands = CommandsBetweenScopes;
         commands.EndCommands();
         _recording = false;
+        _system.OnEndRecording(_recordingId);
         return commands;
     }
 
@@ -250,7 +251,6 @@ public sealed class RenderContext : RenderingResource
         FrameSlot frame = _frames[_frameIndex];
         frame.Completion = completion;
         frame.SubmissionValue = submissionValue;
-        ClearResources();
         _commands = null;
         _activeFrameId = 0;
         _recordedTimestampCount = 0;
@@ -272,7 +272,7 @@ public sealed class RenderContext : RenderingResource
         frame.RootData.Reset();
         frame.UploadData?.Reset();
         frame.FrameId = 0;
-        ClearResources();
+        _system.OnDiscardRecording(DetachActiveRecording());
         _commands = null;
         _recording = false;
         _activeFrameId = 0;
@@ -297,7 +297,7 @@ public sealed class RenderContext : RenderingResource
             return;
         // A reclaimed context may have unknown in-flight state; waiting idle makes its completions observable before teardown.
         _system.Device.WaitIdle();
-        ClearResources();
+        _system.OnDiscardRecording(DetachActiveRecording());
         if (_commands != null)
             ++_discardVersion;
         _commands = null;
@@ -391,7 +391,7 @@ public sealed class RenderContext : RenderingResource
     }
 
     /// <summary>Copies content into frame-owned staging and records its upload between scopes.</summary>
-    /// <param name="texture">The destination from this context's system, retained through submission registration or discard.</param>
+    /// <param name="texture">The destination from this context's system.</param>
     /// <param name="source">The region data including pitch padding, copied before this method returns.</param>
     /// <param name="copy">The destination mip, slices, region, and memory pitches; the default writes mip zero.</param>
     /// <exception cref="InvalidOperationException">The recording frame's remaining upload capacity is insufficient.</exception>
@@ -418,7 +418,6 @@ public sealed class RenderContext : RenderingResource
         commands.Barrier(Stage.AllCommands, TextureAccess, Stage.Transfer, Access.TransferRead | Access.TransferWrite);
         TextureUpload.UploadTexture(commands, staging, texture.NativeTexture, texture.Desc, source, copy);
         commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.AllCommands, TextureAccess);
-        RetainResource(texture);
     }
 
     /// <summary>Begins a render pass within the active frame, deriving attachment formats and sample count from <paramref name="desc"/>.</summary>
@@ -534,36 +533,6 @@ public sealed class RenderContext : RenderingResource
         }
     }
 
-    /// <summary>Retains a rendering resource until this active frame finishes recording and is submitted or discarded.</summary>
-    /// <param name="resource">The buffer, texture, sampler, or shader referenced by recorded commands.</param>
-    public void Retain(RenderingResource resource)
-    {
-        Debug.Assert(!IsDestroyed && _recording && _commands != null);
-        RetainResource(resource);
-    }
-
-    internal void RetainResource(RenderingResource resource)
-    {
-        Debug.Assert(!resource.IsDestroyed);
-        _resources.Add(resource);
-    }
-
-    private void RetainIndexBuffer(Buffer indices)
-    {
-        if (_retainedIndices != indices)
-        {
-            RetainResource(indices);
-            _retainedIndices = indices;
-        }
-    }
-
-    private void ClearResources()
-    {
-        _resources.Clear();
-        _retainedResourceOwner = null;
-        _retainedIndices = null;
-    }
-
     private void Reclaim(FrameSlot frame)
     {
         if (frame.Completion.Semaphore == null)
@@ -616,7 +585,6 @@ public sealed class RenderContext : RenderingResource
             _lastStateKey = stateKey;
         }
         ApplyDrawState(pipeline, depthStencil);
-        RetainMaterial(material);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -660,22 +628,6 @@ public sealed class RenderContext : RenderingResource
         {
             _commands.BindPipeline(variant.GetComputePipeline());
             _lastVariant = variant;
-            if (material == null)
-                RetainResource(shader);
-        }
-        if (material != null)
-            RetainMaterial(material);
-    }
-
-    private void RetainMaterial(Material material)
-    {
-        Material resourceOwner = material.ResourceOwner;
-        uint resourceVersion = resourceOwner.ResourceVersion;
-        if (_retainedResourceOwner != resourceOwner || _retainedResourceVersion != resourceVersion)
-        {
-            resourceOwner.RetainResources(_resources);
-            _retainedResourceOwner = resourceOwner;
-            _retainedResourceVersion = resourceVersion;
         }
     }
 
@@ -758,7 +710,7 @@ public sealed class RenderContext : RenderingResource
 
         /// <summary>Records an indexed draw with a fresh root snapshot.</summary>
         /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
-        /// <param name="indices">The index buffer, retained until submission registration or discard.</param>
+        /// <param name="indices">The index buffer.</param>
         /// <param name="type">The index element type.</param>
         /// <param name="indexCount">The number of indices per instance.</param>
         /// <param name="instanceCount">The number of instances.</param>
@@ -773,7 +725,6 @@ public sealed class RenderContext : RenderingResource
             _context.AssertScope(ScopeKind.Render, _id);
             Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && byteOffset < indices.SizeBytes);
             GPURange root = _context.PrepareDraw(material);
-            _context.RetainIndexBuffer(indices);
             _context.RecordingCommands.DrawIndexed(root, indices.Range.Slice(byteOffset), type, indexCount, instanceCount, firstIndex, vertexOffset,
                 firstInstance);
         }
@@ -782,7 +733,7 @@ public sealed class RenderContext : RenderingResource
         /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
         /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
         /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
-        /// <param name="indices">The index buffer, retained until submission registration or discard.</param>
+        /// <param name="indices">The index buffer.</param>
         /// <param name="type">The index element type.</param>
         /// <param name="indexCount">The number of indices per instance.</param>
         /// <param name="instanceCount">The number of instances.</param>
@@ -798,16 +749,15 @@ public sealed class RenderContext : RenderingResource
             Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
             Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && byteOffset < indices.SizeBytes);
             _context.BindMaterial(material, depthStencil);
-            _context.RetainIndexBuffer(indices);
             _context.RecordingCommands.DrawIndexed(root, indices.Range.Slice(byteOffset), type, indexCount, instanceCount, firstIndex, vertexOffset,
                 firstInstance);
         }
 
         /// <summary>Records indexed indirect draws with a fresh root snapshot.</summary>
         /// <param name="material">The material; its parameters and state must remain unchanged during parallel recording.</param>
-        /// <param name="indices">The index buffer, retained through submission registration or discard.</param>
+        /// <param name="indices">The index buffer.</param>
         /// <param name="type">The index element type.</param>
-        /// <param name="arguments">The GPU-written or uploaded argument buffer, retained through submission registration or discard.</param>
+        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
         /// <param name="drawCount">The number of draw records.</param>
         /// <param name="stride">The record stride in bytes; zero selects tightly packed 20-byte records.</param>
         /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
@@ -820,8 +770,6 @@ public sealed class RenderContext : RenderingResource
             Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && indexByteOffset < indices.SizeBytes);
             Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDraw(material);
-            _context.RetainIndexBuffer(indices);
-            _context.RetainResource(arguments);
             _context.RecordingCommands.DrawIndexedIndirect(root, indices.Range.Slice(indexByteOffset), type,
                 arguments.Range.Slice(argumentByteOffset), drawCount, stride);
         }
@@ -837,7 +785,7 @@ public sealed class RenderContext : RenderingResource
 
         /// <summary>Records indirect mesh draws with a fresh root snapshot.</summary>
         /// <param name="material">The mesh material, unchanged during parallel recording.</param>
-        /// <param name="arguments">The argument buffer, retained through submission registration.</param>
+        /// <param name="arguments">The argument buffer.</param>
         /// <param name="drawCount">The number of argument records.</param>
         /// <param name="stride">The byte stride, or zero for tightly packed records.</param>
         /// <param name="byteOffset">The byte offset of the first record in the buffer.</param>
@@ -846,17 +794,15 @@ public sealed class RenderContext : RenderingResource
             _context.AssertScope(ScopeKind.Render, _id);
             Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDraw(material, ShaderKind.Mesh);
-            _context.RetainResource(arguments);
             _context.RecordingCommands.DrawMeshletsIndirect(root, arguments.Range.Slice(byteOffset), drawCount, stride);
         }
 
         /// <summary>Replays sealed draws in the current compatible pass, without allocating frame roots.</summary>
-        /// <param name="bundle">The bundle recorded for this system and pass formats, retained through submission registration.</param>
+        /// <param name="bundle">The bundle recorded for this system and pass formats.</param>
         public void ExecuteBundle(RenderBundle bundle)
         {
             _context.AssertScope(ScopeKind.Render, _id);
             Debug.Assert(bundle.IsCompatible(_context._system, _context._passSignature));
-            _context.RetainResource(bundle);
             bundle.Replay(_context, _context.RecordingCommands);
             _context._lastVariant = null;
         }
@@ -898,8 +844,8 @@ public sealed class RenderContext : RenderingResource
         }
 
         /// <summary>Records a dispatch with prepacked data matching the compute shader's root layout.</summary>
-        /// <param name="shader">The compute shader, retained through submission registration.</param>
-        /// <param name="root">The aligned root block and its referenced resources; the caller retains them through GPU completion.</param>
+        /// <param name="shader">The compute shader.</param>
+        /// <param name="root">The aligned root block and its referenced resources; destroy them only after GPU completion.</param>
         /// <param name="groupCount">The number of workgroups along each axis.</param>
         public void Dispatch(Shader shader, GPURange root, Extent3D groupCount)
         {
@@ -911,14 +857,13 @@ public sealed class RenderContext : RenderingResource
 
         /// <summary>Records an indirect dispatch with a fresh root snapshot.</summary>
         /// <param name="material">The compute material, unchanged during parallel recording.</param>
-        /// <param name="arguments">The argument buffer, retained through submission registration.</param>
+        /// <param name="arguments">The argument buffer.</param>
         /// <param name="byteOffset">The byte offset of the dispatch record.</param>
         public void DispatchIndirect(Material material, Buffer arguments, ulong byteOffset = 0)
         {
             _context.AssertScope(ScopeKind.Compute, _id);
             Debug.Assert(!arguments.IsDestroyed && arguments.System == _context._system && byteOffset < arguments.SizeBytes);
             GPURange root = _context.PrepareDispatch(material);
-            _context.RetainResource(arguments);
             _context.RecordingCommands.DispatchIndirect(root, arguments.Range.Slice(byteOffset));
         }
 

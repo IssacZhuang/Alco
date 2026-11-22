@@ -754,7 +754,6 @@ internal static class RenderingSystemTests
                     context.EndFrame();
                 context.DiscardFrame();
                 context.BeginFrame();
-                context.RetainResource(texture);
                 commands = context.EndFrame();
                 readbackPool.Reset();
                 GPUCommandBuffer readbackCommands = readbackPool.BeginCommands();
@@ -974,7 +973,6 @@ internal static class RenderingSystemTests
                     new TextureCopyDesc { Offset = new Extent3D(0, (uint)rows[index], 0), Extent = new Extent3D(width, 1, 1) });
             }
             context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            context.RetainResource(texture);
             GPUCommandBuffer commands = context.EndFrame();
             TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
             device.Submit(new SubmitDesc { Commands = [commands], Waits = [uploaded], Completion = completion });
@@ -1482,7 +1480,6 @@ internal static class RenderingSystemTests
             consumer.BeginFrame();
             consumer.CopyTextureToMemory(texture.NativeTexture, oldResult.GPURange);
             consumer.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            consumer.RetainResource(texture);
             TimelinePoint oldCompletion = consumer.Submit(waits: [uploaded, new TimelinePoint { Semaphore = frameGate, Value = 1 }]);
             device.Submit(new SubmitDesc { Completion = new TimelinePoint { Semaphore = copyGate, Value = 1 } }, 1);
             copyReleased = true;
@@ -1509,7 +1506,6 @@ internal static class RenderingSystemTests
             consumer.BeginFrame();
             consumer.CopyTextureToMemory(texture.NativeTexture, newResult.GPURange);
             consumer.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
-            consumer.RetainResource(texture);
             TimelinePoint newCompletion = consumer.Submit(waits: [updatedUpload]);
             consumer.Wait();
             bool newCompleted = newCompletion.Semaphore?.CompletedValue >= newCompletion.Value;

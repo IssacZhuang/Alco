@@ -2047,10 +2047,11 @@ internal static class MaterialTests
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
             GC.WaitForPendingFinalizers();
             system.Tick();
-            bool retained = recorded.Vertices.IsAlive && recorded.Indices.IsAlive && (!bundleDraw || recorded.Bundle is { IsAlive: true });
+            bool retained = IsNotDestroyed(recorded.Vertices) && IsNotDestroyed(recorded.Indices) &&
+                (!bundleDraw || IsNotDestroyed(recorded.Bundle));
             check(retained, bundleDraw
-                ? "an ended frame strongly retains its bundle and captured buffers after material rebinding and collection before MarkSubmitted"
-                : "an ended frame retains recorded buffer A and its index buffer after the material is rebound to B and collected");
+                ? "an ended frame protects its bundle and captured buffers after material rebinding and collection before MarkSubmitted"
+                : "an ended frame protects recorded buffer A and its index buffer after the material is rebound to B and collected");
             // Never submit stale GPU ranges when the retention regression fails.
             if (!retained) return;
             spare = system.CreateBuffer(128);
@@ -2068,10 +2069,12 @@ internal static class MaterialTests
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
             GC.WaitForPendingFinalizers();
             system.Tick();
-            bool released = bundleDraw ? recorded.Bundle is { IsAlive: false } : !recorded.Vertices.IsAlive && !recorded.Indices.IsAlive;
+            bool released = bundleDraw
+                ? IsNotDestroyed(recorded.Bundle)
+                : IsNotDestroyed(recorded.Vertices) && IsNotDestroyed(recorded.Indices);
             check(released, bundleDraw
-                ? "MarkSubmitted releases the frame's strong bundle reference for deferred finalization while the context remains live"
-                : "MarkSubmitted clears the frame's strong buffer references while its context and rebound material remain live");
+                ? "a finalized bundle remains protected after MarkSubmitted until its registered covering completion retires"
+                : "finalized recorded buffers remain protected after MarkSubmitted until their registered covering completion retires");
             if (!released) return;
             bool exhausted = false;
             try
@@ -2099,8 +2102,14 @@ internal static class MaterialTests
                     GC.WaitForPendingFinalizers();
                     system.Tick();
                 }
-                released = !recorded.Vertices.IsAlive && !recorded.Indices.IsAlive;
-                check(released, "completed bundle finalization releases the actual old vertex and index wrappers, not the rebound material's buffers");
+                released = IsReclaimed(recorded.Bundle) && IsReclaimed(recorded.Vertices) && IsReclaimed(recorded.Indices);
+                check(released, "completed bundle finalization releases the bundle and actual old vertex and index wrappers, not the rebound material's buffers");
+                if (!released) return;
+            }
+            else
+            {
+                released = IsReclaimed(recorded.Vertices) && IsReclaimed(recorded.Indices);
+                check(released, "Tick reclaims collected recorded buffers after the registered covering completion retires");
                 if (!released) return;
             }
             firstRecycled = system.CreateBuffer(128);
@@ -2120,9 +2129,10 @@ internal static class MaterialTests
                 GC.Collect(2, GCCollectionMode.Forced, blocking: true);
                 GC.WaitForPendingFinalizers();
                 system.Tick();
-                retained = recorded.Vertices.IsAlive && recorded.Indices.IsAlive && (!bundleDraw || recorded.Bundle is { IsAlive: true });
+                retained = IsNotDestroyed(recorded.Vertices) && IsNotDestroyed(recorded.Indices) &&
+                    (!bundleDraw || IsNotDestroyed(recorded.Bundle));
                 check(retained,
-                    $"an {(ended == 0 ? "active" : "ended")} frame retains {(bundleDraw ? "its bundle and captured" : "rebound")} buffers until discard");
+                    $"an {(ended == 0 ? "active" : "ended")} frame protects {(bundleDraw ? "its bundle and captured" : "rebound")} buffers until discard");
                 if (!retained) return;
                 context.DiscardFrame();
                 for (int collection = 0; collection < (bundleDraw ? 3 : 1); ++collection)
@@ -2131,7 +2141,8 @@ internal static class MaterialTests
                     GC.WaitForPendingFinalizers();
                     system.Tick();
                 }
-                released = !recorded.Vertices.IsAlive && !recorded.Indices.IsAlive && (!bundleDraw || recorded.Bundle is { IsAlive: false });
+                released = IsReclaimed(recorded.Vertices) && IsReclaimed(recorded.Indices) &&
+                    (!bundleDraw || IsReclaimed(recorded.Bundle));
                 check(released,
                     $"discarding an {(ended == 0 ? "active" : "ended")} frame releases {(bundleDraw ? "bundle and buffers" : "buffers")} without a submit");
                 if (!released) return;
@@ -2212,9 +2223,15 @@ internal static class MaterialTests
             else pass.ExecuteBundle(bundle);
             recordedMaterial.SetBuffer("vertices", restoreOverride ? null : replacement);
         }
-        return (new WeakReference(vertices), new WeakReference(indices), vertices.Range, indices.Range,
-            bundle == null ? null : new WeakReference(bundle));
+        return (new WeakReference(vertices, trackResurrection: true), new WeakReference(indices, trackResurrection: true),
+            vertices.Range, indices.Range, bundle == null ? null : new WeakReference(bundle, trackResurrection: true));
     }
+
+    private static bool IsNotDestroyed(WeakReference? reference) =>
+        reference?.Target is RenderingResource { IsDestroyed: false };
+
+    private static bool IsReclaimed(WeakReference? reference) =>
+        reference?.Target is null or RenderingResource { IsDestroyed: true };
 
     private static void CheckReverseSubmissionRetirement(GPUDevice device, bool sharedTimeline, bool registerBeforeTick, Action<bool, string> check)
     {

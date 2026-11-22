@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Alco.Graphics.LowLevel;
 using NUnit.Framework;
@@ -561,9 +562,9 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
-    /// <summary>Verifies RenderContext DiscardFrame/Retain, public Material.CopyRoot, and system-owned UploadTexture/FlushUploads.</summary>
+    /// <summary>Verifies RenderContext DiscardFrame, public Material.CopyRoot, and system-owned UploadTexture/FlushUploads.</summary>
     [Test]
-    public void NoGpuContext_DiscardRetainCopyRootAndSystemUploadTexture()
+    public void NoGpuContext_DiscardCopyRootAndSystemUploadTexture()
     {
         GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
         RenderingSystem system = new(device, textureHeapByteCount: 1024 * 1024, bufferHeapByteCount: 1024 * 1024);
@@ -593,8 +594,6 @@ public sealed class AlcoGraphicsNoGpuTests
                 });
 
                 context.BeginFrame();
-                context.Retain(dummy);
-                context.Retain(uploadTarget);
                 context.DiscardFrame();
                 Assert.That(uploadTarget.IsDestroyed, Is.False);
 
@@ -851,6 +850,224 @@ public sealed class AlcoGraphicsNoGpuTests
         Assert.That(new TextureDescriptorDesc() == new TextureDescriptorDesc(), Is.True);
         Assert.That(new TextureCopyDesc { MipLevel = 1 } == new TextureCopyDesc { MipLevel = 1 }, Is.True);
         Assert.That(new TextureRegionCopyDesc { SliceCount = 2 } == new TextureRegionCopyDesc { SliceCount = 2 }, Is.True);
+    }
+
+    /// <summary>Verifies unbound finalized resources created or alive during a recording stay protected until submission completes or the frame is discarded.</summary>
+    [Test]
+    public void NoGpu_RecordingAwareRetirement_ProtectsUntilCompletionOrDiscard()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        HeapPoolDesc bufferPool = new() { InitialHeapSize = 128, MaxHeapSize = 128, Budget = 128 };
+        HeapPoolDesc texturePool = new() { InitialHeapSize = 1024 * 1024 };
+        RenderingSystem system = new(device, bufferPool, texturePool);
+        RenderContext context = new(system, 256);
+        GPUTimelineSemaphore timeline = device.CreateTimelineSemaphore();
+        try
+        {
+            // 1. Mid-recording finalization -> EndFrame -> MarkSubmitted(unsignaled) -> GPU completion.
+            context.BeginFrame();
+            (WeakReference texRef, WeakReference bufRef, uint slot, GPURange range) = LeakTextureAndBuffer(system);
+            ForceCollect();
+            system.Tick();
+
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
+            Texture probe = CreateSampledTexture(system);
+            Assert.That(probe.SampledIndex, Is.Not.EqualTo(slot));
+            probe.Destroy();
+
+            context.EndFrame();
+            ForceCollect();
+            system.Tick();
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
+
+            TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
+            context.MarkSubmitted(completion);
+            system.Tick();
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
+
+            device.Submit(new SubmitDesc { Completion = completion });
+            context.Wait();
+            system.Tick();
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+
+            Texture recycledTex = CreateSampledTexture(system);
+            Buffer recycledBuf = system.CreateBuffer(128);
+            Assert.That(recycledTex.SampledIndex, Is.EqualTo(slot));
+            Assert.That(recycledBuf.Range, Is.EqualTo(range));
+            recycledTex.Destroy();
+            recycledBuf.Destroy();
+
+            // 2. Mid-recording finalization -> DiscardFrame immediately enables reclamation without a submit.
+            context.BeginFrame();
+            (WeakReference discardedTexRef, WeakReference discardedBufRef, uint discardedSlot, GPURange discardedRange) =
+                LeakTextureAndBuffer(system);
+            ForceCollect();
+            system.Tick();
+
+            Assert.That(discardedTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).False);
+            Assert.That(discardedBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).False);
+            Assert.Throws<InvalidOperationException>(() => system.CreateBuffer(128));
+
+            context.DiscardFrame();
+            system.Tick();
+            Assert.That(discardedTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
+            Assert.That(discardedBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+
+            Texture reusedTex = CreateSampledTexture(system);
+            Buffer reusedBuf = system.CreateBuffer(128);
+            Assert.That(reusedTex.SampledIndex, Is.EqualTo(discardedSlot));
+            Assert.That(reusedBuf.Range, Is.EqualTo(discardedRange));
+            reusedTex.Destroy();
+            reusedBuf.Destroy();
+        }
+        finally
+        {
+            device.WaitIdle();
+            context.DiscardFrame();
+            context.Destroy();
+            timeline.Destroy();
+            system.Destroy();
+            device.Destroy();
+        }
+    }
+
+    /// <summary>Verifies an abandoned recording context finalized by GC detaches its recording so neither it nor overlapping resources deadlock.</summary>
+    [Test]
+    public void NoGpu_AbandonedRecordingContext_ReclaimsWithTrackedResources()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        HeapPoolDesc bufferPool = new() { InitialHeapSize = 128, MaxHeapSize = 128, Budget = 128 };
+        HeapPoolDesc texturePool = new() { InitialHeapSize = 1024 * 1024 };
+        RenderingSystem system = new(device, bufferPool, texturePool);
+        try
+        {
+            (WeakReference ctxRef, WeakReference texRef, WeakReference bufRef, uint slot, GPURange range) =
+                LeakRecordingContextAndPair(system);
+            ForceCollect();
+            system.Tick();
+
+            Assert.That(ctxRef.Target, Is.InstanceOf<RenderContext>().And.Property(nameof(RenderContext.IsDestroyed)).True);
+            Assert.That(texRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
+            Assert.That(bufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+
+            Texture reusedTex = CreateSampledTexture(system);
+            Buffer reusedBuf = system.CreateBuffer(128);
+            Assert.That(reusedTex.SampledIndex, Is.EqualTo(slot));
+            Assert.That(reusedBuf.Range, Is.EqualTo(range));
+            reusedTex.Destroy();
+            reusedBuf.Destroy();
+        }
+        finally
+        {
+            device.WaitIdle();
+            system.Destroy();
+            device.Destroy();
+        }
+    }
+
+    /// <summary>Verifies per-context recording epoch intervals do not block resources born after EndFrame or finalized before BeginFrame.</summary>
+    [Test]
+    public void NoGpu_RecordingEpochIsolation_DoesNotBlockUnrelatedResources()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        HeapPoolDesc bufferPool = new() { InitialHeapSize = 128, MaxHeapSize = 128, Budget = 128 };
+        HeapPoolDesc texturePool = new() { InitialHeapSize = 1024 * 1024 };
+        RenderingSystem system = new(device, bufferPool, texturePool);
+        RenderContext ctxA = new(system, 256);
+        RenderContext ctxB = new(system, 256);
+        try
+        {
+            // 1. Ended-but-unsubmitted ctxA does not overlap resources created after ctxA.EndFrame().
+            ctxA.BeginFrame();
+            ctxA.EndFrame();
+            (WeakReference afterTexRef, WeakReference afterBufRef, uint afterSlot, GPURange afterRange) = LeakTextureAndBuffer(system);
+            ForceCollect();
+            system.Tick();
+
+            Assert.That(afterTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
+            Assert.That(afterBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+            Texture reusedAfterTex = CreateSampledTexture(system);
+            Buffer reusedAfterBuf = system.CreateBuffer(128);
+            Assert.That(reusedAfterTex.SampledIndex, Is.EqualTo(afterSlot));
+            Assert.That(reusedAfterBuf.Range, Is.EqualTo(afterRange));
+            reusedAfterTex.Destroy();
+            reusedAfterBuf.Destroy();
+            ctxA.DiscardFrame();
+
+            // 2. Resources finalized before ctxB.BeginFrame() retire even while ctxB stays recording.
+            (WeakReference beforeTexRef, WeakReference beforeBufRef, uint beforeSlot, GPURange beforeRange) = LeakTextureAndBuffer(system);
+            ForceCollect();
+            ctxB.BeginFrame();
+            system.Tick();
+
+            Assert.That(beforeTexRef.Target, Is.InstanceOf<Texture>().And.Property(nameof(Texture.IsDestroyed)).True);
+            Assert.That(beforeBufRef.Target, Is.InstanceOf<Buffer>().And.Property(nameof(Buffer.IsDestroyed)).True);
+            Texture reusedBeforeTex = CreateSampledTexture(system);
+            Buffer reusedBeforeBuf = system.CreateBuffer(128);
+            Assert.That(reusedBeforeTex.SampledIndex, Is.EqualTo(beforeSlot));
+            Assert.That(reusedBeforeBuf.Range, Is.EqualTo(beforeRange));
+            reusedBeforeTex.Destroy();
+            reusedBeforeBuf.Destroy();
+            ctxB.DiscardFrame();
+        }
+        finally
+        {
+            device.WaitIdle();
+            ctxB.DiscardFrame();
+            ctxB.Destroy();
+            ctxA.DiscardFrame();
+            ctxA.Destroy();
+            system.Destroy();
+            device.Destroy();
+        }
+    }
+
+    private static Texture CreateSampledTexture(RenderingSystem system)
+    {
+        return system.CreateTexture(new TextureDesc
+        {
+            Extent = new Extent3D(4, 4, 1),
+            Format = Format.Rgba8Unorm,
+            Usage = TextureUsage.Sampled,
+        });
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (WeakReference TextureRef, WeakReference BufferRef, uint Slot, GPURange Range) LeakTextureAndBuffer(
+        RenderingSystem system)
+    {
+        Texture texture = CreateSampledTexture(system);
+        Buffer buffer = system.CreateBuffer(128);
+        return (new WeakReference(texture, trackResurrection: true), new WeakReference(buffer, trackResurrection: true),
+            texture.SampledIndex, buffer.Range);
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static (WeakReference ContextRef, WeakReference TextureRef, WeakReference BufferRef, uint Slot, GPURange Range)
+        LeakRecordingContextAndPair(RenderingSystem system)
+    {
+        RenderContext context = new(system, 256);
+        context.BeginFrame();
+        Texture texture = CreateSampledTexture(system);
+        Buffer buffer = system.CreateBuffer(128);
+        return (new WeakReference(context, trackResurrection: true),
+            new WeakReference(texture, trackResurrection: true),
+            new WeakReference(buffer, trackResurrection: true),
+            texture.SampledIndex,
+            buffer.Range);
+    }
+
+    private static void ForceCollect()
+    {
+        GC.Collect(2, GCCollectionMode.Forced, blocking: true);
+        GC.WaitForPendingFinalizers();
     }
 
     private readonly struct GPUDeviceScope(GPUDevice device) : IDisposable
