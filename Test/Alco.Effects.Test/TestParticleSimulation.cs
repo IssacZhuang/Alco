@@ -202,4 +202,227 @@ public class TestParticleSimulation
             context.Destroy();
         }
     }
+
+    /// <summary>2D: finished one-shot disposal preserves 60Hz rate limiting and defers slice kill, while active disposal and accumulator reset behave cleanly.</summary>
+    [Test]
+    public void DisposingFinishedOneShotPreservesRateLimitAndDefersKill2D()
+    {
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 16)
+        {
+            SimulationRateLimitEnabled = false,
+        };
+        var oneShotEffect = new ParticleEffect2D
+        {
+            Name = "oneshot2d",
+            Groups =
+            [
+                new ParticleGroup2D
+                {
+                    Name = "Burst",
+                    MaxParticles = 64,
+                    Looping = false,
+                    Duration = 0.2f,
+                    EmissionRate = 100f,
+                    Lifetime = new ParticleRange(0.1f, 0.2f),
+                },
+            ],
+        };
+        var loopEffect = new ParticleEffect2D
+        {
+            Name = "loop2d",
+            Groups =
+            [
+                new ParticleGroup2D
+                {
+                    Name = "Loop",
+                    MaxParticles = 64,
+                    Looping = true,
+                    EmissionRate = 60f,
+                    Lifetime = new ParticleRange(1f, 2f),
+                },
+            ],
+        };
+
+        ParticleEffectInstance2D oneShot = system.CreateInstance(oneShotEffect, new Transform2D(Vector2.Zero), seed: 1);
+        using ParticleEffectInstance2D loop = system.CreateInstance(loopEffect, new Transform2D(Vector2.One), seed: 2);
+        using ParticleEffectInstance2D activeVictim = system.CreateInstance(loopEffect, new Transform2D(Vector2.UnitX), seed: 3);
+
+        var context = new RenderContext(_engine.RenderingSystem);
+        try
+        {
+            // Advance one-shot to inactive without rate limit.
+            for (int i = 0; i < 6; i++)
+            {
+                context.BeginFrame();
+                system.RecordSimulation(context, 0.1f);
+                context.Submit().Wait();
+            }
+            Assert.That(oneShot.IsActive, Is.False);
+
+            // Switch to 1s rate limit and establish a valid plan.
+            system.SimulationRateLimitEnabled = true;
+            system.SimulationInterval = 1.0f;
+            context.BeginFrame();
+            system.RecordSimulation(context, 1.0f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
+            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(2));
+
+            // Disposing a finished one-shot queues a slice kill without breaking the rate-limit window.
+            float timeBeforeOneShotDispose = loop.Time;
+            oneShot.Dispose();
+            Assert.That(system.Pool.HasPendingKills, Is.True);
+
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.Multiple(() =>
+            {
+                Assert.That(loop.Time, Is.EqualTo(timeBeforeOneShotDispose));
+                Assert.That(system.Pool.HasPendingKills, Is.True);
+            });
+
+            // Once the simulation interval elapses, simulation runs and drains the deferred kill.
+            context.BeginFrame();
+            system.RecordSimulation(context, 1.0f);
+            context.Submit().Wait();
+            Assert.Multiple(() =>
+            {
+                Assert.That(loop.Time, Is.GreaterThan(timeBeforeOneShotDispose));
+                Assert.That(system.Pool.HasPendingKills, Is.False);
+            });
+
+            // Disposing an active visible instance DOES invalidate the plan immediately on the next sub-interval frame.
+            activeVictim.Dispose();
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(1));
+
+            // Accumulator resets to 0 when plan invalidation triggers an early step.
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.4f);
+            context.Submit().Wait();
+            loop.IsVisible = false;
+            float timeAfterAccum = loop.Time;
+
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.05f);
+            context.Submit().Wait();
+            loop.IsVisible = true;
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.05f);
+            context.Submit().Wait();
+            float timeAfterInvalidated = loop.Time;
+            Assert.That(timeAfterInvalidated, Is.GreaterThan(timeAfterAccum));
+
+            // Next sub-interval 0.7f call must still be rate-limited (0.7 < 1.0, proving 0.4 was consumed/reset).
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.7f);
+            context.Submit().Wait();
+            Assert.That(loop.Time, Is.EqualTo(timeAfterInvalidated));
+        }
+        finally
+        {
+            oneShot.Dispose();
+            context.Destroy();
+        }
+    }
+
+    /// <summary>3D: finished one-shot disposal preserves 60Hz rate limiting and defers slice kill, while active disposal invalidates immediately.</summary>
+    [Test]
+    public void DisposingFinishedOneShotPreservesRateLimitAndDefersKill3D()
+    {
+        using var system = new GpuParticleSystem3D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 16)
+        {
+            SimulationRateLimitEnabled = false,
+        };
+        var oneShotEffect = new ParticleEffect3D
+        {
+            Name = "oneshot3d",
+            Groups =
+            [
+                new ParticleGroup3D
+                {
+                    Name = "Burst",
+                    MaxParticles = 64,
+                    Looping = false,
+                    Duration = 0.2f,
+                    EmissionRate = 100f,
+                    Lifetime = new ParticleRange(0.1f, 0.2f),
+                },
+            ],
+        };
+        var loopEffect = new ParticleEffect3D
+        {
+            Name = "loop3d",
+            Groups =
+            [
+                new ParticleGroup3D
+                {
+                    Name = "Loop",
+                    MaxParticles = 64,
+                    Looping = true,
+                    EmissionRate = 60f,
+                    Lifetime = new ParticleRange(1f, 2f),
+                },
+            ],
+        };
+
+        ParticleEffectInstance3D oneShot = system.CreateInstance(oneShotEffect, new Transform3D(Vector3.Zero), seed: 1);
+        using ParticleEffectInstance3D loop = system.CreateInstance(loopEffect, new Transform3D(Vector3.One), seed: 2);
+        using ParticleEffectInstance3D activeVictim = system.CreateInstance(loopEffect, new Transform3D(Vector3.UnitX), seed: 3);
+
+        var context = new RenderContext(_engine.RenderingSystem);
+        try
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                context.BeginFrame();
+                system.RecordSimulation(context, 0.1f);
+                context.Submit().Wait();
+            }
+            Assert.That(oneShot.IsActive, Is.False);
+
+            system.SimulationRateLimitEnabled = true;
+            system.SimulationInterval = 1.0f;
+            context.BeginFrame();
+            system.RecordSimulation(context, 1.0f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(2));
+
+            float timeBeforeOneShotDispose = loop.Time;
+            oneShot.Dispose();
+            Assert.That(system.Pool.HasPendingKills, Is.True);
+
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.Multiple(() =>
+            {
+                Assert.That(loop.Time, Is.EqualTo(timeBeforeOneShotDispose));
+                Assert.That(system.Pool.HasPendingKills, Is.True);
+            });
+
+            context.BeginFrame();
+            system.RecordSimulation(context, 1.0f);
+            context.Submit().Wait();
+            Assert.Multiple(() =>
+            {
+                Assert.That(loop.Time, Is.GreaterThan(timeBeforeOneShotDispose));
+                Assert.That(system.Pool.HasPendingKills, Is.False);
+            });
+
+            activeVictim.Dispose();
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawGroupCount, Is.EqualTo(1));
+        }
+        finally
+        {
+            oneShot.Dispose();
+            context.Destroy();
+        }
+    }
 }

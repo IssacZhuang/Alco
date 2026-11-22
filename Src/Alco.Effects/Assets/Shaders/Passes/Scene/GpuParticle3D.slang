@@ -1,7 +1,7 @@
 // file "GpuParticle3D.slang" - module "GpuParticle3D"
 //
 // The built-in 3D particle render pass TEMPLATE: camera-facing billboard quads,
-// drawn via non-indexed indirect instancing composed with IParticleSurface.
+// drawn via indexed indirect instancing (4 vertices / 6 indices per quad) composed with IParticleSurface.
 
 #language slang 2025
 module GpuParticle3D;

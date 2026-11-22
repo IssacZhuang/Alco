@@ -1,7 +1,7 @@
 // file "GpuParticle2D.slang" - module "GpuParticle2D"
 //
 // The built-in 2D particle render pass TEMPLATE: draws surviving particles via
-// non-indexed indirect instancing (6 vertices per quad x instanceCount),
+// indexed indirect instancing (4 vertices / 6 indices per quad x instanceCount),
 // composed at link time with an IParticleSurface module.
 
 #language slang 2025

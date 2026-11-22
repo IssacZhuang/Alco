@@ -122,7 +122,7 @@ public sealed unsafe class ValidateEffectShaders
             Assert.That(sizeof(EmitterParams3D), Is.EqualTo(336));
             Assert.That(sizeof(GpuParticle2D), Is.EqualTo(92));
             Assert.That(sizeof(GpuParticle3D), Is.EqualTo(84));
-            Assert.That(sizeof(GpuDrawArgs), Is.EqualTo(16));
+            Assert.That(sizeof(GpuDrawArgs), Is.EqualTo(20));
             Assert.That(sizeof(GpuInstanceData), Is.EqualTo(8));
             Assert.That(sizeof(GpuParticleWorkBlock), Is.EqualTo(16));
             Assert.That(sizeof(GpuTrailSystem2D.TrailPoint2D), Is.EqualTo(32));

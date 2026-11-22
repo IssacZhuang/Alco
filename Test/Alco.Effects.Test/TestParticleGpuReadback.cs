@@ -90,7 +90,7 @@ public sealed class TestParticleGpuReadback
         }
     }
 
-    /// <summary>Two 2D emitters with different textures merge into 1 DrawBatch and draw distinct colors in one DrawIndirect.</summary>
+    /// <summary>Two 2D emitters with different textures merge into 1 DrawBatch and draw distinct colors in one DrawIndexedIndirect.</summary>
     [Test]
     public void BindlessCrossTextureBatchRendersDistinctColorsInSingleDraw()
     {
@@ -342,6 +342,96 @@ public sealed class TestParticleGpuReadback
         finally
         {
             second?.Dispose();
+            context.Destroy();
+            target.Destroy();
+        }
+    }
+
+    /// <summary>Multiple 64-thread workgroups across two textures aggregate atomics per group and draw via shared quad indices.</summary>
+    [Test]
+    public void MultiWorkgroupBatchAggregatesAndRendersIndexedOnGpu()
+    {
+        using EffectsTestHost host = EffectsTestHost.CreateGpu();
+        using Image red = host.CreateSolidImage(255, 0, 0, 255);
+        using Image green = host.CreateSolidImage(0, 255, 0, 255);
+        using var system = new GpuParticleSystem2D(host.RenderingSystem, host.Shaders, particleCapacity: 512, emitterSlots: 8)
+        {
+            SimulationRateLimitEnabled = false,
+        };
+
+        static ParticleEffect2D MakeMultiGroupQuad(string name, Image img) => new()
+        {
+            Name = name,
+            Groups =
+            [
+                new ParticleGroup2D
+                {
+                    Name = name,
+                    MaxParticles = 128,
+                    Looping = true,
+                    EmissionRate = 2500f,
+                    Lifetime = new ParticleRange(2f, 2f),
+                    Speed = new ParticleRange(0f, 0f),
+                    Size = new ParticleVector2Range(new Vector2(2f, 2f)),
+                    StartColor = new ParticleColorRange(ColorFloat.White),
+                    EndColor = ColorFloat.White,
+                    FadeIn = 0f,
+                    FadeOut = 0f,
+                    Texture = img,
+                    Blend = BlendState.Opaque,
+                    Depth = DepthStencilState.None,
+                },
+            ],
+        };
+
+        using ParticleEffectInstance2D leftInst = system.CreateInstance(MakeMultiGroupQuad("left-mw", red), new Transform2D(new Vector2(-2f, 0f)), seed: 11);
+        using ParticleEffectInstance2D rightInst = system.CreateInstance(MakeMultiGroupQuad("right-mw", green), new Transform2D(new Vector2(2f, 0f)), seed: 22);
+        var camera = new CameraData2D { Size = new Vector2(8f, 8f), Near = -10f, Far = 10f };
+
+        Texture target = host.CreateColorTarget(64, 64);
+        var context = new RenderContext(host.RenderingSystem);
+        try
+        {
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.05f);
+            context.Submit().Wait();
+
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.05f);
+            Assert.Multiple(() =>
+            {
+                Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
+                Assert.That(system.PlannedSimulateBlockCount, Is.EqualTo(4));
+            });
+
+            var passDesc = new RenderingDesc
+            {
+                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+            };
+            using (var render = context.BeginRenderPass(passDesc, new RenderPassSignature([Format.Rgba8Unorm])))
+            {
+                render.SetViewport(new Viewport { Width = 64, Height = 64 });
+                render.SetScissor(new Scissor { Width = 64, Height = 64 });
+                system.Render(context, render, camera);
+            }
+            byte[] pixels = host.ReadBackRgba8AndSubmit(context, target, 64, 64);
+
+            int leftIdx = (32 * 64 + 16) * 4;
+            int rightIdx = (32 * 64 + 48) * 4;
+            int centerIdx = (32 * 64 + 32) * 4;
+            Assert.Multiple(() =>
+            {
+                Assert.That(pixels[leftIdx + 0], Is.GreaterThan((byte)200), "Left quad must render red across multi-workgroup aggregation.");
+                Assert.That(pixels[leftIdx + 1], Is.EqualTo((byte)0));
+                Assert.That(pixels[leftIdx + 3], Is.EqualTo((byte)255));
+                Assert.That(pixels[rightIdx + 1], Is.GreaterThan((byte)200), "Right quad must render green across multi-workgroup aggregation.");
+                Assert.That(pixels[rightIdx + 0], Is.EqualTo((byte)0));
+                Assert.That(pixels[rightIdx + 3], Is.EqualTo((byte)255));
+                Assert.That(pixels[centerIdx + 3], Is.EqualTo((byte)0), "Center gap must remain clear.");
+            });
+        }
+        finally
+        {
             context.Destroy();
             target.Destroy();
         }

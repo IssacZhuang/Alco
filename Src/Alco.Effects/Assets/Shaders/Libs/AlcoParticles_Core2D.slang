@@ -90,13 +90,14 @@ public static const uint PARTICLE_FLAG_VELOCITY_STRETCH = 8u;
 public static const uint PARTICLE_FLAG_FLIPBOOK_REVERSE = 16u;
 public static const uint PARTICLE_FLAG_DEPTH_BASE = 32u;
 
-// ── indirect draw record (16 bytes, non-indexed DrawIndirect) ───────────────
+// ── indirect draw record (20 bytes, indexed DrawIndexedIndirect) ────────────
 
 public struct GpuDrawArgs
 {
-    public uint vertexCount;
+    public uint indexCount;
     public uint instanceCount;
-    public uint firstVertex;
+    public uint firstIndex;
+    public int vertexOffset;
     public uint firstInstance;
 };
 
@@ -118,7 +119,7 @@ public struct GpuWorkBlock
     public uint threadBase;    // the block's first thread index within the group's span
 };
 
-// ── procedural centered quad (vertexId 0..5, clockwise front face) ─────────
+// ── procedural centered quad (vertexId 0..3, indexed [0, 1, 2, 0, 2, 3], clockwise front face) ─
 
 public void particleQuadVertex(uint vertexId, out float2 cornerPos, out float2 uv)
 {
@@ -127,8 +128,6 @@ public void particleQuadVertex(uint vertexId, out float2 cornerPos, out float2 u
     case 0u: cornerPos = float2(-0.5,  0.5); uv = float2(0.0, 0.0); break;
     case 1u: cornerPos = float2( 0.5,  0.5); uv = float2(1.0, 0.0); break;
     case 2u: cornerPos = float2( 0.5, -0.5); uv = float2(1.0, 1.0); break;
-    case 3u: cornerPos = float2(-0.5,  0.5); uv = float2(0.0, 0.0); break;
-    case 4u: cornerPos = float2( 0.5, -0.5); uv = float2(1.0, 1.0); break;
     default: cornerPos = float2(-0.5, -0.5); uv = float2(0.0, 1.0); break;
     }
 }

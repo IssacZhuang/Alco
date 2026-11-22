@@ -58,6 +58,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
 
     private readonly RenderingSystem _rendering;
     private readonly TransientBufferPool _stagingPool;
+    private readonly Alco.Graphics.Buffer _quadIndices;
 
     private Alco.Graphics.Buffer _particles;
     private Alco.Graphics.Buffer _drawArgs;
@@ -101,6 +102,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
 
         _rendering = rendering;
         _stagingPool = new TransientBufferPool(rendering);
+        _quadIndices = rendering.CreateBuffer<ushort>([0, 1, 2, 0, 2, 3]);
 
         _particleCapacity = particleCapacity;
         _particles = rendering.CreateBuffer((ulong)particleCapacity * (ulong)sizeof(TParticle));
@@ -121,8 +123,11 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
     /// <summary>The per-frame instance records (<see cref="GpuInstanceData"/>).</summary>
     public Alco.Graphics.Buffer InstanceData => _instanceData;
 
-    /// <summary>The per-batch non-indexed indirect draw argument records (<see cref="GpuDrawArgs"/>).</summary>
+    /// <summary>The per-batch indexed indirect draw argument records (<see cref="GpuDrawArgs"/>).</summary>
     public Alco.Graphics.Buffer DrawArgs => _drawArgs;
+
+    /// <summary>The shared static 6-index quad buffer (<c>[0, 1, 2, 0, 2, 3]</c>) for indexed indirect draws.</summary>
+    public Alco.Graphics.Buffer QuadIndices => _quadIndices;
 
     /// <summary>The GPU buffer holding the uploaded <typeparamref name="TParams"/> array.</summary>
     public Alco.Graphics.Buffer Params => _params;
@@ -526,6 +531,7 @@ internal sealed class ParticleBufferPool<TParticle, TParams> : AutoDisposable
         if (!disposing)
             return;
 
+        _quadIndices.Destroy();
         _particles.Destroy();
         _drawArgs.Destroy();
         _instanceData.Destroy();

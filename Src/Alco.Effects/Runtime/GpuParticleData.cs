@@ -94,19 +94,22 @@ public struct GpuParticle3D
 }
 
 /// <summary>
-/// Non-indexed indirect draw argument record (16 bytes; exact twin of <c>GpuDrawArgs</c> in AlcoParticles_Core2D.slang).
+/// Indexed indirect draw argument record (20 bytes; exact twin of <c>GpuDrawArgs</c> in AlcoParticles_Core2D.slang).
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
 internal struct GpuDrawArgs
 {
-    /// <summary>Number of vertices per quad instance (6).</summary>
-    public uint VertexCount;
+    /// <summary>Number of indices per quad instance (6).</summary>
+    public uint IndexCount;
 
     /// <summary>Atomically accumulated surviving particle count for this batch.</summary>
     public uint InstanceCount;
 
-    /// <summary>Starting vertex index (0).</summary>
-    public uint FirstVertex;
+    /// <summary>Starting index in the shared quad index buffer (0).</summary>
+    public uint FirstIndex;
+
+    /// <summary>Signed offset added to each fetched vertex index (0).</summary>
+    public int VertexOffset;
 
     /// <summary>Starting instance index (always 0 for cross-backend portability).</summary>
     public uint FirstInstance;

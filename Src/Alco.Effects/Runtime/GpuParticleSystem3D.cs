@@ -382,22 +382,30 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         if (_pool.ReconcileFrame(context))
             _hasValidPlan = false;
 
-        if (SimulationRateLimitEnabled && _hasValidPlan && !_pool.HasPendingKills && deltaTime > 0f)
+        if (SimulationRateLimitEnabled && SimulationInterval > 0f && deltaTime > 0f)
         {
-            _simulationAccumulator += deltaTime;
-            if (_simulationAccumulator < SimulationInterval)
+            if (_hasValidPlan)
             {
-                if (_pool.RecordUploadsAndMigration(context))
+                _simulationAccumulator += deltaTime;
+                if (_simulationAccumulator < SimulationInterval)
                 {
-                    context.Barrier(
-                        Stage.Transfer, Access.TransferWrite,
-                        Stage.Compute | Stage.Vertex | Stage.Indirect,
-                        Access.ShaderRead | Access.ShaderWrite | Access.IndirectRead);
+                    if (_pool.RecordUploadsAndMigration(context))
+                    {
+                        context.Barrier(
+                            Stage.Transfer, Access.TransferWrite,
+                            Stage.Compute | Stage.Vertex | Stage.Indirect,
+                            Access.ShaderRead | Access.ShaderWrite | Access.IndirectRead);
+                    }
+                    return;
                 }
-                return;
+                deltaTime = Math.Min(SimulationInterval, ParticleEmission.MaxDeltaTime);
+                _simulationAccumulator = Math.Min(_simulationAccumulator - deltaTime, SimulationInterval);
             }
-            deltaTime = Math.Min(SimulationInterval, ParticleEmission.MaxDeltaTime);
-            _simulationAccumulator = Math.Min(_simulationAccumulator - deltaTime, SimulationInterval);
+            else
+            {
+                deltaTime = Math.Min(_simulationAccumulator + deltaTime, ParticleEmission.MaxDeltaTime);
+                _simulationAccumulator = 0f;
+            }
         }
 
         deltaTime = Math.Min(deltaTime, ParticleEmission.MaxDeltaTime);
@@ -456,7 +464,9 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         BumpAllocator frameData = context.FrameData;
         using (RenderContext.ComputeScope compute = context.BeginCompute())
         {
-            bool didPreWork = false;
+            bool didKills = false;
+            bool didResetArgs = false;
+            bool didEmit = false;
             GPUBufferView particlesView = plannedBuffers.Particles.View;
             GPUBufferView emittersView = plannedBuffers.Params.View;
             GPUBufferView drawArgsView = plannedBuffers.DrawArgs.View;
@@ -472,7 +482,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                     Count = count,
                 };
                 DispatchRoot(compute, frameData, _initShader, in root, (count + 63u) / 64u);
-                didPreWork = true;
+                didKills = true;
             }
 
             if (_drawBatches.Count > 0)
@@ -484,12 +494,12 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                     DrawCount = batchCount,
                 };
                 DispatchRoot(compute, frameData, _resetArgsShader, in resetRoot, (batchCount + 63u) / 64u);
-                didPreWork = true;
+                didResetArgs = true;
             }
 
             if (anyDrawGroups && emitWorkBuf != null && _emitDispatches.Count > 0)
             {
-                if (didPreWork)
+                if (didKills)
                 {
                     compute.Barrier(
                         Stage.Compute, Access.ShaderWrite,
@@ -510,19 +520,18 @@ public sealed class GpuParticleSystem3D : AutoDisposable
                     DispatchRoot(compute, frameData, d.Shader, in root, d.BlockCount);
                 }
 
-                compute.Barrier(
-                    Stage.Compute, Access.ShaderWrite,
-                    Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
-            }
-            else if (didPreWork && anyDrawGroups)
-            {
-                compute.Barrier(
-                    Stage.Compute, Access.ShaderWrite,
-                    Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+                didEmit = true;
             }
 
-            if (anyDrawGroups && simulateWorkBuf != null)
+            if (anyDrawGroups && simulateWorkBuf != null && _simulateDispatches.Count > 0)
             {
+                if (didEmit || didKills || didResetArgs)
+                {
+                    compute.Barrier(
+                        Stage.Compute, Access.ShaderWrite,
+                        Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+                }
+
                 GPUBufferView workView = simulateWorkBuf.View;
                 for (int i = 0; i < _simulateDispatches.Count; i++)
                 {
@@ -547,7 +556,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             Access.IndirectRead | Access.ShaderRead);
     }
 
-    /// <summary>Records batched billboard draws extracting camera basis from <paramref name="camera"/>.</summary>
+    /// <summary>Records batched indexed indirect billboard draws extracting camera basis from <paramref name="camera"/>.</summary>
     public void Render(RenderContext context, RenderContext.RenderScope render, ICamera camera)
     {
         ArgumentNullException.ThrowIfNull(camera);
@@ -566,7 +575,7 @@ public sealed class GpuParticleSystem3D : AutoDisposable
         Render(context, render, camera.ViewProjectionMatrix, right, up);
     }
 
-    /// <summary>Records batched billboard draws using explicit view-projection and billboard axes.</summary>
+    /// <summary>Records batched indexed indirect billboard draws using explicit view-projection and billboard axes.</summary>
     public unsafe void Render(
         RenderContext context,
         RenderContext.RenderScope render,
@@ -607,10 +616,12 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             batch.Material.CopyRoot(alloc.CpuSpan);
             MemoryMarshal.Write(alloc.CpuSpan.Slice(batch.PassRootOffset, sizeof(ParticlePassData3D)), in passData);
 
-            render.DrawIndirect(
+            render.DrawIndexedIndirect(
                 batch.Material,
                 alloc.GPURange,
                 batch.DepthStencil,
+                _pool.QuadIndices,
+                IndexType.UInt16,
                 buffers.DrawArgs,
                 drawCount: 1,
                 stride: 0,
@@ -788,7 +799,8 @@ public sealed class GpuParticleSystem3D : AutoDisposable
             _pool.FreeSlot(group.Slot);
             ReleaseGroupTextureRef(group.Asset);
         }
-        _hasValidPlan = false;
+        if (instance.IsActive && instance.IsVisible)
+            _hasValidPlan = false;
     }
 
     private void TrackDepthGroupAdded(DepthStencilState? depthOverride)

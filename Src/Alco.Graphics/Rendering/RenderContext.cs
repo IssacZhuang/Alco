@@ -808,6 +808,31 @@ public sealed class RenderContext : RenderingResource
                 arguments.Range.Slice(argumentByteOffset), drawCount, stride);
         }
 
+        /// <summary>Records indexed indirect draws with prepacked root data and draw-local depth and stencil state.</summary>
+        /// <param name="material">The material to bind; do not mutate it during parallel recording.</param>
+        /// <param name="root">The full root block replacing material parameters. Keep it aligned to 16 bytes and its resources live until completion.</param>
+        /// <param name="depthStencil">The depth and stencil state for this draw, without changing the material.</param>
+        /// <param name="indices">The index buffer.</param>
+        /// <param name="type">The index element type.</param>
+        /// <param name="arguments">The GPU-written or uploaded argument buffer.</param>
+        /// <param name="drawCount">The number of draw records.</param>
+        /// <param name="stride">The record stride in bytes; zero selects tightly packed 20-byte records.</param>
+        /// <param name="argumentByteOffset">The byte offset of the first argument record.</param>
+        /// <param name="indexByteOffset">The index buffer's byte offset.</param>
+        /// <exception cref="InvalidOperationException"><see cref="RenderingSystem.PipelineMissPolicy"/> is <see cref="PipelineMissPolicy.Throw"/> and no matching pipeline is cached.</exception>
+        public void DrawIndexedIndirect(Material material, GPURange root, DepthStencilState depthStencil,
+            Buffer indices, IndexType type, Buffer arguments,
+            uint drawCount = 1, uint stride = 0, ulong argumentByteOffset = 0, ulong indexByteOffset = 0)
+        {
+            _context.AssertScope(ScopeKind.Render, _id);
+            Debug.Assert(root.Buffer != null && root.Offset % BumpAllocator.Alignment == 0 && root.Size >= material.Root.SizeBytes);
+            Debug.Assert(indices != null && !indices.IsDestroyed && indices.System == _context._system && indexByteOffset < indices.SizeBytes);
+            Debug.Assert(arguments != null && !arguments.IsDestroyed && arguments.System == _context._system && argumentByteOffset < arguments.SizeBytes);
+            _context.BindMaterial(material, depthStencil);
+            _context.RecordingCommands.DrawIndexedIndirect(root, indices.Range.Slice(indexByteOffset), type,
+                arguments.Range.Slice(argumentByteOffset), drawCount, stride);
+        }
+
         /// <summary>Records a mesh draw with a fresh root snapshot.</summary>
         /// <param name="material">The mesh material, unchanged during parallel recording.</param>
         /// <param name="groupCount">The task or mesh workgroup counts.</param>
