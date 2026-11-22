@@ -19,6 +19,7 @@ public sealed class TestSwapchainCapture
     private sealed class ClearWindowGame : GameEngine
     {
         private readonly Vector4 _clearColor;
+        private readonly RenderContext _renderContext;
         private int _frames;
         private Task<RenderCaptureResult>? _captureTask;
 
@@ -28,6 +29,7 @@ public sealed class TestSwapchainCapture
         public ClearWindowGame(GameEngineSetting setting, Vector4 clearColor) : base(setting)
         {
             _clearColor = clearColor;
+            _renderContext = new RenderContext(RenderingSystem);
             CapturedSurfaceFormat = MainPresenter.SurfaceFormat;
         }
 
@@ -57,17 +59,46 @@ public sealed class TestSwapchainCapture
                 return;
             }
 
-            ColorAttachment color = new()
+            bool begun = false;
+            try
             {
-                RenderView = MainPresenter.CurrentFrame.RenderView,
-                Load = LoadOp.Clear,
-                Store = StoreOp.Store,
-                Clear = _clearColor,
-            };
-            RenderingDesc pass = new() { Colors = [color] };
-            using (MainPresenter.FrameContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
-            {
+                _renderContext.BeginFrame();
+                begun = true;
+
+                ColorAttachment color = new()
+                {
+                    RenderView = MainPresenter.CurrentFrame.RenderView,
+                    Load = LoadOp.Clear,
+                    Store = StoreOp.Store,
+                    Clear = _clearColor,
+                };
+                RenderingDesc pass = new() { Colors = [color] };
+                using (_renderContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
+                {
+                }
+
+                MainPresenter.EnqueueFrameContext(_renderContext);
             }
+            catch
+            {
+                if (begun)
+                {
+                    _renderContext.DiscardFrame();
+                }
+                throw;
+            }
+        }
+
+        public override void Dispose()
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            GraphicsDevice.WaitIdle();
+            _renderContext.Destroy();
+            base.Dispose();
         }
     }
 

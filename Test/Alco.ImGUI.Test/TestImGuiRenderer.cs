@@ -19,6 +19,7 @@ public sealed class TestImGuiRenderer
 {
     private sealed class OverlayCaptureGame : GameEngine
     {
+        private readonly RenderContext _renderContext;
         private int _frames;
         private Task<RenderCaptureResult>? _captureTask;
 
@@ -26,6 +27,7 @@ public sealed class TestImGuiRenderer
 
         public OverlayCaptureGame(GameEngineSetting setting) : base(setting)
         {
+            _renderContext = new RenderContext(RenderingSystem);
             AddSystem(new ImGUISystem(this));
 
             if (AssetSystem.TryLoadRaw(BuiltInAssetsPath.Font_Default, out SafeMemoryHandle fontData))
@@ -57,16 +59,33 @@ public sealed class TestImGuiRenderer
 
             if (MainPresenter.HasValidFrame)
             {
-                ColorAttachment color = new()
+                bool begun = false;
+                try
                 {
-                    RenderView = MainPresenter.CurrentFrame.RenderView,
-                    Load = LoadOp.Clear,
-                    Store = StoreOp.Store,
-                    Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-                };
-                RenderingDesc pass = new() { Colors = [color] };
-                using (MainPresenter.FrameContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
+                    _renderContext.BeginFrame();
+                    begun = true;
+
+                    ColorAttachment color = new()
+                    {
+                        RenderView = MainPresenter.CurrentFrame.RenderView,
+                        Load = LoadOp.Clear,
+                        Store = StoreOp.Store,
+                        Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+                    };
+                    RenderingDesc pass = new() { Colors = [color] };
+                    using (_renderContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
+                    {
+                    }
+
+                    MainPresenter.EnqueueFrameContext(_renderContext);
+                }
+                catch
                 {
+                    if (begun)
+                    {
+                        _renderContext.DiscardFrame();
+                    }
+                    throw;
                 }
             }
 
@@ -75,6 +94,18 @@ public sealed class TestImGuiRenderer
                 new Vector2(20.0f, 20.0f),
                 new Vector2(108.0f, 76.0f),
                 ImGui.GetColorU32(new Vector4(0.0f, 1.0f, 0.0f, 1.0f)));
+        }
+
+        public override void Dispose()
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            GraphicsDevice.WaitIdle();
+            _renderContext.Destroy();
+            base.Dispose();
         }
     }
 

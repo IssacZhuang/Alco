@@ -15,12 +15,14 @@ public class Game : GameEngine
     private Vector3 color = new(0.4f, 0.7f, 0.2f);
     private bool toggleValue = true;
 
+    private readonly RenderContext _renderContext;
     private readonly Image _image;
 
     /// <summary>Initializes the ImGui system and loads the demo texture and fonts.</summary>
     /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _renderContext = new RenderContext(RenderingSystem);
         AddSystem(new ImGUISystem(this));
 
         _image = AssetSystem.Load<Image>("Textures/Grid.png");
@@ -45,16 +47,33 @@ public class Game : GameEngine
 
         if (MainPresenter.HasValidFrame)
         {
-            ColorAttachment colorAttachment = new()
+            bool begun = false;
+            try
             {
-                RenderView = MainPresenter.CurrentFrame.RenderView,
-                Load = LoadOp.Clear,
-                Store = StoreOp.Store,
-                Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-            };
-            RenderingDesc pass = new() { Colors = [colorAttachment] };
-            using (MainPresenter.FrameContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
+                _renderContext.BeginFrame();
+                begun = true;
+
+                ColorAttachment colorAttachment = new()
+                {
+                    RenderView = MainPresenter.CurrentFrame.RenderView,
+                    Load = LoadOp.Clear,
+                    Store = StoreOp.Store,
+                    Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+                };
+                RenderingDesc pass = new() { Colors = [colorAttachment] };
+                using (_renderContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
+                {
+                }
+
+                MainPresenter.EnqueueFrameContext(_renderContext);
+            }
+            catch
             {
+                if (begun)
+                {
+                    _renderContext.DiscardFrame();
+                }
+                throw;
             }
         }
 
@@ -70,6 +89,7 @@ public class Game : GameEngine
         }
 
         GraphicsDevice.WaitIdle();
+        _renderContext.Destroy();
         _image.Dispose();
         base.Dispose();
     }

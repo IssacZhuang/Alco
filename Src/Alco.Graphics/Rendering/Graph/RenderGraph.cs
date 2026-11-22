@@ -92,9 +92,7 @@ public sealed unsafe class RenderGraph
         internal string[]? PassNames;
         internal RenderContext? Context;
         internal ulong ContextFrameId;
-        internal TimelinePoint Point;
         internal bool Pending;
-        internal bool Submitted;
     }
 
     private struct CachedPassTiming
@@ -140,10 +138,11 @@ public sealed unsafe class RenderGraph
 
     private Extent2D _viewport;
     private RenderGraphTarget _currentOutput;
+    private RenderContext? _lastContext;
+    private ulong _lastContextDiscardVersion;
     private ulong _frameNumber;
     private bool _inSetup;
     private bool _inExecute;
-    private bool _hasUnsubmittedFrame;
     private bool _destroyed;
 
     /// <summary>Creates a render graph backed by the given <see cref="RenderingSystem"/> and initial viewport extent.</summary>
@@ -474,11 +473,18 @@ public sealed unsafe class RenderGraph
         if (_system == null)
             throw new InvalidOperationException("Cannot execute GPU commands on a dry-run RenderGraph.");
         Debug.Assert(!_inSetup && !_inExecute);
+        Debug.Assert(context.System == _system);
+        Debug.Assert(context.CurrentFrameId != 0, "RenderContext.BeginFrame must be called before RenderGraph.Execute.");
 
         try
         {
-            CompileFrame(output, outputFinalUsage, dryRun: false);
-            _hasUnsubmittedFrame = true;
+            if (_lastContext != null && (_lastContext.IsDestroyed || _lastContext.DiscardVersion != _lastContextDiscardVersion))
+                _pools.ClearSyncedReads();
+
+            FrameUse frameUse = new(context, context.CurrentFrameId);
+            CompileFrame(output, outputFinalUsage, dryRun: false, in frameUse);
+            _lastContext = context;
+            _lastContextDiscardVersion = context.DiscardVersion;
             ExecuteCompiledPasses(context, output, deltaTime);
         }
         finally
@@ -487,66 +493,23 @@ public sealed unsafe class RenderGraph
         }
     }
 
-    /// <summary>Records the GPU completion point for the most recently executed frame so retired resources and timestamps synchronize safely.</summary>
-    /// <param name="completion">The timeline point returned by <see cref="RenderContext.Submit"/> or <see cref="RenderContext.SubmitAndPresent"/>.</param>
-    public void MarkSubmitted(TimelinePoint completion)
-    {
-        EnsureNotDestroyed();
-        _hasUnsubmittedFrame = false;
-        _pools.MarkSubmitted(completion);
-        if (_timestampSlots != null)
-        {
-            for (int index = 0; index < _timestampSlots.Length; ++index)
-            {
-                if (_timestampSlots[index].Pending && !_timestampSlots[index].Submitted)
-                {
-                    _timestampSlots[index].Point = completion;
-                    _timestampSlots[index].Submitted = true;
-                }
-            }
-        }
-    }
-
     /// <summary>Notifies the graph that all previously submitted GPU work has completed (for example, after <see cref="GPUDevice.WaitIdle"/>).</summary>
     public void MarkCompleted()
     {
         EnsureNotDestroyed();
-        _hasUnsubmittedFrame = false;
+        _lastContext = null;
+        _lastContextDiscardVersion = 0;
         _pools.MarkCompleted();
         if (_timestampSlots != null)
         {
             for (int index = 0; index < _timestampSlots.Length; ++index)
             {
                 ref TimestampSlot slot = ref _timestampSlots[index];
-                slot.Point = default;
                 if (slot.Context == null || !slot.Context.IsFramePending(slot.ContextFrameId))
                 {
                     slot.Pending = false;
-                    slot.Submitted = false;
                     slot.Context = null;
                     slot.ContextFrameId = 0;
-                }
-            }
-        }
-    }
-
-    /// <summary>Discards unsubmitted frame tracking, timestamp slots, and cached read visibility after command buffer discard.</summary>
-    public void DiscardFrame()
-    {
-        EnsureNotDestroyed();
-        _hasUnsubmittedFrame = false;
-        _pools.ClearSyncedReads();
-        if (_timestampSlots != null)
-        {
-            for (int index = 0; index < _timestampSlots.Length; ++index)
-            {
-                if (_timestampSlots[index].Pending && !_timestampSlots[index].Submitted)
-                {
-                    _timestampSlots[index].Pending = false;
-                    _timestampSlots[index].Submitted = false;
-                    _timestampSlots[index].Point = default;
-                    _timestampSlots[index].Context = null;
-                    _timestampSlots[index].ContextFrameId = 0;
                 }
             }
         }
@@ -567,8 +530,6 @@ public sealed unsafe class RenderGraph
     public void Resize(Extent2D viewport)
     {
         EnsureMutable();
-        if (_hasUnsubmittedFrame)
-            throw new InvalidOperationException($"RenderGraph '{Name}': cannot resize while an executed frame has not been submitted or discarded.");
         if (viewport.X == 0 || viewport.Y == 0)
             return;
         if (viewport.X == _viewport.X && viewport.Y == _viewport.Y)
@@ -589,7 +550,8 @@ public sealed unsafe class RenderGraph
             return;
         Debug.Assert(!_inSetup && !_inExecute);
         _destroyed = true;
-        _hasUnsubmittedFrame = false;
+        _lastContext = null;
+        _lastContextDiscardVersion = 0;
         _pools.Destroy();
         if (_timestampSlots != null)
         {
@@ -1048,7 +1010,7 @@ public sealed unsafe class RenderGraph
     }
 
     // Core compilation pipeline: Setup -> Validate -> Cull -> Infer & Lifetimes -> Allocate -> Plan Barriers.
-    private void CompileFrame(RenderGraphTarget output, RGUsage outputFinalUsage, bool dryRun)
+    private void CompileFrame(RenderGraphTarget output, RGUsage outputFinalUsage, bool dryRun, in FrameUse frameUse = default)
     {
         ++_frameNumber;
         _currentOutput = output;
@@ -1092,7 +1054,7 @@ public sealed unsafe class RenderGraph
         ComputeLifetimesAndUsage();
 
         // Phase 5: Lifetime-aliased physical pooling and idle eviction.
-        AllocatePhysicalResources(dryRun, out int logicalTextures, out int logicalBuffers);
+        AllocatePhysicalResources(dryRun, in frameUse, out int logicalTextures, out int logicalBuffers);
 
         // Phase 6: Plan explicit per-pass and trailing exit barriers.
         int emittedBarriers = PlanBarriers();
@@ -1310,7 +1272,7 @@ public sealed unsafe class RenderGraph
         }
     }
 
-    private void AllocatePhysicalResources(bool dryRun, out int logicalTextures, out int logicalBuffers)
+    private void AllocatePhysicalResources(bool dryRun, in FrameUse frameUse, out int logicalTextures, out int logicalBuffers)
     {
         _pools.BeginFrame();
         _allocCount = 0;
@@ -1380,7 +1342,7 @@ public sealed unsafe class RenderGraph
                 TextureDesc key = slot.TextureDesc.ResolveTextureDesc(_viewport, resolvedUsage);
                 bool viewportRelative = slot.TextureDesc.Extent.X == 0 || slot.TextureDesc.Extent.Y == 0;
                 int sticky = slot.IsRetained ? slot.StickyPoolIndex : -1;
-                int poolIndex = _pools.AllocateTexture(in key, sticky, viewportRelative, _frameNumber, dryRun);
+                int poolIndex = _pools.AllocateTexture(in key, sticky, viewportRelative, _frameNumber, dryRun, in frameUse);
                 slot.Physical = new PhysicalRef(PhysicalKind.PooledTexture, poolIndex);
                 if (slot.IsRetained)
                     slot.StickyPoolIndex = poolIndex;
@@ -1389,7 +1351,7 @@ public sealed unsafe class RenderGraph
             else
             {
                 int sticky = slot.IsRetained ? slot.StickyPoolIndex : -1;
-                int poolIndex = _pools.AllocateBuffer(slot.BufferSizeBytes, sticky, _frameNumber, dryRun);
+                int poolIndex = _pools.AllocateBuffer(slot.BufferSizeBytes, sticky, _frameNumber, dryRun, in frameUse);
                 slot.Physical = new PhysicalRef(PhysicalKind.PooledBuffer, poolIndex);
                 if (slot.IsRetained)
                     slot.StickyPoolIndex = poolIndex;
@@ -1410,7 +1372,7 @@ public sealed unsafe class RenderGraph
             if (slot.Kind == ResourceKind.SwapchainOutput)
                 slot.Physical = new PhysicalRef(PhysicalKind.SwapchainOutput, 0);
             else if (slot.Kind is ResourceKind.ImportedTexture or ResourceKind.ImportedBuffer)
-                slot.Physical = new PhysicalRef(PhysicalKind.External, _pools.GetOrAddExternal(slot.ExternalKey!, _frameNumber));
+                slot.Physical = new PhysicalRef(PhysicalKind.External, _pools.GetOrAddExternal(slot.ExternalKey!, _frameNumber, in frameUse));
         }
 
         _pools.EvictIdleResources(_frameNumber, IdleFrameRetireThreshold, this);
@@ -1662,7 +1624,6 @@ public sealed unsafe class RenderGraph
                 ref TimestampSlot slot = ref _timestampSlots![timestampSlotIndex];
                 slot.Count = timedPassCount;
                 slot.Pending = timedPassCount > 0;
-                slot.Submitted = false;
                 slot.Context = timedPassCount > 0 ? context : null;
                 slot.ContextFrameId = timedPassCount > 0 ? context.CurrentFrameId : 0;
             }
@@ -1735,7 +1696,7 @@ public sealed unsafe class RenderGraph
         for (int slotIndex = 0; slotIndex < _timestampSlots.Length; ++slotIndex)
         {
             ref TimestampSlot slot = ref _timestampSlots[slotIndex];
-            if (!slot.Pending || !slot.Submitted || !RenderGraphPools.IsCompleted(slot.Point))
+            if (!slot.Pending)
                 continue;
             // Wait until RenderContext.Reclaim has called Pool.ReadTimestamps() before reading or reusing slot.Values.
             if (slot.Context != null && slot.Context.IsFramePending(slot.ContextFrameId))
@@ -1752,8 +1713,6 @@ public sealed unsafe class RenderGraph
                 }
             }
             slot.Pending = false;
-            slot.Submitted = false;
-            slot.Point = default;
             slot.Context = null;
             slot.ContextFrameId = 0;
         }

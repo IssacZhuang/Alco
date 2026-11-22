@@ -56,6 +56,7 @@ public sealed class RenderContext : RenderingResource
     private int _frameIndex;
     private ulong _nextFrameId;
     private ulong _activeFrameId;
+    private ulong _discardVersion;
     private int _recordedTimestampCount;
     private GPUCommandBuffer? _commands;
     private bool _recording;
@@ -125,6 +126,9 @@ public sealed class RenderContext : RenderingResource
     /// <summary>Monotonic identifier of the active recording frame, or zero when no frame is recording.</summary>
     public ulong CurrentFrameId => _activeFrameId;
 
+    /// <summary>Monotonic version incremented whenever an unsubmitted frame is discarded.</summary>
+    public ulong DiscardVersion => _discardVersion;
+
     /// <summary>Number of timestamps recorded in the active frame.</summary>
     public int TimestampCount => _recordedTimestampCount;
 
@@ -141,6 +145,26 @@ public sealed class RenderContext : RenderingResource
                 return true;
         }
         return false;
+    }
+
+    /// <summary>Reports whether GPU work for <paramref name="frameId"/> has completed, was discarded, or belongs to a destroyed context.</summary>
+    /// <param name="frameId">A frame identifier previously read from <see cref="CurrentFrameId"/>.</param>
+    /// <returns><see langword="true"/> when resources used only by <paramref name="frameId"/> are safe to destroy without blocking.</returns>
+    public bool IsFrameCompleted(ulong frameId)
+    {
+        if (frameId == 0 || IsDestroyed)
+            return true;
+        if (frameId == _activeFrameId)
+            return false;
+        for (int index = 0; index < _frames.Length; ++index)
+        {
+            FrameSlot frame = _frames[index];
+            if (frame.FrameId != frameId)
+                continue;
+            return frame.Completion.Semaphore != null &&
+                frame.Completion.Semaphore.CompletedValue >= frame.Completion.Value;
+        }
+        return true;
     }
 
     private bool HasRenderPass => _scope is ScopeKind.Render or ScopeKind.PreparedRender;
@@ -253,6 +277,7 @@ public sealed class RenderContext : RenderingResource
         _recording = false;
         _activeFrameId = 0;
         _recordedTimestampCount = 0;
+        ++_discardVersion;
         ResetScope();
     }
 
@@ -273,6 +298,8 @@ public sealed class RenderContext : RenderingResource
         // A reclaimed context may have unknown in-flight state; waiting idle makes its completions observable before teardown.
         _system.Device.WaitIdle();
         ClearResources();
+        if (_commands != null)
+            ++_discardVersion;
         _commands = null;
         _recording = false;
         _activeFrameId = 0;

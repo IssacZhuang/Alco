@@ -23,6 +23,7 @@ public sealed class ScreenshotToolTests
     private sealed class ApiCaptureHarness : GameEngine
     {
         private readonly AgentControlHost _host;
+        private readonly RenderContext _renderContext;
         private readonly int _port;
         private volatile bool _done;
 
@@ -37,6 +38,7 @@ public sealed class ScreenshotToolTests
         public ApiCaptureHarness(GameEngineSetting setting, int port) : base(setting)
         {
             _port = port;
+            _renderContext = new RenderContext(RenderingSystem);
             _host = new AgentControlHost(this, new AgentControlOptions());
             AddSystem(_host);
         }
@@ -62,17 +64,46 @@ public sealed class ScreenshotToolTests
                 return;
             }
 
-            ColorAttachment color = new()
+            bool begun = false;
+            try
             {
-                RenderView = MainPresenter.CurrentFrame.RenderView,
-                Load = LoadOp.Clear,
-                Store = StoreOp.Store,
-                Clear = new Vector4(0.1f, 0.5f, 0.8f, 0.0f),
-            };
-            RenderingDesc pass = new() { Colors = [color] };
-            using (MainPresenter.FrameContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
-            {
+                _renderContext.BeginFrame();
+                begun = true;
+
+                ColorAttachment color = new()
+                {
+                    RenderView = MainPresenter.CurrentFrame.RenderView,
+                    Load = LoadOp.Clear,
+                    Store = StoreOp.Store,
+                    Clear = new Vector4(0.1f, 0.5f, 0.8f, 0.0f),
+                };
+                RenderingDesc pass = new() { Colors = [color] };
+                using (_renderContext.BeginRenderPass(pass, [MainPresenter.SurfaceFormat]))
+                {
+                }
+
+                MainPresenter.EnqueueFrameContext(_renderContext);
             }
+            catch
+            {
+                if (begun)
+                {
+                    _renderContext.DiscardFrame();
+                }
+                throw;
+            }
+        }
+
+        public override void Dispose()
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            GraphicsDevice.WaitIdle();
+            _renderContext.Destroy();
+            base.Dispose();
         }
 
         private async Task ProbeAsync()

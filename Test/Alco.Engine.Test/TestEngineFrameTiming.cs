@@ -1,13 +1,87 @@
 using System.Diagnostics;
+using Alco.Graphics;
+using Alco.Graphics.LowLevel;
 using NUnit.Framework;
 
 namespace Alco.Engine.Test;
 
 /// <summary>
-/// Verifies wall-clock frame metrics and main-loop frame pacing.
+/// Verifies frame notification order, wall-clock metrics, and main-loop frame pacing.
 /// </summary>
 public class TestEngineFrameTiming
 {
+    /// <summary>
+    /// Verifies that submitting enqueued contexts via <see cref="ViewPresenter.EndFrame"/> allows deferred <see cref="RenderGraph.Resize"/> handlers to run without submission callbacks.
+    /// </summary>
+    [Test]
+    public void PresenterSubmissionMarksAttachedRenderGraphBeforeResize()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU, Headless = true });
+        RenderingSystem rendering = new(device, textureHeapByteCount: 1024 * 1024, bufferHeapByteCount: 1024 * 1024);
+        RenderContext context = new(rendering);
+        RenderGraph graph = new(rendering, new Extent2D(64, 64));
+        try
+        {
+            using NoView view = new(new ViewSetting(64, 64, "Render graph resize"));
+            using ViewPresenter presenter = new(view, rendering);
+            presenter.OnResize += size => graph.Resize(new Extent2D(size.X, size.Y));
+
+            presenter.BeginFrame();
+            context.BeginFrame();
+            graph.Execute(context);
+            presenter.EnqueueFrameContext(context);
+            view.DoResize(new uint2(96, 80));
+            presenter.EndFrame();
+
+            Assert.That(graph.Viewport, Is.EqualTo(new Extent2D(96, 80)));
+        }
+        finally
+        {
+            graph.Destroy();
+            context.Destroy();
+            rendering.Destroy();
+            device.Destroy();
+        }
+    }
+
+    /// <summary>
+    /// Verifies that an exception in <see cref="ViewPresenter.OnBeforePresent"/> discards enqueued contexts cleanly so associated render graphs can resize and continue.
+    /// </summary>
+    [Test]
+    public void PresenterEndFrameDiscardsContextsAndAttachedGraphsOnBeforePresentFailure()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU, Headless = true });
+        RenderingSystem rendering = new(device, textureHeapByteCount: 1024 * 1024, bufferHeapByteCount: 1024 * 1024);
+        RenderContext context = new(rendering);
+        RenderGraph graph = new(rendering, new Extent2D(64, 64));
+        try
+        {
+            using NoView view = new(new ViewSetting(64, 64, "Discard on failure"));
+            using ViewPresenter presenter = new(view, rendering);
+            presenter.OnBeforePresent += () => throw new InvalidOperationException("Simulated pre-present failure");
+
+            presenter.BeginFrame();
+            context.BeginFrame();
+            graph.Execute(context);
+            presenter.EnqueueFrameContext(context);
+
+            Assert.Throws<InvalidOperationException>(() => presenter.EndFrame());
+
+            graph.Resize(new Extent2D(96, 80));
+            Assert.That(graph.Viewport, Is.EqualTo(new Extent2D(96, 80)));
+
+            context.BeginFrame();
+            context.Submit().Wait();
+        }
+        finally
+        {
+            graph.Destroy();
+            context.Destroy();
+            rendering.Destroy();
+            device.Destroy();
+        }
+    }
+
     /// <summary>
     /// Verifies that stable frame intervals produce matching average and low frame rates.
     /// </summary>

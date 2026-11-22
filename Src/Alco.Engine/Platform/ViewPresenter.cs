@@ -10,10 +10,12 @@ namespace Alco.Engine;
 /// </summary>
 public sealed class ViewPresenter : AutoDisposable
 {
+    private const ulong AcquireFrameDataByteCount = 4 * 1024;
+
     private readonly View _view;
     private readonly GPUSwapchain? _swapchain;
     private readonly RenderingSystem _renderingSystem;
-    private readonly RenderContext _frameContext;
+    private readonly RenderContext? _acquireContext;
     private readonly List<RenderContext> _frameContexts = new(4);
 
     private bool _shouldNotifyResize;
@@ -27,7 +29,7 @@ public sealed class ViewPresenter : AutoDisposable
     public event Action? OnBeforePresent;
 
     /// <summary>
-    /// Raised in <see cref="EndFrame"/> when the view was resized during the frame.
+    /// Raised in <see cref="EndFrame"/> after submission when the view was resized during the frame.
     /// It is safe to recreate GPU resources sized to the view inside the handler.
     /// </summary>
     public event Action<uint2>? OnResize;
@@ -53,11 +55,6 @@ public sealed class ViewPresenter : AutoDisposable
     public bool HasValidFrame => CurrentFrame.RenderView != null && CurrentFrame.Extent.X > 0 && CurrentFrame.Extent.Y > 0;
 
     /// <summary>
-    /// Gets the presenter-owned context that starts each frame and acquires the swapchain image.
-    /// </summary>
-    public RenderContext FrameContext => _frameContext;
-
-    /// <summary>
     /// Creates a presenter for the given view targeting <paramref name="renderingSystem"/>.
     /// </summary>
     /// <param name="view">The view whose swapchain is presented.</param>
@@ -70,7 +67,9 @@ public sealed class ViewPresenter : AutoDisposable
         _view = view;
         _swapchain = view.Swapchain;
         _renderingSystem = renderingSystem;
-        _frameContext = new RenderContext(renderingSystem);
+        _acquireContext = _swapchain != null
+            ? new RenderContext(renderingSystem, frameDataByteCount: AcquireFrameDataByteCount)
+            : null;
 
         _width = math.max(1u, view.Size.X);
         _height = math.max(1u, view.Size.Y);
@@ -79,13 +78,12 @@ public sealed class ViewPresenter : AutoDisposable
     }
 
     /// <summary>
-    /// Begins frame recording and acquires the swapchain image when the surface is available.
+    /// Acquires the swapchain image for the new frame when the presentation surface is available.
     /// </summary>
     public void BeginFrame()
     {
         CurrentFrame = default;
         _frameContexts.Clear();
-        _frameContexts.Add(_frameContext);
 
         if (_pendingResize && _swapchain != null)
         {
@@ -95,28 +93,39 @@ public sealed class ViewPresenter : AutoDisposable
             }
         }
 
-        _frameContext.BeginFrame();
-
-        if (_swapchain == null || _view.WindowMode == WindowMode.Minimized)
+        if (_swapchain == null || _acquireContext == null || _view.WindowMode == WindowMode.Minimized)
         {
+            _renderingSystem.Tick();
             return;
         }
 
-        CurrentFrame = _frameContext.Acquire(_swapchain);
+        _acquireContext.BeginFrame();
+        try
+        {
+            SwapchainFrame acquired = _acquireContext.Acquire(_swapchain);
+            if (acquired.RenderView == null)
+            {
+                _acquireContext.DiscardFrame();
+                return;
+            }
+
+            _frameContexts.Add(_acquireContext);
+            CurrentFrame = acquired;
+        }
+        catch
+        {
+            _acquireContext.DiscardFrame();
+            throw;
+        }
     }
 
     /// <summary>
-    /// Appends an additional active <see cref="RenderContext"/> to be submitted with this frame before presentation.
+    /// Appends a <see cref="RenderContext"/> with an active frame recording to be submitted with this frame before presentation.
     /// </summary>
     /// <param name="context">A context from the same rendering system with a begun frame and no open scope.</param>
     public void EnqueueFrameContext(RenderContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
-        if (ReferenceEquals(context, _frameContext))
-        {
-            throw new ArgumentException("The presenter's own FrameContext is already included automatically.", nameof(context));
-        }
-
         _frameContexts.Add(context);
     }
 
@@ -125,6 +134,7 @@ public sealed class ViewPresenter : AutoDisposable
     /// </summary>
     public void EndFrame()
     {
+        bool submitted = false;
         try
         {
             OnBeforePresent?.Invoke();
@@ -136,14 +146,28 @@ public sealed class ViewPresenter : AutoDisposable
             if (canPresent)
             {
                 _renderingSystem.SubmitAndPresent(contexts, _swapchain!);
+                submitted = true;
             }
             else if (!contexts.IsEmpty)
             {
                 _renderingSystem.Submit(contexts);
+                submitted = true;
+            }
+            else
+            {
+                submitted = true;
             }
         }
         finally
         {
+            if (!submitted)
+            {
+                for (int i = 0; i < _frameContexts.Count; i++)
+                {
+                    _frameContexts[i].DiscardFrame();
+                }
+            }
+
             CurrentFrame = default;
             _frameContexts.Clear();
         }
@@ -164,7 +188,7 @@ public sealed class ViewPresenter : AutoDisposable
             _view.OnRestore -= OnWindowRestore;
             _frameContexts.Clear();
             CurrentFrame = default;
-            _frameContext.Destroy();
+            _acquireContext?.Destroy();
         }
     }
 

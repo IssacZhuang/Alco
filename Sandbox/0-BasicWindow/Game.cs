@@ -21,6 +21,7 @@ public class Game : GameEngine
         new Vertex { Position = new Vector4(-0.5f, -0.5f, 0.0f, 1.0f), Color = new Vector4(0.0f, 0.0f, 1.0f, 1.0f) },
     ];
 
+    private readonly RenderContext _renderContext;
     private readonly Buffer _vertexBuffer;
     private readonly Material _material;
 
@@ -28,6 +29,7 @@ public class Game : GameEngine
     /// <param name="setting">Engine settings for the game instance.</param>
     public Game(GameEngineSetting setting) : base(setting)
     {
+        _renderContext = new RenderContext(RenderingSystem);
         _vertexBuffer = RenderingSystem.CreateBuffer<Vertex>(TriangleVertices);
 
         Shader shader = ShaderSystem.GetShader("Triangle");
@@ -49,16 +51,35 @@ public class Game : GameEngine
             return;
         }
 
-        ColorAttachment color = new()
+        bool begun = false;
+        try
         {
-            RenderView = MainPresenter.CurrentFrame.RenderView,
-            Load = LoadOp.Clear,
-            Store = StoreOp.Store,
-            Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
-        };
-        RenderingDesc pass = new() { Colors = [color] };
-        using RenderContext.RenderScope render = MainPresenter.FrameContext.BeginRenderPass(pass);
-        render.Draw(_material, 3);
+            _renderContext.BeginFrame();
+            begun = true;
+
+            ColorAttachment color = new()
+            {
+                RenderView = MainPresenter.CurrentFrame.RenderView,
+                Load = LoadOp.Clear,
+                Store = StoreOp.Store,
+                Clear = new Vector4(0.0f, 0.0f, 0.0f, 1.0f),
+            };
+            RenderingDesc pass = new() { Colors = [color] };
+            using (RenderContext.RenderScope render = _renderContext.BeginRenderPass(pass))
+            {
+                render.Draw(_material, 3);
+            }
+
+            MainPresenter.EnqueueFrameContext(_renderContext);
+        }
+        catch
+        {
+            if (begun)
+            {
+                _renderContext.DiscardFrame();
+            }
+            throw;
+        }
     }
 
     /// <inheritdoc />
@@ -70,6 +91,7 @@ public class Game : GameEngine
         }
 
         GraphicsDevice.WaitIdle();
+        _renderContext.Destroy();
         _vertexBuffer.Destroy();
         base.Dispose();
     }

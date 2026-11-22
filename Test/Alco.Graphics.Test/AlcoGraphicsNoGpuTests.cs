@@ -69,8 +69,10 @@ public sealed class AlcoGraphicsNoGpuTests
     {
         private readonly bool _produceOutput;
         private readonly bool _withDeadPass;
+        private RGTexture _intermediate;
         public int AliveExecutions;
         public int DeadExecutions;
+        public Texture? LastIntermediateTexture;
 
         public TestNode(bool produceOutput = true, bool withDeadPass = true)
         {
@@ -80,7 +82,7 @@ public sealed class AlcoGraphicsNoGpuTests
 
         public void Setup(RenderGraphBuilder builder)
         {
-            RGTexture intermediate = builder.CreateTexture(new RGTextureDesc
+            _intermediate = builder.CreateTexture(new RGTextureDesc
             {
                 Name = "intermediate",
                 Format = Format.Rgba8Unorm,
@@ -88,7 +90,7 @@ public sealed class AlcoGraphicsNoGpuTests
             });
 
             var writePass = builder.AddPass("WriteIntermediate", 1);
-            writePass.Write(intermediate, RGUsage.ColorAttachmentWrite);
+            writePass.Write(_intermediate, RGUsage.ColorAttachmentWrite);
 
             if (_withDeadPass)
             {
@@ -105,7 +107,7 @@ public sealed class AlcoGraphicsNoGpuTests
             if (_produceOutput && builder.HasOutput)
             {
                 var outPass = builder.AddPass("WriteOutput", 3);
-                outPass.Read(intermediate, RGUsage.PixelRead);
+                outPass.Read(_intermediate, RGUsage.PixelRead);
                 outPass.Write(builder.Output, RGUsage.ColorAttachmentWrite);
                 outPass.ProducesOutput();
             }
@@ -114,10 +116,42 @@ public sealed class AlcoGraphicsNoGpuTests
         public void Execute(in RenderGraphContext context, int passId)
         {
             if (passId == 2)
+            {
                 DeadExecutions++;
-            else
-                AliveExecutions++;
+                return;
+            }
+
+            if (passId == 1)
+                LastIntermediateTexture = context.GetTexture(_intermediate);
+            AliveExecutions++;
         }
+    }
+
+    private sealed class ImportedBarrierSyncNode : IRenderGraphNode
+    {
+        private readonly RGTexture _target;
+        public bool EnableWrite = true;
+
+        public ImportedBarrierSyncNode(RGTexture target) => _target = target;
+
+        public void Setup(RenderGraphBuilder builder)
+        {
+            if (EnableWrite)
+            {
+                RenderGraphPassBuilder writePass = builder.AddPass("WriteExt", 0);
+                writePass.Write(_target, RGUsage.ComputeWrite);
+            }
+
+            RenderGraphPassBuilder readPass = builder.AddPass("ReadExt", 1);
+            readPass.Read(_target, RGUsage.PixelRead);
+            if (builder.HasOutput)
+            {
+                readPass.Write(builder.Output, RGUsage.ColorAttachmentWrite);
+                readPass.ProducesOutput();
+            }
+        }
+
+        public void Execute(in RenderGraphContext context, int passId) { }
     }
 
     /// <summary>Verifies NoGPU device creation, heap allocation, texture sizing, and timeline signaling.</summary>
@@ -362,6 +396,166 @@ public sealed class AlcoGraphicsNoGpuTests
         {
             graph.Destroy();
             context.Destroy();
+            system.Destroy();
+            device.Destroy();
+        }
+    }
+
+    /// <summary>Verifies RenderContext FrameId completion, DiscardVersion, mid-frame RenderGraph Resize, and SyncedReads invalidation without callbacks.</summary>
+    [Test]
+    public void NoGpuRenderGraph_PullsFrameCompletionAndDiscardVersionFromRenderContext()
+    {
+        GPUDevice device = Gpu.CreateDevice(new DeviceDesc { Backend = GraphicsBackend.NoGPU });
+        RenderingSystem system = new(device, textureHeapByteCount: 1024 * 1024, bufferHeapByteCount: 1024 * 1024);
+        RenderContext context = new(system);
+        RenderGraph graphA = new(system, new Extent2D(64, 64), "PullTrackA");
+        RenderGraph graphB = new(system, new Extent2D(64, 64), "PullTrackB");
+        RenderGraph barrierGraph = new(system, new Extent2D(64, 64), "DiscardSyncGraph");
+        GPUTimelineSemaphore? manualFence = null;
+        Texture? outputA = null;
+        Texture? outputB = null;
+        Texture? imported = null;
+        try
+        {
+            manualFence = device.CreateTimelineSemaphore(0);
+            outputA = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(64, 64, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.ColorAttachment | TextureUsage.Sampled,
+            });
+            outputB = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(64, 64, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.ColorAttachment | TextureUsage.Sampled,
+            });
+            imported = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(64, 64, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.Sampled | TextureUsage.Storage,
+            });
+
+            TestNode nodeA = new();
+            TestNode nodeB = new();
+            graphA.Use(nodeA);
+            graphB.Use(nodeB);
+
+            // 1. Idle DiscardFrame does not bump DiscardVersion.
+            Assert.That(context.DiscardVersion, Is.EqualTo(0UL));
+            context.DiscardFrame();
+            Assert.That(context.DiscardVersion, Is.EqualTo(0UL));
+
+            // 2. Mid-frame Resize before Submit retires old textures safely behind (RenderContext, FrameId).
+            context.BeginFrame();
+            ulong frame1 = context.CurrentFrameId;
+            Assert.That(context.IsFramePending(frame1), Is.True);
+            Assert.That(context.IsFrameCompleted(frame1), Is.False);
+
+            graphA.Execute(context, RenderGraphTarget.FromTexture(outputA));
+            graphB.Execute(context, RenderGraphTarget.FromTexture(outputB));
+            Texture firstIntermediate = nodeA.LastIntermediateTexture!;
+            Assert.That(firstIntermediate.IsDestroyed, Is.False);
+
+            graphA.Resize(new Extent2D(96, 80));
+            graphB.Resize(new Extent2D(128, 96));
+            Assert.That(graphA.Viewport, Is.EqualTo(new Extent2D(96, 80)));
+            Assert.That(graphB.Viewport, Is.EqualTo(new Extent2D(128, 96)));
+            Assert.That(firstIntermediate.IsDestroyed, Is.False);
+
+            GPUCommandBuffer commands = context.EndFrame();
+            Assert.That(context.IsFrameCompleted(frame1), Is.False);
+            Assert.That(context.IsFramePending(frame1), Is.True);
+
+            TimelinePoint pending = new() { Semaphore = manualFence, Value = 1 };
+            context.MarkSubmitted(pending);
+            Assert.That(context.IsFrameCompleted(frame1), Is.False);
+            Assert.That(context.IsFramePending(frame1), Is.True);
+            graphA.Reclaim();
+            Assert.That(firstIntermediate.IsDestroyed, Is.False);
+
+            // Once GPU completes, IsFrameCompleted flips true and Reclaim destroys retired textures before next BeginFrame.
+            device.Submit(new SubmitDesc { Commands = [commands], Completion = pending });
+            Assert.That(context.IsFrameCompleted(frame1), Is.True);
+            Assert.That(context.IsFramePending(frame1), Is.True);
+            graphA.Reclaim();
+            Assert.That(firstIntermediate.IsDestroyed, Is.True);
+
+            context.Wait();
+            Assert.That(context.IsFramePending(frame1), Is.False);
+            Assert.That(context.IsFrameCompleted(frame1), Is.True);
+
+            // 3. Active DiscardFrame increments DiscardVersion, clears FrameId state, and leaves Resize/subsequent Execute working.
+            ulong discardBefore = context.DiscardVersion;
+            context.BeginFrame();
+            ulong frame2 = context.CurrentFrameId;
+            graphA.Execute(context, RenderGraphTarget.FromTexture(outputA));
+            graphB.Execute(context, RenderGraphTarget.FromTexture(outputB));
+            context.DiscardFrame();
+
+            Assert.That(context.DiscardVersion, Is.EqualTo(discardBefore + 1));
+            Assert.That(context.IsFramePending(frame2), Is.False);
+            Assert.That(context.IsFrameCompleted(frame2), Is.True);
+
+            graphA.Resize(new Extent2D(80, 72));
+            graphB.Resize(new Extent2D(80, 72));
+            Assert.That(graphA.Viewport, Is.EqualTo(new Extent2D(80, 72)));
+            Assert.That(graphB.Viewport, Is.EqualTo(new Extent2D(80, 72)));
+
+            context.BeginFrame();
+            graphA.Execute(context, RenderGraphTarget.FromTexture(outputA));
+            context.Submit().Wait();
+
+            // 4. DiscardVersion change invalidates cached SyncedReads so barriers re-emit on the next frame.
+            RGTexture importedHandle = barrierGraph.ImportTexture(imported, "imported_sync");
+            ImportedBarrierSyncNode syncNode = new(importedHandle);
+            barrierGraph.Use(syncNode);
+
+            // Frame A (submitted): WriteExt + ReadExt syncs PixelRead; next frame with EnableWrite=false reuses SyncedReads.
+            syncNode.EnableWrite = true;
+            context.BeginFrame();
+            barrierGraph.Execute(context, RenderGraphTarget.FromTexture(outputA));
+            Assert.That((barrierGraph.PassReports[1].Barrier.Before & Stage.Compute) != 0, Is.True);
+            Assert.That((barrierGraph.PassReports[1].Barrier.After & Stage.Pixel) != 0, Is.True);
+            context.Submit().Wait();
+
+            syncNode.EnableWrite = false;
+            context.BeginFrame();
+            barrierGraph.Execute(context, RenderGraphTarget.FromTexture(outputA));
+            Assert.That((barrierGraph.PassReports[0].Barrier.Before & Stage.Compute) == 0, Is.True);
+            Assert.That((barrierGraph.PassReports[0].Barrier.After & Stage.Pixel) == 0, Is.True);
+            context.Submit().Wait();
+
+            // Frame B (discarded): WriteExt + ReadExt barrier never ran on GPU; DiscardVersion forces re-emission on next frame.
+            syncNode.EnableWrite = true;
+            context.BeginFrame();
+            barrierGraph.Execute(context, RenderGraphTarget.FromTexture(outputA));
+            Assert.That((barrierGraph.PassReports[1].Barrier.Before & Stage.Compute) != 0, Is.True);
+            Assert.That((barrierGraph.PassReports[1].Barrier.After & Stage.Pixel) != 0, Is.True);
+            context.DiscardFrame();
+
+            syncNode.EnableWrite = false;
+            context.BeginFrame();
+            barrierGraph.Execute(context, RenderGraphTarget.FromTexture(outputA));
+            Assert.That((barrierGraph.PassReports[0].Barrier.Before & Stage.Compute) != 0, Is.True);
+            Assert.That((barrierGraph.PassReports[0].Barrier.After & Stage.Pixel) != 0, Is.True);
+            context.Submit().Wait();
+        }
+        finally
+        {
+            context.Wait();
+            barrierGraph.Destroy();
+            graphB.Destroy();
+            graphA.Destroy();
+            if (imported != null && !imported.IsDestroyed)
+                imported.Destroy();
+            if (outputB != null && !outputB.IsDestroyed)
+                outputB.Destroy();
+            if (outputA != null && !outputA.IsDestroyed)
+                outputA.Destroy();
+            context.Destroy();
+            manualFence?.Destroy();
             system.Destroy();
             device.Destroy();
         }

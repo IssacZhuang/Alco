@@ -29,6 +29,7 @@ public class Game : GameEngine
     }
 
     private readonly RenderGraph _renderGraph;
+    private readonly RenderContext _renderContext;
     private readonly Canvas _canvas;
     private readonly Font _font;
     private readonly Material _pulseMaterial;
@@ -132,11 +133,7 @@ public class Game : GameEngine
 
         _renderGraph = new RenderGraph(RenderingSystem, new Extent2D(MainView.Size.X, MainView.Size.Y), "CanvasUISandbox");
         _renderGraph.Use(new CanvasRenderGraphNode(_canvas, colorLoadOp: LoadOp.Clear, clearColor: new Vector4(0.08f, 0.1f, 0.14f, 1.0f)));
-        MainPresenter.OnResize += size =>
-        {
-            _renderGraph.Resize(new Extent2D(size.X, size.Y));
-            _canvas.Size = new Vector2(size.X, size.Y);
-        };
+        _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);
 
         const string PulseSurfaceSource = """
             #language slang 2025
@@ -827,12 +824,35 @@ public class Game : GameEngine
         }
         ImGui.End();
 
-        if (MainPresenter.HasValidFrame)
+        if (!MainPresenter.HasValidFrame)
         {
+            return;
+        }
+
+        SwapchainFrame frame = MainPresenter.CurrentFrame;
+        _renderGraph.Resize(frame.Extent);
+        uint2 windowSize = MainView.Size;
+        _canvas.Size = new Vector2(windowSize.X, windowSize.Y);
+
+        bool begun = false;
+        try
+        {
+            _renderContext.BeginFrame();
+            begun = true;
             _renderGraph.Execute(
-                MainPresenter.FrameContext,
-                RenderGraphTarget.FromSwapchain(MainPresenter.CurrentFrame, MainPresenter.SurfaceFormat),
-                delta);
+                _renderContext,
+                RenderGraphTarget.FromSwapchain(frame, MainPresenter.SurfaceFormat),
+                delta,
+                outputFinalUsage: RGUsage.ColorAttachment);
+            MainPresenter.EnqueueFrameContext(_renderContext);
+        }
+        catch
+        {
+            if (begun)
+            {
+                _renderContext.DiscardFrame();
+            }
+            throw;
         }
     }
 
@@ -916,6 +936,7 @@ public class Game : GameEngine
         GraphicsDevice.WaitIdle();
         _canvas.Dispose();
         _renderGraph.Destroy();
+        _renderContext.Destroy();
     }
 
     private void UpdateDisplayActive()
