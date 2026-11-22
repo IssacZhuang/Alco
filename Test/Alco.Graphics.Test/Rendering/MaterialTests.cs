@@ -1557,9 +1557,9 @@ internal static class MaterialTests
             parent.DepthStencilState = new DepthStencilState { DepthTest = true, DepthWrite = true };
             MaterialInstance changedState = parent.CreateInstance();
             check(child.State.Matches(initialState, ShaderKind.Graphics) &&
-                RenderContext.DepthStencilMatches(child.DepthStencilState, initialDepth) &&
+                child.DepthStencilState == initialDepth &&
                 changedState.State.Matches(parent.State, ShaderKind.Graphics) &&
-                RenderContext.DepthStencilMatches(changedState.DepthStencilState, parent.DepthStencilState),
+                changedState.DepthStencilState == parent.DepthStencilState,
                 "instances keep independent creation-time pipeline and depth/stencil state snapshots");
 
             long allocated = 0;
@@ -2598,7 +2598,8 @@ internal static class MaterialTests
             },
         };
         DepthStencilState copy = original;
-        check(RenderContext.DepthStencilMatches(original, copy) && RenderContext.DepthStencilMatches(copy, original),
+        check(original == copy && copy == original && original.Equals(copy) &&
+            original.GetHashCode() == copy.GetHashCode(),
             "identical depth/stencil states compare equal in both directions");
         ReadOnlySpan<string> fields =
         [
@@ -2628,7 +2629,7 @@ internal static class MaterialTests
                 case 14: changed.Back.DepthFail = StencilOp.Keep; break;
                 case 15: changed.Back.Reference ^= 1; break;
             }
-            check(!RenderContext.DepthStencilMatches(original, changed) && !RenderContext.DepthStencilMatches(changed, original),
+            check(original != changed && changed != original && !(original == changed) && !original.Equals(changed),
                 $"depth/stencil equality independently distinguishes {fields[field]}");
         }
     }

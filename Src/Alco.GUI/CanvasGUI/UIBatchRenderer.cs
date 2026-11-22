@@ -685,7 +685,7 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
             if (!TryComputePixelScissor(_scissorRects[scissorIdx], viewportExtent, out Scissor scissor))
                 continue;
 
-            if (!lastScissor.HasValue || !ScissorEquals(lastScissor.Value, scissor))
+            if (lastScissor != scissor)
             {
                 render.SetScissor(scissor);
                 lastScissor = scissor;
@@ -1033,9 +1033,6 @@ internal sealed unsafe class UIBatchRenderer : AutoDisposable
     }
 
     private static ulong NextCapacity(ulong bytes) => (bytes + 4095ul) & ~4095ul;
-
-    private static bool ScissorEquals(Scissor a, Scissor b) =>
-        a.X == b.X && a.Y == b.Y && a.Width == b.Width && a.Height == b.Height;
 
     private static void ExtractQuadAxes(in Matrix4x4 matrix, out Vector2 origin, out Vector2 right, out Vector2 down)
     {

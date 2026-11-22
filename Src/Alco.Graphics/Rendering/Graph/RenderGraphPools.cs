@@ -186,7 +186,7 @@ internal sealed class RenderGraphPools
     {
         // 1. Sticky reassignment from this frame's freed candidates (preserves stable backing across aliases).
         if (stickyIndex >= 0 && stickyIndex < _textureCount && _textures[stickyIndex].AvailableForReuse &&
-            TextureDescMatches(in _textures[stickyIndex].Key, in key))
+            _textures[stickyIndex].Key == key)
         {
             RemoveFreed(_freedTextures, ref _freedTextureCount, stickyIndex);
             ClaimTexture(stickyIndex, viewportRelative, frameNumber, in frameUse);
@@ -197,7 +197,7 @@ internal sealed class RenderGraphPools
         for (int stackIndex = _freedTextureCount - 1; stackIndex >= 0; --stackIndex)
         {
             int candidate = _freedTextures[stackIndex];
-            if (TextureDescMatches(in _textures[candidate].Key, in key))
+            if (_textures[candidate].Key == key)
             {
                 RemoveAtOrdered(_freedTextures, ref _freedTextureCount, stackIndex);
                 ClaimTexture(candidate, viewportRelative, frameNumber, in frameUse);
@@ -207,7 +207,7 @@ internal sealed class RenderGraphPools
 
         // 3. Sticky reassignment from idle entries not yet used this frame.
         if (stickyIndex >= 0 && stickyIndex < _textureCount && !_textures[stickyIndex].InUseThisFrame &&
-            TextureDescMatches(in _textures[stickyIndex].Key, in key))
+            _textures[stickyIndex].Key == key)
         {
             ClaimTexture(stickyIndex, viewportRelative, frameNumber, in frameUse);
             return stickyIndex;
@@ -216,7 +216,7 @@ internal sealed class RenderGraphPools
         // 4. Deterministic lowest-index idle entry.
         for (int index = 0; index < _textureCount; ++index)
         {
-            if (!_textures[index].InUseThisFrame && TextureDescMatches(in _textures[index].Key, in key))
+            if (!_textures[index].InUseThisFrame && _textures[index].Key == key)
             {
                 ClaimTexture(index, viewportRelative, frameNumber, in frameUse);
                 return index;
@@ -604,20 +604,6 @@ internal sealed class RenderGraphPools
         --count;
         if (index < count)
             Array.Copy(array, index + 1, array, index, count - index);
-    }
-
-    private static bool TextureDescMatches(in TextureDesc left, in TextureDesc right)
-    {
-        return left.Type == right.Type &&
-            left.Extent.X == right.Extent.X &&
-            left.Extent.Y == right.Extent.Y &&
-            left.Extent.Z == right.Extent.Z &&
-            left.MipLevels == right.MipLevels &&
-            left.LayerCount == right.LayerCount &&
-            left.Format == right.Format &&
-            left.MutableFormat == right.MutableFormat &&
-            left.Usage == right.Usage &&
-            left.SampleCount == right.SampleCount;
     }
 
     private static ulong RoundBufferSize(ulong requiredBytes)

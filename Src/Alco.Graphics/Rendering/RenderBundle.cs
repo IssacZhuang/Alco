@@ -195,7 +195,7 @@ public sealed unsafe class RenderBundle : RenderingResource
         GPUPipeline pipeline = material.GetPipeline(_passSignature);
         DepthStencilState depthStencil = material.DepthStencilState;
         if (RunCount == 0 || Runs[RunCount - 1].Pipeline != pipeline ||
-            !RenderContext.DepthStencilMatches(Runs[RunCount - 1].DepthStencil, depthStencil))
+            Runs[RunCount - 1].DepthStencil != depthStencil)
         {
             if (RunCount == Runs.Length)
                 Array.Resize(ref Runs, Math.Max(4, Runs.Length * 2));

@@ -6,7 +6,7 @@ using Alco.Graphics.LowLevel;
 namespace Alco.Graphics;
 
 /// <summary>A two-dimensional extent in texels.</summary>
-public struct Extent2D
+public record struct Extent2D
 {
     public uint X;
     public uint Y;
@@ -19,7 +19,7 @@ public struct Extent2D
 }
 
 /// <summary>A three-dimensional extent in texels.</summary>
-public struct Extent3D
+public record struct Extent3D
 {
     public uint X;
     public uint Y;
@@ -72,14 +72,14 @@ public enum MemoryType : byte
 }
 
 /// <summary>A size in bytes together with its alignment requirement.</summary>
-public struct SizeAlign
+public record struct SizeAlign
 {
     public ulong Size;
     public ulong Align;
 }
 
 /// <summary>A shader-visible buffer view identifying a backing buffer and a byte offset within it.</summary>
-public struct GPUBufferView
+public record struct GPUBufferView
 {
     /// <summary>The device-local backing-buffer index; zero denotes an empty view.</summary>
     public uint Index;
@@ -274,7 +274,7 @@ public enum Format : byte
 }
 
 /// <summary>Texel-block geometry of a <see cref="Format"/>.</summary>
-public struct TextureFormatInfo
+public record struct TextureFormatInfo
 {
     public Extent2D BlockExtent;
     public uint BytesPerBlock;
@@ -700,7 +700,7 @@ public struct SwapchainFrame
 }
 
 /// <summary>A texture creation description.</summary>
-public struct TextureDesc
+public record struct TextureDesc
 {
     public TextureType Type; // TwoD
     public Extent3D Extent; // 1,1,1
@@ -729,14 +729,14 @@ public struct TextureDesc
 }
 
 /// <summary>A render-target view of one mip level and slice.</summary>
-public struct RenderViewDesc
+public record struct RenderViewDesc
 {
     public uint MipLevel;
     public uint Slice; // Physical array slice; cube faces are individual slices.
 }
 
 /// <summary>A texture descriptor heap slot description.</summary>
-public struct TextureDescriptorDesc
+public record struct TextureDescriptorDesc
 {
     public Format Format; // Undefined inherits the texture format.
     public TextureAspect Aspect; // Automatic selects color, or depth before stencil.
@@ -753,7 +753,7 @@ public struct TextureDescriptorDesc
 }
 
 /// <summary>A buffer/texture copy region; depth/stencil transfers require zero texture origin and a complete mip per selected slice.</summary>
-public struct TextureCopyDesc
+public record struct TextureCopyDesc
 {
     public uint MipLevel;
     public uint BaseSlice; // Physical array slice; cube faces are individual slices.
@@ -768,7 +768,7 @@ public struct TextureCopyDesc
 /// A texture-to-texture copy region. Origins are block-aligned; partial blocks reach both mip edges.
 /// Depth/stencil copies require zero origins and complete mip subresources per selected slice.
 /// </summary>
-public struct TextureRegionCopyDesc
+public record struct TextureRegionCopyDesc
 {
     /// <summary>The source mip level.</summary>
     public uint SourceMipLevel;
@@ -796,7 +796,7 @@ public struct TextureRegionCopyDesc
 }
 
 /// <summary>A sampler description.</summary>
-public struct SamplerDesc
+public record struct SamplerDesc
 {
     public Filter MinFilter; // Linear
     public Filter MagFilter; // Linear
@@ -823,7 +823,7 @@ public struct SamplerDesc
 }
 
 /// <summary>Blend arithmetic for one color component.</summary>
-public struct BlendComponentState
+public record struct BlendComponentState
 {
     public BlendFactor Source; // One
     public BlendFactor Destination; // Zero
@@ -838,7 +838,7 @@ public struct BlendComponentState
 }
 
 /// <summary>Color and alpha blending configuration.</summary>
-public struct BlendState
+public record struct BlendState
 {
     public bool Enabled;
     public BlendComponentState Color;
@@ -852,7 +852,7 @@ public struct BlendState
 }
 
 /// <summary>One color output target of a pipeline.</summary>
-public struct ColorTargetDesc
+public record struct ColorTargetDesc
 {
     public Format Format; // Undefined
     public BlendState Blend;
@@ -868,7 +868,7 @@ public struct ColorTargetDesc
 }
 
 /// <summary>Rasterizer configuration.</summary>
-public struct RasterizationState
+public record struct RasterizationState
 {
     public CullMode Cull; // None
     public FillMode Fill; // Solid
@@ -878,7 +878,7 @@ public struct RasterizationState
 }
 
 /// <summary>A top-left framebuffer rectangle with positive dimensions and a zero-to-one depth range.</summary>
-public struct Viewport
+public record struct Viewport
 {
     public float X;
     public float Y;
@@ -896,7 +896,7 @@ public struct Viewport
 }
 
 /// <summary>A scissor rectangle.</summary>
-public struct Scissor
+public record struct Scissor
 {
     public int X;
     public int Y;
@@ -911,7 +911,7 @@ public struct Scissor
 }
 
 /// <summary>Stencil test and update configuration for one face.</summary>
-public struct StencilFaceState
+public record struct StencilFaceState
 {
     public CompareOp Compare; // Always
     public StencilOp Fail; // Keep
@@ -930,7 +930,7 @@ public struct StencilFaceState
 }
 
 /// <summary>Depth and stencil test configuration.</summary>
-public struct DepthStencilState
+public record struct DepthStencilState
 {
     public bool DepthTest;
     public bool DepthWrite;

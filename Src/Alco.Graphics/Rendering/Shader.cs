@@ -183,7 +183,7 @@ public sealed class RootLayout
 }
 
 /// <summary>The pipeline-defining state of a material: per-target blend, write mask, rasterization, and topology.</summary>
-public struct PipelineState
+public record struct PipelineState
 {
     /// <summary>The blend state applied to every color target.</summary>
     public BlendState Blend;
@@ -208,17 +208,9 @@ public struct PipelineState
 
     internal readonly bool Matches(PipelineState state, ShaderKind kind)
     {
-        return Blend.Enabled == state.Blend.Enabled &&
-            Blend.Color.Source == state.Blend.Color.Source && Blend.Color.Destination == state.Blend.Color.Destination &&
-            Blend.Color.Operation == state.Blend.Color.Operation &&
-            Blend.Alpha.Source == state.Blend.Alpha.Source && Blend.Alpha.Destination == state.Blend.Alpha.Destination &&
-            Blend.Alpha.Operation == state.Blend.Alpha.Operation && WriteMask == state.WriteMask &&
-            (kind != ShaderKind.Graphics || Topology == state.Topology) &&
-            Rasterization.Cull == state.Rasterization.Cull &&
-            Rasterization.Fill == state.Rasterization.Fill &&
-            Rasterization.DepthBiasConstant.Equals(state.Rasterization.DepthBiasConstant) &&
-            Rasterization.DepthBiasClamp.Equals(state.Rasterization.DepthBiasClamp) &&
-            Rasterization.DepthBiasSlope.Equals(state.Rasterization.DepthBiasSlope);
+        return Blend == state.Blend && WriteMask == state.WriteMask &&
+            Rasterization == state.Rasterization &&
+            (kind != ShaderKind.Graphics || Topology == state.Topology);
     }
 }
 

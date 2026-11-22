@@ -317,7 +317,7 @@ public readonly struct RGBuffer : IEquatable<RGBuffer>
 }
 
 /// <summary>Describes a transient texture resource pooled and lifetime-aliased by a <see cref="RenderGraph"/>.</summary>
-public struct RGTextureDesc
+public record struct RGTextureDesc
 {
     /// <summary>Diagnostic name for validation errors and profiling reports.</summary>
     public string Name;
@@ -390,7 +390,7 @@ public struct RGTextureDesc
 }
 
 /// <summary>Describes a transient buffer resource pooled and lifetime-aliased by a <see cref="RenderGraph"/>.</summary>
-public struct RGBufferDesc
+public record struct RGBufferDesc
 {
     /// <summary>Diagnostic name for validation errors and profiling reports.</summary>
     public string Name;

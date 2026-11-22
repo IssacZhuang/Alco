@@ -772,6 +772,87 @@ public sealed class AlcoGraphicsNoGpuTests
         }
     }
 
+    /// <summary>Verifies value equality, hash consistency, non-destructive with-mutation, and PipelineState matching on record structs.</summary>
+    [Test]
+    public void StateAndDescriptorRecordStructs_SupportValueEqualityAndWithMutation()
+    {
+        DepthStencilState defaultCtor = new();
+        DepthStencilState zeroDefault = default;
+        Assert.That(defaultCtor, Is.Not.EqualTo(zeroDefault));
+        Assert.That(defaultCtor == zeroDefault, Is.False);
+        Assert.That(defaultCtor != zeroDefault, Is.True);
+
+        DepthStencilState dsA = defaultCtor with { DepthTest = true, DepthWrite = true };
+        DepthStencilState dsB = new() { DepthTest = true, DepthWrite = true };
+        Assert.That(dsA == dsB, Is.True);
+        Assert.That(dsA.GetHashCode(), Is.EqualTo(dsB.GetHashCode()));
+
+        dsB.Front.Compare = CompareOp.Greater;
+        Assert.That(dsA != dsB, Is.True);
+        Assert.That(dsA.Front.Compare, Is.EqualTo(CompareOp.Always));
+
+        BlendState blendA = new()
+        {
+            Enabled = true,
+            Color = new BlendComponentState { Source = BlendFactor.SourceAlpha, Destination = BlendFactor.OneMinusSourceAlpha },
+        };
+        BlendState blendB = blendA with { Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.Zero } };
+        Assert.That(blendA == blendB, Is.True);
+        Assert.That(blendA != (blendB with { Alpha = new BlendComponentState { Source = BlendFactor.One, Destination = BlendFactor.One } }), Is.True);
+
+        RasterizationState rastPosZero = new() { Cull = CullMode.Clockwise, DepthBiasConstant = 0.0f };
+        RasterizationState rastNegZero = rastPosZero with { DepthBiasConstant = -0.0f };
+        Assert.That(rastPosZero == rastNegZero, Is.True);
+        Assert.That(rastPosZero.GetHashCode(), Is.EqualTo(rastNegZero.GetHashCode()));
+
+        PipelineState pipeA = new() { Blend = blendA, Rasterization = rastPosZero, Topology = PrimitiveTopology.TriangleList };
+        PipelineState pipeB = pipeA with { Topology = PrimitiveTopology.LineList };
+        Assert.That(pipeA != pipeB, Is.True);
+        Assert.That(pipeA.Matches(pipeB, ShaderKind.Graphics), Is.False);
+        Assert.That(pipeA.Matches(pipeB, ShaderKind.Mesh), Is.True);
+
+        TextureDesc texA = new() { Extent = new Extent3D(64, 32, 1), Format = Format.Rgba8Unorm, Usage = TextureUsage.ColorAttachment };
+        TextureDesc texB = texA with { };
+        Assert.That(texA == texB, Is.True);
+        Assert.That(texA != (texB with { Extent = new Extent3D(64, 64, 1) }), Is.True);
+
+        SamplerDesc samplerA = new() { Anisotropic = true };
+        SamplerDesc samplerB = samplerA with { AddressU = AddressMode.ClampToEdge };
+        Assert.That(samplerA != samplerB, Is.True);
+
+        Scissor scissorA = new() { X = 1, Y = 2, Width = 10, Height = 20 };
+        Scissor scissorB = scissorA with { };
+        Assert.That(scissorA == scissorB, Is.True);
+        Assert.That(scissorA != (scissorB with { Height = 21 }), Is.True);
+
+        Viewport vpA = new() { Width = 1280, Height = 720 };
+        Viewport vpB = vpA with { MaxDepth = 0.5f };
+        Assert.That(vpA != vpB, Is.True);
+
+        ColorTargetDesc targetA = new() { Format = Format.Bgra8Srgb, Blend = blendA };
+        ColorTargetDesc targetB = targetA with { };
+        Assert.That(targetA == targetB, Is.True);
+
+        RGTextureDesc rgTexA = new() { Name = "hdr", Format = Format.Rgba16Float };
+        RGTextureDesc rgTexB = rgTexA with { };
+        Assert.That(rgTexA == rgTexB, Is.True);
+        Assert.That(rgTexA != (rgTexB with { Name = "ldr" }), Is.True);
+
+        RGBufferDesc rgBufA = new() { Name = "args", SizeBytes = 256 };
+        RGBufferDesc rgBufB = rgBufA with { SizeBytes = 512 };
+        Assert.That(rgBufA != rgBufB, Is.True);
+
+        Assert.That(new Extent2D(8, 8) == new Extent2D(8, 8), Is.True);
+        Assert.That(new GPUBufferView { Index = 1, Offset = 16 } == new GPUBufferView { Index = 1, Offset = 16 }, Is.True);
+        Assert.That(new SizeAlign { Size = 64, Align = 16 } == new SizeAlign { Size = 64, Align = 16 }, Is.True);
+        Assert.That(new TextureFormatInfo { BlockExtent = new Extent2D(4, 4), BytesPerBlock = 16 } ==
+            new TextureFormatInfo { BlockExtent = new Extent2D(4, 4), BytesPerBlock = 16 }, Is.True);
+        Assert.That(new RenderViewDesc { MipLevel = 1, Slice = 2 } == new RenderViewDesc { MipLevel = 1, Slice = 2 }, Is.True);
+        Assert.That(new TextureDescriptorDesc() == new TextureDescriptorDesc(), Is.True);
+        Assert.That(new TextureCopyDesc { MipLevel = 1 } == new TextureCopyDesc { MipLevel = 1 }, Is.True);
+        Assert.That(new TextureRegionCopyDesc { SliceCount = 2 } == new TextureRegionCopyDesc { SliceCount = 2 }, Is.True);
+    }
+
     private readonly struct GPUDeviceScope(GPUDevice device) : IDisposable
     {
         public GPUDevice Device { get; } = device;

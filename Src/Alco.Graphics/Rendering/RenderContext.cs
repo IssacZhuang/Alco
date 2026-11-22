@@ -526,22 +526,12 @@ public sealed class RenderContext : RenderingResource
             _commands.BindPipeline(pipeline);
             _lastPipeline = pipeline;
         }
-        if (!HasDepthStencil || !DepthStencilMatches(LastDepthStencil, depthStencil))
+        if (!HasDepthStencil || LastDepthStencil != depthStencil)
         {
             _commands.SetDepthStencil(depthStencil);
             LastDepthStencil = depthStencil;
             HasDepthStencil = true;
         }
-    }
-
-    internal static bool DepthStencilMatches(DepthStencilState left, DepthStencilState right)
-    {
-        return left.DepthTest == right.DepthTest && left.DepthWrite == right.DepthWrite && left.DepthCompare == right.DepthCompare &&
-            left.StencilTest == right.StencilTest && left.StencilReadMask == right.StencilReadMask && left.StencilWriteMask == right.StencilWriteMask &&
-            left.Front.Compare == right.Front.Compare && left.Front.Fail == right.Front.Fail && left.Front.Pass == right.Front.Pass &&
-            left.Front.DepthFail == right.Front.DepthFail && left.Front.Reference == right.Front.Reference &&
-            left.Back.Compare == right.Back.Compare && left.Back.Fail == right.Back.Fail && left.Back.Pass == right.Back.Pass &&
-            left.Back.DepthFail == right.Back.DepthFail && left.Back.Reference == right.Back.Reference;
     }
 
     /// <summary>Retains a rendering resource until this active frame finishes recording and is submitted or discarded.</summary>
