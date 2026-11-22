@@ -1,5 +1,6 @@
 ﻿// Official Alco.Graphics Slang shader compiler wrapper, built-in virtual file system, ABI validator, and optional disk cache.
 
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -28,6 +29,7 @@ public sealed class ShaderCompiler : IDisposable
     private readonly SlangCodeTarget _nativeTarget;
     private readonly string[] _effectiveSearchPaths;
     private readonly List<SessionEntry> _sessions = [];
+    private readonly ConcurrentDictionary<string, byte[]> _inMemorySources = new(StringComparer.Ordinal);
     private readonly Lock _sessionLock = new();
     private bool _disposed;
 
@@ -144,6 +146,7 @@ public sealed class ShaderCompiler : IDisposable
         ArgumentException.ThrowIfNullOrEmpty(moduleName);
         ArgumentException.ThrowIfNullOrEmpty(virtualPath);
         ArgumentNullException.ThrowIfNull(source);
+        _inMemorySources[SlangPathUtility.NormalizePath(virtualPath)] = Encoding.UTF8.GetBytes(source);
         SlangCompileSession session = GetOrCreateSession(options?.Defines);
         SlangModuleHandle handle = session.LoadModuleFromSource(moduleName, virtualPath, source);
         return new ShaderModule(this, session, handle, options);
@@ -451,6 +454,9 @@ public sealed class ShaderCompiler : IDisposable
         if (File.Exists(norm))
             return File.ReadAllBytes(norm);
 
+        if (_inMemorySources.TryGetValue(norm, out byte[]? inMemory))
+            return inMemory;
+
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
             return BuiltinModuleBytes;
         if (norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
@@ -477,6 +483,8 @@ public sealed class ShaderCompiler : IDisposable
             return SlangPathKind.File;
         if (Directory.Exists(norm))
             return SlangPathKind.Directory;
+        if (_inMemorySources.ContainsKey(norm))
+            return SlangPathKind.File;
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase) ||
             norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))
             return SlangPathKind.File;
@@ -493,6 +501,8 @@ public sealed class ShaderCompiler : IDisposable
             return norm;
         if (File.Exists(norm))
             return SlangPathUtility.NormalizePath(Path.GetFullPath(norm));
+        if (_inMemorySources.ContainsKey(norm))
+            return norm;
         if (norm.Equals(BuiltinModuleRelativePath, StringComparison.OrdinalIgnoreCase))
             return BuiltinModuleVirtualPath;
         if (norm.Equals(BuiltinSharedSamplerRelativePath, StringComparison.OrdinalIgnoreCase))

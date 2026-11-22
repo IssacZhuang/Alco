@@ -24,7 +24,7 @@ public abstract class ParticleEffect : IJsonOnDeserialized
     /// <summary>Normalize the deserialized content (trimmed name, no null entries).</summary>
     public virtual void OnDeserialized()
     {
-        Name = Name.Trim();
+        Name = Name?.Trim() ?? string.Empty;
     }
 }
 

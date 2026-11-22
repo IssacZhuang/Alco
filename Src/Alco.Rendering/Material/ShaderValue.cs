@@ -283,8 +283,18 @@ public readonly struct ShaderValue
             error = $"Cannot write {totalSrc}-component {Kind} into {rows}x{cols} matrix ({targetType.ScalarType}, {targetType.SizeBytes}B).";
             return false;
         }
-        ReadOnlySpan<float> src = GetFloats();
-        MemoryMarshal.AsBytes(src[..expected]).CopyTo(destination);
+        if (Kind == ShaderValueKind.Float32 && _floats != null)
+        {
+            MemoryMarshal.AsBytes(_floats.AsSpan(0, expected)).CopyTo(destination);
+            error = null;
+            return true;
+        }
+        for (int i = 0; i < expected; i++)
+        {
+            if (!TryReadFloatComponent(i, out float f, out error))
+                return false;
+            MemoryMarshal.Write(destination.Slice(i * 4, 4), in f);
+        }
         error = null;
         return true;
     }
@@ -405,7 +415,9 @@ public readonly struct ShaderValue
         if (Kind == ShaderValueKind.Float32 && _floats != null)
         {
             float f = _floats[index];
-            if (float.IsFinite(f) && MathF.Truncate(f) == f && f >= long.MinValue && f <= long.MaxValue)
+            const float minSignedFloat = -9223372036854775808.0f; // -2^63 (exact in IEEE-754)
+            const float maxSignedFloatExclusive = 9223372036854775808.0f; // +2^63 ((float)long.MaxValue rounds up to this)
+            if (float.IsFinite(f) && MathF.Truncate(f) == f && f >= minSignedFloat && f < maxSignedFloatExclusive)
             {
                 value = (long)f;
                 return true;
@@ -439,7 +451,8 @@ public readonly struct ShaderValue
         if (Kind == ShaderValueKind.Float32 && _floats != null)
         {
             float f = _floats[index];
-            if (float.IsFinite(f) && f >= 0f && MathF.Truncate(f) == f && f <= ulong.MaxValue)
+            const float maxUnsignedFloatExclusive = 18446744073709551616.0f; // 2^64 ((float)ulong.MaxValue rounds up to this)
+            if (float.IsFinite(f) && f >= 0f && MathF.Truncate(f) == f && f < maxUnsignedFloatExclusive)
             {
                 value = (ulong)f;
                 return true;

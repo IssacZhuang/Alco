@@ -965,7 +965,15 @@ internal sealed class SlangModuleHandle
                         throw new ShaderCompilationException($"Shader reflection failed for entry point {i} in '{Name}': {diagnostics}");
                     SlangEntryPointInfo? info = SlangLayoutReader.ReadEntryPoint(layout, 0, readThreadgroupSize: false, out _);
                     if (info.HasValue)
-                        entries[written++] = new ShaderModuleEntryPoint(info.Value.Name, SlangLayoutReader.ToPublicStage(info.Value.Stage), hasGenerics);
+                    {
+                        ShaderGenericParam[] generics = hasGenerics
+                            ? SlangLayoutReader.ReadEntryPointGenericParameters(layout)
+                            : [];
+                        entries[written++] = new ShaderModuleEntryPoint(info.Value.Name, SlangLayoutReader.ToPublicStage(info.Value.Stage), hasGenerics)
+                        {
+                            GenericParameters = generics,
+                        };
+                    }
                 }
                 finally
                 {

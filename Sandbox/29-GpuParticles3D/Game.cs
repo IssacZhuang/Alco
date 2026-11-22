@@ -116,7 +116,7 @@ public unsafe class Game : GameEngine
     private readonly RenderGraph _renderGraph;
     private readonly RenderContext _renderContext;
     private readonly PropsRenderNode _propsNode;
-    private CameraDataPerspective _camera;
+    private readonly CameraPerspective _camera;
     private readonly GpuParticleSystem3D _particles;
     private readonly Dictionary<string, ParticleEffect3D> _effects = new();
     private readonly List<string> _effectNames = [];
@@ -166,9 +166,9 @@ public unsafe class Game : GameEngine
 
         AddSystem(new ImGUISystem(this));
 
-        _camera = new CameraDataPerspective
+        _camera = new CameraPerspective
         {
-            Fov = 0.9f,
+            FieldOfView = 0.9f,
             AspectRatio = MainView.Size.Y > 0 ? (float)MainView.Size.X / MainView.Size.Y : 16f / 9f,
             Near = 0.1f,
             Far = 300f,
@@ -212,7 +212,7 @@ public unsafe class Game : GameEngine
         _renderGraph.Use(_propsNode);
         _renderGraph.Use(new ParticleRenderNode3D(
             _particles,
-            () => _camera,
+            _camera,
             colorLoadOp: LoadOp.Load,
             depthHandleProvider: () => _propsNode.DepthTarget));
         _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);
@@ -701,7 +701,7 @@ public unsafe class Game : GameEngine
                 Usage = TextureUsage.DepthStencilAttachment,
             });
             pass.Write(_colorTarget, RGUsage.ColorAttachmentWrite);
-            pass.Write(DepthTarget, RGUsage.DepthStencilWrite);
+            pass.Write(DepthTarget, RGUsage.DepthStencil);
         }
 
         protected override void ExecutePass(in RenderGraphContext context)
@@ -727,7 +727,6 @@ public unsafe class Game : GameEngine
                     Clear = 1.0f,
                 },
             };
-            var sig = new RenderPassSignature([context.GetFormat(_colorTarget)], context.GetFormat(DepthTarget));
             Extent2D vp = context.Viewport;
 
             GPUAllocation<byte> alloc = rc.FrameData.Allocate((ulong)sizeof(PropsRootData));
@@ -738,7 +737,7 @@ public unsafe class Game : GameEngine
             };
             MemoryMarshal.Write(alloc.CpuSpan, in root);
 
-            using RenderContext.RenderScope render = rc.BeginRenderPass(desc, sig);
+            using RenderContext.RenderScope render = rc.BeginRenderPass(desc);
             render.SetViewport(new Viewport { Width = vp.X, Height = vp.Y });
             render.SetScissor(new Scissor { Width = vp.X, Height = vp.Y });
             render.Draw(

@@ -130,6 +130,44 @@ public class TestMaterialAsset
         }
         """;
 
+    private const string TestSharedSpecPassTemplateSlang = """
+        module MatSharedSpecPass;
+        import Core;
+        import MatTestSurface;
+
+        [GPURoot]
+        struct MatPassRoot<T : IMatSurface>
+        {
+            float4 tint;
+            T.Params Material;
+        };
+
+        struct VsOut
+        {
+            float4 pos : SV_Position;
+            float2 uv : TEXCOORD0;
+        };
+
+        [shader("vertex")]
+        VsOut vsMain<T : IMatSurface, let USE_TINT : bool>(uint vid : SV_VertexID)
+        {
+            VsOut o;
+            float2 p = float2((vid == 1) ? 2.0 : 0.0, (vid == 2) ? 2.0 : 0.0);
+            o.pos = float4(USE_TINT ? p * 0.5 : p - 1.0, 0.0, 1.0);
+            o.uv = p * 0.5;
+            return o;
+        }
+
+        [shader("fragment")]
+        float4 psMain<T : IMatSurface, let USE_TINT : bool>(VsOut input) : SV_Target
+        {
+            let root = gpu_load_root<MatPassRoot<T>>();
+            T surface;
+            float4 c = surface.evalColor(input.uv, root.Material);
+            return USE_TINT ? c * root.tint : c;
+        }
+        """;
+
     private static ShaderSystem CreateTestShaderSystem(RenderingSystem rendering)
     {
         Dictionary<string, string> modules = new(StringComparer.Ordinal)
@@ -138,6 +176,7 @@ public class TestMaterialAsset
             ["MatCustomSurface.slang"] = TestCustomSurfaceSlang,
             ["MatTestPass.slang"] = TestPassTemplateSlang,
             ["MatSpecPass.slang"] = TestSpecPassTemplateSlang,
+            ["MatSharedSpecPass.slang"] = TestSharedSpecPassTemplateSlang,
         };
         return rendering.CreateShaderSystem(new ShaderCompilerOptions
         {
@@ -324,10 +363,98 @@ public class TestMaterialAsset
                 Parameters = new Dictionary<string, ShaderValue> { ["missingParam"] = 1.0f },
             };
             Assert.Throws<InvalidOperationException>(() => badParam.ApplyTo(runtimeMat));
+
+            // MaterialAsset.CreateMaterial specializes templates directly without creating an intermediate variant.
+            Material directSpecMat = dissolveSpec.CreateMaterial(specShader, "DirectSpec");
+            Assert.That(directSpecMat.Specializations, Is.EqualTo(new[] { "true" }));
+
+            // Multi-entry-point templates sharing a value parameter name populate one slot per stage without deduplication.
+            Shader sharedSpecShader = shaders.Compose("MatSharedSpecPass", dissolve.Surface!);
+            Material sharedSpecMat = dissolveSpec.CreateMaterial(sharedSpecShader, "SharedSpec");
+            Assert.That(sharedSpecMat.Specializations, Is.EqualTo(new[] { "true", "true" }));
+
+            MaterialAsset sharedSpecFalse = new()
+            {
+                Name = "SharedFalse",
+                Specializations = new Dictionary<string, ShaderValue> { ["USE_TINT"] = false },
+            };
+            sharedSpecFalse.ApplyTo(sharedSpecMat);
+            Assert.That(sharedSpecMat.Specializations, Is.EqualTo(new[] { "false", "false" }));
         }
         finally
         {
             Directory.Delete(tempDir, recursive: true);
         }
+    }
+
+    [Test]
+    public void MaterialAsset_NullDictionariesAndShaderValueEdgeCases_BehaveSafely()
+    {
+        using RenderingTestHost host = Utility.CreateRenderingSystem();
+        using ShaderSystem shaders = CreateTestShaderSystem(host.RenderingSystem);
+
+        using AssetHost assetHost = new();
+        AssetSystem assets = new(assetHost);
+        JsonSerializerOptions jsonOpts = AssetLoaderMaterialAsset.CreateJsonOptions(assets);
+
+        MaterialAsset? parsedNulls = JsonSerializer.Deserialize<MaterialAsset>("""
+            {
+                "version": "1.0",
+                "name": null,
+                "surface": "   ",
+                "textures": null,
+                "parameters": null,
+                "specializations": null
+            }
+            """, jsonOpts);
+        Assert.That(parsedNulls, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(parsedNulls!.Name, Is.EqualTo(string.Empty));
+            Assert.That(parsedNulls.Surface, Is.Null);
+            Assert.That(parsedNulls.Textures, Is.Empty);
+            Assert.That(parsedNulls.Parameters, Is.Empty);
+            Assert.That(parsedNulls.Specializations, Is.Empty);
+        });
+
+        Shader shader = shaders.Compose("MatTestPass", "MatCustomSurface");
+        ShaderTypeLayout intMatSrc = new()
+        {
+            Kind = ShaderTypeKind.Matrix,
+            ScalarType = ShaderScalarType.Float32,
+            MatrixRows = 4,
+            MatrixColumns = 4,
+            SizeBytes = 64,
+        };
+        Span<byte> matBytes = stackalloc byte[64];
+        int[] matrixInts = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+        Assert.That(ShaderValue.Ints(matrixInts).TryWriteTo(intMatSrc, matBytes), Is.True);
+        Assert.That(MemoryMarshal.Read<float>(matBytes[..4]), Is.EqualTo(1f));
+        Assert.That(MemoryMarshal.Read<float>(matBytes.Slice(60, 4)), Is.EqualTo(16f));
+
+        ShaderValue badMatrixValue = ShaderValue.Bool(true);
+        Assert.That(badMatrixValue.TryWriteTo(intMatSrc, matBytes, out _), Is.False);
+
+        ShaderTypeLayout int64Type = new() { Kind = ShaderTypeKind.Scalar, ScalarType = ShaderScalarType.Int64, SizeBytes = 8 };
+        ShaderTypeLayout uint64Type = new() { Kind = ShaderTypeKind.Scalar, ScalarType = ShaderScalarType.UInt64, SizeBytes = 8 };
+        Span<byte> s8 = stackalloc byte[8];
+        Assert.That(ShaderValue.Float(9223372036854775808.0f).TryWriteTo(int64Type, s8, out _), Is.False);
+        Assert.That(ShaderValue.Float(18446744073709551616.0f).TryWriteTo(uint64Type, s8, out _), Is.False);
+
+        JsonSerializerOptions convOpts = new(JsonSerializerDefaults.Web)
+        {
+            Converters = { new JsonConverterShaderValue() },
+        };
+        ShaderValue bigUint = JsonSerializer.Deserialize<ShaderValue>("4294967295", convOpts);
+        Assert.That(bigUint.Kind, Is.EqualTo(ShaderValueKind.UInt32));
+        Assert.That(bigUint.GetUInt(), Is.EqualTo(uint.MaxValue));
+        Assert.That(JsonSerializer.Serialize(bigUint, convOpts), Is.EqualTo("4294967295"));
+
+        Assert.That(JsonSerializer.Serialize(ShaderValue.Floats([]), convOpts), Is.EqualTo("[]"));
+        Assert.That(JsonSerializer.Serialize(ShaderValue.Ints([]), convOpts), Is.EqualTo("[]"));
+        Assert.That(JsonSerializer.Serialize(ShaderValue.UInts([]), convOpts), Is.EqualTo("[]"));
+        Assert.That(JsonSerializer.Serialize(default(ShaderValue), convOpts), Is.EqualTo("false"));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ShaderValue>("{}", convOpts));
+        _ = shader;
     }
 }

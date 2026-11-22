@@ -254,4 +254,96 @@ public sealed class TestParticleGpuReadback
             target.Destroy();
         }
     }
+
+    /// <summary>Pool growth between RecordSimulation and Render preserves indirect draw args and particle data on GPU.</summary>
+    [Test]
+    public void PoolGrowthBetweenRecordSimulationAndRenderRendersOnGpu()
+    {
+        using EffectsTestHost host = EffectsTestHost.CreateGpu();
+        using Image red = host.CreateSolidImage(255, 0, 0, 255);
+        using Image green = host.CreateSolidImage(0, 255, 0, 255);
+        using var system = new GpuParticleSystem2D(host.RenderingSystem, host.Shaders, particleCapacity: 64, emitterSlots: 2);
+
+        static ParticleEffect2D MakeQuad(string name, int maxParticles, Image img) => new()
+        {
+            Name = name,
+            Groups =
+            [
+                new ParticleGroup2D
+                {
+                    Name = name,
+                    MaxParticles = maxParticles,
+                    Looping = true,
+                    EmissionRate = 600f,
+                    Lifetime = new ParticleRange(2f, 2f),
+                    Speed = new ParticleRange(0f, 0f),
+                    Size = new ParticleVector2Range(new Vector2(2f, 2f)),
+                    StartColor = new ParticleColorRange(ColorFloat.White),
+                    EndColor = ColorFloat.White,
+                    FadeIn = 0f,
+                    FadeOut = 0f,
+                    Texture = img,
+                    Blend = BlendState.Opaque,
+                    Depth = DepthStencilState.None,
+                },
+            ],
+        };
+
+        using ParticleEffectInstance2D first = system.CreateInstance(MakeQuad("left-red", 64, red), new Transform2D(new Vector2(-2f, 0f)), seed: 1);
+        ParticleEffectInstance2D? second = null;
+        var camera = new Camera2D { Size = new Vector2(8f, 8f), Near = -10f, Far = 10f };
+
+        Texture target = host.CreateColorTarget(64, 64);
+        var context = new RenderContext(host.RenderingSystem);
+        try
+        {
+            // Warm up one submitted frame so particles are live before mid-frame pool growth.
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.05f);
+            context.Submit().Wait();
+
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.05f);
+
+            // Force particle pool AND slot growth before Render().
+            second = system.CreateInstance(MakeQuad("right-green", 256, green), new Transform2D(new Vector2(2f, 0f)), seed: 2);
+
+            var passDesc = new RenderingDesc
+            {
+                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+            };
+            using (var render = context.BeginRenderPass(passDesc))
+            {
+                render.SetViewport(new Viewport { Width = 64, Height = 64 });
+                render.SetScissor(new Scissor { Width = 64, Height = 64 });
+                system.Render(context, render, camera);
+            }
+            byte[] pixels = host.ReadBackRgba8AndSubmit(context, target, 64, 64);
+            int leftIdx = (32 * 64 + 16) * 4;
+            Assert.That(pixels[leftIdx + 0], Is.GreaterThan((byte)200), "First frame after mid-frame growth must still render red quad.");
+
+            // Next frame completes migration and renders both emitters.
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.05f);
+            using (var render = context.BeginRenderPass(passDesc))
+            {
+                render.SetViewport(new Viewport { Width = 64, Height = 64 });
+                render.SetScissor(new Scissor { Width = 64, Height = 64 });
+                system.Render(context, render, camera);
+            }
+            pixels = host.ReadBackRgba8AndSubmit(context, target, 64, 64);
+            int rightIdx = (32 * 64 + 48) * 4;
+            Assert.Multiple(() =>
+            {
+                Assert.That(pixels[leftIdx + 0], Is.GreaterThan((byte)200), "Migrated red emitter must keep rendering.");
+                Assert.That(pixels[rightIdx + 1], Is.GreaterThan((byte)200), "Newly grown green emitter must render.");
+            });
+        }
+        finally
+        {
+            second?.Dispose();
+            context.Destroy();
+            target.Destroy();
+        }
+    }
 }

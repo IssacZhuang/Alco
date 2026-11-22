@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Alco.Graphics;
 using Alco.Graphics.LowLevel;
 using Alco.Rendering;
@@ -59,12 +60,14 @@ public sealed class ParticleSimulateNode3D : RenderGraphNode
 public sealed class ParticleRenderNode2D : RenderGraphNode
 {
     private readonly GpuParticleSystem2D _particles;
-    private readonly Func<ICamera> _cameraProvider;
+    private readonly ICamera? _camera;
+    private readonly Func<ICamera>? _cameraProvider;
     private readonly RenderChain? _chain;
     private readonly LoadOp _colorLoadOp;
     private readonly Vector4 _clearColor;
     private readonly Func<Texture?>? _depthTextureProvider;
     private readonly Func<RGTexture>? _depthHandleProvider;
+    private readonly bool? _writesDepth;
 
     private RGTexture _colorTarget;
     private RGTexture _depthTarget;
@@ -78,9 +81,18 @@ public sealed class ParticleRenderNode2D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "ParticleRender2D")
-        : this(particles, () => camera ?? throw new ArgumentNullException(nameof(camera)), chain, colorLoadOp, clearColor, depthTextureProvider, depthHandleProvider, name)
+        string name = "ParticleRender2D",
+        bool? writesDepth = null)
+        : base(name)
     {
+        _particles = particles ?? throw new ArgumentNullException(nameof(particles));
+        _camera = camera ?? throw new ArgumentNullException(nameof(camera));
+        _chain = chain;
+        _colorLoadOp = colorLoadOp;
+        _clearColor = clearColor;
+        _depthTextureProvider = depthTextureProvider;
+        _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <summary>Creates a 2D particle render node with a per-frame camera delegate.</summary>
@@ -92,7 +104,8 @@ public sealed class ParticleRenderNode2D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "ParticleRender2D")
+        string name = "ParticleRender2D",
+        bool? writesDepth = null)
         : base(name)
     {
         _particles = particles ?? throw new ArgumentNullException(nameof(particles));
@@ -102,26 +115,33 @@ public sealed class ParticleRenderNode2D : RenderGraphNode
         _clearColor = clearColor;
         _depthTextureProvider = depthTextureProvider;
         _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <inheritdoc/>
     protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
     {
         _colorTarget = _chain != null ? _chain.Current : builder.Output;
-        EffectNodeHelpers.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
-        _depthTarget = EffectNodeHelpers.ResolveAndReadDepth(builder, pass, _depthTextureProvider, _depthHandleProvider);
+        if (!_colorTarget.IsValid)
+        {
+            _depthTarget = default;
+            return;
+        }
+        EffectNodeUtility.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
+        _depthTarget = EffectNodeUtility.ResolveAndDeclareDepth(
+            builder, pass, _depthTextureProvider, _depthHandleProvider,
+            _writesDepth ?? _particles.HasDepthWritingEffects);
     }
 
     /// <inheritdoc/>
     protected override void ExecutePass(in RenderGraphContext context)
     {
-        EffectNodeHelpers.ExecuteRenderPass(
-            in context,
-            _colorTarget,
-            _depthTarget,
-            _colorLoadOp,
-            _clearColor,
-            (ctx, scope) => _particles.Render(ctx, scope, _cameraProvider()));
+        if (!_colorTarget.IsValid)
+            return;
+        ICamera camera = _camera ?? _cameraProvider!();
+        using RenderContext.RenderScope render = EffectNodeUtility.BeginRenderPass(
+            in context, _colorTarget, _depthTarget, _colorLoadOp, _clearColor);
+        _particles.Render(context.RenderContext, render, camera);
     }
 }
 
@@ -129,12 +149,14 @@ public sealed class ParticleRenderNode2D : RenderGraphNode
 public sealed class ParticleRenderNode3D : RenderGraphNode
 {
     private readonly GpuParticleSystem3D _particles;
-    private readonly Func<ICamera> _cameraProvider;
+    private readonly ICamera? _camera;
+    private readonly Func<ICamera>? _cameraProvider;
     private readonly RenderChain? _chain;
     private readonly LoadOp _colorLoadOp;
     private readonly Vector4 _clearColor;
     private readonly Func<Texture?>? _depthTextureProvider;
     private readonly Func<RGTexture>? _depthHandleProvider;
+    private readonly bool? _writesDepth;
 
     private RGTexture _colorTarget;
     private RGTexture _depthTarget;
@@ -148,9 +170,18 @@ public sealed class ParticleRenderNode3D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "ParticleRender3D")
-        : this(particles, () => camera ?? throw new ArgumentNullException(nameof(camera)), chain, colorLoadOp, clearColor, depthTextureProvider, depthHandleProvider, name)
+        string name = "ParticleRender3D",
+        bool? writesDepth = null)
+        : base(name)
     {
+        _particles = particles ?? throw new ArgumentNullException(nameof(particles));
+        _camera = camera ?? throw new ArgumentNullException(nameof(camera));
+        _chain = chain;
+        _colorLoadOp = colorLoadOp;
+        _clearColor = clearColor;
+        _depthTextureProvider = depthTextureProvider;
+        _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <summary>Creates a 3D particle render node with a per-frame camera delegate.</summary>
@@ -162,7 +193,8 @@ public sealed class ParticleRenderNode3D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "ParticleRender3D")
+        string name = "ParticleRender3D",
+        bool? writesDepth = null)
         : base(name)
     {
         _particles = particles ?? throw new ArgumentNullException(nameof(particles));
@@ -172,26 +204,33 @@ public sealed class ParticleRenderNode3D : RenderGraphNode
         _clearColor = clearColor;
         _depthTextureProvider = depthTextureProvider;
         _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <inheritdoc/>
     protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
     {
         _colorTarget = _chain != null ? _chain.Current : builder.Output;
-        EffectNodeHelpers.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
-        _depthTarget = EffectNodeHelpers.ResolveAndReadDepth(builder, pass, _depthTextureProvider, _depthHandleProvider);
+        if (!_colorTarget.IsValid)
+        {
+            _depthTarget = default;
+            return;
+        }
+        EffectNodeUtility.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
+        _depthTarget = EffectNodeUtility.ResolveAndDeclareDepth(
+            builder, pass, _depthTextureProvider, _depthHandleProvider,
+            _writesDepth ?? _particles.HasDepthWritingEffects);
     }
 
     /// <inheritdoc/>
     protected override void ExecutePass(in RenderGraphContext context)
     {
-        EffectNodeHelpers.ExecuteRenderPass(
-            in context,
-            _colorTarget,
-            _depthTarget,
-            _colorLoadOp,
-            _clearColor,
-            (ctx, scope) => _particles.Render(ctx, scope, _cameraProvider()));
+        if (!_colorTarget.IsValid)
+            return;
+        ICamera camera = _camera ?? _cameraProvider!();
+        using RenderContext.RenderScope render = EffectNodeUtility.BeginRenderPass(
+            in context, _colorTarget, _depthTarget, _colorLoadOp, _clearColor);
+        _particles.Render(context.RenderContext, render, camera);
     }
 }
 
@@ -199,12 +238,14 @@ public sealed class ParticleRenderNode3D : RenderGraphNode
 public sealed class TrailRenderNode2D : RenderGraphNode
 {
     private readonly GpuTrailSystem2D _trails;
-    private readonly Func<ICamera> _cameraProvider;
+    private readonly ICamera? _camera;
+    private readonly Func<ICamera>? _cameraProvider;
     private readonly RenderChain? _chain;
     private readonly LoadOp _colorLoadOp;
     private readonly Vector4 _clearColor;
     private readonly Func<Texture?>? _depthTextureProvider;
     private readonly Func<RGTexture>? _depthHandleProvider;
+    private readonly bool? _writesDepth;
 
     private RGTexture _colorTarget;
     private RGTexture _depthTarget;
@@ -218,9 +259,18 @@ public sealed class TrailRenderNode2D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "TrailRender2D")
-        : this(trails, () => camera ?? throw new ArgumentNullException(nameof(camera)), chain, colorLoadOp, clearColor, depthTextureProvider, depthHandleProvider, name)
+        string name = "TrailRender2D",
+        bool? writesDepth = null)
+        : base(name)
     {
+        _trails = trails ?? throw new ArgumentNullException(nameof(trails));
+        _camera = camera ?? throw new ArgumentNullException(nameof(camera));
+        _chain = chain;
+        _colorLoadOp = colorLoadOp;
+        _clearColor = clearColor;
+        _depthTextureProvider = depthTextureProvider;
+        _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <summary>Creates a 2D trail render node with a per-frame camera delegate.</summary>
@@ -232,7 +282,8 @@ public sealed class TrailRenderNode2D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "TrailRender2D")
+        string name = "TrailRender2D",
+        bool? writesDepth = null)
         : base(name)
     {
         _trails = trails ?? throw new ArgumentNullException(nameof(trails));
@@ -242,27 +293,34 @@ public sealed class TrailRenderNode2D : RenderGraphNode
         _clearColor = clearColor;
         _depthTextureProvider = depthTextureProvider;
         _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <inheritdoc/>
     protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
     {
         _colorTarget = _chain != null ? _chain.Current : builder.Output;
-        EffectNodeHelpers.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
-        _depthTarget = EffectNodeHelpers.ResolveAndReadDepth(builder, pass, _depthTextureProvider, _depthHandleProvider);
+        if (!_colorTarget.IsValid)
+        {
+            _depthTarget = default;
+            return;
+        }
+        EffectNodeUtility.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
+        _depthTarget = EffectNodeUtility.ResolveAndDeclareDepth(
+            builder, pass, _depthTextureProvider, _depthHandleProvider,
+            _writesDepth ?? _trails.HasDepthWritingEffects);
     }
 
     /// <inheritdoc/>
     protected override void ExecutePass(in RenderGraphContext context)
     {
+        if (!_colorTarget.IsValid)
+            return;
         _trails.PrepareRender(context.RenderContext);
-        EffectNodeHelpers.ExecuteRenderPass(
-            in context,
-            _colorTarget,
-            _depthTarget,
-            _colorLoadOp,
-            _clearColor,
-            (ctx, scope) => _trails.Render(ctx, scope, _cameraProvider()));
+        ICamera camera = _camera ?? _cameraProvider!();
+        using RenderContext.RenderScope render = EffectNodeUtility.BeginRenderPass(
+            in context, _colorTarget, _depthTarget, _colorLoadOp, _clearColor);
+        _trails.Render(context.RenderContext, render, camera);
     }
 }
 
@@ -270,12 +328,14 @@ public sealed class TrailRenderNode2D : RenderGraphNode
 public sealed class TrailRenderNode3D : RenderGraphNode
 {
     private readonly GpuTrailSystem3D _trails;
-    private readonly Func<ICamera> _cameraProvider;
+    private readonly ICamera? _camera;
+    private readonly Func<ICamera>? _cameraProvider;
     private readonly RenderChain? _chain;
     private readonly LoadOp _colorLoadOp;
     private readonly Vector4 _clearColor;
     private readonly Func<Texture?>? _depthTextureProvider;
     private readonly Func<RGTexture>? _depthHandleProvider;
+    private readonly bool? _writesDepth;
 
     private RGTexture _colorTarget;
     private RGTexture _depthTarget;
@@ -289,9 +349,18 @@ public sealed class TrailRenderNode3D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "TrailRender3D")
-        : this(trails, () => camera ?? throw new ArgumentNullException(nameof(camera)), chain, colorLoadOp, clearColor, depthTextureProvider, depthHandleProvider, name)
+        string name = "TrailRender3D",
+        bool? writesDepth = null)
+        : base(name)
     {
+        _trails = trails ?? throw new ArgumentNullException(nameof(trails));
+        _camera = camera ?? throw new ArgumentNullException(nameof(camera));
+        _chain = chain;
+        _colorLoadOp = colorLoadOp;
+        _clearColor = clearColor;
+        _depthTextureProvider = depthTextureProvider;
+        _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <summary>Creates a 3D trail render node with a per-frame camera delegate.</summary>
@@ -303,7 +372,8 @@ public sealed class TrailRenderNode3D : RenderGraphNode
         Vector4 clearColor = default,
         Func<Texture?>? depthTextureProvider = null,
         Func<RGTexture>? depthHandleProvider = null,
-        string name = "TrailRender3D")
+        string name = "TrailRender3D",
+        bool? writesDepth = null)
         : base(name)
     {
         _trails = trails ?? throw new ArgumentNullException(nameof(trails));
@@ -313,96 +383,100 @@ public sealed class TrailRenderNode3D : RenderGraphNode
         _clearColor = clearColor;
         _depthTextureProvider = depthTextureProvider;
         _depthHandleProvider = depthHandleProvider;
+        _writesDepth = writesDepth;
     }
 
     /// <inheritdoc/>
     protected override void SetupPass(RenderGraphBuilder builder, RenderGraphPassBuilder pass)
     {
         _colorTarget = _chain != null ? _chain.Current : builder.Output;
-        EffectNodeHelpers.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
-        _depthTarget = EffectNodeHelpers.ResolveAndReadDepth(builder, pass, _depthTextureProvider, _depthHandleProvider);
+        if (!_colorTarget.IsValid)
+        {
+            _depthTarget = default;
+            return;
+        }
+        EffectNodeUtility.DeclareColorTarget(pass, _colorTarget, _colorLoadOp);
+        _depthTarget = EffectNodeUtility.ResolveAndDeclareDepth(
+            builder, pass, _depthTextureProvider, _depthHandleProvider,
+            _writesDepth ?? _trails.HasDepthWritingEffects);
     }
 
     /// <inheritdoc/>
     protected override void ExecutePass(in RenderGraphContext context)
     {
+        if (!_colorTarget.IsValid)
+            return;
         _trails.PrepareRender(context.RenderContext);
-        EffectNodeHelpers.ExecuteRenderPass(
-            in context,
-            _colorTarget,
-            _depthTarget,
-            _colorLoadOp,
-            _clearColor,
-            (ctx, scope) => _trails.Render(ctx, scope, _cameraProvider()));
+        ICamera camera = _camera ?? _cameraProvider!();
+        using RenderContext.RenderScope render = EffectNodeUtility.BeginRenderPass(
+            in context, _colorTarget, _depthTarget, _colorLoadOp, _clearColor);
+        _trails.Render(context.RenderContext, render, camera);
     }
 }
 
-internal static class EffectNodeHelpers
+internal static class EffectNodeUtility
 {
     public static void DeclareColorTarget(RenderGraphPassBuilder pass, RGTexture colorTarget, LoadOp colorLoadOp)
     {
         if (colorLoadOp == LoadOp.Load)
             pass.ReadWrite(colorTarget, RGUsage.ColorAttachment);
         else
-            pass.Write(colorTarget, RGUsage.ColorAttachmentWrite);
+            pass.Write(colorTarget, RGUsage.ColorAttachment);
     }
 
-    public static RGTexture ResolveAndReadDepth(
+    public static RGTexture ResolveAndDeclareDepth(
         RenderGraphBuilder builder,
         RenderGraphPassBuilder pass,
         Func<Texture?>? depthTextureProvider,
-        Func<RGTexture>? depthHandleProvider)
+        Func<RGTexture>? depthHandleProvider,
+        bool writesDepth)
     {
         RGTexture depth = depthHandleProvider != null ? depthHandleProvider() : default;
         if (!depth.IsValid && depthTextureProvider != null)
         {
             Texture? texture = depthTextureProvider();
             if (texture != null)
-                depth = builder.ImportTexture(texture, "EffectsDepth", RGUsage.DepthStencilRead);
+                depth = builder.ImportTexture(texture, "EffectsDepth");
         }
 
         if (depth.IsValid)
-            pass.Read(depth, RGUsage.DepthStencilRead);
+        {
+            if (writesDepth)
+                pass.ReadWrite(depth, RGUsage.DepthStencil);
+            else
+                pass.Read(depth, RGUsage.DepthStencilRead);
+        }
         return depth;
     }
 
-    public static void ExecuteRenderPass(
+    public static RenderContext.RenderScope BeginRenderPass(
         in RenderGraphContext context,
         RGTexture colorTarget,
         RGTexture depthTarget,
         LoadOp colorLoadOp,
-        Vector4 clearColor,
-        Action<RenderContext, RenderContext.RenderScope> draw)
+        Vector4 clearColor)
     {
         RenderContext rc = context.RenderContext;
-        Format colorFormat = context.GetFormat(colorTarget);
-        GPURenderView colorView = context.GetRenderView(colorTarget);
+        ColorAttachment colorAttachment = new()
+        {
+            RenderView = context.GetRenderView(colorTarget),
+            Load = colorLoadOp,
+            Store = StoreOp.Store,
+            Clear = clearColor,
+        };
         bool hasDepth = depthTarget.IsValid;
-        Format depthFormat = hasDepth ? context.GetFormat(depthTarget) : Format.Undefined;
-        GPURenderView? depthView = hasDepth ? context.GetRenderView(depthTarget) : null;
-
         var desc = new RenderingDesc
         {
-            Colors =
-            [
-                new ColorAttachment
-                {
-                    RenderView = colorView,
-                    Load = colorLoadOp,
-                    Store = StoreOp.Store,
-                    Clear = clearColor,
-                },
-            ],
+            Colors = MemoryMarshal.CreateReadOnlySpan(ref colorAttachment, 1),
             Depth = hasDepth
-                ? new DepthAttachment { RenderView = depthView, Load = LoadOp.Load, Store = StoreOp.Store }
+                ? new DepthAttachment { RenderView = context.GetRenderView(depthTarget), Load = LoadOp.Load, Store = StoreOp.Store }
                 : default,
         };
 
-        var signature = new RenderPassSignature([colorFormat], depthFormat);
         Extent2D vp = context.Viewport;
-        using RenderContext.RenderScope render = rc.BeginRenderPass(desc, signature);
+        RenderContext.RenderScope render = rc.BeginRenderPass(desc);
         render.SetViewport(new Viewport { Width = vp.X, Height = vp.Y });
         render.SetScissor(new Scissor { Width = vp.X, Height = vp.Y });
-        draw(rc, render);
+        return render;
     }
 }

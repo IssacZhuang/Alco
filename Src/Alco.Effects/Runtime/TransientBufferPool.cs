@@ -12,21 +12,19 @@ internal sealed class TransientBufferPool : AutoDisposable
     private struct Entry
     {
         public Alco.Graphics.Buffer Buffer;
+        public RenderContext Context;
         public ulong LastFrameId;
     }
 
     private readonly RenderingSystem _rendering;
-    private readonly string _name;
     private readonly List<Entry> _entries = [];
 
     /// <summary>Creates a transient buffer pool backed by <paramref name="rendering"/>.</summary>
     /// <param name="rendering">The rendering system owning created GPU buffers.</param>
-    /// <param name="name">The diagnostic label prefix.</param>
-    public TransientBufferPool(RenderingSystem rendering, string name)
+    public TransientBufferPool(RenderingSystem rendering)
     {
         ArgumentNullException.ThrowIfNull(rendering);
         _rendering = rendering;
-        _name = name;
     }
 
     /// <summary>Gets the number of pooled buffers currently held by this pool.</summary>
@@ -53,7 +51,7 @@ internal sealed class TransientBufferPool : AutoDisposable
             Entry entry = _entries[i];
             if (entry.Buffer.SizeBytes < minSizeBytes)
                 continue;
-            if (!context.IsFrameCompleted(entry.LastFrameId))
+            if (!entry.Context.IsFrameCompleted(entry.LastFrameId))
                 continue;
             if (entry.Buffer.SizeBytes < bestSize)
             {
@@ -65,6 +63,7 @@ internal sealed class TransientBufferPool : AutoDisposable
         if (bestIndex >= 0)
         {
             Entry reused = _entries[bestIndex];
+            reused.Context = context;
             reused.LastFrameId = currentFrame;
             _entries[bestIndex] = reused;
             return reused.Buffer;
@@ -74,19 +73,20 @@ internal sealed class TransientBufferPool : AutoDisposable
         // when requested allocation sizes grow geometrically.
         for (int i = _entries.Count - 1; i >= 0 && _entries.Count >= 16; i--)
         {
-            if (context.IsFrameCompleted(_entries[i].LastFrameId))
+            Entry entry = _entries[i];
+            if (entry.Context.IsFrameCompleted(entry.LastFrameId))
             {
-                _entries[i].Buffer.Destroy();
+                entry.Buffer.Destroy();
                 _entries.RemoveAt(i);
             }
         }
 
         ulong clamped = Math.Max(minSizeBytes, 256UL);
-        ulong allocSize = clamped <= uint.MaxValue
-            ? BitOperations.RoundUpToPowerOf2((uint)clamped)
+        ulong allocSize = clamped <= (1UL << 63)
+            ? BitOperations.RoundUpToPowerOf2(clamped)
             : clamped;
         Alco.Graphics.Buffer created = _rendering.CreateBuffer(allocSize);
-        _entries.Add(new Entry { Buffer = created, LastFrameId = currentFrame });
+        _entries.Add(new Entry { Buffer = created, Context = context, LastFrameId = currentFrame });
         return created;
     }
 

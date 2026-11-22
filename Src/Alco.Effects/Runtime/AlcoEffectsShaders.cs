@@ -2,6 +2,7 @@ using System.Collections.Frozen;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using Alco.Graphics;
 
 namespace Alco.Effects;
@@ -12,7 +13,8 @@ namespace Alco.Effects;
 /// </summary>
 public static class AlcoEffectsShaders
 {
-    private static readonly ConditionalWeakTable<ShaderCompiler, object> LoadedCompilers = new();
+    private static readonly ConditionalWeakTable<ShaderCompiler, HashSet<string>> LoadedCompilers = new();
+    private static readonly Lock LoadLock = new();
 
     /// <summary>Built-in embedded module names in topological dependency order.</summary>
     public static readonly IReadOnlyList<string> BuiltInModuleOrder =
@@ -78,28 +80,47 @@ public static class AlcoEffectsShaders
         return false;
     }
 
+    /// <summary>
+    /// Creates a <see cref="ShaderFileResolver"/> that consults <paramref name="primary"/> first
+    /// and falls back to built-in embedded <c>Alco.Effects</c> shader sources.
+    /// </summary>
+    /// <param name="primary">Optional primary virtual file resolver checked before built-in shaders.</param>
+    /// <returns>The composed file resolver delegate.</returns>
+    public static ShaderFileResolver CreateFileResolver(ShaderFileResolver? primary = null)
+        => path =>
+        {
+            string? resolved = primary?.Invoke(path);
+            if (resolved != null)
+                return resolved;
+            return TryResolveBuiltInSource(path, out string? builtIn) ? builtIn : null;
+        };
+
     /// <summary>Ensures all built-in particle and trail Slang modules are loaded into <paramref name="shaders"/>.</summary>
     /// <param name="shaders">The target shader system.</param>
     public static void EnsureBuiltInModulesLoaded(ShaderSystem shaders)
     {
         ArgumentNullException.ThrowIfNull(shaders);
         ShaderCompiler compiler = shaders.Compiler;
-        if (LoadedCompilers.TryGetValue(compiler, out _))
-            return;
-
-        lock (LoadedCompilers)
+        lock (LoadLock)
         {
-            if (LoadedCompilers.TryGetValue(compiler, out _))
+            if (!LoadedCompilers.TryGetValue(compiler, out HashSet<string>? loaded))
+            {
+                loaded = new HashSet<string>(StringComparer.Ordinal);
+                LoadedCompilers.Add(compiler, loaded);
+            }
+
+            if (loaded.Count == BuiltInModuleOrder.Count)
                 return;
 
             for (int i = 0; i < BuiltInModuleOrder.Count; i++)
             {
                 string moduleName = BuiltInModuleOrder[i];
+                if (loaded.Contains(moduleName))
+                    continue;
                 compiler.LoadModuleFromSource(moduleName, moduleName + ".slang",
                     LoadEmbeddedSource(moduleName + ".slang"));
+                loaded.Add(moduleName);
             }
-
-            LoadedCompilers.AddOrUpdate(compiler, new object());
         }
     }
 }

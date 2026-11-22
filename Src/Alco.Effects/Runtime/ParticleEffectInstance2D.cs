@@ -6,6 +6,7 @@ namespace Alco.Effects;
 /// A live instance of a 2D particle effect asset owning per-group runtime state (pool slice,
 /// emitter slot, emission timeline) and emitter transform. Created through
 /// <see cref="GpuParticleSystem2D.CreateInstance"/>; disposal returns slices and slots to the pool.
+/// Main-thread only.
 /// </summary>
 public sealed class ParticleEffectInstance2D : AutoDisposable
 {
@@ -34,6 +35,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     private readonly GpuParticleSystem2D _system;
     private readonly GroupState[] _groups;
     private FastRandom _random;
+    private bool _isVisible = true;
 
     internal ParticleEffectInstance2D(
         GpuParticleSystem2D system,
@@ -71,7 +73,17 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     public bool IsActive { get; private set; } = true;
 
     /// <summary>Whether the instance is visible for simulation and rendering.</summary>
-    public bool IsVisible { get; set; } = true;
+    public bool IsVisible
+    {
+        get => _isVisible;
+        set
+        {
+            if (_isVisible == value)
+                return;
+            _isVisible = value;
+            _system.InvalidatePlan();
+        }
+    }
 
     /// <summary>The unwrapped emission timeline position in seconds.</summary>
     public float Time => _groups.Length > 0 ? _groups[0].Time : 0f;
@@ -100,7 +112,11 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     /// <summary>Shows or hides a group on this instance without mutating the asset.</summary>
     public void SetGroupVisible(int groupIndex, bool visible)
     {
-        _groups[groupIndex].Visible = visible;
+        ref GroupState group = ref _groups[groupIndex];
+        if (group.Visible == visible)
+            return;
+        group.Visible = visible;
+        _system.InvalidatePlan();
     }
 
     /// <summary>Returns a copy of the group's live <see cref="EmitterParams2D"/> record.</summary>
@@ -110,10 +126,10 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
     public void SetGroupParams(int groupIndex, in EmitterParams2D parameters)
     {
         ref GroupState group = ref _groups[groupIndex];
-        EmitterParams2D merged = EmitterParams2D.MergeEdited(_system.ParamsRef(group.Slot), parameters);
-        _system.ParamsRef(group.Slot) = merged;
+        ref EmitterParams2D slot = ref _system.ParamsRef(group.Slot);
+        slot = EmitterParams2D.MergeEdited(slot, parameters);
         _system.Pool.UpdateParams(group.Slot, 1);
-        group.Lifetime = new ParticleRange(merged.Life.X, merged.Life.Y);
+        group.Lifetime = new ParticleRange(slot.Life.X, slot.Life.Y);
     }
 
     /// <summary>Resumes emission.</summary>
@@ -126,6 +142,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
             _groups[i].Active = true;
         }
         IsActive = true;
+        _system.InvalidatePlan();
     }
 
     /// <summary>Stops emission; live particles die out naturally.</summary>
@@ -149,6 +166,7 @@ public sealed class ParticleEffectInstance2D : AutoDisposable
         }
         IsPlaying = true;
         IsActive = true;
+        _system.InvalidatePlan();
     }
 
     internal void AdvanceFrame(float deltaTime, ref uint dirtyMin, ref uint dirtyMax)

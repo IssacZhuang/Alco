@@ -26,7 +26,7 @@ public sealed class TrailEffect3D
 
     /// <summary>
     /// Gets or sets the depth-stencil override of the compiled material; null keeps
-    /// the trail pass's default (<see cref="DepthStencilState.Read"/> — ribbons
+    /// the trail pass's default (<see cref="DepthStencilState.ReadReverseZ"/> — ribbons
     /// depth-test but never write).
     /// </summary>
     public DepthStencilState? Depth { get; set; }

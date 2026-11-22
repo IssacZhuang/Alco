@@ -25,6 +25,8 @@ public class JsonConverterShaderValue : JsonConverter<ShaderValue>
             case JsonTokenType.Number:
                 if (reader.TryGetInt32(out int intValue))
                     return intValue;
+                if (reader.TryGetUInt32(out uint uintValue))
+                    return uintValue;
                 return reader.GetSingle();
 
             case JsonTokenType.String:
@@ -50,17 +52,37 @@ public class JsonConverterShaderValue : JsonConverter<ShaderValue>
     /// <inheritdoc/>
     public override void Write(Utf8JsonWriter writer, ShaderValue value, JsonSerializerOptions options)
     {
+        int totalCount = value.ElementCount * value.ComponentCount;
         switch (value.Kind)
         {
             case ShaderValueKind.Bool32:
-                writer.WriteBooleanValue(value.GetInt() != 0);
+                if (totalCount == 0)
+                {
+                    writer.WriteBooleanValue(false);
+                }
+                else if (value.ComponentCount > 1)
+                {
+                    writer.WriteStartArray();
+                    for (int i = 0; i < totalCount; i++)
+                        writer.WriteBooleanValue(value.GetInt(i) != 0);
+                    writer.WriteEndArray();
+                }
+                else
+                {
+                    writer.WriteBooleanValue(value.GetInt() != 0);
+                }
                 break;
 
             case ShaderValueKind.Int32:
-                if (value.ComponentCount > 1)
+                if (totalCount == 0)
                 {
                     writer.WriteStartArray();
-                    for (int i = 0; i < value.ComponentCount; i++)
+                    writer.WriteEndArray();
+                }
+                else if (value.ComponentCount > 1)
+                {
+                    writer.WriteStartArray();
+                    for (int i = 0; i < totalCount; i++)
                         writer.WriteNumberValue(value.GetInt(i));
                     writer.WriteEndArray();
                 }
@@ -71,10 +93,15 @@ public class JsonConverterShaderValue : JsonConverter<ShaderValue>
                 break;
 
             case ShaderValueKind.UInt32:
-                if (value.ComponentCount > 1)
+                if (totalCount == 0)
                 {
                     writer.WriteStartArray();
-                    for (int i = 0; i < value.ComponentCount; i++)
+                    writer.WriteEndArray();
+                }
+                else if (value.ComponentCount > 1)
+                {
+                    writer.WriteStartArray();
+                    for (int i = 0; i < totalCount; i++)
                         writer.WriteNumberValue(value.GetUInt(i));
                     writer.WriteEndArray();
                 }
@@ -86,7 +113,12 @@ public class JsonConverterShaderValue : JsonConverter<ShaderValue>
 
             default:
                 ReadOnlySpan<float> floats = value.GetFloats();
-                if (floats.Length == 1)
+                if (floats.Length == 0)
+                {
+                    writer.WriteStartArray();
+                    writer.WriteEndArray();
+                }
+                else if (floats.Length == 1)
                 {
                     writer.WriteNumberValue(floats[0]);
                 }
@@ -144,7 +176,10 @@ public class JsonConverterShaderValue : JsonConverter<ShaderValue>
             maxIndex = Math.Max(maxIndex, index + 1);
         }
 
-        return ShaderValue.Floats(components, maxIndex > 0 ? maxIndex : 1);
+        if (maxIndex == 0)
+            throw new JsonException("Material parameter component object must specify at least one component.");
+
+        return ShaderValue.Floats(components, maxIndex);
     }
 
     private static int IndexOf(string[] names, string propertyName)

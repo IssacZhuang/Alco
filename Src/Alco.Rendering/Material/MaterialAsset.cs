@@ -12,11 +12,20 @@ public class MaterialAsset : IJsonOnDeserialized
     /// <summary>Format version of material asset files consumed by this runtime.</summary>
     public const string FormatVersion = "1.0";
 
+    private string _name = string.Empty;
+    private IReadOnlyDictionary<string, Image> _textures = new Dictionary<string, Image>();
+    private IReadOnlyDictionary<string, ShaderValue> _parameters = new Dictionary<string, ShaderValue>();
+    private IReadOnlyDictionary<string, ShaderValue> _specializations = new Dictionary<string, ShaderValue>();
+
     /// <summary>Gets or sets the format version declared in the file; null when constructed in code.</summary>
     public string? Version { get; set; }
 
     /// <summary>Gets or sets the material name; defaulted from the source file name when omitted.</summary>
-    public string Name { get; set; } = string.Empty;
+    public string Name
+    {
+        get => _name;
+        set => _name = value ?? string.Empty;
+    }
 
     /// <summary>Gets or sets the asset path the material was loaded from; null when constructed in code.</summary>
     [JsonIgnore]
@@ -26,13 +35,49 @@ public class MaterialAsset : IJsonOnDeserialized
     public string? Surface { get; set; }
 
     /// <summary>Gets or sets authored texture bindings keyed by shader parameter name inside the material block.</summary>
-    public IReadOnlyDictionary<string, Image> Textures { get; set; } = new Dictionary<string, Image>();
+    public IReadOnlyDictionary<string, Image> Textures
+    {
+        get => _textures;
+        set => _textures = value ?? new Dictionary<string, Image>();
+    }
 
     /// <summary>Gets or sets authored parameter values keyed by shader member name inside the material block.</summary>
-    public IReadOnlyDictionary<string, ShaderValue> Parameters { get; set; } = new Dictionary<string, ShaderValue>();
+    public IReadOnlyDictionary<string, ShaderValue> Parameters
+    {
+        get => _parameters;
+        set => _parameters = value ?? new Dictionary<string, ShaderValue>();
+    }
 
     /// <summary>Gets or sets authored value-specialization arguments keyed by shader generic parameter name.</summary>
-    public IReadOnlyDictionary<string, ShaderValue> Specializations { get; set; } = new Dictionary<string, ShaderValue>();
+    public IReadOnlyDictionary<string, ShaderValue> Specializations
+    {
+        get => _specializations;
+        set => _specializations = value ?? new Dictionary<string, ShaderValue>();
+    }
+
+    /// <summary>
+    /// Creates a <see cref="Material"/> from <paramref name="shader"/> specialized with this asset's
+    /// <see cref="Specializations"/>, then binds its textures and uniform parameters.
+    /// </summary>
+    /// <param name="shader">The shader defining the variant and root layout.</param>
+    /// <param name="name">Optional runtime material name; defaults to the shader name.</param>
+    /// <param name="parameterPrefix">Root field prefix prepended to parameter and texture names (default <c>"Material."</c>).</param>
+    /// <returns>The created and populated runtime material.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when a specialization, texture slot, or parameter mismatches the shader layout.</exception>
+    public Material CreateMaterial(Shader shader, string name = "", string parameterPrefix = "Material.")
+    {
+        ArgumentNullException.ThrowIfNull(shader);
+
+        IReadOnlyList<string> valueParamSlots = shader.ValueSpecializationParameters;
+        object[] ordered = valueParamSlots.Count > 0 || Specializations.Count > 0
+            ? ResolveSpecializations(shader.Name, valueParamSlots)
+            : [];
+        Material material = ordered.Length > 0
+            ? shader.CreateMaterial(name, ordered)
+            : shader.CreateMaterial(name);
+        ApplyBindingsTo(material, parameterPrefix);
+        return material;
+    }
 
     /// <summary>Applies this asset's specializations, textures, and uniform parameters onto <paramref name="material"/>.</summary>
     /// <param name="material">The target runtime material.</param>
@@ -44,36 +89,50 @@ public class MaterialAsset : IJsonOnDeserialized
 
         if (Specializations.Count > 0)
         {
-            List<ShaderGenericParam> valueParams = [];
-            HashSet<string> seen = new(StringComparer.Ordinal);
+            List<string> valueParamSlots = [];
             foreach (ShaderEntryPointReflection entryPoint in material.Reflection.EntryPoints)
             {
                 foreach (ShaderGenericParam gp in entryPoint.GenericParameters)
                 {
-                    if (!gp.IsTypeParameter && seen.Add(gp.Name))
-                        valueParams.Add(gp);
+                    if (!gp.IsTypeParameter)
+                        valueParamSlots.Add(gp.Name);
                 }
             }
 
-            foreach (string key in Specializations.Keys)
-            {
-                if (!seen.Contains(key))
-                    throw new InvalidOperationException(
-                        $"Specialization '{key}' in material '{Name}' does not exist on shader '{material.Shader.Name}'.");
-            }
-
-            object[] ordered = new object[valueParams.Count];
-            for (int i = 0; i < valueParams.Count; i++)
-            {
-                string paramName = valueParams[i].Name;
-                if (!Specializations.TryGetValue(paramName, out ShaderValue value))
-                    throw new InvalidOperationException(
-                        $"Shader '{material.Shader.Name}' requires value specialization '{paramName}' missing in material '{Name}'.");
-                ordered[i] = value.ToSpecializationString();
-            }
+            object[] ordered = ResolveSpecializations(material.Shader.Name, valueParamSlots);
             material.SetSpecializations(ordered);
         }
 
+        ApplyBindingsTo(material, parameterPrefix);
+    }
+
+    private object[] ResolveSpecializations(string shaderName, IReadOnlyList<string> valueParamSlots)
+    {
+        HashSet<string> declaredNames = new(valueParamSlots, StringComparer.Ordinal);
+        foreach (string key in Specializations.Keys)
+        {
+            if (!declaredNames.Contains(key))
+                throw new InvalidOperationException(
+                    $"Specialization '{key}' in material '{Name}' does not exist on shader '{shaderName}'.");
+        }
+
+        if (valueParamSlots.Count == 0)
+            return [];
+
+        object[] ordered = new object[valueParamSlots.Count];
+        for (int i = 0; i < valueParamSlots.Count; i++)
+        {
+            string paramName = valueParamSlots[i];
+            if (!Specializations.TryGetValue(paramName, out ShaderValue value))
+                throw new InvalidOperationException(
+                    $"Shader '{shaderName}' requires value specialization '{paramName}' missing in material '{Name}'.");
+            ordered[i] = value.ToSpecializationString();
+        }
+        return ordered;
+    }
+
+    private void ApplyBindingsTo(Material material, string parameterPrefix)
+    {
         ShaderReflection reflection = material.Reflection;
         string prefix = parameterPrefix ?? string.Empty;
 

@@ -178,12 +178,6 @@ public class TestParticleEffectAsset
     {
         JsonSerializerOptions options = AssetLoaderParticleEffect.CreateJsonOptions(_engine.AssetSystem);
 
-        const string badVersion = """{ "$type": "Alco.Effects.ParticleEffect2D", "version": "99.0", "groups": [{}] }""";
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffect2D>(badVersion, options));
-
-        const string emptyGroups = """{ "$type": "Alco.Effects.ParticleEffect2D", "version": "1.0", "groups": [] }""";
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffect2D>(emptyGroups, options));
-
         const string badShape = """
         {
             "$type": "Alco.Effects.ParticleEffect2D",
@@ -191,7 +185,43 @@ public class TestParticleEffectAsset
             "groups": [ { "shape": { "type": "dodecahedron" } } ]
         }
         """;
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffect2D>(badShape, options));
+        JsonException? shapeEx = Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ParticleEffect>(badShape, options));
+        Assert.That(shapeEx!.Message, Does.Contain("dodecahedron").Or.Contain("ParticleShape2D"));
+
+        var emptyCodeEffect = new ParticleEffect2D { Name = "EmptyCode", Groups = [] };
+        using (var particleSystem = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 256, emitterSlots: 8))
+        {
+            InvalidDataException? emptyEx = Assert.Throws<InvalidDataException>(() =>
+                particleSystem.CreateInstance(emptyCodeEffect, new Transform2D(Vector2.Zero)));
+            Assert.That(emptyEx!.Message, Does.Contain("no groups"));
+        }
+
+        string tempDir = Path.Combine(Path.GetTempPath(), $"AlcoEffectsInvalid_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDir);
+        var dirSource = new DirectoryFileSource(tempDir);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempDir, "BadVersion.afx"),
+                """{ "$type": "Alco.Effects.ParticleEffect2D", "version": "99.0", "groups": [{}] }""");
+            File.WriteAllText(Path.Combine(tempDir, "EmptyGroups.afx"),
+                """{ "$type": "Alco.Effects.ParticleEffect2D", "version": "1.0", "groups": [] }""");
+
+            _engine.AssetSystem.AddFileSource(dirSource);
+
+            AssetLoadException? versionEx = Assert.Throws<AssetLoadException>(() =>
+                _engine.AssetSystem.Load<ParticleEffect2D>("BadVersion.afx"));
+            Assert.That(versionEx!.ToString(), Does.Contain("99.0"));
+
+            AssetLoadException? groupsEx = Assert.Throws<AssetLoadException>(() =>
+                _engine.AssetSystem.Load<ParticleEffect2D>("EmptyGroups.afx"));
+            Assert.That(groupsEx!.ToString(), Does.Contain("no groups"));
+        }
+        finally
+        {
+            _engine.AssetSystem.RemoveFileSource(dirSource);
+            if (Directory.Exists(tempDir))
+                Directory.Delete(tempDir, recursive: true);
+        }
     }
 
     /// <summary>Tests loading an <c>.afx</c> effect file through <see cref="AssetSystem"/>.</summary>

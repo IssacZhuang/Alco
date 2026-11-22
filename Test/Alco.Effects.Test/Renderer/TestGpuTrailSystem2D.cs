@@ -362,6 +362,131 @@ public sealed class TestGpuTrailSystem2D
         }
     }
 
+    /// <summary>Render rejects a different RenderContext even if both contexts share the same numerical FrameId.</summary>
+    [Test]
+    public void PrepareRenderRequiresMatchingContext()
+    {
+        using var host = new EffectsTestHost(GraphicsBackend.NoGPU);
+        using var system = new GpuTrailSystem2D(host.RenderingSystem, host.Shaders, 64, 2);
+        using var trail = CreateTrail(system, 32);
+        trail.ExtendTo(Vector2.UnitX, 0f);
+
+        Texture target = host.CreateColorTarget(32, 32);
+        var contextA = new RenderContext(host.RenderingSystem);
+        var contextB = new RenderContext(host.RenderingSystem);
+        try
+        {
+            contextA.BeginFrame(); // CurrentFrameId == 1
+            system.PrepareRender(contextA);
+
+            contextB.BeginFrame(); // Also CurrentFrameId == 1
+            var passDesc = new RenderingDesc
+            {
+                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+            };
+            using (var render = contextB.BeginRenderPass(passDesc))
+            {
+                var vp = Matrix4x4.Identity;
+                bool threw = false;
+                try
+                {
+                    system.Render(contextB, render, in vp);
+                }
+                catch (InvalidOperationException)
+                {
+                    threw = true;
+                }
+                Assert.That(threw, Is.True, "Render must reject a RenderContext different from PrepareRender even with matching FrameId.");
+            }
+            contextB.DiscardFrame();
+            contextA.DiscardFrame();
+        }
+        finally
+        {
+            contextB.Destroy();
+            contextA.Destroy();
+            target.Destroy();
+        }
+    }
+
+    /// <summary>TrimUnusedCaches removes cached materials no longer used by live trails.</summary>
+    [Test]
+    public void TrimUnusedCachesEvictsDisposedMaterials()
+    {
+        using var host = new EffectsTestHost(GraphicsBackend.NoGPU);
+        using var system = new GpuTrailSystem2D(host.RenderingSystem, host.Shaders, 64, 2);
+        var assetA = new MaterialAsset { Name = "A" };
+        var assetB = new MaterialAsset { Name = "B" };
+
+        Assert.That(system.TryCreateInstance(new TrailEffect2D { ExpectedPoints = 32, Material = assetA }, Vector2.Zero, out var trailA), Is.True);
+        Assert.That(system.TryCreateInstance(new TrailEffect2D { ExpectedPoints = 32, Material = assetB }, Vector2.Zero, out var trailB), Is.True);
+        trailA.Dispose();
+        system.TrimUnusedCaches();
+
+        FieldInfo materialsField = typeof(GpuTrailSystem2D).GetField("_materials", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var dict = (System.Collections.IDictionary)materialsField.GetValue(system)!;
+        Assert.That(dict.Count, Is.EqualTo(1));
+        trailB.Dispose();
+        system.TrimUnusedCaches();
+        Assert.That(dict.Count, Is.Zero);
+    }
+
+    /// <summary>Discarding a frame restores dirty trail points and parameters so the next frame renders them onto GPU.</summary>
+    [Test]
+    [Category("AlcoGpu")]
+    public void DiscardFramePreservesDirtyTrailPointsAndParamsOnGpu()
+    {
+        using EffectsTestHost host = EffectsTestHost.CreateGpu();
+        using var system = new GpuTrailSystem2D(host.RenderingSystem, host.Shaders, 64, 2);
+        var effect = new TrailEffect2D
+        {
+            ExpectedPoints = 32,
+            Spacing = 0.25f,
+            Life = 2f,
+            Width0 = 0.2f,
+            Width1 = 0.2f,
+            Opacity = 1f,
+            FadeIn = 0f,
+            FadeOut = 0f,
+            Depth = DepthStencilState.None,
+        };
+        Assert.That(system.TryCreateInstance(effect, new Vector2(-0.75f, 0f), out TrailEffectInstance2D trail), Is.True);
+
+        Texture target = host.CreateColorTarget(64, 64);
+        var context = new RenderContext(host.RenderingSystem);
+        try
+        {
+            trail.ExtendTo(new Vector2(0.75f, 0f), 0f);
+
+            context.BeginFrame();
+            system.PrepareRender(context);
+            context.DiscardFrame();
+
+            // Next frame calls PrepareRender without emitting any new points; discarded uploads must replay.
+            context.BeginFrame();
+            system.PrepareRender(context);
+            var passDesc = new RenderingDesc
+            {
+                Colors = [new ColorAttachment { RenderView = target.RenderView, Load = LoadOp.Clear, Store = StoreOp.Store, Clear = Vector4.Zero }],
+            };
+            using (var render = context.BeginRenderPass(passDesc))
+            {
+                render.SetViewport(new Viewport { Width = 64, Height = 64 });
+                render.SetScissor(new Scissor { Width = 64, Height = 64 });
+                var vp = Matrix4x4.Identity;
+                system.Render(context, render, in vp);
+            }
+            byte[] pixels = host.ReadBackRgba8AndSubmit(context, target, 64, 64);
+            Assert.That(pixels[(32 * 64 + 32) * 4 + 3], Is.GreaterThan((byte)200), "Discarded trail points/params must replay on the next frame.");
+        }
+        finally
+        {
+            trail.Dispose();
+            context.Destroy();
+            target.Destroy();
+        }
+    }
+
     private static TrailEffectInstance2D CreateTrail(GpuTrailSystem2D system, int points)
     {
         Assert.That(system.TryCreateInstance(new TrailEffect2D { ExpectedPoints = points, Depth = DepthStencilState.None },

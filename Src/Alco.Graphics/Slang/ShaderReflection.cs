@@ -352,7 +352,17 @@ public sealed class ShaderParameterInfo
 /// <param name="Name">The entry point function name.</param>
 /// <param name="Stage">The entry point shader stage.</param>
 /// <param name="HasGenericParameters">Whether the entry point declares generic specialization parameters.</param>
-public readonly record struct ShaderModuleEntryPoint(string Name, ShaderStageKind Stage, bool HasGenericParameters);
+public readonly record struct ShaderModuleEntryPoint(string Name, ShaderStageKind Stage, bool HasGenericParameters)
+{
+    private readonly IReadOnlyList<ShaderGenericParam>? _genericParameters;
+
+    /// <summary>Generic type and value specialization parameters declared on this entry point.</summary>
+    public IReadOnlyList<ShaderGenericParam> GenericParameters
+    {
+        get => _genericParameters ?? [];
+        init => _genericParameters = value;
+    }
+}
 
 /// <summary>Pure-managed, lifetime-independent reflection snapshot of a compiled Alco.Graphics shader program.</summary>
 public sealed class ShaderReflection

@@ -93,6 +93,18 @@ public class AssetLoaderParticleEffect : BaseAssetLoader<ParticleEffect>
                 $"Particle effect asset '{context.Filename}' is a {asset.GetType().Name} and cannot be loaded as {context.AssetType.Name}.");
         }
 
+        int groupCount = asset switch
+        {
+            ParticleEffect2D e2 => e2.Groups.Count,
+            ParticleEffect3D e3 => e3.Groups.Count,
+            _ => 0,
+        };
+        if (groupCount == 0)
+        {
+            throw new InvalidDataException(
+                $"Particle effect asset '{context.Filename}' has no groups.");
+        }
+
         if (_shaderSystem != null)
             ValidateBehaviors(asset, context.Filename, _shaderSystem);
 

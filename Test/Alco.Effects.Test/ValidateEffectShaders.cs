@@ -206,6 +206,57 @@ public sealed unsafe class ValidateEffectShaders
         });
     }
 
+    /// <summary>Built-in embedded effects modules persist and reload cleanly via ShaderCompiler disk cache.</summary>
+    [Test]
+    public void BuiltInEffectsShadersSupportDiskCachingAndCreateFileResolver()
+    {
+        string cacheDir = Path.Combine(Path.GetTempPath(), $"AlcoEffectsShaderCache_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(cacheDir);
+        try
+        {
+            var opts1 = new ShaderCompilerOptions
+            {
+                CacheDirectory = cacheDir,
+            };
+
+            using (var compiler1 = new ShaderCompiler(ShaderTarget.SpirvCompact, opts1))
+            {
+                for (int i = 0; i < AlcoEffectsShaders.BuiltInModuleOrder.Count; i++)
+                {
+                    string moduleName = AlcoEffectsShaders.BuiltInModuleOrder[i];
+                    compiler1.LoadModuleFromSource(moduleName, moduleName + ".slang",
+                        AlcoEffectsShaders.LoadEmbeddedSource(moduleName + ".slang"));
+                }
+
+                CompiledShader first = compiler1.CompileComposed("GpuParticle2D", "ParticleSurfaceDefault", ShaderPipelineKind.Graphics);
+                Assert.That(first.Stages, Has.Count.EqualTo(2));
+            }
+
+            Assert.That(Directory.GetFiles(cacheDir, "*.agshader"), Is.Not.Empty,
+                "Disk cache must persist compiled shaders whose dependencies were registered via LoadModuleFromSource.");
+            Assert.That(Directory.GetFiles(cacheDir, "*.deps"), Is.Not.Empty);
+
+            int cacheHits = 0;
+            var opts2 = new ShaderCompilerOptions
+            {
+                CacheDirectory = cacheDir,
+                FileResolver = AlcoEffectsShaders.CreateFileResolver(),
+                Log = msg => { if (msg.StartsWith("Shader cache hit:", StringComparison.Ordinal)) cacheHits++; },
+            };
+            using (var compiler2 = new ShaderCompiler(ShaderTarget.SpirvCompact, opts2))
+            {
+                CompiledShader cached = compiler2.CompileComposed("GpuParticle2D", "ParticleSurfaceDefault", ShaderPipelineKind.Graphics);
+                Assert.That(cached.Stages, Has.Count.EqualTo(2));
+            }
+            Assert.That(cacheHits, Is.EqualTo(1));
+        }
+        finally
+        {
+            if (Directory.Exists(cacheDir))
+                Directory.Delete(cacheDir, recursive: true);
+        }
+    }
+
     private static ShaderCompiler CreateCompiler(ShaderTarget target)
     {
         var compiler = new ShaderCompiler(target, EffectsTestHost.CreateCompilerOptions());

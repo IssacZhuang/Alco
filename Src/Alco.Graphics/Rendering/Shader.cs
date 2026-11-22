@@ -674,6 +674,7 @@ public sealed class Shader : RenderingResource
 
             Name = name.Length != 0 ? name : module;
             Kind = resolvedKind;
+            ValueSpecializationParameters = CollectValueSpecializationParameters(parsed, resolvedKind);
             _compileVariant = specs => compiler.Compile(module, pipelineKind,
                 specs.Length > 0 ? new ShaderCompileOptions { SpecializationArgs = specs } : null);
 
@@ -702,6 +703,7 @@ public sealed class Shader : RenderingResource
 
             Name = name.Length != 0 ? name : module.Name;
             Kind = resolvedKind;
+            ValueSpecializationParameters = CollectValueSpecializationParameters(module, resolvedKind);
             _compileVariant = specs => module.Compile(pipelineKind,
                 specs.Length > 0 ? new ShaderCompileOptions { SpecializationArgs = specs } : null);
 
@@ -719,10 +721,12 @@ public sealed class Shader : RenderingResource
         RenderingSystem system,
         string name,
         ShaderKind kind,
+        IReadOnlyList<string> valueSpecializationParameters,
         Func<string[], CompiledShader> compileVariant) : base(system)
     {
         Name = name;
         Kind = kind;
+        ValueSpecializationParameters = valueSpecializationParameters;
         _compileVariant = compileVariant;
     }
 
@@ -755,6 +759,7 @@ public sealed class Shader : RenderingResource
             system,
             resolvedName,
             resolvedKind,
+            CollectValueSpecializationParameters(parsedTemplate, resolvedKind),
             specs => compiler.CompileComposed(templateModule, surfaceModule, pipelineKind,
                 specs.Length > 0 ? new ShaderCompileOptions { SpecializationArgs = specs } : null));
     }
@@ -770,6 +775,9 @@ public sealed class Shader : RenderingResource
 
     /// <summary>The pipeline kind of the selected program.</summary>
     public ShaderKind Kind { get; }
+
+    /// <summary>Value specialization parameter names expected across this shader's selected entry points in compilation order.</summary>
+    public IReadOnlyList<string> ValueSpecializationParameters { get; }
 
     /// <summary>The rendering system this shader creates pipelines on.</summary>
     public RenderingSystem System => _system;
@@ -987,13 +995,7 @@ public sealed class Shader : RenderingResource
 
     private static bool HasGenericStages(ShaderModule module, ShaderKind kind)
     {
-        ShaderStageKind stages = kind switch
-        {
-            ShaderKind.Graphics => ShaderStageKind.Vertex | ShaderStageKind.Pixel,
-            ShaderKind.Compute => ShaderStageKind.Compute,
-            ShaderKind.Mesh => ShaderStageKind.Task | ShaderStageKind.Mesh | ShaderStageKind.Pixel,
-            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
-        };
+        ShaderStageKind stages = StagesForKind(kind);
         foreach (ShaderModuleEntryPoint entryPoint in module.EntryPoints)
         {
             if ((entryPoint.Stage & stages) != 0 && entryPoint.HasGenericParameters)
@@ -1001,6 +1003,33 @@ public sealed class Shader : RenderingResource
         }
         return false;
     }
+
+    private static string[] CollectValueSpecializationParameters(ShaderModule module, ShaderKind kind)
+    {
+        ShaderStageKind stages = StagesForKind(kind);
+        List<string>? names = null;
+        foreach (ShaderModuleEntryPoint entryPoint in module.EntryPoints)
+        {
+            if ((entryPoint.Stage & stages) == 0)
+                continue;
+            foreach (ShaderGenericParam gp in entryPoint.GenericParameters)
+            {
+                if (gp.IsTypeParameter)
+                    continue;
+                names ??= [];
+                names.Add(gp.Name);
+            }
+        }
+        return names == null ? [] : names.ToArray();
+    }
+
+    private static ShaderStageKind StagesForKind(ShaderKind kind) => kind switch
+    {
+        ShaderKind.Graphics => ShaderStageKind.Vertex | ShaderStageKind.Pixel,
+        ShaderKind.Compute => ShaderStageKind.Compute,
+        ShaderKind.Mesh => ShaderStageKind.Task | ShaderStageKind.Mesh | ShaderStageKind.Pixel,
+        _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+    };
 
     internal static ShaderPipelineKind ToPipelineKind(ShaderKind kind) => kind switch
     {

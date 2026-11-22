@@ -90,6 +90,62 @@ public class TestParticleSimulation
         }
     }
 
+    /// <summary>Rate-limited frames invalidate their cached plan and drain kills when visibility, Play, Restart, or CreateInstance occur.</summary>
+    [Test]
+    public void RateLimitedMutationsInvalidatePlanAndDrainKills2D()
+    {
+        using var system = new GpuParticleSystem2D(_engine.RenderingSystem, _engine.ShaderSystem, particleCapacity: 512, emitterSlots: 8)
+        {
+            SimulationRateLimitEnabled = true,
+            SimulationInterval = 1.0f,
+        };
+        var effect = new ParticleEffect2D
+        {
+            Name = "ratelimit2d",
+            Groups = [new ParticleGroup2D { Name = "Main", MaxParticles = 64, EmissionRate = 60f, Lifetime = new ParticleRange(1f, 2f) }],
+        };
+
+        using ParticleEffectInstance2D instance = system.CreateInstance(effect, new Transform2D(Vector2.Zero), seed: 5);
+        var context = new RenderContext(_engine.RenderingSystem);
+        try
+        {
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.1f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
+
+            instance.IsVisible = false;
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawBatchCount, Is.Zero);
+
+            instance.IsVisible = true;
+            instance.SetGroupVisible(0, false);
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawBatchCount, Is.Zero);
+
+            instance.SetGroupVisible(0, true);
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.That(system.PlannedDrawBatchCount, Is.EqualTo(1));
+
+            instance.Restart();
+            Assert.That(system.Pool.HasPendingKills, Is.True);
+            context.BeginFrame();
+            system.RecordSimulation(context, 0.001f);
+            context.Submit().Wait();
+            Assert.That(system.Pool.HasPendingKills, Is.False);
+        }
+        finally
+        {
+            context.Destroy();
+        }
+    }
+
     /// <summary>3D: Play, Stop, expiry, Restart, and custom curve baking work in 3D.</summary>
     [Test]
     public void LifecycleAndOverLifeCurveBaking3D()

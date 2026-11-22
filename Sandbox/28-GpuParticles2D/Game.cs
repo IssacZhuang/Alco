@@ -13,7 +13,7 @@ public class Game : GameEngine
 {
     private readonly RenderGraph _renderGraph;
     private readonly RenderContext _renderContext;
-    private readonly CameraData2D _camera;
+    private readonly Camera2D _camera;
     private readonly GpuParticleSystem2D _particles;
     private readonly Dictionary<string, ParticleEffect2D> _effects = new();
     private readonly List<string> _effectNames = [];
@@ -54,7 +54,7 @@ public class Game : GameEngine
 
         AddSystem(new ImGUISystem(this));
 
-        _camera = new CameraData2D
+        _camera = new Camera2D
         {
             Size = new Vector2(64f, 36f),
             Near = -100f,
@@ -68,7 +68,7 @@ public class Game : GameEngine
         _renderGraph.Use(new ParticleSimulateNode2D(_particles));
         _renderGraph.Use(new ParticleRenderNode2D(
             _particles,
-            () => _camera,
+            _camera,
             colorLoadOp: LoadOp.Clear,
             clearColor: new Vector4(0.05f, 0.06f, 0.09f, 1f)));
         _renderContext = new RenderContext(RenderingSystem, frameDataByteCount: 512 * 1024);

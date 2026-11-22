@@ -498,6 +498,16 @@ internal static unsafe class SlangLayoutReader
         return written == result.Length ? result : [];
     }
 
+    internal static ShaderGenericParam[] ReadEntryPointGenericParameters(IntPtr layout)
+    {
+        IntPtr generic = GetEntryPointGeneric(layout, 0);
+        if (generic == IntPtr.Zero)
+            return [];
+        List<ShaderGenericParam> generics = [];
+        ReadGenericParams(generic, generics);
+        return generics.Count == 0 ? [] : generics.ToArray();
+    }
+
     private static void ReadGenericParams(IntPtr generic, List<ShaderGenericParam> destination)
     {
         uint typeParamCount = SlangNative.spReflectionGeneric_GetTypeParameterCount(generic);
