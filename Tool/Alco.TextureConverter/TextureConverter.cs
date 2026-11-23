@@ -1,59 +1,47 @@
 namespace Alco.TextureConverter;
 
 /// <summary>
-/// Batch-converts PNG textures to block-compressed DDS files on the GPU
-/// (TextureCompressBc1/TextureCompressBc3 compute shaders), for the asset
-/// packaging pipeline. One instance owns one headless engine; instances are
-/// not thread-safe.
+/// Batch-converts PNG textures to BC1-BC7 compressed DDS files on the GPU using bindless compute shaders.
+/// One instance owns one headless engine; instances are not thread-safe.
 /// </summary>
-/// <remarks>
-/// Encoded variants store linear BC data as raw bytes. Item/Apparel/Weapon* texture groups require premultiplied input, which the converter does not yet produce.
-/// </remarks>
 public sealed class TextureConverter : IDisposable
 {
-	private ConverterEngine? _engine;
+    private ConverterEngine? _engine;
 
-	/// <summary>
-	/// Receives one progress line per converted file plus a summary line;
-	/// null (default) is silent. Skips and failures are routed here too,
-	/// prefixed in the line text.
-	/// </summary>
-	public Action<string>? Log { get; init; }
+    /// <summary>Optional per-file progress and summary log sink.</summary>
+    public Action<string>? Log { get; init; }
 
-	/// <summary>
-	/// Converts one PNG file, or every PNG under one directory, to DDS.
-	/// </summary>
-	/// <param name="options">What to convert and how.</param>
-	/// <param name="result">The per-file and aggregate outcome, or null on fatal errors.</param>
-	/// <param name="error">The fatal error description (missing input, unsupported device), or null.</param>
-	/// <returns>True when the batch ran; individual file failures are reported through <paramref name="result"/>, not here.</returns>
-	public bool TryConvert(
-		TextureConverterOptions options,
-		out TextureConverterResult? result,
-		out string? error)
-	{
-		if (!options.Validate(out error))
-		{
-			result = null;
-			return false;
-		}
-		if (!File.Exists(options.InputPath) && !Directory.Exists(options.InputPath))
-		{
-			result = null;
-			error = $"The input path '{options.InputPath}' does not exist.";
-			return false;
-		}
+    /// <summary>Converts one PNG file, or every PNG recursively under a directory, to DDS.</summary>
+    /// <param name="options">Conversion settings and target BC format.</param>
+    /// <param name="result">Per-file and aggregate report, or null on fatal startup errors.</param>
+    /// <param name="error">Fatal validation or device-capability error description, or null.</param>
+    /// <returns><c>true</c> when batch execution finished; per-file skips or errors appear inside <paramref name="result"/>.</returns>
+    public bool TryConvert(
+        TextureConverterOptions options,
+        out TextureConverterResult? result,
+        out string? error)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        if (!options.Validate(out error))
+        {
+            result = null;
+            return false;
+        }
+        if (!File.Exists(options.InputPath) && !Directory.Exists(options.InputPath))
+        {
+            result = null;
+            error = $"The input path '{options.InputPath}' does not exist.";
+            return false;
+        }
 
-		_engine ??= new ConverterEngine();
-		return TextureConversion.TryRun(options, _engine.RenderingSystem, Log, out result, out error);
-	}
+        _engine ??= new ConverterEngine();
+        return TextureConversion.TryRun(options, _engine.RenderingSystem, Log, out result, out error);
+    }
 
-	/// <summary>
-	/// Releases the headless engine (the GPU device and its resources).
-	/// </summary>
-	public void Dispose()
-	{
-		_engine?.Dispose();
-		_engine = null;
-	}
+    /// <summary>Releases the owned headless engine and GPU device.</summary>
+    public void Dispose()
+    {
+        _engine?.Dispose();
+        _engine = null;
+    }
 }

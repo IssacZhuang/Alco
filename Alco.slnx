@@ -84,5 +84,6 @@
   </Folder>
   <Folder Name="/Tool/">
     <Project Path="Tool/Alco.Profiler/Alco.Profiler.csproj" />
+    <Project Path="Tool/Alco.TextureConverter/Alco.TextureConverter.csproj" />
   </Folder>
 </Solution>

@@ -17,6 +17,7 @@ public sealed class Texture : RenderingResource
     private uint _sampledIndex;
     private uint _storageIndex;
     private uint[]? StorageMipIndices;
+    internal List<(Format Format, uint Slot)>? AlternateSampledViews;
     internal readonly InitializationState Initialization;
 
     internal sealed class InitializationState
@@ -66,6 +67,21 @@ public sealed class Texture : RenderingResource
             Debug.Assert(!IsDestroyed);
             return _sampledIndex;
         }
+    }
+
+    /// <summary>Gets a sampled descriptor heap index interpreted with <paramref name="viewFormat"/>.</summary>
+    /// <param name="viewFormat">The view format, or <see cref="Format.Undefined"/> for the texture's native format.</param>
+    /// <returns>The sampled descriptor heap index.</returns>
+    public uint GetSampledIndex(Format viewFormat)
+    {
+        Debug.Assert(!IsDestroyed);
+        if (viewFormat == Format.Undefined || viewFormat == _desc.Format)
+        {
+            if (_sampledIndex == NoIndex)
+                throw new InvalidOperationException("Texture must be created with TextureUsage.Sampled.");
+            return _sampledIndex;
+        }
+        return _system.GetOrCreateAlternateSampledIndex(this, viewFormat);
     }
 
     /// <summary>The mip-zero storage descriptor heap index, or <see cref="NoIndex"/> when storage is disabled.</summary>
@@ -125,7 +141,15 @@ public sealed class Texture : RenderingResource
     {
         _renderView?.Destroy();
         _renderView = null;
-        _system.ReleaseTexture(ref _allocation, _sampledIndex, _storageIndex, StorageMipIndices, Initialization);
+        uint[]? alternateSlots = null;
+        if (AlternateSampledViews is { Count: > 0 } views)
+        {
+            alternateSlots = new uint[views.Count];
+            for (int index = 0; index < views.Count; ++index)
+                alternateSlots[index] = views[index].Slot;
+            AlternateSampledViews = null;
+        }
+        _system.ReleaseTexture(ref _allocation, _sampledIndex, _storageIndex, StorageMipIndices, alternateSlots, Initialization);
         _sampledIndex = NoIndex;
         _storageIndex = NoIndex;
         StorageMipIndices = null;

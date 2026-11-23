@@ -124,6 +124,11 @@ public struct GPURange
     {
         return new GPURange { Buffer = Buffer, Offset = Offset + byteOffset, Size = byteSize };
     }
+
+    /// <summary>The shader-visible buffer view covering this range, or an empty view for an empty range.</summary>
+    public readonly GPUBufferView View => Buffer == null || Buffer.ViewIndex == 0
+        ? default
+        : new GPUBufferView { Index = Buffer.ViewIndex, Offset = checked((uint)Offset) };
 }
 
 /// <summary>A heap allocation exposing a buffer range and an optional CPU mapping.</summary>

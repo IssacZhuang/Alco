@@ -10,11 +10,16 @@ namespace Alco.Graphics;
 public sealed unsafe class Buffer : RenderingResource
 {
     private readonly HeapAllocation<byte> _allocation;
+    private readonly MemoryType _memory;
 
-    internal Buffer(RenderingSystem system, HeapAllocation<byte> allocation) : base(system)
+    internal Buffer(RenderingSystem system, HeapAllocation<byte> allocation, MemoryType memory) : base(system)
     {
         _allocation = allocation;
+        _memory = memory;
     }
+
+    /// <summary>The backing memory visibility type.</summary>
+    public MemoryType Memory => _memory;
 
     /// <summary>The allocation's capacity in bytes.</summary>
     public ulong SizeBytes => _allocation.Range.SizeBytes;
@@ -36,6 +41,8 @@ public sealed unsafe class Buffer : RenderingResource
     public void SetData<T>(ReadOnlySpan<T> source, ulong byteOffset = 0) where T : unmanaged
     {
         Debug.Assert(!IsDestroyed);
+        if (_allocation.Range.Cpu == null)
+            throw new InvalidOperationException("Cannot write CPU data directly to a GPU-only buffer.");
         ulong byteCount = (ulong)source.Length * (ulong)sizeof(T);
         Debug.Assert(byteOffset <= SizeBytes && byteCount <= SizeBytes - byteOffset);
         if (source.IsEmpty)
@@ -56,9 +63,20 @@ public sealed unsafe class Buffer : RenderingResource
         }
     }
 
+    /// <summary>Gets a shader-visible buffer view offset by <paramref name="byteOffset"/> bytes.</summary>
+    /// <param name="byteOffset">The byte offset within this buffer.</param>
+    /// <returns>The offset buffer view.</returns>
+    public GPUBufferView GetView(ulong byteOffset = 0)
+    {
+        Debug.Assert(!IsDestroyed);
+        if (byteOffset > SizeBytes)
+            throw new ArgumentOutOfRangeException(nameof(byteOffset), byteOffset, "Byte offset exceeds buffer capacity.");
+        return _allocation.Range.GPURange.Slice(byteOffset).View;
+    }
+
     /// <summary>Returns the owned storage to the rendering system.</summary>
     protected override void Release()
     {
-        _system.ReleaseBuffer(_allocation);
+        _system.ReleaseBuffer(_allocation, _memory);
     }
 }

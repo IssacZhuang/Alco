@@ -25,7 +25,9 @@ public sealed class RenderingSystem
     private const ulong DefaultUploadStagingByteCount = 16 * 1024 * 1024;
 
     private readonly GPUDevice _device;
+    private readonly HeapPoolDesc _bufferPoolDesc;
     private readonly GPUHeapPool _bufferPool;
+    private GPUHeapPool? _gpuBufferPool;
     private readonly TextureHeapPool _texturePool;
     private readonly GPUTextureDescriptorHeap _textureDescriptors;
     private readonly GPUSamplerDescriptorHeap _samplerDescriptors;
@@ -121,6 +123,7 @@ public sealed class RenderingSystem
         try
         {
             buffers = _bufferPool = new GPUHeapPool(device, bufferPool);
+            _bufferPoolDesc = bufferPool;
             textureDescriptors = _textureDescriptors = device.CreateTextureDescriptorHeap();
             samplerDescriptors = _samplerDescriptors = device.CreateSamplerDescriptorHeap();
 
@@ -362,6 +365,61 @@ public sealed class RenderingSystem
         }
     }
 
+    /// <summary>Synchronously reads a buffer range into CPU memory on queue zero.</summary>
+    /// <param name="buffer">The source buffer belonging to this rendering system.</param>
+    /// <param name="destination">The CPU destination span; its length selects the byte count copied.</param>
+    /// <param name="byteOffset">The source byte offset within <paramref name="buffer"/>.</param>
+    public unsafe void ReadBuffer(Buffer buffer, Span<byte> destination, ulong byteOffset = 0)
+    {
+        ArgumentNullException.ThrowIfNull(buffer);
+        ObjectDisposedException.ThrowIf(_destroyed, this);
+        ObjectDisposedException.ThrowIf(buffer.IsDestroyed, buffer);
+        if (buffer.System != this)
+            throw new ArgumentException("The buffer does not belong to this rendering system.", nameof(buffer));
+        if (byteOffset > buffer.SizeBytes)
+            throw new ArgumentOutOfRangeException(nameof(byteOffset), byteOffset, "Byte offset exceeds buffer capacity.");
+        ulong byteCount = (ulong)destination.Length;
+        if (byteCount > buffer.SizeBytes - byteOffset)
+            throw new ArgumentException(
+                $"Requested read ({byteCount} bytes at offset {byteOffset}) exceeds buffer size ({buffer.SizeBytes} bytes).",
+                nameof(destination));
+        if (byteCount == 0)
+            return;
+
+        GPUHeap readback = default;
+        GPUCommandPool? pool = null;
+        GPUTimelineSemaphore? timeline = null;
+        try
+        {
+            readback = _device.CreateGPUHeap(byteCount, MemoryType.Readback);
+            pool = _device.CreateCommandPool(0);
+            timeline = _device.CreateTimelineSemaphore();
+            GPUCommandBuffer commands = pool.BeginCommands();
+            commands.Barrier(
+                Stage.AllCommands,
+                Access.ShaderWrite | Access.TransferWrite,
+                Stage.Transfer,
+                Access.TransferRead);
+            commands.CopyMemory(buffer.Range.Slice(byteOffset, byteCount), readback.Range.GPURange);
+            commands.Barrier(Stage.Transfer, Access.TransferWrite, Stage.Host, Access.HostRead);
+            commands.EndCommands();
+            TimelinePoint completion = new() { Semaphore = timeline, Value = 1 };
+            lock (_queueZeroSubmitLock)
+            {
+                _device.Submit(new SubmitDesc { Commands = [commands], Completion = completion });
+            }
+            completion.Wait();
+
+            new ReadOnlySpan<byte>(readback.Range.Cpu, checked((int)byteCount)).CopyTo(destination);
+        }
+        finally
+        {
+            timeline?.Destroy();
+            pool?.Destroy();
+            readback.Destroy();
+        }
+    }
+
     /// <summary>Submits pending texture initializations and system-queued uploads on queue zero; serialize this with other submissions to that queue.</summary>
     /// <returns>The completion borrowed until system destruction; include it in other queues' submission waits before texture use.</returns>
     /// <exception cref="GPUException">Upload command recording could not begin.</exception>
@@ -509,21 +567,36 @@ public sealed class RenderingSystem
         state.Index = -1;
     }
 
-    /// <summary>Allocates nonmoving buffer storage; its contents are initially undefined.</summary>
+    /// <summary>Allocates nonmoving CPU-visible buffer storage; its contents are initially undefined.</summary>
     /// <param name="byteCount">The positive capacity in bytes.</param>
     /// <returns>The buffer; destroy it after its final GPU use, or let collection reclaim it through <see cref="Tick"/>.</returns>
     /// <exception cref="InvalidOperationException">The buffer pool budget is exhausted.</exception>
     /// <exception cref="GPUException">A backing heap could not be created.</exception>
-    public unsafe Buffer CreateBuffer(ulong byteCount)
+    public Buffer CreateBuffer(ulong byteCount) => CreateBuffer(byteCount, MemoryType.CpuVisible);
+
+    /// <summary>Allocates nonmoving buffer storage of the requested memory visibility; its contents are initially undefined.</summary>
+    /// <param name="byteCount">The positive capacity in bytes.</param>
+    /// <param name="memory">The memory type (<see cref="MemoryType.CpuVisible"/> or <see cref="MemoryType.GpuOnly"/>).</param>
+    /// <returns>The buffer; destroy it after its final GPU use, or let collection reclaim it through <see cref="Tick"/>.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="memory"/> is not supported for pooled buffers.</exception>
+    /// <exception cref="InvalidOperationException">The buffer pool budget is exhausted.</exception>
+    /// <exception cref="GPUException">A backing heap could not be created.</exception>
+    public Buffer CreateBuffer(ulong byteCount, MemoryType memory)
     {
         Debug.Assert(!_destroyed && byteCount != 0);
+        if (memory is not (MemoryType.CpuVisible or MemoryType.GpuOnly))
+            throw new ArgumentOutOfRangeException(nameof(memory), memory, "Only CpuVisible and GpuOnly buffers are supported.");
+
         lock (_bufferLock)
         {
-            HeapAllocation<byte> allocation = _bufferPool.Allocate(byteCount);
+            GPUHeapPool pool = memory == MemoryType.GpuOnly
+                ? (_gpuBufferPool ??= new GPUHeapPool(_device, _bufferPoolDesc, MemoryType.GpuOnly))
+                : _bufferPool;
+            HeapAllocation<byte> allocation = pool.Allocate(byteCount);
             if (allocation.Range.SizeBytes == 0)
                 throw new InvalidOperationException("The rendering system's buffer pool budget is exhausted.");
             ++_liveBuffers;
-            return new Buffer(this, allocation);
+            return new Buffer(this, allocation, memory);
         }
     }
 
@@ -761,6 +834,7 @@ public sealed class RenderingSystem
         _samplerDescriptors.Destroy();
         _textureDescriptors.Destroy();
         _texturePool.Destroy();
+        _gpuBufferPool?.Destroy();
         _bufferPool.Destroy();
         _destroyed = true;
     }
@@ -932,18 +1006,58 @@ public sealed class RenderingSystem
         }
     }
 
-    internal void ReleaseBuffer(HeapAllocation<byte> allocation)
+    internal void ReleaseBuffer(HeapAllocation<byte> allocation, MemoryType memory)
     {
         lock (_bufferLock)
         {
             Debug.Assert(!_destroyed && _liveBuffers != 0);
-            _bufferPool.Free(allocation);
+            GPUHeapPool pool = memory == MemoryType.GpuOnly ? _gpuBufferPool! : _bufferPool;
+            pool.Free(allocation);
             --_liveBuffers;
         }
     }
 
+    internal uint GetOrCreateAlternateSampledIndex(Texture texture, Format viewFormat)
+    {
+        if ((texture.Desc.Usage & TextureUsage.Sampled) == 0)
+            throw new InvalidOperationException("Texture must be created with TextureUsage.Sampled.");
+        if (!texture.Desc.MutableFormat)
+            throw new InvalidOperationException("Alternate texture view formats require TextureDesc.MutableFormat.");
+
+        lock (_textureLock)
+        {
+            Debug.Assert(!_destroyed && !texture.IsDestroyed);
+            if (texture.AlternateSampledViews != null)
+            {
+                for (int index = 0; index < texture.AlternateSampledViews.Count; ++index)
+                {
+                    if (texture.AlternateSampledViews[index].Format == viewFormat)
+                        return texture.AlternateSampledViews[index].Slot;
+                }
+            }
+
+            uint slot = AllocateTextureSlot();
+            try
+            {
+                _textureDescriptors.WriteTextureDescriptor(
+                    slot,
+                    texture.NativeTexture,
+                    TextureDescriptorType.Sampled,
+                    new TextureDescriptorDesc { Format = viewFormat });
+                texture.AlternateSampledViews ??= [];
+                texture.AlternateSampledViews.Add((viewFormat, slot));
+                return slot;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                _textureSlots.Free(slot);
+                throw;
+            }
+        }
+    }
+
     internal void ReleaseTexture(ref PlacedTexture allocation, uint sampledIndex, uint storageIndex, uint[]? storageMipIndices,
-        Texture.InitializationState initialization)
+        uint[]? alternateSampledIndices, Texture.InitializationState initialization)
     {
         lock (_initializationLock)
         {
@@ -957,13 +1071,14 @@ public sealed class RenderingSystem
                     SampledIndex = sampledIndex,
                     StorageIndex = storageIndex,
                     StorageMipIndices = storageMipIndices,
+                    AlternateSampledIndices = alternateSampledIndices,
                     Initialization = initialization,
                 });
                 allocation = default;
                 return;
             }
         }
-        FreeTexture(ref allocation, sampledIndex, storageIndex, storageMipIndices);
+        FreeTexture(ref allocation, sampledIndex, storageIndex, storageMipIndices, alternateSampledIndices);
     }
 
     private void ReclaimTextures()
@@ -975,7 +1090,7 @@ public sealed class RenderingSystem
             {
                 PendingTextureRelease entry = _textureReleases[index];
                 if (Completed(entry.Initialization.Completion))
-                    FreeTexture(ref entry.Allocation, entry.SampledIndex, entry.StorageIndex, entry.StorageMipIndices);
+                    FreeTexture(ref entry.Allocation, entry.SampledIndex, entry.StorageIndex, entry.StorageMipIndices, entry.AlternateSampledIndices);
                 else
                     _textureReleases[keep++] = entry;
             }
@@ -983,7 +1098,8 @@ public sealed class RenderingSystem
         }
     }
 
-    private void FreeTexture(ref PlacedTexture allocation, uint sampledIndex, uint storageIndex, ReadOnlySpan<uint> storageMipIndices)
+    private void FreeTexture(ref PlacedTexture allocation, uint sampledIndex, uint storageIndex, ReadOnlySpan<uint> storageMipIndices,
+        ReadOnlySpan<uint> alternateSampledIndices)
     {
         lock (_textureLock)
         {
@@ -993,6 +1109,8 @@ public sealed class RenderingSystem
             if (storageIndex != Texture.NoIndex)
                 _textureSlots.Free(storageIndex);
             foreach (uint index in storageMipIndices)
+                _textureSlots.Free(index);
+            foreach (uint index in alternateSampledIndices)
                 _textureSlots.Free(index);
             _texturePool.Free(ref allocation);
             --_liveTextures;
@@ -1035,6 +1153,7 @@ public sealed class RenderingSystem
         internal uint SampledIndex;
         internal uint StorageIndex;
         internal uint[]? StorageMipIndices;
+        internal uint[]? AlternateSampledIndices;
         internal Texture.InitializationState Initialization;
     }
 

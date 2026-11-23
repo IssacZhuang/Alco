@@ -19,8 +19,12 @@
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_FXAA.slang" LogicalName="AlcoRendering_FXAA.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_Sprite2D.slang" LogicalName="AlcoRendering_Sprite2D.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_SpriteScene.slang" LogicalName="AlcoRendering_SpriteScene.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_TextureCompression.slang" LogicalName="AlcoRendering_TextureCompression.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_TextureCompressionBc7.slang" LogicalName="AlcoRendering_TextureCompressionBc7.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_TextureCompressionLegacy.slang" LogicalName="AlcoRendering_TextureCompressionLegacy.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_Tonemap.slang" LogicalName="AlcoRendering_Tonemap.slang" />
     <EmbeddedResource Include="Assets\Shaders\Materials\SpriteSceneSurface*.slang" LogicalName="%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\Compute\Compress\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\GpuInstanceScatter.slang" LogicalName="GpuInstanceScatter.slang" />
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SpriteScene*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SvgRasterize.slang" LogicalName="SvgRasterize.slang" />

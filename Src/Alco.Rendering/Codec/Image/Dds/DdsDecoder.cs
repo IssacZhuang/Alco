@@ -37,6 +37,7 @@ public static class DdsDecoder
     private const uint DxgiBc3Unorm = 77;
     private const uint DxgiBc3UnormSrgb = 78;
     private const uint DxgiBc4Unorm = 80;
+    private const uint DxgiBc4Snorm = 81;
     private const uint DxgiBc5Unorm = 83;
     private const uint DxgiBc6hUf16 = 95;
     private const uint DxgiBc6hSf16 = 96;
@@ -158,6 +159,7 @@ public static class DdsDecoder
 
         uint fourCc = BinaryPrimitives.ReadUInt32LittleEndian(data[84..]);
         dataOffset = HeaderSize;
+        bool signed = false;
         switch (fourCc)
         {
             case FourCcDxt1: family = BcFamily.BC1; break;
@@ -168,13 +170,14 @@ public static class DdsDecoder
             case FourCcAti2:
             case FourCcBc5u: family = BcFamily.BC5; break;
             case FourCcDx10:
-                family = ParseDx10Format(data, out dataOffset);
+                family = ParseDx10Format(data, out dataOffset, out bool dx10Srgb, out signed);
+                srgb |= dx10Srgb;
                 break;
             default:
                 throw new ImageDecodeException($"Unsupported DDS fourCC '{FourCcToString(fourCc)}'; expected DXT1/DXT3/DXT5/ATI1/ATI2/DX10.");
         }
 
-        format = ToPixelFormat(family, srgb);
+        format = ToPixelFormat(family, srgb, signed);
 
         if (width < 4 && height < 4)
         {
@@ -222,7 +225,7 @@ public static class DdsDecoder
     public static uint GetBlockBytes(BcFamily family)
         => family is BcFamily.BC1 or BcFamily.BC4 ? 8u : 16u;
 
-    private static BcFamily ParseDx10Format(ReadOnlySpan<byte> data, out int dataOffset)
+    private static BcFamily ParseDx10Format(ReadOnlySpan<byte> data, out int dataOffset, out bool isSrgb, out bool isSigned)
     {
         if (data.Length < HeaderSize + Dx10HeaderSize)
         {
@@ -230,12 +233,14 @@ public static class DdsDecoder
         }
         dataOffset = HeaderSize + Dx10HeaderSize;
         uint dxgiFormat = BinaryPrimitives.ReadUInt32LittleEndian(data[128..]);
+        isSrgb = dxgiFormat is DxgiBc1UnormSrgb or DxgiBc2UnormSrgb or DxgiBc3UnormSrgb or DxgiBc7UnormSrgb;
+        isSigned = dxgiFormat is DxgiBc4Snorm or DxgiBc6hSf16;
         return dxgiFormat switch
         {
             DxgiBc1Unorm or DxgiBc1UnormSrgb => BcFamily.BC1,
             DxgiBc2Unorm or DxgiBc2UnormSrgb => BcFamily.BC2,
             DxgiBc3Unorm or DxgiBc3UnormSrgb => BcFamily.BC3,
-            DxgiBc4Unorm => BcFamily.BC4,
+            DxgiBc4Unorm or DxgiBc4Snorm => BcFamily.BC4,
             DxgiBc5Unorm => BcFamily.BC5,
             DxgiBc6hUf16 or DxgiBc6hSf16 => BcFamily.BC6H,
             DxgiBc7Unorm or DxgiBc7UnormSrgb => BcFamily.BC7,
@@ -243,14 +248,14 @@ public static class DdsDecoder
         };
     }
 
-    private static Format ToPixelFormat(BcFamily family, bool srgb) => family switch
+    private static Format ToPixelFormat(BcFamily family, bool srgb, bool signed) => family switch
     {
         BcFamily.BC1 => srgb ? Format.Bc1Srgb : Format.Bc1Unorm,
         BcFamily.BC2 => srgb ? Format.Bc2Srgb : Format.Bc2Unorm,
         BcFamily.BC3 => srgb ? Format.Bc3Srgb : Format.Bc3Unorm,
-        BcFamily.BC4 => Format.Bc4Unorm,
+        BcFamily.BC4 => signed ? Format.Bc4Snorm : Format.Bc4Unorm,
         BcFamily.BC5 => Format.Bc5Rg,
-        BcFamily.BC6H => Format.Bc6HUfloat,
+        BcFamily.BC6H => signed ? Format.Bc6HSfloat : Format.Bc6HUfloat,
         BcFamily.BC7 => srgb ? Format.Bc7Srgb : Format.Bc7Unorm,
         _ => throw new ImageDecodeException($"Unsupported DDS BC family {family}."),
     };

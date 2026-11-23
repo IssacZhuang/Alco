@@ -366,6 +366,15 @@ public sealed class RenderContext : RenderingResource
         CommandsBetweenScopes.CopyMemory(source, destination);
     }
 
+    /// <summary>Records a buffer-to-texture copy between scopes without inserting a barrier.</summary>
+    /// <param name="source">The source range, kept alive until GPU completion.</param>
+    /// <param name="destination">The single-sample destination texture, kept alive until GPU completion.</param>
+    /// <param name="copy">The destination texture region and source pitches.</param>
+    public void CopyMemoryToTexture(GPURange source, GPUTexture destination, TextureCopyDesc copy = default)
+    {
+        CommandsBetweenScopes.CopyMemoryToTexture(source, destination, copy);
+    }
+
     /// <summary>Records a texture-to-buffer copy between scopes without inserting a barrier.</summary>
     /// <param name="source">The single-sample source texture, kept alive until GPU completion.</param>
     /// <param name="destination">The destination range, kept alive until GPU completion.</param>

@@ -120,6 +120,35 @@ public class TestDdsEncoder
     public void Encode_UnsupportedFamily_Throws()
     {
         Assert.Throws<ImageDecodeException>(
-            () => DdsEncoder.Encode(8, 8, DdsDecoder.BcFamily.BC7, new byte[32], mipLevels: 1));
+            () => DdsEncoder.Encode(8, 8, DdsDecoder.BcFamily.BC6H, new byte[64], mipLevels: 1));
+        Assert.Throws<ImageDecodeException>(
+            () => DdsEncoder.Encode(8, 8, Format.Rgba8Unorm, new byte[256], mipLevels: 1));
+    }
+
+    /// <summary>
+    /// Tests DX10 DDS encoding and decoding round-trips for BC4, BC4 SNORM, BC5, and BC7 (UNORM and sRGB).
+    /// </summary>
+    [TestCase(Format.Bc4Unorm, DdsDecoder.BcFamily.BC4, 32)]
+    [TestCase(Format.Bc4Snorm, DdsDecoder.BcFamily.BC4, 32)]
+    [TestCase(Format.Bc5Rg, DdsDecoder.BcFamily.BC5, 64)]
+    [TestCase(Format.Bc7Unorm, DdsDecoder.BcFamily.BC7, 64)]
+    [TestCase(Format.Bc7Srgb, DdsDecoder.BcFamily.BC7, 64)]
+    [TestCase(Format.Bc3Srgb, DdsDecoder.BcFamily.BC3, 64)]
+    public void Encode_Dx10Formats_RoundTripThroughDecoder(Format format, DdsDecoder.BcFamily expectedFamily, int payloadBytes)
+    {
+        byte[] payload = new byte[payloadBytes];
+        byte[] file = DdsEncoder.Encode(8, 8, format, payload, mipLevels: 1);
+
+        Assert.That(DdsDecoder.HasDx10Header(file), Is.True);
+        DdsDecoder.Decode(file, srgb: false, out DdsDecoder.BcFamily family, out Format decodedFormat,
+            out int width, out int height, out int mipLevels, out int dataOffset);
+
+        Assert.That(family, Is.EqualTo(expectedFamily));
+        Assert.That(decodedFormat, Is.EqualTo(format));
+        Assert.That(width, Is.EqualTo(8));
+        Assert.That(height, Is.EqualTo(8));
+        Assert.That(mipLevels, Is.EqualTo(1));
+        Assert.That(dataOffset, Is.EqualTo(148));
+        Assert.That(file.Length, Is.EqualTo(148 + payloadBytes));
     }
 }

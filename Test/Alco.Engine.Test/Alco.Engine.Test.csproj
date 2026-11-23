@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TestFramework\TestFramework.csproj" />
     <ProjectReference Include="..\..\Src\Alco.Engine\Alco.Engine.csproj" />
+    <ProjectReference Include="..\..\Tool\Alco.TextureConverter\Alco.TextureConverter.csproj" />
     <PackageReference Include="System.IO.Hashing" Version="9.0.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

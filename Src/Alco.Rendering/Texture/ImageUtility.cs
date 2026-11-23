@@ -403,6 +403,26 @@ public static unsafe class ImageUtility
     }
 
     /// <summary>
+    /// Converts tightly packed RGBA8 pixel data from straight alpha to premultiplied alpha in place.
+    /// </summary>
+    /// <param name="rgbaPixels">Tightly packed RGBA8 pixels whose byte length is divisible by 4.</param>
+    public static void PremultiplyRgba8(Span<byte> rgbaPixels)
+    {
+        if (rgbaPixels.Length % 4 != 0)
+        {
+            throw new ArgumentException("RGBA8 buffer length must be divisible by 4.", nameof(rgbaPixels));
+        }
+        if (rgbaPixels.IsEmpty)
+        {
+            return;
+        }
+        fixed (byte* ptr = rgbaPixels)
+        {
+            PremultiplyAlpha(ptr, rgbaPixels.Length / 4);
+        }
+    }
+
+    /// <summary>
     /// Converts RGBA8 pixel data from straight alpha to premultiplied alpha in place.
     /// Uses AVX2, SSSE3+SSE2, or scalar fallback.
     /// </summary>

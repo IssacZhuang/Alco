@@ -146,6 +146,7 @@ internal static class RenderingSystemTests
 
             CheckBuffers(device, check);
             CheckBufferBudget(device, check);
+            CheckCompressionFoundationApis(device, check);
             CheckTextureGrowth(device, check);
             CheckTextureBudget(device, check);
             CheckConcurrentResources(device, check);
@@ -1870,6 +1871,99 @@ internal static class RenderingSystemTests
             device.WaitIdle();
             unexpected?.Destroy();
             texture?.Destroy();
+            system?.Destroy();
+        }
+    }
+
+    private static void CheckCompressionFoundationApis(GPUDevice device, Action<bool, string> check)
+    {
+        RenderingSystem? system = null;
+        RenderContext? context = null;
+        Buffer? staging = null;
+        Buffer? gpuBuffer = null;
+        Texture? mutableTexture = null;
+        Texture? targetTexture = null;
+        try
+        {
+            system = new RenderingSystem(device, 8 * 1024 * 1024);
+            context = new RenderContext(system);
+
+            ReadOnlySpan<byte> payload =
+            [
+                0x10, 0x20, 0x30, 0xFF, 0x40, 0x50, 0x60, 0xFF, 0x70, 0x80, 0x90, 0xFF, 0xA0, 0xB0, 0xC0, 0xFF,
+                0x11, 0x22, 0x33, 0x80, 0x44, 0x55, 0x66, 0x80, 0x77, 0x88, 0x99, 0x80, 0xAA, 0xBB, 0xCC, 0x80,
+                0x01, 0x02, 0x03, 0x40, 0x04, 0x05, 0x06, 0x40, 0x07, 0x08, 0x09, 0x40, 0x0A, 0x0B, 0x0C, 0x40,
+                0xF0, 0xE0, 0xD0, 0x20, 0xC0, 0xB0, 0xA0, 0x20, 0x90, 0x80, 0x70, 0x20, 0x60, 0x50, 0x40, 0x20,
+            ];
+
+            staging = system.CreateBuffer<byte>(payload);
+            gpuBuffer = system.CreateBuffer((ulong)payload.Length, MemoryType.GpuOnly);
+            check(gpuBuffer.Memory == MemoryType.GpuOnly &&
+                  gpuBuffer.GetView(16).Equals(gpuBuffer.Range.Slice(16).View) &&
+                  gpuBuffer.GetView(16).Offset == gpuBuffer.View.Offset + 16,
+                "GPU-only buffers expose offset buffer views matching sliced GPU ranges");
+
+            bool rejectedDirectWrite = false;
+            try
+            {
+                gpuBuffer.SetData(payload);
+            }
+            catch (InvalidOperationException)
+            {
+                rejectedDirectWrite = true;
+            }
+            check(rejectedDirectWrite, "SetData rejects GPU-only buffers without a CPU mapping");
+
+            mutableTexture = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(4, 4, 1),
+                Format = Format.Rgba8Srgb,
+                Usage = TextureUsage.Sampled | TextureUsage.TransferDestination,
+                MutableFormat = true,
+            });
+            uint srgbSlot = mutableTexture.GetSampledIndex(Format.Undefined);
+            uint unormSlot = mutableTexture.GetSampledIndex(Format.Rgba8Unorm);
+            uint unormSlotCached = mutableTexture.GetSampledIndex(Format.Rgba8Unorm);
+            check(srgbSlot == mutableTexture.SampledIndex && unormSlot != Texture.NoIndex && unormSlot != srgbSlot && unormSlotCached == unormSlot,
+                "MutableFormat textures cache distinct alternate-format sampled descriptor slots");
+
+            targetTexture = system.CreateTexture(new TextureDesc
+            {
+                Extent = new Extent3D(4, 4, 1),
+                Format = Format.Rgba8Unorm,
+                Usage = TextureUsage.Sampled | TextureUsage.TransferSource | TextureUsage.TransferDestination,
+            });
+
+            context.BeginFrame();
+            context.CopyMemory(staging.Range, gpuBuffer.Range);
+            context.Barrier(
+                Stage.AllCommands,
+                Access.ShaderRead | Access.ShaderWrite | Access.TransferRead | Access.TransferWrite,
+                Stage.Transfer,
+                Access.TransferRead | Access.TransferWrite);
+            context.CopyMemoryToTexture(gpuBuffer.Range, targetTexture.NativeTexture);
+            context.Barrier(Stage.Transfer, Access.TransferWrite, Stage.AllCommands, Access.ShaderRead | Access.TransferRead);
+            system.Submit([context]).Wait();
+
+            Span<byte> readBufferBytes = new byte[32];
+            system.ReadBuffer(gpuBuffer, readBufferBytes, byteOffset: 16);
+            check(readBufferBytes.SequenceEqual(payload.Slice(16, 32)),
+                "ReadBuffer synchronizes and reads GPU-only buffer slices accurately");
+
+            Span<byte> readTextureBytes = new byte[payload.Length];
+            system.ReadTexture(targetTexture, readTextureBytes);
+            check(readTextureBytes.SequenceEqual(payload),
+                "RenderContext.CopyMemoryToTexture uploads GPU buffer data to textures accurately");
+        }
+        finally
+        {
+            device.WaitIdle();
+            context?.DiscardFrame();
+            context?.Destroy();
+            targetTexture?.Destroy();
+            mutableTexture?.Destroy();
+            gpuBuffer?.Destroy();
+            staging?.Destroy();
             system?.Destroy();
         }
     }
