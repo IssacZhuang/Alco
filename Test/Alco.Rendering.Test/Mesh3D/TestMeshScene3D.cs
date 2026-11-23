@@ -398,6 +398,7 @@ public unsafe class TestMeshScene3D
     [TestCase(GraphicsBackend.VulkanCompact)]
     [TestCase(GraphicsBackend.Vulkan)]
     [TestCase(GraphicsBackend.Dx12)]
+    [TestCase(GraphicsBackend.Metal)]
     public void MeshScene3D_GpuCulling_Over100Buckets_3DTransforms_AndSetBucket(GraphicsBackend backend)
     {
         if (!TryCreateGpuHost(backend, out RenderingTestHost? host))
@@ -665,6 +666,20 @@ public unsafe class TestMeshScene3D
         if (backend == GraphicsBackend.Vulkan && !OperatingSystem.IsWindows() && !OperatingSystem.IsLinux())
         {
             Assert.Ignore("Full Vulkan backend is tested on Windows/Linux.");
+            host = null;
+            return false;
+        }
+
+        if (backend == GraphicsBackend.Dx12 && !OperatingSystem.IsWindows())
+        {
+            Assert.Ignore("D3D12 backend is tested on Windows.");
+            host = null;
+            return false;
+        }
+
+        if (backend == GraphicsBackend.Metal && !OperatingSystem.IsMacOS())
+        {
+            Assert.Ignore("Metal backend is tested on macOS.");
             host = null;
             return false;
         }
