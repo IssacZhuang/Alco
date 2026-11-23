@@ -1,13 +1,13 @@
 using System.Numerics;
 using Alco.Graphics;
 
-namespace Alco.Effects;
+namespace Alco.Rendering;
 
 /// <summary>
 /// Pools reusable <see cref="Alco.Graphics.Buffer"/> instances for per-frame transient GPU uploads
 /// and work tables, never overwriting a buffer until its last recorded frame has completed.
 /// </summary>
-internal sealed class TransientBufferPool : AutoDisposable
+public sealed class TransientBufferPool : AutoDisposable
 {
     private struct Entry
     {

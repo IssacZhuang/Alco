@@ -17,11 +17,19 @@
    <ItemGroup>
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_Bloom.slang" LogicalName="AlcoRendering_Bloom.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_FXAA.slang" LogicalName="AlcoRendering_FXAA.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_Sprite2D.slang" LogicalName="AlcoRendering_Sprite2D.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_SpriteScene.slang" LogicalName="AlcoRendering_SpriteScene.slang" />
     <EmbeddedResource Include="Assets\Shaders\Libs\AlcoRendering_Tonemap.slang" LogicalName="AlcoRendering_Tonemap.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Materials\SpriteSceneSurface*.slang" LogicalName="%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\Compute\GpuInstanceScatter.slang" LogicalName="GpuInstanceScatter.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SpriteScene*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\Compute\SvgRasterize.slang" LogicalName="SvgRasterize.slang" />
     <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\Bloom\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\FXAA\*.slang" LogicalName="%(Filename)%(Extension)" />
     <EmbeddedResource Include="Assets\Shaders\Passes\PostFX\Tonemap\*.slang" LogicalName="%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\Scene\Sprite2DDefault.slang" LogicalName="Sprite2DDefault.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\Scene\Sprite2DPass.slang" LogicalName="Sprite2DPass.slang" />
+    <EmbeddedResource Include="Assets\Shaders\Passes\Scene\SpriteScenePass.slang" LogicalName="SpriteScenePass.slang" />
     <Content
       Condition="'$(UseAssetsPack)' == 'false'"
       Include="$(MSBuildThisFileDirectory)/Assets/**/*.*">
