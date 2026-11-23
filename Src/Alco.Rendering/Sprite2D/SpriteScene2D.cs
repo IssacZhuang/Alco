@@ -280,6 +280,12 @@ public sealed unsafe class SpriteScene2D : AutoDisposable
             return;
         }
 
+        // Scene buffers are shared by all in-flight frames, unlike the frame's root storage.
+        context.Barrier(
+            Stage.Compute | Stage.Indirect | Stage.Vertex,
+            Access.ShaderRead | Access.ShaderWrite | Access.IndirectRead,
+            Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+
         using (RenderContext.ComputeScope compute = context.BeginCompute())
         {
             bool membershipChanged = _pool.SyncToGpu(context, compute);

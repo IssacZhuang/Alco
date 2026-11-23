@@ -322,6 +322,11 @@ public sealed unsafe class MeshScene3D : AutoDisposable
             return;
         }
 
+        context.Barrier(
+            Stage.Compute | Stage.Vertex | Stage.Pixel,
+            Access.ShaderRead | Access.ShaderWrite,
+            Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
+
         bool uploadedMeta;
         using (RenderContext.ComputeScope compute = context.BeginCompute())
         {
@@ -356,6 +361,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
         MeshScene3DCullOutput target = output ?? _defaultCullOutput;
         target.EnsureCapacity(_buckets.Count, _pool.SlotCapacity);
+        SynchronizeCullOutputReuse(context);
 
         using (RenderContext.ComputeScope compute = context.BeginCompute())
         {
@@ -392,6 +398,7 @@ public sealed unsafe class MeshScene3D : AutoDisposable
 
         MeshScene3DCullOutput target = output ?? _defaultCullOutput;
         target.EnsureCapacity(_buckets.Count, _pool.SlotCapacity);
+        SynchronizeCullOutputReuse(context);
 
         using (RenderContext.ComputeScope compute = context.BeginCompute())
         {
@@ -577,6 +584,15 @@ public sealed unsafe class MeshScene3D : AutoDisposable
         {
             _bucketMetaBuffer.Destroy();
         }
+    }
+
+    private static void SynchronizeCullOutputReuse(RenderContext context)
+    {
+        // Each output has one buffer pair, even when reused by multiple frames or views.
+        context.Barrier(
+            Stage.Compute | Stage.Indirect | Stage.Vertex | Stage.Pixel,
+            Access.ShaderRead | Access.ShaderWrite | Access.IndirectRead,
+            Stage.Compute, Access.ShaderRead | Access.ShaderWrite);
     }
 
     private bool SyncInternal(RenderContext context, in RenderContext.ComputeScope compute)
