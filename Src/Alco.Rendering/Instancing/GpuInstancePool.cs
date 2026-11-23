@@ -28,7 +28,7 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
     {
         public readonly GpuInstancePool<TInstance> Pool = pool;
         public readonly InstanceSlot<TInstance> Slot = new();
-        public readonly uint BucketId = bucketId;
+        public uint BucketId = bucketId;
         public TInstance InitialData = initialData;
         public Texture? InitialPrimary = primaryTexture;
         public Texture? InitialAux = auxTexture;
@@ -73,11 +73,29 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         /// <summary>Gets the slot write handle used to publish updated instance data.</summary>
         public InstanceSlot<TInstance> Slot => _record.Slot;
 
-        /// <summary>Gets the bucket identifier assigned at registration.</summary>
-        public uint BucketId => _record.BucketId;
+        /// <summary>Gets the bucket identifier currently assigned to this slot.</summary>
+        public uint BucketId => Volatile.Read(ref _record.BucketId);
 
         /// <summary>Gets whether this registration handle has been disposed.</summary>
         public bool IsDisposed => Volatile.Read(ref _record.Disposed) != 0;
+
+        /// <summary>Queues a bucket reassignment for this slot, applied on the next flush.</summary>
+        /// <param name="newBucketId">Target bucket identifier.</param>
+        public void SetBucket(uint newBucketId)
+        {
+            if (newBucketId == NoBucket)
+            {
+                throw new ArgumentOutOfRangeException(nameof(newBucketId), "Bucket identifier cannot be uint.MaxValue.");
+            }
+
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            Volatile.Write(ref _record.BucketId, newBucketId);
+            _record.Pool._pendingBucketUpdates.Enqueue(new BucketUpdate(_record, newBucketId));
+        }
 
         /// <summary>Queues a bindless texture retention update for this registration's slot.</summary>
         /// <param name="primary">Primary sampled texture, or null.</param>
@@ -108,6 +126,8 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         }
     }
 
+    private readonly record struct BucketUpdate(SlotRecord Target, uint BucketId);
+
     private readonly record struct TextureUpdate(SlotRecord Target, Texture? Primary, Texture? Aux);
 
     private readonly record struct RetiredBuffer(Alco.Graphics.Buffer Buffer, RenderContext? Context, ulong FrameId);
@@ -134,6 +154,7 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
     private readonly ConcurrentQueue<int> _dirtySlots = new();
     private readonly ConcurrentQueue<SlotRecord> _pendingAdds = new();
     private readonly ConcurrentQueue<SlotRecord> _pendingDetaches = new();
+    private readonly ConcurrentQueue<BucketUpdate> _pendingBucketUpdates = new();
     private readonly ConcurrentQueue<TextureUpdate> _pendingTextureUpdates = new();
 
     private readonly HashSet<int> _dirtyDedupe = new();
@@ -290,6 +311,22 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         _dirtySlots.Enqueue(slot);
     }
 
+    /// <summary>Reassigns a live direct slot to <paramref name="newBucketId"/> on the render thread.</summary>
+    /// <param name="slot">Global slot index returned by <see cref="AddDirect"/>.</param>
+    /// <param name="newBucketId">Target bucket identifier.</param>
+    public void UpdateBucketDirect(int slot, uint newBucketId)
+    {
+        ObjectDisposedException.ThrowIf(IsDisposed, this);
+        if (newBucketId == NoBucket)
+        {
+            throw new ArgumentOutOfRangeException(nameof(newBucketId), "Bucket identifier cannot be uint.MaxValue.");
+        }
+
+        Debug.Assert((uint)slot < (uint)_totalSlots);
+
+        ReassignSlotBucket(slot, newBucketId);
+    }
+
     /// <summary>Releases a direct slot on the render thread.</summary>
     /// <param name="slot">Global slot index returned by <see cref="AddDirect"/>.</param>
     public void RemoveDirect(int slot)
@@ -299,7 +336,7 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
     }
 
     /// <summary>
-    /// Applies pending deferred detachments, additions, and texture updates on the render thread.
+    /// Applies pending deferred detachments, additions, bucket reassignments, and texture updates on the render thread.
     /// Detachments run first so same-frame dispose and re-registration stay consistent.
     /// </summary>
     /// <returns><see langword="true"/> when bucket membership counts changed since the last flush.</returns>
@@ -327,7 +364,7 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
             }
 
             TInstance initialData = record.TakeInitialData(out Texture? primary, out Texture? aux);
-            int slot = AllocateSlot(record.BucketId);
+            int slot = AllocateSlot(Volatile.Read(ref record.BucketId));
             TInstance[] chunk = _chunks[slot / ChunkSize];
             int offset = slot % ChunkSize;
             chunk[offset] = initialData;
@@ -342,6 +379,20 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
                 record.Slot.Clear();
                 ReleaseSlot(slot);
                 Volatile.Write(ref record.PoolSlot, -1);
+            }
+        }
+
+        while (_pendingBucketUpdates.TryDequeue(out BucketUpdate update))
+        {
+            if (Volatile.Read(ref update.Target.Disposed) != 0)
+            {
+                continue;
+            }
+
+            int slot = Volatile.Read(ref update.Target.PoolSlot);
+            if (slot >= 0)
+            {
+                ReassignSlotBucket(slot, update.BucketId);
             }
         }
 
@@ -471,6 +522,22 @@ public sealed unsafe class GpuInstancePool<TInstance> : AutoDisposable, IInstanc
         MarkBucketSlotDirty(slot);
         _membershipDirty = true;
         return slot;
+    }
+
+    private void ReassignSlotBucket(int slot, uint newBucketId)
+    {
+        uint oldBucket = _slotBuckets[slot];
+        if (oldBucket == NoBucket || oldBucket == newBucketId)
+        {
+            return;
+        }
+
+        EnsureBucketCapacity(newBucketId);
+        --_bucketCounts[oldBucket];
+        ++_bucketCounts[newBucketId];
+        _slotBuckets[slot] = newBucketId;
+        MarkBucketSlotDirty(slot);
+        _membershipDirty = true;
     }
 
     private void ReleaseSlot(int slot)
