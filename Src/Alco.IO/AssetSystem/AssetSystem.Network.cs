@@ -22,17 +22,17 @@ public sealed partial class AssetSystem
     }
 
     /// <summary>
-    /// Attempts to load a remote asset from a URL with error handling and caching support.
+    /// Attempts to load a remote asset from a URL with error handling and recyclable caching support.
     /// </summary>
     /// <param name="url">The URL of the remote asset to load.</param>
+    /// <param name="type">The type of the asset to load.</param>
     /// <param name="asset">When this method returns, contains the loaded asset if successful, or null if loading failed.</param>
     /// <param name="failedReason">When this method returns, contains the error message if loading failed, or null if successful.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>true if the asset was loaded successfully; otherwise, false.</returns>
     /// <remarks>
-    /// Loads are serialized per URL, and cached assets are returned without downloading again.
+    /// Loads are serialized per URL, and cached assets are returned without downloading again while still referenced.
     /// </remarks>
-    public bool TryLoadRemote(string url, Type type, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string? failedReason, AssetCacheMode cacheMode = AssetCacheMode.None)
+    public bool TryLoadRemote(string url, Type type, [NotNullWhen(true)] out object? asset, [NotNullWhen(false)] out string? failedReason)
     {
         asset = null;
         failedReason = string.Empty;
@@ -105,7 +105,7 @@ public sealed partial class AssetSystem
                 }
 
                 // Cache the result
-                handle.SetCache(asset, cacheMode);
+                handle.SetCache(asset);
                 handle.IsLoading = false;
 
                 return true;
@@ -130,11 +130,10 @@ public sealed partial class AssetSystem
     /// <param name="url">The URL of the remote asset to load.</param>
     /// <param name="type">The type of the asset to load.</param>
     /// <param name="asset">When this method returns, contains the loaded asset if successful, or null if loading failed.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>true if the asset was loaded successfully; otherwise, false.</returns>
-    public bool TryLoadRemote(string url, Type type, [NotNullWhen(true)] out object? asset, AssetCacheMode cacheMode = AssetCacheMode.None)
+    public bool TryLoadRemote(string url, Type type, [NotNullWhen(true)] out object? asset)
     {
-        return TryLoadRemote(url, type, out asset, out _, cacheMode);
+        return TryLoadRemote(url, type, out asset, out _);
     }
 
     /// <summary>
@@ -144,11 +143,10 @@ public sealed partial class AssetSystem
     /// <param name="url">The URL of the remote asset to load.</param>
     /// <param name="asset">When this method returns, contains the loaded asset if successful, or null if loading failed.</param>
     /// <param name="failedReason">When this method returns, contains the error message if loading failed, or null if successful.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>true if the asset was loaded successfully; otherwise, false.</returns>
-    public bool TryLoadRemote<TAsset>(string url, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason, AssetCacheMode cacheMode = AssetCacheMode.None)
+    public bool TryLoadRemote<TAsset>(string url, [NotNullWhen(true)] out TAsset? asset, [NotNullWhen(false)] out string? failedReason)
     {
-        if (TryLoadRemote(url, typeof(TAsset), out object? tmpAsset, out failedReason, cacheMode))
+        if (TryLoadRemote(url, typeof(TAsset), out object? tmpAsset, out failedReason))
         {
             asset = (TAsset)tmpAsset;
             return true;
@@ -164,11 +162,10 @@ public sealed partial class AssetSystem
     /// <typeparam name="TAsset">The type of asset to load. Must be a reference type.</typeparam>
     /// <param name="url">The URL of the remote asset to load.</param>
     /// <param name="asset">When this method returns, contains the loaded asset if successful, or null if loading failed.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>true if the asset was loaded successfully; otherwise, false.</returns>
-    public bool TryLoadRemote<TAsset>(string url, [NotNullWhen(true)] out TAsset? asset, AssetCacheMode cacheMode = AssetCacheMode.None) where TAsset : class
+    public bool TryLoadRemote<TAsset>(string url, [NotNullWhen(true)] out TAsset? asset) where TAsset : class
     {
-        return TryLoadRemote(url, out asset, out _, cacheMode);
+        return TryLoadRemote(url, out asset, out _);
     }
 
     /// <summary>
@@ -176,12 +173,11 @@ public sealed partial class AssetSystem
     /// </summary>
     /// <typeparam name="TAsset">The type of asset to load. Must be a reference type.</typeparam>
     /// <param name="url">The URL of the remote asset to load.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>The loaded asset.</returns>
     /// <exception cref="AssetLoadException">Thrown when the asset cannot be loaded.</exception>
-    public TAsset LoadRemote<TAsset>(string url, AssetCacheMode cacheMode = AssetCacheMode.None) where TAsset : class
+    public TAsset LoadRemote<TAsset>(string url) where TAsset : class
     {
-        if (TryLoadRemote(url, out TAsset? asset, out string? failedReason, cacheMode))
+        if (TryLoadRemote(url, out TAsset? asset, out string? failedReason))
         {
             return asset;
         }
@@ -193,12 +189,11 @@ public sealed partial class AssetSystem
     /// </summary>
     /// <param name="url">The URL of the remote asset to load.</param>
     /// <param name="type">The type of the asset to load.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>The loaded asset.</returns>
     /// <exception cref="AssetLoadException">Thrown when the asset cannot be loaded.</exception>
-    public object LoadRemote(string url, Type type, AssetCacheMode cacheMode = AssetCacheMode.None)
+    public object LoadRemote(string url, Type type)
     {
-        if (TryLoadRemote(url, type, out object? asset, out string? failedReason, cacheMode))
+        if (TryLoadRemote(url, type, out object? asset, out string? failedReason))
         {
             return asset;
         }
@@ -210,12 +205,11 @@ public sealed partial class AssetSystem
     /// </summary>
     /// <typeparam name="TAsset">The type of asset to load. Must be a reference type.</typeparam>
     /// <param name="url">The URL of the remote asset to load.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>A task that represents the asynchronous load operation. The task result contains the loaded asset.</returns>
     /// <exception cref="AssetLoadException">Thrown when the asset cannot be loaded.</exception>
-    public Task<TAsset> LoadRemoteAsync<TAsset>(string url, AssetCacheMode cacheMode = AssetCacheMode.None) where TAsset : class
+    public Task<TAsset> LoadRemoteAsync<TAsset>(string url) where TAsset : class
     {
-        return Task.Run(() => LoadRemote<TAsset>(url, cacheMode));
+        return Task.Run(() => LoadRemote<TAsset>(url));
     }
 
     /// <summary>
@@ -223,11 +217,10 @@ public sealed partial class AssetSystem
     /// </summary>
     /// <param name="url">The URL of the remote asset to load.</param>
     /// <param name="type">The type of the asset to load.</param>
-    /// <param name="cacheMode">Specifies how the loaded asset should be cached. Defaults to AssetCacheMode.None.</param>
     /// <returns>A task that represents the asynchronous load operation. The task result contains the loaded asset.</returns>
     /// <exception cref="AssetLoadException">Thrown when the asset cannot be loaded.</exception>
-    public Task<object> LoadRemoteAsync(string url, Type type, AssetCacheMode cacheMode = AssetCacheMode.None)
+    public Task<object> LoadRemoteAsync(string url, Type type)
     {
-        return Task.Run(() => LoadRemote(url, type, cacheMode));
+        return Task.Run(() => LoadRemote(url, type));
     }
 }

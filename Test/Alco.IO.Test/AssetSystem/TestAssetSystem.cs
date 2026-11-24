@@ -347,63 +347,37 @@ public class TestAssetSystem
 
 
    
-// the garbage collect is lazy in debug mode
-// it might cause the test failed
     /// <summary>
-    /// Tests cache modes and garbage collection of recyclable assets.
+    /// Tests that cached assets stay alive while referenced and are collected by GC once external references are released.
     /// </summary>
-#if !DEBUG
     [Test]
-#endif
     public void TestGarbagCollect()
     {
         using LifeCycleProvider lifeCycleProvider = new LifeCycleProvider();
         AssetSystem assetSystem = new AssetSystem(lifeCycleProvider);
         assetSystem.RegisterAssetLoader(new TestFastAssetLoader());
-        assetSystem.RegisterAssetLoader(new TestSlowAssetLoader());
         assetSystem.AddFileSource(new TestFileSource());
 
-        var fastAsset = assetSystem.Load<TestFastAsset>("test.fast", AssetCacheMode.None);
-
-        Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
-
-        //AssetCacheMode.Recyclable by default
-        fastAsset = assetSystem.Load<TestFastAsset>("test.fast", AssetCacheMode.Recyclable);
-
-        //before release reference
-        Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
-        //release reference
-        fastAsset = null;
+        LoadAndVerifyCachedWhileReferenced(assetSystem);
 
         GC.Collect();
         GC.WaitForPendingFinalizers();
-
-        Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
-
-        //async load
-        // this test is disabled because the asset might be hold by the async state machine and not be collected during the test
-        // fastAsset = await assetSystem.LoadAsync<TestFastAsset>("test.fast");
-        // Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
-
-        // fastAsset = null;
-        // GC.Collect();
-        // GC.WaitForPendingFinalizers();
-
-        // Assert.IsFalse(assetSystem.DebugIsAssetCached("test.fast"));
-
-        //strong cache
-        fastAsset = assetSystem.Load<TestFastAsset>("test.fast", AssetCacheMode.Persistent);
-
-        fastAsset = null;
-        
-
         GC.Collect();
-        GC.WaitForPendingFinalizers();
 
-        Assert.IsTrue(assetSystem.DebugIsAssetCached("test.fast"));
+        Assert.That(assetSystem.DebugIsAssetCached("test.fast"), Is.False);
 
+        TestFastAsset reloaded = assetSystem.Load<TestFastAsset>("test.fast");
+        Assert.That(reloaded, Is.Not.Null);
+        Assert.That(assetSystem.DebugIsAssetCached("test.fast"), Is.True);
+        GC.KeepAlive(reloaded);
+    }
 
-        //assetSystem.Dispose();
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void LoadAndVerifyCachedWhileReferenced(AssetSystem assetSystem)
+    {
+        var fastAsset = assetSystem.Load<TestFastAsset>("test.fast");
+        Assert.That(assetSystem.DebugIsAssetCached("test.fast"), Is.True);
+        GC.KeepAlive(fastAsset);
     }
 
     private class VirtualFileSource : IFileSource

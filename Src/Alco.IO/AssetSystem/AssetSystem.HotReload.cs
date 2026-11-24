@@ -163,7 +163,7 @@ public sealed partial class AssetSystem
                 return;
             }
 
-            newHandle.SetCache(reloadedAsset, handle.CacheMode);
+            newHandle.SetCache(reloadedAsset);
         }
 
         if (_assetLookup.TryUpdate(filename, newHandle, handle))

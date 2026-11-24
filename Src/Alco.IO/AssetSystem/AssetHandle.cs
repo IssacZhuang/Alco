@@ -2,14 +2,10 @@ using System.Runtime.CompilerServices;
 
 namespace Alco.IO;
 
-internal class AssetHandle
+internal sealed class AssetHandle
 {
-    private WeakReference? _weakReference;
-    private object? _strongReference;
-    private AssetCacheMode _cacheMode;
+    private volatile WeakReference<object>? _weakReference;
     private bool _isLoading = false;
-
-    public AssetCacheMode CacheMode => _cacheMode;
 
     public bool IsLoading
     {
@@ -19,37 +15,20 @@ internal class AssetHandle
         set => _isLoading = value;
     }
 
-
     public object? CachedAsset
-    {
-        get
-        {
-            if (_weakReference != null && _weakReference.IsAlive)
-            {
-                return _weakReference.Target;
-            }
+        => _weakReference != null && _weakReference.TryGetTarget(out object? target) ? target : null;
 
-            return _strongReference;
-        }
-    }
-
-    public void SetCache(object obj, AssetCacheMode cacheMode)
+    public void SetCache(object obj)
     {
-        _cacheMode = cacheMode;
-        if (cacheMode == AssetCacheMode.Recyclable)
+        WeakReference<object>? weakRef = _weakReference;
+        if (weakRef == null)
         {
-            _weakReference = new WeakReference(obj);
+            _weakReference = new WeakReference<object>(obj);
         }
-        else if (cacheMode == AssetCacheMode.Persistent)
+        else
         {
-            _strongReference = obj;
+            weakRef.SetTarget(obj);
         }
-        // else do nothing
-    }
-
-    public AssetHandle()
-    {
-        
     }
 
     public void ResetLoadingState()

@@ -172,8 +172,7 @@ public class Game : GameEngine
     private void AllocResource()
     {
         //test the garbage collector for both RAM and VRAM
-        //load asset without cache
-        //AssetSystem.Load<Font>("Font/Default.ttf", AssetCacheMode.None);
+        //AssetSystem.Load<Font>("Font/Default.ttf");
         RenderingSystem.CreateGraphicsArrayBuffer<Vector3>(1000);
         RenderingSystem.CreateRenderTexture(RenderingSystem.PreferredHDRPass, 1280, 720);
     }
